@@ -1,5 +1,6 @@
 from discord.ext import commands
 from discord.ext.commands import Bot
+import asyncio
 
 import discord
 import threading
@@ -31,13 +32,8 @@ class DiscordBot(Bot):
             ),
         )
 
-        cogs = ["twitch", "events", "moderations"]
-
-        for func in cogs:
-            super().load_extension(f"cogs.{func}")
-
-    def run(self):
-        super().run(self.config.BOT_TOKEN)
+    async def run(self):
+        await super().start(self.config.BOT_TOKEN)
 
     def stop(self):
         self.bot.logout()

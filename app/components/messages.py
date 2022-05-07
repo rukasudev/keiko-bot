@@ -3,14 +3,14 @@ import discord
 
 
 class CreateFormQuestions(discord.ui.View):
-    def __init__(self, questions: discord.Embed, confirm_button: discord.Button):
-        self.index = 0
+    def __init__(self, questions: discord.Embed):
+        self.index = 1
         self.questions = questions
         super().__init__()
 
     @discord.ui.button(label="✔️", style=discord.ButtonStyle.green)
     async def initial_button(
-        self, button: discord.ui.Button, interaction: discord.Interaction
+        self, interaction: discord.Interaction, button: discord.ui.Button
     ):
         actual_question = self.questions[self.index]
 

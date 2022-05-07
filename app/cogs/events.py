@@ -39,5 +39,5 @@ class Events(commands.Cog, name="Events"):
         await self.moderation.block_links(message, guild_id)
 
 
-def setup(bot):
-    bot.add_cog(Events(bot))
+async def setup(bot):
+    await bot.add_cog(Events(bot))

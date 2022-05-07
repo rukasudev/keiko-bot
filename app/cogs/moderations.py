@@ -96,7 +96,7 @@ class ModerationCogs(commands.Cog, name="Moderations"):
             "block_links"
         )
 
-        if enabled:
+        if not enabled:
             questions = [
                 {
                     "message": self.embed.block_link_message_with_title(
@@ -119,13 +119,13 @@ class ModerationCogs(commands.Cog, name="Moderations"):
                 },
             ]
 
-            teste = CreateFormQuestions(questions, "teste")
+            embeded_form = CreateFormQuestions(questions)
 
-            await ctx.send("Teste", view=teste)
+            await ctx.send(embed=questions[0]["message"], view=embeded_form)
 
         else:
             pass
 
 
-def setup(bot):
-    bot.add_cog(ModerationCogs(bot))
+async def setup(bot):
+    await bot.add_cog(ModerationCogs(bot))

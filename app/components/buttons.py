@@ -1,5 +1,4 @@
 import discord
-from discord.components import Button
 import mongo
 
 
