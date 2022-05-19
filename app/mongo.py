@@ -9,6 +9,9 @@ class MongoDB:
         ca = certifi.where()
         self.db = MongoClient(MONGO_URL, tlsCAFile=ca)
 
+    def find_parameter_by_guild(self, guild_id: str, param: str) -> dict:
+        return self.db.guild.parameters.find_one({"guild_id": guild_id}).get(param)
+
     def find_parameters_by_guild(self, guild_id: str) -> dict:
         return self.db.guild.parameters.find_one({"guild_id": guild_id})
 

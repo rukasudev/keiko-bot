@@ -2,7 +2,7 @@ import discord
 from logger import logger
 from datetime import datetime
 from discord.ext import commands
-from cogs.moderations import Moderation
+from moderations import Moderation
 
 
 class Events(commands.Cog, name="Events"):

@@ -15,13 +15,7 @@ class Main:
         redis_client = redis.from_url(config.REDIS_URL)
 
         bot = DiscordBot(config, mongo_client)
-        cogs = ["twitch", "events", "moderations"]
-
-        async with bot:
-            for func in cogs:
-                await bot.load_extension(f"cogs.{func}")
-
-            await bot.run()
+        await bot.run()
 
 
 if __name__ == "__main__":

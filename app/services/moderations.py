@@ -16,9 +16,7 @@ class Moderation:
         enabled = None
 
         try:
-            enabled = self.bot.mongo_db.find_parameters_by_guild(guild_id)[
-                "block_links"
-            ]
+            enabled = self.bot.mongo_db.find_parameter_by_guild(guild_id, "block_links")
         except Exception:
             pass
 
@@ -108,7 +106,7 @@ class ModerationCogs(commands.Cog, name="Moderations"):
                     "message": self.embed.block_link_message_with_title(
                         title="Escolha abaixo quais chats serão permitidos links"
                     ),
-                    "action": "choices",
+                    "action": "options",
                     "options": self.moderation.get_all_guild_channels(ctx.guild),
                 },
                 {

@@ -14,7 +14,7 @@ class CreateFormQuestions(discord.ui.View):
     ):
         actual_question = self.questions[self.index]
 
-        if actual_question["action"] == "choices":
+        if actual_question["action"] == "options":
             self.remove_item(button)
 
             for index, option in enumerate(actual_question["options"]):

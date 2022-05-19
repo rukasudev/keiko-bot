@@ -32,8 +32,16 @@ class DiscordBot(Bot):
             ),
         )
 
+    async def load_cogs(self):
+        cogs = ["events", "moderations", "twitch"]
+
+        for func in cogs:
+            await self.load_extension(f"services.{func}")
+
     async def run(self):
-        await super().start(self.config.BOT_TOKEN)
+        async with self:
+            await self.load_cogs()
+            await self.start(self.config.BOT_TOKEN)
 
     def stop(self):
-        self.bot.logout()
+        self.logout()
