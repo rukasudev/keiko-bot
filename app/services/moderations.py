@@ -1,33 +1,62 @@
-from logger import logger
-from datetime import datetime
-from discord.ext import commands
-from components.embed import CustomEmbeds
+from data.moderations import ModerationData
 from components.messages import CreateFormQuestions
-
-import discord
+from components.embed import CustomEmbeds
+from logger import logger
 import re
 
 
 class Moderation:
     def __init__(self, bot):
         self.bot = bot
+        self.embed = CustomEmbeds()
 
-    async def block_links(self, message, guild_id):
-        enabled = None
-
-        try:
-            enabled = self.bot.mongo_db.find_parameter_by_guild(guild_id, "block_links")
-        except Exception:
-            pass
+    async def block_links_on_message(self, guild_id, message):
+        enabled = self.bot.mongo_db.moderations.find_parameter_by_guild(
+            guild_id, "block_links"
+        )
 
         if enabled:
-            parameters = self.bot.mongo_db.find_blocked_links_by_guild(guild_id)
+            parameters = self.bot.mongo_db.moderations.find_blocked_links_by_guild(
+                guild_id
+            )
             permited_chats = parameters["unblocked_chats"]
             has_links = self.check_message_has_link(message)
 
             if len(has_links) > 0 and not str(message.channel.id) in permited_chats:
                 await message.delete()
                 await message.channel.send(parameters["message"])
+
+    async def block_links_command(self, ctx, guild_id):
+        enabled = self.bot.mongo_db.moderations.find_parameters_by_guild(guild_id)[
+            "block_links"
+        ]
+
+        if not enabled:
+            questions = [
+                {
+                    "message": self.embed.block_link_message_with_title(
+                        title="Deseja ativar o bloqueador de links?", desc=True
+                    ),
+                    "action": "button",
+                },
+                {
+                    "message": self.embed.block_link_message_with_title(
+                        title="Escolha abaixo quais chats serão permitidos links"
+                    ),
+                    "action": "options",
+                    "options": self.get_all_guild_channels(ctx.guild),
+                },
+                {
+                    "message": self.embed.block_link_message_with_title(
+                        title="Insira a mensagem a ser enviada pelo bot ao bloquear link"
+                    ),
+                    "action": "confirm",
+                },
+            ]
+
+            embeded_form = CreateFormQuestions(questions)
+
+            await ctx.send(embed=questions[0]["message"], view=embeded_form)
 
     def check_message_has_link(self, message):
         return re.findall(
@@ -75,55 +104,3 @@ class Moderation:
         #     embed.set_image(url="")
 
         # await channel.send(embed=embed)
-
-
-class ModerationCogs(commands.Cog, name="Moderations"):
-    def __init__(self, bot):
-        self.bot = bot
-        self.moderation = Moderation(bot)
-        self.embed = CustomEmbeds()
-
-    @commands.command(
-        name="block_links",
-        aliases=["bl"],
-        # description="", //TODO: Add descriptions in commands
-    )
-    async def _block_links(self, ctx):
-        guild_id = str(ctx.guild.id)
-        enabled = self.bot.mongo_db.find_parameters_by_guild(guild_id).get(
-            "block_links"
-        )
-
-        if not enabled:
-            questions = [
-                {
-                    "message": self.embed.block_link_message_with_title(
-                        title="Deseja ativar o bloqueador de links?", desc=True
-                    ),
-                    "action": "button",
-                },
-                {
-                    "message": self.embed.block_link_message_with_title(
-                        title="Escolha abaixo quais chats serão permitidos links"
-                    ),
-                    "action": "options",
-                    "options": self.moderation.get_all_guild_channels(ctx.guild),
-                },
-                {
-                    "message": self.embed.block_link_message_with_title(
-                        title="Insira a mensagem a ser enviada pelo bot ao bloquear link"
-                    ),
-                    "action": "confirm",
-                },
-            ]
-
-            embeded_form = CreateFormQuestions(questions)
-
-            await ctx.send(embed=questions[0]["message"], view=embeded_form)
-
-        else:
-            pass
-
-
-async def setup(bot):
-    await bot.add_cog(ModerationCogs(bot))

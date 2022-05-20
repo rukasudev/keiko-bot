@@ -36,7 +36,7 @@ class DiscordBot(Bot):
         cogs = ["events", "moderations", "twitch"]
 
         for func in cogs:
-            await self.load_extension(f"services.{func}")
+            await self.load_extension(f"cogs.{func}")
 
     async def run(self):
         async with self:

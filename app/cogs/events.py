@@ -2,7 +2,7 @@ import discord
 from logger import logger
 from datetime import datetime
 from discord.ext import commands
-from moderations import Moderation
+from services.moderations import Moderation
 
 
 class Events(commands.Cog, name="Events"):
@@ -31,12 +31,6 @@ class Events(commands.Cog, name="Events"):
         # role_id = 838123185978998788
         # apply_role_in_member()
         pass
-
-    @commands.Cog.listener()
-    async def on_message(self, message):
-        guild_id = str(message.guild.id)
-
-        await self.moderation.block_links(message, guild_id)
 
 
 async def setup(bot):

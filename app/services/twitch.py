@@ -44,12 +44,3 @@ class TwitchMonitor(object):
         channel = self.client.channels.get_by_id(user.id)
         stream = self.client.streams.get_stream_by_user(user.id)
         return TwitchChannel(channel, stream)
-
-
-class TwitchCogs(commands.Cog, name="Twitch"):
-    def __init__(self, bot):
-        self.bot = bot
-
-
-async def setup(bot):
-    await bot.add_cog(TwitchCogs(bot))
