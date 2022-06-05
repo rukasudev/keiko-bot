@@ -12,7 +12,8 @@ class ModerationCogs(commands.Cog, name="Moderations"):
     async def on_message(self, message):
         guild_id = str(message.guild.id)
 
-        await self.moderations_service.block_links_on_message(guild_id, message)
+        if not message.author.bot:
+            await self.moderations_service.block_links_on_message(guild_id, message)
 
     @commands.command(
         name="block_links",
@@ -22,7 +23,7 @@ class ModerationCogs(commands.Cog, name="Moderations"):
     async def _block_links(self, ctx):
         guild_id = str(ctx.guild.id)
 
-        await self.moderations_service.block_links_command(ctx)
+        await self.moderations_service.block_links_manager(ctx, guild_id)
 
 
 async def setup(bot):

@@ -1,4 +1,3 @@
-from data.moderations import ModerationData
 from components.messages import CreateFormQuestions
 from components.embed import CustomEmbeds
 from logger import logger
@@ -20,13 +19,15 @@ class Moderation:
                 guild_id
             )
             permited_chats = parameters["unblocked_chats"]
-            has_links = self.check_message_has_link(message)
+            permited_links = parameters["permited_links"]
+            message_has_link = self.check_message_has_link(message, permited_links)
+            message_chat = str(message.channel.id)
 
-            if len(has_links) > 0 and not str(message.channel.id) in permited_chats:
+            if message_has_link and message_chat not in permited_chats:
                 await message.delete()
-                await message.channel.send(parameters["message"])
+                await message.channel.send(parameters["message"], delete_after=5)
 
-    async def block_links_command(self, ctx, guild_id):
+    async def block_links_manager(self, ctx, guild_id):
         enabled = self.bot.mongo_db.moderations.find_parameters_by_guild(guild_id)[
             "block_links"
         ]
@@ -35,34 +36,76 @@ class Moderation:
             questions = [
                 {
                     "message": self.embed.block_link_message_with_title(
-                        title="Deseja ativar o bloqueador de links?", desc=True
+                        title="Deseja ativar o bloqueador de links?", desc_type=1
                     ),
                     "action": "button",
                 },
                 {
                     "message": self.embed.block_link_message_with_title(
-                        title="Escolha abaixo quais chats serão permitidos links"
+                        title="Escolha abaixo quais chats serão permitidos links",
+                        desc_text="Clique nos botões abaixo para selecionar os chats que serão liberados enviar links",
+                        desc_type=3,
                     ),
                     "action": "options",
                     "options": self.get_all_guild_channels(ctx.guild),
                 },
                 {
                     "message": self.embed.block_link_message_with_title(
-                        title="Insira a mensagem a ser enviada pelo bot ao bloquear link"
+                        title="Links permitidos",
+                        desc_text="Escolha abaixo alguns sites que o envio de links será permitido",
+                        desc_type=3,
                     ),
+                    "action": "options",
+                    "options": [
+                        "Youtube",
+                        "Spotify",
+                        "Twitter",
+                        "Facebook",
+                        "Instagram",
+                        "Twitch",
+                        "Tiktok",
+                        "Reddit",
+                    ],
+                },
+                {
+                    "message": self.embed.block_link_message_with_title(
+                        title="Resposta do bot ao bloquear links",
+                        desc_text="""
+                            Digite abaixo a mensagem a ser enviada pelo bot ao bloquear link 
+                            (exemplo: Links não são permitidos nesse chat.)
+                        """,
+                        desc_type=3,
+                    ),
+                    "action": "text",
+                },
+                {
+                    "message": self.embed.block_link_message_with_title(
+                        title="Tudo certo?", desc_type=2
+                    ),
+                    "action": "recap-confirm",
+                },
+                {
                     "action": "confirm",
+                    "table": "block_links",
                 },
             ]
 
-            embeded_form = CreateFormQuestions(questions)
+            embeded_form = CreateFormQuestions(ctx, self.bot, questions)
 
             await ctx.send(embed=questions[0]["message"], view=embeded_form)
 
-    def check_message_has_link(self, message):
-        return re.findall(
+    def check_message_has_link(self, message, permited_links):
+        links = re.findall(
             "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
             message.content.lower(),
         )
+
+        for permited in permited_links:
+            for index, link in enumerate(links):
+                if permited in link:
+                    links.pop(index)
+
+        return links
 
     def get_all_guild_channels(self, guild):
         return [channel for channel in guild.text_channels]
