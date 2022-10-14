@@ -1,4 +1,5 @@
 from discord.ext import commands
+from discord import app_commands
 from discord.ext.commands import Bot
 import asyncio
 
@@ -19,8 +20,10 @@ class DiscordBot(Bot):
         self.intents_bot.members = True
         self.mongo_db = mongo_db
         self.guild_available = threading.Event()
+        self.synced = False
         super().__init__(
             command_prefix=self.config.PREFIX,
+            application_id=self.config.APPLICATION_ID,
             case_insensitive=True,
             self_bot=False,
             help_command=None,

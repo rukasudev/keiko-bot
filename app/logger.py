@@ -12,7 +12,3 @@ logger.addHandler(handler)
 # Make discord logs a bit quieter
 logging.getLogger("discord.gateway").setLevel(logging.WARNING)
 logging.getLogger("discord.client").setLevel(logging.WARNING)
-
-
-def return_log():
-    return logger

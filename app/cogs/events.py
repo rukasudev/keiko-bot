@@ -12,6 +12,12 @@ class Events(commands.Cog, name="Events"):
 
     @commands.Cog.listener()
     async def on_ready(self):
+        await self.bot.wait_until_ready()
+
+        if not self.bot.synced:
+            await self.bot.tree.sync()
+            self.bot.synced = True
+
         self.bot.ready_time = datetime.utcnow()
 
         ready_message = (

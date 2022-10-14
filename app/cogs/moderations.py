@@ -1,6 +1,9 @@
 from logger import logger
 from discord.ext import commands
+from discord import app_commands
 from services.moderations import Moderation
+
+import discord
 
 
 class ModerationCogs(commands.Cog, name="Moderations"):
@@ -15,15 +18,23 @@ class ModerationCogs(commands.Cog, name="Moderations"):
         if not message.author.bot:
             await self.moderations_service.block_links_on_message(guild_id, message)
 
-    @commands.command(
+    @app_commands.command(
         name="block_links",
-        aliases=["bl"],
         description="Adicionar bloqueador de links ao servidor?",
     )
     async def _block_links(self, ctx):
         guild_id = str(ctx.guild.id)
 
         await self.moderations_service.block_links_manager(ctx, guild_id)
+
+    @app_commands.command(
+        name="sync",
+        description="Sincronizar slash commands com o servidor",
+    )
+    async def _sync(self, interaction):
+        await self.bot.tree.sync(guild=discord.Object(id=interaction.guild.id))
+
+        await interaction.response.send_message("Sincronizado!")
 
 
 async def setup(bot):

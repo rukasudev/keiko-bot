@@ -18,12 +18,14 @@ class Moderation:
             parameters = self.bot.mongo_db.moderations.find_blocked_links_by_guild(
                 guild_id
             )
-            permited_chats = parameters["unblocked_chats"]
-            permited_links = parameters["permited_links"]
-            message_has_link = self.check_message_has_link(message, permited_links)
+
+            allowed_chats = parameters["allowed_chats"]
+            allowed_links = parameters["allowed_links"]
+
+            message_has_link = self.check_message_has_link(message, allowed_links)
             message_chat = str(message.channel.id)
 
-            if message_has_link and message_chat not in permited_chats:
+            if message_has_link and message_chat not in allowed_chats:
                 await message.delete()
                 await message.channel.send(parameters["message"], delete_after=5)
 
@@ -92,17 +94,21 @@ class Moderation:
 
             embeded_form = CreateFormQuestions(ctx, self.bot, questions)
 
-            await ctx.send(embed=questions[0]["message"], view=embeded_form)
+            await ctx.response.send_message(
+                embed=questions[0]["message"], view=embeded_form
+            )
 
-    def check_message_has_link(self, message, permited_links):
+    def check_message_has_link(
+        self, message: str, allowed_links: list[str]
+    ) -> list[str]:
         links = re.findall(
             "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
             message.content.lower(),
         )
 
-        for permited in permited_links:
+        for allowed in allowed_links:
             for index, link in enumerate(links):
-                if permited in link:
+                if allowed in link:
                     links.pop(index)
 
         return links
