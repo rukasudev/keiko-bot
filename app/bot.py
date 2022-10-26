@@ -1,11 +1,7 @@
-from discord.ext import commands
-from discord import app_commands
-from discord.ext.commands import Bot
-import asyncio
-
 import discord
 import threading
-import os
+
+from discord.ext.commands import Bot
 
 
 class DiscordBot(Bot):
@@ -14,11 +10,10 @@ class DiscordBot(Bot):
     CommandProcessor when commands are received from discord messages
     """
 
-    def __init__(self, config, mongo_db):
+    def __init__(self, config):
         self.config = config
         self.intents_bot = discord.Intents.all()
         self.intents_bot.members = True
-        self.mongo_db = mongo_db
         self.guild_available = threading.Event()
         self.synced = False
         super().__init__(
@@ -39,7 +34,7 @@ class DiscordBot(Bot):
         cogs = ["events", "moderations", "twitch"]
 
         for func in cogs:
-            await self.load_extension(f"cogs.{func}")
+            await self.load_extension(f"app.cogs.{func}")
 
     async def run(self):
         async with self:

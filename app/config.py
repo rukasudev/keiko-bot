@@ -1,9 +1,10 @@
 import os
-from os.path import join, dirname
+
 from dotenv import load_dotenv
+from os.path import join, dirname
 
 
-class BotConfig:
+class AppConfig:
     """
     Represents an in-memory copy of the configuration .json file for the bot
     """

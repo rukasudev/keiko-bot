@@ -1,0 +1,46 @@
+{
+  "form": {
+    "color": "0x00FF00",
+    "title": "Deseja ativar o bloqueador de links?",
+    "description": "A função bloqueador de links faz o BOT analisar as mensagens enviadas no servidor e excluí-las caso a mensagem contenha algum link. **Configurações** 📝• Chats permitidos: Configurar chats que são permitidos enviar links.• Sites permitidos: Configurar links que são permitidos serem enviados.• Resposta: Mensagem do BOT no chat ao excluir uma mensagem com link.",
+    "footer": "Em caso de problemas, utilize o comando !report bl <seu_report>",
+    "thumbnail": "https://c.tenor.com/6q4MAQrO28cAAAAC/cat-stop.gif",
+    "action": "button"
+  },
+  "allowed_chats": {
+    "color": "0x00FF00",
+    "title": "Chats permitidos",
+    "description": "Clique nos botões abaixo para selecionar os chats que serão liberados enviar links",
+    "action": "channels"
+  },
+  "allowed_links": {
+    "color": "0x00FF00",
+    "title": "Links permitidos",
+    "description": "Escolha abaixo alguns sites que o envio de links será permitido",
+    "action": "options",
+    "options": [
+      "Youtube",
+      "Spotify",
+      "Twitter",
+      "Facebook",
+      "Instagram",
+      "Twitch",
+      "Tiktok",
+      "Reddit"
+    ]
+  },
+  "answer": {
+    "color": "0x00FF00",
+    "title": "Mensagem ao bloquear links",
+    "description": "Digite a resposta do bot ao bloquear links",
+    "action": "modal",
+    "placeholder": "Nada de links por aqui! :p"
+  },
+  "confirm": {
+    "color": "0x00FF00",
+    "title": "Tudo certo?",
+    "description": " A função bloqueador de links faz o BOT analisar as mensagens enviadas no servidor e excluí-las caso a mensagem contenha algum link.**Configurações** 📝•",
+    "footer": "Em caso de problemas, utilize o comando !report bl <seu_report>",
+    "action": "resume"
+  }
+}

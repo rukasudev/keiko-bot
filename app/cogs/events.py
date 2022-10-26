@@ -1,14 +1,14 @@
 import discord
-from logger import logger
+
+from app.bot import DiscordBot
+from app.logger import logger
 from datetime import datetime
 from discord.ext import commands
-from services.moderations import Moderation
 
 
 class Events(commands.Cog, name="Events"):
-    def __init__(self, bot):
+    def __init__(self, bot: DiscordBot):
         self.bot = bot
-        self.moderation = Moderation(bot)
 
     @commands.Cog.listener()
     async def on_ready(self):
@@ -29,7 +29,7 @@ class Events(commands.Cog, name="Events"):
         logger.info(ready_message)
 
     @commands.Cog.listener()
-    async def on_member_join(self, member):
+    async def on_member_join(self, member: discord.Member):
         guild_id = str(member.guild.id)
 
         # send_welcome_message()
