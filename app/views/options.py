@@ -1,7 +1,7 @@
 import discord
 
 from app import redis_client
-from app.components.buttons import OptionsButton, ConfirmButton
+from app.components.buttons import OptionsButton, ConfirmButton, CancelButtom
 from typing import Callable
 
 
@@ -22,29 +22,15 @@ class OptionsView(discord.ui.View):
         self.selected = dict()
         super().__init__()
         self.set_options(self.options)
+        self.add_item(ConfirmButton(callback=self._confirm_callback))
+        self.add_item(CancelButtom())
 
     def set_options(self, options: list[str, str]):
         for index, option in enumerate(options):
             option_button = OptionsButton(
-                options_custom_id=str(index),
-                options_label=str(option),
-                callback=self._callback,
+                options_custom_id=str(index), options_label=str(option)
             )
             self.add_item(option_button)
-
-        self.add_item(ConfirmButton(callback=self._confirm_callback))
-
-    async def _callback(self, interaction: discord.Interaction):
-        index = int(interaction.data["custom_id"])
-
-        if self.children[index].style == discord.ButtonStyle.primary:
-            self.children[index].style = discord.ButtonStyle.gray
-            del self.selected[index]
-        else:
-            self.children[index].style = discord.ButtonStyle.primary
-            self.selected[index] = self.children[index].label
-
-        await interaction.response.edit_message(view=self)
 
     async def _confirm_callback(self, interaction: discord.Interaction):
         if self.cache:

@@ -26,7 +26,7 @@ class DiscordBot(Bot):
             intents=self.intents_bot,
             status=discord.Status.idle,
             activity=discord.Activity(
-                type=discord.ActivityType.watching, name=self.config.DESCRIPTION
+                type=discord.ActivityType.playing, name=self.config.DESCRIPTION
             ),
         )
 

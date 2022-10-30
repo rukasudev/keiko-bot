@@ -3,6 +3,8 @@ from app import redis_client
 from app.data import moderations as moderations_data, cogs as cogs_data
 from app.views.form import Form
 
+# TODO: create save cog method to parse channels name to channe id
+
 async def check_message(guild_id, message):
     """Command service to check if exists link on message"""
     enabled = moderations_data.find_parameter_by_guild(guild_id, "block_links")

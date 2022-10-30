@@ -10,6 +10,7 @@ class Events(commands.Cog, name="Events"):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
 
+    # TODO: Improve this message
     @commands.Cog.listener()
     async def on_ready(self):
         await self.bot.wait_until_ready()
@@ -22,8 +23,7 @@ class Events(commands.Cog, name="Events"):
 
         ready_message = (
             f"\n---------------------------------------------------\n"
-            f"Bot Ready!\n"
-            f"Current Prefix: {self.bot.config.PREFIX}\n"
+            f"Bot Ready!\n"            
             f"---------------------------------------------------"
         )
         logger.info(ready_message)

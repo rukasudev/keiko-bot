@@ -9,8 +9,13 @@ def get_guild_text_channels_id(guild, channels: list) -> list:
     ]
 
 
-def get_guild_text_channels(guild):
-    return [channel for channel in guild.text_channels]
+def get_text_channels_by_guild(guild: discord.Guild) -> dict[str, str]:
+    channels = dict()
+
+    for channel in guild.text_channels:
+        channels[channel.name] = str(channel.id)
+
+    return channels
 
 
 def check_message_has_link(self, message: str, allowed_links: list[str]) -> list[str]:

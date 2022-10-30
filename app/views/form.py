@@ -1,11 +1,11 @@
 import discord
 
 from app import redis_client
-from app.components.buttons import ConfirmButton
+from app.components.buttons import ConfirmButton, CancelButtom
 from app.components.embed import parse_dict_to_embed
 from app.components.modals import CustomModal
 from app.services.moderations import upsert_cog_by_guild, upsert_parameter_by_guild
-from app.services.utils import get_guild_text_channels
+from app.services.utils import get_text_channels_by_guild
 from app.views.options import OptionsView
 from json import load
 from pathlib import Path
@@ -27,6 +27,7 @@ class Form(discord.ui.View):
         self.parse_form_to_dict()
         super().__init__()
         self.add_item(ConfirmButton(callback=self._callback))
+        self.add_item(CancelButtom())
 
     @classmethod
     def parse_form_to_dict(cls) -> dict[str, str]:
@@ -63,10 +64,11 @@ class Form(discord.ui.View):
         """Return a discord embed from form dict"""
         return parse_dict_to_embed(self.forms[question_key])
 
+    # TODO: improve redis usage in this method
     def _parse_redis_description_values(self, guild_id: str, description: str) -> str:
         for key in redis_client.scan_iter(f"{guild_id}@{self.command_key}:*"):
             parsed_list = None
-            redis_key = key.split(":")[1]
+            redis_key = key.split(":")[1].replace("$channels", "")
             key_type = redis_client.type(key)
 
             if key_type == "list":
@@ -76,8 +78,17 @@ class Form(discord.ui.View):
                 value = redis_client.get(key)
 
             title = self.forms[redis_key]["title"]
-            description += f"\n{title}: **{parsed_list or value}**"
-            self._form_data[redis_key] = value
+
+            if "channels" in key:
+                self._form_data[redis_key] = [
+                    index
+                    for channel, index in self.guild_channels.items()
+                    if channel in value
+                ]
+            else:
+                self._form_data[redis_key] = value
+
+            description += f"\n:flying_disc: {title}: **{parsed_list or value}**"
 
         return description
 
@@ -101,12 +112,31 @@ class Form(discord.ui.View):
 
         await interaction.message.edit(embed=embed, view=view)
 
+    async def _channels(
+        self,
+        interaction: discord.Interaction,
+        embed: discord.Embed,
+        channels: dict[str, str],
+    ):
+        await interaction.response.defer()
+
+        view = OptionsView(
+            command_key=self.command_key,
+            redis_key="$channels" + self._question_key,
+            options=list(channels.keys()),
+            callback=self._callback,
+            cache=True,
+        )
+
+        await interaction.message.edit(embed=embed, view=view)
+
     async def _resume(self, interaction: discord.Interaction, embed: discord.Embed):
         embed.description = self._parse_redis_description_values(
             interaction.guild.id, embed.description
         )
 
         self.add_item(ConfirmButton(callback=self._finish))
+        self.add_item(CancelButtom())
         await interaction.response.edit_message(embed=embed, view=self)
 
     async def _finish(self, interaction: discord.Interaction):
@@ -115,9 +145,9 @@ class Form(discord.ui.View):
 
         await upsert_parameter_by_guild(guild_id=guild_id, parameter=self.command_key)
         await upsert_cog_by_guild(guild_id, self.command_key, self._form_data)
-        
+
         self.clear_items()
-        
+
         embed = interaction.message.embeds[0]
         embed.title = f"Comando ativado com sucesso!"
 
@@ -141,8 +171,8 @@ class Form(discord.ui.View):
             return await self._options(interaction, embed, options)
 
         if action == "channels":
-            guild_channels = get_guild_text_channels(interaction.guild)
-            return await self._options(interaction, embed, guild_channels)
+            self.guild_channels = get_text_channels_by_guild(interaction.guild)
+            return await self._channels(interaction, embed, self.guild_channels)
 
         if action == "resume":
             return await self._resume(interaction, embed)

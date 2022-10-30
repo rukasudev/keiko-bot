@@ -7,7 +7,7 @@ from discord import app_commands
 from discord.ext import commands
 
 
-# TODO: maybe transfer listeners to events and create events services to make more sense
+# TODO: create cog and service to each command
 class ModerationCogs(commands.Cog, name="Moderations"):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
