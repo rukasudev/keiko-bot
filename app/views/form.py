@@ -5,10 +5,8 @@ from app.components.buttons import ConfirmButton, CancelButtom
 from app.components.embed import parse_dict_to_embed
 from app.components.modals import CustomModal
 from app.services.moderations import upsert_cog_by_guild, upsert_parameter_by_guild
-from app.services.utils import get_text_channels_by_guild
+from app.services.utils import get_text_channels_by_guild, parse_json_to_dict
 from app.views.options import OptionsView
-from json import load
-from pathlib import Path
 
 
 class Form(discord.ui.View):
@@ -24,18 +22,10 @@ class Form(discord.ui.View):
         self._index = 0
         self._form_data = {}
         self.command_key = key
-        self.parse_form_to_dict()
+        self.forms = parse_json_to_dict(key, "forms.json")
         super().__init__()
         self.add_item(ConfirmButton(callback=self._callback))
         self.add_item(CancelButtom())
-
-    @classmethod
-    def parse_form_to_dict(cls) -> dict[str, str]:
-        """Return a key from form.json file"""
-        file = Path.joinpath(Path().absolute(), "app", "resources", "forms.json")
-        with open(file, "r") as f:
-            form = load(f)
-            cls.forms = form
 
     def parse_question_to_modal(self, question: dict[str, str]) -> discord.ui.Modal:
         """Return a discord modal from form.json dict"""
@@ -143,7 +133,9 @@ class Form(discord.ui.View):
         guild_id = interaction.guild.id
         self._form_data["guild_id"] = str(guild_id)
 
-        await upsert_parameter_by_guild(guild_id=guild_id, parameter=self.command_key)
+        await upsert_parameter_by_guild(
+            guild_id=guild_id, parameter=self.command_key, value=True
+        )
         await upsert_cog_by_guild(guild_id, self.command_key, self._form_data)
 
         self.clear_items()

@@ -1,0 +1,8 @@
+{
+  "color": "3aaaff",
+  "title": ":no_entry_sign: Bloquear links",
+  "description": "Ativar esta função faz com que eu analise as mensagens enviadas no seu servidor e exclua caso contenha algum link\n\n📝 **Configurações**\n",
+  "footer": "• Em caso de problemas, utilize o comando /report",
+  "thumbnail": "https://img.freepik.com/vetores-gratis/cute-corgi-dog-delivery-box-package-cartoon-icon-ilustracao-vetorial-conceito-de-icone-de-natureza-animal-isolado-vetor-premium-estilo-flat-cartoon_138676-3506.jpg",
+  "action": "button"
+}

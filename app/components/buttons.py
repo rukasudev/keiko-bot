@@ -35,3 +35,15 @@ class OptionsButton(discord.ui.Button):
             self.view.selected[self.custom_id] = self.label
 
         await interaction.response.edit_message(view=self.view)
+
+
+class ResetButtom(discord.ui.Button):
+    def __init__(self, callback: Callable) -> None:
+        self.callback = callback
+        super().__init__(label="Resetar", emoji="🔄", style=discord.ButtonStyle.grey)
+
+
+class DisableButtom(discord.ui.Button):
+    def __init__(self, callback: Callable) -> None:
+        self.callback = callback
+        super().__init__(label="Desabilitar", emoji="🚫", style=discord.ButtonStyle.red)

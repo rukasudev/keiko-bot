@@ -1,14 +1,17 @@
 from app.data import moderations as moderations_data, cogs as cogs_data
+from app.components.embed import parse_dict_to_embed
+from app.services.utils import parse_json_to_dict
+from app.views.manager import Manager
 from typing import Any
 
 
-async def upsert_parameter_by_guild(guild_id: str, parameter: str):
+async def upsert_parameter_by_guild(guild_id: str, parameter: str, value: str):
     if not guild_id:
         print("Check if guild_id is correct to save cog")
         return
 
     return moderations_data.upsert_parameters_by_guild(
-        guild_id=guild_id, parameter=parameter
+        guild_id=guild_id, parameter=parameter, value=value
     )
 
 
@@ -18,6 +21,23 @@ async def upsert_cog_by_guild(guild_id: str, cog: str, data: dict[str, Any]):
         return
 
     return cogs_data.upsert_cog_by_guild_id(guild_id, cog, data)
+
+
+async def delete_cog_by_guild(guild_id: str, cog: str):
+    if guild_id == "":
+        print("Check if guild_id is correct to delete cog")
+        return
+
+    return cogs_data.delete_cog_by_guild_id(guild_id, cog)
+
+
+async def send_command_manager_message(ctx, key: str):
+    command_dict = parse_json_to_dict(key, "command.json")
+    embed = parse_dict_to_embed(command_dict)
+
+    view = Manager(key)
+
+    await ctx.response.send_message(embed=embed, view=view)
 
 
 def apply_default_role_all_members():

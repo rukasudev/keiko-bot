@@ -26,7 +26,7 @@ def insert_parameters_by_guild(guild_id: str) -> str:
     return mongo_client.guild.parameters.insert_one(parameters)
 
 
-def upsert_parameters_by_guild(guild_id: str, parameter: str):
+def upsert_parameters_by_guild(guild_id: str, parameter: str, value: bool):
     parameters = {
         "stream_monitor": False,
         "welcome_messages": False,
@@ -35,7 +35,7 @@ def upsert_parameters_by_guild(guild_id: str, parameter: str):
         "block_links": False,
         "guild_id": str(guild_id),
     }
-    parameters[parameter] = True
+    parameters[parameter] = value
 
     return mongo_client.guild.parameters.update_one(
         {"guild_id": str(guild_id)}, {"$set": parameters}, upsert=True

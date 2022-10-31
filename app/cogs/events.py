@@ -7,12 +7,12 @@ from discord.ext import commands
 
 
 class Events(commands.Cog, name="Events"):
-    def __init__(self, bot: DiscordBot):
+    def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
 
     # TODO: Improve this message
     @commands.Cog.listener()
-    async def on_ready(self):
+    async def on_ready(self) -> None:
         await self.bot.wait_until_ready()
 
         if not self.bot.synced:
@@ -23,7 +23,7 @@ class Events(commands.Cog, name="Events"):
 
         ready_message = (
             f"\n---------------------------------------------------\n"
-            f"Bot Ready!\n"            
+            f"Bot Ready!\n"
             f"---------------------------------------------------"
         )
         logger.info(ready_message)
