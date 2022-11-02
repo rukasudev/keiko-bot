@@ -1,7 +1,9 @@
+import discord
+
 from app.data import moderations as moderations_data, cogs as cogs_data
 from app.components.embed import parse_dict_to_embed
 from app.services.utils import parse_json_to_dict
-from app.views.manager import Manager
+from app.services.cache import clear_cache_commands_by_guild
 from typing import Any
 
 
@@ -31,13 +33,28 @@ async def delete_cog_by_guild(guild_id: str, cog: str):
     return cogs_data.delete_cog_by_guild_id(guild_id, cog)
 
 
-async def send_command_manager_message(ctx, key: str):
+async def send_command_form_message(ctx: discord.Interaction, key: str):
+    from app.views.form import Form
+
+    clear_cache_commands_by_guild(ctx.guild.id, key)
+
+    form_view = Form(key=key)
+    embed = form_view.get_question_embed_by_key("form")
+
+    await ctx.response.send_message(embed=embed, view=form_view, ephemeral=True)
+
+
+async def send_command_manager_message(ctx: discord.Interaction, key: str):
+    from app.views.manager import Manager
+
+    clear_cache_commands_by_guild(ctx.guild.id, key)
+
     command_dict = parse_json_to_dict(key, "command.json")
     embed = parse_dict_to_embed(command_dict)
 
     view = Manager(key)
 
-    await ctx.response.send_message(embed=embed, view=view)
+    await ctx.response.send_message(embed=embed, view=view, ephemeral=True)
 
 
 def apply_default_role_all_members():

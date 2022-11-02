@@ -10,7 +10,7 @@ class DiscordBot(Bot):
     CommandProcessor when commands are received from discord messages
     """
 
-    def __init__(self, config):
+    def __init__(self, config) -> None:
         self.config = config
         self.intents_bot = discord.Intents.all()
         self.intents_bot.members = True
@@ -21,25 +21,19 @@ class DiscordBot(Bot):
             application_id=self.config.APPLICATION_ID,
             case_insensitive=True,
             self_bot=False,
-            help_command=None,
+            help_command=False,
             owner_id=self.config.OWNER_ID,
             intents=self.intents_bot,
-            status=discord.Status.idle,
+            status=discord.Status.online,
             activity=discord.Activity(
                 type=discord.ActivityType.playing, name=self.config.DESCRIPTION
             ),
         )
 
-    async def load_cogs(self):
-        cogs = ["events", "moderations", "twitch", "block_links"]
+    async def load_cogs(self) -> None:
+        await self.load_extension("app.cogs.__init__")
 
-        for func in cogs:
-            await self.load_extension(f"app.cogs.{func}")
-
-    async def run(self):
+    async def run(self) -> None:
         async with self:
             await self.load_cogs()
             await self.start(self.config.BOT_TOKEN)
-
-    def stop(self):
-        self.logout()

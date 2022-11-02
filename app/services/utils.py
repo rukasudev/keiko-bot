@@ -4,11 +4,13 @@ from pathlib import Path
 from json import load
 from re import findall
 
+
 def parse_json_to_dict(key: str, file: str) -> dict[str, str]:
     """Return a key from form.json file"""
     file = Path.joinpath(Path().absolute(), "app", "resources", key, file)
     with open(file, "r") as f:
         return load(f)
+
 
 def get_guild_text_channels_id(guild, channels: list) -> list:
     return [
@@ -23,6 +25,23 @@ def get_text_channels_by_guild(guild: discord.Guild) -> dict[str, str]:
         channels[channel.name] = str(channel.id)
 
     return channels
+
+
+def get_roles_by_guild(guild: discord.Guild) -> dict[str, str]:
+    roles = dict()
+
+    for role in guild.roles:
+        roles[role.name] = str(role.id)
+
+    return roles
+
+
+def list_roles_id(roles: list[discord.Role]) -> list[int]:
+    return [str(role.id) for role in roles]
+
+
+def check_two_lists_intersection(x: list, y: list) -> bool:
+    return bool(set(x).intersection(y))
 
 
 def check_message_has_link(message: str, allowed_links: list[str]) -> list[str]:

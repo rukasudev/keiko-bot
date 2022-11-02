@@ -11,14 +11,21 @@
     "color": "3aaaff",
     "emoji": ":speech_balloon:",
     "title": "Chats permitidos",
-    "description": "Escolha os chats que serão permitidos enviar links",    
+    "description": "Escolha os chats que serão permitidos enviar links",
     "action": "channels"
+  },
+  "allowed_roles": {
+    "color": "3aaaff",
+    "emoji": ":busts_in_silhouette:",
+    "title": "Cargos permitidos",
+    "description": "Escolha quais cargos serão permitidos enviar links em qualquer canal",
+    "action": "roles"
   },
   "allowed_links": {
     "color": "3aaaff",
     "emoji": ":link:",
     "title": "Links permitidos",
-    "description": "Escolha alguns sites que o envio de links serão permitidos",    
+    "description": "Escolha alguns sites que o envio de links serão permitidos",
     "action": "options",
     "options": [
       "Youtube",

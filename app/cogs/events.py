@@ -37,7 +37,3 @@ class Events(commands.Cog, name="Events"):
         # role_id = 838123185978998788
         # apply_role_in_member()
         pass
-
-
-async def setup(bot):
-    await bot.add_cog(Events(bot))

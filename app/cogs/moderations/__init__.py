@@ -4,11 +4,14 @@ from app.bot import DiscordBot
 from app.logger import logger
 from discord import app_commands
 from discord.ext import commands
+from app.cogs.moderations.block import Block
 
 
-class Moderations(commands.Cog, name="Moderations"):
+@app_commands.guild_only()
+class Moderations(commands.GroupCog, name="moderações"):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
+        super().__init__()
 
     @app_commands.command(
         name="sync",
@@ -19,6 +22,3 @@ class Moderations(commands.Cog, name="Moderations"):
 
         await interaction.response.send_message("Sincronizado!")
 
-
-async def setup(bot):
-    await bot.add_cog(Moderations(bot))

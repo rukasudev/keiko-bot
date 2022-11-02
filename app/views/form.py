@@ -5,7 +5,11 @@ from app.components.buttons import ConfirmButton, CancelButtom
 from app.components.embed import parse_dict_to_embed
 from app.components.modals import CustomModal
 from app.services.moderations import upsert_cog_by_guild, upsert_parameter_by_guild
-from app.services.utils import get_text_channels_by_guild, parse_json_to_dict
+from app.services.utils import (
+    get_text_channels_by_guild,
+    get_roles_by_guild,
+    parse_json_to_dict,
+)
 from app.views.options import OptionsView
 
 
@@ -54,11 +58,11 @@ class Form(discord.ui.View):
         """Return a discord embed from form dict"""
         return parse_dict_to_embed(self.forms[question_key])
 
-    # TODO: improve redis usage in this method
+    # TODO: refactor this method and improve redis usage
     def _parse_redis_description_values(self, guild_id: str, description: str) -> str:
         for key in redis_client.scan_iter(f"{guild_id}@{self.command_key}:*"):
             parsed_list = None
-            redis_key = key.split(":")[1].replace("$channels", "")
+            redis_key = key.split(":")[1].replace("$channels", "").replace("$roles", "")
             key_type = redis_client.type(key)
 
             if key_type == "list":
@@ -74,6 +78,10 @@ class Form(discord.ui.View):
                     index
                     for channel, index in self.guild_channels.items()
                     if channel in value
+                ]
+            elif "roles" in key:
+                self._form_data[redis_key] = [
+                    index for channel, index in self.roles.items() if channel in value
                 ]
             else:
                 self._form_data[redis_key] = value
@@ -114,6 +122,24 @@ class Form(discord.ui.View):
             command_key=self.command_key,
             redis_key="$channels" + self._question_key,
             options=list(channels.keys()),
+            callback=self._callback,
+            cache=True,
+        )
+
+        await interaction.message.edit(embed=embed, view=view)
+
+    async def _roles(
+        self,
+        interaction: discord.Interaction,
+        embed: discord.Embed,
+        roles: dict[str, str],
+    ):
+        await interaction.response.defer()
+
+        view = OptionsView(
+            command_key=self.command_key,
+            redis_key="$roles" + self._question_key,
+            options=list(roles.keys()),
             callback=self._callback,
             cache=True,
         )
@@ -161,6 +187,12 @@ class Form(discord.ui.View):
         if action == "options":
             options = self._question["options"]
             return await self._options(interaction, embed, options)
+
+        if action == "roles":
+            self.roles = get_roles_by_guild(interaction.guild)
+            del self.roles["@everyone"]
+
+            return await self._roles(interaction, embed, self.roles)
 
         if action == "channels":
             self.guild_channels = get_text_channels_by_guild(interaction.guild)
