@@ -4,6 +4,7 @@ from app import redis_client
 from app.components.buttons import ConfirmButton, CancelButtom
 from app.components.embed import parse_dict_to_embed
 from app.components.modals import CustomModal
+from app.constants import FormConstants as constants
 from app.services.moderations import upsert_cog_by_guild, upsert_parameter_by_guild
 from app.services.utils import (
     get_text_channels_by_guild,
@@ -166,6 +167,7 @@ class Form(discord.ui.View):
 
         self.clear_items()
 
+        # TODO: pass this message to json to allow multilanguage in future
         embed = interaction.message.embeds[0]
         embed.title = f"Comando ativado com sucesso!"
 
@@ -181,22 +183,22 @@ class Form(discord.ui.View):
         embed = self.get_question_embed_by_key(self._question_key)
         action = self._question["action"]
 
-        if action == "modal":
+        if action == constants.MODAL_ACTION_KEY:
             return await self._modal(interaction)
 
-        if action == "options":
+        if action == constants.OPTIONS_ACTION_KEY:
             options = self._question["options"]
             return await self._options(interaction, embed, options)
 
-        if action == "roles":
+        if action == constants.ROLES_ACTION_KEY:
             self.roles = get_roles_by_guild(interaction.guild)
             del self.roles["@everyone"]
 
             return await self._roles(interaction, embed, self.roles)
 
-        if action == "channels":
+        if action == constants.CHANNELS_ACTION_KEY:
             self.guild_channels = get_text_channels_by_guild(interaction.guild)
             return await self._channels(interaction, embed, self.guild_channels)
 
-        if action == "resume":
+        if action == constants.RESUME_ACTION_KEY:
             return await self._resume(interaction, embed)

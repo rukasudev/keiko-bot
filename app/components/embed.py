@@ -1,11 +1,12 @@
 import discord
+from app.constants import Style as constants
 
 
 def parse_dict_to_embed(data: dict[str, str]) -> discord.Embed:
     """Parse dictionary to discord Embed object"""
 
     embed = discord.Embed(
-        color=int(data["color"], base=16),
+        color=int(constants.BACKGROUND_COLOR, base=16),
         title=data["title"],
         description=data["description"],
     )

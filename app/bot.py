@@ -21,7 +21,7 @@ class DiscordBot(Bot):
             application_id=self.config.APPLICATION_ID,
             case_insensitive=True,
             self_bot=False,
-            help_command=False,
+            help_command=None,
             owner_id=self.config.OWNER_ID,
             intents=self.intents_bot,
             status=discord.Status.online,

@@ -1,41 +1,43 @@
 from typing import Final
 
-# styles
-RED_COLOR: Final[str] = "#ff0000"
-ICON_COLOR: Final[str] = "#3aaaff"
 
-# commands keys
-BLOCK_LINKS_COMMAND_KEY: Final[str] = "block_links"
-MODERATIONS_COMMAND_KEY: Final[str] = "moderations"
-STREAM_MONITOR_COMMAND_KEY: Final[str] = "stream_monitor"
-WELCOME_MESSAGES_COMMAND_KEY: Final[str] = "welcome_messages"
-DEFAULT_ROLE_COMMAND_KEY: Final[str] = "default_role"
+class Style:
+    RED_COLOR: Final[str] = "ff0000"
+    BACKGROUND_COLOR: Final[str] = "3aaaff"
 
-# commands cogs key
-BLOCK_LINKS_ALLOWED_CHATS_KEY: Final[str] = "allowed_chats"
-BLOCK_LINKS_ALLOWED_LINKS_KEY: Final[str] = "allowed_links"
-BLOCK_LINKS_ANSWER_KEY: Final[str] = "answer"
 
-# TODO: improve this to use another languages in future
-# command description
-COMMAND_DESCRIPTION: Final[dict] = {"block_links": "Bloqueador de links"}
+class Commands:
+    BLOCK_LINKS_KEY: Final[str] = "block_links"
+    BLOCK_LINKS_ALLOWED_CHATS_KEY: Final[str] = "allowed_chats"
+    BLOCK_LINKS_ALLOWED_ROLES_KEY: Final[str] = "allowed_roles"
+    BLOCK_LINKS_ALLOWED_LINKS_KEY: Final[str] = "allowed_links"
+    BLOCK_LINKS_ANSWER_KEY: Final[str] = "answer"
 
-# cogs
-COGS_MODERATION_DEFAULT: Final[dict] = {
-    STREAM_MONITOR_COMMAND_KEY: False,
-    WELCOME_MESSAGES_COMMAND_KEY: False,
-    DEFAULT_ROLE_COMMAND_KEY: False,
-    BLOCK_LINKS_COMMAND_KEY: False,
-}
+    MODERATIONS_KEY: Final[str] = "moderations"
+    STREAM_MONITOR_KEY: Final[str] = "stream_monitor"
+    WELCOME_MESSAGES_KEY: Final[str] = "welcome_messages"
+    DEFAULT_ROLE_KEY: Final[str] = "default_role"
 
-BLOCK_LINKS_COGS_DESCRIPTION: Final[dict] = {
-    BLOCK_LINKS_ALLOWED_CHATS_KEY: "Chats permitidos",
-    BLOCK_LINKS_ALLOWED_LINKS_KEY: "Links permitidos",
-    BLOCK_LINKS_ANSWER_KEY: "Resposta ao bloquear links",
-}
 
-# forms
-MODAL_FORM_VIEW_ACTION: Final[str] = "modal"
-OPTIONS_FORM_VIEW_ACTION: Final[str] = "options"
-CHANNELS_FORM_VIEW_ACTION: Final[str] = "channels"
-RESUME_FORM_VIEW_ACTION: Final[str] = "resume"
+class CogsConstants:
+    COGS_MODERATIONS_COMMANDS_DEFAULT: Final[dict] = {
+        Commands.STREAM_MONITOR_KEY: False,
+        Commands.WELCOME_MESSAGES_KEY: False,
+        Commands.DEFAULT_ROLE_KEY: False,
+        Commands.BLOCK_LINKS_KEY: False,
+    }
+
+
+class FormConstants:
+    MODAL_ACTION_KEY: Final[str] = "modal"
+    OPTIONS_ACTION_KEY: Final[str] = "options"
+    ROLES_ACTION_KEY: Final[str] = "roles"
+    CHANNELS_ACTION_KEY: Final[str] = "channels"
+    RESUME_ACTION_KEY: Final[str] = "resume"
+
+
+class Emojis:
+    FRISBEE_EMOJI: Final[str] = ":flying_disc:"
+
+
+GUILD_ID_KEY: Final[str] = "guild_id"

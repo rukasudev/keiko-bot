@@ -1,4 +1,5 @@
 from app import mongo_client
+from app.constants import CogsConstants as constants
 from typing import Any
 
 
@@ -14,27 +15,15 @@ def find_parameters_by_guild(guild_id: str) -> dict:
 
 # TODO: change this keys to constants
 def insert_parameters_by_guild(guild_id: str) -> str:
-    parameters = {
-        "stream_monitor": False,
-        "welcome_messages": False,
-        "random_image_welcome_message": False,
-        "default_role_new_members": False,
-        "block_links": False,
-        "guild_id": str(guild_id),
-    }
+    parameters = constants.COGS_MODERATIONS_COMMANDS_DEFAULT
+    parameters["guild_id"] = str(guild_id)
 
     return mongo_client.guild.parameters.insert_one(parameters)
 
 
 def upsert_parameters_by_guild(guild_id: str, parameter: str, value: bool):
-    parameters = {
-        "stream_monitor": False,
-        "welcome_messages": False,
-        "random_image_welcome_message": False,
-        "default_role_new_members": False,
-        "block_links": False,
-        "guild_id": str(guild_id),
-    }
+    parameters = constants.COGS_MODERATIONS_COMMANDS_DEFAULT
+    parameters["guild_id"] = str(guild_id)
     parameters[parameter] = value
 
     return mongo_client.guild.parameters.update_one(
