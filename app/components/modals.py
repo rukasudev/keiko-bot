@@ -1,7 +1,8 @@
+from typing import Callable
+
 import discord
 
 from app import redis_client
-from typing import Callable
 
 
 class CustomModal(discord.ui.Modal):

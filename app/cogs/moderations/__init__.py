@@ -1,10 +1,10 @@
 import discord
-
-from app.bot import DiscordBot
-from app.logger import logger
 from discord import app_commands
 from discord.ext import commands
+
+from app.bot import DiscordBot
 from app.cogs.moderations.block import Block
+from app.logger import logger
 
 
 @app_commands.guild_only()

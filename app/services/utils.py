@@ -1,8 +1,8 @@
-import discord
-
-from pathlib import Path
 from json import load
+from pathlib import Path
 from re import findall
+
+import discord
 
 
 def parse_json_to_dict(key: str, file: str) -> dict[str, str]:

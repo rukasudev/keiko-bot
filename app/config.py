@@ -1,7 +1,8 @@
 import os
+from os.path import dirname, join
 
 from dotenv import load_dotenv
-from os.path import join, dirname
+
 
 # TODO: transfer config to yml and 
 # set default colors, icons, emojis

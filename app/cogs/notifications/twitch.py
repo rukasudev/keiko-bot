@@ -1,5 +1,5 @@
-from discord import app_commands
 import discord
+from discord import app_commands
 
 
 class Twitch(app_commands.Group, name="twitch"):

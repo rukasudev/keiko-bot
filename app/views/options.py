@@ -1,8 +1,9 @@
+from typing import Callable
+
 import discord
 
 from app import redis_client
-from app.components.buttons import OptionsButton, ConfirmButton, CancelButtom
-from typing import Callable
+from app.components.buttons import CancelButtom, ConfirmButton, OptionsButton
 
 
 class OptionsView(discord.ui.View):

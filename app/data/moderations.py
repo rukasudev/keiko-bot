@@ -1,6 +1,7 @@
+from typing import Any
+
 from app import mongo_client
 from app.constants import CogsConstants as constants
-from typing import Any
 
 
 def find_parameter_by_guild(guild_id: str, param: str) -> Any:

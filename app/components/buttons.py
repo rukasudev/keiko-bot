@@ -1,6 +1,6 @@
-import discord
-
 from typing import Callable
+
+import discord
 
 
 class ConfirmButton(discord.ui.Button):

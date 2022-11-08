@@ -1,5 +1,5 @@
-from twitch import TwitchClient
 from discord.ext import commands
+from twitch import TwitchClient
 
 
 class TwitchChannel(object):

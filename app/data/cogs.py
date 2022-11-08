@@ -1,5 +1,6 @@
-from app import mongo_client
 from typing import Any
+
+from app import mongo_client
 
 
 def find_cog_by_guild_id(guild_id: str, cog: str) -> dict[str, Any]:

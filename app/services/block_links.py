@@ -1,10 +1,5 @@
 import discord
 
-from .utils import (
-    check_message_has_link,
-    check_two_lists_intersection,
-    list_roles_id,
-)
 from app.constants import Commands as constants
 from app.data import cogs as cogs_data
 from app.services.moderations import (
@@ -12,12 +7,12 @@ from app.services.moderations import (
     send_command_manager_message,
 )
 
+from .utils import check_message_has_link, check_two_lists_intersection, list_roles_id
+
 
 async def check_message(guild_id: str, message: discord.Message):
     """Command service to check if exists link on message"""
-    parameters = cogs_data.find_cog_by_guild_id(
-        guild_id, constants.BLOCK_LINKS_KEY
-    )
+    parameters = cogs_data.find_cog_by_guild_id(guild_id, constants.BLOCK_LINKS_KEY)
 
     if parameters:
         author_has_allowed_role = check_two_lists_intersection(
@@ -36,15 +31,11 @@ async def check_message(guild_id: str, message: discord.Message):
 
         if message_has_link and message_chat not in allowed_chats:
             await message.delete()
-            await message.channel.send(
-                parameters[constants.ANSWER_KEY], delete_after=5
-            )
+            await message.channel.send(parameters[constants.ANSWER_KEY], delete_after=5)
 
 
 async def manager(ctx, guild_id):
-    parameters = cogs_data.find_cog_by_guild_id(
-        guild_id, constants.BLOCK_LINKS_KEY
-    )
+    parameters = cogs_data.find_cog_by_guild_id(guild_id, constants.BLOCK_LINKS_KEY)
 
     if not parameters:
         await send_command_form_message(ctx, constants.BLOCK_LINKS_KEY)

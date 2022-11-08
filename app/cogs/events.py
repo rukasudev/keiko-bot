@@ -1,9 +1,10 @@
+from datetime import datetime
+
 import discord
+from discord.ext import commands
 
 from app.bot import DiscordBot
 from app.logger import logger
-from datetime import datetime
-from discord.ext import commands
 
 
 class Events(commands.Cog, name="Events"):

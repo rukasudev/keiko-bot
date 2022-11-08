@@ -1,8 +1,8 @@
 import certifi
 import redis
+from pymongo import MongoClient
 
 from app.bot import DiscordBot
-from pymongo import MongoClient
 
 
 def create_app(config) -> DiscordBot:

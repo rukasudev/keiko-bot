@@ -1,7 +1,8 @@
 import logging
 import random
-import utils
 import time
+
+import utils
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.INFO)
