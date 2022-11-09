@@ -5,9 +5,9 @@ from re import findall
 import discord
 
 
-def parse_json_to_dict(key: str, file: str) -> dict[str, str]:
+def parse_json_to_dict(key: str, locale: str, file: str) -> dict[str, str]:
     """Return a key from form.json file"""
-    file = Path.joinpath(Path().absolute(), "app", "resources", key, file)
+    file = Path.joinpath(Path().absolute(), "app", "resources", str(locale).lower(), key, file)
     with open(file, "r") as f:
         return load(f)
 

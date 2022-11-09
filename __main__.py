@@ -1,4 +1,7 @@
 import asyncio
+from os import listdir
+
+import i18n
 
 from app import create_app
 from app.config import AppConfig
@@ -11,6 +14,10 @@ async def main() -> None:
     config = AppConfig()
     app = create_app(config)
     
+    for folder in listdir("app/languages"):
+        i18n.load_path.append(f"app/languages/{folder}")
+        i18n.set("fallback", "en")
+        
     await app.run()
 
 

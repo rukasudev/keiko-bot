@@ -1,13 +1,15 @@
 import discord
 from discord import app_commands
+from discord.app_commands import locale_str
 from discord.ext import commands
+from i18n import t
 
 from app.bot import DiscordBot
 from app.logger import logger
 
 
 @app_commands.guild_only()
-class Notifications(commands.GroupCog, name="notificações"):
+class Notifications(commands.GroupCog, name=locale_str("notifications", namespace="commands")):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
         super().__init__()

@@ -1,9 +1,11 @@
-FROM python:3.9
-FROM app/main.py
+FROM python:3.10-slim
 
-RUN mkdir -p /usr/src/bot
-WORKDIR /usr/src/bot
+ENV PYTHONPATH "${PYTHONPATH}:/workspace"
 
-COPY . .
+WORKDIR /workspace
 
-CMD [ "python3", "app/main.py" ]
+COPY requirements.txt .
+
+RUN pip install -r requirements.txt
+
+CMD ["python", "./__main__.py"]

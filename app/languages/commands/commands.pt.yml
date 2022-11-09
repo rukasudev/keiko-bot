@@ -1,0 +1,19 @@
+pt:
+  moderations: moderações
+  events: eventos
+  
+  block: bloquear
+  blockdesc: bloquear
+
+  links: links
+  linksdesc: bloquear links
+
+  sync: sincronizar
+  syncdesc: sincronizar com o servidor
+
+  notifications: notificações
+  twitch: twitch
+  
+  twitchactivate: ligar
+  twitchactivatedesc: ativar notificações da twitch
+

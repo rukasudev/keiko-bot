@@ -1,0 +1,3 @@
+en:
+  command-permission-denied:
+    message: hey, you do not have permission to run this command :/

@@ -3,6 +3,8 @@ import threading
 import discord
 from discord.ext.commands import Bot
 
+from app.translator import Translator
+
 
 class DiscordBot(Bot):
     """
@@ -30,10 +32,11 @@ class DiscordBot(Bot):
             ),
         )
 
-    async def load_cogs(self) -> None:
-        await self.load_extension("app.cogs.__init__")
+    async def setup_hook(self) -> None:
+        await self.load_extension("app.cogs.__init__")        
+        await self.tree.set_translator(Translator())        
+        await self.tree.sync()
 
     async def run(self) -> None:
-        async with self:
-            await self.load_cogs()
+        async with self:            
             await self.start(self.config.BOT_TOKEN)

@@ -46,17 +46,17 @@ async def send_command_form_message(ctx: discord.Interaction, key: str):
     await ctx.response.send_message(embed=embed, view=form_view, ephemeral=True)
 
 
-async def send_command_manager_message(ctx: discord.Interaction, key: str):
+async def send_command_manager_message(interaction: discord.Interaction, key: str):
     from app.views.manager import Manager
 
-    clear_cache_commands_by_guild(ctx.guild.id, key)
+    clear_cache_commands_by_guild(interaction.guild.id, key)
 
-    command_dict = parse_json_to_dict(key, "command.json")
+    command_dict = parse_json_to_dict(key, interaction.locale, "command.json")
     embed = parse_dict_to_embed(command_dict)
 
     view = Manager(key)
 
-    await ctx.response.send_message(embed=embed, view=view, ephemeral=True)
+    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
 
 def apply_default_role_all_members():

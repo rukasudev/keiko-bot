@@ -1,0 +1,19 @@
+en:
+  moderations: moderations
+  events: events
+
+  block: block
+  blockdesc: block
+
+  links: links
+  linksdesc: block links
+
+  sync: sync
+  syncdesc: sync commands
+
+  notifications: notifications
+  twitch: twitch
+  
+  twitchactivate: activate
+  twitchactivatedesc: activate twitch notifications
+
