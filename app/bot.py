@@ -33,10 +33,10 @@ class DiscordBot(Bot):
         )
 
     async def setup_hook(self) -> None:
-        await self.load_extension("app.cogs.__init__")        
-        await self.tree.set_translator(Translator())        
+        await self.load_extension("app.cogs.__init__")
+        await self.tree.set_translator(Translator())
         await self.tree.sync()
 
     async def run(self) -> None:
-        async with self:            
+        async with self:
             await self.start(self.config.BOT_TOKEN)

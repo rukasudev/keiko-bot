@@ -11,7 +11,9 @@ from app.translator import Translator
 
 
 @app_commands.guild_only()
-class Moderations(commands.GroupCog, name=locale_str("moderations", namespace="commands")):
+class Moderations(
+    commands.GroupCog, name=locale_str("moderations", namespace="commands")
+):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
         super().__init__()
@@ -20,7 +22,7 @@ class Moderations(commands.GroupCog, name=locale_str("moderations", namespace="c
         name=locale_str("sync", namespace="commands"),
         description=locale_str("syncdesc", namespace="commands"),
     )
-    async def _sync(self, interaction: discord.Interaction):            
+    async def _sync(self, interaction: discord.Interaction):
         await self.bot.tree.sync(guild=discord.Object(id=interaction.guild.id))
 
         await interaction.response.send_message("Sincronizado!")

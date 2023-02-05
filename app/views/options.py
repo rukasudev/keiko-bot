@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, List
 
 import discord
 
@@ -11,7 +11,7 @@ class OptionsView(discord.ui.View):
         self,
         command_key: str,
         redis_key: str,
-        options: list[str, str],
+        options: List[str, str],
         callback: Callable = None,
         cache: bool = False,
     ):

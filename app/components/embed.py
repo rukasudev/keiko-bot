@@ -1,9 +1,11 @@
+from typing import Dict
+
 import discord
 
 from app.constants import Style as constants
 
 
-def parse_dict_to_embed(data: dict[str, str]) -> discord.Embed:
+def parse_dict_to_embed(data: Dict[str, str]) -> discord.Embed:
     """Parse dictionary to discord Embed object"""
 
     embed = discord.Embed(

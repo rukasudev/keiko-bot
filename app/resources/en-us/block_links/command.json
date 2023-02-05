@@ -1,7 +1,7 @@
 {
   "title": ":no_entry_sign: Block links",
   "description": "Enabling this function will make me parse each message and delete it if it has link\n\n📝 **Settings**\n",
-  "footer": "• On problems case, use the command /report",
+  "footer": "• In problems case, use the command /report",
   "thumbnail": "https://img.freepik.com/vetores-gratis/cute-corgi-dog-delivery-box-package-cartoon-icon-ilustracao-vetorial-conceito-de-icone-de-natureza-animal-isolado-vetor-premium-estilo-flat-cartoon_138676-3506.jpg",
   "action": "button"
 }

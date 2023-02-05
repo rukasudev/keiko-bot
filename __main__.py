@@ -13,11 +13,11 @@ async def main() -> None:
 
     config = AppConfig()
     app = create_app(config)
-    
+
     for folder in listdir("app/languages"):
         i18n.load_path.append(f"app/languages/{folder}")
         i18n.set("fallback", "en")
-        
+
     await app.run()
 
 

@@ -1,15 +1,8 @@
 version: "3.8"
 services:
-  web:
-    container_name: desafio-stone
-    build: .
-    ports:
-      - "5000:5000"      
-
-build: .     <--- Should include file watcher executable (nodemon or some python equivalent)
-command: nodemon /usr/src/bot/app/main.py <--- add this line
-volumes:
-  - ./discord:/usr/src/discord
-depends_on:
-  - mongo
-  - node
+  corgi_bot:
+    container_name: corgi-bot
+    build:
+      context: .
+      dockerfile: ./Dockerfile
+    entrypoint: ["python", "./__main__.py"]

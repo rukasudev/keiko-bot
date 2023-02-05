@@ -4,7 +4,7 @@ from os.path import dirname, join
 from dotenv import load_dotenv
 
 
-# TODO: transfer config to yml and 
+# TODO: transfer config to yml and
 # set default colors, icons, emojis
 class AppConfig:
     """

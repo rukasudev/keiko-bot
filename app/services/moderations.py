@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Dict
 
 import discord
 
@@ -19,7 +19,7 @@ async def upsert_parameter_by_guild(guild_id: str, parameter: str, value: str):
     )
 
 
-async def upsert_cog_by_guild(guild_id: str, cog: str, data: dict[str, Any]):
+async def upsert_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
     if not data.get("guild_id"):
         print("Check if guild_id is correct to save cog")
         return

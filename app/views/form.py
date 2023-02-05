@@ -1,3 +1,5 @@
+from typing import Dict, List
+
 import discord
 
 from app import redis_client
@@ -32,7 +34,7 @@ class Form(discord.ui.View):
         self.add_item(ConfirmButton(callback=self._callback))
         self.add_item(CancelButtom())
 
-    def parse_question_to_modal(self, question: dict[str, str]) -> discord.ui.Modal:
+    def parse_question_to_modal(self, question: Dict[str, str]) -> discord.ui.Modal:
         """Return a discord modal from form.json dict"""
         return CustomModal(
             title=question["title"],
@@ -97,7 +99,7 @@ class Form(discord.ui.View):
         await interaction.response.send_modal(modal)
 
     async def _options(
-        self, interaction: discord.Interaction, embed: discord.Embed, options: list[str]
+        self, interaction: discord.Interaction, embed: discord.Embed, options: List[str]
     ):
         await interaction.response.defer()
 
@@ -115,7 +117,7 @@ class Form(discord.ui.View):
         self,
         interaction: discord.Interaction,
         embed: discord.Embed,
-        channels: dict[str, str],
+        channels: Dict[str, str],
     ):
         await interaction.response.defer()
 
@@ -133,7 +135,7 @@ class Form(discord.ui.View):
         self,
         interaction: discord.Interaction,
         embed: discord.Embed,
-        roles: dict[str, str],
+        roles: Dict[str, str],
     ):
         await interaction.response.defer()
 
