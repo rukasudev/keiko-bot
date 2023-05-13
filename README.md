@@ -1,4 +1,4 @@
-## 🐶 Corgi Bot
+## 🥏 Corgi Bot
 
 Corgi Bot is a powerful and versatile Discord bot built using Python, designed to streamline server moderation and enhance user experience. It incorporates various technologies to provide essential functionalities for managing and engaging your Discord server.
 
@@ -30,6 +30,3 @@ Contributions to Corgi Bot are welcome! If you have any ideas for new features o
 ### 📝 License
 
 Corgi Bot is licensed under the [MIT License](https://opensource.org/licenses/MIT). Please refer to the `LICENSE` file for more information.
-
-### 🥏 Have fun!
-Enjoy using Corgi Bot and have a delightful Discord server experience! 🎾🦴🐾
