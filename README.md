@@ -31,8 +31,4 @@ Contributions to Corgi Bot are welcome! If you have any ideas for new features o
 
 Corgi Bot is licensed under the [MIT License](https://opensource.org/licenses/MIT). Please refer to the `LICENSE` file for more information.
 
-### 📞 Contact
-
-If you have any questions or suggestions regarding Corgi Bot, you can reach out to us at [email@example.com](mailto:email@example.com).
-
 Enjoy using Corgi Bot and have a delightful Discord server experience! 🎾🦴🐾
