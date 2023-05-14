@@ -1,5 +1,6 @@
 ## 🥏 Corgi Bot
-
+![e0bb502e8654548d89c00ec35571bba8](https://github.com/rukasudev/corgi-bot/assets/47928835/1bbda29f-f763-4f43-abec-09ada58012c7)
+---
 Corgi Bot is a powerful and versatile Discord bot built using Python, designed to streamline server moderation and enhance user experience. It incorporates various technologies to provide essential functionalities for managing and engaging your Discord server.
 
 ### 🛠️ Technologies Used
