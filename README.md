@@ -18,10 +18,51 @@ Corgi Bot leverages the following technologies:
 To get started with Corgi Bot, follow these steps:
 
 1. 📥 Clone the repository.
-2. ⚙️ Install the required dependencies specified in the `requirements.txt` file.
-3. 🔧 Configure your Discord bot token and other settings in the provided configuration file.
-4. ▶️ Run the bot using the command `python corgi_bot.py`.
-5. 🎉 Enjoy the enhanced moderation and engagement features offered by Corgi Bot in your Discord server!
+2. 🔧 Configure your Discord bot token and other settings in the `.env` file.
+3. ▶️ Run the bot using one of the following methods:
+
+   - ⌨️ **Via Terminal**: Execute the following commands in the project's root directory:
+   
+     Install the required dependencies specified in the `requirements.txt` file:
+     ```shell
+     pip install -r requirements.txt
+     ```
+
+     Run the project in the terminal:
+     ```shell
+     python __main__.py
+     ```
+
+   - 🛠️ **Via Makefile**: Ensure you have `make` installed on your system. If not, run the following command to install it:
+     ```shell
+     sudo apt-get install make
+     ```
+
+     Once `make` is installed, you can set up the project using the following command:
+     ```shell
+     make setup
+     ```
+
+     And then, run the project using the following command:
+     ```shell
+     make run
+     ```
+
+   - 🐳 **Via Docker/Docker Compose**: Make sure you have Docker and Docker Compose installed on your machine. Use the provided `Dockerfile` and `docker-compose.yml` files to build and run the project:
+     ```shell
+     # Build the Docker image
+     docker build -t corgi-bot .
+
+     # Run the bot using Docker
+     docker run corgi-bot
+
+     # Or, using Docker Compose
+     docker-compose up
+     ```
+
+4. 🎉 Enjoy the enhanced moderation and engagement features offered by Corgi Bot in your Discord server!
+
+
 
 ### 💬 Contributions
 
