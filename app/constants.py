@@ -7,12 +7,14 @@ class Style:
 
 
 class Commands:
+    # block links
     BLOCK_LINKS_KEY: Final[str] = "block_links"
     BLOCK_LINKS_ALLOWED_CHATS_KEY: Final[str] = "allowed_chats"
     BLOCK_LINKS_ALLOWED_ROLES_KEY: Final[str] = "allowed_roles"
     BLOCK_LINKS_ALLOWED_LINKS_KEY: Final[str] = "allowed_links"
     BLOCK_LINKS_ANSWER_KEY: Final[str] = "answer"
 
+    # moderations
     MODERATIONS_KEY: Final[str] = "moderations"
     STREAM_MONITOR_KEY: Final[str] = "stream_monitor"
     WELCOME_MESSAGES_KEY: Final[str] = "welcome_messages"

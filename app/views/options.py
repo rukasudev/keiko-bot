@@ -11,7 +11,7 @@ class OptionsView(discord.ui.View):
         self,
         command_key: str,
         redis_key: str,
-        options: List[str, str],
+        options: List[str],
         callback: Callable = None,
         cache: bool = False,
     ):

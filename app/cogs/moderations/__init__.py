@@ -2,12 +2,8 @@ import discord
 from discord import app_commands
 from discord.app_commands import locale_str
 from discord.ext import commands
-from i18n import t
 
 from app.bot import DiscordBot
-from app.cogs.moderations.block import Block
-from app.logger import logger
-from app.translator import Translator
 
 
 @app_commands.guild_only()

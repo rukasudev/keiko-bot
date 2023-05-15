@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Callable, Dict
 
 import discord
 
@@ -43,3 +43,18 @@ class CustomModal(discord.ui.Modal):
             redis_client.set(redis_key, self.children[0].value)
 
         await self.callback(interaction)
+
+
+def create_question_modal(self, question: Dict[str, str]) -> discord.ui.Modal:
+    """Return a discord modal from form.json dict"""
+    return CustomModal(
+        title=question["title"],
+        label=question["description"],
+        max_length=40,
+        required=True,
+        placeholder=question["placeholder"],
+        command_key=self.command_key,
+        redis_key=self._question_key,
+        callback=self._callback,
+        cache=True,
+    )

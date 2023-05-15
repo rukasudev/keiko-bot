@@ -25,11 +25,11 @@ class Form(discord.ui.View):
         `command_key` -- the key of the form message from form.json file
     """
 
-    def __init__(self, key: str):
+    def __init__(self, key: str, locale: str):
         self._index = 0
         self._form_data = {}
         self.command_key = key
-        self.forms = parse_json_to_dict(key, "forms.json")
+        self.forms = parse_json_to_dict(key, locale, "forms.json")
         super().__init__()
         self.add_item(ConfirmButton(callback=self._callback))
         self.add_item(CancelButtom())

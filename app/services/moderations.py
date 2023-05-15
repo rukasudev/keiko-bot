@@ -40,7 +40,7 @@ async def send_command_form_message(ctx: discord.Interaction, key: str):
 
     clear_cache_commands_by_guild(ctx.guild.id, key)
 
-    form_view = Form(key=key)
+    form_view = Form(key=key, locale=ctx.locale)
     embed = form_view.get_question_embed_by_key("form")
 
     await ctx.response.send_message(embed=embed, view=form_view, ephemeral=True)

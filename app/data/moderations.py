@@ -14,7 +14,6 @@ def find_parameters_by_guild(guild_id: str) -> dict:
     return mongo_client.guild.parameters.find_one({"guild_id": guild_id})
 
 
-# TODO: change this keys to constants
 def insert_parameters_by_guild(guild_id: str) -> str:
     parameters = constants.COGS_MODERATIONS_COMMANDS_DEFAULT
     parameters["guild_id"] = str(guild_id)

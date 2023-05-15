@@ -1,7 +1,9 @@
 ## 🥏 Corgi Bot
-![Prancheta 1](https://github.com/rukasudev/corgi-bot/assets/47928835/06342b24-2220-4ae2-bf76-06c9822984db)
+
+![corgi-banner](https://github.com/rukasudev/corgi-bot/assets/47928835/06342b24-2220-4ae2-bf76-06c9822984db)
 
 ---
+
 Corgi Bot is a powerful and versatile Discord bot built using Python, designed to streamline server moderation and enhance user experience. It incorporates various technologies to provide essential functionalities for managing and engaging your Discord server.
 
 ### 🛠️ Technologies Used
@@ -24,33 +26,39 @@ To get started with Corgi Bot, follow these steps:
 3. ▶️ Run the bot using one of the following methods:
 
    - ⌨️ **Via Terminal**: Execute the following commands in the project's root directory:
-   
+
      Install the required dependencies specified in the `requirements.txt` file:
+
      ```shell
      pip install -r requirements.txt
      ```
 
      Run the project in the terminal:
+
      ```shell
      python __main__.py
      ```
 
    - 🛠️ **Via Makefile**: Ensure you have `make` installed on your system. If not, run the following command to install it:
+
      ```shell
      sudo apt-get install make
      ```
 
      Once `make` is installed, you can set up the project using the following command:
+
      ```shell
      make setup
      ```
 
      And then, run the project using the following command:
+
      ```shell
      make run
      ```
 
    - 🐳 **Via Docker/Docker Compose**: Make sure you have Docker and Docker Compose installed on your machine. Use the provided `Dockerfile` and `docker-compose.yml` files to build and run the project:
+
      ```shell
      # Build the Docker image
      docker build -t corgi-bot .
@@ -63,8 +71,6 @@ To get started with Corgi Bot, follow these steps:
      ```
 
 4. 🎉 Enjoy the enhanced moderation and engagement features offered by Corgi Bot in your Discord server!
-
-
 
 ### 💬 Contributions
 

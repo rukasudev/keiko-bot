@@ -1,7 +1,6 @@
 import discord
 from discord import app_commands
 from discord.app_commands import locale_str
-from i18n import t
 
 
 class Twitch(app_commands.Group, name=locale_str("twitch", namespace="commands")):

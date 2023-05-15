@@ -4,8 +4,6 @@ from os.path import dirname, join
 from dotenv import load_dotenv
 
 
-# TODO: transfer config to yml and
-# set default colors, icons, emojis
 class AppConfig:
     """
     Represents an in-memory copy of the configuration .json file for the bot

@@ -3,7 +3,6 @@ from datetime import datetime
 import discord
 from discord.app_commands import locale_str
 from discord.ext import commands
-from i18n import t
 
 from app.bot import DiscordBot
 from app.logger import logger
