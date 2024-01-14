@@ -9,7 +9,7 @@ class ConfirmButton(discord.ui.Button):
         super().__init__(label="Confirmar", style=discord.ButtonStyle.green)
 
 
-class CancelButtom(discord.ui.Button):
+class CancelButton(discord.ui.Button):
     def __init__(self) -> None:
         super().__init__(label="Cancelar", style=discord.ButtonStyle.red)
 

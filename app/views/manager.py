@@ -30,8 +30,8 @@ class Manager(discord.ui.View):
 
         await delete_cog_by_guild(guild_id, self.command_key)
 
-        form_view = Form(key=self.command_key)
-        embed = form_view.get_question_embed_by_key("form")
+        form_view = Form(form_key=self.command_key)
+        embed = form_view.get_form_embed()
 
         await interaction.response.edit_message(embed=embed, view=form_view)
 
@@ -48,4 +48,4 @@ class Manager(discord.ui.View):
         embed.title = "Commando desativado com sucesso!"
         self.clear_items()
 
-        await interaction.message.edit(embed=embed, view=self)
+        await interaction.response.edit_message(embed=embed, view=self)

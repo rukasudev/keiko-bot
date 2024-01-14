@@ -35,21 +35,17 @@ async def delete_cog_by_guild(guild_id: str, cog: str):
     return cogs_data.delete_cog_by_guild_id(guild_id, cog)
 
 
-async def send_command_form_message(ctx: discord.Interaction, key: str):
+async def send_command_form_message(interaction: discord.Interaction, key: str):
     from app.views.form import Form
 
-    clear_cache_commands_by_guild(ctx.guild.id, key)
+    form_view = Form(form_key=key, locale=interaction.locale)
+    embed = form_view.get_form_embed()
 
-    form_view = Form(key=key, locale=ctx.locale)
-    embed = form_view.get_question_embed_by_key("form")
-
-    await ctx.response.send_message(embed=embed, view=form_view, ephemeral=True)
+    await interaction.response.send_message(embed=embed, view=form_view, ephemeral=True)
 
 
 async def send_command_manager_message(interaction: discord.Interaction, key: str):
     from app.views.manager import Manager
-
-    clear_cache_commands_by_guild(interaction.guild.id, key)
 
     command_dict = parse_json_to_dict(key, interaction.locale, "command.json")
     embed = parse_dict_to_embed(command_dict)

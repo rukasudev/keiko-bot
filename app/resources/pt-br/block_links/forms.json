@@ -1,24 +1,28 @@
-{
-  "form": {
+[
+  {
+    "key": "form",
     "title": ":no_entry_sign: Bloquear links",
     "description": "Ativar esta função faz com que eu analise as mensagens enviadas no seu servidor e exclua caso contenha algum link\n\n📝 **Configurações**\n\n:flying_disc: **Chats:** Chats que serão permitidos enviar links\n:flying_disc: **Links:** Links que serão permitidos serem enviados\n:flying_disc: **Resposta:** Minha resposta ao excluir uma mensagem com link",
     "footer": "• Em caso de problemas, utilize o comando /report",
     "thumbnail": "https://img.freepik.com/vetores-gratis/cute-corgi-dog-delivery-box-package-cartoon-icon-ilustracao-vetorial-conceito-de-icone-de-natureza-animal-isolado-vetor-premium-estilo-flat-cartoon_138676-3506.jpg",
     "action": "button"
   },
-  "allowed_chats": {
+  {
+    "key": "allowed_chats",
     "emoji": ":speech_balloon:",
     "title": "Chats permitidos",
     "description": "Escolha os chats que serão permitidos enviar links",
     "action": "channels"
   },
-  "allowed_roles": {
+  {
+    "key": "allowed_roles",
     "emoji": ":busts_in_silhouette:",
     "title": "Cargos permitidos",
     "description": "Escolha quais cargos serão permitidos enviar links em qualquer canal",
     "action": "roles"
   },
-  "allowed_links": {
+  {
+    "key": "allowed_links",
     "emoji": ":link:",
     "title": "Links permitidos",
     "description": "Escolha alguns sites que o envio de links serão permitidos",
@@ -34,17 +38,19 @@
       "Reddit"
     ]
   },
-  "answer": {
+  {
+    "key": "answer",
     "title": "Resposta ao bloquear links",
     "description": "Digite minha resposta ao bloquear links",
     "action": "modal",
     "placeholder": "Nada de links por aqui! :p"
   },
-  "confirm": {
+  {
+    "key": "confirm",
     "title": ":white_check_mark: Tudo certo?",
     "description": "Ativar esta função faz com que eu analise as mensagens enviadas no seu servidor e exclua caso contenha algum link\n\n📝 **Configurações**\n",
     "thumbnail": "https://img.freepik.com/vetores-gratis/cute-corgi-dog-delivery-box-package-cartoon-icon-ilustracao-vetorial-conceito-de-icone-de-natureza-animal-isolado-vetor-premium-estilo-flat-cartoon_138676-3506.jpg",
     "footer": "• Em caso de problemas, utilize o comando /report",
     "action": "resume"
   }
-}
+]

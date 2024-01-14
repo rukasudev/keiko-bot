@@ -27,3 +27,11 @@ def parse_dict_to_embed(data: Dict[str, str]) -> discord.Embed:
         embed.set_footer(text=data["footer"])
 
     return embed
+
+def parse_form_resume_embed(responses: Dict[str, str]) -> str:
+    result = ""
+    for item in responses:
+        values = ", ".join(item["value"])
+        result += f"\n:flying_disc: {item['title']}: **{values}**"
+
+    return result

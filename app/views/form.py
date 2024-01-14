@@ -2,9 +2,8 @@ from typing import Dict, List
 
 import discord
 
-from app import redis_client
-from app.components.buttons import CancelButtom, ConfirmButton
-from app.components.embed import parse_dict_to_embed
+from app.components.buttons import CancelButton, ConfirmButton
+from app.components.embed import parse_dict_to_embed, parse_form_resume_embed
 from app.components.modals import CustomModal
 from app.constants import FormConstants as constants
 from app.services.moderations import upsert_cog_by_guild, upsert_parameter_by_guild
@@ -19,188 +18,148 @@ from app.views.options import OptionsView
 class Form(discord.ui.View):
     """
     A custom view to create a form message with questions and
-    save to database.
+    after save the answers to database.
 
     Attributes:
         `command_key` -- the key of the form message from form.json file
     """
 
-    def __init__(self, key: str, locale: str):
-        self._index = 0
-        self._form_data = {}
-        self.command_key = key
-        self.forms = parse_json_to_dict(key, locale, "forms.json")
+    def __init__(self, form_key: str, locale: str) -> None:
+        self.command_key = form_key
+        self.locale = locale
+        self.questions = self._get_questions()
         super().__init__()
         self.add_item(ConfirmButton(callback=self._callback))
-        self.add_item(CancelButtom())
+        self.add_item(CancelButton())
 
-    def parse_question_to_modal(self, question: Dict[str, str]) -> discord.ui.Modal:
-        """Return a discord modal from form.json dict"""
-        return CustomModal(
-            title=question["title"],
-            label=question["description"],
-            max_length=40,
-            required=True,
-            placeholder=question["placeholder"],
-            command_key=self.command_key,
-            redis_key=self._question_key,
-            callback=self._callback,
-            cache=True,
+    def _get_questions(self) -> List[Dict[str, str]]:
+        questions = parse_json_to_dict(
+            self.command_key,
+            self.locale,
+            "forms.json"
         )
+        yield from questions
 
-    def _update_form_counter(func):
+    def _update_form_question(func):
         async def update_counter(self, args):
-            self._index += 1
-            self._question_key = list(self.forms.keys())[self._index]
-            self._question = self.forms[self._question_key]
+            self._save_question_response()
+            self._question = next(self.questions)
+            self.question_embed = parse_dict_to_embed(self._question)
             await func(self, args)
 
         return update_counter
 
-    def get_question_embed_by_key(self, question_key: str) -> discord.Embed:
-        """Return a discord embed from form dict"""
-        return parse_dict_to_embed(self.forms[question_key])
+    def _save_question_response(self):
+        if not hasattr(self, "view"):
+            return
 
-    # TODO: refactor this method and improve redis usage
-    def _parse_redis_description_values(self, guild_id: str, description: str) -> str:
-        for key in redis_client.scan_iter(f"{guild_id}@{self.command_key}:*"):
-            parsed_list = None
-            redis_key = key.split(":")[1].replace("$channels", "").replace("$roles", "")
-            key_type = redis_client.type(key)
+        if not hasattr(self, "responses"):
+            self.responses = []
 
-            if key_type == "list":
-                value = redis_client.lrange(key, 0, -1)
-                parsed_list = ", ".join(value)
-            else:
-                value = redis_client.get(key)
+        self.responses.append({
+            "key": self._question["key"],
+            "title": self._question["title"],
+            "value": self.view.selected.values(),
+        })
 
-            title = self.forms[redis_key]["title"]
+    def _parse_responses_to_cog(self, guild_id: int) -> Dict[str, str]:
+        cog_param = {"guild_id": str(guild_id)}
+        for item in self.responses:
+            cog_param[item["key"]] = list(item["value"])
+        return cog_param
 
-            if "channels" in key:
-                self._form_data[redis_key] = [
-                    index
-                    for channel, index in self.guild_channels.items()
-                    if channel in value
-                ]
-            elif "roles" in key:
-                self._form_data[redis_key] = [
-                    index for channel, index in self.roles.items() if channel in value
-                ]
-            else:
-                self._form_data[redis_key] = value
+    def get_form_embed(self) -> discord.Embed:
+        return parse_dict_to_embed(next(self.questions))
 
-            description += f"\n:flying_disc: {title}: **{parsed_list or value}**"
-
-        return description
-
-    async def _modal(self, interaction: discord.Interaction):
-        modal = self.parse_question_to_modal(self._question)
-
+    async def show_modal(self, interaction: discord.Interaction):
+        modal = CustomModal(self._question, self._callback)
         await interaction.response.send_modal(modal)
 
-    async def _options(
-        self, interaction: discord.Interaction, embed: discord.Embed, options: List[str]
-    ):
+    async def show_options(self, interaction: discord.Interaction):
         await interaction.response.defer()
-
-        view = OptionsView(
-            command_key=self.command_key,
-            redis_key=self._question_key,
-            options=options,
+        self.view = OptionsView(
+            options=self._question["options"],
             callback=self._callback,
-            cache=True,
+        )
+        await interaction.followup.edit_message(
+            message_id=interaction.message.id,
+            embed=self.question_embed,
+            view=self.view
         )
 
-        await interaction.message.edit(embed=embed, view=view)
-
-    async def _channels(
-        self,
-        interaction: discord.Interaction,
-        embed: discord.Embed,
-        channels: Dict[str, str],
-    ):
+    async def show_channels(self, interaction: discord.Interaction):
+        channels = get_text_channels_by_guild(interaction.guild)
         await interaction.response.defer()
-
-        view = OptionsView(
-            command_key=self.command_key,
-            redis_key="$channels" + self._question_key,
+        self.view = OptionsView(
             options=list(channels.keys()),
             callback=self._callback,
-            cache=True,
+        )
+        await interaction.followup.edit_message(
+            message_id=interaction.message.id,
+            embed=self.question_embed,
+            view=self.view
         )
 
-        await interaction.message.edit(embed=embed, view=view)
-
-    async def _roles(
-        self,
-        interaction: discord.Interaction,
-        embed: discord.Embed,
-        roles: Dict[str, str],
-    ):
+    async def show_roles(self, interaction: discord.Interaction):
+        roles = get_roles_by_guild(interaction.guild)
         await interaction.response.defer()
-
-        view = OptionsView(
-            command_key=self.command_key,
-            redis_key="$roles" + self._question_key,
+        self.view = OptionsView(
             options=list(roles.keys()),
             callback=self._callback,
-            cache=True,
+        )
+        await interaction.followup.edit_message(
+            message_id=interaction.message.id,
+            embed=self.question_embed,
+            view=self.view
         )
 
-        await interaction.message.edit(embed=embed, view=view)
-
-    async def _resume(self, interaction: discord.Interaction, embed: discord.Embed):
-        embed.description = self._parse_redis_description_values(
-            interaction.guild.id, embed.description
+    async def show_resume(self, interaction: discord.Interaction):
+        self.question_embed.description += parse_form_resume_embed(
+            self.responses
         )
 
         self.add_item(ConfirmButton(callback=self._finish))
-        self.add_item(CancelButtom())
-        await interaction.response.edit_message(embed=embed, view=self)
+        self.add_item(CancelButton())
+        await interaction.response.edit_message(
+            embed=self.question_embed,
+            view=self
+        )
 
     async def _finish(self, interaction: discord.Interaction):
-        guild_id = interaction.guild.id
-        self._form_data["guild_id"] = str(guild_id)
-
+        cog_param = self._parse_responses_to_cog(interaction.guild_id)
         await upsert_parameter_by_guild(
-            guild_id=guild_id, parameter=self.command_key, value=True
+            guild_id=interaction.guild_id,
+            parameter=self.command_key,
+            value=True
         )
-        await upsert_cog_by_guild(guild_id, self.command_key, self._form_data)
+        await upsert_cog_by_guild(
+            guild_id=interaction.guild_id,
+            cog=self.command_key,
+            data=cog_param
+        )
 
         self.clear_items()
 
         # TODO: pass this message to json to allow multilanguage in future
         embed = interaction.message.embeds[0]
         embed.title = f"Comando ativado com sucesso!"
-
         await interaction.response.edit_message(embed=embed, view=self)
 
-    # TODO: transfer this keys to constants
-    @_update_form_counter
-    async def _callback(self, interaction: discord.Interaction):
-        """A callback method called after view buttons has interaction"""
+    async def get_action_by_type(self, action, interaction) -> None:
+        action_dict = {
+            constants.MODAL_ACTION_KEY: self.show_modal,
+            constants.OPTIONS_ACTION_KEY: self.show_options,
+            constants.ROLES_ACTION_KEY: self.show_roles,
+            constants.CHANNELS_ACTION_KEY: self.show_channels,
+            constants.RESUME_ACTION_KEY: self.show_resume,
+        }
 
+        if action in action_dict:
+            return await action_dict[action](interaction)
+
+    @_update_form_question
+    async def _callback(self, interaction: discord.Interaction) -> None:
         self.clear_items()
 
-        embed = self.get_question_embed_by_key(self._question_key)
         action = self._question["action"]
-
-        if action == constants.MODAL_ACTION_KEY:
-            return await self._modal(interaction)
-
-        if action == constants.OPTIONS_ACTION_KEY:
-            options = self._question["options"]
-            return await self._options(interaction, embed, options)
-
-        if action == constants.ROLES_ACTION_KEY:
-            self.roles = get_roles_by_guild(interaction.guild)
-            del self.roles["@everyone"]
-
-            return await self._roles(interaction, embed, self.roles)
-
-        if action == constants.CHANNELS_ACTION_KEY:
-            self.guild_channels = get_text_channels_by_guild(interaction.guild)
-            return await self._channels(interaction, embed, self.guild_channels)
-
-        if action == constants.RESUME_ACTION_KEY:
-            return await self._resume(interaction, embed)
+        return await self.get_action_by_type(action, interaction)
