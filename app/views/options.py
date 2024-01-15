@@ -12,7 +12,7 @@ class OptionsView(discord.ui.View):
     ) -> None:
         self.options = options
         self.callback = callback
-        self.selected = dict()
+        self.response = dict()
         super().__init__()
         self.set_options(self.options)
         self.add_item(ConfirmButton(callback=self._confirm_callback))
@@ -24,6 +24,9 @@ class OptionsView(discord.ui.View):
                 options_custom_id=str(index), options_label=str(option)
             )
             self.add_item(option_button)
+
+    def get_response(self):
+        return self.response.values()
 
     async def _confirm_callback(self, interaction: discord.Interaction) -> None:
         await self.callback(interaction)

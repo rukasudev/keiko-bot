@@ -2,6 +2,7 @@ from json import load
 from pathlib import Path
 from re import findall
 from typing import Dict, List
+from app.constants import Emojis as constants
 
 import discord
 
@@ -38,7 +39,7 @@ def get_text_channels_by_guild(guild: discord.Guild) -> Dict[str, str]:
 
 
 def get_roles_by_guild(guild: discord.Guild) -> Dict[str, str]:
-    return {role.name: str(role.id) for role in guild.roles if role != "@everyone"}
+    return {role.name: str(role.id) for role in guild.roles if role.name != "@everyone"}
 
 
 def list_roles_id(roles: List[discord.Role]) -> List[int]:
@@ -51,3 +52,34 @@ def check_two_lists_intersection(x: list, y: list) -> bool:
 
 def check_answer_message(ctx, message) -> bool:
     return message.author == ctx.author and message.channel == ctx.channel
+
+def parse_cogs_titles(cogs_list: List[Dict[str, str]]) -> Dict[str, str]:
+    response = {}
+    for item in cogs_list:
+        response[item["key"]] = item["title"]
+    return response
+
+def parse_cog_data_to_param_result(cog_data: List[Dict[str, str]], form_json: Dict[str, str]) -> List[Dict[str, str]]:
+    response = []
+    for cog_key, value in cog_data.items():
+        cogs_title = parse_cogs_titles(form_json)
+        if not cogs_title.get(cog_key):
+            continue
+
+        response.append({
+            "title": cogs_title[cog_key],
+            "value": value
+        })
+    return response
+
+def parse_form_params_result(responses: List[Dict[str, str]]) -> str:
+    result = ""
+    for item in responses:
+        values = item["value"]
+
+        if not isinstance(values, str):
+            values = ", ".join(item["value"])
+
+        result += f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{values}**"
+
+    return result

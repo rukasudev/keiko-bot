@@ -29,10 +29,10 @@ class OptionsButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction) -> None:
         if self.style == discord.ButtonStyle.primary:
             self.style = discord.ButtonStyle.gray
-            del self.view.selected[self.custom_id]
+            del self.view.response[self.custom_id]
         else:
             self.style = discord.ButtonStyle.primary
-            self.view.selected[self.custom_id] = self.label
+            self.view.response[self.custom_id] = self.label
 
         await interaction.response.edit_message(view=self.view)
 

@@ -3,7 +3,7 @@ from typing import Dict, List
 import discord
 
 from app.components.buttons import CancelButton, ConfirmButton
-from app.components.embed import parse_dict_to_embed, parse_form_resume_embed
+from app.components.embed import parse_dict_to_embed
 from app.components.modals import CustomModal
 from app.constants import FormConstants as constants
 from app.services.moderations import upsert_cog_by_guild, upsert_parameter_by_guild
@@ -11,6 +11,7 @@ from app.services.utils import (
     get_roles_by_guild,
     get_text_channels_by_guild,
     parse_json_to_dict,
+    parse_form_params_result
 )
 from app.views.options import OptionsView
 
@@ -59,21 +60,23 @@ class Form(discord.ui.View):
         self.responses.append({
             "key": self._question["key"],
             "title": self._question["title"],
-            "value": self.view.selected.values(),
+            "value": self.view.get_response()
         })
 
     def _parse_responses_to_cog(self, guild_id: int) -> Dict[str, str]:
         cog_param = {"guild_id": str(guild_id)}
         for item in self.responses:
-            cog_param[item["key"]] = list(item["value"])
+            cog_param[item["key"]] = item["value"]
+            if not isinstance(item["value"], str):
+                cog_param[item["key"]] = list(item["value"])
         return cog_param
 
     def get_form_embed(self) -> discord.Embed:
         return parse_dict_to_embed(next(self.questions))
 
     async def show_modal(self, interaction: discord.Interaction):
-        modal = CustomModal(self._question, self._callback)
-        await interaction.response.send_modal(modal)
+        self.view = CustomModal(self._question, self._callback)
+        await interaction.response.send_modal(self.view)
 
     async def show_options(self, interaction: discord.Interaction):
         await interaction.response.defer()
@@ -114,7 +117,7 @@ class Form(discord.ui.View):
         )
 
     async def show_resume(self, interaction: discord.Interaction):
-        self.question_embed.description += parse_form_resume_embed(
+        self.question_embed.description += parse_form_params_result(
             self.responses
         )
 

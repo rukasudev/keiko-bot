@@ -18,5 +18,9 @@ class CustomModal(discord.ui.Modal):
             )
         )
 
+    def get_response(self):
+        return self.response
+
     async def on_submit(self, interaction) -> None:
+        self.response = self.children[0].value
         await self.callback(interaction)

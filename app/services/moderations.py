@@ -2,11 +2,15 @@ from typing import Any, Dict
 
 import discord
 
+from app.constants import Commands as constants
 from app.components.embed import parse_dict_to_embed
 from app.data import cogs as cogs_data
 from app.data import moderations as moderations_data
-from app.services.cache import clear_cache_commands_by_guild
-from app.services.utils import parse_json_to_dict
+from app.services.utils import (
+    parse_json_to_dict,
+    parse_form_params_result,
+    parse_cog_data_to_param_result
+)
 
 
 async def upsert_parameter_by_guild(guild_id: str, parameter: str, value: str):
@@ -50,6 +54,10 @@ async def send_command_manager_message(interaction: discord.Interaction, key: st
     command_dict = parse_json_to_dict(key, interaction.locale, "command.json")
     embed = parse_dict_to_embed(command_dict)
 
+    cog_data = cogs_data.find_cog_by_guild_id(interaction.guild_id, constants.BLOCK_LINKS_KEY)
+    description = parse_cog_data_to_param_result(cog_data)
+
+    embed.description += parse_form_params_result(description)
     view = Manager(key)
 
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
