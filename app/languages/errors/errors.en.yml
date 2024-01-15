@@ -1,3 +1,5 @@
 en:
   command-permission-denied:
     message: hey, you don't have permissions to run this command :/
+  command-required-interaction:
+    message: please, select any option to proceed! :)

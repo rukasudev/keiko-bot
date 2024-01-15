@@ -96,6 +96,7 @@ class Form(discord.ui.View):
         self.view = OptionsView(
             options=list(channels.keys()),
             callback=self._callback,
+            required=True
         )
         await interaction.followup.edit_message(
             message_id=interaction.message.id,

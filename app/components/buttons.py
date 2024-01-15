@@ -15,7 +15,7 @@ class CancelButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction) -> None:
         self.view.clear_items()
-        await interaction.message.edit(view=self.view)
+        await interaction.response.edit_message(view=self.view)
 
 
 class OptionsButton(discord.ui.Button):

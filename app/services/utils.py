@@ -77,9 +77,15 @@ def parse_form_params_result(responses: List[Dict[str, str]]) -> str:
     for item in responses:
         values = item["value"]
 
+        if not values:
+            values = "-"
+
         if not isinstance(values, str):
             values = ", ".join(item["value"])
 
         result += f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{values}**"
 
     return result
+
+def parse_locale(locale: str) -> str:
+    return str(locale).split("-")[0]

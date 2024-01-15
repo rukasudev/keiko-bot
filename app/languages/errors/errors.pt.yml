@@ -1,3 +1,5 @@
 pt:
   command-permission-denied:
     message: hey, você não tem permissão pra rodar esse comando :/
+  command-required-interaction:
+    message: por favor, selecione alguma opção para prosseguir! :)

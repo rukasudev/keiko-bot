@@ -1,7 +1,7 @@
 pt:
   moderations: moderações
   events: eventos
-  
+
   block: bloquear
   blockdesc: bloquear
 
@@ -13,7 +13,7 @@ pt:
 
   notifications: notificações
   twitch: twitch
-  
+
   twitchactivate: ligar
   twitchactivatedesc: ativar notificações da twitch
 

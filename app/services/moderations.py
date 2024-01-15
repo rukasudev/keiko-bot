@@ -55,7 +55,8 @@ async def send_command_manager_message(interaction: discord.Interaction, key: st
     embed = parse_dict_to_embed(command_dict)
 
     cog_data = cogs_data.find_cog_by_guild_id(interaction.guild_id, constants.BLOCK_LINKS_KEY)
-    description = parse_cog_data_to_param_result(cog_data)
+    form_json = parse_json_to_dict(key, interaction.locale, "forms.json")
+    description = parse_cog_data_to_param_result(cog_data, form_json)
 
     embed.description += parse_form_params_result(description)
     view = Manager(key)

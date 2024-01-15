@@ -2,10 +2,8 @@ import discord
 from discord import app_commands
 from discord.app_commands import locale_str
 from discord.ext import commands
-from i18n import t
 
 from app.bot import DiscordBot
-from app.logger import logger
 
 
 @app_commands.guild_only()
@@ -21,4 +19,4 @@ class Notifications(
         description="Sincronizar slash commands com o servidor",
     )
     async def _sync(self, interaction: discord.Interaction):
-        await interaction.response.send_message("Hello7!")
+        await interaction.response.send_message("Hello!")
