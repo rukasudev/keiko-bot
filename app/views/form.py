@@ -30,8 +30,8 @@ class Form(discord.ui.View):
         self.locale = locale
         self.questions = self._get_questions()
         super().__init__()
-        self.add_item(ConfirmButton(callback=self._callback))
-        self.add_item(CancelButton())
+        self.add_item(ConfirmButton(callback=self._callback, locale=locale))
+        self.add_item(CancelButton(locale=locale))
 
     def _get_questions(self) -> List[Dict[str, str]]:
         questions = parse_json_to_dict(
@@ -83,6 +83,7 @@ class Form(discord.ui.View):
         self.view = OptionsView(
             options=self._question["options"],
             callback=self._callback,
+            locale=self.locale
         )
         await interaction.followup.edit_message(
             message_id=interaction.message.id,
@@ -96,7 +97,7 @@ class Form(discord.ui.View):
         self.view = OptionsView(
             options=list(channels.keys()),
             callback=self._callback,
-            required=True
+            locale=self.locale
         )
         await interaction.followup.edit_message(
             message_id=interaction.message.id,
@@ -110,6 +111,7 @@ class Form(discord.ui.View):
         self.view = OptionsView(
             options=list(roles.keys()),
             callback=self._callback,
+            locale=self.locale
         )
         await interaction.followup.edit_message(
             message_id=interaction.message.id,
@@ -122,8 +124,8 @@ class Form(discord.ui.View):
             self.responses
         )
 
-        self.add_item(ConfirmButton(callback=self._finish))
-        self.add_item(CancelButton())
+        self.add_item(ConfirmButton(callback=self._finish, locale=self.locale))
+        self.add_item(CancelButton(locale=self.locale))
         await interaction.response.edit_message(
             embed=self.question_embed,
             view=self

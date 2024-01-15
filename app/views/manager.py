@@ -15,11 +15,11 @@ class Manager(discord.ui.View):
         `command_key` -- the key of the form message from form.json file
     """
 
-    def __init__(self, key: str):
+    def __init__(self, key: str, locale: str):
         self.command_key = key
         super().__init__()
-        self.add_item(ResetButtom(callback=self.reset_callback))
-        self.add_item(DisableButtom(callback=self.disable_callback))
+        self.add_item(ResetButtom(callback=self.reset_callback, locale=locale))
+        self.add_item(DisableButtom(callback=self.disable_callback, locale=locale))
 
     async def reset_callback(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)

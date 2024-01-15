@@ -2,7 +2,7 @@
   {
     "key": "form",
     "title": ":no_entry_sign: Block links",
-    "description": "Enabling this function will make me parse each message and delete it if it has link\n\n📝 **Settings**\n\n:flying_disc: **Chats:** Chats that will be allowed to send links\n:flying_disc: **Links:** Links that will be allowed to be sent\n:flying_disc: **Resposta:** My response when deleting a message with a link",
+    "description": "Enabling this function will make me parse each message and delete it if it has link\n\n📝 **Settings**\n\n:flying_disc: **Chats:** Chats that will be allowed to send links\n:flying_disc: **Links:** Links that will be allowed to be sent\n:flying_disc: **Answer:** My response when deleting a message with a link",
     "footer": "• In case of problems, use the command /report",
     "thumbnail": "https://img.freepik.com/vetores-gratis/cute-corgi-dog-delivery-box-package-cartoon-icon-ilustracao-vetorial-conceito-de-icone-de-natureza-animal-isolado-vetor-premium-estilo-flat-cartoon_138676-3506.jpg",
     "action": "button"

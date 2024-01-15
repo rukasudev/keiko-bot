@@ -1,17 +1,23 @@
 from typing import Callable
-
+from i18n import t
 import discord
 
 
 class ConfirmButton(discord.ui.Button):
-    def __init__(self, callback: Callable) -> None:
+    def __init__(self, callback: Callable, locale:str) -> None:
         self.callback = callback
-        super().__init__(label="Confirmar", style=discord.ButtonStyle.green)
+        super().__init__(
+            label=t("buttons.confirm", locale=locale),
+            style=discord.ButtonStyle.green
+        )
 
 
 class CancelButton(discord.ui.Button):
-    def __init__(self) -> None:
-        super().__init__(label="Cancelar", style=discord.ButtonStyle.red)
+    def __init__(self, locale: str) -> None:
+        super().__init__(
+            label=t("buttons.cancel", locale=locale),
+            style=discord.ButtonStyle.red
+        )
 
     async def callback(self, interaction: discord.Interaction) -> None:
         self.view.clear_items()
@@ -38,12 +44,20 @@ class OptionsButton(discord.ui.Button):
 
 
 class ResetButtom(discord.ui.Button):
-    def __init__(self, callback: Callable) -> None:
+    def __init__(self, callback: Callable, locale: str) -> None:
         self.callback = callback
-        super().__init__(label="Resetar", emoji="🔄", style=discord.ButtonStyle.grey)
+        super().__init__(
+            label=t("buttons.reset", locale=locale),
+            emoji="🔄",
+            style=discord.ButtonStyle.grey
+        )
 
 
 class DisableButtom(discord.ui.Button):
-    def __init__(self, callback: Callable) -> None:
+    def __init__(self, callback: Callable, locale: str) -> None:
         self.callback = callback
-        super().__init__(label="Desabilitar", emoji="🚫", style=discord.ButtonStyle.red)
+        super().__init__(
+            label=t("buttons.disable", locale=locale),
+            emoji="🚫",
+            style=discord.ButtonStyle.red
+        )
