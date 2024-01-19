@@ -1,9 +1,10 @@
 import discord
 
-from app import constants
 from app.components.buttons import DisableButtom, ResetButtom
 from app.services.moderations import delete_cog_by_guild, upsert_parameter_by_guild
+from app.services.utils import parse_command_event_description
 from app.views.form import Form
+from i18n import t
 
 
 class Manager(discord.ui.View):
@@ -17,6 +18,7 @@ class Manager(discord.ui.View):
 
     def __init__(self, key: str, locale: str):
         self.command_key = key
+        self.locale = locale
         super().__init__()
         self.add_item(ResetButtom(callback=self.reset_callback, locale=locale))
         self.add_item(DisableButtom(callback=self.disable_callback, locale=locale))
@@ -45,7 +47,13 @@ class Manager(discord.ui.View):
 
         await delete_cog_by_guild(guild_id, self.command_key)
 
-        embed.title = "Commando desativado com sucesso!"
+        embed.title = t("commands.command-event.disabled.title", locale=self.locale)
+        embed.description = parse_command_event_description(
+            t("commands.command-event.disabled.description", locale=self.locale),
+            interaction.message.created_at,
+            interaction.message.interaction.name,
+            interaction.user.mention
+        )
         self.clear_items()
 
         await interaction.response.edit_message(embed=embed, view=self)

@@ -13,7 +13,18 @@ en:
 
   notifications: notifications
   twitch: twitch
-  
-  twitchactivate: activate
-  twitchactivatedesc: activate twitch notifications
 
+  twitch-activate: activate
+  twitch-activate-desc: activate twitch notifications
+
+  command-event:
+    enabled:
+      title: 🎉 Command enabled sucessfully!
+      description: Command **$command_name** enabled on $date by $user 🚀
+
+
+        If you want to make changes or disable the command, simply run the command again 🔄
+
+    disabled:
+      title: 🚫 Command disabled sucessfully!
+      description: Command **$command_name** disabled on $date by $user.

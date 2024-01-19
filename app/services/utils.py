@@ -4,6 +4,7 @@ from re import findall
 from typing import Dict, List
 from app.constants import Emojis as constants
 
+import datetime
 import discord
 
 
@@ -89,3 +90,9 @@ def parse_form_params_result(responses: List[Dict[str, str]]) -> str:
 
 def parse_locale(locale: str) -> str:
     return str(locale).split("-")[0]
+
+def parse_command_event_description(description: str, interaction_date: datetime.datetime, command_name: str, user: str) -> str:
+    description = description.replace("$command_name", command_name)
+    description = description.replace("$date", interaction_date.strftime("%Y-%m-%d %H:%M:%S"))
+    description = description.replace("$user", user)
+    return description

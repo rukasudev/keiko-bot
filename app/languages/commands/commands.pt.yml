@@ -14,6 +14,17 @@ pt:
   notifications: notificações
   twitch: twitch
 
-  twitchactivate: ligar
-  twitchactivatedesc: ativar notificações da twitch
+  twitch-activate: ligar
+  twitch-activate-desc: ativar notificações da twitch
 
+  command-event:
+    enabled:
+      title: 🎉 Funcionalidade ativada com sucesso!
+      description: Comando **$command_name** ativado as $date por $user 🚀
+
+
+        Se você deseja fazer alterações ou desabilitar o comando, basta executá-lo novamente 🔄
+
+    disabled:
+      title: 🚫 Comando desabilitado com sucesso!
+      description: Comando **$command_name** desabilitado as $date por $user.

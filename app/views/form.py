@@ -1,7 +1,4 @@
 from typing import Dict, List
-
-import discord
-
 from app.components.buttons import CancelButton, ConfirmButton
 from app.components.embed import parse_dict_to_embed
 from app.components.modals import CustomModal
@@ -11,9 +8,13 @@ from app.services.utils import (
     get_roles_by_guild,
     get_text_channels_by_guild,
     parse_json_to_dict,
-    parse_form_params_result
+    parse_form_params_result,
+    parse_command_event_description
 )
 from app.views.options import OptionsView
+from i18n import t
+
+import discord
 
 
 class Form(discord.ui.View):
@@ -146,10 +147,15 @@ class Form(discord.ui.View):
 
         self.clear_items()
 
-        # TODO: pass this message to json to allow multilanguage in future
         embed = interaction.message.embeds[0]
-        embed.title = f"Comando ativado com sucesso!"
-        await interaction.response.edit_message(embed=embed, view=self)
+        embed.title = t("commands.command-event.enabled.title", locale=self.locale)
+        embed.description = parse_command_event_description(
+            t("commands.command-event.enabled.description", locale=self.locale),
+            interaction.message.edited_at,
+            interaction.message.interaction.name,
+            interaction.user.mention
+        )
+        await interaction.response.send_message(embed=embed, view=self)
 
     async def get_action_by_type(self, action, interaction) -> None:
         action_dict = {
