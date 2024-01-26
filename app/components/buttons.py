@@ -43,12 +43,12 @@ class OptionsButton(discord.ui.Button):
         await interaction.response.edit_message(view=self.view)
 
 
-class ResetButtom(discord.ui.Button):
+class EditButtom(discord.ui.Button):
     def __init__(self, callback: Callable, locale: str) -> None:
         self.callback = callback
         super().__init__(
-            label=t("buttons.reset", locale=locale),
-            emoji="🔄",
+            label=t("buttons.edit", locale=locale),
+            emoji="📝",
             style=discord.ButtonStyle.grey
         )
 
@@ -59,5 +59,5 @@ class DisableButtom(discord.ui.Button):
         super().__init__(
             label=t("buttons.disable", locale=locale),
             emoji="🚫",
-            style=discord.ButtonStyle.red
+            style=discord.ButtonStyle.grey
         )

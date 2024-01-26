@@ -23,11 +23,9 @@ async def upsert_parameter_by_guild(guild_id: str, parameter: str, value: str):
         guild_id=guild_id, parameter=parameter, value=value
     )
 
-
 async def upsert_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
     if not data.get("guild_id"):
-        print("Check if guild_id is correct to save cog")
-        return
+        data["guild_id"] = str(guild_id)
 
     return cogs_data.upsert_cog_by_guild_id(guild_id, cog, data)
 

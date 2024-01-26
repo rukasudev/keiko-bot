@@ -55,38 +55,36 @@ def check_answer_message(ctx, message) -> bool:
     return message.author == ctx.author and message.channel == ctx.channel
 
 def parse_cogs_titles(cogs_list: List[Dict[str, str]]) -> Dict[str, str]:
-    response = {}
-    for item in cogs_list:
-        response[item["key"]] = item["title"]
-    return response
+    return {item["key"]: item["title"] for item in cogs_list}
 
 def parse_cog_data_to_param_result(cog_data: List[Dict[str, str]], form_json: Dict[str, str]) -> List[Dict[str, str]]:
-    response = []
-    for cog_key, value in cog_data.items():
-        cogs_title = parse_cogs_titles(form_json)
-        if not cogs_title.get(cog_key):
-            continue
-
-        response.append({
+    cogs_title = parse_cogs_titles(form_json)
+    response = [
+        {
             "title": cogs_title[cog_key],
             "value": value
-        })
+        }
+        for cog_key, value in cog_data.items()
+        if cogs_title.get(cog_key)
+    ]
+    return response
+
+def get_cog_with_title(cog_data: List[Dict[str, str]], form_json: Dict[str, str]) -> Dict[str, str]:
+    cogs_title = parse_cogs_titles(form_json)
+    response = {cogs_title[cog_key]: cog_key for cog_key in cog_data if cogs_title.get(cog_key)}
     return response
 
 def parse_form_params_result(responses: List[Dict[str, str]]) -> str:
-    result = ""
+    result = []
     for item in responses:
-        values = item["value"]
-
-        if not values:
-            values = "-"
+        values = item.get("value", "-")
 
         if not isinstance(values, str):
-            values = ", ".join(item["value"])
+            values = ", ".join(values)
 
-        result += f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{values}**"
+        result.append(f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{values}**")
 
-    return result
+    return "".join(result)
 
 def parse_locale(locale: str) -> str:
     return str(locale).split("-")[0]

@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Callable
 from app.components.buttons import CancelButton, ConfirmButton
 from app.components.embed import parse_dict_to_embed
 from app.components.modals import CustomModal
@@ -26,10 +26,11 @@ class Form(discord.ui.View):
         `command_key` -- the key of the form message from form.json file
     """
 
-    def __init__(self, form_key: str, locale: str) -> None:
+    def __init__(self, form_key: str, locale: str, callback: Callable=None) -> None:
         self.command_key = form_key
         self.locale = locale
         self.questions = self._get_questions()
+        self._callback = callback or self._callback
         super().__init__()
         self.add_item(ConfirmButton(callback=self._callback, locale=locale))
         self.add_item(CancelButton(locale=locale))
@@ -64,13 +65,23 @@ class Form(discord.ui.View):
             "value": self.view.get_response()
         })
 
-    def _parse_responses_to_cog(self, guild_id: int) -> Dict[str, str]:
-        cog_param = {"guild_id": str(guild_id)}
+    def _parse_responses_to_cog(self) -> Dict[str, str]:
+        cog_param = {}
         for item in self.responses:
-            cog_param[item["key"]] = item["value"]
-            if not isinstance(item["value"], str):
-                cog_param[item["key"]] = list(item["value"])
+            value = item["value"]
+            if not isinstance(value, str):
+                value = list(value)
+            cog_param[item["key"]] = value
         return cog_param
+
+    def set_question(self, question: Dict[str, str]):
+        self._question = question
+
+    def set_question_embed(self, question: Dict[str, str]):
+        self.question_embed = parse_dict_to_embed(question)
+
+    def filter_questions(self, questions: List[str]):
+        self.questions = (question for question in iter(self.questions) if question['key'] in questions)
 
     def get_form_embed(self) -> discord.Embed:
         return parse_dict_to_embed(next(self.questions))
@@ -133,7 +144,7 @@ class Form(discord.ui.View):
         )
 
     async def _finish(self, interaction: discord.Interaction):
-        cog_param = self._parse_responses_to_cog(interaction.guild_id)
+        cog_param = self._parse_responses_to_cog()
         await upsert_parameter_by_guild(
             guild_id=interaction.guild_id,
             parameter=self.command_key,

@@ -40,6 +40,7 @@ class FormConstants:
 
 class Emojis:
     FRISBEE_EMOJI: Final[str] = ":flying_disc:"
+    EDIT_EMOJI: Final[str] = ":pencil:"
 
 
 GUILD_ID_KEY: Final[str] = "guild_id"

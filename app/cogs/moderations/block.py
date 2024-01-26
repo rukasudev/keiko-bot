@@ -9,7 +9,6 @@ from i18n import t
 from app.services import block_links as block_links_service
 
 
-# TODO: replace command name to use constants variables
 class Block(app_commands.Group, name=locale_str("block", namespace="commands")):
     @commands.Cog.listener()
     async def on_message(self, interaction: discord.Interaction):
