@@ -91,6 +91,6 @@ def parse_locale(locale: str) -> str:
 
 def parse_command_event_description(description: str, interaction_date: datetime.datetime, command_name: str, user: str) -> str:
     description = description.replace("$command_name", command_name)
-    description = description.replace("$date", interaction_date.strftime("%Y-%m-%d %H:%M:%S"))
+    description = description.replace("$date", interaction_date.strftime("%Y-%m-%d %H:%M:%S")+" UTC")
     description = description.replace("$user", user)
     return description

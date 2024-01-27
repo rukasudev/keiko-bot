@@ -28,3 +28,8 @@ pt:
     disabled:
       title: 🚫 Comando desabilitado com sucesso!
       description: Comando **$command_name** desabilitado as $date por $user.
+
+    edit:
+      title: 📝 Comando editado com sucesso!
+      description: Comando **$command_name** editado as $date por $user.
+      placeholder: Selecione as configurações que deseja editar :)

@@ -16,7 +16,7 @@ from i18n import t
 
 import discord
 
-
+#TODO: maybe improve this finish_callback logic in the future
 class Form(discord.ui.View):
     """
     A custom view to create a form message with questions and
@@ -26,11 +26,11 @@ class Form(discord.ui.View):
         `command_key` -- the key of the form message from form.json file
     """
 
-    def __init__(self, form_key: str, locale: str, callback: Callable=None) -> None:
+    def __init__(self, form_key: str, locale: str, finish_callback: Callable=None) -> None:
         self.command_key = form_key
         self.locale = locale
         self.questions = self._get_questions()
-        self._callback = callback or self._callback
+        self.finish_callback = finish_callback or self._callback
         super().__init__()
         self.add_item(ConfirmButton(callback=self._callback, locale=locale))
         self.add_item(CancelButton(locale=locale))
@@ -46,7 +46,10 @@ class Form(discord.ui.View):
     def _update_form_question(func):
         async def update_counter(self, args):
             self._save_question_response()
-            self._question = next(self.questions)
+            try:
+                self._question = next(self.questions)
+            except StopIteration:
+                await self.finish_callback(args)
             self.question_embed = parse_dict_to_embed(self._question)
             await func(self, args)
 
@@ -74,14 +77,8 @@ class Form(discord.ui.View):
             cog_param[item["key"]] = value
         return cog_param
 
-    def set_question(self, question: Dict[str, str]):
-        self._question = question
-
-    def set_question_embed(self, question: Dict[str, str]):
-        self.question_embed = parse_dict_to_embed(question)
-
     def filter_questions(self, questions: List[str]):
-        self.questions = (question for question in iter(self.questions) if question['key'] in questions)
+        self.questions = (question for question in iter(self._get_questions()) if question['key'] in questions)
 
     def get_form_embed(self) -> discord.Embed:
         return parse_dict_to_embed(next(self.questions))

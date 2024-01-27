@@ -19,12 +19,18 @@ en:
 
   command-event:
     enabled:
-      title: 🎉 Command enabled sucessfully!
+      title: 🎉 Command enabled successfully!
       description: Command **$command_name** enabled on $date by $user 🚀
 
 
         If you want to make changes or disable the command, simply run the command again 🔄
 
     disabled:
-      title: 🚫 Command disabled sucessfully!
+      title: 🚫 Command disabled successfully!
       description: Command **$command_name** disabled on $date by $user.
+
+    edit:
+      title: 📝 Command edited successfully!
+      description: Command **$command_name** edited on $date by $user.
+      placeholder: Select the settings you want to edit :)
+
