@@ -12,7 +12,6 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
 
-    # TODO: Improve this message
     @commands.Cog.listener()
     async def on_ready(self) -> None:
         await self.bot.wait_until_ready()
@@ -21,11 +20,20 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
             await self.bot.tree.sync()
             self.bot.synced = True
 
-        self.bot.ready_time = datetime.utcnow()
+        self.bot.ready_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
 
         ready_message = (
             f"\n---------------------------------------------------\n"
-            f"Bot Ready!\n"
+            f"🎉 Corgi Initialized Successfully!\n"
+            f"⏰ Ready Time: {self.bot.ready_time}\n"
+            f"🔁 Synced with Tree: {'Yes' if self.bot.synced else 'No'}\n"
+            f"🤖 Bot Name: {self.bot.application.name}\n"
+            f"👤 Author: {self.bot.application.owner.name}\n"
+            f"🏠 Total Guilds: {len(self.bot.guilds)}\n"
+            f"👥 Total Users: {len(self.bot.users)}\n"
+            f"📌 Prefix: {self.bot.command_prefix}\n"
+            f"🎮 Current Activity: {self.bot.activity.name}\n"
+            f"🐶 Current Status: {self.bot.status.name}️\n"
             f"---------------------------------------------------"
         )
         logger.info(ready_message)
