@@ -1,7 +1,7 @@
 import discord
 
 from app.components.buttons import DisableButtom, EditButtom
-from app.components.select import EditCommand
+from app.views.edit import EditCommand
 from app.services.moderations import delete_cog_by_guild, upsert_parameter_by_guild
 from app.data import cogs as cogs_data
 from app.services.utils import (
@@ -37,12 +37,10 @@ class Manager(discord.ui.View):
 
         options = get_cog_with_title(parameters, form_json)
 
-        selected_options = EditCommand(self.command_key, self.locale, options)
-        self.add_item(selected_options)
-
+        view = EditCommand(self.command_key, self.locale, options)
         embed = interaction.message.embeds[0]
 
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.edit_message(embed=embed, view=view)
 
     async def disable_callback(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
