@@ -77,9 +77,11 @@ def get_cog_with_title(cog_data: List[Dict[str, str]], form_json: Dict[str, str]
 def parse_form_params_result(responses: List[Dict[str, str]]) -> str:
     result = []
     for item in responses:
-        values = item.get("value", "-")
+        values = item.get("value", [])
 
-        if not isinstance(values, str):
+        if not values:
+            values = "-"
+        elif not isinstance(values, str):
             values = ", ".join(values)
 
         result.append(f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{values}**")

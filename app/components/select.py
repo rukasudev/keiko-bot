@@ -52,4 +52,4 @@ class EditCommand(discord.ui.Select):
         view = self.form_view.view
         view.clear_items()
 
-        await interaction.response.edit_message(embed=embed, view=view)
+        await interaction.response.send_message(embed=embed, view=view)

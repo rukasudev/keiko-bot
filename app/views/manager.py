@@ -63,4 +63,4 @@ class Manager(discord.ui.View):
         )
         self.clear_items()
 
-        await interaction.response.edit_message(embed=embed, view=self)
+        await interaction.response.send_message(embed=embed, view=self)
