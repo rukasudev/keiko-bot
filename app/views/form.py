@@ -49,7 +49,7 @@ class Form(discord.ui.View):
             try:
                 self._question = next(self.questions)
             except StopIteration:
-                await self.finish_callback(args)
+                return await self.finish_callback(args)
             self.question_embed = parse_dict_to_embed(self._question)
             await func(self, args)
 
