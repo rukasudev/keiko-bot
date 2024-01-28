@@ -20,7 +20,7 @@ def check_message_has_link(message: str, allowed_links: List[str]) -> List[str]:
 
     return links
 
-
+#TODO: maybe use cache instead of read file every time
 def parse_json_to_dict(key: str, locale: str, file: str) -> Dict[str, str]:
     file = Path.joinpath(
         Path().absolute(), "app", "resources", str(locale).lower(), key, file
@@ -54,11 +54,11 @@ def check_two_lists_intersection(x: list, y: list) -> bool:
 def check_answer_message(ctx, message) -> bool:
     return message.author == ctx.author and message.channel == ctx.channel
 
-def parse_cogs_titles(cogs_list: List[Dict[str, str]]) -> Dict[str, str]:
-    return {item["key"]: item["title"] for item in cogs_list}
+def parse_form_cogs_titles(form_json: List[Dict[str, str]]) -> Dict[str, str]:
+    return {item["key"]: item["title"] for item in form_json if item["key"] not in ["form", "confirm"]}
 
 def parse_cog_data_to_param_result(cog_data: List[Dict[str, str]], form_json: Dict[str, str]) -> List[Dict[str, str]]:
-    cogs_title = parse_cogs_titles(form_json)
+    cogs_title = parse_form_cogs_titles(form_json)
     response = [
         {
             "title": cogs_title[cog_key],
@@ -70,7 +70,7 @@ def parse_cog_data_to_param_result(cog_data: List[Dict[str, str]], form_json: Di
     return response
 
 def get_cog_with_title(cog_data: List[Dict[str, str]], form_json: Dict[str, str]) -> Dict[str, str]:
-    cogs_title = parse_cogs_titles(form_json)
+    cogs_title = parse_form_cogs_titles(form_json)
     response = {cogs_title[cog_key]: cog_key for cog_key in cog_data if cogs_title.get(cog_key)}
     return response
 

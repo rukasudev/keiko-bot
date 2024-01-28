@@ -13,8 +13,8 @@ class Select(discord.ui.Select):
 
     def parse_options(self, options_dict: Dict[str, str]) -> List[discord.SelectOption]:
         options = []
-        for label, value in options_dict.items():
-            option = discord.SelectOption(label=label, value=value)
+        for key, label in options_dict.items():
+            option = discord.SelectOption(label=label, value=key)
             options.append(option)
 
         return options

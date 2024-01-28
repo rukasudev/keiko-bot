@@ -32,12 +32,7 @@ class Manager(discord.ui.View):
     async def edit_callback(self, interaction: discord.Interaction):
         self.clear_items()
 
-        parameters = cogs_data.find_cog_by_guild_id(interaction.guild_id, self.command_key)
-        form_json = parse_json_to_dict(self.command_key, parse_locale(interaction.locale), "forms.json")
-
-        options = get_cog_with_title(parameters, form_json)
-
-        view = EditCommand(self.command_key, self.locale, options)
+        view = EditCommand(self.command_key, self.locale)
         embed = interaction.message.embeds[0]
 
         await interaction.response.edit_message(embed=embed, view=view)
