@@ -16,7 +16,6 @@ from i18n import t
 
 import discord
 
-#TODO: maybe improve this finish_callback logic in the future
 class Form(discord.ui.View):
     """
     A custom view to create a form message with questions and
