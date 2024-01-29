@@ -16,6 +16,7 @@ class Manager(discord.ui.View):
 
     Attributes:
         `command_key` -- the key of the form message from form.json file
+        `locale` -- the locale of the interaction (ex: pt-br, en-US)
     """
 
     def __init__(self, key: str, locale: str):

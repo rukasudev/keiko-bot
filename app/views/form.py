@@ -22,7 +22,8 @@ class Form(discord.ui.View):
     after save the answers to database.
 
     Attributes:
-        `command_key` -- the key of the form message from form.json file
+        `form_key` -- the key of the form message from form.json file
+        `locale` -- the locale of the interaction (ex: pt-br, en-US)
     """
 
     def __init__(self, form_key: str, locale: str) -> None:

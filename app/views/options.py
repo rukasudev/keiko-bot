@@ -13,13 +13,12 @@ class OptionsView(discord.ui.View):
         locale: str,
         required: bool = False
     ) -> None:
-        self.options = options
         self.callback = callback
         self.locale = locale
         self.required = required
         self.response = dict()
         super().__init__()
-        self.set_options(self.options)
+        self.set_options(options)
         self.add_item(ConfirmButton(callback=self._confirm_callback, locale=locale))
         self.add_item(CancelButton(locale=locale))
 
