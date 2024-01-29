@@ -44,13 +44,24 @@ class OptionsButton(discord.ui.Button):
 
 
 class EditButtom(discord.ui.Button):
-    def __init__(self, callback: Callable, locale: str) -> None:
-        self.callback = callback
+    def __init__(self, after_callback: Callable, locale: str) -> None:
+        self.after_callback = after_callback
+        self.locale = locale
         super().__init__(
             label=t("buttons.edit", locale=locale),
             emoji="📝",
             style=discord.ButtonStyle.grey
         )
+
+    async def callback(self, interaction: discord.Interaction):
+        from app.views.edit import EditCommand
+        self.view.clear_items()
+
+        view = EditCommand(self.view.command_key, self.locale, self.after_callback)
+        self.view.edited_form_view = view.form_view
+        embed = interaction.message.embeds[0]
+
+        await interaction.response.edit_message(embed=embed, view=view)
 
 
 class DisableButtom(discord.ui.Button):

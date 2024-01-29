@@ -1,5 +1,5 @@
 from typing import Dict, List, Callable
-from app.components.buttons import CancelButton, ConfirmButton
+from app.components.buttons import CancelButton, ConfirmButton, EditButtom
 from app.components.embed import parse_dict_to_embed
 from app.components.modals import CustomModal
 from app.constants import FormConstants as constants
@@ -26,11 +26,10 @@ class Form(discord.ui.View):
         `command_key` -- the key of the form message from form.json file
     """
 
-    def __init__(self, form_key: str, locale: str, finish_callback: Callable=None) -> None:
+    def __init__(self, form_key: str, locale: str) -> None:
         self.command_key = form_key
         self.locale = locale
         self.questions = self._get_questions()
-        self.finish_callback = finish_callback or self._callback
         super().__init__()
         self.add_item(ConfirmButton(callback=self._callback, locale=locale))
         self.add_item(CancelButton(locale=locale))
@@ -49,11 +48,18 @@ class Form(discord.ui.View):
             try:
                 self._question = next(self.questions)
             except StopIteration:
-                return await self.finish_callback(args)
+                return await self._after_callback(args)
             self.question_embed = parse_dict_to_embed(self._question)
             await func(self, args)
 
         return update_counter
+
+    async def _after_callback(self, interaction):
+        if not self.after_callback: return
+        return await self.after_callback(interaction)
+
+    def _set_after_callback(self, after_callback: Callable):
+        self.after_callback = after_callback
 
     def _save_question_response(self):
         if not hasattr(self, "view"):
@@ -67,6 +73,13 @@ class Form(discord.ui.View):
             "title": self._question["title"],
             "value": self.view.get_response()
         })
+
+    async def update_resume(self, interaction: discord.Interaction):
+        for edited_item in self.edited_form_view.responses:
+            for item in self.responses:
+                if edited_item['key'] == item['key']:
+                    item['value'] = edited_item['value']
+        return await self.show_resume(interaction)
 
     def _parse_responses_to_cog(self) -> Dict[str, str]:
         cog_param = {}
@@ -129,14 +142,16 @@ class Form(discord.ui.View):
         )
 
     async def show_resume(self, interaction: discord.Interaction):
-        self.question_embed.description += parse_form_params_result(
+        embed = self.question_embed.copy()
+        embed.description += parse_form_params_result(
             self.responses
         )
 
+        self.add_item(EditButtom(callback=self.update_resume, locale=self.locale))
         self.add_item(ConfirmButton(callback=self._finish, locale=self.locale))
         self.add_item(CancelButton(locale=self.locale))
         await interaction.response.edit_message(
-            embed=self.question_embed,
+            embed=embed,
             view=self
         )
 

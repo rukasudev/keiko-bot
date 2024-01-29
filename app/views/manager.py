@@ -1,14 +1,10 @@
 import discord
 
 from app.components.buttons import DisableButtom, EditButtom
-from app.views.edit import EditCommand
-from app.services.moderations import delete_cog_by_guild, upsert_parameter_by_guild
-from app.data import cogs as cogs_data
+from app.services.moderations import delete_cog_by_guild, upsert_parameter_by_guild, upsert_cog_by_guild
+from app.components.embed import parse_dict_to_embed
 from app.services.utils import (
     parse_command_event_description,
-    parse_locale,
-    parse_json_to_dict,
-    get_cog_with_title
 )
 from i18n import t
 
@@ -26,16 +22,29 @@ class Manager(discord.ui.View):
         self.command_key = key
         self.locale = locale
         super().__init__()
-        self.add_item(EditButtom(callback=self.edit_callback, locale=locale))
+        self.add_item(EditButtom(callback=self.update_command, locale=locale))
         self.add_item(DisableButtom(callback=self.disable_callback, locale=locale))
 
-    async def edit_callback(self, interaction: discord.Interaction):
-        self.clear_items()
+    async def update_command(self, interaction: discord.Interaction):
+        data = self.edited_form_view._parse_responses_to_cog()
 
-        view = EditCommand(self.command_key, self.locale)
-        embed = interaction.message.embeds[0]
+        await upsert_cog_by_guild(interaction.guild_id, self.command_key, data)
 
-        await interaction.response.edit_message(embed=embed, view=view)
+        question = list(self.edited_form_view._get_questions())[0]
+        embed = parse_dict_to_embed(question)
+
+        embed.title = t("commands.command-event.edit.title", locale=self.locale)
+        embed.description = parse_command_event_description(
+            t("commands.command-event.edit.description", locale=self.locale),
+            interaction.message.edited_at,
+            interaction.message.interaction.name,
+            interaction.user.mention
+        )
+
+        view = self.edited_form_view.view
+        view.clear_items()
+
+        await interaction.response.send_message(embed=embed, view=view)
 
     async def disable_callback(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
