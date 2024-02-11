@@ -3,3 +3,14 @@ en:
     message: Hey, you don't have permissions to run this command :/
   command-required-interaction:
     message: Please, select any option to proceed! :)
+  command-default-roles-low-permissions:
+    message: I'm sorry, but I don't have permission to assign roles on this server :/
+
+      Please grant me a role with these privileges or raise the position of my **Corgi** role in the server's role hierarchy
+  command-default-roles-missing-permissions:
+    message: "🚨 **Warning**
+
+      I no longer have permissions to assign the following roles: **$roles**
+
+
+      Please grant me a role with these privileges or raise the position of my **Corgi** role in the server's role hierarchy"

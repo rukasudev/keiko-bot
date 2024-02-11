@@ -47,37 +47,27 @@ async def send_command_form_message(interaction: discord.Interaction, key: str):
     await interaction.response.send_message(embed=embed, view=form_view, ephemeral=True)
 
 
-async def send_command_manager_message(interaction: discord.Interaction, key: str):
+async def send_command_manager_message(
+    interaction: discord.Interaction,
+    key: str,
+    cog_data: Dict[str, str],
+    additional_info: str=""
+):
     from app.views.manager import Manager
 
     command_dict = parse_json_to_dict(key, parse_locale(interaction.locale), "command.json")
     embed = parse_dict_to_embed(command_dict)
 
-    cog_data = cogs_data.find_cog_by_guild_id(interaction.guild_id, constants.BLOCK_LINKS_KEY)
     form_json = parse_json_to_dict(key, parse_locale(interaction.locale), "forms.json")
     description = parse_cog_data_to_param_result(cog_data, form_json)
 
     embed.description += parse_form_params_result(description)
     view = Manager(key, parse_locale(interaction.locale))
 
+    if additional_info:
+        embed.description += f"\n\n{additional_info}"
+
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-
-
-def apply_default_role_all_members():
-    pass
-    # role = discord.utils.get(guild.roles, id=838123185978998788)
-
-    # for member in guild.members:
-    #     if not role in member.roles:
-    #         print(""")
-    #         await member.add_roles(role)
-    # print("Os cargos estão atualizados corretamente!")
-
-
-def apply_role_in_member(guild, role_id):
-    pass
-    # role = discord.utils.get(guild.roles, id=role_id)
-    # await member.add_roles(role)
 
 
 async def send_welcome_message():

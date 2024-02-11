@@ -1,6 +1,5 @@
 from datetime import datetime
 
-import discord
 from discord.app_commands import locale_str
 from discord.ext import commands
 
@@ -45,12 +44,3 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
         if not exist:
             insert_parameters_by_guild(guild.id)
 
-    @commands.Cog.listener()
-    async def on_member_join(self, member: discord.Member):
-        guild_id = str(member.guild.id)
-
-        # send_welcome_message()
-        # guild = member.guild
-        # role_id = 838123185978998788
-        # apply_role_in_member()
-        pass

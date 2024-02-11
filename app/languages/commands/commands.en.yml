@@ -17,6 +17,14 @@ en:
   twitch-activate: activate
   twitch-activate-desc: activate twitch notifications
 
+  core: core
+  report: report
+  report-desc: report a bug
+
+  default: default
+  roles: roles
+  roles-desc: set default roles when member join in guild
+
   command-event:
     enabled:
       title: 🎉 Command enabled successfully!

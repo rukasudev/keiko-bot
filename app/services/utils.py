@@ -42,6 +42,9 @@ def get_text_channels_by_guild(guild: discord.Guild) -> Dict[str, str]:
 def get_roles_by_guild(guild: discord.Guild) -> Dict[str, str]:
     return {role.name: str(role.id) for role in guild.roles if role.name != "@everyone"}
 
+def get_available_roles_by_guild(guild: discord.Guild) -> Dict[str, str]:
+    return {role.name: str(role.id) for role in guild.roles if role.name != "@everyone" and guild.me.top_role.position > role.position and not role.managed}
+
 
 def list_roles_id(roles: List[discord.Role]) -> List[int]:
     return [str(role.id) for role in roles]

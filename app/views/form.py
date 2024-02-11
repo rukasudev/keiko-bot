@@ -1,4 +1,4 @@
-from typing import Dict, List, Callable
+from typing import Dict, List, Callable, Generator, Any
 from app.components.buttons import CancelButton, ConfirmButton, EditButtom
 from app.components.embed import parse_dict_to_embed
 from app.components.modals import CustomModal
@@ -6,6 +6,7 @@ from app.constants import FormConstants as constants
 from app.services.moderations import upsert_cog_by_guild, upsert_parameter_by_guild
 from app.services.utils import (
     get_roles_by_guild,
+    get_available_roles_by_guild,
     get_text_channels_by_guild,
     parse_json_to_dict,
     parse_form_params_result,
@@ -34,7 +35,7 @@ class Form(discord.ui.View):
         self.add_item(ConfirmButton(callback=self._callback, locale=locale))
         self.add_item(CancelButton(locale=locale))
 
-    def _get_questions(self) -> List[Dict[str, str]]:
+    def _get_questions(self) -> Generator[Any, Any, Any]:
         questions = parse_json_to_dict(
             self.command_key,
             self.locale,
@@ -141,13 +142,35 @@ class Form(discord.ui.View):
             view=self.view
         )
 
+    async def show_available_roles(self, interaction: discord.Interaction):
+        roles = get_available_roles_by_guild(interaction.guild)
+        await interaction.response.defer()
+        self.view = OptionsView(
+            options=list(roles.keys()),
+            callback=self._callback,
+            locale=self.locale
+        )
+
+        if not roles:
+            error_message = t(
+                "errors.command-default-roles-low-permissions.message",
+                locale=self.locale
+            )
+            self.question_embed.description = error_message
+
+        await interaction.followup.edit_message(
+            message_id=interaction.message.id,
+            embed=self.question_embed,
+            view=self.view
+        )
+
     async def show_resume(self, interaction: discord.Interaction):
         embed = self.question_embed.copy()
         embed.description += parse_form_params_result(
             self.responses
         )
 
-        self.add_item(EditButtom(callback=self.update_resume, locale=self.locale))
+        self.add_item(EditButtom(after_callback=self.update_resume, locale=self.locale))
         self.add_item(ConfirmButton(callback=self._finish, locale=self.locale))
         self.add_item(CancelButton(locale=self.locale))
         await interaction.response.edit_message(
@@ -185,6 +208,7 @@ class Form(discord.ui.View):
             constants.MODAL_ACTION_KEY: self.show_modal,
             constants.OPTIONS_ACTION_KEY: self.show_options,
             constants.ROLES_ACTION_KEY: self.show_roles,
+            constants.AVAILABLE_ROLES_ACTION_KEY: self.show_available_roles,
             constants.CHANNELS_ACTION_KEY: self.show_channels,
             constants.RESUME_ACTION_KEY: self.show_resume,
         }

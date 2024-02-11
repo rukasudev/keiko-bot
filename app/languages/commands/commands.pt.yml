@@ -17,6 +17,14 @@ pt:
   twitch-activate: ligar
   twitch-activate-desc: ativar notificações da twitch
 
+  core: core
+  report: reportar
+  report-desc: reporte um bug
+
+  default: cargo
+  roles: padrao
+  roles-desc: configure um cargo padrão para dar a um membro quando entrar no servidor
+
   command-event:
     enabled:
       title: 🎉 Funcionalidade ativada com sucesso!

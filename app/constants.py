@@ -18,14 +18,14 @@ class Commands:
     MODERATIONS_KEY: Final[str] = "moderations"
     STREAM_MONITOR_KEY: Final[str] = "stream_monitor"
     WELCOME_MESSAGES_KEY: Final[str] = "welcome_messages"
-    DEFAULT_ROLE_KEY: Final[str] = "default_role"
+    DEFAULT_ROLES_KEY: Final[str] = "default_roles"
 
 
 class CogsConstants:
     COGS_MODERATIONS_COMMANDS_DEFAULT: Final[dict] = {
         Commands.STREAM_MONITOR_KEY: False,
         Commands.WELCOME_MESSAGES_KEY: False,
-        Commands.DEFAULT_ROLE_KEY: False,
+        Commands.DEFAULT_ROLES_KEY: False,
         Commands.BLOCK_LINKS_KEY: False,
     }
 
@@ -34,6 +34,7 @@ class FormConstants:
     MODAL_ACTION_KEY: Final[str] = "modal"
     OPTIONS_ACTION_KEY: Final[str] = "options"
     ROLES_ACTION_KEY: Final[str] = "roles"
+    AVAILABLE_ROLES_ACTION_KEY: Final[str] = "available_roles"
     CHANNELS_ACTION_KEY: Final[str] = "channels"
     RESUME_ACTION_KEY: Final[str] = "resume"
 

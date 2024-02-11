@@ -23,7 +23,7 @@ class Manager(discord.ui.View):
         self.command_key = key
         self.locale = locale
         super().__init__()
-        self.add_item(EditButtom(callback=self.update_command, locale=locale))
+        self.add_item(EditButtom(after_callback=self.update_command, locale=locale))
         self.add_item(DisableButtom(callback=self.disable_callback, locale=locale))
 
     async def update_command(self, interaction: discord.Interaction):

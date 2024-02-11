@@ -3,3 +3,14 @@ pt:
     message: Hey, você não tem permissão pra rodar esse comando :/
   command-required-interaction:
     message: Por favor, selecione alguma opção para prosseguir! :)
+  command-default-roles-low-permissions:
+    message: Desculpe, mas não tenho permissão para atribuir cargos neste servidor :/
+
+      Por favor, conceda-me um cargo com esses privilégios ou aumente a posição do meu cargo **Corgi** na hierarquia de cargos do servidor
+  command-default-roles-missing-permissions:
+    message: "🚨 **Atenção**
+
+      Não tenho mais permissões para atribuir os seguintes cargos: **$roles**
+
+
+      Por favor, conceda-me um cargo com esses privilégios ou aumente a posição do meu cargo **Corgi** na hierarquia de cargos do servidor"

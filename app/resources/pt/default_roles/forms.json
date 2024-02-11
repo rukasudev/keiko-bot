@@ -1,0 +1,26 @@
+[
+  {
+    "key": "form",
+    "title": "👩‍🎓 Cargos Padrão",
+    "description": "Ativar esta função faz com que eu atribua cargos automáticamente quando alguém entrar no seu servidor!\n\n📝 **Configurações**\n\n:flying_disc: **Cargos:** Cargos padrões que serão atribuídos quando alguém entrar no servidor",
+    "footer": "• Utilize o comando /reportar para me contar um bug",
+    "thumbnail": "https://img.freepik.com/vetores-gratis/cute-corgi-dog-delivery-box-package-cartoon-icon-ilustracao-vetorial-conceito-de-icone-de-natureza-animal-isolado-vetor-premium-estilo-flat-cartoon_138676-3506.jpg",
+    "action": "button"
+  },
+  {
+    "key": "default_role",
+    "emoji": ":busts_in_silhouette:",
+    "title": "Cargos Padrão",
+    "description": "Escolha quais cargos serão atribuidos automaticamente quando alguém entrar no servidor",
+    "footer": "• Utilize o comando /reportar para me contar um bug",
+    "action": "available_roles"
+  },
+  {
+    "key": "confirm",
+    "title": ":white_check_mark: Tudo certo?",
+    "description": "Ativar esta função faz com que eu atribua cargos automáticamente quando alguém entrar no seu servidor!\n\n📝 **Configurações**\n",
+    "thumbnail": "https://img.freepik.com/vetores-gratis/cute-corgi-dog-delivery-box-package-cartoon-icon-ilustracao-vetorial-conceito-de-icone-de-natureza-animal-isolado-vetor-premium-estilo-flat-cartoon_138676-3506.jpg",
+    "footer": "• Utilize o comando /reportar para me contar um bug",
+    "action": "resume"
+  }
+]

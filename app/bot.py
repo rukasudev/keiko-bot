@@ -14,18 +14,15 @@ class DiscordBot(Bot):
 
     def __init__(self, config) -> None:
         self.config = config
-        self.intents_bot = discord.Intents.all()
-        self.intents_bot.members = True
         self.guild_available = threading.Event()
         self.synced = False
         super().__init__(
             command_prefix=self.config.PREFIX,
             application_id=self.config.APPLICATION_ID,
             case_insensitive=True,
-            self_bot=False,
             help_command=None,
             owner_id=self.config.OWNER_ID,
-            intents=self.intents_bot,
+            intents=discord.Intents.all(),
             status=discord.Status.online,
             activity=discord.Activity(
                 type=discord.ActivityType.playing, name=self.config.DESCRIPTION
