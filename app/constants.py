@@ -22,7 +22,9 @@ class Commands:
 
 
 class CogsConstants:
+    IS_BOT_ONLINE: Final[str] = "is_bot_online"
     COGS_MODERATIONS_COMMANDS_DEFAULT: Final[dict] = {
+        IS_BOT_ONLINE: True,
         Commands.STREAM_MONITOR_KEY: False,
         Commands.WELCOME_MESSAGES_KEY: False,
         Commands.DEFAULT_ROLES_KEY: False,

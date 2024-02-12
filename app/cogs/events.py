@@ -1,11 +1,17 @@
+import discord
 from datetime import datetime
+from app.constants import CogsConstants as constants
 
 from discord.app_commands import locale_str
 from discord.ext import commands
 
 from app.bot import DiscordBot
 from app.logger import logger
-from app.data.moderations import insert_moderations_by_guild, find_moderations_by_guild
+from app.data.moderations import (
+    find_moderations_by_guild,
+    insert_moderations_by_guild,
+    update_moderations_by_guild
+)
 
 
 class Events(commands.Cog, name=locale_str("events", namespace="commands")):
@@ -39,8 +45,22 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
         logger.info(ready_message)
 
     @commands.Cog.listener()
-    async def on_guild_join(self, guild):
+    async def on_guild_join(self, guild: discord.Guild):
         exist = find_moderations_by_guild(guild.id)
         if not exist:
-            insert_moderations_by_guild(guild.id)
+            return insert_moderations_by_guild(guild.id)
+
+        return update_moderations_by_guild(
+                guild.id,
+                constants.IS_BOT_ONLINE,
+                True
+            )
+
+    @commands.Cog.listener()
+    async def on_guild_remove(self, guild: discord.Guild):
+        return update_moderations_by_guild(
+            guild.id,
+            constants.IS_BOT_ONLINE,
+            False
+        )
 

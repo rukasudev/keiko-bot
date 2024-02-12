@@ -2,6 +2,7 @@ import threading
 
 import discord
 from discord.ext.commands import Bot
+from app.config import AppConfig
 
 from app.translator import Translator
 
@@ -12,7 +13,7 @@ class DiscordBot(Bot):
     CommandProcessor when commands are received from discord messages
     """
 
-    def __init__(self, config) -> None:
+    def __init__(self, config: AppConfig) -> None:
         self.config = config
         self.guild_available = threading.Event()
         self.synced = False
