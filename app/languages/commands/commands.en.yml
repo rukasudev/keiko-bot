@@ -6,10 +6,11 @@ en:
   blockdesc: block
 
   links: links
-  linksdesc: delete messages if has a link
+  linksdesc: set delete messages if has a link
 
   sync: sync
-  syncdesc: sync commands
+  syncdesc: sync corgi commands with this guild
+  syncreply: Guild was synced!
 
   notifications: notifications
   twitch: twitch

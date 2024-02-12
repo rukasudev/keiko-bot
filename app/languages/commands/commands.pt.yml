@@ -6,10 +6,11 @@ pt:
   blockdesc: bloquear
 
   links: links
-  linksdesc: deletar uma mensagem caso haja links
+  linksdesc: configure deletar uma mensagem caso haja links
 
   sync: sincronizar
-  syncdesc: sincronizar com o servidor
+  syncdesc: sincronizar corgi com o servidor
+  syncreply: Servidor foi sincronizado!
 
   notifications: notificações
   twitch: twitch
