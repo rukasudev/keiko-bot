@@ -1,15 +1,25 @@
 from typing import Any, Dict
-
 from app import mongo_client
+from app.data.util import (
+    parse_insert_timestamp,
+    parse_update_timestamp
+)
+from app.constants import CogsConstants as constants
 
 
 def find_cog_by_guild_id(guild_id: str, cog: str) -> Dict[str, Any]:
     return mongo_client.guild[cog].find_one({"guild_id": str(guild_id)})
 
 
-def upsert_cog_by_guild_id(guild_id: str, cog: str, data: Dict[str, Any]) -> str:
+def insert_cog_by_guild_id(cog: str, data: Dict[str, Any]) -> str:
+    data = parse_insert_timestamp(data)
+    return mongo_client.guild[cog].insert_one(data)
+
+
+def update_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]) -> str:
+    data = parse_update_timestamp(data)
     return mongo_client.guild[cog].update_one(
-        {"guild_id": str(guild_id)}, {"$set": data}, upsert=True
+        {"guild_id": str(guild_id)}, {"$set": data}
     )
 
 

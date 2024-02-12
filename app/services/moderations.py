@@ -14,20 +14,26 @@ from app.services.utils import (
 )
 
 
-async def upsert_parameter_by_guild(guild_id: str, parameter: str, value: str):
+async def update_parameter_by_guild(guild_id: str, parameter: str, value: str):
     if not guild_id:
-        print("Check if guild_id is correct to save cog")
+        print("Check if guild_id is correct to save parameter")
         return
 
-    return moderations_data.upsert_parameters_by_guild(
+    return moderations_data.update_parameters_by_guild(
         guild_id=guild_id, parameter=parameter, value=value
     )
 
-async def upsert_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
+async def insert_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
     if not data.get("guild_id"):
         data["guild_id"] = str(guild_id)
 
-    return cogs_data.upsert_cog_by_guild_id(guild_id, cog, data)
+    return cogs_data.insert_cog_by_guild_id(cog, data)
+
+async def update_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
+    if not data.get("guild_id"):
+        data["guild_id"] = str(guild_id)
+
+    return cogs_data.update_cog_by_guild(guild_id, cog, data)
 
 
 async def delete_cog_by_guild(guild_id: str, cog: str):

@@ -6,7 +6,7 @@ en:
   blockdesc: block
 
   links: links
-  linksdesc: block links
+  linksdesc: delete messages if has a link
 
   sync: sync
   syncdesc: sync commands

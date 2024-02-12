@@ -1,7 +1,7 @@
 import discord
 
 from app.components.buttons import DisableButtom, EditButtom
-from app.services.moderations import delete_cog_by_guild, upsert_parameter_by_guild, upsert_cog_by_guild
+from app.services.moderations import delete_cog_by_guild, update_parameter_by_guild, update_cog_by_guild
 from app.components.embed import parse_dict_to_embed
 from app.services.utils import (
     parse_command_event_description,
@@ -29,7 +29,7 @@ class Manager(discord.ui.View):
     async def update_command(self, interaction: discord.Interaction):
         data = self.edited_form_view._parse_responses_to_cog()
 
-        await upsert_cog_by_guild(interaction.guild_id, self.command_key, data)
+        await update_cog_by_guild(interaction.guild_id, self.command_key, data)
 
         question = list(self.edited_form_view._get_questions())[0]
         embed = parse_dict_to_embed(question)
@@ -51,7 +51,7 @@ class Manager(discord.ui.View):
         guild_id = str(interaction.guild.id)
         embed = interaction.message.embeds[0]
 
-        await upsert_parameter_by_guild(
+        await update_parameter_by_guild(
             guild_id=guild_id, parameter=self.command_key, value=False
         )
 

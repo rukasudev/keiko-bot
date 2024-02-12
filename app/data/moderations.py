@@ -2,7 +2,10 @@ from typing import Any
 
 from app import mongo_client
 from app.constants import CogsConstants as constants
-
+from app.data.util import (
+    parse_insert_timestamp,
+    parse_update_timestamp
+)
 
 def find_parameter_by_guild(guild_id: str, param: str) -> Any:
     parameters = mongo_client.guild.parameters.find_one({"guild_id": str(guild_id)})
@@ -17,15 +20,15 @@ def find_parameters_by_guild(guild_id: str) -> dict:
 def insert_parameters_by_guild(guild_id: str) -> str:
     parameters = constants.COGS_MODERATIONS_COMMANDS_DEFAULT
     parameters["guild_id"] = str(guild_id)
+    parameters = parse_insert_timestamp(parameters)
 
     return mongo_client.guild.parameters.insert_one(parameters)
 
 
-def upsert_parameters_by_guild(guild_id: str, parameter: str, value: bool):
-    parameters = constants.COGS_MODERATIONS_COMMANDS_DEFAULT
-    parameters["guild_id"] = str(guild_id)
-    parameters[parameter] = value
+def update_parameters_by_guild(guild_id: str, parameter: str, value: bool):
+    data = { parameter: value}
+    data = parse_update_timestamp(data)
 
     return mongo_client.guild.parameters.update_one(
-        {"guild_id": str(guild_id)}, {"$set": parameters}, upsert=True
+        {"guild_id": str(guild_id)}, {"$set": data}
     )

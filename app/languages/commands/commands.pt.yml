@@ -6,7 +6,7 @@ pt:
   blockdesc: bloquear
 
   links: links
-  linksdesc: bloquear links
+  linksdesc: deletar uma mensagem caso haja links
 
   sync: sincronizar
   syncdesc: sincronizar com o servidor
