@@ -1,7 +1,7 @@
 import discord
 
 from app.components.buttons import DisableButtom, EditButtom
-from app.services.moderations import delete_cog_by_guild, update_parameter_by_guild, update_cog_by_guild
+from app.services.moderations import delete_cog_by_guild, update_moderations_by_guild, update_cog_by_guild
 from app.components.embed import parse_dict_to_embed
 from app.services.utils import (
     parse_command_event_description,
@@ -51,8 +51,8 @@ class Manager(discord.ui.View):
         guild_id = str(interaction.guild.id)
         embed = interaction.message.embeds[0]
 
-        await update_parameter_by_guild(
-            guild_id=guild_id, parameter=self.command_key, value=False
+        await update_moderations_by_guild(
+            guild_id=guild_id, data=self.command_key, value=False
         )
 
         await delete_cog_by_guild(guild_id, self.command_key)

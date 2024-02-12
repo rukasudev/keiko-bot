@@ -12,17 +12,17 @@ from i18n import t
 
 async def set_default_role(member: discord.Member):
     """Command service to set default roles when member join in guild"""
-    parameters = cogs_data.find_cog_by_guild_id(member.guild.id, constants.DEFAULT_ROLES_KEY)
+    cogs = cogs_data.find_cog_by_guild_id(member.guild.id, constants.DEFAULT_ROLES_KEY)
 
-    if not parameters:
+    if not cogs:
         return
 
-    default_roles = parameters.get(constants.DEFAULT_ROLES_KEY)
+    default_roles = cogs.get(constants.DEFAULT_ROLES_KEY)
     if not default_roles:
         return
 
     available_roles = get_available_roles_by_guild(member.guild)
-    roles = [role for role in parameters[constants.DEFAULT_ROLES_KEY] if role in available_roles]
+    roles = [role for role in cogs[constants.DEFAULT_ROLES_KEY] if role in available_roles]
 
     roles_to_add = []
     for role_name in roles:

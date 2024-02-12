@@ -7,28 +7,28 @@ from app.data.util import (
     parse_update_timestamp
 )
 
-def find_parameter_by_guild(guild_id: str, param: str) -> Any:
-    parameters = mongo_client.guild.parameters.find_one({"guild_id": str(guild_id)})
+def find_moderation_by_guild(guild_id: str, data: str) -> Any:
+    moderations = mongo_client.guild.moderations.find_one({"guild_id": str(guild_id)})
 
-    return parameters.get(param) if parameters.get(param) else None
-
-
-def find_parameters_by_guild(guild_id: str) -> dict:
-    return mongo_client.guild.parameters.find_one({"guild_id": str(guild_id)})
+    return moderations.get(data) if moderations.get(data) else None
 
 
-def insert_parameters_by_guild(guild_id: str) -> str:
-    parameters = constants.COGS_MODERATIONS_COMMANDS_DEFAULT
-    parameters["guild_id"] = str(guild_id)
-    parameters = parse_insert_timestamp(parameters)
-
-    return mongo_client.guild.parameters.insert_one(parameters)
+def find_moderations_by_guild(guild_id: str) -> dict:
+    return mongo_client.guild.moderations.find_one({"guild_id": str(guild_id)})
 
 
-def update_parameters_by_guild(guild_id: str, parameter: str, value: bool):
-    data = { parameter: value}
-    data = parse_update_timestamp(data)
+def insert_moderations_by_guild(guild_id: str) -> str:
+    data = constants.COGS_MODERATIONS_COMMANDS_DEFAULT
+    data["guild_id"] = str(guild_id)
+    data = parse_insert_timestamp(data)
 
-    return mongo_client.guild.parameters.update_one(
-        {"guild_id": str(guild_id)}, {"$set": data}
+    return mongo_client.guild.moderations.insert_one(data)
+
+
+def update_moderations_by_guild(guild_id: str, data: str, value: bool):
+    new_data = { data: value}
+    new_data = parse_update_timestamp(new_data)
+
+    return mongo_client.guild.moderations.update_one(
+        {"guild_id": str(guild_id)}, {"$set": new_data}
     )

@@ -14,13 +14,13 @@ from app.services.utils import (
 )
 
 
-async def update_parameter_by_guild(guild_id: str, parameter: str, value: str):
+async def update_moderations_by_guild(guild_id: str, data: str, value: str):
     if not guild_id:
-        print("Check if guild_id is correct to save parameter")
+        print("Check if guild_id is correct to update moderations settings")
         return
 
-    return moderations_data.update_parameters_by_guild(
-        guild_id=guild_id, parameter=parameter, value=value
+    return moderations_data.update_moderations_by_guild(
+        guild_id=guild_id, data=data, value=value
     )
 
 async def insert_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):

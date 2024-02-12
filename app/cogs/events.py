@@ -5,7 +5,7 @@ from discord.ext import commands
 
 from app.bot import DiscordBot
 from app.logger import logger
-from app.data.moderations import insert_parameters_by_guild, find_parameters_by_guild
+from app.data.moderations import insert_moderations_by_guild, find_moderations_by_guild
 
 
 class Events(commands.Cog, name=locale_str("events", namespace="commands")):
@@ -40,7 +40,7 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild):
-        exist = find_parameters_by_guild(guild.id)
+        exist = find_moderations_by_guild(guild.id)
         if not exist:
-            insert_parameters_by_guild(guild.id)
+            insert_moderations_by_guild(guild.id)
 
