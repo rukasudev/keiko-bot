@@ -15,9 +15,9 @@ class Block(app_commands.Group, name=locale_str("block", namespace="commands")):
         super().__init__()
 
     async def on_message(self, message: discord.Message):
-        guild_id = str(message.guild.id)
-
         if not message.author.bot:
+            guild_id = str(message.guild.id)
+
             await block_links_service.check_message(guild_id, message)
 
     @app_commands.command(

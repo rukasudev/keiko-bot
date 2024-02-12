@@ -51,5 +51,8 @@ async def manager(interaction: discord.Interaction, guild_id):
 
 def get_not_available_roles(roles: List[str], available_roles: List[str], locale: str) -> str:
     not_available_roles = [role for role in roles if role not in available_roles]
+    if not not_available_roles:
+        return ""
+
     message = t("errors.command-default-roles-missing-permissions.message", locale=locale)
     return message.replace("$roles", ", ".join(not_available_roles))
