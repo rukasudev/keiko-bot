@@ -1,4 +1,6 @@
+import traceback
 from datetime import datetime
+from typing import Any
 
 import discord
 from discord.app_commands import locale_str
@@ -43,6 +45,20 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
             f"---------------------------------------------------"
         )
         logger.info(ready_message)
+
+    @commands.Cog.listener()
+    async def on_command_error(
+        self, interaction: discord.Interaction, error: Exception
+    ):
+        logger.error(
+            f"on_command_error event: Ignoring exception at {interaction.guild.id}:\n{error}"
+        )
+
+    @commands.Cog.listener()
+    async def on_error(self, event_method: Any, *args, **kwargs) -> None:
+        logger.error(
+            f"on_error event: Ignoring exception at {event_method}:\n{traceback.format_exc()}"
+        )
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
