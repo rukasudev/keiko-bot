@@ -25,7 +25,6 @@ class AppConfig:
         self.APPLICATION_ID = os.getenv("APPLICATION_ID")
         self.LOGS_CHANNEL_ID = os.getenv("LOGS_CHANNEL_ID")
 
-
     def is_dev(self) -> bool:
         return self.ENVIRONMENT.upper() == "DEV"
 

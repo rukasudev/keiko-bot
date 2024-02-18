@@ -1,8 +1,9 @@
 from typing import Callable, List
-from i18n import t
-from app.components.buttons import CancelButton, ConfirmButton, OptionsButton
 
 import discord
+from i18n import t
+
+from app.components.buttons import CancelButton, ConfirmButton, OptionsButton
 
 
 class OptionsView(discord.ui.View):
@@ -11,7 +12,7 @@ class OptionsView(discord.ui.View):
         options: List[str],
         callback: Callable,
         locale: str,
-        required: bool = False
+        required: bool = False,
     ) -> None:
         self.callback = callback
         self.locale = locale
@@ -37,6 +38,6 @@ class OptionsView(discord.ui.View):
             return await interaction.message.channel.send(
                 t("errors.command-required-interaction.message", locale=self.locale),
                 delete_after=10,
-                mention_author=True
+                mention_author=True,
             )
         await self.callback(interaction)

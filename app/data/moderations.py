@@ -2,10 +2,8 @@ from typing import Any
 
 from app import mongo_client
 from app.constants import CogsConstants as constants
-from app.data.util import (
-    parse_insert_timestamp,
-    parse_update_timestamp
-)
+from app.data.util import parse_insert_timestamp, parse_update_timestamp
+
 
 def find_moderation_by_guild(guild_id: str, data: str) -> Any:
     moderations = mongo_client.guild.moderations.find_one({"guild_id": str(guild_id)})
@@ -26,7 +24,7 @@ def insert_moderations_by_guild(guild_id: str) -> str:
 
 
 def update_moderations_by_guild(guild_id: str, data: str, value: bool):
-    new_data = { data: value}
+    new_data = {data: value}
     new_data = parse_update_timestamp(new_data)
 
     return mongo_client.guild.moderations.update_one(

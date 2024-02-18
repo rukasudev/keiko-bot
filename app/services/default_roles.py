@@ -1,14 +1,16 @@
-import discord
-
 from typing import List
-from app.services.utils import get_available_roles_by_guild, parse_locale
+
+import discord
+from i18n import t
+
 from app.constants import Commands as constants
 from app.data import cogs as cogs_data
 from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
 )
-from i18n import t
+from app.services.utils import get_available_roles_by_guild, parse_locale
+
 
 async def set_default_role(member: discord.Member):
     """Command service to set default roles when member join in guild"""
@@ -22,7 +24,9 @@ async def set_default_role(member: discord.Member):
         return
 
     available_roles = get_available_roles_by_guild(member.guild)
-    roles = [role for role in cogs[constants.DEFAULT_ROLES_KEY] if role in available_roles]
+    roles = [
+        role for role in cogs[constants.DEFAULT_ROLES_KEY] if role in available_roles
+    ]
 
     roles_to_add = []
     for role_name in roles:
@@ -39,7 +43,9 @@ async def manager(interaction: discord.Interaction, guild_id):
     available_roles = get_available_roles_by_guild(interaction.guild)
     if not cogs:
         if not available_roles:
-            error_message = t("errors.command-default-roles-low-permissions.message", locale=locale)
+            error_message = t(
+                "errors.command-default-roles-low-permissions.message", locale=locale
+            )
             return await interaction.response.send_message(error_message)
 
         return await send_command_form_message(interaction, constants.DEFAULT_ROLES_KEY)
@@ -47,12 +53,19 @@ async def manager(interaction: discord.Interaction, guild_id):
     roles = cogs[constants.DEFAULT_ROLES_KEY]
     info = get_not_available_roles(roles, available_roles, locale)
 
-    await send_command_manager_message(interaction, constants.DEFAULT_ROLES_KEY, cogs, info)
+    await send_command_manager_message(
+        interaction, constants.DEFAULT_ROLES_KEY, cogs, info
+    )
 
-def get_not_available_roles(roles: List[str], available_roles: List[str], locale: str) -> str:
+
+def get_not_available_roles(
+    roles: List[str], available_roles: List[str], locale: str
+) -> str:
     not_available_roles = [role for role in roles if role not in available_roles]
     if not not_available_roles:
         return ""
 
-    message = t("errors.command-default-roles-missing-permissions.message", locale=locale)
+    message = t(
+        "errors.command-default-roles-missing-permissions.message", locale=locale
+    )
     return message.replace("$roles", ", ".join(not_available_roles))

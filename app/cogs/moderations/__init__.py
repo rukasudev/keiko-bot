@@ -1,9 +1,6 @@
-import discord
 from discord import app_commands
 from discord.app_commands import locale_str
-from app.services.utils import parse_locale
 from discord.ext import commands
-from i18n import t
 
 from app.bot import DiscordBot
 

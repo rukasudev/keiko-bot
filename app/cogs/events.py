@@ -1,16 +1,16 @@
-import discord
 from datetime import datetime
-from app.constants import CogsConstants as constants
 
+import discord
 from discord.app_commands import locale_str
 from discord.ext import commands
 
-from app.bot import DiscordBot
 from app import logger
+from app.bot import DiscordBot
+from app.constants import CogsConstants as constants
 from app.data.moderations import (
     find_moderations_by_guild,
     insert_moderations_by_guild,
-    update_moderations_by_guild
+    update_moderations_by_guild,
 )
 
 
@@ -50,17 +50,8 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
         if not exist:
             return insert_moderations_by_guild(guild.id)
 
-        return update_moderations_by_guild(
-                guild.id,
-                constants.IS_BOT_ONLINE,
-                True
-            )
+        return update_moderations_by_guild(guild.id, constants.IS_BOT_ONLINE, True)
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: discord.Guild):
-        return update_moderations_by_guild(
-            guild.id,
-            constants.IS_BOT_ONLINE,
-            False
-        )
-
+        return update_moderations_by_guild(guild.id, constants.IS_BOT_ONLINE, False)

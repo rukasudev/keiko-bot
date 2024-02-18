@@ -1,11 +1,10 @@
 import discord
 from discord import app_commands
 from discord.app_commands import locale_str
-from app import logger
-from app.services.utils import parse_locale
 from i18n import t
 
 from app.bot import DiscordBot
+from app.services.utils import parse_locale
 
 
 class Cogs(app_commands.Group, name=locale_str("cogs", namespace="commands")):

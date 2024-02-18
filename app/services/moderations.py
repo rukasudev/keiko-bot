@@ -2,15 +2,14 @@ from typing import Any, Dict
 
 import discord
 
-from app.constants import Commands as constants
 from app.components.embed import parse_dict_to_embed
 from app.data import cogs as cogs_data
 from app.data import moderations as moderations_data
 from app.services.utils import (
-    parse_json_to_dict,
-    parse_form_params_result,
     parse_cog_data_to_param_result,
-    parse_locale
+    parse_form_params_result,
+    parse_json_to_dict,
+    parse_locale,
 )
 
 
@@ -23,11 +22,13 @@ async def update_moderations_by_guild(guild_id: str, data: str, value: str):
         guild_id=guild_id, data=data, value=value
     )
 
+
 async def insert_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
     if not data.get("guild_id"):
         data["guild_id"] = str(guild_id)
 
     return cogs_data.insert_cog_by_guild_id(cog, data)
+
 
 async def update_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
     if not data.get("guild_id"):
@@ -57,11 +58,13 @@ async def send_command_manager_message(
     interaction: discord.Interaction,
     key: str,
     cog_data: Dict[str, str],
-    additional_info: str=""
+    additional_info: str = "",
 ):
     from app.views.manager import Manager
 
-    command_dict = parse_json_to_dict(key, parse_locale(interaction.locale), "command.json")
+    command_dict = parse_json_to_dict(
+        key, parse_locale(interaction.locale), "command.json"
+    )
     embed = parse_dict_to_embed(command_dict)
 
     form_json = parse_json_to_dict(key, parse_locale(interaction.locale), "forms.json")

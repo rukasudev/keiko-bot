@@ -2,8 +2,8 @@ import threading
 
 import discord
 from discord.ext.commands import Bot
-from app.config import AppConfig
 
+from app.config import AppConfig
 from app.translator import Translator
 
 

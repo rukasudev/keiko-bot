@@ -1,12 +1,14 @@
 import discord
+from i18n import t
 
 from app.components.buttons import DisableButtom, EditButtom
-from app.services.moderations import delete_cog_by_guild, update_moderations_by_guild, update_cog_by_guild
 from app.components.embed import parse_dict_to_embed
-from app.services.utils import (
-    parse_command_event_description,
+from app.services.moderations import (
+    delete_cog_by_guild,
+    update_cog_by_guild,
+    update_moderations_by_guild,
 )
-from i18n import t
+from app.services.utils import parse_command_event_description
 
 
 class Manager(discord.ui.View):
@@ -39,7 +41,7 @@ class Manager(discord.ui.View):
             t("commands.command-event.edit.description", locale=self.locale),
             interaction.message.edited_at,
             interaction.message.interaction.name,
-            interaction.user.mention
+            interaction.user.mention,
         )
 
         view = self.edited_form_view.view
@@ -62,7 +64,7 @@ class Manager(discord.ui.View):
             t("commands.command-event.disabled.description", locale=self.locale),
             interaction.message.created_at,
             interaction.message.interaction.name,
-            interaction.user.mention
+            interaction.user.mention,
         )
         self.clear_items()
 

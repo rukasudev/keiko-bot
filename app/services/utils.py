@@ -1,11 +1,12 @@
+import datetime
 from json import load
 from pathlib import Path
 from re import findall
 from typing import Dict, List
-from app.constants import Emojis as constants
 
-import datetime
 import discord
+
+from app.constants import Emojis as constants
 
 
 def check_message_has_link(message: str, allowed_links: List[str]) -> List[str]:
@@ -20,7 +21,8 @@ def check_message_has_link(message: str, allowed_links: List[str]) -> List[str]:
 
     return links
 
-#TODO: maybe use cache instead of read file every time
+
+# TODO: maybe use cache instead of read file every time
 def parse_json_to_dict(key: str, locale: str, file: str) -> Dict[str, str]:
     file = Path.joinpath(
         Path().absolute(), "app", "resources", str(locale).lower(), key, file
@@ -42,8 +44,15 @@ def get_text_channels_by_guild(guild: discord.Guild) -> Dict[str, str]:
 def get_roles_by_guild(guild: discord.Guild) -> Dict[str, str]:
     return {role.name: str(role.id) for role in guild.roles if role.name != "@everyone"}
 
+
 def get_available_roles_by_guild(guild: discord.Guild) -> Dict[str, str]:
-    return {role.name: str(role.id) for role in guild.roles if role.name != "@everyone" and guild.me.top_role.position > role.position and not role.managed}
+    return {
+        role.name: str(role.id)
+        for role in guild.roles
+        if role.name != "@everyone"
+        and guild.me.top_role.position > role.position
+        and not role.managed
+    }
 
 
 def list_roles_id(roles: List[discord.Role]) -> List[int]:
@@ -57,25 +66,36 @@ def check_two_lists_intersection(x: list, y: list) -> bool:
 def check_answer_message(ctx, message) -> bool:
     return message.author == ctx.author and message.channel == ctx.channel
 
-def parse_form_cogs_titles(form_json: List[Dict[str, str]]) -> Dict[str, str]:
-    return {item["key"]: item["title"] for item in form_json if item["key"] not in ["form", "confirm"]}
 
-def parse_cog_data_to_param_result(cog_data: List[Dict[str, str]], form_json: Dict[str, str]) -> List[Dict[str, str]]:
+def parse_form_cogs_titles(form_json: List[Dict[str, str]]) -> Dict[str, str]:
+    return {
+        item["key"]: item["title"]
+        for item in form_json
+        if item["key"] not in ["form", "confirm"]
+    }
+
+
+def parse_cog_data_to_param_result(
+    cog_data: List[Dict[str, str]], form_json: Dict[str, str]
+) -> List[Dict[str, str]]:
     cogs_title = parse_form_cogs_titles(form_json)
     response = [
-        {
-            "title": cogs_title[cog_key],
-            "value": value
-        }
+        {"title": cogs_title[cog_key], "value": value}
         for cog_key, value in cog_data.items()
         if cogs_title.get(cog_key)
     ]
     return response
 
-def get_cog_with_title(cog_data: List[Dict[str, str]], form_json: Dict[str, str]) -> Dict[str, str]:
+
+def get_cog_with_title(
+    cog_data: List[Dict[str, str]], form_json: Dict[str, str]
+) -> Dict[str, str]:
     cogs_title = parse_form_cogs_titles(form_json)
-    response = {cogs_title[cog_key]: cog_key for cog_key in cog_data if cogs_title.get(cog_key)}
+    response = {
+        cogs_title[cog_key]: cog_key for cog_key in cog_data if cogs_title.get(cog_key)
+    }
     return response
+
 
 def parse_form_params_result(responses: List[Dict[str, str]]) -> str:
     result = []
@@ -91,11 +111,17 @@ def parse_form_params_result(responses: List[Dict[str, str]]) -> str:
 
     return "".join(result)
 
+
 def parse_locale(locale: str) -> str:
     return str(locale).split("-")[0]
 
-def parse_command_event_description(description: str, interaction_date: datetime.datetime, command_name: str, user: str) -> str:
+
+def parse_command_event_description(
+    description: str, interaction_date: datetime.datetime, command_name: str, user: str
+) -> str:
     description = description.replace("$command_name", command_name)
-    description = description.replace("$date", interaction_date.strftime("%Y-%m-%d %H:%M:%S")+" UTC")
+    description = description.replace(
+        "$date", interaction_date.strftime("%Y-%m-%d %H:%M:%S") + " UTC"
+    )
     description = description.replace("$user", user)
     return description

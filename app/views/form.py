@@ -1,21 +1,23 @@
-from typing import Dict, List, Callable, Generator, Any
+from typing import Any, Callable, Dict, Generator, List
+
+import discord
+from i18n import t
+
 from app.components.buttons import CancelButton, ConfirmButton, EditButtom
 from app.components.embed import parse_dict_to_embed
 from app.components.modals import CustomModal
 from app.constants import FormConstants as constants
 from app.services.moderations import insert_cog_by_guild, update_moderations_by_guild
 from app.services.utils import (
-    get_roles_by_guild,
     get_available_roles_by_guild,
+    get_roles_by_guild,
     get_text_channels_by_guild,
-    parse_json_to_dict,
+    parse_command_event_description,
     parse_form_params_result,
-    parse_command_event_description
+    parse_json_to_dict,
 )
 from app.views.options import OptionsView
-from i18n import t
 
-import discord
 
 class Form(discord.ui.View):
     """
@@ -36,11 +38,7 @@ class Form(discord.ui.View):
         self.add_item(CancelButton(locale=locale))
 
     def _get_questions(self) -> Generator[Any, Any, Any]:
-        questions = parse_json_to_dict(
-            self.command_key,
-            self.locale,
-            "forms.json"
-        )
+        questions = parse_json_to_dict(self.command_key, self.locale, "forms.json")
         yield from questions
 
     def _update_form_question(func):
@@ -56,7 +54,8 @@ class Form(discord.ui.View):
         return update_counter
 
     async def _after_callback(self, interaction):
-        if not self.after_callback: return
+        if not self.after_callback:
+            return
         return await self.after_callback(interaction)
 
     def _set_after_callback(self, after_callback: Callable):
@@ -69,17 +68,19 @@ class Form(discord.ui.View):
         if not hasattr(self, "responses"):
             self.responses = []
 
-        self.responses.append({
-            "key": self._question["key"],
-            "title": self._question["title"],
-            "value": self.view.get_response()
-        })
+        self.responses.append(
+            {
+                "key": self._question["key"],
+                "title": self._question["title"],
+                "value": self.view.get_response(),
+            }
+        )
 
     async def update_resume(self, interaction: discord.Interaction):
         for edited_item in self.edited_form_view.responses:
             for item in self.responses:
-                if edited_item['key'] == item['key']:
-                    item['value'] = edited_item['value']
+                if edited_item["key"] == item["key"]:
+                    item["value"] = edited_item["value"]
         return await self.show_resume(interaction)
 
     def _parse_responses_to_cog(self) -> Dict[str, str]:
@@ -92,7 +93,11 @@ class Form(discord.ui.View):
         return cog_param
 
     def filter_questions(self, questions: List[str]):
-        self.questions = (question for question in iter(self._get_questions()) if question['key'] in questions)
+        self.questions = (
+            question
+            for question in iter(self._get_questions())
+            if question["key"] in questions
+        )
 
     def get_form_embed(self) -> discord.Embed:
         return parse_dict_to_embed(next(self.questions))
@@ -106,89 +111,66 @@ class Form(discord.ui.View):
         self.view = OptionsView(
             options=self._question["options"],
             callback=self._callback,
-            locale=self.locale
+            locale=self.locale,
         )
         await interaction.followup.edit_message(
-            message_id=interaction.message.id,
-            embed=self.question_embed,
-            view=self.view
+            message_id=interaction.message.id, embed=self.question_embed, view=self.view
         )
 
     async def show_channels(self, interaction: discord.Interaction):
         channels = get_text_channels_by_guild(interaction.guild)
         await interaction.response.defer()
         self.view = OptionsView(
-            options=list(channels.keys()),
-            callback=self._callback,
-            locale=self.locale
+            options=list(channels.keys()), callback=self._callback, locale=self.locale
         )
         await interaction.followup.edit_message(
-            message_id=interaction.message.id,
-            embed=self.question_embed,
-            view=self.view
+            message_id=interaction.message.id, embed=self.question_embed, view=self.view
         )
 
     async def show_roles(self, interaction: discord.Interaction):
         roles = get_roles_by_guild(interaction.guild)
         await interaction.response.defer()
         self.view = OptionsView(
-            options=list(roles.keys()),
-            callback=self._callback,
-            locale=self.locale
+            options=list(roles.keys()), callback=self._callback, locale=self.locale
         )
         await interaction.followup.edit_message(
-            message_id=interaction.message.id,
-            embed=self.question_embed,
-            view=self.view
+            message_id=interaction.message.id, embed=self.question_embed, view=self.view
         )
 
     async def show_available_roles(self, interaction: discord.Interaction):
         roles = get_available_roles_by_guild(interaction.guild)
         await interaction.response.defer()
         self.view = OptionsView(
-            options=list(roles.keys()),
-            callback=self._callback,
-            locale=self.locale
+            options=list(roles.keys()), callback=self._callback, locale=self.locale
         )
 
         if not roles:
             error_message = t(
                 "errors.command-default-roles-low-permissions.message",
-                locale=self.locale
+                locale=self.locale,
             )
             self.question_embed.description = error_message
 
         await interaction.followup.edit_message(
-            message_id=interaction.message.id,
-            embed=self.question_embed,
-            view=self.view
+            message_id=interaction.message.id, embed=self.question_embed, view=self.view
         )
 
     async def show_resume(self, interaction: discord.Interaction):
         embed = self.question_embed.copy()
-        embed.description += parse_form_params_result(
-            self.responses
-        )
+        embed.description += parse_form_params_result(self.responses)
 
         self.add_item(EditButtom(after_callback=self.update_resume, locale=self.locale))
         self.add_item(ConfirmButton(callback=self._finish, locale=self.locale))
         self.add_item(CancelButton(locale=self.locale))
-        await interaction.response.edit_message(
-            embed=embed,
-            view=self
-        )
+        await interaction.response.edit_message(embed=embed, view=self)
 
     async def _finish(self, interaction: discord.Interaction):
         cog_param = self._parse_responses_to_cog()
         await update_moderations_by_guild(
-            guild_id=interaction.guild_id,
-            data=self.command_key,
-            value=True
+            guild_id=interaction.guild_id, data=self.command_key, value=True
         )
         await insert_cog_by_guild(
-            guild_id=interaction.guild_id,
-            cog=self.command_key,
-            data=cog_param
+            guild_id=interaction.guild_id, cog=self.command_key, data=cog_param
         )
 
         self.clear_items()
@@ -199,7 +181,7 @@ class Form(discord.ui.View):
             t("commands.command-event.enabled.description", locale=self.locale),
             interaction.message.edited_at,
             interaction.message.interaction.name,
-            interaction.user.mention
+            interaction.user.mention,
         )
         await interaction.response.send_message(embed=embed, view=self)
 

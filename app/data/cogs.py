@@ -1,10 +1,7 @@
 from typing import Any, Dict
+
 from app import mongo_client
-from app.data.util import (
-    parse_insert_timestamp,
-    parse_update_timestamp
-)
-from app.constants import CogsConstants as constants
+from app.data.util import parse_insert_timestamp, parse_update_timestamp
 
 
 def find_cog_by_guild_id(guild_id: str, cog: str) -> Dict[str, Any]:

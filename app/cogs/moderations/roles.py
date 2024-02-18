@@ -1,13 +1,12 @@
 import discord
-
 from discord import app_commands
 from discord.app_commands import locale_str
-from app.services.utils import parse_locale, get_available_roles_by_guild
-
 from i18n import t
-from app.bot import DiscordBot
 
+from app.bot import DiscordBot
 from app.services import default_roles as default_roles_service
+from app.services.utils import get_available_roles_by_guild, parse_locale
+
 
 class Roles(app_commands.Group, name=locale_str("default", namespace="commands")):
     def __init__(self, bot: DiscordBot):
@@ -31,7 +30,8 @@ class Roles(app_commands.Group, name=locale_str("default", namespace="commands")
         if not interaction.user.guild_permissions.administrator:
             locale = parse_locale(interaction.locale)
             return await interaction.response.send_message(
-                t("errors.command-permission-denied.message", locale=locale), ephemeral=True
+                t("errors.command-permission-denied.message", locale=locale),
+                ephemeral=True,
             )
 
         await default_roles_service.manager(interaction=interaction, guild_id=guild_id)
