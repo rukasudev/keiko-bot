@@ -8,6 +8,9 @@ pt:
   links: links
   linksdesc: configure deletar uma mensagem caso haja links
 
+  admin: admin
+  cogs: cogs
+
   sync: sincronizar
   syncdesc: sincronizar corgi com o servidor
   syncreply: Servidor foi sincronizado!

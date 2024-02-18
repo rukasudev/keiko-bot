@@ -6,7 +6,7 @@ from discord.app_commands import locale_str
 from discord.ext import commands
 
 from app.bot import DiscordBot
-from app.logger import logger
+from app import logger
 from app.data.moderations import (
     find_moderations_by_guild,
     insert_moderations_by_guild,

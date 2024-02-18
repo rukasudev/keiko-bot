@@ -8,6 +8,9 @@ en:
   links: links
   linksdesc: set delete messages if has a link
 
+  admin: admin
+  cogs: cogs
+
   sync: sync
   syncdesc: sync corgi commands with this guild
   syncreply: Guild was synced!

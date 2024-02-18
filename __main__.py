@@ -5,13 +5,17 @@ import i18n
 
 from app import create_app
 from app.config import AppConfig
-from app.logger import logger
+from app.logger import LoggerHooks, logger
 
 
 async def main() -> None:
     """Entry async method for starting the bot."""
 
     config = AppConfig()
+
+    logs = LoggerHooks(config.is_prod())
+    logs.start()
+
     app = create_app(config)
 
     for folder in listdir("app/languages"):
