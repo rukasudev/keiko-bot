@@ -1,4 +1,8 @@
 pt:
+command-generic-error:
+  message: Desculpe, não consegui processar o comando corretamente. Tente novamente mais tarde  :/
+
+    Se quiser, nos envie um reporte utilizando o comando /reporte ou fale conosco no servidor oficial do corgi, utilizando o comando /suport :)
   command-permission-denied:
     message: Hey, você não tem permissão pra rodar esse comando :/
   command-required-interaction:

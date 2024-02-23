@@ -125,3 +125,14 @@ def parse_command_event_description(
     )
     description = description.replace("$user", user)
     return description
+
+
+def format_traceback_message(traceback: str) -> str:
+    tb = traceback
+    if len(tb.split("\n")) > 15:
+        tb = "\n".join(tb.split("\n")[-15:])
+        tb_formatted = tb
+        if len(tb_formatted) > 3000:
+            tb_formatted = "...\n" + tb_formatted[-3000:]
+        return tb_formatted
+    return tb

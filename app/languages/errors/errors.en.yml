@@ -1,4 +1,8 @@
 en:
+  command-generic-error:
+    message: I'm sorry, I couldn't process the command correctly. Please try again later :/
+
+      If you'd like, send us a report using the /report command or reach out to us on the official corgi server using the /support command
   command-permission-denied:
     message: Hey, you don't have permissions to run this command :/
   command-required-interaction:

@@ -13,6 +13,7 @@ class AppConfig:
         dotenv_path = join(dirname(__file__), "..", ".env")
         load_dotenv(dotenv_path)
 
+        self.DEBUG = os.getenv("DEBUG")
         self.ENVIRONMENT = os.getenv("ENVIRONMENT")
         self.BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
         self.PREFIX = os.getenv("DISCORD_BOT_PREFIX")
@@ -24,9 +25,13 @@ class AppConfig:
         self.REDIS_URL = os.getenv("REDIS_URL")
         self.APPLICATION_ID = os.getenv("APPLICATION_ID")
         self.LOGS_CHANNEL_ID = os.getenv("LOGS_CHANNEL_ID")
+        self.LOGS_ERROR_CHANNEL_ID = os.getenv("LOGS_ERROR_CHANNEL_ID")
 
     def is_dev(self) -> bool:
         return self.ENVIRONMENT.upper() == "DEV"
 
     def is_prod(self) -> bool:
         return self.ENVIRONMENT.upper() == "PROD"
+
+    def is_debug(self) -> bool:
+        return self.DEBUG.lower() == "true"
