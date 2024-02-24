@@ -11,13 +11,15 @@ from i18n import t
 from app import logger
 from app.bot import DiscordBot
 from app.constants import CogsConstants as constants
+from app.constants import LogTypes as logconstants
 from app.data.moderations import (
     find_moderations_by_guild,
     insert_moderations_by_guild,
     update_moderations_by_guild,
 )
 from app.services import utils
-from app.services.cache import remove_all_data_by_guild
+from app.services.cache import increment_redis_key, remove_all_data_by_guild
+from app.services.moderations import insert_error_by_command
 
 
 class Events(commands.Cog, name=locale_str("events", namespace="commands")):
@@ -49,7 +51,7 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
             f"🐶 Current Status: {self.bot.status.name}️\n"
             f"---------------------------------------------------"
         )
-        logger.info(ready_message, log_type="application.startup")
+        logger.info(ready_message, log_type=logconstants.APPLICATION_STARTUP_TYPE)
 
     async def on_tree_error(
         self,
@@ -67,16 +69,21 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
         tb_formatted = utils.format_traceback_message(tb)
 
         if hasattr(error, "command"):
+            error_message = f"The following command raised an exception: **{error.command.qualified_name}**```{type(error.original).__name__}: {error.original}```\n**Traceback**```{tb_formatted}```"
             logger.error(
-                f"The following command raised an exception: **{error.command.qualified_name}**```{type(error.original).__name__}: {error.original}```\n**Traceback**```{tb_formatted}```",
+                error_message,
                 interaction=interaction,
-                log_type="command.error",
+                log_type=logconstants.COMMAND_ERROR_TYPE,
             )
+            increment_redis_key(
+                f"{logconstants.COMMAND_ERROR_TYPE}:{error.command._attr}"
+            )
+            await insert_error_by_command(error.command._attr, error_message)
         else:
             logger.error(
                 f"Unexpected error raised an exception: **{error.command.qualified_name}**```{type(error.original).__name__}: {error.original}```\n**Traceback**```{tb_formatted}```",
                 interaction=interaction,
-                log_type="command.error",
+                log_type=logconstants.COMMAND_ERROR_TYPE,
             )
 
     @commands.Cog.listener()
@@ -92,18 +99,25 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
             )
         )
 
+        increment_redis_key(
+            f"{logconstants.COMMAND_ERROR_TYPE}:{interaction.command._attr}"
+        )
+
         if isinstance(error, commands.CommandError):
+            error_message = f"on_command_error event(CommandError): Ignoring exception at {interaction.id}:\n{error}"
             logger.error(
-                f"on_command_error event(CommandError): Ignoring exception at {interaction.id}:\n{error}",
+                error_message,
                 interaction=interaction,
-                log_type="command.error",
+                log_type=logconstants.COMMAND_ERROR_TYPE,
             )
         else:
             logger.error(
                 f"on_command_error event: Ignoring exception at {interaction.id}:\n{error}",
                 interaction=interaction,
-                log_type="command.error",
+                log_type=logconstants.COMMAND_ERROR_TYPE,
             )
+
+        await insert_error_by_command(interaction.command._attr, error_message)
 
     @commands.Cog.listener()
     async def on_error(self, event_method: Any, *args, **kwargs) -> None:
@@ -112,22 +126,29 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
         if isinstance(error, discord.errors.DiscordException):
             logger.error(
                 f"on_error event (interaction failed): Ignoring exception at {event_method}:\n{traceback.format_exc()}",
-                log_type="application.error",
+                log_type=logconstants.APPLICATION_ERROR_TYPE,
             )
 
         logger.error(
             f"on_error event: Ignoring exception at {event_method}:\n{traceback.format_exc()}",
-            log_type="application.error",
+            log_type=logconstants.APPLICATION_ERROR_TYPE,
         )
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction) -> None:
-        if interaction.type == discord.InteractionType.application_command:
-            logger.info(
-                f"command started ({interaction.id}): command {interaction.command.qualified_name} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}",
-                interaction=interaction,
-                log_type="command.call",
-            )
+        if interaction.type != discord.InteractionType.application_command:
+            return None
+
+        increment_redis_key(
+            f"{logconstants.COMMAND_CALL_TYPE}:{interaction.command._attr}"
+        )
+
+        error_message = f"command started ({interaction.id}): command {interaction.command.qualified_name} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}"
+        logger.info(
+            error_message,
+            interaction=interaction,
+            log_type=logconstants.COMMAND_CALL_TYPE,
+        )
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
@@ -136,14 +157,14 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
             logger.info(
                 f"Joined new guild_id {guild.id} by user_id {guild.owner_id}",
                 guild_id=guild.id,
-                log_type="event.join_guild",
+                log_type=logconstants.EVENT_JOIN_GUILD_TYPE,
             )
             return insert_moderations_by_guild(guild.id)
 
         logger.info(
             f"Joined again at guild_id {guild.id} by user_id {guild.owner_id}",
             guild_id=guild.id,
-            log_type="event.join_guild",
+            log_type=logconstants.EVENT_JOIN_GUILD_TYPE,
         )
 
         return update_moderations_by_guild(guild.id, constants.IS_BOT_ONLINE, True)
@@ -153,7 +174,7 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
         logger.info(
             f"Left guild_id {guild.id} by user_id {guild.owner_id}",
             guild_id=guild.id,
-            log_type="event.left_guild",
+            log_type=logconstants.EVENT_LEFT_GUILD_TYPE,
         )
         remove_all_data_by_guild(guild.id)
         return update_moderations_by_guild(guild.id, constants.IS_BOT_ONLINE, False)

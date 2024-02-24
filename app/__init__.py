@@ -12,7 +12,6 @@ def create_app(config: AppConfig) -> DiscordBot:
     mongo_client = MongoClient(
         config.MONGO_URL,
         tls=config.is_prod(),
-        ssl=config.is_prod(),
         tlsCAFile=certifi.where() if config.is_prod() else None,
     )
     print(f"Mongo: {mongo_client.guild.command('ping')}")

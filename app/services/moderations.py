@@ -31,11 +31,13 @@ async def insert_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
     return cogs_data.insert_cog_by_guild_id(cog, data)
 
 
-async def update_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
+async def update_cog_by_guild(guild_id: str, cog_key: str, data: Dict[str, Any]):
     if not data.get("guild_id"):
         data["guild_id"] = str(guild_id)
 
-    return cogs_data.update_cog_by_guild(guild_id, cog, data)
+    remove_cog_data_by_guild(guild_id, cog_key)
+
+    return cogs_data.update_cog_by_guild(guild_id, cog_key, data)
 
 
 async def delete_cog_by_guild(guild_id: str, cog_key: str):
@@ -46,6 +48,14 @@ async def delete_cog_by_guild(guild_id: str, cog_key: str):
     remove_cog_data_by_guild(guild_id, cog_key)
 
     return cogs_data.delete_cog_by_guild_id(guild_id, cog_key)
+
+
+async def insert_error_by_command(cog_key: str, error_message: str):
+    if not isinstance(error_message, str):
+        return None
+
+    data = {"error_message": error_message}
+    return cogs_data.insert_error_by_command(cog_key, data)
 
 
 async def send_command_form_message(interaction: discord.Interaction, key: str):

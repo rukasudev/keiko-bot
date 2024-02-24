@@ -13,6 +13,12 @@ def insert_cog_by_guild_id(cog: str, data: Dict[str, Any]) -> str:
     return mongo_client.guild[cog].insert_one(data)
 
 
+def insert_error_by_command(cog_key: str, data: Dict[str, Any]) -> str:
+    data = parse_insert_timestamp(data)
+    data["command_key"] = cog_key
+    return mongo_client.data.errors.insert_one(data)
+
+
 def update_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]) -> str:
     data = parse_update_timestamp(data)
     return mongo_client.guild[cog].update_one(
