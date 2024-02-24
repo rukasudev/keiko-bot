@@ -128,6 +128,9 @@ def parse_command_event_description(
 
 
 def format_traceback_message(traceback: str) -> str:
+    if traceback == "NoneType: None\n":
+        return None
+
     tb = traceback
     if len(tb.split("\n")) > 15:
         tb = "\n".join(tb.split("\n")[-15:])

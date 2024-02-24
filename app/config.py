@@ -13,7 +13,7 @@ class AppConfig:
         dotenv_path = join(dirname(__file__), "..", ".env")
         load_dotenv(dotenv_path)
 
-        self.DEBUG = os.getenv("DEBUG")
+        self.DEBUG = os.getenv("DEBUG_MODE")
         self.ENVIRONMENT = os.getenv("ENVIRONMENT")
         self.BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
         self.PREFIX = os.getenv("DISCORD_BOT_PREFIX")

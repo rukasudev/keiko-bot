@@ -17,6 +17,7 @@ from app.data.moderations import (
     update_moderations_by_guild,
 )
 from app.services import utils
+from app.services.cache import remove_all_data_by_guild
 
 
 class Events(commands.Cog, name=locale_str("events", namespace="commands")):
@@ -154,4 +155,5 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
             guild_id=guild.id,
             log_type="event.left_guild",
         )
+        remove_all_data_by_guild(guild.id)
         return update_moderations_by_guild(guild.id, constants.IS_BOT_ONLINE, False)

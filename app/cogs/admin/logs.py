@@ -1,10 +1,12 @@
 import logging
+import traceback
 
 import discord
 
 from app.bot import DiscordBot
 from app.constants import LogTypes as constants
 from app.logger import logger
+from app.services.utils import format_traceback_message
 
 
 class DiscordLogsHandler(logging.Handler):
@@ -28,12 +30,9 @@ class DiscordLogsHandler(logging.Handler):
         description = record.msg
 
         if not title and record.levelno == logging.ERROR:
-            title, _ = self.get_log_type(
-                logging.LogRecord(
-                    log_type=constants.APPLICATION_ERROR_TYPE, levelname=logging.ERROR
-                )
-            )
-            description = f"Unexpected error raised an exception: ```{record.exc_info[1]}```\n**Path** ```{record.pathname}```\n**Traceback**```{record.msg}```"
+            record.log_type = constants.APPLICATION_ERROR_TYPE
+            title, color = self.get_log_type(record)
+            description = self.parse_application_error_desc(record)
 
         embed = discord.Embed(
             title=title,
@@ -47,16 +46,21 @@ class DiscordLogsHandler(logging.Handler):
 
         return embed
 
-    def get_log_type(self, record):
+    def get_log_type(self, record: logging.LogRecord):
         log_types = constants.LOG_TYPE_MAP
         log_type = getattr(record, "log_type", None)
 
-        if log_type not in log_types:
-            log_types[log_type] = (log_type.capitalize(), discord.Color.random())
+        if not log_type and record.levelno == logging.ERROR:
+            return None, None
 
         return log_types.get(log_type)
 
-    def add_fields(self, embed, record):
+    def parse_application_error_desc(self, record: logging.LogRecord):
+        tb = traceback.format_exc()
+        tb_formatted = format_traceback_message(tb)
+        return f"Unexpected error raised an exception: ```{record.exc_info[1]}```\n**Path** ```{record.pathname}```\n**Traceback**```{tb_formatted or record.msg}```"
+
+    def add_fields(self, embed: discord.Embed, record: logging.LogRecord):
         interaction: discord.Interaction = getattr(record, "interaction", None)
         guild_id = getattr(record, "guild_id", None)
 

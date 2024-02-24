@@ -12,8 +12,12 @@ setup: requirements.txt
 	$(PIP) install -r requirements.txt
 	$(ACTIVATE_VENV) && echo "Virtual environment activated"
 
-run:
+run: docker-up
 	$(ACTIVATE_VENV) && $(PYTHON) __main__.py
+
+docker-up:
+	docker ps | grep -q "redis-server" || docker-compose up -d redis
+	docker ps | grep -q "mongo-server" || docker-compose up -d mongodb
 
 clean:
 	rm -rf __pycache__

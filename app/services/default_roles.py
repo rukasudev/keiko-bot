@@ -4,7 +4,7 @@ import discord
 from i18n import t
 
 from app.constants import Commands as constants
-from app.data import cogs as cogs_data
+from app.services import cache
 from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
@@ -14,7 +14,7 @@ from app.services.utils import get_available_roles_by_guild, parse_locale
 
 async def set_default_role(member: discord.Member):
     """Command service to set default roles when member join in guild"""
-    cogs = cogs_data.find_cog_by_guild_id(member.guild.id, constants.DEFAULT_ROLES_KEY)
+    cogs = cache.get_cog_data_or_populate(member.guild.id, constants.DEFAULT_ROLES_KEY)
 
     if not cogs:
         return
@@ -37,7 +37,7 @@ async def set_default_role(member: discord.Member):
 
 
 async def manager(interaction: discord.Interaction, guild_id):
-    cogs = cogs_data.find_cog_by_guild_id(guild_id, constants.DEFAULT_ROLES_KEY)
+    cogs = cache.get_cog_data_or_populate(guild_id, constants.DEFAULT_ROLES_KEY)
     locale = parse_locale(interaction.locale)
 
     available_roles = get_available_roles_by_guild(interaction.guild)

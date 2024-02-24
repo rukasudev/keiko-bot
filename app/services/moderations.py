@@ -5,6 +5,7 @@ import discord
 from app.components.embed import parse_dict_to_embed
 from app.data import cogs as cogs_data
 from app.data import moderations as moderations_data
+from app.services.cache import remove_cog_data_by_guild
 from app.services.utils import (
     parse_cog_data_to_param_result,
     parse_form_params_result,
@@ -37,12 +38,14 @@ async def update_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
     return cogs_data.update_cog_by_guild(guild_id, cog, data)
 
 
-async def delete_cog_by_guild(guild_id: str, cog: str):
+async def delete_cog_by_guild(guild_id: str, cog_key: str):
     if guild_id == "":
         print("Check if guild_id is correct to delete cog")
         return
 
-    return cogs_data.delete_cog_by_guild_id(guild_id, cog)
+    remove_cog_data_by_guild(guild_id, cog_key)
+
+    return cogs_data.delete_cog_by_guild_id(guild_id, cog_key)
 
 
 async def send_command_form_message(interaction: discord.Interaction, key: str):

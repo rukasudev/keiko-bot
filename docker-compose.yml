@@ -6,3 +6,25 @@ services:
       context: .
       dockerfile: ./Dockerfile
     entrypoint: ["python", "./__main__.py"]
+
+  redis:
+    image: bitnami/redis:latest
+    container_name: redis-server
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - '6379:6379'
+    volumes:
+      - 'corgi_redis_data:/bitnami/redis/data'
+
+  mongodb:
+    image: mongo:latest
+    container_name: mongo-server
+    ports:
+      - "27017:27017"ol
+    volumes:
+      - corgi_mongodb_data:/data/db
+
+volumes:
+  corgi_redis_data:
+  corgi_mongodb_data:
