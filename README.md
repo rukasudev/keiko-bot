@@ -1,14 +1,13 @@
-## 🥏 Corgi Bot
+## 🍰 Keiko Bot
 
-![corgi-banner](https://github.com/rukasudev/corgi-bot/assets/47928835/06342b24-2220-4ae2-bf76-06c9822984db)
+![FUNDO AZUL_005](https://github.com/rukasudev/keiko-bot/assets/47928835/045a7b86-7e1d-4b35-8601-f14f570bd69f)
 
 ---
+Keiko is a powerful and versatile Discord bot built using Python, designed to streamline server moderation and enhance user experience. It incorporates various technologies to provide essential functionalities for managing and engaging your Discord server.
 
-Corgi Bot is a powerful and versatile Discord bot built using Python, designed to streamline server moderation and enhance user experience. It incorporates various technologies to provide essential functionalities for managing and engaging your Discord server.
+### 🛠️ My Technologies
 
-### 🛠️ Technologies Used
-
-Corgi Bot leverages the following technologies:
+Keiko leverages the following technologies:
 
 - 🐍 Python
 - 🍃 MongoDB
@@ -19,7 +18,7 @@ Corgi Bot leverages the following technologies:
 
 ### 🚀 Get Started
 
-To get started with Corgi Bot, follow these steps:
+To get started with Keiko Bot, follow these steps:
 
 1. 📥 Clone the repository.
 2. 🔧 Configure your Discord bot token and other settings in the `.env` file.
@@ -70,12 +69,12 @@ To get started with Corgi Bot, follow these steps:
      docker-compose up
      ```
 
-4. 🎉 Enjoy the enhanced moderation and engagement features offered by Corgi Bot in your Discord server!
+4. 🎉 Enjoy the enhanced moderation and engagement features offered by Keiko in your Discord server!
 
 ### 💬 Contributions
 
-Contributions to Corgi Bot are welcome! If you have any ideas for new features or improvements, please feel free to submit a pull request.
+Contributions to Keiko are welcome! If you have any ideas for new features or improvements, please feel free to submit a pull request.
 
 ### 📝 License
 
-Corgi Bot is licensed under the [MIT License](https://opensource.org/licenses/MIT). Please refer to the `LICENSE` file for more information.
+Keiko Bot is licensed under the [MIT License](https://opensource.org/licenses/MIT). Please refer to the `LICENSE` file for more information.
