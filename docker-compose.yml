@@ -1,7 +1,7 @@
 version: "3.8"
 services:
-  corgi_bot:
-    container_name: corgi-bot
+  keiko_bot:
+    container_name: keiko-bot
     build:
       context: .
       dockerfile: ./Dockerfile
@@ -15,7 +15,7 @@ services:
     ports:
       - '6379:6379'
     volumes:
-      - 'corgi_redis_data:/bitnami/redis/data'
+      - 'keiko_redis_data:/bitnami/redis/data'
 
   mongodb:
     image: mongo:latest
@@ -23,8 +23,8 @@ services:
     ports:
       - "27017:27017"
     volumes:
-      - corgi_mongodb_data:/data/db
+      - keiko_mongodb_data:/data/db
 
 volumes:
-  corgi_redis_data:
-  corgi_mongodb_data:
+  keiko_redis_data:
+  keiko_mongodb_data:

@@ -60,10 +60,10 @@ To get started with Keiko Bot, follow these steps:
 
      ```shell
      # Build the Docker image
-     docker build -t corgi-bot .
+     docker build -t keiko-bot .
 
      # Run the bot using Docker
-     docker run corgi-bot
+     docker run keiko-bot
 
      # Or, using Docker Compose
      docker-compose up

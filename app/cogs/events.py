@@ -39,7 +39,7 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
 
         ready_message = (
             f"\n---------------------------------------------------\n"
-            f"🎉 Corgi Initialized Successfully!\n"
+            f"🎉 Keiko Initialized Successfully!\n"
             f"⏰ Ready Time: {self.bot.ready_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
             f"🔁 Synced with Tree: {'Yes' if self.bot.synced else 'No'}\n"
             f"🤖 Bot Name: {self.bot.application.name}\n"
