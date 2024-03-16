@@ -12,6 +12,7 @@ from app.bot import DiscordBot
 from app.cogs.admin.cogs import Cogs
 from app.cogs.admin.sync import Sync
 from app.logger import DiscordLogsHandler
+from app.services.admin import send_log_file_by_date
 from app.services.utils import format_datetime_output, parse_log_filename_with_date
 
 
@@ -41,16 +42,19 @@ class Admin(commands.GroupCog, name=locale_str("admin", namespace="commands")):
         month: int = None,
         day: app_commands.Range[int, 1, 31] = None,
     ) -> None:
+        await interaction.response.defer()
+
         filename, date = parse_log_filename_with_date("keiko_log", year, month, day)
+        if date:
+            return await send_log_file_by_date(date, interaction, self.bot)
 
         logs_file = os.path.join(os.getcwd(), "logs", f"{filename}.log")
         logs_copy = os.path.join(os.getcwd(), "logs", f"{filename}.txt")
 
         shutil.copy(logs_file, logs_copy)
-        date_message = "today" if not date else date.replace("_", "/")
 
         await interaction.response.send_message(
-            f":page_facing_up: Here is my log file for: **{date_message}**!",
+            f":page_facing_up: Here is my log file for **today**!",
             file=discord.File(logs_copy),
         )
 

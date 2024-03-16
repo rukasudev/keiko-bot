@@ -20,6 +20,7 @@ class Notifications(
         description="Sincronizar slash commands com o servidor",
     )
     async def _sync(self, interaction: discord.Interaction):
+        await self.bot.tree.sync(guild=interaction.guild)
         await interaction.response.send_message("Hello!")
 
 

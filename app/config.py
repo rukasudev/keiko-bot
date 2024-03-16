@@ -25,8 +25,9 @@ class AppConfig:
         self.REDIS_URL = os.getenv("REDIS_URL")
         self.APPLICATION_ID = os.getenv("APPLICATION_ID")
         self.ADMIN_GUILD_ID = os.getenv("ADMIN_GUILD_ID")
-        self.LOGS_CHANNEL_ID = os.getenv("LOGS_CHANNEL_ID")
-        self.LOGS_ERROR_CHANNEL_ID = os.getenv("LOGS_ERROR_CHANNEL_ID")
+        self.ADMIN_LOGS_CHANNEL_ID = os.getenv("ADMIN_LOGS_CHANNEL_ID")
+        self.ADMIN_LOGS_ERROR_CHANNEL_ID = os.getenv("ADMIN_LOGS_ERROR_CHANNEL_ID")
+        self.ADMIN_LOGS_FILES_CHANNEL_ID = os.getenv("ADMIN_LOGS_FILES_CHANNEL_ID")
 
     def is_dev(self) -> bool:
         return self.ENVIRONMENT.upper() == "DEV"

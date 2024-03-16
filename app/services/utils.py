@@ -7,7 +7,6 @@ from typing import Dict, List, Tuple
 
 import discord
 
-from app import logger
 from app.constants import Emojis as constants
 from app.constants import LogTypes as logconstants
 
@@ -161,6 +160,8 @@ def get_cogs_folder() -> List[str]:
 
 
 async def cogs_manager(bot, mode: str, cogs: list[str], sync: bool = False) -> None:
+    from app import logger
+
     for cog in cogs:
         cog = f"app.cogs.{cog}" if "app" not in cog else cog
 
@@ -197,6 +198,5 @@ def parse_log_filename_with_date(
     if not (day and month and year):
         return filename, ""
 
-    date = f"{year}_{str(month).zfill(2)}_{str(day).zfill(2)}"
-    filename += f"_{date}"
+    date = f"{year}-{str(month).zfill(2)}-{str(day).zfill(2)}"
     return filename, date

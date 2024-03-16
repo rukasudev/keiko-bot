@@ -1,14 +1,13 @@
 import logging
 import sys
 import traceback
+from datetime import datetime
 from logging.handlers import TimedRotatingFileHandler
 
 import discord
 
-from app.bot import DiscordBot
 from app.config import AppConfig
 from app.constants import LogTypes as constants
-from app.logger import logger
 from app.services.utils import format_traceback_message
 
 logger = logging.getLogger()
@@ -17,12 +16,26 @@ logger.setLevel(logging.INFO)
 logging.getLogger("discord.gateway").setLevel(logging.WARNING)
 logging.getLogger("discord.client").setLevel(logging.WARNING)
 
-console_handler = logging.StreamHandler(sys.stdout)
-file_handler = TimedRotatingFileHandler(
-    "./logs/keiko_log.log", when="midnight", encoding="utf-8"
-)
-file_handler.suffix = "%Y_%m_%d"
-file_handler.namer = lambda name: name.replace(".log.", "_") + ".log"
+
+class CustomTimedRotatingFileHandler(TimedRotatingFileHandler):
+    def doRollover(self):
+        if not hasattr(self, "bot"):
+            return
+
+        channel = self.bot.get_channel(int(self.bot.config.ADMIN_LOGS_FILES_CHANNEL_ID))
+        if not channel:
+            return
+
+        today_date = datetime.now().strftime("%Y-%m-%d")
+
+        self.bot.loop.create_task(
+            channel.send(
+                f":package: Here is my log file for: **{today_date}**!",
+                file=discord.File(self.baseFilename),
+            )
+        )
+
+        super().doRollover()
 
 
 class OptionalGuildIDFormatter(logging.Formatter):
@@ -73,15 +86,27 @@ class LoggerHooks:
 
     def start(self) -> None:
         if self.file_logs:
-            add_handler(file_handler)
+            self.set_timed_rotating_file_handler()
+            add_handler(self.file_handler)
 
         if self.console_logs:
+            console_handler = logging.StreamHandler(sys.stdout)
             add_handler(console_handler)
 
             discord.utils.setup_logging(
                 handler=console_handler,
                 level=self.get_application_log_level(),
             )
+
+    def set_timed_rotating_file_handler(self) -> CustomTimedRotatingFileHandler:
+        self.file_handler = CustomTimedRotatingFileHandler(
+            "./logs/keiko_log.log", when="D", encoding="utf-8"
+        )
+        self.file_handler.suffix = "%Y_%m_%d"
+        self.file_handler.namer = lambda name: name.replace(".log.", "_") + ".log"
+
+    def set_bot(self, bot):
+        self.file_handler.bot = bot
 
     def get_application_log_level(self):
         if self.config.is_debug():
@@ -91,7 +116,7 @@ class LoggerHooks:
 
 
 class DiscordLogsHandler(logging.Handler):
-    def __init__(self, bot: DiscordBot):
+    def __init__(self, bot):
         self.bot = bot
         super(DiscordLogsHandler, self).__init__()
         self.setLevel(logging.INFO)
@@ -99,7 +124,12 @@ class DiscordLogsHandler(logging.Handler):
 
     def emit(self, record):
         embed = self.add_embed(record)
-        log_channel = self.bot.get_channel(int(self.bot.config.LOGS_CHANNEL_ID))
+        log_channel = self.bot.get_channel(int(self.bot.config.ADMIN_LOGS_CHANNEL_ID))
+
+        if record.levelno == logging.ERROR:
+            log_channel = self.bot.get_channel(
+                int(self.bot.config.ADMIN_LOGS_ERROR_CHANNEL_ID)
+            )
 
         if not log_channel:
             return

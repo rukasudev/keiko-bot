@@ -17,6 +17,7 @@ async def main() -> None:
     logs.start()
 
     app = create_app(config)
+    logs.set_bot(app)
 
     for folder in listdir("app/languages"):
         i18n.load_path.append(f"app/languages/{folder}")

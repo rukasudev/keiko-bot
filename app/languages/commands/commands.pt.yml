@@ -23,7 +23,7 @@ pt:
 
   default: cargo
   roles: padrao
-  roles-desc: Keiko dá as boas-vindas calorosamente aos novos membros atribuindo automaticamente cargos quando eles entram no servidor
+  roles-desc: Keiko recebe calorosamente novos membros atribuindo cargos automaticamente ao entrarem no servidor
 
   command-event:
     enabled:
