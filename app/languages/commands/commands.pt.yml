@@ -6,14 +6,10 @@ pt:
   blockdesc: bloquear
 
   links: links
-  linksdesc: configure deletar uma mensagem caso haja links
+  linksdesc: Keiko protege carinhosamente nosso servidor bloqueando qualquer link suspeito
 
   admin: admin
   cogs: cogs
-
-  sync: sincronizar
-  syncdesc: sincronizar corgi com o servidor
-  syncreply: Servidor foi sincronizado!
 
   notifications: notificações
   twitch: twitch
@@ -27,7 +23,7 @@ pt:
 
   default: cargo
   roles: padrao
-  roles-desc: configure um cargo padrão para dar a um membro quando entrar no servidor
+  roles-desc: Keiko dá as boas-vindas calorosamente aos novos membros atribuindo automaticamente cargos quando eles entram no servidor
 
   command-event:
     enabled:

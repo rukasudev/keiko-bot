@@ -4,6 +4,7 @@ import discord
 from discord.ext.commands import Bot
 
 from app.config import AppConfig
+from app.services.utils import cogs_manager, get_cogs_folder
 from app.translator import Translator
 
 
@@ -31,7 +32,7 @@ class DiscordBot(Bot):
         )
 
     async def setup_hook(self) -> None:
-        await self.load_extension("app.cogs.__init__")
+        await cogs_manager(self, "load", get_cogs_folder())
         await self.tree.set_translator(Translator())
         await self.tree.sync()
 

@@ -11,7 +11,7 @@ class AppConfig:
 
     def __init__(self):
         dotenv_path = join(dirname(__file__), "..", ".env")
-        load_dotenv(dotenv_path)
+        load_dotenv(dotenv_path, override=True)
 
         self.DEBUG = os.getenv("DEBUG_MODE")
         self.ENVIRONMENT = os.getenv("ENVIRONMENT")
@@ -24,6 +24,7 @@ class AppConfig:
         self.TWITCH_CLIENT_ID = os.getenv("TWITCH_CLIENT_ID")
         self.REDIS_URL = os.getenv("REDIS_URL")
         self.APPLICATION_ID = os.getenv("APPLICATION_ID")
+        self.ADMIN_GUILD_ID = os.getenv("ADMIN_GUILD_ID")
         self.LOGS_CHANNEL_ID = os.getenv("LOGS_CHANNEL_ID")
         self.LOGS_ERROR_CHANNEL_ID = os.getenv("LOGS_ERROR_CHANNEL_ID")
 

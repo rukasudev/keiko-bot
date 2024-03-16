@@ -6,14 +6,10 @@ en:
   blockdesc: block
 
   links: links
-  linksdesc: set delete messages if has a link
+  linksdesc: Keiko lovingly protects our server by blocking any suspicious links
 
   admin: admin
   cogs: cogs
-
-  sync: sync
-  syncdesc: sync corgi commands with this guild
-  syncreply: Guild was synced!
 
   notifications: notifications
   twitch: twitch
@@ -27,7 +23,7 @@ en:
 
   default: default
   roles: roles
-  roles-desc: set default roles when member join in guild
+  roles-desc: Keiko warmly welcomes new members by automatically assigning roles when they join the server
 
   command-event:
     enabled:

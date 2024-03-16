@@ -4,6 +4,7 @@ from discord.app_commands import locale_str
 from discord.ext import commands
 
 from app.bot import DiscordBot
+from app.cogs.notifications.twitch import Twitch
 
 
 @app_commands.guild_only()
@@ -20,3 +21,10 @@ class Notifications(
     )
     async def _sync(self, interaction: discord.Interaction):
         await interaction.response.send_message("Hello!")
+
+
+async def setup(bot: DiscordBot) -> None:
+    notifications = Notifications(bot)
+    notifications.app_command.add_command(Twitch())
+
+    await bot.add_cog(notifications)

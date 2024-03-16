@@ -1,12 +1,15 @@
 import datetime
+import os
 from json import load
 from pathlib import Path
 from re import findall
-from typing import Dict, List
+from typing import Dict, List, Tuple
 
 import discord
 
+from app import logger
 from app.constants import Emojis as constants
+from app.constants import LogTypes as logconstants
 
 
 def check_message_has_link(message: str, allowed_links: List[str]) -> List[str]:
@@ -139,3 +142,61 @@ def format_traceback_message(traceback: str) -> str:
             tb_formatted = "...\n" + tb_formatted[-3000:]
         return tb_formatted
     return tb
+
+
+def get_cogs_folder() -> List[str]:
+    directory = "app/cogs"
+    cogs = []
+
+    for filename in os.listdir(directory):
+        if filename.startswith("_"):
+            continue
+
+        if filename.endswith(".py"):
+            filename = filename[:-3]
+
+        cogs.append(filename)
+
+    return cogs
+
+
+async def cogs_manager(bot, mode: str, cogs: list[str], sync: bool = False) -> None:
+    for cog in cogs:
+        cog = f"app.cogs.{cog}" if "app" not in cog else cog
+
+        if mode == "unload":
+            await bot.unload_extension(cog)
+
+        elif mode == "load":
+            await bot.load_extension(cog)
+
+        elif mode == "reload":
+            await bot.reload_extension(cog)
+        else:
+            raise ValueError("Invalid mode.")
+
+    cogs_list = ", ".join(cogs)
+    logger.info(f"Cogs {cogs_list} {mode}ed.", log_type=logconstants.COMMAND_INFO_TYPE)
+
+    if sync:
+        await bot.tree.sync()
+
+
+def format_datetime_output(datetime) -> str:
+    days, seconds = datetime.days, datetime.seconds
+    hours = days * 24 + seconds // 3600
+    minutes = (seconds % 3600) // 60
+    seconds = seconds % 60
+
+    return f"{days}d {hours}h {minutes}m {seconds}s"
+
+
+def parse_log_filename_with_date(
+    filename: str, year: str, month: str, day: str
+) -> Tuple[str, str]:
+    if not (day and month and year):
+        return filename, ""
+
+    date = f"{year}_{str(month).zfill(2)}_{str(day).zfill(2)}"
+    filename += f"_{date}"
+    return filename, date

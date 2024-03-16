@@ -35,12 +35,12 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
             await self.bot.tree.sync()
             self.bot.synced = True
 
-        self.bot.ready_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
+        self.bot.ready_time = datetime.now()
 
         ready_message = (
             f"\n---------------------------------------------------\n"
             f"🎉 Corgi Initialized Successfully!\n"
-            f"⏰ Ready Time: {self.bot.ready_time}\n"
+            f"⏰ Ready Time: {self.bot.ready_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
             f"🔁 Synced with Tree: {'Yes' if self.bot.synced else 'No'}\n"
             f"🤖 Bot Name: {self.bot.application.name}\n"
             f"👤 Author: {self.bot.application.owner.name}\n"
@@ -139,6 +139,9 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
         if interaction.type != discord.InteractionType.application_command:
             return None
 
+        if not interaction.command:
+            return None
+
         increment_redis_key(
             f"{logconstants.COMMAND_CALL_TYPE}:{interaction.command._attr}"
         )
@@ -178,3 +181,7 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
         )
         remove_all_data_by_guild(guild.id)
         return update_moderations_by_guild(guild.id, constants.IS_BOT_ONLINE, False)
+
+
+async def setup(bot: DiscordBot) -> None:
+    await bot.add_cog(Events(bot))

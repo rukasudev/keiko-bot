@@ -1,6 +1,6 @@
 {
   "title": "👩‍🎓 Default roles",
-  "description": "Enabling this function will make me automatically set role when someone joins your guild\n\n📝 **Settings**\n",
+  "description": "Enabling this feature allows me to automatically assign roles to new members when they join your server\n\n📝 **Settings**\n",
   "footer": "• Use the command /report to tell me a bug",
   "thumbnail": "https://img.freepik.com/vetores-gratis/cute-corgi-dog-delivery-box-package-cartoon-icon-ilustracao-vetorial-conceito-de-icone-de-natureza-animal-isolado-vetor-premium-estilo-flat-cartoon_138676-3506.jpg",
   "action": "button"

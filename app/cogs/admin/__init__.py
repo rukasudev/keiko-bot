@@ -1,13 +1,88 @@
+import os
+import shutil
+from datetime import datetime
+
+import discord
 from discord import app_commands
-from discord.app_commands import locale_str
+from discord.app_commands import Choice, locale_str
 from discord.ext import commands
 
+import app
 from app.bot import DiscordBot
+from app.cogs.admin.cogs import Cogs
+from app.cogs.admin.sync import Sync
+from app.logger import DiscordLogsHandler
+from app.services.utils import format_datetime_output, parse_log_filename_with_date
 
 
-@app_commands.guild_only()
-@commands.is_owner()
+@app_commands.guilds(discord.Object(id=int(app.bot.config.ADMIN_GUILD_ID)))
+@app_commands.default_permissions()
 class Admin(commands.GroupCog, name=locale_str("admin", namespace="commands")):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
+        DiscordLogsHandler(bot)
         super().__init__()
+
+    @app_commands.command(
+        name="logs",
+        description="Keiko generously provides access to the log file for a specific date",
+    )
+    @app_commands.choices(
+        month=[
+            Choice(name=datetime(1, i, 1).strftime("%B"), value=i) for i in range(1, 13)
+        ]
+    )
+    async def show_bot_logs(
+        self,
+        interaction: discord.Interaction,
+        year: app_commands.Range[
+            int, datetime.now().year - 99, datetime.now().year
+        ] = None,
+        month: int = None,
+        day: app_commands.Range[int, 1, 31] = None,
+    ) -> None:
+        filename, date = parse_log_filename_with_date("keiko_log", year, month, day)
+
+        logs_file = os.path.join(os.getcwd(), "logs", f"{filename}.log")
+        logs_copy = os.path.join(os.getcwd(), "logs", f"{filename}.txt")
+
+        shutil.copy(logs_file, logs_copy)
+        date_message = "today" if not date else date.replace("_", "/")
+
+        await interaction.response.send_message(
+            f":page_facing_up: Here is my log file for: **{date_message}**!",
+            file=discord.File(logs_copy),
+        )
+
+        os.remove(logs_copy)
+
+    @app_commands.command(
+        name="uptime",
+        description="Check how long Keiko has been active and working non-stop since it started",
+    )
+    async def show_uptime(self, interaction: discord.Interaction) -> None:
+        uptime = datetime.now() - self.bot.ready_time
+        formatted_uptime = format_datetime_output(uptime)
+
+        await interaction.response.send_message(
+            f":clock1: I have been eating cake for: **{formatted_uptime}**"
+        )
+
+    @app_commands.command(
+        name="shutdown", description="Keiko will take a little nap...zzz..zz"
+    )
+    async def shutdown_structure(self, interaction: discord.Interaction) -> None:
+        await interaction.response.send_message(
+            f":wave: `{self.bot.user}` It's time for Keiko to take a break and go into sleep mode..."
+        )
+
+        await self.bot.close()
+
+
+async def setup(bot: DiscordBot) -> None:
+    admin = Admin(bot)
+
+    admin.app_command.add_command(Cogs(bot))
+    admin.app_command.add_command(Sync(bot))
+
+    await bot.add_cog(admin)

@@ -2,7 +2,7 @@
   {
     "key": "form",
     "title": "👩‍🎓 Default Roles",
-    "description": "Enabling this function will make me automatically set role when someone joins your guild\n\n📝 **Settings**\n\n:flying_disc: **Roles:** Default roles that will be assigned when someone joins the guild",
+    "description": "Enabling this feature allows me to automatically assign roles to new members when they join your server\n\n📝 **Settings**\n\n:flying_disc: **Roles:** Default roles that will be assigned when someone joins the guild",
     "footer": "• Use the command /report to tell me a bug",
     "thumbnail": "https://img.freepik.com/vetores-gratis/cute-corgi-dog-delivery-box-package-cartoon-icon-ilustracao-vetorial-conceito-de-icone-de-natureza-animal-isolado-vetor-premium-estilo-flat-cartoon_138676-3506.jpg",
     "action": "button"
@@ -17,8 +17,8 @@
   },
   {
     "key": "confirm",
-    "title": ":white_check_mark: Tudo certo?",
-    "description": "Ativar esta função faz com que eu atribua cargos automáticamente quando alguém entrar no seu servidor!\n\n📝 **Configurações**\n",
+    "title": ":white_check_mark: Alright?",
+    "description": "Enabling this feature allows me to automatically assign roles to new members when they join your server\n\n📝 **Settings**\n",
     "thumbnail": "https://img.freepik.com/vetores-gratis/cute-corgi-dog-delivery-box-package-cartoon-icon-ilustracao-vetorial-conceito-de-icone-de-natureza-animal-isolado-vetor-premium-estilo-flat-cartoon_138676-3506.jpg",
     "footer": "• Use the command /report to tell me a bug",
     "action": "resume"

@@ -21,7 +21,7 @@ services:
     image: mongo:latest
     container_name: mongo-server
     ports:
-      - "27017:27017"ol
+      - "27017:27017"
     volumes:
       - corgi_mongodb_data:/data/db
 

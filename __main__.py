@@ -13,7 +13,7 @@ async def main() -> None:
 
     config = AppConfig()
 
-    logs = LoggerHooks(config)
+    logs = LoggerHooks(config, True)
     logs.start()
 
     app = create_app(config)

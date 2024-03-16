@@ -1,20 +1,20 @@
-pt:
-command-generic-error:
-  message: Desculpe, não consegui processar o comando corretamente. Tente novamente mais tarde  :/
+pt_br:
+  command-generic-error:
+    message: Ops! Desculpe, mas não consegui processar o comando corretamente. Por favor, tente novamente mais tarde :/
 
-    Se quiser, nos envie um reporte utilizando o comando /reporte ou fale conosco no servidor oficial do corgi, utilizando o comando /suport :)
+      Se desejar, você pode nos enviar o que aconteceu usando o comando `/reporte` ou entrar em contato conosco no servidor oficial dos corgis usando o comando `/suporte`
   command-permission-denied:
-    message: Hey, você não tem permissão pra rodar esse comando :/
+    message: Ops! Desculpe, mas você não tem permissão para executar este comando :/
   command-required-interaction:
-    message: Por favor, selecione alguma opção para prosseguir! :)
+    message: Por favor, selecione qualquer opção para prosseguir! :)
   command-default-roles-low-permissions:
-    message: Desculpe, mas não tenho permissão para atribuir cargos neste servidor :/
+    message: Ops! Desculpe, mas não tenho permissão para atribuir cargos neste servidor :/
 
-      Por favor, conceda-me um cargo com esses privilégios ou aumente a posição do meu cargo **Corgi** na hierarquia de cargos do servidor
+      Por favor, me atribua um cargo com esses privilégios ou eleve a posição do meu cargo **Corgi** na hierarquia de cargos do servidor
   command-default-roles-missing-permissions:
-    message: "🚨 **Atenção**
+    message: "🚨 **Aviso**
 
-      Não tenho mais permissões para atribuir os seguintes cargos: **$roles**
+      Não tenho mais permissão para atribuir os seguintes cargos: **$roles**
 
 
-      Por favor, conceda-me um cargo com esses privilégios ou aumente a posição do meu cargo **Corgi** na hierarquia de cargos do servidor"
+      Por favor, me atribua um cargo com esses privilégios ou eleve a posição do meu cargo **Corgi** na hierarquia de cargos do servidor
