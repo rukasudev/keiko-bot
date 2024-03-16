@@ -34,8 +34,3 @@ class DiscordBot(Bot):
     async def setup_hook(self) -> None:
         await cogs_manager(self, "load", get_cogs_folder())
         await self.tree.set_translator(Translator())
-        await self.tree.sync()
-
-    async def run(self) -> None:
-        async with self:
-            await self.start(self.config.BOT_TOKEN)

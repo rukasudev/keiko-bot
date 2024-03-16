@@ -1,14 +1,12 @@
-import asyncio
 from os import listdir
 
 import i18n
 
 from app import create_app
 from app.config import AppConfig
-from app.logger import LoggerHooks, logger
+from app.logger import LoggerHooks
 
-
-async def main() -> None:
+if __name__ == "__main__":
     """Entry async method for starting the bot."""
 
     config = AppConfig()
@@ -23,10 +21,4 @@ async def main() -> None:
         i18n.load_path.append(f"app/languages/{folder}")
         i18n.set("fallback", "en")
 
-    await app.run()
-
-
-try:
-    asyncio.run(main())
-except Exception as error:
-    logger.exception(f"Error when initializing bot: {error}")
+    app.run(config.BOT_TOKEN, reconnect=True)
