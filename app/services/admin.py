@@ -3,7 +3,7 @@ import discord
 from app.bot import DiscordBot
 
 
-async def send_log_file_by_date(
+async def send_log_file_from_channel_by_date(
     date: str, interaction: discord.Interaction, bot: DiscordBot
 ) -> None:
     channel = bot.get_channel(int(bot.config.ADMIN_LOGS_FILES_CHANNEL_ID))

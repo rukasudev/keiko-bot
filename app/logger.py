@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 import traceback
 from datetime import datetime
@@ -34,6 +35,7 @@ class CustomTimedRotatingFileHandler(TimedRotatingFileHandler):
                 file=discord.File(self.baseFilename),
             )
         )
+        os.remove(self.baseFilename)
 
         super().doRollover()
 
@@ -100,13 +102,14 @@ class LoggerHooks:
 
     def set_timed_rotating_file_handler(self) -> CustomTimedRotatingFileHandler:
         self.file_handler = CustomTimedRotatingFileHandler(
-            "./logs/keiko_log.log", when="D", encoding="utf-8"
+            "./logs/keiko_log.log", when="MIDNIGHT", encoding="utf-8"
         )
         self.file_handler.suffix = "%Y_%m_%d"
         self.file_handler.namer = lambda name: name.replace(".log.", "_") + ".log"
 
     def set_bot(self, bot):
         self.file_handler.bot = bot
+        self.file_handler.doRollover()
 
     def get_application_log_level(self):
         if self.config.is_debug():
