@@ -10,6 +10,7 @@ from discord.ext import commands
 import app
 from app.bot import DiscordBot
 from app.cogs.admin.cogs import Cogs
+from app.cogs.admin.configs import Configs
 from app.cogs.admin.sync import Sync
 from app.logger import DiscordLogsHandler
 from app.services.admin import send_log_file_from_channel_by_date
@@ -97,5 +98,6 @@ async def setup(bot: DiscordBot) -> None:
 
     admin.app_command.add_command(Cogs(bot))
     admin.app_command.add_command(Sync(bot))
+    admin.app_command.add_command(Configs(bot))
 
     await bot.add_cog(admin)

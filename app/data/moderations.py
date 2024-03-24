@@ -1,7 +1,7 @@
 from typing import Any
 
 from app import mongo_client
-from app.constants import CogsConstants as constants
+from app.constants import GuildConstants as constants
 from app.data.util import parse_insert_timestamp, parse_update_timestamp
 
 

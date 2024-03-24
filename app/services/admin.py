@@ -1,6 +1,9 @@
+from typing import Any, Dict
+
 import discord
 
 from app.bot import DiscordBot
+from app.data import admin as configs_data
 
 
 async def send_log_file_from_channel_by_date(
@@ -18,3 +21,13 @@ async def send_log_file_from_channel_by_date(
         )
 
     await interaction.followup.send(f":pensive: Log file not found for **{date}**")
+
+
+def update_admin_configs(bot: DiscordBot, data: Dict[str, Any]):
+    configs_data.update_admin_configs(data)
+    key, value = next(iter(data.items()))
+    return setattr(bot.config, key, value)
+
+
+def get_admin_configs():
+    return configs_data.find_admin_configs()

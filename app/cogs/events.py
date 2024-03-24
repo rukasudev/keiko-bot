@@ -6,7 +6,8 @@ from discord.ext import commands
 
 from app import logger
 from app.bot import DiscordBot
-from app.constants import CogsConstants as constants
+from app.constants import CogsConstants as cogconstants
+from app.constants import GuildConstants as constants
 from app.constants import LogTypes as logconstants
 from app.data.moderations import (
     find_moderations_by_guild,
@@ -14,6 +15,7 @@ from app.data.moderations import (
     update_moderations_by_guild,
 )
 from app.services.cache import increment_redis_key, remove_all_data_by_guild
+from app.services.utils import cogs_manager
 
 
 class Events(commands.Cog, name=locale_str("events", namespace="commands")):
@@ -25,6 +27,7 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
         await self.bot.wait_until_ready()
 
         if not self.bot.synced:
+            await cogs_manager(self.bot, "load", cogconstants.LAZY_LOAD_COGS)
             await self.bot.tree.sync()
             self.bot.synced = True
 
@@ -54,9 +57,10 @@ class Events(commands.Cog, name=locale_str("events", namespace="commands")):
         if not interaction.command:
             return None
 
-        increment_redis_key(
-            f"{logconstants.COMMAND_CALL_TYPE}:{interaction.command._attr}"
-        )
+        if str(interaction.user.id) != self.bot.owner_id:
+            increment_redis_key(
+                f"{logconstants.COMMAND_CALL_TYPE}:{interaction.command._attr}"
+            )
 
         error_message = f"command started ({interaction.id}): command {interaction.command.qualified_name} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}"
         logger.info(

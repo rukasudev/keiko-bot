@@ -1,4 +1,4 @@
-from typing import Final
+from typing import Dict, Final, List
 
 import discord
 
@@ -6,6 +6,24 @@ import discord
 class Style:
     RED_COLOR: Final[str] = "ff0000"
     BACKGROUND_COLOR: Final[str] = "3aaaff"
+
+
+class DBConfigs:
+    KEIKO_ACTIVITY: Final[str] = "activity"
+    KEIKO_STATUS: Final[str] = "status"
+    KEIKO_DESCRIPTION: Final[str] = "description"
+
+    ADMIN_GUILD_ID: Final[str] = "admin_guild_id"
+    ADMIN_LOGS_CHANNEL_ID: Final[str] = "admin_logs_channel_id"
+    ADMIN_LOGS_ERROR_CHANNEL_ID: Final[str] = "admin_logs_error_channel_id"
+    ADMIN_LOGS_FILES_CHANNEL_ID: Final[str] = "admin_logs_files_channel_id"
+
+    ADMIN_CONFIGS_LIST: Final[List] = [
+        ADMIN_GUILD_ID,
+        ADMIN_LOGS_CHANNEL_ID,
+        ADMIN_LOGS_ERROR_CHANNEL_ID,
+        ADMIN_LOGS_FILES_CHANNEL_ID,
+    ]
 
 
 class Commands:
@@ -24,8 +42,16 @@ class Commands:
 
 
 class CogsConstants:
+    ADMIN_COGS: Final[str] = "admin"
+    MODERATIONS_COGS: Final[str] = "moderations"
+    CONFIG_COGS: Final[str] = "config"
+
+    LAZY_LOAD_COGS: Final[List] = [ADMIN_COGS, CONFIG_COGS]
+
+
+class GuildConstants:
     IS_BOT_ONLINE: Final[str] = "is_bot_online"
-    COGS_MODERATIONS_COMMANDS_DEFAULT: Final[dict] = {
+    COGS_MODERATIONS_COMMANDS_DEFAULT: Final[Dict] = {
         IS_BOT_ONLINE: True,
         Commands.STREAM_MONITOR_KEY: False,
         Commands.WELCOME_MESSAGES_KEY: False,
@@ -68,7 +94,7 @@ class LogTypes:
     COMMAND_ERROR_TYPE: Final[str] = "command.error"
     COMMAND_ERROR_TITLE: Final[str] = "❌ Command Error"
 
-    LOG_TYPE_MAP: Final[dict] = {
+    LOG_TYPE_MAP: Final[Dict] = {
         APPLICATION_STARTUP_TYPE: (
             APPLICATION_STARTUP_TITLE,
             discord.Color.teal(),

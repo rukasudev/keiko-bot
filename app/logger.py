@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 import traceback
-from datetime import datetime
+from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 
 import discord
@@ -27,11 +27,12 @@ class CustomTimedRotatingFileHandler(TimedRotatingFileHandler):
         if not channel:
             return
 
-        today_date = datetime.now().strftime("%Y-%m-%d")
+        yesterday_date = datetime.now() - timedelta(days=1)
+        strftime_yesterday_date = yesterday_date.strftime("%Y-%m-%d")
 
         self.bot.loop.create_task(
             channel.send(
-                f":package: Here is my log file for: **{today_date}**!",
+                f":package: Here is my log file for: **{strftime_yesterday_date}**!",
                 file=discord.File(self.baseFilename),
             )
         )
