@@ -40,4 +40,5 @@ def remove_cog_data_by_guild(guild_id: str, key: str):
 
 def remove_all_data_by_guild(guild_id: str):
     keys_to_delete = redis_client.keys(f"guild:{guild_id}:*")
-    redis_client.delete(*keys_to_delete)
+    if keys_to_delete:
+        redis_client.delete(*keys_to_delete)

@@ -13,11 +13,21 @@ class Cogs(app_commands.Group, name=locale_str("cogs", namespace="commands")):
 
     @app_commands.command(
         name="show",
-        description=" Keiko kindly provides you with a list of all the amazing features and commands available",
+        description="Keiko kindly provides you with a list of all the amazing features and commands available",
     )
     async def show_cogs(self, interaction: discord.Interaction) -> None:
         commands = self.bot.tree.get_commands()
-        message = f":point_up: **Extensions:**\n{self.bot.extensions.keys()}\n**Commands:**\n{commands}"
+
+        extensions = "\n".join(
+            [ext.split(".")[-1] for ext in self.bot.extensions.keys()]
+        )
+        extensions_message = f":point_up: **Extensions Up**:\n{extensions}"
+
+        commands_names = "\n".join([command.name for command in commands])
+        commands_message = f":fist: **Global GroupCogs Up**:\n{commands_names}"
+
+        message = f"{extensions_message}\n\n{commands_message}"
+
         await interaction.response.send_message(message)
 
     @app_commands.command(

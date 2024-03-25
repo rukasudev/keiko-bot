@@ -22,29 +22,12 @@ class Errors(commands.Cog, name="errors"):
         interaction: discord.Interaction,
         error: discord.app_commands.AppCommandError,
     ) -> None:
-        await self.send_default_error_message(interaction, error)
+        await self.send_default_error_message(interaction)
 
         tb = traceback.format_exc()
         tb_formatted = utils.format_traceback_message(tb)
 
-        error_message = f"The following command raised an exception: **{error.command.qualified_name}**```{type(error.original).__name__}: {error.original}```\n**Traceback**```{tb_formatted}```"
-        logger.error(
-            error_message,
-            interaction=interaction,
-            log_type=logconstants.COMMAND_ERROR_TYPE,
-        )
-
-        await insert_error_by_command(error.command._attr, error_message)
-
-    @commands.Cog.listener()
-    async def on_command_error(
-        self,
-        interaction: discord.Interaction,
-        error: discord.app_commands.AppCommandError,
-    ):
-        await self.send_default_error_message(interaction, error)
-
-        error_message = f"on_command_error event(CommandError): Ignoring exception at {interaction.id}:\n{error}"
+        error_message = f"The following command raised an exception: **{interaction.command.qualified_name}**```{type(error.original).__name__}: {error.original}```\n**Traceback**```{tb_formatted}```"
         logger.error(
             error_message,
             interaction=interaction,
@@ -53,8 +36,26 @@ class Errors(commands.Cog, name="errors"):
 
         await insert_error_by_command(interaction.command._attr, error_message)
 
+    @commands.Cog.listener()
+    async def on_command_error(
+        self,
+        context: commands.Context,
+        error: discord.app_commands.AppCommandError,
+    ):
+        if isinstance(error, commands.CommandNotFound):
+            message = "🇧🇷 Português: Ops! 🐾 Parece que você está tentando fazer Keiko entender comandos com prefixo. 🐶 Lembre-se de usar as barras `(/)` para brincar com Keiko. Experimente digitar `/ajuda` para ver todas as brincadeiras disponíveis!\n\n"
+            message += "🇺🇸 English: Oops! 🐾 It seems like you're trying to make Keiko understand commands with a prefix. 🐶 Remember to use slashes `(/)` to play with Keiko. Try typing `/help` to see all the fun tricks available!"
+
+            return await context.send(message)
+
+        error_message = f"Ignoring exception at **{context.message.content}**:\n{error}"
+        logger.warn(
+            error_message,
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+
     async def send_default_error_message(
-        self, interaction: discord.Interaction, error
+        self, interaction: discord.Interaction
     ) -> None:
         default_error_message = t(
             "errors.command-generic-error.message",
@@ -66,7 +67,9 @@ class Errors(commands.Cog, name="errors"):
         else:
             await interaction.response.send_message(content=default_error_message)
 
-        increment_redis_key(f"{logconstants.COMMAND_ERROR_TYPE}:{error.command._attr}")
+        increment_redis_key(
+            f"{logconstants.COMMAND_ERROR_TYPE}:{interaction.command._attr}"
+        )
 
 
 async def setup(bot: DiscordBot) -> None:

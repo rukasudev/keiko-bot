@@ -25,9 +25,9 @@ class DiscordBot(Bot):
             help_command=None,
             owner_id=self.config.OWNER_ID,
             intents=discord.Intents.all(),
-            status=discord.Status.online,
+            status=self.config.STATUS,
             activity=discord.Activity(
-                type=discord.ActivityType.playing, name=self.config.DESCRIPTION
+                type=self.config.ACTIVITY, name=self.config.DESCRIPTION
             ),
         )
 

@@ -7,6 +7,7 @@ from typing import Dict, List, Tuple
 
 import discord
 
+from app.constants import CogsConstants as cogconstants
 from app.constants import Emojis as constants
 from app.constants import LogTypes as logconstants
 
@@ -153,6 +154,9 @@ def get_cogs_folder() -> List[str]:
 
         if filename.endswith(".py"):
             filename = filename[:-3]
+
+        if filename in cogconstants.LAZY_LOAD_COGS:
+            continue
 
         cogs.append(filename)
 

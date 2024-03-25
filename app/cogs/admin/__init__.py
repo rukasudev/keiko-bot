@@ -10,9 +10,10 @@ from discord.ext import commands
 import app
 from app.bot import DiscordBot
 from app.cogs.admin.cogs import Cogs
+from app.cogs.admin.configs import Configs
 from app.cogs.admin.sync import Sync
 from app.logger import DiscordLogsHandler
-from app.services.admin import send_log_file_by_date
+from app.services.admin import send_log_file_from_channel_by_date
 from app.services.utils import format_datetime_output, parse_log_filename_with_date
 
 
@@ -46,19 +47,28 @@ class Admin(commands.GroupCog, name=locale_str("admin", namespace="commands")):
 
         filename, date = parse_log_filename_with_date("keiko_log", year, month, day)
         if date:
-            return await send_log_file_by_date(date, interaction, self.bot)
+            return await send_log_file_from_channel_by_date(date, interaction, self.bot)
 
         logs_file = os.path.join(os.getcwd(), "logs", f"{filename}.log")
         logs_copy = os.path.join(os.getcwd(), "logs", f"{filename}.txt")
 
         shutil.copy(logs_file, logs_copy)
+        try:
+            await interaction.followup.send(
+                f":page_facing_up: Here is my log file for **today**!",
+                file=discord.File(logs_copy),
+            )
+        finally:
+            os.remove(logs_copy)
 
-        await interaction.response.send_message(
-            f":page_facing_up: Here is my log file for **today**!",
-            file=discord.File(logs_copy),
+        # TODO: the following code is temporary
+        logs_folder = "logs"
+        logs_files = os.listdir(logs_folder)
+        formatted_logs_files = "\n".join(logs_files)
+
+        await interaction.followup.send(
+            f"**Current Logs folder:**\n{formatted_logs_files}"
         )
-
-        os.remove(logs_copy)
 
     @app_commands.command(
         name="uptime",
@@ -88,5 +98,6 @@ async def setup(bot: DiscordBot) -> None:
 
     admin.app_command.add_command(Cogs(bot))
     admin.app_command.add_command(Sync(bot))
+    admin.app_command.add_command(Configs(bot))
 
     await bot.add_cog(admin)
