@@ -54,7 +54,7 @@ class Manager(discord.ui.View):
         embed = interaction.message.embeds[0]
 
         await update_moderations_by_guild(
-            guild_id=guild_id, data=self.command_key, value=False
+            guild_id=guild_id, key=self.command_key, value=False
         )
 
         await delete_cog_by_guild(guild_id, self.command_key)

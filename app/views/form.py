@@ -167,7 +167,7 @@ class Form(discord.ui.View):
     async def _finish(self, interaction: discord.Interaction):
         cog_param = self._parse_responses_to_cog()
         await update_moderations_by_guild(
-            guild_id=interaction.guild_id, data=self.command_key, value=True
+            guild_id=interaction.guild_id, key=self.command_key, value=True
         )
         await insert_cog_by_guild(
             guild_id=interaction.guild_id, cog=self.command_key, data=cog_param

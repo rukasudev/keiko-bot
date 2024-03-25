@@ -1,7 +1,6 @@
-from typing import Any
+from typing import Any, Dict
 
 from app import mongo_client
-from app.constants import GuildConstants as constants
 from app.data.util import parse_insert_timestamp, parse_update_timestamp
 
 
@@ -15,9 +14,7 @@ def find_moderations_by_guild(guild_id: str) -> dict:
     return mongo_client.guild.moderations.find_one({"guild_id": str(guild_id)})
 
 
-def insert_moderations_by_guild(guild_id: str) -> str:
-    data = constants.COGS_MODERATIONS_COMMANDS_DEFAULT
-    data["guild_id"] = str(guild_id)
+def insert_moderations_by_guild(data: Dict[str, Any]) -> str:
     data = parse_insert_timestamp(data)
 
     return mongo_client.guild.moderations.insert_one(data)

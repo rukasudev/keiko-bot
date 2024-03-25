@@ -3,6 +3,7 @@ from typing import Any, Dict
 import discord
 
 from app.components.embed import parse_dict_to_embed
+from app.constants import GuildConstants as constants
 from app.data import cogs as cogs_data
 from app.data import moderations as moderations_data
 from app.services.cache import remove_cog_data_by_guild
@@ -14,14 +15,32 @@ from app.services.utils import (
 )
 
 
-async def update_moderations_by_guild(guild_id: str, data: str, value: str):
+def update_moderations_by_guild(guild_id: str, key: str, value: str):
     if not guild_id:
-        print("Check if guild_id is correct to update moderations settings")
         return
 
+    moderations = moderations_data.find_moderations_by_guild(guild_id)
+    if not moderations:
+        data = parse_default_moderations(guild_id)
+        data[key] = value
+
+        return moderations_data.insert_moderations_by_guild(data)
+
     return moderations_data.update_moderations_by_guild(
-        guild_id=guild_id, data=data, value=value
+        guild_id=guild_id, data=key, value=value
     )
+
+
+def insert_moderations_by_guild(guild_id: str, data: Dict[str, Any] = None) -> str:
+    default_data = parse_default_moderations(guild_id)
+
+    return moderations_data.insert_moderations_by_guild(data or default_data)
+
+
+def parse_default_moderations(guild_id: str) -> Dict[str, Any]:
+    data = constants.COGS_MODERATIONS_COMMANDS_DEFAULT
+    data["guild_id"] = str(guild_id)
+    return data
 
 
 async def insert_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
