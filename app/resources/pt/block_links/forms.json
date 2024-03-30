@@ -4,7 +4,6 @@
     "title": ":no_entry_sign: Bloquear links",
     "description": "Ativar esta função faz com que eu analise cada mensagem enviada no seu servidor e exclua caso contenha algum link\n\n📝 **Configurações**\n\n:flying_disc: **Chats:** Chats que serão permitidos enviar links\n:flying_disc: **Links:** Links que serão permitidos serem enviados\n:flying_disc: **Resposta:** Minha resposta ao excluir uma mensagem com link",
     "footer": "• Utilize o comando /reportar para me contar um bug",
-    "thumbnail": "https://img.freepik.com/vetores-gratis/cute-corgi-dog-delivery-box-package-cartoon-icon-ilustracao-vetorial-conceito-de-icone-de-natureza-animal-isolado-vetor-premium-estilo-flat-cartoon_138676-3506.jpg",
     "action": "button"
   },
   {
@@ -52,7 +51,6 @@
     "key": "confirm",
     "title": ":white_check_mark: Tudo certo?",
     "description": "Ativar esta função faz com que eu analise cada mensagem enviada no seu servidor e exclua caso contenha algum link\n\n📝 **Configurações**\n",
-    "thumbnail": "https://img.freepik.com/vetores-gratis/cute-corgi-dog-delivery-box-package-cartoon-icon-ilustracao-vetorial-conceito-de-icone-de-natureza-animal-isolado-vetor-premium-estilo-flat-cartoon_138676-3506.jpg",
     "footer": "• Utilize o comando /reportar para me contar um bug",
     "action": "resume"
   }

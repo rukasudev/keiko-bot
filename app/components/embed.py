@@ -2,6 +2,7 @@ from typing import Dict
 
 import discord
 
+from app.constants import KeikoIcons as icons
 from app.constants import Style as constants
 from app.services.utils import ml
 
@@ -18,8 +19,10 @@ def parse_dict_to_embed(data: Dict[str, str]) -> discord.Embed:
     if data.get("emoji"):
         embed.title = f"{data.get('emoji')} {embed.title}"
 
-    if data.get("thumbnail"):
-        embed.set_thumbnail(url=data["thumbnail"])
+    if data.get("action"):
+        action = data.get("action")
+        default_image = icons.IMAGE_01
+        embed.set_thumbnail(url=icons.ACTION_IMAGE.get(action, default_image))
 
     if data.get("image"):
         embed.set_image(url=data["image"])

@@ -2,6 +2,5 @@
   "title": ":no_entry_sign: Bloquear links",
   "description": "Ativar esta função faz com que eu analise cada mensagem enviada no seu servidor e exclua caso contenha algum link\n\n📝 **Configurações**\n",
   "footer": "• Utilize o comando /reportar para me contar um bug",
-  "thumbnail": "https://img.freepik.com/vetores-gratis/cute-corgi-dog-delivery-box-package-cartoon-icon-ilustracao-vetorial-conceito-de-icone-de-natureza-animal-isolado-vetor-premium-estilo-flat-cartoon_138676-3506.jpg",
   "action": "button"
 }

@@ -5,7 +5,7 @@ import discord
 
 class Style:
     RED_COLOR: Final[str] = "ff0000"
-    BACKGROUND_COLOR: Final[str] = "3aaaff"
+    BACKGROUND_COLOR: Final[str] = "4F97F9"
 
 
 class DBConfigs:
@@ -67,6 +67,23 @@ class FormConstants:
     AVAILABLE_ROLES_ACTION_KEY: Final[str] = "available_roles"
     CHANNELS_ACTION_KEY: Final[str] = "channels"
     RESUME_ACTION_KEY: Final[str] = "resume"
+    BUTTON_ACTION_KEY: Final[str] = "button"
+
+
+class KeikoIcons:
+    IMAGE_01: Final[str] = (
+        "https://cdn.discordapp.com/attachments/932733105691852851/1223754125263634432/KEIKO_01.png?ex=661b00d7&is=66088bd7&hm=92c65d5cfabd1fed1d6f8f5cd40ea67f1ef22a2c4ada0282346b9c9b5c64bb5b&"
+    )
+    IMAGE_02: Final[str] = (
+        "https://cdn.discordapp.com/attachments/932733105691852851/1223754126614335519/KEIKO_02.png?ex=661b00d8&is=66088bd8&hm=1e3e2fbe49234313ca73939310b4adf4802a26e35eff86c8c3fdfbae519cf2dc&"
+    )
+    IMAGE_03: Final[str] = (
+        "https://cdn.discordapp.com/attachments/932733105691852851/1223754127788474379/KEIKO_03.png?ex=661b00d8&is=66088bd8&hm=7dd587e829096b85323b11403710d52bb6712715ab85ed34e62b251c7abe56eb&"
+    )
+    ACTION_IMAGE: Dict[str, str] = {
+        FormConstants.RESUME_ACTION_KEY: IMAGE_03,
+        FormConstants.BUTTON_ACTION_KEY: IMAGE_02,
+    }
 
 
 class LogTypes:

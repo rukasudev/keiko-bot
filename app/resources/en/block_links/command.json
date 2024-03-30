@@ -2,6 +2,5 @@
   "title": ":no_entry_sign: Block links",
   "description": "Activate this feature to have me scan every message and delete if contains a link\\n\n📝 **Settings**\n",
   "footer": "• Use the command /report to tell me a bug",
-  "thumbnail": "https://img.freepik.com/vetores-gratis/cute-corgi-dog-delivery-box-package-cartoon-icon-ilustracao-vetorial-conceito-de-icone-de-natureza-animal-isolado-vetor-premium-estilo-flat-cartoon_138676-3506.jpg",
   "action": "button"
 }
