@@ -6,6 +6,7 @@ from re import findall
 from typing import Dict, List, Tuple
 
 import discord
+from i18n import I18nFileLoadError, t
 
 from app.constants import CogsConstants as cogconstants
 from app.constants import Emojis as constants
@@ -117,6 +118,13 @@ def parse_form_params_result(responses: List[Dict[str, str]]) -> str:
 
 def parse_locale(locale: str) -> str:
     return str(locale).split("-")[0]
+
+
+def ml(key: str, locale: str):
+    try:
+        return t(key, locale=locale)
+    except I18nFileLoadError:
+        return t(key, locale="en")
 
 
 def parse_command_event_description(

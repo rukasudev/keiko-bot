@@ -1,9 +1,9 @@
 from typing import Callable, List
 
 import discord
-from i18n import t
 
 from app.components.buttons import CancelButton, ConfirmButton, OptionsButton
+from app.components.embed import response_error_embed
 
 
 class OptionsView(discord.ui.View):
@@ -35,8 +35,9 @@ class OptionsView(discord.ui.View):
 
     async def _confirm_callback(self, interaction: discord.Interaction) -> None:
         if self.required and not self.response:
+            embed = response_error_embed("command-required-interaction", self.locale)
             return await interaction.message.channel.send(
-                t("errors.command-required-interaction.message", locale=self.locale),
+                embed=embed,
                 delete_after=10,
                 mention_author=True,
             )

@@ -1,10 +1,9 @@
 from typing import Callable
 
 import discord
-from i18n import t
 
 from app.components.select import Select
-from app.services.utils import parse_form_cogs_titles, parse_json_to_dict
+from app.services.utils import ml, parse_form_cogs_titles, parse_json_to_dict
 from app.views.form import Form
 
 
@@ -17,7 +16,7 @@ class EditCommand(discord.ui.View):
         super().__init__()
         self.add_item(
             Select(
-                t("commands.command-event.edit.placeholder", locale=self.locale),
+                ml("commands.command-event.edit.placeholder", locale=self.locale),
                 self.get_command_options(),
             )
         )

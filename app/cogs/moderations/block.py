@@ -1,9 +1,9 @@
 import discord
 from discord import app_commands
 from discord.app_commands import locale_str
-from i18n import t
 
 from app.bot import DiscordBot
+from app.components.embed import response_error_embed
 from app.services import block_links as block_links_service
 from app.services.utils import parse_locale
 
@@ -28,8 +28,9 @@ class Block(app_commands.Group, name=locale_str("block", namespace="commands")):
 
         if not interaction.user.guild_permissions.administrator:
             locale = parse_locale(interaction.locale)
+            embed = response_error_embed("command-permission-denied", locale)
             return await interaction.response.send_message(
-                t("errors.command-permission-denied.message", locale=locale),
+                embed=embed,
                 ephemeral=True,
             )
 

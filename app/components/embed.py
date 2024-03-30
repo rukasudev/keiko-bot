@@ -3,6 +3,7 @@ from typing import Dict
 import discord
 
 from app.constants import Style as constants
+from app.services.utils import ml
 
 
 def parse_dict_to_embed(data: Dict[str, str]) -> discord.Embed:
@@ -25,5 +26,17 @@ def parse_dict_to_embed(data: Dict[str, str]) -> discord.Embed:
 
     if data.get("footer"):
         embed.set_footer(text=data["footer"])
+
+    return embed
+
+
+def response_error_embed(error_key: str, locale: str) -> discord.Embed:
+    title = ml(f"errors.{error_key}.title", locale=locale)
+
+    embed = discord.Embed(
+        color=int(constants.RED_COLOR, base=16),
+        title=f"🚨 {title}",
+        description=ml(f"errors.{error_key}.message", locale=locale),
+    )
 
     return embed

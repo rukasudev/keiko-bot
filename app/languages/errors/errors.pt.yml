@@ -1,14 +1,20 @@
-pt_br:
+pt:
   command-generic-error:
-    message: Ops! Desculpe, mas não consegui processar o comando corretamente. Por favor, tente novamente mais tarde :/
+    title: Erro ao Processar Comando
+    message: Desculpe, mas não consegui processar o comando corretamente. Por favor, tente novamente mais tarde.
+
 
       Se desejar, você pode nos enviar o que aconteceu usando o comando `/reporte` ou entrar em contato conosco no servidor oficial do Keiko usando o comando `/suporte`
   command-permission-denied:
+    title: Permissão Negada
     message: Ops! Desculpe, mas você não tem permissão para executar este comando :/
   command-required-interaction:
+    title: Interação Necessária
     message: Por favor, selecione qualquer opção para prosseguir! :)
   command-default-roles-low-permissions:
-    message: Ops! Desculpe, mas não tenho permissão para atribuir cargos neste servidor :/
+    title: Permissões de Cargo Insuficientes
+    message: Desculpe, mas não tenho permissão para atribuir cargos neste servidor.
+
 
       Por favor, me atribua um cargo com esses privilégios ou eleve a posição do meu cargo **Keiko** na hierarquia de cargos do servidor
   command-default-roles-missing-permissions:

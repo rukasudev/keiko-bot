@@ -1,7 +1,6 @@
 from typing import List
 
 import discord
-from i18n import t
 
 from app.constants import Commands as constants
 from app.services import cache
@@ -9,7 +8,7 @@ from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
 )
-from app.services.utils import get_available_roles_by_guild, parse_locale
+from app.services.utils import get_available_roles_by_guild, ml, parse_locale
 
 
 async def set_default_role(member: discord.Member):
@@ -43,7 +42,7 @@ async def manager(interaction: discord.Interaction, guild_id):
     available_roles = get_available_roles_by_guild(interaction.guild)
     if not cogs:
         if not available_roles:
-            error_message = t(
+            error_message = ml(
                 "errors.command-default-roles-low-permissions.message", locale=locale
             )
             return await interaction.response.send_message(error_message)
@@ -65,7 +64,7 @@ def get_not_available_roles(
     if not not_available_roles:
         return ""
 
-    message = t(
+    message = ml(
         "errors.command-default-roles-missing-permissions.message", locale=locale
     )
     return message.replace("$roles", ", ".join(not_available_roles))

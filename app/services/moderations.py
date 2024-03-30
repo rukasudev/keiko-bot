@@ -61,7 +61,6 @@ async def update_cog_by_guild(guild_id: str, cog_key: str, data: Dict[str, Any])
 
 async def delete_cog_by_guild(guild_id: str, cog_key: str):
     if guild_id == "":
-        print("Check if guild_id is correct to delete cog")
         return
 
     remove_cog_data_by_guild(guild_id, cog_key)

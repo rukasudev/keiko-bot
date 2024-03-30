@@ -2,10 +2,10 @@ import traceback
 
 import discord
 from discord.ext import commands
-from i18n import t
 
 from app import logger
 from app.bot import DiscordBot
+from app.components.embed import response_error_embed
 from app.constants import LogTypes as logconstants
 from app.services import utils
 from app.services.cache import increment_redis_key
@@ -57,15 +57,13 @@ class Errors(commands.Cog, name="errors"):
     async def send_default_error_message(
         self, interaction: discord.Interaction
     ) -> None:
-        default_error_message = t(
-            "errors.command-generic-error.message",
-            locale=utils.parse_locale(interaction.locale),
-        )
+        locale = utils.parse_locale(interaction.locale)
+        embed = response_error_embed("command-generic-error", locale)
 
         if interaction.response.is_done():
-            await interaction.edit_original_response(content=default_error_message)
+            await interaction.edit_original_response(embed=embed)
         else:
-            await interaction.response.send_message(content=default_error_message)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
 
         increment_redis_key(
             f"{logconstants.COMMAND_ERROR_TYPE}:{interaction.command._attr}"

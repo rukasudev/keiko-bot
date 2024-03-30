@@ -1,21 +1,22 @@
 from typing import Callable
 
 import discord
-from i18n import t
+
+from app.services.utils import ml
 
 
 class ConfirmButton(discord.ui.Button):
     def __init__(self, callback: Callable, locale: str) -> None:
         self.callback = callback
         super().__init__(
-            label=t("buttons.confirm", locale=locale), style=discord.ButtonStyle.green
+            label=ml("buttons.confirm", locale=locale), style=discord.ButtonStyle.green
         )
 
 
 class CancelButton(discord.ui.Button):
     def __init__(self, locale: str) -> None:
         super().__init__(
-            label=t("buttons.cancel", locale=locale), style=discord.ButtonStyle.red
+            label=ml("buttons.cancel", locale=locale), style=discord.ButtonStyle.red
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
@@ -47,7 +48,7 @@ class EditButtom(discord.ui.Button):
         self.after_callback = after_callback
         self.locale = locale
         super().__init__(
-            label=t("buttons.edit", locale=locale),
+            label=ml("buttons.edit", locale=locale),
             emoji="📝",
             style=discord.ButtonStyle.grey,
         )
@@ -68,7 +69,7 @@ class DisableButtom(discord.ui.Button):
     def __init__(self, callback: Callable, locale: str) -> None:
         self.callback = callback
         super().__init__(
-            label=t("buttons.disable", locale=locale),
+            label=ml("buttons.disable", locale=locale),
             emoji="🚫",
             style=discord.ButtonStyle.grey,
         )

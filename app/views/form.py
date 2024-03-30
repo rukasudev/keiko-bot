@@ -1,7 +1,6 @@
 from typing import Any, Callable, Dict, Generator, List
 
 import discord
-from i18n import t
 
 from app.components.buttons import CancelButton, ConfirmButton, EditButtom
 from app.components.embed import parse_dict_to_embed
@@ -12,6 +11,7 @@ from app.services.utils import (
     get_available_roles_by_guild,
     get_roles_by_guild,
     get_text_channels_by_guild,
+    ml,
     parse_command_event_description,
     parse_form_params_result,
     parse_json_to_dict,
@@ -121,7 +121,10 @@ class Form(discord.ui.View):
         channels = get_text_channels_by_guild(interaction.guild)
         await interaction.response.defer()
         self.view = OptionsView(
-            options=list(channels.keys()), callback=self._callback, locale=self.locale
+            options=list(channels.keys()),
+            callback=self._callback,
+            locale=self.locale,
+            required=True,
         )
         await interaction.followup.edit_message(
             message_id=interaction.message.id, embed=self.question_embed, view=self.view
@@ -145,7 +148,7 @@ class Form(discord.ui.View):
         )
 
         if not roles:
-            error_message = t(
+            error_message = ml(
                 "errors.command-default-roles-low-permissions.message",
                 locale=self.locale,
             )
@@ -176,9 +179,9 @@ class Form(discord.ui.View):
         self.clear_items()
 
         embed = interaction.message.embeds[0]
-        embed.title = t("commands.command-event.enabled.title", locale=self.locale)
+        embed.title = ml("commands.command-event.enabled.title", locale=self.locale)
         embed.description = parse_command_event_description(
-            t("commands.command-event.enabled.description", locale=self.locale),
+            ml("commands.command-event.enabled.description", locale=self.locale),
             interaction.message.edited_at,
             interaction.message.interaction.name,
             interaction.user.mention,

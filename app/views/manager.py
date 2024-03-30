@@ -1,5 +1,4 @@
 import discord
-from i18n import t
 
 from app.components.buttons import DisableButtom, EditButtom
 from app.components.embed import parse_dict_to_embed
@@ -8,7 +7,7 @@ from app.services.moderations import (
     update_cog_by_guild,
     update_moderations_by_guild,
 )
-from app.services.utils import parse_command_event_description
+from app.services.utils import ml, parse_command_event_description
 
 
 class Manager(discord.ui.View):
@@ -36,9 +35,9 @@ class Manager(discord.ui.View):
         question = list(self.edited_form_view._get_questions())[0]
         embed = parse_dict_to_embed(question)
 
-        embed.title = t("commands.command-event.edit.title", locale=self.locale)
+        embed.title = ml("commands.command-event.edit.title", locale=self.locale)
         embed.description = parse_command_event_description(
-            t("commands.command-event.edit.description", locale=self.locale),
+            ml("commands.command-event.edit.description", locale=self.locale),
             interaction.message.edited_at,
             interaction.message.interaction.name,
             interaction.user.mention,
@@ -59,9 +58,9 @@ class Manager(discord.ui.View):
 
         await delete_cog_by_guild(guild_id, self.command_key)
 
-        embed.title = t("commands.command-event.disabled.title", locale=self.locale)
+        embed.title = ml("commands.command-event.disabled.title", locale=self.locale)
         embed.description = parse_command_event_description(
-            t("commands.command-event.disabled.description", locale=self.locale),
+            ml("commands.command-event.disabled.description", locale=self.locale),
             interaction.message.created_at,
             interaction.message.interaction.name,
             interaction.user.mention,
