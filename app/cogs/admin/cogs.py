@@ -1,8 +1,9 @@
 import discord
 from discord import app_commands
-from discord.app_commands import locale_str
+from discord.app_commands import Choice, locale_str
 
 from app.bot import DiscordBot
+from app.constants import CogsConstants as constants
 from app.services.utils import cogs_manager
 
 
@@ -33,6 +34,7 @@ class Cogs(app_commands.Group, name=locale_str("cogs", namespace="commands")):
     @app_commands.command(
         name="load", description="Keiko joyfully loads the specified cog for you"
     )
+    @app_commands.choices(cog=[Choice(name=i, value=i) for i in constants.COGS_LIST])
     async def load_cog(self, interaction: discord.Interaction, cog: str) -> None:
         await cogs_manager(self.bot, "load", [cog], True)
         await interaction.response.send_message(f":point_right: Cog {cog} loaded!")
@@ -40,6 +42,7 @@ class Cogs(app_commands.Group, name=locale_str("cogs", namespace="commands")):
     @app_commands.command(
         name="unload", description="Keiko sweetly unloads the specified cog for you"
     )
+    @app_commands.choices(cog=[Choice(name=i, value=i) for i in constants.COGS_LIST])
     async def unload_cog(self, interaction: discord.Interaction, cog: str) -> None:
         await cogs_manager(self.bot, "unload", [cog], True)
 
@@ -48,6 +51,7 @@ class Cogs(app_commands.Group, name=locale_str("cogs", namespace="commands")):
     @app_commands.command(
         name="reload", description="Keiko happily reloads the specified cog for you"
     )
+    @app_commands.choices(cog=[Choice(name=i, value=i) for i in constants.COGS_LIST])
     async def reload_cog(self, interaction: discord.Interaction, cog: str) -> None:
         await cogs_manager(self.bot, "reload", [cog], True)
 

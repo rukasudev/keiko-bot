@@ -24,10 +24,14 @@ class Errors(commands.Cog, name="errors"):
     ) -> None:
         await self.send_default_error_message(interaction)
 
+        command_name = logconstants.UNKNOWN_COMMAND
+        if interaction.command:
+            command_name = interaction.command.qualified_name
+
         tb = traceback.format_exc()
         tb_formatted = utils.format_traceback_message(tb)
 
-        error_message = f"The following command raised an exception: **{interaction.command.qualified_name}**```{type(error.original).__name__}: {error.original}```\n**Traceback**```{tb_formatted}```"
+        error_message = f"The following command raised an exception: **{command_name}**```{type(error.original).__name__}: {error.original}```\n**Traceback**```{tb_formatted}```"
         logger.error(
             error_message,
             interaction=interaction,
@@ -65,9 +69,12 @@ class Errors(commands.Cog, name="errors"):
         else:
             await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        increment_redis_key(
-            f"{logconstants.COMMAND_ERROR_TYPE}:{interaction.command._attr}"
-        )
+        command_name = logconstants.UNKNOWN_COMMAND
+
+        if interaction.command:
+            command_name = interaction.command._attr
+
+        increment_redis_key(f"{logconstants.COMMAND_ERROR_TYPE}:{command_name}")
 
 
 async def setup(bot: DiscordBot) -> None:

@@ -45,8 +45,17 @@ class CogsConstants:
     ADMIN_COGS: Final[str] = "admin"
     MODERATIONS_COGS: Final[str] = "moderations"
     CONFIG_COGS: Final[str] = "config"
+    EVENTS_COGS: Final[str] = "events"
+    ERRORS_COGS: Final[str] = "errors"
 
-    LAZY_LOAD_COGS: Final[List] = [ADMIN_COGS, CONFIG_COGS]
+    COGS_LIST: Final[List[str]] = [
+        ADMIN_COGS,
+        MODERATIONS_COGS,
+        CONFIG_COGS,
+        EVENTS_COGS,
+        ERRORS_COGS,
+    ]
+    LAZY_LOAD_COGS: Final[List[str]] = [ADMIN_COGS, CONFIG_COGS]
 
 
 class GuildConstants:
@@ -145,11 +154,9 @@ class LogTypes:
             discord.Color.red(),
         ),
     }
+    UNKNOWN_COMMAND: Final[str] = "unknown_command"
 
 
 class Emojis:
     FRISBEE_EMOJI: Final[str] = ":flying_disc:"
     EDIT_EMOJI: Final[str] = ":pencil:"
-
-
-GUILD_ID_KEY: Final[str] = "guild_id"
