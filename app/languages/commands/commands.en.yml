@@ -24,6 +24,10 @@ en:
   default: default
   roles: roles
   roles-desc: Keiko warmly welcomes new members by automatically assigning roles when they join the server
+  roles-sync-desc: Keiko immediately assigns the default roles to all server users
+  roles-sync-response:
+    title: ✨ Roles assigned successfully!
+    message: I've added the default roles to all members of the server! Now everyone is even cuter! 🐶
 
   command-event:
     enabled:

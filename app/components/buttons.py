@@ -73,3 +73,10 @@ class DisableButtom(discord.ui.Button):
             emoji="🚫",
             style=discord.ButtonStyle.grey,
         )
+
+
+class AdditionalButton(discord.ui.Button):
+    def __init__(self, callback: Callable, desc: str, **kwargs):
+        self.callback = callback
+        self.desc = desc
+        super().__init__(**kwargs)

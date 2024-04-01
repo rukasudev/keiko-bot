@@ -24,6 +24,10 @@ pt:
   default: cargo
   roles: padrao
   roles-desc: Keiko recebe calorosamente novos membros atribuindo cargos automaticamente ao entrarem no servidor
+  roles-sync-desc: Keiko imediatamente atribui os cargos padrão a todos os membros do servidor
+  roles-sync-response:
+    title: ✨ Cargos atribuidos com sucesso!
+    message: Adicionei os cargos padrão a todos os membros do servidor! Agora todos estão ainda mais fofos! 🐶
 
   command-event:
     enabled:

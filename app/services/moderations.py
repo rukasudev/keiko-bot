@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 import discord
 
@@ -8,6 +8,7 @@ from app.data import cogs as cogs_data
 from app.data import moderations as moderations_data
 from app.services.cache import remove_cog_data_by_guild
 from app.services.utils import (
+    ml,
     parse_cog_data_to_param_result,
     parse_form_params_result,
     parse_json_to_dict,
@@ -90,6 +91,7 @@ async def send_command_manager_message(
     key: str,
     cog_data: Dict[str, str],
     additional_info: str = "",
+    additional_buttons: List[discord.ui.Button] = [],
 ):
     from app.views.manager import Manager
 
@@ -106,6 +108,13 @@ async def send_command_manager_message(
 
     if additional_info:
         embed.description += f"\n\n{additional_info}"
+
+    locale = parse_locale(interaction.locale)
+    embed.description += f"\n\n{ml('buttons.captions', locale)}"
+
+    for button in additional_buttons:
+        embed.description += f"\n- **{button.emoji} {button.label}:** {button.desc}"
+        view.add_item(button)
 
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 

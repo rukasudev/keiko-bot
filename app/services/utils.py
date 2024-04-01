@@ -6,6 +6,7 @@ from re import findall
 from typing import Dict, List, Tuple
 
 import discord
+from discord.ext import commands
 from i18n import I18nFileLoadError, t
 
 from app.constants import CogsConstants as cogconstants
@@ -212,3 +213,16 @@ def parse_log_filename_with_date(
 
     date = f"{year}-{str(month).zfill(2)}-{str(day).zfill(2)}"
     return filename, date
+
+
+def admin_only_command():
+    from app.components.embed import response_error_embed
+
+    async def predicate(ctx):
+        if not ctx.author.guild_permissions.administrator:
+            locale = parse_locale(ctx.locale)
+            embed = response_error_embed("command-permission-denied", locale)
+            return await ctx.send(embed=embed, ephemeral=True)
+        return True
+
+    return commands.check(predicate)

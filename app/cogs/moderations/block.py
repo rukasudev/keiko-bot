@@ -3,9 +3,7 @@ from discord import app_commands
 from discord.app_commands import locale_str
 
 from app.bot import DiscordBot
-from app.components.embed import response_error_embed
 from app.services import block_links as block_links_service
-from app.services.utils import parse_locale
 
 
 class Block(app_commands.Group, name=locale_str("block", namespace="commands")):
@@ -26,12 +24,4 @@ class Block(app_commands.Group, name=locale_str("block", namespace="commands")):
     async def _block_links(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
 
-        if not interaction.user.guild_permissions.administrator:
-            locale = parse_locale(interaction.locale)
-            embed = response_error_embed("command-permission-denied", locale)
-            return await interaction.response.send_message(
-                embed=embed,
-                ephemeral=True,
-            )
-
-        await block_links_service.manager(ctx=interaction, guild_id=guild_id)
+        await block_links_service.manager(interaction=interaction, guild_id=guild_id)

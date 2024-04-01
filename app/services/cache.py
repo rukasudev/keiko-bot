@@ -26,7 +26,7 @@ def get_cog_data_or_populate(guild_id: str, key: str) -> Dict[str, Any]:
     if data:
         return json_util.loads(data)
 
-    data = cogs_data.find_cog_by_guild_id(guild_id, key)
+    data = cogs_data.find_cog_by_guild_id(str(guild_id), key)
     if data:
         set_data_in_redis(redis_key, data)
 

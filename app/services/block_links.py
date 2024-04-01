@@ -10,7 +10,7 @@ from app.services.moderations import (
 from .utils import check_message_has_link, check_two_lists_intersection, list_roles_id
 
 
-async def check_message(guild_id: str, message: discord.Message):
+async def check_message(guild_id: str, message: discord.Message) -> None:
     """Command service to check if exists link on message"""
     cogs = cache.get_cog_data_or_populate(guild_id, constants.BLOCK_LINKS_KEY)
 
@@ -38,10 +38,10 @@ async def check_message(guild_id: str, message: discord.Message):
         )
 
 
-async def manager(ctx, guild_id):
+async def manager(interaction: discord.Interaction, guild_id: str) -> None:
     cogs = cache.get_cog_data_or_populate(guild_id, constants.BLOCK_LINKS_KEY)
 
     if not cogs:
-        return await send_command_form_message(ctx, constants.BLOCK_LINKS_KEY)
+        return await send_command_form_message(interaction, constants.BLOCK_LINKS_KEY)
 
-    await send_command_manager_message(ctx, constants.BLOCK_LINKS_KEY, cogs)
+    await send_command_manager_message(interaction, constants.BLOCK_LINKS_KEY, cogs)

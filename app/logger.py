@@ -23,7 +23,7 @@ class CustomTimedRotatingFileHandler(TimedRotatingFileHandler):
         if not hasattr(self, "bot"):
             return
 
-        channel = self.bot.get_channel(int(self.bot.config.ADMIN_LOGS_FILES_CHANNEL_ID))
+        channel = self.bot.get_channel(self.bot.config.ADMIN_LOGS_FILES_CHANNEL_ID)
         if not channel:
             return
 
@@ -128,11 +128,11 @@ class DiscordLogsHandler(logging.Handler):
 
     def emit(self, record):
         embed = self.add_embed(record)
-        log_channel = self.bot.get_channel(int(self.bot.config.ADMIN_LOGS_CHANNEL_ID))
+        log_channel = self.bot.get_channel(self.bot.config.ADMIN_LOGS_CHANNEL_ID)
 
         if record.levelno == logging.ERROR:
             log_channel = self.bot.get_channel(
-                int(self.bot.config.ADMIN_LOGS_ERROR_CHANNEL_ID)
+                self.bot.config.ADMIN_LOGS_ERROR_CHANNEL_ID
             )
 
         if not log_channel:

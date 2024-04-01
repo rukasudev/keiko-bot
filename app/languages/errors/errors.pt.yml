@@ -18,9 +18,11 @@ pt:
 
       Por favor, me atribua um cargo com esses privilégios ou eleve a posição do meu cargo **Keiko** na hierarquia de cargos do servidor
   command-default-roles-missing-permissions:
-    message: "🚨 **Aviso**
+    message: "🚨 **ATENÇÃO!!!**
 
-      Não tenho mais permissão para atribuir os seguintes cargos: **$roles**
+      Não tenho mais permissão para atribuir os seguintes cargos no servidor: **$roles**
 
 
       Por favor, me atribua um cargo com esses privilégios ou eleve a posição do meu cargo **Keiko** na hierarquia de cargos do servidor"
+  command-default-roles-disactivated:
+    message: A funcionalidade de atribuir cargos automaticamente está desabilitada. Para ativar e configurar a funcionalidade, sinta-se a vontade de rodar o comando `cargos padrao` 🐶

@@ -41,14 +41,14 @@ class AppConfig:
         self.DESCRIPTION = db_configs[constants.KEIKO_DESCRIPTION]
         self.ACTIVITY = db_configs[constants.KEIKO_ACTIVITY]
 
-        self.ADMIN_GUILD_ID = admin_configs[constants.ADMIN_GUILD_ID]
-        self.ADMIN_LOGS_CHANNEL_ID = admin_configs[constants.ADMIN_LOGS_CHANNEL_ID]
-        self.ADMIN_LOGS_ERROR_CHANNEL_ID = admin_configs[
-            constants.ADMIN_LOGS_ERROR_CHANNEL_ID
-        ]
-        self.ADMIN_LOGS_FILES_CHANNEL_ID = admin_configs[
-            constants.ADMIN_LOGS_FILES_CHANNEL_ID
-        ]
+        self.ADMIN_GUILD_ID = int(admin_configs[constants.ADMIN_GUILD_ID])
+        self.ADMIN_LOGS_CHANNEL_ID = int(admin_configs[constants.ADMIN_LOGS_CHANNEL_ID])
+        self.ADMIN_LOGS_ERROR_CHANNEL_ID = int(
+            admin_configs[constants.ADMIN_LOGS_ERROR_CHANNEL_ID]
+        )
+        self.ADMIN_LOGS_FILES_CHANNEL_ID = int(
+            admin_configs[constants.ADMIN_LOGS_FILES_CHANNEL_ID]
+        )
 
     def is_dev(self) -> bool:
         return self.ENVIRONMENT.upper() == "DEV"

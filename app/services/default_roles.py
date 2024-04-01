@@ -1,7 +1,9 @@
-from typing import List
+from typing import Dict, List
 
 import discord
 
+from app.components.buttons import AdditionalButton
+from app.components.embed import response_embed, response_error_embed
 from app.constants import Commands as constants
 from app.services import cache
 from app.services.moderations import (
@@ -11,49 +13,83 @@ from app.services.moderations import (
 from app.services.utils import get_available_roles_by_guild, ml, parse_locale
 
 
-async def set_default_role(member: discord.Member):
-    """Command service to set default roles when member join in guild"""
+async def set_on_member_join(member: discord.Member):
     cogs = cache.get_cog_data_or_populate(member.guild.id, constants.DEFAULT_ROLES_KEY)
 
     if not cogs:
         return
 
+    await set_default_roles(cogs, member.guild, [member])
+
+
+async def set_on_default_roles_sync(interaction: discord.Interaction):
+    await interaction.response.defer()
+
+    cogs = cache.get_cog_data_or_populate(
+        interaction.guild.id, constants.DEFAULT_ROLES_KEY
+    )
+
+    locale = parse_locale(interaction.locale)
+    if not cogs:
+        embed = response_error_embed("command-default-roles-disactivated", locale)
+        return await interaction.followup.send(
+            embed=embed,
+            delete_after=10,
+            mention_author=True,
+        )
+
+    await set_default_roles(cogs, interaction.guild, interaction.guild.members)
+
+    embed = response_embed("commands.roles-sync-response", locale)
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+async def set_default_roles(
+    cogs: Dict[str, str], guild: discord.Guild, members: List[discord.Member]
+):
     default_roles = cogs.get(constants.DEFAULT_ROLES_KEY)
     if not default_roles:
         return
 
-    available_roles = get_available_roles_by_guild(member.guild)
+    available_roles = get_available_roles_by_guild(guild)
     roles = [
         role for role in cogs[constants.DEFAULT_ROLES_KEY] if role in available_roles
     ]
 
     roles_to_add = []
     for role_name in roles:
-        role = discord.utils.get(member.guild.roles, name=role_name)
+        role = discord.utils.get(guild.roles, name=role_name)
         roles_to_add.append(role)
 
-    await member.add_roles(*roles_to_add)
+    for member in members:
+        await member.add_roles(*roles_to_add)
 
 
-async def manager(interaction: discord.Interaction, guild_id):
+async def manager(interaction: discord.Interaction, guild_id: str):
     cogs = cache.get_cog_data_or_populate(guild_id, constants.DEFAULT_ROLES_KEY)
     locale = parse_locale(interaction.locale)
 
     available_roles = get_available_roles_by_guild(interaction.guild)
     if not cogs:
         if not available_roles:
-            error_message = ml(
-                "errors.command-default-roles-low-permissions.message", locale=locale
+            embed = response_error_embed(
+                "command-default-roles-low-permissions", locale
             )
-            return await interaction.response.send_message(error_message)
+            return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         return await send_command_form_message(interaction, constants.DEFAULT_ROLES_KEY)
 
     roles = cogs[constants.DEFAULT_ROLES_KEY]
     info = get_not_available_roles(roles, available_roles, locale)
+    sync_button = AdditionalButton(
+        callback=set_on_default_roles_sync,
+        desc=ml("commands.roles-sync-desc", locale),
+        label=ml("buttons.sync", locale),
+        emoji="🔄",
+    )
 
     await send_command_manager_message(
-        interaction, constants.DEFAULT_ROLES_KEY, cogs, info
+        interaction, constants.DEFAULT_ROLES_KEY, cogs, info, [sync_button]
     )
 
 

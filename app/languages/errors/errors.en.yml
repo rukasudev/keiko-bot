@@ -17,9 +17,11 @@ en:
 
       Please assign me a role with these privileges or elevate the position of my **Keiko** role in the server's role hierarchy
   command-default-roles-missing-permissions:
-    message: "🚨 **Warning**
+    message: "🚨 **ATTENTION!!!**
 
-      I no longer have permissions to assign the following roles: **$roles**
+      I no longer have permissions to assign the following roles in the server: **$roles**
 
 
       Please assign me a role with these privileges or elevate the position of my **Keiko** role in the server's role hierarchy"
+  command-default-roles-disactivated:
+    message: The role assignment feature is currently disabled. To activate and configure this feature, just run the `/default roles` command 🐶

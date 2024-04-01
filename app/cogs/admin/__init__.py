@@ -17,8 +17,8 @@ from app.services.admin import send_log_file_from_channel_by_date
 from app.services.utils import format_datetime_output, parse_log_filename_with_date
 
 
-@app_commands.guilds(discord.Object(id=int(app.bot.config.ADMIN_GUILD_ID)))
 @app_commands.default_permissions()
+@app_commands.guilds(discord.Object(app.bot.config.ADMIN_GUILD_ID))
 class Admin(commands.GroupCog, name=locale_str("admin", namespace="commands")):
     def __init__(self, bot: DiscordBot):
         self.bot = bot

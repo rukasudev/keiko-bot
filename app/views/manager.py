@@ -52,7 +52,7 @@ class Manager(discord.ui.View):
         guild_id = str(interaction.guild.id)
         embed = interaction.message.embeds[0]
 
-        await update_moderations_by_guild(
+        update_moderations_by_guild(
             guild_id=guild_id, key=self.command_key, value=False
         )
 

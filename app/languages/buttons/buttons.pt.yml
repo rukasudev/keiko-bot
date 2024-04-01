@@ -4,3 +4,11 @@ pt:
   edit: Editar
   disable: Desabilitar
   reset: Resetar
+  sync: Sincronizar
+
+  captions: "📰 **Legenda dos botões**
+
+
+    - **📝 Editar:** Editar as configurações da funcionalidade
+
+    - **🚫 Desabilitar:** Desabilitar funcionalidade e deletar as configurações"

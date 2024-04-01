@@ -8,8 +8,8 @@ from app.bot import DiscordBot
 from app.services.config import update_activity, update_description, update_status
 
 
-@app_commands.guilds(discord.Object(id=int(app.bot.config.ADMIN_GUILD_ID)))
 @app_commands.default_permissions()
+@app_commands.guilds(discord.Object(app.bot.config.ADMIN_GUILD_ID))
 class Config(commands.GroupCog, name="config"):
     def __init__(self, bot: DiscordBot):
         self.bot = bot

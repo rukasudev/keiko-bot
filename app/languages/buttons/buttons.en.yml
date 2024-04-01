@@ -4,3 +4,10 @@ en:
   edit: Edit
   disable: Disable
   reset: Reset
+  sync: Sync
+
+  captions: "📰 **Buttons captions**
+
+    - **📝 Edit:** Edit the feature settings
+
+    - **🚫 Disable:** Disable the feature and delete the settings"
