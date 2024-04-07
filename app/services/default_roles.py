@@ -47,22 +47,40 @@ async def set_on_default_roles_sync(interaction: discord.Interaction):
 async def set_default_roles(
     cogs: Dict[str, str], guild: discord.Guild, members: List[discord.Member]
 ):
-    default_roles = cogs.get(constants.DEFAULT_ROLES_KEY)
-    if not default_roles:
-        return
+    default_roles_bot = cogs.get(constants.DEFAULT_ROLES_BOT_KEY, [])
+    default_roles_user = cogs.get(constants.DEFAULT_ROLES_KEY, [])
 
     available_roles = get_available_roles_by_guild(guild)
-    roles = [
-        role for role in cogs[constants.DEFAULT_ROLES_KEY] if role in available_roles
-    ]
-
-    roles_to_add = []
-    for role_name in roles:
-        role = discord.utils.get(guild.roles, name=role_name)
-        roles_to_add.append(role)
+    roles_mapping = {
+        constants.DEFAULT_ROLES_BOT_KEY: filter_roles(
+            default_roles_bot, available_roles
+        ),
+        constants.DEFAULT_ROLES_KEY: filter_roles(default_roles_user, available_roles),
+    }
 
     for member in members:
+        roles_to_add = get_roles_to_add(member, guild, roles_mapping)
         await member.add_roles(*roles_to_add)
+
+
+def get_roles_to_add(
+    member: discord.Member, guild: discord.Guild, roles_mapping: dict
+) -> List[discord.Role]:
+    if member.bot:
+        role_type = constants.DEFAULT_ROLES_BOT_KEY
+    else:
+        role_type = constants.DEFAULT_ROLES_KEY
+
+    roles_to_add = []
+    for role_name in roles_mapping[role_type]:
+        role = discord.utils.get(guild.roles, name=role_name)
+        if role:
+            roles_to_add.append(role)
+    return roles_to_add
+
+
+def filter_roles(roles: List[str], available_roles: List[str]) -> List[str]:
+    return [role for role in roles if role in available_roles]
 
 
 async def manager(interaction: discord.Interaction, guild_id: str):

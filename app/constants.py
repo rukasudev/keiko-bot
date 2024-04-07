@@ -39,6 +39,7 @@ class Commands:
     STREAM_MONITOR_KEY: Final[str] = "stream_monitor"
     WELCOME_MESSAGES_KEY: Final[str] = "welcome_messages"
     DEFAULT_ROLES_KEY: Final[str] = "default_roles"
+    DEFAULT_ROLES_BOT_KEY: Final[str] = "default_roles_bot"
 
 
 class CogsConstants:
