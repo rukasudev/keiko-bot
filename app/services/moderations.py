@@ -2,13 +2,13 @@ from typing import Any, Dict, List
 
 import discord
 
-from app.components.embed import parse_dict_to_embed
+from app.components.buttons import HelpButtom
+from app.components.embed import buttons_captions_embed, parse_dict_to_embed
 from app.constants import GuildConstants as constants
 from app.data import cogs as cogs_data
 from app.data import moderations as moderations_data
 from app.services.cache import remove_cog_data_by_guild
 from app.services.utils import (
-    ml,
     parse_cog_data_to_param_result,
     parse_form_params_result,
     parse_json_to_dict,
@@ -98,7 +98,7 @@ async def send_command_manager_message(
     command_dict = parse_json_to_dict(
         key, parse_locale(interaction.locale), "command.json"
     )
-    embed = parse_dict_to_embed(command_dict)
+    embed = parse_dict_to_embed(command_dict, True)
 
     form_json = parse_json_to_dict(key, parse_locale(interaction.locale), "forms.json")
     description = parse_cog_data_to_param_result(cog_data, form_json)
@@ -109,12 +109,13 @@ async def send_command_manager_message(
     if additional_info:
         embed.description += f"\n\n{additional_info}"
 
-    locale = parse_locale(interaction.locale)
-    embed.description += f"\n\n{ml('buttons.captions', locale)}"
-
     for button in additional_buttons:
-        embed.description += f"\n- **{button.emoji} {button.label}:** {button.desc}"
         view.add_item(button)
+
+    locale = parse_locale(interaction.locale)
+    captions_embed = buttons_captions_embed(additional_buttons, locale)
+
+    view.add_item(HelpButtom(embed=captions_embed, locale=locale))
 
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 

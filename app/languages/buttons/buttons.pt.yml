@@ -5,10 +5,10 @@ pt:
   disable: Desabilitar
   reset: Resetar
   sync: Sincronizar
+  help: Ajuda
+  back: Voltar
 
-  captions: "📰 **Legenda dos botões**
-
-
-    - **📝 Editar:** Editar as configurações da funcionalidade
-
+  captions: "Aqui está uma breve descrição dos botões e suas funcionalidades\n\n
+    :newspaper: **Legenda dos botões**\n\n
+    - **📝 Editar:** Editar as configurações da funcionalidade\n
     - **🚫 Desabilitar:** Desabilitar funcionalidade e deletar as configurações"

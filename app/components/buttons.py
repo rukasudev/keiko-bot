@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Any, Callable
 
 import discord
 
@@ -72,6 +72,48 @@ class DisableButtom(discord.ui.Button):
             label=ml("buttons.disable", locale=locale),
             emoji="🚫",
             style=discord.ButtonStyle.grey,
+        )
+
+
+class BackButtom(discord.ui.Button):
+    def __init__(
+        self, view: discord.ui.View, embed: discord.Embed, locale: str
+    ) -> None:
+        self.old_view = view
+        self.old_embed = embed
+        super().__init__(
+            label=ml("buttons.back", locale=locale),
+            emoji="🔙",
+            style=discord.ButtonStyle.grey,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> Any:
+        await interaction.response.edit_message(
+            embed=self.old_embed, view=self.old_view
+        )
+
+
+class HelpButtom(discord.ui.Button):
+    def __init__(self, embed: discord.Embed, locale: str) -> None:
+        self.embed = embed
+        self.locale = locale
+        super().__init__(
+            label=ml("buttons.help", locale=locale),
+            emoji="🙋",
+            style=discord.ButtonStyle.grey,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> Any:
+        self.view.remove_item(self)
+
+        await interaction.response.edit_message(
+            embed=interaction.message.embeds[0], view=self.view
+        )
+
+        self.view.clear_items()
+
+        await interaction.followup.send(
+            embed=self.embed, view=self.view, ephemeral=True
         )
 
 

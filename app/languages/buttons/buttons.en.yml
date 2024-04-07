@@ -5,9 +5,10 @@ en:
   disable: Disable
   reset: Reset
   sync: Sync
+  help: Help
+  back: Back
 
-  captions: "📰 **Buttons captions**
-
-    - **📝 Edit:** Edit the feature settings
-
+  captions: "Here is a brief description of the buttons and their functionalities\n\n
+    :newspaper: **Buttons captions**\n\n
+    - **📝 Edit:** Edit the feature settings\n
     - **🚫 Disable:** Disable the feature and delete the settings"

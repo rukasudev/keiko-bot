@@ -32,9 +32,7 @@ en:
   command-event:
     enabled:
       title: 🎉 Command enabled successfully!
-      description: Command **$command_name** enabled on $date by $user 🚀
-
-
+      description: Command **$command_name** enabled on $date by $user 🚀\n\n
         If you want to make changes or disable the command, simply run the command again 🔄
 
     disabled:
@@ -45,4 +43,3 @@ en:
       title: 📝 Command edited successfully!
       description: Command **$command_name** edited on $date by $user.
       placeholder: Select the settings you want to edit :)
-

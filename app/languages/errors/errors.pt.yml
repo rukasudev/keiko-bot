@@ -1,28 +1,26 @@
 pt:
   command-generic-error:
     title: Erro ao Processar Comando
-    message: Desculpe, mas não consegui processar o comando corretamente. Por favor, tente novamente mais tarde.
-
-
+    message: Desculpe, mas não consegui processar o comando corretamente. Por favor, tente novamente mais tarde.\n\n
       Se desejar, você pode nos enviar o que aconteceu usando o comando `/reporte` ou entrar em contato conosco no servidor oficial do Keiko usando o comando `/suporte`
+
   command-permission-denied:
     title: Permissão Negada
     message: Ops! Desculpe, mas você não tem permissão para executar este comando :/
+
   command-required-interaction:
     title: Interação Necessária
     message: Por favor, selecione qualquer opção para prosseguir! :)
+
   command-default-roles-low-permissions:
     title: Permissões de Cargo Insuficientes
-    message: Desculpe, mas não tenho permissão para atribuir cargos neste servidor.
-
-
+    message: Desculpe, mas não tenho permissão para atribuir cargos neste servidor.\n\n
       Por favor, me atribua um cargo com esses privilégios ou eleve a posição do meu cargo **Keiko** na hierarquia de cargos do servidor
+
   command-default-roles-missing-permissions:
-    message: "🚨 **ATENÇÃO!!!**
-
-      Não tenho mais permissão para atribuir os seguintes cargos no servidor: **$roles**
-
-
+    message: "🚨 **ATENÇÃO!!!**\n
+      Não tenho mais permissão para atribuir os seguintes cargos no servidor: **$roles**\n\n
       Por favor, me atribua um cargo com esses privilégios ou eleve a posição do meu cargo **Keiko** na hierarquia de cargos do servidor"
+
   command-default-roles-disactivated:
     message: A funcionalidade de atribuir cargos automaticamente está desabilitada. Para ativar e configurar a funcionalidade, sinta-se a vontade de rodar o comando `cargos padrao` 🐶

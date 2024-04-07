@@ -7,7 +7,7 @@ from app.constants import Style as constants
 from app.services.utils import ml
 
 
-def parse_dict_to_embed(data: Dict[str, str]) -> discord.Embed:
+def parse_dict_to_embed(data: Dict[str, str], manager: bool = False) -> discord.Embed:
     """Parse dictionary to discord Embed object"""
 
     embed = discord.Embed(
@@ -24,11 +24,27 @@ def parse_dict_to_embed(data: Dict[str, str]) -> discord.Embed:
         default_image = icons.IMAGE_01
         embed.set_thumbnail(url=icons.ACTION_IMAGE.get(action, default_image))
 
+    if manager:
+        embed.set_thumbnail(url=icons.IMAGE_01)
+
     if data.get("image"):
         embed.set_image(url=data["image"])
 
     if data.get("footer"):
         embed.set_footer(text=data["footer"])
+
+    return embed
+
+
+def buttons_captions_embed(additional_buttons: list, locale: str) -> discord.Embed:
+    embed = discord.Embed(
+        title=f"🙋 {ml('buttons.help', locale)}",
+        description=ml("buttons.captions", locale),
+    )
+    embed.set_thumbnail(url=icons.IMAGE_02)
+
+    for button in additional_buttons:
+        embed.description += f"\n- **{button.emoji} {button.label}:** {button.desc}"
 
     return embed
 
