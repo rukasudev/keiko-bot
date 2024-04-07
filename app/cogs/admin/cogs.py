@@ -1,13 +1,13 @@
 import discord
 from discord import app_commands
-from discord.app_commands import Choice, locale_str
+from discord.app_commands import Choice
 
 from app.bot import DiscordBot
 from app.constants import CogsConstants as constants
 from app.services.utils import cogs_manager
 
 
-class Cogs(app_commands.Group, name=locale_str("cogs", namespace="commands")):
+class Cogs(app_commands.Group, name="cogs"):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
         super().__init__()

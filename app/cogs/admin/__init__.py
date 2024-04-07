@@ -4,7 +4,7 @@ from datetime import datetime
 
 import discord
 from discord import app_commands
-from discord.app_commands import Choice, locale_str
+from discord.app_commands import Choice
 from discord.ext import commands
 
 import app
@@ -19,7 +19,7 @@ from app.services.utils import format_datetime_output, parse_log_filename_with_d
 
 @app_commands.default_permissions()
 @app_commands.guilds(discord.Object(app.bot.config.ADMIN_GUILD_ID))
-class Admin(commands.GroupCog, name=locale_str("admin", namespace="commands")):
+class Admin(commands.GroupCog, name="admin"):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
         DiscordLogsHandler(bot)

@@ -1,13 +1,16 @@
 import discord
 from discord import app_commands
-from discord.app_commands import locale_str
 
 from app.bot import DiscordBot
 from app.services import default_roles as default_roles_service
 from app.services.utils import get_available_roles_by_guild
+from app.translator import locale_str
 
 
-class Roles(app_commands.Group, name=locale_str("default", namespace="commands")):
+class Roles(
+    app_commands.Group,
+    name=locale_str("default", type="subgroup", namespace="default-roles"),
+):
     def __init__(self, bot: DiscordBot):
         bot.add_listener(self.on_member_join)
         super().__init__()
@@ -20,8 +23,8 @@ class Roles(app_commands.Group, name=locale_str("default", namespace="commands")
         await default_roles_service.set_on_member_join(member)
 
     @app_commands.command(
-        name=locale_str("roles", namespace="commands"),
-        description=locale_str("roles-desc", namespace="commands"),
+        name=locale_str("roles", type="name", namespace="default-roles"),
+        description=locale_str("desc", type="desc", namespace="default-roles"),
     )
     async def _default_roles(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)

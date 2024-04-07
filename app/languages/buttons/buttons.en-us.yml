@@ -1,4 +1,4 @@
-en:
+en-us:
   confirm: Confirm
   cancel: Cancel
   edit: Edit
@@ -7,6 +7,12 @@ en:
   sync: Sync
   help: Help
   back: Back
+
+  roles-sync:
+    desc: Keiko immediately assigns the default roles to all server users
+    response:
+      title: ✨ Roles assigned successfully!
+      message: I've added the default roles to all members of the server! Now everyone is even cuter! 🐶
 
   captions: "Here is a brief description of the buttons and their functionalities\n\n
     :newspaper: **Buttons captions**\n\n

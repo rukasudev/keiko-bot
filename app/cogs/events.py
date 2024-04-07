@@ -1,7 +1,6 @@
 from datetime import datetime
 
 import discord
-from discord.app_commands import locale_str
 from discord.ext import commands
 
 from app import logger
@@ -18,7 +17,7 @@ from app.services.moderations import (
 from app.services.utils import cogs_manager
 
 
-class Events(commands.Cog, name=locale_str("events", namespace="commands")):
+class Events(commands.Cog, name="events"):
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
 

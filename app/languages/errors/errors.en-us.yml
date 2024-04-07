@@ -1,8 +1,8 @@
-en:
+en-us:
   command-generic-error:
     title: Command Processing Error
-    message: I'm sorry, but I couldn't process the command correctly. Please try again later.\n\n
-      If you wish, you can send us a report using the `/report` command or reach out to us on the official Keiko's server using the `/support` command
+  message: "I'm sorry, but I couldn't process the command correctly. Please try again later.\n\n
+      If you wish, you can send us a report using the `/report` command or reach out to us on the official Keiko's server using the `/support` command"
 
   command-permission-denied:
     title: Permission Denied
@@ -14,8 +14,8 @@ en:
 
   command-default-roles-low-permissions:
     title: Insufficient Role Permissions
-    message: I'm sorry, but I don't have permission to assign roles on this server :/\n
-      Please assign me a role with these privileges or elevate the position of my **Keiko** role in the server's role hierarchy
+    message: "I'm sorry, but I don't have permission to assign roles on this server :/\n\n
+      Please assign me a role with these privileges or elevate the position of my **Keiko** role in the server's role hierarchy"
 
   command-default-roles-missing-permissions:
     message: "🚨 **ATTENTION!!!**\n

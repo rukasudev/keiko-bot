@@ -1,0 +1,37 @@
+en-us:
+  groups:
+    moderations: moderations
+    notifications: notifications
+
+  report:
+    name: report
+    desc: Keiko helps you report any bugs or issues you encounter
+
+  block-links:
+    subgroup: block
+    name: links
+    desc: Keiko lovingly protects our server by blocking any suspicious links
+
+  notifications-twitch:
+    name: twitch
+    desc: Keiko will notify you whenever your favorite streamers go live
+
+  default-roles:
+    subgroup: default
+    name: roles
+    desc: Keiko warmly welcomes new members by automatically assigning roles when they join the server
+
+  command-events:
+    enabled:
+      title: 🎉 Command enabled successfully!
+      description: Command **$command_name** enabled on $date by $user 🚀\n\n
+        If you want to make changes or disable the command, simply run the command again 🔄
+
+    disabled:
+      title: 🚫 Command disabled successfully!
+      description: Command **$command_name** disabled on $date by $user.
+
+    edit:
+      title: 📝 Command edited successfully!
+      description: Command **$command_name** edited on $date by $user.
+      placeholder: Select the settings you want to edit :)

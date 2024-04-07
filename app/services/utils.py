@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple
 
 import discord
 from discord.ext import commands
-from i18n import I18nFileLoadError, t
+from i18n import t
 
 from app.constants import CogsConstants as cogconstants
 from app.constants import Emojis as constants
@@ -118,14 +118,14 @@ def parse_form_params_result(responses: List[Dict[str, str]]) -> str:
 
 
 def parse_locale(locale: str) -> str:
-    return str(locale).split("-")[0]
+    return str(locale).lower()
 
 
 def ml(key: str, locale: str):
     try:
-        return t(key, locale=locale)
-    except I18nFileLoadError:
-        return t(key, locale="en")
+        return t(key, locale=locale, default=t(key, locale="en-us"))
+    except Exception:
+        return t(key, locale="en-us")
 
 
 def parse_command_event_description(

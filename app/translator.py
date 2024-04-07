@@ -1,8 +1,7 @@
-import i18n
 from discord import Locale, app_commands
 from discord.app_commands import TranslationContext, locale_str
 
-from app.services.utils import parse_locale
+from app.services.utils import ml, parse_locale
 
 
 class Translator(app_commands.Translator):
@@ -15,7 +14,19 @@ class Translator(app_commands.Translator):
     async def translate(
         self, string: locale_str, locale: Locale, context: TranslationContext
     ) -> str:
-        i18n.set("locale", parse_locale(locale))
+        command = str(string)
+
+        tp = string.extras.get("type")
         ns = string.extras.get("namespace")
 
-        return i18n.t(f"{ns}.{str(string)}") if ns is not None else str(string)
+        # TODO: pass this to constants
+        if tp == "groups":
+            return ml(f"commands.{tp}.{command}", locale=parse_locale(locale))
+
+        return ml(f"commands.{ns}.{tp}", locale=parse_locale(locale)) if tp else command
+
+
+class locale_str(app_commands.locale_str):
+    def __init__(self, key: str, **kwargs) -> None:
+        self.key = key
+        super().__init__(key, **kwargs)

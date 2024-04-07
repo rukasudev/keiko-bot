@@ -1,4 +1,4 @@
-pt:
+pt-br:
   confirm: Confirmar
   cancel: Cancelar
   edit: Editar
@@ -7,6 +7,12 @@ pt:
   sync: Sincronizar
   help: Ajuda
   back: Voltar
+
+  roles-sync:
+    desc: Keiko atribui imediatamente os cargos padrão a todos os usuários do servidor
+    response:
+      title: ✨ Cargos atribuídos com sucesso!
+      message: Adicionei os cargos padrão a todos os membros do servidor! Agora todos estão ainda mais fofos! 🐶
 
   captions: "Aqui está uma breve descrição dos botões e suas funcionalidades\n\n
     :newspaper: **Legenda dos botões**\n\n

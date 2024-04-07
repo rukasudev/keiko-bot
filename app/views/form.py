@@ -179,9 +179,9 @@ class Form(discord.ui.View):
         self.clear_items()
 
         embed = interaction.message.embeds[0]
-        embed.title = ml("commands.command-event.enabled.title", locale=self.locale)
+        embed.title = ml("commands.command-events.enabled.title", locale=self.locale)
         embed.description = parse_command_event_description(
-            ml("commands.command-event.enabled.description", locale=self.locale),
+            ml("commands.command-events.enabled.description", locale=self.locale),
             interaction.message.edited_at,
             interaction.message.interaction.name,
             interaction.user.mention,
