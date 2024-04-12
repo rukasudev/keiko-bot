@@ -7,6 +7,8 @@ en-us:
   sync: Sync
   help: Help
   back: Back
+  pause: Pause
+  unpause: Unpause
 
   roles-sync:
     desc: Keiko immediately assigns the default roles to all server users
@@ -16,5 +18,6 @@ en-us:
 
   captions: "Here is a brief description of the buttons and their functionalities\n\n
     :newspaper: **Buttons captions**\n\n
-    - **📝 Edit:** Edit the feature settings\n
-    - **🚫 Disable:** Disable the feature and delete the settings"
+    - **📝 Edit:** Edit the feature settings
+    \n- **⏯️ Pause/Unpause:** Pause or unpause the feature
+    \n- **🚫 Disable:** Disable the feature and reset the settings"
