@@ -88,7 +88,7 @@ async def manager(interaction: discord.Interaction, guild_id: str):
     locale = parse_locale(interaction.locale)
 
     available_roles = get_available_roles_by_guild(interaction.guild)
-    if not cogs:
+    if cogs == None:
         if not available_roles:
             embed = response_error_embed(
                 "command-default-roles-low-permissions", locale
@@ -101,7 +101,7 @@ async def manager(interaction: discord.Interaction, guild_id: str):
     info = get_not_available_roles(roles, available_roles, locale)
     sync_button = AdditionalButton(
         callback=set_on_default_roles_sync,
-        desc=ml("commands.roles-sync-desc", locale),
+        desc=ml("buttons.roles-sync.desc", locale),
         label=ml("buttons.sync", locale),
         emoji="🔄",
     )

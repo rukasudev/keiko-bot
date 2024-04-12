@@ -9,9 +9,10 @@ from app.constants import CogsConstants as cogconstants
 from app.constants import GuildConstants as constants
 from app.constants import LogTypes as logconstants
 from app.data.moderations import find_moderations_by_guild
-from app.services.cache import increment_redis_key, remove_all_data_by_guild
+from app.services.cache import increment_redis_key, remove_all_cache_by_guild
 from app.services.moderations import (
     insert_moderations_by_guild,
+    pause_all_moderations_by_guild,
     update_moderations_by_guild,
 )
 from app.services.utils import cogs_manager
@@ -94,8 +95,8 @@ class Events(commands.Cog, name="events"):
             guild_id=guild.id,
             log_type=logconstants.EVENT_LEFT_GUILD_TYPE,
         )
-        remove_all_data_by_guild(guild.id)
-        return update_moderations_by_guild(guild.id, constants.IS_BOT_ONLINE, False)
+        remove_all_cache_by_guild(guild.id)
+        return pause_all_moderations_by_guild(guild.id)
 
 
 async def setup(bot: DiscordBot) -> None:

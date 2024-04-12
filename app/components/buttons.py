@@ -65,12 +65,35 @@ class EditButtom(discord.ui.Button):
         await interaction.response.edit_message(embed=embed, view=view)
 
 
+class PauseButtom(discord.ui.Button):
+    def __init__(self, callback: Callable, locale: str) -> None:
+        self.callback = callback
+        super().__init__(
+            label=ml("buttons.pause", locale=locale),
+            emoji="⏸️",
+            custom_id=ml("commands.command-events.paused.action", locale=locale),
+            style=discord.ButtonStyle.grey,
+        )
+
+
+class UnpauseButtom(discord.ui.Button):
+    def __init__(self, callback: Callable, locale: str) -> None:
+        self.callback = callback
+        super().__init__(
+            label=ml("buttons.unpause", locale=locale),
+            emoji="▶️",
+            custom_id=ml("commands.command-events.unpaused.action", locale=locale),
+            style=discord.ButtonStyle.grey,
+        )
+
+
 class DisableButtom(discord.ui.Button):
     def __init__(self, callback: Callable, locale: str) -> None:
         self.callback = callback
         super().__init__(
             label=ml("buttons.disable", locale=locale),
             emoji="🚫",
+            custom_id=ml("commands.command-events.disabled.action", locale=locale),
             style=discord.ButtonStyle.grey,
         )
 

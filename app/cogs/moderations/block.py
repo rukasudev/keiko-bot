@@ -24,7 +24,7 @@ class Block(
         name=locale_str("links", type="name", namespace="block-links"),
         description=locale_str("desc", type="desc", namespace="block-links"),
     )
-    async def _block_links(self, interaction: discord.Interaction):
+    async def block_links(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
 
         await block_links_service.manager(interaction=interaction, guild_id=guild_id)

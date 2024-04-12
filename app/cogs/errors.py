@@ -38,7 +38,7 @@ class Errors(commands.Cog, name="errors"):
             log_type=logconstants.COMMAND_ERROR_TYPE,
         )
 
-        await insert_error_by_command(interaction.command._attr, error_message)
+        return insert_error_by_command(interaction.command._attr, error_message)
 
     @commands.Cog.listener()
     async def on_command_error(

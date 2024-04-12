@@ -27,6 +27,8 @@ class DBConfigs:
 
 
 class Commands:
+    ENABLED_KEY: Final[str] = "enabled"
+
     # block links
     BLOCK_LINKS_KEY: Final[str] = "block_links"
     BLOCK_LINKS_ALLOWED_CHATS_KEY: Final[str] = "allowed_chats"

@@ -24,14 +24,31 @@ pt-br:
   command-events:
     enabled:
       title: 🎉 Funcionalidade ativada com sucesso!
-      description: Comando **$command_name** ativado as $date por $user 🚀\n\n
-        Se você deseja fazer alterações ou desabilitar o comando, basta executá-lo novamente 🔄
+      description: "Comando **$command_name** ativado as $date por $user 🚀\n\n
+        Se você deseja fazer alterações ou desabilitar o comando, basta executá-lo novamente 🔄"
+
+    paused:
+      title: ⏸️ Comando pausado com sucesso!
+      key: Pausado
+      action: Pausar
+      description: Comando **$command_name** pausado as $date por $user.
+
+    unpaused:
+      title: ▶️ Comando despausado com sucesso!
+      key: Despausado
+      action: Despausar
+      description: Comando **$command_name** despausado as $date por $user.
 
     disabled:
       title: 🚫 Comando desabilitado com sucesso!
+      action: Desabilitar
       description: Comando **$command_name** desabilitado as $date por $user.
 
-    edit:
+    edited:
       title: 📝 Comando editado com sucesso!
       description: Comando **$command_name** editado as $date por $user.
       placeholder: Selecione as configurações que deseja editar :)
+
+  confirmation-modal:
+    title: Tem certeza?
+    desc: Digite `$action` para confirmar.

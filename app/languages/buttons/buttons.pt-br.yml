@@ -7,6 +7,8 @@ pt-br:
   sync: Sincronizar
   help: Ajuda
   back: Voltar
+  pause: Pausar
+  unpause: Despausar
 
   roles-sync:
     desc: Keiko atribui imediatamente os cargos padrão a todos os usuários do servidor
@@ -16,5 +18,6 @@ pt-br:
 
   captions: "Aqui está uma breve descrição dos botões e suas funcionalidades\n\n
     :newspaper: **Legenda dos botões**\n\n
-    - **📝 Editar:** Editar as configurações da funcionalidade\n
-    - **🚫 Desabilitar:** Desabilitar funcionalidade e deletar as configurações"
+    - **📝 Editar:** Editar as configurações da funcionalidade
+    \n- **⏯️ Pausar/Despausar:** Pausar ou despausar a funcionalidade
+    \n- **🚫 Desabilitar:** Desabilitar funcionalidade e redefine as configurações"
