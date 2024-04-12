@@ -24,14 +24,31 @@ en-us:
   command-events:
     enabled:
       title: 🎉 Command enabled successfully!
-      description: Command **$command_name** enabled on $date by $user 🚀\n\n
-        If you want to make changes or disable the command, simply run the command again 🔄
+      description: "Command **$command_name** enabled on $date by $user 🚀\n\n
+        If you want to make changes or disable the command, simply run the command again 🔄"
+
+    paused:
+      title: ⏸️ Command paused successfully!
+      key: Paused
+      action: Pause
+      description: Command **$command_name** paused on $date by $user.
+
+    unpaused:
+      title: ▶️ Command unpaused successfully!
+      key: Unpaused
+      action: Unpause
+      description: Command **$command_name** unpaused on $date by $user.
 
     disabled:
       title: 🚫 Command disabled successfully!
+      action: Disable
       description: Command **$command_name** disabled on $date by $user.
 
-    edit:
+    edited:
       title: 📝 Command edited successfully!
       description: Command **$command_name** edited on $date by $user.
       placeholder: Select the settings you want to edit :)
+
+  confirmation-modal:
+    title: Are you sure?
+    desc: Type `$action` to confirm.

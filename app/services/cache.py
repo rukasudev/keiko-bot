@@ -33,12 +33,12 @@ def get_cog_data_or_populate(guild_id: str, key: str) -> Dict[str, Any]:
     return data
 
 
-def remove_cog_data_by_guild(guild_id: str, key: str):
+def remove_cog_cache_by_guild(guild_id: str, key: str):
     redis_key = f"guild:{guild_id}:cog.{key}"
     redis_client.delete(redis_key)
 
 
-def remove_all_data_by_guild(guild_id: str):
+def remove_all_cache_by_guild(guild_id: str):
     keys_to_delete = redis_client.keys(f"guild:{guild_id}:*")
     if keys_to_delete:
         redis_client.delete(*keys_to_delete)

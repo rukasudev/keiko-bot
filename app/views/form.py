@@ -5,6 +5,7 @@ import discord
 from app.components.buttons import CancelButton, ConfirmButton, EditButtom
 from app.components.embed import parse_dict_to_embed
 from app.components.modals import CustomModal
+from app.constants import Commands as commandconstants
 from app.constants import FormConstants as constants
 from app.services.moderations import insert_cog_by_guild, update_moderations_by_guild
 from app.services.utils import (
@@ -84,7 +85,8 @@ class Form(discord.ui.View):
         return await self.show_resume(interaction)
 
     def _parse_responses_to_cog(self) -> Dict[str, str]:
-        cog_param = {}
+        cog_param = {commandconstants.ENABLED_KEY: True}
+
         for item in self.responses:
             value = item["value"]
             if not isinstance(value, str):
@@ -172,7 +174,7 @@ class Form(discord.ui.View):
         update_moderations_by_guild(
             guild_id=interaction.guild_id, key=self.command_key, value=True
         )
-        await insert_cog_by_guild(
+        insert_cog_by_guild(
             guild_id=interaction.guild_id, cog=self.command_key, data=cog_param
         )
 

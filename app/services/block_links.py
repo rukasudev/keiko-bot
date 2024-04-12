@@ -41,7 +41,7 @@ async def check_message(guild_id: str, message: discord.Message) -> None:
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:
     cogs = cache.get_cog_data_or_populate(guild_id, constants.BLOCK_LINKS_KEY)
 
-    if not cogs:
+    if cogs == None:
         return await send_command_form_message(interaction, constants.BLOCK_LINKS_KEY)
 
     await send_command_manager_message(interaction, constants.BLOCK_LINKS_KEY, cogs)

@@ -26,7 +26,7 @@ class Roles(
         name=locale_str("roles", type="name", namespace="default-roles"),
         description=locale_str("desc", type="desc", namespace="default-roles"),
     )
-    async def _default_roles(self, interaction: discord.Interaction):
+    async def default_roles(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
 
         await default_roles_service.manager(interaction=interaction, guild_id=guild_id)
