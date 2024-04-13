@@ -16,7 +16,7 @@ class EditCommand(discord.ui.View):
         super().__init__()
         self.add_item(
             Select(
-                ml("commands.command-event.edited.placeholder", locale=self.locale),
+                ml("commands.command-events.edited.placeholder", locale=self.locale),
                 self.get_command_options(),
             )
         )

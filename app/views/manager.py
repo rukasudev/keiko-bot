@@ -57,7 +57,8 @@ class Manager(discord.ui.View):
         view = self.edited_form_view.view
         view.clear_items()
 
-        await interaction.response.send_message(embed=embed, view=view)
+        await interaction.response.edit_message(view=self)
+        await interaction.followup.send(embed=embed, view=self)
 
     def pause_handler(self) -> discord.ui.Button:
         if self.cogs.get(constants.ENABLED_KEY):
@@ -81,7 +82,8 @@ class Manager(discord.ui.View):
         )
         self.clear_items()
 
-        await interaction.response.send_message(embed=embed, view=self)
+        await interaction.response.edit_message(view=self)
+        await interaction.followup.send(embed=embed, view=self)
 
     @need_confirmation_modal
     async def pause_callback(self, interaction: discord.Interaction):
@@ -99,7 +101,8 @@ class Manager(discord.ui.View):
         )
         self.clear_items()
 
-        await interaction.response.send_message(embed=embed, view=self)
+        await interaction.response.edit_message(view=self)
+        await interaction.followup.send(embed=embed, view=self)
 
     @need_confirmation_modal
     async def disable_callback(self, interaction: discord.Interaction):
@@ -119,4 +122,5 @@ class Manager(discord.ui.View):
         )
         self.clear_items()
 
-        await interaction.response.send_message(embed=embed, view=self)
+        await interaction.response.edit_message(view=self)
+        await interaction.followup.send(embed=embed, view=self)

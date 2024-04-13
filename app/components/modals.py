@@ -44,6 +44,6 @@ class ConfirmationModal(discord.ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         if str(self.children[0].value).lower() == self.action.lower():
-            await self.callback(interaction)
+            return await self.callback(interaction)
 
         await interaction.response.defer()
