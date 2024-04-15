@@ -4,8 +4,9 @@ import discord
 
 
 class Select(discord.ui.Select):
-    def __init__(self, placeholder: str, options: Dict[str, str]):
+    def __init__(self, placeholder: str, options: Dict[str, str], custom_callback=None):
         self.parsed_options = self.parse_options(options)
+        self.custom_callback = custom_callback
         super().__init__(
             placeholder=placeholder,
             options=self.parsed_options,
@@ -22,4 +23,7 @@ class Select(discord.ui.Select):
 
     async def callback(self, interaction: discord.Interaction):
         self.view.selected_options = self.values
-        await self.view.callback(interaction)
+        if self.custom_callback:
+            await self.custom_callback(interaction)
+        else:
+            await self.view.callback(interaction)

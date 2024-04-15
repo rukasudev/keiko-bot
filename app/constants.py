@@ -50,6 +50,7 @@ class CogsConstants:
     CONFIG_COGS: Final[str] = "config"
     EVENTS_COGS: Final[str] = "events"
     ERRORS_COGS: Final[str] = "errors"
+    HELP_COGS: Final[str] = "help"
 
     COGS_LIST: Final[List[str]] = [
         ADMIN_COGS,
@@ -57,6 +58,7 @@ class CogsConstants:
         CONFIG_COGS,
         EVENTS_COGS,
         ERRORS_COGS,
+        HELP_COGS,
     ]
     LAZY_LOAD_COGS: Final[List[str]] = [ADMIN_COGS, CONFIG_COGS]
 

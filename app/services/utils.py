@@ -124,7 +124,7 @@ def parse_locale(locale: str) -> str:
 
 def ml(key: str, locale: str):
     try:
-        return t(key, locale=locale, default=t(key, locale="en-us"))
+        return t(key, locale=parse_locale(locale), default=t(key, locale="en-us"))
     except Exception:
         return t(key, locale="en-us")
 
@@ -221,8 +221,7 @@ def admin_only_command():
 
     async def predicate(ctx):
         if not ctx.author.guild_permissions.administrator:
-            locale = parse_locale(ctx.locale)
-            embed = response_error_embed("command-permission-denied", locale)
+            embed = response_error_embed("command-permission-denied", ctx.locale)
             return await ctx.send(embed=embed, ephemeral=True)
         return True
 

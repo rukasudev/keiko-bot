@@ -61,8 +61,7 @@ class Errors(commands.Cog, name="errors"):
     async def send_default_error_message(
         self, interaction: discord.Interaction
     ) -> None:
-        locale = utils.parse_locale(interaction.locale)
-        embed = response_error_embed("command-generic-error", locale)
+        embed = response_error_embed("command-generic-error", interaction.locale)
 
         if interaction.response.is_done():
             await interaction.edit_original_response(embed=embed)

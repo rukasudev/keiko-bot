@@ -106,8 +106,7 @@ class BackButtom(discord.ui.Button):
         self.old_embed = embed
         super().__init__(
             label=ml("buttons.back", locale=locale),
-            emoji="🔙",
-            style=discord.ButtonStyle.grey,
+            style=discord.ButtonStyle.primary,
         )
 
     async def callback(self, interaction: discord.Interaction) -> Any:

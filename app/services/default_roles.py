@@ -10,7 +10,7 @@ from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
 )
-from app.services.utils import get_available_roles_by_guild, ml, parse_locale
+from app.services.utils import get_available_roles_by_guild, ml
 
 
 async def set_on_member_join(member: discord.Member):
@@ -29,9 +29,10 @@ async def set_on_default_roles_sync(interaction: discord.Interaction):
         interaction.guild.id, constants.DEFAULT_ROLES_KEY
     )
 
-    locale = parse_locale(interaction.locale)
     if not cogs:
-        embed = response_error_embed("command-default-roles-disactivated", locale)
+        embed = response_error_embed(
+            "command-default-roles-disactivated", interaction.locale
+        )
         return await interaction.followup.send(
             embed=embed,
             delete_after=10,
@@ -40,7 +41,7 @@ async def set_on_default_roles_sync(interaction: discord.Interaction):
 
     await set_default_roles(cogs, interaction.guild, interaction.guild.members)
 
-    embed = response_embed("commands.roles-sync-response", locale)
+    embed = response_embed("commands.roles-sync-response", interaction.locale)
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
@@ -85,24 +86,23 @@ def filter_roles(roles: List[str], available_roles: List[str]) -> List[str]:
 
 async def manager(interaction: discord.Interaction, guild_id: str):
     cogs = cache.get_cog_data_or_populate(guild_id, constants.DEFAULT_ROLES_KEY)
-    locale = parse_locale(interaction.locale)
 
     available_roles = get_available_roles_by_guild(interaction.guild)
     if cogs == None:
         if not available_roles:
             embed = response_error_embed(
-                "command-default-roles-low-permissions", locale
+                "command-default-roles-low-permissions", interaction.locale
             )
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         return await send_command_form_message(interaction, constants.DEFAULT_ROLES_KEY)
 
     roles = cogs[constants.DEFAULT_ROLES_KEY]
-    info = get_not_available_roles(roles, available_roles, locale)
+    info = get_not_available_roles(roles, available_roles, interaction.locale)
     sync_button = AdditionalButton(
         callback=set_on_default_roles_sync,
-        desc=ml("buttons.roles-sync.desc", locale),
-        label=ml("buttons.sync", locale),
+        desc=ml("buttons.roles-sync.desc", interaction.locale),
+        label=ml("buttons.sync", interaction.locale),
         emoji="🔄",
     )
 

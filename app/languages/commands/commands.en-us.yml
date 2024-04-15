@@ -1,25 +1,41 @@
 en-us:
+  commands:
+    help:
+      name: help
+      desc: Keiko helps you understand how to use the available commands
+      embed:
+        title: 📚 Available commands
+        desc: "Here are my commands that will help you make your server more cozy! ✨\n\n
+          For more information about a specific command, select the command in `Select a command to view its description` in the list below the message ⬇️\n\n"
+        footer: Page
+        placeholder: Select a command to view its description
+        base-commands: Base commands
+
+      embed-description:
+        title: 📚 Command description
+        desc: "If you need more information about a specific command, you can send us a message in the Keiko oficial server! Command: `/suport` 💌\n\n"
+
+    report:
+      name: report
+      desc: Keiko helps you report any bugs or issues you encounter
+
+    block-links:
+      subgroup: block
+      name: links
+      desc: Keiko lovingly protects our server by blocking any suspicious links
+
+    notifications-twitch:
+      name: twitch
+      desc: Keiko will notify you whenever your favorite streamers go live
+
+    default-roles:
+      subgroup: default
+      name: roles
+      desc: Keiko warmly welcomes new members by automatically assigning roles when they join the server
+
   groups:
     moderations: moderations
     notifications: notifications
-
-  report:
-    name: report
-    desc: Keiko helps you report any bugs or issues you encounter
-
-  block-links:
-    subgroup: block
-    name: links
-    desc: Keiko lovingly protects our server by blocking any suspicious links
-
-  notifications-twitch:
-    name: twitch
-    desc: Keiko will notify you whenever your favorite streamers go live
-
-  default-roles:
-    subgroup: default
-    name: roles
-    desc: Keiko warmly welcomes new members by automatically assigning roles when they join the server
 
   command-events:
     enabled:

@@ -29,6 +29,9 @@ class Events(commands.Cog, name="events"):
         if not self.bot.synced:
             await cogs_manager(self.bot, "load", cogconstants.LAZY_LOAD_COGS)
             await self.bot.tree.sync()
+            await self.bot.tree.sync(
+                guild=discord.Object(self.bot.config.ADMIN_GUILD_ID)
+            )
             self.bot.synced = True
 
         self.bot.ready_time = datetime.now()

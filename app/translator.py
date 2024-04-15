@@ -1,7 +1,7 @@
 from discord import Locale, app_commands
 from discord.app_commands import TranslationContext, locale_str
 
-from app.services.utils import ml, parse_locale
+from app.services.utils import ml
 
 
 class Translator(app_commands.Translator):
@@ -15,15 +15,16 @@ class Translator(app_commands.Translator):
         self, string: locale_str, locale: Locale, context: TranslationContext
     ) -> str:
         command = str(string)
+        base = "commands.commands"
 
         tp = string.extras.get("type")
         ns = string.extras.get("namespace")
 
         # TODO: pass this to constants
         if tp == "groups":
-            return ml(f"commands.{tp}.{command}", locale=parse_locale(locale))
+            return ml(f"commands.{tp}.{command}", locale=locale)
 
-        return ml(f"commands.{ns}.{tp}", locale=parse_locale(locale)) if tp else command
+        return ml(f"{base}.{ns}.{tp}", locale=locale) if tp else command
 
 
 class locale_str(app_commands.locale_str):
