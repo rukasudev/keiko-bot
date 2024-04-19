@@ -62,6 +62,11 @@ class CogsConstants:
     ]
     LAZY_LOAD_COGS: Final[List[str]] = [ADMIN_COGS, CONFIG_COGS]
 
+    INTERACTION_COGS: Final[List[str]] = [
+        MODERATIONS_COGS,
+        HELP_COGS,
+    ]
+
 
 class GuildConstants:
     IS_BOT_ONLINE: Final[str] = "is_bot_online"

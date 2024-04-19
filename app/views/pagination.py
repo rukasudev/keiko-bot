@@ -103,6 +103,7 @@ class PaginationView(discord.ui.View):
         data = self.get_select_options()
         self.remove_item(self.select)
         self.select.options = self.select.parse_options(data)
+        self.select.max_values = len(data)
         self.add_item_first(self.select)
 
     def get_select_options(self):

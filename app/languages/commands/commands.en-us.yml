@@ -11,9 +11,9 @@ en-us:
         placeholder: Select a command to view its description
         base-commands: Base commands
 
-      embed-description:
+      embed-desc:
         title: 📚 Command description
-        desc: "If you need more information about a specific command, you can send us a message in the Keiko oficial server! Command: `/suport` 💌\n\n"
+        desc: "If you need more information about a specific command, don't hesitate to send us a message on Keiko's official server with the `/support` command! 💌\n\n"
 
     report:
       name: report
