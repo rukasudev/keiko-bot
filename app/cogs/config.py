@@ -6,6 +6,7 @@ from discord.ext import commands
 import app
 from app.bot import DiscordBot
 from app.services.config import update_activity, update_description, update_status
+from app.services.utils import keiko_command
 
 
 @app_commands.default_permissions()
@@ -20,7 +21,7 @@ class Config(commands.GroupCog, name="config"):
             self.bot = bot
             super().__init__()
 
-        @app_commands.command(
+        @keiko_command(
             name="status",
             description="Keiko's mood gets a refresh with an updated status",
         )
@@ -38,7 +39,7 @@ class Config(commands.GroupCog, name="config"):
                 f"Keiko's current mood has been uplifted! Status updated to `{status.name}` successfully!"
             )
 
-        @app_commands.command(
+        @keiko_command(
             name="activity",
             description="Keiko's energy shifts as the activity gets an update",
         )
@@ -56,7 +57,7 @@ class Config(commands.GroupCog, name="config"):
                 f"Keiko's energy is buzzing with excitement! Activity updated to `{activity.name}` successfully!"
             )
 
-        @app_commands.command(
+        @keiko_command(
             name="description",
             description="Keiko's world sparkles with a new description for the activity",
         )

@@ -1,13 +1,12 @@
 from typing import Dict, List, Union
 
 import discord
-from discord import app_commands
 from discord.app_commands import AppCommand
 from discord.ext import commands
 
 from app.bot import DiscordBot
 from app.constants import CogsConstants as constants
-from app.services.utils import ml
+from app.services.utils import keiko_command, ml
 from app.translator import locale_str
 from app.views.pagination import PaginationView
 
@@ -155,7 +154,7 @@ class Help(commands.Cog, name=locale_str("help", type="name", namespace="help"))
 
         return data
 
-    @app_commands.command(
+    @keiko_command(
         name=locale_str("help", type="name", namespace="help"),
         description=locale_str("help", type="desc", namespace="help"),
     )

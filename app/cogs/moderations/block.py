@@ -3,6 +3,7 @@ from discord import app_commands
 
 from app.bot import DiscordBot
 from app.services import block_links as block_links_service
+from app.services.utils import keiko_command
 from app.translator import locale_str
 
 
@@ -11,6 +12,7 @@ class Block(
     name=locale_str("block", type="subgroup", namespace="block-links"),
 ):
     def __init__(self, bot: DiscordBot):
+        self.bot = bot
         bot.add_listener(self.on_message)
         super().__init__()
 
@@ -20,7 +22,7 @@ class Block(
 
             await block_links_service.check_message(guild_id, message)
 
-    @app_commands.command(
+    @keiko_command(
         name=locale_str("links", type="name", namespace="block-links"),
         description=locale_str("desc", type="desc", namespace="block-links"),
     )

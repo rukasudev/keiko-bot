@@ -136,7 +136,7 @@ async def send_command_manager_message(
     description = parse_cog_data_to_param_result(cog_data, form_json)
 
     embed.description += parse_form_params_result(description)
-    view = Manager(key, cog_data, locale, interaction.guild.id)
+    view = Manager(key, cog_data, interaction)
 
     if not cog_data.get(commands_constants.ENABLED_KEY):
         embed.title += f" ({ml('commands.command-events.paused.key', locale=locale)})"

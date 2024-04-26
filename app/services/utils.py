@@ -1,11 +1,13 @@
 import datetime
+import functools
 import os
 from json import load
 from pathlib import Path
 from re import findall
-from typing import Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import discord
+from discord.app_commands import Command
 from discord.ext import commands
 from i18n import t
 
@@ -81,6 +83,71 @@ def parse_form_cogs_titles(form_json: List[Dict[str, str]]) -> Dict[str, str]:
     }
 
 
+async def get_translated_qualified_name(
+    bot, command: discord.app_commands.commands.Command, locale: str
+) -> str:
+    name = await bot.tree.translator.translate(command._locale_name, locale, None)
+
+    if command.parent is None:
+        return name
+
+    parent_name = await bot.tree.translator.translate(
+        command.parent._locale_name, locale, None
+    )
+    names = [name, parent_name]
+
+    if command.parent.parent is not None:
+        grandparent_name = await bot.tree.translator.translate(
+            command.parent.parent._locale_name, locale, None
+        )
+        names.append(grandparent_name)
+
+    return " ".join(reversed(names))
+
+
+def keiko_command(
+    *,
+    name: str = "",
+    description: str = "...",
+    nsfw: bool = False,
+    auto_locale_strings: bool = True,
+    extras: Dict[Any, Any] = None,
+):
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(self, interaction: discord.Interaction, *args, **kwargs):
+            if interaction.command:
+                locale_qualified_name = await get_translated_qualified_name(
+                    self.bot, interaction.command, interaction.locale
+                )
+                locale_qualified_desc = await self.bot.tree.translator.translate(
+                    interaction.command._locale_description, interaction.locale, None
+                )
+
+                interaction.command.extras["locale_qualified_name"] = (
+                    locale_qualified_name
+                )
+                interaction.command.extras["locale_qualified_desc"] = (
+                    locale_qualified_desc
+                )
+
+            interaction.extras["bot"] = self.bot
+
+            await func(self, interaction, *args, **kwargs)
+
+        return Command(
+            name=name if name != "" else func.__name__,
+            description=description,
+            callback=wrapper,
+            parent=None,
+            nsfw=nsfw,
+            auto_locale_strings=auto_locale_strings,
+            extras=extras,
+        )
+
+    return decorator
+
+
 def parse_cog_data_to_param_result(
     cog_data: List[Dict[str, str]], form_json: Dict[str, str]
 ) -> List[Dict[str, str]]:
@@ -130,13 +197,16 @@ def ml(key: str, locale: str):
 
 
 def parse_command_event_description(
-    description: str, interaction_date: datetime.datetime, command_name: str, user: str
+    description: str,
+    event_date: datetime.datetime,
+    interaction: discord.Interaction,
 ) -> str:
+    command_name = interaction.command.extras.get("locale_qualified_name")
     description = description.replace("$command_name", command_name)
     description = description.replace(
-        "$date", interaction_date.strftime("%Y-%m-%d %H:%M:%S") + " UTC"
+        "$date", event_date.strftime("%Y-%m-%d %H:%M:%S") + " UTC"
     )
-    description = description.replace("$user", user)
+    description = description.replace("$user", interaction.user.mention)
     return description
 
 

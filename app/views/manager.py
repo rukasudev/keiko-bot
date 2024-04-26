@@ -28,15 +28,17 @@ class Manager(discord.ui.View):
         `locale` -- the locale of the interaction (ex: pt-br, en-US)
     """
 
-    def __init__(self, key: str, cogs: Dict[str, Any], locale: str, guild_id: str):
+    def __init__(
+        self, key: str, cogs: Dict[str, Any], interaction: discord.Interaction
+    ):
         self.command_key = key
         self.cogs = cogs
-        self.locale = locale
-        self.guild_id = guild_id
+        self.interaction = interaction
+        self.locale = interaction.locale
         super().__init__()
-        self.add_item(EditButtom(after_callback=self.update_command, locale=locale))
+        self.add_item(EditButtom(self.update_command, locale=self.locale))
         self.add_item(self.pause_handler())
-        self.add_item(DisableButtom(callback=self.disable_callback, locale=locale))
+        self.add_item(DisableButtom(self.disable_callback, locale=self.locale))
 
     async def update_command(self, interaction: discord.Interaction):
         data = self.edited_form_view._parse_responses_to_cog()
@@ -50,8 +52,7 @@ class Manager(discord.ui.View):
         embed.description = parse_command_event_description(
             ml("commands.command-events.edited.description", locale=self.locale),
             interaction.message.edited_at,
-            interaction.message.interaction.name,
-            interaction.user.mention,
+            self.interaction,
         )
 
         view = self.edited_form_view.view
@@ -77,8 +78,7 @@ class Manager(discord.ui.View):
         embed.description = parse_command_event_description(
             ml("commands.command-events.unpaused.description", locale=self.locale),
             interaction.message.created_at,
-            interaction.message.interaction.name,
-            interaction.user.mention,
+            self.interaction,
         )
         self.clear_items()
 
@@ -96,8 +96,7 @@ class Manager(discord.ui.View):
         embed.description = parse_command_event_description(
             ml("commands.command-events.paused.description", locale=self.locale),
             interaction.message.created_at,
-            interaction.message.interaction.name,
-            interaction.user.mention,
+            self.interaction,
         )
         self.clear_items()
 
@@ -117,8 +116,7 @@ class Manager(discord.ui.View):
         embed.description = parse_command_event_description(
             ml("commands.command-events.disabled.description", locale=self.locale),
             interaction.message.created_at,
-            interaction.message.interaction.name,
-            interaction.user.mention,
+            self.interaction,
         )
         self.clear_items()
 

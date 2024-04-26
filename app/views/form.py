@@ -185,8 +185,7 @@ class Form(discord.ui.View):
         embed.description = parse_command_event_description(
             ml("commands.command-events.enabled.description", locale=self.locale),
             interaction.message.edited_at,
-            interaction.message.interaction.name,
-            interaction.user.mention,
+            interaction,
         )
         await interaction.response.send_message(embed=embed, view=self)
 
