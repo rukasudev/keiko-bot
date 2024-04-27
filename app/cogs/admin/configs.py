@@ -8,9 +8,10 @@ from app.bot import DiscordBot
 from app.constants import DBConfigs as constants
 from app.services.admin import get_admin_configs, update_admin_configs
 from app.services.utils import keiko_command
+from app.types.cogs import Group
 
 
-class Configs(app_commands.Group, name="configs"):
+class Configs(Group, name="configs"):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
         super().__init__()

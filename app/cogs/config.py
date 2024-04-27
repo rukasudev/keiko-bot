@@ -1,22 +1,22 @@
 import discord
 from discord import app_commands
 from discord.app_commands import Choice
-from discord.ext import commands
 
 import app
 from app.bot import DiscordBot
 from app.services.config import update_activity, update_description, update_status
 from app.services.utils import keiko_command
+from app.types.cogs import Group, GroupCog
 
 
 @app_commands.default_permissions()
 @app_commands.guilds(discord.Object(app.bot.config.ADMIN_GUILD_ID))
-class Config(commands.GroupCog, name="config"):
+class Config(GroupCog, name="config"):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
         super().__init__()
 
-    class Update(app_commands.Group, name="update"):
+    class Update(Group, name="update"):
         def __init__(self, bot: DiscordBot):
             self.bot = bot
             super().__init__()

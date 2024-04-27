@@ -1,14 +1,14 @@
 import discord
-from discord import app_commands
 
 from app.bot import DiscordBot
 from app.services import block_links as block_links_service
 from app.services.utils import keiko_command
 from app.translator import locale_str
+from app.types.cogs import Group
 
 
 class Block(
-    app_commands.Group,
+    Group,
     name=locale_str("block", type="subgroup", namespace="block-links"),
 ):
     def __init__(self, bot: DiscordBot):

@@ -5,9 +5,10 @@ from discord.app_commands import Choice
 from app.bot import DiscordBot
 from app.constants import CogsConstants as constants
 from app.services.utils import cogs_manager, keiko_command
+from app.types.cogs import Group
 
 
-class Cogs(app_commands.Group, name="cogs"):
+class Cogs(Group, name="cogs"):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
         super().__init__()

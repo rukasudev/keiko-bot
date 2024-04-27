@@ -1,11 +1,11 @@
 import discord
-from discord import app_commands
 
 from app.bot import DiscordBot
 from app.services.utils import keiko_command
+from app.types.cogs import Group
 
 
-class Sync(app_commands.Group, name="sync"):
+class Sync(Group, name="sync"):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
         super().__init__()

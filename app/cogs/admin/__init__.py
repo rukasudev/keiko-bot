@@ -5,7 +5,6 @@ from datetime import datetime
 import discord
 from discord import app_commands
 from discord.app_commands import Choice
-from discord.ext import commands
 
 import app
 from app.bot import DiscordBot
@@ -19,11 +18,12 @@ from app.services.utils import (
     keiko_command,
     parse_log_filename_with_date,
 )
+from app.types.cogs import GroupCog
 
 
 @app_commands.default_permissions()
 @app_commands.guilds(discord.Object(app.bot.config.ADMIN_GUILD_ID))
-class Admin(commands.GroupCog, name="admin"):
+class Admin(GroupCog, name="admin"):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
         DiscordLogsHandler(bot)

@@ -16,11 +16,13 @@ from app.services.moderations import (
     update_moderations_by_guild,
 )
 from app.services.utils import cogs_manager
+from app.types.cogs import Cog
 
 
-class Events(commands.Cog, name="events"):
+class Events(Cog, name="events"):
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
+        super().__init__()
 
     @commands.Cog.listener()
     async def on_ready(self) -> None:
