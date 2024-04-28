@@ -116,21 +116,6 @@ def keiko_command(
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(self, interaction: discord.Interaction, *args, **kwargs):
-            if interaction.command:
-                locale_qualified_name = await get_translated_qualified_name(
-                    self.bot, interaction.command, interaction.locale
-                )
-                locale_qualified_desc = await self.bot.tree.translator.translate(
-                    interaction.command._locale_description, interaction.locale, None
-                )
-
-                interaction.command.extras["locale_qualified_name"] = (
-                    locale_qualified_name
-                )
-                interaction.command.extras["locale_qualified_desc"] = (
-                    locale_qualified_desc
-                )
-
             interaction.extras["bot"] = self.bot
 
             await func(self, interaction, *args, **kwargs)
