@@ -1,9 +1,11 @@
-from typing import Dict, List, Union
+from collections import defaultdict
+from typing import Dict
 
 import discord
-from discord.app_commands import AppCommand
+from discord.app_commands.commands import Command
 
 from app.bot import DiscordBot
+from app.components.select import HelpSelect
 from app.constants import CogsConstants as constants
 from app.services.utils import keiko_command, ml
 from app.translator import locale_str
@@ -15,152 +17,92 @@ class Help(Cog, name=locale_str("help", type="name", namespace="help")):
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
         super().__init__()
-        self.commands_select = []
 
-        self.group_emoji = "🍰"
         self.item_emoji = ":flying_disc:"
         self.base_i18n_path = f"commands.commands.help"
 
-    async def get_translated_command_name(
-        self, command: AppCommand, locale: str
-    ) -> str:
-        return await self.bot.tree.translator.translate(
-            command._locale_name, locale, None
-        )
-
-    async def get_translated_command_description(
-        self, command: AppCommand, locale: str
-    ) -> str:
-        return await self.bot.tree.translator.translate(
-            command._locale_description, locale, None
-        )
-
-    async def get_commands_recursively(
-        self,
-        cog_name: str,
-        command: AppCommand,
-        command_list: List[str],
-        locale: str,
-        parent_list: List[str],
-    ) -> None:
-        translated_command_name = await self.get_translated_command_name(
-            command, locale
-        )
-        translated_command_description = await self.get_translated_command_description(
-            command, locale
-        )
-        parent_list.append(translated_command_name)
-
-        if not hasattr(command, "commands"):
-            command_list.append(
-                {
-                    "name": f"{cog_name} {' '.join(parent_list)}",
-                    "description": translated_command_description,
-                }
-            )
-            return True
-
-        for subcommand in command.commands:
-            if await self.get_commands_recursively(
-                cog_name, subcommand, command_list, locale, parent_list
-            ):
-                parent_list.pop()
-
-    async def add_commands_to_embed(
-        self, cog_name: str, cog_object, commands_list: List[str], locale: str
-    ) -> None:
-        if not cog_object.app_command:
-            return
-
-        for command in cog_object.app_command.commands:
-            await self.get_commands_recursively(
-                cog_name, command, commands_list, locale, []
-            )
-
-    @staticmethod
-    async def get_cog_name(
-        cog_name: Union[str, locale_str], locale: str, bot: DiscordBot
-    ) -> str:
-        if isinstance(cog_name, str):
-            return cog_name
-        return await bot.tree.translator.translate(cog_name, locale, None)
-
-    async def get_commands_list(self, cog_name, cog_object, locale: str) -> List[str]:
-        commands_list = []
-        await self.add_commands_to_embed(cog_name, cog_object, commands_list, locale)
-
-        return commands_list
-
-    def check_guild(self, interaction: discord.Interaction, cog_name: str) -> bool:
+    def is_guild_command(
+        self, interaction: discord.Interaction, command: Command
+    ) -> bool:
         if interaction.guild.id == self.bot.config.ADMIN_GUILD_ID:
-            return True
+            return False
 
-        return str(cog_name) in constants.INTERACTION_COGS
+        parent_command = command
 
-    async def parse_base_command_description(
-        self, cog_object, interaction: discord.Interaction
-    ):
-        for attribute in dir(cog_object):
-            if isinstance(
-                getattr(cog_object, attribute), discord.app_commands.commands.Command
-            ):
-                return await self.get_translated_command_description(
-                    getattr(cog_object, attribute), interaction.locale
-                )
-        return None
+        if command.parent:
+            parent_command = (
+                command.parent.parent if command.parent.parent else command.parent
+            )
 
-    async def populate_data(self, interaction) -> Dict[str, str]:
-        base_commands_title = ml(
+        return parent_command.name not in constants.INTERACTION_COGS
+
+    def get_command_info(
+        self, interaction: discord.Interaction, command: Command
+    ) -> Dict[str, str]:
+        if not command.extras.get(interaction.locale.value):
+            locale = discord.Locale.american_english.value
+        else:
+            locale = interaction.locale.value
+
+        command_info = {
+            "name": (
+                command.extras[locale]["locale_qualified_name"]
+                if command.extras
+                else command.qualified_name
+            ),
+            "description": (
+                command.extras[locale]["locale_qualified_desc"]
+                if command.extras
+                else command.description
+            ),
+        }
+
+        return command_info
+
+    def get_title(self, base_title: str, command: Command, locale: str) -> str:
+        if command.parent is None:
+            return base_title
+        elif not command.extras:
+            return command.qualified_name.split()[0]
+        else:
+            return command.extras[locale]["locale_qualified_name"].split()[0]
+
+    def populate_data(self, interaction: discord.Interaction) -> Dict[str, str]:
+        base_title = ml(
             f"{self.base_i18n_path}.embed.base-commands", interaction.locale
         )
-        data = [{"label": base_commands_title, "item": "", "commands": []}]
+        data = defaultdict(lambda: {"item": [], "commands": []})
 
-        for cog_name, cog_object in self.bot.cogs.items():
-            if not self.check_guild(interaction, cog_name):
+        for command in self.bot.app_commands:
+            if self.is_guild_command(interaction, command):
                 continue
 
-            cog_name = await self.get_cog_name(cog_name, interaction.locale, self.bot)
-            commands_list = await self.get_commands_list(
-                cog_name, cog_object, interaction.locale
-            )
+            command_info = self.get_command_info(interaction, command)
+            title = self.get_title(
+                base_title, command, interaction.locale.value
+            ).capitalize()
 
-            if not commands_list:
-                self.commands_select.append({cog_name: cog_name})
-                description = await self.parse_base_command_description(
-                    cog_object, interaction
-                )
+            data[title]["item"].append(f"{self.item_emoji} `/{command_info['name']}`")
+            data[title]["commands"].append(command_info)
 
-                data[0]["item"] += f"\n{self.item_emoji} `/{cog_name}`"
-                data[0]["commands"].append(
-                    {
-                        "name": cog_name,
-                        "description": description,
-                    }
-                )
-                continue
-
-            sorted_list = sorted(commands_list, key=lambda x: x["name"])
-            data.append(
-                {
-                    "label": f"{cog_name.capitalize()}",
-                    "commands": sorted_list,
-                    "item": "\n".join(
-                        [
-                            f"{self.item_emoji} `/{command['name']}`"
-                            for command in sorted_list
-                        ]
-                    ),
-                }
-            )
+        data = self.order_data(data)
 
         return data
+
+    def order_data(self, data_dict: Dict[str, str]) -> Dict[str, str]:
+        for title in data_dict:
+            data_dict[title]["commands"].sort(key=lambda cmd: cmd["name"])
+            data_dict[title]["item"].sort()
+            data_dict[title]["item"] = "\n".join(data_dict[title]["item"])
+
+        return dict(sorted(data_dict.items()))
 
     @keiko_command(
         name=locale_str("help", type="name", namespace="help"),
         description=locale_str("help", type="desc", namespace="help"),
     )
     async def help(self, interaction: discord.Interaction) -> None:
-        data = sorted(await self.populate_data(interaction), key=lambda x: x["label"])
+        data = self.populate_data(interaction)
 
         title = ml(f"{self.base_i18n_path}.embed.title", locale=interaction.locale)
         description = ml(f"{self.base_i18n_path}.embed.desc", locale=interaction.locale)
@@ -170,7 +112,8 @@ class Help(Cog, name=locale_str("help", type="name", namespace="help")):
         )
 
         pagination_view = PaginationView(interaction, title, description, footer, data)
-        pagination_view.add_select(placeholder, first=True)
+        select = HelpSelect(placeholder)
+        pagination_view.add_select(select, first=True)
 
         await pagination_view.send()
 

@@ -2,11 +2,8 @@ from typing import Dict, List
 
 import discord
 
-from app.components.buttons import BackButtom
-from app.components.select import Select
 from app.constants import KeikoIcons as icons_constants
 from app.constants import Style as constants
-from app.services.utils import ml
 
 
 class PaginationView(discord.ui.View):
@@ -27,11 +24,18 @@ class PaginationView(discord.ui.View):
         self.current_page = current_page
         self.sep = sep
 
-        self.separated_data = [data[i : i + sep] for i in range(0, len(data), sep)]
+        flat_data = [dict(label=k, **v) for k, v in data.items()]
+
+        self.separated_data = [
+            flat_data[i : i + sep] for i in range(0, len(flat_data), sep)
+        ]
 
         super().__init__()
 
     async def send(self):
+        if self.select:
+            self.select.update()
+
         await self.interaction.response.send_message(view=self)
         await self.update_message(self.get_current_page_data())
 
@@ -49,44 +53,17 @@ class PaginationView(discord.ui.View):
         )
         return self.embed
 
-    def add_select(self, placeholder: str, first: bool = False):
-        data = self.get_select_options()
-        self.select = Select(placeholder, data, custom_callback=self.select_callback)
+    def add_select(
+        self,
+        select: discord.ui.Select,
+        first: bool = False,
+    ):
+        self.select = select
 
         if not first:
             return self.add_item(self.select)
 
         self.add_item_first(self.select)
-
-    async def select_callback(self, interaction: discord.Interaction):
-        embed = interaction.message.embeds[0]
-
-        self.embed._fields = []
-        self.embed._footer = {}
-
-        self.embed.title = ml(
-            "commands.commands.help.embed-desc.title", interaction.locale
-        )
-        self.embed.description = ml(
-            "commands.commands.help.embed-desc.desc", interaction.locale
-        )
-
-        data = self.get_select_options_with_description()
-
-        for key, item in data.items():
-            if key not in self.selected_options:
-                continue
-
-            self.embed.add_field(
-                name=f"✨ /{key}",
-                value=item,
-                inline=False,
-            )
-
-        new_view = discord.ui.View()
-        new_view.add_item(BackButtom(embed=embed, view=self, locale=interaction.locale))
-
-        await interaction.response.edit_message(embed=self.embed, view=new_view)
 
     def add_item_first(self, item):
         buttons = self.children
@@ -96,33 +73,9 @@ class PaginationView(discord.ui.View):
         for button in buttons:
             self.add_item(button)
 
-    def update_select(self):
-        if not hasattr(self, "select"):
-            return
-
-        data = self.get_select_options()
-        self.remove_item(self.select)
-        self.select.options = self.select.parse_options(data)
-        self.select.max_values = len(data)
-        self.add_item_first(self.select)
-
-    def get_select_options(self):
-        data = {}
-        for item in self.get_current_page_data():
-            for command in item["commands"]:
-                data[command["name"]] = command["name"]
-        return data
-
-    def get_select_options_with_description(self):
-        data = {}
-        for item in self.get_current_page_data():
-            for command in item["commands"]:
-                data[command["name"]] = command["description"]
-        return data
-
     async def update_message(self, data):
         self.update_buttons()
-        self.update_select()
+        self.select.update()
         await self.interaction.edit_original_response(
             embed=self.create_embed(data), view=self
         )
