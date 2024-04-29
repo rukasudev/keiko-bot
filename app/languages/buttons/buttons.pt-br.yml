@@ -16,8 +16,14 @@ pt-br:
       title: ✨ Cargos atribuídos com sucesso!
       message: Adicionei os cargos padrão a todos os membros do servidor! Agora todos estão ainda mais fofos! 🐶
 
-  captions: "Aqui está uma breve descrição dos botões e suas funcionalidades\n\n
-    :newspaper: **Legenda dos botões**\n\n
-    - **📝 Editar:** Editar as configurações da funcionalidade
-    \n- **⏯️ Pausar/Despausar:** Pausar ou despausar a funcionalidade
-    \n- **🚫 Desabilitar:** Desabilitar funcionalidade e redefine as configurações"
+  captions:
+    title: Aqui está uma breve descrição dos botões e suas funcionalidades
+    edit:
+      title: "**📝 Editar:**"
+      desc: Edita as configurações da funcionalidade
+    disable:
+      title: "**🚫 Desabilitar:**"
+      desc: Desabilita a funcionalidade e resetar as configurações
+    pause:
+      title: "**⏯️ Pausar/Despausar:**"
+      desc: Pausa ou despausa a funcionalidade

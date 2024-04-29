@@ -16,8 +16,14 @@ en-us:
       title: ✨ Roles assigned successfully!
       message: I've added the default roles to all members of the server! Now everyone is even cuter! 🐶
 
-  captions: "Here is a brief description of the buttons and their functionalities\n\n
-    :newspaper: **Buttons captions**\n\n
-    - **📝 Edit:** Edit the feature settings
-    \n- **⏯️ Pause/Unpause:** Pause or unpause the feature
-    \n- **🚫 Disable:** Disable the feature and reset the settings"
+  captions:
+    title: Here is a brief description of the buttons and their functionalities
+    edit:
+      title: "**📝 Edit:**"
+      desc: Edit the feature settings
+    disable:
+      title: "**🚫 Disable:**"
+      desc: Disable the feature and reset the settings
+    pause:
+      title: "**⏯️ Pause/Unpause:**"
+      desc: Pause or unpause the feature
