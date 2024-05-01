@@ -40,6 +40,7 @@ en-us:
   command-events:
     enabled:
       title: 🎉 Command enabled successfully!
+      key: Enabled
       description: "Command **$command_name** enabled on $date by $user 🚀\n\n
         If you want to make changes or disable the command, simply run the command again 🔄"
 

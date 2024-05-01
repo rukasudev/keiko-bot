@@ -28,6 +28,10 @@ class DBConfigs:
 
 class Commands:
     ENABLED_KEY: Final[str] = "enabled"
+    EDITED_KEY: Final[str] = "edited"
+    PAUSED_KEY: Final[str] = "paused"
+    UNPAUSED_KEY: Final[str] = "unpaused"
+    DISABLED_KEY: Final[str] = "disabled"
 
     # block links
     BLOCK_LINKS_KEY: Final[str] = "block_links"

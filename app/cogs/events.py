@@ -101,7 +101,7 @@ class Events(Cog, name="events"):
             log_type=logconstants.EVENT_LEFT_GUILD_TYPE,
         )
         remove_all_cache_by_guild(guild.id)
-        return pause_all_moderations_by_guild(guild.id)
+        return pause_all_moderations_by_guild(guild.id, str(self.bot.user.id))
 
 
 async def setup(bot: DiscordBot) -> None:

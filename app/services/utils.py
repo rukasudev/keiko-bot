@@ -116,8 +116,6 @@ def keiko_command(
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(self, interaction: discord.Interaction, *args, **kwargs):
-            interaction.extras["bot"] = self.bot
-
             await func(self, interaction, *args, **kwargs)
 
         return Command(
@@ -181,12 +179,22 @@ def ml(key: str, locale: str):
         return t(key, locale="en-us")
 
 
+def get_command_by_key(bot, key: str) -> discord.app_commands.Command:
+    for command in bot.app_commands:
+        if command._attr == key:
+            return command
+
+    return None
+
+
 def parse_command_event_description(
     description: str,
     event_date: datetime.datetime,
     interaction: discord.Interaction,
+    cog_key: str,
 ) -> str:
-    command_name = interaction.command.extras.get("locale_qualified_name")
+    command = get_command_by_key(interaction.client, cog_key)
+    command_name = command.extras[interaction.locale.value].get("locale_qualified_name")
     description = description.replace("$command_name", command_name)
     description = description.replace(
         "$date", event_date.strftime("%Y-%m-%d %H:%M:%S") + " UTC"

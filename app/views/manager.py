@@ -5,11 +5,10 @@ import discord
 from app.components.buttons import DisableButtom, EditButtom, PauseButtom, UnpauseButtom
 from app.components.embed import parse_dict_to_embed
 from app.constants import Commands as constants
+from app.services.cogs import delete_cog_by_guild, insert_cog_event, update_cog_by_guild
 from app.services.moderations import (
-    delete_cog_by_guild,
     pause_moderations_by_guild,
     unpause_moderations_by_guild,
-    update_cog_by_guild,
 )
 from app.services.utils import (
     ml,
@@ -53,6 +52,15 @@ class Manager(discord.ui.View):
             ml("commands.command-events.edited.description", locale=self.locale),
             interaction.message.edited_at,
             self.interaction,
+            self.command_key,
+        )
+
+        insert_cog_event(
+            str(interaction.guild_id),
+            self.command_key,
+            constants.EDITED_KEY,
+            interaction.message.edited_at,
+            str(interaction.user.id),
         )
 
         view = self.edited_form_view.view
@@ -79,8 +87,17 @@ class Manager(discord.ui.View):
             ml("commands.command-events.unpaused.description", locale=self.locale),
             interaction.message.created_at,
             self.interaction,
+            self.command_key,
         )
         self.clear_items()
+
+        insert_cog_event(
+            str(interaction.guild_id),
+            self.command_key,
+            constants.UNPAUSED_KEY,
+            interaction.message.created_at,
+            str(interaction.user.id),
+        )
 
         await interaction.response.edit_message(view=self)
         await interaction.followup.send(embed=embed, view=self)
@@ -97,8 +114,17 @@ class Manager(discord.ui.View):
             ml("commands.command-events.paused.description", locale=self.locale),
             interaction.message.created_at,
             self.interaction,
+            self.command_key,
         )
         self.clear_items()
+
+        insert_cog_event(
+            str(interaction.guild_id),
+            self.command_key,
+            constants.PAUSED_KEY,
+            interaction.message.created_at,
+            str(interaction.user.id),
+        )
 
         await interaction.response.edit_message(view=self)
         await interaction.followup.send(embed=embed, view=self)
@@ -117,8 +143,17 @@ class Manager(discord.ui.View):
             ml("commands.command-events.disabled.description", locale=self.locale),
             interaction.message.created_at,
             self.interaction,
+            self.command_key,
         )
         self.clear_items()
+
+        insert_cog_event(
+            str(interaction.guild_id),
+            self.command_key,
+            constants.DISABLED_KEY,
+            interaction.message.edited_at,
+            str(interaction.user.id),
+        )
 
         await interaction.response.edit_message(view=self)
         await interaction.followup.send(embed=embed, view=self)

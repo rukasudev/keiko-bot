@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Any, Dict, List
 
 import discord
@@ -8,7 +9,7 @@ from app.constants import Commands as commands_constants
 from app.constants import GuildConstants as guild_constants
 from app.data import cogs as cogs_data
 from app.data import moderations as moderations_data
-from app.services.cache import remove_cog_cache_by_guild
+from app.services.cogs import insert_cog_event, update_cog_by_guild
 from app.services.utils import (
     ml,
     parse_cog_data_to_param_result,
@@ -34,7 +35,7 @@ def update_moderations_by_guild(guild_id: str, key: str, value: str):
     )
 
 
-def pause_all_moderations_by_guild(guild_id: str):
+def pause_all_moderations_by_guild(guild_id: str, bot_user_id: str):
     moderations = moderations_data.find_moderations_by_guild(guild_id)
     for key, value in moderations.items():
 
@@ -44,6 +45,14 @@ def pause_all_moderations_by_guild(guild_id: str):
         update_moderations_by_guild(guild_id, key, False)
         update_cog_by_guild(
             guild_id=guild_id, cog_key=key, data={commands_constants.ENABLED_KEY: False}
+        )
+
+        insert_cog_event(
+            str(guild_id),
+            key,
+            commands_constants.PAUSED_KEY,
+            date=str(datetime.now()),
+            user_id=bot_user_id,
         )
 
     return moderations
@@ -73,31 +82,6 @@ def parse_default_moderations(guild_id: str) -> Dict[str, Any]:
     data = guild_constants.COGS_MODERATIONS_COMMANDS_DEFAULT
     data["guild_id"] = str(guild_id)
     return data
-
-
-def insert_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
-    if not data.get("guild_id"):
-        data["guild_id"] = str(guild_id)
-
-    return cogs_data.insert_cog_by_guild_id(cog, data)
-
-
-def update_cog_by_guild(guild_id: str, cog_key: str, data: Dict[str, Any]):
-    if not data.get("guild_id"):
-        data["guild_id"] = str(guild_id)
-
-    remove_cog_cache_by_guild(guild_id, cog_key)
-
-    return cogs_data.update_cog_by_guild(guild_id, cog_key, data)
-
-
-def delete_cog_by_guild(guild_id: str, cog_key: str):
-    if guild_id == "":
-        return
-
-    remove_cog_cache_by_guild(guild_id, cog_key)
-
-    return cogs_data.delete_cog_by_guild_id(guild_id, cog_key)
 
 
 def insert_error_by_command(cog_key: str, error_message: str):

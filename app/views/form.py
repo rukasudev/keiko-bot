@@ -7,7 +7,8 @@ from app.components.embed import parse_dict_to_embed
 from app.components.modals import CustomModal
 from app.constants import Commands as commandconstants
 from app.constants import FormConstants as constants
-from app.services.moderations import insert_cog_by_guild, update_moderations_by_guild
+from app.services.cogs import insert_cog_by_guild, insert_cog_event
+from app.services.moderations import update_moderations_by_guild
 from app.services.utils import (
     get_available_roles_by_guild,
     get_roles_by_guild,
@@ -186,7 +187,17 @@ class Form(discord.ui.View):
             ml("commands.command-events.enabled.description", locale=self.locale),
             interaction.message.edited_at,
             interaction,
+            self.command_key,
         )
+
+        insert_cog_event(
+            str(interaction.guild_id),
+            self.command_key,
+            commandconstants.ENABLED_KEY,
+            interaction.message.edited_at,
+            str(interaction.user.id),
+        )
+
         await interaction.response.send_message(embed=embed, view=self)
 
     async def get_action_by_type(self, action, interaction) -> None:

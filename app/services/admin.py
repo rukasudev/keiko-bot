@@ -9,7 +9,7 @@ from app.data import admin as configs_data
 async def send_log_file_from_channel_by_date(
     date: str, interaction: discord.Interaction
 ) -> None:
-    bot = interaction.extras.get("bot")
+    bot = interaction.client
     channel = bot.get_channel(bot.config.ADMIN_LOGS_FILES_CHANNEL_ID)
 
     async for message in channel.history(limit=None):

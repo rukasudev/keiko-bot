@@ -42,6 +42,7 @@ pt-br:
 
   command-events:
     enabled:
+      key: Ativado
       title: 🎉 Funcionalidade ativada com sucesso!
       description: "Comando **$command_name** ativado as $date por $user 🚀\n\n
         Se você deseja fazer alterações ou desabilitar o comando, basta executá-lo novamente 🔄"
