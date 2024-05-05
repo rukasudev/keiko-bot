@@ -101,8 +101,8 @@ async def manager(interaction: discord.Interaction, guild_id: str):
     info = get_not_available_roles(roles, available_roles, interaction.locale)
     sync_button = AdditionalButton(
         callback=set_on_default_roles_sync,
+        label=ml("buttons.roles-sync.label", interaction.locale),
         desc=ml("buttons.roles-sync.desc", interaction.locale),
-        label=ml("buttons.sync", interaction.locale),
         emoji="🔄",
     )
 

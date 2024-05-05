@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 import discord
 
 from app.components.buttons import HelpButtom
-from app.components.embed import buttons_captions_embed, parse_dict_to_embed
+from app.components.embed import parse_dict_to_embed
 from app.constants import Commands as commands_constants
 from app.constants import GuildConstants as guild_constants
 from app.data import cogs as cogs_data
@@ -47,11 +47,14 @@ def pause_all_moderations_by_guild(guild_id: str, bot_user_id: str):
             guild_id=guild_id, cog_key=key, data={commands_constants.ENABLED_KEY: False}
         )
 
+        if key == guild_constants.IS_BOT_ONLINE:
+            continue
+
         insert_cog_event(
             str(guild_id),
             key,
             commands_constants.PAUSED_KEY,
-            date=str(datetime.now()),
+            date=datetime.fromisoformat(datetime.now().isoformat()),
             user_id=bot_user_id,
         )
 
@@ -128,13 +131,14 @@ async def send_command_manager_message(
     if additional_info:
         embed.description += f"\n\n{additional_info}"
 
+    additional_buttons.append(HelpButtom(locale=locale))
+
+    row = 1
     for button in additional_buttons:
+        if len(view.children) % 4 == 0:
+            row += 1
+        button.row = row
         view.add_item(button)
-
-    locale = parse_locale(interaction.locale)
-    captions_embed = buttons_captions_embed(additional_buttons, locale)
-
-    view.add_item(HelpButtom(embed=captions_embed, locale=locale))
 
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 

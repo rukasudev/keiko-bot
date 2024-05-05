@@ -7,7 +7,6 @@ pt-br:
         title: 📚 Comandos disponíveis
         desc: "Aqui estão meus comandos que irão te ajudar a deixar seu servidor mais aconchegante! ✨\n\n
           Para mais informações sobre um comando específico, selecione o comando em `Selecione um comando para ver sua descrição` na lista abaixo da mensagem ⬇️\n\n"
-        footer: Página
         placeholder: Selecione um comando para ver sua descrição
         base-commands: Comandos base
 
@@ -46,29 +45,40 @@ pt-br:
       title: 🎉 Funcionalidade ativada com sucesso!
       description: "Comando **$command_name** ativado as $date por $user 🚀\n\n
         Se você deseja fazer alterações ou desabilitar o comando, basta executá-lo novamente 🔄"
+      short-description: ✅ Ativado por $user
 
     paused:
       title: ⏸️ Comando pausado com sucesso!
       key: Pausado
       action: Pausar
-      description: Comando **$command_name** pausado as $date por $user.
+      description: Comando **$command_name** pausado as $date por $user
+      short-description: ⏸️ Pausado por $user
 
     unpaused:
       title: ▶️ Comando despausado com sucesso!
       key: Despausado
       action: Despausar
-      description: Comando **$command_name** despausado as $date por $user.
+      description: Comando **$command_name** despausado as $date por $user
+      short-description: ▶️ Despausado por $user
 
     disabled:
       title: 🚫 Comando desabilitado com sucesso!
       action: Desabilitar
-      description: Comando **$command_name** desabilitado as $date por $user.
+      description: Comando **$command_name** desabilitado as $date por $user
+      short-description: 🚫 Desabilitado por $user
 
     edited:
       title: 📝 Comando editado com sucesso!
-      description: Comando **$command_name** editado as $date por $user.
+      description: Comando **$command_name** editado as $date por $user
       placeholder: Selecione as configurações que deseja editar :)
+      short-description: 📝 Editado por $user
+
+    system:
+      description: Essa é uma ação padrão feita por Keiko ao sair do servidor
 
   confirmation-modal:
     title: Tem certeza?
     desc: Digite `$action` para confirmar.
+
+  pagination-view:
+    footer: Página

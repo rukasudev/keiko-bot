@@ -4,6 +4,7 @@ import discord
 
 from app.constants import KeikoIcons as icons_constants
 from app.constants import Style as constants
+from app.services.utils import ml
 
 
 class PaginationView(discord.ui.View):
@@ -12,14 +13,12 @@ class PaginationView(discord.ui.View):
         interaction: discord.Interaction,
         title: str,
         description: str,
-        footer: str,
         data: List[Dict[str, str]],
-        current_page: int = 1,
         sep: int = 2,
+        current_page: int = 1,
     ):
         self.title = title
         self.description = description
-        self.footer = footer
         self.interaction = interaction
         self.current_page = current_page
         self.sep = sep
@@ -32,7 +31,7 @@ class PaginationView(discord.ui.View):
         super().__init__()
 
     async def send(self):
-        if self.select:
+        if hasattr(self, "select"):
             self.select.update()
 
         await self.interaction.response.send_message(view=self)
@@ -44,11 +43,14 @@ class PaginationView(discord.ui.View):
             description=self.description,
             color=int(constants.BACKGROUND_COLOR, base=16),
         )
+
         for item in data:
             self.embed.add_field(name=item, value=self.data[item], inline=False)
+
+        footer = ml("commands.pagination-view.footer", locale=self.interaction.locale)
         self.embed.set_thumbnail(url=icons_constants.IMAGE_02)
         self.embed.set_footer(
-            text=f"• {self.footer} {self.current_page} / {len(self.separated_data)}"
+            text=f"• {footer} {self.current_page} / {len(self.separated_data)}"
         )
         return self.embed
 
@@ -73,8 +75,10 @@ class PaginationView(discord.ui.View):
             self.add_item(button)
 
     async def update_message(self, data):
+        if hasattr(self, "select"):
+            self.select.update()
+
         self.update_buttons()
-        self.select.update()
         await self.interaction.edit_original_response(
             embed=self.create_embed(data), view=self
         )

@@ -36,41 +36,6 @@ def parse_dict_to_embed(data: Dict[str, str], manager: bool = False) -> discord.
     return embed
 
 
-def buttons_captions_embed(additional_buttons: list, locale: str) -> discord.Embed:
-    embed = discord.Embed(
-        title=f"🙋 {ml('buttons.help', locale)}",
-        description=ml("buttons.captions.title", locale),
-    )
-    embed.set_thumbnail(url=icons.IMAGE_02)
-
-    add_default_buttons_captions(embed, locale)
-
-    for button in additional_buttons:
-        embed.add_field(
-            name=f"{button.emoji} {button.label}", value=button.desc, inline=False
-        )
-
-    return embed
-
-
-def add_default_buttons_captions(embed: discord.Embed, locale: str) -> discord.Embed:
-    embed.add_field(
-        name=ml("buttons.captions.edit.title", locale),
-        value=ml("buttons.captions.edit.desc", locale),
-        inline=False,
-    )
-    embed.add_field(
-        name=ml("buttons.captions.pause.title", locale),
-        value=ml("buttons.captions.pause.desc", locale),
-        inline=False,
-    )
-    embed.add_field(
-        name=ml("buttons.captions.disable.title", locale),
-        value=ml("buttons.captions.disable.desc", locale),
-        inline=False,
-    )
-
-
 def response_embed(multilang_key: str, locale: str) -> discord.Embed:
     title = ml(f"{multilang_key}.title", locale)
 

@@ -109,12 +109,11 @@ class Help(Cog, name=locale_str("help", type="name", namespace="help")):
 
         title = ml(f"{self.base_i18n_path}.embed.title", locale=interaction.locale)
         description = ml(f"{self.base_i18n_path}.embed.desc", locale=interaction.locale)
-        footer = ml(f"{self.base_i18n_path}.embed.footer", locale=interaction.locale)
         placeholder = ml(
             f"{self.base_i18n_path}.embed.placeholder", locale=interaction.locale
         )
 
-        pagination_view = PaginationView(interaction, title, description, footer, data)
+        pagination_view = PaginationView(interaction, title, description, data)
         select = HelpSelect(placeholder, self.select_data)
         pagination_view.add_select(select, first=True)
 

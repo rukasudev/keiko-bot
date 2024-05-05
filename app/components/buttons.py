@@ -2,21 +2,26 @@ from typing import Any, Callable
 
 import discord
 
+from app.constants import KeikoIcons as icons
 from app.services.utils import ml
 
 
 class ConfirmButton(discord.ui.Button):
     def __init__(self, callback: Callable, locale: str) -> None:
         self.callback = callback
+        self.desc = ml("buttons.confirm.desc", locale=locale)
         super().__init__(
-            label=ml("buttons.confirm", locale=locale), style=discord.ButtonStyle.green
+            label=ml("buttons.confirm.label", locale=locale),
+            style=discord.ButtonStyle.green,
         )
 
 
 class CancelButton(discord.ui.Button):
     def __init__(self, locale: str) -> None:
+        self.desc = ml("buttons.cancel.desc", locale=locale)
         super().__init__(
-            label=ml("buttons.cancel", locale=locale), style=discord.ButtonStyle.red
+            label=ml("buttons.cancel.label", locale=locale),
+            style=discord.ButtonStyle.red,
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
@@ -47,8 +52,9 @@ class EditButtom(discord.ui.Button):
     def __init__(self, after_callback: Callable, locale: str) -> None:
         self.after_callback = after_callback
         self.locale = locale
+        self.desc = ml("buttons.edit.desc", locale=locale)
         super().__init__(
-            label=ml("buttons.edit", locale=locale),
+            label=ml("buttons.edit.label", locale=locale),
             emoji="📝",
             style=discord.ButtonStyle.grey,
         )
@@ -68,8 +74,9 @@ class EditButtom(discord.ui.Button):
 class PauseButtom(discord.ui.Button):
     def __init__(self, callback: Callable, locale: str) -> None:
         self.callback = callback
+        self.desc = ml("buttons.pause.desc", locale=locale)
         super().__init__(
-            label=ml("buttons.pause", locale=locale),
+            label=ml("buttons.pause.label", locale=locale),
             emoji="⏸️",
             custom_id=ml("commands.command-events.paused.action", locale=locale),
             style=discord.ButtonStyle.grey,
@@ -79,8 +86,9 @@ class PauseButtom(discord.ui.Button):
 class UnpauseButtom(discord.ui.Button):
     def __init__(self, callback: Callable, locale: str) -> None:
         self.callback = callback
+        self.desc = ml("buttons.unpause.desc", locale=locale)
         super().__init__(
-            label=ml("buttons.unpause", locale=locale),
+            label=ml("buttons.unpause.label", locale=locale),
             emoji="▶️",
             custom_id=ml("commands.command-events.unpaused.action", locale=locale),
             style=discord.ButtonStyle.grey,
@@ -90,8 +98,9 @@ class UnpauseButtom(discord.ui.Button):
 class DisableButtom(discord.ui.Button):
     def __init__(self, callback: Callable, locale: str) -> None:
         self.callback = callback
+        self.desc = ml("buttons.disable.desc", locale=locale)
         super().__init__(
-            label=ml("buttons.disable", locale=locale),
+            label=ml("buttons.disable.label", locale=locale),
             emoji="🚫",
             custom_id=ml("commands.command-events.disabled.action", locale=locale),
             style=discord.ButtonStyle.grey,
@@ -104,8 +113,9 @@ class BackButtom(discord.ui.Button):
     ) -> None:
         self.old_view = view
         self.old_embed = embed
+        self.desc = ml("buttons.back.desc", locale=locale)
         super().__init__(
-            label=ml("buttons.back", locale=locale),
+            label=ml("buttons.back.label", locale=locale),
             style=discord.ButtonStyle.primary,
         )
 
@@ -115,12 +125,23 @@ class BackButtom(discord.ui.Button):
         )
 
 
-class HelpButtom(discord.ui.Button):
-    def __init__(self, embed: discord.Embed, locale: str) -> None:
-        self.embed = embed
-        self.locale = locale
+class HistoryButtom(discord.ui.Button):
+    def __init__(self, callback: Callable, locale: str) -> None:
+        self.callback = callback
+        self.desc = ml("buttons.history.desc", locale=locale)
         super().__init__(
-            label=ml("buttons.help", locale=locale),
+            label=ml("buttons.history.label", locale=locale),
+            emoji="📜",
+            style=discord.ButtonStyle.grey,
+        )
+
+
+class HelpButtom(discord.ui.Button):
+    def __init__(self, locale: str) -> None:
+        self.locale = locale
+        self.desc = ml("buttons.help.desc", locale=locale)
+        super().__init__(
+            label=ml("buttons.help.label", locale=locale),
             emoji="🙋",
             style=discord.ButtonStyle.grey,
         )
@@ -128,15 +149,29 @@ class HelpButtom(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction) -> Any:
         self.view.remove_item(self)
 
+        embed = discord.Embed(
+            title=f"🙋 {ml('buttons.help.label', self.locale)}",
+            description=ml("buttons.captions.desc", self.locale),
+        )
+        embed.set_thumbnail(url=icons.IMAGE_02)
+
+        for item in self.view.children:
+            if not isinstance(item, discord.ui.Button):
+                continue
+
+            embed.add_field(
+                name=f"{item.emoji} {item.label}",
+                value=item.desc,
+                inline=False,
+            )
+
         await interaction.response.edit_message(
             embed=interaction.message.embeds[0], view=self.view
         )
 
         self.view.clear_items()
 
-        await interaction.followup.send(
-            embed=self.embed, view=self.view, ephemeral=True
-        )
+        await interaction.followup.send(embed=embed, view=self.view, ephemeral=True)
 
 
 class AdditionalButton(discord.ui.Button):

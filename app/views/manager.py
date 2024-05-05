@@ -2,10 +2,22 @@ from typing import Any, Dict
 
 import discord
 
-from app.components.buttons import DisableButtom, EditButtom, PauseButtom, UnpauseButtom
+from app.components.buttons import (
+    DisableButtom,
+    EditButtom,
+    HistoryButtom,
+    PauseButtom,
+    UnpauseButtom,
+)
 from app.components.embed import parse_dict_to_embed
 from app.constants import Commands as constants
-from app.services.cogs import delete_cog_by_guild, insert_cog_event, update_cog_by_guild
+from app.services.cogs import (
+    delete_cog_by_guild,
+    find_cog_events_by_guild,
+    insert_cog_event,
+    update_cog_by_guild,
+)
+from app.services.manager import parse_history_data, parse_history_desc
 from app.services.moderations import (
     pause_moderations_by_guild,
     unpause_moderations_by_guild,
@@ -15,6 +27,7 @@ from app.services.utils import (
     need_confirmation_modal,
     parse_command_event_description,
 )
+from app.views.pagination import PaginationView
 
 
 class Manager(discord.ui.View):
@@ -37,7 +50,8 @@ class Manager(discord.ui.View):
         super().__init__()
         self.add_item(EditButtom(self.update_command, locale=self.locale))
         self.add_item(self.pause_handler())
-        self.add_item(DisableButtom(self.disable_callback, locale=self.locale))
+        self.add_item(DisableButtom(callback=self.disable_callback, locale=self.locale))
+        self.add_item(HistoryButtom(callback=self.history_callback, locale=self.locale))
 
     async def update_command(self, interaction: discord.Interaction):
         data = self.edited_form_view._parse_responses_to_cog()
@@ -151,9 +165,19 @@ class Manager(discord.ui.View):
             str(interaction.guild_id),
             self.command_key,
             constants.DISABLED_KEY,
-            interaction.message.edited_at,
+            interaction.message.created_at,
             str(interaction.user.id),
         )
 
         await interaction.response.edit_message(view=self)
         await interaction.followup.send(embed=embed, view=self)
+
+    async def history_callback(self, interaction: discord.Interaction):
+        raw_data = find_cog_events_by_guild(self.interaction.guild_id, self.command_key)
+        data = parse_history_data(raw_data, interaction)
+
+        title = ml("buttons.changes-history.label", locale=self.locale)
+        desc = parse_history_desc(interaction, self.command_key)
+        pagination_view = PaginationView(interaction, title, desc, data, sep=4)
+
+        await pagination_view.send()
