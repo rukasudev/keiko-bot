@@ -37,12 +37,16 @@ async def set_on_default_roles_sync(interaction: discord.Interaction):
             mention_author=True,
         )
 
-    embed = response_embed("buttons.roles-sync.waiting", interaction.locale, True)
+    embed = response_embed(
+        "buttons.roles-sync.waiting", interaction.locale, discord.Color.light_grey()
+    )
     message = await interaction.followup.send(embed=embed, ephemeral=True)
 
     await set_default_roles(cogs, interaction.guild, interaction.guild.members)
 
-    embed = response_embed("buttons.roles-sync.response", interaction.locale)
+    embed = response_embed(
+        "buttons.roles-sync.response", interaction.locale, discord.Color.green()
+    )
     await message.edit(embed=embed)
 
 

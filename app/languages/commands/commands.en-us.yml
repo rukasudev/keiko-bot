@@ -18,6 +18,13 @@ en-us:
       name: report
       desc: Keiko helps you report any bugs or issues you encounter
 
+    ping:
+      name: ping
+      desc: Keiko shows you what your current response time is
+      response:
+        title: 🏓 Pong!
+        message: The Keiko's current latency is $ping ms
+
     block-links:
       subgroup: block
       name: links

@@ -36,13 +36,11 @@ def parse_dict_to_embed(data: Dict[str, str], manager: bool = False) -> discord.
     return embed
 
 
-def response_embed(
-    multilang_key: str, locale: str, waiting: bool = False
-) -> discord.Embed:
+def response_embed(multilang_key: str, locale: str, color: str = None) -> discord.Embed:
     title = ml(f"{multilang_key}.title", locale)
 
     embed = discord.Embed(
-        color=discord.Color.green() if not waiting else discord.Color.light_gray(),
+        color=(int(constants.BACKGROUND_COLOR, base=16) if not color else color),
         title=title,
         description=ml(f"{multilang_key}.message", locale=locale),
     )

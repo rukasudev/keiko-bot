@@ -18,6 +18,13 @@ pt-br:
       name: reportar
       desc: Keiko ajuda você a relatar quaisquer bugs ou problemas que encontrar
 
+    ping:
+      name: ping
+      desc: Keiko mostra qual o seu tempo de resposta atual
+      response:
+        title: 🏓 Pong!
+        message: A latência atual do Keiko é de $ping ms
+
     block-links:
       subgroup: bloquear
       name: links
@@ -31,9 +38,6 @@ pt-br:
       subgroup: cargos
       name: padrão
       desc: Keiko recebe calorosamente novos membros atribuindo cargos automaticamente ao entrarem no servidor
-
-  command-texts:
-    help
 
   groups:
     moderations: moderações
