@@ -176,6 +176,20 @@ class HelpButtom(discord.ui.Button):
 
 class AdditionalButton(discord.ui.Button):
     def __init__(self, callback: Callable, desc: str, **kwargs):
-        self.callback = callback
+        self.custom_callback = callback
         self.desc = desc
+        self.auto_disable = kwargs.pop("auto_disable", False)
+        self.defer = kwargs.pop("defer", False)
         super().__init__(**kwargs)
+
+    async def callback(self, interaction: discord.Interaction) -> Any:
+        if self.auto_disable:
+            self.view.remove_item(self)
+
+        if self.defer:
+            await interaction.response.defer()
+            await interaction.edit_original_response(view=self.view)
+        else:
+            await interaction.response.edit_message(view=self.view)
+
+        await self.custom_callback(interaction)

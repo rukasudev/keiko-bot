@@ -38,6 +38,9 @@ en-us:
   roles-sync:
     label: Sync
     desc: Keiko immediately assigns the default roles to all server users
+    waiting:
+      title: 🔄 Syncing roles...
+      message: I'm assigning the default roles to all members of the server! This may take a few minutes...
     response:
       title: ✨ Roles assigned successfully!
       message: I've added the default roles to all members of the server! Now everyone is even cuter! 🐶

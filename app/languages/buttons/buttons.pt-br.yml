@@ -38,6 +38,9 @@ pt-br:
   roles-sync:
     label: Sincronizar
     desc: Keiko atribui imediatamente os cargos padrão a todos os usuários do servidor
+    waiting:
+      title: 🔄 Sincronizando cargos...
+      message: Estou atribuindo os cargos padrão a todos os membros do servidor! Isso pode levar alguns minutos...
     response:
       title: ✨ Cargos atribuídos com sucesso!
       message: Adicionei os cargos padrão a todos os membros do servidor! Agora todos estão ainda mais fofos! 🐶
