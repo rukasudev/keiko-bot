@@ -37,7 +37,8 @@ class Select(discord.ui.Select):
 
 
 class HelpSelect(Select):
-    def __init__(self, placeholder: str):
+    def __init__(self, placeholder: str, data: Dict[str, List[str]]):
+        self.data = data
         super().__init__(
             placeholder=placeholder,
             options=[],
@@ -47,14 +48,14 @@ class HelpSelect(Select):
     def get_data(self):
         data = {}
         for item in self.view.get_current_page_data():
-            for command in item["commands"]:
+            for command in self.data[item]:
                 data[command["name"]] = command["name"]
         return data
 
     def get_data_with_desc(self):
         data = {}
         for item in self.view.get_current_page_data():
-            for command in item["commands"]:
+            for command in self.data[item]:
                 data[command["name"]] = command["description"]
         return data
 

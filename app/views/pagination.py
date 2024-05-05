@@ -24,10 +24,9 @@ class PaginationView(discord.ui.View):
         self.current_page = current_page
         self.sep = sep
 
-        flat_data = [dict(label=k, **v) for k, v in data.items()]
-
+        self.data = data
         self.separated_data = [
-            flat_data[i : i + sep] for i in range(0, len(flat_data), sep)
+            list(data)[i : i + sep] for i in range(0, len(list(data)), sep)
         ]
 
         super().__init__()
@@ -46,7 +45,7 @@ class PaginationView(discord.ui.View):
             color=int(constants.BACKGROUND_COLOR, base=16),
         )
         for item in data:
-            self.embed.add_field(name=item["label"], value=item["item"], inline=False)
+            self.embed.add_field(name=item, value=self.data[item], inline=False)
         self.embed.set_thumbnail(url=icons_constants.IMAGE_02)
         self.embed.set_footer(
             text=f"• {self.footer} {self.current_page} / {len(self.separated_data)}"

@@ -1,4 +1,3 @@
-from collections import defaultdict
 from typing import Dict
 
 import discord
@@ -71,7 +70,7 @@ class Help(Cog, name=locale_str("help", type="name", namespace="help")):
         base_title = ml(
             f"{self.base_i18n_path}.embed.base-commands", interaction.locale
         )
-        data = defaultdict(lambda: {"item": [], "commands": []})
+        self.select_data, data = {}, {}
 
         for command in self.bot.app_commands:
             if self.is_guild_command(interaction, command):
@@ -82,8 +81,12 @@ class Help(Cog, name=locale_str("help", type="name", namespace="help")):
                 base_title, command, interaction.locale.value
             ).capitalize()
 
-            data[title]["item"].append(f"{self.item_emoji} `/{command_info['name']}`")
-            data[title]["commands"].append(command_info)
+            if title not in data:
+                data[title] = []
+                self.select_data[title] = []
+
+            data[title].append(f"{self.item_emoji} `/{command_info['name']}`")
+            self.select_data[title].append(command_info)
 
         data = self.order_data(data)
 
@@ -91,9 +94,9 @@ class Help(Cog, name=locale_str("help", type="name", namespace="help")):
 
     def order_data(self, data_dict: Dict[str, str]) -> Dict[str, str]:
         for title in data_dict:
-            data_dict[title]["commands"].sort(key=lambda cmd: cmd["name"])
-            data_dict[title]["item"].sort()
-            data_dict[title]["item"] = "\n".join(data_dict[title]["item"])
+            self.select_data[title].sort(key=lambda cmd: cmd["name"])
+            data_dict[title].sort()
+            data_dict[title] = "\n".join(data_dict[title])
 
         return dict(sorted(data_dict.items()))
 
@@ -112,7 +115,7 @@ class Help(Cog, name=locale_str("help", type="name", namespace="help")):
         )
 
         pagination_view = PaginationView(interaction, title, description, footer, data)
-        select = HelpSelect(placeholder)
+        select = HelpSelect(placeholder, self.select_data)
         pagination_view.add_select(select, first=True)
 
         await pagination_view.send()
