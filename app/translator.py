@@ -6,7 +6,8 @@ from app.services.utils import ml
 
 
 class Translator(app_commands.Translator):
-    def __init__(self) -> None:
+    def __init__(self, bot) -> None:
+        self.bot = bot
         self.supported_locales = [
             Locale.american_english.value,
             Locale.brazil_portuguese.value,
@@ -76,6 +77,17 @@ class Translator(app_commands.Translator):
                 "locale_qualified_name": locale_qualified_name,
                 "locale_qualified_desc": locale_qualified_desc,
             }
+
+            if locale.value not in self.bot.all_commands:
+                self.bot.all_commands[locale.value] = []
+
+            self.bot.all_commands[locale.value].append(
+                {
+                    "key": context.data._attr,
+                    "name": locale_qualified_name,
+                    "desc": locale_qualified_desc,
+                }
+            )
 
         return translated
 

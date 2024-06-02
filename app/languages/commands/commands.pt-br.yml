@@ -17,6 +17,20 @@ pt-br:
     report:
       name: reportar
       desc: Keiko ajuda você a relatar quaisquer bugs ou problemas que encontrar
+      response:
+        title: 📝 Report enviado!
+        message: Seu report foi enviado para o time do Keiko, uma mensagem foi enviada para você com mais informações! 💌
+        footer: Se precisar de ajuda, não hesite em nos chamar em nosso servidor oficial, utilizando o comando /suporte.
+      dm-message:
+        title: 📝 Seu ticket foi criado!
+        fields:
+          title: Título
+          description: Descrição
+          command: Comando
+          author: Autor
+          atachments: Anexo
+          no-atachments: Sem anexos
+        footer: Se precisar de ajuda, não hesite em nos chamar em nosso servidor oficial, utilizando o comando /suporte.
 
     ping:
       name: ping

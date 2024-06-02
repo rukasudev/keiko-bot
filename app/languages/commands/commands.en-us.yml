@@ -17,6 +17,20 @@ en-us:
     report:
       name: report
       desc: Keiko helps you report any bugs or issues you encounter
+      response:
+        title: 📝 Report sent!
+        message: Your report has been sent to the Keiko team, a message has been sent to you with more information! 💌
+        footer: If you need help, don't hesitate to call us on our official server, using the /support command.
+      dm-message:
+        title: 📝 Your ticket has been created!
+        fields:
+          title: Title
+          description: Description
+          command: Command
+          author: Author
+          atachments: Attachment
+          no-atachments: Without attachments
+        footer: If you need help, don't hesitate to call us on our official server, using the /support command.
 
     ping:
       name: ping

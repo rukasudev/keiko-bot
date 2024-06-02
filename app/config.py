@@ -26,6 +26,8 @@ class AppConfig:
         self.TWITCH_CLIENT_ID = os.getenv("TWITCH_CLIENT_ID")
         self.REDIS_URL = os.getenv("REDIS_URL")
         self.APPLICATION_ID = os.getenv("APPLICATION_ID")
+        self.NOTION_TOKEN = os.getenv("NOTION_TOKEN")
+        self.NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
 
     def get_admin_db_configs(self):
         return [{key: getattr(self, key) for key in constants.ADMIN_CONFIGS_LIST}]
@@ -42,6 +44,7 @@ class AppConfig:
         self.ACTIVITY = db_configs[constants.KEIKO_ACTIVITY]
 
         self.ADMIN_GUILD_ID = int(admin_configs[constants.ADMIN_GUILD_ID])
+        self.ADMIN_REPORTS_CHANNEL_ID = int(admin_configs[constants.ADMIN_REPORTS_CHANNEL_ID])
         self.ADMIN_LOGS_CHANNEL_ID = int(admin_configs[constants.ADMIN_LOGS_CHANNEL_ID])
         self.ADMIN_LOGS_ERROR_CHANNEL_ID = int(
             admin_configs[constants.ADMIN_LOGS_ERROR_CHANNEL_ID]
