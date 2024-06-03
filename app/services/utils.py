@@ -217,8 +217,7 @@ def format_traceback_message(traceback: str) -> str:
     return tb
 
 
-def get_cogs_folder() -> List[str]:
-    directory = "app/cogs"
+def get_cogs_folder(directory: str = "app/cogs") -> List[str]:
     cogs = []
 
     for filename in os.listdir(directory):
@@ -229,6 +228,14 @@ def get_cogs_folder() -> List[str]:
             filename = filename[:-3]
 
         if filename in cogconstants.LAZY_LOAD_COGS:
+            continue
+
+        # base cogs is a special case
+        if "base" in directory:
+            filename = f"base.{filename}"
+
+        if filename == "base":
+            cogs = cogs + get_cogs_folder(f"{directory}/{filename}")
             continue
 
         cogs.append(filename)
@@ -253,7 +260,7 @@ async def cogs_manager(bot, mode: str, cogs: list[str], sync: bool = False) -> N
         else:
             raise ValueError("Invalid mode.")
 
-    cogs_list = ", ".join(cogs)
+    cogs_list = ", ".join(cogs).replace("base.", "")
     logger.info(f"Cogs {cogs_list} {mode}ed.", log_type=logconstants.COMMAND_INFO_TYPE)
 
     if sync:

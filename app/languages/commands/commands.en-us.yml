@@ -32,6 +32,19 @@ en-us:
           no-atachments: Without attachments
         footer: If you need help, don't hesitate to call us on our official server, using the /support command.
 
+    support:
+      name: support
+      desc: Keiko shows you how you can get help through your official server
+      response:
+        title: 💌 Support
+        message: "[✨ Click here to join Keiko's official server ✨](https://discord.gg/Hdg239Cvbd)"
+        field:
+          title: How to ask for help 🙋‍♂️
+          desc: "1. Go to the **#support** channel and describe your problem
+            \n2. Wait for a team member to respond
+            \n3. If necessary, a team member will call you to a private support room"
+        footer: Use the /help command to better understand how to use the available commands.
+
     ping:
       name: ping
       desc: Keiko shows you what your current response time is
