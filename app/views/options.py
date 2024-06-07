@@ -13,10 +13,12 @@ class OptionsView(discord.ui.View):
         callback: Callable,
         locale: str,
         required: bool = False,
+        unique: bool = False,
     ) -> None:
         self.callback = callback
         self.locale = locale
         self.required = required
+        self.unique = unique
         self.response = dict()
         super().__init__()
         self.set_options(options)
@@ -26,7 +28,7 @@ class OptionsView(discord.ui.View):
     def set_options(self, options: list[str, str]) -> None:
         for index, option in enumerate(options):
             option_button = OptionsButton(
-                options_custom_id=str(index), options_label=str(option)
+                options_custom_id=str(index), options_label=str(option), unique=self.unique
             )
             self.add_item(option_button)
 

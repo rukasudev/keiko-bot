@@ -115,6 +115,8 @@ class Form(discord.ui.View):
             options=self._question["options"],
             callback=self._callback,
             locale=self.locale,
+            required=self._question.get("required", False),
+            unique=self._question.get("unique", False),
         )
         await interaction.followup.edit_message(
             message_id=interaction.message.id, embed=self.question_embed, view=self.view
@@ -127,7 +129,8 @@ class Form(discord.ui.View):
             options=list(channels.keys()),
             callback=self._callback,
             locale=self.locale,
-            required=True,
+            required=self._question.get("required", False),
+            unique=self._question.get("unique", False),
         )
         await interaction.followup.edit_message(
             message_id=interaction.message.id, embed=self.question_embed, view=self.view
@@ -137,7 +140,11 @@ class Form(discord.ui.View):
         roles = get_roles_by_guild(interaction.guild)
         await interaction.response.defer()
         self.view = OptionsView(
-            options=list(roles.keys()), callback=self._callback, locale=self.locale
+            options=list(roles.keys()),
+            callback=self._callback,
+            locale=self.locale,
+            required=self._question.get("required", False),
+            unique=self._question.get("unique", False),
         )
         await interaction.followup.edit_message(
             message_id=interaction.message.id, embed=self.question_embed, view=self.view
@@ -147,7 +154,11 @@ class Form(discord.ui.View):
         roles = get_available_roles_by_guild(interaction.guild)
         await interaction.response.defer()
         self.view = OptionsView(
-            options=list(roles.keys()), callback=self._callback, locale=self.locale
+            options=list(roles.keys()),
+            callback=self._callback,
+            locale=self.locale,
+            required=self._question.get("required", False),
+            unique=self._question.get("unique", False),
         )
 
         if not roles:

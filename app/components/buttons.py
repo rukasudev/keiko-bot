@@ -30,7 +30,15 @@ class CancelButton(discord.ui.Button):
 
 
 class OptionsButton(discord.ui.Button):
-    def __init__(self, options_label: str, options_custom_id: str) -> None:
+    def __init__(
+        self,
+        options_label: str,
+        options_custom_id: str,
+        next_callback: bool = False,
+        unique: bool = False,
+    ) -> None:
+        self.next_callback = next_callback
+        self.unique = unique
         super().__init__(
             label=options_label,
             style=discord.ButtonStyle.gray,
@@ -44,6 +52,9 @@ class OptionsButton(discord.ui.Button):
         else:
             self.style = discord.ButtonStyle.primary
             self.view.response[self.custom_id] = self.label
+
+        if self.unique:
+            await self.next_callback(interaction)
 
         await interaction.response.edit_message(view=self.view)
 
