@@ -13,14 +13,7 @@ class Block(
 ):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
-        bot.add_listener(self.on_message)
         super().__init__()
-
-    async def on_message(self, message: discord.Message):
-        if not message.author.bot:
-            guild_id = str(message.guild.id)
-
-            await block_links_service.check_message(guild_id, message)
 
     @keiko_command(
         name=locale_str("links", type="name", namespace="block-links"),

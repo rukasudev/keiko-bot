@@ -4,7 +4,7 @@
     "title": "👩‍🎓 Cargos Padrão",
     "description": "Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor!\n\n📝 **Configurações**\n\n:flying_disc: **Cargos - Bots:** Cargos padrão que serão atribuídos a um bot ao entrar no servidor\n:flying_disc: **Cargos - Usuários:** Cargos padrão que serão atribuídos a um usuário ao entrar no servidor",
     "footer": "• Utilize o comando /reportar para me contar um bug",
-    "action": "button"
+    "action": "form"
   },
   {
     "key": "default_roles_bot",

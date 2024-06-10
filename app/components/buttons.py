@@ -34,10 +34,8 @@ class OptionsButton(discord.ui.Button):
         self,
         options_label: str,
         options_custom_id: str,
-        next_callback: bool = False,
         unique: bool = False,
     ) -> None:
-        self.next_callback = next_callback
         self.unique = unique
         super().__init__(
             label=options_label,
@@ -46,6 +44,9 @@ class OptionsButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
+        if self.unique:
+            self.handle_unique()
+
         if self.style == discord.ButtonStyle.primary:
             self.style = discord.ButtonStyle.gray
             del self.view.response[self.custom_id]
@@ -53,10 +54,20 @@ class OptionsButton(discord.ui.Button):
             self.style = discord.ButtonStyle.primary
             self.view.response[self.custom_id] = self.label
 
-        if self.unique:
-            await self.next_callback(interaction)
-
         await interaction.response.edit_message(view=self.view)
+
+    def handle_unique(self) -> None:
+        for item in self.view.children[:-2]:
+            if not isinstance(item, discord.ui.Button):
+                continue
+
+            if item.custom_id == self.custom_id:
+                continue
+
+            if item.style == discord.ButtonStyle.primary:
+                item.style = discord.ButtonStyle.gray
+                self.view.response.pop(item.custom_id, None)
+                return
 
 
 class EditButtom(discord.ui.Button):

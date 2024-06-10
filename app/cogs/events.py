@@ -9,13 +9,15 @@ from app.constants import CogsConstants as cogconstants
 from app.constants import GuildConstants as constants
 from app.constants import LogTypes as logconstants
 from app.data.moderations import find_moderations_by_guild
+from app.services import block_links as block_links_service
+from app.services import default_roles as default_roles_service
 from app.services.cache import increment_redis_key, remove_all_cache_by_guild
 from app.services.moderations import (
     insert_moderations_by_guild,
     pause_all_moderations_by_guild,
     update_moderations_by_guild,
 )
-from app.services.utils import cogs_manager
+from app.services.utils import cogs_manager, get_available_roles_by_guild
 from app.types.cogs import Cog
 
 
@@ -53,6 +55,21 @@ class Events(Cog, name="events"):
             f"---------------------------------------------------"
         )
         logger.info(ready_message, log_type=logconstants.APPLICATION_STARTUP_TYPE)
+
+    @commands.Cog.listener()
+    async def on_member_join(self, member: discord.Member):
+        roles = get_available_roles_by_guild(member.guild)
+        if roles:
+            await default_roles_service.set_on_member_join(member)
+
+    @commands.Cog.listener()
+    async def on_message(self, message: discord.Message):
+        if message.author.bot:
+            return
+
+        guild_id = str(message.guild.id)
+
+        await block_links_service.check_message(guild_id, message)
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction) -> None:

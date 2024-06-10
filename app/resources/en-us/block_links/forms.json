@@ -4,7 +4,7 @@
     "title": ":no_entry_sign: Block links",
     "description": "Activate this feature to have me scan every message and remove it if it contains a link\n\n📝 **Settings**\n\n:flying_disc: **Chats:** Chats that will be allowed to send links\n:flying_disc: **Links:** Links that will be allowed to be sent\n:flying_disc: **Answer:** My response when deleting a message with a link",
     "footer": "• Use the command /report to tell me a bug",
-    "action": "button"
+    "action": "form"
   },
   {
     "key": "allowed_chats",
