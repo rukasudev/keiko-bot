@@ -153,17 +153,45 @@ def get_cog_with_title(
     return response
 
 
-def parse_form_params_result(responses: List[Dict[str, str]]) -> str:
+def format_values_by_style(guild: discord.Guild, values: Any, style: str) -> str:
+    if isinstance(values, str):
+        return format_single_value(values, style)
+    else:
+        return format_list_values(values, style)
+
+def format_single_value(value: str, style: str) -> str:
+    formats = {
+        "boolean": "Yes" if value else "No",
+        "channel": f"<#{value}>",
+        "role": f"<@&{value}>",
+        "user": f"<@{value}>",
+        "bullet": "\n```" + "\n".join([f"{i + 1}. {v}" for i, v in enumerate(value.split(", "))]) + "```",
+        "numbered": "\n```" + "\n".join([f"• {v}" for v in value.split(", ")]) + "```",
+    }
+    return formats.get(style, value)
+
+def format_list_values(values: List[str], style: str) -> str:
+    formats = {
+        "channel": ", ".join([f"<#{value}>" for value in values]),
+        "role": ", ".join([f"<@&{value}>" for value in values]),
+        "user": ", ".join([f"<@{value}>" for value in values]),
+        "bullet": "\n```" + "\n".join([f"• {v}" for v in values]) + "```",
+        "numbered": "\n```" + "\n".join([f"{i + 1}. {v}" for i, v in enumerate(values)]) + "```",
+    }
+    return formats.get(style, ", ".join(values))
+
+def parse_form_params_result(guild: discord.Guild, responses: List[Dict[str, str]]) -> str:
     result = []
     for item in responses:
-        values = item.get("value", [])
+        values = item.get("value", "-")
+        style = item.get("style")
 
-        if not values:
-            values = "-"
-        elif not isinstance(values, str):
-            values = ", ".join(values)
+        if isinstance(values, dict):
+            style = values.get("style")
+            values = values.get("values", "-")
 
-        result.append(f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{values}**")
+        formatted_values = format_values_by_style(guild, values, style)
+        result.append(f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{formatted_values}**")
 
     return "".join(result)
 

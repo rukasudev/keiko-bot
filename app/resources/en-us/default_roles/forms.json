@@ -12,7 +12,8 @@
     "title": "Default Roles (Users)",
     "description": "Choose which roles will be automatically assigned when a **bot** joins the guild",
     "footer": "• Use the command /report to tell me a bug",
-    "action": "available_roles"
+    "action": "available_roles",
+    "style": "role"
   },
   {
     "key": "default_roles",
@@ -20,7 +21,8 @@
     "title": "Default Roles (Members)",
     "description": "Choose which roles will be automatically assigned when a **member** joins the guild",
     "footer": "• Use the command /report to tell me a bug",
-    "action": "available_roles"
+    "action": "available_roles",
+    "style": "role"
   },
   {
     "key": "confirm",

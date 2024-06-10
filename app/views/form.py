@@ -70,11 +70,15 @@ class Form(discord.ui.View):
         if not hasattr(self, "responses"):
             self.responses = []
 
+        if self._question["action"] == constants.BUTTON_ACTION_KEY:
+            return
+
         self.responses.append(
             {
                 "key": self._question["key"],
                 "title": self._question["title"],
                 "value": self.view.get_response(),
+                "style": self._question.get("style"),
             }
         )
 
@@ -92,7 +96,10 @@ class Form(discord.ui.View):
             value = item["value"]
             if not isinstance(value, str):
                 value = list(value)
-            cog_param[item["key"]] = value
+            if item.get("style"):
+                cog_param[item["key"]] = {"style": item["style"], "values": value}
+            else:
+                cog_param[item["key"]] = value
         return cog_param
 
     def filter_questions(self, questions: List[str]):
@@ -126,11 +133,12 @@ class Form(discord.ui.View):
         channels = get_text_channels_by_guild(interaction.guild)
         await interaction.response.defer()
         self.view = OptionsView(
-            options=list(channels.keys()),
+            options=channels,
             callback=self._callback,
             locale=self.locale,
             required=self._question.get("required", False),
             unique=self._question.get("unique", False),
+            styled_values=True,
         )
         await interaction.followup.edit_message(
             message_id=interaction.message.id, embed=self.question_embed, view=self.view
@@ -140,11 +148,12 @@ class Form(discord.ui.View):
         roles = get_roles_by_guild(interaction.guild)
         await interaction.response.defer()
         self.view = OptionsView(
-            options=list(roles.keys()),
+            options=roles,
             callback=self._callback,
             locale=self.locale,
             required=self._question.get("required", False),
             unique=self._question.get("unique", False),
+            styled_values=True,
         )
         await interaction.followup.edit_message(
             message_id=interaction.message.id, embed=self.question_embed, view=self.view
@@ -154,11 +163,12 @@ class Form(discord.ui.View):
         roles = get_available_roles_by_guild(interaction.guild)
         await interaction.response.defer()
         self.view = OptionsView(
-            options=list(roles.keys()),
+            options=roles,
             callback=self._callback,
             locale=self.locale,
             required=self._question.get("required", False),
             unique=self._question.get("unique", False),
+            styled_values=True,
         )
 
         if not roles:
@@ -174,12 +184,29 @@ class Form(discord.ui.View):
 
     async def show_resume(self, interaction: discord.Interaction):
         embed = self.question_embed.copy()
-        embed.description += parse_form_params_result(self.responses)
+        embed.description += parse_form_params_result(interaction.guild, self.responses)
 
         self.add_item(EditButtom(after_callback=self.update_resume, locale=self.locale))
         self.add_item(ConfirmButton(callback=self._finish, locale=self.locale))
         self.add_item(CancelButton(locale=self.locale))
         await interaction.response.edit_message(embed=embed, view=self)
+
+    async def show_buttons(self, interaction: discord.Interaction):
+        self.clear_items()
+
+        embed = interaction.message.embeds[0]
+        embed.title = f"{self._question['emoji']} {self._question['title']}"
+        embed.description = self._question["description"]
+        embed.set_footer(text=self._question["footer"])
+
+        if self._question.get("fields"):
+            for field in self._question.get("fields"):
+                embed.add_field(name=field["title"], value=field["message"], inline=False)
+
+        self.add_item(ConfirmButton(callback=self._callback, locale=self.locale))
+        self.add_item(CancelButton(locale=self.locale))
+        await interaction.response.edit_message(embed=embed, view=self)
+
 
     async def _finish(self, interaction: discord.Interaction):
         cog_param = self._parse_responses_to_cog()
@@ -219,6 +246,7 @@ class Form(discord.ui.View):
             constants.AVAILABLE_ROLES_ACTION_KEY: self.show_available_roles,
             constants.CHANNELS_ACTION_KEY: self.show_channels,
             constants.RESUME_ACTION_KEY: self.show_resume,
+            constants.BUTTON_ACTION_KEY: self.show_buttons,
         }
 
         if action in action_dict:

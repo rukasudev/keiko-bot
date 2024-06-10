@@ -106,7 +106,7 @@ async def manager(interaction: discord.Interaction, guild_id: str):
 
         return await send_command_form_message(interaction, constants.DEFAULT_ROLES_KEY)
 
-    roles = cogs[constants.DEFAULT_ROLES_KEY]
+    roles = cogs[constants.DEFAULT_ROLES_KEY].get("values")
     info = get_not_available_roles(roles, available_roles, interaction.locale)
     sync_button = AdditionalButton(
         callback=set_on_default_roles_sync,
@@ -125,7 +125,7 @@ async def manager(interaction: discord.Interaction, guild_id: str):
 def get_not_available_roles(
     roles: List[str], available_roles: List[str], locale: str
 ) -> str:
-    not_available_roles = [role for role in roles if role not in available_roles]
+    not_available_roles = [f"<@&{role}>" for role in roles if role not in available_roles]
     if not not_available_roles:
         return ""
 

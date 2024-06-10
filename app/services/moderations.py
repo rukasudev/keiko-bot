@@ -122,7 +122,7 @@ async def send_command_manager_message(
     form_json = parse_json_to_dict(key, parse_locale(interaction.locale), "forms.json")
     description = parse_cog_data_to_param_result(cog_data, form_json)
 
-    embed.description += parse_form_params_result(description)
+    embed.description += parse_form_params_result(interaction.guild, description)
     view = Manager(key, cog_data, interaction)
 
     if not cog_data.get(commands_constants.ENABLED_KEY):

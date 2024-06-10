@@ -19,13 +19,13 @@ async def check_message(guild_id: str, message: discord.Message) -> None:
 
     message_author_has_allowed_role = check_two_lists_intersection(
         list_roles_id(message.author.roles),
-        cogs[constants.BLOCK_LINKS_ALLOWED_ROLES_KEY],
+        cogs[constants.BLOCK_LINKS_ALLOWED_ROLES_KEY].get("values"),
     )
 
     if message_author_has_allowed_role:
         return
 
-    allowed_chats = cogs[constants.BLOCK_LINKS_ALLOWED_CHATS_KEY]
+    allowed_chats = cogs[constants.BLOCK_LINKS_ALLOWED_CHATS_KEY].get("values")
     allowed_links = cogs[constants.BLOCK_LINKS_ALLOWED_LINKS_KEY]
 
     message_has_link = check_message_has_link(message, allowed_links)

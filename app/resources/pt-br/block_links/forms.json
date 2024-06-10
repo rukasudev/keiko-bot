@@ -12,7 +12,8 @@
     "title": "Chats permitidos",
     "description": "Escolha os chats que serão permitidos enviar links",
     "footer": "• Utilize o comando /reportar para me contar um bug",
-    "action": "channels"
+    "action": "channels",
+    "style": "channel"
   },
   {
     "key": "allowed_roles",
@@ -20,7 +21,8 @@
     "title": "Cargos permitidos",
     "description": "Escolha quais cargos serão permitidos enviar links em qualquer canal",
     "footer": "• Utilize o comando /reportar para me contar um bug",
-    "action": "roles"
+    "action": "roles",
+    "style": "role"
   },
   {
     "key": "allowed_links",

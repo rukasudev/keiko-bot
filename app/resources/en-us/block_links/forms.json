@@ -12,7 +12,8 @@
     "title": "Allowed chats",
     "description": "Choose which chats will be allowed to send links",
     "footer": "• Use the command /report to tell me a bug",
-    "action": "channels"
+    "action": "channels",
+    "style": "channel"
   },
   {
     "key": "allowed_roles",
@@ -20,7 +21,8 @@
     "title": "Allowed roles",
     "description": "Choose which roles will be allowed to send links in any channel",
     "footer": "• Use the command /report to tell me a bug",
-    "action": "roles"
+    "action": "roles",
+    "style": "role"
   },
   {
     "key": "allowed_links",

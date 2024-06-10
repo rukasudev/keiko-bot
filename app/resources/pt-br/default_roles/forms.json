@@ -12,7 +12,8 @@
     "title": "Cargos padrão (Bots)",
     "description": "Escolha quais cargos serão atribuidos automaticamente a um **bot** quando entrar no servidor",
     "footer": "• Utilize o comando /reportar para me contar um bug",
-    "action": "available_roles"
+    "action": "available_roles",
+    "style": "role"
   },
   {
     "key": "default_roles",
@@ -20,7 +21,8 @@
     "title": "Cargos padrão (Usuários)",
     "description": "Escolha quais cargos serão atribuidos automaticamente a um **usuário** quando entrar no servidor",
     "footer": "• Utilize o comando /reportar para me contar um bug",
-    "action": "available_roles"
+    "action": "available_roles",
+    "style": "role"
   },
   {
     "key": "confirm",
