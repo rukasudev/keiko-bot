@@ -1,0 +1,7 @@
+{
+  "key": "form",
+  "title": "🎉 Mensagens de Boas-Vindas",
+  "description": "Ativar essa função permitirá que eu envie uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n📝 **Configurações**\n",
+  "footer": "• Use o comando /reportar para me contar um bug",
+  "action": "form"
+}

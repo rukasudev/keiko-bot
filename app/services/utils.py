@@ -165,8 +165,8 @@ def format_single_value(value: str, style: str) -> str:
         "channel": f"<#{value}>",
         "role": f"<@&{value}>",
         "user": f"<@{value}>",
-        "bullet": "\n```" + "\n".join([f"{i + 1}. {v}" for i, v in enumerate(value.split(", "))]) + "```",
-        "numbered": "\n```" + "\n".join([f"• {v}" for v in value.split(", ")]) + "```",
+        "bullet": "\n```" + "\n".join([f"{i + 1}. {v}" for i, v in enumerate(value.split("; "))]) + "```",
+        "numbered": "\n```" + "\n".join([f"• {v}" for v in value.split("; ")]) + "```",
     }
     return formats.get(style, value)
 
@@ -357,3 +357,18 @@ def parse_confirmation_desc(action: str, locale: str) -> str:
     desc = ml(f"commands.confirmation-modal.desc", locale=locale)
     desc = desc.replace("$action", action.lower())
     return desc
+
+def split_welcome_messages(welcome_messages: str) -> List[str]:
+    return welcome_messages.split(";")
+
+def parse_welcome_message(welcome_message: str, member: discord.Member) -> bool:
+    welcome_message = welcome_message.replace("{server}", member.guild.name)
+    welcome_message = welcome_message.replace("{member_count}", str(member.guild.member_count))
+
+    if "{user}" not in welcome_message.lower():
+        welcome_message += f"\n{member.mention}"
+        return welcome_message
+
+    welcome_message = welcome_message.replace("{user}", member.mention)
+
+    return welcome_message

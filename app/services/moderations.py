@@ -141,27 +141,3 @@ async def send_command_manager_message(
         view.add_item(button)
 
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-
-
-async def send_welcome_message():
-    pass
-    # random_number = random.randint(0, 19)
-    # rules_channel = self.bot.get_channel(838125350185074758)
-    # channel = self.bot.get_channel(838123186142052442)
-
-    # embed = discord.Embed(
-    #     title=random.choice(self.config.welcome_messages_title).replace(
-    #         "{person_name}", member.name
-    #     ),
-    #     description=random.choice(
-    #         self.config.welcome_messages_descriptions
-    #     ).replace("{channel_mention}", rules_channel.mention),
-    #     color=0xFFCFFF,
-    # )
-    # embed.set_thumbnail(url=member.avatar_url)
-    # embed.set_footer(text="")
-
-    # if random_number == 15:
-    #     embed.set_image(url="")
-
-    # await channel.send(embed=embed)

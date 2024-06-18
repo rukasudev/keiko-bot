@@ -18,6 +18,7 @@ class DBConfigs:
     ADMIN_LOGS_CHANNEL_ID: Final[str] = "admin_logs_channel_id"
     ADMIN_LOGS_ERROR_CHANNEL_ID: Final[str] = "admin_logs_error_channel_id"
     ADMIN_LOGS_FILES_CHANNEL_ID: Final[str] = "admin_logs_files_channel_id"
+    ADMIN_DUMP_CHANNEL_ID: Final[str] = "admin_dump_channel_id"
 
     ADMIN_CONFIGS_LIST: Final[List] = [
         ADMIN_GUILD_ID,
@@ -104,6 +105,7 @@ class KeikoIcons:
     IMAGE_03: Final[str] = (
         "https://cdn.discordapp.com/attachments/927208560360820766/1246698992000307280/KEIKO_BOLO.png?ex=665d566a&is=665c04ea&hm=387e5a325c03d564fb8594db3dcc492980cb8357c345e9b1e1756df9184d0dde&"
     )
+    ICONS_LIST: List[str] = [IMAGE_01, IMAGE_02, IMAGE_03]
     ACTION_IMAGE: Dict[str, str] = {
         FormConstants.RESUME_ACTION_KEY: IMAGE_03,
         FormConstants.BUTTON_ACTION_KEY: IMAGE_02,

@@ -57,6 +57,11 @@ en-us:
       name: links
       desc: Keiko lovingly protects our server by blocking any suspicious links
 
+    welcome-messages:
+      subgroup: welcome
+      name: messages
+      desc: Keiko warmly welcomes new members with a personalized message
+
     notifications-twitch:
       name: twitch
       desc: Keiko will notify you whenever your favorite streamers go live

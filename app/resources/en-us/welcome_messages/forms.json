@@ -1,0 +1,98 @@
+[
+  {
+    "key": "form",
+    "title": "🎉 Welcome Messages",
+    "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n📝 **Settings**\n\n:flying_disc: **Welcome Messages Channel:** Channel that I should send the welcome messages to new members\n:flying_disc: **Welcome Messages:** Welcome messages that I will send to new members\n:flying_disc: **Randomize:** Should I randomize the Welcome Message?",
+    "footer": "• Use the command /report to tell me a bug",
+    "action": "form"
+  },
+  {
+    "key": "welcome_messages_channel",
+    "emoji": "💬",
+    "title": "Welcome Messages Channel",
+    "description": "Choose which channel I should send the welcome messages to new members",
+    "footer": "• Use the command /report to tell me a bug",
+    "required": "true",
+    "unique": "true",
+    "style": "channel",
+    "action": "channels"
+  },
+  {
+    "key": "question_welcome_messages_title",
+    "emoji": "🎉",
+    "title": "Welcome Messages Title",
+    "description": "In the next step, you can customize the **title** of welcome messages that I will send to new members.",
+    "fields": [
+      {
+        "title": "Example of title",
+        "message": "A new member has joined the server! 🎉"
+      }
+    ],
+    "footer": "• Use the command /report to tell me a bug",
+    "action": "button"
+  },
+  {
+    "key": "welcome_messages_title",
+    "title": "Welcome Messages Title",
+    "description": "Title of the welcome messages",
+    "placeholder": "A new member has joined the server! 🎉",
+    "max_length": "50",
+    "action": "modal"
+  },
+  {
+    "key": "question_welcome_messages",
+    "emoji": "🎉",
+    "title": "Welcome Messages",
+    "description": "In the next step, you can customize the welcome messages that I will send to new members.",
+    "fields": [
+      {
+        "title": "1. Separe each message with a semicolon",
+        "message": "Example: `Welcome {user} to {server}!; Hi {user}, welcome to {server}!`"
+      },
+      {
+        "title": "2. You can use the following variables in your message:",
+        "message": "- `{user}`: The user's mention\n- `{server}`: The server's name\n- `{member_count}`: The server's member count"
+      }
+    ],
+    "footer": "• Use the command /report to tell me a bug",
+    "action": "button"
+  },
+  {
+    "key": "welcome_messages",
+    "title": "Welcome Messages",
+    "description": "Messages separated by semicolon",
+    "placeholder": "Welcome {user} to {server}!; Hi {user}, welcome to {server}!",
+    "max_length": "2000",
+    "style": "bullet",
+    "action": "modal"
+  },
+  {
+    "key": "question_welcome_messages_footer",
+    "emoji": "🎉",
+    "title": "Welcome Messages Footer",
+    "description": "In the next step, you can customize the **footer** of welcome messages that I will send to new members.",
+    "fields": [
+      {
+        "title": "Example of footer",
+        "message": "I hope you have fun on the server!"
+      }
+    ],
+    "footer": "• Use the command /report to tell me a bug",
+    "action": "button"
+  },
+  {
+    "key": "welcome_messages_footer",
+    "title": "Welcome Messages Footer",
+    "description": "Footer of the welcome messages",
+    "placeholder": "I hope you have fun on the server!",
+    "max_length": "50",
+    "action": "modal"
+  },
+  {
+    "key": "confirm",
+    "title": ":white_check_mark: Alright?",
+    "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n📝 **Settings**\n",
+    "footer": "• Use the command /report to tell me a bug",
+    "action": "resume"
+  }
+]

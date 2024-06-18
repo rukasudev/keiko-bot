@@ -18,6 +18,7 @@ from app.services.moderations import (
     update_moderations_by_guild,
 )
 from app.services.utils import cogs_manager, get_available_roles_by_guild
+from app.services.welcome_messages import send_welcome_message
 from app.types.cogs import Cog
 
 
@@ -61,6 +62,8 @@ class Events(Cog, name="events"):
         roles = get_available_roles_by_guild(member.guild)
         if roles:
             await default_roles_service.set_on_member_join(member)
+
+        await send_welcome_message(member)
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):

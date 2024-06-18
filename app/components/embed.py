@@ -51,6 +51,21 @@ def response_embed(multilang_key: str, locale: str, color: str = None, footer: b
     return embed
 
 
+def default_welcome_embed(title: str, message: str, footer: str = None, image: str=None) -> discord.Embed:
+    embed = discord.Embed(
+        title=title,
+        color=(int(constants.BACKGROUND_COLOR, base=16)),
+        description=message,
+    )
+
+    if footer:
+        embed.set_footer(text=f"• {footer}")
+
+    embed.set_image(url=image)
+
+    return embed
+
+
 def response_error_embed(error_key: str, locale: str) -> discord.Embed:
     title = ml(f"errors.{error_key}.title", locale=locale)
 

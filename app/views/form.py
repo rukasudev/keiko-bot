@@ -195,6 +195,8 @@ class Form(discord.ui.View):
         self.clear_items()
 
         embed = interaction.message.embeds[0]
+        embed.clear_fields()
+
         embed.title = f"{self._question['emoji']} {self._question['title']}"
         embed.description = self._question["description"]
         embed.set_footer(text=self._question["footer"])
@@ -219,6 +221,8 @@ class Form(discord.ui.View):
 
         self.clear_items()
 
+        await interaction.response.edit_message(view=None)
+
         embed = interaction.message.embeds[0]
         embed.title = ml("commands.command-events.enabled.title", locale=self.locale)
         embed.description = parse_command_event_description(
@@ -236,7 +240,7 @@ class Form(discord.ui.View):
             str(interaction.user.id),
         )
 
-        await interaction.response.send_message(embed=embed, view=self)
+        await interaction.followup.send(embed=embed, view=self)
 
     async def get_action_by_type(self, action, interaction) -> None:
         action_dict = {
