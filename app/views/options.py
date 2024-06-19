@@ -42,9 +42,8 @@ class OptionsView(discord.ui.View):
                 self.add_item(option_button)
 
     def get_response(self):
-        if self.styled_values:
-            return list(self.response.keys())
-        return list(self.response.values())
+        response = list(self.response.values()) if not self.styled_values else list(self.response.keys())
+        return response if len(response) > 1 else response[0]
 
     async def _confirm_callback(self, interaction: discord.Interaction) -> None:
         if self.required and not self.response:

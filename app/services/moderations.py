@@ -1,21 +1,22 @@
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import discord
 
 from app.components.buttons import HelpButtom
-from app.components.embed import parse_dict_to_embed
+from app.components.embed import parse_form_dict_to_embed
 from app.constants import Commands as commands_constants
 from app.constants import GuildConstants as guild_constants
 from app.data import cogs as cogs_data
 from app.data import moderations as moderations_data
 from app.services.cogs import insert_cog_event, update_cog_by_guild
 from app.services.utils import (
+    get_form_settings_with_database_values,
     ml,
-    parse_cog_data_to_param_result,
-    parse_form_params_result,
-    parse_json_to_dict,
+    parse_form_titles_descriptions,
+    parse_form_yaml_to_dict,
     parse_locale,
+    parse_settings_with_database_values,
 )
 
 
@@ -100,6 +101,8 @@ async def send_command_form_message(interaction: discord.Interaction, key: str):
 
     form_view = Form(form_key=key, locale=parse_locale(interaction.locale))
     embed = form_view.get_form_embed()
+    list_titles_descriptions = form_view.get_form_titles_and_descriptions()
+    embed.description += parse_form_titles_descriptions(interaction, list_titles_descriptions)
 
     await interaction.response.send_message(embed=embed, view=form_view, ephemeral=True)
 
@@ -109,20 +112,20 @@ async def send_command_manager_message(
     key: str,
     cog_data: Dict[str, str],
     additional_info: str = "",
-    additional_buttons: List[discord.ui.Button] = [],
+    additional_buttons: Optional[List[discord.ui.Button]] = None,
 ):
     from app.views.manager import Manager
 
-    command_dict = parse_json_to_dict(
-        key, parse_locale(interaction.locale), "command.json"
-    )
-    embed = parse_dict_to_embed(command_dict, True)
+    if not additional_buttons:
+        additional_buttons = []
+
     locale = parse_locale(interaction.locale)
 
-    form_json = parse_json_to_dict(key, parse_locale(interaction.locale), "forms.json")
-    description = parse_cog_data_to_param_result(cog_data, form_json)
+    form_steps = list(parse_form_yaml_to_dict(key))
+    embed = parse_form_dict_to_embed(form_steps[0], locale, True)
+    description = parse_settings_with_database_values(cog_data, form_steps, locale)
 
-    embed.description += parse_form_params_result(interaction.guild, description)
+    embed.description += get_form_settings_with_database_values(interaction, description)
     view = Manager(key, cog_data, interaction)
 
     if not cog_data.get(commands_constants.ENABLED_KEY):
@@ -141,27 +144,3 @@ async def send_command_manager_message(
         view.add_item(button)
 
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-
-
-async def send_welcome_message():
-    pass
-    # random_number = random.randint(0, 19)
-    # rules_channel = self.bot.get_channel(838125350185074758)
-    # channel = self.bot.get_channel(838123186142052442)
-
-    # embed = discord.Embed(
-    #     title=random.choice(self.config.welcome_messages_title).replace(
-    #         "{person_name}", member.name
-    #     ),
-    #     description=random.choice(
-    #         self.config.welcome_messages_descriptions
-    #     ).replace("{channel_mention}", rules_channel.mention),
-    #     color=0xFFCFFF,
-    # )
-    # embed.set_thumbnail(url=member.avatar_url)
-    # embed.set_footer(text="")
-
-    # if random_number == 15:
-    #     embed.set_image(url="")
-
-    # await channel.send(embed=embed)

@@ -125,7 +125,11 @@ async def manager(interaction: discord.Interaction, guild_id: str):
 def get_not_available_roles(
     roles: List[str], available_roles: List[str], locale: str
 ) -> str:
-    not_available_roles = [f"<@&{role}>" for role in roles if role not in available_roles]
+    if isinstance(roles, list):
+        not_available_roles = [f"<@&{role}>" for role in roles if role not in available_roles]
+    else:
+        not_available_roles = [f"<@&{roles}>"]
+
     if not not_available_roles:
         return ""
 

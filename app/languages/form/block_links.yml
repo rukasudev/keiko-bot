@@ -1,0 +1,89 @@
+steps:
+  - action: form
+    key: form
+    title:
+      en-us: ":no_entry_sign: Block links"
+      pt-br: ":no_entry_sign: Bloquear links"
+    description:
+      en-us: "Activate this feature to have me scan every message and remove it if it contains a link"
+      pt-br: "Ativar esta função faz com que eu analise cada mensagem enviada no seu servidor e exclua caso contenha algum link"
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Utilize o comando /reportar para me contar um bug"
+
+  - action: channels
+    key: allowed_chats
+    emoji: ":speech_balloon:"
+    style: channel
+    title:
+      en-us: "Allowed chats"
+      pt-br: "Chats permitidos"
+    description:
+      en-us: "Choose which chats will be allowed to send links"
+      pt-br: "Escolha os chats que serão permitidos enviar links"
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Utilize o comando /reportar para me contar um bug"
+
+  - action: roles
+    key: allowed_roles
+    emoji: ":busts_in_silhouette:"
+    style: role
+    title:
+      en-us: "Allowed roles"
+      pt-br: "Cargos permitidos"
+    description:
+      en-us: "Choose which roles will be allowed to send links in any channel"
+      pt-br: "Escolha quais cargos serão permitidos enviar links em qualquer canal"
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Utilize o comando /reportar para me contar um bug"
+
+  - action: options
+    key: allowed_links
+    emoji: ":link:"
+    title:
+      en-us: "Allowed links"
+      pt-br: "Links permitidos"
+    description:
+      en-us: "Choose some websites that sending links will be allowed"
+      pt-br: "Escolha alguns sites que o envio de links serão permitidos"
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Utilize o comando /reportar para me contar um bug"
+    options:
+      - "Youtube"
+      - "Spotify"
+      - "Twitter"
+      - "Facebook"
+      - "Instagram"
+      - "Twitch"
+      - "Tiktok"
+      - "Reddit"
+
+  - action: modal
+    key: answer
+    title:
+      en-us: "My response when blocking links"
+      pt-br: "Resposta ao bloquear links"
+    label:
+      en-us: "Type my answer when blocking links"
+      pt-br: "Digite minha resposta ao bloquear links"
+    description:
+      en-us: "Here you can set the message that I will send when I block a message with a link"
+      pt-br: "Escreva a mensagem que eu devo enviar quando um link for bloqueado"
+    placeholder:
+      en-us: "No links here! :p"
+      pt-br: "Nada de links por aqui! :p"
+
+  - action: resume
+    key: confirm
+    title:
+      en-us: ":white_check_mark: Alright?"
+      pt-br: ":white_check_mark: Tudo certo?"
+    description:
+      en-us: "Activate this feature to have me scan every message and remove it if it contains a link"
+      pt-br: "Ativar esta função faz com que eu analise cada mensagem enviada no seu servidor e exclua caso contenha algum link"
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Utilize o comando /reportar para me contar um bug"

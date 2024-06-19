@@ -10,7 +10,7 @@ class CustomModal(discord.ui.Modal):
         self.add_item(
             discord.ui.TextInput(
                 style=discord.TextStyle.short,
-                label=config.get("description", ""),
+                label=config.get("label", ""),
                 placeholder=config.get("placeholder", ""),
                 default=config.get("default", ""),
                 required=config.get("required", True),

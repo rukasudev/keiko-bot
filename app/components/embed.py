@@ -7,13 +7,12 @@ from app.constants import Style as constants
 from app.services.utils import ml
 
 
-def parse_dict_to_embed(data: Dict[str, str], manager: bool = False) -> discord.Embed:
+def parse_form_dict_to_embed(data: Dict[str, str], locale: str, manager: bool = False) -> discord.Embed:
     """Parse dictionary to discord Embed object"""
-
     embed = discord.Embed(
         color=int(constants.BACKGROUND_COLOR, base=16),
-        title=data["title"],
-        description=data["description"],
+        title=data["title"][locale],
+        description=data["description"][locale],
     )
 
     if data.get("emoji"):
@@ -31,7 +30,7 @@ def parse_dict_to_embed(data: Dict[str, str], manager: bool = False) -> discord.
         embed.set_image(url=data["image"])
 
     if data.get("footer"):
-        embed.set_footer(text=data["footer"])
+        embed.set_footer(text=data["footer"][locale])
 
     return embed
 
@@ -47,6 +46,21 @@ def response_embed(multilang_key: str, locale: str, color: str = None, footer: b
 
     if footer:
         embed.set_footer(text=f"• {ml(f'{multilang_key}.footer', locale)}")
+
+    return embed
+
+
+def default_welcome_embed(title: str, message: str, footer: str = None, image: str=None) -> discord.Embed:
+    embed = discord.Embed(
+        title=title,
+        color=(int(constants.BACKGROUND_COLOR, base=16)),
+        description=message,
+    )
+
+    if footer:
+        embed.set_footer(text=f"• {footer}")
+
+    embed.set_image(url=image)
 
     return embed
 

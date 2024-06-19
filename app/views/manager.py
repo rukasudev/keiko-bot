@@ -9,7 +9,6 @@ from app.components.buttons import (
     PauseButtom,
     UnpauseButtom,
 )
-from app.components.embed import parse_dict_to_embed
 from app.constants import Commands as constants
 from app.services.cogs import (
     delete_cog_by_guild,
@@ -26,6 +25,7 @@ from app.services.utils import (
     ml,
     need_confirmation_modal,
     parse_command_event_description,
+    parse_locale,
 )
 from app.views.pagination import PaginationView
 
@@ -46,7 +46,7 @@ class Manager(discord.ui.View):
         self.command_key = key
         self.cogs = cogs
         self.interaction = interaction
-        self.locale = interaction.locale
+        self.locale = parse_locale(interaction.locale)
         super().__init__()
         self.add_item(EditButtom(self.update_command, locale=self.locale))
         self.add_item(self.pause_handler())
@@ -58,8 +58,7 @@ class Manager(discord.ui.View):
 
         update_cog_by_guild(interaction.guild_id, self.command_key, data)
 
-        question = list(self.edited_form_view._get_questions())[0]
-        embed = parse_dict_to_embed(question)
+        embed = interaction.message.embeds[0]
 
         embed.title = ml("commands.command-events.edited.title", locale=self.locale)
         embed.description = parse_command_event_description(

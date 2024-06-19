@@ -52,6 +52,7 @@ class AppConfig:
         self.ADMIN_LOGS_FILES_CHANNEL_ID = int(
             admin_configs[constants.ADMIN_LOGS_FILES_CHANNEL_ID]
         )
+        self.ADMIN_DUMP_CHANNEL_ID = int(admin_configs[constants.ADMIN_DUMP_CHANNEL_ID])
 
     def is_dev(self) -> bool:
         return self.ENVIRONMENT.upper() == "DEV"

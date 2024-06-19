@@ -3,7 +3,7 @@ from typing import Callable
 import discord
 
 from app.components.select import Select
-from app.services.utils import ml, parse_form_cogs_titles, parse_json_to_dict
+from app.services.utils import ml, parse_form_steps_titles, parse_form_yaml_to_dict
 from app.views.form import Form
 
 
@@ -22,10 +22,10 @@ class EditCommand(discord.ui.View):
         )
 
     def get_command_options(self):
-        form_json = parse_json_to_dict(self.command_key, self.locale, "forms.json")
-        return parse_form_cogs_titles(form_json)
+        form_steps = parse_form_yaml_to_dict(self.command_key)
+        return parse_form_steps_titles(form_steps, self.locale)
 
     async def callback(self, interaction: discord.Interaction):
-        self.form_view.filter_questions(self.selected_options)
+        self.form_view.filter_steps(self.selected_options)
         self.form_view._set_after_callback(self.after_callback)
         await self.form_view._callback(interaction)

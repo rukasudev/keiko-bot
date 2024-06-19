@@ -57,6 +57,11 @@ pt-br:
       name: links
       desc: Keiko protege carinhosamente nosso servidor bloqueando qualquer link suspeito
 
+    welcome-messages:
+      subgroup: mensagens
+      name: boas-vindas
+      desc: Keiko recebe calorosamente novos membros com mensagens personalizadas
+
     notifications-twitch:
       name: twitch
       desc: Keiko notificará você sempre que seus streamers favoritos estiverem ao vivo
@@ -113,3 +118,6 @@ pt-br:
 
   pagination-view:
     footer: Página
+
+  resume:
+    settings: Configurações
