@@ -2,7 +2,7 @@
   {
     "key": "form",
     "title": ":no_entry_sign: Block links",
-    "description": "Activate this feature to have me scan every message and remove it if it contains a link\n\n📝 **Settings**\n\n:flying_disc: **Chats:** Chats that will be allowed to send links\n:flying_disc: **Links:** Links that will be allowed to be sent\n:flying_disc: **Answer:** My response when deleting a message with a link",
+    "description": "Activate this feature to have me scan every message and remove it if it contains a link",
     "footer": "• Use the command /report to tell me a bug",
     "action": "form"
   },
@@ -45,14 +45,15 @@
   {
     "key": "answer",
     "title": "My response when blocking links",
-    "description": "Type my answer when blocking links",
+    "label": "Type my answer when blocking links",
+    "description": "Here you can set the message that I will send when I block a message with a link",
     "action": "modal",
     "placeholder": "No links here! :p"
   },
   {
     "key": "confirm",
     "title": ":white_check_mark: Alright?",
-    "description": "Activate this feature to have me scan every message and remove it if it contains a link\n\n📝 **Configurations**\n",
+    "description": "Activate this feature to have me scan every message and remove it if it contains a link",
     "footer": "• Use the command /report to tell me a bug",
     "action": "resume"
   }

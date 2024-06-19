@@ -2,7 +2,7 @@
   {
     "key": "form",
     "title": ":no_entry_sign: Bloquear links",
-    "description": "Ativar esta função faz com que eu analise cada mensagem enviada no seu servidor e exclua caso contenha algum link\n\n📝 **Configurações**\n\n:flying_disc: **Chats:** Chats que serão permitidos enviar links\n:flying_disc: **Links:** Links que serão permitidos serem enviados\n:flying_disc: **Resposta:** Minha resposta ao excluir uma mensagem com link",
+    "description": "Ativar esta função faz com que eu analise cada mensagem enviada no seu servidor e exclua caso contenha algum link",
     "footer": "• Utilize o comando /reportar para me contar um bug",
     "action": "form"
   },
@@ -45,14 +45,15 @@
   {
     "key": "answer",
     "title": "Resposta ao bloquear links",
-    "description": "Digite minha resposta ao bloquear links",
+    "label": "Digite minha resposta ao bloquear links",
+    "description": "Escreva a mensagem que eu devo enviar quando um link for bloqueado",
     "action": "modal",
     "placeholder": "Nada de links por aqui! :p"
   },
   {
     "key": "confirm",
     "title": ":white_check_mark: Tudo certo?",
-    "description": "Ativar esta função faz com que eu analise cada mensagem enviada no seu servidor e exclua caso contenha algum link\n\n📝 **Configurações**\n",
+    "description": "Ativar esta função faz com que eu analise cada mensagem enviada no seu servidor e exclua caso contenha algum link",
     "footer": "• Utilize o comando /reportar para me contar um bug",
     "action": "resume"
   }

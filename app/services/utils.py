@@ -180,8 +180,19 @@ def format_list_values(values: List[str], style: str) -> str:
     }
     return formats.get(style, ", ".join(values))
 
-def parse_form_params_result(guild: discord.Guild, responses: List[Dict[str, str]]) -> str:
-    result = []
+def parse_form_titles_descriptions(interaction: discord.Interaction, title_description: Dict[str, str]) -> str:
+    settings_label = get_settings_label_by_locale(interaction.locale)
+
+    result = f"\n\n:pencil: **{settings_label}**\n"
+    for key, value in title_description.items():
+        result += f"\n{constants.FRISBEE_EMOJI} **{key}**: {value}"
+
+    return result
+
+def parse_form_params_result(interaction: discord.Interaction, responses: List[Dict[str, str]]) -> str:
+    settings_label = get_settings_label_by_locale(interaction.locale)
+
+    result = f"\n\n:pencil: **{settings_label}**\n"
     for item in responses:
         values = item.get("value", "-")
         style = item.get("style")
@@ -190,11 +201,13 @@ def parse_form_params_result(guild: discord.Guild, responses: List[Dict[str, str
             style = values.get("style")
             values = values.get("values", "-")
 
-        formatted_values = format_values_by_style(guild, values, style)
-        result.append(f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{formatted_values}**")
+        formatted_values = format_values_by_style(interaction.guild, values, style)
+        result += f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{formatted_values}**"
 
-    return "".join(result)
+    return result
 
+def get_settings_label_by_locale(locale: str) -> str:
+    return ml("commands.resume.settings", locale=locale)
 
 def parse_locale(locale: str) -> str:
     return str(locale).lower()

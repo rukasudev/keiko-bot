@@ -2,7 +2,7 @@
   {
     "key": "form",
     "title": "🎉 Welcome Messages",
-    "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n📝 **Settings**\n\n:flying_disc: **Welcome Messages Channel:** Channel that I should send the welcome messages to new members\n:flying_disc: **Welcome Messages:** Welcome messages that I will send to new members\n:flying_disc: **Randomize:** Should I randomize the Welcome Message?",
+    "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server",
     "footer": "• Use the command /report to tell me a bug",
     "action": "form"
   },
@@ -34,7 +34,8 @@
   {
     "key": "welcome_messages_title",
     "title": "Welcome Messages Title",
-    "description": "Title of the welcome messages",
+    "label": "Title of the welcome messages",
+    "description": "The title of the welcome messages that I will send to new members",
     "placeholder": "A new member has joined the server! 🎉",
     "max_length": "50",
     "action": "modal"
@@ -60,7 +61,8 @@
   {
     "key": "welcome_messages",
     "title": "Welcome Messages",
-    "description": "Messages separated by semicolon",
+    "label": "Welcome messages separated by semicolon",
+    "description": "The welcome messages that I will send to new members, separated by semicolon",
     "placeholder": "Welcome {user} to {server}!; Hi {user}, welcome to {server}!",
     "max_length": "2000",
     "style": "bullet",
@@ -83,7 +85,8 @@
   {
     "key": "welcome_messages_footer",
     "title": "Welcome Messages Footer",
-    "description": "Footer of the welcome messages",
+    "label": "Footer of the welcome messages",
+    "description": "The footer of the welcome messages that I will send to new members",
     "placeholder": "I hope you have fun on the server!",
     "max_length": "50",
     "action": "modal"
@@ -91,7 +94,7 @@
   {
     "key": "confirm",
     "title": ":white_check_mark: Alright?",
-    "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n📝 **Settings**\n",
+    "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server",
     "footer": "• Use the command /report to tell me a bug",
     "action": "resume"
   }

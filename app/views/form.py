@@ -109,6 +109,14 @@ class Form(discord.ui.View):
             if question["key"] in questions
         )
 
+    def get_form_titles_and_descriptions(self) -> List[Dict[str, str]]:
+        response = {}
+        for question in self.questions:
+            if question["action"] in constants.NO_ACTION_LIST:
+                continue
+            response[question["title"]] = question["description"]
+        return response
+
     def get_form_embed(self) -> discord.Embed:
         return parse_dict_to_embed(next(self.questions))
 
@@ -184,7 +192,7 @@ class Form(discord.ui.View):
 
     async def show_resume(self, interaction: discord.Interaction):
         embed = self.question_embed.copy()
-        embed.description += parse_form_params_result(interaction.guild, self.responses)
+        embed.description += parse_form_params_result(interaction, self.responses)
 
         self.add_item(EditButtom(after_callback=self.update_resume, locale=self.locale))
         self.add_item(ConfirmButton(callback=self._finish, locale=self.locale))

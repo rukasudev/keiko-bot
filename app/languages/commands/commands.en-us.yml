@@ -118,3 +118,6 @@ en-us:
 
   pagination-view:
     footer: Page
+
+  resume:
+    settings: Settings

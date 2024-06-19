@@ -93,6 +93,9 @@ class FormConstants:
     CHANNELS_ACTION_KEY: Final[str] = "channels"
     RESUME_ACTION_KEY: Final[str] = "resume"
     BUTTON_ACTION_KEY: Final[str] = "button"
+    FORM_ACTION_KEY: Final[str] = "form"
+
+    NO_ACTION_LIST: Final[List[str]] = [FORM_ACTION_KEY, BUTTON_ACTION_KEY, RESUME_ACTION_KEY]
 
 
 class KeikoIcons:

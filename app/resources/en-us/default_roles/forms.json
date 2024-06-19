@@ -2,7 +2,7 @@
   {
     "key": "form",
     "title": "👩‍🎓 Default Roles",
-    "description": "Enabling this feature allows me to automatically assign roles to new members when they join your server\n\n📝 **Settings**\n\n:flying_disc: **Default Roles - Bots:** Default roles that will be assigned when a bot joins the guild\n:flying_disc: **Default Roles - Users:** Default roles that will be assigned when a user joins the guild",
+    "description": "Enabling this feature allows me to automatically assign roles to new members when they join your server",
     "footer": "• Use the command /report to tell me a bug",
     "action": "form"
   },
@@ -27,7 +27,7 @@
   {
     "key": "confirm",
     "title": ":white_check_mark: Alright?",
-    "description": "Enabling this feature allows me to automatically assign roles to new members when they join your server\n\n📝 **Settings**\n",
+    "description": "Enabling this feature allows me to automatically assign roles to new members when they join your server",
     "footer": "• Use the command /report to tell me a bug",
     "action": "resume"
   }

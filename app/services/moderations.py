@@ -14,6 +14,7 @@ from app.services.utils import (
     ml,
     parse_cog_data_to_param_result,
     parse_form_params_result,
+    parse_form_titles_descriptions,
     parse_json_to_dict,
     parse_locale,
 )
@@ -100,6 +101,8 @@ async def send_command_form_message(interaction: discord.Interaction, key: str):
 
     form_view = Form(form_key=key, locale=parse_locale(interaction.locale))
     embed = form_view.get_form_embed()
+    list_titles_descriptions = form_view.get_form_titles_and_descriptions()
+    embed.description += parse_form_titles_descriptions(interaction, list_titles_descriptions)
 
     await interaction.response.send_message(embed=embed, view=form_view, ephemeral=True)
 
@@ -116,16 +119,13 @@ async def send_command_manager_message(
     if not additional_buttons:
         additional_buttons = []
 
-    command_dict = parse_json_to_dict(
-        key, parse_locale(interaction.locale), "command.json"
-    )
-    embed = parse_dict_to_embed(command_dict, True)
     locale = parse_locale(interaction.locale)
 
-    form_json = parse_json_to_dict(key, parse_locale(interaction.locale), "forms.json")
+    form_json = list(parse_json_to_dict(key, parse_locale(interaction.locale), "forms.json"))
+    embed = parse_dict_to_embed(form_json[0], True)
     description = parse_cog_data_to_param_result(cog_data, form_json)
 
-    embed.description += parse_form_params_result(interaction.guild, description)
+    embed.description += parse_form_params_result(interaction, description)
     view = Manager(key, cog_data, interaction)
 
     if not cog_data.get(commands_constants.ENABLED_KEY):

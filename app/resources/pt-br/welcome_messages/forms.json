@@ -2,7 +2,7 @@
   {
     "key": "form",
     "title": "🎉 Mensagens de Boas-Vindas",
-    "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n📝 **Configurações**\n\n:flying_disc:**Canal de Mensagens de Boas-Vindas:** Canal para o qual devo enviar as mensagens de boas-vindas para novos membros\n:flying_disc: **Mensagens de Boas-Vindas:** Mensagens de boas-vindas que enviarei para novos membros\n:flying_disc: **Aleatorizar:** Devo aleatorizar as mensagens de boas-vindas?",
+    "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor",
     "footer": "• Use o comando /reportar para me contar um bug",
     "action": "form"
   },
@@ -34,7 +34,8 @@
   {
     "key": "welcome_messages_title",
     "title": "Titulo das mensagens de Boas-Vindas",
-    "description": "Titulo das mensagens de boas-vindas",
+    "label": "Titulo das mensagens de Boas-Vindas",
+    "description": "O titulo das mensagens de boas-vindas",
     "placeholder": "Um novo membro chegou!",
     "max_length": "50",
     "action": "modal"
@@ -60,7 +61,8 @@
   {
     "key": "welcome_messages",
     "title": "Mensagens de Boas-Vindas",
-    "description": "Mensagens separadas por ;",
+    "label": "Mensagens de boas-vindas separadas por ;",
+    "description": "As mensagens de boas-vindas que serão enviadas aos novos membros, separadas por ;",
     "placeholder": "Bem-vindo {user} ao {server}!; Olá {user}, bem-vindo ao {server}!",
     "max_length": "2000",
     "style": "bullet",
@@ -83,7 +85,8 @@
   {
     "key": "welcome_messages_footer",
     "title": "Rodapé das mensagens de Boas-Vindas",
-    "description": "Rodapé das mensagens de boas-vindas",
+    "label": "Rodapé das mensagens de boas-vindas",
+    "description": "O rodapé das mensagens de boas-vindas",
     "placeholder": "Espero que se divirta no servidor!",
     "max_length": "50",
     "action": "modal"
@@ -91,7 +94,7 @@
   {
     "key": "confirm",
     "title": ":white_check_mark: Tudo certo?",
-    "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n📝 **Configurações**\n",
+    "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor",
     "footer": "• Use o comando /reportar para me contar um bug",
     "action": "resume"
   }
