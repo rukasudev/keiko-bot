@@ -1,12 +1,12 @@
 import datetime
 import functools
 import os
-from json import load
 from pathlib import Path
 from re import findall
 from typing import Any, Dict, List, Tuple
 
 import discord
+import yaml
 from discord.app_commands import Command
 from discord.ext import commands
 from i18n import t
@@ -29,14 +29,14 @@ def check_message_has_link(message: str, allowed_links: List[str]) -> List[str]:
 
     return links
 
-
-# TODO: maybe use cache instead of read file every time
-def parse_json_to_dict(key: str, locale: str, file: str) -> Dict[str, str]:
+@functools.cache
+def parse_form_yaml_to_dict(key: str) -> Dict[str, str]:
     file = Path.joinpath(
-        Path().absolute(), "app", "resources", str(locale).lower(), key, file
+        Path().absolute(), "app", "languages", "form", key.lower()
     )
-    with open(file, "r") as f:
-        return load(f)
+    with open(f"{file}.yml", "r") as f:
+        yaml_object = yaml.safe_load(f)
+        return yaml_object.get("steps")
 
 
 def get_guild_text_channels_id(guild, channels: list) -> List[str]:
@@ -75,10 +75,10 @@ def check_answer_message(ctx, message) -> bool:
     return message.author == ctx.author and message.channel == ctx.channel
 
 
-def parse_form_cogs_titles(form_json: List[Dict[str, str]]) -> Dict[str, str]:
+def parse_form_steps_titles(form_steps: List[Dict[str, str]], locale: str) -> Dict[str, str]:
     return {
-        item["key"]: item["title"]
-        for item in form_json
+        item["key"]: item["title"][locale]
+        for item in form_steps
         if item["key"] not in ["form", "confirm"]
     }
 
@@ -131,10 +131,10 @@ def keiko_command(
     return decorator
 
 
-def parse_cog_data_to_param_result(
-    cog_data: List[Dict[str, str]], form_json: Dict[str, str]
+def parse_settings_with_database_values(
+    cog_data: List[Dict[str, str]], form_steps: Dict[str, str], locale: str
 ) -> List[Dict[str, str]]:
-    cogs_title = parse_form_cogs_titles(form_json)
+    cogs_title = parse_form_steps_titles(form_steps, locale)
     response = [
         {"title": cogs_title[cog_key], "value": value}
         for cog_key, value in cog_data.items()
@@ -143,17 +143,7 @@ def parse_cog_data_to_param_result(
     return response
 
 
-def get_cog_with_title(
-    cog_data: List[Dict[str, str]], form_json: Dict[str, str]
-) -> Dict[str, str]:
-    cogs_title = parse_form_cogs_titles(form_json)
-    response = {
-        cogs_title[cog_key]: cog_key for cog_key in cog_data if cogs_title.get(cog_key)
-    }
-    return response
-
-
-def format_values_by_style(guild: discord.Guild, values: Any, style: str) -> str:
+def format_values_by_style(values: Any, style: str) -> str:
     if isinstance(values, str):
         return format_single_value(values, style)
     else:
@@ -189,7 +179,7 @@ def parse_form_titles_descriptions(interaction: discord.Interaction, title_descr
 
     return result
 
-def parse_form_params_result(interaction: discord.Interaction, responses: List[Dict[str, str]]) -> str:
+def get_form_settings_with_database_values(interaction: discord.Interaction, responses: List[Dict[str, str]]) -> str:
     settings_label = get_settings_label_by_locale(interaction.locale)
 
     result = f"\n\n:pencil: **{settings_label}**\n"
@@ -201,7 +191,7 @@ def parse_form_params_result(interaction: discord.Interaction, responses: List[D
             style = values.get("style")
             values = values.get("values", "-")
 
-        formatted_values = format_values_by_style(interaction.guild, values, style)
+        formatted_values = format_values_by_style(values, style)
         result += f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{formatted_values}**"
 
     return result

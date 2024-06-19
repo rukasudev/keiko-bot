@@ -7,13 +7,12 @@ from app.constants import Style as constants
 from app.services.utils import ml
 
 
-def parse_dict_to_embed(data: Dict[str, str], manager: bool = False) -> discord.Embed:
+def parse_form_dict_to_embed(data: Dict[str, str], locale: str, manager: bool = False) -> discord.Embed:
     """Parse dictionary to discord Embed object"""
-
     embed = discord.Embed(
         color=int(constants.BACKGROUND_COLOR, base=16),
-        title=data["title"],
-        description=data["description"],
+        title=data["title"][locale],
+        description=data["description"][locale],
     )
 
     if data.get("emoji"):
@@ -31,7 +30,7 @@ def parse_dict_to_embed(data: Dict[str, str], manager: bool = False) -> discord.
         embed.set_image(url=data["image"])
 
     if data.get("footer"):
-        embed.set_footer(text=data["footer"])
+        embed.set_footer(text=data["footer"][locale])
 
     return embed
 

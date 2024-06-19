@@ -4,19 +4,19 @@ from typing import Any, Dict, List, Optional
 import discord
 
 from app.components.buttons import HelpButtom
-from app.components.embed import parse_dict_to_embed
+from app.components.embed import parse_form_dict_to_embed
 from app.constants import Commands as commands_constants
 from app.constants import GuildConstants as guild_constants
 from app.data import cogs as cogs_data
 from app.data import moderations as moderations_data
 from app.services.cogs import insert_cog_event, update_cog_by_guild
 from app.services.utils import (
+    get_form_settings_with_database_values,
     ml,
-    parse_cog_data_to_param_result,
-    parse_form_params_result,
     parse_form_titles_descriptions,
-    parse_json_to_dict,
+    parse_form_yaml_to_dict,
     parse_locale,
+    parse_settings_with_database_values,
 )
 
 
@@ -121,11 +121,11 @@ async def send_command_manager_message(
 
     locale = parse_locale(interaction.locale)
 
-    form_json = list(parse_json_to_dict(key, parse_locale(interaction.locale), "forms.json"))
-    embed = parse_dict_to_embed(form_json[0], True)
-    description = parse_cog_data_to_param_result(cog_data, form_json)
+    form_steps = list(parse_form_yaml_to_dict(key))
+    embed = parse_form_dict_to_embed(form_steps[0], locale, True)
+    description = parse_settings_with_database_values(cog_data, form_steps, locale)
 
-    embed.description += parse_form_params_result(interaction, description)
+    embed.description += get_form_settings_with_database_values(interaction, description)
     view = Manager(key, cog_data, interaction)
 
     if not cog_data.get(commands_constants.ENABLED_KEY):
