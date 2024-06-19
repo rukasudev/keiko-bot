@@ -41,6 +41,7 @@ class Form(discord.ui.View):
 
     def _get_questions(self) -> Generator[Any, Any, Any]:
         questions = parse_json_to_dict(self.command_key, self.locale, "forms.json")
+        self._set_titles_and_descriptions(questions)
         yield from questions
 
     def _update_form_question(func):
@@ -109,13 +110,15 @@ class Form(discord.ui.View):
             if question["key"] in questions
         )
 
+    def _set_titles_and_descriptions(self, questions: List[Dict[str, str]]):
+        self.title_and_desc = {
+            question["title"]: question["description"]
+            for question in questions
+            if question["action"] not in constants.NO_ACTION_LIST
+        }
+
     def get_form_titles_and_descriptions(self) -> List[Dict[str, str]]:
-        response = {}
-        for question in self.questions:
-            if question["action"] in constants.NO_ACTION_LIST:
-                continue
-            response[question["title"]] = question["description"]
-        return response
+        return self.title_and_desc
 
     def get_form_embed(self) -> discord.Embed:
         return parse_dict_to_embed(next(self.questions))
