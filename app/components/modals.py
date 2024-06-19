@@ -10,7 +10,7 @@ class CustomModal(discord.ui.Modal):
         self.add_item(
             discord.ui.TextInput(
                 style=discord.TextStyle.short,
-                label=config.get("description", ""),
+                label=config.get("label", ""),
                 placeholder=config.get("placeholder", ""),
                 default=config.get("default", ""),
                 required=config.get("required", True),
@@ -44,6 +44,6 @@ class ConfirmationModal(discord.ui.Modal):
 
     async def on_submit(self, interaction: discord.Interaction) -> None:
         if str(self.children[0].value).lower() == self.action.lower():
-            await self.callback(interaction)
+            return await self.callback(interaction)
 
         await interaction.response.defer()

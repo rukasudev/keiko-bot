@@ -14,9 +14,11 @@ class DBConfigs:
     KEIKO_DESCRIPTION: Final[str] = "description"
 
     ADMIN_GUILD_ID: Final[str] = "admin_guild_id"
+    ADMIN_REPORTS_CHANNEL_ID: Final[str] = "admin_reports_channel_id"
     ADMIN_LOGS_CHANNEL_ID: Final[str] = "admin_logs_channel_id"
     ADMIN_LOGS_ERROR_CHANNEL_ID: Final[str] = "admin_logs_error_channel_id"
     ADMIN_LOGS_FILES_CHANNEL_ID: Final[str] = "admin_logs_files_channel_id"
+    ADMIN_DUMP_CHANNEL_ID: Final[str] = "admin_dump_channel_id"
 
     ADMIN_CONFIGS_LIST: Final[List] = [
         ADMIN_GUILD_ID,
@@ -28,6 +30,10 @@ class DBConfigs:
 
 class Commands:
     ENABLED_KEY: Final[str] = "enabled"
+    EDITED_KEY: Final[str] = "edited"
+    PAUSED_KEY: Final[str] = "paused"
+    UNPAUSED_KEY: Final[str] = "unpaused"
+    DISABLED_KEY: Final[str] = "disabled"
 
     # block links
     BLOCK_LINKS_KEY: Final[str] = "block_links"
@@ -50,6 +56,7 @@ class CogsConstants:
     CONFIG_COGS: Final[str] = "config"
     EVENTS_COGS: Final[str] = "events"
     ERRORS_COGS: Final[str] = "errors"
+    HELP_COGS: Final[str] = "help"
 
     COGS_LIST: Final[List[str]] = [
         ADMIN_COGS,
@@ -57,8 +64,14 @@ class CogsConstants:
         CONFIG_COGS,
         EVENTS_COGS,
         ERRORS_COGS,
+        HELP_COGS,
     ]
     LAZY_LOAD_COGS: Final[List[str]] = [ADMIN_COGS, CONFIG_COGS]
+
+    INTERACTION_COGS: Final[List[str]] = [
+        MODERATIONS_COGS,
+        HELP_COGS,
+    ]
 
 
 class GuildConstants:
@@ -80,18 +93,22 @@ class FormConstants:
     CHANNELS_ACTION_KEY: Final[str] = "channels"
     RESUME_ACTION_KEY: Final[str] = "resume"
     BUTTON_ACTION_KEY: Final[str] = "button"
+    FORM_ACTION_KEY: Final[str] = "form"
+
+    NO_ACTION_LIST: Final[List[str]] = [FORM_ACTION_KEY, BUTTON_ACTION_KEY, RESUME_ACTION_KEY]
 
 
 class KeikoIcons:
     IMAGE_01: Final[str] = (
-        "https://cdn.discordapp.com/attachments/932733105691852851/1223754125263634432/KEIKO_01.png?ex=661b00d7&is=66088bd7&hm=92c65d5cfabd1fed1d6f8f5cd40ea67f1ef22a2c4ada0282346b9c9b5c64bb5b&"
+        "https://cdn.discordapp.com/attachments/927208560360820766/1246698994160242739/KEIKO_DEFAULT.png?ex=665d566a&is=665c04ea&hm=5b3fe0e80b2a83e0e88b5bded1db17a6b98b4661e175b460b3e6e4a27d59711e&"
     )
     IMAGE_02: Final[str] = (
-        "https://cdn.discordapp.com/attachments/932733105691852851/1223754126614335519/KEIKO_02.png?ex=661b00d8&is=66088bd8&hm=1e3e2fbe49234313ca73939310b4adf4802a26e35eff86c8c3fdfbae519cf2dc&"
+        "https://cdn.discordapp.com/attachments/927208560360820766/1246698993086627911/KEIKO_NERD.png?ex=665d566a&is=665c04ea&hm=bcfc30b8f00134ece0572b601edf2eaf3a2c556a270a554f716e242aa0cbfbb6&"
     )
     IMAGE_03: Final[str] = (
-        "https://cdn.discordapp.com/attachments/932733105691852851/1223754127788474379/KEIKO_03.png?ex=661b00d8&is=66088bd8&hm=7dd587e829096b85323b11403710d52bb6712715ab85ed34e62b251c7abe56eb&"
+        "https://cdn.discordapp.com/attachments/927208560360820766/1246698992000307280/KEIKO_BOLO.png?ex=665d566a&is=665c04ea&hm=387e5a325c03d564fb8594db3dcc492980cb8357c345e9b1e1756df9184d0dde&"
     )
+    ICONS_LIST: List[str] = [IMAGE_01, IMAGE_02, IMAGE_03]
     ACTION_IMAGE: Dict[str, str] = {
         FormConstants.RESUME_ACTION_KEY: IMAGE_03,
         FormConstants.BUTTON_ACTION_KEY: IMAGE_02,

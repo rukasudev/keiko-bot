@@ -1,23 +1,54 @@
 pt-br:
-  confirm: Confirmar
-  cancel: Cancelar
-  edit: Editar
-  disable: Desabilitar
-  reset: Resetar
-  sync: Sincronizar
-  help: Ajuda
-  back: Voltar
-  pause: Pausar
-  unpause: Despausar
+  confirm:
+    label: Confirmar
+    desc: Confirma a ação
+
+  cancel:
+    label: Cancelar
+    desc: Cancela a ação
+
+  edit:
+    label: Editar
+    desc: Edita as configurações da funcionalidade
+
+  disable:
+    label: Desabilitar
+    desc: Desabilita a funcionalidade e reseta as configurações
+
+  help:
+    label: Ajuda
+    desc: Obtenha legendas e funcionalidades dos botões
+
+  back:
+    label: Voltar
+    desc: Volta para o menu anterior
+
+  pause:
+    label: Pausar
+    desc: Pausa a funcionalidade
+
+  unpause:
+    label: Despausar
+    desc: Despausa a funcionalidade
+
+  history:
+    label: Histórico
+    desc: Veja o histórico de alterações feitas nas configurações da funcionalidade
 
   roles-sync:
+    label: Sincronizar
     desc: Keiko atribui imediatamente os cargos padrão a todos os usuários do servidor
+    waiting:
+      title: 🔄 Sincronizando cargos...
+      message: Estou atribuindo os cargos padrão a todos os membros do servidor! Isso pode levar alguns minutos...
     response:
       title: ✨ Cargos atribuídos com sucesso!
       message: Adicionei os cargos padrão a todos os membros do servidor! Agora todos estão ainda mais fofos! 🐶
 
-  captions: "Aqui está uma breve descrição dos botões e suas funcionalidades\n\n
-    :newspaper: **Legenda dos botões**\n\n
-    - **📝 Editar:** Editar as configurações da funcionalidade
-    \n- **⏯️ Pausar/Despausar:** Pausar ou despausar a funcionalidade
-    \n- **🚫 Desabilitar:** Desabilitar funcionalidade e redefine as configurações"
+  captions:
+    desc: Aqui está uma breve descrição dos botões e suas funcionalidades
+
+  changes-history:
+    label: 📜 Histórico de alterações
+    desc: "Veja o histórico de alterações feitas na funcionalidade **$cog_key**:"
+    bot-event: Essa é uma ação padrão feita por Keiko ao sair do servidor

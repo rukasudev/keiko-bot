@@ -5,7 +5,6 @@ from datetime import datetime
 import discord
 from discord import app_commands
 from discord.app_commands import Choice
-from discord.ext import commands
 
 import app
 from app.bot import DiscordBot
@@ -14,18 +13,23 @@ from app.cogs.admin.configs import Configs
 from app.cogs.admin.sync import Sync
 from app.logger import DiscordLogsHandler
 from app.services.admin import send_log_file_from_channel_by_date
-from app.services.utils import format_datetime_output, parse_log_filename_with_date
+from app.services.utils import (
+    format_datetime_output,
+    keiko_command,
+    parse_log_filename_with_date,
+)
+from app.types.cogs import GroupCog
 
 
 @app_commands.default_permissions()
 @app_commands.guilds(discord.Object(app.bot.config.ADMIN_GUILD_ID))
-class Admin(commands.GroupCog, name="admin"):
+class Admin(GroupCog, name="admin"):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
         DiscordLogsHandler(bot)
         super().__init__()
 
-    @app_commands.command(
+    @keiko_command(
         name="logs",
         description="Keiko generously provides access to the log file for a specific date",
     )
@@ -47,7 +51,7 @@ class Admin(commands.GroupCog, name="admin"):
 
         filename, date = parse_log_filename_with_date("keiko_log", year, month, day)
         if date:
-            return await send_log_file_from_channel_by_date(date, interaction, self.bot)
+            return await send_log_file_from_channel_by_date(date, interaction)
 
         logs_file = os.path.join(os.getcwd(), "logs", f"{filename}.log")
         logs_copy = os.path.join(os.getcwd(), "logs", f"{filename}.txt")
@@ -70,7 +74,7 @@ class Admin(commands.GroupCog, name="admin"):
             f"**Current Logs folder:**\n{formatted_logs_files}"
         )
 
-    @app_commands.command(
+    @keiko_command(
         name="uptime",
         description="Check how long Keiko has been active and working non-stop since it started",
     )
@@ -82,7 +86,7 @@ class Admin(commands.GroupCog, name="admin"):
             f":clock1: I have been eating cake for: **{formatted_uptime}**"
         )
 
-    @app_commands.command(
+    @keiko_command(
         name="shutdown", description="Keiko will take a little nap...zzz..zz"
     )
     async def shutdown_structure(self, interaction: discord.Interaction) -> None:

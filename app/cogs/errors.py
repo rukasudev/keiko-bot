@@ -10,11 +10,13 @@ from app.constants import LogTypes as logconstants
 from app.services import utils
 from app.services.cache import increment_redis_key
 from app.services.moderations import insert_error_by_command
+from app.types.cogs import Cog
 
 
-class Errors(commands.Cog, name="errors"):
+class Errors(Cog, name="errors"):
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
+        super().__init__()
         bot.tree.on_error = self.on_app_command_error
 
     async def on_app_command_error(
@@ -61,8 +63,7 @@ class Errors(commands.Cog, name="errors"):
     async def send_default_error_message(
         self, interaction: discord.Interaction
     ) -> None:
-        locale = utils.parse_locale(interaction.locale)
-        embed = response_error_embed("command-generic-error", locale)
+        embed = response_error_embed("command-generic-error", interaction.locale)
 
         if interaction.response.is_done():
             await interaction.edit_original_response(embed=embed)

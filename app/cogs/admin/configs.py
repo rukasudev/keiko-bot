@@ -7,14 +7,16 @@ from discord.app_commands import Choice
 from app.bot import DiscordBot
 from app.constants import DBConfigs as constants
 from app.services.admin import get_admin_configs, update_admin_configs
+from app.services.utils import keiko_command
+from app.types.cogs import Group
 
 
-class Configs(app_commands.Group, name="configs"):
+class Configs(Group, name="configs"):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
         super().__init__()
 
-    @app_commands.command(
+    @keiko_command(
         name="update",
         description="Keiko cheerfully allows you to update and customize its settings",
     )
@@ -34,7 +36,7 @@ class Configs(app_commands.Group, name="configs"):
             f":meta: Config `{config}` was updated successfully!"
         )
 
-    @app_commands.command(
+    @keiko_command(
         name="show",
         description="Keiko happily provides a list of its current configurations",
     )

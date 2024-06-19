@@ -1,54 +1,123 @@
 en-us:
+  commands:
+    help:
+      name: help
+      desc: Keiko helps you understand how to use the available commands
+      embed:
+        title: 📚 Available commands
+        desc: "Here are my commands that will help you make your server more cozy! ✨\n\n
+          For more information about a specific command, select the command in `Select a command to view its description` in the list below the message ⬇️\n\n"
+        placeholder: Select a command to view its description
+        base-commands: Base commands
+
+      embed-desc:
+        title: 📚 Command description
+        desc: "If you need more information about a specific command, don't hesitate to send us a message on Keiko's official server with the `/support` command! 💌\n\n"
+
+    report:
+      name: report
+      desc: Keiko helps you report any bugs or issues you encounter
+      response:
+        title: 📝 Report sent!
+        message: Your report has been sent to the Keiko team, a message has been sent to you with more information! 💌
+        footer: If you need help, don't hesitate to call us on our official server, using the /support command.
+      dm-message:
+        title: 📝 Your ticket has been created!
+        fields:
+          title: Title
+          description: Description
+          command: Command
+          author: Author
+          atachments: Attachment
+          no-atachments: Without attachments
+        footer: If you need help, don't hesitate to call us on our official server, using the /support command.
+
+    support:
+      name: support
+      desc: Keiko shows you how you can get help through your official server
+      response:
+        title: 💌 Support
+        message: "[✨ Click here to join Keiko's official server ✨](https://discord.gg/Hdg239Cvbd)"
+        field:
+          title: How to ask for help 🙋‍♂️
+          desc: "1. Go to the **#support** channel and describe your problem
+            \n2. Wait for a team member to respond
+            \n3. If necessary, a team member will call you to a private support room"
+        footer: Use the /help command to better understand how to use the available commands.
+
+    ping:
+      name: ping
+      desc: Keiko shows you what your current response time is
+      response:
+        title: 🏓 Pong!
+        message: The Keiko's current latency is $ping ms
+
+    block-links:
+      subgroup: block
+      name: links
+      desc: Keiko lovingly protects our server by blocking any suspicious links
+
+    welcome-messages:
+      subgroup: welcome
+      name: messages
+      desc: Keiko warmly welcomes new members with a personalized message
+
+    notifications-twitch:
+      name: twitch
+      desc: Keiko will notify you whenever your favorite streamers go live
+
+    default-roles:
+      subgroup: default
+      name: roles
+      desc: Keiko warmly welcomes new members by automatically assigning roles when they join the server
+
   groups:
     moderations: moderations
     notifications: notifications
 
-  report:
-    name: report
-    desc: Keiko helps you report any bugs or issues you encounter
-
-  block-links:
-    subgroup: block
-    name: links
-    desc: Keiko lovingly protects our server by blocking any suspicious links
-
-  notifications-twitch:
-    name: twitch
-    desc: Keiko will notify you whenever your favorite streamers go live
-
-  default-roles:
-    subgroup: default
-    name: roles
-    desc: Keiko warmly welcomes new members by automatically assigning roles when they join the server
-
   command-events:
     enabled:
       title: 🎉 Command enabled successfully!
+      key: Enabled
       description: "Command **$command_name** enabled on $date by $user 🚀\n\n
         If you want to make changes or disable the command, simply run the command again 🔄"
+      short-description: ✅ Enabled by $user
 
     paused:
       title: ⏸️ Command paused successfully!
       key: Paused
       action: Pause
-      description: Command **$command_name** paused on $date by $user.
+      description: Command **$command_name** paused on $date by $user
+      short-description: ⏸️ Paused by $user
 
     unpaused:
       title: ▶️ Command unpaused successfully!
       key: Unpaused
       action: Unpause
-      description: Command **$command_name** unpaused on $date by $user.
+      description: Command **$command_name** unpaused on $date by $user
+      short-description: ▶️ Unpaused by $user
 
     disabled:
       title: 🚫 Command disabled successfully!
       action: Disable
-      description: Command **$command_name** disabled on $date by $user.
+      description: Command **$command_name** disabled on $date by $user
+      short-description: 🚫 Disabled by $user
 
     edited:
       title: 📝 Command edited successfully!
-      description: Command **$command_name** edited on $date by $user.
+      description: Command **$command_name** edited on $date by $user
       placeholder: Select the settings you want to edit :)
+      short-description: 📝 Edited by $user
+
+    system:
+      description: That is a default action taken by Keiko when leaving the server
 
   confirmation-modal:
     title: Are you sure?
     desc: Type `$action` to confirm.
+
+  pagination-view:
+    footer: Page
+
+  resume:
+    settings: Settings
