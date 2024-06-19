@@ -1,15 +1,16 @@
 import discord
-from discord import app_commands
 
 from app.bot import DiscordBot
+from app.services.utils import keiko_command
+from app.types.cogs import Group
 
 
-class Sync(app_commands.Group, name="sync"):
+class Sync(Group, name="sync"):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
         super().__init__()
 
-    @app_commands.command(
+    @keiko_command(
         name="guild",
         description="Keiko has synchronized the command tree specifically for this guild",
     )
@@ -21,7 +22,7 @@ class Sync(app_commands.Group, name="sync"):
 
         await interaction.followup.send(message)
 
-    @app_commands.command(
+    @keiko_command(
         name="global",
         description="Keiko has synchronized the global command tree for all guilds",
     )

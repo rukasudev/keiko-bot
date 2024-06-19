@@ -4,15 +4,16 @@ from discord.app_commands import Choice
 
 from app.bot import DiscordBot
 from app.constants import CogsConstants as constants
-from app.services.utils import cogs_manager
+from app.services.utils import cogs_manager, keiko_command
+from app.types.cogs import Group
 
 
-class Cogs(app_commands.Group, name="cogs"):
+class Cogs(Group, name="cogs"):
     def __init__(self, bot: DiscordBot):
         self.bot = bot
         super().__init__()
 
-    @app_commands.command(
+    @keiko_command(
         name="show",
         description="Keiko kindly provides you with a list of all the amazing features and commands available",
     )
@@ -31,7 +32,7 @@ class Cogs(app_commands.Group, name="cogs"):
 
         await interaction.response.send_message(message)
 
-    @app_commands.command(
+    @keiko_command(
         name="load", description="Keiko joyfully loads the specified cog for you"
     )
     @app_commands.choices(cog=[Choice(name=i, value=i) for i in constants.COGS_LIST])
@@ -39,7 +40,7 @@ class Cogs(app_commands.Group, name="cogs"):
         await cogs_manager(self.bot, "load", [cog], True)
         await interaction.response.send_message(f":point_right: Cog {cog} loaded!")
 
-    @app_commands.command(
+    @keiko_command(
         name="unload", description="Keiko sweetly unloads the specified cog for you"
     )
     @app_commands.choices(cog=[Choice(name=i, value=i) for i in constants.COGS_LIST])
@@ -48,7 +49,7 @@ class Cogs(app_commands.Group, name="cogs"):
 
         await interaction.response.send_message(f":point_left: Cog {cog} unloaded!")
 
-    @app_commands.command(
+    @keiko_command(
         name="reload", description="Keiko happily reloads the specified cog for you"
     )
     @app_commands.choices(cog=[Choice(name=i, value=i) for i in constants.COGS_LIST])

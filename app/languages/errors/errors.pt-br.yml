@@ -2,7 +2,7 @@ pt-br:
   command-generic-error:
     title: Erro ao Processar Comando
     message: "Desculpe, mas não consegui processar o comando corretamente. Por favor, tente novamente mais tarde.\n\n
-      Se desejar, você pode nos enviar o que aconteceu usando o comando `/reporte` ou entrar em contato conosco no servidor oficial do Keiko usando o comando `/suporte`"
+      Se desejar, você pode nos enviar o que aconteceu usando o comando `/reportar` ou entrar em contato conosco no servidor oficial do Keiko usando o comando `/suporte`"
 
   command-permission-denied:
     title: Permissão Negada

@@ -4,6 +4,7 @@ import discord
 from discord.ext.commands import Bot
 
 from app.config import AppConfig
+from app.integrations.notion import NotionIntegration
 from app.services.utils import cogs_manager, get_cogs_folder
 from app.translator import Translator
 
@@ -18,6 +19,7 @@ class DiscordBot(Bot):
         self.config = config
         self.guild_available = threading.Event()
         self.synced = False
+        self.notion = NotionIntegration(self)
         super().__init__(
             command_prefix=self.config.PREFIX,
             application_id=self.config.APPLICATION_ID,
@@ -33,4 +35,4 @@ class DiscordBot(Bot):
 
     async def setup_hook(self) -> None:
         await cogs_manager(self, "load", get_cogs_folder())
-        await self.tree.set_translator(Translator())
+        await self.tree.set_translator(Translator(self))

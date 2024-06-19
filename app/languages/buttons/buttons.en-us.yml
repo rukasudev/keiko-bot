@@ -1,23 +1,54 @@
 en-us:
-  confirm: Confirm
-  cancel: Cancel
-  edit: Edit
-  disable: Disable
-  reset: Reset
-  sync: Sync
-  help: Help
-  back: Back
-  pause: Pause
-  unpause: Unpause
+  confirm:
+    label: Confirm
+    desc: Confirm the action
+
+  cancel:
+    label: Cancel
+    desc: Cancel the action
+
+  edit:
+    label: Edit
+    desc: Edit the feature settings
+
+  disable:
+    label: Disable
+    desc: Disable the feature and reset the settings
+
+  help:
+    label: Help
+    desc: Get buttons captions and functionalities
+
+  back:
+    label: Back
+    desc: Go back to the previous menu
+
+  pause:
+    label: Pause
+    desc: Pause the feature
+
+  unpause:
+    label: Unpause
+    desc: Unpause the feature
+
+  history:
+    label: History
+    desc: See the history of changes made to the feature settings
 
   roles-sync:
+    label: Sync
     desc: Keiko immediately assigns the default roles to all server users
+    waiting:
+      title: 🔄 Syncing roles...
+      message: I'm assigning the default roles to all members of the server! This may take a few minutes...
     response:
       title: ✨ Roles assigned successfully!
       message: I've added the default roles to all members of the server! Now everyone is even cuter! 🐶
 
-  captions: "Here is a brief description of the buttons and their functionalities\n\n
-    :newspaper: **Buttons captions**\n\n
-    - **📝 Edit:** Edit the feature settings
-    \n- **⏯️ Pause/Unpause:** Pause or unpause the feature
-    \n- **🚫 Disable:** Disable the feature and reset the settings"
+  captions:
+    desc: Here is a brief description of the buttons and their functionalities
+
+  changes-history:
+    label: 📜 Changes history
+    desc: "See the history of changes made to the feature **$cog_key**:"
+    bot-event: This is a default action taken by Keiko when leaving the server

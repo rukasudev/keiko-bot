@@ -1,20 +1,22 @@
-from typing import Any, Dict, List
+from datetime import datetime
+from typing import Any, Dict, List, Optional
 
 import discord
 
 from app.components.buttons import HelpButtom
-from app.components.embed import buttons_captions_embed, parse_dict_to_embed
+from app.components.embed import parse_form_dict_to_embed
 from app.constants import Commands as commands_constants
 from app.constants import GuildConstants as guild_constants
 from app.data import cogs as cogs_data
 from app.data import moderations as moderations_data
-from app.services.cache import remove_cog_cache_by_guild
+from app.services.cogs import insert_cog_event, update_cog_by_guild
 from app.services.utils import (
+    get_form_settings_with_database_values,
     ml,
-    parse_cog_data_to_param_result,
-    parse_form_params_result,
-    parse_json_to_dict,
+    parse_form_titles_descriptions,
+    parse_form_yaml_to_dict,
     parse_locale,
+    parse_settings_with_database_values,
 )
 
 
@@ -34,7 +36,7 @@ def update_moderations_by_guild(guild_id: str, key: str, value: str):
     )
 
 
-def pause_all_moderations_by_guild(guild_id: str):
+def pause_all_moderations_by_guild(guild_id: str, bot_user_id: str):
     moderations = moderations_data.find_moderations_by_guild(guild_id)
     for key, value in moderations.items():
 
@@ -44,6 +46,17 @@ def pause_all_moderations_by_guild(guild_id: str):
         update_moderations_by_guild(guild_id, key, False)
         update_cog_by_guild(
             guild_id=guild_id, cog_key=key, data={commands_constants.ENABLED_KEY: False}
+        )
+
+        if key == guild_constants.IS_BOT_ONLINE:
+            continue
+
+        insert_cog_event(
+            str(guild_id),
+            key,
+            commands_constants.PAUSED_KEY,
+            date=datetime.fromisoformat(datetime.now().isoformat()),
+            user_id=bot_user_id,
         )
 
     return moderations
@@ -75,31 +88,6 @@ def parse_default_moderations(guild_id: str) -> Dict[str, Any]:
     return data
 
 
-def insert_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
-    if not data.get("guild_id"):
-        data["guild_id"] = str(guild_id)
-
-    return cogs_data.insert_cog_by_guild_id(cog, data)
-
-
-def update_cog_by_guild(guild_id: str, cog_key: str, data: Dict[str, Any]):
-    if not data.get("guild_id"):
-        data["guild_id"] = str(guild_id)
-
-    remove_cog_cache_by_guild(guild_id, cog_key)
-
-    return cogs_data.update_cog_by_guild(guild_id, cog_key, data)
-
-
-def delete_cog_by_guild(guild_id: str, cog_key: str):
-    if guild_id == "":
-        return
-
-    remove_cog_cache_by_guild(guild_id, cog_key)
-
-    return cogs_data.delete_cog_by_guild_id(guild_id, cog_key)
-
-
 def insert_error_by_command(cog_key: str, error_message: str):
     if not isinstance(error_message, str):
         return None
@@ -113,6 +101,8 @@ async def send_command_form_message(interaction: discord.Interaction, key: str):
 
     form_view = Form(form_key=key, locale=parse_locale(interaction.locale))
     embed = form_view.get_form_embed()
+    list_titles_descriptions = form_view.get_form_titles_and_descriptions()
+    embed.description += parse_form_titles_descriptions(interaction, list_titles_descriptions)
 
     await interaction.response.send_message(embed=embed, view=form_view, ephemeral=True)
 
@@ -122,21 +112,21 @@ async def send_command_manager_message(
     key: str,
     cog_data: Dict[str, str],
     additional_info: str = "",
-    additional_buttons: List[discord.ui.Button] = [],
+    additional_buttons: Optional[List[discord.ui.Button]] = None,
 ):
     from app.views.manager import Manager
 
-    command_dict = parse_json_to_dict(
-        key, parse_locale(interaction.locale), "command.json"
-    )
-    embed = parse_dict_to_embed(command_dict, True)
+    if not additional_buttons:
+        additional_buttons = []
+
     locale = parse_locale(interaction.locale)
 
-    form_json = parse_json_to_dict(key, parse_locale(interaction.locale), "forms.json")
-    description = parse_cog_data_to_param_result(cog_data, form_json)
+    form_steps = list(parse_form_yaml_to_dict(key))
+    embed = parse_form_dict_to_embed(form_steps[0], locale, True)
+    description = parse_settings_with_database_values(cog_data, form_steps, locale)
 
-    embed.description += parse_form_params_result(description)
-    view = Manager(key, cog_data, locale, interaction.guild.id)
+    embed.description += get_form_settings_with_database_values(interaction, description)
+    view = Manager(key, cog_data, interaction)
 
     if not cog_data.get(commands_constants.ENABLED_KEY):
         embed.title += f" ({ml('commands.command-events.paused.key', locale=locale)})"
@@ -144,36 +134,13 @@ async def send_command_manager_message(
     if additional_info:
         embed.description += f"\n\n{additional_info}"
 
+    additional_buttons.append(HelpButtom(locale=locale))
+
+    row = 1
     for button in additional_buttons:
+        if len(view.children) % 4 == 0:
+            row += 1
+        button.row = row
         view.add_item(button)
 
-    locale = parse_locale(interaction.locale)
-    captions_embed = buttons_captions_embed(additional_buttons, locale)
-
-    view.add_item(HelpButtom(embed=captions_embed, locale=locale))
-
     await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
-
-
-async def send_welcome_message():
-    pass
-    # random_number = random.randint(0, 19)
-    # rules_channel = self.bot.get_channel(838125350185074758)
-    # channel = self.bot.get_channel(838123186142052442)
-
-    # embed = discord.Embed(
-    #     title=random.choice(self.config.welcome_messages_title).replace(
-    #         "{person_name}", member.name
-    #     ),
-    #     description=random.choice(
-    #         self.config.welcome_messages_descriptions
-    #     ).replace("{channel_mention}", rules_channel.mention),
-    #     color=0xFFCFFF,
-    # )
-    # embed.set_thumbnail(url=member.avatar_url)
-    # embed.set_footer(text="")
-
-    # if random_number == 15:
-    #     embed.set_image(url="")
-
-    # await channel.send(embed=embed)

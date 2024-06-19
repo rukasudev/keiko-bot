@@ -10,11 +10,13 @@ from app.constants import LogTypes as logconstants
 from app.services import utils
 from app.services.cache import increment_redis_key
 from app.services.moderations import insert_error_by_command
+from app.types.cogs import Cog
 
 
-class Errors(commands.Cog, name="errors"):
+class Errors(Cog, name="errors"):
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
+        super().__init__()
         bot.tree.on_error = self.on_app_command_error
 
     async def on_app_command_error(

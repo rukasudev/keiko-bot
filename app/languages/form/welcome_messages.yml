@@ -1,0 +1,147 @@
+steps:
+  - action: form
+    key: form
+    title:
+      en-us: 🎉 Welcome Messages
+      pt-br: 🎉 Mensagens de Boas-Vindas
+    description:
+      en-us: Enabling this feature allows me to send a personalized welcome message to new members when they join your server
+      pt-br: Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Use o comando /reportar para me contar um bug"
+
+  - action: channels
+    key: welcome_messages_channel
+    required: true
+    unique: true
+    style: channel
+    emoji: "💬"
+    title:
+      en-us: Welcome Messages Channel
+      pt-br: Canal de Mensagens de Boas-Vindas
+    description:
+      en-us: Choose which channel I should send the welcome messages to new members
+      pt-br: Escolha em qual canal devo enviar as mensagens de boas-vindas para novos membros
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Use o comando /reportar para me contar um bug"
+
+  - action: button
+    key: question_welcome_messages_title
+    emoji: "🎉"
+    title:
+      en-us: Welcome Messages Title
+      pt-br: Título Mensagens de Boas-Vindas
+    description:
+      en-us: In the next step, you can customize the **title** of welcome messages that I will send to new members.
+      pt-br: No próximo passo, você poderá personalizar o **título** das mensagens de boas-vindas que enviarei aos novos membros.
+    fields:
+      - title: "Example of title"
+        message: "A new member has joined the server! 🎉"
+      - title: "Exemplo de título"
+        message: "Um novo membro chegou! 🎉"
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Use o comando /reportar para me contar um bug"
+
+  - action: modal
+    key: welcome_messages_title
+    max_length: 50
+    title:
+      en-us: Welcome Messages Title
+      pt-br: Título das Mensagens de Boas-Vindas
+    label:
+      en-us: Title of the welcome messages
+      pt-br: Título das mensagens de boas-vindas
+    description:
+      en-us: The title of the welcome messages that I will send to new members
+      pt-br: O título das mensagens de boas-vindas que enviarei aos novos membros
+    placeholder:
+      en-us: A new member has joined the server! 🎉
+      pt-br: Um novo membro chegou! 🎉
+
+  - action: button
+    key: question_welcome_messages
+    emoji: "🎉"
+    title:
+      en-us: Welcome Messages
+      pt-br: Mensagens de Boas-Vindas
+    description:
+      en-us: In the next step, you can customize the welcome messages that I will send to new members.
+      pt-br: No próximo passo, você poderá personalizar as mensagens de boas-vindas que enviarei aos novos membros.
+    fields:
+      - title: "1. Separate each message with a semicolon"
+        message: "Example: `Welcome {user} to {server}!; Hi {user}, welcome to {server}!`"
+      - title: "1. Separe cada mensagem com um ;"
+        message: "Exemplo: `Olá {user}, bem-vindo ao {server}!; Bem-vindo {user}!`"
+      - title: "2. You can use the following variables in your message:"
+        message: "- `{user}`: The user's mention\n- `{server}`: The server's name\n- `{member_count}`: The server's member count"
+      - title: "2. Você também poderá usar as seguintes variáveis reservadas"
+        message: "- `{user}`: Para mencionar o usuário que entrou\n- `{server}`: Nome do servidor\n- `{member_count}`: Quantidade de membros no servidor"
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Use o comando /reportar para me contar um bug"
+
+  - action: modal
+    key: welcome_messages
+    max_length: 2000
+    style: bullet
+    title:
+      en-us: Welcome Messages
+      pt-br: Mensagens de Boas-Vindas
+    label:
+      en-us: Welcome messages separated by semicolon
+      pt-br: Mensagens de boas-vindas separadas por ;
+    description:
+      en-us: The welcome messages that I will send to new members, separated by semicolon
+      pt-br: As mensagens de boas-vindas que serão enviadas aos novos membros, separadas por ;
+    placeholder:
+      en-us: Welcome {user} to {server}!; Hi {user}, welcome to {server}!
+      pt-br: Bem-vindo {user} ao {server}!; Olá {user}, bem-vindo ao {server}!
+
+  - action: button
+    key: question_welcome_messages_footer
+    emoji: "🎉"
+    title:
+      en-us: Welcome Messages Footer
+      pt-br: Rodapé Mensagens de Boas-Vindas
+    description:
+      en-us: In the next step, you can customize the **footer** of welcome messages that I will send to new members.
+      pt-br: No próximo passo, você poderá personalizar o **rodapé** das mensagens de boas-vindas que enviarei aos novos membros.
+    fields:
+      - title: "Example of footer"
+        message: "I hope you have fun on the server!"
+      - title: "Exemplo de rodapé"
+        message: "Espero que se divirta no servidor!"
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Use o comando /reportar para me contar um bug"
+
+  - action: modal
+    key: welcome_messages_footer
+    max_length: 50
+    title:
+      en-us: Welcome Messages Footer
+      pt-br: Rodapé das Mensagens de Boas-Vindas
+    label:
+      en-us: Footer of the welcome messages
+      pt-br: Rodapé das mensagens de boas-vindas
+    description:
+      en-us: The footer of the welcome messages that I will send to new members
+      pt-br: O rodapé das mensagens de boas-vindas
+    placeholder:
+      en-us: I hope you have fun on the server!
+      pt-br: Espero que se divirta no servidor!
+
+  - action: resume
+    key: confirm
+    title:
+      en-us: ":white_check_mark: Alright?"
+      pt-br: ":white_check_mark: Tudo certo?"
+    description:
+      en-us: Enabling this feature allows me to send a personalized welcome message to new members when they join your server
+      pt-br: Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Use o comando /reportar para me contar um bug"

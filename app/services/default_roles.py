@@ -23,8 +23,6 @@ async def set_on_member_join(member: discord.Member):
 
 
 async def set_on_default_roles_sync(interaction: discord.Interaction):
-    await interaction.response.defer()
-
     cogs = cache.get_cog_data_or_populate(
         interaction.guild.id, constants.DEFAULT_ROLES_KEY
     )
@@ -39,10 +37,17 @@ async def set_on_default_roles_sync(interaction: discord.Interaction):
             mention_author=True,
         )
 
+    embed = response_embed(
+        "buttons.roles-sync.waiting", interaction.locale, discord.Color.light_grey()
+    )
+    message = await interaction.followup.send(embed=embed, ephemeral=True)
+
     await set_default_roles(cogs, interaction.guild, interaction.guild.members)
 
-    embed = response_embed("commands.roles-sync-response", interaction.locale)
-    await interaction.followup.send(embed=embed, ephemeral=True)
+    embed = response_embed(
+        "buttons.roles-sync.response", interaction.locale, discord.Color.green()
+    )
+    await message.edit(embed=embed)
 
 
 async def set_default_roles(
@@ -75,8 +80,12 @@ def get_roles_to_add(
     roles_to_add = []
     for role_name in roles_mapping[role_type]:
         role = discord.utils.get(guild.roles, name=role_name)
-        if role:
+        if not role:
+            continue
+
+        if role not in member.roles:
             roles_to_add.append(role)
+
     return roles_to_add
 
 
@@ -97,13 +106,15 @@ async def manager(interaction: discord.Interaction, guild_id: str):
 
         return await send_command_form_message(interaction, constants.DEFAULT_ROLES_KEY)
 
-    roles = cogs[constants.DEFAULT_ROLES_KEY]
+    roles = cogs[constants.DEFAULT_ROLES_KEY].get("values")
     info = get_not_available_roles(roles, available_roles, interaction.locale)
     sync_button = AdditionalButton(
         callback=set_on_default_roles_sync,
+        label=ml("buttons.roles-sync.label", interaction.locale),
         desc=ml("buttons.roles-sync.desc", interaction.locale),
-        label=ml("buttons.sync", interaction.locale),
         emoji="🔄",
+        auto_disable=True,
+        defer=True,
     )
 
     await send_command_manager_message(
@@ -114,7 +125,11 @@ async def manager(interaction: discord.Interaction, guild_id: str):
 def get_not_available_roles(
     roles: List[str], available_roles: List[str], locale: str
 ) -> str:
-    not_available_roles = [role for role in roles if role not in available_roles]
+    if isinstance(roles, list):
+        not_available_roles = [f"<@&{role}>" for role in roles if role not in available_roles]
+    else:
+        not_available_roles = [f"<@&{roles}>"]
+
     if not not_available_roles:
         return ""
 
