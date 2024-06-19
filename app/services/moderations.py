@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import discord
 
@@ -109,9 +109,12 @@ async def send_command_manager_message(
     key: str,
     cog_data: Dict[str, str],
     additional_info: str = "",
-    additional_buttons: List[discord.ui.Button] = [],
+    additional_buttons: Optional[List[discord.ui.Button]] = None,
 ):
     from app.views.manager import Manager
+
+    if not additional_buttons:
+        additional_buttons = []
 
     command_dict = parse_json_to_dict(
         key, parse_locale(interaction.locale), "command.json"
