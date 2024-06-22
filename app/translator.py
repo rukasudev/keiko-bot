@@ -37,9 +37,7 @@ class Translator(app_commands.Translator):
 
         return " ".join(reversed(names))
 
-    async def translate(
-        self, string: locale_str, locale: Locale, context: TranslationContext
-    ) -> str:
+    async def translate(self, string: locale_str, locale: Locale, context: TranslationContext) -> str:
         command = str(string)
         base = "commands.commands"
 
@@ -48,48 +46,41 @@ class Translator(app_commands.Translator):
 
         if locale.value not in self.supported_locales:
             if tp == "desc":
-                desc = context.data.extras.get(Locale.american_english.value).get(
-                    "locale_qualified_desc"
-                )
-                return desc
-            else:
-                return str(string)
+                return context.data.extras.get(Locale.american_english.value).get("locale_qualified_desc", "")
+            return command
 
-        # TODO: pass this to constants
         if tp == "groups":
             return ml(f"commands.{tp}.{command}", locale=locale)
 
         translated = ml(f"{base}.{ns}.{tp}", locale=locale) if tp else command
 
-        if tp == "name" and context is not None:
-            locale_qualified_name = await self.get_translated_qualified_name(
-                context.data, locale
-            )
-
-            locale_qualified_desc = await self.translate(
-                context.data._locale_description, locale, None
-            )
-
-            if locale.value not in context.data.extras:
-                context.data.extras[locale.value] = {}
-
-            context.data.extras[locale.value] = {
-                "locale_qualified_name": locale_qualified_name,
-                "locale_qualified_desc": locale_qualified_desc,
-            }
-
-            if locale.value not in self.bot.all_commands:
-                self.bot.all_commands[locale.value] = []
-
-            self.bot.all_commands[locale.value].append(
-                {
-                    "key": context.data._attr,
-                    "name": locale_qualified_name,
-                    "desc": locale_qualified_desc,
-                }
-            )
+        if tp == "name" and context:
+            translated = await self.process_name_translation(tp, context, locale, command, base, ns)
 
         return translated
+
+    async def process_name_translation(self, tp, context, locale, command, base, ns):
+        locale_qualified_name = await self.get_translated_qualified_name(context.data, locale)
+        locale_qualified_desc = await self.translate(context.data._locale_description, locale, None)
+
+        if not context.data.extras.get(locale.value):
+            context.data.extras[locale.value] = {}
+
+        context.data.extras[locale.value]["locale_qualified_name"] = locale_qualified_name
+        context.data.extras[locale.value]["locale_qualified_desc"] = locale_qualified_desc
+
+        if not self.bot.all_commands.get(locale.value):
+            self.bot.all_commands[locale.value] = []
+
+        self.bot.all_commands[locale.value].append({
+            "key": context.data._attr,
+            "name": locale_qualified_name,
+            "desc": locale_qualified_desc
+        })
+
+        return ml(f"{base}.{ns}.{tp}", locale=locale)
+
+
 
 
 class locale_str(app_commands.locale_str):

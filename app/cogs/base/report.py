@@ -1,3 +1,4 @@
+import random
 from typing import List
 
 import discord
@@ -6,17 +7,17 @@ from discord import app_commands
 from app import logger
 from app.bot import DiscordBot
 from app.components.embed import report_embed, response_embed
+from app.constants import LogTypes as logconstants
 from app.services.utils import keiko_command
 from app.translator import locale_str
 from app.types.cogs import Cog
-from app.constants import LogTypes as logconstants
 
 
 async def report_autocomplete(
     interaction: discord.Interaction,
     current: str,
 ) -> List[app_commands.Choice[str]]:
-    commands = interaction.client.all_commands[interaction.locale.value]
+    commands = interaction.client.all_commands.get(interaction.locale.value, [])
     return [
         app_commands.Choice(name=command["name"], value=command["key"])
         for command in commands
@@ -42,8 +43,12 @@ class Report(Cog, name="report"):
         command: str,
         attachment: discord.Attachment = None,
     ) -> None:
-        embed = self._create_report_embed(interaction, title, description, command, attachment)
+        await interaction.response.defer()
+
         notion_response = self._create_notion_report(interaction, title, description, command, attachment)
+        ticket_id = self._get_ticket_unique_id(notion_response)
+
+        embed = self._create_report_embed(interaction, title, description, command, attachment, ticket_id)
         self._handle_notion_response(notion_response, embed, interaction)
 
         log_channel = self.bot.get_channel(self.bot.config.ADMIN_REPORTS_CHANNEL_ID)
@@ -52,14 +57,14 @@ class Report(Cog, name="report"):
         response = response_embed(
             "commands.commands.report.response", interaction.locale, discord.Color.green(), footer=True
         )
-        await interaction.response.send_message(embed=response, ephemeral=True)
+        await interaction.followup.send(embed=response, ephemeral=True)
 
-        await self._send_report_dm(interaction, title, description, command, attachment, notion_response)
+        await self._send_report_dm(interaction, title, description, command, attachment, ticket_id)
 
-    def _create_report_embed(self, interaction, title, description, command, attachment):
+    def _create_report_embed(self, interaction, title, description, command, attachment, ticket_id):
         embed = discord.Embed(
             color=discord.Color.red(),
-            title="📩 Novo ticket criado!"
+            title=f"📩 Novo ticket criado [#{ticket_id}]!"
         )
         embed.add_field(name="Título", value=title, inline=False)
         embed.add_field(name="Descrição", value=description, inline=False)
@@ -81,6 +86,9 @@ class Report(Cog, name="report"):
         )
 
     def _handle_notion_response(self, notion_response, embed, interaction):
+        if not notion_response:
+            return
+
         if notion_response.status_code == 200:
             embed.add_field(
                 name="Notion Ticket Url", value=notion_response.json().get("url"), inline=False
@@ -92,10 +100,15 @@ class Report(Cog, name="report"):
                 log_type=logconstants.COMMAND_ERROR_TYPE,
             )
 
-    async def _send_report_dm(self, interaction, title, description, command, attachment, notion_response):
-        unique_id_object = notion_response.json().get("properties").get("ID").get("unique_id")
-        ticket_unique_id = f"{unique_id_object.get('prefix')}-{str(unique_id_object.get('number'))}"
+    def _get_ticket_unique_id(self, notion_response: dict = None):
+        unique_id_object = {"prefix": "KEIKO", "number": random.randint(1000, 9999)}
 
+        if notion_response:
+            unique_id_object = notion_response.json().get("properties").get("ID").get("unique_id")
+
+        return f"{unique_id_object.get('prefix')}-{str(unique_id_object.get('number'))}"
+
+    async def _send_report_dm(self, interaction, title, description, command, attachment, ticket_unique_id: str):
         commands = interaction.client.all_commands[interaction.locale.value]
         command_info = next((c for c in commands if c["key"] == command), None)
 

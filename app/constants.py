@@ -13,6 +13,11 @@ class DBConfigs:
     KEIKO_STATUS: Final[str] = "status"
     KEIKO_DESCRIPTION: Final[str] = "description"
 
+    INTEGRATION_NOTION: Final[str] = "notion"
+    INTEGRATION_NOTION_ENABLED: Final[bool] = "enabled"
+    INTEGRATION_NOTION_TOKEN: Final[str] = "token"
+    INTEGRATION_NOTION_DATABASE_ID: Final[str] = "database_id"
+
     ADMIN_GUILD_ID: Final[str] = "admin_guild_id"
     ADMIN_REPORTS_CHANNEL_ID: Final[str] = "admin_reports_channel_id"
     ADMIN_LOGS_CHANNEL_ID: Final[str] = "admin_logs_channel_id"
@@ -25,6 +30,7 @@ class DBConfigs:
         ADMIN_LOGS_CHANNEL_ID,
         ADMIN_LOGS_ERROR_CHANNEL_ID,
         ADMIN_LOGS_FILES_CHANNEL_ID,
+        ADMIN_DUMP_CHANNEL_ID
     ]
 
 

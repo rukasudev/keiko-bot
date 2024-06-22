@@ -1,12 +1,19 @@
-import requests
 from datetime import datetime
 
+import requests
 
-class NotionIntegration:
-    def __init__(self, bot):
-        self.notion_token = bot.config.NOTION_TOKEN
-        self.database_id = bot.config.NOTION_DATABASE_ID
+from app.config import AppConfig
+from app.integrations import check_integration_enabled
+from app.types.integration import IntegrationBase
 
+
+class NotionIntegration(IntegrationBase):
+    def __init__(self, config: AppConfig):
+        self.notion_token = config.NOTION_TOKEN
+        self.database_id = config.NOTION_DATABASE_ID
+        super().__init__(config.NOTION_ENABLED)
+
+    @check_integration_enabled
     def create_report(
         self, title: str, description: str, command: str, author: str, attachment_url: str
     ) -> None:

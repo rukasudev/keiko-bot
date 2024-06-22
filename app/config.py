@@ -27,14 +27,13 @@ class AppConfig:
         self.REDIS_URL = os.getenv("REDIS_URL")
         self.APPLICATION_ID = os.getenv("APPLICATION_ID")
         self.NOTION_TOKEN = os.getenv("NOTION_TOKEN")
-        self.NOTION_DATABASE_ID = os.getenv("NOTION_DATABASE_ID")
 
     def get_admin_db_configs(self):
         return [{key: getattr(self, key) for key in constants.ADMIN_CONFIGS_LIST}]
 
     def load_db_configs(self) -> None:
         from app.data.admin import find_admin_configs
-        from app.data.config import find_db_configs
+        from app.data.config import find_db_configs, find_db_integration_configs
 
         db_configs = find_db_configs()
         admin_configs = find_admin_configs()
@@ -42,6 +41,10 @@ class AppConfig:
         self.STATUS = db_configs[constants.KEIKO_STATUS]
         self.DESCRIPTION = db_configs[constants.KEIKO_DESCRIPTION]
         self.ACTIVITY = db_configs[constants.KEIKO_ACTIVITY]
+
+        notion_configs = find_db_integration_configs(constants.INTEGRATION_NOTION)
+        self.NOTION_ENABLED = notion_configs.get(constants.INTEGRATION_NOTION_ENABLED)
+        self.NOTION_DATABASE_ID = notion_configs.get(constants.INTEGRATION_NOTION_DATABASE_ID)
 
         self.ADMIN_GUILD_ID = int(admin_configs[constants.ADMIN_GUILD_ID])
         self.ADMIN_REPORTS_CHANNEL_ID = int(admin_configs[constants.ADMIN_REPORTS_CHANNEL_ID])

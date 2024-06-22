@@ -19,7 +19,7 @@ class DiscordBot(Bot):
         self.config = config
         self.guild_available = threading.Event()
         self.synced = False
-        self.notion = NotionIntegration(self)
+        self.notion = NotionIntegration(config)
         super().__init__(
             command_prefix=self.config.PREFIX,
             application_id=self.config.APPLICATION_ID,
