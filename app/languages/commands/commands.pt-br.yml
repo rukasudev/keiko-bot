@@ -52,6 +52,14 @@ pt-br:
         title: 🏓 Pong!
         message: A latência atual do Keiko é de $ping ms
 
+    translate-message:
+      name: Traduzir Mensagem
+      desc: Keiko traduz uma mensagem para o seu idioma preferido
+      response:
+        title: 🌐 Traduzir Mensagem
+        message: "Keiko utilizou seus conhecimentos poliglotas para traduzir a seguinte mensagem que você solicitou: {message_url}!\n\n**{src_lang} Mensagem Original**\n{original_message}\n\n**{dest_lang} Mensagem Traduzida**\n{translated_message}"
+        footer: Se precisar de ajuda, não hesite em nos chamar em nosso servidor oficial, utilizando o comando /suporte.
+
     block-links:
       subgroup: bloquear
       name: links

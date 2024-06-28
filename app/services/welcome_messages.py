@@ -19,7 +19,7 @@ from app.services.utils import parse_welcome_message, split_welcome_messages
 
 
 async def manager(interaction: discord.Interaction, guild_id: str):
-    cogs = cache.get_cog_data_or_populate(guild_id, constants.WELCOME_MESSAGES_KEY)
+    cogs = cache.get_cog_data_or_populate(guild_id, constants.WELCOME_MESSAGES_KEY, manager=True)
 
     if cogs == None:
         return await send_command_form_message(interaction, constants.WELCOME_MESSAGES_KEY)

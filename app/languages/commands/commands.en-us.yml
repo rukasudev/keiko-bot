@@ -52,6 +52,14 @@ en-us:
         title: 🏓 Pong!
         message: The Keiko's current latency is $ping ms
 
+    translate-message:
+      name: Translate Message
+      desc: Keiko translates a message into your preferred language
+      response:
+        title: 🌐 Translate Message
+        message: "Keiko used her polyglot skills to translate the following message that you requested: {message_url}!\n\n**{src_lang} Original Message**\n{original_message}\n\n**{dest_lang} Translated Message**\n{translated_message}"
+        footer: If you need help, don't hesitate to call us on our official server, using the /support command.
+
     block-links:
       subgroup: block
       name: links

@@ -18,6 +18,10 @@ class DBConfigs:
     INTEGRATION_NOTION_TOKEN: Final[str] = "token"
     INTEGRATION_NOTION_DATABASE_ID: Final[str] = "database_id"
 
+    INTEGRATION_OPENAI: Final[str] = "openai"
+    INTEGRATION_OPENAI_ENABLED: Final[bool] = "enabled"
+    INTEGRATION_OPENAI_API_KEY: Final[str] = "openai_api_key"
+
     ADMIN_GUILD_ID: Final[str] = "admin_guild_id"
     ADMIN_REPORTS_CHANNEL_ID: Final[str] = "admin_reports_channel_id"
     ADMIN_LOGS_CHANNEL_ID: Final[str] = "admin_logs_channel_id"

@@ -1,0 +1,121 @@
+
+
+import html
+import re
+import urllib.parse
+
+import requests
+from googletrans import Translator as GT
+
+from app.services.utils import ml
+
+languages_with_flags = {
+    "ar": "🇸🇦",  # Arabic - Saudi Arabia
+    "hy": "🇦🇲",  # Armenian - Armenia
+    "az": "🇦🇿",  # Azerbaijani - Azerbaijan
+    "be": "🇧🇾",  # Belarusian - Belarus
+    "bn": "🇧🇩",  # Bengali - Bangladesh
+    "bg": "🇧🇬",  # Bulgarian - Bulgaria
+    "zh": "🇨🇳",  # Chinese - China
+    "cs": "🇨🇿",  # Czech - Czech Republic
+    "da": "🇩🇰",  # Danish - Denmark
+    "nl": "🇳🇱",  # Dutch - Netherlands
+    "en": "🇺🇸",  # English - United States
+    "et": "🇪🇪",  # Estonian - Estonia
+    "fi": "🇫🇮",  # Finnish - Finland
+    "fr": "🇫🇷",  # French - France
+    "ka": "🇬🇪",  # Georgian - Georgia
+    "de": "🇩🇪",  # German - Germany
+    "el": "🇬🇷",  # Greek - Greece
+    "he": "🇮🇱",  # Hebrew - Israel
+    "hi": "🇮🇳",  # Hindi - India
+    "hu": "🇭🇺",  # Hungarian - Hungary
+    "is": "🇮🇸",  # Icelandic - Iceland
+    "id": "🇮🇩",  # Indonesian - Indonesia
+    "it": "🇮🇹",  # Italian - Italy
+    "ja": "🇯🇵",  # Japanese - Japan
+    "ko": "🇰🇷",  # Korean - South Korea
+    "lv": "🇱🇻",  # Latvian - Latvia
+    "lt": "🇱🇹",  # Lithuanian - Lithuania
+    "mk": "🇲🇰",  # Macedonian - North Macedonia
+    "ms": "🇲🇾",  # Malay - Malaysia
+    "ml": "🇮🇳",  # Malayalam - India
+    "mt": "🇲🇹",  # Maltese - Malta
+    "ne": "🇳🇵",  # Nepali - Nepal
+    "no": "🇳🇴",  # Norwegian - Norway
+    "fa": "🇮🇷",  # Persian - Iran
+    "pl": "🇵🇱",  # Polish - Poland
+    "pt": "🇧🇷",  # Portuguese - Brazil
+    "pa": "🇮🇳",  # Panjabi - India
+    "ro": "🇷🇴",  # Romanian - Romania
+    "ru": "🇷🇺",  # Russian - Russia
+    "sr": "🇷🇸",  # Serbian - Serbia
+    "sk": "🇸🇰",  # Slovak - Slovakia
+    "sl": "🇸🇮",  # Slovenian - Slovenia
+    "es": "🇪🇸",  # Spanish - Spain
+    "sv": "🇸🇪",  # Swedish - Sweden
+    "ta": "🇮🇳",  # Tamil - India
+    "th": "🇹🇭",  # Thai - Thailand
+    "tr": "🇹🇷",  # Turkish - Turkey
+    "uk": "🇺🇦",  # Ukrainian - Ukraine
+    "ur": "🇵🇰",  # Urdu - Pakistan
+    "uz": "🇺🇿",  # Uzbek - Uzbekistan
+    "vi": "🇻🇳",  # Vietnamese - Vietnam
+    "cy": "🇬🇧",  # Welsh - United Kingdom (Wales)
+    "yo": "🇳🇬",  # Yoruba - Nigeria
+    "zu": "🇿🇦"   # Zulu - South Africa
+}
+
+
+class GoogleTranslate:
+    pattern = r'(?s)class="(?:t0|result-container)">(.*?)<'
+    message_validation = r"^(?=.*\S)(?:https?|ftp):\/\/[^\s/$.?#].[^\s]*$"
+
+    @staticmethod
+    def translate(content: str, dest: str) -> str:
+        dest = GoogleTranslate.parse_destination_locale(dest)
+        full_dest = languages_with_flags.get(dest, "🌐")
+
+        try:
+            src = GoogleTranslate.detect(content)
+            full_src = languages_with_flags.get(src, "🌐")
+        except Exception:
+            full_src = ml("errors.translate-message.unknown-language")
+
+        translated_message = GoogleTranslate.google_translate(content, dest)
+        if not translated_message:
+            return None
+
+        return {"src": full_src, "dest": full_dest, "original": content, "translated_message": translated_message}
+
+    @staticmethod
+    def google_translate(content: str, dest: str) -> str:
+        escaped_text = urllib.parse.quote(content.encode("utf8"))
+        url = "https://translate.google.com/m?tl=%s&sl=%s&q=%s" % (
+            dest,
+            "auto",
+            escaped_text,
+        )
+        response = requests.get(url)
+        result = response.text.encode("utf8").decode("utf8")
+        result = re.findall(GoogleTranslate.pattern, response.content.decode("utf-8"))
+
+        if not result:
+            return None
+
+        response = html.unescape(result[0])
+
+        return response
+
+    @staticmethod
+    def is_only_url(content: str) -> bool:
+        if re.match(GoogleTranslate.message_validation, content):
+            return True
+
+    @staticmethod
+    def parse_destination_locale(locale: str) -> str:
+        return locale.split("-")[0]
+
+    @staticmethod
+    def detect(content: str) -> str:
+        return GT().detect(content).lang

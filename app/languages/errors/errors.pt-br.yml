@@ -24,3 +24,18 @@ pt-br:
 
   command-default-roles-disactivated:
     message: A funcionalidade de atribuir cargos automaticamente está desabilitada. Para ativar e configurar a funcionalidade, sinta-se a vontade de rodar o comando `cargos padrao` 🐶
+
+  translate-message:
+    unknown-language: Desconhecido
+
+    translation-generic-error:
+      title: Erro ao Traduzir
+      message: "Desculpe, mas não consegui traduzir a mensagem corretamente. Por favor, tente novamente mais tarde."
+
+    translation-invalid-message:
+      title: Mensagem Inválida
+      message: "Desculpe, mas não consigo traduzir uma mensagem inválida. Por favor, forneça uma mensagem válida para ser traduzida e tente novamente."
+
+    translation-only-link:
+      title: Mensagem contém apenas um link
+      message: "Desculpe, mas não consigo traduzir uma mensagem que contém apenas um link. Por favor, forneça uma mensagem válida para ser traduzida e tente novamente."

@@ -94,7 +94,7 @@ def filter_roles(roles: List[str], available_roles: List[str]) -> List[str]:
 
 
 async def manager(interaction: discord.Interaction, guild_id: str):
-    cogs = cache.get_cog_data_or_populate(guild_id, constants.DEFAULT_ROLES_KEY)
+    cogs = cache.get_cog_data_or_populate(guild_id, constants.DEFAULT_ROLES_KEY, manager=True)
 
     available_roles = get_available_roles_by_guild(interaction.guild)
     if cogs == None:

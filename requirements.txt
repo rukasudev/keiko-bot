@@ -9,14 +9,17 @@ chardet==4.0.0
 charset-normalizer==2.0.12
 click==8.1.3
 Deprecated==1.2.13
-discord.py @ git+https://github.com/Rapptz/discord.py.git
+discord.py @ git+https://github.com/Rapptz/discord.py.git@0e016be42ca4f34bb89761261a1c7c12f4cc8c48
 dnspython==2.6.1
 frozenlist==1.3.0
 idna==3.7
 multidict==6.0.2
 mypy-extensions==0.4.3
+openai==1.35.3
+httpx==0.13.3
 packaging==21.3
 pathspec==0.9.0
+pillow==10.3.0
 platformdirs==2.5.2
 pycparser==2.21
 pymongo==4.6.3

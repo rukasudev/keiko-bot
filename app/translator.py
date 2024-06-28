@@ -22,7 +22,7 @@ class Translator(app_commands.Translator):
     ) -> str:
         name = await self.translate(command._locale_name, locale, None)
 
-        if command.parent is None:
+        if not hasattr(command, "parent") or command.parent is None:
             return name
 
         parent_name = await self.translate(command.parent._locale_name, locale, None)
@@ -51,6 +51,9 @@ class Translator(app_commands.Translator):
 
         if tp == "groups":
             return ml(f"commands.{tp}.{command}", locale=locale)
+
+        if tp == "context-menu":
+            return ml(f"{base}.{ns}.name", locale=locale)
 
         translated = ml(f"{base}.{ns}.{tp}", locale=locale) if tp else command
 

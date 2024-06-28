@@ -16,6 +16,7 @@ logger.setLevel(logging.INFO)
 
 logging.getLogger("discord.gateway").setLevel(logging.WARNING)
 logging.getLogger("discord.client").setLevel(logging.WARNING)
+logging.getLogger("httpx").disabled = True
 
 
 class CustomTimedRotatingFileHandler(TimedRotatingFileHandler):

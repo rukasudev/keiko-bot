@@ -49,6 +49,28 @@ def response_embed(multilang_key: str, locale: str, color: str = None, footer: b
 
     return embed
 
+def translate_embed(multilang_key: str, interaction: discord.Interaction, response: Dict[str, str], message_url: str) -> discord.Embed:
+    title = ml(f"{multilang_key}.title", interaction.locale)
+
+    embed = discord.Embed(
+        color=(int(constants.BACKGROUND_COLOR, base=16)),
+        title=title,
+        description=ml(f"{multilang_key}.message", locale=interaction.locale),
+    )
+
+    embed.description = embed.description.format(
+        message_url=message_url,
+        src_lang=response["src"],
+        dest_lang=response["dest"],
+        original_message=response["original"],
+        translated_message=response["translated_message"],
+    )
+
+    embed.set_thumbnail(url=icons.IMAGE_01)
+    embed.set_footer(text=f"• {ml(f'{multilang_key}.footer', interaction.locale)}")
+
+    return embed
+
 
 def default_welcome_embed(title: str, message: str, footer: str = None, image: str=None) -> discord.Embed:
     embed = discord.Embed(

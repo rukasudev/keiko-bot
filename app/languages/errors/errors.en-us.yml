@@ -24,3 +24,19 @@ en-us:
 
   command-default-roles-disactivated:
     message: The role assignment feature is currently disabled. To activate and configure this feature, just run the `/default roles` command 🐶
+
+  translate-message:
+    unknown-language: Unknown
+
+    translation-generic-error:
+      title: Translation Error
+      message: "I'm sorry, but I couldn't translate the message correctly. Please try again later."
+
+    translation-invalid-message:
+      title: Invalid Message
+      message: "I'm sorry, but I couldn't translate an invalid message. Please, provide a valid message to be translated and try again."
+
+    translation-only-link:
+      title: Message Contains Only a Link
+      message: "I'm sorry, but I couldn't translate a message that contains only a link. Please, provide a valid message to be translated and try again."
+

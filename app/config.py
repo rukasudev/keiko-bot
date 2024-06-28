@@ -27,6 +27,7 @@ class AppConfig:
         self.REDIS_URL = os.getenv("REDIS_URL")
         self.APPLICATION_ID = os.getenv("APPLICATION_ID")
         self.NOTION_TOKEN = os.getenv("NOTION_TOKEN")
+        self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
     def get_admin_db_configs(self):
         return [{key: getattr(self, key) for key in constants.ADMIN_CONFIGS_LIST}]
@@ -45,6 +46,9 @@ class AppConfig:
         notion_configs = find_db_integration_configs(constants.INTEGRATION_NOTION)
         self.NOTION_ENABLED = notion_configs.get(constants.INTEGRATION_NOTION_ENABLED)
         self.NOTION_DATABASE_ID = notion_configs.get(constants.INTEGRATION_NOTION_DATABASE_ID)
+
+        openai_configs = find_db_integration_configs(constants.INTEGRATION_OPENAI)
+        self.OPENAI_ENABLED = openai_configs.get(constants.INTEGRATION_OPENAI_ENABLED)
 
         self.ADMIN_GUILD_ID = int(admin_configs[constants.ADMIN_GUILD_ID])
         self.ADMIN_REPORTS_CHANNEL_ID = int(admin_configs[constants.ADMIN_REPORTS_CHANNEL_ID])
