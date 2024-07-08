@@ -71,8 +71,9 @@ en-us:
       desc: Keiko warmly welcomes new members with a personalized message
 
     notifications-twitch:
-      name: twitch
-      desc: Keiko will notify you whenever your favorite streamers go live
+      subgroup: twitch
+      name: lives
+      desc: Keiko will notify you whenever your favorite streamer is online on Twitch
 
     default-roles:
       subgroup: default

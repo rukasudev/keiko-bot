@@ -215,3 +215,11 @@ class AdditionalButton(discord.ui.Button):
             await interaction.response.edit_message(view=self.view)
 
         await self.custom_callback(interaction)
+
+class GenericButton(discord.ui.Button):
+    def __init__(self, label: str, callback: Callable, style: discord.ButtonStyle, **kwargs):
+        self.custom_callback = callback
+        super().__init__(label=label, style=style, **kwargs)
+
+    async def callback(self, interaction: discord.Interaction) -> Any:
+        await self.custom_callback(interaction)

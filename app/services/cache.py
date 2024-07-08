@@ -38,9 +38,7 @@ def get_cog_data_or_populate(guild_id: str, key: str, manager: bool=False) -> Di
     data = cogs_data.find_cog_by_guild_id(str(guild_id), key)
     if data:
         set_data_in_redis(redis_key, data)
-
-    if not data.get("enabled") or not manager:
-        return {}
+        return data if data.get("enabled") or manager else {}
 
     return data
 

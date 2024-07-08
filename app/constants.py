@@ -59,6 +59,11 @@ class Commands:
     DEFAULT_ROLES_KEY: Final[str] = "default_roles"
     DEFAULT_ROLES_BOT_KEY: Final[str] = "default_roles_bot"
 
+    # notifications
+    NOTIFICATIONS_KEY: Final[str] = "notifications"
+    NOTIFICATIONS_TWITCH_KEY: Final[str] = "notifications_twitch"
+    NOTIFICATIONS_YOUTUBE_KEY: Final[str] = "notifications_youtube"
+
 
 class CogsConstants:
     ADMIN_COGS: Final[str] = "admin"
@@ -104,6 +109,7 @@ class FormConstants:
     RESUME_ACTION_KEY: Final[str] = "resume"
     BUTTON_ACTION_KEY: Final[str] = "button"
     FORM_ACTION_KEY: Final[str] = "form"
+    COMPOSITION_ACTION_KEY: Final[str] = "composition"
 
     NO_ACTION_LIST: Final[List[str]] = [FORM_ACTION_KEY, BUTTON_ACTION_KEY, RESUME_ACTION_KEY]
 

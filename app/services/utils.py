@@ -131,16 +131,36 @@ def keiko_command(
     return decorator
 
 
-def parse_settings_with_database_values(
-    cog_data: List[Dict[str, str]], form_steps: Dict[str, str], locale: str
-) -> List[Dict[str, str]]:
+def parse_settings_with_database_values(cog_data: List[Dict[str, str]], form_steps: Dict[str, str], locale: str) -> List[Dict[str, str]]:
+    response = []
     cogs_title = parse_form_steps_titles(form_steps, locale)
-    response = [
-        {"title": cogs_title[cog_key], "value": value}
-        for cog_key, value in cog_data.items()
-        if cogs_title.get(cog_key)
-    ]
+
+    for cog_key, value in cog_data.items():
+        if cogs_title.get(cog_key):
+            if value["style"] == "composition":
+                value = parse_settings_with_database_values_composition(form_steps, locale, value["values"])
+                response.append({"title": cogs_title[cog_key], "value": value, "style": "composition"})
+            else:
+                response.append({"title": cogs_title[cog_key], "value": value})
+
     return response
+
+def parse_settings_with_database_values_composition(form_steps: Dict[str, str], locale: str, values: List[Dict[str, str]]) -> List[Dict[str, str]]:
+    for value in values:
+        for key, item in value.items():
+            item["title"] = get_form_step_title_composition(form_steps, key, locale)
+
+    return values
+
+def get_form_step_title_composition(form_steps: Dict[str, str], key: str, locale: str) -> str:
+    for item in form_steps:
+        if item["key"] not in ["form", "confirm"] and item["action"] == "composition":
+            return parse_form_steps_title_by_key(item["steps"], key, locale)
+
+def parse_form_steps_title_by_key(form_steps: Dict[str, str], key: str, locale: str) -> Dict[str, str]:
+    for item in form_steps:
+        if item["key"] not in ["form", "confirm"] and item["key"] == key:
+            return item["title"][locale]
 
 
 def format_values_by_style(values: Any, style: str) -> str:
@@ -191,9 +211,21 @@ def get_form_settings_with_database_values(interaction: discord.Interaction, res
             style = values.get("style")
             values = values.get("values", "-")
 
-        formatted_values = format_values_by_style(values, style)
-        result += f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{formatted_values}**"
+        if style == "composition":
+            result = f"\n{get_styled_composition_values(item['title'], values)}"
+        else:
+            formatted_values = format_values_by_style(values, style)
+            result += f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{formatted_values}**"
 
+    return result
+
+def get_styled_composition_values(title: str, values: List[Dict[str, str]]) -> str:
+    result = ""
+    for n, composition in enumerate(values):
+        formatted_values = ""
+        for item in composition.values():
+            formatted_values += f"- {item['title']}: {format_values_by_style(item.get('value'), item.get('style'))}\n"
+        result += f"\n{constants.FRISBEE_EMOJI} **{title} #{n+1}**\n{formatted_values}"
     return result
 
 def get_settings_label_by_locale(locale: str) -> str:

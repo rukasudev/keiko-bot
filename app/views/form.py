@@ -18,6 +18,7 @@ from app.services.utils import (
     parse_command_event_description,
     parse_form_yaml_to_dict,
 )
+from app.views.composition import FormComposition
 from app.views.options import OptionsView
 
 
@@ -31,17 +32,18 @@ class Form(discord.ui.View):
         `locale` -- the locale of the interaction (ex: pt-br, en-US)
     """
 
-    def __init__(self, command_key: str, locale: str) -> None:
+    def __init__(self, command_key: str, locale: str, steps: List[Dict[str, str]] = None) -> None:
         self.command_key = command_key
         self.locale = locale
-        self.steps = self._get_steps()
+        self.steps = self._get_steps(steps)
         super().__init__()
         self.add_item(ConfirmButton(callback=self._callback, locale=locale))
         self.add_item(CancelButton(locale=locale))
 
-    def _get_steps(self) -> Generator[Any, Any, Any]:
-        steps = parse_form_yaml_to_dict(self.command_key)
-        self._set_titles_and_descriptions(steps)
+    def _get_steps(self, steps: List[Dict[str, str]] = None) -> Generator[Any, Any, Any]:
+        if not steps:
+            steps = parse_form_yaml_to_dict(self.command_key)
+            self._set_titles_and_descriptions(steps)
         yield from steps
 
     def _update_form_step(func):
@@ -117,11 +119,16 @@ class Form(discord.ui.View):
         )
 
     def _set_titles_and_descriptions(self, steps: List[Dict[str, str]]):
-        self.title_and_desc = {
-            step["title"][self.locale]: step["description"][self.locale]
-            for step in steps
-            if step["action"] not in constants.NO_ACTION_LIST
-        }
+        for step in steps:
+            if step["action"] == constants.COMPOSITION_ACTION_KEY:
+                return self._set_titles_and_descriptions(step["steps"])
+
+            self.title_and_desc = {
+                step["title"][self.locale]: step["description"][self.locale]
+                for step in steps
+                if step["action"] not in constants.NO_ACTION_LIST
+            }
+        return self.title_and_desc
 
     def get_form_titles_and_descriptions(self) -> List[Dict[str, str]]:
         return self.title_and_desc
@@ -130,7 +137,7 @@ class Form(discord.ui.View):
         return parse_form_dict_to_embed(next(self.steps), self.locale)
 
     async def show_modal(self, interaction: discord.Interaction):
-        self.view = CustomModal(self._step, self._callback)
+        self.view = CustomModal(self._step, self._callback, self.locale)
         await interaction.response.send_modal(self.view)
 
     async def show_options(self, interaction: discord.Interaction):
@@ -226,6 +233,10 @@ class Form(discord.ui.View):
         self.add_item(CancelButton(locale=self.locale))
         await interaction.response.edit_message(embed=embed, view=self)
 
+    async def show_composition(self, interaction: discord.Interaction):
+        self.view = FormComposition(self._step, self._callback, self.locale)
+
+        await self.view.interate(interaction)
 
     async def _finish(self, interaction: discord.Interaction):
         cog_param = self._parse_responses_to_cog()
@@ -268,6 +279,7 @@ class Form(discord.ui.View):
             constants.CHANNELS_ACTION_KEY: self.show_channels,
             constants.RESUME_ACTION_KEY: self.show_resume,
             constants.BUTTON_ACTION_KEY: self.show_buttons,
+            constants.COMPOSITION_ACTION_KEY: self.show_composition,
         }
 
         if action in action_dict:
