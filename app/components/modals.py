@@ -4,14 +4,14 @@ import discord
 
 
 class CustomModal(discord.ui.Modal):
-    def __init__(self, config: dict, callback: Callable) -> None:
+    def __init__(self, config: dict, callback: Callable, locale: str) -> None:
         self.callback = callback
-        super().__init__(title=config.get("title"), timeout=300)
+        super().__init__(title=config.get("title").get(locale, "en-us"), timeout=300)
         self.add_item(
             discord.ui.TextInput(
                 style=discord.TextStyle.short,
-                label=config.get("label", ""),
-                placeholder=config.get("placeholder", ""),
+                label=config.get("label", "").get(locale, "en-us"),
+                placeholder=config.get("placeholder", "").get(locale, "en-us"),
                 default=config.get("default", ""),
                 required=config.get("required", True),
                 max_length=config.get("max_length", 40),

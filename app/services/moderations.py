@@ -99,7 +99,7 @@ def insert_error_by_command(cog_key: str, error_message: str):
 async def send_command_form_message(interaction: discord.Interaction, key: str):
     from app.views.form import Form
 
-    form_view = Form(form_key=key, locale=parse_locale(interaction.locale))
+    form_view = Form(command_key=key, locale=parse_locale(interaction.locale))
     embed = form_view.get_form_embed()
     list_titles_descriptions = form_view.get_form_titles_and_descriptions()
     embed.description += parse_form_titles_descriptions(interaction, list_titles_descriptions)
