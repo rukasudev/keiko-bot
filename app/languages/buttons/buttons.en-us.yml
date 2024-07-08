@@ -31,6 +31,14 @@ en-us:
     label: Unpause
     desc: Unpause the feature
 
+  "yes":
+    label: "Yes"
+    desc: Accept the question
+
+  "no":
+    label: "No"
+    desc: Reject the question
+
   history:
     label: History
     desc: See the history of changes made to the feature settings

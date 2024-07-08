@@ -31,6 +31,14 @@ pt-br:
     label: Despausar
     desc: Despausa a funcionalidade
 
+  "yes":
+    label: Sim
+    desc: Aceitar a pergunta
+
+  "no":
+    label: Não
+    desc: Rejeitar a pergunta
+
   history:
     label: Histórico
     desc: Veja o histórico de alterações feitas nas configurações da funcionalidade

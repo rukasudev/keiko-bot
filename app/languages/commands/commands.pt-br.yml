@@ -71,8 +71,9 @@ pt-br:
       desc: Keiko recebe calorosamente novos membros com mensagens personalizadas
 
     notifications-twitch:
-      name: twitch
-      desc: Keiko notificará você sempre que seus streamers favoritos estiverem ao vivo
+      subgroup: twitch
+      name: lives
+      desc: Keiko notificará você sempre que seus streamers favoritos estiverem ao vivo na Twitch
 
     default-roles:
       subgroup: cargos

@@ -1,0 +1,71 @@
+steps:
+  - action: form
+    key: form
+    title:
+      en-us: 🔔 Twitch Notifications
+      pt-br: 🔔 Twitch Notificações
+    description:
+      en-us: Enabling this feature allows me to notify when your favorite streamer is online on Twitch!
+      pt-br: Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Utilize o comando /reportar para me contar um bug"
+
+  - action: composition
+    key: notifications
+    emoji: ":busts_in_silhouette:"
+    max_length: 3
+    style: composition
+    title:
+      en-us: Notifications
+      pt-br: Notificações
+    description:
+      en-us: "Do you want to add more streamers? Add more streamers to be notified when they are online on Twitch! (Max: 3)"
+      pt-br: "Deseja adicionar mais streamers? Adicione mais streamers para ser notificado quando eles estiverem online na Twitch! (Max: 3)"
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Utilize o comando /reportar para me contar um bug"
+    steps:
+      - action: channels
+        key: channel
+        emoji: ":tv:"
+        unique: true
+        required: true
+        style: channel
+        title:
+          en-us: Text Channel
+          pt-br: Canal de Texto
+        description:
+          en-us: Choose which text channel you want to be notified
+          pt-br: Escolha em qual canal de texto você deseja ser notificado
+        footer:
+          en-us: "• Use the command /report to tell me a bug"
+          pt-br: "• Utilize o comando /reportar para me contar um bug"
+
+      - action: modal
+        key: streamer
+        max_length: 30
+        title:
+          en-us: Streamer
+          pt-br: Streamer
+        label:
+          en-us: Streamer
+          pt-br: Streamer
+        description:
+          en-us: "Only the streamer's username. Example: ninja"
+          pt-br: "Apenas o username do streamer. Exemplo: ninja"
+        placeholder:
+          en-us: Shroud
+          pt-br: Shroud
+
+  - action: resume
+    key: confirm
+    title:
+      en-us: ":white_check_check: Alright?"
+      pt-br: ":white_check_mark: Tudo certo?"
+    description:
+      en-us: Enabling this feature allows me to notify when your favorite streamer is online on Twitch!
+      pt-br: Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Utilize o comando /reportar para me contar um bug"
