@@ -26,6 +26,9 @@ class Errors(Cog, name="errors"):
     ) -> None:
         await self.send_default_error_message(interaction)
 
+        if str(interaction.user.id) == self.bot.owner_id:
+            return
+
         command_name = logconstants.UNKNOWN_COMMAND
         if interaction.command:
             command_name = interaction.command.qualified_name
