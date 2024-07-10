@@ -1,7 +1,7 @@
 from flask import jsonify, request
-from utils import verify_twitch_signature
 
-from . import webhooks
+from app.services.utils import verify_twitch_signature
+from app.webhooks import webhooks
 
 
 @webhooks.route('/twitch', methods=['GET'])
@@ -21,3 +21,4 @@ def twitch_webhook():
         print(f"{streamer_name} começou a transmitir!")
 
     return "Webhook processed", 200
+

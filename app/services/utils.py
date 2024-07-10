@@ -1,5 +1,7 @@
 import datetime
 import functools
+import hashlib
+import hmac
 import os
 from pathlib import Path
 from re import findall
@@ -28,6 +30,14 @@ def check_message_has_link(message: str, allowed_links: List[str]) -> List[str]:
     ]
 
     return links
+
+def verify_twitch_signature(request, twitch_secret_key: str):
+    message = request.headers['Twitch-Eventsub-Message-Id'] + request.headers['Twitch-Eventsub-Message-Timestamp'] + request.get_data(as_text=True)
+    secret = twitch_secret_key.encode('utf-8')
+    signature = hmac.new(secret, message.encode('utf-8'), hashlib.sha256).hexdigest()
+    expected_signature = request.headers['Twitch-Eventsub-Message-Signature'].split('=')[1]
+
+    return hmac.compare_digest(signature, expected_signature)
 
 @functools.cache
 def parse_form_yaml_to_dict(key: str) -> Dict[str, str]:

@@ -8,7 +8,6 @@ dotenv_path = join(dirname(__file__), "..", ".env")
 load_dotenv(dotenv_path, override=True)
 
 class Config:
-    DEBUG = True
     TWITCH_SECRET_KEY = os.getenv("TWITCH_SECRET_KEY")
 
 
