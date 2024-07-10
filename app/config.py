@@ -1,6 +1,7 @@
 import os
 from os.path import dirname, join
 
+import boto3
 from dotenv import load_dotenv
 
 from app.constants import DBConfigs as constants
@@ -15,19 +16,32 @@ class AppConfig:
         dotenv_path = join(dirname(__file__), "..", ".env")
         load_dotenv(dotenv_path, override=True)
 
-        self.DEBUG = os.getenv("DEBUG_MODE")
-        self.ENVIRONMENT = os.getenv("ENVIRONMENT")
+        self.ENVIRONMENT = os.getenv("APPLICATION_ENVIRONMENT")
+        self.get_ssm_configs() if self.is_prod() else self.get_local_configs()
+
+    def get_local_configs(self):
         self.BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-        self.PREFIX = os.getenv("DISCORD_BOT_PREFIX")
-        self.OWNER_ID = os.getenv("DISCORD_BOT_OWNER_ID")
-        self.DESCRIPTION = os.getenv("DISCORD_BOT_DESCRIPTION")
         self.MONGO_URL = os.getenv("MONGO_URL")
-        self.MONGO_DB = os.getenv("MONGO_DB")
         self.TWITCH_CLIENT_ID = os.getenv("TWITCH_CLIENT_ID")
         self.REDIS_URL = os.getenv("REDIS_URL")
         self.APPLICATION_ID = os.getenv("APPLICATION_ID")
         self.NOTION_TOKEN = os.getenv("NOTION_TOKEN")
         self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+
+    def get_ssm_configs(self):
+        ssm = boto3.client("ssm", region_name="sa-east-1")
+
+        self.APPLICATION_ID = ssm.get_parameter(Name="/keiko/discord/application_id")["Parameter"][
+            "Value"
+        ]
+        self.BOT_TOKEN = ssm.get_parameter(Name="/keiko/discord/bot_token", WithDecryption=True)["Parameter"]["Value"]
+        self.MONGO_URL = ssm.get_parameter(Name="/keiko/mongo/url", WithDecryption=True)["Parameter"]["Value"]
+        self.TWITCH_CLIENT_ID = ssm.get_parameter(Name="/keiko/twitch/client_id", WithDecryption=True)["Parameter"][
+            "Value"
+        ]
+        self.REDIS_URL = ssm.get_parameter(Name="/keiko/redis/url", WithDecryption=True)["Parameter"]["Value"]
+        self.NOTION_TOKEN = ssm.get_parameter(Name="/keiko/notion/token", WithDecryption=True)["Parameter"]["Value"]
+        self.OPENAI_API_KEY = ssm.get_parameter(Name="/keiko/openai/api_key", WithDecryption=True)["Parameter"]["Value"]
 
     def get_admin_db_configs(self):
         return [{key: getattr(self, key) for key in constants.ADMIN_CONFIGS_LIST}]
@@ -42,6 +56,8 @@ class AppConfig:
         self.STATUS = db_configs[constants.KEIKO_STATUS]
         self.DESCRIPTION = db_configs[constants.KEIKO_DESCRIPTION]
         self.ACTIVITY = db_configs[constants.KEIKO_ACTIVITY]
+        self.OWNER_ID = db_configs[constants.KEIKO_OWNER_ID]
+        self.PREFIX = db_configs[constants.KEIKO_PREFIX]
 
         notion_configs = find_db_integration_configs(constants.INTEGRATION_NOTION)
         self.NOTION_ENABLED = notion_configs.get(constants.INTEGRATION_NOTION_ENABLED)
@@ -68,4 +84,4 @@ class AppConfig:
         return self.ENVIRONMENT.upper() == "PROD"
 
     def is_debug(self) -> bool:
-        return self.DEBUG.lower() == "true"
+        return self.ENVIRONMENT.upper() == "TEST"

@@ -8,6 +8,9 @@ RUN python -m pip install git+https://github.com/Rapptz/discord.py.git@3bca40352
 
 RUN pip install -r requirements.txt
 
+ARG APPLICATION_ENV
+ENV APPLICATION_ENV=${APPLICATION_ENV}
+
 COPY . .
 
 CMD ["python", "./__main__.py"]

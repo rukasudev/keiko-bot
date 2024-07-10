@@ -12,6 +12,8 @@ class DBConfigs:
     KEIKO_ACTIVITY: Final[str] = "activity"
     KEIKO_STATUS: Final[str] = "status"
     KEIKO_DESCRIPTION: Final[str] = "description"
+    KEIKO_OWNER_ID: Final[str] = "owner_id"
+    KEIKO_PREFIX: Final[str] = "prefix"
 
     INTEGRATION_NOTION: Final[str] = "notion"
     INTEGRATION_NOTION_ENABLED: Final[bool] = "enabled"
