@@ -27,6 +27,8 @@ class AppConfig:
         self.APPLICATION_ID = os.getenv("APPLICATION_ID")
         self.NOTION_TOKEN = os.getenv("NOTION_TOKEN")
         self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+        self.DETECT_LANGUAGE_API_KEY = os.getenv("DETECT_LANGUAGE_API_KEY")
+
 
     def get_ssm_configs(self):
         ssm = boto3.client("ssm", region_name="sa-east-1")
@@ -42,6 +44,8 @@ class AppConfig:
         self.REDIS_URL = ssm.get_parameter(Name="/keiko/redis/url", WithDecryption=True)["Parameter"]["Value"]
         self.NOTION_TOKEN = ssm.get_parameter(Name="/keiko/notion/token", WithDecryption=True)["Parameter"]["Value"]
         self.OPENAI_API_KEY = ssm.get_parameter(Name="/keiko/openai/api_key", WithDecryption=True)["Parameter"]["Value"]
+        self.DETECT_LANGUAGE_API_KEY = ssm.get_parameter(
+            Name="/keiko/detect_language/api_key", WithDecryption=True)["Parameter"]["Value"]
 
     def get_admin_db_configs(self):
         return [{key: getattr(self, key) for key in constants.ADMIN_CONFIGS_LIST}]

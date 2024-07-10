@@ -4,9 +4,10 @@ import html
 import re
 import urllib.parse
 
+import detectlanguage
 import requests
-from googletrans import Translator as GT
 
+import app
 from app.services.utils import ml
 
 languages_with_flags = {
@@ -67,6 +68,9 @@ languages_with_flags = {
 }
 
 
+detectlanguage.configuration.api_key = app.bot.config.DETECT_LANGUAGE_API_KEY
+detectlanguage.configuration.secure = True
+
 class GoogleTranslate:
     pattern = r'(?s)class="(?:t0|result-container)">(.*?)<'
     message_validation = r"^(?=.*\S)(?:https?|ftp):\/\/[^\s/$.?#].[^\s]*$"
@@ -118,4 +122,4 @@ class GoogleTranslate:
 
     @staticmethod
     def detect(content: str) -> str:
-        return GT().detect(content).lang
+        return detectlanguage.simple_detect(content)
