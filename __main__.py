@@ -8,6 +8,7 @@ from app import create_app
 from app.api import create_api, run_api
 from app.config import AppConfig
 from app.logger import LoggerHooks
+from app.webhooks import handle_webhook_api
 
 if __name__ == "__main__":
     """Entry async method for starting the bot."""
@@ -24,10 +25,6 @@ if __name__ == "__main__":
         i18n.load_path.append(f"app/languages/{folder}")
         i18n.set("fallback", "en")
 
-    webhook_api = create_api(config.ENVIRONMENT)
-    run_api_lambda = lambda: run_api(webhook_api, 5000)
-
-    api_thread = Thread(target=run_api_lambda)
-    api_thread.start()
+    handle_webhook_api(config)
 
     app.run(config.BOT_TOKEN, reconnect=True)

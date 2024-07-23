@@ -28,12 +28,16 @@ class AppConfig:
         self.NOTION_TOKEN = os.getenv("NOTION_TOKEN")
         self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
         self.DETECT_LANGUAGE_API_KEY = os.getenv("DETECT_LANGUAGE_API_KEY")
+        self.RUN_LOCAL_WEBHOOK_API = os.getenv("RUN_LOCAL_WEBHOOK_API")
 
 
     def get_ssm_configs(self):
         ssm = boto3.client("ssm", region_name="sa-east-1")
 
         self.APPLICATION_ID = ssm.get_parameter(Name="/keiko/discord/application_id")["Parameter"][
+            "Value"
+        ]
+        self.RUN_LOCAL_WEBHOOK_API = ssm.get_parameter(Name="/keiko/discord/run_local_webhook_api")["Parameter"][
             "Value"
         ]
         self.BOT_TOKEN = ssm.get_parameter(Name="/keiko/discord/bot_token", WithDecryption=True)["Parameter"]["Value"]
@@ -89,3 +93,6 @@ class AppConfig:
 
     def is_debug(self) -> bool:
         return self.ENVIRONMENT.upper() == "TEST"
+    
+    def run_local_webhook_api(self) -> bool:
+        return self.RUN_LOCAL_WEBHOOK_API.lower() == "true"
