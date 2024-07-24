@@ -25,5 +25,6 @@ def handle_webhook_api(config: AppConfig) -> None:
 def healthcheck():
     from app import bot
 
-    bot.get_channel(bot.config.ADMIN_LOGS_CHANNEL_ID).send('Webhooks are up and running!')
+    channel = bot.get_channel(bot.config.ADMIN_LOGS_CHANNEL_ID)
+    bot.loop.create_task(channel.send('Webhooks are up and running!'))
     return 'Webhooks are up and running!', 200

@@ -1,16 +1,14 @@
 FROM python:3.10
 
-WORKDIR /usr/src/workspace
+WORKDIR /app
 
-COPY requirements.txt .
+COPY . /app
 
-RUN python -m pip install git+https://github.com/Rapptz/discord.py.git@3bca40352ecfa5b219bae0527252ee5d296113e7
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN pip install -r requirements.txt
+ARG APPLICATION_ENVIRONMENT
+ENV APPLICATION_ENVIRONMENT=${APPLICATION_ENVIRONMENT}
 
-ARG APPLICATION_ENV
-ENV APPLICATION_ENV=${APPLICATION_ENV}
+EXPOSE 5005
 
-COPY . .
-
-CMD ["python", "./__main__.py"]
+CMD ["python", "__main__.py"]
