@@ -104,8 +104,13 @@ class LoggerHooks:
             )
 
     def set_timed_rotating_file_handler(self) -> CustomTimedRotatingFileHandler:
+        log_directory = "./logs"
+
+        if not os.path.exists(log_directory):
+            os.makedirs(log_directory)
+
         self.file_handler = CustomTimedRotatingFileHandler(
-            "./logs/keiko_log.log", when="MIDNIGHT", encoding="utf-8"
+            f"{log_directory}/keiko_log.log", when="MIDNIGHT", encoding="utf-8"
         )
         self.file_handler.suffix = "%Y_%m_%d"
         self.file_handler.namer = lambda name: name.replace(".log.", "_") + ".log"
