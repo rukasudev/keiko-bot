@@ -15,7 +15,7 @@ def handle_webhook_api(config: AppConfig) -> None:
         return
     
     webhook_api = create_api(config.ENVIRONMENT)
-    run_api_lambda = lambda: run_api(webhook_api, 5005)
+    run_api_lambda = lambda: run_api(webhook_api, 5000)
 
     api_thread = Thread(target=run_api_lambda)
     return api_thread.start()
