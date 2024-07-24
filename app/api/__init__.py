@@ -22,4 +22,4 @@ def run_api(api: Flask, port: int = 5000):
     cli.show_server_banner = lambda *x: None
 
     logger.info(f"Starting Webhook API on port {port}")
-    api.run(port=port, debug=False)
+    api.run(host="0.0.0.0", port=port, debug=False)
