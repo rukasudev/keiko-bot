@@ -19,15 +19,8 @@ from app.constants import Emojis as constants
 from app.constants import LogTypes as logconstants
 
 
-def check_message_has_link(message: str, allowed_links: List[str]) -> List[str]:
-    links = [
-        link
-        for link in findall(
-            "http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*\(\),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+",
-            message.content.lower(),
-        )
-        if not any(allowed.lower() in link.lower() for allowed in allowed_links)
-    ]
+def get_message_links(message: str) -> List[str]:
+    links = findall(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", message.lower())        
 
     return links
 
@@ -141,17 +134,19 @@ def keiko_command(
     return decorator
 
 
-def parse_settings_with_database_values(cog_data: List[Dict[str, str]], form_steps: Dict[str, str], locale: str) -> List[Dict[str, str]]:
+def parse_settings_with_database_values(cog_data: Dict[str, str], form_steps: Dict[str, str], locale: str) -> List[Dict[str, str]]:
     response = []
     cogs_title = parse_form_steps_titles(form_steps, locale)
 
     for cog_key, value in cog_data.items():
-        if cogs_title.get(cog_key):
-            if value["style"] == "composition":
-                value = parse_settings_with_database_values_composition(form_steps, locale, value["values"])
-                response.append({"title": cogs_title[cog_key], "value": value, "style": "composition"})
-            else:
-                response.append({"title": cogs_title[cog_key], "value": value})
+        if not cogs_title.get(cog_key):            
+            continue
+
+        if isinstance(value, dict) and value.get("style") == "composition":
+            value = parse_settings_with_database_values_composition(form_steps, locale, value["values"])
+            response.append({"title": cogs_title[cog_key], "value": value, "style": "composition"})
+        else:
+            response.append({"title": cogs_title[cog_key], "value": value})
 
     return response
 

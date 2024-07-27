@@ -17,6 +17,7 @@ class AppConfig:
         load_dotenv(dotenv_path, override=True)
 
         self.ENVIRONMENT = os.getenv("APPLICATION_ENVIRONMENT")
+        self.DEBUG = os.getenv("DEBUG")
         self.get_ssm_configs() if self.is_prod() else self.get_local_configs()
 
     def get_local_configs(self):
@@ -92,7 +93,7 @@ class AppConfig:
         return self.ENVIRONMENT.upper() == "PROD"
 
     def is_debug(self) -> bool:
-        return self.ENVIRONMENT.upper() == "TEST"
+        return self.DEBUG.lower() == "true"
     
     def run_local_webhook_api(self) -> bool:
         return self.RUN_LOCAL_WEBHOOK_API.lower() == "true"

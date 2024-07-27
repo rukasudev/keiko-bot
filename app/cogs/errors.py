@@ -17,7 +17,8 @@ class Errors(Cog, name="errors"):
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
         super().__init__()
-        bot.tree.on_error = self.on_app_command_error
+        if self.bot.config.is_prod():                
+            bot.tree.on_error = self.on_app_command_error 
 
     async def on_app_command_error(
         self,
@@ -25,9 +26,6 @@ class Errors(Cog, name="errors"):
         error: discord.app_commands.AppCommandError,
     ) -> None:
         await self.send_default_error_message(interaction)
-
-        if str(interaction.user.id) == self.bot.owner_id:
-            return
 
         command_name = logconstants.UNKNOWN_COMMAND
         if interaction.command:

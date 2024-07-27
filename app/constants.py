@@ -198,3 +198,15 @@ class LogTypes:
 class Emojis:
     FRISBEE_EMOJI: Final[str] = ":flying_disc:"
     EDIT_EMOJI: Final[str] = ":pencil:"
+
+default_allowed_links: Final[Dict[str, str]] = {
+    "facebook": "https://facebook.com",
+    "instagram": "https://instagram.com",
+    "twitter": "https://twitter.com",
+    "twitch": "https://twitch.tv",
+    "youtube": "https://youtube.com",
+    "discord": "https://discord.gg",
+    "spotify": "https://open.spotify.com",
+    "tiktok": "https://tiktok.com",
+    "reddit": "https://reddit.com",
+}

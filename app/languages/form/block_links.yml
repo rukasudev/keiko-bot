@@ -60,6 +60,7 @@ steps:
       - "Twitch"
       - "Tiktok"
       - "Reddit"
+      - "Discord"
 
   - action: modal
     key: answer
