@@ -93,7 +93,7 @@ class AppConfig:
         return self.ENVIRONMENT.upper() == "PROD"
 
     def is_debug(self) -> bool:
-        return self.DEBUG.lower() == "true"
+        return False if self.DEBUG is None else self.DEBUG.lower() == "true"            
     
     def run_local_webhook_api(self) -> bool:
         return self.RUN_LOCAL_WEBHOOK_API.lower() == "true"
