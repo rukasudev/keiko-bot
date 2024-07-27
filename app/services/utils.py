@@ -16,6 +16,7 @@ from i18n import t
 from app.components.modals import ConfirmationModal
 from app.constants import CogsConstants as cogconstants
 from app.constants import Emojis as constants
+from app.constants import FormConstants as formconstants
 from app.constants import LogTypes as logconstants
 
 
@@ -82,7 +83,7 @@ def parse_form_steps_titles(form_steps: List[Dict[str, str]], locale: str) -> Di
     return {
         item["key"]: item["title"][locale]
         for item in form_steps
-        if item["key"] not in ["form", "confirm"]
+        if item["action"] not in formconstants.NO_ACTION_LIST
     }
 
 
@@ -159,12 +160,12 @@ def parse_settings_with_database_values_composition(form_steps: Dict[str, str], 
 
 def get_form_step_title_composition(form_steps: Dict[str, str], key: str, locale: str) -> str:
     for item in form_steps:
-        if item["key"] not in ["form", "confirm"] and item["action"] == "composition":
+        if item["action"] == "composition":
             return parse_form_steps_title_by_key(item["steps"], key, locale)
 
 def parse_form_steps_title_by_key(form_steps: Dict[str, str], key: str, locale: str) -> Dict[str, str]:
     for item in form_steps:
-        if item["key"] not in ["form", "confirm"] and item["key"] == key:
+        if item["action"] not in formconstants.NO_ACTION_LIST and item["key"] == key:
             return item["title"][locale]
 
 
