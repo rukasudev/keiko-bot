@@ -86,7 +86,7 @@ class Form(discord.ui.View):
         )
 
     def _get_step_item(self, key: str, default_value: Any = None) -> Dict[str, Any]:
-        multi_lang_keys = ["title", "description", "footer"]
+        multi_lang_keys = ["title", "description", "footer", "fields"]
         if key in multi_lang_keys:
             return self._step[key][self.locale]
         return self._step.get(key, default_value)
@@ -224,10 +224,9 @@ class Form(discord.ui.View):
         embed.title = f"{self._get_step_item('emoji')} {self._get_step_item('title')}"
         embed.description = self._get_step_item("description")
         embed.set_footer(text=self._get_step_item("footer"))
-
-        if self._get_step_item("fields"):
-            for field in self._get_step_item("fields"):
-                embed.add_field(name=field["title"], value=field["message"], inline=False)
+        
+        for field in self._get_step_item("fields"):
+            embed.add_field(name=field["title"], value=field["message"], inline=False)
 
         self.add_item(ConfirmButton(callback=self._callback, locale=self.locale))
         self.add_item(CancelButton(locale=self.locale))

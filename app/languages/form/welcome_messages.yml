@@ -37,10 +37,12 @@ steps:
       en-us: In the next step, you can customize the **title** of welcome messages that I will send to new members.
       pt-br: No próximo passo, você poderá personalizar o **título** das mensagens de boas-vindas que enviarei aos novos membros.
     fields:
-      - title: "Example of title"
-        message: "A new member has joined the server! 🎉"
-      - title: "Exemplo de título"
-        message: "Um novo membro chegou! 🎉"
+      en-us:
+        - title: "Example of title"
+          message: "A new member has joined the server! 🎉"
+      pt-br:
+        - title: "Exemplo de título"
+          message: "Um novo membro chegou! 🎉"
     footer:
       en-us: "• Use the command /report to tell me a bug"
       pt-br: "• Use o comando /reportar para me contar um bug"
@@ -71,14 +73,16 @@ steps:
       en-us: In the next step, you can customize the welcome messages that I will send to new members.
       pt-br: No próximo passo, você poderá personalizar as mensagens de boas-vindas que enviarei aos novos membros.
     fields:
-      - title: "1. Separate each message with a semicolon"
-        message: "Example: `Welcome {user} to {server}!; Hi {user}, welcome to {server}!`"
-      - title: "1. Separe cada mensagem com um ;"
-        message: "Exemplo: `Olá {user}, bem-vindo ao {server}!; Bem-vindo {user}!`"
-      - title: "2. You can use the following variables in your message:"
-        message: "- `{user}`: The user's mention\n- `{server}`: The server's name\n- `{member_count}`: The server's member count"
-      - title: "2. Você também poderá usar as seguintes variáveis reservadas"
-        message: "- `{user}`: Para mencionar o usuário que entrou\n- `{server}`: Nome do servidor\n- `{member_count}`: Quantidade de membros no servidor"
+      en-us:
+        - title: "1. Separate each message with a semicolon"
+          message: "Example: `Welcome {user} to {server}!; Hi {user}, welcome to {server}!`"
+        - title: "2. You can use the following variables in your message:"
+          message: "- `{user}`: The user's mention\n- `{server}`: The server's name\n- `{member_count}`: The server's member count"
+      pt-br:
+        - title: "1. Separe cada mensagem com um ;"
+          message: "Exemplo: `Olá {user}, bem-vindo ao {server}!; Bem-vindo {user}!`"
+        - title: "2. Você também poderá usar as seguintes variáveis reservadas"
+          message: "- `{user}`: Para mencionar o usuário que entrou\n- `{server}`: Nome do servidor\n- `{member_count}`: Quantidade de membros no servidor"
     footer:
       en-us: "• Use the command /report to tell me a bug"
       pt-br: "• Use o comando /reportar para me contar um bug"
@@ -110,10 +114,12 @@ steps:
       en-us: In the next step, you can customize the **footer** of welcome messages that I will send to new members.
       pt-br: No próximo passo, você poderá personalizar o **rodapé** das mensagens de boas-vindas que enviarei aos novos membros.
     fields:
-      - title: "Example of footer"
-        message: "I hope you have fun on the server!"
-      - title: "Exemplo de rodapé"
-        message: "Espero que se divirta no servidor!"
+      en-us:
+        - title: "Example of footer"
+          message: "I hope you have fun on the server!"
+      pt-br:
+        - title: "Exemplo de rodapé"
+          message: "Espero que se divirta no servidor!"
     footer:
       en-us: "• Use the command /report to tell me a bug"
       pt-br: "• Use o comando /reportar para me contar um bug"
