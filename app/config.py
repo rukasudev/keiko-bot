@@ -24,6 +24,8 @@ class AppConfig:
         self.BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
         self.MONGO_URL = os.getenv("MONGO_URL")
         self.TWITCH_CLIENT_ID = os.getenv("TWITCH_CLIENT_ID")
+        self.TWITCH_SECRET = os.getenv("TWITCH_SECRET")
+        self.TWITCH_HMAC_SECRET = os.getenv("TWITCH_HMAC_SECRET")
         self.REDIS_URL = os.getenv("REDIS_URL")
         self.APPLICATION_ID = os.getenv("APPLICATION_ID")
         self.NOTION_TOKEN = os.getenv("NOTION_TOKEN")
@@ -44,6 +46,10 @@ class AppConfig:
         self.BOT_TOKEN = ssm.get_parameter(Name="/keiko/discord/bot_token", WithDecryption=True)["Parameter"]["Value"]
         self.MONGO_URL = ssm.get_parameter(Name="/keiko/mongo/url", WithDecryption=True)["Parameter"]["Value"]
         self.TWITCH_CLIENT_ID = ssm.get_parameter(Name="/keiko/twitch/client_id", WithDecryption=True)["Parameter"][
+            "Value"
+        ]
+        self.TWITCH_SECRET = ssm.get_parameter(Name="/keiko/twitch/secret", WithDecryption=True)["Parameter"]["Value"]
+        self.TWITCH_HMAC_SECRET = ssm.get_parameter(Name="/keiko/twitch/hmac_secret", WithDecryption=True)["Parameter"][
             "Value"
         ]
         self.REDIS_URL = ssm.get_parameter(Name="/keiko/redis/url", WithDecryption=True)["Parameter"]["Value"]
@@ -93,7 +99,7 @@ class AppConfig:
         return self.ENVIRONMENT.upper() == "PROD"
 
     def is_debug(self) -> bool:
-        return False if self.DEBUG is None else self.DEBUG.lower() == "true"            
-    
+        return False if self.DEBUG is None else self.DEBUG.lower() == "true"
+
     def run_local_webhook_api(self) -> bool:
         return self.RUN_LOCAL_WEBHOOK_API.lower() == "true"
