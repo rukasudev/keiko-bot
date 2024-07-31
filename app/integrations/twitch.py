@@ -10,7 +10,8 @@ MESSAGE_TYPE = 'Twitch-Eventsub-Message-Type'.lower()
 MESSAGE_TYPE_CHALLENGE = 'webhook_callback_verification'
 
 class TwitchClient:
-    def __init__(self):
+    def __init__(self, bot):
+        self.bot = bot
         self.token = None
         self.token_expiration = None
 
@@ -27,7 +28,7 @@ class TwitchClient:
 
     def verify_twitch_signature(self, request):
         message = self.get_hmac_message(request)
-        hmac_value = HMAC_PREFIX + self.get_hmac(self.bot.config.TWITCH_SECRET, message)
+        hmac_value = HMAC_PREFIX + self.get_hmac(self.bot.config.TWITCH_HMAC_SECRET, message)
         twitch_signature = request.headers.get(TWITCH_MESSAGE_SIGNATURE, '')
 
         return hmac.compare_digest(hmac_value.encode('utf-8'), twitch_signature.encode('utf-8'))

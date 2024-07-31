@@ -13,7 +13,7 @@ def create_api(config_name: str):
     )
 
     from app.webhooks import webhooks as webhooks_blueprint
-    app.register_blueprint(webhooks_blueprint, url_prefix='/webhooks')
+    app.register_blueprint(webhooks_blueprint, url_prefix='/api/webhooks')
 
     return app
 

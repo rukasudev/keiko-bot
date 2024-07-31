@@ -21,7 +21,7 @@ class DiscordBot(Bot):
         self.guild_available = threading.Event()
         self.synced = False
         self.notion = NotionIntegration(config)
-        self.twitch = TwitchClient()
+        self.twitch = TwitchClient(self)
         super().__init__(
             command_prefix=self.config.PREFIX,
             application_id=self.config.APPLICATION_ID,
