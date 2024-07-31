@@ -36,11 +36,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Pull image from docker hub
-        run: docker pull ${{ env.REGISTRY }}:latest
-
       - name: Remove docker container
         run: docker rm -f keiko-bot || true
+
+      - name: Remove docker image
+        run: docker rmi ${{ env.REGISTRY }}:latest || true
+
+      - name: Pull image from docker hub
+        run: docker pull ${{ env.REGISTRY }}:latest
 
       - name: Run docker container
         run: docker run -d -p 5000:5000 --name keiko-bot ${{ env.REGISTRY }}:latest
