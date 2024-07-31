@@ -2,7 +2,7 @@ from typing import Dict, List
 
 import discord
 
-from app.components.buttons import BackButtom
+from app.components.buttons import BackButton
 from app.services.utils import ml
 
 
@@ -94,7 +94,7 @@ class HelpSelect(Select):
 
         new_view = discord.ui.View()
         new_view.add_item(
-            BackButtom(embed=embed, view=self.view, locale=interaction.locale)
+            BackButton(embed=embed, view=self.view, locale=interaction.locale)
         )
 
         await interaction.response.edit_message(embed=self.view.embed, view=new_view)

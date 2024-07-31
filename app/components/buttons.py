@@ -70,7 +70,7 @@ class OptionsButton(discord.ui.Button):
                 return
 
 
-class EditButtom(discord.ui.Button):
+class EditButton(discord.ui.Button):
     def __init__(self, after_callback: Callable, locale: str) -> None:
         self.after_callback = after_callback
         self.locale = locale
@@ -93,7 +93,7 @@ class EditButtom(discord.ui.Button):
         await interaction.response.edit_message(embed=embed, view=view)
 
 
-class PauseButtom(discord.ui.Button):
+class PauseButton(discord.ui.Button):
     def __init__(self, callback: Callable, locale: str) -> None:
         self.callback = callback
         self.desc = ml("buttons.pause.desc", locale=locale)
@@ -105,7 +105,7 @@ class PauseButtom(discord.ui.Button):
         )
 
 
-class UnpauseButtom(discord.ui.Button):
+class UnpauseButton(discord.ui.Button):
     def __init__(self, callback: Callable, locale: str) -> None:
         self.callback = callback
         self.desc = ml("buttons.unpause.desc", locale=locale)
@@ -117,7 +117,7 @@ class UnpauseButtom(discord.ui.Button):
         )
 
 
-class DisableButtom(discord.ui.Button):
+class DisableButton(discord.ui.Button):
     def __init__(self, callback: Callable, locale: str) -> None:
         self.callback = callback
         self.desc = ml("buttons.disable.desc", locale=locale)
@@ -129,7 +129,7 @@ class DisableButtom(discord.ui.Button):
         )
 
 
-class BackButtom(discord.ui.Button):
+class BackButton(discord.ui.Button):
     def __init__(
         self, view: discord.ui.View, embed: discord.Embed, locale: str
     ) -> None:
@@ -147,7 +147,7 @@ class BackButtom(discord.ui.Button):
         )
 
 
-class HistoryButtom(discord.ui.Button):
+class HistoryButton(discord.ui.Button):
     def __init__(self, callback: Callable, locale: str) -> None:
         self.callback = callback
         self.desc = ml("buttons.history.desc", locale=locale)
@@ -158,7 +158,7 @@ class HistoryButtom(discord.ui.Button):
         )
 
 
-class HelpButtom(discord.ui.Button):
+class HelpButton(discord.ui.Button):
     def __init__(self, locale: str) -> None:
         self.locale = locale
         self.desc = ml("buttons.help.desc", locale=locale)

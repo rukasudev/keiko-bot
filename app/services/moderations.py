@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional
 
 import discord
 
-from app.components.buttons import HelpButtom
+from app.components.buttons import HelpButton
 from app.components.embed import parse_form_dict_to_embed
 from app.constants import Commands as commands_constants
 from app.constants import GuildConstants as guild_constants
@@ -134,7 +134,7 @@ async def send_command_manager_message(
     if additional_info:
         embed.description += f"\n\n{additional_info}"
 
-    additional_buttons.append(HelpButtom(locale=locale))
+    additional_buttons.append(HelpButton(locale=locale))
 
     row = 1
     for button in additional_buttons:

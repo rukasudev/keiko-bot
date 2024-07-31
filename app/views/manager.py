@@ -3,11 +3,11 @@ from typing import Any, Dict
 import discord
 
 from app.components.buttons import (
-    DisableButtom,
-    EditButtom,
-    HistoryButtom,
-    PauseButtom,
-    UnpauseButtom,
+    DisableButton,
+    EditButton,
+    HistoryButton,
+    PauseButton,
+    UnpauseButton,
 )
 from app.constants import Commands as constants
 from app.services.cogs import (
@@ -48,10 +48,10 @@ class Manager(discord.ui.View):
         self.interaction = interaction
         self.locale = parse_locale(interaction.locale)
         super().__init__()
-        self.add_item(EditButtom(self.update_command, locale=self.locale))
+        self.add_item(EditButton(self.update_command, locale=self.locale))
         self.add_item(self.pause_handler())
-        self.add_item(DisableButtom(callback=self.disable_callback, locale=self.locale))
-        self.add_item(HistoryButtom(callback=self.history_callback, locale=self.locale))
+        self.add_item(DisableButton(callback=self.disable_callback, locale=self.locale))
+        self.add_item(HistoryButton(callback=self.history_callback, locale=self.locale))
 
     async def update_command(self, interaction: discord.Interaction):
         data = self.edited_form_view._parse_responses_to_cog()
@@ -84,9 +84,9 @@ class Manager(discord.ui.View):
 
     def pause_handler(self) -> discord.ui.Button:
         if self.cogs.get(constants.ENABLED_KEY):
-            return PauseButtom(callback=self.pause_callback, locale=self.locale)
+            return PauseButton(callback=self.pause_callback, locale=self.locale)
 
-        return UnpauseButtom(callback=self.unpause_callback, locale=self.locale)
+        return UnpauseButton(callback=self.unpause_callback, locale=self.locale)
 
     @need_confirmation_modal
     async def unpause_callback(self, interaction: discord.Interaction):

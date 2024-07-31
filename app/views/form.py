@@ -2,7 +2,7 @@ from typing import Any, Callable, Dict, Generator, List
 
 import discord
 
-from app.components.buttons import CancelButton, ConfirmButton, EditButtom
+from app.components.buttons import CancelButton, ConfirmButton, EditButton
 from app.components.embed import parse_form_dict_to_embed
 from app.components.modals import CustomModal
 from app.constants import Commands as commandconstants
@@ -210,7 +210,7 @@ class Form(discord.ui.View):
         embed = self.step_embed.copy()
         embed.description += get_form_settings_with_database_values(interaction, self.responses)
 
-        self.add_item(EditButtom(after_callback=self.update_resume, locale=self.locale))
+        self.add_item(EditButton(after_callback=self.update_resume, locale=self.locale))
         self.add_item(ConfirmButton(callback=self._finish, locale=self.locale))
         self.add_item(CancelButton(locale=self.locale))
         await interaction.response.edit_message(embed=embed, view=self)
@@ -224,7 +224,7 @@ class Form(discord.ui.View):
         embed.title = f"{self._get_step_item('emoji')} {self._get_step_item('title')}"
         embed.description = self._get_step_item("description")
         embed.set_footer(text=self._get_step_item("footer"))
-        
+
         for field in self._get_step_item("fields"):
             embed.add_field(name=field["title"], value=field["message"], inline=False)
 
