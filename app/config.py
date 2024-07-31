@@ -32,6 +32,7 @@ class AppConfig:
         self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
         self.DETECT_LANGUAGE_API_KEY = os.getenv("DETECT_LANGUAGE_API_KEY")
         self.RUN_LOCAL_WEBHOOK_API = os.getenv("RUN_LOCAL_WEBHOOK_API")
+        self.WEBHOOK_URL = os.getenv("WEBHOOK_URL")
 
 
     def get_ssm_configs(self):
@@ -43,6 +44,7 @@ class AppConfig:
         self.RUN_LOCAL_WEBHOOK_API = ssm.get_parameter(Name="/keiko/discord/run_local_webhook_api")["Parameter"][
             "Value"
         ]
+        self.WEBHOOK_URL = ssm.get_parameter(Name="/keiko/webhook/url")["Parameter"]["Value"]
         self.BOT_TOKEN = ssm.get_parameter(Name="/keiko/discord/bot_token", WithDecryption=True)["Parameter"]["Value"]
         self.MONGO_URL = ssm.get_parameter(Name="/keiko/mongo/url", WithDecryption=True)["Parameter"]["Value"]
         self.TWITCH_CLIENT_ID = ssm.get_parameter(Name="/keiko/twitch/client_id", WithDecryption=True)["Parameter"][
