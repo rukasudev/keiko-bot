@@ -21,6 +21,7 @@ from app.services.moderations import (
     pause_moderations_by_guild,
     unpause_moderations_by_guild,
 )
+from app.services.notifications_twitch import unsubscribe_streamer
 from app.services.utils import (
     ml,
     need_confirmation_modal,
@@ -144,8 +145,14 @@ class Manager(discord.ui.View):
 
     @need_confirmation_modal
     async def disable_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
         guild_id = str(interaction.guild.id)
         embed = interaction.message.embeds[0]
+
+        # TODO: handle this type of logic in a service
+        if self.command_key == constants.NOTIFICATIONS_TWITCH_KEY:
+            unsubscribe_streamer(interaction, self.cogs)
 
         unpause_moderations_by_guild(guild_id=guild_id, key=self.command_key)
 
@@ -168,7 +175,7 @@ class Manager(discord.ui.View):
             str(interaction.user.id),
         )
 
-        await interaction.response.edit_message(view=self)
+        await interaction.followup.edit_message(interaction.message.id, view=self)
         await interaction.followup.send(embed=embed, view=self)
 
     async def history_callback(self, interaction: discord.Interaction):

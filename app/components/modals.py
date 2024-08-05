@@ -6,6 +6,7 @@ import discord
 class CustomModal(discord.ui.Modal):
     def __init__(self, config: dict, callback: Callable, locale: str) -> None:
         self.callback = callback
+        self.lowercase = config.get("lowercase", False)
         super().__init__(title=config.get("title").get(locale, "en-us"), timeout=300)
         self.add_item(
             discord.ui.TextInput(
@@ -22,7 +23,7 @@ class CustomModal(discord.ui.Modal):
         return self.response
 
     async def on_submit(self, interaction) -> None:
-        self.response = self.children[0].value
+        self.response = self.children[0].value if not self.lowercase else self.children[0].value.lower()
         await self.callback(interaction)
 
 

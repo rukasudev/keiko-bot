@@ -45,6 +45,7 @@ steps:
       - action: modal
         key: streamer
         max_length: 30
+        lowercase: true
         title:
           en-us: Streamer
           pt-br: Streamer
@@ -57,6 +58,47 @@ steps:
         placeholder:
           en-us: Shroud
           pt-br: Shroud
+
+      - action: button
+        key: question_notification_message
+        emoji: "📩"
+        title:
+          en-us: Notification Message
+          pt-br: Mensagem da Notificação
+        description:
+          en-us: In the next step, you can customize the messages that I will send to the members.
+          pt-br: No próximo passo, você poderá personalizar as mensagens que enviarei aos membros.
+        fields:
+          en-us:
+            - title: "1. Separate each message with a semicolon"
+              message: "Example: `Hello @everyone! {streamer} is online on Twitch!; You can watch him at {stream_link}!`"
+            - title: "2. You can use the following variables in your message:"
+              message: "- `{streamer}`: Streamer's username\n- `{stream_link}`: Stream link"
+          pt-br:
+            - title: "1. Separe cada mensagem com um ;"
+              message: "Exemplo: `Olá @everyone! {streamer} está online na Twitch!; Você pode assisti-lo em {stream_link}!`"
+            - title: "2. Você também poderá usar as seguintes variáveis reservadas"
+              message: "- `{streamer}`: Username do streamer\n- `{stream_link}`: Link da stream"
+        footer:
+          en-us: "• Use the command /report to tell me a bug"
+          pt-br: "• Use o comando /reportar para me contar um bug"
+
+      - action: modal
+        key: notification_message
+        max_length: 1000
+        style: bullet
+        title:
+          en-us: Notification Messages
+          pt-br: Mensagens da Notificação
+        label:
+          en-us: Notification messages separated by semicolon
+          pt-br: Mensagens da notificação separadas por ;
+        description:
+          en-us: The messages that will be sent to the members, separated by ;
+          pt-br: As mensagens que serão enviadas aos membros, separadas por ;
+        placeholder:
+          en-us: "Hey @everyone! {streamer} is online on Twitch! Come watch him at {stream_link}!"
+          pt-br: "Olá @everyone! {streamer} está online na Twitch! Venha assisti-lo em {stream_link}!"
 
   - action: resume
     key: confirm

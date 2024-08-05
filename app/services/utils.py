@@ -21,7 +21,7 @@ from app.constants import LogTypes as logconstants
 
 
 def get_message_links(message: str) -> List[str]:
-    links = findall(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", message.lower())        
+    links = findall(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", message.lower())
 
     return links
 
@@ -140,7 +140,7 @@ def parse_settings_with_database_values(cog_data: Dict[str, str], form_steps: Di
     cogs_title = parse_form_steps_titles(form_steps, locale)
 
     for cog_key, value in cog_data.items():
-        if not cogs_title.get(cog_key):            
+        if not cogs_title.get(cog_key):
             continue
 
         if isinstance(value, dict) and value.get("style") == "composition":
@@ -181,8 +181,8 @@ def format_single_value(value: str, style: str) -> str:
         "channel": f"<#{value}>",
         "role": f"<@&{value}>",
         "user": f"<@{value}>",
-        "bullet": "\n```" + "\n".join([f"{i + 1}. {v}" for i, v in enumerate(value.split("; "))]) + "```",
-        "numbered": "\n```" + "\n".join([f"• {v}" for v in value.split("; ")]) + "```",
+        "bullet": "\n```" + "\n".join([f"{i + 1}. {v.lstrip()}" for i, v in enumerate(value.split(";"))]) + "```",
+        "numbered": "\n```" + "\n".join([f"• {v.lstrip()}" for v in value.split(";")]) + "```",
     }
     return formats.get(style, value)
 

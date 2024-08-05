@@ -52,6 +52,7 @@ class Form(discord.ui.View):
             try:
                 self._step = next(self.steps)
             except StopIteration:
+                self.pre_finish_step(args)
                 return await self._after_callback(args)
             self.step_embed = parse_form_dict_to_embed(self._step, self.locale)
             await func(self, args)
@@ -238,7 +239,11 @@ class Form(discord.ui.View):
         await self.view.interate(interaction)
 
     async def _finish(self, interaction: discord.Interaction):
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
         cog_param = self._parse_responses_to_cog()
+        self.pre_finish_step(interaction)
+
         update_moderations_by_guild(
             guild_id=interaction.guild_id, key=self.command_key, value=True
         )
@@ -248,7 +253,7 @@ class Form(discord.ui.View):
 
         self.clear_items()
 
-        await interaction.response.edit_message(view=None)
+        await interaction.followup.edit_message(interaction.message.id, view=None)
 
         embed = interaction.message.embeds[0]
         embed.title = ml("commands.command-events.enabled.title", locale=self.locale)
@@ -268,6 +273,12 @@ class Form(discord.ui.View):
         )
 
         await interaction.followup.send(embed=embed, view=self)
+
+    def pre_finish_step(self, interaction: discord.Interaction):
+        from app.services.notifications_twitch import subscribe_streamer
+
+        if self.command_key == commandconstants.NOTIFICATIONS_TWITCH_KEY:
+            subscribe_streamer(interaction, self.responses)
 
     async def get_action_by_type(self, action, interaction) -> None:
         action_dict = {
