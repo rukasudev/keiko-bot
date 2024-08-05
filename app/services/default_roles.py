@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Union
 
 import discord
 
@@ -33,8 +33,7 @@ async def set_on_default_roles_sync(interaction: discord.Interaction):
         )
         return await interaction.followup.send(
             embed=embed,
-            delete_after=10,
-            mention_author=True,
+            ephemeral=True,
         )
 
     embed = response_embed(
@@ -53,8 +52,8 @@ async def set_on_default_roles_sync(interaction: discord.Interaction):
 async def set_default_roles(
     cogs: Dict[str, str], guild: discord.Guild, members: List[discord.Member]
 ):
-    default_roles_bot = cogs.get(constants.DEFAULT_ROLES_BOT_KEY, [])
-    default_roles_user = cogs.get(constants.DEFAULT_ROLES_KEY, [])
+    default_roles_bot = cogs.get(constants.DEFAULT_ROLES_BOT_KEY, []).get("values")
+    default_roles_user = cogs.get(constants.DEFAULT_ROLES_KEY, []).get("values")
 
     available_roles = get_available_roles_by_guild(guild)
     roles_mapping = {
@@ -78,8 +77,8 @@ def get_roles_to_add(
         role_type = constants.DEFAULT_ROLES_KEY
 
     roles_to_add = []
-    for role_name in roles_mapping[role_type]:
-        role = discord.utils.get(guild.roles, name=role_name)
+    for role_id in roles_mapping[role_type]:
+        role = discord.utils.get(guild.roles, id=int(role_id))
         if not role:
             continue
 
@@ -89,8 +88,10 @@ def get_roles_to_add(
     return roles_to_add
 
 
-def filter_roles(roles: List[str], available_roles: List[str]) -> List[str]:
-    return [role for role in roles if role in available_roles]
+def filter_roles(roles: List[str], available_roles: Dict[str, str]) -> List[str]:
+    if isinstance(roles, str):
+        return [roles] if roles in available_roles.values() else []
+    return [role for role in roles if role in available_roles.values()]
 
 
 async def manager(interaction: discord.Interaction, guild_id: str):
@@ -123,12 +124,12 @@ async def manager(interaction: discord.Interaction, guild_id: str):
 
 
 def get_not_available_roles(
-    roles: List[str], available_roles: List[str], locale: str
+    roles: Union[List[str], str], available_roles: Dict[str, str], locale: str
 ) -> str:
     if isinstance(roles, list):
-        not_available_roles = [f"<@&{role}>" for role in roles if role not in available_roles]
+        not_available_roles = [f"<@&{role}>" for role in roles if role not in available_roles.values()]
     else:
-        not_available_roles = [f"<@&{roles}>"]
+        not_available_roles = [f"<@&{roles}>"] if roles not in available_roles.values() else []
 
     if not not_available_roles:
         return ""
