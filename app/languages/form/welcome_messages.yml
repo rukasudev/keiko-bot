@@ -50,6 +50,9 @@ steps:
   - action: modal
     key: welcome_messages_title
     max_length: 50
+    default:
+      en-us: "A new member has joined the server! 🎉"
+      pt-br: "Um novo membro chegou! 🎉"
     title:
       en-us: Welcome Messages Title
       pt-br: Título das Mensagens de Boas-Vindas
@@ -90,6 +93,9 @@ steps:
   - action: modal
     key: welcome_messages
     max_length: 2000
+    default:
+      en-us: "Welcome {user} to {server}!; Hi {user}, welcome to {server}!"
+      pt-br: "Bem-vindo {user} ao {server}!; Olá {user}, bem-vindo ao {server}!"
     style: bullet
     title:
       en-us: Welcome Messages
@@ -127,6 +133,9 @@ steps:
   - action: modal
     key: welcome_messages_footer
     max_length: 50
+    default:
+      en-us: "I hope you have fun on the server!"
+      pt-br: "Espero que se divirta no servidor!"
     title:
       en-us: Welcome Messages Footer
       pt-br: Rodapé das Mensagens de Boas-Vindas
