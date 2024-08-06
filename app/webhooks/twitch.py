@@ -9,13 +9,9 @@ from app.webhooks import webhooks
 def twitch_webhook():
     from app import bot
 
-    logger.info('Twitch webhook received', log_type=logconstants.COMMAND_INFO_TYPE)
-
     if not bot.twitch.verify_twitch_signature(request):
         logger.error('Invalid Twitch signature', log_type=logconstants.COMMAND_INFO_TYPE)
         return 'Invalid signature', 403
-
-    logger.info('Twitch signature match', log_type=logconstants.COMMAND_INFO_TYPE)
 
     data = request.json
 
@@ -28,7 +24,5 @@ def twitch_webhook():
 
         streamer_name = data['event']['broadcaster_user_name']
         send_streamer_notifications(streamer_name)
-
-    logger.info('Twitch webhook processed', log_type=logconstants.COMMAND_INFO_TYPE)
 
     return "Webhook processed", 200
