@@ -10,8 +10,6 @@ def twitch_webhook():
     from app import bot
 
     logger.info('Twitch webhook received', log_type=logconstants.COMMAND_INFO_TYPE)
-    logger.info(f"Request headers: {request.headers}", log_type=logconstants.COMMAND_INFO_TYPE)
-    logger.info(f"Request data: {request.data}", log_type=logconstants.COMMAND_INFO_TYPE)
 
     if not bot.twitch.verify_twitch_signature(request):
         logger.error('Invalid Twitch signature', log_type=logconstants.COMMAND_INFO_TYPE)
@@ -25,14 +23,12 @@ def twitch_webhook():
         logger.info('Twitch webhook challenge received', log_type=logconstants.COMMAND_INFO_TYPE)
         return data['challenge']
 
-    channel = bot.get_channel(bot.config.ADMIN_LOGS_CHANNEL_ID)
-
     if data.get('subscription', {}).get('type') == 'stream.online':
+        from app.services.notifications_twitch import send_streamer_notifications
+
         streamer_name = data['event']['broadcaster_user_name']
-        logger.info(f"{streamer_name} começou a transmitir!", log_type=logconstants.COMMAND_INFO_TYPE)
-        bot.loop.create_task(channel.send(f"{streamer_name} começou a transmitir!"))
+        send_streamer_notifications(streamer_name)
 
     logger.info('Twitch webhook processed', log_type=logconstants.COMMAND_INFO_TYPE)
 
     return "Webhook processed", 200
-

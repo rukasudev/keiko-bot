@@ -55,6 +55,8 @@ class Manager(discord.ui.View):
         self.add_item(HistoryButton(callback=self.history_callback, locale=self.locale))
 
     async def update_command(self, interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
         data = self.edited_form_view._parse_responses_to_cog()
 
         update_cog_by_guild(interaction.guild_id, self.command_key, data)
@@ -80,7 +82,7 @@ class Manager(discord.ui.View):
         view = self.edited_form_view.view
         view.clear_items()
 
-        await interaction.response.edit_message(view=self)
+        await interaction.followup.edit_message(interaction.message.id, view=self)
         await interaction.followup.send(embed=embed, view=self)
 
     def pause_handler(self) -> discord.ui.Button:

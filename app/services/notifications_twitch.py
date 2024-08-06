@@ -1,5 +1,6 @@
 
 
+import random
 from typing import Any, Dict, List
 
 import discord
@@ -7,7 +8,10 @@ import discord
 from app import bot, logger
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
-from app.data.notifications_twitch import count_streamers_guilds
+from app.data.notifications_twitch import (
+    count_streamers_guilds,
+    find_guilds_by_streamer_name,
+)
 from app.services import cache
 from app.services.moderations import (
     send_command_form_message,
@@ -24,6 +28,37 @@ async def manager(interaction: discord.Interaction, guild_id: str):
     await send_command_manager_message(
         interaction, constants.NOTIFICATIONS_TWITCH_KEY, cogs
     )
+
+def send_streamer_notifications(streamer_name: str) -> None:
+    guilds_data = find_guilds_by_streamer_name(streamer_name)
+
+    logger.info(
+        f"Starting to send notifications for streamer: **{streamer_name}**",
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )
+
+    count = 0
+    for guild_data in guilds_data:
+        guild = bot.get_guild(int(guild_data.get("guild_id")))
+
+        notifications = guild_data.get("notifications").get("values")
+        for notification in notifications:
+            streamer = notification.get("streamer").get("value")
+            if streamer != streamer_name:
+                continue
+
+            message = compose_notification_message(notification, streamer)
+            channel = guild.get_channel(int(notification.get("channel").get("value")))
+
+            bot.loop.create_task(channel.send(message))
+            count += 1
+
+
+    logger.info(
+        f"Notifications sent for streamer **{streamer_name}** in {count} guilds",
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )
+
 
 def subscribe_streamer(interaction: discord.Interaction, form_responses: List[Dict[str, Any]]) -> None:
     for response in form_responses[0].get("value"):
@@ -85,3 +120,18 @@ def unsubscribe_streamer(interaction: discord.Interaction, cogs: Dict[str, Any])
             interaction=interaction,
             log_type=logconstants.COMMAND_INFO_TYPE,
         )
+
+def compose_notification_message(notification: Dict[str, Any], streamer: str) -> str:
+    messages = notification.get("notification_messages").get("value")
+    stream_link = f"https://twitch.tv/{streamer}"
+    random_message = random.choice(messages.split(";")).lstrip()
+
+    return parse_streamer_message(random_message, streamer, stream_link)
+
+def parse_streamer_message(message: str, streamer: str, stream_link: str) -> str:
+    if "{stream_link}" not in message.lower():
+        message += "\n{stream_link}"
+
+    message = message.format(streamer=streamer, stream_link=stream_link)
+
+    return message

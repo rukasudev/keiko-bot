@@ -13,7 +13,7 @@ class CustomModal(discord.ui.Modal):
                 style=discord.TextStyle.short,
                 label=config.get("label", "").get(locale, "en-us"),
                 placeholder=config.get("placeholder", "").get(locale, "en-us"),
-                default=config.get("default", ""),
+                default=config.get("default", "").get(locale, "en-us") if config.get("default") else None,
                 required=config.get("required", True),
                 max_length=config.get("max_length", 40),
             )

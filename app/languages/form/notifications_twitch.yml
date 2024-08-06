@@ -56,11 +56,11 @@ steps:
           en-us: "Only the streamer's username. Example: ninja"
           pt-br: "Apenas o username do streamer. Exemplo: ninja"
         placeholder:
-          en-us: Shroud
-          pt-br: Shroud
+          en-us: shroud
+          pt-br: shroud
 
       - action: button
-        key: question_notification_message
+        key: question_notification_messages
         emoji: "📩"
         title:
           en-us: Notification Message
@@ -71,12 +71,12 @@ steps:
         fields:
           en-us:
             - title: "1. Separate each message with a semicolon"
-              message: "Example: `Hello @everyone! {streamer} is online on Twitch!; You can watch him at {stream_link}!`"
+              message: "Example: `@everyone {streamer} is online on Twitch!; @everyone I'm online now! Watch me at {stream_link}`"
             - title: "2. You can use the following variables in your message:"
               message: "- `{streamer}`: Streamer's username\n- `{stream_link}`: Stream link"
           pt-br:
             - title: "1. Separe cada mensagem com um ;"
-              message: "Exemplo: `Olá @everyone! {streamer} está online na Twitch!; Você pode assisti-lo em {stream_link}!`"
+              message: "Exemplo: `@everyone {streamer} está online na Twitch!; @everyone Estou online agora! Me assista em {stream_link}`"
             - title: "2. Você também poderá usar as seguintes variáveis reservadas"
               message: "- `{streamer}`: Username do streamer\n- `{stream_link}`: Link da stream"
         footer:
@@ -84,8 +84,11 @@ steps:
           pt-br: "• Use o comando /reportar para me contar um bug"
 
       - action: modal
-        key: notification_message
+        key: notification_messages
         max_length: 1000
+        default:
+          pt-br: "Olá @everyone! {streamer} está online na Twitch!; @everyone {streamer} está ao vivo agora! Assista em {stream_link}!"
+          en-us: "Hey @everyone! {streamer} is online on Twitch!; @everyone {streamer} is live now! Watch at {stream_link}!"
         style: bullet
         title:
           en-us: Notification Messages
