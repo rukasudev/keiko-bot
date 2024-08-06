@@ -86,6 +86,9 @@ class AppConfig:
         self.ADMIN_GUILD_ID = int(admin_configs[constants.ADMIN_GUILD_ID])
         self.ADMIN_REPORTS_CHANNEL_ID = int(admin_configs[constants.ADMIN_REPORTS_CHANNEL_ID])
         self.ADMIN_LOGS_CHANNEL_ID = int(admin_configs[constants.ADMIN_LOGS_CHANNEL_ID])
+        self.ADMIN_LOGS_COMMAND_CALL_ID = int(
+            admin_configs[constants.ADMIN_LOGS_COMMAND_CALL_ID]
+        )
         self.ADMIN_LOGS_ERROR_CHANNEL_ID = int(
             admin_configs[constants.ADMIN_LOGS_ERROR_CHANNEL_ID]
         )

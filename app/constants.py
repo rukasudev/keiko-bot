@@ -27,6 +27,7 @@ class DBConfigs:
     ADMIN_GUILD_ID: Final[str] = "admin_guild_id"
     ADMIN_REPORTS_CHANNEL_ID: Final[str] = "admin_reports_channel_id"
     ADMIN_LOGS_CHANNEL_ID: Final[str] = "admin_logs_channel_id"
+    ADMIN_LOGS_COMMAND_CALL_ID: Final[str] = "admin_logs_command_call_id"
     ADMIN_LOGS_ERROR_CHANNEL_ID: Final[str] = "admin_logs_error_channel_id"
     ADMIN_LOGS_FILES_CHANNEL_ID: Final[str] = "admin_logs_files_channel_id"
     ADMIN_DUMP_CHANNEL_ID: Final[str] = "admin_dump_channel_id"

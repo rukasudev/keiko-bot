@@ -142,6 +142,11 @@ class DiscordLogsHandler(logging.Handler):
                 self.bot.config.ADMIN_LOGS_ERROR_CHANNEL_ID
             )
 
+        if record.log_type == constants.COMMAND_CALL_TYPE:
+            log_channel = self.bot.get_channel(
+                self.bot.config.ADMIN_LOGS_COMMAND_CALL_ID
+            )
+
         if not log_channel:
             return
 
