@@ -147,6 +147,9 @@ class DiscordLogsHandler(logging.Handler):
                 self.bot.config.ADMIN_LOGS_COMMAND_CALL_ID
             )
 
+        if record.levelno == logging.ERROR and "WebSocket closed with 1000" in record.msg:
+            return
+
         if not log_channel:
             return
 
