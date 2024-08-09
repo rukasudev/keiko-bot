@@ -39,6 +39,9 @@ en-us:
     label: "No"
     desc: Reject the question
 
+  selected:
+    label: Selected
+
   history:
     label: History
     desc: See the history of changes made to the feature settings

@@ -55,7 +55,24 @@ class OptionsButton(discord.ui.Button):
             self.style = discord.ButtonStyle.primary
             self.view.response[self.custom_id] = self.label
 
-        await interaction.response.edit_message(view=self.view)
+        embed = self.get_embed_values(interaction)
+
+        await interaction.response.edit_message(view=self.view, embed=embed)
+
+    def get_embed_values(self, interaction: discord.Interaction):
+        embed = interaction.message.embeds[0]
+
+        embed.clear_fields()
+
+        selected = ml("buttons.selected.label", locale=self.view.locale)
+        for index, response in enumerate(self.view.response.values()):
+            embed.add_field(
+                name=f":flying_disc: {selected} #{index + 1}",
+                value=response,
+                inline=False,
+            )
+
+        return embed
 
     def handle_unique(self) -> None:
         for item in self.view.children[:-2]:

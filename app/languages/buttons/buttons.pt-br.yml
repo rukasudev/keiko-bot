@@ -39,6 +39,9 @@ pt-br:
     label: Não
     desc: Rejeitar a pergunta
 
+  selected:
+    label: Selecionado
+
   history:
     label: Histórico
     desc: Veja o histórico de alterações feitas nas configurações da funcionalidade
