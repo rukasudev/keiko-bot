@@ -35,11 +35,12 @@ class OptionsButton(discord.ui.Button):
         options_label: str,
         options_custom_id: str,
         unique: bool = False,
+        checked: bool = False,
     ) -> None:
         self.unique = unique
         super().__init__(
             label=options_label,
-            style=discord.ButtonStyle.gray,
+            style=discord.ButtonStyle.gray if not checked else discord.ButtonStyle.primary,
             custom_id=options_custom_id,
         )
 
@@ -64,10 +65,13 @@ class OptionsButton(discord.ui.Button):
             if item.custom_id == self.custom_id:
                 continue
 
+            if item.custom_id == "prev_page" or item.custom_id == "next_page":
+                continue
+
             if item.style == discord.ButtonStyle.primary:
                 item.style = discord.ButtonStyle.gray
-                self.view.response.pop(item.custom_id, None)
-                return
+
+        self.view.response = {self.custom_id: self.label}
 
 
 class EditButton(discord.ui.Button):
@@ -223,3 +227,21 @@ class GenericButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction) -> Any:
         await self.custom_callback(interaction)
+
+class PaginationButton(discord.ui.Button):
+    def __init__(self, label: str, **kwargs):
+        super().__init__(label=label, **kwargs)
+
+    async def callback(self, interaction: discord.Interaction):
+        current_page = self.view.current_page
+        max_pages = self.view.max_pages
+
+        if self.custom_id == 'prev_page':
+            if current_page > 0:
+                self.view.current_page -= 1
+        elif self.custom_id == 'next_page':
+            if current_page < max_pages - 1:
+                self.view.current_page += 1
+
+        self.view.update_buttons()
+        await interaction.response.edit_message(view=self.view)

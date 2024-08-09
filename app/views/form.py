@@ -48,12 +48,16 @@ class Form(discord.ui.View):
 
     def _update_form_step(func):
         async def update_counter(self, args):
-            self._save_step_response()
+            is_valid_response = self._handle_after_step()
+            if not is_valid_response:
+                return await func(self, args)
+
             try:
                 self._step = next(self.steps)
             except StopIteration:
                 self.pre_finish_step(args)
                 return await self._after_callback(args)
+
             self.step_embed = parse_form_dict_to_embed(self._step, self.locale)
             await func(self, args)
 
@@ -67,16 +71,22 @@ class Form(discord.ui.View):
     def _set_after_callback(self, after_callback: Callable):
         self.after_callback = after_callback
 
-    def _save_step_response(self):
+    def _handle_after_step(self):
         if not hasattr(self, "view"):
-            return
+            return True
 
         if not hasattr(self, "responses"):
             self.responses = []
 
         if self._get_step_item("action") == constants.BUTTON_ACTION_KEY:
+            return True
+
+        if self._get_step_item("action") == constants.MODAL_ACTION_KEY and not self.view.get_response():
             return
 
+        return self._save_step_response()
+
+    def _save_step_response(self):
         self.responses.append(
             {
                 "key": self._get_step_item("key"),
@@ -85,6 +95,7 @@ class Form(discord.ui.View):
                 "style": self._get_step_item("style"),
             }
         )
+        return self.responses
 
     def _get_step_item(self, key: str, default_value: Any = None) -> Dict[str, Any]:
         multi_lang_keys = ["title", "description", "footer", "fields"]

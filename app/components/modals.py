@@ -20,6 +20,8 @@ class CustomModal(discord.ui.Modal):
         )
 
     def get_response(self):
+        if not hasattr(self, "response"):
+            return None
         return self.response
 
     async def on_submit(self, interaction) -> None:

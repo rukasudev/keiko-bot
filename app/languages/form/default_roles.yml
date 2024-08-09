@@ -15,6 +15,7 @@ steps:
     key: default_roles_bot
     emoji: ":robot:"
     style: role
+    required: true
     title:
       en-us: Default Roles (Users)
       pt-br: Cargos padrão (Bots)
@@ -29,6 +30,7 @@ steps:
     key: default_roles
     emoji: ":busts_in_silhouette:"
     style: role
+    required: true
     title:
       en-us: Default Roles (Members)
       pt-br: Cargos padrão (Usuários)
