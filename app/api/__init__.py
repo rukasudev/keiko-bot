@@ -3,13 +3,13 @@ import sys
 from flask import Flask, current_app, redirect
 
 from app import logger
-from app.api.config import config_by_name
+from app.api.config import get_config
 
 
 def create_api(config_name: str):
     app = Flask(__name__)
     app.config.from_object(
-        config_by_name[config_name]
+        get_config(config_name)
     )
 
     app.add_url_rule("/invite", "invite", invite)
