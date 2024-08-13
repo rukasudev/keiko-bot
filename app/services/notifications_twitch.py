@@ -123,7 +123,7 @@ def unsubscribe_streamer(interaction: discord.Interaction, cogs: Dict[str, Any])
 
 def compose_notification_message(notification: Dict[str, Any], streamer: str) -> str:
     messages = notification.get("notification_messages").get("value")
-    stream_link = f"https://twitch.tv/{streamer}"
+    stream_link = f"https://www.twitch.tv/{streamer}"
     random_message = random.choice(messages.split(";")).lstrip()
 
     return parse_streamer_message(random_message, streamer, stream_link)

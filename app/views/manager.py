@@ -188,4 +188,4 @@ class Manager(discord.ui.View):
         desc = parse_history_desc(interaction, self.command_key)
         pagination_view = PaginationView(interaction, title, desc, data, sep=4)
 
-        await pagination_view.send()
+        await pagination_view.send(ephemeral=True)

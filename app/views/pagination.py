@@ -30,11 +30,11 @@ class PaginationView(discord.ui.View):
 
         super().__init__()
 
-    async def send(self):
+    async def send(self, ephemeral: bool = False):
         if hasattr(self, "select"):
             self.select.update()
 
-        await self.interaction.response.send_message(view=self)
+        await self.interaction.response.send_message(view=self, ephemeral=ephemeral)
         await self.update_message(self.get_current_page_data())
 
     def create_embed(self, data):
