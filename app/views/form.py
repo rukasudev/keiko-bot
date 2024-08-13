@@ -2,11 +2,13 @@ from typing import Any, Callable, Dict, Generator, List
 
 import discord
 
+from app import logger
 from app.components.buttons import CancelButton, ConfirmButton, EditButton
 from app.components.embed import parse_form_dict_to_embed
 from app.components.modals import CustomModal
 from app.constants import Commands as commandconstants
 from app.constants import FormConstants as constants
+from app.constants import LogTypes as logconstants
 from app.services.cogs import insert_cog_by_guild, insert_cog_event
 from app.services.moderations import update_moderations_by_guild
 from app.services.utils import (
@@ -281,6 +283,13 @@ class Form(discord.ui.View):
             commandconstants.ENABLED_KEY,
             interaction.message.edited_at,
             str(interaction.user.id),
+        )
+
+        logger.info(
+            f"Command {self.command_key} enabled by {interaction.user.id}",
+            log_type=logconstants.COMMAND_INFO_TYPE,
+            guild_id=str(interaction.guild.id),
+            interaction=interaction,
         )
 
         await interaction.followup.send(embed=embed, view=self)

@@ -2,6 +2,7 @@ from typing import Any, Dict
 
 import discord
 
+from app import logger
 from app.components.buttons import (
     DisableButton,
     EditButton,
@@ -10,6 +11,7 @@ from app.components.buttons import (
     UnpauseButton,
 )
 from app.constants import Commands as constants
+from app.constants import LogTypes as logconstants
 from app.services.cogs import (
     delete_cog_by_guild,
     find_cog_events_by_guild,
@@ -82,6 +84,13 @@ class Manager(discord.ui.View):
         view = self.edited_form_view.view
         view.clear_items()
 
+        logger.info(
+            f"Command {self.command_key} edited by {interaction.user.id}",
+            log_type=logconstants.COMMAND_INFO_TYPE,
+            guild_id=str(interaction.guild.id),
+            interaction=interaction,
+        )
+
         await interaction.followup.edit_message(interaction.message.id, view=self)
         await interaction.followup.send(embed=embed, view=self)
 
@@ -115,6 +124,13 @@ class Manager(discord.ui.View):
             str(interaction.user.id),
         )
 
+        logger.info(
+            f"Command {self.command_key} unpaused by {interaction.user.id}",
+            log_type=logconstants.COMMAND_INFO_TYPE,
+            guild_id=guild_id,
+            interaction=interaction,
+        )
+
         await interaction.response.edit_message(view=self)
         await interaction.followup.send(embed=embed, view=self)
 
@@ -140,6 +156,13 @@ class Manager(discord.ui.View):
             constants.PAUSED_KEY,
             interaction.message.created_at,
             str(interaction.user.id),
+        )
+
+        logger.info(
+            f"Command {self.command_key} paused by {interaction.user.id}",
+            log_type=logconstants.COMMAND_INFO_TYPE,
+            guild_id=guild_id,
+            interaction=interaction,
         )
 
         await interaction.response.edit_message(view=self)
@@ -175,6 +198,13 @@ class Manager(discord.ui.View):
             constants.DISABLED_KEY,
             interaction.message.created_at,
             str(interaction.user.id),
+        )
+
+        logger.info(
+            f"Command {self.command_key} disabled by {interaction.user.id}",
+            log_type=logconstants.COMMAND_INFO_TYPE,
+            guild_id=guild_id,
+            interaction=interaction,
         )
 
         await interaction.followup.edit_message(interaction.message.id, view=self)
