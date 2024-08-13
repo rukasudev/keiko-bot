@@ -211,3 +211,8 @@ default_allowed_links: Final[Dict[str, str]] = {
     "tiktok": "https://tiktok.com",
     "reddit": "https://reddit.com",
 }
+
+supported_locales = [
+    discord.Locale.american_english.value,
+    discord.Locale.brazil_portuguese.value,
+]

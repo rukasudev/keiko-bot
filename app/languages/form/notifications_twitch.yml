@@ -87,8 +87,8 @@ steps:
         key: notification_messages
         max_length: 1000
         default:
-          pt-br: "Olá @everyone! {streamer} está online na Twitch!; @everyone {streamer} está ao vivo agora! Assista em {stream_link}!"
-          en-us: "Hey @everyone! {streamer} is online on Twitch!; @everyone {streamer} is live now! Watch at {stream_link}!"
+          pt-br: "Olá @everyone! {streamer} está online na Twitch!; @everyone {streamer} está ao vivo agora! Assista em {stream_link}"
+          en-us: "Hey @everyone! {streamer} is online on Twitch!; @everyone {streamer} is live now! Watch at {stream_link}"
         style: bullet
         title:
           en-us: Notification Messages

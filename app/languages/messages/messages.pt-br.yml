@@ -1,0 +1,11 @@
+pt-br:
+  greetings-message:
+    title: "Olá, eu sou o Keiko, o seu leal companheiro do Discord! :dog:"
+    message: "Estou super animado para fazer novos amigos e ajudar a tornar o seu servidor ainda mais incrível! :sparkles: Comece utilizando o comando `/ajuda` para descobrir tudo o que posso fazer e como me configurar! :gear:\n\n
+      Aqui estão alguns truques que eu sei fazer:
+      \n- **Moderação:** Configuração de bloqueio de links, autocargos e mensagens de boas-vindas.
+      \n- **Notificações:** Avisos de lives na Twitch.
+      \n- **Utilitário:** Tradução de mensagens para qualquer idioma.
+      \n- **Base:** Suporte, report e ajuda rápida.\n\n
+      Tudo isso e muito mais você pode gerenciar de forma fácil através dos botões do Discord, editando, pausando ou desabilitando funcionalidades quando quiser :pencil:\n\n
+      Se precisar de *aujuda*, é só chamar utilizando `/suporte` :heart:"
