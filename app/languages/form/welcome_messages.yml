@@ -93,6 +93,7 @@ steps:
   - action: modal
     key: welcome_messages
     max_length: 2000
+    multiline: true
     default:
       en-us: "Welcome {user} to {server}!; Hi {user}, welcome to {server}!"
       pt-br: "Bem-vindo {user} ao {server}!; Olá {user}, bem-vindo ao {server}!"
