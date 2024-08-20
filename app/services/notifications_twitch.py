@@ -50,7 +50,11 @@ def send_streamer_notifications(streamer_name: str) -> None:
             message = compose_notification_message(notification, streamer)
             channel = guild.get_channel(int(notification.get("channel").get("value")))
 
-            bot.loop.create_task(channel.send(message))
+            stream_info = bot.twitch.get_stream_info(streamer)
+            user_info = bot.twitch.get_user_info(streamer)
+            embed = create_stream_notification_embed(streamer, stream_info, user_info)
+
+            bot.loop.create_task(channel.send(content=message, embed=embed))
             count += 1
 
 
@@ -58,6 +62,30 @@ def send_streamer_notifications(streamer_name: str) -> None:
         f"Notifications sent for streamer **{streamer_name}** in {count} guilds",
         log_type=logconstants.COMMAND_INFO_TYPE,
     )
+
+def create_stream_notification_embed(streamer: str, stream_info: Dict[str, Any], user_info: Dict[str, Any]) -> discord.Embed:
+    stream_link = f"https://www.twitch.tv/{streamer}"
+    stream_title = stream_info.get("title")
+    stream_game = stream_info.get("game_name")
+    stream_thumbnail = stream_info.get("thumbnail_url")
+    streamer_profile_image = user_info.get("profile_image_url")
+    description = user_info.get("description")
+
+    embed = discord.Embed(
+        title=stream_title,
+        description=description,
+        url=stream_link,
+        color=discord.Color.purple(),
+    )
+
+    embed.set_thumbnail(url=streamer_profile_image)
+
+    streame_thumbnail = stream_thumbnail.format(width=1280, height=720)
+    embed.set_image(url=streame_thumbnail)
+    embed.add_field(name="Game", value=stream_game, inline=True)
+    embed.add_field(name="Streamer", value=streamer, inline=True)
+
+    return embed
 
 
 def subscribe_streamer(interaction: discord.Interaction, form_responses: List[Dict[str, Any]]) -> None:
