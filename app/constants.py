@@ -65,7 +65,8 @@ class Commands:
     # notifications
     NOTIFICATIONS_KEY: Final[str] = "notifications"
     NOTIFICATIONS_TWITCH_KEY: Final[str] = "notifications_twitch"
-    NOTIFICATIONS_YOUTUBE_KEY: Final[str] = "notifications_youtube"
+
+    NOTIFICATIONS_YOUTUBE_VIDEO_KEY: Final[str] = "notifications_youtube_video"
 
 
 class CogsConstants:

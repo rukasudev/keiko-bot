@@ -73,7 +73,12 @@ en-us:
     notifications-twitch:
       subgroup: twitch
       name: lives
-      desc: Keiko will notify you whenever your favorite streamer is online on Twitch
+      desc: Keiko will notify you whenever your favorite streamers is online on Twitch
+
+    notifications-youtube:
+      subgroup: youtube
+      name: videos
+      desc: Keiko will notify you whenever your favorite YouTubers uploads a new video on YouTube
 
     default-roles:
       subgroup: default

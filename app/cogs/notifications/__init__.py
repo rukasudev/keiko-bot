@@ -2,6 +2,7 @@ from discord import app_commands
 
 from app.bot import DiscordBot
 from app.cogs.notifications.twitch import Twitch
+from app.cogs.notifications.youtube import Youtube
 from app.translator import locale_str
 from app.types.cogs import GroupCog
 
@@ -18,5 +19,6 @@ async def setup(bot: DiscordBot) -> None:
     notifications = Notifications(bot)
 
     notifications.app_command.add_command(Twitch(bot))
+    notifications.app_command.add_command(Youtube(bot))
 
     await bot.add_cog(notifications)

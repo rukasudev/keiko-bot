@@ -24,6 +24,7 @@ from app.services.moderations import (
     unpause_moderations_by_guild,
 )
 from app.services.notifications_twitch import unsubscribe_streamer
+from app.services.notifications_youtube_video import unsubscribe_youtube_new_video
 from app.services.utils import (
     ml,
     need_confirmation_modal,
@@ -178,6 +179,8 @@ class Manager(discord.ui.View):
         # TODO: handle this type of logic in a service
         if self.command_key == constants.NOTIFICATIONS_TWITCH_KEY:
             unsubscribe_streamer(interaction, self.cogs)
+        if self.command_key == constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY:
+            unsubscribe_youtube_new_video(interaction, self.cogs)
 
         unpause_moderations_by_guild(guild_id=guild_id, key=self.command_key)
 

@@ -75,6 +75,11 @@ pt-br:
       name: lives
       desc: Keiko notificará você sempre que seus streamers favoritos estiverem ao vivo na Twitch
 
+    notifications-youtube:
+      subgroup: youtube
+      name: vídeos
+      desc: Keiko notificará você sempre que seus youtubers favoritos postarem um novo vídeo no YouTube
+
     default-roles:
       subgroup: cargos
       name: padrão

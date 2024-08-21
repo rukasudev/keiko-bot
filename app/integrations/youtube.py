@@ -33,7 +33,7 @@ class YoutubeClient:
             "hub.verify": "async",
         }
         response = requests.post(url, data=body)
-        return response.json()
+        return response
 
     def unsubscribe_from_new_video_event(self, channel_id: str) -> None:
         url = "https://pubsubhubbub.appspot.com/unsubscribe"
@@ -44,5 +44,5 @@ class YoutubeClient:
             "hub.verify": "async",
         }
         response = requests.post(url, data=body)
-        return response.json()
+        return response
 

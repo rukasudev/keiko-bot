@@ -295,10 +295,14 @@ class Form(discord.ui.View):
         await interaction.followup.send(embed=embed, view=self)
 
     def pre_finish_step(self, interaction: discord.Interaction):
-        from app.services.notifications_twitch import subscribe_streamer
-
         if self.command_key == commandconstants.NOTIFICATIONS_TWITCH_KEY:
+            from app.services.notifications_twitch import subscribe_streamer
             subscribe_streamer(interaction, self.responses)
+        if self.command_key == commandconstants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY:
+            from app.services.notifications_youtube_video import (
+                subscribe_youtube_new_video,
+            )
+            subscribe_youtube_new_video(interaction, self.responses)
 
     async def get_action_by_type(self, action, interaction) -> None:
         action_dict = {
