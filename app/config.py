@@ -33,6 +33,7 @@ class AppConfig:
         self.DETECT_LANGUAGE_API_KEY = os.getenv("DETECT_LANGUAGE_API_KEY")
         self.RUN_LOCAL_WEBHOOK_API = os.getenv("RUN_LOCAL_WEBHOOK_API")
         self.WEBHOOK_URL = os.getenv("WEBHOOK_URL")
+        self.YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
 
 
     def get_ssm_configs(self):
@@ -54,6 +55,7 @@ class AppConfig:
         self.TWITCH_HMAC_SECRET = ssm.get_parameter(Name="/keiko/twitch/hmac_secret", WithDecryption=True)["Parameter"][
             "Value"
         ]
+        self.YOUTUBE_API_KEY = ssm.get_parameter(Name="/keiko/youtube/api_key", WithDecryption=True)["Parameter"]["Value"]
         self.REDIS_URL = ssm.get_parameter(Name="/keiko/redis/url", WithDecryption=True)["Parameter"]["Value"]
         self.NOTION_TOKEN = ssm.get_parameter(Name="/keiko/notion/token", WithDecryption=True)["Parameter"]["Value"]
         self.OPENAI_API_KEY = ssm.get_parameter(Name="/keiko/openai/api_key", WithDecryption=True)["Parameter"]["Value"]
