@@ -13,6 +13,7 @@ def create_api(config_name: str):
     )
 
     app.add_url_rule("/invite", "invite", invite)
+    app.add_url_rule("/support", "support", support)
 
     from app.webhooks import webhooks as webhooks_blueprint
     app.register_blueprint(webhooks_blueprint, url_prefix='/api/webhooks')
@@ -22,6 +23,10 @@ def create_api(config_name: str):
 def invite():
     invite_url = current_app.config.get("INVITE_URL")
     return redirect(invite_url, code=302)
+
+def support():
+    support_url = current_app.config.get("SUPPORT_URL")
+    return redirect(support_url, code=302)
 
 def run_api(api: Flask, port: int = 5000):
     cli = sys.modules['flask.cli']

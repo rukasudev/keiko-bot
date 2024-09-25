@@ -15,12 +15,16 @@ class DevelopmentConfig:
     def __init__(self):
         self.DEBUG = True
         self.INVITE_URL = os.getenv("INVITE_URL")
+        self.SUPPORT_URL = os.getenv("SUPPORT_URL")
 
 
 class ProductionConfig:
     def __init__(self):
         self.DEBUG = False
         self.INVITE_URL = ssm.get_parameter(Name="/keiko/api/invite_url")["Parameter"][
+            "Value"
+        ]
+        self.SUPPORT_URL = ssm.get_parameter(Name="/keiko/api/support_url")["Parameter"][
             "Value"
         ]
 
