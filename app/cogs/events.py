@@ -20,6 +20,7 @@ from app.services.moderations import (
 from app.services.utils import cogs_manager, get_available_roles_by_guild
 from app.services.welcome_messages import send_welcome_message
 from app.types.cogs import Cog
+from app.views.greetings import GreetingsView
 
 
 class Events(Cog, name="events"):
@@ -103,15 +104,16 @@ class Events(Cog, name="events"):
                 guild_id=guild.id,
                 log_type=logconstants.EVENT_JOIN_GUILD_TYPE,
             )
-            return insert_moderations_by_guild(guild.id)
+            insert_moderations_by_guild(guild.id)
+        else:
+            logger.info(
+                f"Joined again at guild_id {guild.id} by user_id {guild.owner_id}",
+                guild_id=guild.id,
+                log_type=logconstants.EVENT_JOIN_GUILD_TYPE,
+            )
+            update_moderations_by_guild(guild.id, constants.IS_BOT_ONLINE, True)
 
-        logger.info(
-            f"Joined again at guild_id {guild.id} by user_id {guild.owner_id}",
-            guild_id=guild.id,
-            log_type=logconstants.EVENT_JOIN_GUILD_TYPE,
-        )
-
-        return update_moderations_by_guild(guild.id, constants.IS_BOT_ONLINE, True)
+        return await GreetingsView().send(guild)
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: discord.Guild):

@@ -2,11 +2,13 @@ from typing import Any, Callable, Dict, Generator, List
 
 import discord
 
+from app import logger
 from app.components.buttons import CancelButton, ConfirmButton, EditButton
 from app.components.embed import parse_form_dict_to_embed
 from app.components.modals import CustomModal
 from app.constants import Commands as commandconstants
 from app.constants import FormConstants as constants
+from app.constants import LogTypes as logconstants
 from app.services.cogs import insert_cog_by_guild, insert_cog_event
 from app.services.moderations import update_moderations_by_guild
 from app.services.utils import (
@@ -283,13 +285,24 @@ class Form(discord.ui.View):
             str(interaction.user.id),
         )
 
+        logger.info(
+            f"Command {self.command_key} enabled by {interaction.user.id}",
+            log_type=logconstants.COMMAND_INFO_TYPE,
+            guild_id=str(interaction.guild.id),
+            interaction=interaction,
+        )
+
         await interaction.followup.send(embed=embed, view=self)
 
     def pre_finish_step(self, interaction: discord.Interaction):
-        from app.services.notifications_twitch import subscribe_streamer
-
         if self.command_key == commandconstants.NOTIFICATIONS_TWITCH_KEY:
+            from app.services.notifications_twitch import subscribe_streamer
             subscribe_streamer(interaction, self.responses)
+        if self.command_key == commandconstants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY:
+            from app.services.notifications_youtube_video import (
+                subscribe_youtube_new_video,
+            )
+            subscribe_youtube_new_video(interaction, self.responses)
 
     async def get_action_by_type(self, action, interaction) -> None:
         action_dict = {

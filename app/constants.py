@@ -65,7 +65,8 @@ class Commands:
     # notifications
     NOTIFICATIONS_KEY: Final[str] = "notifications"
     NOTIFICATIONS_TWITCH_KEY: Final[str] = "notifications_twitch"
-    NOTIFICATIONS_YOUTUBE_KEY: Final[str] = "notifications_youtube"
+
+    NOTIFICATIONS_YOUTUBE_VIDEO_KEY: Final[str] = "notifications_youtube_video"
 
 
 class CogsConstants:
@@ -211,3 +212,8 @@ default_allowed_links: Final[Dict[str, str]] = {
     "tiktok": "https://tiktok.com",
     "reddit": "https://reddit.com",
 }
+
+supported_locales = [
+    discord.Locale.american_english.value,
+    discord.Locale.brazil_portuguese.value,
+]

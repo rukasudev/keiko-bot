@@ -12,15 +12,22 @@ ssm = boto3.client("ssm", region_name="sa-east-1")
 
 
 class DevelopmentConfig:
-    DEBUG = True
-    INVITE_URL = os.getenv("INVITE_URL")
+    def __init__(self):
+        self.DEBUG = True
+        self.INVITE_URL = os.getenv("INVITE_URL")
+        self.SUPPORT_URL = os.getenv("SUPPORT_URL")
 
 
 class ProductionConfig:
-    DEBUG = False
-    INVITE_URL = ssm.get_parameter(Name="/keiko/api/invite_url")["Parameter"][
-        "Value"
-    ]
+    def __init__(self):
+        self.DEBUG = False
+        self.INVITE_URL = ssm.get_parameter(Name="/keiko/api/invite_url")["Parameter"][
+            "Value"
+        ]
+        self.SUPPORT_URL = ssm.get_parameter(Name="/keiko/api/support_url")["Parameter"][
+            "Value"
+        ]
 
 
-config_by_name = dict(dev=DevelopmentConfig, prod=ProductionConfig)
+def get_config(env_name: str):
+    return DevelopmentConfig() if env_name == "dev" else ProductionConfig()

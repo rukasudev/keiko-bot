@@ -121,5 +121,10 @@ class GoogleTranslate:
         return locale.split("-")[0]
 
     @staticmethod
+    def get_language_with_flag(locale: str) -> str:
+        locale = GoogleTranslate.parse_destination_locale(locale)
+        return f"{languages_with_flags.get(locale, '🌐')} {ml(f'locales.{locale}', locale)}"
+
+    @staticmethod
     def detect(content: str) -> str:
         return detectlanguage.simple_detect(content)

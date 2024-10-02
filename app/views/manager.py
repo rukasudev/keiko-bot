@@ -2,6 +2,7 @@ from typing import Any, Dict
 
 import discord
 
+from app import logger
 from app.components.buttons import (
     DisableButton,
     EditButton,
@@ -10,6 +11,7 @@ from app.components.buttons import (
     UnpauseButton,
 )
 from app.constants import Commands as constants
+from app.constants import LogTypes as logconstants
 from app.services.cogs import (
     delete_cog_by_guild,
     find_cog_events_by_guild,
@@ -22,6 +24,7 @@ from app.services.moderations import (
     unpause_moderations_by_guild,
 )
 from app.services.notifications_twitch import unsubscribe_streamer
+from app.services.notifications_youtube_video import unsubscribe_youtube_new_video
 from app.services.utils import (
     ml,
     need_confirmation_modal,
@@ -82,6 +85,13 @@ class Manager(discord.ui.View):
         view = self.edited_form_view.view
         view.clear_items()
 
+        logger.info(
+            f"Command {self.command_key} edited by {interaction.user.id}",
+            log_type=logconstants.COMMAND_INFO_TYPE,
+            guild_id=str(interaction.guild.id),
+            interaction=interaction,
+        )
+
         await interaction.followup.edit_message(interaction.message.id, view=self)
         await interaction.followup.send(embed=embed, view=self)
 
@@ -115,6 +125,13 @@ class Manager(discord.ui.View):
             str(interaction.user.id),
         )
 
+        logger.info(
+            f"Command {self.command_key} unpaused by {interaction.user.id}",
+            log_type=logconstants.COMMAND_INFO_TYPE,
+            guild_id=guild_id,
+            interaction=interaction,
+        )
+
         await interaction.response.edit_message(view=self)
         await interaction.followup.send(embed=embed, view=self)
 
@@ -142,6 +159,13 @@ class Manager(discord.ui.View):
             str(interaction.user.id),
         )
 
+        logger.info(
+            f"Command {self.command_key} paused by {interaction.user.id}",
+            log_type=logconstants.COMMAND_INFO_TYPE,
+            guild_id=guild_id,
+            interaction=interaction,
+        )
+
         await interaction.response.edit_message(view=self)
         await interaction.followup.send(embed=embed, view=self)
 
@@ -155,6 +179,8 @@ class Manager(discord.ui.View):
         # TODO: handle this type of logic in a service
         if self.command_key == constants.NOTIFICATIONS_TWITCH_KEY:
             unsubscribe_streamer(interaction, self.cogs)
+        if self.command_key == constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY:
+            unsubscribe_youtube_new_video(interaction, self.cogs)
 
         unpause_moderations_by_guild(guild_id=guild_id, key=self.command_key)
 
@@ -177,6 +203,13 @@ class Manager(discord.ui.View):
             str(interaction.user.id),
         )
 
+        logger.info(
+            f"Command {self.command_key} disabled by {interaction.user.id}",
+            log_type=logconstants.COMMAND_INFO_TYPE,
+            guild_id=guild_id,
+            interaction=interaction,
+        )
+
         await interaction.followup.edit_message(interaction.message.id, view=self)
         await interaction.followup.send(embed=embed, view=self)
 
@@ -188,4 +221,4 @@ class Manager(discord.ui.View):
         desc = parse_history_desc(interaction, self.command_key)
         pagination_view = PaginationView(interaction, title, desc, data, sep=4)
 
-        await pagination_view.send()
+        await pagination_view.send(ephemeral=True)

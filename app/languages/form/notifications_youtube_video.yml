@@ -2,11 +2,11 @@ steps:
   - action: form
     key: form
     title:
-      en-us: 🔔 Twitch Notifications
-      pt-br: 🔔 Twitch Notificações
+      en-us: 🔔 Youtube Notifications
+      pt-br: 🔔 Youtube Notificações
     description:
-      en-us: Enabling this feature allows me to notify when your favorite streamer is online on Twitch!
-      pt-br: Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!
+      en-us: Enabling this feature allows me to notify when your favorite youtuber posts a new video!
+      pt-br: Ativar esta função faz com que eu notifique quando seu youtuber favorito postar um novo vídeo!
     footer:
       en-us: "• Use the command /report to tell me a bug"
       pt-br: "• Utilize o comando /reportar para me contar um bug"
@@ -14,14 +14,14 @@ steps:
   - action: composition
     key: notifications
     emoji: ":busts_in_silhouette:"
-    max_length: 3
+    max_length: 2
     style: composition
     title:
       en-us: Notifications
       pt-br: Notificações
     description:
-      en-us: "Do you want to add more streamers? Add more streamers to be notified when they are online on Twitch! (Max: 3)"
-      pt-br: "Deseja adicionar mais streamers? Adicione mais streamers para ser notificado quando eles estiverem online na Twitch! (Max: 3)"
+      en-us: "Do you want to add more youtubers? Add more youtubers to be notified when they post a new video! (Max: 2)"
+      pt-br: "Deseja adicionar mais youtubers? Adicione mais youtubers para ser notificado quando eles postarem um novo vídeo! (Máx: 2)"
     footer:
       en-us: "• Use the command /report to tell me a bug"
       pt-br: "• Utilize o comando /reportar para me contar um bug"
@@ -43,21 +43,21 @@ steps:
           pt-br: "• Utilize o comando /reportar para me contar um bug"
 
       - action: modal
-        key: streamer
+        key: youtuber
         max_length: 30
         lowercase: true
         title:
-          en-us: Streamer
-          pt-br: Streamer
+          en-us: Youtuber
+          pt-br: Youtuber
         label:
-          en-us: Streamer
-          pt-br: Streamer
+          en-us: Youtuber
+          pt-br: Youtuber
         description:
-          en-us: "Only the streamer's username. Example: ninja"
-          pt-br: "Apenas o username do streamer. Exemplo: ninja"
+          en-us: "Only the youtuber's username. Example: pewdiepie"
+          pt-br: "Apenas o username do youtuber. Exemplo: pewdiepie"
         placeholder:
-          en-us: shroud
-          pt-br: shroud
+          en-us: pewdiepie
+          pt-br: pewdiepie
 
       - action: button
         key: question_notification_messages
@@ -71,14 +71,14 @@ steps:
         fields:
           en-us:
             - title: "1. Separate each message with a semicolon"
-              message: "Example: `@everyone {streamer} is online on Twitch!; @everyone I'm online now! Watch me at {stream_link}`"
+              message: "Example: `@everyone {youtuber} just posted a new video!; @everyone I just posted a new video! Watch it now!`"
             - title: "2. You can use the following variables in your message:"
-              message: "- `{streamer}`: Streamer's username\n- `{stream_link}`: Stream link"
+              message: "- `{youtuber}`: Youtuber's username\n- `{video_link}`: Video link"
           pt-br:
             - title: "1. Separe cada mensagem com um ;"
-              message: "Exemplo: `@everyone {streamer} está online na Twitch!; @everyone Estou online agora! Me assista em {stream_link}`"
+              message: "Exemplo: `@everyone {youtuber} acabou de postar um novo vídeo!; @everyone Acabei de postar um novo vídeo! Assista agora!`"
             - title: "2. Você também poderá usar as seguintes variáveis reservadas"
-              message: "- `{streamer}`: Username do streamer\n- `{stream_link}`: Link da stream"
+              message: "- `{youtuber}`: Username do youtuber\n- `{video_link}`: Link do vídeo"
         footer:
           en-us: "• Use the command /report to tell me a bug"
           pt-br: "• Use o comando /reportar para me contar um bug"
@@ -88,8 +88,8 @@ steps:
         max_length: 1000
         multiline: true
         default:
-          pt-br: "Olá @everyone! {streamer} está online na Twitch!; @everyone {streamer} está ao vivo agora! Assista em {stream_link}"
-          en-us: "Hey @everyone! {streamer} is online on Twitch!; @everyone {streamer} is live now! Watch at {stream_link}"
+          pt-br: "@everyone! {youtuber} acabou de postar um novo vídeo!; @everyone Video novo do {youtuber}, assista em {video_link}!"
+          en-us: "@everyone! {youtuber} just posted a new video!; @everyone New video from {youtuber}, watch it at {video_link}!"
         style: bullet
         title:
           en-us: Notification Messages
@@ -101,8 +101,8 @@ steps:
           en-us: The messages that will be sent to the members, separated by ;
           pt-br: As mensagens que serão enviadas aos membros, separadas por ;
         placeholder:
-          en-us: "Hey @everyone! {streamer} is online on Twitch! Come watch him at {stream_link}!"
-          pt-br: "Olá @everyone! {streamer} está online na Twitch! Venha assisti-lo em {stream_link}!"
+          en-us: "@everyone! {youtuber} just posted a new video!"
+          pt-br: "@everyone! {youtuber} acabou de postar um novo vídeo!"
 
   - action: resume
     key: confirm
@@ -110,8 +110,8 @@ steps:
       en-us: ":white_check_check: Alright?"
       pt-br: ":white_check_mark: Tudo certo?"
     description:
-      en-us: Enabling this feature allows me to notify when your favorite streamer is online on Twitch!
-      pt-br: Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!
+      en-us: Enabling this feature allows me to notify when your favorite youtuber posts a new video!
+      pt-br: Ativar esta função faz com que eu notifique quando seu youtuber favorito postar um novo vídeo!
     footer:
       en-us: "• Use the command /report to tell me a bug"
       pt-br: "• Utilize o comando /reportar para me contar um bug"

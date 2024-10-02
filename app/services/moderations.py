@@ -38,6 +38,9 @@ def update_moderations_by_guild(guild_id: str, key: str, value: str):
 
 def pause_all_moderations_by_guild(guild_id: str, bot_user_id: str):
     moderations = moderations_data.find_moderations_by_guild(guild_id)
+    if not moderations:
+        return None
+
     for key, value in moderations.items():
 
         if not isinstance(value, bool) or not value:

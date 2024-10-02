@@ -35,7 +35,7 @@ def parse_form_dict_to_embed(data: Dict[str, str], locale: str, manager: bool = 
     return embed
 
 
-def response_embed(multilang_key: str, locale: str, color: str = None, footer: bool = False) -> discord.Embed:
+def response_embed(multilang_key: str, locale: str, color: str = None, footer: bool = False, image: bool = False) -> discord.Embed:
     title = ml(f"{multilang_key}.title", locale)
 
     embed = discord.Embed(
@@ -46,6 +46,9 @@ def response_embed(multilang_key: str, locale: str, color: str = None, footer: b
 
     if footer:
         embed.set_footer(text=f"• {ml(f'{multilang_key}.footer', locale)}")
+
+    if image:
+        embed.set_thumbnail(url=icons.IMAGE_01)
 
     return embed
 

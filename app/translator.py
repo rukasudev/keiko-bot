@@ -2,16 +2,13 @@ import discord
 from discord import Locale, app_commands
 from discord.app_commands import TranslationContext, locale_str
 
+from app.constants import supported_locales
 from app.services.utils import ml
 
 
 class Translator(app_commands.Translator):
     def __init__(self, bot) -> None:
         self.bot = bot
-        self.supported_locales = [
-            Locale.american_english.value,
-            Locale.brazil_portuguese.value,
-        ]
         super().__init__()
 
     async def load(self) -> None:
@@ -44,7 +41,7 @@ class Translator(app_commands.Translator):
         tp = string.extras.get("type")
         ns = string.extras.get("namespace")
 
-        if locale.value not in self.supported_locales:
+        if locale.value not in supported_locales:
             if tp == "desc":
                 return context.data.extras.get(Locale.american_english.value).get("locale_qualified_desc", "")
             return command

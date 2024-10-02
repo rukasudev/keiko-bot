@@ -10,7 +10,7 @@ class CustomModal(discord.ui.Modal):
         super().__init__(title=config.get("title").get(locale, "en-us"), timeout=300)
         self.add_item(
             discord.ui.TextInput(
-                style=discord.TextStyle.short,
+                style=discord.TextStyle.long if config.get("multiline", False) else discord.TextStyle.short,
                 label=config.get("label", "").get(locale, "en-us"),
                 placeholder=config.get("placeholder", "").get(locale, "en-us"),
                 default=config.get("default", "").get(locale, "en-us") if config.get("default") else None,

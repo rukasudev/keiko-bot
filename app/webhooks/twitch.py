@@ -16,7 +16,6 @@ def twitch_webhook():
     data = request.json
 
     if bot.twitch.check_request_is_a_challenge(request):
-        logger.info('Twitch webhook challenge received', log_type=logconstants.COMMAND_INFO_TYPE)
         return data['challenge']
 
     if data.get('subscription', {}).get('type') == 'stream.online':
