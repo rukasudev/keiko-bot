@@ -41,7 +41,7 @@ def send_streamer_notifications(streamer_name: str) -> None:
 
         notifications = guild_data.get("notifications").get("values")
         for notification in notifications:
-            streamer = notification.get("streamer").get("value")
+            streamer = notification.get("streamer").get("value").lower()
             if streamer != streamer_name:
                 continue
 

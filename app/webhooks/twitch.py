@@ -21,7 +21,7 @@ def twitch_webhook():
     if data.get('subscription', {}).get('type') == 'stream.online':
         from app.services.notifications_twitch import send_streamer_notifications
 
-        streamer_name = data['event']['broadcaster_user_name']
+        streamer_name = data['event']['broadcaster_user_name'].lower()
         send_streamer_notifications(streamer_name)
 
     return "Webhook processed", 200
