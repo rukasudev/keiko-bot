@@ -12,13 +12,17 @@ def create_api(config_name: str):
         get_config(config_name)
     )
 
-    app.add_url_rule("/invite", "invite", invite)
-    app.add_url_rule("/support", "support", support)
+    app.add_url_rule("/api/health", "health", health)
+    app.add_url_rule("/api/invite", "invite", invite)
+    app.add_url_rule("/api/support", "support", support)
 
     from app.webhooks import webhooks as webhooks_blueprint
     app.register_blueprint(webhooks_blueprint, url_prefix='/api/webhooks')
 
     return app
+
+def health():
+    return "OK", 200
 
 def invite():
     invite_url = current_app.config.get("INVITE_URL")
