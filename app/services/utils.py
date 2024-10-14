@@ -18,6 +18,7 @@ from app.constants import CogsConstants as cogconstants
 from app.constants import Emojis as constants
 from app.constants import FormConstants as formconstants
 from app.constants import LogTypes as logconstants
+from app.constants import supported_locales
 
 
 def get_message_links(message: str) -> List[str]:
@@ -120,6 +121,8 @@ def keiko_command(
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(self, interaction: discord.Interaction, *args, **kwargs):
+            if interaction.locale.value not in supported_locales:
+                interaction.locale = discord.Locale.american_english
             await func(self, interaction, *args, **kwargs)
 
         return Command(
