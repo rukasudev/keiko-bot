@@ -286,7 +286,7 @@ class Form(discord.ui.View):
         )
 
         logger.info(
-            f"Command {self.command_key} enabled by {interaction.user.id}",
+            f"Command enabled: **{self.command_key}**",
             log_type=logconstants.COMMAND_INFO_TYPE,
             guild_id=str(interaction.guild.id),
             interaction=interaction,

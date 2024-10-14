@@ -100,14 +100,14 @@ class Events(Cog, name="events"):
         exist = find_moderations_by_guild(guild.id)
         if not exist:
             logger.info(
-                f"Joined new guild_id {guild.id} by user_id {guild.owner_id}",
+                f"Joined new guild by {guild.owner.mention}",
                 guild_id=guild.id,
                 log_type=logconstants.EVENT_JOIN_GUILD_TYPE,
             )
             insert_moderations_by_guild(guild.id)
         else:
             logger.info(
-                f"Joined again at guild_id {guild.id} by user_id {guild.owner_id}",
+                f"Joined again by {guild.owner.mention}",
                 guild_id=guild.id,
                 log_type=logconstants.EVENT_JOIN_GUILD_TYPE,
             )
@@ -118,7 +118,7 @@ class Events(Cog, name="events"):
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: discord.Guild):
         logger.info(
-            f"Left guild_id {guild.id} by user_id {guild.owner_id}",
+            f"Left guild by {guild.owner.id}",
             guild_id=guild.id,
             log_type=logconstants.EVENT_LEFT_GUILD_TYPE,
         )

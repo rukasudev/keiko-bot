@@ -86,7 +86,7 @@ class Manager(discord.ui.View):
         view.clear_items()
 
         logger.info(
-            f"Command {self.command_key} edited by {interaction.user.id}",
+            f"Command edited: **{self.command_key}**",
             log_type=logconstants.COMMAND_INFO_TYPE,
             guild_id=str(interaction.guild.id),
             interaction=interaction,
@@ -126,7 +126,7 @@ class Manager(discord.ui.View):
         )
 
         logger.info(
-            f"Command {self.command_key} unpaused by {interaction.user.id}",
+            f"Command unpaused: **{self.command_key}**",
             log_type=logconstants.COMMAND_INFO_TYPE,
             guild_id=guild_id,
             interaction=interaction,
@@ -160,7 +160,7 @@ class Manager(discord.ui.View):
         )
 
         logger.info(
-            f"Command {self.command_key} paused by {interaction.user.id}",
+            f"Command paused: **{self.command_key}**",
             log_type=logconstants.COMMAND_INFO_TYPE,
             guild_id=guild_id,
             interaction=interaction,
@@ -204,7 +204,7 @@ class Manager(discord.ui.View):
         )
 
         logger.info(
-            f"Command {self.command_key} disabled by {interaction.user.id}",
+            f"Command disabled: **{self.command_key}**",
             log_type=logconstants.COMMAND_INFO_TYPE,
             guild_id=guild_id,
             interaction=interaction,
