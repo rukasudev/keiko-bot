@@ -1,6 +1,7 @@
 
 import functools
 import random
+from datetime import datetime
 from io import BytesIO
 
 import discord
@@ -50,8 +51,9 @@ async def send_welcome_message(member: discord.Member):
 
     welcome_message_title = cogs["welcome_messages_title"]
     welcome_message_footer = cogs["welcome_messages_footer"]
+    guild_icon_url = "https://i.sstatic.net/41v2I.png" if not member.guild.icon else member.guild.icon.url
 
-    banner = await create_banner(member.guild.icon.url, welcome_message_title.upper(), member.name, member.display_avatar.url, member.guild.name)
+    banner = await create_banner(guild_icon_url, welcome_message_title.upper(), member.name, member.display_avatar.url, member.guild.name)
     embed_message = default_welcome_embed(welcome_message_title, welcome_message, welcome_message_footer, banner)
 
     await channel.send(embed=embed_message)
@@ -87,7 +89,7 @@ async def create_banner(background_url: str, welcome_message: str, username: str
     bottom = (new_height + banner_height) / 2
     background_img = background_img.crop((left, top, right, bottom)).convert("RGBA")
 
-    blurred_background = background_img.filter(ImageFilter.BLUR)
+    blurred_background = background_img.filter(ImageFilter.GaussianBlur(5))
     overlay = Image.new("RGBA", (banner_width, banner_height), (255, 255, 255, 0))
 
     draw = ImageDraw.Draw(overlay)
