@@ -198,7 +198,7 @@ class DiscordLogsHandler(logging.Handler):
         if interaction:
             embed.add_field(name="Interaction ID", value=interaction.id)
             embed.add_field(name="Guild ID", value=interaction.guild.id)
-            embed.add_field(name="User ID", value=interaction.user.id)
+            embed.add_field(name="User ID", value=interaction.user.mention)
 
             if embed.title == constants.COMMAND_CALL_TITLE:
                 embed.description = (
