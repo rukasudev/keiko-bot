@@ -73,7 +73,7 @@ class Report(Cog, name="report"):
         embed.add_field(
             name="Anexo", value=attachment.url if attachment else "Sem anexo", inline=False
         )
-        embed.set_thumbnail(url=interaction.user.avatar.url)
+        embed.set_thumbnail(url=interaction.user.display_avatar.url)
         return embed
 
     def _create_notion_report(self, interaction, title, description, command, attachment):

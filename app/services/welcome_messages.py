@@ -51,7 +51,7 @@ async def send_welcome_message(member: discord.Member):
     welcome_message_title = cogs["welcome_messages_title"]
     welcome_message_footer = cogs["welcome_messages_footer"]
 
-    banner = await create_banner(member.guild.icon.url, welcome_message_title.upper(), member.name, member.avatar.url, member.guild.name)
+    banner = await create_banner(member.guild.icon.url, welcome_message_title.upper(), member.name, member.display_avatar.url, member.guild.name)
     embed_message = default_welcome_embed(welcome_message_title, welcome_message, welcome_message_footer, banner)
 
     await channel.send(embed=embed_message)
