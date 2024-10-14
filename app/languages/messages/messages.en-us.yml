@@ -1,10 +1,11 @@
 en-us:
   greetings-message:
     title: "Hello, I'm Keiko, your loyal Discord companion! :dog:"
-    message: "I'm super excited to make new friends and help make your server even more awesome! :sparkles: Get started by using the `/help` command to find out everything I can do and how to set me up! :gear:\n\n
+    message:
+      "I'm super excited to make new friends and help make your server even more awesome! :sparkles: Get started by using the `/help` command to find out everything I can do and how to set me up! :gear:\n\n
       Here are some tricks I know how to do:
       \n- **Moderation:** Setting up link blocking, auto-roles, and welcome messages.
-      \n- **Notifications:** Twitch live alerts.
+      \n- **Notifications:** Twitch live and Youtube alerts.
       \n- **Utility:** Message translation to any language.
       \n- **Base:** Support, report, and quick help.\n\n
       All of this and much more you can manage easily through Discord buttons, editing, pausing, or disabling features whenever you want :pencil:\n\n
