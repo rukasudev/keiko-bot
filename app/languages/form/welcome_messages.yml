@@ -73,43 +73,58 @@ steps:
       en-us: Welcome Messages
       pt-br: Mensagens de Boas-Vindas
     description:
-      en-us: In the next step, you can customize the welcome messages that I will send to new members.
-      pt-br: No próximo passo, você poderá personalizar as mensagens de boas-vindas que enviarei aos novos membros.
+      en-us: "In the next step, you can customize the welcome messages that I will send to new members. Read the following notes carefully:"
+      pt-br: "No próximo passo, você poderá personalizar as mensagens de boas-vindas que enviarei aos novos membros. Leia com atenção as seguintes observações:"
     fields:
       en-us:
-        - title: "1. Separate each message with a semicolon"
-          message: "Example: `Welcome {user} to {server}!; Hi {user}, welcome to {server}!`"
-        - title: "2. You can use the following variables in your message:"
-          message: "- `{user}`: The user's mention\n- `{server}`: The server's name\n- `{member_count}`: The server's member count"
+        - title: "1. Random message"
+          message: "Whenever a member joins the server, one of the configured messages will be randomly chosen"
+        - title: "2. Up to 3 messages"
+          message: "You can configure up to 3 welcome messages. If you want to configure less than 3, leave the other fields blank"
+        - title: "3. Variables"
+          message: "You can use the following variables in your message:\n- `{user}`: User mention\n- `{server}`: Server name\n- `{member_count}`: Number of server members"
       pt-br:
-        - title: "1. Separe cada mensagem com um ;"
-          message: "Exemplo: `Olá {user}, bem-vindo ao {server}!; Bem-vindo {user}!`"
-        - title: "2. Você também poderá usar as seguintes variáveis reservadas"
-          message: "- `{user}`: Para mencionar o usuário que entrou\n- `{server}`: Nome do servidor\n- `{member_count}`: Quantidade de membros no servidor"
+        - title: "1. Mensagem aleatória"
+          message: "Sempre que um membro entrar no servidor, uma das mensagens configuradas será aleatoriamente escolhida"
+        - title: "2. Até 3 mensagens"
+          message: "Você poderá configurar até 3 mensagens de boas-vindas. Caso queira configurar menos de 3, deixe os outros campos em branco"
+        - title: "3. Variáveis"
+          message: "Você pode utilizar as seguintes variáveis em sua mensagem:\n- `{user}`: Menção do usuário\n- `{server}`: Nome do servidor\n- `{member_count}`: Quantidade de membros do servidor"
     footer:
       en-us: "• Use the command /report to tell me a bug"
       pt-br: "• Use o comando /reportar para me contar um bug"
 
   - action: modal
     key: welcome_messages
-    max_length: 2000
-    multiline: true
-    default:
-      en-us: "Welcome {user} to {server}!; Hi {user}, welcome to {server}!"
-      pt-br: "Bem-vindo {user} ao {server}!; Olá {user}, bem-vindo ao {server}!"
     style: bullet
+    max_length: 100
+    multiline: true
+    enumerate: true
     title:
       en-us: Welcome Messages
       pt-br: Mensagens de Boas-Vindas
-    label:
-      en-us: Welcome messages separated by semicolon
-      pt-br: Mensagens de boas-vindas separadas por ;
     description:
-      en-us: The welcome messages that I will send to new members, separated by semicolon
-      pt-br: As mensagens de boas-vindas que serão enviadas aos novos membros, separadas por ;
-    placeholder:
-      en-us: Welcome {user} to {server}!; Hi {user}, welcome to {server}!
-      pt-br: Bem-vindo {user} ao {server}!; Olá {user}, bem-vindo ao {server}!
+      en-us: The welcome messages that I will send to new members
+      pt-br: As mensagens de boas-vindas que serão enviadas aos novos membros
+    fields:
+      - label:
+          en-us: Welcome message
+          pt-br: Mensagem de boas-vindas
+        default:
+          en-us: "Welcome {user} to {server}!"
+          pt-br: "Bem-vindo {user} ao {server}!"
+      - label:
+          en-us: Welcome message
+          pt-br: Mensagem de boas-vindas
+        default:
+          en-us: "Hi {user}, welcome to {server}!"
+          pt-br: "Olá {user}, bem-vindo ao {server}!"
+      - label:
+          en-us: Welcome message
+          pt-br: Mensagem de boas-vindas
+        default:
+          en-us: "{user} just arrived! Feel at home in {server}!"
+          pt-br: "{user} acabou de chegar! Sinta-se em casa no {server}!"
 
   - action: button
     key: question_welcome_messages_footer

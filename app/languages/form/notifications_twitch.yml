@@ -63,46 +63,61 @@ steps:
         key: question_notification_messages
         emoji: "📩"
         title:
-          en-us: Notification Message
-          pt-br: Mensagem da Notificação
+          en-us: "Notification Message"
+          pt-br: "Mensagem da Notificação"
         description:
-          en-us: In the next step, you can customize the messages that I will send to the members.
-          pt-br: No próximo passo, você poderá personalizar as mensagens que enviarei aos membros.
+          en-us: "In the next step, you will be able to customize the messages I will send to the members. Read the following notes carefully:"
+          pt-br: "No próximo passo, você poderá personalizar as mensagens que enviarei aos membros. Leia com atenção as seguintes observações:"
         fields:
           en-us:
-            - title: "1. Separate each message with a semicolon"
-              message: "Example: `@everyone {streamer} is online on Twitch!; @everyone I'm online now! Watch me at {stream_link}`"
-            - title: "2. You can use the following variables in your message:"
-              message: "- `{streamer}`: Streamer's username\n- `{stream_link}`: Stream link"
+            - title: "1. Random message"
+              message: "Each time the streamer goes online, one of the configured messages will be randomly chosen"
+            - title: "2. Up to 3 messages"
+              message: "You can configure up to 3 notification messages. If you want to use less than 3, leave the other fields blank"
+            - title: "3. Variables"
+              message: "You can use the following variables in your message:\n- `{streamer}`: Streamer's username\n- `{stream_link}`: Stream link"
           pt-br:
-            - title: "1. Separe cada mensagem com um ;"
-              message: "Exemplo: `@everyone {streamer} está online na Twitch!; @everyone Estou online agora! Me assista em {stream_link}`"
-            - title: "2. Você também poderá usar as seguintes variáveis reservadas"
-              message: "- `{streamer}`: Username do streamer\n- `{stream_link}`: Link da stream"
+            - title: "1. Mensagem aleatória"
+              message: "Sempre que o streamer ficar online, uma das mensagens configuradas será aleatoriamente escolhida"
+            - title: "2. Até 3 mensagens"
+              message: "Você poderá configurar até 3 mensagens de notificação. Caso queira configurar menos de 3, deixe os outros campos em branco"
+            - title: "3. Variáveis"
+              message: "Você pode utilizar as seguintes variáveis em sua mensagem:\n- `{streamer}`: Username do streamer\n- `{stream_link}`: Link do stream"
         footer:
           en-us: "• Use the command /report to tell me a bug"
           pt-br: "• Use o comando /reportar para me contar um bug"
 
       - action: modal
         key: notification_messages
-        max_length: 1000
-        multiline: true
-        default:
-          pt-br: "Olá @everyone! {streamer} está online na Twitch!; @everyone {streamer} está ao vivo agora! Assista em {stream_link}"
-          en-us: "Hey @everyone! {streamer} is online on Twitch!; @everyone {streamer} is live now! Watch at {stream_link}"
         style: bullet
+        max_length: 100
+        enumerate: true
+        multiline: true
         title:
           en-us: Notification Messages
           pt-br: Mensagens da Notificação
-        label:
-          en-us: Notification messages separated by semicolon
-          pt-br: Mensagens da notificação separadas por ;
         description:
-          en-us: The messages that will be sent to the members, separated by ;
-          pt-br: As mensagens que serão enviadas aos membros, separadas por ;
-        placeholder:
-          en-us: "Hey @everyone! {streamer} is online on Twitch! Come watch him at {stream_link}!"
-          pt-br: "Olá @everyone! {streamer} está online na Twitch! Venha assisti-lo em {stream_link}!"
+          en-us: The messages that will be sent to the members
+          pt-br: As mensagens que serão enviadas aos membros
+        fields:
+          - label:
+              en-us: "Notification Message"
+              pt-br: "Mensagem da notificação"
+            default:
+              pt-br: "Olá @everyone! {streamer} está online na Twitch!"
+              en-us: "Hey @everyone! {streamer} is online on Twitch!"
+          - label:
+              en-us: "Notification Message"
+              pt-br: "Mensagem da notificação"
+            default:
+              pt-br: "@everyone {streamer} está ao vivo agora! Assista em {stream_link}"
+              en-us: "@everyone {streamer} is live now! Watch at {stream_link}"
+          - label:
+              en-us: "Notification Message"
+              pt-br: "Mensagem da notificação"
+            default:
+              pt-br: "Hey @everyone, {streamer} está ao vivo! Venha ver em {stream_link}"
+              en-us: "Hey @everyone, {streamer} is live! Come see at {stream_link}"
 
   - action: resume
     key: confirm

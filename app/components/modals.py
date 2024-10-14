@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Any, Callable, Dict
 
 import discord
 
@@ -7,17 +7,52 @@ class CustomModal(discord.ui.Modal):
     def __init__(self, config: dict, callback: Callable, locale: str) -> None:
         self.callback = callback
         self.lowercase = config.get("lowercase", False)
-        super().__init__(title=config.get("title").get(locale, "en-us"), timeout=300)
-        self.add_item(
-            discord.ui.TextInput(
-                style=discord.TextStyle.long if config.get("multiline", False) else discord.TextStyle.short,
-                label=config.get("label", "").get(locale, "en-us"),
-                placeholder=config.get("placeholder", "").get(locale, "en-us"),
-                default=config.get("default", "").get(locale, "en-us") if config.get("default") else None,
+        self.locale = locale
+        super().__init__(title=config.get("title").get(locale), timeout=300)
+        self.add_inputs(config, locale)
+
+    def add_inputs(self, config: Dict[str, Any], locale: str) -> None:
+        if config.get("multiline", False):
+            style = discord.TextStyle.long
+        else:
+            style = discord.TextStyle.short
+
+        if not config.get("fields"):
+            default = self.get_config_by_locale(config, "default")
+            item = discord.ui.TextInput(
+                label=self.get_config_by_locale(config, "label"),
+                style=style,
                 required=config.get("required", True),
+                default=default,
+                max_length=config.get("max_length", 40),
+                placeholder=self.get_config_by_locale(config, "placeholder") or default,
+            )
+            return self.add_item(item)
+
+        self.add_fields(config, style)
+
+    def add_fields(self, config: Dict[str, Any], style: Any) -> None:
+        for i, field in enumerate(config.get("fields")):
+            default = self.get_config_by_locale(field, "default")
+
+            if config.get("enumerate", False):
+                label = f"{self.get_config_by_locale(field, 'label')} #{i+1}"
+            else:
+                label = self.get_config_by_locale(field, "label")
+
+            item = discord.ui.TextInput(
+                label=label,
+                style=style,
+                placeholder=self.get_config_by_locale(field, "placeholder") or default,
+                required=config.get("required", True),
+                default=default,
                 max_length=config.get("max_length", 40),
             )
-        )
+            self.add_item(item)
+
+    def get_config_by_locale(self, config_dict: Dict[str, Any], key: str) -> Any:
+        config = config_dict.get(key, "")
+        return config.get(self.locale) if config else ""
 
     def get_response(self):
         if not hasattr(self, "response"):
@@ -26,6 +61,9 @@ class CustomModal(discord.ui.Modal):
 
     async def on_submit(self, interaction) -> None:
         self.response = self.children[0].value if not self.lowercase else self.children[0].value.lower()
+        for child in self.children[1:]:
+            if self.response: self.response += ";"
+            self.response += child.value if not self.lowercase else child.value.lower()
         await self.callback(interaction)
 
 
