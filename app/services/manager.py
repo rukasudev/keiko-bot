@@ -2,7 +2,7 @@ from typing import Any, Dict, List
 
 import discord
 
-from app.services.utils import get_command_by_key, ml
+from app.services.utils import get_command_by_key, ml, parse_valid_locale
 
 
 def parse_history_data(
@@ -34,7 +34,8 @@ def parse_history_data(
 
 def parse_history_desc(interaction: discord.Interaction, cog_key: str) -> str:
     command = get_command_by_key(interaction.client, cog_key)
-    command_name = command.extras[interaction.locale.value].get("locale_qualified_name")
+    locale = parse_valid_locale(interaction.locale)
+    command_name = command.extras[locale.value].get("locale_qualified_name")
     return ml("buttons.changes-history.desc", locale=interaction.locale).replace(
         "$cog_key", command_name
     )

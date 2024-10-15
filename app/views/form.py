@@ -9,6 +9,7 @@ from app.components.modals import CustomModal
 from app.constants import Commands as commandconstants
 from app.constants import FormConstants as constants
 from app.constants import LogTypes as logconstants
+from app.constants import supported_locales
 from app.services.cogs import insert_cog_by_guild, insert_cog_event
 from app.services.moderations import update_moderations_by_guild
 from app.services.utils import (
@@ -19,6 +20,7 @@ from app.services.utils import (
     ml,
     parse_command_event_description,
     parse_form_yaml_to_dict,
+    parse_valid_locale,
 )
 from app.views.composition import FormComposition
 from app.views.options import OptionsView
@@ -50,6 +52,8 @@ class Form(discord.ui.View):
 
     def _update_form_step(func):
         async def update_counter(self, args):
+            args.locale = parse_valid_locale(args.locale)
+
             is_valid_response = self._handle_after_step()
             if not is_valid_response:
                 return await func(self, args)
@@ -254,6 +258,7 @@ class Form(discord.ui.View):
     async def _finish(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True, thinking=True)
 
+        interaction.locale = parse_valid_locale(interaction.locale)
         cog_param = self._parse_responses_to_cog()
         self.pre_finish_step(interaction)
 

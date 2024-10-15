@@ -6,7 +6,7 @@ from discord.app_commands.commands import Command
 from app.bot import DiscordBot
 from app.components.select import HelpSelect
 from app.constants import CogsConstants as constants
-from app.services.utils import keiko_command, ml
+from app.services.utils import keiko_command, ml, parse_valid_locale
 from app.translator import locale_str
 from app.types.cogs import Cog
 from app.views.pagination import PaginationView
@@ -38,10 +38,7 @@ class Help(Cog, name=locale_str("help", type="name", namespace="help")):
     def get_command_info(
         self, interaction: discord.Interaction, command: Command
     ) -> Dict[str, str]:
-        if not command.extras.get(interaction.locale.value):
-            locale = discord.Locale.american_english.value
-        else:
-            locale = interaction.locale.value
+        locale = interaction.locale.value
 
         command_info = {
             "name": (

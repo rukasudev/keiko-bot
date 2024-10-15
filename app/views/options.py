@@ -38,7 +38,7 @@ class OptionsView(discord.ui.View):
     def set_options(self, options):
         options = list(options.items() if self.styled_values else options)
 
-        if len(options) > 25:
+        if len(options) >= 24:
             page_start = self.current_page * self.items_per_page
             page_end = page_start + self.items_per_page
             options = options[page_start:page_end]
@@ -51,7 +51,7 @@ class OptionsView(discord.ui.View):
             self.add_item(option_button)
 
     def add_buttons(self):
-        if len(self.options) > 25:
+        if len(self.options) >= 24:
             self.add_pagination_buttons()
         self.add_item(ConfirmButton(callback=self._confirm_callback, locale=self.locale))
         self.add_item(CancelButton(locale=self.locale))

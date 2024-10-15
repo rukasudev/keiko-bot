@@ -5,9 +5,12 @@ import re
 import urllib.parse
 
 import detectlanguage
+import discord
 import requests
 
 import app
+from app import logger
+from app.constants import LogTypes as logconstants
 from app.services.utils import ml
 
 languages_with_flags = {
@@ -76,15 +79,16 @@ class GoogleTranslate:
     message_validation = r"^(?=.*\S)(?:https?|ftp):\/\/[^\s/$.?#].[^\s]*$"
 
     @staticmethod
-    def translate(content: str, dest: str) -> str:
-        dest = GoogleTranslate.parse_destination_locale(dest)
+    def translate(content: str, dest_locale: discord.Locale) -> str:
+        dest = GoogleTranslate.parse_destination_locale(dest_locale.value)
         full_dest = languages_with_flags.get(dest, "🌐")
 
         try:
             src = GoogleTranslate.detect(content)
             full_src = languages_with_flags.get(src, "🌐")
-        except Exception:
-            full_src = ml("errors.translate-message.unknown-language")
+        except Exception as error:
+            logger.error(f"Error while detecting language: {error}", log_type=logconstants.COMMAND_ERROR_TYPE,)
+            full_src = ml("errors.translate-message.unknown-language", dest_locale)
 
         translated_message = GoogleTranslate.google_translate(content, dest)
         if not translated_message:

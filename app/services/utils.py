@@ -121,8 +121,7 @@ def keiko_command(
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(self, interaction: discord.Interaction, *args, **kwargs):
-            if interaction.locale.value not in supported_locales:
-                interaction.locale = discord.Locale.american_english
+            interaction.locale = parse_valid_locale(interaction.locale)
             await func(self, interaction, *args, **kwargs)
 
         return Command(
@@ -242,6 +241,11 @@ def get_settings_label_by_locale(locale: str) -> str:
 
 def parse_locale(locale: str) -> str:
     return str(locale).lower()
+
+def parse_valid_locale(locale: discord.Locale) -> discord.Locale:
+    if locale.value not in supported_locales:
+        return discord.Locale.american_english
+    return locale
 
 
 def ml(key: str, locale: str):

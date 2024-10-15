@@ -25,7 +25,7 @@ class Translate(Cog):
             embed = response_error_embed("translate-message.translation-only-link", interaction.locale)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        response = GoogleTranslate.translate(message.content, interaction.locale.value)
+        response = GoogleTranslate.translate(message.content, interaction.locale)
         if not response:
             embed = response_error_embed("translate-message.translation-generic-error", interaction.locale)
             return await interaction.response.send_message(embed=embed, ephemeral=True)

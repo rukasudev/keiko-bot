@@ -8,7 +8,7 @@ from app import logger
 from app.bot import DiscordBot
 from app.components.embed import report_embed, response_embed
 from app.constants import LogTypes as logconstants
-from app.services.utils import keiko_command
+from app.services.utils import keiko_command, parse_valid_locale
 from app.translator import locale_str
 from app.types.cogs import Cog
 
@@ -17,7 +17,8 @@ async def report_autocomplete(
     interaction: discord.Interaction,
     current: str,
 ) -> List[app_commands.Choice[str]]:
-    commands = interaction.client.all_commands.get(interaction.locale.value, [])
+    locale = parse_valid_locale(interaction.locale)
+    commands = interaction.client.all_commands.get(locale.value, [])
     return [
         app_commands.Choice(name=command["name"], value=command["key"])
         for command in commands
