@@ -17,11 +17,11 @@ steps:
     style: role
     required: true
     title:
-      en-us: Default Roles (Users)
+      en-us: Default Roles (Bots)
       pt-br: Cargos padrão (Bots)
     description:
-      en-us: Choose which roles will be automatically assigned when a **bot** joins the guild
-      pt-br: Escolha quais cargos serão atribuidos automaticamente a um **bot** quando entrar no servidor
+      en-us: Choose which roles will be automatically assigned when a **bot** joins the guild.
+      pt-br: Escolha quais cargos serão atribuidos automaticamente a um **bot** quando entrar no servidor.
     footer:
       en-us: "• Use the command /report to tell me a bug"
       pt-br: "• Utilize o comando /reportar para me contar um bug"
@@ -35,8 +35,8 @@ steps:
       en-us: Default Roles (Members)
       pt-br: Cargos padrão (Usuários)
     description:
-      en-us: Choose which roles will be automatically assigned when a **member** joins the guild
-      pt-br: Escolha quais cargos serão atribuídos automaticamente a um **usuário** quando entrar no servidor
+      en-us: Choose which roles will be automatically assigned when a **member** joins the guild.
+      pt-br: Escolha quais cargos serão atribuídos automaticamente a um **usuário** quando entrar no servidor.
     footer:
       en-us: "• Use the command /report to tell me a bug"
       pt-br: "• Utilize o comando /reportar para me contar um bug"
@@ -44,7 +44,7 @@ steps:
   - action: resume
     key: confirm
     title:
-      en-us: ":white_check_check: Alright?"
+      en-us: ":white_check_mark: Alright?"
       pt-br: ":white_check_mark: Tudo certo?"
     description:
       en-us: Enabling this feature allows me to automatically assign roles to new members when they join your server

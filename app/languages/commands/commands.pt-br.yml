@@ -5,7 +5,8 @@ pt-br:
       desc: Keiko ajuda você a entender como usar os comandos disponíveis
       embed:
         title: 📚 Comandos disponíveis
-        desc: "Aqui estão meus comandos que irão te ajudar a deixar seu servidor mais aconchegante! ✨\n\n
+        desc:
+          "Aqui estão meus comandos que irão te ajudar a deixar seu servidor mais aconchegante! ✨\n\n
           Para mais informações sobre um comando específico, selecione o comando em `Selecione um comando para ver sua descrição` na lista abaixo da mensagem ⬇️\n\n"
         placeholder: Selecione um comando para ver sua descrição
         base-commands: Comandos base
@@ -84,6 +85,7 @@ pt-br:
       subgroup: cargos
       name: padrão
       desc: Keiko recebe calorosamente novos membros atribuindo cargos automaticamente ao entrarem no servidor
+      warning: Se o cargo não está sendo listado, verifique se o cargo do Keiko está acima dos cargos que deseja atribuir aos novos membros 🧑‍⚖️
 
   groups:
     moderations: moderações

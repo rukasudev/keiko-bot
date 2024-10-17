@@ -220,6 +220,8 @@ class Form(discord.ui.View):
             )
             self.step_embed.description = error_message
 
+        self.step_embed.description += f"\n\n**{ml('commands.commands.default-roles.warning', locale=self.locale)}**\n\n"
+
         await interaction.followup.edit_message(
             message_id=interaction.message.id, embed=self.step_embed, view=self.view
         )

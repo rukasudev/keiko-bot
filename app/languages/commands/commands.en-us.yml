@@ -5,7 +5,8 @@ en-us:
       desc: Keiko helps you understand how to use the available commands
       embed:
         title: 📚 Available commands
-        desc: "Here are my commands that will help you make your server more cozy! ✨\n\n
+        desc:
+          "Here are my commands that will help you make your server more cozy! ✨\n\n
           For more information about a specific command, select the command in `Select a command to view its description` in the list below the message ⬇️\n\n"
         placeholder: Select a command to view its description
         base-commands: Base commands
@@ -84,6 +85,7 @@ en-us:
       subgroup: default
       name: roles
       desc: Keiko warmly welcomes new members by automatically assigning roles when they join the server
+      warning: If the role is not being listed, make sure Keiko's role is above the role you want to assign to new members 🧑‍⚖️
 
   groups:
     moderations: moderations
