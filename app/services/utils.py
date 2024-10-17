@@ -223,7 +223,7 @@ def get_form_settings_with_database_values(interaction: discord.Interaction, res
             result = f"\n{get_styled_composition_values(item['title'], values)}"
         else:
             formatted_values = format_values_by_style(values, style)
-            result += f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{formatted_values}**"
+            result += f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{formatted_values or '-'}**"
 
     return result
 
