@@ -57,7 +57,6 @@ class Commands:
 
     # moderations
     MODERATIONS_KEY: Final[str] = "moderations"
-    STREAM_MONITOR_KEY: Final[str] = "stream_monitor"
     WELCOME_MESSAGES_KEY: Final[str] = "welcome_messages"
     DEFAULT_ROLES_KEY: Final[str] = "default_roles"
     DEFAULT_ROLES_BOT_KEY: Final[str] = "default_roles_bot"
@@ -97,7 +96,8 @@ class GuildConstants:
     IS_BOT_ONLINE: Final[str] = "is_bot_online"
     COGS_MODERATIONS_COMMANDS_DEFAULT: Final[Dict] = {
         IS_BOT_ONLINE: True,
-        Commands.STREAM_MONITOR_KEY: False,
+        Commands.NOTIFICATIONS_TWITCH_KEY: False,
+        Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY: False,
         Commands.WELCOME_MESSAGES_KEY: False,
         Commands.DEFAULT_ROLES_KEY: False,
         Commands.BLOCK_LINKS_KEY: False,
