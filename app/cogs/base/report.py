@@ -18,7 +18,7 @@ async def report_autocomplete(
     current: str,
 ) -> List[app_commands.Choice[str]]:
     locale = parse_valid_locale(interaction.locale)
-    commands = interaction.client.all_commands.get(locale.value, [])
+    commands = interaction.client.all_cogs.get(locale.value, [])
     return [
         app_commands.Choice(name=command["name"], value=command["key"])
         for command in commands
@@ -110,7 +110,7 @@ class Report(Cog, name="report"):
         return f"{unique_id_object.get('prefix')}-{str(unique_id_object.get('number'))}"
 
     async def _send_report_dm(self, interaction, title, description, command, attachment, ticket_unique_id: str):
-        commands = interaction.client.all_commands[interaction.locale.value]
+        commands = interaction.client.all_cogs[interaction.locale.value]
         command_info = next((c for c in commands if c["key"] == command), None)
 
         embed = report_embed(

@@ -46,4 +46,4 @@ jobs:
         run: docker pull ${{ env.REGISTRY }}:latest
 
       - name: Run docker container
-        run: docker run -d -p 5000:5000 --name keiko-bot ${{ env.REGISTRY }}:latest
+        run: docker run -d -p 5000:5000 -p 8000:8000 --name keiko-bot ${{ env.REGISTRY }}:latest

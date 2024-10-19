@@ -73,6 +73,7 @@ class CogsConstants:
     MODERATIONS_COGS: Final[str] = "moderations"
     NOTIFICATIONS_COGS: Final[str] = "notifications"
     CONFIG_COGS: Final[str] = "config"
+    PROMETHEUS_COGS: Final[str] = "prometheus"
     EVENTS_COGS: Final[str] = "events"
     ERRORS_COGS: Final[str] = "errors"
     HELP_COGS: Final[str] = "help"
@@ -80,6 +81,7 @@ class CogsConstants:
     COGS_LIST: Final[List[str]] = [
         ADMIN_COGS,
         MODERATIONS_COGS,
+        PROMETHEUS_COGS,
         CONFIG_COGS,
         EVENTS_COGS,
         ERRORS_COGS,

@@ -24,6 +24,7 @@ class DiscordBot(Bot):
         self.notion = NotionIntegration(config)
         self.twitch = TwitchClient(self)
         self.youtube = YoutubeClient(self)
+        self.all_cogs = {}
         super().__init__(
             command_prefix=self.config.PREFIX,
             application_id=self.config.APPLICATION_ID,
