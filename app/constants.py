@@ -71,6 +71,7 @@ class Commands:
 class CogsConstants:
     ADMIN_COGS: Final[str] = "admin"
     MODERATIONS_COGS: Final[str] = "moderations"
+    NOTIFICATIONS_COGS: Final[str] = "notifications"
     CONFIG_COGS: Final[str] = "config"
     EVENTS_COGS: Final[str] = "events"
     ERRORS_COGS: Final[str] = "errors"
@@ -87,6 +88,7 @@ class CogsConstants:
     LAZY_LOAD_COGS: Final[List[str]] = [ADMIN_COGS, CONFIG_COGS]
 
     INTERACTION_COGS: Final[List[str]] = [
+        NOTIFICATIONS_COGS,
         MODERATIONS_COGS,
         HELP_COGS,
     ]
