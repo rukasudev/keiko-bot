@@ -103,26 +103,29 @@ steps:
           - label:
               en-us: "Notification Message"
               pt-br: "Mensagem da notificação"
+            required: false
             default:
-              pt-br: "Olá @everyone! {streamer} está online na Twitch!"
-              en-us: "Hey @everyone! {streamer} is online on Twitch!"
-          - label:
-              en-us: "Notification Message"
-              pt-br: "Mensagem da notificação"
-            default:
-              pt-br: "@everyone {streamer} está ao vivo agora! Assista em {stream_link}"
+              pt-br: "@everyone {streamer} está ao vivo! {stream_link}"
               en-us: "@everyone {streamer} is live now! Watch at {stream_link}"
           - label:
               en-us: "Notification Message"
               pt-br: "Mensagem da notificação"
+            required: false
             default:
-              pt-br: "Hey @everyone, {streamer} está ao vivo! Venha ver em {stream_link}"
+              pt-br: "@everyone {streamer} está online! Venha ver em {stream_link}"
               en-us: "Hey @everyone, {streamer} is live! Come see at {stream_link}"
+          - label:
+              en-us: "Notification Message"
+              pt-br: "Mensagem da notificação"
+            required: true
+            default:
+              pt-br: "@everyone {streamer} abriu live! {stream_link}"
+              en-us: "@everyone {streamer} just went live! {stream_link}"
 
   - action: resume
     key: confirm
     title:
-      en-us: ":white_check_check: Alright?"
+      en-us: ":white_check_mark: Alright?"
       pt-br: ":white_check_mark: Tudo certo?"
     description:
       en-us: Enabling this feature allows me to notify when your favorite streamer is online on Twitch!

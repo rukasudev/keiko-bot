@@ -44,7 +44,7 @@ class CustomModal(discord.ui.Modal):
                 label=label,
                 style=style,
                 placeholder=self.get_config_by_locale(field, "placeholder") or default,
-                required=config.get("required", True),
+                required=field.get("required", True),
                 default=default,
                 max_length=config.get("max_length", 40),
             )
@@ -62,6 +62,8 @@ class CustomModal(discord.ui.Modal):
     async def on_submit(self, interaction) -> None:
         self.response = self.children[0].value if not self.lowercase else self.children[0].value.lower()
         for child in self.children[1:]:
+            if len(child.value) == 0:
+                continue
             if self.response: self.response += ";"
             self.response += child.value if not self.lowercase else child.value.lower()
         await self.callback(interaction)

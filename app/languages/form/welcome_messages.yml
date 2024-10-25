@@ -110,18 +110,21 @@ steps:
       - label:
           en-us: Welcome message
           pt-br: Mensagem de boas-vindas
+        required: true
         default:
           en-us: "Welcome {user} to {server}!"
-          pt-br: "Bem-vindo {user} ao {server}!"
+          pt-br: "{user} bem-vindo ao {server}!"
       - label:
           en-us: Welcome message
           pt-br: Mensagem de boas-vindas
+        required: false
         default:
-          en-us: "Hi {user}, welcome to {server}!"
-          pt-br: "Olá {user}, bem-vindo ao {server}!"
+          en-us: "Look who just arrived! {user} just entered {server}!"
+          pt-br: "Olha quem chegou! {user} acabou de entrar no {server}!"
       - label:
           en-us: Welcome message
           pt-br: Mensagem de boas-vindas
+        required: false
         default:
           en-us: "{user} just arrived! Feel at home in {server}!"
           pt-br: "{user} acabou de chegar! Sinta-se em casa no {server}!"
