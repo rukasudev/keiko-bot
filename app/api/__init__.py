@@ -17,7 +17,7 @@ def create_api(config_name: str):
     app.add_url_rule("/v1/support", "support", support)
 
     from app.webhooks import webhooks as webhooks_blueprint
-    app.register_blueprint(webhooks_blueprint, url_prefix='/v1/webhooks')
+    app.register_blueprint(webhooks_blueprint, url_prefix="/v1/webhooks")
 
     return app
 

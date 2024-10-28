@@ -414,9 +414,9 @@ def parse_welcome_message(welcome_message: str, member: discord.Member) -> bool:
     welcome_message = welcome_message.replace("{member_count}", str(member.guild.member_count))
 
     if "{user}" not in welcome_message.lower():
-        welcome_message += f"\n{member.mention}"
+        welcome_message += f"\n<@!{member._user.id}>"
         return welcome_message
 
-    welcome_message = welcome_message.replace("{user}", member.mention)
+    welcome_message = welcome_message.replace("{user}", f"<@!{member._user.id}>")
 
     return welcome_message
