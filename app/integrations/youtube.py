@@ -1,5 +1,8 @@
 import requests
 
+from app import logger
+from app.constants import LogTypes as logconstants
+
 
 class YoutubeClient:
     def __init__(self, bot):
@@ -33,6 +36,8 @@ class YoutubeClient:
             "hub.verify": "async",
         }
         response = requests.post(url, data=body)
+        logger.info(f"Subscribed to new video event for channel: {channel_id}", log_type=logconstants.COMMAND_INFO_TYPE)
+        logger.info(f"Response from Youtube PubSubHubbub: {response.text}", log_type=logconstants.COMMAND_INFO_TYPE)
         return response
 
     def unsubscribe_from_new_video_event(self, channel_id: str) -> None:
