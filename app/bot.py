@@ -5,6 +5,7 @@ from discord.ext.commands import Bot
 
 from app.config import AppConfig
 from app.integrations.notion import NotionIntegration
+from app.integrations.reminder_webhook import ReminderWebhook
 from app.integrations.twitch import TwitchClient
 from app.integrations.youtube import YoutubeClient
 from app.services.utils import cogs_manager, get_cogs_folder
@@ -24,6 +25,7 @@ class DiscordBot(Bot):
         self.notion = NotionIntegration(config)
         self.twitch = TwitchClient(self)
         self.youtube = YoutubeClient(self)
+        self.reminder = ReminderWebhook(self)
         self.all_cogs = {}
         super().__init__(
             command_prefix=self.config.PREFIX,

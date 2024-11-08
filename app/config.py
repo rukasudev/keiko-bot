@@ -34,6 +34,8 @@ class AppConfig:
         self.RUN_LOCAL_WEBHOOK_API = os.getenv("RUN_LOCAL_WEBHOOK_API")
         self.WEBHOOK_URL = os.getenv("WEBHOOK_URL")
         self.YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+        self.REMINDER_APPLICATION_ID = os.getenv("REMINDER_APPLICATION_ID")
+        self.REMINDER_API_KEY = os.getenv("REMINDER_API_KEY")
 
 
     def get_ssm_configs(self):
@@ -61,6 +63,10 @@ class AppConfig:
         self.OPENAI_API_KEY = ssm.get_parameter(Name="/keiko/openai/api_key", WithDecryption=True)["Parameter"]["Value"]
         self.DETECT_LANGUAGE_API_KEY = ssm.get_parameter(
             Name="/keiko/detect_language/api_key", WithDecryption=True)["Parameter"]["Value"]
+        self.REMINDER_APPLICATION_ID = ssm.get_parameter(Name="/keiko/reminder/application_id", WithDecryption=True)[
+            "Parameter"]["Value"]
+        self.REMINDER_API_KEY = ssm.get_parameter(Name="/keiko/reminder/api_key", WithDecryption=True)["Parameter"][
+            "Value"]
 
     def get_admin_db_configs(self):
         return [{key: getattr(self, key) for key in constants.ADMIN_CONFIGS_LIST}]

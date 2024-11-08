@@ -7,7 +7,7 @@ from app.config import AppConfig
 
 webhooks = Blueprint('webhooks', __name__)
 
-from . import twitch, youtube
+from . import reminder, twitch, youtube
 
 
 def handle_webhook_api(config: AppConfig) -> None:
