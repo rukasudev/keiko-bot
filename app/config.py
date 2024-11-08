@@ -35,6 +35,7 @@ class AppConfig:
         self.WEBHOOK_URL = os.getenv("WEBHOOK_URL")
         self.YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
         self.REMINDER_APPLICATION_ID = os.getenv("REMINDER_APPLICATION_ID")
+        self.REMINDER_AUTH_PASSWORD = os.getenv("REMINDER_AUTH_PASSWORD")
         self.REMINDER_API_KEY = os.getenv("REMINDER_API_KEY")
 
 
@@ -64,6 +65,8 @@ class AppConfig:
         self.DETECT_LANGUAGE_API_KEY = ssm.get_parameter(
             Name="/keiko/detect_language/api_key", WithDecryption=True)["Parameter"]["Value"]
         self.REMINDER_APPLICATION_ID = ssm.get_parameter(Name="/keiko/reminder/application_id", WithDecryption=True)[
+            "Parameter"]["Value"]
+        self.REMINDER_AUTH_PASSWORD = ssm.get_parameter(Name="/keiko/reminder/auth_password", WithDecryption=True)[
             "Parameter"]["Value"]
         self.REMINDER_API_KEY = ssm.get_parameter(Name="/keiko/reminder/api_key", WithDecryption=True)["Parameter"][
             "Value"]
