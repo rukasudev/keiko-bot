@@ -1,8 +1,5 @@
 import requests
 
-from app import logger
-from app.constants import LogTypes as logconstants
-
 REMINDER_API_URL = "https://reminders-api.com/api"
 REMINDER_TIMEZONE = "America/Sao_Paulo"
 REMINDER_AUTH_USER = "keiko"
@@ -25,29 +22,29 @@ class ReminderWebhook:
             data={
                 "title": reminder_data.get("title"),
                 "timezone": REMINDER_TIMEZONE,
-                "date_tz": reminder_data.get("date_tz"),
+                "date_tz": str(reminder_data.get("date_tz")),
                 "notes": reminder_data.get("notes"),
                 "webhook_url": self.webhook_url,
                 "http_basic_auth_username": REMINDER_AUTH_USER,
                 "http_basic_auth_password": self.bot.config.REMINDER_AUTH_PASSWORD,
             },
-        )
+        ).json()
 
-    def update_reminder(self, reminder_id: str, reminder_data: dict) -> None:
+    def update_reminder(self, reminder_id: str, date_tz: str) -> None:
         return requests.put(
             f"{REMINDER_API_URL}/reminders/{reminder_id}",
             headers=self.headers,
             data={
-                "date_tz": reminder_data.get("renew_date"),
+                "date_tz": str(date_tz),
                 "timezone": REMINDER_TIMEZONE,
                 "webhook_url": self.webhook_url,
                 "http_basic_auth_username": REMINDER_AUTH_USER,
                 "http_basic_auth_password": self.bot.config.REMINDER_AUTH_PASSWORD,
             },
-        )
+        ).json()
 
     def delete_reminder(self, reminder_id: str) -> None:
         return requests.delete(
             f"{REMINDER_API_URL}/reminders/{reminder_id}",
             headers=self.headers,
-        )
+        ).json()

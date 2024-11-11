@@ -24,9 +24,7 @@ def proccess_youtube_notification(reminder_id: str, youtuber: str):
 
     logger.info(f'Renew youtube notification subscription for **{youtuber}**', log_type=logconstants.COMMAND_INFO_TYPE)
 
-    new_renew_date = datetime.now() + timedelta(minutes=3)
-    logger.info(f'New renew date: {new_renew_date}', log_type=logconstants.COMMAND_INFO_TYPE)
+    new_renew_date = datetime.now() + timedelta(days=4)
 
-    # Update the reminder with the new renew date
-    bot.reminder.update_reminder(reminder_id, {'renew_date': new_renew_date})
-
+    bot.reminder.update_reminder(reminder_id, new_renew_date.date())
+    logger.info(f'Reminder updated. New renew date: {new_renew_date.date()}', log_type=logconstants.COMMAND_INFO_TYPE)

@@ -1,4 +1,5 @@
 import random
+from datetime import datetime, timedelta
 from typing import Any, Dict
 
 import discord
@@ -9,6 +10,11 @@ from app.constants import LogTypes as logconstants
 from app.data.notifications_youtube_video import (
     count_youtube_video_subscription_by_guilds,
     find_guilds_by_youtuber,
+)
+from app.data.reminder import (
+    delete_reminder_by_id,
+    find_reminder_by_value,
+    insert_reminder,
 )
 from app.services import cache
 from app.services.moderations import (
@@ -127,6 +133,19 @@ def subscribe_youtube_new_video(interaction: discord.Interaction, form_responses
             log_type=logconstants.COMMAND_INFO_TYPE,
         )
 
+        renew_date = datetime.now() + timedelta(days=4)
+        reminder = bot.reminder.create_reminder(
+            {"title": "youtube_notification", "notes": youtuber, "date_tz": renew_date.date()}
+        )
+        logger.info(f"Reminder Debug {reminder}", interaction=interaction, log_type=logconstants.COMMAND_INFO_TYPE)
+
+        insert_reminder(reminder["id"], "youtube_notification", youtuber)
+        logger.info(
+            f"Reminder created for youtuber {youtuber} to renew subscription. Date: {renew_date}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_INFO_TYPE,
+        )
+
 def unsubscribe_youtube_new_video(interaction: discord.Interaction, cogs: Dict[str, Any]):
     for notification in cogs.get("notifications").get("values"):
         youtuber = notification.get("youtuber").get("value")
@@ -144,6 +163,30 @@ def unsubscribe_youtube_new_video(interaction: discord.Interaction, cogs: Dict[s
         bot.youtube.unsubscribe_from_new_video_event(channel_id)
         logger.info(
             f"Youtuber {youtuber} unsubscribed",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_INFO_TYPE,
+        )
+
+        reminder = find_reminder_by_value(youtuber)
+        if not reminder:
+            continue
+
+        logger.info(
+            f"Reminder {reminder.get('reminder_id')} found for youtuber {youtuber}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_INFO_TYPE,
+        )
+
+        bot.reminder.delete_reminder(reminder.get("reminder_id"))
+        logger.info(
+            f"Reminder {reminder.get('reminder_id')} deleted",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_INFO_TYPE,
+        )
+
+        delete_reminder_by_id(reminder.get("id"))
+        logger.info(
+            f"Reminder {reminder.get('reminder_id')} deleted from database",
             interaction=interaction,
             log_type=logconstants.COMMAND_INFO_TYPE,
         )
