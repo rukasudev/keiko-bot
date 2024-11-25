@@ -13,7 +13,7 @@ class EditCommand(discord.ui.View):
         self.locale = locale
         self.after_callback = callback
         self.form_view = Form(self.command_key, self.locale)
-        super().__init__()
+        super().__init__(timeout=1800)
         self.add_item(
             Select(
                 ml("commands.command-events.edited.placeholder", locale=self.locale),

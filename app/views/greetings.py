@@ -8,7 +8,7 @@ from app.integrations.google_translate import GoogleTranslate
 
 class GreetingsView(discord.ui.View):
     def __init__(self):
-        super().__init__()
+        super().__init__(timeout=None)
         placeholder = GoogleTranslate().get_language_with_flag(
             discord.Locale.brazil_portuguese.value
         )

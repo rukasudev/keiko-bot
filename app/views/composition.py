@@ -9,7 +9,7 @@ from app.services.utils import ml
 
 class FormComposition(discord.ui.View):
     def __init__(self, composition: Dict[str, str], parent_callback: Callable, locale: str) -> None:
-        super().__init__()
+        super().__init__(timeout=1800)
         self.composition = composition
         self.parent_callback = parent_callback
         self.max_length = composition.get("max_length", 1)

@@ -21,7 +21,7 @@ class OptionsView(discord.ui.View):
         required: bool = False,
         unique: bool = False,
     ) -> None:
-        super().__init__()
+        super().__init__(timeout=1800)
         self.callback = callback
         self.locale = locale
         self.required = required

@@ -92,7 +92,7 @@ class HelpSelect(Select):
                 inline=False,
             )
 
-        new_view = discord.ui.View()
+        new_view = discord.ui.View(timeout=1800)
         new_view.add_item(
             BackButton(embed=embed, view=self.view, locale=interaction.locale)
         )

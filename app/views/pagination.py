@@ -28,7 +28,7 @@ class PaginationView(discord.ui.View):
             list(data)[i : i + sep] for i in range(0, len(list(data)), sep)
         ]
 
-        super().__init__()
+        super().__init__(timeout=1800)
 
     async def send(self, ephemeral: bool = False):
         if hasattr(self, "select"):

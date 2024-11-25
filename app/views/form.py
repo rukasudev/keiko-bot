@@ -40,7 +40,7 @@ class Form(discord.ui.View):
         self.command_key = command_key
         self.locale = locale
         self.steps = self._get_steps(steps)
-        super().__init__()
+        super().__init__(timeout=1800)
         self.add_item(ConfirmButton(callback=self._callback, locale=locale))
         self.add_item(CancelButton(locale=locale))
 

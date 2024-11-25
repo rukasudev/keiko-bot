@@ -51,7 +51,7 @@ class Manager(discord.ui.View):
         self.cogs = cogs
         self.interaction = interaction
         self.locale = parse_locale(interaction.locale)
-        super().__init__()
+        super().__init__(timeout=1800)
         self.add_item(EditButton(self.update_command, locale=self.locale))
         self.add_item(self.pause_handler())
         self.add_item(DisableButton(callback=self.disable_callback, locale=self.locale))
