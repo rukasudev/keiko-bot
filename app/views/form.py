@@ -3,13 +3,17 @@ from typing import Any, Callable, Dict, Generator, List
 import discord
 
 from app import logger
-from app.components.buttons import CancelButton, ConfirmButton, EditButton
+from app.components.buttons import (
+    CancelButton,
+    ConfirmButton,
+    EditButton,
+    PreviewButton,
+)
 from app.components.embed import parse_form_dict_to_embed
 from app.components.modals import CustomModal
 from app.constants import Commands as commandconstants
 from app.constants import FormConstants as constants
 from app.constants import LogTypes as logconstants
-from app.constants import supported_locales
 from app.services.cogs import insert_cog_by_guild, insert_cog_event
 from app.services.moderations import update_moderations_by_guild
 from app.services.utils import (
@@ -22,6 +26,7 @@ from app.services.utils import (
     parse_form_yaml_to_dict,
     parse_valid_locale,
 )
+from app.services.welcome_messages import send_welcome_message_preview
 from app.views.composition import FormComposition
 from app.views.options import OptionsView
 
@@ -231,6 +236,10 @@ class Form(discord.ui.View):
         embed.description += get_form_settings_with_database_values(interaction, self.responses)
 
         self.add_item(EditButton(after_callback=self.update_resume, locale=self.locale))
+
+        if self._get_step_item("preview"):
+            self.add_item(PreviewButton(custom_callback=send_welcome_message_preview, locale=self.locale, command_key=self.command_key))
+
         self.add_item(ConfirmButton(callback=self._finish, locale=self.locale))
         self.add_item(CancelButton(locale=self.locale))
         await interaction.response.edit_message(embed=embed, view=self)

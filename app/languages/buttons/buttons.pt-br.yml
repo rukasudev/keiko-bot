@@ -15,6 +15,10 @@ pt-br:
     label: Desabilitar
     desc: Desabilita a funcionalidade e reseta as configurações
 
+  preview:
+    label: Pré-visualizar
+    desc: Pré-visualiza as configurações da funcionalidade
+
   help:
     label: Ajuda
     desc: Obtenha legendas e funcionalidades dos botões

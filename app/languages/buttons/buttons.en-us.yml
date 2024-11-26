@@ -15,6 +15,10 @@ en-us:
     label: Disable
     desc: Disable the feature and reset the settings
 
+  preview:
+    label: Preview
+    desc: Preview the feature settings
+
   help:
     label: Help
     desc: Get buttons captions and functionalities

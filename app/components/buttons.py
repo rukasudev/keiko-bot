@@ -125,6 +125,29 @@ class PauseButton(discord.ui.Button):
             style=discord.ButtonStyle.grey,
         )
 
+class PreviewButton(discord.ui.Button):
+    def __init__(self, custom_callback: Callable, locale: str, command_key: str) -> None:
+        self.custom_callback = custom_callback
+        self.command_key = command_key
+        self.desc = ml("buttons.preview.desc", locale=locale)
+        super().__init__(
+            label=ml("buttons.preview.label", locale=locale),
+            emoji="👁️",
+            style=discord.ButtonStyle.gray,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> Any:
+        self.view.remove_item(self)
+
+        await interaction.response.edit_message(view=self.view)
+
+        if not hasattr(self.view, "responses"):
+            responses = []
+        else:
+            responses = self.view.responses
+
+        await self.custom_callback(interaction, responses)
+
 
 class UnpauseButton(discord.ui.Button):
     def __init__(self, callback: Callable, locale: str) -> None:

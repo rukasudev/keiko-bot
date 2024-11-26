@@ -170,6 +170,7 @@ steps:
 
   - action: resume
     key: confirm
+    preview: true
     title:
       en-us: ":white_check_mark: Alright?"
       pt-br: ":white_check_mark: Tudo certo?"

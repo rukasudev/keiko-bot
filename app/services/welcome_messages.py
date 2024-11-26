@@ -3,12 +3,14 @@ import functools
 import random
 from datetime import datetime
 from io import BytesIO
+from typing import Dict, List
 
 import discord
 import requests
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from app import bot
+from app.components.buttons import PreviewButton
 from app.components.embed import default_welcome_embed
 from app.constants import Commands as constants
 from app.services import cache
@@ -16,7 +18,7 @@ from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
 )
-from app.services.utils import parse_welcome_message, split_welcome_messages
+from app.services.utils import parse_welcome_messages
 
 
 async def manager(interaction: discord.Interaction, guild_id: str):
@@ -25,8 +27,10 @@ async def manager(interaction: discord.Interaction, guild_id: str):
     if cogs == None:
         return await send_command_form_message(interaction, constants.WELCOME_MESSAGES_KEY)
 
+    preview_button = PreviewButton(custom_callback=send_welcome_message_preview, locale=interaction.locale, command_key=constants.WELCOME_MESSAGES_KEY)
+
     await send_command_manager_message(
-        interaction, constants.WELCOME_MESSAGES_KEY, cogs
+        interaction, constants.WELCOME_MESSAGES_KEY, cogs, "", [preview_button]
     )
 
 async def send_welcome_message(member: discord.Member):
@@ -45,18 +49,49 @@ async def send_welcome_message(member: discord.Member):
     if not channel:
         return
 
-    splited_messages = split_welcome_messages(welcome_messages)
-    random_message = random.choice(splited_messages)
-    welcome_message = parse_welcome_message(random_message, member)
-
     welcome_message_title = cogs["welcome_messages_title"]
     welcome_message_footer = cogs["welcome_messages_footer"]
-    guild_icon_url = "https://i.sstatic.net/41v2I.png" if not member.guild.icon else member.guild.icon.url
 
-    banner = await create_banner(guild_icon_url, welcome_message_title.upper(), member.name, member.display_avatar.url, member.guild.name)
-    embed_message = default_welcome_embed(welcome_message_title, welcome_message, welcome_message_footer, banner)
+    welcome_message = parse_welcome_messages(welcome_messages, member)
+
+    embed_message = await create_welcome_message(member, welcome_message_title, welcome_message, welcome_message_footer)
 
     await channel.send(embed=embed_message)
+
+async def create_welcome_message(member: discord.Member, title: str, message: str, footer: str):
+    guild_icon_url = "https://i.sstatic.net/41v2I.png" if not member.guild.icon else member.guild.icon.url
+
+    banner = await create_banner(guild_icon_url, title.upper(), member.name, member.display_avatar.url, member.guild.name)
+    return default_welcome_embed(title, message, footer, banner)
+
+async def send_welcome_message_preview(interaction: discord.Interaction, response: List[Dict[str, str]]):
+    welcome_data = {}
+
+    for item in response:
+        key = item.get("key")
+        if key in ["welcome_messages_title", "welcome_messages", "welcome_messages_footer"]:
+            welcome_data[key] = item.get("value")
+
+    if not response:
+        cogs = cache.get_cog_data_or_populate(interaction.guild.id, constants.WELCOME_MESSAGES_KEY)
+        welcome_data = {
+            "welcome_messages_title": cogs["welcome_messages_title"],
+            "welcome_messages": cogs["welcome_messages"].get("values"),
+            "welcome_messages_footer": cogs["welcome_messages_footer"]
+        }
+
+    title = welcome_data.get("welcome_messages_title")
+    messages = welcome_data.get("welcome_messages")
+    footer = welcome_data.get("welcome_messages_footer")
+
+    if not title or not messages or not footer:
+        return
+
+    welcome_message = parse_welcome_messages(messages, interaction.user)
+    embed_message = await create_welcome_message(interaction.user, title, welcome_message, footer)
+
+    await interaction.followup.send(embed=embed_message, ephemeral=True)
+
 
 @functools.cache
 def request_image_url(url: str):

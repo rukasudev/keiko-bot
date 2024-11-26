@@ -3,6 +3,7 @@ import functools
 import hashlib
 import hmac
 import os
+import random
 from pathlib import Path
 from re import findall
 from typing import Any, Dict, List, Tuple
@@ -409,7 +410,10 @@ def parse_confirmation_desc(action: str, locale: str) -> str:
 def split_welcome_messages(welcome_messages: str) -> List[str]:
     return welcome_messages.split(";")
 
-def parse_welcome_message(welcome_message: str, member: discord.Member) -> bool:
+def parse_welcome_messages(welcome_messages: str, member: discord.Member) -> bool:
+    splited_messages = split_welcome_messages(welcome_messages)
+    welcome_message = random.choice(splited_messages)
+
     welcome_message = welcome_message.replace("{server}", member.guild.name)
     welcome_message = welcome_message.replace("{member_count}", str(member.guild.member_count))
 
