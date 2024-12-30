@@ -22,7 +22,18 @@ def reminder_webhook():
 def proccess_youtube_notification(reminder_id: str, youtuber: str):
     from app import bot
 
-    logger.info(f'Renew youtube notification subscription for **{youtuber}**', log_type=logconstants.COMMAND_INFO_TYPE)
+    logger.info(f'Renewing youtube notification subscription for **{youtuber}**', log_type=logconstants.COMMAND_INFO_TYPE)
+
+    channel_id = bot.youtube.get_channel_id_from_username(youtuber)
+    if not channel_id:
+        logger.error(f'Channel id not found for youtuber {youtuber}', log_type=logconstants.COMMAND_ERROR_TYPE)
+        return
+
+    bot.youtube.subscribe_to_new_video_event(channel_id)
+    logger.info(
+        f"Youtuber {youtuber} resubscribed",
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )
 
     new_renew_date = datetime.now() + timedelta(days=4)
 
