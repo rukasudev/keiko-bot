@@ -65,7 +65,7 @@ def create_stream_notification_embed(streamer: str, stream_info: Dict[str, Any],
     stream_link = f"https://www.twitch.tv/{streamer}"
     stream_title = stream_info.get("title")
     stream_game = stream_info.get("game_name")
-    stream_thumbnail = stream_info.get("thumbnail_url")
+    stream_thumbnail = stream_info.get("thumbnail_url") + f"?{stream_info.get('id')}"
     streamer_profile_image = user_info.get("profile_image_url")
     description = user_info.get("description")
 
