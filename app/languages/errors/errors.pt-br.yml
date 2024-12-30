@@ -39,3 +39,7 @@ pt-br:
     translation-only-link:
       title: Mensagem contém apenas um link
       message: "Desculpe, mas não consigo traduzir uma mensagem que contém apenas um link. Por favor, forneça uma mensagem válida para ser traduzida e tente novamente."
+
+  streamer-not-found:
+    title: Streamer Não Encontrado
+    message: "Desculpe, mas não consegui encontrar o streamer que você está procurando. Por favor, verifique o nome e tente novamente."

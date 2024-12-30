@@ -46,6 +46,7 @@ steps:
         key: streamer
         max_length: 30
         lowercase: true
+        validation: validate_streamer_name
         title:
           en-us: Streamer
           pt-br: Streamer

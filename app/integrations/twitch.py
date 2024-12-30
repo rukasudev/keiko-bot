@@ -66,6 +66,8 @@ class TwitchClient:
             'Authorization': f'Bearer {self.token}'
         }
         response = requests.get(request_url, headers=headers)
+        if len(response.json()['data']) == 0:
+            return None
         return response.json()['data'][0]['id']
 
     @check_auth_token

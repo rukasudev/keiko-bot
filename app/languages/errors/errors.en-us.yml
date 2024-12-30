@@ -40,3 +40,6 @@ en-us:
       title: Message Contains Only a Link
       message: "I'm sorry, but I couldn't translate a message that contains only a link. Please, provide a valid message to be translated and try again."
 
+  streamer-not-found:
+    title: Streamer Not Found
+    message: "I'm sorry, but I couldn't find the streamer you're looking for. Please, check the name and try again."

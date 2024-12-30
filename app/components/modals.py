@@ -8,6 +8,8 @@ class CustomModal(discord.ui.Modal):
         self.callback = callback
         self.lowercase = config.get("lowercase", False)
         self.locale = locale
+        self.validation = config.get("validation", None)
+        self.modal_validation = ModalValidations()
         super().__init__(title=config.get("title").get(locale), timeout=300)
         self.add_inputs(config, locale)
 
@@ -59,13 +61,27 @@ class CustomModal(discord.ui.Modal):
             return None
         return self.response
 
-    async def on_submit(self, interaction) -> None:
+    def parse_response(self) -> str:
         self.response = self.children[0].value if not self.lowercase else self.children[0].value.lower()
         for child in self.children[1:]:
             if len(child.value) == 0:
                 continue
             if self.response: self.response += ";"
             self.response += child.value if not self.lowercase else child.value.lower()
+        return self.response
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        from app.components.embed import response_error_embed
+
+        self.parse_response()
+
+        if self.validation:
+            validation = self.modal_validation.validate(self.validation, responses=self.response)
+            if not validation["ok"]:
+                self.response = None
+                embed = response_error_embed(validation["error_key"], self.locale)
+                return await interaction.response.send_message(embed=embed, ephemeral=True)
+
         await self.callback(interaction)
 
 
@@ -90,3 +106,19 @@ class ConfirmationModal(discord.ui.Modal):
             return await self.callback(interaction)
 
         await interaction.response.defer()
+
+class ModalValidations:
+
+    @staticmethod
+    def validate(validation_func: str, responses: str) -> bool:
+        try:
+            return getattr(ModalValidations, validation_func)(responses)
+        except AttributeError:
+            return False
+
+    @staticmethod
+    def validate_streamer_name(response: str) -> bool:
+        from app import bot
+
+        ok = bot.twitch.get_user_id_from_login(response) is not None
+        return {"ok": ok, "error_key": "streamer-not-found"}
