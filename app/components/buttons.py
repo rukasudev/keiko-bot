@@ -107,7 +107,7 @@ class EditButton(discord.ui.Button):
 
         self.view.clear_items()
 
-        view = EditCommand(self.view.command_key, self.locale, self.after_callback)
+        view = EditCommand(self.view.command_key, self.view.cogs, self.locale, self.after_callback)
         self.view.edited_form_view = view.form_view
         embed = interaction.message.embeds[0]
 

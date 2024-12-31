@@ -1,4 +1,4 @@
-from typing import Callable
+from typing import Any, Callable, Dict
 
 import discord
 
@@ -8,11 +8,11 @@ from app.views.form import Form
 
 
 class EditCommand(discord.ui.View):
-    def __init__(self, command_key: str, locale: str, callback: Callable):
+    def __init__(self, command_key: str, cogs: Dict[str, Any], locale: str, callback: Callable):
         self.command_key = command_key
         self.locale = locale
         self.after_callback = callback
-        self.form_view = Form(self.command_key, self.locale)
+        self.form_view = Form(self.command_key, self.locale, cogs=cogs)
         super().__init__(timeout=1800)
         self.add_item(
             Select(

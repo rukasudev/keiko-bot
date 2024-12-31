@@ -1,4 +1,4 @@
-from typing import Callable, Dict, List
+from typing import Any, Callable, Dict, List
 
 import discord
 
@@ -8,12 +8,14 @@ from app.services.utils import ml
 
 
 class FormComposition(discord.ui.View):
-    def __init__(self, composition: Dict[str, str], parent_callback: Callable, locale: str) -> None:
+    def __init__(self, composition: Dict[str, str], parent_callback: Callable, locale: str, cogs: Dict[str, Any] = None) -> None:
         super().__init__(timeout=1800)
         self.composition = composition
         self.parent_callback = parent_callback
         self.max_length = composition.get("max_length", 1)
+        self.cogs = cogs
         self.locale = locale
+        self.index = 0
         self.responses = []
 
     def get_response(self):
@@ -65,7 +67,11 @@ class FormComposition(discord.ui.View):
         if hasattr(self, "form_view"):
             self.save_response()
 
-        self.form_view = Form("", self.locale, self.composition.get("steps", {}))
+        cogs = self.cogs[self.composition.get("key")]["values"][self.index] if self.cogs else None
+
+        self.form_view = Form("", self.locale, self.composition.get("steps", {}), cogs=cogs)
         self.form_view._set_after_callback(self.interate)
+
+        self.index += 1
 
         await self.form_view._callback(interaction)

@@ -1,4 +1,4 @@
-from typing import Any, Callable, Dict, Generator, List
+from typing import Any, Callable, Dict, Generator, List, Union
 
 import discord
 
@@ -41,10 +41,11 @@ class Form(discord.ui.View):
         `locale` -- the locale of the interaction (ex: pt-br, en-US)
     """
 
-    def __init__(self, command_key: str, locale: str, steps: List[Dict[str, str]] = None) -> None:
+    def __init__(self, command_key: str, locale: str, steps: List[Dict[str, str]] = None, cogs: Dict[str, Any] = None) -> None:
         self.command_key = command_key
         self.locale = locale
         self.steps = self._get_steps(steps)
+        self.cogs = cogs
         super().__init__(timeout=1800)
         self.add_item(ConfirmButton(callback=self._callback, locale=locale))
         self.add_item(CancelButton(locale=locale))
@@ -172,6 +173,7 @@ class Form(discord.ui.View):
             required=self._get_step_item("required", False),
             unique=self._get_step_item("unique", False),
         )
+        if self.cogs: self.parse_cogs_to_options_view()
         await interaction.followup.edit_message(
             message_id=interaction.message.id, embed=self.step_embed, view=self.view
         )
@@ -187,6 +189,7 @@ class Form(discord.ui.View):
             unique=self._get_step_item("unique", False),
             styled_values=True,
         )
+        if self.cogs: self.parse_cogs_to_options_view()
         await interaction.followup.edit_message(
             message_id=interaction.message.id, embed=self.step_embed, view=self.view
         )
@@ -202,6 +205,7 @@ class Form(discord.ui.View):
             unique=self._get_step_item("unique", False),
             styled_values=True,
         )
+        if self.cogs: self.parse_cogs_to_options_view()
         await interaction.followup.edit_message(
             message_id=interaction.message.id, embed=self.step_embed, view=self.view
         )
@@ -226,7 +230,7 @@ class Form(discord.ui.View):
             self.step_embed.description = error_message
 
         self.step_embed.description += f"\n\n**{ml('commands.commands.default-roles.warning', locale=self.locale)}**\n\n"
-
+        if self.cogs: self.parse_cogs_to_options_view()
         await interaction.followup.edit_message(
             message_id=interaction.message.id, embed=self.step_embed, view=self.view
         )
@@ -262,7 +266,7 @@ class Form(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=self)
 
     async def show_composition(self, interaction: discord.Interaction):
-        self.view = FormComposition(self._step, self._callback, self.locale)
+        self.view = FormComposition(self._step, self._callback, self.locale, self.cogs)
 
         await self.view.interate(interaction)
 
@@ -319,6 +323,41 @@ class Form(discord.ui.View):
                 subscribe_youtube_new_video,
             )
             subscribe_youtube_new_video(interaction, self.responses)
+
+    def parse_cogs_to_options_view(self) -> None:
+        cogs = self.cogs[self._step['key']]
+        value = self.extract_value_from_cogs(cogs)
+        selected_label = ml("buttons.selected.label", locale=self.locale)
+
+        index = 0
+        for item in self.view.children:
+            index = self.process_item_if_applicable(item, value, selected_label, index)
+
+    def extract_value_from_cogs(self, cogs: Union[dict, list]) -> Union[List[Any], Any]:
+        if isinstance(cogs, list):
+            return cogs
+        return cogs.get('value') or cogs.get('values')
+
+    def is_value_applicable(self, item: Any, value: Union[List[Any], Any]) -> bool:
+        if self._get_step_item("action") == constants.OPTIONS_ACTION_KEY:
+            return item.label in value
+        if isinstance(value, list):
+            return item.custom_id in value
+        elif isinstance(value, str):
+            return item.custom_id == value
+        return False
+
+    def process_item_if_applicable(self, item: Any, value: Union[List[Any], Any], selected_label: str, index: int) -> int:
+        if self.is_value_applicable(item, value):
+            item.style = discord.ButtonStyle.primary
+            self.view.response[item.custom_id] = item.label
+            self.step_embed.add_field(
+                name=f":flying_disc: {selected_label} #{index + 1}",
+                value=item.label,
+                inline=False
+            )
+            return index + 1
+        return index
 
     async def get_action_by_type(self, action, interaction) -> None:
         action_dict = {
