@@ -162,7 +162,17 @@ class Form(discord.ui.View):
 
     async def show_modal(self, interaction: discord.Interaction):
         self.view = CustomModal(self._step, self._callback, self.locale)
+        if self.cogs: self.parse_cogs_to_modal()
         await interaction.response.send_modal(self.view)
+
+    def parse_cogs_to_modal(self) -> None:
+        cogs = self.cogs[self._step['key']]
+        value = self.extract_value_from_cogs(cogs)
+
+        values = value.split(";") if isinstance(value, str) else []
+
+        for i, item in enumerate(self.view.children):
+            item.default = values[i] if i < len(values) else ""
 
     async def show_options(self, interaction: discord.Interaction):
         await interaction.response.defer()
@@ -334,9 +344,9 @@ class Form(discord.ui.View):
             index = self.process_item_if_applicable(item, value, selected_label, index)
 
     def extract_value_from_cogs(self, cogs: Union[dict, list]) -> Union[List[Any], Any]:
-        if isinstance(cogs, list):
-            return cogs
-        return cogs.get('value') or cogs.get('values')
+        if isinstance(cogs, dict):
+            return cogs.get('value') or cogs.get('values')
+        return cogs
 
     def is_value_applicable(self, item: Any, value: Union[List[Any], Any]) -> bool:
         if self._get_step_item("action") == constants.OPTIONS_ACTION_KEY:

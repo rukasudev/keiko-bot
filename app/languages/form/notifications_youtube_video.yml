@@ -95,7 +95,7 @@ steps:
         enumerate: true
         title:
           en-us: Notification Messages
-          pt-br: Mensagens da Notificação
+          pt-br: Mensagem da Notificação
         description:
           en-us: The messages that will be sent to the members
           pt-br: As mensagens que serão enviadas aos membros
