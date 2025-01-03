@@ -7,13 +7,13 @@ from app.services.utils import ml
 
 
 class Select(discord.ui.Select):
-    def __init__(self, placeholder: str, options: Dict[str, str], custom_callback=None):
+    def __init__(self, placeholder: str, options: Dict[str, str], custom_callback=None, unique=False):
         self.parsed_options = self.parse_options(options)
         self.custom_callback = custom_callback
         super().__init__(
             placeholder=placeholder,
             options=self.parsed_options,
-            max_values=len(self.parsed_options),
+            max_values=unique or len(self.parsed_options),
         )
 
     def parse_options(self, options_dict: Dict[str, str]) -> List[discord.SelectOption]:

@@ -8,21 +8,26 @@ from app.services.utils import ml
 
 
 class FormComposition(discord.ui.View):
-    def __init__(self, composition: Dict[str, str], parent_callback: Callable, locale: str, cogs: Dict[str, Any] = None) -> None:
+    def __init__(self, composition: Dict[str, str], parent_callback: Callable, locale: str, cogs: Dict[str, Any] = None, index: int = 0) -> None:
         super().__init__(timeout=1800)
         self.composition = composition
         self.parent_callback = parent_callback
         self.max_length = composition.get("max_length", 1)
         self.cogs = cogs
         self.locale = locale
-        self.index = 0
+        self.index = index
         self.responses = []
 
     def get_response(self):
         return self.responses
 
     def save_response(self) -> None:
-        self.responses.append(self.transform_response(self.form_view.responses))
+        if not self.cogs:
+            self.responses.append(self.transform_response(self.form_view.responses))
+
+        response = self.transform_response(self.form_view.responses)
+        self.responses = self.cogs[self.composition.get("key")]["values"]
+        self.responses[self.index] = response
 
     def transform_response(self, response: List[Dict[str, str]]) -> Dict[str, str]:
         result = {}
@@ -40,7 +45,7 @@ class FormComposition(discord.ui.View):
         return result
 
     async def interate(self, interaction: discord.Interaction) -> None:
-        if self.max_length == 0:
+        if self.max_length == 0 or (self.cogs and hasattr(self, "form_view")):
             return await self.finish(interaction)
 
         if self.max_length == self.composition.get("max_length"):
@@ -71,7 +76,5 @@ class FormComposition(discord.ui.View):
 
         self.form_view = Form("", self.locale, self.composition.get("steps", {}), cogs=cogs)
         self.form_view._set_after_callback(self.interate)
-
-        self.index += 1
 
         await self.form_view._callback(interaction)

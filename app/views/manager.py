@@ -65,6 +65,7 @@ class Manager(discord.ui.View):
         update_cog_by_guild(interaction.guild_id, self.command_key, data)
 
         embed = interaction.message.embeds[0]
+        embed.clear_fields()
 
         embed.title = ml("commands.command-events.edited.title", locale=self.locale)
         embed.description = parse_command_event_description(

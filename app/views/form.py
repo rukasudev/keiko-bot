@@ -142,6 +142,9 @@ class Form(discord.ui.View):
             if step["key"] in steps
         )
 
+    def set_composition_index(self, index: int):
+        self.composition_index = int(index)
+
     def _set_titles_and_descriptions(self, steps: List[Dict[str, str]]):
         for step in steps:
             if step["action"] == constants.COMPOSITION_ACTION_KEY:
@@ -276,7 +279,7 @@ class Form(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=self)
 
     async def show_composition(self, interaction: discord.Interaction):
-        self.view = FormComposition(self._step, self._callback, self.locale, self.cogs)
+        self.view = FormComposition(self._step, self._callback, self.locale, self.cogs, self.composition_index if hasattr(self, "composition_index") else 0)
 
         await self.view.interate(interaction)
 
