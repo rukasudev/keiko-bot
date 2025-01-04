@@ -222,6 +222,31 @@ class RemoveItemButton(discord.ui.Button):
 
         await interaction.response.edit_message(embed=embed, view=view)
 
+class AddItemButton(discord.ui.Button):
+    def __init__(self, after_callback: Callable, locale: str) -> None:
+        self.after_callback = after_callback
+        self.desc = ml("buttons.add.desc", locale=locale)
+        self.locale = locale
+        super().__init__(
+            label=ml("buttons.add.label", locale=locale),
+            emoji="➕",
+            style=discord.ButtonStyle.grey,
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        from app.constants import Commands as constants
+        from app.views.form import Form
+
+        self.view.clear_items()
+
+        view = Form(self.view.command_key, self.locale, cogs=self.view.cogs)
+        view.filter_steps(constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.view.command_key])
+        view._set_after_callback(self.after_callback)
+
+        self.view.form_view = view
+
+        await view._callback(interaction)
+
 
 class HelpButton(discord.ui.Button):
     def __init__(self, locale: str) -> None:

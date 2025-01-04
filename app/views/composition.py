@@ -4,15 +4,16 @@ import discord
 
 from app.components.buttons import GenericButton
 from app.components.embed import parse_form_dict_to_embed
+from app.constants import Commands as constants
 from app.services.utils import ml
 
 
 class FormComposition(discord.ui.View):
-    def __init__(self, composition: Dict[str, str], parent_callback: Callable, locale: str, cogs: Dict[str, Any] = None, index: int = 0) -> None:
+    def __init__(self, composition: Dict[str, str], parent_callback: Callable, locale: str, cogs: Dict[str, Any] = None, index: int = None) -> None:
         super().__init__(timeout=1800)
         self.composition = composition
         self.parent_callback = parent_callback
-        self.max_length = composition.get("max_length", 1)
+        self.max_length = constants.COMPOSITION_MAX_LENGTH.get(composition.get("parent_key"), 0)
         self.cogs = cogs
         self.locale = locale
         self.index = index
@@ -22,7 +23,7 @@ class FormComposition(discord.ui.View):
         return self.responses
 
     def save_response(self) -> None:
-        if not self.cogs:
+        if not self.cogs or self.index is None:
             return self.responses.append(self.transform_response(self.form_view.responses))
 
         response = self.transform_response(self.form_view.responses)
@@ -48,7 +49,7 @@ class FormComposition(discord.ui.View):
         if self.max_length == 0 or (self.cogs and hasattr(self, "form_view")):
             return await self.finish(interaction)
 
-        if self.max_length == self.composition.get("max_length"):
+        if self.max_length == constants.COMPOSITION_MAX_LENGTH.get(self.composition.get("parent_key"), 0):
             self.max_length -= 1
             return await self.send_form(interaction)
 
@@ -72,7 +73,10 @@ class FormComposition(discord.ui.View):
         if hasattr(self, "form_view"):
             self.save_response()
 
-        cogs = self.cogs[self.composition.get("key")]["values"][self.index] if self.cogs else None
+        cogs = None
+
+        if self.cogs and self.index is not None:
+            cogs = self.cogs[self.composition.get("key")]["values"][self.index]
 
         self.form_view = Form("", self.locale, self.composition.get("steps", {}), cogs=cogs)
         self.form_view._set_after_callback(self.interate)

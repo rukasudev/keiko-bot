@@ -125,6 +125,12 @@ pt-br:
       placeholder: Selecione as configurações que deseja editar
       short-description: 📝 Editado por $user
 
+    added:
+      title: ➕ Item adicionado ao **$command_name** com sucesso!
+      action: Adicionar
+      description: Um item foi adicionado a **$command_name** as $date por $user
+      short-description: ➕ Item adicionado por $user
+
     removed:
       title: 🗑️ Item removido de **$command_name** com sucesso!
       action: Remover

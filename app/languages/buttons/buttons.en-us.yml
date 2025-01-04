@@ -15,6 +15,10 @@ en-us:
     label: Disable
     desc: Disable the feature and reset the settings
 
+  add:
+    label: Add
+    desc: Add a new item
+
   remove:
     label: Remove
     desc: Remove one of the items

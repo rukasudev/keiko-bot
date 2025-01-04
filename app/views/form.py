@@ -279,7 +279,7 @@ class Form(discord.ui.View):
         await interaction.response.edit_message(embed=embed, view=self)
 
     async def show_composition(self, interaction: discord.Interaction):
-        self.view = FormComposition(self._step, self._callback, self.locale, self.cogs, self.composition_index if hasattr(self, "composition_index") else 0)
+        self.view = FormComposition(self._step, self._callback, self.locale, self.cogs, self.composition_index if hasattr(self, "composition_index") else None)
 
         await self.view.interate(interaction)
 

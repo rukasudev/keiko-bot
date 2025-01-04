@@ -13,8 +13,8 @@ steps:
 
   - action: composition
     key: notifications
+    parent_key: notifications_twitch
     emoji: ":busts_in_silhouette:"
-    max_length: 3
     style: composition
     title:
       en-us: Notifications

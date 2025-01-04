@@ -4,6 +4,7 @@ import discord
 
 from app import logger
 from app.components.buttons import (
+    AddItemButton,
     DisableButton,
     EditButton,
     HistoryButton,
@@ -62,8 +63,10 @@ class Manager(discord.ui.View):
         self.add_item(EditButton(self.update_command, locale=self.locale))
         self.add_item(self.pause_handler())
         self.add_item(DisableButton(callback=self.disable_callback, locale=self.locale))
-        self.add_item(HistoryButton(callback=self.history_callback, locale=self.locale))
+        self.handle_add_item_button()
         self.handle_remove_item_button()
+        self.add_item(HistoryButton(callback=self.history_callback, locale=self.locale))
+
 
     async def update_command(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)
@@ -232,6 +235,57 @@ class Manager(discord.ui.View):
 
         await pagination_view.send(ephemeral=True)
 
+    def handle_add_item_button(self) -> None:
+        if self.command_key not in constants.COMPOSITION_COMMANDS_LIST:
+            return
+
+        if len(self.cogs[constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]]["values"]) == constants.COMPOSITION_MAX_LENGTH[self.command_key]:
+            return
+
+        return self.add_item(AddItemButton(self.add_item_callback, locale=self.locale))
+
+    async def add_item_callback(self, interaction: discord.Interaction):
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
+        response = self.form_view._parse_responses_to_cog()[constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]].get("values")[0]
+        self.cogs[constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]]["values"].append(response)
+
+        update_cog_by_guild(interaction.guild_id, self.command_key, self.cogs)
+
+        embed = interaction.message.embeds[0]
+        embed.clear_fields()
+
+        embed.title = parse_command_event_description(
+            ml("commands.command-events.added.title", locale=self.locale),
+            interaction.message.edited_at,
+            self.interaction,
+            self.command_key,
+        )
+        embed.description = parse_command_event_description(
+            ml("commands.command-events.added.description", locale=self.locale),
+            interaction.message.edited_at,
+            self.interaction,
+            self.command_key,
+        )
+
+        insert_cog_event(
+            str(interaction.guild_id),
+            self.command_key,
+            constants.ADDED_KEY,
+            interaction.message.edited_at,
+            str(interaction.user.id),
+        )
+
+        logger.info(
+            f"Item added to: **{self.command_key}**",
+            log_type=logconstants.COMMAND_INFO_TYPE,
+            guild_id=str(interaction.guild.id),
+            interaction=interaction,
+        )
+
+        await interaction.followup.edit_message(interaction.message.id, view=self)
+        await interaction.followup.send(embed=embed, view=self)
+
     def handle_remove_item_button(self) -> None:
         if self.command_key not in constants.COMPOSITION_COMMANDS_LIST:
             return
@@ -240,7 +294,6 @@ class Manager(discord.ui.View):
             return
 
         return self.add_item(RemoveItemButton(self.remove_item_callback, locale=self.locale))
-
 
     async def remove_item_callback(self, interaction: discord.Interaction, item_removed: Dict[str, Any],  new_cogs: Dict[str, Any]):
         await interaction.response.defer(thinking=True, ephemeral=True)

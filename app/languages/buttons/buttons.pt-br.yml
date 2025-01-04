@@ -15,6 +15,10 @@ pt-br:
     label: Desabilitar
     desc: Desabilita a funcionalidade e reseta as configurações
 
+  add:
+    label: Adicionar
+    desc: Adiciona um novo item
+
   remove:
     label: Remover
     desc: Remove um dos itens
