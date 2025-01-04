@@ -122,8 +122,15 @@ en-us:
     edited:
       title: 📝 Command edited successfully!
       description: Command **$command_name** edited on $date by $user
-      placeholder: Select the settings you want to edit :)
+      placeholder: Select the settings you want to edit
       short-description: 📝 Edited by $user
+
+    removed:
+      title: 🗑️ Item removed from **$command_name** successfully!
+      action: Remove
+      description: A item was removed from **$command_name** on $date by $user
+      placeholder: Select the item you want to remove
+      short-description: 🗑️ Item removed by $user
 
     system:
       description: That is a default action taken by Keiko when leaving the server

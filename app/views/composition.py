@@ -23,7 +23,7 @@ class FormComposition(discord.ui.View):
 
     def save_response(self) -> None:
         if not self.cogs:
-            self.responses.append(self.transform_response(self.form_view.responses))
+            return self.responses.append(self.transform_response(self.form_view.responses))
 
         response = self.transform_response(self.form_view.responses)
         self.responses = self.cogs[self.composition.get("key")]["values"]

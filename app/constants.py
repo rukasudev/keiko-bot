@@ -47,6 +47,7 @@ class Commands:
     PAUSED_KEY: Final[str] = "paused"
     UNPAUSED_KEY: Final[str] = "unpaused"
     DISABLED_KEY: Final[str] = "disabled"
+    REMOVED_KEY: Final[str] = "removed"
 
     # block links
     BLOCK_LINKS_KEY: Final[str] = "block_links"
@@ -66,6 +67,16 @@ class Commands:
     NOTIFICATIONS_TWITCH_KEY: Final[str] = "notifications_twitch"
 
     NOTIFICATIONS_YOUTUBE_VIDEO_KEY: Final[str] = "notifications_youtube_video"
+
+    COMMAND_KEY_TO_COMPOSITION_KEY: Final[Dict[str, str]] = {
+        NOTIFICATIONS_TWITCH_KEY: NOTIFICATIONS_KEY,
+        NOTIFICATIONS_YOUTUBE_VIDEO_KEY: NOTIFICATIONS_KEY,
+    }
+
+    COMPOSITION_COMMANDS_LIST: Final[List[str]] = [
+        NOTIFICATIONS_TWITCH_KEY,
+        NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
+    ]
 
 
 class CogsConstants:

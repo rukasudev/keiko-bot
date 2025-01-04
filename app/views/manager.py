@@ -8,6 +8,7 @@ from app.components.buttons import (
     EditButton,
     HistoryButton,
     PauseButton,
+    RemoveItemButton,
     UnpauseButton,
 )
 from app.constants import Commands as constants
@@ -23,8 +24,14 @@ from app.services.moderations import (
     pause_moderations_by_guild,
     unpause_moderations_by_guild,
 )
-from app.services.notifications_twitch import unsubscribe_streamer
-from app.services.notifications_youtube_video import unsubscribe_youtube_new_video
+from app.services.notifications_twitch import (
+    unsubscribe_streamer,
+    unsubscribe_streamers,
+)
+from app.services.notifications_youtube_video import (
+    unsubscribe_youtube_new_video,
+    unsubscribe_youtubers_new_video,
+)
 from app.services.utils import (
     ml,
     need_confirmation_modal,
@@ -56,6 +63,7 @@ class Manager(discord.ui.View):
         self.add_item(self.pause_handler())
         self.add_item(DisableButton(callback=self.disable_callback, locale=self.locale))
         self.add_item(HistoryButton(callback=self.history_callback, locale=self.locale))
+        self.handle_remove_item_button()
 
     async def update_command(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)
@@ -179,9 +187,9 @@ class Manager(discord.ui.View):
 
         # TODO: handle this type of logic in a service
         if self.command_key == constants.NOTIFICATIONS_TWITCH_KEY:
-            unsubscribe_streamer(interaction, self.cogs)
+            unsubscribe_streamers(interaction, self.cogs)
         if self.command_key == constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY:
-            unsubscribe_youtube_new_video(interaction, self.cogs)
+            unsubscribe_youtubers_new_video(interaction, self.cogs)
 
         unpause_moderations_by_guild(guild_id=guild_id, key=self.command_key)
 
@@ -223,3 +231,57 @@ class Manager(discord.ui.View):
         pagination_view = PaginationView(interaction, title, desc, data, sep=4)
 
         await pagination_view.send(ephemeral=True)
+
+    def handle_remove_item_button(self) -> None:
+        if self.command_key not in constants.COMPOSITION_COMMANDS_LIST:
+            return
+
+        if len(self.cogs[constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]]["values"]) == 1:
+            return
+
+        return self.add_item(RemoveItemButton(self.remove_item_callback, locale=self.locale))
+
+
+    async def remove_item_callback(self, interaction: discord.Interaction, item_removed: Dict[str, Any],  new_cogs: Dict[str, Any]):
+        await interaction.response.defer(thinking=True, ephemeral=True)
+
+        if self.command_key == constants.NOTIFICATIONS_TWITCH_KEY:
+            unsubscribe_streamer(interaction, item_removed)
+        if self.command_key == constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY:
+            unsubscribe_youtube_new_video(interaction, item_removed)
+
+        update_cog_by_guild(interaction.guild_id, self.command_key, new_cogs)
+
+        embed = interaction.message.embeds[0]
+        embed.clear_fields()
+
+        embed.title = parse_command_event_description(
+            ml("commands.command-events.removed.title", locale=self.locale),
+            interaction.message.edited_at,
+            self.interaction,
+            self.command_key,
+        )
+        embed.description = parse_command_event_description(
+            ml("commands.command-events.removed.description", locale=self.locale),
+            interaction.message.edited_at,
+            self.interaction,
+            self.command_key,
+        )
+
+        insert_cog_event(
+            str(interaction.guild_id),
+            self.command_key,
+            constants.REMOVED_KEY,
+            interaction.message.edited_at,
+            str(interaction.user.id),
+        )
+
+        logger.info(
+            f"Item removed from: **{self.command_key}**",
+            log_type=logconstants.COMMAND_INFO_TYPE,
+            guild_id=str(interaction.guild.id),
+            interaction=interaction,
+        )
+
+        await interaction.followup.edit_message(interaction.message.id, view=self)
+        await interaction.followup.send(embed=embed, view=self)

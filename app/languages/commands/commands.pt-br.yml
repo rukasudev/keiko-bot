@@ -122,8 +122,15 @@ pt-br:
     edited:
       title: 📝 Comando editado com sucesso!
       description: Comando **$command_name** editado as $date por $user
-      placeholder: Selecione as configurações que deseja editar :)
+      placeholder: Selecione as configurações que deseja editar
       short-description: 📝 Editado por $user
+
+    removed:
+      title: 🗑️ Item removido de **$command_name** com sucesso!
+      action: Remover
+      description: Um item foi removido de **$command_name** as $date por $user
+      placeholder: Selecione o item que deseja remover
+      short-description: 🗑️ Item removido por $user
 
     system:
       description: Essa é uma ação padrão feita por Keiko ao sair do servidor

@@ -114,7 +114,7 @@ def subscribe_streamer(interaction: discord.Interaction, form_responses: List[Di
             log_type=logconstants.COMMAND_INFO_TYPE,
         )
 
-def unsubscribe_streamer(interaction: discord.Interaction, cogs: Dict[str, Any]) -> None:
+def unsubscribe_streamers(interaction: discord.Interaction, cogs: Dict[str, Any]) -> None:
     for notification in cogs.get("notifications").get("values"):
         streamer = notification.get("streamer").get("value")
         streamer_id = bot.twitch.get_user_id_from_login(streamer)
@@ -146,6 +146,38 @@ def unsubscribe_streamer(interaction: discord.Interaction, cogs: Dict[str, Any])
             interaction=interaction,
             log_type=logconstants.COMMAND_INFO_TYPE,
         )
+
+def unsubscribe_streamer(interaction: discord.Interaction, notification: Dict[str, Any]) -> None:
+    streamer = notification.get("streamer").get("value")
+    streamer_id = bot.twitch.get_user_id_from_login(streamer)
+
+    guilds_by_streamer = count_streamers_guilds(streamer)
+    if guilds_by_streamer > 1:
+        logger.warn(
+            f"Streamer {streamer} has more than one subscription and will not be unsubscribed",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+        return
+
+    subscription = bot.twitch.get_subscription_by_user_id(streamer_id)
+    if not subscription.get("data"):
+        return
+
+    response = bot.twitch.unsubscribe_from_stream_online_event(subscription.get("data")[0].get("id"))
+    if response.status_code != 204:
+        logger.error(
+            f"Error unsubscribing from streamer {streamer}: {response.json()}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+        )
+        return
+
+    logger.info(
+        f"Streamer {streamer} unsubscribed",
+        interaction=interaction,
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )
 
 def compose_notification_message(notification: Dict[str, Any], streamer: str) -> str:
     messages = notification.get("notification_messages").get("value")

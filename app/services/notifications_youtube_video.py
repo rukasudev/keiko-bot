@@ -127,26 +127,19 @@ def subscribe_youtube_new_video(interaction: discord.Interaction, form_responses
             continue
 
         bot.youtube.subscribe_to_new_video_event(channel_id)
-        logger.info(
-            f"Youtuber {youtuber} subscribed",
-            interaction=interaction,
-            log_type=logconstants.COMMAND_INFO_TYPE,
-        )
-
         renew_date = datetime.now() + timedelta(days=4)
         reminder = bot.reminder.create_reminder(
             {"title": "youtube_notification", "notes": youtuber, "date_tz": renew_date.date()}
         )
-        logger.info(f"Reminder Debug {reminder}", interaction=interaction, log_type=logconstants.COMMAND_INFO_TYPE)
 
         insert_reminder(reminder["id"], "youtube_notification", youtuber)
         logger.info(
-            f"Reminder created for youtuber {youtuber} to renew subscription. Date: {renew_date}",
+            f"Youtuber {youtuber} subscribed. Reminder created for youtuber {youtuber} to renew subscription. Date: {renew_date}",
             interaction=interaction,
             log_type=logconstants.COMMAND_INFO_TYPE,
         )
 
-def unsubscribe_youtube_new_video(interaction: discord.Interaction, cogs: Dict[str, Any]):
+def unsubscribe_youtubers_new_video(interaction: discord.Interaction, cogs: Dict[str, Any]):
     for notification in cogs.get("notifications").get("values"):
         youtuber = notification.get("youtuber").get("value")
         channel_id = bot.youtube.get_channel_id_from_username(youtuber)
@@ -179,7 +172,7 @@ def unsubscribe_youtube_new_video(interaction: discord.Interaction, cogs: Dict[s
 
         bot.reminder.delete_reminder(reminder.get("reminder_id"))
         logger.info(
-            f"Reminder {reminder.get('reminder_id')} deleted",
+            f"Reminder {reminder.get('reminder_id')} deleted from reminder",
             interaction=interaction,
             log_type=logconstants.COMMAND_INFO_TYPE,
         )
@@ -190,3 +183,47 @@ def unsubscribe_youtube_new_video(interaction: discord.Interaction, cogs: Dict[s
             interaction=interaction,
             log_type=logconstants.COMMAND_INFO_TYPE,
         )
+
+def unsubscribe_youtube_new_video(interaction: discord.Interaction, notification: Dict[str, Any]):
+    youtuber = notification.get("youtuber").get("value")
+    channel_id = bot.youtube.get_channel_id_from_username(youtuber)
+
+    guilds_by_youtuber = count_youtube_video_subscription_by_guilds(youtuber)
+    if guilds_by_youtuber > 1:
+        logger.warn(
+            f"Youtuber {youtuber} has more than one subscription and will not be unsubscribed",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+        return
+
+    bot.youtube.unsubscribe_from_new_video_event(channel_id)
+    logger.info(
+        f"Youtuber {youtuber} unsubscribed",
+        interaction=interaction,
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )
+
+    reminder = find_reminder_by_value(youtuber)
+    if not reminder:
+        return
+
+    logger.info(
+        f"Reminder {reminder.get('reminder_id')} found for youtuber {youtuber}",
+        interaction=interaction,
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )
+
+    bot.reminder.delete_reminder(reminder.get("reminder_id"))
+    logger.info(
+        f"Reminder {reminder.get('reminder_id')} deleted from reminder",
+        interaction=interaction,
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )
+
+    delete_reminder_by_id(reminder.get("id"))
+    logger.info(
+        f"Reminder {reminder.get('reminder_id')} deleted from database",
+        interaction=interaction,
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )

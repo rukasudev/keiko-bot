@@ -104,7 +104,7 @@ steps:
           - label:
               en-us: "Notification Message"
               pt-br: "Mensagem da notificação"
-            required: false
+            required: true
             default:
               pt-br: "@everyone {streamer} está ao vivo! {stream_link}"
               en-us: "@everyone {streamer} is live now! Watch at {stream_link}"
@@ -118,7 +118,7 @@ steps:
           - label:
               en-us: "Notification Message"
               pt-br: "Mensagem da notificação"
-            required: true
+            required: false
             default:
               pt-br: "@everyone {streamer} abriu live! {stream_link}"
               en-us: "@everyone {streamer} just went live! {stream_link}"

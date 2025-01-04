@@ -40,7 +40,7 @@ class YoutubeClient:
         return response
 
     def unsubscribe_from_new_video_event(self, channel_id: str) -> None:
-        url = "https://pubsubhubbub.appspot.com/unsubscribe"
+        url = "https://pubsubhubbub.appspot.com/subscribe"
         body = {
             "hub.callback": f"{self.webhook_url}",
             "hub.mode": "unsubscribe",

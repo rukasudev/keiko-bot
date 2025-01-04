@@ -107,7 +107,7 @@ class EditButton(discord.ui.Button):
 
         self.view.clear_items()
 
-        view = EditCommand(self.view.command_key, self.view.cogs, self.locale, self.after_callback)
+        view = EditCommand(self.view.command_key, self.view.cogs or self.view._parse_responses_to_cog(), self.locale, self.after_callback)
         self.view.edited_form_view = view.form_view
         embed = interaction.message.embeds[0]
 
@@ -200,6 +200,27 @@ class HistoryButton(discord.ui.Button):
             emoji="📜",
             style=discord.ButtonStyle.grey,
         )
+
+class RemoveItemButton(discord.ui.Button):
+    def __init__(self, after_callback: Callable, locale: str) -> None:
+        self.after_callback = after_callback
+        self.desc = ml("buttons.remove.desc", locale=locale)
+        self.locale = locale
+        super().__init__(
+            label=ml("buttons.remove.label", locale=locale),
+            emoji="🗑️",
+            style=discord.ButtonStyle.grey,
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        from app.views.remove import RemoveItem
+
+        self.view.clear_items()
+
+        view = RemoveItem(self.view.command_key, self.view.cogs, self.locale, self.after_callback)
+        embed = interaction.message.embeds[0]
+
+        await interaction.response.edit_message(embed=embed, view=view)
 
 
 class HelpButton(discord.ui.Button):

@@ -15,6 +15,10 @@ pt-br:
     label: Desabilitar
     desc: Desabilita a funcionalidade e reseta as configurações
 
+  remove:
+    label: Remover
+    desc: Remove um dos itens
+
   preview:
     label: Pré-visualizar
     desc: Pré-visualiza as configurações da funcionalidade
