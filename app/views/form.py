@@ -163,8 +163,15 @@ class Form(discord.ui.View):
     def get_form_embed(self) -> discord.Embed:
         return parse_form_dict_to_embed(next(self.steps), self.locale)
 
+    def get_possible_values(self) -> List[Dict[str, str]]:
+        if hasattr(self, "composition_responses") and self.composition_responses:
+            return self.composition_responses
+        if hasattr(self, "all_cogs") and self.all_cogs:
+            return self.all_cogs
+        return []
+
     async def show_modal(self, interaction: discord.Interaction):
-        self.view = CustomModal(self._step, self._callback, self.locale)
+        self.view = CustomModal(self._step, self._callback, self.locale, self.get_possible_values())
         if self.cogs: self.parse_cogs_to_modal()
         await interaction.response.send_modal(self.view)
 

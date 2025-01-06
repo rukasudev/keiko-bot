@@ -9,7 +9,7 @@ from app.services.utils import ml
 
 
 class FormComposition(discord.ui.View):
-    def __init__(self, composition: Dict[str, str], parent_callback: Callable, locale: str, cogs: Dict[str, Any] = None, index: int = None) -> None:
+    def __init__(self, composition: Dict[str, str], parent_callback: Callable, locale: str, cogs: List[Dict[str, Any]] = None, index: int = None) -> None:
         super().__init__(timeout=1800)
         self.composition = composition
         self.parent_callback = parent_callback
@@ -28,7 +28,10 @@ class FormComposition(discord.ui.View):
 
         response = self.transform_response(self.form_view.responses)
         self.responses = self.cogs[self.composition.get("key")]["values"]
-        self.responses[self.index] = response
+        if self.index is not None and len(self.responses) > self.index:
+            self.responses[self.index] = response
+        else:
+            self.responses.append(response)
 
     def transform_response(self, response: List[Dict[str, str]]) -> Dict[str, str]:
         result = {}
@@ -74,11 +77,17 @@ class FormComposition(discord.ui.View):
             self.save_response()
 
         cogs = None
+        current_cog = None
 
         if self.cogs and self.index is not None:
-            cogs = self.cogs[self.composition.get("key")]["values"][self.index]
+            cogs = self.cogs[self.composition.get("key")]["values"]
+            current_cog = cogs[self.index]
+            del cogs[self.index]
 
-        self.form_view = Form("", self.locale, self.composition.get("steps", {}), cogs=cogs)
+        self.form_view = Form("", self.locale, self.composition.get("steps", {}), cogs=current_cog)
+        self.form_view.all_cogs = cogs
+        self.form_view.composition_responses = self.responses
+
         self.form_view._set_after_callback(self.interate)
 
         await self.form_view._callback(interaction)

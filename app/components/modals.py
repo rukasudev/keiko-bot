@@ -1,15 +1,15 @@
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, List
 
 import discord
 
 
 class CustomModal(discord.ui.Modal):
-    def __init__(self, config: dict, callback: Callable, locale: str) -> None:
+    def __init__(self, config: dict, callback: Callable, locale: str, cogs: Dict[str, Any]) -> None:
         self.callback = callback
         self.lowercase = config.get("lowercase", False)
         self.locale = locale
         self.validation = config.get("validation", None)
-        self.modal_validation = ModalValidations()
+        self.modal_validation = ModalValidations(cogs=cogs)
         super().__init__(title=config.get("title").get(locale), timeout=300)
         self.add_inputs(config, locale)
 
@@ -80,7 +80,7 @@ class CustomModal(discord.ui.Modal):
             if not validation["ok"]:
                 self.response = None
                 embed = response_error_embed(validation["error_key"], self.locale)
-                return await interaction.response.send_message(embed=embed, ephemeral=True)
+                return await interaction.response.send_message(embed=embed, ephemeral=True, delete_after=10)
 
         await self.callback(interaction)
 
@@ -108,17 +108,21 @@ class ConfirmationModal(discord.ui.Modal):
         await interaction.response.defer()
 
 class ModalValidations:
+    def __init__(self, cogs: List[Dict[str, Any]]) -> None:
+        self.cogs = cogs
 
-    @staticmethod
-    def validate(validation_func: str, responses: str) -> bool:
+    def validate(self, validation_func: str, responses: str) -> bool:
         try:
-            return getattr(ModalValidations, validation_func)(responses)
+            return getattr(self, validation_func)(responses)
         except AttributeError:
             return False
 
-    @staticmethod
-    def validate_streamer_name(response: str) -> bool:
+    def validate_streamer_name(self, response: str) -> bool:
         from app import bot
+
+        for item in self.cogs:
+            if response.lower() == item.get("streamer").get("value").lower():
+                return {"ok": False, "error_key": "streamer-already-registered"}
 
         ok = bot.twitch.get_user_id_from_login(response) is not None
         return {"ok": ok, "error_key": "streamer-not-found"}

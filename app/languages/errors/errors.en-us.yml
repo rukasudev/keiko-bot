@@ -43,3 +43,7 @@ en-us:
   streamer-not-found:
     title: Streamer Not Found
     message: "I'm sorry, but I couldn't find the streamer you're looking for. Please, check the name and try again."
+
+  streamer-already-registered:
+    title: Streamer Already Registered
+    message: "The notification of this streamer's lives is already set up on this server. Please, select another streamer and try again."
