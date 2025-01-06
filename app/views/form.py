@@ -16,6 +16,7 @@ from app.constants import FormConstants as constants
 from app.constants import LogTypes as logconstants
 from app.services.cogs import insert_cog_by_guild, insert_cog_event
 from app.services.moderations import update_moderations_by_guild
+from app.services.notifications_twitch import unsubscribe_streamer
 from app.services.utils import (
     get_available_roles_by_guild,
     get_form_settings_with_database_values,
@@ -337,12 +338,22 @@ class Form(discord.ui.View):
     def pre_finish_step(self, interaction: discord.Interaction):
         if self.command_key == commandconstants.NOTIFICATIONS_TWITCH_KEY:
             from app.services.notifications_twitch import subscribe_streamer
+            self.handle_streamer_change(interaction)
             subscribe_streamer(interaction, self.responses)
         if self.command_key == commandconstants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY:
             from app.services.notifications_youtube_video import (
                 subscribe_youtube_new_video,
             )
             subscribe_youtube_new_video(interaction, self.responses)
+
+    def handle_streamer_change(self, interaction: discord.Interaction):
+        if not hasattr(self, "composition_index"):
+            return
+
+        old_streamer = self.view.form_view.cogs
+        new_streamer = self.responses[0]["value"][self.composition_index]
+        if old_streamer["streamer"]["value"] != new_streamer:
+            unsubscribe_streamer(interaction, old_streamer)
 
     def parse_cogs_to_options_view(self) -> None:
         cogs = self.cogs[self._step['key']]
