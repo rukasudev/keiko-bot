@@ -1,5 +1,5 @@
 import random
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 
 import discord
 
@@ -85,67 +85,46 @@ def create_stream_notification_embed(streamer: str, stream_info: Dict[str, Any],
 
     return embed
 
+def handle_subscribe_streamer(interaction: discord.Interaction, cogs: Union[List[Dict[str, Any]], Dict[str, Any]]):
+    if isinstance(cogs, list):
+        for form_responses in cogs[0].get("value"):
+            subscribe_streamer(interaction, form_responses)
+    else:
+        subscribe_streamer(interaction, cogs)
 
-def subscribe_streamer(interaction: discord.Interaction, form_responses: List[Dict[str, Any]]) -> None:
-    for response in form_responses[0].get("value"):
-        streamer = response.get("streamer").get("value")
-        streamer_id = bot.twitch.get_user_id_from_login(streamer)
+def subscribe_streamer(interaction: discord.Interaction, response: Dict[str, Any]) -> None:
+    streamer = response.get("streamer").get("value")
+    streamer_id = bot.twitch.get_user_id_from_login(streamer)
 
-        response = bot.twitch.subscribe_to_stream_online_event(streamer_id)
-        if response.status_code == 409:
-            logger.warn(
-                f"Streamer {streamer} already subscribed",
-                interaction=interaction,
-                log_type=logconstants.COMMAND_WARN_TYPE,
-            )
-            continue
-
-        elif response.status_code != 202:
-            logger.error(
-                f"Error subscribing to streamer {streamer}: {response.json()}",
-                interaction=interaction,
-                log_type=logconstants.COMMAND_ERROR_TYPE,
-            )
-            continue
-
-        logger.info(
-            f"Streamer {streamer} subscribed",
+    response = bot.twitch.subscribe_to_stream_online_event(streamer_id)
+    if response.status_code == 409:
+        logger.warn(
+            f"Streamer {streamer} already subscribed",
             interaction=interaction,
-            log_type=logconstants.COMMAND_INFO_TYPE,
+            log_type=logconstants.COMMAND_WARN_TYPE,
         )
+        return
 
-def unsubscribe_streamers(interaction: discord.Interaction, cogs: Dict[str, Any]) -> None:
-    for notification in cogs.get("notifications").get("values"):
-        streamer = notification.get("streamer").get("value")
-        streamer_id = bot.twitch.get_user_id_from_login(streamer)
-
-        guilds_by_streamer = count_streamers_guilds(streamer)
-        if guilds_by_streamer > 1:
-            logger.warn(
-                f"Streamer {streamer} has more than one subscription and will not be unsubscribed",
-                interaction=interaction,
-                log_type=logconstants.COMMAND_WARN_TYPE,
-            )
-            continue
-
-        subscription = bot.twitch.get_subscription_by_user_id(streamer_id)
-        if not subscription.get("data"):
-            continue
-
-        response = bot.twitch.unsubscribe_from_stream_online_event(subscription.get("data")[0].get("id"))
-        if response.status_code != 204:
-            logger.error(
-                f"Error unsubscribing from streamer {streamer}: {response.json()}",
-                interaction=interaction,
-                log_type=logconstants.COMMAND_ERROR_TYPE,
-            )
-            continue
-
-        logger.info(
-            f"Streamer {streamer} unsubscribed",
+    elif response.status_code != 202:
+        logger.error(
+            f"Error subscribing to streamer {streamer}: {response.json()}",
             interaction=interaction,
-            log_type=logconstants.COMMAND_INFO_TYPE,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
         )
+        return
+
+    logger.info(
+        f"Streamer {streamer} subscribed",
+        interaction=interaction,
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )
+
+def handle_unsubscribe_streamer(interaction: discord.Interaction, cogs: Union[List[Dict[str, Any]], Dict[str, Any]]):
+    if cogs.get("notifications"):
+        for notification in cogs.get("notifications").get("values"):
+            unsubscribe_streamer(interaction, notification)
+    else:
+        unsubscribe_streamer(interaction, cogs)
 
 def unsubscribe_streamer(interaction: discord.Interaction, notification: Dict[str, Any]) -> None:
     streamer = notification.get("streamer").get("value")

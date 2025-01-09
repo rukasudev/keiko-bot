@@ -2,18 +2,12 @@ from typing import Any, Callable, Dict, List
 
 import discord
 
-from app.components.buttons import GenericButton
-from app.components.embed import parse_form_dict_to_embed
-from app.constants import Commands as constants
-from app.services.utils import ml
-
 
 class FormComposition(discord.ui.View):
     def __init__(self, composition: Dict[str, str], parent_callback: Callable, locale: str, cogs: List[Dict[str, Any]] = None, index: int = None) -> None:
         super().__init__(timeout=1800)
         self.composition = composition
         self.parent_callback = parent_callback
-        self.max_length = constants.COMPOSITION_MAX_LENGTH.get(composition.get("parent_key"), 0)
         self.cogs = cogs
         self.locale = locale
         self.index = index
@@ -48,24 +42,6 @@ class FormComposition(discord.ui.View):
 
         return result
 
-    async def interate(self, interaction: discord.Interaction) -> None:
-        if self.max_length == 0 or (self.cogs and hasattr(self, "form_view")):
-            return await self.finish(interaction)
-
-        if self.max_length == constants.COMPOSITION_MAX_LENGTH.get(self.composition.get("parent_key"), 0):
-            self.max_length -= 1
-            return await self.send_form(interaction)
-
-        self.max_length -= 1
-        self.clear_items()
-
-        embed = parse_form_dict_to_embed(self.composition, self.locale)
-
-        self.add_item(GenericButton(ml("buttons.yes.label", self.locale), self.send_form, style=discord.ButtonStyle.success))
-        self.add_item(GenericButton(ml("buttons.no.label", self.locale), self.finish, style=discord.ButtonStyle.danger))
-
-        await interaction.response.edit_message(embed=embed, view=self)
-
     async def finish(self, interaction: discord.Interaction) -> None:
         self.save_response()
         await self.parent_callback(interaction)
@@ -88,6 +64,6 @@ class FormComposition(discord.ui.View):
         self.form_view.all_cogs = cogs
         self.form_view.composition_responses = self.responses
 
-        self.form_view._set_after_callback(self.interate)
+        self.form_view._set_after_callback(self.finish)
 
         await self.form_view._callback(interaction)

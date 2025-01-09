@@ -25,13 +25,9 @@ from app.services.moderations import (
     pause_moderations_by_guild,
     unpause_moderations_by_guild,
 )
-from app.services.notifications_twitch import (
-    unsubscribe_streamer,
-    unsubscribe_streamers,
-)
+from app.services.notifications_twitch import handle_unsubscribe_streamer
 from app.services.notifications_youtube_video import (
-    unsubscribe_youtube_new_video,
-    unsubscribe_youtubers_new_video,
+    handle_unsubscribe_youtube_new_video,
 )
 from app.services.utils import (
     ml,
@@ -192,9 +188,9 @@ class Manager(discord.ui.View):
 
         # TODO: handle this type of logic in a service
         if self.command_key == constants.NOTIFICATIONS_TWITCH_KEY:
-            unsubscribe_streamers(interaction, self.cogs)
+            handle_unsubscribe_streamer(interaction, self.cogs)
         if self.command_key == constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY:
-            unsubscribe_youtubers_new_video(interaction, self.cogs)
+            handle_unsubscribe_youtube_new_video(interaction, self.cogs)
 
         unpause_moderations_by_guild(guild_id=guild_id, key=self.command_key)
 
@@ -303,9 +299,9 @@ class Manager(discord.ui.View):
         await interaction.response.defer(thinking=True, ephemeral=True)
 
         if self.command_key == constants.NOTIFICATIONS_TWITCH_KEY:
-            unsubscribe_streamer(interaction, item_removed)
+            handle_unsubscribe_streamer(interaction, item_removed)
         if self.command_key == constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY:
-            unsubscribe_youtube_new_video(interaction, item_removed)
+            handle_unsubscribe_youtube_new_video(interaction, item_removed)
 
         update_cog_by_guild(interaction.guild_id, self.command_key, new_cogs)
 

@@ -19,7 +19,6 @@ from app.constants import LogTypes as logconstants
 from app.services.cogs import insert_cog_by_guild, insert_cog_event
 from app.services.moderations import update_moderations_by_guild
 from app.services.notifications_twitch import unsubscribe_streamer
-from app.services.notifications_youtube_video import unsubscribe_youtube_new_video
 from app.services.utils import (
     get_available_roles_by_guild,
     get_form_settings_with_database_values,
@@ -305,7 +304,7 @@ class Form(discord.ui.View):
     async def show_composition(self, interaction: discord.Interaction):
         self.view = FormComposition(self._step, self._callback, self.locale, self.cogs, self.composition_index if hasattr(self, "composition_index") else None)
 
-        await self.view.interate(interaction)
+        await self.view.send_form(interaction)
 
     async def _finish(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True, thinking=True)
@@ -352,21 +351,27 @@ class Form(discord.ui.View):
         await interaction.followup.send(embed=embed, view=self)
 
     async def pre_finish_step(self, interaction: discord.Interaction):
-        from app.services.notifications_twitch import subscribe_streamer
-        from app.services.notifications_youtube_video import subscribe_youtube_new_video
+        from app.services.notifications_twitch import (
+            handle_subscribe_streamer,
+            handle_unsubscribe_streamer,
+        )
+        from app.services.notifications_youtube_video import (
+            handle_subscribe_youtubers_new_video,
+            handle_unsubscribe_youtube_new_video,
+        )
 
         subscriptions = {
             commandconstants.NOTIFICATIONS_TWITCH_KEY: {
                 "key": "streamer",
                 "handler": self._handle_subscription,
-                "subscribe": subscribe_streamer,
-                "unsubscribe": unsubscribe_streamer,
+                "subscribe": handle_subscribe_streamer,
+                "unsubscribe": handle_unsubscribe_streamer,
             },
             commandconstants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY: {
                 "key": "youtuber",
                 "handler": self._handle_subscription,
-                "subscribe": subscribe_youtube_new_video,
-                "unsubscribe": unsubscribe_youtube_new_video,
+                "subscribe": handle_subscribe_youtubers_new_video,
+                "unsubscribe": handle_unsubscribe_youtube_new_video,
             }
         }
 
@@ -387,8 +392,9 @@ class Form(discord.ui.View):
 
         if old_entry:
             unsubscribe_func(interaction, old_entry)
-
-        subscribe_func(interaction, self.responses)
+            subscribe_func(interaction, new_entry)
+        else:
+            subscribe_func(interaction, self.responses)
 
     def parse_cogs_to_options_view(self) -> None:
         cogs = self.cogs[self._step['key']]
