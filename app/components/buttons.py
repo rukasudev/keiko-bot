@@ -217,7 +217,7 @@ class RemoveItemButton(discord.ui.Button):
 
         self.view.clear_items()
 
-        view = RemoveItem(self.view.command_key, self.view.cogs, self.locale, self.after_callback)
+        view = RemoveItem(self.view.command_key, self.view.cogs or self.view._parse_responses_to_cog(), self.locale, self.after_callback)
         embed = interaction.message.embeds[0]
 
         await interaction.response.edit_message(embed=embed, view=view)
@@ -239,7 +239,7 @@ class AddItemButton(discord.ui.Button):
 
         self.view.clear_items()
 
-        view = Form(self.view.command_key, self.locale, cogs=self.view.cogs)
+        view = Form(self.view.command_key, self.locale, cogs=self.view.cogs or self.view._parse_responses_to_cog())
         view.filter_steps(constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.view.command_key])
         view._set_after_callback(self.after_callback)
 

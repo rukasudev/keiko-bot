@@ -4,10 +4,12 @@ import discord
 
 from app import logger
 from app.components.buttons import (
+    AddItemButton,
     CancelButton,
     ConfirmButton,
     EditButton,
     PreviewButton,
+    RemoveItemButton,
 )
 from app.components.embed import parse_form_dict_to_embed
 from app.components.modals import CustomModal
@@ -68,7 +70,6 @@ class Form(discord.ui.View):
             try:
                 self._step = next(self.steps)
             except StopIteration:
-                self.pre_finish_step(args)
                 return await self._after_callback(args)
 
             self.step_embed = parse_form_dict_to_embed(self._step, self.locale)
@@ -262,12 +263,26 @@ class Form(discord.ui.View):
 
         self.add_item(EditButton(after_callback=self.update_resume, locale=self.locale))
 
+        if self.command_key in commandconstants.COMPOSITION_COMMANDS_LIST:
+            if len(self.responses[0]['value']) < commandconstants.COMPOSITION_MAX_LENGTH[self.command_key]:
+                self.add_item(AddItemButton(self.add_item_callback, locale=self.locale))
+            if len(self.responses[0]['value']) > 1:
+                self.add_item(RemoveItemButton(self.remove_item_callback, locale=self.locale))
+
         if self._get_step_item("preview"):
             self.add_item(PreviewButton(custom_callback=send_welcome_message_preview, locale=self.locale, command_key=self.command_key))
 
         self.add_item(ConfirmButton(callback=self._finish, locale=self.locale))
         self.add_item(CancelButton(locale=self.locale))
         await interaction.response.edit_message(embed=embed, view=self)
+
+    async def add_item_callback(self, interaction: discord.Interaction):
+        self.responses[0]['value'].extend(self.form_view.responses[0]['value'])
+        await self.show_resume(interaction)
+
+    async def remove_item_callback(self, interaction: discord.Interaction, item_removed: Dict[str, Any], new_cogs: Dict[str, Any]):
+        self.responses[0]['value'] = new_cogs[commandconstants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]]["values"]
+        await self.show_resume(interaction)
 
     async def show_buttons(self, interaction: discord.Interaction):
         self.clear_items()
@@ -296,7 +311,7 @@ class Form(discord.ui.View):
 
         interaction.locale = parse_valid_locale(interaction.locale)
         cog_param = self._parse_responses_to_cog()
-        self.pre_finish_step(interaction)
+        await self.pre_finish_step(interaction)
 
         update_moderations_by_guild(
             guild_id=interaction.guild_id, key=self.command_key, value=True
@@ -335,7 +350,7 @@ class Form(discord.ui.View):
 
         await interaction.followup.send(embed=embed, view=self)
 
-    def pre_finish_step(self, interaction: discord.Interaction):
+    async def pre_finish_step(self, interaction: discord.Interaction):
         if self.command_key == commandconstants.NOTIFICATIONS_TWITCH_KEY:
             from app.services.notifications_twitch import subscribe_streamer
             self.handle_streamer_change(interaction)

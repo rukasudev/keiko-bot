@@ -71,6 +71,8 @@ class Manager(discord.ui.View):
     async def update_command(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)
 
+        await self.edited_form_view.pre_finish_step(interaction)
+
         data = self.edited_form_view._parse_responses_to_cog()
 
         update_cog_by_guild(interaction.guild_id, self.command_key, data)
@@ -246,6 +248,8 @@ class Manager(discord.ui.View):
 
     async def add_item_callback(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)
+
+        await self.form_view.pre_finish_step(interaction)
 
         response = self.form_view._parse_responses_to_cog()[constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]].get("values")[0]
         self.cogs[constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]]["values"].append(response)
