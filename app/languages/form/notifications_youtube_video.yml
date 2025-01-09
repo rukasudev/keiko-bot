@@ -45,6 +45,7 @@ steps:
       - action: modal
         key: youtuber
         max_length: 30
+        validation: validate_youtube_channel
         lowercase: true
         title:
           en-us: Youtuber

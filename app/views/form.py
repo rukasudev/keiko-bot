@@ -19,6 +19,7 @@ from app.constants import LogTypes as logconstants
 from app.services.cogs import insert_cog_by_guild, insert_cog_event
 from app.services.moderations import update_moderations_by_guild
 from app.services.notifications_twitch import unsubscribe_streamer
+from app.services.notifications_youtube_video import unsubscribe_youtube_new_video
 from app.services.utils import (
     get_available_roles_by_guild,
     get_form_settings_with_database_values,
@@ -351,24 +352,43 @@ class Form(discord.ui.View):
         await interaction.followup.send(embed=embed, view=self)
 
     async def pre_finish_step(self, interaction: discord.Interaction):
-        if self.command_key == commandconstants.NOTIFICATIONS_TWITCH_KEY:
-            from app.services.notifications_twitch import subscribe_streamer
-            self.handle_streamer_change(interaction)
-            subscribe_streamer(interaction, self.responses)
-        if self.command_key == commandconstants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY:
-            from app.services.notifications_youtube_video import (
-                subscribe_youtube_new_video,
-            )
-            subscribe_youtube_new_video(interaction, self.responses)
+        from app.services.notifications_twitch import subscribe_streamer
+        from app.services.notifications_youtube_video import subscribe_youtube_new_video
 
-    def handle_streamer_change(self, interaction: discord.Interaction):
-        if not hasattr(self, "composition_index"):
+        subscriptions = {
+            commandconstants.NOTIFICATIONS_TWITCH_KEY: {
+                "key": "streamer",
+                "handler": self._handle_subscription,
+                "subscribe": subscribe_streamer,
+                "unsubscribe": unsubscribe_streamer,
+            },
+            commandconstants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY: {
+                "key": "youtuber",
+                "handler": self._handle_subscription,
+                "subscribe": subscribe_youtube_new_video,
+                "unsubscribe": unsubscribe_youtube_new_video,
+            }
+        }
+
+        if self.command_key in subscriptions:
+            sub = subscriptions[self.command_key]
+            sub["handler"](interaction, sub["subscribe"], sub["unsubscribe"], sub["key"])
+
+
+    def _handle_subscription(
+        self, interaction: discord.Interaction, subscribe_func, unsubscribe_func, key: str):
+        index = getattr(self, "composition_index", 0)
+
+        new_entry = self.responses[0]["value"][index]
+        old_entry = self.view.form_view.cogs if hasattr(self.view.form_view, "cogs") else None
+
+        if old_entry and old_entry[key]["value"] == new_entry[key]["value"]:
             return
 
-        old_streamer = self.view.form_view.cogs
-        new_streamer = self.responses[0]["value"][self.composition_index]
-        if old_streamer["streamer"]["value"] != new_streamer:
-            unsubscribe_streamer(interaction, old_streamer)
+        if old_entry:
+            unsubscribe_func(interaction, old_entry)
+
+        subscribe_func(interaction, self.responses)
 
     def parse_cogs_to_options_view(self) -> None:
         cogs = self.cogs[self._step['key']]

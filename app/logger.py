@@ -151,6 +151,9 @@ class DiscordLogsHandler(logging.Handler):
             if "WebSocket closed with 1000" in str(record.exc_info[1]):
                 return
 
+        if hasattr(record, "message") and "We are being rate limited." in record.message:
+            return
+
         if not log_channel:
             return
 

@@ -80,7 +80,7 @@ class FormComposition(discord.ui.View):
         current_cog = None
 
         if self.cogs and self.index is not None:
-            cogs = self.cogs[self.composition.get("key")]["values"]
+            cogs = self.cogs[self.composition.get("key")]["values"].copy()
             current_cog = cogs[self.index]
             del cogs[self.index]
 

@@ -47,3 +47,11 @@ en-us:
   streamer-already-registered:
     title: Streamer Already Registered
     message: "The notification of this streamer's lives is already set up on this server. Please, select another streamer and try again."
+
+  youtuber-already-registered:
+    title: Youtuber Already Registered
+    message: "The notification of this youtuber's videos is already set up on this server. Please, select another youtuber and try again."
+
+  youtuber-not-found:
+    title: Youtuber Not Found
+    message: "I'm sorry, but I couldn't find the youtuber you're looking for. Please, check the name and try again."

@@ -126,3 +126,13 @@ class ModalValidations:
 
         ok = bot.twitch.get_user_id_from_login(response) is not None
         return {"ok": ok, "error_key": "streamer-not-found"}
+
+    def validate_youtube_channel(self, response: str) -> bool:
+        from app import bot
+
+        for item in self.cogs:
+            if response.lower() == item.get("youtuber").get("value").lower():
+                return {"ok": False, "error_key": "youtuber-already-registered"}
+
+        ok = bot.youtube.get_channel_id_from_username(response) is not None
+        return {"ok": ok, "error_key": "youtuber-not-found"}

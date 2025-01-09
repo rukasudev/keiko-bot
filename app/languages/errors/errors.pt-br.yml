@@ -47,3 +47,11 @@ pt-br:
   streamer-already-registered:
     title: Streamer Já Registrado
     message: "A notificação das lives desse streamer já está configurada nesse servidor. Por favor, selecione outro streamer e tente novamente."
+
+  youtuber-already-registered:
+    title: Youtuber Já Registrado
+    message: "A notificação dos vídeos desse youtuber já está configurada nesse servidor. Por favor, selecione outro youtuber e tente novamente."
+
+  youtuber-not-found:
+    title: Youtuber Não Encontrado
+    message: "Desculpe, mas não consegui encontrar o youtuber que você está procurando. Por favor, verifique o nome e tente novamente."
