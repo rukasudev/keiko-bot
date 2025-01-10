@@ -314,6 +314,94 @@ class GenericButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction) -> Any:
         await self.custom_callback(interaction)
 
+class SyncronizeRemindersButton(discord.ui.Button):
+    def __init__(self) -> None:
+        super().__init__(
+            label="Syncronize Reminders",
+            emoji="🔄",
+            style=discord.ButtonStyle.grey,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        from app import bot
+
+        await interaction.response.defer(thinking=True)
+
+        reminders_deleted = []
+        for reminder, count in self.view.guilds_by_reminder.items():
+            if count > 0:
+                continue
+
+            bot.reminder.delete_reminder(reminder)
+            reminders_deleted.append(self.view.streamers_by_reminder[reminder])
+
+        return await interaction.followup.send(
+            content=f"Deleting {', '.join(reminders_deleted)} reminders. Total of {len(reminders_deleted)} reminders deleted.",
+        )
+
+class RemoveDuplicatedReminderButton(discord.ui.Button):
+    def __init__(self) -> None:
+        super().__init__(
+            label="Remove Duplicated Reminders",
+            emoji="🗑️",
+            style=discord.ButtonStyle.red,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        from app import bot
+
+        await interaction.response.defer(thinking=True)
+
+        removed_reminders = 0
+        removed_by_streamers = {}
+        for streamer, count in self.view.reminders_count_by_streamers.items():
+            if count == 1:
+                continue
+
+            for reminder, streamer_name in self.view.streamers_by_reminder.items():
+                if streamer_name != streamer:
+                    continue
+
+                bot.reminder.delete_reminder(reminder)
+
+                removed_by_streamers[streamer] = removed_by_streamers.get(streamer, 0) + 1
+                removed_reminders += 1
+
+                if removed_by_streamers[streamer] == count - 1:
+                    break
+
+        message = "\n".join([f"Deleted {count} reminders from {streamer}" for streamer, count in removed_by_streamers.items()])
+
+        return await interaction.followup.send(
+            content=f"{message}\nTotal of {removed_reminders} reminders deleted",
+        )
+
+
+class SyncronizeSubscriptionsButton(discord.ui.Button):
+    def __init__(self) -> None:
+        super().__init__(
+            label="Syncronize Subscriptions",
+            emoji="🔄",
+            style=discord.ButtonStyle.grey,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        from app.services.notifications_twitch import handle_unsubscribe_streamer
+
+        await interaction.response.defer(thinking=True)
+
+        unsubscribed_streamers = []
+        for streamer, count in self.view.guilds_by_streamer.items():
+            if count > 0:
+                continue
+
+            handle_unsubscribe_streamer(interaction, {"streamer": {"value": streamer}})
+            unsubscribed_streamers.append(streamer)
+
+        return await interaction.followup.send(
+            content=f"Unsubscribed from {', '.join(unsubscribed_streamers)}. Total of {len(unsubscribed_streamers)} streamers.",
+        )
+
 class PaginationButton(discord.ui.Button):
     def __init__(self, label: str, **kwargs):
         super().__init__(label=label, **kwargs)

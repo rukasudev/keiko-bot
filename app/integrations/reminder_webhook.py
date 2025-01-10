@@ -1,3 +1,5 @@
+from typing import Any, Dict, List
+
 import requests
 
 REMINDER_API_URL = "https://reminders-api.com/api"
@@ -14,6 +16,12 @@ class ReminderWebhook:
         self.headers = {
             "Authorization": f"Bearer {self.bot.config.REMINDER_API_KEY}",
         }
+
+    def get_reminders(self) -> List[Dict[str, Any]]:
+        return requests.get(
+            f"{REMINDER_API_URL}/reminders/",
+            headers=self.headers,
+        ).json()
 
     def create_reminder(self, reminder_data: dict) -> None:
         return requests.post(

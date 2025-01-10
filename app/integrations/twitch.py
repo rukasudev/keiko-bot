@@ -81,6 +81,16 @@ class TwitchClient:
         return response.json()["data"][0] if response.json()["data"] else None
 
     @check_auth_token
+    def get_user_info_by_id(self, user_id: str) -> dict:
+        request_url = f"{TWITCH_API_URL}/users?id={user_id}"
+        headers = {
+            'Client-ID': self.bot.config.TWITCH_CLIENT_ID,
+            'Authorization': f'Bearer {self.token}'
+        }
+        response = requests.get(request_url, headers=headers)
+        return response.json()["data"][0] if response.json()["data"] else None
+
+    @check_auth_token
     def get_stream_info(self, login: str) -> dict:
         request_url = f"{TWITCH_API_URL}/streams?user_login={login}&first=1"
         headers = {
@@ -112,6 +122,16 @@ class TwitchClient:
         }
         response = requests.post(request_url, headers=headers, json=data)
         return response
+
+    @check_auth_token
+    def get_subscriptions(self) -> dict:
+        request_url = f"{TWITCH_API_URL}/eventsub/subscriptions"
+        headers = {
+            'Client-ID': self.bot.config.TWITCH_CLIENT_ID,
+            'Authorization': f'Bearer {self.token}'
+        }
+        response = requests.get(request_url, headers=headers)
+        return response.json()
 
     @check_auth_token
     def unsubscribe_from_stream_online_event(self, subscription_id: str) -> None:
