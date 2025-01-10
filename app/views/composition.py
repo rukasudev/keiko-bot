@@ -55,12 +55,14 @@ class FormComposition(discord.ui.View):
         cogs = None
         current_cog = None
 
-        if self.cogs and self.index is not None:
+        if self.cogs:
             cogs = self.cogs[self.composition.get("key")]["values"].copy()
-            current_cog = cogs[self.index]
-            del cogs[self.index]
 
-        self.form_view = Form("", self.locale, self.composition.get("steps", {}), cogs=current_cog)
+            if self.index is not None:
+                current_cog = cogs[self.index]
+                del cogs[self.index]
+
+        self.form_view = Form("", self.locale, self.composition.get("steps", {}), cogs=current_cog or cogs)
         self.form_view.all_cogs = cogs
         self.form_view.composition_responses = self.responses
 

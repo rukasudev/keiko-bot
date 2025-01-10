@@ -178,6 +178,8 @@ class Form(discord.ui.View):
         await interaction.response.send_modal(self.view)
 
     def parse_cogs_to_modal(self) -> None:
+        if isinstance(self.cogs, list):
+            return
         cogs = self.cogs[self._step['key']]
         value = self.extract_value_from_cogs(cogs)
 
@@ -397,6 +399,8 @@ class Form(discord.ui.View):
             subscribe_func(interaction, self.responses)
 
     def parse_cogs_to_options_view(self) -> None:
+        if isinstance(self.cogs, list):
+            return
         cogs = self.cogs[self._step['key']]
         value = self.extract_value_from_cogs(cogs)
         selected_label = ml("buttons.selected.label", locale=self.locale)
