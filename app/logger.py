@@ -142,6 +142,10 @@ class DiscordLogsHandler(logging.Handler):
                 self.bot.config.ADMIN_LOGS_ERROR_CHANNEL_ID
             )
 
+        interaction = getattr(record, "interaction", None)
+        if interaction and interaction.command.qualified_name == "Log Inspection":
+            return
+
         if hasattr(record, "log_type") and record.log_type == constants.COMMAND_CALL_TYPE:
             log_channel = self.bot.get_channel(
                 self.bot.config.ADMIN_LOGS_COMMAND_CALL_ID

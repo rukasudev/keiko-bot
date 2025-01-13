@@ -98,6 +98,7 @@ en-us:
       description: "Command **$command_name** enabled on $date by $user 🚀\n\n
         If you want to make changes or disable the command, simply run the command again 🔄"
       short-description: ✅ Enabled by $user
+      short-description-with-cog: ✅ **$cog_name** enabled by $user
 
     paused:
       title: ⏸️ Command paused successfully!
@@ -105,6 +106,7 @@ en-us:
       action: Pause
       description: Command **$command_name** paused on $date by $user
       short-description: ⏸️ Paused by $user
+      short-description-with-cog: ⏸️ **$cog_name** paused by $user
 
     unpaused:
       title: ▶️ Command unpaused successfully!
@@ -112,24 +114,28 @@ en-us:
       action: Unpause
       description: Command **$command_name** unpaused on $date by $user
       short-description: ▶️ Unpaused by $user
+      short-description-with-cog: ▶️ **$cog_name** unpaused by $user
 
     disabled:
       title: 🚫 Command disabled successfully!
       action: Disable
       description: Command **$command_name** disabled on $date by $user
       short-description: 🚫 Disabled by $user
+      short-description-with-cog: 🚫 **$cog_name** disabled by $user
 
     edited:
       title: 📝 Command edited successfully!
       description: Command **$command_name** edited on $date by $user
       placeholder: Select the settings you want to edit
       short-description: 📝 Edited by $user
+      short-description-with-cog: 📝 **$cog_name** edited by $user
 
     added:
       title: ➕ Item added to **$command_name** successfully!
       action: Add
       description: A item was added to **$command_name** on $date by $user
       short-description: ➕ Item added by $user
+      short-description-with-cog: ➕ **$cog_name** added by $user
 
     removed:
       title: 🗑️ Item removed from **$command_name** successfully!
@@ -137,6 +143,7 @@ en-us:
       description: A item was removed from **$command_name** on $date by $user
       placeholder: Select the item you want to remove
       short-description: 🗑️ Item removed by $user
+      short-description-with-cog: 🗑️ **$cog_name** removed by $user
 
     system:
       description: That is a default action taken by Keiko when leaving the server

@@ -6,20 +6,23 @@ from app.services.utils import get_command_by_key, ml, parse_valid_locale
 
 
 def parse_history_data(
-    data: List[Dict[str, Any]], interaction: discord.Interaction
+    data: List[Dict[str, Any]], interaction: discord.Interaction, guild: discord.Guild=None, with_cog: bool = None
 ) -> Dict[str, Any]:
     system_desc = ml(
         "commands.command-events.system.description", locale=interaction.locale
     )
 
     response = {}
+    guild = guild or interaction.guild
     for item in data:
         key = item["datetime"].strftime("%Y-%m-%d %H:%M:%S") + " UTC"
-        user = interaction.guild.get_member(int(item["user_id"]))
+        user = guild.get_member(int(item["user_id"]))
+
+        command = "short-description" if not with_cog else "short-description-with-cog"
         desc = ml(
-            f"commands.command-events.{item['event']}.short-description",
+            f"commands.command-events.{item['event']}.{command}",
             locale=interaction.locale,
-        ).replace("$user", user.mention)
+        ).replace("$user", user.mention).replace("$cog_name", item["cog_key"])
 
         if user.id == interaction.client.user.id:
             desc += f" _({system_desc})_"
