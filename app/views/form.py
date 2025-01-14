@@ -389,6 +389,9 @@ class Form(discord.ui.View):
         new_entry = self.responses[0]["value"][index]
         old_entry = self.view.form_view.cogs if hasattr(self.view.form_view, "cogs") else None
 
+        if isinstance(old_entry, list):
+            old_entry = None
+
         if old_entry and old_entry[key]["value"] == new_entry[key]["value"]:
             return
 

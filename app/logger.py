@@ -143,8 +143,9 @@ class DiscordLogsHandler(logging.Handler):
             )
 
         interaction = getattr(record, "interaction", None)
-        if interaction and interaction.command.qualified_name == "Log Inspection":
-            return
+        if interaction and interaction.command:
+            if interaction.command.qualified_name == "Log Inspection":
+                return
 
         if hasattr(record, "log_type") and record.log_type == constants.COMMAND_CALL_TYPE:
             log_channel = self.bot.get_channel(
