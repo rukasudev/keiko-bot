@@ -22,11 +22,6 @@ class Ping(Cog, name="ping"):
         embed = response_embed("commands.commands.ping.response", interaction.locale)
         embed.description = embed.description.replace("$ping", str(ping))
 
-        for guild in self.bot.guilds:
-            print(f"Guild ({guild.name}): ", guild.id)
-
-        print("Total Guilds: ", len(self.bot.guilds))
-
         await interaction.response.send_message(embed=embed)
 
 
