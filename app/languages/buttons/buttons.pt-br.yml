@@ -12,8 +12,8 @@ pt-br:
     desc: Edita as configurações da funcionalidade
 
   disable:
-    label: Desabilitar
-    desc: Desabilita a funcionalidade e reseta as configurações
+    label: Desativar
+    desc: Desativa a funcionalidade e reseta as configurações
 
   add:
     label: Adicionar

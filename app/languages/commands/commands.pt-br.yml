@@ -96,7 +96,7 @@ pt-br:
       key: Ativado
       title: 🎉 Funcionalidade ativada com sucesso!
       description: "Comando **$command_name** ativado as $date por $user 🚀\n\n
-        Se você deseja fazer alterações ou desabilitar o comando, basta executá-lo novamente 🔄"
+        Se você deseja fazer alterações ou desativar o comando, basta executá-lo novamente 🔄"
       short-description: ✅ Ativado por $user
 
     paused:
@@ -114,10 +114,10 @@ pt-br:
       short-description: ▶️ Despausado por $user
 
     disabled:
-      title: 🚫 Comando desabilitado com sucesso!
-      action: Desabilitar
-      description: Comando **$command_name** desabilitado as $date por $user
-      short-description: 🚫 Desabilitado por $user
+      title: 🚫 Comando desativado com sucesso!
+      action: Desativar
+      description: Comando **$command_name** desativado as $date por $user
+      short-description: 🚫 Desativado por $user
 
     edited:
       title: 📝 Comando editado com sucesso!
