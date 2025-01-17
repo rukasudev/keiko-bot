@@ -21,7 +21,13 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build Docker image
-        run: docker buildx build --build-arg=APPLICATION_ENVIRONMENT=prod -t ${{ env.REGISTRY }}:latest .
+        run: |
+          docker buildx build \
+            --build-arg APPLICATION_ENVIRONMENT=prod \
+            --build-arg AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
+            --build-arg AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
+            --build-arg AWS_REGION=${{ secrets.AWS_REGION }} \
+            -t ${{ env.REGISTRY }}:latest .
 
       - name: Push Docker image
         run: docker push ${{ env.REGISTRY }}:latest
