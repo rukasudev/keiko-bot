@@ -353,6 +353,7 @@ class Form(discord.ui.View):
         await interaction.followup.send(embed=embed, view=self)
 
     async def pre_finish_step(self, interaction: discord.Interaction):
+        from app import bot
         from app.services.notifications_twitch import (
             handle_subscribe_streamer,
             handle_unsubscribe_streamer,
@@ -361,6 +362,9 @@ class Form(discord.ui.View):
             handle_subscribe_youtubers_new_video,
             handle_unsubscribe_youtube_new_video,
         )
+
+        if bot.config.is_dev():
+            return
 
         subscriptions = {
             commandconstants.NOTIFICATIONS_TWITCH_KEY: {

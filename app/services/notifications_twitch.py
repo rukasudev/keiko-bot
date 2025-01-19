@@ -1,4 +1,5 @@
 import random
+import time
 from typing import Any, Dict, List, Union
 
 import discord
@@ -35,6 +36,16 @@ def send_streamer_notifications(streamer_name: str) -> None:
         log_type=logconstants.COMMAND_INFO_TYPE,
     )
 
+    user_info = bot.twitch.get_user_info(streamer_name)
+    stream_info = wait_for_stream_info(streamer_name)
+
+    if not stream_info:
+        logger.info(
+            f"Stream info not found for streamer **{streamer_name}**",
+            log_type=logconstants.COMMAND_INFO_TYPE,
+        )
+        return
+
     count = 0
     for guild_data in guilds_data:
         guild = bot.get_guild(int(guild_data.get("guild_id")))
@@ -47,9 +58,6 @@ def send_streamer_notifications(streamer_name: str) -> None:
 
             message = compose_notification_message(notification, streamer)
             channel = guild.get_channel(int(notification.get("channel").get("value")))
-
-            stream_info = bot.twitch.get_stream_info(streamer)
-            user_info = bot.twitch.get_user_info(streamer)
             embed = create_stream_notification_embed(streamer, stream_info, user_info)
 
             bot.loop.create_task(channel.send(content=message, embed=embed))
@@ -60,6 +68,23 @@ def send_streamer_notifications(streamer_name: str) -> None:
         f"Notifications sent for streamer **{streamer_name}** in {count} guilds",
         log_type=logconstants.COMMAND_INFO_TYPE,
     )
+
+def wait_for_stream_info(streamer: str) -> Dict[str, Any]:
+    stream_info = bot.twitch.get_stream_info(streamer)
+    if stream_info:
+        return stream_info
+
+    attempts = 0
+    while attempts <= 3:
+        attempts += 1
+
+        logger.info(f"Checking stream info for {streamer}, attempt {attempts}", log_type=logconstants.COMMAND_INFO_TYPE)
+        stream_info = bot.twitch.get_stream_info(streamer)
+        if stream_info:
+            return stream_info
+
+        if attempts < 3:
+            time.sleep(15)
 
 def create_stream_notification_embed(streamer: str, stream_info: Dict[str, Any], user_info: Dict[str, Any]) -> discord.Embed:
     stream_link = f"https://www.twitch.tv/{streamer}"
