@@ -16,7 +16,7 @@ def set_data_in_redis(key: str, data: Dict[str, Any]):
     redis_client.set(key, json_util.dumps(data))
 
 def set_data_in_redis_with_expiration(key: str, data: Dict[str, Any], expiration: int):
-    redis_client.setex(key, json_util.dumps(data), expiration)
+    redis_client.setex(key, expiration, json_util.dumps(data))
 
 def get_data_from_redis(key: str) -> Dict[str, Any]:
     data = redis_client.get(key)
@@ -37,7 +37,8 @@ def get_cog_data_or_populate(guild_id: str, key: str, manager: bool=False) -> Di
 
     data = cogs_data.find_cog_by_guild_id(str(guild_id), key)
     if data:
-        set_data_in_redis(redis_key, data)
+        month_in_seconds = 60 * 60 * 24 * 30
+        set_data_in_redis_with_expiration(redis_key, data, month_in_seconds)
         return data if data.get("enabled") or manager else {}
 
     return data

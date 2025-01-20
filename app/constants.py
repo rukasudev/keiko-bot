@@ -67,6 +67,9 @@ class Commands:
     NOTIFICATIONS_KEY: Final[str] = "notifications"
     NOTIFICATIONS_TWITCH_KEY: Final[str] = "notifications_twitch"
 
+    NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE: Final[str] = "online"
+    NOTIFICATIONS_TWITCH_STREAM_STATUS_OFFLINE: Final[str] = "offline"
+
     NOTIFICATIONS_YOUTUBE_VIDEO_KEY: Final[str] = "notifications_youtube_video"
 
     COMMANDS_LIST: Final[List[str]] = [

@@ -19,9 +19,18 @@ def twitch_webhook():
         return data['challenge']
 
     if data.get('subscription', {}).get('type') == 'stream.online':
-        from app.services.notifications_twitch import send_streamer_notifications
+        from app.services.notifications_twitch import handle_send_streamer_notification
 
         streamer_name = data['event']['broadcaster_user_name'].lower()
-        send_streamer_notifications(streamer_name)
+        bot.loop.create_task(handle_send_streamer_notification(streamer_name))
+
+    if data.get('subscription', {}).get('type') == 'stream.offline':
+        from app.services.notifications_twitch import (
+            handle_send_streamer_offline_notification,
+        )
+
+        streamer_name = data['event']['broadcaster_user_name'].lower()
+        logger.info(f"Stream offline event received for {streamer_name}", log_type=logconstants.COMMAND_INFO_TYPE)
+        bot.loop.create_task(handle_send_streamer_offline_notification(streamer_name))
 
     return "Webhook processed", 200

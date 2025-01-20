@@ -346,11 +346,21 @@ async def cogs_manager(bot, mode: str, cogs: list[str], sync: bool = False) -> N
 
 def format_datetime_output(datetime) -> str:
     days, seconds = datetime.days, datetime.seconds
-    hours = days * 24 + seconds // 3600
+    hours = (seconds // 3600) % 24
     minutes = (seconds % 3600) // 60
     seconds = seconds % 60
 
-    return f"{days}d {hours}h {minutes}m {seconds}s"
+    parts = []
+    if days:
+        parts.append(f"{days}d")
+    if hours:
+        parts.append(f"{hours}h")
+    if minutes:
+        parts.append(f"{minutes}m")
+    if seconds or not parts:
+        parts.append(f"{seconds}s")
+
+    return " ".join(parts)
 
 
 def parse_log_filename_with_date(

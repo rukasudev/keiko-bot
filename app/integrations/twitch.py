@@ -124,17 +124,30 @@ class TwitchClient:
         return response
 
     @check_auth_token
-    def get_subscriptions(self) -> dict:
+    def subscribe_to_stream_offline_event(self, user_id: str) -> None:
         request_url = f"{TWITCH_API_URL}/eventsub/subscriptions"
         headers = {
             'Client-ID': self.bot.config.TWITCH_CLIENT_ID,
-            'Authorization': f'Bearer {self.token}'
+            'Authorization': f'Bearer {self.token}',
+            'Content-Type': 'application/json'
         }
-        response = requests.get(request_url, headers=headers)
-        return response.json()
+        data = {
+            "type": "stream.offline",
+            "version": "1",
+            "condition": {
+                "broadcaster_user_id": user_id
+            },
+            "transport": {
+                "method": "webhook",
+                "callback": f"{self.bot.config.WEBHOOK_URL}/twitch",
+                "secret": self.bot.config.TWITCH_HMAC_SECRET
+            }
+        }
+        response = requests.post(request_url, headers=headers, json=data)
+        return response
 
     @check_auth_token
-    def unsubscribe_from_stream_online_event(self, subscription_id: str) -> None:
+    def unsubscribe_from_stream_event(self, subscription_id: str) -> None:
         request_url = f"{TWITCH_API_URL}/eventsub/subscriptions?id={subscription_id}"
         headers = {
             'Client-ID': self.bot.config.TWITCH_CLIENT_ID,
