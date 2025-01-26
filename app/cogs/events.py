@@ -11,6 +11,7 @@ from app.constants import LogTypes as logconstants
 from app.data.moderations import find_moderations_by_guild
 from app.services import block_links as block_links_service
 from app.services import default_roles as default_roles_service
+from app.services import stream_elements as stream_elements_service
 from app.services.cache import increment_redis_key, remove_all_cache_by_guild
 from app.services.moderations import (
     insert_moderations_by_guild,
@@ -72,6 +73,9 @@ class Events(Cog, name="events"):
             return
 
         guild_id = str(message.guild.id)
+
+        if message.content.startswith("ks!"):
+            await stream_elements_service.check_message(guild_id, message, "ks!")
 
         await block_links_service.check_message(guild_id, message)
 

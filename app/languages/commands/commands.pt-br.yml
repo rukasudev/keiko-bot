@@ -87,9 +87,15 @@ pt-br:
       desc: Keiko recebe calorosamente novos membros atribuindo cargos automaticamente ao entrarem no servidor
       warning: Se o cargo não está sendo listado, verifique se o cargo do Keiko está acima dos cargos que deseja atribuir aos novos membros 🧑‍⚖️
 
+    stream-elements:
+      subgroup: comandos
+      name: streamelements
+      desc: Keiko responde a comandos do StreamElements aqui no chat do Discord
+
   groups:
     moderations: moderações
     notifications: notificações
+    integrations: integrações
 
   command-events:
     enabled:

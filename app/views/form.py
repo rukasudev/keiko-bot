@@ -16,6 +16,7 @@ from app.components.modals import CustomModal
 from app.constants import Commands as commandconstants
 from app.constants import FormConstants as constants
 from app.constants import LogTypes as logconstants
+from app.integrations.stream_elements import StreamElementsClient
 from app.services.cogs import insert_cog_by_guild, insert_cog_event
 from app.services.moderations import update_moderations_by_guild
 from app.services.notifications_twitch import unsubscribe_streamer
@@ -312,8 +313,10 @@ class Form(discord.ui.View):
         await interaction.response.defer(ephemeral=True, thinking=True)
 
         interaction.locale = parse_valid_locale(interaction.locale)
-        cog_param = self._parse_responses_to_cog()
+
         await self.pre_finish_step(interaction)
+
+        cog_param = self._parse_responses_to_cog()
 
         update_moderations_by_guild(
             guild_id=interaction.guild_id, key=self.command_key, value=True
@@ -384,6 +387,11 @@ class Form(discord.ui.View):
         if self.command_key in subscriptions:
             sub = subscriptions[self.command_key]
             sub["handler"](interaction, sub["subscribe"], sub["unsubscribe"], sub["key"])
+
+        if self.command_key == commandconstants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY:
+            streamer = self.responses[0]["value"]
+            channel_info = StreamElementsClient.get_channel_info(streamer)
+            self.responses.append({"key": "channel_id", "title": "Channel ID", "value": channel_info["_id"]})
 
 
     def _handle_subscription(

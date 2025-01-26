@@ -1,0 +1,70 @@
+steps:
+  - action: form
+    key: form
+    title:
+      en-us: ":bulb: StreamElements Commands"
+      pt-br: ":bulb: Comandos do StreamElements"
+    description:
+      en-us: "Whenever someone uses a command, I'll fetch the response from StreamElements and send it in chat!"
+      pt-br: "Sempre que alguém usar um comando, eu buscarei a resposta no StreamElements e enviarei no chat!"
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Utilize o comando /reportar para me contar um bug"
+
+  - action: modal
+    key: streamer
+    max_length: 30
+    lowercase: true
+    validation: validate_streamer_name
+    title:
+      en-us: "Streamer"
+      pt-br: "Streamer"
+    label:
+      en-us: "Which streamer should I respond to the commands?"
+      pt-br: "De qual streamer devo responder os comandos?"
+    description:
+      en-us: "Choose the streamer I should fetch the StreamElements commands from"
+      pt-br: "Escolha o streamer que eu devo buscar os comandos do StreamElements"
+    placeholder:
+      en-us: "shroud"
+      pt-br: "shroud"
+
+  - action: button
+    key: how_it_works
+    emoji: ":question:"
+    title:
+      en-us: "How It Works?"
+      pt-br: "Como Funciona?"
+    description:
+      en-us: "After activation, I will listen for StreamElements commands in Discord with the **ks!** prefix"
+      pt-br: "Após ativado, eu ficarei atento aos comandos do StreamElements no Discord usando o prefixo **ks!**"
+    fields:
+      en-us:
+        - title: ":round_pushpin: Prefix"
+          message: "Commands will use the **ks!** prefix in Discord chat"
+        - title: ":incoming_envelope: Response"
+          message: "When someone uses a command, I'll fetch the response from StreamElements and send it in chat!"
+        - title: "🎯 Example"
+          message: "**User:** `ks!mouse`\n**Keiko:** `The streamer uses a Logitech G Pro X Superlight! 🖱️`"
+      pt-br:
+        - title: ":round_pushpin: Prefixo"
+          message: "Os comandos utilizarão o prefixo **ks!** no chat do Discord"
+        - title: ":incoming_envelope: Resposta"
+          message: "Quando alguém usar um comando, eu buscarei a resposta no StreamElements e enviarei no chat!"
+        - title: "🎯 Exemplo"
+          message: "**Usuário:** `ks!mouse`\n**Keiko:** `O streamer usa um Logitech G Pro X Superlight! 🖱️`"
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Utilize o comando /reportar para me contar um bug"
+
+  - action: resume
+    key: confirm
+    title:
+      en-us: ":white_check_mark: All set?"
+      pt-br: ":white_check_mark: Tudo certo?"
+    description:
+      en-us: "Whenever someone uses a command, I'll fetch the response from StreamElements and send it in chat!"
+      pt-br: "Sempre que alguém usar um comando, eu buscarei a resposta no StreamElements e enviarei no chat!"
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Utilize o comando /reportar para me contar um bug"

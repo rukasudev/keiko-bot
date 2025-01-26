@@ -72,6 +72,8 @@ class Commands:
 
     NOTIFICATIONS_YOUTUBE_VIDEO_KEY: Final[str] = "notifications_youtube_video"
 
+    INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: Final[str] = "stream_elements_commands"
+
     COMMANDS_LIST: Final[List[str]] = [
         BLOCK_LINKS_KEY,
         DEFAULT_ROLES_KEY,
