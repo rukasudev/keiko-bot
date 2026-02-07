@@ -133,6 +133,12 @@ class DiscordLogsHandler(logging.Handler):
         self.setLevel(logging.INFO)
         logger.addHandler(self)
 
+    BOT_ACTIONS_LOG_TYPES = (
+        constants.EVENT_JOIN_GUILD_TYPE,
+        constants.EVENT_LEFT_GUILD_TYPE,
+        constants.COMMAND_INFO_TYPE,
+    )
+
     def emit(self, record):
         embed = self.add_embed(record)
         log_channel = self.bot.get_channel(self.bot.config.ADMIN_LOGS_CHANNEL_ID)
@@ -147,9 +153,16 @@ class DiscordLogsHandler(logging.Handler):
             if interaction.command.qualified_name == "Log Inspection":
                 return
 
-        if hasattr(record, "log_type") and record.log_type == constants.COMMAND_CALL_TYPE:
+        log_type = getattr(record, "log_type", None)
+
+        if log_type == constants.COMMAND_CALL_TYPE:
             log_channel = self.bot.get_channel(
                 self.bot.config.ADMIN_LOGS_COMMAND_CALL_ID
+            )
+
+        if log_type in self.BOT_ACTIONS_LOG_TYPES and self.bot.config.ADMIN_LOGS_BOT_ACTIONS_CHANNEL_ID:
+            log_channel = self.bot.get_channel(
+                self.bot.config.ADMIN_LOGS_BOT_ACTIONS_CHANNEL_ID
             )
 
         if record.levelno == logging.ERROR and record.exc_info:
@@ -220,3 +233,7 @@ class DiscordLogsHandler(logging.Handler):
                 embed.add_field(name="Message ID", value=interaction.message.id)
         elif guild_id:
             embed.add_field(name="Guild ID", value=guild_id)
+
+            owner_id = getattr(record, "owner_id", None)
+            if owner_id:
+                embed.add_field(name="User ID", value=f"<@{owner_id}>")

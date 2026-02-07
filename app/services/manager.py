@@ -16,15 +16,22 @@ def parse_history_data(
     guild = guild or interaction.guild
     for item in data:
         key = item["datetime"].strftime("%Y-%m-%d %H:%M:%S") + " UTC"
-        user = guild.get_member(int(item["user_id"]))
+        user = guild.get_member(int(item["user_id"])) if guild else None
+
+        if user:
+            user_mention = user.mention
+            is_bot_user = user.id == interaction.client.user.id
+        else:
+            user_mention = f"<@{item['user_id']}>"
+            is_bot_user = str(item["user_id"]) == str(interaction.client.user.id)
 
         command = "short-description" if not with_cog else "short-description-with-cog"
         desc = ml(
             f"commands.command-events.{item['event']}.{command}",
             locale=interaction.locale,
-        ).replace("$user", user.mention).replace("$cog_name", item["cog_key"])
+        ).replace("$user", user_mention).replace("$cog_name", item["cog_key"])
 
-        if user.id == interaction.client.user.id:
+        if is_bot_user:
             desc += f" _({system_desc})_"
 
         if key not in response:

@@ -30,6 +30,7 @@ class DBConfigs:
     ADMIN_LOGS_COMMAND_CALL_ID: Final[str] = "admin_logs_command_call_id"
     ADMIN_LOGS_ERROR_CHANNEL_ID: Final[str] = "admin_logs_error_channel_id"
     ADMIN_LOGS_FILES_CHANNEL_ID: Final[str] = "admin_logs_files_channel_id"
+    ADMIN_LOGS_BOT_ACTIONS_CHANNEL_ID: Final[str] = "admin_logs_bot_actions_channel_id"
     ADMIN_DUMP_CHANNEL_ID: Final[str] = "admin_dump_channel_id"
 
     ADMIN_CONFIGS_LIST: Final[List] = [
@@ -37,6 +38,7 @@ class DBConfigs:
         ADMIN_LOGS_CHANNEL_ID,
         ADMIN_LOGS_ERROR_CHANNEL_ID,
         ADMIN_LOGS_FILES_CHANNEL_ID,
+        ADMIN_LOGS_BOT_ACTIONS_CHANNEL_ID,
         ADMIN_DUMP_CHANNEL_ID
     ]
 

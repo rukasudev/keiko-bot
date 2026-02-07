@@ -13,13 +13,18 @@ from app.cogs.admin.configs import Configs
 from app.cogs.admin.subscriptions import Subscriptions
 from app.cogs.admin.sync import Sync
 from app.logger import DiscordLogsHandler
-from app.services.admin import send_log_file_from_channel_by_date
+from app.services.admin import (
+    build_overview_embed,
+    get_overview_data,
+    send_log_file_from_channel_by_date,
+)
 from app.services.utils import (
     format_datetime_output,
     keiko_command,
     parse_log_filename_with_date,
 )
 from app.types.cogs import GroupCog
+from app.views.user_inspection import UserInspectionView
 
 
 @app_commands.default_permissions()
@@ -29,6 +34,32 @@ class Admin(GroupCog, name="admin"):
         self.bot = bot
         DiscordLogsHandler(bot)
         super().__init__()
+
+    @keiko_command(
+        name="overview",
+        description="Keiko proudly presents a complete overview of its health and metrics",
+    )
+    async def show_overview(self, interaction: discord.Interaction) -> None:
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        data = get_overview_data(self.bot)
+        embed = build_overview_embed(self.bot, data)
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    @keiko_command(
+        name="inspect",
+        description="Keiko inspects a user by their ID and reveals all known information",
+    )
+    async def inspect_user(self, interaction: discord.Interaction, user_id: str) -> None:
+        try:
+            user = await self.bot.fetch_user(int(user_id))
+        except (ValueError, discord.NotFound):
+            await interaction.response.send_message(
+                f"User with ID `{user_id}` not found.", ephemeral=True
+            )
+            return
+
+        view = UserInspectionView(user)
+        await view.send(interaction)
 
     @keiko_command(
         name="logs",

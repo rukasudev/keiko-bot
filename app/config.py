@@ -106,6 +106,9 @@ class AppConfig:
         self.ADMIN_LOGS_FILES_CHANNEL_ID = int(
             admin_configs[constants.ADMIN_LOGS_FILES_CHANNEL_ID]
         )
+        self.ADMIN_LOGS_BOT_ACTIONS_CHANNEL_ID = int(
+            admin_configs.get(constants.ADMIN_LOGS_BOT_ACTIONS_CHANNEL_ID, 0)
+        )
         self.ADMIN_DUMP_CHANNEL_ID = int(admin_configs[constants.ADMIN_DUMP_CHANNEL_ID])
 
     def is_dev(self) -> bool:

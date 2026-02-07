@@ -15,9 +15,11 @@ setup: requirements.txt
 run: docker-up
 	$(ACTIVATE_VENV) && $(PYTHON) __main__.py
 
+DOCKER_COMPOSE := $(shell command -v docker-compose 2>/dev/null || echo "docker compose")
+
 docker-up:
-	docker ps | grep -q "redis-server" || docker-compose up -d redis
-	docker ps | grep -q "mongo-server" || docker-compose up -d mongodb
+	docker ps | grep -q "redis-server" || $(DOCKER_COMPOSE) up -d redis
+	docker ps | grep -q "mongo-server" || $(DOCKER_COMPOSE) up -d mongodb
 
 test:
 	$(ACTIVATE_VENV) && python -m pytest tests/ app/ -x -q

@@ -79,15 +79,17 @@ def unpause_moderations_by_guild(guild_id: str, key: str):
     )
 
 
-def insert_moderations_by_guild(guild_id: str, data: Dict[str, Any] = None) -> str:
-    default_data = parse_default_moderations(guild_id)
+def insert_moderations_by_guild(guild_id: str, data: Dict[str, Any] = None, owner_id: str = None) -> str:
+    default_data = parse_default_moderations(guild_id, owner_id=owner_id)
 
     return moderations_data.insert_moderations_by_guild(data or default_data)
 
 
-def parse_default_moderations(guild_id: str) -> Dict[str, Any]:
-    data = guild_constants.COGS_MODERATIONS_COMMANDS_DEFAULT
+def parse_default_moderations(guild_id: str, owner_id: str = None) -> Dict[str, Any]:
+    data = dict(guild_constants.COGS_MODERATIONS_COMMANDS_DEFAULT)
     data["guild_id"] = str(guild_id)
+    if owner_id:
+        data["owner_id"] = str(owner_id)
     return data
 
 

@@ -6,9 +6,10 @@ from discord.ext import commands
 from app import logger
 from app.bot import DiscordBot
 from app.constants import CogsConstants as cogconstants
+from app.constants import Commands as commandsconstants
 from app.constants import GuildConstants as constants
 from app.constants import LogTypes as logconstants
-from app.data.moderations import find_moderations_by_guild
+from app.data.moderations import count_moderations_by_owner, find_moderations_by_guild
 from app.services import block_links as block_links_service
 from app.services import default_roles as default_roles_service
 from app.services import stream_elements as stream_elements_service
@@ -18,7 +19,7 @@ from app.services.moderations import (
     pause_all_moderations_by_guild,
     update_moderations_by_guild,
 )
-from app.services.utils import cogs_manager, get_available_roles_by_guild
+from app.services.utils import cogs_manager, format_relative_time, get_available_roles_by_guild
 from app.services.welcome_messages import send_welcome_message
 from app.types.cogs import Cog
 from app.views.greetings import GreetingsView
@@ -87,43 +88,64 @@ class Events(Cog, name="events"):
         if not interaction.command:
             return None
 
-        if str(interaction.user.id) != self.bot.owner_id:
+        if not hasattr(interaction.command, "_attr"):
+            return None
+
+        if str(interaction.user.id) != str(self.bot.owner_id):
             increment_redis_key(
                 f"{logconstants.COMMAND_CALL_TYPE}:{interaction.command._attr}"
             )
 
-        error_message = f"command started ({interaction.id}): command {interaction.command.qualified_name} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}"
         logger.info(
-            error_message,
+            f"command started ({interaction.id}): command {interaction.command.qualified_name} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}",
             interaction=interaction,
             log_type=logconstants.COMMAND_CALL_TYPE,
         )
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
+        owner_id = str(guild.owner.id)
         exist = find_moderations_by_guild(guild.id)
+
         if not exist:
-            logger.info(
-                f"Joined new guild by {guild.owner.mention}",
-                guild_id=guild.id,
-                log_type=logconstants.EVENT_JOIN_GUILD_TYPE,
-            )
-            insert_moderations_by_guild(guild.id)
+            insert_moderations_by_guild(guild.id, owner_id=owner_id)
         else:
-            logger.info(
-                f"Joined again by {guild.owner.mention}",
-                guild_id=guild.id,
-                log_type=logconstants.EVENT_JOIN_GUILD_TYPE,
-            )
             update_moderations_by_guild(guild.id, constants.IS_BOT_ONLINE, True)
+            update_moderations_by_guild(guild.id, "owner_id", owner_id)
+
+        total_servers = count_moderations_by_owner(owner_id)
+        action = "Joined new guild" if not exist else "Joined again"
+
+        logger.info(
+            f"{action} by {guild.owner.mention}\nInvited by: {guild.owner.mention} ({total_servers} server{'s' if total_servers != 1 else ''} total)",
+            guild_id=guild.id,
+            owner_id=guild.owner.id,
+            log_type=logconstants.EVENT_JOIN_GUILD_TYPE,
+        )
 
         return await GreetingsView().send(guild)
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: discord.Guild):
+        moderations = find_moderations_by_guild(guild.id)
+
+        active_commands = []
+        duration_info = ""
+        if moderations:
+            active_commands = [
+                key for key in commandsconstants.COMMANDS_LIST
+                if moderations.get(key, False)
+            ]
+            created_at = moderations.get("created_at")
+            if created_at:
+                duration_info = f"\nLeft after {format_relative_time(created_at).replace(' ago', '')} (added_at: {created_at.strftime('%Y-%m-%d %H:%M:%S')})"
+
+        commands_info = f"\nActive commands: {', '.join(active_commands)}" if active_commands else "\nActive commands: none"
+
         logger.info(
-            f"Left guild by {guild.owner.id}",
+            f"Left guild by {guild.owner.id}{commands_info}{duration_info}",
             guild_id=guild.id,
+            owner_id=guild.owner.id,
             log_type=logconstants.EVENT_LEFT_GUILD_TYPE,
         )
         remove_all_cache_by_guild(guild.id)
