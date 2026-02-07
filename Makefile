@@ -19,6 +19,9 @@ docker-up:
 	docker ps | grep -q "redis-server" || docker-compose up -d redis
 	docker ps | grep -q "mongo-server" || docker-compose up -d mongodb
 
+test:
+	$(ACTIVATE_VENV) && python -m pytest tests/ app/ -x -q
+
 clean:
 	rm -rf __pycache__
 	rm -rf $(VENV)
