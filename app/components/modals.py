@@ -1,15 +1,17 @@
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Union
 
 import discord
 
 
 class CustomModal(discord.ui.Modal):
     def __init__(self, config: dict, callback: Callable, locale: str, cogs: Dict[str, Any]) -> None:
+        self.config = config
         self.callback = callback
         self.lowercase = config.get("lowercase", False)
         self.locale = locale
         self.validation = config.get("validation", None)
         self.modal_validation = ModalValidations(cogs=cogs)
+        self.field_keys = []
         super().__init__(title=config.get("title").get(locale), timeout=300)
         self.add_inputs(config, locale)
 
@@ -37,18 +39,27 @@ class CustomModal(discord.ui.Modal):
         for i, field in enumerate(config.get("fields")):
             default = self.get_config_by_locale(field, "default")
 
+            if field.get("key"):
+                self.field_keys.append(field.get("key"))
+
             if config.get("enumerate", False):
-                label = f"{self.get_config_by_locale(field, 'label')} #{i+1}"
+                label_text = f"{self.get_config_by_locale(field, 'label')} #{i+1}"
             else:
-                label = self.get_config_by_locale(field, "label")
+                label_text = self.get_config_by_locale(field, "label")
+
+            description = self.get_config_by_locale(field, "description")
+            placeholder = self.get_config_by_locale(field, "placeholder") or default
+
+            if description and not placeholder:
+                placeholder = description
 
             item = discord.ui.TextInput(
-                label=label,
+                label=label_text,
                 style=style,
-                placeholder=self.get_config_by_locale(field, "placeholder") or default,
+                placeholder=placeholder,
                 required=field.get("required", True),
                 default=default,
-                max_length=config.get("max_length", 40),
+                max_length=field.get("max_length") or config.get("max_length", 40),
             )
             self.add_item(item)
 
@@ -61,13 +72,32 @@ class CustomModal(discord.ui.Modal):
             return None
         return self.response
 
-    def parse_response(self) -> str:
-        self.response = self.children[0].value if not self.lowercase else self.children[0].value.lower()
-        for child in self.children[1:]:
-            if len(child.value) == 0:
-                continue
-            if self.response: self.response += ";"
-            self.response += child.value if not self.lowercase else child.value.lower()
+    def _get_text_inputs(self) -> List[discord.ui.TextInput]:
+        return [child for child in self.children if isinstance(child, discord.ui.TextInput)]
+
+    def parse_response(self) -> Union[str, Dict[str, str]]:
+        text_inputs = self._get_text_inputs()
+        fields = self.config.get("fields", [])
+
+        keyed_response = {}
+        concat_values = []
+
+        for i, text_input in enumerate(text_inputs):
+            field = fields[i] if i < len(fields) else {}
+            value = text_input.value if not self.lowercase else text_input.value.lower()
+
+            if field.get("key"):
+                keyed_response[field["key"]] = value
+            elif value:
+                concat_values.append(value)
+
+        if keyed_response:
+            if concat_values:
+                keyed_response["__concat__"] = ";".join(concat_values)
+            self.response = keyed_response
+        else:
+            self.response = ";".join(concat_values) if concat_values else (text_inputs[0].value if text_inputs else "")
+
         return self.response
 
     async def on_submit(self, interaction: discord.Interaction) -> None:

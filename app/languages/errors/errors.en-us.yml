@@ -55,3 +55,7 @@ en-us:
   youtuber-not-found:
     title: Youtuber Not Found
     message: "I'm sorry, but I couldn't find the youtuber you're looking for. Please, check the name and try again."
+
+  selection-required:
+    title: Selection Required
+    message: "Please select an option before confirming."

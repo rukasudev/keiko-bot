@@ -55,3 +55,7 @@ pt-br:
   youtuber-not-found:
     title: Youtuber Não Encontrado
     message: "Desculpe, mas não consegui encontrar o youtuber que você está procurando. Por favor, verifique o nome e tente novamente."
+
+  selection-required:
+    title: Seleção Obrigatória
+    message: "Por favor, selecione uma opção antes de confirmar."

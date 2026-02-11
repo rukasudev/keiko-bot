@@ -150,6 +150,7 @@ class FormConstants:
     BUTTON_ACTION_KEY: Final[str] = "button"
     FORM_ACTION_KEY: Final[str] = "form"
     COMPOSITION_ACTION_KEY: Final[str] = "composition"
+    MULTI_SELECT_ACTION_KEY: Final[str] = "multi_select"
 
     NO_ACTION_LIST: Final[List[str]] = [FORM_ACTION_KEY, BUTTON_ACTION_KEY, RESUME_ACTION_KEY]
 

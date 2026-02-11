@@ -1,4 +1,3 @@
-version: "3.8"
 services:
   keiko_bot:
     container_name: keiko-bot
@@ -18,7 +17,7 @@ services:
       - 'keiko_redis_data:/bitnami/redis/data'
 
   mongodb:
-    image: mongo:latest
+    image: mongo:7.0
     container_name: mongo-server
     ports:
       - "27017:27017"

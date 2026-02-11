@@ -1,4 +1,9 @@
 pt-br:
+  components:
+    select:
+      channel-placeholder: Selecione um canal...
+      role-placeholder: Selecione um cargo...
+
   confirm:
     label: Confirmar
     desc: Confirma a ação
@@ -57,6 +62,7 @@ pt-br:
   history:
     label: Histórico
     desc: Veja o histórico de alterações feitas nas configurações da funcionalidade
+
 
   roles-sync:
     label: Sincronizar

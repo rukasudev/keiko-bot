@@ -11,33 +11,30 @@ steps:
       en-us: "• Use the command /report to tell me a bug"
       pt-br: "• Utilize o comando /reportar para me contar um bug"
 
-  - action: channels
-    key: allowed_chats
-    emoji: ":speech_balloon:"
-    style: channel
+  - action: multi_select
+    key: permissions
     title:
-      en-us: "Allowed chats"
-      pt-br: "Chats permitidos"
+      en-us: "Permissions"
+      pt-br: "Permissões"
     description:
-      en-us: "Choose which chats will be allowed to send links"
-      pt-br: "Escolha os chats que serão permitidos enviar links"
+      en-us: "Configure which channels and roles are allowed to send links"
+      pt-br: "Configure quais canais e cargos podem enviar links"
     footer:
       en-us: "• Use the command /report to tell me a bug"
       pt-br: "• Utilize o comando /reportar para me contar um bug"
-
-  - action: roles
-    key: allowed_roles
-    emoji: ":busts_in_silhouette:"
-    style: role
-    title:
-      en-us: "Allowed roles"
-      pt-br: "Cargos permitidos"
-    description:
-      en-us: "Choose which roles will be allowed to send links in any channel"
-      pt-br: "Escolha quais cargos serão permitidos enviar links em qualquer canal"
-    footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Utilize o comando /reportar para me contar um bug"
+    selects:
+      - type: channels
+        key: allowed_chats
+        style: channel
+        placeholder:
+          en-us: "Allowed channels..."
+          pt-br: "Canais permitidos..."
+      - type: roles
+        key: allowed_roles
+        style: role
+        placeholder:
+          en-us: "Allowed roles..."
+          pt-br: "Cargos permitidos..."
 
   - action: options
     key: allowed_links

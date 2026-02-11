@@ -11,6 +11,7 @@ from app.components.buttons import (
     PreviewButton,
     RemoveItemButton,
 )
+from app.components.select_views import ChannelSelectView, RoleSelectView, MultiSelectView
 from app.components.embed import parse_form_dict_to_embed
 from app.components.modals import CustomModal
 from app.constants import Commands as commandconstants
@@ -102,11 +103,57 @@ class Form(discord.ui.View):
         return self._save_step_response()
 
     def _save_step_response(self):
+        response = self.view.get_response()
+
+        if self._get_step_item("action") == constants.MULTI_SELECT_ACTION_KEY:
+            if isinstance(response, dict):
+                for key, data in response.items():
+                    if isinstance(data, dict):
+                        self.responses.append({
+                            "key": key,
+                            "title": key,
+                            "value": data.get("values"),
+                            "style": data.get("style"),
+                        })
+                    else:
+                        self.responses.append({
+                            "key": key,
+                            "title": key,
+                            "value": data,
+                            "style": None,
+                        })
+            return self.responses
+
+        if isinstance(response, dict):
+            fields = self._step.get("fields", [])
+
+            for i, field in enumerate(fields):
+                field_key = field.get("key")
+                if field_key and field_key in response:
+                    label = field.get("label", {})
+                    title = label.get(self.locale) if isinstance(label, dict) else field_key
+                    self.responses.append({
+                        "key": field_key,
+                        "title": title,
+                        "value": response[field_key],
+                        "style": None,
+                    })
+
+            if "__concat__" in response:
+                self.responses.append({
+                    "key": self._get_step_item("key"),
+                    "title": self._get_step_item("title"),
+                    "value": response["__concat__"],
+                    "style": self._get_step_item("style"),
+                })
+
+            return self.responses
+
         self.responses.append(
             {
                 "key": self._get_step_item("key"),
                 "title": self._get_step_item("title"),
-                "value": self.view.get_response(),
+                "value": response,
                 "style": self._get_step_item("style"),
             }
         )
@@ -181,7 +228,35 @@ class Form(discord.ui.View):
     def parse_cogs_to_modal(self) -> None:
         if isinstance(self.cogs, list):
             return
-        cogs = self.cogs[self._step['key']]
+
+        fields = self._step.get("fields", [])
+        has_field_keys = any(f.get("key") for f in fields) if fields else False
+
+        if has_field_keys:
+            for i, field in enumerate(fields):
+                field_key = field.get("key")
+                if field_key and field_key in self.cogs:
+                    cogs = self.cogs[field_key]
+                    value = self.extract_value_from_cogs(cogs)
+                    if i < len(self.view.children):
+                        self.view.children[i].default = value or ""
+
+            step_key = self._step.get("key")
+            if step_key in self.cogs:
+                cogs = self.cogs[step_key]
+                value = self.extract_value_from_cogs(cogs)
+                values = value.split(";") if isinstance(value, str) else []
+                concat_index = 0
+                for i, field in enumerate(fields):
+                    if not field.get("key") and i < len(self.view.children):
+                        self.view.children[i].default = values[concat_index] if concat_index < len(values) else ""
+                        concat_index += 1
+            return
+
+        step_key = self._step.get('key')
+        if step_key not in self.cogs:
+            return
+        cogs = self.cogs[step_key]
         value = self.extract_value_from_cogs(cogs)
 
         values = value.split(";") if isinstance(value, str) else []
@@ -204,6 +279,8 @@ class Form(discord.ui.View):
         )
 
     async def show_channels(self, interaction: discord.Interaction):
+        if self._get_step_item("select"):
+            return await self._show_channels_select(interaction)
         channels = get_text_channels_by_guild(interaction.guild)
         await interaction.response.defer()
         self.view = OptionsView(
@@ -219,7 +296,25 @@ class Form(discord.ui.View):
             message_id=interaction.message.id, embed=self.step_embed, view=self.view
         )
 
+    async def _show_channels_select(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        self.view = ChannelSelectView(
+            callback=self._callback,
+            locale=self.locale,
+            required=self._get_step_item("required", False),
+            unique=self._get_step_item("unique", True),
+        )
+        if self.cogs:
+            self._parse_cogs_to_select()
+        await interaction.followup.edit_message(
+            message_id=interaction.message.id,
+            embed=self.step_embed,
+            view=self.view
+        )
+
     async def show_roles(self, interaction: discord.Interaction):
+        if self._get_step_item("select"):
+            return await self._show_roles_select(interaction)
         roles = get_roles_by_guild(interaction.guild)
         await interaction.response.defer()
         self.view = OptionsView(
@@ -235,7 +330,25 @@ class Form(discord.ui.View):
             message_id=interaction.message.id, embed=self.step_embed, view=self.view
         )
 
+    async def _show_roles_select(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        self.view = RoleSelectView(
+            callback=self._callback,
+            locale=self.locale,
+            required=self._get_step_item("required", False),
+            unique=self._get_step_item("unique", True),
+        )
+        if self.cogs:
+            self._parse_cogs_to_select()
+        await interaction.followup.edit_message(
+            message_id=interaction.message.id,
+            embed=self.step_embed,
+            view=self.view
+        )
+
     async def show_available_roles(self, interaction: discord.Interaction):
+        if self._get_step_item("select"):
+            return await self._show_roles_select(interaction)
         roles = get_available_roles_by_guild(interaction.guild)
         await interaction.response.defer()
         self.view = OptionsView(
@@ -297,7 +410,8 @@ class Form(discord.ui.View):
         embed.description = self._get_step_item("description")
         embed.set_footer(text=self._get_step_item("footer"))
 
-        for field in self._get_step_item("fields"):
+        fields = self._step.get("fields", {}).get(self.locale, []) if self._step.get("fields") else []
+        for field in fields:
             embed.add_field(name=field["title"], value=field["message"], inline=False)
 
         self.add_item(ConfirmButton(callback=self._callback, locale=self.locale))
@@ -308,6 +422,19 @@ class Form(discord.ui.View):
         self.view = FormComposition(self._step, self._callback, self.locale, self.cogs, self.composition_index if hasattr(self, "composition_index") else None)
 
         await self.view.send_form(interaction)
+
+    async def show_multi_select(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        self.view = MultiSelectView(
+            config=self._step,
+            callback=self._callback,
+            locale=self.locale,
+        )
+        await interaction.followup.edit_message(
+            message_id=interaction.message.id,
+            embed=self.step_embed,
+            view=self.view
+        )
 
     async def _finish(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True, thinking=True)
@@ -413,6 +540,19 @@ class Form(discord.ui.View):
         else:
             subscribe_func(interaction, self.responses)
 
+    def _parse_cogs_to_select(self) -> None:
+        if isinstance(self.cogs, list):
+            return
+        if self._step['key'] not in self.cogs:
+            return
+        cogs = self.cogs[self._step['key']]
+        value = self.extract_value_from_cogs(cogs)
+        if isinstance(value, list):
+            for v in value:
+                self.view.response[v] = v
+        elif value:
+            self.view.response[value] = value
+
     def parse_cogs_to_options_view(self) -> None:
         if isinstance(self.cogs, list):
             return
@@ -460,6 +600,7 @@ class Form(discord.ui.View):
             constants.RESUME_ACTION_KEY: self.show_resume,
             constants.BUTTON_ACTION_KEY: self.show_buttons,
             constants.COMPOSITION_ACTION_KEY: self.show_composition,
+            constants.MULTI_SELECT_ACTION_KEY: self.show_multi_select,
         }
 
         if action in action_dict:

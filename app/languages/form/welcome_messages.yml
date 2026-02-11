@@ -2,8 +2,8 @@ steps:
   - action: form
     key: form
     title:
-      en-us: 🎉 Welcome Messages
-      pt-br: 🎉 Mensagens de Boas-Vindas
+      en-us: "🎉 Welcome Messages"
+      pt-br: "🎉 Mensagens de Boas-Vindas"
     description:
       en-us: Enabling this feature allows me to send a personalized welcome message to new members when they join your server
       pt-br: Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor
@@ -13,83 +13,16 @@ steps:
 
   - action: channels
     key: welcome_messages_channel
+    select: true
     required: true
     unique: true
     style: channel
-    emoji: "💬"
     title:
       en-us: Welcome Messages Channel
       pt-br: Canal de Mensagens de Boas-Vindas
     description:
-      en-us: Choose which channel I should send the welcome messages to new members
-      pt-br: Escolha em qual canal devo enviar as mensagens de boas-vindas para novos membros
-    footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Use o comando /reportar para me contar um bug"
-
-  - action: button
-    key: question_welcome_messages_title
-    emoji: "🎉"
-    title:
-      en-us: Welcome Messages Title
-      pt-br: Título Mensagens de Boas-Vindas
-    description:
-      en-us: In the next step, you can customize the **title** of welcome messages that I will send to new members.
-      pt-br: No próximo passo, você poderá personalizar o **título** das mensagens de boas-vindas que enviarei aos novos membros.
-    fields:
-      en-us:
-        - title: "Example of title"
-          message: "A new member has joined the server! 🎉"
-      pt-br:
-        - title: "Exemplo de título"
-          message: "Um novo membro chegou! 🎉"
-    footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Use o comando /reportar para me contar um bug"
-
-  - action: modal
-    key: welcome_messages_title
-    max_length: 50
-    default:
-      en-us: "A new member has joined the server! 🎉"
-      pt-br: "Um novo membro chegou! 🎉"
-    title:
-      en-us: Welcome Messages Title
-      pt-br: Título das Mensagens de Boas-Vindas
-    label:
-      en-us: Title of the welcome messages
-      pt-br: Título das mensagens de boas-vindas
-    description:
-      en-us: The title of the welcome messages that I will send to new members
-      pt-br: O título das mensagens de boas-vindas que enviarei aos novos membros
-    placeholder:
-      en-us: A new member has joined the server! 🎉
-      pt-br: Um novo membro chegou! 🎉
-
-  - action: button
-    key: question_welcome_messages
-    emoji: "🎉"
-    title:
-      en-us: Welcome Messages
-      pt-br: Mensagens de Boas-Vindas
-    description:
-      en-us: "In the next step, you can customize the welcome messages that I will send to new members. Read the following notes carefully:"
-      pt-br: "No próximo passo, você poderá personalizar as mensagens de boas-vindas que enviarei aos novos membros. Leia com atenção as seguintes observações:"
-    fields:
-      en-us:
-        - title: "1. Random message"
-          message: "Whenever a member joins the server, one of the configured messages will be randomly chosen"
-        - title: "2. Up to 3 messages"
-          message: "You can configure up to 3 welcome messages. If you want to configure less than 3, leave the other fields blank"
-        - title: "3. Variables"
-          message: "You can use the following variables in your message:\n- `{user}`: User mention\n- `{server}`: Server name\n- `{member_count}`: Number of server members"
-      pt-br:
-        - title: "1. Mensagem aleatória"
-          message: "Sempre que um membro entrar no servidor, uma das mensagens configuradas será aleatoriamente escolhida"
-        - title: "2. Até 3 mensagens"
-          message: "Você poderá configurar até 3 mensagens de boas-vindas. Caso queira configurar menos de 3, deixe os outros campos em branco"
-        - title: "3. Variáveis"
-          message: "Você pode utilizar as seguintes variáveis em sua mensagem:\n- `{user}`: Menção do usuário\n- `{server}`: Nome do servidor\n- `{member_count}`: Quantidade de membros do servidor"
+      en-us: Choose which channel I should send the welcome messages
+      pt-br: Escolha em qual canal devo enviar as mensagens de boas-vindas
     footer:
       en-us: "• Use the command /report to tell me a bug"
       pt-br: "• Use o comando /reportar para me contar um bug"
@@ -97,76 +30,60 @@ steps:
   - action: modal
     key: welcome_messages
     style: bullet
-    max_length: 100
     multiline: true
     enumerate: true
     title:
       en-us: Welcome Messages
       pt-br: Mensagens de Boas-Vindas
     description:
-      en-us: The welcome messages that I will send to new members
-      pt-br: As mensagens de boas-vindas que serão enviadas aos novos membros
+      en-us: "Configure your welcome messages. Use {user}, {server}, {member_count}."
+      pt-br: "Configure suas mensagens de boas-vindas. Use {user}, {server}, {member_count}."
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Use o comando /reportar para me contar um bug"
     fields:
+      - key: welcome_messages_title
+        label:
+          en-us: Title
+          pt-br: Título
+        max_length: 50
+        required: true
+        default:
+          en-us: "A new member has joined! 🎉"
+          pt-br: "Um novo membro chegou! 🎉"
       - label:
-          en-us: Welcome message
-          pt-br: Mensagem de boas-vindas
+          en-us: "Random Message"
+          pt-br: "Mensagem Aleatória"
+        max_length: 100
         required: true
         default:
           en-us: "Welcome {user} to {server}!"
           pt-br: "{user} bem-vindo ao {server}!"
       - label:
-          en-us: Welcome message
-          pt-br: Mensagem de boas-vindas
+          en-us: "Random Message"
+          pt-br: "Mensagem Aleatória"
+        max_length: 100
         required: false
         default:
-          en-us: "Look who just arrived! {user} just entered {server}!"
-          pt-br: "Olha quem chegou! {user} acabou de entrar no {server}!"
+          en-us: "Look who just arrived! {user}"
+          pt-br: "Olha quem chegou! {user}"
       - label:
-          en-us: Welcome message
-          pt-br: Mensagem de boas-vindas
+          en-us: "Random Message"
+          pt-br: "Mensagem Aleatória"
+        max_length: 100
         required: false
         default:
-          en-us: "{user} just arrived! Feel at home in {server}!"
-          pt-br: "{user} acabou de chegar! Sinta-se em casa no {server}!"
-
-  - action: button
-    key: question_welcome_messages_footer
-    emoji: "🎉"
-    title:
-      en-us: Welcome Messages Footer
-      pt-br: Rodapé Mensagens de Boas-Vindas
-    description:
-      en-us: In the next step, you can customize the **footer** of welcome messages that I will send to new members.
-      pt-br: No próximo passo, você poderá personalizar o **rodapé** das mensagens de boas-vindas que enviarei aos novos membros.
-    fields:
-      en-us:
-        - title: "Example of footer"
-          message: "I hope you have fun on the server!"
-      pt-br:
-        - title: "Exemplo de rodapé"
-          message: "Espero que se divirta no servidor!"
-    footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Use o comando /reportar para me contar um bug"
-
-  - action: modal
-    key: welcome_messages_footer
-    max_length: 50
-    default:
-      en-us: "I hope you have fun on the server!"
-      pt-br: "Espero que se divirta no servidor!"
-    title:
-      en-us: Welcome Messages Footer
-      pt-br: Rodapé das Mensagens de Boas-Vindas
-    label:
-      en-us: Footer of the welcome messages
-      pt-br: Rodapé das mensagens de boas-vindas
-    description:
-      en-us: The footer of the welcome messages that I will send to new members
-      pt-br: O rodapé das mensagens de boas-vindas
-    placeholder:
-      en-us: I hope you have fun on the server!
-      pt-br: Espero que se divirta no servidor!
+          en-us: "{user} just arrived!"
+          pt-br: "{user} acabou de chegar!"
+      - key: welcome_messages_footer
+        label:
+          en-us: Footer
+          pt-br: Rodapé
+        max_length: 50
+        required: false
+        default:
+          en-us: "Have fun!"
+          pt-br: "Divirta-se!"
 
   - action: resume
     key: confirm

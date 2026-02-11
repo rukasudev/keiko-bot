@@ -2,8 +2,8 @@ steps:
   - action: form
     key: form
     title:
-      en-us: 👩‍🎓 Default Roles
-      pt-br: 👩‍🎓 Cargos Padrão
+      en-us: "👩‍🎓 Default Roles"
+      pt-br: "👩‍🎓 Cargos Padrão"
     description:
       en-us: Enabling this feature allows me to automatically assign roles to new members when they join your server
       pt-br: Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor
@@ -11,35 +11,30 @@ steps:
       en-us: "• Use the command /report to tell me a bug"
       pt-br: "• Utilize o comando /reportar para me contar um bug"
 
-  - action: available_roles
-    key: default_roles_bot
-    emoji: ":robot:"
-    style: role
-    required: true
+  - action: multi_select
+    key: default_roles_config
     title:
-      en-us: Default Roles (Bots)
-      pt-br: Cargos padrão (Bots)
+      en-us: Default Roles
+      pt-br: Cargos Padrão
     description:
-      en-us: Choose which roles will be automatically assigned when a **bot** joins the guild.
-      pt-br: Escolha quais cargos serão atribuidos automaticamente a um **bot** quando entrar no servidor.
+      en-us: "Choose roles to assign automatically to new bots and members"
+      pt-br: "Escolha cargos para atribuir automaticamente a novos bots e membros"
     footer:
       en-us: "• Use the command /report to tell me a bug"
       pt-br: "• Utilize o comando /reportar para me contar um bug"
-
-  - action: available_roles
-    key: default_roles
-    emoji: ":busts_in_silhouette:"
-    style: role
-    required: true
-    title:
-      en-us: Default Roles (Members)
-      pt-br: Cargos padrão (Usuários)
-    description:
-      en-us: Choose which roles will be automatically assigned when a **member** joins the guild.
-      pt-br: Escolha quais cargos serão atribuídos automaticamente a um **usuário** quando entrar no servidor.
-    footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Utilize o comando /reportar para me contar um bug"
+    selects:
+      - type: available_roles
+        key: default_roles_bot
+        style: role
+        placeholder:
+          en-us: "Roles for Bots..."
+          pt-br: "Cargos para Bots..."
+      - type: available_roles
+        key: default_roles
+        style: role
+        placeholder:
+          en-us: "Roles for Members..."
+          pt-br: "Cargos para Membros..."
 
   - action: resume
     key: confirm

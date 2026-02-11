@@ -1,4 +1,9 @@
 en-us:
+  components:
+    select:
+      channel-placeholder: Select a channel...
+      role-placeholder: Select a role...
+
   confirm:
     label: Confirm
     desc: Confirm the action
@@ -57,6 +62,7 @@ en-us:
   history:
     label: History
     desc: See the history of changes made to the feature settings
+
 
   roles-sync:
     label: Sync
