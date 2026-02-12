@@ -191,6 +191,21 @@ class BackButton(discord.ui.Button):
         )
 
 
+class FormBackButton(discord.ui.Button):
+    """Back button for form flows that allows navigating to the previous step."""
+
+    def __init__(self, form_view, locale: str) -> None:
+        self.form_view = form_view
+        self.desc = ml("buttons.back.desc", locale=locale)
+        super().__init__(
+            label=ml("buttons.back.label", locale=locale),
+            style=discord.ButtonStyle.secondary,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> Any:
+        await self.form_view._go_back(interaction)
+
+
 class HistoryButton(discord.ui.Button):
     def __init__(self, callback: Callable, locale: str) -> None:
         self.callback = callback

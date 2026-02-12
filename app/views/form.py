@@ -8,6 +8,7 @@ from app.components.buttons import (
     CancelButton,
     ConfirmButton,
     EditButton,
+    FormBackButton,
     PreviewButton,
     RemoveItemButton,
 )
@@ -33,6 +34,7 @@ from app.services.utils import (
 )
 from app.services.welcome_messages import send_welcome_message_preview
 from app.views.composition import FormComposition
+from app.views.form_state import FormStateManager
 from app.views.options import OptionsView
 
 
@@ -49,8 +51,9 @@ class Form(discord.ui.View):
     def __init__(self, command_key: str, locale: str, steps: List[Dict[str, str]] = None, cogs: Dict[str, Any] = None) -> None:
         self.command_key = command_key
         self.locale = locale
-        self.steps = self._get_steps(steps)
+        self.state = FormStateManager(list(self._get_steps(steps)))
         self.cogs = cogs
+        self.responses = []
         super().__init__(timeout=1800)
         self.add_item(ConfirmButton(callback=self._callback, locale=locale))
         self.add_item(CancelButton(locale=locale))
@@ -69,10 +72,16 @@ class Form(discord.ui.View):
             if not is_valid_response:
                 return await func(self, args)
 
-            try:
-                self._step = next(self.steps)
-            except StopIteration:
+            if not self.state.advance():
                 return await self._after_callback(args)
+
+            self._step = self.state.current_step
+
+            # Skip "form" action; it's just the initial embed, not an interactive step
+            if self._step.get("action") == constants.FORM_ACTION_KEY:
+                if not self.state.advance():
+                    return await self._after_callback(args)
+                self._step = self.state.current_step
 
             self.step_embed = parse_form_dict_to_embed(self._step, self.locale)
             await func(self, args)
@@ -91,9 +100,6 @@ class Form(discord.ui.View):
         if not hasattr(self, "view"):
             return True
 
-        if not hasattr(self, "responses"):
-            self.responses = []
-
         if self._get_step_item("action") == constants.BUTTON_ACTION_KEY:
             return True
 
@@ -104,6 +110,7 @@ class Form(discord.ui.View):
 
     def _save_step_response(self):
         response = self.view.get_response()
+        self.state.save_response(response, self._step)
 
         if self._get_step_item("action") == constants.MULTI_SELECT_ACTION_KEY:
             if isinstance(response, dict):
@@ -186,11 +193,11 @@ class Form(discord.ui.View):
         return cog_param
 
     def filter_steps(self, steps: List[str]):
-        self.steps = (
+        self.state.steps_list = [
             step
-            for step in iter(self._get_steps())
+            for step in self.state.steps_list
             if step["key"] in steps
-        )
+        ]
 
     def set_composition_index(self, index: int):
         self.composition_index = int(index)
@@ -211,7 +218,7 @@ class Form(discord.ui.View):
         return self.title_and_desc
 
     def get_form_embed(self) -> discord.Embed:
-        return parse_form_dict_to_embed(next(self.steps), self.locale)
+        return parse_form_dict_to_embed(self.state.steps_list[0], self.locale)
 
     def get_possible_values(self) -> List[Dict[str, str]]:
         if hasattr(self, "composition_responses") and self.composition_responses:
@@ -222,7 +229,8 @@ class Form(discord.ui.View):
 
     async def show_modal(self, interaction: discord.Interaction):
         self.view = CustomModal(self._step, self._callback, self.locale, self.get_possible_values())
-        if self.cogs: self.parse_cogs_to_modal()
+        if not self.state.fill_modal(self.view) and self.cogs:
+            self.parse_cogs_to_modal()
         await interaction.response.send_modal(self.view)
 
     def parse_cogs_to_modal(self) -> None:
@@ -273,10 +281,7 @@ class Form(discord.ui.View):
             required=self._get_step_item("required", False),
             unique=self._get_step_item("unique", False),
         )
-        if self.cogs: self.parse_cogs_to_options_view()
-        await interaction.followup.edit_message(
-            message_id=interaction.message.id, embed=self.step_embed, view=self.view
-        )
+        await self._send_view(interaction)
 
     async def show_channels(self, interaction: discord.Interaction):
         if self._get_step_item("select"):
@@ -291,10 +296,7 @@ class Form(discord.ui.View):
             unique=self._get_step_item("unique", False),
             styled_values=True,
         )
-        if self.cogs: self.parse_cogs_to_options_view()
-        await interaction.followup.edit_message(
-            message_id=interaction.message.id, embed=self.step_embed, view=self.view
-        )
+        await self._send_view(interaction)
 
     async def _show_channels_select(self, interaction: discord.Interaction):
         await interaction.response.defer()
@@ -304,13 +306,7 @@ class Form(discord.ui.View):
             required=self._get_step_item("required", False),
             unique=self._get_step_item("unique", True),
         )
-        if self.cogs:
-            self._parse_cogs_to_select()
-        await interaction.followup.edit_message(
-            message_id=interaction.message.id,
-            embed=self.step_embed,
-            view=self.view
-        )
+        await self._send_view(interaction)
 
     async def show_roles(self, interaction: discord.Interaction):
         if self._get_step_item("select"):
@@ -325,10 +321,7 @@ class Form(discord.ui.View):
             unique=self._get_step_item("unique", False),
             styled_values=True,
         )
-        if self.cogs: self.parse_cogs_to_options_view()
-        await interaction.followup.edit_message(
-            message_id=interaction.message.id, embed=self.step_embed, view=self.view
-        )
+        await self._send_view(interaction)
 
     async def _show_roles_select(self, interaction: discord.Interaction):
         await interaction.response.defer()
@@ -338,13 +331,7 @@ class Form(discord.ui.View):
             required=self._get_step_item("required", False),
             unique=self._get_step_item("unique", True),
         )
-        if self.cogs:
-            self._parse_cogs_to_select()
-        await interaction.followup.edit_message(
-            message_id=interaction.message.id,
-            embed=self.step_embed,
-            view=self.view
-        )
+        await self._send_view(interaction)
 
     async def show_available_roles(self, interaction: discord.Interaction):
         if self._get_step_item("select"):
@@ -368,10 +355,7 @@ class Form(discord.ui.View):
             self.step_embed.description = error_message
 
         self.step_embed.description += f"\n\n**{ml('commands.commands.default-roles.warning', locale=self.locale)}**\n\n"
-        if self.cogs: self.parse_cogs_to_options_view()
-        await interaction.followup.edit_message(
-            message_id=interaction.message.id, embed=self.step_embed, view=self.view
-        )
+        await self._send_view(interaction)
 
     async def show_resume(self, interaction: discord.Interaction):
         embed = self.step_embed.copy()
@@ -403,20 +387,15 @@ class Form(discord.ui.View):
     async def show_buttons(self, interaction: discord.Interaction):
         self.clear_items()
 
-        embed = interaction.message.embeds[0]
-        embed.clear_fields()
-
-        embed.title = f"{self._get_step_item('emoji')} {self._get_step_item('title')}"
-        embed.description = self._get_step_item("description")
-        embed.set_footer(text=self._get_step_item("footer"))
-
         fields = self._step.get("fields", {}).get(self.locale, []) if self._step.get("fields") else []
         for field in fields:
-            embed.add_field(name=field["title"], value=field["message"], inline=False)
+            self.step_embed.add_field(name=field["title"], value=field["message"], inline=False)
 
         self.add_item(ConfirmButton(callback=self._callback, locale=self.locale))
         self.add_item(CancelButton(locale=self.locale))
-        await interaction.response.edit_message(embed=embed, view=self)
+        if self.state.can_go_back:
+            self.add_item(FormBackButton(self, self.locale))
+        await interaction.response.edit_message(embed=self.step_embed, view=self)
 
     async def show_composition(self, interaction: discord.Interaction):
         self.view = FormComposition(self._step, self._callback, self.locale, self.cogs, self.composition_index if hasattr(self, "composition_index") else None)
@@ -430,11 +409,7 @@ class Form(discord.ui.View):
             callback=self._callback,
             locale=self.locale,
         )
-        await interaction.followup.edit_message(
-            message_id=interaction.message.id,
-            embed=self.step_embed,
-            view=self.view
-        )
+        await self._send_view(interaction)
 
     async def _finish(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True, thinking=True)
@@ -605,6 +580,47 @@ class Form(discord.ui.View):
 
         if action in action_dict:
             return await action_dict[action](interaction)
+
+    async def _go_back(self, interaction: discord.Interaction):
+        if not self.state.go_back():
+            return
+
+        if self.responses and self._get_step_item("action") != constants.BUTTON_ACTION_KEY:
+            self.responses.pop()
+
+        self._step = self.state.current_step
+        self.step_embed = parse_form_dict_to_embed(self._step, self.locale)
+
+        self.clear_items()
+        await self.get_action_by_type(self._get_step_item("action"), interaction)
+        self.state.clear_previous_response()
+
+    def _add_back_button(self):
+        if self.state.can_go_back:
+            self.view.add_item(FormBackButton(self, self.locale))
+
+    async def _send_view(self, interaction: discord.Interaction):
+        """Prepara e envia o view com preenchimento automático e back button."""
+        view_config = {
+            OptionsView: ('options', self.parse_cogs_to_options_view),
+            ChannelSelectView: ('select', self._parse_cogs_to_select),
+            RoleSelectView: ('select', self._parse_cogs_to_select),
+            MultiSelectView: ('multi_select', None),
+        }
+
+        config = view_config.get(type(self.view))
+        if config:
+            fill_type, cogs_fallback = config
+            fill_fn = getattr(self.state, f'fill_{fill_type}')
+            if not fill_fn(self.view) and self.cogs and cogs_fallback:
+                cogs_fallback()
+
+        self._add_back_button()
+        await interaction.followup.edit_message(
+            message_id=interaction.message.id,
+            embed=self.step_embed,
+            view=self.view
+        )
 
     @_update_form_step
     async def _callback(self, interaction: discord.Interaction) -> None:

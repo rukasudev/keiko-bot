@@ -104,6 +104,7 @@ class MultiSelectView(discord.ui.View):
         self.locale = locale
         self.responses: Dict[str, Dict[str, str]] = {}
         self.select_styles: Dict[str, str] = {}
+        self.selects: Dict[str, discord.ui.Select] = {}
 
         for select_config in config.get("selects", []):
             select_type = select_config.get("type")
@@ -130,6 +131,7 @@ class MultiSelectView(discord.ui.View):
                 continue
 
             select.callback = self._make_callback(key, select_type, select)
+            self.selects[key] = select
             self.add_item(select)
 
         self.add_item(SelectConfirmButton(callback=callback, locale=locale, required=False))
