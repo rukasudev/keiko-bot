@@ -35,4 +35,4 @@ prometheus_client>=0.21.0
 discord.py @ git+https://github.com/Rapptz/discord.py@master
 
 # Required for discord.py voice on Python 3.13+
-audioop-lts>=0.2.1
+audioop-lts>=0.2.1; python_version >= "3.13"

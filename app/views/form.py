@@ -589,7 +589,7 @@ class Form(discord.ui.View):
 
         logger.info(
             f"Command enabled: **{self.command_key}**",
-            log_type=logconstants.COMMAND_INFO_TYPE,
+            log_type=logconstants.BOT_ACTION_TYPE,
             guild_id=str(interaction.guild.id),
             interaction=interaction,
         )

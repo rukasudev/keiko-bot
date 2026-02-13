@@ -136,7 +136,7 @@ class DiscordLogsHandler(logging.Handler):
     BOT_ACTIONS_LOG_TYPES = (
         constants.EVENT_JOIN_GUILD_TYPE,
         constants.EVENT_LEFT_GUILD_TYPE,
-        constants.COMMAND_INFO_TYPE,
+        constants.BOT_ACTION_TYPE,
     )
 
     def emit(self, record):

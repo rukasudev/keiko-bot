@@ -109,7 +109,7 @@ class Manager(discord.ui.View):
 
         logger.info(
             f"Command edited: **{self.command_key}**",
-            log_type=logconstants.COMMAND_INFO_TYPE,
+            log_type=logconstants.BOT_ACTION_TYPE,
             guild_id=str(interaction.guild.id),
             interaction=interaction,
         )
@@ -153,7 +153,7 @@ class Manager(discord.ui.View):
 
         logger.info(
             f"Command unpaused: **{self.command_key}**",
-            log_type=logconstants.COMMAND_INFO_TYPE,
+            log_type=logconstants.BOT_ACTION_TYPE,
             guild_id=guild_id,
             interaction=interaction,
         )
@@ -187,7 +187,7 @@ class Manager(discord.ui.View):
 
         logger.info(
             f"Command paused: **{self.command_key}**",
-            log_type=logconstants.COMMAND_INFO_TYPE,
+            log_type=logconstants.BOT_ACTION_TYPE,
             guild_id=guild_id,
             interaction=interaction,
         )
@@ -231,7 +231,7 @@ class Manager(discord.ui.View):
 
         logger.info(
             f"Command disabled: **{self.command_key}**",
-            log_type=logconstants.COMMAND_INFO_TYPE,
+            log_type=logconstants.BOT_ACTION_TYPE,
             guild_id=guild_id,
             interaction=interaction,
         )
@@ -294,7 +294,7 @@ class Manager(discord.ui.View):
 
         logger.info(
             f"Item added to: **{self.command_key}**",
-            log_type=logconstants.COMMAND_INFO_TYPE,
+            log_type=logconstants.BOT_ACTION_TYPE,
             guild_id=str(interaction.guild.id),
             interaction=interaction,
         )
@@ -347,7 +347,7 @@ class Manager(discord.ui.View):
 
         logger.info(
             f"Item removed from: **{self.command_key}**",
-            log_type=logconstants.COMMAND_INFO_TYPE,
+            log_type=logconstants.BOT_ACTION_TYPE,
             guild_id=str(interaction.guild.id),
             interaction=interaction,
         )

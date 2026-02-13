@@ -207,6 +207,9 @@ class LogTypes:
     COMMAND_INFO_TYPE: Final[str] = "command.info"
     COMMAND_INFO_TITLE: Final[str] = "ℹ️ Command Info"
 
+    BOT_ACTION_TYPE: Final[str] = "bot.action"
+    BOT_ACTION_TITLE: Final[str] = "🤖 Bot Action"
+
     COMMAND_WARN_TYPE: Final[str] = "command.warn"
     COMMAND_WARN_TITLE: Final[str] = "⚠️ Command Warning"
 
@@ -237,6 +240,10 @@ class LogTypes:
         COMMAND_INFO_TYPE: (
             COMMAND_INFO_TITLE,
             discord.Color.light_grey(),
+        ),
+        BOT_ACTION_TYPE: (
+            BOT_ACTION_TITLE,
+            discord.Color.purple(),
         ),
         COMMAND_WARN_TYPE: (
             COMMAND_WARN_TITLE,
