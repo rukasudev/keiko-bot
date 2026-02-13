@@ -1,7 +1,4 @@
-
 import functools
-import random
-from datetime import datetime
 from io import BytesIO
 from typing import Dict, List
 
@@ -9,10 +6,11 @@ import discord
 import requests
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-from app import bot
+from app import bot, logger
 from app.components.buttons import PreviewButton
 from app.components.embed import default_welcome_embed
 from app.constants import Commands as constants
+from app.constants import WelcomeDesign
 from app.services import cache
 from app.services.moderations import (
     send_command_form_message,
@@ -50,45 +48,115 @@ async def send_welcome_message(member: discord.Member):
         return
 
     welcome_message_title = cogs["welcome_messages_title"]
-    welcome_message_footer = cogs["welcome_messages_footer"]
+    welcome_message_footer = cogs.get("welcome_messages_footer") or ""
+    design = cogs.get("welcome_design", "server_blur")
+    custom_image = cogs.get("welcome_custom_image")
 
     welcome_message = parse_welcome_messages(welcome_messages, member)
 
-    embed_message = await create_welcome_message(member, welcome_message_title, welcome_message, welcome_message_footer)
+    embed_message = await create_welcome_message(
+        member, welcome_message_title, welcome_message, welcome_message_footer,
+        design=design, custom_image=custom_image
+    )
 
     await channel.send(embed=embed_message)
 
-async def create_welcome_message(member: discord.Member, title: str, message: str, footer: str):
-    guild_icon_url = "https://i.sstatic.net/41v2I.png" if not member.guild.icon else member.guild.icon.url
+async def generate_design_previews(member: discord.Member, designs: list) -> dict:
+    """Generate preview images for each design option in real-time.
 
-    banner = await create_banner(guild_icon_url, title.upper(), member.name, member.display_avatar.url, member.guild.name)
+    Returns a dict mapping design key to preview URL.
+    """
+    previews = {}
+    server_icon = str(member.guild.icon.url) if member.guild.icon else WelcomeDesign.DEFAULT_ICON
+
+    async def banner_with_bg(bg_url):
+        return await create_banner(bg_url, "WELCOME", member.name, member.display_avatar.url, member.guild.name)
+
+    generators = {
+        "server_blur": lambda: banner_with_bg(server_icon),
+        "custom_blur": lambda: banner_with_bg(WelcomeDesign.CUSTOM_BLUR_PREVIEW),
+        "custom_only": lambda: WelcomeDesign.CUSTOM_ONLY_PREVIEW,
+    }
+
+    for design in designs:
+        key = design["key"]
+        generator = generators.get(key)
+        if not generator:
+            continue
+
+        try:
+            result = generator()
+            previews[key] = await result if hasattr(result, '__await__') else result
+        except Exception as e:
+            logger.warn(f"Failed to generate preview for {key}: {e}")
+
+    return previews
+
+
+async def create_welcome_message(
+    member: discord.Member,
+    title: str,
+    message: str,
+    footer: str,
+    design: str = "server_blur",
+    custom_image: str = None
+):
+    if design == "custom_only" and custom_image:
+        embed = default_welcome_embed(title, message, footer, custom_image)
+        embed.set_thumbnail(url=member.display_avatar.url)
+        return embed
+
+    if design == "custom_blur" and custom_image:
+        background_url = custom_image
+    else:
+        background_url = str(member.guild.icon.url) if member.guild.icon else WelcomeDesign.DEFAULT_ICON
+
+    banner = await create_banner(
+        background_url, title.upper(), member.name,
+        member.display_avatar.url, member.guild.name
+    )
     return default_welcome_embed(title, message, footer, banner)
 
 async def send_welcome_message_preview(interaction: discord.Interaction, response: List[Dict[str, str]]):
-    welcome_data = {}
+    welcome_data = {
+        item["key"]: item.get("_raw_value", item.get("value"))
+        for item in response
+        if item.get("key") in WelcomeDesign.PREVIEW_DATA_KEYS
+    }
 
-    for item in response:
-        key = item.get("key")
-        if key in ["welcome_messages_title", "welcome_messages", "welcome_messages_footer"]:
-            welcome_data[key] = item.get("value")
-
-    if not response:
+    if not welcome_data:
         cogs = cache.get_cog_data_or_populate(interaction.guild.id, constants.WELCOME_MESSAGES_KEY)
+        if not cogs:
+            return
         welcome_data = {
-            "welcome_messages_title": cogs["welcome_messages_title"],
-            "welcome_messages": cogs["welcome_messages"].get("values"),
-            "welcome_messages_footer": cogs["welcome_messages_footer"]
+            "welcome_messages_title": cogs.get("welcome_messages_title"),
+            "welcome_messages": cogs.get("welcome_messages", {}).get("values") if isinstance(cogs.get("welcome_messages"), dict) else cogs.get("welcome_messages"),
+            "welcome_messages_footer": cogs.get("welcome_messages_footer"),
+            "welcome_design": cogs.get("welcome_design", "server_blur"),
+            "welcome_custom_image": cogs.get("welcome_custom_image"),
         }
 
     title = welcome_data.get("welcome_messages_title")
     messages = welcome_data.get("welcome_messages")
-    footer = welcome_data.get("welcome_messages_footer")
+    footer = welcome_data.get("welcome_messages_footer") or ""
+    design = welcome_data.get("welcome_design", "server_blur")
+    custom_image = welcome_data.get("welcome_custom_image")
 
-    if not title or not messages or not footer:
+    if not title or not messages:
         return
 
-    welcome_message = parse_welcome_messages(messages, interaction.user)
-    embed_message = await create_welcome_message(interaction.user, title, welcome_message, footer)
+    member = interaction.user
+    if not isinstance(member, discord.Member):
+        member = interaction.guild.get_member(interaction.user.id)
+
+    if not member:
+        return
+
+    welcome_message = parse_welcome_messages(messages, member)
+    embed_message = await create_welcome_message(
+        member, title, welcome_message, footer,
+        design=design, custom_image=custom_image
+    )
 
     await interaction.followup.send(embed=embed_message, ephemeral=True)
 

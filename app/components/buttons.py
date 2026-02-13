@@ -25,8 +25,9 @@ class CancelButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        self.view.clear_items()
-        await interaction.response.edit_message(view=self.view)
+        view = self.view
+        view.clear_items()
+        await interaction.response.edit_message(view=view)
 
 
 class OptionsButton(discord.ui.Button):
@@ -105,11 +106,13 @@ class EditButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         from app.views.edit import EditCommand
 
-        self.view.clear_items()
+        parent_view = self.view
+        parent_view.clear_items()
 
-        view = EditCommand(self.view.command_key, self.view.cogs or self.view._parse_responses_to_cog(), self.locale, self.after_callback)
-        self.view.edited_form_view = view.form_view
+        view = EditCommand(parent_view.command_key, parent_view.cogs or parent_view._parse_responses_to_cog(), self.locale, self.after_callback)
+        parent_view.edited_form_view = view.form_view
         embed = interaction.message.embeds[0]
+        parent_view._original_embed = embed
 
         await interaction.response.edit_message(embed=embed, view=view)
 
@@ -137,14 +140,15 @@ class PreviewButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> Any:
-        self.view.remove_item(self)
+        view = self.view
+        view.remove_item(self)
 
-        await interaction.response.edit_message(view=self.view)
+        await interaction.response.edit_message(view=view)
 
-        if not hasattr(self.view, "responses"):
+        if not hasattr(view, "responses"):
             responses = []
         else:
-            responses = self.view.responses
+            responses = view.responses
 
         await self.custom_callback(interaction, responses)
 
@@ -230,9 +234,10 @@ class RemoveItemButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         from app.views.remove import RemoveItem
 
-        self.view.clear_items()
+        parent_view = self.view
+        parent_view.clear_items()
 
-        view = RemoveItem(self.view.command_key, self.view.cogs or self.view._parse_responses_to_cog(), self.locale, self.after_callback)
+        view = RemoveItem(parent_view.command_key, parent_view.cogs or parent_view._parse_responses_to_cog(), self.locale, self.after_callback)
         embed = interaction.message.embeds[0]
 
         await interaction.response.edit_message(embed=embed, view=view)
@@ -252,13 +257,14 @@ class AddItemButton(discord.ui.Button):
         from app.constants import Commands as constants
         from app.views.form import Form
 
-        self.view.clear_items()
+        parent_view = self.view
+        parent_view.clear_items()
 
-        view = Form(self.view.command_key, self.locale, cogs=self.view.cogs or self.view._parse_responses_to_cog())
-        view.filter_steps(constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.view.command_key])
+        view = Form(parent_view.command_key, self.locale, cogs=parent_view.cogs or parent_view._parse_responses_to_cog())
+        view.filter_steps(constants.COMMAND_KEY_TO_COMPOSITION_KEY[parent_view.command_key])
         view._set_after_callback(self.after_callback)
 
-        self.view.form_view = view
+        parent_view.form_view = view
 
         await view._callback(interaction)
 
@@ -274,7 +280,8 @@ class HelpButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> Any:
-        self.view.remove_item(self)
+        view = self.view
+        view.remove_item(self)
 
         embed = discord.Embed(
             title=f"🙋 {ml('buttons.help.label', self.locale)}",
@@ -282,7 +289,7 @@ class HelpButton(discord.ui.Button):
         )
         embed.set_thumbnail(url=icons.IMAGE_02)
 
-        for item in self.view.children:
+        for item in view.children:
             if not isinstance(item, discord.ui.Button):
                 continue
 
@@ -293,12 +300,12 @@ class HelpButton(discord.ui.Button):
             )
 
         await interaction.response.edit_message(
-            embed=interaction.message.embeds[0], view=self.view
+            embed=interaction.message.embeds[0], view=view
         )
 
-        self.view.clear_items()
+        view.clear_items()
 
-        await interaction.followup.send(embed=embed, view=self.view, ephemeral=True)
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
 
 class AdditionalButton(discord.ui.Button):
@@ -310,14 +317,15 @@ class AdditionalButton(discord.ui.Button):
         super().__init__(**kwargs)
 
     async def callback(self, interaction: discord.Interaction) -> Any:
+        view = self.view
         if self.auto_disable:
-            self.view.remove_item(self)
+            view.remove_item(self)
 
         if self.defer:
             await interaction.response.defer()
-            await interaction.edit_original_response(view=self.view)
+            await interaction.edit_original_response(view=view)
         else:
-            await interaction.response.edit_message(view=self.view)
+            await interaction.response.edit_message(view=view)
 
         await self.custom_callback(interaction)
 

@@ -228,3 +228,185 @@ class TestWelcomeMessagesEdgeCases:
         # BUG: Codigo falha com AttributeError quando messages e None
         with pytest.raises(AttributeError):
             await send_welcome_message(new_member)
+
+
+class TestWelcomeMessagesDesign:
+    """Testes de design de banner de boas-vindas."""
+
+    @pytest.mark.asyncio
+    async def test_sends_message_with_custom_design(
+        self, mock_cache, mock_banner, mongodb, guild, bot, channel
+    ):
+        """
+        Verifica que mensagem e enviada com design customizado.
+
+        Input: Configuracao com welcome_design=custom_blur
+        Output: Embed enviado com banner customizado
+        """
+        # Arrange
+        new_member = create_member(guild, id=999, name="NewUser")
+        new_member._user = MagicMock()
+        new_member._user.id = 999
+
+        mock_cache.return_value = {
+            "welcome_messages_channel": {"values": str(channel.id)},
+            "welcome_messages": {"values": "Welcome {user}!"},
+            "welcome_messages_title": "Welcome!",
+            "welcome_messages_footer": "Enjoy!",
+            "welcome_design": "custom_blur",
+            "welcome_custom_image": "https://example.com/custom.png"
+        }
+
+        # Act
+        await send_welcome_message(new_member)
+
+        # Assert
+        channel.assert_message_sent()
+        mock_banner.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_sends_message_with_custom_only_design(
+        self, mock_cache, mongodb, guild, bot, channel
+    ):
+        """
+        Verifica que custom_only design usa imagem sem gerar banner.
+
+        Input: Configuracao com welcome_design=custom_only
+        Output: Embed enviado com imagem customizada como banner
+        """
+        # Arrange
+        new_member = create_member(guild, id=999, name="NewUser")
+        new_member._user = MagicMock()
+        new_member._user.id = 999
+
+        mock_cache.return_value = {
+            "welcome_messages_channel": {"values": str(channel.id)},
+            "welcome_messages": {"values": "Welcome {user}!"},
+            "welcome_messages_title": "Welcome!",
+            "welcome_messages_footer": "Enjoy!",
+            "welcome_design": "custom_only",
+            "welcome_custom_image": "https://example.com/custom.gif"
+        }
+
+        # Act
+        await send_welcome_message(new_member)
+
+        # Assert
+        channel.assert_message_sent()
+        embed = channel.get_last_embed()
+        assert embed is not None
+
+    @pytest.mark.asyncio
+    async def test_defaults_to_server_blur_design(
+        self, mock_cache, mock_banner, mongodb, guild, bot, channel
+    ):
+        """
+        Verifica que design padrao e server_blur quando nao especificado.
+
+        Input: Configuracao sem welcome_design
+        Output: Usa server_blur (gera banner com icone do servidor)
+        """
+        # Arrange
+        new_member = create_member(guild, id=999, name="NewUser")
+        new_member._user = MagicMock()
+        new_member._user.id = 999
+
+        mock_cache.return_value = {
+            "welcome_messages_channel": {"values": str(channel.id)},
+            "welcome_messages": {"values": "Welcome {user}!"},
+            "welcome_messages_title": "Welcome!",
+            "welcome_messages_footer": "Enjoy!"
+        }
+
+        # Act
+        await send_welcome_message(new_member)
+
+        # Assert
+        channel.assert_message_sent()
+        mock_banner.assert_called_once()
+
+
+class TestGenerateDesignPreviews:
+    """Testes para geracao de previews de design."""
+
+    @pytest.mark.asyncio
+    async def test_generates_preview_for_each_design(
+        self, mock_banner, guild
+    ):
+        """
+        Verifica que previews sao gerados para cada design.
+
+        Input: Lista de 3 designs
+        Output: Dict com preview URL para cada design
+        """
+        from app.services.welcome_messages import generate_design_previews
+        from app.constants import WelcomeDesign
+
+        # Arrange
+        member = create_member(guild, id=999, name="TestUser")
+        designs = [
+            {"key": "server_blur"},
+            {"key": "custom_blur"},
+            {"key": "custom_only"},
+        ]
+
+        # Act
+        previews = await generate_design_previews(member, designs)
+
+        # Assert
+        assert "server_blur" in previews
+        assert "custom_blur" in previews
+        assert "custom_only" in previews
+        assert previews["custom_only"] == WelcomeDesign.CUSTOM_ONLY_PREVIEW
+
+    @pytest.mark.asyncio
+    async def test_handles_unknown_design_key(
+        self, mock_banner, guild
+    ):
+        """
+        Verifica que design desconhecido e ignorado sem erro.
+
+        Input: Design com key desconhecido
+        Output: Preview nao incluido, sem excecao
+        """
+        from app.services.welcome_messages import generate_design_previews
+
+        # Arrange
+        member = create_member(guild, id=999, name="TestUser")
+        designs = [
+            {"key": "unknown_design"},
+        ]
+
+        # Act
+        previews = await generate_design_previews(member, designs)
+
+        # Assert
+        assert "unknown_design" not in previews
+
+    @pytest.mark.asyncio
+    async def test_handles_banner_generation_error(
+        self, guild
+    ):
+        """
+        Verifica que erro na geracao de banner e tratado graciosamente.
+
+        Input: create_banner levanta excecao
+        Output: Preview nao incluido, sem excecao propagada
+        """
+        from unittest.mock import patch
+        from app.services.welcome_messages import generate_design_previews
+
+        # Arrange
+        member = create_member(guild, id=999, name="TestUser")
+        designs = [{"key": "server_blur"}]
+
+        with patch('app.services.welcome_messages.create_banner') as mock_banner, \
+             patch('app.services.welcome_messages.logger') as mock_logger:
+            mock_banner.side_effect = Exception("Banner generation failed")
+
+            # Act
+            previews = await generate_design_previews(member, designs)
+
+            # Assert
+            assert "server_blur" not in previews
+            mock_logger.warn.assert_called_once()

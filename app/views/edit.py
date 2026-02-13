@@ -28,7 +28,30 @@ class EditCommand(discord.ui.View):
         self.max_length = self.parse_composition(form_steps)
 
         steps_titles = parse_form_steps_titles(form_steps, self.locale)
+        steps_titles = self.filter_conditional_steps(form_steps, steps_titles)
+
         return self.generate_options(steps_titles, self.max_length)
+
+    def filter_conditional_steps(self, form_steps: list, steps_titles: dict) -> dict:
+        """Remove steps from edit options if their condition is not met."""
+        filtered = steps_titles.copy()
+
+        for step in form_steps:
+            condition = step.get("condition")
+            if not condition:
+                continue
+
+            key = condition.get("key")
+            not_in = condition.get("not_in", [])
+
+            current_value = self.form_view.cogs.get(key) if self.form_view.cogs else None
+
+            if current_value in not_in:
+                step_key = step.get("key")
+                if step_key in filtered:
+                    del filtered[step_key]
+
+        return filtered
 
     def parse_composition(self, form_steps: List[Dict[str, Any]]) -> int:
         for item in form_steps:

@@ -27,6 +27,93 @@ steps:
       en-us: "• Use the command /report to tell me a bug"
       pt-br: "• Use o comando /reportar para me contar um bug"
 
+  - action: design_select
+    key: welcome_design
+    required: true
+    title:
+      en-us: "Banner Design"
+      pt-br: "Design do Banner"
+    description:
+      en-us: "Choose your welcome banner style"
+      pt-br: "Escolha o estilo do banner de boas-vindas"
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Use o comando /reportar para me contar um bug"
+    designs:
+      - key: server_blur
+        label:
+          en-us: "Server Image"
+          pt-br: "Imagem do Servidor"
+        description:
+          en-us: "Server icon as background with blur effect and your avatar centered"
+          pt-br: "Ícone do servidor de fundo com efeito blur e seu avatar centralizado"
+      - key: custom_blur
+        label:
+          en-us: "Custom with Blur"
+          pt-br: "Personalizada com Blur"
+        description:
+          en-us: "Your custom image as background with blur effect and avatar centered"
+          pt-br: "Sua imagem personalizada de fundo com efeito blur e avatar centralizado"
+      - key: custom_only
+        label:
+          en-us: "Custom Image Only"
+          pt-br: "Apenas Imagem Personalizada"
+        description:
+          en-us: "Your custom image/gif as banner, avatar shown as thumbnail. Like the example below :)"
+          pt-br: "Sua imagem/gif personalizada como banner, avatar como thumbnail. Como no exemplo abaixo: :)"
+
+  - action: file_upload
+    key: welcome_custom_image
+    required: true
+    condition:
+      key: welcome_design
+      not_in:
+        - server_blur
+    modal_title:
+      en-us: "📷 Upload Custom Image"
+      pt-br: "📷 Enviar Imagem Personalizada"
+    title:
+      en-us: "Custom Image"
+      pt-br: "Imagem Personalizada"
+    description:
+      en-us: "Upload your custom banner image"
+      pt-br: "Envie sua imagem personalizada para o banner"
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Use o comando /reportar para me contar um bug"
+
+  - action: button
+    key: question_welcome_messages
+    emoji: "🎉"
+    title:
+      en-us: Welcome Messages
+      pt-br: Mensagens de Boas-Vindas
+    description:
+      en-us: "In the next step, you can customize the welcome messages that I will send to new members. Read the following notes carefully:"
+      pt-br: "No próximo passo, você poderá personalizar as mensagens de boas-vindas que enviarei aos novos membros. Leia com atenção as seguintes observações:"
+    footer:
+      en-us: "• Use the command /report to tell me a bug"
+      pt-br: "• Use o comando /reportar para me contar um bug"
+    fields:
+      en-us:
+        - title: "1. Title"
+          message: "The title appears at the top of the welcome message embed"
+        - title: "2. Random messages"
+          message: "Whenever a member joins the server, one of the configured messages will be randomly chosen. You can configure up to 3 welcome messages. If you want less than 3, leave the other fields blank"
+        - title: "3. Footer"
+          message: "The footer appears at the bottom of the welcome message embed"
+        - title: "4. Variables"
+          message: "You can use the following variables in your message:\n- `{user}`: User mention\n- `{server}`: Server name\n- `{member_count}`: Number of server members"
+      pt-br:
+        - title: "1. Título"
+          message: "O título aparece no topo do embed da mensagem de boas-vindas"
+        - title: "2. Mensagens aleatórias"
+          message: "Sempre que um membro entrar no servidor, uma das mensagens configuradas será aleatoriamente escolhida. Você poderá configurar até 3 mensagens de boas-vindas. Caso queira menos de 3, deixe os outros campos em branco"
+        - title: "3. Rodapé"
+          message: "O rodapé aparece na parte inferior do embed da mensagem de boas-vindas"
+        - title: "4. Variáveis"
+          message: "Você pode utilizar as seguintes variáveis em sua mensagem:\n- `{user}`: Menção do usuário\n- `{server}`: Nome do servidor\n- `{member_count}`: Quantidade de membros do servidor"
+
   - action: modal
     key: welcome_messages
     style: bullet

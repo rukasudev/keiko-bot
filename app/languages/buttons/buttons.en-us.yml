@@ -1,9 +1,4 @@
 en-us:
-  components:
-    select:
-      channel-placeholder: Select a channel...
-      role-placeholder: Select a role...
-
   confirm:
     label: Confirm
     desc: Confirm the action
@@ -64,6 +59,18 @@ en-us:
     desc: See the history of changes made to the feature settings
 
 
+  select:
+    label: Select
+    desc: Select an option
+
+  continue:
+    label: Continue
+    desc: Continue to next step
+
+  file-upload:
+    label: Image    
+
+
   roles-sync:
     label: Sync
     desc: Keiko immediately assigns the default roles to all server users
@@ -81,3 +88,12 @@ en-us:
     label: 📜 Changes history
     desc: "See the history of changes made to the feature **$cog_key**:"
     bot-event: This is a default action taken by Keiko when leaving the server
+
+  components:
+    select:
+      channel-placeholder: Select a channel...
+      role-placeholder: Select a role...
+    design-select:
+      header: "⬇️ Select one of the 3 designs below:"
+      footer: "⬆️ Scroll up to see all options"
+

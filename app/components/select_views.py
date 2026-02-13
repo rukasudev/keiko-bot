@@ -1,3 +1,4 @@
+from io import BytesIO
 from typing import Callable, Dict
 
 import discord
@@ -155,3 +156,134 @@ class MultiSelectView(discord.ui.View):
                     "style": self.select_styles.get(key)
                 }
         return result
+
+
+class DesignSelectView(discord.ui.LayoutView):
+    def __init__(self, callback: Callable, locale: str, designs: list, back_callback: Callable = None, preview_urls: dict = None):
+        super().__init__(timeout=1800)
+        self.custom_callback = callback
+        self.locale = locale
+        self.response: Dict[str, str] = {}
+        self._designs = designs
+        self._back_callback = back_callback
+        self._preview_urls = preview_urls or {}
+        self._selection_made = False
+
+        container = discord.ui.Container(accent_colour=discord.Colour.blurple())
+
+        header_text = ml("buttons.components.design-select.header", locale=locale) or "Select one of the 3 designs below:"
+        container.add_item(discord.ui.TextDisplay(header_text))
+        container.add_item(discord.ui.Separator())
+
+        for i, design in enumerate(designs):
+            label = design["label"].get(locale) or design["label"].get("en-us", "")
+            desc = design["description"].get(locale) or design["description"].get("en-us", "")
+            preview_url = self._preview_urls.get(design["key"]) or design.get("preview_url")
+
+            select_label = ml("buttons.select.label", locale=locale) or "Select"
+            btn = discord.ui.Button(
+                label=select_label,
+                custom_id=f"design_{design['key']}",
+                style=discord.ButtonStyle.primary,
+            )
+
+            container.add_item(discord.ui.TextDisplay(f"**{label}**\n{desc}"))
+
+            if preview_url:
+                gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(media=preview_url))
+                container.add_item(gallery)
+
+            container.add_item(discord.ui.ActionRow(btn))
+
+            if i < len(designs) - 1:
+                container.add_item(discord.ui.Separator())
+
+        container.add_item(discord.ui.Separator())
+        footer_text = ml("buttons.components.design-select.footer", locale=locale) or "Scroll up to see all options"
+        container.add_item(discord.ui.TextDisplay(footer_text))
+        container.add_item(discord.ui.Separator())
+
+        buttons = []
+        cancel_btn = discord.ui.Button(
+            label=ml("buttons.cancel.label", locale=locale) or "Cancel",
+            style=discord.ButtonStyle.danger,
+            custom_id="cancel_design"
+        )
+        buttons.append(cancel_btn)
+
+        if back_callback:
+            back_btn = discord.ui.Button(
+                label=ml("buttons.back.label", locale=locale) or "Back",
+                style=discord.ButtonStyle.secondary,
+                custom_id="back_design"
+            )
+            buttons.append(back_btn)
+
+        action_row = discord.ui.ActionRow(*buttons)
+        container.add_item(action_row)
+
+        self.add_item(container)
+
+    async def interaction_check(self, interaction: discord.Interaction) -> bool:
+        custom_id = interaction.data.get("custom_id", "")
+
+        if custom_id == "cancel_design":
+            await interaction.response.edit_message(
+                content=ml("buttons.cancel.cancelled", locale=self.locale) or "Cancelled.",
+                view=None
+            )
+            self.stop()
+            return False
+
+        if custom_id == "back_design" and self._back_callback:
+            await self._back_callback(interaction)
+            return False
+
+        if custom_id.startswith("design_"):
+            key = custom_id.replace("design_", "")
+            design = next((d for d in self._designs if d["key"] == key), None)
+            if design:
+                label = design["label"].get(self.locale) or design["label"].get("en-us", "")
+                self.response = {key: label}
+                await self.custom_callback(interaction, reselection=self._selection_made)
+                self._selection_made = True
+                return False
+
+        return True
+
+    def get_response(self):
+        return list(self.response.keys())[0] if self.response else None
+
+
+class FileUploadModal(discord.ui.Modal):
+    def __init__(self, callback: Callable, locale: str, title: str = None):
+        super().__init__(title=title, timeout=300)
+        self.custom_callback = callback
+        self.locale = locale
+        self._response = None
+
+        label_text = ml("buttons.file-upload.label", locale=locale) or "Image"
+        self.file_upload = discord.ui.FileUpload(custom_id="custom_image_upload")
+        label = discord.ui.Label(text=label_text, component=self.file_upload)
+        self.add_item(label)
+
+    async def on_submit(self, interaction: discord.Interaction):
+        if self.file_upload.values:
+            attachment = self.file_upload.values[0]
+            permanent_url = await self._upload_to_dump_channel(attachment)
+            self._response = permanent_url
+        await self.custom_callback(interaction)
+
+    async def _upload_to_dump_channel(self, attachment: discord.Attachment) -> str:
+        """Upload arquivo para dump_channel para obter URL permanente."""
+        from app import bot
+
+        file_bytes = await attachment.read()
+        dump_channel = bot.get_channel(bot.config.ADMIN_DUMP_CHANNEL_ID)
+        message = await dump_channel.send(
+            file=discord.File(fp=BytesIO(file_bytes), filename=attachment.filename)
+        )
+        return message.attachments[0].url
+
+    def get_response(self):
+        return self._response

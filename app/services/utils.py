@@ -177,9 +177,34 @@ def parse_settings_with_database_values(cog_data: Dict[str, str], form_steps: Di
     response = []
     cogs_title = parse_form_steps_titles(form_steps, locale)
 
+    # Build maps for step conditions and design options
+    step_conditions = {}
+    design_options = {}
+    for step in form_steps:
+        if step.get("condition"):
+            step_conditions[step.get("key")] = step.get("condition")
+        if step.get("action") == formconstants.DESIGN_SELECT_ACTION_KEY and step.get("designs"):
+            design_options[step.get("key")] = {
+                d["key"]: d["label"].get(locale) or d["label"].get("en-us", d["key"])
+                for d in step.get("designs", [])
+            }
+
     for cog_key, value in cog_data.items():
         if not cogs_title.get(cog_key):
             continue
+
+        # Skip settings that don't meet their condition
+        condition = step_conditions.get(cog_key)
+        if condition:
+            condition_key = condition.get("key")
+            not_in = condition.get("not_in", [])
+            current_value = cog_data.get(condition_key)
+            if current_value in not_in:
+                continue
+
+        # Convert design key to friendly label
+        if cog_key in design_options and isinstance(value, str):
+            value = design_options[cog_key].get(value, value)
 
         if isinstance(value, dict) and value.get("style") == "composition":
             value = parse_settings_with_database_values_composition(form_steps, locale, value["values"])

@@ -23,7 +23,6 @@ class FormStateManager:
     def can_go_back(self) -> bool:
         if self.step_index <= 0:
             return False
-        # Don't allow going back to "form" step (it's just the initial embed)
         prev_step = self.steps_list[self.step_index - 1]
         return prev_step.get("action") != "form"
 
@@ -102,7 +101,6 @@ class FormStateManager:
         for value in self._previous_response:
             view.response[value] = value
 
-        # Pre-fill native Discord selects with default_values
         if hasattr(view, 'channel_select') and self._previous_response:
             view.channel_select.default_values = [
                 SelectDefaultValue(id=int(v), type=SelectDefaultValueType.channel)
@@ -131,11 +129,9 @@ class FormStateManager:
 
             style = data.get("style") or view.select_styles.get(key, "")
 
-            # Restore response dict
             for v in values:
                 view.responses[key][v] = v
 
-            # Set default_values on the select component
             select = view.selects[key]
             if style == "channel":
                 select.default_values = [
@@ -148,4 +144,20 @@ class FormStateManager:
                     for v in values if v
                 ]
 
+        return True
+
+    def fill_design_select(self, view: discord.ui.View) -> bool:
+        """Fills the DesignSelectView with the previous response. Returns True if filled."""
+        if not self._previous_response:
+            return False
+        for value in self._previous_response:
+            view.response[value] = value
+        return True
+
+    def fill_file_upload(self, view: discord.ui.View) -> bool:
+        """Fills the FileUploadView with the previous response. Returns True if filled."""
+        if not self._previous_response:
+            return False
+        if hasattr(view, '_response'):
+            view._response = self._previous_response[0]
         return True

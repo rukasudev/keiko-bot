@@ -151,8 +151,24 @@ class FormConstants:
     FORM_ACTION_KEY: Final[str] = "form"
     COMPOSITION_ACTION_KEY: Final[str] = "composition"
     MULTI_SELECT_ACTION_KEY: Final[str] = "multi_select"
+    DESIGN_SELECT_ACTION_KEY: Final[str] = "design_select"
+    FILE_UPLOAD_ACTION_KEY: Final[str] = "file_upload"
 
     NO_ACTION_LIST: Final[List[str]] = [FORM_ACTION_KEY, BUTTON_ACTION_KEY, RESUME_ACTION_KEY]
+
+
+class WelcomeDesign:
+    CUSTOM_BLUR_PREVIEW: Final[str] = "https://i.ibb.co/yBnKHC5p/04af360692ff269044c6de5a30bd45e4.gif"
+    CUSTOM_ONLY_PREVIEW: Final[str] = "https://i.ibb.co/hxBscZDB/REC-20260213104214-ezgif-com-video-to-gif-converter.gif"
+    DEFAULT_ICON: Final[str] = "https://i.sstatic.net/41v2I.png"
+
+    PREVIEW_DATA_KEYS: Final[List[str]] = [
+        "welcome_messages_title",
+        "welcome_messages",
+        "welcome_messages_footer",
+        "welcome_design",
+        "welcome_custom_image",
+    ]
 
 
 class KeikoIcons:

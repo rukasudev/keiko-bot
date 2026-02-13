@@ -10,6 +10,7 @@ import app
 from app.bot import DiscordBot
 from app.cogs.admin.cogs import Cogs
 from app.cogs.admin.configs import Configs
+from app.cogs.admin.debug import Debug
 from app.cogs.admin.subscriptions import Subscriptions
 from app.cogs.admin.sync import Sync
 from app.logger import DiscordLogsHandler
@@ -133,6 +134,7 @@ async def setup(bot: DiscordBot) -> None:
     admin = Admin(bot)
 
     admin.app_command.add_command(Cogs(bot))
+    admin.app_command.add_command(Debug(bot))
     admin.app_command.add_command(Sync(bot))
     admin.app_command.add_command(Configs(bot))
     admin.app_command.add_command(Subscriptions(bot))

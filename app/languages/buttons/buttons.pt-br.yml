@@ -1,8 +1,4 @@
 pt-br:
-  components:
-    select:
-      channel-placeholder: Selecione um canal...
-      role-placeholder: Selecione um cargo...
 
   confirm:
     label: Confirmar
@@ -63,6 +59,16 @@ pt-br:
     label: Histórico
     desc: Veja o histórico de alterações feitas nas configurações da funcionalidade
 
+  select:
+    label: Selecionar
+    desc: Selecione uma opção
+
+  continue:
+    label: Continuar
+    desc: Continue para o próximo passo
+
+  file-upload:
+    label: Imagem
 
   roles-sync:
     label: Sincronizar
@@ -81,3 +87,11 @@ pt-br:
     label: 📜 Histórico de alterações
     desc: "Veja o histórico de alterações feitas na funcionalidade **$cog_key**:"
     bot-event: Essa é uma ação padrão feita por Keiko ao sair do servidor
+
+  components:
+    select:
+      channel-placeholder: Selecione um canal...
+      role-placeholder: Selecione um cargo...
+    design-select:
+      header: "⬇️ Selecione um dos 3 designs abaixo:"
+      footer: "⬆️ Role para cima para ver todas as opções"

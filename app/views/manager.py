@@ -13,6 +13,7 @@ from app.components.buttons import (
     UnpauseButton,
 )
 from app.constants import Commands as constants
+from app.constants import KeikoIcons as icons
 from app.constants import LogTypes as logconstants
 from app.services.cogs import (
     delete_cog_by_guild,
@@ -73,16 +74,26 @@ class Manager(discord.ui.View):
 
         update_cog_by_guild(interaction.guild_id, self.command_key, data)
 
-        embed = interaction.message.embeds[0]
+        if hasattr(self, "_original_embed"):
+            embed = self._original_embed
+        elif interaction.message.embeds:
+            embed = interaction.message.embeds[0]
+        else:
+            from app.constants import Style as style_constants
+            embed = discord.Embed(color=int(style_constants.BACKGROUND_COLOR, base=16))
+            footer_text = ml("buttons.footer.report", locale=self.locale) or "Use the command /report to tell me a bug"
+            embed.set_footer(text=f"• {footer_text}")
+
         embed.clear_fields()
 
         embed.title = ml("commands.command-events.edited.title", locale=self.locale)
         embed.description = parse_command_event_description(
             ml("commands.command-events.edited.description", locale=self.locale),
-            interaction.message.edited_at,
+            interaction.message.edited_at or interaction.message.created_at,
             self.interaction,
             self.command_key,
         )
+        embed.set_thumbnail(url=icons.IMAGE_02)
 
         insert_cog_event(
             str(interaction.guild_id),
@@ -93,7 +104,8 @@ class Manager(discord.ui.View):
         )
 
         view = self.edited_form_view.view
-        view.clear_items()
+        if view:
+            view.clear_items()
 
         logger.info(
             f"Command edited: **{self.command_key}**",
@@ -102,7 +114,11 @@ class Manager(discord.ui.View):
             interaction=interaction,
         )
 
-        await interaction.followup.edit_message(interaction.message.id, view=self)
+        try:
+            await interaction.followup.delete_message(interaction.message.id)
+        except Exception:
+            pass
+
         await interaction.followup.send(embed=embed, view=self)
 
     def pause_handler(self) -> discord.ui.Button:

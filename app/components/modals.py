@@ -36,16 +36,29 @@ class CustomModal(discord.ui.Modal):
         self.add_fields(config, style)
 
     def add_fields(self, config: Dict[str, Any], style: Any) -> None:
-        for i, field in enumerate(config.get("fields")):
+        fields = config.get("fields")
+
+        label_counts = {}
+        if config.get("enumerate", False):
+            for field in fields:
+                label = self.get_config_by_locale(field, "label")
+                label_counts[label] = label_counts.get(label, 0) + 1
+
+        label_indices = {}
+
+        for field in fields:
             default = self.get_config_by_locale(field, "default")
 
             if field.get("key"):
                 self.field_keys.append(field.get("key"))
 
-            if config.get("enumerate", False):
-                label_text = f"{self.get_config_by_locale(field, 'label')} #{i+1}"
+            label = self.get_config_by_locale(field, "label")
+
+            if config.get("enumerate", False) and label_counts.get(label, 0) > 1:
+                label_indices[label] = label_indices.get(label, 0) + 1
+                label_text = f"{label} #{label_indices[label]}"
             else:
-                label_text = self.get_config_by_locale(field, "label")
+                label_text = label
 
             description = self.get_config_by_locale(field, "description")
             placeholder = self.get_config_by_locale(field, "placeholder") or default

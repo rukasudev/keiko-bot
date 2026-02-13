@@ -1,4 +1,5 @@
-from typing import Any, Callable, Dict, Generator, List, Union
+import asyncio
+from typing import Any, Callable, Dict, Generator, List, Optional, Union
 
 import discord
 
@@ -12,7 +13,7 @@ from app.components.buttons import (
     PreviewButton,
     RemoveItemButton,
 )
-from app.components.select_views import ChannelSelectView, RoleSelectView, MultiSelectView
+from app.components.select_views import ChannelSelectView, RoleSelectView, MultiSelectView, DesignSelectView, FileUploadModal
 from app.components.embed import parse_form_dict_to_embed
 from app.components.modals import CustomModal
 from app.constants import Commands as commandconstants
@@ -54,6 +55,7 @@ class Form(discord.ui.View):
         self.state = FormStateManager(list(self._get_steps(steps)))
         self.cogs = cogs
         self.responses = []
+        self._using_layout_view = False
         super().__init__(timeout=1800)
         self.add_item(ConfirmButton(callback=self._callback, locale=locale))
         self.add_item(CancelButton(locale=locale))
@@ -77,8 +79,12 @@ class Form(discord.ui.View):
 
             self._step = self.state.current_step
 
-            # Skip "form" action; it's just the initial embed, not an interactive step
             if self._step.get("action") == constants.FORM_ACTION_KEY:
+                if not self.state.advance():
+                    return await self._after_callback(args)
+                self._step = self.state.current_step
+
+            while self._should_skip_step():
                 if not self.state.advance():
                     return await self._after_callback(args)
                 self._step = self.state.current_step
@@ -88,10 +94,70 @@ class Form(discord.ui.View):
 
         return update_counter
 
+    def _should_skip_step(self) -> bool:
+        """Check if current step should be skipped based on conditions."""
+        condition = self._step.get("condition")
+        if not condition:
+            return False
+
+        key = condition.get("key")
+        not_in = condition.get("not_in", [])
+
+        response = next((r for r in self.responses if r["key"] == key), None)
+        if response:
+            value = response.get("_raw_value", response.get("value"))
+        else:
+            value = None
+        return value in not_in
+
+    def _should_skip_step_on_back(self) -> bool:
+        """Check if current step should be skipped when navigating back.
+
+        Pula steps de modal porque não possuem botão de voltar.
+        """
+        if self._should_skip_step():
+            return True
+        action = self._step.get("action")
+        return action in (constants.MODAL_ACTION_KEY, constants.FILE_UPLOAD_ACTION_KEY)
+
     async def _after_callback(self, interaction):
         if not hasattr(self, "after_callback"):
             return
         return await self.after_callback(interaction)
+
+    def _start_preview_pregeneration(self, interaction: discord.Interaction) -> None:
+        """Inicia pre-geração de design previews em background para welcome_messages."""
+        if self.command_key != commandconstants.WELCOME_MESSAGES_KEY:
+            return
+        if hasattr(self, '_preview_task'):
+            return
+
+        self._preview_task = asyncio.create_task(
+            self._pregenerate_design_previews(interaction)
+        )
+
+    async def _pregenerate_design_previews(
+        self, interaction: discord.Interaction
+    ) -> Dict[str, str]:
+        """Pre-generate design previews em background para fluxo welcome_messages."""
+        from app.services.welcome_messages import generate_design_previews
+
+        member = interaction.user
+        if not isinstance(member, discord.Member):
+            member = interaction.guild.get_member(interaction.user.id)
+
+        if not member:
+            return {}
+
+        design_step = next(
+            (s for s in self.state.steps_list if s.get("action") == constants.DESIGN_SELECT_ACTION_KEY),
+            None
+        )
+        if not design_step:
+            return {}
+
+        designs = design_step.get("designs", [])
+        return await generate_design_previews(member, designs)
 
     def _set_after_callback(self, after_callback: Callable):
         self.after_callback = after_callback
@@ -103,27 +169,51 @@ class Form(discord.ui.View):
         if self._get_step_item("action") == constants.BUTTON_ACTION_KEY:
             return True
 
-        if self._get_step_item("action") == constants.MODAL_ACTION_KEY and not self.view.get_response():
+        action = self._get_step_item("action")
+        if action in (constants.MODAL_ACTION_KEY, constants.FILE_UPLOAD_ACTION_KEY) and not self.view.get_response():
             return
 
         return self._save_step_response()
+
+    def _upsert_response(self, response_data: Dict[str, Any]) -> None:
+        """Atualiza resposta existente ou adiciona nova."""
+        key = response_data.get("key")
+        for i, existing in enumerate(self.responses):
+            if existing.get("key") == key:
+                self.responses[i] = response_data
+                return
+        self.responses.append(response_data)
 
     def _save_step_response(self):
         response = self.view.get_response()
         self.state.save_response(response, self._step)
 
+        if self._get_step_item("action") == constants.DESIGN_SELECT_ACTION_KEY:
+            designs = self._get_step_item("designs", [])
+            design = next((d for d in designs if d["key"] == response), None)
+            if design:
+                label = design["label"].get(self.locale) or design["label"].get("en-us", response)
+                self._upsert_response({
+                    "key": self._get_step_item("key"),
+                    "title": self._get_step_item("title"),
+                    "value": label,
+                    "style": None,
+                    "_raw_value": response,
+                })
+                return self.responses
+
         if self._get_step_item("action") == constants.MULTI_SELECT_ACTION_KEY:
             if isinstance(response, dict):
                 for key, data in response.items():
                     if isinstance(data, dict):
-                        self.responses.append({
+                        self._upsert_response({
                             "key": key,
                             "title": key,
                             "value": data.get("values"),
                             "style": data.get("style"),
                         })
                     else:
-                        self.responses.append({
+                        self._upsert_response({
                             "key": key,
                             "title": key,
                             "value": data,
@@ -139,7 +229,7 @@ class Form(discord.ui.View):
                 if field_key and field_key in response:
                     label = field.get("label", {})
                     title = label.get(self.locale) if isinstance(label, dict) else field_key
-                    self.responses.append({
+                    self._upsert_response({
                         "key": field_key,
                         "title": title,
                         "value": response[field_key],
@@ -147,7 +237,7 @@ class Form(discord.ui.View):
                     })
 
             if "__concat__" in response:
-                self.responses.append({
+                self._upsert_response({
                     "key": self._get_step_item("key"),
                     "title": self._get_step_item("title"),
                     "value": response["__concat__"],
@@ -156,14 +246,12 @@ class Form(discord.ui.View):
 
             return self.responses
 
-        self.responses.append(
-            {
-                "key": self._get_step_item("key"),
-                "title": self._get_step_item("title"),
-                "value": response,
-                "style": self._get_step_item("style"),
-            }
-        )
+        self._upsert_response({
+            "key": self._get_step_item("key"),
+            "title": self._get_step_item("title"),
+            "value": response,
+            "style": self._get_step_item("style"),
+        })
         return self.responses
 
     def _get_step_item(self, key: str, default_value: Any = None) -> Dict[str, Any]:
@@ -177,13 +265,15 @@ class Form(discord.ui.View):
             for item in self.responses:
                 if edited_item["key"] == item["key"]:
                     item["value"] = edited_item["value"]
+                    if "_raw_value" in edited_item:
+                        item["_raw_value"] = edited_item["_raw_value"]
         return await self.show_resume(interaction)
 
     def _parse_responses_to_cog(self) -> Dict[str, str]:
         cog_param = {commandconstants.ENABLED_KEY: True}
 
         for item in self.responses:
-            value = item["value"]
+            value = item.get("_raw_value", item["value"])
             if not isinstance(value, str):
                 value = list(value)
             if item.get("style"):
@@ -192,12 +282,17 @@ class Form(discord.ui.View):
                 cog_param[item["key"]] = value
         return cog_param
 
+    def _get_dependent_steps(self, steps: List[str]) -> set:
+        """Get steps that have conditions dependent on the given steps."""
+        return {
+            s["key"] for s in self.state.steps_list
+            if s.get("condition", {}).get("key") in steps
+        }
+
     def filter_steps(self, steps: List[str]):
-        self.state.steps_list = [
-            step
-            for step in self.state.steps_list
-            if step["key"] in steps
-        ]
+        """Filter steps list to only include selected steps and their dependents."""
+        all_steps = set(steps) | self._get_dependent_steps(steps)
+        self.state.steps_list = [s for s in self.state.steps_list if s["key"] in all_steps]
 
     def set_composition_index(self, index: int):
         self.composition_index = int(index)
@@ -231,6 +326,7 @@ class Form(discord.ui.View):
         self.view = CustomModal(self._step, self._callback, self.locale, self.get_possible_values())
         if not self.state.fill_modal(self.view) and self.cogs:
             self.parse_cogs_to_modal()
+
         await interaction.response.send_modal(self.view)
 
     def parse_cogs_to_modal(self) -> None:
@@ -361,6 +457,7 @@ class Form(discord.ui.View):
         embed = self.step_embed.copy()
         embed.description += get_form_settings_with_database_values(interaction, self.responses)
 
+        self.clear_items()
         self.add_item(EditButton(after_callback=self.update_resume, locale=self.locale))
 
         if self.command_key in commandconstants.COMPOSITION_COMMANDS_LIST:
@@ -374,7 +471,8 @@ class Form(discord.ui.View):
 
         self.add_item(ConfirmButton(callback=self._finish, locale=self.locale))
         self.add_item(CancelButton(locale=self.locale))
-        await interaction.response.edit_message(embed=embed, view=self)
+
+        await self._transition_from_layout_view(interaction, embed, self)
 
     async def add_item_callback(self, interaction: discord.Interaction):
         self.responses[0]['value'].extend(self.form_view.responses[0]['value'])
@@ -395,7 +493,8 @@ class Form(discord.ui.View):
         self.add_item(CancelButton(locale=self.locale))
         if self.state.can_go_back:
             self.add_item(FormBackButton(self, self.locale))
-        await interaction.response.edit_message(embed=self.step_embed, view=self)
+
+        await self._transition_from_layout_view(interaction, self.step_embed, self)
 
     async def show_composition(self, interaction: discord.Interaction):
         self.view = FormComposition(self._step, self._callback, self.locale, self.cogs, self.composition_index if hasattr(self, "composition_index") else None)
@@ -410,6 +509,46 @@ class Form(discord.ui.View):
             locale=self.locale,
         )
         await self._send_view(interaction)
+
+    async def show_design_select(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+
+        designs = self._get_step_item("designs", [])
+
+        try:
+            preview_urls = await self._preview_task
+        except Exception as e:
+            logger.warn(f"Preview pre-generation failed: {e}")
+            preview_urls = {}
+
+        self._design_select_view = DesignSelectView(
+            callback=self._design_select_callback,
+            locale=self.locale,
+            designs=designs,
+            back_callback=self._go_back if self.state.can_go_back else None,
+            preview_urls=preview_urls,
+        )
+        self.view = self._design_select_view
+        await self._send_layout_view(interaction)
+
+    async def _design_select_callback(self, interaction: discord.Interaction, reselection: bool = False):
+        if reselection:
+            self.view = self._design_select_view
+            for i, step in enumerate(self.state.steps_list):
+                if step.get("action") == constants.DESIGN_SELECT_ACTION_KEY:
+                    self.state.step_index = i
+                    self._step = step
+                    break
+        await self._callback(interaction)
+
+    async def show_file_upload(self, interaction: discord.Interaction):
+        modal_title = self._step.get("modal_title", {}).get(self.locale)
+        self.view = FileUploadModal(
+            callback=self._callback,
+            locale=self.locale,
+            title=modal_title,
+        )
+        await interaction.response.send_modal(self.view)
 
     async def _finish(self, interaction: discord.Interaction):
         await interaction.response.defer(ephemeral=True, thinking=True)
@@ -528,6 +667,15 @@ class Form(discord.ui.View):
         elif value:
             self.view.response[value] = value
 
+    def _parse_cogs_to_design_select(self) -> None:
+        if isinstance(self.cogs, list):
+            return
+        if self._step['key'] not in self.cogs:
+            return
+        value = self.cogs[self._step['key']]
+        if value:
+            self.view.response[value] = value
+
     def parse_cogs_to_options_view(self) -> None:
         if isinstance(self.cogs, list):
             return
@@ -576,6 +724,8 @@ class Form(discord.ui.View):
             constants.BUTTON_ACTION_KEY: self.show_buttons,
             constants.COMPOSITION_ACTION_KEY: self.show_composition,
             constants.MULTI_SELECT_ACTION_KEY: self.show_multi_select,
+            constants.DESIGN_SELECT_ACTION_KEY: self.show_design_select,
+            constants.FILE_UPLOAD_ACTION_KEY: self.show_file_upload,
         }
 
         if action in action_dict:
@@ -589,6 +739,14 @@ class Form(discord.ui.View):
             self.responses.pop()
 
         self._step = self.state.current_step
+
+        while self._should_skip_step_on_back():
+            if not self.state.go_back():
+                return
+            if self.responses and self._get_step_item("action") != constants.BUTTON_ACTION_KEY:
+                self.responses.pop()
+            self._step = self.state.current_step
+
         self.step_embed = parse_form_dict_to_embed(self._step, self.locale)
 
         self.clear_items()
@@ -600,7 +758,7 @@ class Form(discord.ui.View):
             self.view.add_item(FormBackButton(self, self.locale))
 
     async def _send_view(self, interaction: discord.Interaction):
-        """Prepara e envia o view com preenchimento automático e back button."""
+        """Prepare and send view with auto-fill and back button."""
         view_config = {
             OptionsView: ('options', self.parse_cogs_to_options_view),
             ChannelSelectView: ('select', self._parse_cogs_to_select),
@@ -616,14 +774,54 @@ class Form(discord.ui.View):
                 cogs_fallback()
 
         self._add_back_button()
-        await interaction.followup.edit_message(
-            message_id=interaction.message.id,
-            embed=self.step_embed,
-            view=self.view
-        )
+
+        await self._transition_from_layout_view(interaction, self.step_embed, self.view, deferred=True)
+
+    async def _transition_from_layout_view(
+        self,
+        interaction: discord.Interaction,
+        embed: discord.Embed,
+        view: discord.ui.View,
+        deferred: bool = False
+    ):
+        """Handle transition from Components V2 LayoutView back to embed-based view."""
+        if self._using_layout_view:
+            self._using_layout_view = False
+            if not deferred:
+                await interaction.response.defer()
+            await interaction.followup.delete_message(interaction.message.id)
+            await interaction.followup.send(embed=embed, view=view)
+        else:
+            if deferred:
+                await interaction.followup.edit_message(
+                    message_id=interaction.message.id,
+                    embed=embed,
+                    view=view
+                )
+            else:
+                await interaction.response.edit_message(embed=embed, view=view)
+
+    async def _send_layout_view(self, interaction: discord.Interaction):
+        """Send LayoutView (Components V2) without embed."""
+        view_config = {
+            DesignSelectView: ('design_select', self._parse_cogs_to_design_select),
+        }
+
+        config = view_config.get(type(self.view))
+        if config:
+            fill_type, cogs_fallback = config
+            fill_fn = getattr(self.state, f'fill_{fill_type}', None)
+            if fill_fn and not fill_fn(self.view) and self.cogs and cogs_fallback:
+                cogs_fallback()
+
+        await interaction.followup.delete_message(interaction.message.id)
+        await interaction.followup.send(view=self.view)
+        self._using_layout_view = True
 
     @_update_form_step
     async def _callback(self, interaction: discord.Interaction) -> None:
+        self._start_preview_pregeneration(interaction)
+
         self.clear_items()
 
         action = self._get_step_item("action")
