@@ -7,6 +7,7 @@ from app import logger
 from app.bot import DiscordBot
 from app.components.embed import response_error_embed
 from app.constants import LogTypes as logconstants
+from app.exceptions import ErrorContext
 from app.services import utils
 from app.services.cache import increment_redis_key
 from app.services.moderations import insert_error_by_command
@@ -31,17 +32,24 @@ class Errors(Cog, name="errors"):
         if interaction.command:
             command_name = interaction.command.qualified_name
 
+        context = ErrorContext.from_interaction(
+            flow="app_command",
+            interaction=interaction,
+            command_name=command_name,
+        )
+
         tb = traceback.format_exc()
         tb_formatted = utils.format_traceback_message(tb)
 
         error_message = f"The following command raised an exception: **{command_name}**```{type(error.original).__name__}: {error.original}```\n**Traceback**```{tb_formatted}```"
         logger.error(
             error_message,
-            interaction=interaction,
             log_type=logconstants.COMMAND_ERROR_TYPE,
+            context=context,
         )
 
-        return insert_error_by_command(interaction.command._attr, error_message)
+        command_attr = getattr(interaction.command, "_attr", command_name)
+        return insert_error_by_command(command_attr, error_message)
 
     @commands.Cog.listener()
     async def on_command_error(
@@ -74,7 +82,7 @@ class Errors(Cog, name="errors"):
         command_name = logconstants.UNKNOWN_COMMAND
 
         if interaction.command:
-            command_name = interaction.command._attr
+            command_name = getattr(interaction.command, "_attr", interaction.command.qualified_name)
 
         increment_redis_key(f"{logconstants.COMMAND_ERROR_TYPE}:{command_name}")
 

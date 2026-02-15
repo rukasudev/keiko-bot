@@ -10,7 +10,9 @@ from app import bot, logger
 from app.components.buttons import PreviewButton
 from app.components.embed import default_welcome_embed
 from app.constants import Commands as constants
+from app.constants import LogTypes as logconstants
 from app.constants import WelcomeDesign
+from app.exceptions import ErrorContext
 from app.services import cache
 from app.services.moderations import (
     send_command_form_message,
@@ -54,12 +56,27 @@ async def send_welcome_message(member: discord.Member):
 
     welcome_message = parse_welcome_messages(welcome_messages, member)
 
-    embed_message = await create_welcome_message(
-        member, welcome_message_title, welcome_message, welcome_message_footer,
-        design=design, custom_image=custom_image
+    context = ErrorContext.from_member(
+        flow="welcome_message",
+        member=member,
+        design=design,
+        custom_image=custom_image[:100] if custom_image else None,
     )
 
-    await channel.send(embed=embed_message)
+    try:
+        embed_message = await create_welcome_message(
+            member, welcome_message_title, welcome_message, welcome_message_footer,
+            design=design, custom_image=custom_image
+        )
+        await channel.send(embed=embed_message)
+    except Exception as e:
+        logger.error(
+            f"Failed to send welcome message: {type(e).__name__}: {e}",
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            context=context,
+            exc_info=True,
+        )
+        raise
 
 async def generate_design_previews(member: discord.Member, designs: list) -> dict:
     """Generate preview images for each design option in real-time.

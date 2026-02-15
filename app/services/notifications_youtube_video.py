@@ -7,6 +7,7 @@ import discord
 from app import bot, logger
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
+from app.exceptions import ErrorContext
 from app.data.notifications_youtube_video import (
     count_youtube_video_subscription_by_guilds,
     find_guilds_by_youtuber,
@@ -34,39 +35,58 @@ async def manager(interaction: discord.Interaction, guild_id: str):
     )
 
 def send_youtube_video_notification(video_id: str, channel_id: str) -> None:
-    youtuber_info = bot.youtube.get_channel_info(channel_id)
-    video_info = bot.youtube.get_video_info(video_id)
-    youtuber_user = youtuber_info.get("customUrl").replace("@", "")
-
-    guilds_data = find_guilds_by_youtuber(youtuber_user)
-
-    logger.info(
-        f"Starting to send notifications for youtube video: **{youtuber_user}**",
-        log_type=logconstants.COMMAND_INFO_TYPE,
+    context = ErrorContext(
+        flow="youtube_notification",
+        extra={
+            "video_id": video_id,
+            "youtube_channel_id": channel_id,
+        }
     )
 
-    count = 0
-    for guild_data in guilds_data:
-        guild = bot.get_guild(int(guild_data.get("guild_id")))
+    try:
+        youtuber_info = bot.youtube.get_channel_info(channel_id)
+        video_info = bot.youtube.get_video_info(video_id)
+        youtuber_user = youtuber_info.get("customUrl").replace("@", "")
 
-        notifications = guild_data.get("notifications").get("values")
-        for notification in notifications:
-            youtuber = notification.get("youtuber").get("value")
-            if youtuber != youtuber_user:
-                continue
+        context.extra["youtuber"] = youtuber_user
 
-            message = compose_notification_message(notification, youtuber, video_id)
-            channel = guild.get_channel(int(notification.get("channel").get("value")))
+        guilds_data = find_guilds_by_youtuber(youtuber_user)
 
-            embed = create_video_notification_embed(video_info, youtuber_info)
+        logger.info(
+            f"Starting to send notifications for youtube video: **{youtuber_user}**",
+            log_type=logconstants.COMMAND_INFO_TYPE,
+        )
 
-            bot.loop.create_task(channel.send(content=message, embed=embed))
-            count += 1
+        count = 0
+        for guild_data in guilds_data:
+            guild = bot.get_guild(int(guild_data.get("guild_id")))
 
-    logger.info(
-        f"Notifications sent for youtuber **{youtuber_user}** new video in {count} guilds",
-        log_type=logconstants.COMMAND_INFO_TYPE,
-    )
+            notifications = guild_data.get("notifications").get("values")
+            for notification in notifications:
+                youtuber = notification.get("youtuber").get("value")
+                if youtuber != youtuber_user:
+                    continue
+
+                message = compose_notification_message(notification, youtuber, video_id)
+                channel = guild.get_channel(int(notification.get("channel").get("value")))
+
+                embed = create_video_notification_embed(video_info, youtuber_info)
+
+                bot.loop.create_task(channel.send(content=message, embed=embed))
+                count += 1
+
+        logger.info(
+            f"Notifications sent for youtuber **{youtuber_user}** new video in {count} guilds",
+            log_type=logconstants.COMMAND_INFO_TYPE,
+        )
+    except Exception as e:
+        logger.error(
+            f"Failed to send youtube notification: {type(e).__name__}: {e}",
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            context=context,
+            exc_info=True,
+        )
+        raise
 
 def create_video_notification_embed(video_info: Dict[str, Any], youtuber_info: Dict[str, Any]) -> discord.Embed:
     video_link = f"https://www.youtube.com/watch?v={video_info.get('id')}"

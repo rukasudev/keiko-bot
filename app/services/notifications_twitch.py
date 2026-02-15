@@ -9,6 +9,7 @@ from dateutil import parser
 from app import bot, logger
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
+from app.exceptions import ErrorContext
 from app.data.notifications_twitch import (
     count_streamers_guilds,
     find_guilds_by_streamer_name,
@@ -36,21 +37,38 @@ async def manager(interaction: discord.Interaction, guild_id: str):
     )
 
 async def handle_send_streamer_notification(streamer_name: str) -> None:
-    user_info = bot.twitch.get_user_info(streamer_name)
-    stream_info = wait_for_stream_info(streamer_name)
+    context = ErrorContext(
+        flow="twitch_notification",
+        extra={
+            "streamer_name": streamer_name,
+            "event_type": "stream_online",
+        }
+    )
 
-    if not stream_info:
-        logger.info(f"Stream info not found for streamer **{streamer_name}**", log_type=logconstants.COMMAND_INFO_TYPE)
-        return
+    try:
+        user_info = bot.twitch.get_user_info(streamer_name)
+        stream_info = wait_for_stream_info(streamer_name)
 
-    stream_started_at = stream_info.get("started_at")
-    last_stream_date = find_last_stream_date(streamer_name)
+        if not stream_info:
+            logger.info(f"Stream info not found for streamer **{streamer_name}**", log_type=logconstants.COMMAND_INFO_TYPE)
+            return
 
-    if not last_stream_date or is_more_than_one_hour(stream_started_at, last_stream_date):
-        await send_streamer_notifications(stream_info, user_info)
-        update_last_stream_date(streamer_name, stream_started_at)
-    else:
-        await edit_streamer_notifications(user_info, status=constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE)
+        stream_started_at = stream_info.get("started_at")
+        last_stream_date = find_last_stream_date(streamer_name)
+
+        if not last_stream_date or is_more_than_one_hour(stream_started_at, last_stream_date):
+            await send_streamer_notifications(stream_info, user_info)
+            update_last_stream_date(streamer_name, stream_started_at)
+        else:
+            await edit_streamer_notifications(user_info, status=constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE)
+    except Exception as e:
+        logger.error(
+            f"Failed to handle twitch notification: {type(e).__name__}: {e}",
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            context=context,
+            exc_info=True,
+        )
+        raise
 
 async def send_streamer_notifications(stream_info: Dict[str, Any], user_info: Dict[str, Any]) -> None:
     streamer_name = user_info.get("login")
@@ -69,17 +87,34 @@ async def edit_streamer_notifications(user_info: Dict[str, Any], status: str) ->
     logger.info(f"Notifications edited to {status} for **{streamer_name}** in {count} guilds", log_type=logconstants.COMMAND_INFO_TYPE)
 
 async def handle_send_streamer_offline_notification(streamer_name: str) -> None:
-    guilds_data = find_guilds_by_streamer_name(streamer_name)
-    last_stream_date = find_last_stream_date(streamer_name)
-    stream_duration = None
+    context = ErrorContext(
+        flow="twitch_notification",
+        extra={
+            "streamer_name": streamer_name,
+            "event_type": "stream_offline",
+        }
+    )
 
-    if last_stream_date:
-        last_stream_date = parser.parse(last_stream_date)
-        stream_duration = format_datetime_output(datetime.datetime.now(datetime.timezone.utc) - last_stream_date)
+    try:
+        guilds_data = find_guilds_by_streamer_name(streamer_name)
+        last_stream_date = find_last_stream_date(streamer_name)
+        stream_duration = None
 
-    logger.info(f"Editing notifications to offline for **{streamer_name}**", log_type=logconstants.COMMAND_INFO_TYPE)
-    count = await update_notification_status(guilds_data, streamer_name, constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_OFFLINE, stream_duration)
-    logger.info(f"Notifications edited to offline for **{streamer_name}** in {count} guilds", log_type=logconstants.COMMAND_INFO_TYPE)
+        if last_stream_date:
+            last_stream_date = parser.parse(last_stream_date)
+            stream_duration = format_datetime_output(datetime.datetime.now(datetime.timezone.utc) - last_stream_date)
+
+        logger.info(f"Editing notifications to offline for **{streamer_name}**", log_type=logconstants.COMMAND_INFO_TYPE)
+        count = await update_notification_status(guilds_data, streamer_name, constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_OFFLINE, stream_duration)
+        logger.info(f"Notifications edited to offline for **{streamer_name}** in {count} guilds", log_type=logconstants.COMMAND_INFO_TYPE)
+    except Exception as e:
+        logger.error(
+            f"Failed to handle twitch offline notification: {type(e).__name__}: {e}",
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            context=context,
+            exc_info=True,
+        )
+        raise
 
 async def process_notifications(guilds_data, streamer_name, stream_info, user_info):
     count = 0

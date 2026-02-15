@@ -2,8 +2,11 @@ from typing import List
 
 import discord
 
+from app import logger
 from app.constants import Commands as constants
+from app.constants import LogTypes as logconstants
 from app.constants import default_allowed_links
+from app.exceptions import ErrorContext
 from app.services import cache
 from app.services.moderations import (
     send_command_form_message,
@@ -48,7 +51,7 @@ async def check_message(guild_id: str, message: discord.Message) -> None:
 
     allowed_chats = cogs[constants.BLOCK_LINKS_ALLOWED_CHATS_KEY].get("values")
     allowed_links = cogs[constants.BLOCK_LINKS_ALLOWED_LINKS_KEY]
-    
+
     if isinstance(allowed_links, str):
         allowed_links = [allowed_links]
 
@@ -57,10 +60,25 @@ async def check_message(guild_id: str, message: discord.Message) -> None:
     message_chat = str(message.channel.id)
 
     if parsed_links and message_chat not in allowed_chats:
-        await message.delete()
-        await message.channel.send(
-            cogs[constants.BLOCK_LINKS_ANSWER_KEY], delete_after=5
+        context = ErrorContext.from_message(
+            flow="block_links",
+            message=message,
+            blocked_links=parsed_links[:3],
         )
+
+        try:
+            await message.delete()
+            await message.channel.send(
+                cogs[constants.BLOCK_LINKS_ANSWER_KEY], delete_after=5
+            )
+        except Exception as e:
+            logger.error(
+                f"Failed to block link: {type(e).__name__}: {e}",
+                log_type=logconstants.COMMAND_ERROR_TYPE,
+                context=context,
+                exc_info=True,
+            )
+            raise
 
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:

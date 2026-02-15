@@ -4,9 +4,12 @@ from typing import Any, Dict, List
 
 import discord
 
+from app import logger
 from app.constants import Commands as constants
 from app.constants import KeikoIcons as icons_constants
+from app.constants import LogTypes as logconstants
 from app.constants import Style as style_constants
+from app.exceptions import ErrorContext
 from app.integrations.stream_elements import StreamElementsClient
 from app.services import cache
 from app.services.moderations import (
@@ -39,15 +42,31 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
     command = message.content.split(" ")[0].replace(prefix, "")
     channel_id = cogs.get("channel_id")
 
-    if command == "commands":
-        view = parse_command_list_view(channel_id, message, streamer)
-        return await view.send(message)
+    context = ErrorContext.from_message(
+        flow="stream_elements",
+        message=message,
+        command=command,
+        streamer=streamer,
+    )
 
-    reply = get_reply_in_cache_or_populate(channel_id, command, message.author)
-    if not reply:
-        return
+    try:
+        if command == "commands":
+            view = parse_command_list_view(channel_id, message, streamer)
+            return await view.send(message)
 
-    await message.reply(embed=create_response_embed(command, reply, message.author, streamer))
+        reply = get_reply_in_cache_or_populate(channel_id, command, message.author)
+        if not reply:
+            return
+
+        await message.reply(embed=create_response_embed(command, reply, message.author, streamer))
+    except Exception as e:
+        logger.error(
+            f"Failed in stream_elements: {type(e).__name__}: {e}",
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            context=context,
+            exc_info=True,
+        )
+        raise
 
 def parse_command_list_view(channel_id: str, message: discord.Message, streamer: str) -> discord.ui.View:
     from app import bot

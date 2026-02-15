@@ -2,9 +2,12 @@ from typing import Dict, List, Union
 
 import discord
 
+from app import logger
 from app.components.buttons import AdditionalButton
 from app.components.embed import response_embed, response_error_embed
 from app.constants import Commands as constants
+from app.constants import LogTypes as logconstants
+from app.exceptions import ErrorContext
 from app.services import cache
 from app.services.moderations import (
     send_command_form_message,
@@ -19,7 +22,21 @@ async def set_on_member_join(member: discord.Member):
     if not cogs:
         return
 
-    await set_default_roles(cogs, member.guild, [member])
+    context = ErrorContext.from_member(
+        flow="default_roles",
+        member=member,
+    )
+
+    try:
+        await set_default_roles(cogs, member.guild, [member])
+    except Exception as e:
+        logger.error(
+            f"Failed to set default roles on member join: {type(e).__name__}: {e}",
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            context=context,
+            exc_info=True,
+        )
+        raise
 
 
 async def set_on_default_roles_sync(interaction: discord.Interaction):
@@ -41,12 +58,27 @@ async def set_on_default_roles_sync(interaction: discord.Interaction):
     )
     message = await interaction.followup.send(embed=embed, ephemeral=True)
 
-    await set_default_roles(cogs, interaction.guild, interaction.guild.members)
-
-    embed = response_embed(
-        "buttons.roles-sync.response", interaction.locale, discord.Color.green()
+    context = ErrorContext.from_interaction(
+        flow="default_roles_sync",
+        interaction=interaction,
+        total_members=len(interaction.guild.members),
     )
-    await message.edit(embed=embed)
+
+    try:
+        await set_default_roles(cogs, interaction.guild, interaction.guild.members)
+
+        embed = response_embed(
+            "buttons.roles-sync.response", interaction.locale, discord.Color.green()
+        )
+        await message.edit(embed=embed)
+    except Exception as e:
+        logger.error(
+            f"Failed to sync default roles: {type(e).__name__}: {e}",
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            context=context,
+            exc_info=True,
+        )
+        raise
 
 
 async def set_default_roles(

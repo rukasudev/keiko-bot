@@ -215,6 +215,7 @@ class DiscordLogsHandler(logging.Handler):
     def add_fields(self, embed: discord.Embed, record: logging.LogRecord):
         interaction: discord.Interaction = getattr(record, "interaction", None)
         guild_id = getattr(record, "guild_id", None)
+        context = getattr(record, "context", None)
 
         if interaction:
             embed.add_field(name="Interaction ID", value=interaction.id)
@@ -231,9 +232,28 @@ class DiscordLogsHandler(logging.Handler):
 
             if interaction.message:
                 embed.add_field(name="Message ID", value=interaction.message.id)
+        elif context:
+            self._add_context_fields(embed, context)
         elif guild_id:
             embed.add_field(name="Guild ID", value=guild_id)
 
             owner_id = getattr(record, "owner_id", None)
             if owner_id:
                 embed.add_field(name="User ID", value=f"<@{owner_id}>")
+
+    def _add_context_fields(self, embed: discord.Embed, context):
+        ctx_dict = context.to_dict() if hasattr(context, "to_dict") else context
+
+        field_order = ["flow", "guild_id", "user_id", "user_name", "channel_id"]
+        for key in field_order:
+            if key in ctx_dict and ctx_dict[key]:
+                label = key.replace("_", " ").title()
+                value = str(ctx_dict[key])[:1024]
+                if key == "user_id":
+                    value = f"<@{ctx_dict[key]}>"
+                embed.add_field(name=label, value=value, inline=True)
+
+        for key, value in ctx_dict.items():
+            if key not in field_order and value:
+                label = key.replace("_", " ").title()
+                embed.add_field(name=label, value=str(value)[:1024], inline=True)

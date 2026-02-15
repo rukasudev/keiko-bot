@@ -9,6 +9,7 @@ from app.constants import CogsConstants as cogconstants
 from app.constants import Commands as commandsconstants
 from app.constants import GuildConstants as constants
 from app.constants import LogTypes as logconstants
+from app.decorators import with_error_context
 from app.data.moderations import count_moderations_by_owner, find_moderations_by_guild
 from app.services import block_links as block_links_service
 from app.services import default_roles as default_roles_service
@@ -61,6 +62,7 @@ class Events(Cog, name="events"):
         logger.info(ready_message, log_type=logconstants.APPLICATION_STARTUP_TYPE)
 
     @commands.Cog.listener()
+    @with_error_context("on_member_join")
     async def on_member_join(self, member: discord.Member):
         roles = get_available_roles_by_guild(member.guild)
         if roles:
@@ -69,6 +71,7 @@ class Events(Cog, name="events"):
         await send_welcome_message(member)
 
     @commands.Cog.listener()
+    @with_error_context("on_message")
     async def on_message(self, message: discord.Message):
         if message.author.bot:
             return
