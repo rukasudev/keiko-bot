@@ -19,6 +19,7 @@ from app.components.modals import CustomModal
 from app.constants import Commands as commandconstants
 from app.constants import FormConstants as constants
 from app.constants import LogTypes as logconstants
+from app.exceptions import ErrorContext
 from app.integrations.stream_elements import StreamElementsClient
 from app.services.cogs import insert_cog_by_guild, insert_cog_event
 from app.services.moderations import update_moderations_by_guild
@@ -59,6 +60,21 @@ class Form(discord.ui.View):
         super().__init__(timeout=1800)
         self.add_item(ConfirmButton(callback=self._callback, locale=locale))
         self.add_item(CancelButton(locale=locale))
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        context = ErrorContext(
+            flow=f"form_{self.command_key}",
+            guild_id=str(interaction.guild.id) if interaction.guild else None,
+            user_id=str(interaction.user.id),
+            extra={"step": self._step.get("key") if hasattr(self, "_step") else None},
+        )
+        logger.error(
+            f"Form error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            context=context,
+            exc_info=True,
+        )
 
     def _get_steps(self, steps: List[Dict[str, str]] = None) -> Generator[Any, Any, Any]:
         if not steps:

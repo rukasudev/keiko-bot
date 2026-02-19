@@ -84,6 +84,7 @@ class Events(Cog, name="events"):
         await block_links_service.check_message(guild_id, message)
 
     @commands.Cog.listener()
+    @with_error_context("on_interaction")
     async def on_interaction(self, interaction: discord.Interaction) -> None:
         if interaction.type != discord.InteractionType.application_command:
             return None
@@ -106,6 +107,7 @@ class Events(Cog, name="events"):
         )
 
     @commands.Cog.listener()
+    @with_error_context("on_guild_join")
     async def on_guild_join(self, guild: discord.Guild):
         owner_id = str(guild.owner.id)
         exist = find_moderations_by_guild(guild.id)
@@ -129,6 +131,7 @@ class Events(Cog, name="events"):
         return await GreetingsView().send(guild)
 
     @commands.Cog.listener()
+    @with_error_context("on_guild_remove")
     async def on_guild_remove(self, guild: discord.Guild):
         moderations = find_moderations_by_guild(guild.id)
 

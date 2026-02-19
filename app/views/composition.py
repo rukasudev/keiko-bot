@@ -2,6 +2,9 @@ from typing import Any, Callable, Dict, List
 
 import discord
 
+from app import logger
+from app.constants import LogTypes as logconstants
+
 
 class FormComposition(discord.ui.View):
     def __init__(self, composition: Dict[str, str], parent_callback: Callable, locale: str, cogs: List[Dict[str, Any]] = None, index: int = None) -> None:
@@ -69,3 +72,11 @@ class FormComposition(discord.ui.View):
         self.form_view._set_after_callback(self.finish)
 
         await self.form_view._callback(interaction)
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        logger.error(
+            f"FormComposition error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )

@@ -2,7 +2,9 @@ from typing import Dict, List
 
 import discord
 
+from app import logger
 from app.constants import KeikoIcons as icons_constants
+from app.constants import LogTypes as logconstants
 from app.constants import Style as constants
 from app.services.utils import ml
 
@@ -127,3 +129,11 @@ class PaginationView(discord.ui.View):
         await interaction.response.defer()
         self.current_page = len(self.separated_data)
         await self.update_message(self.get_current_page_data())
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        logger.error(
+            f"PaginationView error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )

@@ -67,13 +67,17 @@ def add_handler(handler):
     logger.addHandler(handler)
 
 
+RESERVED_LOG_PARAMS = {"exc_info", "stack_info", "stacklevel"}
+
+
 def build_extra_params(**kwargs):
-    return {key: value for key, value in kwargs.items() if value}
+    return {key: value for key, value in kwargs.items() if value and key not in RESERVED_LOG_PARAMS}
 
 
 def log(level, message, **kwargs):
     extra = build_extra_params(**kwargs)
-    level(message, extra=extra)
+    reserved = {key: kwargs[key] for key in RESERVED_LOG_PARAMS if key in kwargs}
+    level(message, extra=extra, **reserved)
 
 
 info = lambda message, **kwargs: log(logger.info, message, **kwargs)

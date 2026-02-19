@@ -2,7 +2,9 @@ from typing import Any, Callable, Dict, List
 
 import discord
 
+from app import logger
 from app.components.select import Select
+from app.constants import LogTypes as logconstants
 from app.constants import FormConstants as constants
 from app.services.utils import ml, parse_form_steps_titles, parse_form_yaml_to_dict
 from app.views.form import Form
@@ -82,3 +84,11 @@ class EditCommand(discord.ui.View):
     async def execute_form_view_callback(self, interaction: discord.Interaction):
         self.form_view._set_after_callback(self.after_callback)
         await self.form_view._callback(interaction)
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        logger.error(
+            f"EditCommand error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )

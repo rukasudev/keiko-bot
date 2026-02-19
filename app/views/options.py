@@ -2,6 +2,7 @@ from typing import Callable, Dict, List, Union
 
 import discord
 
+from app import logger
 from app.components.buttons import (
     CancelButton,
     ConfirmButton,
@@ -9,6 +10,7 @@ from app.components.buttons import (
     PaginationButton,
 )
 from app.components.embed import response_error_embed
+from app.constants import LogTypes as logconstants
 
 
 class OptionsView(discord.ui.View):
@@ -87,3 +89,11 @@ class OptionsView(discord.ui.View):
                 mention_author=True,
             )
         await self.callback(interaction)
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        logger.error(
+            f"OptionsView error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )

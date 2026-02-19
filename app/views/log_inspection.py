@@ -1,8 +1,9 @@
 import discord
 
-from app import bot
+from app import bot, logger
 from app.components.buttons import GenericButton, HistoryButton
 from app.constants import Commands as constants
+from app.constants import LogTypes as logconstants
 from app.data import moderations as moderations_data
 from app.services.cogs import find_cog_events_by_guild
 from app.services.manager import parse_history_data
@@ -180,3 +181,11 @@ class LogInspectionView(discord.ui.View):
         new_embed = await page_index_to_embed[self.actual_page]()
 
         await interaction.response.edit_message(embed=new_embed, view=self)
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        logger.error(
+            f"LogInspectionView error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )

@@ -2,7 +2,9 @@ from typing import Any, Callable, Dict, List
 
 import discord
 
+from app import logger
 from app.components.select import Select
+from app.constants import LogTypes as logconstants
 from app.constants import FormConstants as constants
 from app.services.utils import ml, parse_form_steps_titles, parse_form_yaml_to_dict
 
@@ -46,3 +48,11 @@ class RemoveItem(discord.ui.View):
         item = self.cogs[option]["values"][int(index)]
         del self.cogs[option]["values"][int(index)]
         await self.after_callback(interaction, item, self.cogs)
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        logger.error(
+            f"RemoveItem error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )

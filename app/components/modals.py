@@ -2,6 +2,9 @@ from typing import Any, Callable, Dict, List, Union
 
 import discord
 
+from app import logger
+from app.constants import LogTypes as logconstants
+
 
 class CustomModal(discord.ui.Modal):
     def __init__(self, config: dict, callback: Callable, locale: str, cogs: Dict[str, Any]) -> None:
@@ -127,6 +130,14 @@ class CustomModal(discord.ui.Modal):
 
         await self.callback(interaction)
 
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        logger.error(
+            f"Modal error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )
+
 
 class ConfirmationModal(discord.ui.Modal):
     def __init__(self, action: str, locale: str, callback: Callable) -> None:
@@ -149,6 +160,15 @@ class ConfirmationModal(discord.ui.Modal):
             return await self.callback(interaction)
 
         await interaction.response.defer()
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        logger.error(
+            f"ConfirmationModal error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )
+
 
 class ModalValidations:
     def __init__(self, cogs: List[Dict[str, Any]]) -> None:

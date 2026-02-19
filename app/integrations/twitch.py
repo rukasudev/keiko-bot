@@ -66,9 +66,10 @@ class TwitchClient:
             'Authorization': f'Bearer {self.token}'
         }
         response = requests.get(request_url, headers=headers)
-        if len(response.json()['data']) == 0:
+        data = response.json().get('data')
+        if not data:
             return None
-        return response.json()['data'][0]['id']
+        return data[0]['id']
 
     @check_auth_token
     def get_user_info(self, login: str) -> dict:
@@ -78,7 +79,8 @@ class TwitchClient:
             'Authorization': f'Bearer {self.token}'
         }
         response = requests.get(request_url, headers=headers)
-        return response.json()["data"][0] if response.json()["data"] else None
+        data = response.json().get("data")
+        return data[0] if data else None
 
     @check_auth_token
     def get_user_info_by_id(self, user_id: str) -> dict:
@@ -88,7 +90,8 @@ class TwitchClient:
             'Authorization': f'Bearer {self.token}'
         }
         response = requests.get(request_url, headers=headers)
-        return response.json()["data"][0] if response.json()["data"] else None
+        data = response.json().get("data")
+        return data[0] if data else None
 
     @check_auth_token
     def get_stream_info(self, login: str) -> dict:
@@ -98,7 +101,8 @@ class TwitchClient:
             'Authorization': f'Bearer {self.token}'
         }
         response = requests.get(request_url, headers=headers)
-        return response.json()["data"][0] if response.json()["data"] else None
+        data = response.json().get("data")
+        return data[0] if data else None
 
     @check_auth_token
     def subscribe_to_stream_online_event(self, user_id: str) -> None:

@@ -1,6 +1,7 @@
 import discord
 
-from app import bot
+from app import bot, logger
+from app.constants import LogTypes as logconstants
 from app.data import moderations as moderations_data
 from app.services.utils import format_relative_time
 
@@ -81,3 +82,11 @@ class UserInspectionView(discord.ui.View):
     async def send(self, interaction: discord.Interaction):
         embed = self._get_embed()
         await interaction.response.send_message(embed=embed, view=self, ephemeral=True)
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        logger.error(
+            f"UserInspectionView error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )

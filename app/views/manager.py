@@ -3,6 +3,8 @@ from typing import Any, Dict
 import discord
 
 from app import logger
+from app.constants import LogTypes as logconstants
+from app.exceptions import ErrorContext
 from app.components.buttons import (
     AddItemButton,
     DisableButton,
@@ -14,7 +16,6 @@ from app.components.buttons import (
 )
 from app.constants import Commands as constants
 from app.constants import KeikoIcons as icons
-from app.constants import LogTypes as logconstants
 from app.services.cogs import (
     delete_cog_by_guild,
     find_cog_events_by_guild,
@@ -64,6 +65,19 @@ class Manager(discord.ui.View):
         self.handle_remove_item_button()
         self.add_item(HistoryButton(callback=self.history_callback, locale=self.locale))
 
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        context = ErrorContext(
+            flow=f"manager_{self.command_key}",
+            guild_id=str(interaction.guild.id) if interaction.guild else None,
+            user_id=str(interaction.user.id),
+        )
+        logger.error(
+            f"Manager error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            context=context,
+            exc_info=True,
+        )
 
     async def update_command(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)

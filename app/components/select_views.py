@@ -3,7 +3,9 @@ from typing import Callable, Dict
 
 import discord
 
+from app import logger
 from app.components.buttons import CancelButton
+from app.constants import LogTypes as logconstants
 from app.services.utils import ml
 
 
@@ -63,6 +65,14 @@ class ChannelSelectView(discord.ui.View):
         keys = list(self.response.keys())
         return keys[0] if len(keys) == 1 else keys
 
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        logger.error(
+            f"ChannelSelectView error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )
+
 
 class RoleSelectView(discord.ui.View):
     """Native Discord RoleSelect for role selection."""
@@ -94,6 +104,14 @@ class RoleSelectView(discord.ui.View):
     def get_response(self):
         keys = list(self.response.keys())
         return keys[0] if len(keys) == 1 else keys
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        logger.error(
+            f"RoleSelectView error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )
 
 
 class MultiSelectView(discord.ui.View):
@@ -156,6 +174,14 @@ class MultiSelectView(discord.ui.View):
                     "style": self.select_styles.get(key)
                 }
         return result
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        logger.error(
+            f"MultiSelectView error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )
 
 
 class DesignSelectView(discord.ui.LayoutView):
@@ -254,6 +280,14 @@ class DesignSelectView(discord.ui.LayoutView):
     def get_response(self):
         return list(self.response.keys())[0] if self.response else None
 
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        logger.error(
+            f"DesignSelectView error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )
+
 
 class FileUploadModal(discord.ui.Modal):
     def __init__(self, callback: Callable, locale: str, title: str = None):
@@ -287,3 +321,11 @@ class FileUploadModal(discord.ui.Modal):
 
     def get_response(self):
         return self._response
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        logger.error(
+            f"FileUploadModal error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )
