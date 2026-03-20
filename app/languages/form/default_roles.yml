@@ -26,12 +26,18 @@ steps:
       - type: available_roles
         key: default_roles_bot
         style: role
+        label:
+          en-us: "Roles for Bots"
+          pt-br: "Cargos para Bots"
         placeholder:
           en-us: "Roles for Bots..."
           pt-br: "Cargos para Bots..."
       - type: available_roles
         key: default_roles
         style: role
+        label:
+          en-us: "Roles for Members"
+          pt-br: "Cargos para Membros"
         placeholder:
           en-us: "Roles for Members..."
           pt-br: "Cargos para Membros..."

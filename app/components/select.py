@@ -7,13 +7,19 @@ from app.services.utils import ml
 
 
 class Select(discord.ui.Select):
-    def __init__(self, placeholder: str, options: Dict[str, str], custom_callback=None, unique=False):
+    def __init__(self, placeholder: str, options: Dict[str, str], custom_callback=None, unique=False, custom_id=None, row=None):
         self.parsed_options = self.parse_options(options)
         self.custom_callback = custom_callback
+        kwargs = {}
+        if custom_id:
+            kwargs["custom_id"] = custom_id
+        if row is not None:
+            kwargs["row"] = row
         super().__init__(
             placeholder=placeholder,
             options=self.parsed_options,
             max_values=unique or len(self.parsed_options),
+            **kwargs,
         )
 
     def parse_options(self, options_dict: Dict[str, str]) -> List[discord.SelectOption]:
@@ -61,11 +67,12 @@ class HelpSelect(Select):
 
     def update(self):
         data = self.get_data()
+        view = self.view
 
-        self.view.remove_item(self.view.select)
-        self.view.select.options = self.view.select.parse_options(data)
-        self.view.select.max_values = len(data)
-        self.view.add_item_first(self.view.select)
+        view.remove_item(view.select)
+        view.select.options = view.select.parse_options(data)
+        view.select.max_values = len(data)
+        view.add_item_first(view.select)
 
     async def after_callback(self, interaction: discord.Interaction):
         embed = interaction.message.embeds[0]

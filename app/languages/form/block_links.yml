@@ -26,12 +26,18 @@ steps:
       - type: channels
         key: allowed_chats
         style: channel
+        label:
+          en-us: "Allowed Channels"
+          pt-br: "Canais Permitidos"
         placeholder:
           en-us: "Allowed channels..."
           pt-br: "Canais permitidos..."
       - type: roles
         key: allowed_roles
         style: role
+        label:
+          en-us: "Allowed Roles"
+          pt-br: "Cargos Permitidos"
         placeholder:
           en-us: "Allowed roles..."
           pt-br: "Cargos permitidos..."

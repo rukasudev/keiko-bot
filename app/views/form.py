@@ -220,18 +220,24 @@ class Form(discord.ui.View):
 
         if self._get_step_item("action") == constants.MULTI_SELECT_ACTION_KEY:
             if isinstance(response, dict):
+                selects = self._step.get("selects", [])
+                select_labels = {
+                    s["key"]: s["label"].get(self.locale) or s["label"].get("en-us", s["key"])
+                    for s in selects if s.get("label")
+                }
                 for key, data in response.items():
+                    title = select_labels.get(key, key)
                     if isinstance(data, dict):
                         self._upsert_response({
                             "key": key,
-                            "title": key,
+                            "title": title,
                             "value": data.get("values"),
                             "style": data.get("style"),
                         })
                     else:
                         self._upsert_response({
                             "key": key,
-                            "title": key,
+                            "title": title,
                             "value": data,
                             "style": None,
                         })

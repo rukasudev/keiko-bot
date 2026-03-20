@@ -254,10 +254,8 @@ class DesignSelectView(discord.ui.LayoutView):
         custom_id = interaction.data.get("custom_id", "")
 
         if custom_id == "cancel_design":
-            await interaction.response.edit_message(
-                content=ml("buttons.cancel.cancelled", locale=self.locale) or "Cancelled.",
-                view=None
-            )
+            await interaction.response.defer()
+            await interaction.delete_original_response()
             self.stop()
             return False
 
@@ -280,7 +278,7 @@ class DesignSelectView(discord.ui.LayoutView):
     def get_response(self):
         return list(self.response.keys())[0] if self.response else None
 
-    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
         logger.error(
             f"DesignSelectView error: {type(error).__name__}: {error}",
             interaction=interaction,

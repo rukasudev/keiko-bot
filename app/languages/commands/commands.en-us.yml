@@ -92,6 +92,16 @@ en-us:
       name: commands
       desc: Keiko responds to StreamElements commands here in Discord chat
 
+    setup:
+      name: setup
+      desc: Keiko shows you all features available and helps you set them up
+      embed:
+        title: "⚙️ Server Setup"
+        desc: "Here you can see and manage all my features! Click a button to start setting up :gear:"
+        configured: Configured
+        not-configured: Not configured
+        all-configured: "All features are configured! Use each command to manage them :sparkles:"
+
   groups:
     moderations: moderations
     notifications: notifications

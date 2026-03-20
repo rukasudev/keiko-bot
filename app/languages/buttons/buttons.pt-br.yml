@@ -95,3 +95,23 @@ pt-br:
     design-select:
       header: "⬇️ Selecione um dos 3 designs abaixo:"
       footer: "⬆️ Role para cima para ver todas as opções"
+
+  setup:
+    welcome-messages:
+      label: Mensagem de Entrada
+      desc: Configure uma mensagem de boas-vindas personalizada para novos membros
+    default-roles:
+      label: Autocargos
+      desc: Atribui cargos automaticamente a novos membros
+    twitch:
+      label: Twitch
+      desc: Seja notificado quando seus streamers favoritos entrarem ao vivo
+    youtube:
+      label: YouTube
+      desc: Seja notificado quando seus YouTubers favoritos enviarem um novo vídeo
+    dashboard:
+      label: Configurar
+      desc: Veja todas as funcionalidades e seus status
+    admin-only:
+      title: ⚠️ Apenas Admins
+      message: Apenas administradores do servidor podem configurar funcionalidades

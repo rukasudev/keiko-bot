@@ -43,6 +43,8 @@ class Events(Cog, name="events"):
             )
             self.bot.synced = True
 
+        self.bot.add_view(GreetingsView())
+
         self.bot.ready_time = datetime.now()
 
         ready_message = (
@@ -121,8 +123,10 @@ class Events(Cog, name="events"):
         total_servers = count_moderations_by_owner(owner_id)
         action = "Joined new guild" if not exist else "Joined again"
 
+        total_guilds = len(self.bot.guilds)
+
         logger.info(
-            f"{action} by {guild.owner.mention}\nInvited by: {guild.owner.mention} ({total_servers} server{'s' if total_servers != 1 else ''} total)",
+            f"{action} by {guild.owner.mention}\nInvited by: {guild.owner.mention} ({total_servers} server{'s' if total_servers != 1 else ''} total)\nTotal servers: {total_guilds}",
             guild_id=guild.id,
             owner_id=guild.owner.id,
             log_type=logconstants.EVENT_JOIN_GUILD_TYPE,

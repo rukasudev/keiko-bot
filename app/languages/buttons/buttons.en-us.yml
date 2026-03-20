@@ -97,3 +97,23 @@ en-us:
       header: "⬇️ Select one of the 3 designs below:"
       footer: "⬆️ Scroll up to see all options"
 
+  setup:
+    welcome-messages:
+      label: Welcome Messages
+      desc: Set up a personalized welcome message for new members
+    default-roles:
+      label: Auto-Roles
+      desc: Automatically assign roles to new members
+    twitch:
+      label: Twitch
+      desc: Get notified when your favorite streamers go live
+    youtube:
+      label: YouTube
+      desc: Get notified when your favorite YouTubers upload a new video
+    dashboard:
+      label: Setup
+      desc: See all features and their status
+    admin-only:
+      title: ⚠️ Admin Only
+      message: Only server administrators can configure features
+
