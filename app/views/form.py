@@ -311,8 +311,10 @@ class Form(discord.ui.View):
             if s.get("condition", {}).get("key") in steps
         }
 
-    def filter_steps(self, steps: List[str]):
+    def filter_steps(self, steps):
         """Filter steps list to only include selected steps and their dependents."""
+        if isinstance(steps, str):
+            steps = [steps]
         all_steps = set(steps) | self._get_dependent_steps(steps)
         self.state.steps_list = [s for s in self.state.steps_list if s["key"] in all_steps]
 
