@@ -39,10 +39,16 @@ async def send_welcome_message(member: discord.Member):
     if cogs == None:
         return
 
-    channel = cogs["welcome_messages_channel"].get("values")
-    welcome_messages = cogs["welcome_messages"].get("values")
+    channel_data = cogs.get("welcome_messages_channel")
+    welcome_messages_data = cogs.get("welcome_messages")
 
-    if not channel and welcome_messages:
+    if not channel_data or not welcome_messages_data:
+        return
+
+    channel = channel_data.get("values")
+    welcome_messages = welcome_messages_data.get("values")
+
+    if not channel or not welcome_messages:
         return
 
     channel = member.guild.get_channel(int(channel))

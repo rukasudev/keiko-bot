@@ -9,6 +9,15 @@ def find_cog_by_guild_id(guild_id: str, cog: str) -> Dict[str, Any]:
 
 
 def insert_cog_by_guild_id(cog: str, data: Dict[str, Any]) -> str:
+    guild_id = data.get("guild_id")
+    existing = find_cog_by_guild_id(guild_id, cog) if guild_id else None
+
+    if existing:
+        data = parse_update_timestamp(data)
+        return mongo_client.guild[cog].replace_one(
+            {"guild_id": str(guild_id)}, {**existing, **data}
+        )
+
     data = parse_insert_timestamp(data)
     return mongo_client.guild[cog].insert_one(data)
 
