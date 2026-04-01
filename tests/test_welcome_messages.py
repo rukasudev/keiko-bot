@@ -210,10 +210,6 @@ class TestWelcomeMessagesEdgeCases:
 
         Input: Configuracao sem mensagens definidas
         Output: Nenhuma mensagem enviada, nenhum erro
-
-        NOTA: O codigo atual tem um bug - nao valida se messages e None
-        antes de chamar split_welcome_messages. Este teste documenta
-        o comportamento atual.
         """
         # Arrange
         new_member = create_member(guild, id=999, name="NewUser")
@@ -224,10 +220,11 @@ class TestWelcomeMessagesEdgeCases:
             "welcome_messages_footer": "Footer"
         }
 
-        # Act/Assert
-        # BUG: Codigo falha com AttributeError quando messages e None
-        with pytest.raises(AttributeError):
-            await send_welcome_message(new_member)
+        # Act
+        await send_welcome_message(new_member)
+
+        # Assert - retorna early sem enviar mensagem
+        channel._send.assert_not_called()
 
 
 class TestWelcomeMessagesDesign:

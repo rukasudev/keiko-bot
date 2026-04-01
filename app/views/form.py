@@ -846,7 +846,8 @@ class Form(discord.ui.View):
     async def _callback(self, interaction: discord.Interaction) -> None:
         self._start_preview_pregeneration(interaction)
 
-        self.clear_items()
-
         action = self._get_step_item("action")
+        if action not in (constants.MODAL_ACTION_KEY, constants.FILE_UPLOAD_ACTION_KEY):
+            self.clear_items()
+
         return await self.get_action_by_type(action, interaction)

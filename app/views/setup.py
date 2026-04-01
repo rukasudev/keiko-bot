@@ -80,6 +80,13 @@ class SetupFeatureButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         from app.services.moderations import send_command_form_message
+
+        logger.info(
+            f"command started ({interaction.id}): command {self.command_key} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_CALL_TYPE,
+        )
+
         await send_command_form_message(interaction, self.command_key)
 
 
