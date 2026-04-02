@@ -6,7 +6,8 @@ from discord.app_commands.commands import Command
 from app.bot import DiscordBot
 from app.components.select import HelpSelect
 from app.constants import CogsConstants as constants
-from app.services.utils import keiko_command, ml, parse_valid_locale
+from app.decorators import keiko_command
+from app.services.utils import ml, parse_valid_locale
 from app.translator import locale_str
 from app.types.cogs import Cog
 from app.views.pagination import PaginationView

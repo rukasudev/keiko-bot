@@ -1,8 +1,8 @@
 import discord
 
 from app.bot import DiscordBot
+from app.decorators import keiko_admin_only, keiko_command
 from app.services import notifications_twitch as notifications_twitch_service
-from app.services.utils import keiko_command
 from app.translator import locale_str
 from app.types.cogs import Group
 
@@ -19,6 +19,7 @@ class Twitch(
         name=locale_str("lives", type="name", namespace="notifications-twitch"),
         description=locale_str("desc", type="desc", namespace="notifications-twitch"),
     )
+    @keiko_admin_only
     async def notifications_twitch(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
 

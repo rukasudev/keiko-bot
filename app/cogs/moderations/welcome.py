@@ -1,8 +1,8 @@
 import discord
 
 from app.bot import DiscordBot
+from app.decorators import keiko_admin_only, keiko_command
 from app.services import welcome_messages as welcome_messages_service
-from app.services.utils import keiko_command
 from app.translator import locale_str
 from app.types.cogs import Group
 
@@ -19,6 +19,7 @@ class Welcome(
         name=locale_str("messages", type="name", namespace="welcome-messages"),
         description=locale_str("messages", type="desc", namespace="welcome-messages"),
     )
+    @keiko_admin_only
     async def welcome_messages(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
 

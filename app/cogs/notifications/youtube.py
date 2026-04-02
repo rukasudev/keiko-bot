@@ -1,8 +1,8 @@
 import discord
 
 from app.bot import DiscordBot
+from app.decorators import keiko_admin_only, keiko_command
 from app.services import notifications_youtube_video
-from app.services.utils import keiko_command
 from app.translator import locale_str
 from app.types.cogs import Group
 
@@ -19,6 +19,7 @@ class Youtube(
         name=locale_str("video", type="name", namespace="notifications-youtube"),
         description=locale_str("desc", type="desc", namespace="notifications-youtube"),
     )
+    @keiko_admin_only
     async def notifications_youtube_video(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
 

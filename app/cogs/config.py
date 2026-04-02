@@ -5,7 +5,7 @@ from discord.app_commands import Choice
 import app
 from app.bot import DiscordBot
 from app.services.config import update_activity, update_description, update_status
-from app.services.utils import keiko_command
+from app.decorators import keiko_command
 from app.types.cogs import Group, GroupCog
 
 

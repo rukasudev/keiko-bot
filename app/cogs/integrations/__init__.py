@@ -7,7 +7,6 @@ from app.types.cogs import GroupCog
 
 
 @app_commands.guild_only()
-@app_commands.default_permissions()
 class Integrations(GroupCog, name=locale_str("integrations", type="groups")):
     def __init__(self, bot: DiscordBot):
         self.bot = bot

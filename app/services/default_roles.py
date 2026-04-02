@@ -84,8 +84,11 @@ async def set_on_default_roles_sync(interaction: discord.Interaction):
 async def set_default_roles(
     cogs: Dict[str, str], guild: discord.Guild, members: List[discord.Member]
 ):
-    default_roles_bot = cogs.get(constants.DEFAULT_ROLES_BOT_KEY, []).get("values")
-    default_roles_user = cogs.get(constants.DEFAULT_ROLES_KEY, []).get("values")
+    default_roles_bot_data = cogs.get(constants.DEFAULT_ROLES_BOT_KEY)
+    default_roles_bot = default_roles_bot_data.get("values") if isinstance(default_roles_bot_data, dict) else default_roles_bot_data
+
+    default_roles_user_data = cogs.get(constants.DEFAULT_ROLES_KEY)
+    default_roles_user = default_roles_user_data.get("values") if isinstance(default_roles_user_data, dict) else default_roles_user_data
 
     available_roles = get_available_roles_by_guild(guild)
     roles_mapping = {

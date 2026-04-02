@@ -161,7 +161,10 @@ async def fetch_notification_message(guild_id: str, channel_id: str, streamer_na
     stream_notification = find_stream_notification(guild_id, channel_id, streamer_name)
     if stream_notification:
         channel = bot.get_guild(guild_id).get_channel(channel_id)
-        return await channel.fetch_message(stream_notification["message_id"])
+        try:
+            return await channel.fetch_message(stream_notification["message_id"])
+        except discord.NotFound:
+            return None
     return None
 
 def is_more_than_one_hour(start_time: str, last_time: str) -> bool:

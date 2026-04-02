@@ -5,7 +5,7 @@ from app.services.subscriptions import (
     get_reminder_subscriptions,
     get_twitch_subscriptions,
 )
-from app.services.utils import keiko_command
+from app.decorators import keiko_command
 from app.types.cogs import Group
 
 

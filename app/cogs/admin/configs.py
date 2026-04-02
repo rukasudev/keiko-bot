@@ -7,7 +7,7 @@ from discord.app_commands import Choice
 from app.bot import DiscordBot
 from app.constants import DBConfigs as constants
 from app.services.admin import get_admin_configs, update_admin_configs
-from app.services.utils import keiko_command
+from app.decorators import keiko_command
 from app.types.cogs import Group
 
 

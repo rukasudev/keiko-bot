@@ -1,8 +1,8 @@
 import discord
 
 from app.bot import DiscordBot
+from app.decorators import keiko_admin_only, keiko_command
 from app.services import default_roles as default_roles_service
-from app.services.utils import keiko_command
 from app.translator import locale_str
 from app.types.cogs import Group
 
@@ -19,6 +19,7 @@ class Roles(
         name=locale_str("roles", type="name", namespace="default-roles"),
         description=locale_str("desc", type="desc", namespace="default-roles"),
     )
+    @keiko_admin_only
     async def default_roles(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
 

@@ -2,7 +2,8 @@ import discord
 
 from app.bot import DiscordBot
 from app.data.moderations import find_moderations_by_guild
-from app.services.utils import keiko_command, parse_locale
+from app.decorators import keiko_command
+from app.services.utils import parse_locale
 from app.translator import locale_str
 from app.types.cogs import Cog
 from app.views.setup import SetupView
