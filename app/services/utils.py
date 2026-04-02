@@ -10,7 +10,6 @@ from typing import Any, Dict, List, Tuple
 
 import discord
 import yaml
-from discord.app_commands import Command
 from discord.ext import commands
 from i18n import t
 
@@ -144,33 +143,6 @@ async def get_translated_qualified_name(
         names.append(grandparent_name)
 
     return " ".join(reversed(names))
-
-
-def keiko_command(
-    *,
-    name: str = "",
-    description: str = "...",
-    nsfw: bool = False,
-    auto_locale_strings: bool = True,
-    extras: Dict[Any, Any] = None,
-):
-    def decorator(func):
-        @functools.wraps(func)
-        async def wrapper(self, interaction: discord.Interaction, *args, **kwargs):
-            interaction.locale = parse_valid_locale(interaction.locale)
-            await func(self, interaction, *args, **kwargs)
-
-        return Command(
-            name=name if name != "" else func.__name__,
-            description=description,
-            callback=wrapper,
-            parent=None,
-            nsfw=nsfw,
-            auto_locale_strings=auto_locale_strings,
-            extras=extras,
-        )
-
-    return decorator
 
 
 def parse_settings_with_database_values(cog_data: Dict[str, str], form_steps: Dict[str, str], locale: str) -> List[Dict[str, str]]:
@@ -332,7 +304,9 @@ def parse_command_event_description(
 ) -> str:
     command = get_command_by_key(interaction.client, cog_key)
     command_name = command.extras[interaction.locale.value].get("locale_qualified_name")
+    setup_command = ml("commands.commands.setup.name", locale=interaction.locale)
     description = description.replace("$command_name", command_name)
+    description = description.replace("$setup_command", setup_command)
     description = description.replace(
         "$date", event_date.strftime("%Y-%m-%d %H:%M:%S") + " UTC"
     )

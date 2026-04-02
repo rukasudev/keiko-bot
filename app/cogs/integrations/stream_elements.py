@@ -1,8 +1,8 @@
 import discord
 
 from app.bot import DiscordBot
+from app.decorators import keiko_admin_only, keiko_command
 from app.services import stream_elements as stream_elements_service
-from app.services.utils import keiko_command
 from app.translator import locale_str
 from app.types.cogs import Group
 
@@ -19,6 +19,7 @@ class StreamElementsCommands(
         name=locale_str("commands", type="name", namespace="stream-elements"),
         description=locale_str("desc", type="desc", namespace="stream-elements"),
     )
+    @keiko_admin_only
     async def stream_elements_commands(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
 

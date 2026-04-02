@@ -112,7 +112,7 @@ pt-br:
       key: Ativado
       title: 🎉 Funcionalidade ativada com sucesso!
       description: "Comando **$command_name** ativado as $date por $user 🚀\n\n
-        Se você deseja fazer alterações ou desativar o comando, basta executá-lo novamente 🔄"
+        Para fazer alterações ou desativar, use o comando `/$command_name` ou `/$setup_command` 🔄"
       short-description: ✅ Ativado por $user
 
     paused:

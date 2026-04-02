@@ -115,5 +115,5 @@ en-us:
       desc: See all features and their status
     admin-only:
       title: ⚠️ Admin Only
-      message: Only server administrators can configure features
+      message: "Commands like `/moderations` and `/notifications` require administrator permissions to configure features. Ask a server admin to set it up, or they can use the `/setup` command to manage all features! 🔧"
 

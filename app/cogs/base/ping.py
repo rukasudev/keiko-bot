@@ -2,7 +2,7 @@ import discord
 
 from app.bot import DiscordBot
 from app.components.embed import response_embed
-from app.services.utils import keiko_command
+from app.decorators import keiko_command
 from app.translator import locale_str
 from app.types.cogs import Cog
 

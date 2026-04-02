@@ -9,7 +9,6 @@ from app.types.cogs import GroupCog
 
 
 @app_commands.guild_only()
-@app_commands.default_permissions()
 class Moderations(GroupCog, name=locale_str("moderations", type="groups")):
     def __init__(self, bot: DiscordBot):
         self.bot = bot

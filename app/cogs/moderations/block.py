@@ -1,8 +1,8 @@
 import discord
 
 from app.bot import DiscordBot
+from app.decorators import keiko_admin_only, keiko_command
 from app.services import block_links as block_links_service
-from app.services.utils import keiko_command
 from app.translator import locale_str
 from app.types.cogs import Group
 
@@ -19,6 +19,7 @@ class Block(
         name=locale_str("links", type="name", namespace="block-links"),
         description=locale_str("desc", type="desc", namespace="block-links"),
     )
+    @keiko_admin_only
     async def block_links(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
 

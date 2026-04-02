@@ -1,7 +1,7 @@
 import discord
 
 from app.bot import DiscordBot
-from app.services.utils import keiko_command
+from app.decorators import keiko_command
 from app.services.welcome_messages import send_welcome_message
 from app.types.cogs import Group
 

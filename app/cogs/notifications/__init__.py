@@ -8,7 +8,6 @@ from app.types.cogs import GroupCog
 
 
 @app_commands.guild_only()
-@app_commands.default_permissions()
 class Notifications(GroupCog, name=locale_str("notifications", type="groups")):
     def __init__(self, bot: DiscordBot):
         self.bot = bot

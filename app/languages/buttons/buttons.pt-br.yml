@@ -114,4 +114,4 @@ pt-br:
       desc: Veja todas as funcionalidades e seus status
     admin-only:
       title: ⚠️ Apenas Admins
-      message: Apenas administradores do servidor podem configurar funcionalidades
+      message: "Comandos como `/moderações` e `/notificações` requerem permissão de administrador para configurar funcionalidades. Peça a um admin do servidor para configurar, ou ele pode usar o comando `/configurar` para gerenciar todas as funcionalidades! 🔧"

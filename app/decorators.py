@@ -1,9 +1,51 @@
 import functools
-from typing import Callable
+from typing import Any, Callable, Dict
+
+import discord
+from discord.app_commands import Command
 
 from app import logger
+from app.components.embed import response_embed
 from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
+from app.services.utils import parse_locale, parse_valid_locale
+
+
+def keiko_command(
+    *,
+    name: str = "",
+    description: str = "...",
+    nsfw: bool = False,
+    auto_locale_strings: bool = True,
+    extras: Dict[Any, Any] = None,
+):
+    def decorator(func):
+        @functools.wraps(func)
+        async def wrapper(self, interaction: discord.Interaction, *args, **kwargs):
+            interaction.locale = parse_valid_locale(interaction.locale)
+            await func(self, interaction, *args, **kwargs)
+
+        return Command(
+            name=name if name != "" else func.__name__,
+            description=description,
+            callback=wrapper,
+            parent=None,
+            nsfw=nsfw,
+            auto_locale_strings=auto_locale_strings,
+            extras=extras,
+        )
+
+    return decorator
+
+
+def keiko_admin_only(func: Callable) -> Callable:
+    @functools.wraps(func)
+    async def wrapper(self, interaction, *args, **kwargs):
+        if not interaction.user.guild_permissions.administrator:
+            embed = response_embed("buttons.setup.admin-only", parse_locale(interaction.locale))
+            return await interaction.response.send_message(embed=embed, ephemeral=True)
+        return await func(self, interaction, *args, **kwargs)
+    return wrapper
 
 
 def with_error_context(flow: str) -> Callable:
