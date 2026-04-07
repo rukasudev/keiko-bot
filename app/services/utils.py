@@ -273,7 +273,15 @@ def get_settings_label_by_locale(locale: str) -> str:
     return ml("commands.resume.settings", locale=locale)
 
 def parse_locale(locale: str) -> str:
-    return str(locale).lower()
+    locale_str = str(locale).lower()
+    lowered_supported = [s.lower() for s in supported_locales]
+    if locale_str in lowered_supported:
+        return locale_str
+    lang_prefix = locale_str.split("-")[0]
+    for supported in lowered_supported:
+        if supported.startswith(lang_prefix):
+            return supported
+    return "en-us"
 
 def parse_valid_locale(locale: discord.Locale) -> discord.Locale:
     if locale.value not in supported_locales:
@@ -303,7 +311,8 @@ def parse_command_event_description(
     cog_key: str,
 ) -> str:
     command = get_command_by_key(interaction.client, cog_key)
-    command_name = command.extras[interaction.locale.value].get("locale_qualified_name")
+    valid_locale = parse_valid_locale(interaction.locale)
+    command_name = command.extras[valid_locale.value].get("locale_qualified_name")
     setup_command = ml("commands.commands.setup.name", locale=interaction.locale)
     description = description.replace("$command_name", command_name)
     description = description.replace("$setup_command", setup_command)

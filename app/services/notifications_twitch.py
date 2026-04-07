@@ -307,6 +307,6 @@ def parse_streamer_message(message: str, streamer: str, stream_link: str) -> str
     if "{stream_link}" not in message.lower():
         message += "\n{stream_link}"
 
-    message = message.format(streamer=streamer, stream_link=stream_link)
+    message = message.replace("{streamer}", streamer).replace("{stream_link}", stream_link)
 
     return message

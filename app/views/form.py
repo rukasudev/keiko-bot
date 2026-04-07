@@ -618,7 +618,7 @@ class Form(discord.ui.View):
             interaction=interaction,
         )
 
-        await interaction.followup.send(embed=embed, view=self)
+        await interaction.followup.send(embed=embed, view=self, ephemeral=True)
 
     async def pre_finish_step(self, interaction: discord.Interaction):
         from app import bot
@@ -814,7 +814,7 @@ class Form(discord.ui.View):
             if not deferred:
                 await interaction.response.defer()
             await interaction.followup.delete_message(interaction.message.id)
-            await interaction.followup.send(embed=embed, view=view)
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
         else:
             if deferred:
                 await interaction.followup.edit_message(
@@ -839,7 +839,7 @@ class Form(discord.ui.View):
                 cogs_fallback()
 
         await interaction.followup.delete_message(interaction.message.id)
-        await interaction.followup.send(view=self.view)
+        await interaction.followup.send(view=self.view, ephemeral=True)
         self._using_layout_view = True
 
     @_update_form_step

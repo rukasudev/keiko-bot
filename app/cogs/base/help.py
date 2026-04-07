@@ -39,7 +39,7 @@ class Help(Cog, name=locale_str("help", type="name", namespace="help")):
     def get_command_info(
         self, interaction: discord.Interaction, command: Command
     ) -> Dict[str, str]:
-        locale = interaction.locale.value
+        locale = parse_valid_locale(interaction.locale).value
 
         command_info = {
             "name": (
@@ -77,7 +77,7 @@ class Help(Cog, name=locale_str("help", type="name", namespace="help")):
 
             command_info = self.get_command_info(interaction, command)
             title = self.get_title(
-                base_title, command, interaction.locale.value
+                base_title, command, parse_valid_locale(interaction.locale).value
             ).capitalize()
 
             if title not in data:

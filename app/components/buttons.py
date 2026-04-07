@@ -3,9 +3,12 @@ from typing import Any, Callable
 
 import discord
 
+from app import logger
 from app.components.embed import response_embed
 from app.constants import KeikoIcons as icons
-from app.services.utils import ml, parse_locale
+from app.constants import LogTypes as logconstants
+from app.services.cache import increment_redis_key
+from app.services.utils import get_command_by_key, ml, parse_locale
 
 
 class ConfirmButton(discord.ui.Button):
@@ -220,6 +223,19 @@ class ExecuteCommandButton(discord.ui.Button):
         if not interaction.user.guild_permissions.administrator:
             embed = response_embed("buttons.setup.admin-only", parse_locale(interaction.locale))
             return await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        command = get_command_by_key(interaction.client, self.command_key)
+        command_name = command.qualified_name if command else self.command_key
+
+        logger.info(
+            f"command started ({interaction.id}): command {command_name} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_CALL_TYPE,
+            command_name=command_name,
+            interaction_source="button (help)",
+        )
+
+        increment_redis_key(f"{logconstants.COMMAND_CALL_TYPE}:{self.command_key}:button")
 
         guild_id = str(interaction.guild.id)
         service = importlib.import_module(self.COMMAND_SERVICES[self.command_key])

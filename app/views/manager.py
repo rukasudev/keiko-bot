@@ -133,7 +133,7 @@ class Manager(discord.ui.View):
         except Exception:
             pass
 
-        await interaction.followup.send(embed=embed, view=self)
+        await interaction.followup.send(embed=embed, view=self, ephemeral=True)
 
     def pause_handler(self) -> discord.ui.Button:
         if self.cogs.get(constants.ENABLED_KEY):
@@ -173,7 +173,7 @@ class Manager(discord.ui.View):
         )
 
         await interaction.response.edit_message(view=self)
-        await interaction.followup.send(embed=embed, view=self)
+        await interaction.followup.send(embed=embed, view=self, ephemeral=True)
 
     @need_confirmation_modal
     async def pause_callback(self, interaction: discord.Interaction):
@@ -207,7 +207,7 @@ class Manager(discord.ui.View):
         )
 
         await interaction.response.edit_message(view=self)
-        await interaction.followup.send(embed=embed, view=self)
+        await interaction.followup.send(embed=embed, view=self, ephemeral=True)
 
     @need_confirmation_modal
     async def disable_callback(self, interaction: discord.Interaction):
@@ -251,7 +251,7 @@ class Manager(discord.ui.View):
         )
 
         await interaction.followup.edit_message(interaction.message.id, view=self)
-        await interaction.followup.send(embed=embed, view=self)
+        await interaction.followup.send(embed=embed, view=self, ephemeral=True)
 
     async def history_callback(self, interaction: discord.Interaction):
         raw_data = find_cog_events_by_guild(self.interaction.guild_id, self.command_key)
@@ -314,7 +314,7 @@ class Manager(discord.ui.View):
         )
 
         await interaction.followup.edit_message(interaction.message.id, view=self)
-        await interaction.followup.send(embed=embed, view=self)
+        await interaction.followup.send(embed=embed, view=self, ephemeral=True)
 
     def handle_remove_item_button(self) -> None:
         if self.command_key not in constants.COMPOSITION_COMMANDS_LIST:
@@ -367,4 +367,4 @@ class Manager(discord.ui.View):
         )
 
         await interaction.followup.edit_message(interaction.message.id, view=self)
-        await interaction.followup.send(embed=embed, view=self)
+        await interaction.followup.send(embed=embed, view=self, ephemeral=True)

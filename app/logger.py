@@ -55,7 +55,7 @@ class OptionalGuildIDFormatter(logging.Formatter):
         elif guild_id:
             format_str += f" (guild_id: {guild_id})"
 
-        format_str += f" - {record.msg}"
+        format_str += " - %(message)s"
 
         self._style = logging.PercentStyle(format_str)
         return super().format(record)
@@ -226,10 +226,18 @@ class DiscordLogsHandler(logging.Handler):
             embed.add_field(name="Guild ID", value=interaction.guild.id)
             embed.add_field(name="User ID", value=interaction.user.mention)
 
-            if embed.title == constants.COMMAND_CALL_TITLE and interaction.command:
-                embed.description = (
-                    f"Command called: **{interaction.command.qualified_name}**"
+            if embed.title == constants.COMMAND_CALL_TITLE:
+                command_name = (
+                    interaction.command.qualified_name
+                    if interaction.command
+                    else getattr(record, "command_name", None)
                 )
+                if command_name:
+                    embed.description = f"Command called: **{command_name}**"
+
+                interaction_source = getattr(record, "interaction_source", None)
+                if interaction_source:
+                    embed.add_field(name="Interaction Source", value=interaction_source, inline=True)
 
             if interaction.channel:
                 embed.add_field(name="Channel ID", value=interaction.channel.id)

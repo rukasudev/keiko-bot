@@ -5,7 +5,8 @@ from app.constants import Commands as commands_constants
 from app.constants import LogTypes as logconstants
 from app.constants import Style as style
 from app.data.cogs import find_cog_by_guild_id
-from app.services.utils import ml
+from app.services.cache import increment_redis_key
+from app.services.utils import get_command_by_key, ml
 
 def _get_translated_command(command_key: str, locale: str) -> str:
     info = commands_constants.FEATURE_COMMANDS[command_key]
@@ -35,11 +36,18 @@ class SetupFeatureButton(discord.ui.Button):
 
         from app.components.buttons import ExecuteCommandButton
 
+        command = get_command_by_key(interaction.client, self.command_key)
+        command_name = command.qualified_name if command else self.command_key
+
         logger.info(
-            f"command started ({interaction.id}): command {self.command_key} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}",
+            f"command started ({interaction.id}): command {command_name} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}",
             interaction=interaction,
             log_type=logconstants.COMMAND_CALL_TYPE,
+            command_name=command_name,
+            interaction_source="button (setup)",
         )
+
+        increment_redis_key(f"{logconstants.COMMAND_CALL_TYPE}:{self.command_key}:button")
 
         guild_id = str(interaction.guild.id)
         service = importlib.import_module(ExecuteCommandButton.COMMAND_SERVICES[self.command_key])

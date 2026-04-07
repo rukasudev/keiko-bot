@@ -7,7 +7,8 @@ from app.constants import Commands as commands_constants
 from app.constants import LogTypes as logconstants
 from app.constants import supported_locales
 from app.integrations.google_translate import GoogleTranslate
-from app.services.utils import ml, parse_locale
+from app.services.cache import increment_redis_key
+from app.services.utils import get_command_by_key, ml, parse_locale
 
 SETUP_FEATURES = [
     {
@@ -50,15 +51,25 @@ class SetupButton(discord.ui.Button):
             embed = response_embed("buttons.setup.admin-only", self.locale)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        from app.services.moderations import send_command_form_message
+        import importlib
+        from app.components.buttons import ExecuteCommandButton
+
+        command = get_command_by_key(interaction.client, self.command_key)
+        command_name = command.qualified_name if command else self.command_key
 
         logger.info(
-            f"command started ({interaction.id}): command {self.command_key} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}",
+            f"command started ({interaction.id}): command {command_name} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}",
             interaction=interaction,
             log_type=logconstants.COMMAND_CALL_TYPE,
+            command_name=command_name,
+            interaction_source="button (greetings)",
         )
 
-        await send_command_form_message(interaction, self.command_key)
+        increment_redis_key(f"{logconstants.COMMAND_CALL_TYPE}:{self.command_key}:button")
+
+        guild_id = str(interaction.guild.id)
+        service = importlib.import_module(ExecuteCommandButton.COMMAND_SERVICES[self.command_key])
+        await service.manager(interaction=interaction, guild_id=guild_id)
 
 
 class DashboardButton(discord.ui.Button):

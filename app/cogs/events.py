@@ -106,6 +106,7 @@ class Events(Cog, name="events"):
             f"command started ({interaction.id}): command {interaction.command.qualified_name} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}",
             interaction=interaction,
             log_type=logconstants.COMMAND_CALL_TYPE,
+            interaction_source="slash command",
         )
 
     @commands.Cog.listener()
