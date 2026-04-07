@@ -124,6 +124,8 @@ def get_roles_to_add(
 
 
 def filter_roles(roles: List[str], available_roles: Dict[str, str]) -> List[str]:
+    if not roles or not available_roles:
+        return []
     if isinstance(roles, str):
         return [roles] if roles in available_roles.values() else []
     return [role for role in roles if role in available_roles.values()]
