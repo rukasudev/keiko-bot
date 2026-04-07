@@ -96,6 +96,10 @@ pt-br:
       header: "⬇️ Selecione um dos 3 designs abaixo:"
       footer: "⬆️ Role para cima para ver todas as opções"
 
+  execute:
+    label: Executar
+    desc: Executar este comando
+
   setup:
     welcome-messages:
       label: Mensagem de Entrada
@@ -103,6 +107,9 @@ pt-br:
     default-roles:
       label: Autocargos
       desc: Atribui cargos automaticamente a novos membros
+    block-links:
+      label: Bloqueio de Links
+      desc: Bloqueie links de serem postados no seu servidor
     twitch:
       label: Twitch
       desc: Seja notificado quando seus streamers favoritos entrarem ao vivo

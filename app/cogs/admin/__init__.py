@@ -19,9 +19,9 @@ from app.services.admin import (
     get_overview_data,
     send_log_file_from_channel_by_date,
 )
+from app.decorators import keiko_command
 from app.services.utils import (
     format_datetime_output,
-    keiko_command,
     parse_log_filename_with_date,
 )
 from app.types.cogs import GroupCog

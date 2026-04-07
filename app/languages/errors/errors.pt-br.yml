@@ -14,13 +14,12 @@ pt-br:
 
   command-default-roles-low-permissions:
     title: Permissões de Cargo Insuficientes
-    message: "Desculpe, mas não tenho permissão para atribuir cargos neste servidor.\n\n
-      Por favor, me atribua um cargo com esses privilégios ou eleve a posição do meu cargo **Keiko** na hierarquia de cargos do servidor."
+    message: "**Keiko** não tem permissão para atribuir cargos neste servidor :/\n\n
+      Na hierarquia de cargos do servidor, dê um cargo acima desses para o **Keiko**"
 
   command-default-roles-missing-permissions:
-    message: "🚨 **ATENÇÃO!!!**\n
-      Não tenho mais permissão para atribuir os seguintes cargos no servidor: **$roles**\n\n
-      Por favor, me atribua um cargo com esses privilégios ou eleve a posição do meu cargo **Keiko** na hierarquia de cargos do servidor."
+    message: "**Keiko** não tem mais permissão para atribuir os seguintes cargos: **$roles**\n\n
+      Na hierarquia de cargos do servidor, dê um cargo acima desses para o **Keiko**"
 
   command-default-roles-disactivated:
     message: A funcionalidade de atribuir cargos automaticamente está desabilitada. Para ativar e configurar a funcionalidade, sinta-se a vontade de rodar o comando `cargos padrao` 🐶

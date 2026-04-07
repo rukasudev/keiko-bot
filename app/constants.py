@@ -99,6 +99,22 @@ class Commands:
         NOTIFICATIONS_YOUTUBE_VIDEO_KEY: 2,
     }
 
+    SETUP_FEATURES: Final[List[Dict[str, str]]] = [
+        {"command_key": WELCOME_MESSAGES_KEY, "button_key": "welcome-messages", "emoji": "🎉"},
+        {"command_key": DEFAULT_ROLES_KEY, "button_key": "default-roles", "emoji": "👩‍🎓"},
+        {"command_key": BLOCK_LINKS_KEY, "button_key": "block-links", "emoji": "🚫"},
+        {"command_key": NOTIFICATIONS_TWITCH_KEY, "button_key": "twitch", "emoji": "📡"},
+        {"command_key": NOTIFICATIONS_YOUTUBE_VIDEO_KEY, "button_key": "youtube", "emoji": "▶️"},
+    ]
+
+    FEATURE_COMMANDS: Final[Dict[str, Dict[str, str]]] = {
+        WELCOME_MESSAGES_KEY: {"group": "moderations", "namespace": "welcome-messages"},
+        DEFAULT_ROLES_KEY: {"group": "moderations", "namespace": "default-roles"},
+        BLOCK_LINKS_KEY: {"group": "moderations", "namespace": "block-links"},
+        NOTIFICATIONS_TWITCH_KEY: {"group": "notifications", "namespace": "notifications-twitch"},
+        NOTIFICATIONS_YOUTUBE_VIDEO_KEY: {"group": "notifications", "namespace": "notifications-youtube"},
+    }
+
 
 class CogsConstants:
     ADMIN_COGS: Final[str] = "admin"

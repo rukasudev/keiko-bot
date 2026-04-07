@@ -7,8 +7,8 @@ pt-br:
         title: 📚 Comandos disponíveis
         desc:
           "Aqui estão meus comandos que irão te ajudar a deixar seu servidor mais aconchegante! ✨\n\n
-          Para mais informações sobre um comando específico, selecione o comando em `Selecione um comando para ver sua descrição` na lista abaixo da mensagem ⬇️\n\n"
-        placeholder: Selecione um comando para ver sua descrição
+          Selecione um comando abaixo para ver sua descrição e executá-lo diretamente ⬇️\n\n"
+        placeholder: Selecione um comando
         base-commands: Comandos base
 
       embed-desc:
@@ -97,10 +97,12 @@ pt-br:
       desc: Keiko mostra todas as funcionalidades disponíveis e te ajuda a configurá-las
       embed:
         title: "⚙️ Configuração do Servidor"
-        desc: "Aqui você pode ver e gerenciar todas as minhas funcionalidades! Clique em um botão para começar a configurar :gear:"
-        configured: Configurado
+        desc: "Aqui você pode ver e gerenciar todas as minhas funcionalidades! Use os botões abaixo ou digite o comando para começar 🐾"
+        enabled: Ativado
         not-configured: Não configurado
-        all-configured: "Todas as funcionalidades estão configuradas! Use cada comando para gerenciá-las :sparkles:"
+        paused: Pausado
+        all-configured: "Todas as funcionalidades estão configuradas! Use cada comando para gerenciá-las ✨"
+        footer: "Use o comando /reportar para me contar um bug"
 
   groups:
     moderations: moderações

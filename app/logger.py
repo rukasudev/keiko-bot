@@ -226,7 +226,7 @@ class DiscordLogsHandler(logging.Handler):
             embed.add_field(name="Guild ID", value=interaction.guild.id)
             embed.add_field(name="User ID", value=interaction.user.mention)
 
-            if embed.title == constants.COMMAND_CALL_TITLE:
+            if embed.title == constants.COMMAND_CALL_TITLE and interaction.command:
                 embed.description = (
                     f"Command called: **{interaction.command.qualified_name}**"
                 )

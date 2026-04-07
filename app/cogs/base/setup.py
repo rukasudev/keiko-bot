@@ -21,8 +21,9 @@ class Setup(Cog, name=locale_str("setup", type="name", namespace="setup")):
     @discord.app_commands.default_permissions(administrator=True)
     async def setup(self, interaction: discord.Interaction) -> None:
         locale = parse_locale(interaction.locale)
+        guild_id = str(interaction.guild.id)
         moderations = find_moderations_by_guild(interaction.guild.id) or {}
-        view = SetupView(moderations, locale)
+        view = SetupView(moderations, locale, guild_id=guild_id)
         embed = view.get_embed()
 
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)

@@ -7,8 +7,8 @@ en-us:
         title: 📚 Available commands
         desc:
           "Here are my commands that will help you make your server more cozy! ✨\n\n
-          For more information about a specific command, select the command in `Select a command to view its description` in the list below the message ⬇️\n\n"
-        placeholder: Select a command to view its description
+          Select a command below to see its description and run it directly ⬇️\n\n"
+        placeholder: Select a command
         base-commands: Base commands
 
       embed-desc:
@@ -97,10 +97,12 @@ en-us:
       desc: Keiko shows you all features available and helps you set them up
       embed:
         title: "⚙️ Server Setup"
-        desc: "Here you can see and manage all my features! Click a button to start setting up :gear:"
-        configured: Configured
+        desc: "Here you can see and manage all my features! Use the buttons below or type the command to get started 🐾"
+        enabled: Enabled
         not-configured: Not configured
-        all-configured: "All features are configured! Use each command to manage them :sparkles:"
+        paused: Paused
+        all-configured: "All features are configured! Use each command to manage them ✨"
+        footer: "Use the command /report to tell me a bug"
 
   groups:
     moderations: moderations
