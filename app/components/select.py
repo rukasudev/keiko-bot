@@ -2,7 +2,7 @@ from typing import Dict, List
 
 import discord
 
-from app.components.buttons import BackButton
+from app.components.buttons import BackButton, ExecuteCommandButton
 from app.services.utils import ml
 
 
@@ -58,11 +58,14 @@ class HelpSelect(Select):
                 data[command["name"]] = command["name"]
         return data
 
-    def get_data_with_desc(self):
+    def get_full_data(self):
         data = {}
         for item in self.view.get_current_page_data():
             for command in self.data[item]:
-                data[command["name"]] = command["description"]
+                data[command["name"]] = {
+                    "description": command["description"],
+                    "command_key": command.get("command_key"),
+                }
         return data
 
     def update(self):
@@ -71,7 +74,7 @@ class HelpSelect(Select):
 
         view.remove_item(view.select)
         view.select.options = view.select.parse_options(data)
-        view.select.max_values = len(data)
+        view.select.max_values = 1
         view.add_item_first(view.select)
 
     async def after_callback(self, interaction: discord.Interaction):
@@ -87,21 +90,26 @@ class HelpSelect(Select):
             "commands.commands.help.embed-desc.desc", interaction.locale
         )
 
-        data = self.get_data_with_desc()
+        data = self.get_full_data()
+        selected = self.view.selected_options[0]
+        command_data = data[selected]
 
-        for key, item in data.items():
-            if key not in self.view.selected_options:
-                continue
+        self.view.embed.add_field(
+            name=f"✨ /{selected}",
+            value=command_data["description"],
+            inline=False,
+        )
 
-            self.view.embed.add_field(
-                name=f"✨ /{key}",
-                value=item,
-                inline=False,
-            )
-
+        locale = str(interaction.locale)
         new_view = discord.ui.View(timeout=1800)
         new_view.add_item(
             BackButton(embed=embed, view=self.view, locale=interaction.locale)
         )
+
+        command_key = command_data["command_key"]
+        if command_key in ExecuteCommandButton.COMMAND_SERVICES:
+            new_view.add_item(
+                ExecuteCommandButton(command_key=command_key, locale=locale)
+            )
 
         await interaction.response.edit_message(embed=self.view.embed, view=new_view)

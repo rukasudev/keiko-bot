@@ -81,8 +81,9 @@ class DashboardButton(discord.ui.Button):
         from app.views.setup import SetupView
 
         locale = parse_locale(interaction.locale)
+        guild_id = str(interaction.guild.id)
         moderations = find_moderations_by_guild(interaction.guild.id) or {}
-        view = SetupView(moderations, locale)
+        view = SetupView(moderations, locale, guild_id=guild_id)
         embed = view.get_embed()
 
         await interaction.response.send_message(embed=embed, view=view, ephemeral=True)

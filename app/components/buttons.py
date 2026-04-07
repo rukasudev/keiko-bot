@@ -1,9 +1,11 @@
+import importlib
 from typing import Any, Callable
 
 import discord
 
+from app.components.embed import response_embed
 from app.constants import KeikoIcons as icons
-from app.services.utils import ml
+from app.services.utils import ml, parse_locale
 
 
 class ConfirmButton(discord.ui.Button):
@@ -193,6 +195,35 @@ class BackButton(discord.ui.Button):
         await interaction.response.edit_message(
             embed=self.old_embed, view=self.old_view
         )
+
+
+class ExecuteCommandButton(discord.ui.Button):
+    COMMAND_SERVICES = {
+        "welcome_messages": "app.services.welcome_messages",
+        "default_roles": "app.services.default_roles",
+        "block_links": "app.services.block_links",
+        "notifications_twitch": "app.services.notifications_twitch",
+        "notifications_youtube_video": "app.services.notifications_youtube_video",
+        "stream_elements_commands": "app.services.stream_elements",
+    }
+
+    def __init__(self, command_key: str, locale: str) -> None:
+        self.command_key = command_key
+        label = ml("buttons.execute.label", locale=locale)
+        super().__init__(
+            label=label,
+            emoji="▶️",
+            style=discord.ButtonStyle.green,
+        )
+
+    async def callback(self, interaction: discord.Interaction) -> Any:
+        if not interaction.user.guild_permissions.administrator:
+            embed = response_embed("buttons.setup.admin-only", parse_locale(interaction.locale))
+            return await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        guild_id = str(interaction.guild.id)
+        service = importlib.import_module(self.COMMAND_SERVICES[self.command_key])
+        await service.manager(interaction=interaction, guild_id=guild_id)
 
 
 class FormBackButton(discord.ui.Button):

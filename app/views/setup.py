@@ -2,70 +2,22 @@ import discord
 
 from app import logger
 from app.constants import Commands as commands_constants
-from app.constants import KeikoIcons as icons
 from app.constants import LogTypes as logconstants
 from app.constants import Style as style
+from app.data.cogs import find_cog_by_guild_id
 from app.services.utils import ml
 
-SETUP_FEATURES = [
-    {
-        "command_key": commands_constants.WELCOME_MESSAGES_KEY,
-        "button_key": "welcome-messages",
-        "emoji": "🎉",
-    },
-    {
-        "command_key": commands_constants.DEFAULT_ROLES_KEY,
-        "button_key": "default-roles",
-        "emoji": "👩‍🎓",
-    },
-    {
-        "command_key": commands_constants.BLOCK_LINKS_KEY,
-        "button_key": None,
-        "emoji": "🚫",
-        "label_fallback": "Block Links",
-    },
-    {
-        "command_key": commands_constants.NOTIFICATIONS_TWITCH_KEY,
-        "button_key": "twitch",
-        "emoji": "📡",
-    },
-    {
-        "command_key": commands_constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
-        "button_key": "youtube",
-        "emoji": "▶️",
-    },
-]
-
-FEATURE_COMMANDS = {
-    commands_constants.WELCOME_MESSAGES_KEY: {
-        "group": "moderations",
-        "namespace": "welcome-messages",
-    },
-    commands_constants.DEFAULT_ROLES_KEY: {
-        "group": "moderations",
-        "namespace": "default-roles",
-    },
-    commands_constants.BLOCK_LINKS_KEY: {
-        "group": "moderations",
-        "namespace": "block-links",
-    },
-    commands_constants.NOTIFICATIONS_TWITCH_KEY: {
-        "group": "notifications",
-        "namespace": "notifications-twitch",
-    },
-    commands_constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY: {
-        "group": "notifications",
-        "namespace": "notifications-youtube",
-    },
-}
-
-
 def _get_translated_command(command_key: str, locale: str) -> str:
-    info = FEATURE_COMMANDS[command_key]
+    info = commands_constants.FEATURE_COMMANDS[command_key]
     group = ml(f"commands.groups.{info['group']}", locale)
     subgroup = ml(f"commands.commands.{info['namespace']}.subgroup", locale)
     name = ml(f"commands.commands.{info['namespace']}.name", locale)
     return f"/{group} {subgroup} {name}"
+
+
+def _get_translated_group(command_key: str, locale: str) -> str:
+    info = commands_constants.FEATURE_COMMANDS[command_key]
+    return ml(f"commands.groups.{info['group']}", locale).capitalize()
 
 
 class SetupFeatureButton(discord.ui.Button):
@@ -75,11 +27,13 @@ class SetupFeatureButton(discord.ui.Button):
         super().__init__(
             label=label,
             emoji=emoji,
-            style=discord.ButtonStyle.green,
+            style=discord.ButtonStyle.primary,
         )
 
     async def callback(self, interaction: discord.Interaction):
-        from app.services.moderations import send_command_form_message
+        import importlib
+
+        from app.components.buttons import ExecuteCommandButton
 
         logger.info(
             f"command started ({interaction.id}): command {self.command_key} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}",
@@ -87,43 +41,41 @@ class SetupFeatureButton(discord.ui.Button):
             log_type=logconstants.COMMAND_CALL_TYPE,
         )
 
-        await send_command_form_message(interaction, self.command_key)
+        guild_id = str(interaction.guild.id)
+        service = importlib.import_module(ExecuteCommandButton.COMMAND_SERVICES[self.command_key])
+        await service.manager(interaction=interaction, guild_id=guild_id)
 
 
 class SetupView(discord.ui.View):
-    def __init__(self, moderations: dict, locale: str):
+    def __init__(self, moderations: dict, locale: str, guild_id: str = None):
         super().__init__(timeout=300)
         self.locale = locale
         self.moderations = moderations
+        self.guild_id = guild_id
         self._build(moderations, locale)
 
+    def _get_feature_status(self, command_key: str, is_configured: bool):
+        if not is_configured:
+            return "not-configured", "🔴"
+
+        if self.guild_id:
+            cog_data = find_cog_by_guild_id(self.guild_id, command_key)
+            if cog_data and not cog_data.get(commands_constants.ENABLED_KEY, True):
+                return "paused", "⏸"
+
+        return "enabled", "🟢"
+
     def _build(self, moderations: dict, locale: str):
-        for feature in SETUP_FEATURES:
-            configured = moderations.get(feature["command_key"], False)
-
-            if feature["button_key"]:
-                label = ml(f"buttons.setup.{feature['button_key']}.label", locale)
-            else:
-                label = feature.get("label_fallback", feature["command_key"])
-
-            if configured:
-                configured_label = ml("commands.commands.setup.embed.configured", locale)
-                button = discord.ui.Button(
-                    label=f"✅ {label}",
+        for feature in commands_constants.SETUP_FEATURES:
+            label = ml(f"buttons.setup.{feature['button_key']}.label", locale)
+            self.add_item(
+                SetupFeatureButton(
+                    command_key=feature["command_key"],
+                    label=label,
                     emoji=feature["emoji"],
-                    style=discord.ButtonStyle.grey,
-                    disabled=True,
+                    locale=locale,
                 )
-                self.add_item(button)
-            else:
-                self.add_item(
-                    SetupFeatureButton(
-                        command_key=feature["command_key"],
-                        label=label,
-                        emoji=feature["emoji"],
-                        locale=locale,
-                    )
-                )
+            )
 
     def get_embed(self) -> discord.Embed:
         locale = self.locale
@@ -131,37 +83,35 @@ class SetupView(discord.ui.View):
 
         title = ml(f"{base}.title", locale)
         description = ml(f"{base}.desc", locale)
-        configured_text = ml(f"{base}.configured", locale)
-        not_configured_text = ml(f"{base}.not-configured", locale)
-
-        lines = []
-        all_configured = True
-        for feature in SETUP_FEATURES:
-            is_configured = self.moderations.get(feature["command_key"], False)
-            command = _get_translated_command(feature["command_key"], locale)
-
-            if feature["button_key"]:
-                name = ml(f"buttons.setup.{feature['button_key']}.label", locale)
-            else:
-                name = feature.get("label_fallback", feature["command_key"])
-
-            status = f"✅ {configured_text}" if is_configured else f"❌ {not_configured_text}"
-            lines.append(f"**{name}** — {status}\n`{command}`")
-            if not is_configured:
-                all_configured = False
-
-        description += "\n\n" + "\n\n".join(lines)
-
-        if all_configured:
-            description += f"\n\n{ml(f'{base}.all-configured', locale)}"
 
         embed = discord.Embed(
             color=int(style.BACKGROUND_COLOR, base=16),
             title=title,
             description=description,
         )
-        embed.set_thumbnail(url=icons.IMAGE_02)
-        embed.set_footer(text=f"• Use the command /report to tell me a bug")
+
+        all_configured = True
+        for feature in commands_constants.SETUP_FEATURES:
+            is_configured = self.moderations.get(feature["command_key"], False)
+            status_key, status_emoji = self._get_feature_status(feature["command_key"], is_configured)
+            command = _get_translated_command(feature["command_key"], locale)
+            group = _get_translated_group(feature["command_key"], locale)
+            name = ml(f"buttons.setup.{feature['button_key']}.label", locale)
+            status_text = ml(f"{base}.{status_key}", locale)
+
+            field_name = f"[ {group} ] {name} - {status_text} {status_emoji}"
+            field_value = f"`{command}`"
+
+            if not is_configured:
+                all_configured = False
+
+            embed.add_field(name=field_name, value=field_value, inline=False)
+
+        if all_configured:
+            embed.description += f"\n\n{ml(f'{base}.all-configured', locale)}"
+
+        footer_text = ml(f"{base}.footer", locale)
+        embed.set_footer(text=f"• {footer_text}")
 
         return embed
 

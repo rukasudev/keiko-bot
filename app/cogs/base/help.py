@@ -52,6 +52,7 @@ class Help(Cog, name=locale_str("help", type="name", namespace="help")):
                 if command.extras
                 else command.description
             ),
+            "command_key": getattr(command, "_attr", None),
         }
 
         return command_info
