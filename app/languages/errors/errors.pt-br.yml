@@ -1,8 +1,7 @@
 pt-br:
   command-generic-error:
     title: Erro ao Processar Comando
-    message: "Desculpe, mas não consegui processar o comando corretamente. Por favor, tente novamente mais tarde.\n\n
-      Se desejar, você pode nos enviar o que aconteceu usando o comando `/reportar` ou entrar em contato conosco no servidor oficial do Keiko usando o comando `/suporte`"
+    message: "Desculpe, mas não consegui processar seu comando corretamente. Por favor, tente novamente mais tarde.\n\nSe quiser, me envie um report com o comando `/reportar`, ou fale comigo no meu servidor oficial usando o comando `/suporte` 💌"
 
   command-permission-denied:
     title: Permissão Negada
@@ -14,15 +13,13 @@ pt-br:
 
   command-default-roles-low-permissions:
     title: Permissões de Cargo Insuficientes
-    message: "**Keiko** não tem permissão para atribuir cargos neste servidor :/\n\n
-      Na hierarquia de cargos do servidor, dê um cargo acima desses para o **Keiko**"
+    message: "Eu não tenho permissão para atribuir cargos neste servidor :/\n\nNa hierarquia de cargos do servidor, me dê um cargo **acima** dos que você quer que eu atribua 🧑‍⚖️"
 
   command-default-roles-missing-permissions:
-    message: "**Keiko** não tem mais permissão para atribuir os seguintes cargos: **$roles**\n\n
-      Na hierarquia de cargos do servidor, dê um cargo acima desses para o **Keiko**"
+    message: "Não tenho mais permissão para atribuir os seguintes cargos: **$roles**\n\nNa hierarquia de cargos do servidor, me dê um cargo **acima** desses 🧑‍⚖️"
 
   command-default-roles-disactivated:
-    message: A funcionalidade de atribuir cargos automaticamente está desabilitada. Para ativar e configurar a funcionalidade, sinta-se a vontade de rodar o comando `cargos padrao` 🐶
+    message: A funcionalidade de atribuir cargos automaticamente está desabilitada. Para ativar e configurá-la, é só rodar o comando `/cargos padrão` 🐶
 
   translate-message:
     unknown-language: Desconhecido
@@ -33,11 +30,11 @@ pt-br:
 
     translation-invalid-message:
       title: Mensagem Inválida
-      message: "Desculpe, mas não consigo traduzir uma mensagem inválida. Por favor, forneça uma mensagem válida para ser traduzida e tente novamente."
+      message: "Ops! Essa mensagem não pode ser traduzida. Escolha uma mensagem válida e tente novamente 🐾"
 
     translation-only-link:
-      title: Mensagem contém apenas um link
-      message: "Desculpe, mas não consigo traduzir uma mensagem que contém apenas um link. Por favor, forneça uma mensagem válida para ser traduzida e tente novamente."
+      title: Mensagem Contém Apenas um Link
+      message: "Ops! Não consigo traduzir uma mensagem que tem só um link. Escolha uma com texto e tente novamente 🐾"
 
   streamer-not-found:
     title: Streamer Não Encontrado
@@ -57,4 +54,4 @@ pt-br:
 
   selection-required:
     title: Seleção Obrigatória
-    message: "Por favor, selecione uma opção antes de confirmar."
+    message: "Ops! Selecione uma opção antes de confirmar :)"

@@ -8,8 +8,8 @@ steps:
       en-us: "Activate this feature to have me scan every message and remove it if it contains a link"
       pt-br: "Ativar esta função faz com que eu analise cada mensagem enviada no seu servidor e exclua caso contenha algum link"
     footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Utilize o comando /reportar para me contar um bug"
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
 
   - action: multi_select
     key: permissions
@@ -20,8 +20,8 @@ steps:
       en-us: "Configure which channels and roles are allowed to send links"
       pt-br: "Configure quais canais e cargos podem enviar links"
     footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Utilize o comando /reportar para me contar um bug"
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
     selects:
       - type: channels
         key: allowed_chats
@@ -52,8 +52,8 @@ steps:
       en-us: "Choose some websites that sending links will be allowed"
       pt-br: "Escolha alguns sites que o envio de links serão permitidos"
     footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Utilize o comando /reportar para me contar um bug"
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
     options:
       - "Youtube"
       - "Spotify"
@@ -89,5 +89,5 @@ steps:
       en-us: "Activate this feature to have me scan every message and remove it if it contains a link"
       pt-br: "Ativar esta função faz com que eu analise cada mensagem enviada no seu servidor e exclua caso contenha algum link"
     footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Utilize o comando /reportar para me contar um bug"
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"

@@ -8,8 +8,8 @@ steps:
       en-us: Enabling this feature allows me to notify when your favorite streamer is online on Twitch!
       pt-br: Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!
     footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Utilize o comando /reportar para me contar um bug"
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
 
   - action: composition
     key: notifications
@@ -23,8 +23,8 @@ steps:
       en-us: "Do you want to add more streamers? Add more streamers to be notified when they are online on Twitch! (Max: 3)"
       pt-br: "Deseja adicionar mais streamers? Adicione mais streamers para ser notificado quando eles estiverem online na Twitch! (Max: 3)"
     footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Utilize o comando /reportar para me contar um bug"
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
     steps:
       - action: channels
         key: channel
@@ -77,14 +77,14 @@ steps:
             - title: "2. Up to 3 messages"
               message: "You can configure up to 3 notification messages. If you want to use less than 3, leave the other fields blank"
             - title: "3. Variables"
-              message: "You can use the following variables in your message:\n• `{streamer}`: Streamer's username\n• `{stream_link}`: Stream link"
+              message: "You can use the following variables in your message:\n- `{streamer}`: Streamer's username\n- `{stream_link}`: Stream link"
           pt-br:
             - title: "1. Mensagem aleatória"
               message: "Sempre que o streamer ficar online, uma das mensagens configuradas será aleatoriamente escolhida"
             - title: "2. Até 3 mensagens"
               message: "Você poderá configurar até 3 mensagens de notificação. Caso queira configurar menos de 3, deixe os outros campos em branco"
             - title: "3. Variáveis"
-              message: "Você pode utilizar as seguintes variáveis em sua mensagem:\n• `{streamer}`: Username do streamer\n• `{stream_link}`: Link da live"
+              message: "Você pode utilizar as seguintes variáveis em sua mensagem:\n- `{streamer}`: Username do streamer\n- `{stream_link}`: Link da live"
         footer:
           en-us: "• Use the command /report to tell me a bug"
           pt-br: "• Utilize o comando /reportar para me contar um bug"
@@ -127,5 +127,5 @@ steps:
       en-us: Enabling this feature allows me to notify when your favorite streamer is online on Twitch!
       pt-br: Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!
     footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Utilize o comando /reportar para me contar um bug"
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"

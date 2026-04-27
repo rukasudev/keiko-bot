@@ -13,15 +13,15 @@ pt-br:
 
       embed-desc:
         title: 📚 Descrição do comando
-        desc: "Se você precisar de mais informações sobre um comando específico, não hesite em nos enviar uma mensagem no servidor oficial do Keiko com o comando `/suporte`! 💌\n\n"
+        desc: "Se você precisar de mais informações sobre um comando específico, é só me chamar no meu servidor oficial com o comando `/suporte`! 💌\n\n"
 
     report:
       name: reportar
       desc: Keiko ajuda você a relatar quaisquer bugs ou problemas que encontrar
       response:
         title: 📝 Report enviado!
-        message: Seu report foi enviado para o time do Keiko, uma mensagem foi enviada para você com mais informações! 💌
-        footer: Se precisar de ajuda, não hesite em nos chamar em nosso servidor oficial, utilizando o comando /suporte.
+        message: Passei seu report para a minha equipe! Olha sua DM, acabei de te mandar uma mensagem com mais detalhes 💌
+        footer: Se precisar de ajuda, é só me chamar no meu servidor oficial com o comando `/suporte`.
       dm-message:
         title: 📝 Seu ticket foi criado!
         fields:
@@ -31,35 +31,35 @@ pt-br:
           author: Autor
           atachments: Anexo
           no-atachments: Sem anexos
-        footer: Se precisar de ajuda, não hesite em nos chamar em nosso servidor oficial, utilizando o comando /suporte.
+        footer: Se precisar de ajuda, é só me chamar no meu servidor oficial com o comando `/suporte`.
 
     support:
       name: suporte
       desc: Keiko mostra como você pode obter ajuda atráves do seu servidor oficial
       response:
         title: 💌 Suporte
-        message: "[✨ Clique aqui para entrar no servidor oficial do Keiko ✨](https://discord.gg/Hdg239Cvbd)"
+        message: "[✨ Clique aqui para entrar no meu servidor oficial ✨](https://discord.gg/Hdg239Cvbd)"
         field:
           title: Como pedir ajuda 🙋‍♂️
           desc: "1. Vá até o canal **#support** e descreva seu problema
             \n2. Aguarde um membro da equipe responder
             \n3. Se necessário, um membro da equipe irá te chamar para uma sala de suporte privada"
-        footer: Utilize o comando /ajuda para entender melhor como usar os comandos disponíveis.
+        footer: Use o comando `/ajuda` para entender melhor como usar os comandos disponíveis.
 
     ping:
       name: ping
       desc: Keiko mostra qual o seu tempo de resposta atual
       response:
         title: 🏓 Pong!
-        message: A latência atual do Keiko é de $ping ms
+        message: Minha latência atual é de **$ping ms** 🐾
 
     translate-message:
       name: Traduzir Mensagem
       desc: Keiko traduz uma mensagem para o seu idioma preferido
       response:
         title: 🌐 Traduzir Mensagem
-        message: "Keiko utilizou seus conhecimentos poliglotas para traduzir a seguinte mensagem que você solicitou: {message_url}!\n\n**{src_lang} Mensagem Original**\n{original_message}\n\n**{dest_lang} Mensagem Traduzida**\n{translated_message}"
-        footer: Se precisar de ajuda, não hesite em nos chamar em nosso servidor oficial, utilizando o comando /suporte.
+        message: "Usei meus dotes poliglotas para traduzir a mensagem que você pediu: {message_url}!\n\n**Original ({src_lang})**\n{original_message}\n\n**Tradução ({dest_lang})**\n{translated_message}"
+        footer: Se precisar de ajuda, é só me chamar no meu servidor oficial com o comando `/suporte`.
 
     block-links:
       subgroup: bloquear
@@ -85,7 +85,7 @@ pt-br:
       subgroup: cargos
       name: padrão
       desc: Keiko recebe calorosamente novos membros atribuindo cargos automaticamente ao entrarem no servidor
-      warning: Se o cargo não está sendo listado, verifique se o cargo do Keiko está acima dos cargos que deseja atribuir aos novos membros 🧑‍⚖️
+      warning: Se algum cargo não estiver aparecendo, verifique se o **meu cargo** está acima do cargo que você quer atribuir aos novos membros 🧑‍⚖️
 
     stream-elements:
       subgroup: comandos
@@ -102,7 +102,7 @@ pt-br:
         not-configured: Não configurado
         paused: Pausado
         all-configured: "Todas as funcionalidades estão configuradas! Use cada comando para gerenciá-las ✨"
-        footer: "Use o comando /reportar para me contar um bug"
+        footer: "Use o comando `/reportar` para me contar um bug"
 
   groups:
     moderations: moderações

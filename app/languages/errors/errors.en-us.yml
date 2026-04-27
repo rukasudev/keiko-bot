@@ -1,8 +1,7 @@
 en-us:
   command-generic-error:
     title: Command Processing Error
-  message: "I'm sorry, but I couldn't process the command correctly. Please try again later.\n\n
-      If you wish, you can send us a report using the `/report` command or reach out to us on the official Keiko's server using the `/support` command"
+    message: "I'm sorry, but I couldn't process your command correctly. Please try again later.\n\nIf you'd like, send me a report using the `/report` command, or reach out on my official server with the `/support` command 💌"
 
   command-permission-denied:
     title: Permission Denied
@@ -10,16 +9,14 @@ en-us:
 
   command-required-interaction:
     title: Interaction Required
-    message: Please, select any option to proceed! :)
+    message: Please select any option to proceed! :)
 
   command-default-roles-low-permissions:
     title: Insufficient Role Permissions
-    message: "**Keiko** doesn't have permission to assign roles on this server :/\n\n
-      In the server's role hierarchy, give **Keiko** a role above the ones you want to assign"
+    message: "I don't have permission to assign roles on this server :/\n\nIn the server's role hierarchy, please give me a role **above** the ones you want me to assign 🧑‍⚖️"
 
   command-default-roles-missing-permissions:
-    message: "**Keiko** no longer has permissions to assign the following roles: **$roles**\n\n
-      In the server's role hierarchy, give **Keiko** a role above these"
+    message: "I no longer have permission to assign the following roles: **$roles**\n\nIn the server's role hierarchy, please give me a role **above** these 🧑‍⚖️"
 
   command-default-roles-disactivated:
     message: The role assignment feature is currently disabled. To activate and configure this feature, just run the `/default roles` command 🐶
@@ -33,28 +30,28 @@ en-us:
 
     translation-invalid-message:
       title: Invalid Message
-      message: "I'm sorry, but I couldn't translate an invalid message. Please, provide a valid message to be translated and try again."
+      message: "Oops! That message can't be translated. Please pick a valid message and try again 🐾"
 
     translation-only-link:
       title: Message Contains Only a Link
-      message: "I'm sorry, but I couldn't translate a message that contains only a link. Please, provide a valid message to be translated and try again."
+      message: "Oops! I can't translate a message that's just a link. Please pick a message with text and try again 🐾"
 
   streamer-not-found:
     title: Streamer Not Found
-    message: "I'm sorry, but I couldn't find the streamer you're looking for. Please, check the name and try again."
+    message: "I'm sorry, but I couldn't find the streamer you're looking for. Please check the name and try again."
 
   streamer-already-registered:
     title: Streamer Already Registered
-    message: "The notification of this streamer's lives is already set up on this server. Please, select another streamer and try again."
+    message: "The notification of this streamer's lives is already set up on this server. Please select another streamer and try again."
 
   youtuber-already-registered:
     title: Youtuber Already Registered
-    message: "The notification of this youtuber's videos is already set up on this server. Please, select another youtuber and try again."
+    message: "The notification of this youtuber's videos is already set up on this server. Please select another youtuber and try again."
 
   youtuber-not-found:
     title: Youtuber Not Found
-    message: "I'm sorry, but I couldn't find the youtuber you're looking for. Please, check the name and try again."
+    message: "I'm sorry, but I couldn't find the youtuber you're looking for. Please check the name and try again."
 
   selection-required:
     title: Selection Required
-    message: "Please select an option before confirming."
+    message: "Oops! Please pick an option before confirming :)"

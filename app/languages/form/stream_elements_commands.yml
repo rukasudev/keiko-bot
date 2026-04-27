@@ -14,8 +14,8 @@ steps:
 
         **Exemplo:** `ks!mouse` -> "O streamer usa um Logitech G Pro!"
     footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Utilize o comando /reportar para me contar um bug"
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
 
   - action: modal
     key: streamer
@@ -44,5 +44,5 @@ steps:
       en-us: "Whenever someone uses a command, I'll fetch the response from StreamElements and send it in chat!"
       pt-br: "Sempre que alguém usar um comando, eu buscarei a resposta no StreamElements e enviarei no chat!"
     footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Utilize o comando /reportar para me contar um bug"
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"

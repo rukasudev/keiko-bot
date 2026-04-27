@@ -8,8 +8,8 @@ steps:
       en-us: Enabling this feature allows me to automatically assign roles to new members when they join your server
       pt-br: Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor
     footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Utilize o comando /reportar para me contar um bug"
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
 
   - action: multi_select
     key: default_roles_config
@@ -20,8 +20,8 @@ steps:
       en-us: "Choose roles to assign automatically to new bots and members"
       pt-br: "Escolha cargos para atribuir automaticamente a novos bots e membros"
     footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Utilize o comando /reportar para me contar um bug"
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
     selects:
       - type: available_roles
         key: default_roles_bot
@@ -51,5 +51,5 @@ steps:
       en-us: Enabling this feature allows me to automatically assign roles to new members when they join your server
       pt-br: Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor!
     footer:
-      en-us: "• Use the command /report to tell me a bug"
-      pt-br: "• Utilize o comando /reportar para me contar um bug"
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"

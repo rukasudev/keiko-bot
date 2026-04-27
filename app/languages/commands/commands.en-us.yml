@@ -13,15 +13,15 @@ en-us:
 
       embed-desc:
         title: 📚 Command description
-        desc: "If you need more information about a specific command, don't hesitate to send us a message on Keiko's official server with the `/support` command! 💌\n\n"
+        desc: "If you need more information about a specific command, don't hesitate to send us a message on my official server with the `/support` command! 💌\n\n"
 
     report:
       name: report
       desc: Keiko helps you report any bugs or issues you encounter
       response:
         title: 📝 Report sent!
-        message: Your report has been sent to the Keiko team, a message has been sent to you with more information! 💌
-        footer: If you need help, don't hesitate to call us on our official server, using the /support command.
+        message: I've passed your report to my team! Check your DMs, I just sent you a message with more details 💌
+        footer: If you need help, don't hesitate to call us on my official server with the `/support` command.
       dm-message:
         title: 📝 Your ticket has been created!
         fields:
@@ -31,35 +31,35 @@ en-us:
           author: Author
           atachments: Attachment
           no-atachments: Without attachments
-        footer: If you need help, don't hesitate to call us on our official server, using the /support command.
+        footer: If you need help, don't hesitate to call us on my official server with the `/support` command.
 
     support:
       name: support
       desc: Keiko shows you how you can get help through your official server
       response:
         title: 💌 Support
-        message: "[✨ Click here to join Keiko's official server ✨](https://discord.gg/Hdg239Cvbd)"
+        message: "[✨ Click here to join my official server ✨](https://discord.gg/Hdg239Cvbd)"
         field:
           title: How to ask for help 🙋‍♂️
           desc: "1. Go to the **#support** channel and describe your problem
             \n2. Wait for a team member to respond
             \n3. If necessary, a team member will call you to a private support room"
-        footer: Use the /help command to better understand how to use the available commands.
+        footer: Use the `/help` command to better understand how to use the available commands.
 
     ping:
       name: ping
       desc: Keiko shows you what your current response time is
       response:
         title: 🏓 Pong!
-        message: The Keiko's current latency is $ping ms
+        message: My current latency is **$ping ms** 🐾
 
     translate-message:
       name: Translate Message
       desc: Keiko translates a message into your preferred language
       response:
         title: 🌐 Translate Message
-        message: "Keiko used her polyglot skills to translate the following message that you requested: {message_url}!\n\n**{src_lang} Original Message**\n{original_message}\n\n**{dest_lang} Translated Message**\n{translated_message}"
-        footer: If you need help, don't hesitate to call us on our official server, using the /support command.
+        message: "I used my polyglot skills to translate the message you sent: {message_url}!\n\n**Original ({src_lang})**\n{original_message}\n\n**Translated ({dest_lang})**\n{translated_message}"
+        footer: If you need help, don't hesitate to call us on my official server with the `/support` command.
 
     block-links:
       subgroup: block
@@ -85,7 +85,7 @@ en-us:
       subgroup: default
       name: roles
       desc: Keiko warmly welcomes new members by automatically assigning roles when they join the server
-      warning: If the role is not being listed, make sure Keiko's role is above the role you want to assign to new members 🧑‍⚖️
+      warning: If a role isn't showing up, make sure my role is **above** the role you want to assign to new members 🧑‍⚖️
 
     stream-elements:
       subgroup: streamelements
@@ -102,7 +102,7 @@ en-us:
         not-configured: Not configured
         paused: Paused
         all-configured: "All features are configured! Use each command to manage them ✨"
-        footer: "Use the command /report to tell me a bug"
+        footer: "Use the `/report` command to tell me a bug"
 
   groups:
     moderations: moderations

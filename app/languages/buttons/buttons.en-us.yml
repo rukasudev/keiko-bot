@@ -68,7 +68,7 @@ en-us:
     desc: Continue to next step
 
   file-upload:
-    label: Image    
+    label: Image
 
 
   roles-sync:
@@ -87,14 +87,14 @@ en-us:
   changes-history:
     label: 📜 Changes history
     desc: "See the history of changes made to the feature **$cog_key**:"
-    bot-event: This is a default action taken by Keiko when leaving the server
+    bot-event: This is a default action I take when I'm removed from the server
 
   components:
     select:
       channel-placeholder: Select a channel...
       role-placeholder: Select a role...
     design-select:
-      header: "⬇️ Select one of the 3 designs below:"
+      header: "⬇️ Select one of the designs below:"
       footer: "⬆️ Scroll up to see all options"
 
   execute:
@@ -122,5 +122,5 @@ en-us:
       desc: See all features and their status
     admin-only:
       title: ⚠️ Admin Only
-      message: "Commands like `/moderations` and `/notifications` require administrator permissions to configure features. Ask a server admin to set it up, or they can use the `/setup` command to manage all features! 🔧"
+      message: "Sorry, commands like `/moderations` and `/notifications` need admin permissions! 🔧\n\nAsk a server admin to set them up. They can also use `/setup` to manage everything in one place ✨"
 

@@ -86,14 +86,14 @@ pt-br:
   changes-history:
     label: 📜 Histórico de alterações
     desc: "Veja o histórico de alterações feitas na funcionalidade **$cog_key**:"
-    bot-event: Essa é uma ação padrão feita por Keiko ao sair do servidor
+    bot-event: Essa é uma ação padrão que eu faço quando sou removido do servidor
 
   components:
     select:
       channel-placeholder: Selecione um canal...
       role-placeholder: Selecione um cargo...
     design-select:
-      header: "⬇️ Selecione um dos 3 designs abaixo:"
+      header: "⬇️ Selecione um dos designs abaixo:"
       footer: "⬆️ Role para cima para ver todas as opções"
 
   execute:
@@ -121,4 +121,4 @@ pt-br:
       desc: Veja todas as funcionalidades e seus status
     admin-only:
       title: ⚠️ Apenas Admins
-      message: "Comandos como `/moderações` e `/notificações` requerem permissão de administrador para configurar funcionalidades. Peça a um admin do servidor para configurar, ou ele pode usar o comando `/configurar` para gerenciar todas as funcionalidades! 🔧"
+      message: "Desculpe, comandos como `/moderações` e `/notificações` precisam de permissão de admin! 🔧\n\nPeça para um admin do servidor configurar. Ele também pode usar `/configurar` para gerenciar tudo em um só lugar ✨"
