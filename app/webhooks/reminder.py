@@ -27,7 +27,7 @@ def reminder_webhook():
 
 def process_birthday_reminder(reminder_id: str, notes: str) -> None:
     from app import bot
-    from app.services.birthdays import process_birthday_webhook
+    from app.services.reminders_birthdays import process_birthday_webhook
     logger.info(f"Processing birthday reminder: {reminder_id}", log_type=logconstants.COMMAND_INFO_TYPE)
     logger.info(f"Date: {notes}", log_type=logconstants.COMMAND_INFO_TYPE)
 

@@ -216,7 +216,7 @@ class ExecuteCommandButton(discord.ui.Button):
         "block_links": "app.services.block_links",
         "notifications_twitch": "app.services.notifications_twitch",
         "notifications_youtube_video": "app.services.notifications_youtube_video",
-        "reminders_birthday": "app.services.birthdays",
+        "reminders_birthday": "app.services.reminders_birthdays",
         "stream_elements_commands": "app.services.stream_elements",
     }
 

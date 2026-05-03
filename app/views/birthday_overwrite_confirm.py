@@ -2,8 +2,8 @@ import discord
 
 from app.components.embed import response_embed
 from app.constants import KeikoIcons
-from app.services import birthdays as birthdays_service
-from app.services.birthdays import format_birthday_date_value
+from app.services import reminders_birthdays as birthdays_service
+from app.services.reminders_birthdays import format_birthday_date_value
 from app.services.utils import ml
 
 

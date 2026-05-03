@@ -6,9 +6,9 @@ from app.components.embed import response_embed, response_error_embed
 from app.constants import KeikoIcons
 from app.data import birthdays as birthdays_data
 from app.decorators import keiko_command
-from app.services import birthdays as birthdays_service
-from app.services.birthdays import format_birthday_date_value
-from app.services.dates import get_month_choices
+from app.services import reminders_birthdays as birthdays_service
+from app.services.reminders_birthdays import format_birthday_date_value
+from app.services.dates import get_month_choices, parse_date_parts
 from app.translator import locale_str
 from app.types.cogs import Cog
 from app.views.birthday_overwrite_confirm import BirthdayOverwriteConfirmView
@@ -34,7 +34,7 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
     )
     @app_commands.choices(month=get_month_choices())
     async def birthday_personal(self, interaction: discord.Interaction, month: int, day: int) -> None:
-        date = birthdays_service.parse_birthday_date_parts(day, month)
+        date = parse_date_parts(day, month)
         if not date:
             embed = response_error_embed("invalid-date", interaction.locale, footer=True)
             return await interaction.response.send_message(embed=embed, ephemeral=True)

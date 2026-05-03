@@ -15,9 +15,9 @@ from app.services.utils import (
     split_welcome_messages,
     get_styled_composition_values,
 )
-import app.services.birthdays  # noqa: F401
+import app.services.reminders_birthdays  # noqa: F401
 from app.data.birthdays import build_default_item
-from app.services.birthdays import can_self_edit_birthday, get_self_edit_count
+from app.services.reminders_birthdays import can_self_edit_birthday, get_self_edit_count
 from datetime import date, timedelta
 
 
@@ -322,7 +322,7 @@ class TestBirthdayItemDefaults:
         assert get_self_edit_count({"self_edit_count": "invalid"}) == 0
 
     def test_birthday_stats_from_items(self):
-        from app.services.birthdays import get_birthday_stats
+        from app.services.reminders_birthdays import get_birthday_stats
 
         items = [
             {"guild_id": "1", "user_id": "1", "date": "05-15", "month": 5},
@@ -330,7 +330,7 @@ class TestBirthdayItemDefaults:
             {"guild_id": "1", "user_id": "3", "date": "06-01", "month": 6},
         ]
 
-        with patch("app.services.birthdays.birthdays_data.find_birthday_items_by_guild", return_value=items):
+        with patch("app.services.reminders_birthdays.birthdays_data.find_birthday_items_by_guild", return_value=items):
             stats = get_birthday_stats("1", today=date(2026, 5, 2))
 
         assert stats["total"] == 3
@@ -340,10 +340,10 @@ class TestBirthdayItemDefaults:
         assert stats["max_date"] == ("05-15", 2)
 
     def test_reuses_existing_reminder_for_date(self):
-        from app.services.birthdays import ensure_reminder_for_date
+        from app.services.reminders_birthdays import ensure_reminder_for_date
 
-        with patch("app.services.birthdays.birthdays_data.find_reminder_id_by_date", return_value="rem-1"):
-            with patch("app.services.birthdays.create_reminder_for_date") as create:
+        with patch("app.services.reminders_birthdays.birthdays_data.find_reminder_id_by_date", return_value="rem-1"):
+            with patch("app.services.reminders_birthdays.create_reminder_for_date") as create:
                 assert ensure_reminder_for_date("05-15") == "rem-1"
 
         create.assert_not_called()
@@ -355,7 +355,7 @@ class TestBirthdayItemDefaults:
         assert format_values_by_style(False, "boolean", "pt-br") == "Não"
 
     def test_save_setup_form_writes_config_and_items(self):
-        from app.services.birthdays import save_setup_form
+        from app.services.reminders_birthdays import save_setup_form
 
         responses = [
             {"key": "channel", "value": "111", "style": "channel"},
@@ -375,8 +375,8 @@ class TestBirthdayItemDefaults:
             },
         ]
 
-        with patch("app.services.birthdays.setup_birthdays") as setup:
-            with patch("app.services.birthdays.upsert_birthday", return_value={"user_id": "222"}) as upsert:
+        with patch("app.services.reminders_birthdays.setup_birthdays") as setup:
+            with patch("app.services.reminders_birthdays.upsert_birthday", return_value={"user_id": "222"}) as upsert:
                 saved = save_setup_form("guild-1", responses)
 
         setup.assert_called_once_with("guild-1", "111", True)

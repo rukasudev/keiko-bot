@@ -303,13 +303,13 @@ class Form(discord.ui.View):
     def _transform_step_response(self, response: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         transform = self._get_step_item("response_transform")
         if transform == "birthday_date_parts" and "day" in response:
-            from app.services.birthdays import parse_birthday_date_parts
+            from app.services.dates import parse_date_parts
 
             month = next((r.get("_raw_value", r["value"]) for r in self.responses if r["key"] == "month"), None)
             return {
                 "key": self._get_step_item("key"),
                 "title": self._get_step_item("title"),
-                "value": parse_birthday_date_parts(response["day"], month),
+                "value": parse_date_parts(response["day"], month),
                 "style": "birthday_date",
             }
         return None

@@ -6,7 +6,7 @@ import pytest
 class TestBirthdaysManagerEdit:
     @pytest.mark.asyncio
     async def test_member_edit_uses_month_form_and_preserves_customizations(self):
-        from app.services.birthdays import _open_member_birthday_form
+        from app.services.reminders_birthdays import _open_member_birthday_form
 
         captured = {}
 
@@ -51,11 +51,11 @@ class TestBirthdaysManagerEdit:
         view.get_response.return_value = "222"
 
         with patch("app.views.form.Form", FakeForm):
-            with patch("app.services.birthdays.parse_form_yaml_to_dict", return_value=yaml_steps):
-                with patch("app.services.birthdays.birthdays_data.find_birthday_item", return_value=item):
-                    with patch("app.services.birthdays.upsert_birthday") as upsert:
+            with patch("app.services.reminders_birthdays.parse_form_yaml_to_dict", return_value=yaml_steps):
+                with patch("app.services.reminders_birthdays.birthdays_data.find_birthday_item", return_value=item):
+                    with patch("app.services.reminders_birthdays.upsert_birthday") as upsert:
                         with patch(
-                            "app.services.birthdays.response_embed",
+                            "app.services.reminders_birthdays.response_embed",
                             return_value=MagicMock(description="Atualizei para **{date}**."),
                         ):
                             await _open_member_birthday_form(interaction, view, "pt-br")
@@ -139,8 +139,8 @@ class TestBirthdaysManagerComposition:
 
         manager.lifecycle_callbacks = {"add_item": add_item_callback}
 
-        with patch("app.services.birthdays.save_form_birthday_item", return_value=saved_item) as save_item:
-            with patch("app.services.birthdays.to_summary_composition", return_value=summary_item):
+        with patch("app.services.reminders_birthdays.save_form_birthday_item", return_value=saved_item) as save_item:
+            with patch("app.services.reminders_birthdays.to_summary_composition", return_value=summary_item):
                 with patch("app.views.manager.update_cog_by_guild") as update_cog:
                     with patch("app.views.manager.insert_cog_event"):
                         with patch("app.views.manager.parse_command_event_description", return_value="ok"):
@@ -180,7 +180,7 @@ class TestBirthdaysManagerComposition:
 
         manager.lifecycle_callbacks = {"remove_item": remove_item_callback}
 
-        with patch("app.services.birthdays.remove_birthday") as remove_item:
+        with patch("app.services.reminders_birthdays.remove_birthday") as remove_item:
             with patch("app.views.manager.update_cog_by_guild") as update_cog:
                 with patch("app.views.manager.insert_cog_event"):
                     with patch("app.views.manager.parse_command_event_description", return_value="ok"):

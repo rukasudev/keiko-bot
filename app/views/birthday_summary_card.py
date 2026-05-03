@@ -6,7 +6,7 @@ from app import logger
 from app.components.select_views import FileUploadModal
 from app.constants import KeikoIcons, Style
 from app.constants import LogTypes as logconstants
-from app.services.birthdays import birthday_default_text, format_birthday_date_value, render_birthday_message
+from app.services.reminders_birthdays import birthday_default_text, format_birthday_date_value, render_birthday_message
 from app.services.utils import ml
 
 

@@ -1,6 +1,3 @@
-import calendar
-import re
-import unicodedata
 from collections import Counter, defaultdict
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -16,26 +13,17 @@ from app.constants import LogTypes as logconstants
 from app.constants import Style
 from app.data import birthdays as birthdays_data
 from app.exceptions import ErrorContext
-from app.services.dates import get_month_label
+from app.services.dates import (
+    get_month_label,
+    is_valid_mm_dd,
+    next_mm_dd_occurrence,
+    parse_date_parts,
+    parse_mm_dd,
+)
 from app.services.moderations import update_moderations_by_guild
 from app.services.utils import ml, parse_form_yaml_to_dict, parse_locale, register_style_formatter
 
 
-BIRTHDAY_DATE_REGEX = re.compile(r"^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$")
-MONTH_NAMES = {
-    "jan": 1, "january": 1, "janeiro": 1,
-    "feb": 2, "february": 2, "fevereiro": 2,
-    "mar": 3, "march": 3, "marco": 3, "março": 3,
-    "apr": 4, "april": 4, "abril": 4,
-    "may": 5, "maio": 5,
-    "jun": 6, "june": 6, "junho": 6,
-    "jul": 7, "july": 7, "julho": 7,
-    "aug": 8, "august": 8, "agosto": 8,
-    "sep": 9, "sept": 9, "september": 9, "setembro": 9,
-    "oct": 10, "october": 10, "outubro": 10,
-    "nov": 11, "november": 11, "novembro": 11,
-    "dec": 12, "december": 12, "dezembro": 12,
-}
 SELF_BIRTHDAY_EDIT_LIMIT = 1
 
 
@@ -102,61 +90,6 @@ def _t(locale: str, en: str, pt: str) -> str:
     return pt if str(locale).lower() == "pt-br" else en
 
 
-def is_valid_birthday_date(value: str) -> bool:
-    if not BIRTHDAY_DATE_REGEX.match(value):
-        return False
-    month, day = value.split("-")
-    return int(day) <= calendar.monthrange(2024, int(month))[1]
-
-
-def parse_birthday_date_parts(day: Any, month: Any) -> Optional[str]:
-    try:
-        day_number = int(str(day).strip())
-    except (TypeError, ValueError):
-        return None
-
-    month_number = parse_birthday_month(month)
-    if not month_number:
-        return None
-
-    mm_dd = f"{month_number:02d}-{day_number:02d}"
-    return mm_dd if is_valid_birthday_date(mm_dd) else None
-
-
-def parse_birthday_month(value: Any) -> Optional[int]:
-    raw = str(value).strip().lower()
-    if not raw:
-        return None
-    if raw.isdigit():
-        month = int(raw)
-        return month if 1 <= month <= 12 else None
-
-    normalized = unicodedata.normalize("NFKD", raw)
-    normalized = "".join(ch for ch in normalized if not unicodedata.combining(ch))
-    normalized = normalized.rstrip(".")
-    return MONTH_NAMES.get(normalized)
-
-
-def parse_mm_dd(value: str) -> Tuple[int, int]:
-    return int(value.split("-")[0]), int(value.split("-")[1])
-
-
-def next_birthday_occurrence(mm_dd: str, today: Optional[date] = None) -> datetime:
-    today = today or datetime.now(timezone.utc).date()
-    month, day = parse_mm_dd(mm_dd)
-    candidate = _safe_date(today.year, month, day)
-    if candidate <= today:
-        candidate = _safe_date(today.year + 1, month, day)
-    return datetime(candidate.year, candidate.month, candidate.day, 12, 0, 0, tzinfo=timezone.utc)
-
-
-def _safe_date(year: int, month: int, day: int) -> date:
-    try:
-        return date(year, month, day)
-    except ValueError:
-        return date(year, month, day - 1)
-
-
 def birthday_rrule(mm_dd: str) -> str:
     month, day = parse_mm_dd(mm_dd)
     if month == 2 and day == 29:
@@ -172,9 +105,9 @@ def ensure_reminder_for_date(mm_dd: str) -> Optional[str]:
 
 
 def create_reminder_for_date(mm_dd: str) -> Optional[str]:
-    if _is_dev_mode():
+    if bot.config.is_dev():
         return None
-    occurrence = next_birthday_occurrence(mm_dd)
+    occurrence = next_mm_dd_occurrence(mm_dd)
     response = bot.reminder.create_reminder({
         "title": commands_constants.REMINDER_API_TITLE_BIRTHDAY,
         "date_tz": occurrence.date(),
@@ -199,7 +132,7 @@ def cleanup_reminder_for_date(mm_dd: str, reminder_id: Optional[str]) -> None:
 
 
 def delete_reminder_for_item(reminder_id: str) -> None:
-    if not reminder_id or _is_dev_mode():
+    if not reminder_id or bot.config.is_dev():
         return
     try:
         bot.reminder.delete_reminder(reminder_id)
@@ -208,12 +141,6 @@ def delete_reminder_for_item(reminder_id: str) -> None:
             f"Failed to delete birthday reminder {reminder_id}: {type(e).__name__}: {e}",
             log_type=logconstants.COMMAND_WARN_TYPE,
         )
-
-
-def _is_dev_mode() -> bool:
-    config = getattr(bot, "config", None)
-    is_dev = getattr(config, "is_dev", None)
-    return bool(is_dev and is_dev())
 
 
 def get_self_edit_count(item: Optional[Dict[str, Any]]) -> int:
@@ -324,7 +251,7 @@ async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
     logger.info(f"Processing birthday webhook: {reminder_id}", log_type=logconstants.COMMAND_INFO_TYPE)
     try:
         mm_dd = str(notes or "").strip()
-        if not is_valid_birthday_date(mm_dd):
+        if not is_valid_mm_dd(mm_dd):
             logger.warn(f"Invalid birthday reminder notes: {notes}", log_type=logconstants.COMMAND_WARN_TYPE)
             return
         
@@ -381,7 +308,7 @@ async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
 def get_upcoming_birthdays(guild_id: str, limit: int = 3, today: Optional[date] = None) -> List[Dict[str, Any]]:
     today = today or datetime.now(timezone.utc).date()
     items = birthdays_data.find_birthday_items_by_guild(guild_id)
-    return sorted(items, key=lambda item: next_birthday_occurrence(item["date"], today))[:limit]
+    return sorted(items, key=lambda item: next_mm_dd_occurrence(item["date"], today))[:limit]
 
 
 def get_birthday_stats(guild_id: str, today: Optional[date] = None) -> Dict[str, Any]:
@@ -472,6 +399,8 @@ async def send_stats_message(interaction: discord.Interaction) -> None:
 
 
 async def edit_birthdays_manager(interaction: discord.Interaction, parent_view: discord.ui.View) -> None:
+    from app.views.birthday_edit_choice import BirthdayEditChoiceView
+
     view = BirthdayEditChoiceView(parent_view)
     embed = _manager_action_embed(
         parse_locale(interaction.locale),
@@ -484,38 +413,6 @@ async def edit_birthdays_manager(interaction: discord.Interaction, parent_view: 
     )
     parent_view.clear_items()
     await interaction.response.edit_message(embed=embed, view=view)
-
-
-class BirthdayEditChoiceView(discord.ui.View):
-    def __init__(self, manager_view: discord.ui.View):
-        super().__init__(timeout=1800)
-        self.manager_view = manager_view
-        self.locale = manager_view.locale
-
-    @discord.ui.button(label="Canal", emoji="📺", style=discord.ButtonStyle.grey)
-    async def edit_channel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await _open_birthday_config_form(interaction, self.manager_view, ["channel"])
-
-    @discord.ui.button(label="@everyone", emoji="📣", style=discord.ButtonStyle.grey)
-    async def edit_everyone(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await _open_birthday_config_form(interaction, self.manager_view, ["mention_everyone"])
-
-    @discord.ui.button(label="Membro", emoji="👤", style=discord.ButtonStyle.grey)
-    async def edit_member(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        from app.components.select_views import UserSelectView
-
-        embed = _manager_action_embed(
-            parse_locale(interaction.locale),
-            _t(self.locale, "Edit member birthday", "Editar aniversário de membro"),
-            _t(self.locale, "Choose the member whose birthday you want to edit.", "Escolha o membro que terá o aniversário editado."),
-        )
-        view = UserSelectView(
-            callback=lambda i: _open_member_birthday_form(i, view, self.locale),
-            locale=self.locale,
-            required=True,
-            unique=True,
-        )
-        await interaction.response.edit_message(embed=embed, view=view)
 
 
 async def _open_birthday_config_form(
@@ -753,7 +650,7 @@ def _parse_bool(value: Any) -> bool:
 def _parse_form_birthday_item(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     user_id = _nested_value(item, "user")
     mm_dd = _nested_value(item, "date")
-    if not user_id or not mm_dd or not is_valid_birthday_date(str(mm_dd)):
+    if not user_id or not mm_dd or not is_valid_mm_dd(str(mm_dd)):
         return None
 
     custom_message_mode = _nested_value(item, "use_custom_message")

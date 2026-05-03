@@ -2,11 +2,12 @@ from typing import Any, Dict, List, Optional
 
 from app import mongo_client
 from app.constants import Commands as constants
+from app.data.moderations import find_moderations_by_guild
 from app.data.util import parse_insert_timestamp, parse_update_timestamp
 
 
 def is_birthday_enabled(guild_id: str) -> bool:
-    moderations = mongo_client.guild.moderations.find_one({"guild_id": str(guild_id)})
+    moderations = find_moderations_by_guild(guild_id)
     return bool(moderations and moderations.get(constants.REMINDERS_BIRTHDAY_KEY))
 
 
