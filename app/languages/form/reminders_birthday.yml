@@ -103,7 +103,7 @@ steps:
       - action: modal
         key: date
         response_transform: birthday_date_parts
-        validation: validate_birthday_date
+        validation: validate_date
         validation_context_keys:
           - month
         title:
