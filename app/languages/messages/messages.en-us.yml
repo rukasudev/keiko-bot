@@ -1,4 +1,8 @@
 en-us:
+  birthday-defaults:
+    title: "🎂 It's {user}'s birthday!"
+    content: "Happy birthday {user}! 🎉 Hope your day is full of joy and treats! 🐾"
+
   greetings-message:
     title: "Hello, I'm Keiko, your loyal Discord companion! :dog:"
     message:

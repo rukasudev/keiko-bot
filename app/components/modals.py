@@ -199,3 +199,27 @@ class ModalValidations:
 
         ok = bot.youtube.get_channel_id_from_username(response) is not None
         return {"ok": ok, "error_key": "youtuber-not-found"}
+
+    def validate_date(self, response: Any) -> Dict[str, Any]:
+        from app.services.dates import parse_date_parts
+
+        day, month = self._extract_day_month(response)
+        ok = parse_date_parts(day, month) is not None
+        return {"ok": ok, "error_key": "invalid-date"}
+
+    def _extract_day_month(self, response: Any) -> tuple:
+        if isinstance(response, dict):
+            day = response.get("day")
+            month = response.get("month") or self._lookup_form_response("month")
+            return day, month
+        return response, None
+
+    def _lookup_form_response(self, key: str) -> Any:
+        if not isinstance(self.cogs, dict):
+            return None
+        return next(
+            (r.get("_raw_value", r.get("value"))
+             for r in self.cogs.get("responses", [])
+             if r.get("key") == key),
+            None,
+        )

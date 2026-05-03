@@ -1,7 +1,9 @@
 import asyncio
+import inspect
 from typing import Any, Callable, Dict, Generator, List, Optional, Union
 
 import discord
+from discord import SelectDefaultValue, SelectDefaultValueType
 
 from app import logger
 from app.components.buttons import (
@@ -13,7 +15,7 @@ from app.components.buttons import (
     PreviewButton,
     RemoveItemButton,
 )
-from app.components.select_views import ChannelSelectView, RoleSelectView, MultiSelectView, DesignSelectView, FileUploadModal
+from app.components.select_views import ChannelSelectView, RoleSelectView, MultiSelectView, DesignSelectView, FileUploadModal, UserSelectView, MonthSelectView
 from app.components.embed import parse_form_dict_to_embed
 from app.components.modals import CustomModal
 from app.constants import Commands as commandconstants
@@ -22,6 +24,7 @@ from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
 from app.integrations.stream_elements import StreamElementsClient
 from app.services.cogs import insert_cog_by_guild, insert_cog_event
+from app.services.compositions import merge_composition_item_by_nested_value
 from app.services.moderations import update_moderations_by_guild
 from app.services.notifications_twitch import unsubscribe_streamer
 from app.services.utils import (
@@ -50,12 +53,19 @@ class Form(discord.ui.View):
         `locale` -- the locale of the interaction (ex: pt-br, en-US)
     """
 
-    def __init__(self, command_key: str, locale: str, steps: List[Dict[str, str]] = None, cogs: Dict[str, Any] = None) -> None:
+    def __init__(
+        self,
+        command_key: str,
+        locale: str,
+        steps: List[Dict[str, str]] = None,
+        cogs: Dict[str, Any] = None,
+    ) -> None:
         self.command_key = command_key
         self.locale = locale
         self.state = FormStateManager(list(self._get_steps(steps)))
         self.cogs = cogs
         self.responses = []
+        self.persistence_callback = None
         self._using_layout_view = False
         super().__init__(timeout=1800)
         self.add_item(ConfirmButton(callback=self._callback, locale=locale))
@@ -178,6 +188,9 @@ class Form(discord.ui.View):
     def _set_after_callback(self, after_callback: Callable):
         self.after_callback = after_callback
 
+    def _set_persistence_callback(self, persistence_callback: Callable):
+        self.persistence_callback = persistence_callback
+
     def _handle_after_step(self):
         if not hasattr(self, "view"):
             return True
@@ -243,18 +256,31 @@ class Form(discord.ui.View):
                         })
             return self.responses
 
+        if self._get_step_item("action") == constants.SUMMARY_CARD_ACTION_KEY:
+            if isinstance(response, dict):
+                self._save_summary_card_response(response)
+            return self.responses
+
         if isinstance(response, dict):
+            transformed_response = self._transform_step_response(response)
+            if transformed_response:
+                self._upsert_response(transformed_response)
+                return self.responses
+
             fields = self._step.get("fields", [])
 
             for i, field in enumerate(fields):
                 field_key = field.get("key")
                 if field_key and field_key in response:
+                    value = response[field_key]
+                    if value is None:
+                        continue
                     label = field.get("label", {})
                     title = label.get(self.locale) if isinstance(label, dict) else field_key
                     self._upsert_response({
                         "key": field_key,
                         "title": title,
-                        "value": response[field_key],
+                        "value": value,
                         "style": None,
                     })
 
@@ -275,6 +301,37 @@ class Form(discord.ui.View):
             "style": self._get_step_item("style"),
         })
         return self.responses
+
+    def _transform_step_response(self, response: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        transform = self._get_step_item("response_transform")
+        if transform == "birthday_date_parts" and "day" in response:
+            from app.services.dates import parse_date_parts
+
+            month = next((r.get("_raw_value", r["value"]) for r in self.responses if r["key"] == "month"), None)
+            return {
+                "key": self._get_step_item("key"),
+                "title": self._get_step_item("title"),
+                "value": parse_date_parts(response["day"], month),
+                "style": "birthday_date",
+            }
+        return None
+
+    def _save_summary_card_response(self, response: Dict[str, Any]) -> None:
+        fields = self._step.get("fields", [])
+        if not fields:
+            fields = [{"key": key, "label": key} for key in response]
+
+        for field in fields:
+            key = field.get("key")
+            if key in response:
+                label = field.get("label")
+                title = ml(label, locale=self.locale) if label else key
+                self._upsert_response({
+                    "key": key,
+                    "title": title or key,
+                    "value": response.get(key),
+                    "style": None,
+                })
 
     def _get_step_item(self, key: str, default_value: Any = None) -> Dict[str, Any]:
         multi_lang_keys = ["title", "description", "footer", "fields"]
@@ -322,16 +379,18 @@ class Form(discord.ui.View):
         self.composition_index = int(index)
 
     def _set_titles_and_descriptions(self, steps: List[Dict[str, str]]):
+        self.title_and_desc = {}
+        self._collect_titles_and_descriptions(steps)
+        return self.title_and_desc
+
+    def _collect_titles_and_descriptions(self, steps: List[Dict[str, str]]):
         for step in steps:
             if step["action"] == constants.COMPOSITION_ACTION_KEY:
-                return self._set_titles_and_descriptions(step["steps"])
-
-            self.title_and_desc = {
-                step["title"][self.locale]: step["description"][self.locale]
-                for step in steps
-                if step["action"] not in constants.NO_ACTION_LIST
-            }
-        return self.title_and_desc
+                self._collect_titles_and_descriptions(step.get("steps", []))
+                continue
+            if step["action"] in constants.NO_ACTION_LIST:
+                continue
+            self.title_and_desc[step["title"][self.locale]] = step["description"][self.locale]
 
     def get_form_titles_and_descriptions(self) -> List[Dict[str, str]]:
         return self.title_and_desc
@@ -347,7 +406,12 @@ class Form(discord.ui.View):
         return []
 
     async def show_modal(self, interaction: discord.Interaction):
-        self.view = CustomModal(self._step, self._callback, self.locale, self.get_possible_values())
+        validation_context_keys = self._get_step_item("validation_context_keys")
+        if validation_context_keys:
+            validation_context = {"responses": self.responses}
+        else:
+            validation_context = self.get_possible_values()
+        self.view = CustomModal(self._step, self._callback, self.locale, validation_context)
         if not self.state.fill_modal(self.view) and self.cogs:
             self.parse_cogs_to_modal()
 
@@ -361,6 +425,14 @@ class Form(discord.ui.View):
         has_field_keys = any(f.get("key") for f in fields) if fields else False
 
         if has_field_keys:
+            if self._step.get("key") == "date" and "date" in self.cogs:
+                value = self.extract_value_from_cogs(self.cogs["date"])
+                if isinstance(value, str) and "-" in value:
+                    _, day = value.split("-", 1)
+                    if len(self.view.children) >= 1:
+                        self.view.children[0].default = str(int(day))
+                return
+
             for i, field in enumerate(fields):
                 field_key = field.get("key")
                 if field_key and field_key in self.cogs:
@@ -395,13 +467,26 @@ class Form(discord.ui.View):
     async def show_options(self, interaction: discord.Interaction):
         await interaction.response.defer()
         self.view = OptionsView(
-            options=self._get_step_item("options"),
+            options=self._get_options(),
             callback=self._callback,
             locale=self.locale,
             required=self._get_step_item("required", False),
             unique=self._get_step_item("unique", False),
+            styled_values=self._get_step_item("styled_values", False),
+            auto_confirm=self._get_step_item("auto_confirm", False),
         )
         await self._send_view(interaction)
+
+    def _get_options(self):
+        options = self._get_step_item("options")
+        if not isinstance(options, list):
+            return options
+        if not options or not isinstance(options[0], dict) or "label" not in options[0]:
+            return options
+        return {
+            (option["label"].get(self.locale) or option["label"].get("en-us")): option.get("value")
+            for option in options
+        }
 
     async def show_channels(self, interaction: discord.Interaction):
         if self._get_step_item("select"):
@@ -453,6 +538,48 @@ class Form(discord.ui.View):
         )
         await self._send_view(interaction)
 
+    async def show_user_select(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        self.view = UserSelectView(
+            callback=self._callback,
+            locale=self.locale,
+            required=self._get_step_item("required", False),
+            unique=self._get_step_item("unique", True),
+        )
+        await self._send_view(interaction)
+
+    async def show_month_select(self, interaction: discord.Interaction):
+        await interaction.response.defer()
+        self.view = MonthSelectView(
+            callback=self._callback,
+            locale=self.locale,
+            required=self._get_step_item("required", True),
+        )
+        await self._send_view(interaction)
+
+    async def show_summary_card(self, interaction: discord.Interaction):
+        from app.views.birthday_summary_card import BirthdaySummaryCardView
+
+        await interaction.response.defer()
+
+        user_id = next((r.get("_raw_value", r["value"]) for r in self.responses if r["key"] == "user"), None)
+        mm_dd = next((r.get("_raw_value", r["value"]) for r in self.responses if r["key"] == "date"), None)
+
+        member = interaction.guild.get_member(int(user_id)) if user_id and user_id.isdigit() else None
+        member_name = member.display_name if member else (user_id or "")
+
+        self.view = BirthdaySummaryCardView(
+            callback=self._callback,
+            locale=self.locale,
+            member_name=member_name,
+            member_id=user_id,
+            guild_name=interaction.guild.name if interaction.guild else "",
+            mm_dd=mm_dd,
+            prior_state=BirthdaySummaryCardView.prior_state_from_form(self.responses, self.cogs),
+            back_callback=self._go_back if self.state.can_go_back else None,
+        )
+        await self._send_layout_view(interaction)
+
     async def show_available_roles(self, interaction: discord.Interaction):
         if self._get_step_item("select"):
             return await self._show_roles_select(interaction)
@@ -485,10 +612,12 @@ class Form(discord.ui.View):
         self.add_item(EditButton(after_callback=self.update_resume, locale=self.locale))
 
         if self.command_key in commandconstants.COMPOSITION_COMMANDS_LIST:
-            if len(self.responses[0]['value']) < commandconstants.COMPOSITION_MAX_LENGTH[self.command_key]:
-                self.add_item(AddItemButton(self.add_item_callback, locale=self.locale))
-            if len(self.responses[0]['value']) > 1:
-                self.add_item(RemoveItemButton(self.remove_item_callback, locale=self.locale))
+            composition_response = self._get_composition_response()
+            if composition_response is not None:
+                if len(composition_response['value']) < commandconstants.COMPOSITION_MAX_LENGTH[self.command_key]:
+                    self.add_item(AddItemButton(self.add_item_callback, locale=self.locale))
+                if len(composition_response['value']) > 1:
+                    self.add_item(RemoveItemButton(self.remove_item_callback, locale=self.locale))
 
         if self._get_step_item("preview"):
             self.add_item(PreviewButton(custom_callback=send_welcome_message_preview, locale=self.locale, command_key=self.command_key))
@@ -499,12 +628,39 @@ class Form(discord.ui.View):
         await self._transition_from_layout_view(interaction, embed, self)
 
     async def add_item_callback(self, interaction: discord.Interaction):
-        self.responses[0]['value'].extend(self.form_view.responses[0]['value'])
+        composition_response = self._get_composition_response()
+        new_items = self.form_view.responses[0]['value']
+        unique_by = self._get_composition_step_item("unique_by")
+        if unique_by:
+            for item in new_items:
+                merge_composition_item_by_nested_value(composition_response['value'], item, unique_by)
+        else:
+            composition_response['value'].extend(new_items)
         await self.show_resume(interaction)
 
     async def remove_item_callback(self, interaction: discord.Interaction, item_removed: Dict[str, Any], new_cogs: Dict[str, Any]):
-        self.responses[0]['value'] = new_cogs[commandconstants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]]["values"]
+        composition_key = commandconstants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]
+        composition_response = self._get_composition_response()
+        composition_response['value'] = new_cogs[composition_key]["values"]
         await self.show_resume(interaction)
+
+    def _get_composition_response(self) -> Optional[Dict[str, Any]]:
+        composition_key = commandconstants.COMMAND_KEY_TO_COMPOSITION_KEY.get(self.command_key)
+        if not composition_key:
+            return None
+        return next((r for r in self.responses if r["key"] == composition_key), None)
+
+    def _get_composition_step_item(self, key: str, default_value: Any = None) -> Any:
+        composition_key = commandconstants.COMMAND_KEY_TO_COMPOSITION_KEY.get(self.command_key)
+        step = next(
+            (
+                item for item in self.state.steps_list
+                if item.get("action") == constants.COMPOSITION_ACTION_KEY
+                and item.get("key") == composition_key
+            ),
+            None,
+        )
+        return step.get(key, default_value) if step else default_value
 
     async def show_buttons(self, interaction: discord.Interaction):
         self.clear_items()
@@ -583,22 +739,41 @@ class Form(discord.ui.View):
 
         cog_param = self._parse_responses_to_cog()
 
-        update_moderations_by_guild(
-            guild_id=interaction.guild_id, key=self.command_key, value=True
-        )
-        insert_cog_by_guild(
-            guild_id=interaction.guild_id, cog=self.command_key, data=cog_param
-        )
+        if self.persistence_callback:
+            result = self.persistence_callback(interaction, self.responses, cog_param)
+            if inspect.isawaitable(result):
+                await result
+        else:
+            update_moderations_by_guild(
+                guild_id=interaction.guild_id, key=self.command_key, value=True
+            )
+            insert_cog_by_guild(
+                guild_id=interaction.guild_id, cog=self.command_key, data=cog_param
+            )
 
         self.clear_items()
 
-        await interaction.followup.edit_message(interaction.message.id, view=None)
+        try:
+            await interaction.followup.edit_message(interaction.message.id, view=None)
+        except Exception as e:
+            logger.warn(
+                f"Failed to clear command form message: {type(e).__name__}: {e}",
+                log_type=logconstants.COMMAND_WARN_TYPE,
+                interaction=interaction,
+            )
 
-        embed = interaction.message.embeds[0]
+        if interaction.message.embeds:
+            embed = interaction.message.embeds[0]
+        else:
+            from app.constants import Style as style_constants
+            embed = discord.Embed(color=int(style_constants.BACKGROUND_COLOR, base=16))
+            footer_text = ml("commands.commands.commons.embed.footer", locale=self.locale)
+            embed.set_footer(text=f"• {footer_text}")
         embed.title = ml("commands.command-events.enabled.title", locale=self.locale)
+        event_date = interaction.message.edited_at or interaction.message.created_at or discord.utils.utcnow()
         embed.description = parse_command_event_description(
             ml("commands.command-events.enabled.description", locale=self.locale),
-            interaction.message.edited_at,
+            event_date,
             interaction,
             self.command_key,
         )
@@ -607,7 +782,7 @@ class Form(discord.ui.View):
             str(interaction.guild_id),
             self.command_key,
             commandconstants.ENABLED_KEY,
-            interaction.message.edited_at,
+            event_date,
             str(interaction.user.id),
         )
 
@@ -681,6 +856,15 @@ class Form(discord.ui.View):
     def _parse_cogs_to_select(self) -> None:
         if isinstance(self.cogs, list):
             return
+        if self._step["key"] == "month" and "date" in self.cogs:
+            value = self.extract_value_from_cogs(self.cogs["date"])
+            if isinstance(value, str) and "-" in value:
+                month = value.split("-", 1)[0]
+                self.view.response[month] = month
+                if hasattr(self.view, "month_select"):
+                    for option in self.view.month_select.options:
+                        option.default = option.value == month
+            return
         if self._step['key'] not in self.cogs:
             return
         cogs = self.cogs[self._step['key']]
@@ -690,6 +874,13 @@ class Form(discord.ui.View):
                 self.view.response[v] = v
         elif value:
             self.view.response[value] = value
+
+        if hasattr(self.view, 'user_select') and value:
+            values_list = value if isinstance(value, list) else [value]
+            self.view.user_select.default_values = [
+                SelectDefaultValue(id=int(v), type=SelectDefaultValueType.user)
+                for v in values_list if str(v).isdigit()
+            ]
 
     def _parse_cogs_to_design_select(self) -> None:
         if isinstance(self.cogs, list):
@@ -718,6 +909,12 @@ class Form(discord.ui.View):
 
     def is_value_applicable(self, item: Any, value: Union[List[Any], Any]) -> bool:
         if self._get_step_item("action") == constants.OPTIONS_ACTION_KEY:
+            if getattr(self.view, "styled_values", False):
+                if isinstance(value, list):
+                    values = [str(v) for v in value]
+                else:
+                    values = [str(value)]
+                return item.custom_id in values
             return item.label in value
         if isinstance(value, list):
             return item.custom_id in value
@@ -750,6 +947,9 @@ class Form(discord.ui.View):
             constants.MULTI_SELECT_ACTION_KEY: self.show_multi_select,
             constants.DESIGN_SELECT_ACTION_KEY: self.show_design_select,
             constants.FILE_UPLOAD_ACTION_KEY: self.show_file_upload,
+            constants.USER_SELECT_ACTION_KEY: self.show_user_select,
+            constants.MONTH_SELECT_ACTION_KEY: self.show_month_select,
+            constants.SUMMARY_CARD_ACTION_KEY: self.show_summary_card,
         }
 
         if action in action_dict:
@@ -787,6 +987,8 @@ class Form(discord.ui.View):
             OptionsView: ('options', self.parse_cogs_to_options_view),
             ChannelSelectView: ('select', self._parse_cogs_to_select),
             RoleSelectView: ('select', self._parse_cogs_to_select),
+            UserSelectView: ('user_select', self._parse_cogs_to_select),
+            MonthSelectView: ('select', self._parse_cogs_to_select),
             MultiSelectView: ('multi_select', None),
         }
 
@@ -809,7 +1011,11 @@ class Form(discord.ui.View):
         deferred: bool = False
     ):
         """Handle transition from Components V2 LayoutView back to embed-based view."""
-        if self._using_layout_view:
+        previous_is_layout = (
+            self._using_layout_view
+            or bool(interaction.message and interaction.message.flags.components_v2)
+        )
+        if previous_is_layout:
             self._using_layout_view = False
             if not deferred:
                 await interaction.response.defer()
@@ -827,16 +1033,20 @@ class Form(discord.ui.View):
 
     async def _send_layout_view(self, interaction: discord.Interaction):
         """Send LayoutView (Components V2) without embed."""
+        from app.views.birthday_summary_card import BirthdaySummaryCardView
+
         view_config = {
             DesignSelectView: ('design_select', self._parse_cogs_to_design_select),
+            BirthdaySummaryCardView: (None, None),
         }
 
         config = view_config.get(type(self.view))
         if config:
             fill_type, cogs_fallback = config
-            fill_fn = getattr(self.state, f'fill_{fill_type}', None)
-            if fill_fn and not fill_fn(self.view) and self.cogs and cogs_fallback:
-                cogs_fallback()
+            if fill_type:
+                fill_fn = getattr(self.state, f'fill_{fill_type}', None)
+                if fill_fn and not fill_fn(self.view) and self.cogs and cogs_fallback:
+                    cogs_fallback()
 
         await interaction.followup.delete_message(interaction.message.id)
         await interaction.followup.send(view=self.view, ephemeral=True)

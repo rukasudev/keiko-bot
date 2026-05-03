@@ -1,5 +1,5 @@
 import importlib
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import discord
 
@@ -42,8 +42,10 @@ class OptionsButton(discord.ui.Button):
         options_custom_id: str,
         unique: bool = False,
         checked: bool = False,
+        auto_confirm: bool = False,
     ) -> None:
         self.unique = unique
+        self.auto_confirm = auto_confirm
         super().__init__(
             label=options_label,
             style=discord.ButtonStyle.gray if not checked else discord.ButtonStyle.primary,
@@ -60,6 +62,9 @@ class OptionsButton(discord.ui.Button):
         else:
             self.style = discord.ButtonStyle.primary
             self.view.response[self.custom_id] = self.label
+
+        if self.auto_confirm:
+            return await self.view.callback(interaction)
 
         embed = self.get_embed_values(interaction)
 
@@ -98,8 +103,9 @@ class OptionsButton(discord.ui.Button):
 
 
 class EditButton(discord.ui.Button):
-    def __init__(self, after_callback: Callable, locale: str) -> None:
+    def __init__(self, after_callback: Callable, locale: str, custom_callback: Optional[Callable] = None) -> None:
         self.after_callback = after_callback
+        self.custom_callback = custom_callback
         self.locale = locale
         self.desc = ml("buttons.edit.desc", locale=locale)
         super().__init__(
@@ -112,6 +118,9 @@ class EditButton(discord.ui.Button):
         from app.views.edit import EditCommand
 
         parent_view = self.view
+        if self.custom_callback:
+            return await self.custom_callback(interaction, parent_view)
+
         parent_view.clear_items()
 
         view = EditCommand(parent_view.command_key, parent_view.cogs or parent_view._parse_responses_to_cog(), self.locale, self.after_callback)
@@ -207,6 +216,7 @@ class ExecuteCommandButton(discord.ui.Button):
         "block_links": "app.services.block_links",
         "notifications_twitch": "app.services.notifications_twitch",
         "notifications_youtube_video": "app.services.notifications_youtube_video",
+        "reminders_birthday": "app.services.reminders_birthdays",
         "stream_elements_commands": "app.services.stream_elements",
     }
 

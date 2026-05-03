@@ -92,9 +92,31 @@ pt-br:
     select:
       channel-placeholder: Selecione um canal...
       role-placeholder: Selecione um cargo...
+      user-placeholder: Selecione um membro...
+      month-placeholder: Selecione um mês...
     design-select:
       header: "⬇️ Selecione um dos designs abaixo:"
       footer: "⬆️ Role para cima para ver todas as opções"
+
+  summary-card:
+    title: Configuração do Lembrete
+    member: Membro
+    date: Data
+    message: Mensagem
+    image: Imagem
+    default-label: Padrão
+    custom-label: Personalizado
+    badge-default: "📌 Padrão do Keiko"
+    badge-custom: "✨ Personalizado"
+    customize-msg: Personalizar mensagem
+    customize-img: Personalizar imagem
+    edit: Editar
+    reset: Voltar ao padrão
+    done: Avançar
+    modal-title-message: Personalizar Mensagem
+    modal-title-image: Imagem Personalizada
+    label-title: Título
+    label-content: Conteúdo
 
   execute:
     label: Executar
@@ -116,6 +138,9 @@ pt-br:
     youtube:
       label: YouTube
       desc: Seja notificado quando seus YouTubers favoritos enviarem um novo vídeo
+    birthdays:
+      label: Aniversários
+      desc: Comemore o aniversário dos seus membros com uma mensagem personalizada
     dashboard:
       label: Configurar
       desc: Veja todas as funcionalidades e seus status

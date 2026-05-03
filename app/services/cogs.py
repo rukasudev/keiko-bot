@@ -8,6 +8,8 @@ def insert_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
     if not data.get("guild_id"):
         data["guild_id"] = str(guild_id)
 
+    remove_cog_cache_by_guild(guild_id, cog)
+
     return cogs_data.insert_cog_by_guild_id(cog, data)
 
 

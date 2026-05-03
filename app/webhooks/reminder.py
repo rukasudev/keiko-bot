@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 from flask import request
 
 from app import logger
+from app.constants import Commands as commands_constants
 from app.constants import LogTypes as logconstants
 from app.webhooks import webhooks
 
@@ -13,11 +14,24 @@ def reminder_webhook():
 
     for reminder in request.json.get('reminders_notified'):
         logger.info(f'Reminder: {reminder}', log_type=logconstants.COMMAND_INFO_TYPE)
+        logger.info(f"Reminder title: {reminder.get('title')}", log_type=logconstants.COMMAND_INFO_TYPE)
 
         if reminder.get('title') == 'youtube_notification':
             proccess_youtube_notification(reminder.get('id'), reminder.get('notes'))
 
+        if reminder.get('title') == commands_constants.REMINDER_API_TITLE_BIRTHDAY:
+            process_birthday_reminder(reminder.get('id'), reminder.get('notes'))
+
     return 'Reminder webhook received', 200
+
+
+def process_birthday_reminder(reminder_id: str, notes: str) -> None:
+    from app import bot
+    from app.services.reminders_birthdays import process_birthday_webhook
+    logger.info(f"Processing birthday reminder: {reminder_id}", log_type=logconstants.COMMAND_INFO_TYPE)
+    logger.info(f"Date: {notes}", log_type=logconstants.COMMAND_INFO_TYPE)
+
+    bot.loop.create_task(process_birthday_webhook(reminder_id, notes))
 
 def proccess_youtube_notification(reminder_id: str, youtuber: str):
     from app import bot

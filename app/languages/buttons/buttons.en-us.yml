@@ -93,9 +93,31 @@ en-us:
     select:
       channel-placeholder: Select a channel...
       role-placeholder: Select a role...
+      user-placeholder: Select a member...
+      month-placeholder: Select a month...
     design-select:
       header: "⬇️ Select one of the designs below:"
       footer: "⬆️ Scroll up to see all options"
+
+  summary-card:
+    title: Reminder Setup
+    member: Member
+    date: Date
+    message: Message
+    image: Image
+    default-label: Default
+    custom-label: Custom
+    badge-default: "📌 Keiko's default"
+    badge-custom: "✨ Custom"
+    customize-msg: Customize message
+    customize-img: Customize image
+    edit: Edit
+    reset: Reset to default
+    done: Next
+    modal-title-message: Customize Message
+    modal-title-image: Custom Image
+    label-title: Title
+    label-content: Content
 
   execute:
     label: Execute
@@ -117,10 +139,12 @@ en-us:
     youtube:
       label: YouTube
       desc: Get notified when your favorite YouTubers upload a new video
+    birthdays:
+      label: Birthdays
+      desc: Celebrate your members' birthdays with a personalized message
     dashboard:
       label: Setup
       desc: See all features and their status
     admin-only:
       title: ⚠️ Admin Only
       message: "Sorry, commands like `/moderations` and `/notifications` need admin permissions! 🔧\n\nAsk a server admin to set them up. They can also use `/setup` to manage everything in one place ✨"
-

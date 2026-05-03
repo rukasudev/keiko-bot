@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 
 from app.views.form import Form
 from app.constants import FormConstants as constants
+from app.services.compositions import merge_composition_item_by_nested_value
 
 
 class TestFormUpsertResponse:
@@ -215,3 +216,131 @@ class TestFormDesignSelectReselection:
             assert len(form.responses) == 1
             assert form.responses[0]["_raw_value"] == "server_blur"
             assert form.responses[0]["value"] == "Server Image"
+
+
+class TestFormOptions:
+    def test_get_options_localizes_structured_labels(self):
+        with patch('app.views.form.parse_form_yaml_to_dict', return_value=[{"key": "test", "action": "form"}]):
+            form = Form("test_command", "pt-br")
+            form._step = {
+                "key": "mention_everyone",
+                "action": constants.OPTIONS_ACTION_KEY,
+                "options": [
+                    {"label": {"en-us": "Yes", "pt-br": "Sim"}, "value": True},
+                    {"label": {"en-us": "No", "pt-br": "Não"}, "value": False},
+                ],
+            }
+
+            assert form._get_options() == {"Sim": True, "Não": False}
+
+
+class TestFormSummaryCard:
+    """Testes para salvamento e recuperacao da summary card de aniversarios."""
+
+    def test_summary_card_response_is_saved_as_form_responses(self):
+        with patch('app.views.form.parse_form_yaml_to_dict', return_value=[{"key": "test", "action": "form"}]):
+            form = Form("test_command", "pt-br")
+            form._step = {"key": "customizations", "action": constants.SUMMARY_CARD_ACTION_KEY}
+            form.view = MagicMock()
+            form.view.get_response.return_value = {
+                "use_custom_message": "custom",
+                "custom_message_title": "Parabens, {user}!",
+                "custom_message_content": "Feliz aniversario!",
+                "use_custom_image": "custom",
+                "custom_image": "https://example.com/image.png",
+            }
+
+            form._save_step_response()
+
+            responses = {item["key"]: item for item in form.responses}
+            assert responses["use_custom_message"]["value"] == "custom"
+            assert responses["custom_message_title"]["value"] == "Parabens, {user}!"
+            assert responses["custom_message_content"]["value"] == "Feliz aniversario!"
+            assert responses["use_custom_image"]["value"] == "custom"
+            assert responses["custom_image"]["value"] == "https://example.com/image.png"
+
+    def test_summary_card_prior_state_reads_nested_response_values(self):
+        from app.views.birthday_summary_card import BirthdaySummaryCardView
+
+        responses = [
+            {"key": "use_custom_message", "value": {"value": "custom"}},
+            {"key": "custom_message_title", "value": {"value": "Titulo salvo"}},
+            {"key": "custom_message_content", "value": {"value": "Conteudo salvo"}},
+            {"key": "use_custom_image", "value": {"value": "custom"}},
+            {"key": "custom_image", "value": {"value": "https://example.com/saved.png"}},
+        ]
+
+        state = BirthdaySummaryCardView.prior_state_from_form(responses, cogs=None)
+
+        assert state["use_custom_message"] == "custom"
+        assert state["custom_message_title"] == "Titulo salvo"
+        assert state["custom_message_content"] == "Conteudo salvo"
+        assert state["use_custom_image"] == "custom"
+        assert state["custom_image"] == "https://example.com/saved.png"
+
+
+class TestBirthdayCompositionMerge:
+    """Testes para unicidade da lista de aniversarios por usuario."""
+
+    def test_add_same_user_replaces_existing_item(self):
+        items = [
+            {
+                "user": {"value": "123", "title": "Membro"},
+                "date": {"value": "05-15", "title": "Aniversario"},
+            }
+        ]
+        new_item = {
+            "user": {"value": "123", "title": "Membro"},
+            "date": {"value": "06-20", "title": "Aniversario"},
+        }
+
+        merge_composition_item_by_nested_value(items, new_item, "user")
+
+        assert len(items) == 1
+        assert items[0]["user"]["value"] == "123"
+        assert items[0]["date"]["value"] == "06-20"
+
+    def test_edit_user_to_existing_user_overwrites_existing_and_removes_old_slot(self):
+        items = [
+            {
+                "user": {"value": "rukasu", "title": "Membro"},
+                "date": {"value": "05-15", "title": "Aniversario"},
+            },
+            {
+                "user": {"value": "keiko", "title": "Membro"},
+                "date": {"value": "07-10", "title": "Aniversario"},
+            },
+        ]
+        edited_item = {
+            "user": {"value": "rukasu", "title": "Membro"},
+            "date": {"value": "08-25", "title": "Aniversario"},
+        }
+
+        merge_composition_item_by_nested_value(items, edited_item, "user", edited_index=1)
+
+        assert len(items) == 1
+        assert items[0]["user"]["value"] == "rukasu"
+        assert items[0]["date"]["value"] == "08-25"
+
+    def test_edit_user_without_duplicate_replaces_same_index(self):
+        items = [
+            {
+                "user": {"value": "rukasu", "title": "Membro"},
+                "date": {"value": "05-15", "title": "Aniversario"},
+            },
+            {
+                "user": {"value": "keiko", "title": "Membro"},
+                "date": {"value": "07-10", "title": "Aniversario"},
+            },
+        ]
+        edited_item = {
+            "user": {"value": "luna", "title": "Membro"},
+            "date": {"value": "08-25", "title": "Aniversario"},
+        }
+
+        merge_composition_item_by_nested_value(items, edited_item, "user", edited_index=1)
+
+        assert len(items) == 2
+        assert items[0]["user"]["value"] == "rukasu"
+        assert items[1]["user"]["value"] == "luna"
+        assert items[1]["date"]["value"] == "08-25"

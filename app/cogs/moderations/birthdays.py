@@ -1,0 +1,81 @@
+import discord
+from discord import app_commands
+
+from app.bot import DiscordBot
+from app.components.embed import response_embed, response_error_embed
+from app.constants import KeikoIcons
+from app.data import birthdays as birthdays_data
+from app.decorators import keiko_admin_only, keiko_command
+from app.services import reminders_birthdays as birthdays_service
+from app.services.reminders_birthdays import format_birthday_date_value
+from app.services.dates import get_month_choices, parse_date_parts
+from app.translator import locale_str
+from app.types.cogs import Group
+
+
+class Birthdays(
+    Group,
+    name=locale_str("birthdays", type="subgroup", namespace="moderations-birthdays"),
+):
+    def __init__(self, bot: DiscordBot):
+        self.bot = bot
+        super().__init__()
+
+    @keiko_command(
+        name=locale_str("reminders", type="name", namespace="moderations-birthdays"),
+        description=locale_str("desc", type="desc", namespace="moderations-birthdays"),
+    )
+    @keiko_admin_only
+    async def reminders(self, interaction: discord.Interaction) -> None:
+        guild_id = str(interaction.guild.id)
+        await birthdays_service.manager(interaction=interaction, guild_id=guild_id)
+
+    @keiko_command(
+        name=locale_str("add", type="name", namespace="moderations-birthdays-add"),
+        description=locale_str("desc", type="desc", namespace="moderations-birthdays-add"),
+    )
+    @app_commands.rename(
+        member=locale_str("member", type="birthday-params.member.name", namespace="commons"),
+        month=locale_str("month", type="birthday-params.month.name", namespace="commons"),
+        day=locale_str("day", type="birthday-params.day.name", namespace="commons"),
+    )
+    @app_commands.describe(
+        member=locale_str("member-desc", type="birthday-params.member.desc", namespace="commons"),
+        month=locale_str("month-desc", type="birthday-params.month.desc", namespace="commons"),
+        day=locale_str("day-desc", type="birthday-params.day.desc", namespace="commons"),
+    )
+    @app_commands.choices(month=get_month_choices())
+    @keiko_admin_only
+    async def add(self, interaction: discord.Interaction, member: discord.Member, month: int, day: int) -> None:
+        date = parse_date_parts(day, month)
+        if not date:
+            embed = response_error_embed("invalid-date", interaction.locale, footer=True)
+            return await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        guild_id = str(interaction.guild.id)
+        if not birthdays_data.is_birthday_enabled(guild_id) or not birthdays_data.find_birthday_config(guild_id):
+            embed = response_error_embed("reminders-birthdays-disabled", interaction.locale, footer=True)
+            return await interaction.response.send_message(embed=embed, ephemeral=True)
+
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        birthdays_service.upsert_self_birthday(
+            guild_id=guild_id,
+            user_id=str(member.id),
+            mm_dd=date,
+            increment_self_edit=False,
+        )
+
+        embed = response_embed(
+            "commands.commands.moderations-birthdays-add.response",
+            interaction.locale,
+            footer=True,
+            image=True,
+        )
+        embed.set_thumbnail(url=KeikoIcons.IMAGE_03)
+        embed.description = (
+            embed.description
+            .replace("{member}", member.mention)
+            .replace("{date}", format_birthday_date_value(date, interaction.locale))
+        )
+        await interaction.followup.send(embed=embed, ephemeral=True)

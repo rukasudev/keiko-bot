@@ -51,16 +51,30 @@ class Manager(discord.ui.View):
     """
 
     def __init__(
-        self, key: str, cogs: Dict[str, Any], interaction: discord.Interaction
+        self,
+        key: str,
+        cogs: Dict[str, Any],
+        interaction: discord.Interaction,
+        enable_composition_controls: bool = True,
+        lifecycle_callbacks: Dict[str, Any] = None,
     ):
         self.command_key = key
         self.cogs = cogs
         self.interaction = interaction
+        self.enable_composition_controls = enable_composition_controls
+        self.lifecycle_callbacks = lifecycle_callbacks or {}
         self.locale = parse_locale(interaction.locale)
         super().__init__(timeout=1800)
-        self.add_item(EditButton(self.update_command, locale=self.locale))
+        self.add_item(EditButton(
+            self.update_command,
+            locale=self.locale,
+            custom_callback=self.lifecycle_callbacks.get("edit"),
+        ))
         self.add_item(self.pause_handler())
-        self.add_item(DisableButton(callback=self.disable_callback, locale=self.locale))
+        self.add_item(DisableButton(
+            callback=self.lifecycle_callbacks.get("disable", self.disable_callback),
+            locale=self.locale,
+        ))
         self.handle_add_item_button()
         self.handle_remove_item_button()
         self.add_item(HistoryButton(callback=self.history_callback, locale=self.locale))
@@ -137,9 +151,15 @@ class Manager(discord.ui.View):
 
     def pause_handler(self) -> discord.ui.Button:
         if self.cogs.get(constants.ENABLED_KEY):
-            return PauseButton(callback=self.pause_callback, locale=self.locale)
+            return PauseButton(
+                callback=self.lifecycle_callbacks.get("pause", self.pause_callback),
+                locale=self.locale,
+            )
 
-        return UnpauseButton(callback=self.unpause_callback, locale=self.locale)
+        return UnpauseButton(
+            callback=self.lifecycle_callbacks.get("unpause", self.unpause_callback),
+            locale=self.locale,
+        )
 
     @need_confirmation_modal
     async def unpause_callback(self, interaction: discord.Interaction):
@@ -264,6 +284,8 @@ class Manager(discord.ui.View):
         await pagination_view.send(ephemeral=True)
 
     def handle_add_item_button(self) -> None:
+        if not self.enable_composition_controls:
+            return
         if self.command_key not in constants.COMPOSITION_COMMANDS_LIST:
             return
 
@@ -278,9 +300,14 @@ class Manager(discord.ui.View):
         await self.form_view.pre_finish_step(interaction)
 
         response = self.form_view._parse_responses_to_cog()[constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]].get("values")[0]
-        self.cogs[constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]]["values"].append(response)
-
-        update_cog_by_guild(interaction.guild_id, self.command_key, self.cogs)
+        composition_key = constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]
+        values = self.cogs[composition_key]["values"]
+        custom_add_item = self.lifecycle_callbacks.get("add_item")
+        if custom_add_item:
+            await custom_add_item(interaction, self, response)
+        else:
+            values.append(response)
+            update_cog_by_guild(interaction.guild_id, self.command_key, self.cogs)
 
         embed = interaction.message.embeds[0]
         embed.clear_fields()
@@ -317,6 +344,8 @@ class Manager(discord.ui.View):
         await interaction.followup.send(embed=embed, view=self, ephemeral=True)
 
     def handle_remove_item_button(self) -> None:
+        if not self.enable_composition_controls:
+            return
         if self.command_key not in constants.COMPOSITION_COMMANDS_LIST:
             return
 
@@ -332,8 +361,11 @@ class Manager(discord.ui.View):
             handle_unsubscribe_streamer(interaction, item_removed)
         if self.command_key == constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY:
             handle_unsubscribe_youtube_new_video(interaction, item_removed)
-
-        update_cog_by_guild(interaction.guild_id, self.command_key, new_cogs)
+        custom_remove_item = self.lifecycle_callbacks.get("remove_item")
+        if custom_remove_item:
+            await custom_remove_item(interaction, self, item_removed, new_cogs)
+        else:
+            update_cog_by_guild(interaction.guild_id, self.command_key, new_cogs)
 
         embed = interaction.message.embeds[0]
         embed.clear_fields()
