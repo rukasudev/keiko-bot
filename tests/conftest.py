@@ -15,11 +15,22 @@ Uso:
         # ... rest of test
 """
 
+import os
 import pytest
 import pytest_asyncio
 import asyncio
 from types import SimpleNamespace
 from unittest.mock import patch, MagicMock
+
+import i18n
+
+_LANGUAGES_ROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "languages")
+if os.path.isdir(_LANGUAGES_ROOT):
+    for folder in os.listdir(_LANGUAGES_ROOT):
+        path = os.path.join(_LANGUAGES_ROOT, folder)
+        if os.path.isdir(path) and path not in i18n.load_path:
+            i18n.load_path.append(path)
+    i18n.set("fallback", "en")
 
 # Early patching happens as side-effect of this import
 from tests.mocks.database import MockRedisClient, MockMongoClient

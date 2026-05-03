@@ -12,6 +12,7 @@ from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
 from app.constants import Style
 from app.data import birthdays as birthdays_data
+from app.data.birthdays import to_summary_composition
 from app.exceptions import ErrorContext
 from app.services.dates import (
     get_month_label,
