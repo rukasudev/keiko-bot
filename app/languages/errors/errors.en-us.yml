@@ -56,14 +56,14 @@ en-us:
     title: Selection Required
     message: "Oops! Please pick an option before confirming :)"
 
-  birthday-invalid-date:
-    title: Invalid Birthday Date
+  invalid-date:
+    title: Invalid Date
     message: "Oops! That date doesn't exist. Pick a valid day for the selected month."
 
-  birthday-cog-disabled:
+  reminders-birthdays-disabled:
     title: Birthday Reminders Not Set Up
     message: "Sorry, this server hasn't set up birthday reminders yet! Ask an admin to run `/moderations birthdays reminders` first 🎂"
 
-  birthday-self-edit-limit:
+  reminders-birthdays-self-edit-limit:
     title: Birthday Edit Blocked
     message: "You've already used your birthday edit in this server. Ask a moderator if you need another correction."

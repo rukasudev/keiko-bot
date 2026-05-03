@@ -102,7 +102,7 @@ en-us:
   summary-card:
     title: Reminder Setup
     member: Member
-    date: Birthday
+    date: Date
     message: Message
     image: Image
     default-label: Default
@@ -114,8 +114,8 @@ en-us:
     edit: Edit
     reset: Reset to default
     done: Next
-    modal-title-message: Customize Birthday Message
-    modal-title-image: Custom Birthday Image
+    modal-title-message: Customize Message
+    modal-title-image: Custom Image
     label-title: Title
     label-content: Content
 

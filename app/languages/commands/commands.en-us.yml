@@ -14,6 +14,16 @@ en-us:
         october: October
         november: November
         december: December
+      birthday-params:
+        member:
+          name: member
+          desc: Member whose birthday will be registered
+        day:
+          name: day
+          desc: "Birthday day (1-31)"
+        month:
+          name: month
+          desc: "Birthday month"
 
     help:
       name: help
@@ -100,16 +110,11 @@ en-us:
       subgroup: birthdays
       name: reminders
       desc: Keiko warmly celebrates your members' birthdays with personalized messages
-      add-name: add
-      add-desc: Quickly register a member birthday
-      params:
-        member: member
-        member-desc: Member whose birthday will be registered
-        day: day
-        day-desc: "Birthday day (1-31)"
-        month: month
-        month-desc: "Birthday month"
-      add-response:
+
+    moderations-birthdays-add:
+      name: add
+      desc: Quickly register a member birthday
+      response:
         title: 🎂 Birthday registered!
         message: "I saved {member}'s birthday for **{date}**.\n\nTo review all reminders, use `/moderations birthdays reminders`."
         footer: "Use the `/report` command to tell me a bug"
@@ -117,11 +122,6 @@ en-us:
     birthday-personal:
       name: birthday
       desc: Keiko remembers your birthday and celebrates it on your server
-      params:
-        day: day
-        day-desc: "Birthday day (1-31)"
-        month: month
-        month-desc: "Birthday month"
       response:
         title: 🎂 Birthday saved!
         message: "All set! I'll keep **{date}** safe and get ready to celebrate when the day arrives."

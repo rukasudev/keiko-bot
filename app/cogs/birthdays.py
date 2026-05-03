@@ -63,24 +63,24 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
         description=locale_str("desc", type="desc", namespace="birthday-personal"),
     )
     @app_commands.rename(
-        month=locale_str("month", type="params.month", namespace="birthday-personal"),
-        day=locale_str("day", type="params.day", namespace="birthday-personal"),
+        month=locale_str("month", type="birthday-params.month.name", namespace="commons"),
+        day=locale_str("day", type="birthday-params.day.name", namespace="commons"),
     )
     @app_commands.describe(
-        month=locale_str("month-desc", type="params.month-desc", namespace="birthday-personal"),
-        day=locale_str("day-desc", type="params.day-desc", namespace="birthday-personal"),
+        month=locale_str("month-desc", type="birthday-params.month.desc", namespace="commons"),
+        day=locale_str("day-desc", type="birthday-params.day.desc", namespace="commons"),
     )
     @app_commands.choices(month=get_month_choices())
     async def birthday_personal(self, interaction: discord.Interaction, month: int, day: int) -> None:
         date = birthdays_service.parse_birthday_date_parts(day, month)
         if not date:
-            embed = response_error_embed("birthday-invalid-date", interaction.locale, footer=True)
+            embed = response_error_embed("invalid-date", interaction.locale, footer=True)
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         guild_id = str(interaction.guild.id)
         if not birthdays_data.is_birthday_enabled(guild_id) or not birthdays_data.find_birthday_config(guild_id):
-            embed = response_error_embed("birthday-cog-disabled", interaction.locale, footer=True)
+            embed = response_error_embed("reminders-birthdays-disabled", interaction.locale, footer=True)
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
@@ -89,7 +89,7 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
         existing = birthdays_data.find_birthday_item(guild_id, str(interaction.user.id))
         if existing:
             if not birthdays_service.can_self_edit_birthday(existing):
-                embed = response_error_embed("birthday-self-edit-limit", interaction.locale, footer=True)
+                embed = response_error_embed("reminders-birthdays-self-edit-limit", interaction.locale, footer=True)
                 await interaction.followup.send(embed=embed, ephemeral=True)
                 return
 

@@ -218,4 +218,4 @@ class ModalValidations:
         else:
             ok = parse_birthday_date_parts(response, None) is not None
 
-        return {"ok": ok, "error_key": "birthday-invalid-date"}
+        return {"ok": ok, "error_key": "invalid-date"}

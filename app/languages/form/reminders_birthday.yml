@@ -123,7 +123,7 @@ steps:
               pt-br: "15"
       - action: summary_card
         key: customizations
-        summary_fields:
+        fields:
           - key: use_custom_message
             label: buttons.summary-card.message
           - key: custom_message_title

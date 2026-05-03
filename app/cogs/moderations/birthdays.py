@@ -31,31 +31,31 @@ class Birthdays(
         await birthdays_service.manager(interaction=interaction, guild_id=guild_id)
 
     @keiko_command(
-        name=locale_str("add-name", type="add-name", namespace="moderations-birthdays"),
-        description=locale_str("add-desc", type="add-desc", namespace="moderations-birthdays"),
+        name=locale_str("add", type="name", namespace="moderations-birthdays-add"),
+        description=locale_str("desc", type="desc", namespace="moderations-birthdays-add"),
     )
     @app_commands.rename(
-        member=locale_str("member", type="params.member", namespace="moderations-birthdays"),
-        month=locale_str("month", type="params.month", namespace="moderations-birthdays"),
-        day=locale_str("day", type="params.day", namespace="moderations-birthdays"),
+        member=locale_str("member", type="birthday-params.member.name", namespace="commons"),
+        month=locale_str("month", type="birthday-params.month.name", namespace="commons"),
+        day=locale_str("day", type="birthday-params.day.name", namespace="commons"),
     )
     @app_commands.describe(
-        member=locale_str("member-desc", type="params.member-desc", namespace="moderations-birthdays"),
-        month=locale_str("month-desc", type="params.month-desc", namespace="moderations-birthdays"),
-        day=locale_str("day-desc", type="params.day-desc", namespace="moderations-birthdays"),
+        member=locale_str("member-desc", type="birthday-params.member.desc", namespace="commons"),
+        month=locale_str("month-desc", type="birthday-params.month.desc", namespace="commons"),
+        day=locale_str("day-desc", type="birthday-params.day.desc", namespace="commons"),
     )
     @app_commands.choices(month=get_month_choices())
     @keiko_admin_only
     async def add(self, interaction: discord.Interaction, member: discord.Member, month: int, day: int) -> None:
         date = birthdays_service.parse_birthday_date_parts(day, month)
         if not date:
-            embed = response_error_embed("birthday-invalid-date", interaction.locale, footer=True)
+            embed = response_error_embed("invalid-date", interaction.locale, footer=True)
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         guild_id = str(interaction.guild.id)
         if not birthdays_data.is_birthday_enabled(guild_id) or not birthdays_data.find_birthday_config(guild_id):
-            embed = response_error_embed("birthday-cog-disabled", interaction.locale, footer=True)
+            embed = response_error_embed("reminders-birthdays-disabled", interaction.locale, footer=True)
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
@@ -69,7 +69,7 @@ class Birthdays(
         )
 
         embed = response_embed(
-            "commands.commands.moderations-birthdays.add-response",
+            "commands.commands.moderations-birthdays-add.response",
             interaction.locale,
             footer=True,
             image=True,

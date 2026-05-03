@@ -101,7 +101,7 @@ pt-br:
   summary-card:
     title: Configuração do Lembrete
     member: Membro
-    date: Aniversário
+    date: Data
     message: Mensagem
     image: Imagem
     default-label: Padrão
@@ -113,7 +113,7 @@ pt-br:
     edit: Editar
     reset: Voltar ao padrão
     done: Avançar
-    modal-title-message: Personalizar Mensagem de Aniversário
+    modal-title-message: Personalizar Mensagem
     modal-title-image: Imagem Personalizada
     label-title: Título
     label-content: Conteúdo

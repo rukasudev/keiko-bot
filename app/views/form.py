@@ -315,11 +315,11 @@ class Form(discord.ui.View):
         return None
 
     def _save_summary_card_response(self, response: Dict[str, Any]) -> None:
-        summary_fields = self._get_step_item("summary_fields", [])
-        if not summary_fields:
-            summary_fields = [{"key": key, "label": key} for key in response]
+        fields = self._step.get("fields", [])
+        if not fields:
+            fields = [{"key": key, "label": key} for key in response]
 
-        for field in summary_fields:
+        for field in fields:
             key = field.get("key")
             if key in response:
                 label = field.get("label")

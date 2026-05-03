@@ -14,6 +14,16 @@ pt-br:
         october: Outubro
         november: Novembro
         december: Dezembro
+      birthday-params:
+        member:
+          name: membro
+          desc: Membro que terá o aniversário cadastrado
+        day:
+          name: dia
+          desc: "Dia do aniversário (1-31)"
+        month:
+          name: mes
+          desc: "Mês do aniversário"
 
     help:
       name: ajuda
@@ -100,16 +110,11 @@ pt-br:
       subgroup: aniversários
       name: lembretes
       desc: Keiko comemora calorosamente o aniversário dos seus membros com mensagens personalizadas
-      add-name: adicionar
-      add-desc: Cadastre rapidamente o aniversário de um membro
-      params:
-        member: membro
-        member-desc: Membro que terá o aniversário cadastrado
-        day: dia
-        day-desc: "Dia do aniversário (1-31)"
-        month: mes
-        month-desc: "Mês do aniversário"
-      add-response:
+
+    moderations-birthdays-add:
+      name: adicionar
+      desc: Cadastre rapidamente o aniversário de um membro
+      response:
         title: 🎂 Aniversário cadastrado!
         message: "Anotei o aniversário de {member} para **{date}**.\n\nPara revisar todos os lembretes, use `/moderações aniversários lembretes`."
         footer: "Use o comando `/reportar` para me contar um bug"
@@ -117,11 +122,6 @@ pt-br:
     birthday-personal:
       name: aniversário
       desc: Keiko lembra seu aniversário e comemora ele no seu servidor
-      params:
-        day: dia
-        day-desc: "Dia do aniversário (1-31)"
-        month: mes
-        month-desc: "Mês do aniversário"
       response:
         title: 🎂 Aniversário salvo!
         message: "Prontinho! Vou guardar **{date}** com carinho e preparar uma comemoração especial quando esse dia chegar."
