@@ -1,5 +1,20 @@
 pt-br:
   commands:
+    commons:
+      months:
+        january: Janeiro
+        february: Fevereiro
+        march: Março
+        april: Abril
+        may: Maio
+        june: Junho
+        july: Julho
+        august: Agosto
+        september: Setembro
+        october: Outubro
+        november: Novembro
+        december: Dezembro
+
     help:
       name: ajuda
       desc: Keiko ajuda você a entender como usar os comandos disponíveis
@@ -107,19 +122,6 @@ pt-br:
         day-desc: "Dia do aniversário (1-31)"
         month: mes
         month-desc: "Mês do aniversário"
-      months:
-        january: Janeiro
-        february: Fevereiro
-        march: Março
-        april: Abril
-        may: Maio
-        june: Junho
-        july: Julho
-        august: Agosto
-        september: Setembro
-        october: Outubro
-        november: Novembro
-        december: Dezembro
       response:
         title: 🎂 Aniversário salvo!
         message: "Prontinho! Vou guardar **{date}** com carinho e preparar uma comemoração especial quando esse dia chegar."

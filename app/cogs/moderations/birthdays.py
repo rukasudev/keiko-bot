@@ -8,15 +8,9 @@ from app.data import birthdays as birthdays_data
 from app.decorators import keiko_admin_only, keiko_command
 from app.services import birthdays as birthdays_service
 from app.services.birthdays import format_birthday_date_value
+from app.services.dates import get_month_choices
 from app.translator import locale_str
 from app.types.cogs import Group
-
-
-def month_choice(month: int, key: str) -> app_commands.Choice[int]:
-    return app_commands.Choice(
-        name=locale_str(key, type=f"months.{key}", namespace="birthday-personal"),
-        value=month,
-    )
 
 
 class Birthdays(
@@ -50,20 +44,7 @@ class Birthdays(
         month=locale_str("month-desc", type="params.month-desc", namespace="moderations-birthdays"),
         day=locale_str("day-desc", type="params.day-desc", namespace="moderations-birthdays"),
     )
-    @app_commands.choices(month=[
-        month_choice(1, "january"),
-        month_choice(2, "february"),
-        month_choice(3, "march"),
-        month_choice(4, "april"),
-        month_choice(5, "may"),
-        month_choice(6, "june"),
-        month_choice(7, "july"),
-        month_choice(8, "august"),
-        month_choice(9, "september"),
-        month_choice(10, "october"),
-        month_choice(11, "november"),
-        month_choice(12, "december"),
-    ])
+    @app_commands.choices(month=get_month_choices())
     @keiko_admin_only
     async def add(self, interaction: discord.Interaction, member: discord.Member, month: int, day: int) -> None:
         date = birthdays_service.parse_birthday_date_parts(day, month)

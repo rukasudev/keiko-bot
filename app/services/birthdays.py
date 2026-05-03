@@ -16,20 +16,10 @@ from app.constants import LogTypes as logconstants
 from app.constants import Style
 from app.data import birthdays as birthdays_data
 from app.exceptions import ErrorContext
+from app.services.dates import get_month_label
 from app.services.moderations import update_moderations_by_guild
 from app.services.utils import ml, parse_form_yaml_to_dict, parse_locale, register_style_formatter
 
-
-MONTH_LABELS = {
-    "en-us": [
-        "", "January", "February", "March", "April", "May", "June",
-        "July", "August", "September", "October", "November", "December",
-    ],
-    "pt-br": [
-        "", "janeiro", "fevereiro", "março", "abril", "maio", "junho",
-        "julho", "agosto", "setembro", "outubro", "novembro", "dezembro",
-    ],
-}
 
 BIRTHDAY_DATE_REGEX = re.compile(r"^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$")
 MONTH_NAMES = {
@@ -54,12 +44,14 @@ def format_birthday_date_value(value: str, locale: str = None) -> str:
         month, day = [int(part) for part in str(value).split("-")]
     except (TypeError, ValueError):
         return value
-    if not 1 <= month <= 12:
+
+    label = get_month_label(month, locale)
+    if not label:
         return value
 
     if str(locale).lower() == "pt-br":
-        return f"{day} de {MONTH_LABELS['pt-br'][month]}"
-    return f"{MONTH_LABELS['en-us'][month]} {day}"
+        return f"{day} de {label.lower()}"
+    return f"{label} {day}"
 
 
 register_style_formatter("birthday_date", format_birthday_date_value)
@@ -659,8 +651,8 @@ def _manager_action_embed(locale: str, title: str, description: str) -> discord.
 def _format_month_stat(value: Optional[Tuple[int, int]], locale: str) -> str:
     if not value:
         return "-"
-    locale_key = "pt-br" if str(locale).lower() == "pt-br" else "en-us"
-    return f"{MONTH_LABELS[locale_key][int(value[0])]} ({value[1]})"
+    label = get_month_label(int(value[0]), locale) or str(value[0])
+    return f"{label} ({value[1]})"
 
 
 def _format_date_stat(value: Optional[Tuple[str, int]], locale: str) -> str:

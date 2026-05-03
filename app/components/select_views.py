@@ -157,12 +157,9 @@ class UserSelectView(discord.ui.View):
 class MonthSelectView(discord.ui.View):
     """Native select for choosing a birthday month."""
 
-    MONTH_KEYS = [
-        "january", "february", "march", "april", "may", "june",
-        "july", "august", "september", "october", "november", "december",
-    ]
-
     def __init__(self, callback: Callable, locale: str, required: bool = True):
+        from app.services.dates import MONTH_KEYS
+
         super().__init__(timeout=1800)
         self.callback = callback
         self.locale = locale
@@ -172,10 +169,10 @@ class MonthSelectView(discord.ui.View):
         placeholder = ml("buttons.components.select.month-placeholder", locale=locale)
         options = [
             discord.SelectOption(
-                label=ml(f"buttons.components.select.months.{key}", locale=locale),
+                label=ml(f"commands.commands.commons.months.{key}", locale=locale),
                 value=f"{index:02d}",
             )
-            for index, key in enumerate(self.MONTH_KEYS, start=1)
+            for index, key in enumerate(MONTH_KEYS, start=1)
         ]
 
         self.month_select = discord.ui.Select(

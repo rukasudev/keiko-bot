@@ -94,19 +94,6 @@ pt-br:
       role-placeholder: Selecione um cargo...
       user-placeholder: Selecione um membro...
       month-placeholder: Selecione um mês...
-      months:
-        january: Janeiro
-        february: Fevereiro
-        march: Março
-        april: Abril
-        may: Maio
-        june: Junho
-        july: Julho
-        august: Agosto
-        september: Setembro
-        october: Outubro
-        november: Novembro
-        december: Dezembro
     design-select:
       header: "⬇️ Selecione um dos designs abaixo:"
       footer: "⬆️ Role para cima para ver todas as opções"

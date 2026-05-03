@@ -95,19 +95,6 @@ en-us:
       role-placeholder: Select a role...
       user-placeholder: Select a member...
       month-placeholder: Select a month...
-      months:
-        january: January
-        february: February
-        march: March
-        april: April
-        may: May
-        june: June
-        july: July
-        august: August
-        september: September
-        october: October
-        november: November
-        december: December
     design-select:
       header: "⬇️ Select one of the designs below:"
       footer: "⬆️ Scroll up to see all options"

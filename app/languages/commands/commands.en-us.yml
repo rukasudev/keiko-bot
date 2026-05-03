@@ -1,5 +1,20 @@
 en-us:
   commands:
+    commons:
+      months:
+        january: January
+        february: February
+        march: March
+        april: April
+        may: May
+        june: June
+        july: July
+        august: August
+        september: September
+        october: October
+        november: November
+        december: December
+
     help:
       name: help
       desc: Keiko helps you understand how to use the available commands
@@ -107,19 +122,6 @@ en-us:
         day-desc: "Birthday day (1-31)"
         month: month
         month-desc: "Birthday month"
-      months:
-        january: January
-        february: February
-        march: March
-        april: April
-        may: May
-        june: June
-        july: July
-        august: August
-        september: September
-        october: October
-        november: November
-        december: December
       response:
         title: 🎂 Birthday saved!
         message: "All set! I'll keep **{date}** safe and get ready to celebrate when the day arrives."
