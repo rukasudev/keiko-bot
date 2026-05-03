@@ -260,23 +260,23 @@ class TestFormSummaryCard:
             assert responses["custom_image"]["value"] == "https://example.com/image.png"
 
     def test_summary_card_prior_state_reads_nested_response_values(self):
-        with patch('app.views.form.parse_form_yaml_to_dict', return_value=[{"key": "test", "action": "form"}]):
-            form = Form("test_command", "pt-br")
-            form.responses = [
-                {"key": "use_custom_message", "value": {"value": "custom"}},
-                {"key": "custom_message_title", "value": {"value": "Titulo salvo"}},
-                {"key": "custom_message_content", "value": {"value": "Conteudo salvo"}},
-                {"key": "use_custom_image", "value": {"value": "custom"}},
-                {"key": "custom_image", "value": {"value": "https://example.com/saved.png"}},
-            ]
+        from app.views.birthday_summary_card import BirthdaySummaryCardView
 
-            state = form._get_summary_card_prior_state()
+        responses = [
+            {"key": "use_custom_message", "value": {"value": "custom"}},
+            {"key": "custom_message_title", "value": {"value": "Titulo salvo"}},
+            {"key": "custom_message_content", "value": {"value": "Conteudo salvo"}},
+            {"key": "use_custom_image", "value": {"value": "custom"}},
+            {"key": "custom_image", "value": {"value": "https://example.com/saved.png"}},
+        ]
 
-            assert state["use_custom_message"] == "custom"
-            assert state["custom_message_title"] == "Titulo salvo"
-            assert state["custom_message_content"] == "Conteudo salvo"
-            assert state["use_custom_image"] == "custom"
-            assert state["custom_image"] == "https://example.com/saved.png"
+        state = BirthdaySummaryCardView.prior_state_from_form(responses, cogs=None)
+
+        assert state["use_custom_message"] == "custom"
+        assert state["custom_message_title"] == "Titulo salvo"
+        assert state["custom_message_content"] == "Conteudo salvo"
+        assert state["use_custom_image"] == "custom"
+        assert state["custom_image"] == "https://example.com/saved.png"
 
 
 class TestBirthdayCompositionMerge:
