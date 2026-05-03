@@ -36,12 +36,15 @@ class RemoveItem(discord.ui.View):
                 continue
 
             self.composition = True
+            self.composition_key = item["key"]
             return len(self.cogs.get(item["key"])["values"])
 
     def generate_options(self, steps_titles: Dict[str, str], max_length: int):
-        if self.composition:
-            return {f"{step}${i}": f"{title} #{i + 1}" for i in range(max_length) for step, title in steps_titles.items()}
-        return steps_titles
+        if not self.composition:
+            return steps_titles
+
+        title = steps_titles.get(self.composition_key, self.composition_key)
+        return {f"{self.composition_key}${i}": f"{title} #{i + 1}" for i in range(max_length)}
 
     async def callback(self, interaction: discord.Interaction):
         option, index = self.selected_options[0].split("$")

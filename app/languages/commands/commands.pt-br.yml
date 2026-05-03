@@ -81,6 +81,58 @@ pt-br:
       name: vídeos
       desc: Keiko notificará você sempre que seus youtubers favoritos postarem um novo vídeo no YouTube
 
+    moderations-birthdays:
+      subgroup: aniversários
+      name: lembretes
+      desc: Keiko comemora calorosamente o aniversário dos seus membros com mensagens personalizadas
+      add-name: adicionar
+      add-desc: Cadastre rapidamente o aniversário de um membro
+      params:
+        member: membro
+        member-desc: Membro que terá o aniversário cadastrado
+        day: dia
+        day-desc: "Dia do aniversário (1-31)"
+        month: mes
+        month-desc: "Mês do aniversário"
+      add-response:
+        title: 🎂 Aniversário cadastrado!
+        message: "Anotei o aniversário de {member} para **{date}**.\n\nPara revisar todos os lembretes, use `/moderações aniversários lembretes`."
+        footer: "Use o comando `/reportar` para me contar um bug"
+
+    birthday-personal:
+      name: aniversário
+      desc: Keiko lembra seu aniversário e comemora ele no seu servidor
+      params:
+        day: dia
+        day-desc: "Dia do aniversário (1-31)"
+        month: mes
+        month-desc: "Mês do aniversário"
+      months:
+        january: Janeiro
+        february: Fevereiro
+        march: Março
+        april: Abril
+        may: Maio
+        june: Junho
+        july: Julho
+        august: Agosto
+        september: Setembro
+        october: Outubro
+        november: Novembro
+        december: Dezembro
+      response:
+        title: 🎂 Aniversário salvo!
+        message: "Prontinho! Vou guardar **{date}** com carinho e preparar uma comemoração especial quando esse dia chegar."
+        footer: "Use o comando `/reportar` para me contar um bug"
+      overwrite-confirm:
+        title: 🎂 Atualizar aniversário?
+        message: "Você já tem aniversário cadastrado em **{current_date}**. Deseja sobrescrever para **{new_date}**? Essa é sua última edição."
+        footer: "Use o comando `/reportar` para me contar um bug"
+      overwrite-response:
+        title: 🎂 Aniversário atualizado!
+        message: "Atualizei seu aniversário para **{date}**. Vou lembrar dessa nova data daqui pra frente."
+        footer: "Use o comando `/reportar` para me contar um bug"
+
     default-roles:
       subgroup: cargos
       name: padrão

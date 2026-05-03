@@ -61,16 +61,26 @@ class EditCommand(discord.ui.View):
                 continue
 
             self.composition = True
+            self.composition_key = item["key"]
             return len(self.form_view.cogs.get(item["key"])["values"])
 
     def generate_options(self, steps_titles: Dict[str, str], max_length: int):
-        if self.composition:
-            return {f"{step}${i}": f"{title} #{i + 1}" for i in range(max_length) for step, title in steps_titles.items()}
-        return steps_titles
+        if not self.composition:
+            return steps_titles
+
+        options = {}
+        for step, title in steps_titles.items():
+            if step == self.composition_key:
+                for i in range(max_length):
+                    options[f"{step}${i}"] = f"{title} #{i + 1}"
+            else:
+                options[step] = title
+        return options
 
     async def callback(self, interaction: discord.Interaction):
-        if self.composition:
-            await self.handle_composition_callback(interaction, self.selected_options[0])
+        selected = self.selected_options[0]
+        if self.composition and "$" in selected:
+            await self.handle_composition_callback(interaction, selected)
         else:
             self.form_view.filter_steps(self.selected_options)
             await self.execute_form_view_callback(interaction)

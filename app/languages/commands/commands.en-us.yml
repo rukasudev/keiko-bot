@@ -81,6 +81,58 @@ en-us:
       name: videos
       desc: Keiko will notify you whenever your favorite YouTubers uploads a new video on YouTube
 
+    moderations-birthdays:
+      subgroup: birthdays
+      name: reminders
+      desc: Keiko warmly celebrates your members' birthdays with personalized messages
+      add-name: add
+      add-desc: Quickly register a member birthday
+      params:
+        member: member
+        member-desc: Member whose birthday will be registered
+        day: day
+        day-desc: "Birthday day (1-31)"
+        month: month
+        month-desc: "Birthday month"
+      add-response:
+        title: 🎂 Birthday registered!
+        message: "I saved {member}'s birthday for **{date}**.\n\nTo review all reminders, use `/moderations birthdays reminders`."
+        footer: "Use the `/report` command to tell me a bug"
+
+    birthday-personal:
+      name: birthday
+      desc: Keiko remembers your birthday and celebrates it on your server
+      params:
+        day: day
+        day-desc: "Birthday day (1-31)"
+        month: month
+        month-desc: "Birthday month"
+      months:
+        january: January
+        february: February
+        march: March
+        april: April
+        may: May
+        june: June
+        july: July
+        august: August
+        september: September
+        october: October
+        november: November
+        december: December
+      response:
+        title: 🎂 Birthday saved!
+        message: "All set! I'll keep **{date}** safe and get ready to celebrate when the day arrives."
+        footer: "Use the `/report` command to tell me a bug"
+      overwrite-confirm:
+        title: 🎂 Update birthday?
+        message: "You already have a birthday saved on **{current_date}**. Do you want to overwrite it with **{new_date}**? This is your last edit."
+        footer: "Use the `/report` command to tell me a bug"
+      overwrite-response:
+        title: 🎂 Birthday updated!
+        message: "I updated your birthday to **{date}**. I'll use this new date from now on."
+        footer: "Use the `/report` command to tell me a bug"
+
     default-roles:
       subgroup: default
       name: roles

@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 import discord
 
@@ -101,10 +101,18 @@ def insert_error_by_command(cog_key: str, error_message: str):
     return cogs_data.insert_error_by_command(cog_key, data)
 
 
-async def send_command_form_message(interaction: discord.Interaction, key: str):
+async def send_command_form_message(
+    interaction: discord.Interaction,
+    key: str,
+    persistence_callback: Optional[Callable] = None,
+):
     from app.views.form import Form
 
-    form_view = Form(command_key=key, locale=parse_locale(interaction.locale))
+    form_view = Form(
+        command_key=key,
+        locale=parse_locale(interaction.locale),
+        persistence_callback=persistence_callback,
+    )
     embed = form_view.get_form_embed()
     list_titles_descriptions = form_view.get_form_titles_and_descriptions()
     embed.description += parse_form_titles_descriptions(interaction, list_titles_descriptions)
@@ -118,6 +126,9 @@ async def send_command_manager_message(
     cog_data: Dict[str, str],
     additional_info: str = "",
     additional_buttons: Optional[List[discord.ui.Button]] = None,
+    settings_provider: Optional[Callable[[discord.Interaction, Dict[str, Any], str], List[Dict[str, Any]]]] = None,
+    enable_composition_controls: bool = True,
+    lifecycle_callbacks: Optional[Dict[str, Callable]] = None,
 ):
     from app.views.manager import Manager
 
@@ -128,10 +139,19 @@ async def send_command_manager_message(
 
     form_steps = list(parse_form_yaml_to_dict(key))
     embed = parse_form_dict_to_embed(form_steps[0], locale, True)
-    description = parse_settings_with_database_values(cog_data, form_steps, locale)
+    if settings_provider:
+        description = settings_provider(interaction, cog_data, locale)
+    else:
+        description = parse_settings_with_database_values(cog_data, form_steps, locale)
 
     embed.description += get_form_settings_with_database_values(interaction, description)
-    view = Manager(key, cog_data, interaction)
+    view = Manager(
+        key,
+        cog_data,
+        interaction,
+        enable_composition_controls=enable_composition_controls,
+        lifecycle_callbacks=lifecycle_callbacks,
+    )
 
     if not cog_data.get(commands_constants.ENABLED_KEY):
         embed.title += f" ({ml('commands.command-events.paused.key', locale=locale)})"

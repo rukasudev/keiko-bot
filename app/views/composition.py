@@ -4,6 +4,7 @@ import discord
 
 from app import logger
 from app.constants import LogTypes as logconstants
+from app.services.compositions import merge_composition_item_by_nested_value
 
 
 class FormComposition(discord.ui.View):
@@ -20,15 +21,30 @@ class FormComposition(discord.ui.View):
         return self.responses
 
     def save_response(self) -> None:
-        if not self.cogs or self.index is None:
-            return self.responses.append(self.transform_response(self.form_view.responses))
-
         response = self.transform_response(self.form_view.responses)
+        unique_by = self.composition.get("unique_by")
+        if unique_by:
+            return self._save_unique_response(response, unique_by)
+
+        if not self.cogs or self.index is None:
+            return self.responses.append(response)
+
         self.responses = self.cogs[self.composition.get("key")]["values"]
         if self.index is not None and len(self.responses) > self.index:
             self.responses[self.index] = response
         else:
             self.responses.append(response)
+
+    def _save_unique_response(self, response: Dict[str, Any], unique_by: str) -> None:
+        if self.cogs and self.index is not None:
+            self.responses = self.cogs[self.composition.get("key")]["values"]
+
+        merge_composition_item_by_nested_value(
+            self.responses,
+            response,
+            unique_by,
+            int(self.index) if self.index is not None else None,
+        )
 
     def transform_response(self, response: List[Dict[str, str]]) -> Dict[str, str]:
         result = {}

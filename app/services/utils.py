@@ -6,7 +6,7 @@ import os
 import random
 from pathlib import Path
 from re import findall
-from typing import Any, Dict, List, Tuple
+from typing import Any, Callable, Dict, List, Tuple
 
 import discord
 import yaml
@@ -189,7 +189,11 @@ def parse_settings_with_database_values(cog_data: Dict[str, str], form_steps: Di
 def parse_settings_with_database_values_composition(form_steps: Dict[str, str], locale: str, values: List[Dict[str, str]]) -> List[Dict[str, str]]:
     for value in values:
         for key, item in value.items():
-            item["title"] = get_form_step_title_composition(form_steps, key, locale)
+            step_title = get_form_step_title_composition(form_steps, key, locale)
+            if not isinstance(item, dict):
+                value[key] = {"value": item, "title": step_title or key}
+                continue
+            item["title"] = step_title or item.get("title") or key
 
     return values
 
@@ -204,15 +208,31 @@ def parse_form_steps_title_by_key(form_steps: Dict[str, str], key: str, locale: 
             return item["title"][locale]
 
 
-def format_values_by_style(values: Any, style: str) -> str:
-    if isinstance(values, str):
-        return format_single_value(values, style)
-    else:
-        return format_list_values(values, style)
+STYLE_FORMATTERS: Dict[str, Callable[[Any, str], str]] = {}
 
-def format_single_value(value: str, style: str) -> str:
+
+def register_style_formatter(style: str, formatter: Callable[[Any, str], str]) -> None:
+    STYLE_FORMATTERS[style] = formatter
+
+
+def format_values_by_style(values: Any, style: str, locale: str = None) -> str:
+    formatter = STYLE_FORMATTERS.get(style)
+    if formatter:
+        return formatter(values, locale)
+    if isinstance(values, (str, bool, int, float)) or values is None:
+        return format_single_value(values, style, locale)
+    return format_list_values(values, style)
+
+
+def format_single_value(value: str, style: str, locale: str = None) -> str:
+    if value in ("default", "custom"):
+        return ml(f"buttons.summary-card.{value}-label", locale=locale) or value
+    if style == "boolean":
+        return _format_boolean_value(value, locale)
+    if value is None:
+        return "-"
+
     formats = {
-        "boolean": "Yes" if value else "No",
         "channel": f"<#{value}>",
         "role": f"<@&{value}>",
         "user": f"<@{value}>",
@@ -220,6 +240,13 @@ def format_single_value(value: str, style: str) -> str:
         "numbered": "\n```" + "\n".join([f"• {v.lstrip()}" for v in value.split(";")]) + "```",
     }
     return formats.get(style, value)
+
+
+def _format_boolean_value(value: Any, locale: str = None) -> str:
+    if str(locale).lower() == "pt-br":
+        return "Sim" if value else "Não"
+    return "Yes" if value else "No"
+
 
 def format_list_values(values: List[str], style: str) -> str:
     formats = {
@@ -253,21 +280,110 @@ def get_form_settings_with_database_values(interaction: discord.Interaction, res
             values = values.get("values", "-")
 
         if style == "composition":
-            result = f"\n{get_styled_composition_values(item['title'], values)}"
+            result += f"\n{get_styled_composition_values(item['title'], values, interaction.locale)}"
         else:
-            formatted_values = format_values_by_style(values, style)
-            result += f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{formatted_values or '-'}**"
+            formatted_values = format_values_by_style(values, style, interaction.locale)
+            if isinstance(formatted_values, str) and "\n" in formatted_values:
+                result += f"\n{constants.FRISBEE_EMOJI} {item['title']}:\n**{formatted_values or '-'}**"
+            else:
+                result += f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{formatted_values or '-'}**"
 
     return result
 
-def get_styled_composition_values(title: str, values: List[Dict[str, str]]) -> str:
+def get_styled_composition_values(title: str, values: List[Dict[str, str]], locale: str = None) -> str:
     result = ""
     for n, composition in enumerate(values):
-        formatted_values = ""
-        for item in composition.values():
-            formatted_values += f"- {item['title']}: {format_values_by_style(item.get('value'), item.get('style'))}\n"
+        if _is_birthday_composition(composition):
+            formatted_values = _get_styled_birthday_composition_values(composition, locale)
+        else:
+            formatted_values = ""
+            for item in composition.values():
+                if not isinstance(item, dict):
+                    continue
+                formatted = format_values_by_style(item.get('value'), item.get('style'), locale)
+                formatted_values += f"- {item['title']}: **{formatted or '-'}**\n"
         result += f"\n{constants.FRISBEE_EMOJI} **{title} #{n+1}**\n{formatted_values}"
     return result
+
+
+def _is_birthday_composition(composition: Dict[str, Any]) -> bool:
+    return "user" in composition and "date" in composition
+
+
+def _get_styled_birthday_composition_values(composition: Dict[str, Any], locale: str = None) -> str:
+    result = ""
+    custom_message = _get_composition_item_value(composition, "use_custom_message") == "custom"
+    custom_image = (
+        _get_composition_item_value(composition, "use_custom_image") == "custom"
+        and bool(_get_composition_item_value(composition, "custom_image"))
+    )
+
+    for key, item in composition.items():
+        if key in ("type", "month", "custom_image", "reminder_id"):
+            continue
+        if not isinstance(item, dict):
+            continue
+        if key in ("custom_message_title", "custom_message_content") and not custom_message:
+            continue
+        if key == "use_custom_image" and not custom_image:
+            continue
+        if key == "use_custom_message":
+            if not custom_message:
+                continue
+            title = _get_birthday_summary_title(key, item, locale)
+            value = _get_birthday_summary_value(key, item, locale)
+            result += f"- {title}: **{value or '-'}**\n"
+            result += _get_birthday_message_preview(composition)
+            continue
+        if key in ("custom_message_title", "custom_message_content"):
+            continue
+
+        title = _get_birthday_summary_title(key, item, locale)
+        value = _get_birthday_summary_value(key, item, locale)
+        result += f"- {title}: **{value or '-'}**\n"
+
+    return result
+
+
+def _get_composition_item_value(composition: Dict[str, Any], key: str) -> Any:
+    item = composition.get(key)
+    if isinstance(item, dict):
+        return item.get("value")
+    return item
+
+
+def _get_birthday_message_preview(composition: Dict[str, Any]) -> str:
+    title = _get_composition_item_value(composition, "custom_message_title")
+    content = _get_composition_item_value(composition, "custom_message_content")
+    lines = []
+    if title:
+        lines.append(f"> **{title}**")
+    if content:
+        lines.append(f"> {content}")
+    return "\n".join(lines) + ("\n" if lines else "")
+
+
+def _get_birthday_summary_title(key: str, item: Dict[str, Any], locale: str = None) -> str:
+    titles = {
+        "use_custom_message": _ml_or_none("buttons.summary-card.message", locale),
+        "use_custom_image": _ml_or_none("buttons.summary-card.modal-title-image", locale),
+    }
+    return titles.get(key) or item.get("title") or key
+
+
+def _get_birthday_summary_value(key: str, item: Dict[str, Any], locale: str = None) -> str:
+    if key == "use_custom_message":
+        fallback = "Personalizado" if str(locale).lower() == "pt-br" else "Custom"
+        return _ml_or_none("buttons.summary-card.custom-label", locale) or fallback
+    if key == "use_custom_image":
+        return "Sim" if str(locale).lower() == "pt-br" else "Yes"
+    return format_values_by_style(item.get('value'), item.get('style'), locale)
+
+
+def _ml_or_none(key: str, locale: str = None) -> str:
+    value = ml(key, locale=locale)
+    return value if value and value != key else None
+
 
 def get_settings_label_by_locale(locale: str) -> str:
     return ml("commands.resume.settings", locale=locale)

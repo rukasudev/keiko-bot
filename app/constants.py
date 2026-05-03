@@ -76,27 +76,35 @@ class Commands:
 
     INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: Final[str] = "stream_elements_commands"
 
+    REMINDERS_BIRTHDAY_KEY: Final[str] = "reminders_birthday"
+    REMINDER_TYPE_BIRTHDAY: Final[str] = "birthday"
+    REMINDER_API_TITLE_BIRTHDAY: Final[str] = "birthday_reminder"
+
     COMMANDS_LIST: Final[List[str]] = [
         BLOCK_LINKS_KEY,
         DEFAULT_ROLES_KEY,
         NOTIFICATIONS_TWITCH_KEY,
         NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
+        REMINDERS_BIRTHDAY_KEY,
         WELCOME_MESSAGES_KEY,
     ]
 
     COMMAND_KEY_TO_COMPOSITION_KEY: Final[Dict[str, str]] = {
         NOTIFICATIONS_TWITCH_KEY: NOTIFICATIONS_KEY,
         NOTIFICATIONS_YOUTUBE_VIDEO_KEY: NOTIFICATIONS_KEY,
+        REMINDERS_BIRTHDAY_KEY: REMINDERS_BIRTHDAY_KEY,
     }
 
     COMPOSITION_COMMANDS_LIST: Final[List[str]] = [
         NOTIFICATIONS_TWITCH_KEY,
         NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
+        REMINDERS_BIRTHDAY_KEY,
     ]
 
     COMPOSITION_MAX_LENGTH: Final[Dict[str, int]] = {
         NOTIFICATIONS_TWITCH_KEY: 3,
         NOTIFICATIONS_YOUTUBE_VIDEO_KEY: 2,
+        REMINDERS_BIRTHDAY_KEY: 25,
     }
 
     SETUP_FEATURES: Final[List[Dict[str, str]]] = [
@@ -105,6 +113,7 @@ class Commands:
         {"command_key": BLOCK_LINKS_KEY, "button_key": "block-links", "emoji": "🚫"},
         {"command_key": NOTIFICATIONS_TWITCH_KEY, "button_key": "twitch", "emoji": "📡"},
         {"command_key": NOTIFICATIONS_YOUTUBE_VIDEO_KEY, "button_key": "youtube", "emoji": "▶️"},
+        {"command_key": REMINDERS_BIRTHDAY_KEY, "button_key": "birthdays", "emoji": "🎂"},
     ]
 
     FEATURE_COMMANDS: Final[Dict[str, Dict[str, str]]] = {
@@ -113,6 +122,7 @@ class Commands:
         BLOCK_LINKS_KEY: {"group": "moderations", "namespace": "block-links"},
         NOTIFICATIONS_TWITCH_KEY: {"group": "notifications", "namespace": "notifications-twitch"},
         NOTIFICATIONS_YOUTUBE_VIDEO_KEY: {"group": "notifications", "namespace": "notifications-youtube"},
+        REMINDERS_BIRTHDAY_KEY: {"group": "moderations", "namespace": "moderations-birthdays"},
     }
 
 
@@ -153,6 +163,7 @@ class GuildConstants:
         Commands.WELCOME_MESSAGES_KEY: False,
         Commands.DEFAULT_ROLES_KEY: False,
         Commands.BLOCK_LINKS_KEY: False,
+        Commands.REMINDERS_BIRTHDAY_KEY: False,
     }
 
 
@@ -169,8 +180,11 @@ class FormConstants:
     MULTI_SELECT_ACTION_KEY: Final[str] = "multi_select"
     DESIGN_SELECT_ACTION_KEY: Final[str] = "design_select"
     FILE_UPLOAD_ACTION_KEY: Final[str] = "file_upload"
+    USER_SELECT_ACTION_KEY: Final[str] = "user_select"
+    MONTH_SELECT_ACTION_KEY: Final[str] = "month_select"
+    SUMMARY_CARD_ACTION_KEY: Final[str] = "summary_card"
 
-    NO_ACTION_LIST: Final[List[str]] = [FORM_ACTION_KEY, BUTTON_ACTION_KEY, RESUME_ACTION_KEY]
+    NO_ACTION_LIST: Final[List[str]] = [FORM_ACTION_KEY, BUTTON_ACTION_KEY, RESUME_ACTION_KEY, SUMMARY_CARD_ACTION_KEY]
 
 
 class WelcomeDesign:
@@ -197,6 +211,8 @@ class KeikoIcons:
     IMAGE_03: Final[str] = (
         "https://cdn.discordapp.com/attachments/927208560360820766/1246698992000307280/KEIKO_BOLO.png?ex=665d566a&is=665c04ea&hm=387e5a325c03d564fb8594db3dcc492980cb8357c345e9b1e1756df9184d0dde&"
     )
+    BIRTHDAY_GIF: Final[str] = IMAGE_03
+
     ICONS_LIST: List[str] = [IMAGE_01, IMAGE_02, IMAGE_03]
     ACTION_IMAGE: Dict[str, str] = {
         FormConstants.RESUME_ACTION_KEY: IMAGE_03,
