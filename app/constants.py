@@ -77,7 +77,7 @@ class Commands:
     INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: Final[str] = "stream_elements_commands"
 
     REMINDERS_BIRTHDAY_KEY: Final[str] = "reminders_birthday"
-    REMINDER_TYPE_BIRTHDAY: Final[str] = "birthday"
+    REMINDER_TYPE_BIRTHDAY: Final[str] = "reminders_birthday"
     REMINDER_API_TITLE_BIRTHDAY: Final[str] = "birthday_reminder"
 
     COMMANDS_LIST: Final[List[str]] = [
