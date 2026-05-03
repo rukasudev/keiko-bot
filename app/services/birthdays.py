@@ -465,7 +465,7 @@ async def send_stats_message(interaction: discord.Interaction) -> None:
         color=int(Style.BACKGROUND_COLOR, base=16),
     )
     embed.set_thumbnail(url=KeikoIcons.IMAGE_03)
-    footer_text = ml("commands.commands.setup.embed.footer", locale=locale)
+    footer_text = ml("commands.commands.commons.embed.footer", locale=locale)
     if footer_text:
         embed.set_footer(text=f"• {footer_text}")
     await interaction.followup.send(embed=embed, ephemeral=True)
@@ -642,7 +642,7 @@ def _manager_action_embed(locale: str, title: str, description: str) -> discord.
         color=int(Style.BACKGROUND_COLOR, base=16),
     )
     embed.set_thumbnail(url=KeikoIcons.IMAGE_03)
-    footer_text = ml("commands.commands.setup.embed.footer", locale=locale)
+    footer_text = ml("commands.commands.commons.embed.footer", locale=locale)
     if footer_text:
         embed.set_footer(text=f"• {footer_text}")
     return embed

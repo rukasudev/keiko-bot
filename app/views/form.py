@@ -794,7 +794,7 @@ class Form(discord.ui.View):
         else:
             from app.constants import Style as style_constants
             embed = discord.Embed(color=int(style_constants.BACKGROUND_COLOR, base=16))
-            footer_text = ml("commands.commands.setup.embed.footer", locale=self.locale)
+            footer_text = ml("commands.commands.commons.embed.footer", locale=self.locale)
             embed.set_footer(text=f"• {footer_text}")
         embed.title = ml("commands.command-events.enabled.title", locale=self.locale)
         event_date = interaction.message.edited_at or interaction.message.created_at or discord.utils.utcnow()

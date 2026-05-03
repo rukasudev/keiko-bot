@@ -9,32 +9,22 @@ def merge_composition_item_by_nested_value(
 ) -> List[Dict[str, Any]]:
     """Upsert a composition item by a nested ``{"value": ...}`` field."""
     new_value = _nested_value(new_item, nested_key)
-    if not new_value:
-        if edited_index is not None and 0 <= edited_index < len(items):
-            items[edited_index] = new_item
-            return items
-        items.append(new_item)
-        return items
-
     existing_index = next(
         (
             i for i, item in enumerate(items)
-            if _nested_value(item, nested_key) == new_value and i != edited_index
+            if new_value and _nested_value(item, nested_key) == new_value and i != edited_index
         ),
         None,
     )
 
-    if existing_index is not None:
-        items[existing_index] = new_item
-        if edited_index is not None and 0 <= edited_index < len(items) and edited_index != existing_index:
-            del items[edited_index]
+    target = existing_index if existing_index is not None else edited_index
+    if target is None or not 0 <= target < len(items):
+        items.append(new_item)
         return items
 
-    if edited_index is not None and 0 <= edited_index < len(items):
-        items[edited_index] = new_item
-        return items
-
-    items.append(new_item)
+    items[target] = new_item
+    if existing_index is not None and edited_index is not None and edited_index != existing_index:
+        del items[edited_index]
     return items
 
 

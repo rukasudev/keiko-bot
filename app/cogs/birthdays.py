@@ -75,14 +75,12 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
         date = birthdays_service.parse_birthday_date_parts(day, month)
         if not date:
             embed = response_error_embed("invalid-date", interaction.locale, footer=True)
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
+            return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         guild_id = str(interaction.guild.id)
         if not birthdays_data.is_birthday_enabled(guild_id) or not birthdays_data.find_birthday_config(guild_id):
             embed = response_error_embed("reminders-birthdays-disabled", interaction.locale, footer=True)
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
+            return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         await interaction.response.defer(ephemeral=True, thinking=True)
 
@@ -90,8 +88,7 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
         if existing:
             if not birthdays_service.can_self_edit_birthday(existing):
                 embed = response_error_embed("reminders-birthdays-self-edit-limit", interaction.locale, footer=True)
-                await interaction.followup.send(embed=embed, ephemeral=True)
-                return
+                return await interaction.followup.send(embed=embed, ephemeral=True)
 
             current_date = existing.get("date")
             current_date_text = format_birthday_date_value(current_date, interaction.locale) or "-"

@@ -1,6 +1,8 @@
 en-us:
   commands:
     commons:
+      embed:
+        footer: "Use the `/report` command to tell me a bug"
       months:
         january: January
         february: February

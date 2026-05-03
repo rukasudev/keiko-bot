@@ -50,14 +50,12 @@ class Birthdays(
         date = birthdays_service.parse_birthday_date_parts(day, month)
         if not date:
             embed = response_error_embed("invalid-date", interaction.locale, footer=True)
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
+            return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         guild_id = str(interaction.guild.id)
         if not birthdays_data.is_birthday_enabled(guild_id) or not birthdays_data.find_birthday_config(guild_id):
             embed = response_error_embed("reminders-birthdays-disabled", interaction.locale, footer=True)
-            await interaction.response.send_message(embed=embed, ephemeral=True)
-            return
+            return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         await interaction.response.defer(ephemeral=True, thinking=True)
 
