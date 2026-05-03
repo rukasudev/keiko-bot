@@ -65,7 +65,11 @@ class Manager(discord.ui.View):
         self.lifecycle_callbacks = lifecycle_callbacks or {}
         self.locale = parse_locale(interaction.locale)
         super().__init__(timeout=1800)
-        self.add_item(EditButton(self.update_command, locale=self.locale))
+        self.add_item(EditButton(
+            self.update_command,
+            locale=self.locale,
+            custom_callback=self.lifecycle_callbacks.get("edit"),
+        ))
         self.add_item(self.pause_handler())
         self.add_item(DisableButton(
             callback=self.lifecycle_callbacks.get("disable", self.disable_callback),

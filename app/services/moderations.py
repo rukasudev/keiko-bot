@@ -111,8 +111,9 @@ async def send_command_form_message(
     form_view = Form(
         command_key=key,
         locale=parse_locale(interaction.locale),
-        persistence_callback=persistence_callback,
     )
+    if persistence_callback:
+        form_view._set_persistence_callback(persistence_callback)
     embed = form_view.get_form_embed()
     list_titles_descriptions = form_view.get_form_titles_and_descriptions()
     embed.description += parse_form_titles_descriptions(interaction, list_titles_descriptions)

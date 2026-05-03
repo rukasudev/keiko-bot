@@ -54,6 +54,40 @@ class CustomBirthdayMessageModal(discord.ui.Modal):
 class BirthdaySummaryCardView(discord.ui.LayoutView):
     """LayoutView showing the reminder state with opt-in customization toggles."""
 
+    PRIOR_STATE_KEYS = [
+        "use_custom_message",
+        "custom_message_title",
+        "custom_message_content",
+        "use_custom_image",
+        "custom_image",
+    ]
+
+    @classmethod
+    def prior_state_from_form(
+        cls,
+        responses: list,
+        cogs: Optional[Dict[str, Any]],
+    ) -> Optional[Dict[str, Any]]:
+        state: Dict[str, Any] = {}
+        for key in cls.PRIOR_STATE_KEYS:
+            value = next((r.get("value") for r in responses if r["key"] == key), None)
+            if isinstance(value, dict):
+                value = value.get("value")
+            if value is None and isinstance(cogs, dict):
+                cog_entry = cogs.get(key)
+                value = cog_entry.get("value") if isinstance(cog_entry, dict) else cog_entry
+            state[key] = value
+
+        if not any(state.values()):
+            return None
+
+        if state.get("use_custom_message") not in ("default", "custom"):
+            state["use_custom_message"] = "custom" if state.get("custom_message_title") else "default"
+        if state.get("use_custom_image") not in ("default", "custom"):
+            state["use_custom_image"] = "custom" if state.get("custom_image") else "default"
+
+        return state
+
     def __init__(
         self,
         callback: Callable,

@@ -59,14 +59,13 @@ class Form(discord.ui.View):
         locale: str,
         steps: List[Dict[str, str]] = None,
         cogs: Dict[str, Any] = None,
-        persistence_callback: Callable = None,
     ) -> None:
         self.command_key = command_key
         self.locale = locale
         self.state = FormStateManager(list(self._get_steps(steps)))
         self.cogs = cogs
         self.responses = []
-        self.persistence_callback = persistence_callback
+        self.persistence_callback = None
         self._using_layout_view = False
         super().__init__(timeout=1800)
         self.add_item(ConfirmButton(callback=self._callback, locale=locale))
@@ -188,6 +187,9 @@ class Form(discord.ui.View):
 
     def _set_after_callback(self, after_callback: Callable):
         self.after_callback = after_callback
+
+    def _set_persistence_callback(self, persistence_callback: Callable):
+        self.persistence_callback = persistence_callback
 
     def _handle_after_step(self):
         if not hasattr(self, "view"):
@@ -566,8 +568,6 @@ class Form(discord.ui.View):
         member = interaction.guild.get_member(int(user_id)) if user_id and user_id.isdigit() else None
         member_name = member.display_name if member else (user_id or "")
 
-        prior_state = self._get_summary_card_prior_state()
-
         self.view = BirthdaySummaryCardView(
             callback=self._callback,
             locale=self.locale,
@@ -575,37 +575,10 @@ class Form(discord.ui.View):
             member_id=user_id,
             guild_name=interaction.guild.name if interaction.guild else "",
             mm_dd=mm_dd,
-            prior_state=prior_state,
+            prior_state=BirthdaySummaryCardView.prior_state_from_form(self.responses, self.cogs),
             back_callback=self._go_back if self.state.can_go_back else None,
         )
         await self._send_layout_view(interaction)
-
-    def _get_summary_card_prior_state(self):
-        """Extract summary card state from current responses (when editing existing item)."""
-        keys = ["use_custom_message", "custom_message_title", "custom_message_content",
-                "use_custom_image", "custom_image"]
-        state = {}
-        for key in keys:
-            value = next((r.get("value") for r in self.responses if r["key"] == key), None)
-            if isinstance(value, dict):
-                value = value.get("value")
-            if value is None and isinstance(self.cogs, dict):
-                cog_entry = self.cogs.get(key)
-                if isinstance(cog_entry, dict):
-                    value = cog_entry.get("value")
-                else:
-                    value = cog_entry
-            state[key] = value
-
-        if not any(state.values()):
-            return None
-
-        if state.get("use_custom_message") not in ("default", "custom"):
-            state["use_custom_message"] = "custom" if state.get("custom_message_title") else "default"
-        if state.get("use_custom_image") not in ("default", "custom"):
-            state["use_custom_image"] = "custom" if state.get("custom_image") else "default"
-
-        return state
 
     async def show_available_roles(self, interaction: discord.Interaction):
         if self._get_step_item("select"):

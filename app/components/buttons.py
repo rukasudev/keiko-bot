@@ -1,5 +1,5 @@
 import importlib
-from typing import Any, Callable
+from typing import Any, Callable, Optional
 
 import discord
 
@@ -103,8 +103,9 @@ class OptionsButton(discord.ui.Button):
 
 
 class EditButton(discord.ui.Button):
-    def __init__(self, after_callback: Callable, locale: str) -> None:
+    def __init__(self, after_callback: Callable, locale: str, custom_callback: Optional[Callable] = None) -> None:
         self.after_callback = after_callback
+        self.custom_callback = custom_callback
         self.locale = locale
         self.desc = ml("buttons.edit.desc", locale=locale)
         super().__init__(
@@ -117,9 +118,8 @@ class EditButton(discord.ui.Button):
         from app.views.edit import EditCommand
 
         parent_view = self.view
-        custom_edit_callback = getattr(parent_view, "lifecycle_callbacks", {}).get("edit")
-        if custom_edit_callback:
-            return await custom_edit_callback(interaction, parent_view)
+        if self.custom_callback:
+            return await self.custom_callback(interaction, parent_view)
 
         parent_view.clear_items()
 
