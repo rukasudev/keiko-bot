@@ -15,6 +15,7 @@ from i18n import t
 
 from app.components.modals import ConfirmationModal
 from app.constants import CogsConstants as cogconstants
+from app.constants import Commands as commandconstants
 from app.constants import Emojis as constants
 from app.constants import FormConstants as formconstants
 from app.constants import LogTypes as logconstants
@@ -189,7 +190,11 @@ def parse_settings_with_database_values(cog_data: Dict[str, str], form_steps: Di
 def parse_settings_with_database_values_composition(form_steps: Dict[str, str], locale: str, values: List[Dict[str, str]]) -> List[Dict[str, str]]:
     for value in values:
         for key, item in value.items():
-            item["title"] = get_form_step_title_composition(form_steps, key, locale)
+            step_title = get_form_step_title_composition(form_steps, key, locale)
+            if not isinstance(item, dict):
+                value[key] = {"value": item, "title": step_title or key}
+                continue
+            item["title"] = step_title or item.get("title") or key
 
     return values
 
@@ -204,15 +209,25 @@ def parse_form_steps_title_by_key(form_steps: Dict[str, str], key: str, locale: 
             return item["title"][locale]
 
 
-def format_values_by_style(values: Any, style: str) -> str:
-    if isinstance(values, str):
-        return format_single_value(values, style)
-    else:
-        return format_list_values(values, style)
+def format_values_by_style(values: Any, style: str, locale: str = None) -> str:
+    if isinstance(values, (str, bool, int, float)) or values is None:
+        return format_single_value(values, style, locale)
+    return format_list_values(values, style)
 
-def format_single_value(value: str, style: str) -> str:
+
+def format_single_value(value: str, style: str, locale: str = None) -> str:
+    if value in ("default", "custom"):
+        return ml(f"buttons.summary-card.{value}-label", locale=locale) or value
+    if style == "boolean":
+        return _format_boolean_value(value, locale)
+    if style == "mm_dd":
+        from app.services.dates import format_mm_dd_label
+
+        return format_mm_dd_label(value, locale)
+    if value is None:
+        return "-"
+
     formats = {
-        "boolean": "Yes" if value else "No",
         "channel": f"<#{value}>",
         "role": f"<@&{value}>",
         "user": f"<@{value}>",
@@ -220,6 +235,13 @@ def format_single_value(value: str, style: str) -> str:
         "numbered": "\n```" + "\n".join([f"• {v.lstrip()}" for v in value.split(";")]) + "```",
     }
     return formats.get(style, value)
+
+
+def _format_boolean_value(value: Any, locale: str = None) -> str:
+    if str(locale).lower() == "pt-br":
+        return "Sim" if value else "Não"
+    return "Yes" if value else "No"
+
 
 def format_list_values(values: List[str], style: str) -> str:
     formats = {
@@ -253,21 +275,28 @@ def get_form_settings_with_database_values(interaction: discord.Interaction, res
             values = values.get("values", "-")
 
         if style == "composition":
-            result = f"\n{get_styled_composition_values(item['title'], values)}"
+            result += f"\n{get_styled_composition_values(item['title'], values, interaction.locale)}"
         else:
-            formatted_values = format_values_by_style(values, style)
-            result += f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{formatted_values or '-'}**"
+            formatted_values = format_values_by_style(values, style, interaction.locale)
+            if isinstance(formatted_values, str) and "\n" in formatted_values:
+                result += f"\n{constants.FRISBEE_EMOJI} {item['title']}:\n**{formatted_values or '-'}**"
+            else:
+                result += f"\n{constants.FRISBEE_EMOJI} {item['title']}: **{formatted_values or '-'}**"
 
     return result
 
-def get_styled_composition_values(title: str, values: List[Dict[str, str]]) -> str:
+def get_styled_composition_values(title: str, values: List[Dict[str, str]], locale: str = None) -> str:
     result = ""
     for n, composition in enumerate(values):
         formatted_values = ""
         for item in composition.values():
-            formatted_values += f"- {item['title']}: {format_values_by_style(item.get('value'), item.get('style'))}\n"
+            if not isinstance(item, dict) or item.get("hidden"):
+                continue
+            formatted = format_values_by_style(item.get('value'), item.get('style'), locale)
+            formatted_values += f"- {item['title']}: **{formatted or '-'}**\n"
         result += f"\n{constants.FRISBEE_EMOJI} **{title} #{n+1}**\n{formatted_values}"
     return result
+
 
 def get_settings_label_by_locale(locale: str) -> str:
     return ml("commands.resume.settings", locale=locale)
@@ -284,9 +313,10 @@ def parse_locale(locale: str) -> str:
     return "en-us"
 
 def parse_valid_locale(locale: discord.Locale) -> discord.Locale:
-    if locale.value not in supported_locales:
-        return discord.Locale.american_english
-    return locale
+    locale_value = getattr(locale, "value", str(locale))
+    if locale_value == discord.Locale.brazil_portuguese.value:
+        return discord.Locale.brazil_portuguese
+    return discord.Locale.american_english
 
 
 def ml(key: str, locale: str):
@@ -304,15 +334,35 @@ def get_command_by_key(bot, key: str) -> discord.app_commands.Command:
     return None
 
 
+def get_command_display_name(bot, key: str, locale: discord.Locale) -> str:
+    command = get_command_by_key(bot, key)
+    valid_locale = parse_valid_locale(locale)
+    valid_locale_value = getattr(valid_locale, "value", str(valid_locale))
+    if command:
+        extras = getattr(command, "extras", {}) or {}
+        locale_extras = extras.get(valid_locale_value, {}) or {}
+        command_name = locale_extras.get("locale_qualified_name")
+        if command_name:
+            return command_name
+
+    feature_command = commandconstants.FEATURE_COMMANDS.get(key)
+    if feature_command:
+        group = ml(f"commands.groups.{feature_command['group']}", locale=valid_locale_value)
+        namespace = feature_command["namespace"]
+        subgroup = ml(f"commands.commands.{namespace}.subgroup", locale=valid_locale_value)
+        name = ml(f"commands.commands.{namespace}.name", locale=valid_locale_value)
+        return " ".join(part for part in (group, subgroup, name) if part)
+
+    return str(key).replace("_", " ")
+
+
 def parse_command_event_description(
     description: str,
     event_date: datetime.datetime,
     interaction: discord.Interaction,
     cog_key: str,
 ) -> str:
-    command = get_command_by_key(interaction.client, cog_key)
-    valid_locale = parse_valid_locale(interaction.locale)
-    command_name = command.extras[valid_locale.value].get("locale_qualified_name")
+    command_name = get_command_display_name(interaction.client, cog_key, interaction.locale)
     setup_command = ml("commands.commands.setup.name", locale=interaction.locale)
     description = description.replace("$command_name", command_name)
     description = description.replace("$setup_command", setup_command)

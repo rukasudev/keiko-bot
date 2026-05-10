@@ -1,5 +1,52 @@
 en-us:
   commands:
+    commons:
+      embed:
+        footer: "Use the `/report` command to tell me a bug"
+      months:
+        january: January
+        february: February
+        march: March
+        april: April
+        may: May
+        june: June
+        july: July
+        august: August
+        september: September
+        october: October
+        november: November
+        december: December
+      birthday-params:
+        member:
+          name: member
+          desc: Member whose birthday will be registered
+        day:
+          name: day
+          desc: "Birthday day (1-31)"
+        month:
+          name: month
+          desc: "Birthday month"
+      reminders-birthdays-manager:
+        stats:
+          button:
+            label: Stats
+            desc: View birthday statistics
+          embed:
+            title: "📊 Birthday stats"
+          fields:
+            total: Total birthdays
+            this-month: Birthdays this month
+            top: Top month
+            quietest: Quietest month
+            most-common: Most common date
+        settings:
+          channel: Birthday Channel
+          mention-everyone: "Mention @everyone"
+          total: Total birthdays
+          next: Next birthdays
+        disable:
+          confirmed: Birthday reminders disabled.
+
     help:
       name: help
       desc: Keiko helps you understand how to use the available commands
@@ -81,6 +128,35 @@ en-us:
       name: videos
       desc: Keiko will notify you whenever your favorite YouTubers uploads a new video on YouTube
 
+    moderations-birthdays:
+      subgroup: birthdays
+      name: reminders
+      desc: Keiko warmly celebrates your members' birthdays with personalized messages
+
+    moderations-birthdays-add:
+      name: add
+      desc: Quickly register a member birthday
+      response:
+        title: 🎂 Birthday registered!
+        message: "I saved {member}'s birthday for **{date}**.\n\nTo review all reminders, use `/moderations birthdays reminders`."
+        footer: "Use the `/report` command to tell me a bug"
+
+    birthday-personal:
+      name: birthday
+      desc: Keiko remembers your birthday and celebrates it on your server
+      response:
+        title: 🎂 Birthday saved!
+        message: "All set! I'll keep **{date}** safe and get ready to celebrate when the day arrives."
+        footer: "Use the `/report` command to tell me a bug"
+      overwrite-confirm:
+        title: 🎂 Update birthday?
+        message: "You already have a birthday saved on **{current_date}**. Do you want to overwrite it with **{new_date}**? This is your last edit."
+        footer: "Use the `/report` command to tell me a bug"
+      overwrite-response:
+        title: 🎂 Birthday updated!
+        message: "I updated your birthday to **{date}**. I'll use this new date from now on."
+        footer: "Use the `/report` command to tell me a bug"
+
     default-roles:
       subgroup: default
       name: roles
@@ -145,6 +221,10 @@ en-us:
       title: 📝 Command edited successfully!
       description: Command **$command_name** edited on $date by $user
       placeholder: Select the settings you want to edit
+      member-picker:
+        title: 👤 Select a member to edit
+        description: Tell me which member you want to update in this list.
+        not-found: Hmm, I do not have a birthday saved for that member yet. Pick someone already on the list.
       short-description: 📝 Edited by $user
       short-description-with-cog: 📝 **$cog_name** edited by $user
 
@@ -152,6 +232,7 @@ en-us:
       title: ➕ Item added to **$command_name** successfully!
       action: Add
       description: A item was added to **$command_name** on $date by $user
+      duplicate: This member is already on the list. Use **Edit** if you want to change something.
       short-description: ➕ Item added by $user
       short-description-with-cog: ➕ **$cog_name** added by $user
 
@@ -160,6 +241,10 @@ en-us:
       action: Remove
       description: A item was removed from **$command_name** on $date by $user
       placeholder: Select the item you want to remove
+      member-picker:
+        title: 👤 Select a member to remove
+        description: Tell me which member you want to remove from this list.
+        not-found: Hmm, I do not have anything saved for that member yet. Pick someone already on the list.
       short-description: 🗑️ Item removed by $user
       short-description-with-cog: 🗑️ **$cog_name** removed by $user
 

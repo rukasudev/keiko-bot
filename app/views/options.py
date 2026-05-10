@@ -22,12 +22,14 @@ class OptionsView(discord.ui.View):
         styled_values: bool = False,
         required: bool = False,
         unique: bool = False,
+        auto_confirm: bool = False,
     ) -> None:
         super().__init__(timeout=1800)
         self.callback = callback
         self.locale = locale
         self.required = required
         self.unique = unique
+        self.auto_confirm = auto_confirm
         self.response = {}
         self.styled_values = styled_values
         self.options = options
@@ -48,14 +50,19 @@ class OptionsView(discord.ui.View):
         for index, option in enumerate(options):
             key, value = (option[0], option[1]) if self.styled_values else (option, index)
             option_button = OptionsButton(
-                options_custom_id=str(value), options_label=str(key), unique=self.unique, checked=str(value) in self.response
+                options_custom_id=str(value),
+                options_label=str(key),
+                unique=self.unique,
+                checked=str(value) in self.response,
+                auto_confirm=self.auto_confirm,
             )
             self.add_item(option_button)
 
     def add_buttons(self):
         if len(self.options) >= 24:
             self.add_pagination_buttons()
-        self.add_item(ConfirmButton(callback=self._confirm_callback, locale=self.locale))
+        if not self.auto_confirm:
+            self.add_item(ConfirmButton(callback=self._confirm_callback, locale=self.locale))
         self.add_item(CancelButton(locale=self.locale))
 
     def add_pagination_buttons(self):

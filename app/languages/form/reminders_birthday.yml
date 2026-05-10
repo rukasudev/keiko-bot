@@ -1,0 +1,226 @@
+steps:
+  - action: form
+    key: form
+    title:
+      en-us: "🎂 Birthday Reminders"
+      pt-br: "🎂 Lembretes de Aniversário"
+    description:
+      en-us: Enable birthday notifications for this server. You'll add the first member now, and can add more members from the summary after saving.
+      pt-br: Ative as notificações de aniversário deste servidor. Você vai adicionar o primeiro membro agora e poderá adicionar mais membros no resumo depois de salvar.
+    footer:
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
+
+  - action: channels
+    key: channel
+    emoji: "📺"
+    select: true
+    unique: true
+    required: true
+    style: channel
+    title:
+      en-us: Birthday Channel
+      pt-br: Canal de Aniversário
+    description:
+      en-us: Pick the channel where I'll celebrate every birthday in this server list
+      pt-br: Escolha o canal onde vou comemorar todos os aniversários desta lista do servidor
+    footer:
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
+
+  - action: options
+    key: mention_everyone
+    emoji: "📣"
+    required: true
+    unique: true
+    styled_values: true
+    auto_confirm: true
+    style: boolean
+    title:
+      en-us: Mention @everyone
+      pt-br: Mencionar @everyone
+    description:
+      en-us: Choose whether birthday reminders should start with @everyone.
+      pt-br: Escolha se os lembretes de aniversário devem começar com @everyone.
+    footer:
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
+    options:
+      - label:
+          en-us: "Yes"
+          pt-br: "Sim"
+        value: true
+      - label:
+          en-us: "No"
+          pt-br: "Não"
+        value: false
+
+  - action: composition
+    key: reminders_birthday
+    parent_key: reminders_birthday
+    unique_by: user
+    emoji: "🎉"
+    style: composition
+    title:
+      en-us: Birthday List
+      pt-br: Lista de Aniversários
+    description:
+      en-us: "Build the server birthday list one member at a time. Add this member now; after saving, use Add to include more members. (Max: 25)"
+      pt-br: "Monte a lista de aniversários do servidor um membro por vez. Adicione este membro agora; depois de salvar, use Adicionar para incluir mais membros. (Máx: 25)"
+    footer:
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
+    steps:
+      - action: user_select
+        key: user
+        emoji: "👤"
+        style: user
+        required: true
+        unique: true
+        title:
+          en-us: Member
+          pt-br: Membro
+        description:
+          en-us: Pick the first member to add to the server birthday list
+          pt-br: Escolha o primeiro membro para adicionar à lista de aniversários do servidor
+        footer:
+          en-us: "• Use the `/report` command to tell me a bug"
+          pt-br: "• Use o comando `/reportar` para me contar um bug"
+
+      - action: month_select
+        key: month
+        required: true
+        title:
+          en-us: Birthday Month
+          pt-br: Mês do Aniversário
+        description:
+          en-us: "Pick the member's birthday month."
+          pt-br: "Escolha o mês do aniversário do membro."
+        footer:
+          en-us: "• Use the `/report` command to tell me a bug"
+          pt-br: "• Use o comando `/reportar` para me contar um bug"
+
+      - action: modal
+        key: date
+        response_transform: mm_dd_date_parts
+        validation: validate_date
+        validation_context_keys:
+          - month
+        title:
+          en-us: Birthday Day
+          pt-br: Dia do Aniversário
+        description:
+          en-us: "Enter the birthday day. I'll validate it against the selected month."
+          pt-br: "Informe o dia do aniversário. Vou validar com o mês selecionado."
+        fields:
+          - key: day
+            max_length: 2
+            label:
+              en-us: "Day"
+              pt-br: "Dia"
+            placeholder:
+              en-us: "15"
+              pt-br: "15"
+      - action: summary_card
+        key: customizations
+        header:
+          title:
+            en-us: "Reminder Setup"
+            pt-br: "Configuração do Lembrete"
+          title-emoji: "🎂"
+          thumbnail: BIRTHDAY_GIF
+          lines:
+            - emoji: "👤"
+              label:
+                en-us: Member
+                pt-br: Membro
+              value-from: response
+              value-key: user
+              value-format: user
+            - emoji: "📅"
+              label:
+                en-us: Date
+                pt-br: Data
+              value-from: response
+              value-key: date
+              value-format: mm_dd
+        template-vars:
+          user:
+            from: response
+            key: user
+            format: user
+          server:
+            from: interaction
+            attr: guild.name
+          date:
+            from: response
+            key: date
+            format: mm_dd
+        sections:
+          - key: message
+            icon: "💬"
+            label:
+              en-us: Message
+              pt-br: Mensagem
+            type: title-content
+            state:
+              mode: use_custom_message
+              title: custom_message_title
+              content: custom_message_content
+            modal:
+              title:
+                en-us: Customize Message
+                pt-br: Personalizar Mensagem
+              title-label:
+                en-us: Title
+                pt-br: Título
+              content-label:
+                en-us: Content
+                pt-br: Conteúdo
+            default:
+              title:
+                en-us: "🎂 It's {user}'s birthday!"
+                pt-br: "🎂 É aniversário do {user}!"
+              content:
+                en-us: "Happy birthday {user}! 🎉 Hope your day is full of joy and treats! 🐾"
+                pt-br: "Feliz aniversário, {user}! 🎉 Que seu dia seja cheio de alegria e mimos! 🐾"
+            customize-label:
+              en-us: Customize message
+              pt-br: Personalizar mensagem
+          - key: image
+            icon: "🖼️"
+            label:
+              en-us: Image
+              pt-br: Imagem
+            type: file-upload
+            state:
+              mode: use_custom_image
+              url: custom_image
+            modal:
+              title:
+                en-us: Custom Image
+                pt-br: Imagem Personalizada
+            customize-label:
+              en-us: Customize image
+              pt-br: Personalizar imagem
+        title:
+          en-us: "Reminder Setup"
+          pt-br: "Configuração do Lembrete"
+        description:
+          en-us: "Review this member's birthday. After saving, you can add more members to this same birthday notification setup."
+          pt-br: "Revise o aniversário deste membro. Depois de salvar, você poderá adicionar mais membros a esta mesma configuração de notificações."
+        footer:
+          en-us: "• Use the `/report` command to tell me a bug"
+          pt-br: "• Use o comando `/reportar` para me contar um bug"
+
+  - action: resume
+    key: confirm
+    title:
+      en-us: ":white_check_mark: Alright?"
+      pt-br: ":white_check_mark: Tudo certo?"
+    description:
+      en-us: Review the server birthday notification setup. Use **Add** or **Remove** to manage the list.
+      pt-br: Revise a configuração de notificações de aniversário do servidor. Use **Adicionar** ou **Remover** para gerenciar a lista.
+    footer:
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"

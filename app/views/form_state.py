@@ -111,6 +111,25 @@ class FormStateManager:
                 SelectDefaultValue(id=int(v), type=SelectDefaultValueType.role)
                 for v in self._previous_response if v
             ]
+        elif hasattr(view, 'month_select') and self._previous_response:
+            selected = set(self._previous_response)
+            for option in view.month_select.options:
+                option.default = option.value in selected
+
+        return True
+
+    def fill_user_select(self, view: discord.ui.View) -> bool:
+        """Preenche UserSelectView com resposta anterior. Retorna True se preencheu."""
+        if not self._previous_response:
+            return False
+        for value in self._previous_response:
+            view.response[value] = value
+
+        if hasattr(view, 'user_select'):
+            view.user_select.default_values = [
+                SelectDefaultValue(id=int(v), type=SelectDefaultValueType.user)
+                for v in self._previous_response if str(v).isdigit()
+            ]
 
         return True
 

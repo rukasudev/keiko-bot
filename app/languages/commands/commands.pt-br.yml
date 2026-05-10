@@ -1,5 +1,52 @@
 pt-br:
   commands:
+    commons:
+      embed:
+        footer: "Use o comando `/reportar` para me contar um bug"
+      months:
+        january: Janeiro
+        february: Fevereiro
+        march: Março
+        april: Abril
+        may: Maio
+        june: Junho
+        july: Julho
+        august: Agosto
+        september: Setembro
+        october: Outubro
+        november: Novembro
+        december: Dezembro
+      birthday-params:
+        member:
+          name: membro
+          desc: Membro que terá o aniversário cadastrado
+        day:
+          name: dia
+          desc: "Dia do aniversário (1-31)"
+        month:
+          name: mes
+          desc: "Mês do aniversário"
+      reminders-birthdays-manager:
+        stats:
+          button:
+            label: Estatísticas
+            desc: Ver estatísticas de aniversário
+          embed:
+            title: "📊 Estatísticas de aniversário"
+          fields:
+            total: Total de aniversários
+            this-month: Aniversários neste mês
+            top: Mês com mais aniversários
+            quietest: Mês com menos aniversários
+            most-common: Data com mais aniversários
+        settings:
+          channel: Canal de aniversário
+          mention-everyone: "Mencionar @everyone"
+          total: Total de aniversários
+          next: Próximos aniversários
+        disable:
+          confirmed: Lembretes de aniversário desativados.
+
     help:
       name: ajuda
       desc: Keiko ajuda você a entender como usar os comandos disponíveis
@@ -81,6 +128,35 @@ pt-br:
       name: vídeos
       desc: Keiko notificará você sempre que seus youtubers favoritos postarem um novo vídeo no YouTube
 
+    moderations-birthdays:
+      subgroup: aniversários
+      name: lembretes
+      desc: Keiko comemora calorosamente o aniversário dos seus membros com mensagens personalizadas
+
+    moderations-birthdays-add:
+      name: adicionar
+      desc: Cadastre rapidamente o aniversário de um membro
+      response:
+        title: 🎂 Aniversário cadastrado!
+        message: "Anotei o aniversário de {member} para **{date}**.\n\nPara revisar todos os lembretes, use `/moderações aniversários lembretes`."
+        footer: "Use o comando `/reportar` para me contar um bug"
+
+    birthday-personal:
+      name: aniversário
+      desc: Keiko lembra seu aniversário e comemora ele no seu servidor
+      response:
+        title: 🎂 Aniversário salvo!
+        message: "Prontinho! Vou guardar **{date}** com carinho e preparar uma comemoração especial quando esse dia chegar."
+        footer: "Use o comando `/reportar` para me contar um bug"
+      overwrite-confirm:
+        title: 🎂 Atualizar aniversário?
+        message: "Você já tem aniversário cadastrado em **{current_date}**. Deseja sobrescrever para **{new_date}**? Essa é sua última edição."
+        footer: "Use o comando `/reportar` para me contar um bug"
+      overwrite-response:
+        title: 🎂 Aniversário atualizado!
+        message: "Atualizei seu aniversário para **{date}**. Vou lembrar dessa nova data daqui pra frente."
+        footer: "Use o comando `/reportar` para me contar um bug"
+
     default-roles:
       subgroup: cargos
       name: padrão
@@ -141,12 +217,17 @@ pt-br:
       title: 📝 Comando editado com sucesso!
       description: Comando **$command_name** editado as $date por $user
       placeholder: Selecione as configurações que deseja editar
+      member-picker:
+        title: 👤 Selecione um membro para editar
+        description: Me diga qual membro você quer atualizar nesta lista.
+        not-found: Hmm, eu ainda não tenho um aniversário salvo para esse membro. Escolha alguém que já esteja na lista.
       short-description: 📝 Editado por $user
 
     added:
       title: ➕ Item adicionado ao **$command_name** com sucesso!
       action: Adicionar
       description: Um item foi adicionado a **$command_name** as $date por $user
+      duplicate: Esse membro já está na lista. Se quiser mudar algo, use **Editar**.
       short-description: ➕ Item adicionado por $user
 
     removed:
@@ -154,6 +235,10 @@ pt-br:
       action: Remover
       description: Um item foi removido de **$command_name** as $date por $user
       placeholder: Selecione o item que deseja remover
+      member-picker:
+        title: 👤 Selecione um membro para remover
+        description: Me diga qual membro você quer tirar desta lista.
+        not-found: Hmm, eu ainda não tenho nada salvo para esse membro. Escolha alguém que já esteja na lista.
       short-description: 🗑️ Item removido por $user
 
     system:

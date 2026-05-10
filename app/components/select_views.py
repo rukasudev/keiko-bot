@@ -114,6 +114,98 @@ class RoleSelectView(discord.ui.View):
         )
 
 
+class UserSelectView(discord.ui.View):
+    """Native Discord UserSelect for member selection."""
+
+    def __init__(self, callback: Callable, locale: str, required: bool = False, unique: bool = True):
+        super().__init__(timeout=1800)
+        self.callback = callback
+        self.locale = locale
+        self.required = required
+        self.unique = unique
+        self.response: Dict[str, str] = {}
+
+        placeholder = ml("buttons.components.select.user-placeholder", locale=locale)
+
+        self.user_select = discord.ui.UserSelect(
+            placeholder=placeholder or "Select a member...",
+            min_values=0,
+            max_values=1 if unique else 25,
+        )
+        self.user_select.callback = self._on_select
+        self.add_item(self.user_select)
+        self.add_item(SelectConfirmButton(callback=callback, locale=locale, required=required))
+        self.add_item(CancelButton(locale=locale))
+
+    async def _on_select(self, interaction: discord.Interaction):
+        self.response = {str(user.id): user.display_name for user in self.user_select.values}
+        await interaction.response.defer()
+
+    def get_response(self):
+        keys = list(self.response.keys())
+        return keys[0] if len(keys) == 1 else keys
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        logger.error(
+            f"UserSelectView error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )
+
+
+class MonthSelectView(discord.ui.View):
+    """Native select for choosing a birthday month."""
+
+    def __init__(self, callback: Callable, locale: str, required: bool = True):
+        from app.services.dates import MONTH_KEYS
+
+        super().__init__(timeout=1800)
+        self.callback = callback
+        self.locale = locale
+        self.required = required
+        self.response: Dict[str, str] = {}
+
+        placeholder = ml("buttons.components.select.month-placeholder", locale=locale)
+        options = [
+            discord.SelectOption(
+                label=ml(f"commands.commands.commons.months.{key}", locale=locale),
+                value=f"{index:02d}",
+            )
+            for index, key in enumerate(MONTH_KEYS, start=1)
+        ]
+
+        self.month_select = discord.ui.Select(
+            placeholder=placeholder or "Select a month...",
+            min_values=0,
+            max_values=1,
+            options=options,
+        )
+        self.month_select.callback = self._on_select
+        self.add_item(self.month_select)
+        self.add_item(SelectConfirmButton(callback=callback, locale=locale, required=required))
+        self.add_item(CancelButton(locale=locale))
+
+    async def _on_select(self, interaction: discord.Interaction):
+        value = self.month_select.values[0] if self.month_select.values else None
+        if value:
+            label = next((o.label for o in self.month_select.options if o.value == value), value)
+            self.response = {value: label}
+        await interaction.response.defer()
+
+    def get_response(self):
+        keys = list(self.response.keys())
+        return keys[0] if keys else None
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        logger.error(
+            f"MonthSelectView error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )
+
+
 class MultiSelectView(discord.ui.View):
     """View with multiple native selects (channels and/or roles)."""
 

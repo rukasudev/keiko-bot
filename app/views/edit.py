@@ -3,10 +3,12 @@ from typing import Any, Callable, Dict, List
 import discord
 
 from app import logger
+from app.components.embed import parse_form_dict_to_embed
 from app.components.select import Select
+from app.components.select_views import UserSelectView
 from app.constants import LogTypes as logconstants
 from app.constants import FormConstants as constants
-from app.services.utils import ml, parse_form_steps_titles, parse_form_yaml_to_dict
+from app.services.utils import format_values_by_style, ml, parse_form_steps_titles, parse_form_yaml_to_dict
 from app.views.form import Form
 
 
@@ -18,6 +20,8 @@ class EditCommand(discord.ui.View):
         self.after_callback = callback
         self.form_view = Form(command_key, locale, cogs=cogs)
         self.composition = False
+        self.composition_picker_step = None
+        self.composition_picker_view = None
         self.initialize_select_component()
 
     def initialize_select_component(self):
@@ -61,19 +65,103 @@ class EditCommand(discord.ui.View):
                 continue
 
             self.composition = True
+            self.composition_key = item["key"]
+            self.composition_unique_by = item.get("unique_by")
+            self.composition_picker_step = self._find_composition_step(item, self.composition_unique_by)
             return len(self.form_view.cogs.get(item["key"])["values"])
 
+    def _find_composition_step(self, composition: Dict[str, Any], key: str) -> Dict[str, Any]:
+        if not key:
+            return None
+        return next((step for step in composition.get("steps", []) if step.get("key") == key), None)
+
     def generate_options(self, steps_titles: Dict[str, str], max_length: int):
-        if self.composition:
-            return {f"{step}${i}": f"{title} #{i + 1}" for i in range(max_length) for step, title in steps_titles.items()}
-        return steps_titles
+        if not self.composition:
+            return steps_titles
+
+        items = (self.form_view.cogs.get(self.composition_key) or {}).get("values") or []
+        options = {}
+        for step, title in steps_titles.items():
+            if step == self.composition_key:
+                if self._uses_member_picker():
+                    options[step] = title
+                    continue
+                for i in range(max_length):
+                    options[f"{step}${i}"] = self._composition_item_label(items, i, title)
+            else:
+                options[step] = title
+        return options
+
+    def _uses_member_picker(self) -> bool:
+        return bool(
+            self.composition
+            and self.composition_unique_by
+            and self.composition_picker_step
+            and self.composition_picker_step.get("action") == constants.USER_SELECT_ACTION_KEY
+        )
+
+    def _composition_item_label(self, items: List[Dict[str, Any]], index: int, fallback_title: str) -> str:
+        unique_by = getattr(self, "composition_unique_by", None)
+        if unique_by and index < len(items):
+            field = items[index].get(unique_by)
+            if isinstance(field, dict):
+                raw = field.get("value")
+                style = field.get("style")
+                if raw:
+                    return format_values_by_style(raw, style, self.locale)
+        return f"{fallback_title} #{index + 1}"
 
     async def callback(self, interaction: discord.Interaction):
-        if self.composition:
-            await self.handle_composition_callback(interaction, self.selected_options[0])
+        selected = self.selected_options[0]
+        if self.composition and "$" in selected:
+            await self.handle_composition_callback(interaction, selected)
+        elif self._uses_member_picker() and selected == self.composition_key:
+            await self.show_composition_member_picker(interaction)
         else:
             self.form_view.filter_steps(self.selected_options)
             await self.execute_form_view_callback(interaction)
+
+    async def show_composition_member_picker(self, interaction: discord.Interaction):
+        self.composition_picker_view = UserSelectView(
+            callback=self.handle_composition_member_selection,
+            locale=self.locale,
+            required=True,
+            unique=True,
+        )
+        embed = parse_form_dict_to_embed(self.composition_picker_step, self.locale)
+        embed.title = ml("commands.command-events.edited.member-picker.title", locale=self.locale)
+        embed.description = ml("commands.command-events.edited.member-picker.description", locale=self.locale)
+        await interaction.response.edit_message(embed=embed, view=self.composition_picker_view)
+
+    async def handle_composition_member_selection(self, interaction: discord.Interaction):
+        selected_user = self.composition_picker_view.get_response() if self.composition_picker_view else None
+        items = (self.form_view.cogs.get(self.composition_key) or {}).get("values") or []
+        index = next(
+            (
+                i for i, item in enumerate(items)
+                if self._composition_item_value(item, self.composition_unique_by) == str(selected_user)
+            ),
+            None,
+        )
+        if index is None:
+            message = ml("commands.command-events.edited.member-picker.not-found", locale=self.locale)
+            if not message or message == "commands.command-events.edited.member-picker.not-found":
+                message = "This member does not have an item configured."
+            await interaction.response.send_message(
+                message,
+                ephemeral=True,
+            )
+            return
+        self.form_view.prefilled_composition_fields = {
+            self.composition_unique_by: items[index].get(self.composition_unique_by)
+        }
+        await self.handle_composition_callback(interaction, f"{self.composition_key}${index}")
+
+    def _composition_item_value(self, item: Dict[str, Any], key: str) -> Any:
+        field = item.get(key)
+        if isinstance(field, dict):
+            return field.get("value") or field.get("values")
+        return field
 
     async def handle_composition_callback(self, interaction: discord.Interaction, selected_option: List[str]):
         option, index = selected_option.split("$")

@@ -139,6 +139,52 @@ class CustomModal(discord.ui.Modal):
         )
 
 
+class TitleContentModal(discord.ui.Modal):
+    """Modal with title and content fields. Generic across features."""
+
+    def __init__(
+        self,
+        title: str,
+        title_label: str,
+        content_label: str,
+        callback: Callable,
+        current_title: str = None,
+        current_content: str = None,
+        title_max_length: int = 50,
+        content_max_length: int = 200,
+    ) -> None:
+        super().__init__(title=title, timeout=300)
+        self.custom_callback = callback
+
+        self.title_input = discord.ui.TextInput(
+            label=title_label,
+            style=discord.TextStyle.short,
+            max_length=title_max_length,
+            required=True,
+            default=current_title or "",
+        )
+        self.content_input = discord.ui.TextInput(
+            label=content_label,
+            style=discord.TextStyle.long,
+            max_length=content_max_length,
+            required=True,
+            default=current_content or "",
+        )
+        self.add_item(self.title_input)
+        self.add_item(self.content_input)
+
+    async def on_submit(self, interaction: discord.Interaction) -> None:
+        await self.custom_callback(interaction, self.title_input.value, self.content_input.value)
+
+    async def on_error(self, interaction: discord.Interaction, error: Exception) -> None:
+        logger.error(
+            f"TitleContentModal error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )
+
+
 class ConfirmationModal(discord.ui.Modal):
     def __init__(self, action: str, locale: str, callback: Callable) -> None:
         from app.services.utils import parse_confirmation_desc, parse_confirmation_title
@@ -199,3 +245,27 @@ class ModalValidations:
 
         ok = bot.youtube.get_channel_id_from_username(response) is not None
         return {"ok": ok, "error_key": "youtuber-not-found"}
+
+    def validate_date(self, response: Any) -> Dict[str, Any]:
+        from app.services.dates import parse_date_parts
+
+        day, month = self._extract_day_month(response)
+        ok = parse_date_parts(day, month) is not None
+        return {"ok": ok, "error_key": "invalid-date"}
+
+    def _extract_day_month(self, response: Any) -> tuple:
+        if isinstance(response, dict):
+            day = response.get("day")
+            month = response.get("month") or self._lookup_form_response("month")
+            return day, month
+        return response, None
+
+    def _lookup_form_response(self, key: str) -> Any:
+        if not isinstance(self.cogs, dict):
+            return None
+        return next(
+            (r.get("_raw_value", r.get("value"))
+             for r in self.cogs.get("responses", [])
+             if r.get("key") == key),
+            None,
+        )

@@ -1,6 +1,7 @@
 from discord import app_commands
 
 from app.bot import DiscordBot
+from app.cogs.moderations.birthdays import Birthdays
 from app.cogs.moderations.block import Block
 from app.cogs.moderations.roles import Roles
 from app.cogs.moderations.welcome import Welcome
@@ -18,6 +19,7 @@ class Moderations(GroupCog, name=locale_str("moderations", type="groups")):
 async def setup(bot: DiscordBot) -> None:
     moderations = Moderations(bot)
 
+    moderations.app_command.add_command(Birthdays(bot))
     moderations.app_command.add_command(Block(bot))
     moderations.app_command.add_command(Roles(bot))
     moderations.app_command.add_command(Welcome(bot))

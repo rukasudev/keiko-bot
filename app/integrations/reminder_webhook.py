@@ -24,31 +24,39 @@ class ReminderWebhook:
         ).json()
 
     def create_reminder(self, reminder_data: dict) -> None:
+        body = {
+            "title": reminder_data.get("title"),
+            "timezone": reminder_data.get("timezone") or REMINDER_TIMEZONE,
+            "date_tz": str(reminder_data.get("date_tz")),
+            "notes": reminder_data.get("notes"),
+            "webhook_url": self.webhook_url,
+            "http_basic_auth_username": REMINDER_AUTH_USER,
+            "http_basic_auth_password": self.bot.config.REMINDER_AUTH_PASSWORD,
+        }
+        if reminder_data.get("rrule"):
+            body["rrule"] = reminder_data["rrule"]
+
         return requests.post(
             f"{REMINDER_API_URL}/applications/{self.reminder_application_id}/reminders/",
             headers=self.headers,
-            data={
-                "title": reminder_data.get("title"),
-                "timezone": REMINDER_TIMEZONE,
-                "date_tz": str(reminder_data.get("date_tz")),
-                "notes": reminder_data.get("notes"),
-                "webhook_url": self.webhook_url,
-                "http_basic_auth_username": REMINDER_AUTH_USER,
-                "http_basic_auth_password": self.bot.config.REMINDER_AUTH_PASSWORD,
-            },
+            data=body,
         ).json()
 
-    def update_reminder(self, reminder_id: str, date_tz: str) -> None:
+    def update_reminder(self, reminder_id: str, date_tz: str, rrule: str = None, timezone: str = None) -> None:
+        body = {
+            "date_tz": str(date_tz),
+            "timezone": timezone or REMINDER_TIMEZONE,
+            "webhook_url": self.webhook_url,
+            "http_basic_auth_username": REMINDER_AUTH_USER,
+            "http_basic_auth_password": self.bot.config.REMINDER_AUTH_PASSWORD,
+        }
+        if rrule:
+            body["rrule"] = rrule
+
         return requests.put(
             f"{REMINDER_API_URL}/reminders/{reminder_id}",
             headers=self.headers,
-            data={
-                "date_tz": str(date_tz),
-                "timezone": REMINDER_TIMEZONE,
-                "webhook_url": self.webhook_url,
-                "http_basic_auth_username": REMINDER_AUTH_USER,
-                "http_basic_auth_password": self.bot.config.REMINDER_AUTH_PASSWORD,
-            },
+            data=body,
         ).json()
 
     def delete_reminder(self, reminder_id: str) -> None:

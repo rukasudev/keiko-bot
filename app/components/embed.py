@@ -90,7 +90,7 @@ def default_welcome_embed(title: str, message: str, footer: str = None, image: s
     return embed
 
 
-def response_error_embed(error_key: str, locale: str) -> discord.Embed:
+def response_error_embed(error_key: str, locale: str, footer: bool = True) -> discord.Embed:
     title = ml(f"errors.{error_key}.title", locale=locale)
 
     embed = discord.Embed(
@@ -98,6 +98,8 @@ def response_error_embed(error_key: str, locale: str) -> discord.Embed:
         title=f"🚨 {title}",
         description=ml(f"errors.{error_key}.message", locale=locale),
     )
+    if footer:
+        embed.set_footer(text=f"• {ml('commands.commands.commons.embed.footer', locale)}")
 
     return embed
 

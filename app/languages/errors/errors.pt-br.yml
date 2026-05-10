@@ -55,3 +55,15 @@ pt-br:
   selection-required:
     title: Seleção Obrigatória
     message: "Ops! Selecione uma opção antes de confirmar :)"
+
+  invalid-date:
+    title: Data Inválida
+    message: "Ops! Essa data não existe. Escolha um dia válido para o mês selecionado."
+
+  reminders-birthdays-disabled:
+    title: Lembretes de Aniversário Não Configurados
+    message: "Desculpe, esse servidor ainda não configurou os lembretes de aniversário! Peça pra um admin rodar o comando `/moderações aniversários lembretes` antes 🎂"
+
+  reminders-birthdays-self-edit-limit:
+    title: Edição de Aniversário Bloqueada
+    message: "Você já usou sua edição de aniversário neste servidor. Se precisar corrigir de novo, fale com um moderador."

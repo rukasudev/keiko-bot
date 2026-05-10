@@ -42,8 +42,10 @@ class OptionsButton(discord.ui.Button):
         options_custom_id: str,
         unique: bool = False,
         checked: bool = False,
+        auto_confirm: bool = False,
     ) -> None:
         self.unique = unique
+        self.auto_confirm = auto_confirm
         super().__init__(
             label=options_label,
             style=discord.ButtonStyle.gray if not checked else discord.ButtonStyle.primary,
@@ -60,6 +62,9 @@ class OptionsButton(discord.ui.Button):
         else:
             self.style = discord.ButtonStyle.primary
             self.view.response[self.custom_id] = self.label
+
+        if self.auto_confirm:
+            return await self.view.callback(interaction)
 
         embed = self.get_embed_values(interaction)
 
@@ -207,6 +212,7 @@ class ExecuteCommandButton(discord.ui.Button):
         "block_links": "app.services.block_links",
         "notifications_twitch": "app.services.notifications_twitch",
         "notifications_youtube_video": "app.services.notifications_youtube_video",
+        "reminders_birthday": "app.services.reminders_birthdays",
         "stream_elements_commands": "app.services.stream_elements",
     }
 
