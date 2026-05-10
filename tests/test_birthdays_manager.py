@@ -5,86 +5,51 @@ import pytest
 
 class TestBirthdaysManagerEdit:
     @pytest.mark.asyncio
-    async def test_member_edit_uses_month_form_and_preserves_customizations(self):
-        from app.services.reminders_birthdays import _open_member_birthday_form
+    async def test_edit_save_dispatches_composition_item_to_save_form_birthday_item(self):
+        from app.services.reminders_birthdays import edit_birthday_save
 
-        captured = {}
+        manager_view = MagicMock()
+        manager_view.edited_form_view.composition_index = 1
 
-        class FakeForm:
-            def __init__(self, command_key, locale, steps=None, cogs=None):
-                self.command_key = command_key
-                self.locale = locale
-                self.steps = steps
-                self.cogs = cogs
-                self.responses = []
-                captured["form"] = self
-
-            def filter_steps(self, steps):
-                self.filtered_steps = steps
-
-            def _set_after_callback(self, callback):
-                self.after_callback = callback
-
-            async def _callback(self, interaction):
-                self.callback_interaction = interaction
-
-        item = {
-            "user_id": "222",
-            "date": "05-15",
-            "message": {"mode": "custom", "title": "Parabens", "content": "Feliz aniversario"},
-            "image": {"mode": "custom", "url": "https://example.com/birthday.png"},
+        item = {"user": {"value": "222"}, "date": {"value": "06-20"}}
+        data = {
+            "reminders_birthday": {
+                "values": [{"user": {"value": "111"}}, item],
+            },
         }
-        yaml_steps = [
-            {
-                "key": "reminders_birthday",
-                "steps": [
-                    {"key": "user", "action": "user_select"},
-                    {"key": "month", "action": "month_select"},
-                    {"key": "date", "action": "modal"},
-                ],
-            }
-        ]
+
         interaction = MagicMock()
         interaction.guild_id = "guild-1"
-        interaction.locale = "pt-br"
-        view = MagicMock()
-        view.get_response.return_value = "222"
+        interaction.locale = "pt-BR"
 
-        with patch("app.views.form.Form", FakeForm):
-            with patch("app.services.reminders_birthdays.parse_form_yaml_to_dict", return_value=yaml_steps):
-                with patch("app.services.reminders_birthdays.birthdays_data.find_birthday_item", return_value=item):
-                    with patch("app.services.reminders_birthdays.upsert_birthday") as upsert:
-                        with patch(
-                            "app.services.reminders_birthdays.response_embed",
-                            return_value=MagicMock(description="Atualizei para **{date}**."),
-                        ):
-                            await _open_member_birthday_form(interaction, view, "pt-br")
+        with patch("app.services.reminders_birthdays.save_form_birthday_item") as save_item:
+            await edit_birthday_save(interaction, manager_view, data)
 
-                            form = captured["form"]
-                            assert form.steps == yaml_steps[0]["steps"]
-                            assert form.filtered_steps == ["month", "date"]
-                            assert form.cogs == {
-                                "date": {"style": "birthday_date", "values": "05-15"}
-                            }
-                            assert form.callback_interaction is interaction
+        save_item.assert_called_once_with("guild-1", item)
 
-                            form.responses = [{"key": "date", "value": "06-20"}]
-                            submit_interaction = MagicMock()
-                            submit_interaction.guild_id = "guild-1"
-                            submit_interaction.response.send_message = AsyncMock()
+    @pytest.mark.asyncio
+    async def test_edit_save_dispatches_config_changes_to_setup_birthdays(self):
+        from app.services.reminders_birthdays import edit_birthday_save
 
-                            await form.after_callback(submit_interaction)
+        manager_view = MagicMock()
+        manager_view.edited_form_view.composition_index = None
 
-        upsert.assert_called_once_with(
-            "guild-1",
-            "222",
-            "06-20",
-            message=item["message"],
-            image=item["image"],
-        )
-        submit_interaction.response.send_message.assert_awaited_once()
-        embed = submit_interaction.response.send_message.await_args.kwargs["embed"]
-        assert "20 de junho" in embed.description
+        data = {
+            "channel": {"style": "channel", "values": "999"},
+            "mention_everyone": {"style": "boolean", "values": "true"},
+        }
+
+        interaction = MagicMock()
+        interaction.guild_id = "guild-1"
+
+        with patch("app.services.reminders_birthdays.setup_birthdays") as setup:
+            with patch(
+                "app.services.reminders_birthdays.birthdays_data.find_birthday_config",
+                return_value={"channel_id": "111", "mention_everyone": False},
+            ):
+                await edit_birthday_save(interaction, manager_view, data)
+
+        setup.assert_called_once_with("guild-1", "999", True, "pt-br")
 
 
 class TestBirthdaysManagerComposition:
@@ -95,7 +60,7 @@ class TestBirthdaysManagerComposition:
 
         form_item = {
             "user": {"value": "222", "title": "Member", "style": "user"},
-            "date": {"value": "05-15", "title": "Birthday", "style": "birthday_date"},
+            "date": {"value": "05-15", "title": "Birthday", "style": "mm_dd"},
         }
         saved_item = {
             "guild_id": "guild-1",
@@ -105,7 +70,7 @@ class TestBirthdaysManagerComposition:
         }
         summary_item = {
             "user": {"value": "222", "title": "Member", "style": "user"},
-            "date": {"value": "05-15", "title": "Birthday", "style": "birthday_date"},
+            "date": {"value": "05-15", "title": "Birthday", "style": "mm_dd"},
             "reminder_id": "reminder-1",
         }
 

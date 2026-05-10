@@ -26,6 +26,26 @@ en-us:
         month:
           name: month
           desc: "Birthday month"
+      reminders-birthdays-manager:
+        stats:
+          button:
+            label: Stats
+            desc: View birthday statistics
+          embed:
+            title: "📊 Birthday stats"
+          fields:
+            total: Total birthdays
+            this-month: Birthdays this month
+            top: Top month
+            quietest: Quietest month
+            most-common: Most common date
+        settings:
+          channel: Birthday Channel
+          mention-everyone: "Mention @everyone"
+          total: Total birthdays
+          next: Next birthdays
+        disable:
+          confirmed: Birthday reminders disabled.
 
     help:
       name: help
@@ -201,6 +221,10 @@ en-us:
       title: 📝 Command edited successfully!
       description: Command **$command_name** edited on $date by $user
       placeholder: Select the settings you want to edit
+      member-picker:
+        title: 👤 Select a member to edit
+        description: Tell me which member you want to update in this list.
+        not-found: Hmm, I do not have a birthday saved for that member yet. Pick someone already on the list.
       short-description: 📝 Edited by $user
       short-description-with-cog: 📝 **$cog_name** edited by $user
 
@@ -208,6 +232,7 @@ en-us:
       title: ➕ Item added to **$command_name** successfully!
       action: Add
       description: A item was added to **$command_name** on $date by $user
+      duplicate: This member is already on the list. Use **Edit** if you want to change something.
       short-description: ➕ Item added by $user
       short-description-with-cog: ➕ **$cog_name** added by $user
 
@@ -216,6 +241,10 @@ en-us:
       action: Remove
       description: A item was removed from **$command_name** on $date by $user
       placeholder: Select the item you want to remove
+      member-picker:
+        title: 👤 Select a member to remove
+        description: Tell me which member you want to remove from this list.
+        not-found: Hmm, I do not have anything saved for that member yet. Pick someone already on the list.
       short-description: 🗑️ Item removed by $user
       short-description-with-cog: 🗑️ **$cog_name** removed by $user
 

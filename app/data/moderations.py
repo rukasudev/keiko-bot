@@ -6,8 +6,9 @@ from app.data.util import parse_insert_timestamp, parse_update_timestamp
 
 def find_moderation_by_guild(guild_id: str, data: str) -> Any:
     moderations = mongo_client.guild.moderations.find_one({"guild_id": str(guild_id)})
-
-    return moderations.get(data) if moderations.get(data) else None
+    if not moderations:
+        return None
+    return moderations.get(data) or None
 
 
 def find_moderations_by_guild(guild_id: str) -> dict:

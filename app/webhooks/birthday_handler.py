@@ -48,9 +48,11 @@ def build_celebration_embed(
     locale: str,
 ) -> discord.Embed:
     title, content = resolve_message(item, locale)
-    title = render_birthday_message(title, member.mention, guild.name, item.get("date"), locale)
+    title = render_birthday_message(title, member.display_name, guild.name, item.get("date"), locale)
     content = render_birthday_message(content, member.mention, guild.name, item.get("date"), locale)
-    return default_welcome_embed(title=title, message=content, image=resolve_image(item))
+    embed = default_welcome_embed(title=title, message=content, image=resolve_image(item))
+    embed.set_thumbnail(url=member.display_avatar.url)
+    return embed
 
 
 async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
@@ -90,7 +92,7 @@ async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
                 logger.warn(f"Channel not found: {config['channel_id']}", log_type=logconstants.COMMAND_WARN_TYPE)
                 continue
 
-            locale = parse_locale(getattr(guild, "preferred_locale", "en-US"))
+            locale = parse_locale(config.get("locale") or getattr(guild, "preferred_locale", "en-US"))
             mention_everyone = bool(config.get("mention_everyone"))
             for item in guild_items:
                 member = guild.get_member(int(item["user_id"]))

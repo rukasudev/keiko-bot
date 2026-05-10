@@ -259,9 +259,60 @@ class TestFormSummaryCard:
             assert responses["use_custom_image"]["value"] == "custom"
             assert responses["custom_image"]["value"] == "https://example.com/image.png"
 
-    def test_summary_card_prior_state_reads_nested_response_values(self):
-        from app.views.birthday_summary_card import BirthdaySummaryCardView
+    def test_summary_card_sections_hide_internal_fields_in_resume(self):
+        with patch('app.views.form.parse_form_yaml_to_dict', return_value=[{"key": "test", "action": "form"}]):
+            form = Form("test_command", "pt-br")
+            form._step = {
+                "key": "customizations",
+                "action": constants.SUMMARY_CARD_ACTION_KEY,
+                "sections": [
+                    {
+                        "label": {"en-us": "Message", "pt-br": "Mensagem"},
+                        "state": {
+                            "mode": "use_custom_message",
+                            "title": "custom_message_title",
+                            "content": "custom_message_content",
+                        },
+                    },
+                    {
+                        "label": {"en-us": "Image", "pt-br": "Imagem"},
+                        "state": {
+                            "mode": "use_custom_image",
+                            "url": "custom_image",
+                        },
+                    },
+                ],
+            }
+            form.view = MagicMock()
+            form.view.get_response.return_value = {
+                "use_custom_message": "default",
+                "custom_message_title": None,
+                "custom_message_content": None,
+                "use_custom_image": "default",
+                "custom_image": None,
+            }
 
+            form._save_step_response()
+
+            responses = {item["key"]: item for item in form.responses}
+            assert responses["use_custom_message"]["title"] == "Mensagem"
+            assert responses["use_custom_message"]["hidden"] is True
+            assert responses["custom_message_title"]["hidden"] is True
+            assert responses["custom_message_content"]["hidden"] is True
+            assert responses["use_custom_image"]["title"] == "Imagem"
+            assert responses["use_custom_image"]["hidden"] is True
+            assert responses["custom_image"]["hidden"] is True
+
+    def test_summary_card_prior_state_reads_nested_response_values(self):
+        from app.views.summary_card import prior_state_from_form
+
+        keys = [
+            "use_custom_message",
+            "custom_message_title",
+            "custom_message_content",
+            "use_custom_image",
+            "custom_image",
+        ]
         responses = [
             {"key": "use_custom_message", "value": {"value": "custom"}},
             {"key": "custom_message_title", "value": {"value": "Titulo salvo"}},
@@ -270,7 +321,7 @@ class TestFormSummaryCard:
             {"key": "custom_image", "value": {"value": "https://example.com/saved.png"}},
         ]
 
-        state = BirthdaySummaryCardView.prior_state_from_form(responses, cogs=None)
+        state = prior_state_from_form(responses, cogs=None, keys=keys)
 
         assert state["use_custom_message"] == "custom"
         assert state["custom_message_title"] == "Titulo salvo"

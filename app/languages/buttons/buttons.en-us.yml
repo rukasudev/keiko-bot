@@ -100,24 +100,15 @@ en-us:
       footer: "⬆️ Scroll up to see all options"
 
   summary-card:
-    title: Reminder Setup
-    member: Member
-    date: Date
     message: Message
-    image: Image
     default-label: Default
     custom-label: Custom
     badge-default: "📌 Keiko's default"
     badge-custom: "✨ Custom"
-    customize-msg: Customize message
-    customize-img: Customize image
     edit: Edit
     reset: Reset to default
     done: Next
-    modal-title-message: Customize Message
     modal-title-image: Custom Image
-    label-title: Title
-    label-content: Content
 
   execute:
     label: Execute

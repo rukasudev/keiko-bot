@@ -122,6 +122,10 @@ class Form(discord.ui.View):
 
     def _should_skip_step(self) -> bool:
         """Check if current step should be skipped based on conditions."""
+        prefilled_step_keys = getattr(self, "prefilled_step_keys", set())
+        if self._step.get("key") in prefilled_step_keys:
+            return True
+
         condition = self._step.get("condition")
         if not condition:
             return False
@@ -304,7 +308,7 @@ class Form(discord.ui.View):
 
     def _transform_step_response(self, response: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         transform = self._get_step_item("response_transform")
-        if transform == "birthday_date_parts" and "day" in response:
+        if transform == "mm_dd_date_parts" and "day" in response:
             from app.services.dates import parse_date_parts
 
             month = next((r.get("_raw_value", r["value"]) for r in self.responses if r["key"] == "month"), None)
@@ -312,25 +316,59 @@ class Form(discord.ui.View):
                 "key": self._get_step_item("key"),
                 "title": self._get_step_item("title"),
                 "value": parse_date_parts(response["day"], month),
-                "style": "birthday_date",
+                "style": "mm_dd",
             }
         return None
 
     def _save_summary_card_response(self, response: Dict[str, Any]) -> None:
         fields = self._step.get("fields", [])
+        hidden_keys = set()
+        hidden_when_default = set()
+        section_fields = []
+        for section in self._step.get("sections", []) or []:
+            state = section.get("state", {}) or {}
+            mode_key = state.get("mode")
+            label = section.get("label") or mode_key
+            if mode_key:
+                hidden_when_default.add(mode_key)
+                section_fields.append({"key": mode_key, "label": label})
+            hidden_keys.update(
+                value for key, value in state.items()
+                if key != "mode" and value
+            )
+            section_fields.extend(
+                {"key": value, "label": value, "hidden": True}
+                for key, value in state.items()
+                if key != "mode" and value
+            )
+
         if not fields:
-            fields = [{"key": key, "label": key} for key in response]
+            used_keys = {field["key"] for field in section_fields}
+            fields = section_fields + [
+                {"key": key, "label": key}
+                for key in response
+                if key not in used_keys
+            ]
 
         for field in fields:
             key = field.get("key")
             if key in response:
                 label = field.get("label")
-                title = ml(label, locale=self.locale) if label else key
+                if isinstance(label, dict):
+                    title = label.get(self.locale) or label.get("en-us") or key
+                else:
+                    title = ml(label, locale=self.locale) if label else key
+                hidden = bool(
+                    field.get("hidden")
+                    or key in hidden_keys
+                    or (key in hidden_when_default and response.get(key) != "custom")
+                )
                 self._upsert_response({
                     "key": key,
                     "title": title or key,
                     "value": response.get(key),
                     "style": None,
+                    "hidden": hidden,
                 })
 
     def _get_step_item(self, key: str, default_value: Any = None) -> Dict[str, Any]:
@@ -558,26 +596,11 @@ class Form(discord.ui.View):
         await self._send_view(interaction)
 
     async def show_summary_card(self, interaction: discord.Interaction):
-        from app.views.birthday_summary_card import BirthdaySummaryCardView
+        from app.views.summary_card import build_summary_card_from_step
 
         await interaction.response.defer()
 
-        user_id = next((r.get("_raw_value", r["value"]) for r in self.responses if r["key"] == "user"), None)
-        mm_dd = next((r.get("_raw_value", r["value"]) for r in self.responses if r["key"] == "date"), None)
-
-        member = interaction.guild.get_member(int(user_id)) if user_id and user_id.isdigit() else None
-        member_name = member.display_name if member else (user_id or "")
-
-        self.view = BirthdaySummaryCardView(
-            callback=self._callback,
-            locale=self.locale,
-            member_name=member_name,
-            member_id=user_id,
-            guild_name=interaction.guild.name if interaction.guild else "",
-            mm_dd=mm_dd,
-            prior_state=BirthdaySummaryCardView.prior_state_from_form(self.responses, self.cogs),
-            back_callback=self._go_back if self.state.can_go_back else None,
-        )
+        self.view = build_summary_card_from_step(self._step, form=self, interaction=interaction)
         await self._send_layout_view(interaction)
 
     async def show_available_roles(self, interaction: discord.Interaction):
@@ -677,7 +700,14 @@ class Form(discord.ui.View):
         await self._transition_from_layout_view(interaction, self.step_embed, self)
 
     async def show_composition(self, interaction: discord.Interaction):
-        self.view = FormComposition(self._step, self._callback, self.locale, self.cogs, self.composition_index if hasattr(self, "composition_index") else None)
+        self.view = FormComposition(
+            self._step,
+            self._callback,
+            self.locale,
+            self.cogs,
+            self.composition_index if hasattr(self, "composition_index") else None,
+            prefilled_fields=getattr(self, "prefilled_composition_fields", None),
+        )
 
         await self.view.send_form(interaction)
 
@@ -731,7 +761,7 @@ class Form(discord.ui.View):
         await interaction.response.send_modal(self.view)
 
     async def _finish(self, interaction: discord.Interaction):
-        await interaction.response.defer(ephemeral=True, thinking=True)
+        await interaction.response.defer(ephemeral=True)
 
         interaction.locale = parse_valid_locale(interaction.locale)
 
@@ -752,15 +782,6 @@ class Form(discord.ui.View):
             )
 
         self.clear_items()
-
-        try:
-            await interaction.followup.edit_message(interaction.message.id, view=None)
-        except Exception as e:
-            logger.warn(
-                f"Failed to clear command form message: {type(e).__name__}: {e}",
-                log_type=logconstants.COMMAND_WARN_TYPE,
-                interaction=interaction,
-            )
 
         if interaction.message.embeds:
             embed = interaction.message.embeds[0]
@@ -793,7 +814,10 @@ class Form(discord.ui.View):
             interaction=interaction,
         )
 
-        await interaction.followup.send(embed=embed, view=self, ephemeral=True)
+        try:
+            await interaction.edit_original_response(embed=embed, view=self)
+        except Exception:
+            await interaction.followup.send(embed=embed, view=self, ephemeral=True)
 
     async def pre_finish_step(self, interaction: discord.Interaction):
         from app import bot
@@ -1033,11 +1057,11 @@ class Form(discord.ui.View):
 
     async def _send_layout_view(self, interaction: discord.Interaction):
         """Send LayoutView (Components V2) without embed."""
-        from app.views.birthday_summary_card import BirthdaySummaryCardView
+        from app.views.summary_card import SummaryCardView
 
         view_config = {
             DesignSelectView: ('design_select', self._parse_cogs_to_design_select),
-            BirthdaySummaryCardView: (None, None),
+            SummaryCardView: (None, None),
         }
 
         config = view_config.get(type(self.view))

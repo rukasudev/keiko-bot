@@ -99,24 +99,15 @@ pt-br:
       footer: "⬆️ Role para cima para ver todas as opções"
 
   summary-card:
-    title: Configuração do Lembrete
-    member: Membro
-    date: Data
     message: Mensagem
-    image: Imagem
     default-label: Padrão
     custom-label: Personalizado
     badge-default: "📌 Padrão do Keiko"
     badge-custom: "✨ Personalizado"
-    customize-msg: Personalizar mensagem
-    customize-img: Personalizar imagem
     edit: Editar
     reset: Voltar ao padrão
     done: Avançar
-    modal-title-message: Personalizar Mensagem
     modal-title-image: Imagem Personalizada
-    label-title: Título
-    label-content: Conteúdo
 
   execute:
     label: Executar

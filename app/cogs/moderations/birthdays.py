@@ -7,8 +7,7 @@ from app.constants import KeikoIcons
 from app.data import birthdays as birthdays_data
 from app.decorators import keiko_admin_only, keiko_command
 from app.services import reminders_birthdays as birthdays_service
-from app.services.reminders_birthdays import format_birthday_date_value
-from app.services.dates import get_month_choices, parse_date_parts
+from app.services.dates import format_mm_dd_label, get_month_choices, parse_date_parts
 from app.translator import locale_str
 from app.types.cogs import Group
 
@@ -59,11 +58,10 @@ class Birthdays(
 
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        birthdays_service.upsert_self_birthday(
+        birthdays_service.upsert_birthday(
             guild_id=guild_id,
             user_id=str(member.id),
             mm_dd=date,
-            increment_self_edit=False,
         )
 
         embed = response_embed(
@@ -76,6 +74,6 @@ class Birthdays(
         embed.description = (
             embed.description
             .replace("{member}", member.mention)
-            .replace("{date}", format_birthday_date_value(date, interaction.locale))
+            .replace("{date}", format_mm_dd_label(date, interaction.locale))
         )
         await interaction.followup.send(embed=embed, ephemeral=True)

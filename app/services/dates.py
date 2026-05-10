@@ -103,3 +103,31 @@ def _safe_date(year: int, month: int, day: int) -> date:
         return date(year, month, day)
     except ValueError:
         return date(year, month, day - 1)
+
+
+def format_mm_dd_label(value: str, locale: str = None) -> str:
+    try:
+        month, day = parse_mm_dd(str(value))
+    except (TypeError, ValueError):
+        return value
+
+    label = get_month_label(month, locale)
+    if not label:
+        return value
+
+    if str(locale).lower() == "pt-br":
+        return f"{day} de {label.lower()}"
+    return f"{label} {day}"
+
+
+def format_month_count(value: Optional[Tuple[int, int]], locale: str = None) -> str:
+    if not value:
+        return "-"
+    label = get_month_label(int(value[0]), locale) or str(value[0])
+    return f"{label} ({value[1]})"
+
+
+def format_mm_dd_count(value: Optional[Tuple[str, int]], locale: str = None) -> str:
+    if not value:
+        return "-"
+    return f"{format_mm_dd_label(value[0], locale)} ({value[1]})"

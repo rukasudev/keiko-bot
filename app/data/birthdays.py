@@ -2,26 +2,32 @@ from typing import Any, Dict, List, Optional
 
 from app import mongo_client
 from app.constants import Commands as constants
-from app.data.moderations import find_moderations_by_guild
+from app.data.moderations import find_moderation_by_guild
 from app.data.util import parse_insert_timestamp, parse_update_timestamp
 
 
 def is_birthday_enabled(guild_id: str) -> bool:
-    moderations = find_moderations_by_guild(guild_id)
-    return bool(moderations and moderations.get(constants.REMINDERS_BIRTHDAY_KEY))
+    return bool(find_moderation_by_guild(guild_id, constants.REMINDERS_BIRTHDAY_KEY))
 
 
 def find_birthday_config(guild_id: str) -> Optional[Dict[str, Any]]:
     return mongo_client.guild.reminders_birthday.find_one({"guild_id": str(guild_id)})
 
 
-def upsert_birthday_config(guild_id: str, channel_id: str, mention_everyone: bool = False) -> Dict[str, Any]:
+def upsert_birthday_config(
+    guild_id: str,
+    channel_id: str,
+    mention_everyone: bool = False,
+    locale: str = None,
+) -> Dict[str, Any]:
     existing = find_birthday_config(guild_id) or {}
     data = {
         "guild_id": str(guild_id),
         "channel_id": str(channel_id),
         "mention_everyone": bool(mention_everyone),
     }
+    if locale:
+        data["locale"] = str(locale)
     update = parse_update_timestamp(data) if existing else parse_insert_timestamp(data)
     mongo_client.guild.reminders_birthday.update_one(
         {"guild_id": str(guild_id)},
@@ -46,17 +52,19 @@ def find_birthday_items_by_guild(guild_id: str) -> List[Dict[str, Any]]:
     return list(mongo_client.reminders.birthdays.find({"guild_id": str(guild_id)}))
 
 
-def find_birthday_items_by_reminder_id(reminder_id: str) -> List[Dict[str, Any]]:
-    return list(mongo_client.reminders.birthdays.find({"reminder_id": str(reminder_id)}))
-
-
-def find_reminder_id_by_date(date: str) -> Optional[str]:
-    item = mongo_client.reminders.birthdays.find_one({"date": str(date)})
+def find_reminder_id_by_guild_and_date(guild_id: str, date: str) -> Optional[str]:
+    item = mongo_client.reminders.birthdays.find_one({
+        "guild_id": str(guild_id),
+        "date": str(date),
+    })
     return item.get("reminder_id") if item else None
 
 
-def count_birthday_items_by_date(date: str) -> int:
-    return mongo_client.reminders.birthdays.count_documents({"date": str(date)})
+def count_birthday_items_by_guild_and_date(guild_id: str, date: str) -> int:
+    return mongo_client.reminders.birthdays.count_documents({
+        "guild_id": str(guild_id),
+        "date": str(date),
+    })
 
 
 def upsert_birthday_item(
@@ -103,6 +111,16 @@ def remove_birthday_item(guild_id: str, user_id: str) -> Optional[Dict[str, Any]
     return item
 
 
+def delete_birthday_items_by_guild(guild_id: str) -> int:
+    result = mongo_client.reminders.birthdays.delete_many({"guild_id": str(guild_id)})
+    return result.deleted_count
+
+
+def delete_birthday_config(guild_id: str) -> int:
+    result = mongo_client.guild.reminders_birthday.delete_one({"guild_id": str(guild_id)})
+    return result.deleted_count
+
+
 def build_default_item(
     user_id: str,
     date: str,
@@ -133,14 +151,22 @@ def to_summary_composition(item: Dict[str, Any]) -> Dict[str, Any]:
     message = item.get("message") or {}
     image = item.get("image") or {}
     return {
-        "type": {"value": constants.REMINDER_TYPE_BIRTHDAY, "title": "Type"},
+        "type": {"value": constants.REMINDER_TYPE_BIRTHDAY, "title": "Type", "hidden": True},
         "user": {"value": str(item.get("user_id")), "title": "Member", "style": "user"},
-        "date": {"value": item.get("date"), "title": "Birthday", "style": "birthday_date"},
-        "use_custom_message": {"value": message.get("mode", "default"), "title": "Message"},
-        "custom_message_title": {"value": message.get("title"), "title": "Title"},
-        "custom_message_content": {"value": message.get("content"), "title": "Content"},
-        "use_custom_image": {"value": image.get("mode", "default"), "title": "Custom Birthday Image"},
-        "custom_image": {"value": image.get("url"), "title": "Custom Birthday Image"},
+        "date": {"value": item.get("date"), "title": "Birthday", "style": "mm_dd"},
+        "use_custom_message": {
+            "value": message.get("mode", "default"),
+            "title": "Message",
+            "hidden": message.get("mode", "default") != "custom",
+        },
+        "custom_message_title": {"value": message.get("title"), "title": "Title", "hidden": True},
+        "custom_message_content": {"value": message.get("content"), "title": "Content", "hidden": True},
+        "use_custom_image": {
+            "value": image.get("mode", "default"),
+            "title": "Custom Birthday Image",
+            "hidden": image.get("mode", "default") != "custom",
+        },
+        "custom_image": {"value": image.get("url"), "title": "Custom Birthday Image", "hidden": True},
         "reminder_id": item.get("reminder_id"),
         "self_edit_count": item.get("self_edit_count", 0),
     }

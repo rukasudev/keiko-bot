@@ -6,7 +6,7 @@ import os
 import random
 from pathlib import Path
 from re import findall
-from typing import Any, Callable, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple
 
 import discord
 import yaml
@@ -15,6 +15,7 @@ from i18n import t
 
 from app.components.modals import ConfirmationModal
 from app.constants import CogsConstants as cogconstants
+from app.constants import Commands as commandconstants
 from app.constants import Emojis as constants
 from app.constants import FormConstants as formconstants
 from app.constants import LogTypes as logconstants
@@ -208,17 +209,7 @@ def parse_form_steps_title_by_key(form_steps: Dict[str, str], key: str, locale: 
             return item["title"][locale]
 
 
-STYLE_FORMATTERS: Dict[str, Callable[[Any, str], str]] = {}
-
-
-def register_style_formatter(style: str, formatter: Callable[[Any, str], str]) -> None:
-    STYLE_FORMATTERS[style] = formatter
-
-
 def format_values_by_style(values: Any, style: str, locale: str = None) -> str:
-    formatter = STYLE_FORMATTERS.get(style)
-    if formatter:
-        return formatter(values, locale)
     if isinstance(values, (str, bool, int, float)) or values is None:
         return format_single_value(values, style, locale)
     return format_list_values(values, style)
@@ -229,6 +220,10 @@ def format_single_value(value: str, style: str, locale: str = None) -> str:
         return ml(f"buttons.summary-card.{value}-label", locale=locale) or value
     if style == "boolean":
         return _format_boolean_value(value, locale)
+    if style == "mm_dd":
+        from app.services.dates import format_mm_dd_label
+
+        return format_mm_dd_label(value, locale)
     if value is None:
         return "-"
 
@@ -293,96 +288,14 @@ def get_form_settings_with_database_values(interaction: discord.Interaction, res
 def get_styled_composition_values(title: str, values: List[Dict[str, str]], locale: str = None) -> str:
     result = ""
     for n, composition in enumerate(values):
-        if _is_birthday_composition(composition):
-            formatted_values = _get_styled_birthday_composition_values(composition, locale)
-        else:
-            formatted_values = ""
-            for item in composition.values():
-                if not isinstance(item, dict):
-                    continue
-                formatted = format_values_by_style(item.get('value'), item.get('style'), locale)
-                formatted_values += f"- {item['title']}: **{formatted or '-'}**\n"
+        formatted_values = ""
+        for item in composition.values():
+            if not isinstance(item, dict) or item.get("hidden"):
+                continue
+            formatted = format_values_by_style(item.get('value'), item.get('style'), locale)
+            formatted_values += f"- {item['title']}: **{formatted or '-'}**\n"
         result += f"\n{constants.FRISBEE_EMOJI} **{title} #{n+1}**\n{formatted_values}"
     return result
-
-
-def _is_birthday_composition(composition: Dict[str, Any]) -> bool:
-    return "user" in composition and "date" in composition
-
-
-def _get_styled_birthday_composition_values(composition: Dict[str, Any], locale: str = None) -> str:
-    result = ""
-    custom_message = _get_composition_item_value(composition, "use_custom_message") == "custom"
-    custom_image = (
-        _get_composition_item_value(composition, "use_custom_image") == "custom"
-        and bool(_get_composition_item_value(composition, "custom_image"))
-    )
-
-    for key, item in composition.items():
-        if key in ("type", "month", "custom_image", "reminder_id"):
-            continue
-        if not isinstance(item, dict):
-            continue
-        if key in ("custom_message_title", "custom_message_content") and not custom_message:
-            continue
-        if key == "use_custom_image" and not custom_image:
-            continue
-        if key == "use_custom_message":
-            if not custom_message:
-                continue
-            title = _get_birthday_summary_title(key, item, locale)
-            value = _get_birthday_summary_value(key, item, locale)
-            result += f"- {title}: **{value or '-'}**\n"
-            result += _get_birthday_message_preview(composition)
-            continue
-        if key in ("custom_message_title", "custom_message_content"):
-            continue
-
-        title = _get_birthday_summary_title(key, item, locale)
-        value = _get_birthday_summary_value(key, item, locale)
-        result += f"- {title}: **{value or '-'}**\n"
-
-    return result
-
-
-def _get_composition_item_value(composition: Dict[str, Any], key: str) -> Any:
-    item = composition.get(key)
-    if isinstance(item, dict):
-        return item.get("value")
-    return item
-
-
-def _get_birthday_message_preview(composition: Dict[str, Any]) -> str:
-    title = _get_composition_item_value(composition, "custom_message_title")
-    content = _get_composition_item_value(composition, "custom_message_content")
-    lines = []
-    if title:
-        lines.append(f"> **{title}**")
-    if content:
-        lines.append(f"> {content}")
-    return "\n".join(lines) + ("\n" if lines else "")
-
-
-def _get_birthday_summary_title(key: str, item: Dict[str, Any], locale: str = None) -> str:
-    titles = {
-        "use_custom_message": _ml_or_none("buttons.summary-card.message", locale),
-        "use_custom_image": _ml_or_none("buttons.summary-card.modal-title-image", locale),
-    }
-    return titles.get(key) or item.get("title") or key
-
-
-def _get_birthday_summary_value(key: str, item: Dict[str, Any], locale: str = None) -> str:
-    if key == "use_custom_message":
-        fallback = "Personalizado" if str(locale).lower() == "pt-br" else "Custom"
-        return _ml_or_none("buttons.summary-card.custom-label", locale) or fallback
-    if key == "use_custom_image":
-        return "Sim" if str(locale).lower() == "pt-br" else "Yes"
-    return format_values_by_style(item.get('value'), item.get('style'), locale)
-
-
-def _ml_or_none(key: str, locale: str = None) -> str:
-    value = ml(key, locale=locale)
-    return value if value and value != key else None
 
 
 def get_settings_label_by_locale(locale: str) -> str:
@@ -400,9 +313,10 @@ def parse_locale(locale: str) -> str:
     return "en-us"
 
 def parse_valid_locale(locale: discord.Locale) -> discord.Locale:
-    if locale.value not in supported_locales:
-        return discord.Locale.american_english
-    return locale
+    locale_value = getattr(locale, "value", str(locale))
+    if locale_value == discord.Locale.brazil_portuguese.value:
+        return discord.Locale.brazil_portuguese
+    return discord.Locale.american_english
 
 
 def ml(key: str, locale: str):
@@ -420,15 +334,35 @@ def get_command_by_key(bot, key: str) -> discord.app_commands.Command:
     return None
 
 
+def get_command_display_name(bot, key: str, locale: discord.Locale) -> str:
+    command = get_command_by_key(bot, key)
+    valid_locale = parse_valid_locale(locale)
+    valid_locale_value = getattr(valid_locale, "value", str(valid_locale))
+    if command:
+        extras = getattr(command, "extras", {}) or {}
+        locale_extras = extras.get(valid_locale_value, {}) or {}
+        command_name = locale_extras.get("locale_qualified_name")
+        if command_name:
+            return command_name
+
+    feature_command = commandconstants.FEATURE_COMMANDS.get(key)
+    if feature_command:
+        group = ml(f"commands.groups.{feature_command['group']}", locale=valid_locale_value)
+        namespace = feature_command["namespace"]
+        subgroup = ml(f"commands.commands.{namespace}.subgroup", locale=valid_locale_value)
+        name = ml(f"commands.commands.{namespace}.name", locale=valid_locale_value)
+        return " ".join(part for part in (group, subgroup, name) if part)
+
+    return str(key).replace("_", " ")
+
+
 def parse_command_event_description(
     description: str,
     event_date: datetime.datetime,
     interaction: discord.Interaction,
     cog_key: str,
 ) -> str:
-    command = get_command_by_key(interaction.client, cog_key)
-    valid_locale = parse_valid_locale(interaction.locale)
-    command_name = command.extras[valid_locale.value].get("locale_qualified_name")
+    command_name = get_command_display_name(interaction.client, cog_key, interaction.locale)
     setup_command = ml("commands.commands.setup.name", locale=interaction.locale)
     description = description.replace("$command_name", command_name)
     description = description.replace("$setup_command", setup_command)

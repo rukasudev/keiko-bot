@@ -80,6 +80,18 @@ class Commands:
     REMINDER_TYPE_BIRTHDAY: Final[str] = "reminders_birthday"
     REMINDER_API_TITLE_BIRTHDAY: Final[str] = "birthday_reminder"
 
+    LIFECYCLE_EDIT: Final[str] = "edit"
+    LIFECYCLE_PAUSE: Final[str] = "pause"
+    LIFECYCLE_UNPAUSE: Final[str] = "unpause"
+    LIFECYCLE_DISABLE: Final[str] = "disable"
+    LIFECYCLE_ADD_ITEM: Final[str] = "add_item"
+    LIFECYCLE_REMOVE_ITEM: Final[str] = "remove_item"
+
+    BIRTHDAY_CONFIG_CHANNEL: Final[str] = "channel"
+    BIRTHDAY_CONFIG_MENTION_EVERYONE: Final[str] = "mention_everyone"
+
+    SELF_BIRTHDAY_EDIT_LIMIT: Final[int] = 1
+
     COMMANDS_LIST: Final[List[str]] = [
         BLOCK_LINKS_KEY,
         DEFAULT_ROLES_KEY,

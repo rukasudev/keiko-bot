@@ -261,13 +261,13 @@ class TestBirthdayCompositionSummary:
     def test_formats_birthday_summary_without_auxiliary_month_or_image_url(self):
         values = [{
             "user": {"value": "123", "title": "Membro", "style": "user"},
-            "month": {"value": "05", "title": "Mes do Aniversario"},
-            "date": {"value": "05-15", "title": "Aniversario", "style": "birthday_date"},
+            "month": {"value": "05", "title": "Mes do Aniversario", "hidden": True},
+            "date": {"value": "05-15", "title": "Aniversario", "style": "mm_dd"},
             "use_custom_message": {"value": "custom", "title": "Mensagem"},
-            "custom_message_title": {"value": "Parabens, {user}!", "title": "Titulo"},
-            "custom_message_content": {"value": "Feliz aniversario!", "title": "Conteudo"},
+            "custom_message_title": {"value": "Parabens, {user}!", "title": "Titulo", "hidden": True},
+            "custom_message_content": {"value": "Feliz aniversario!", "title": "Conteudo", "hidden": True},
             "use_custom_image": {"value": "custom", "title": "Imagem Personalizada"},
-            "custom_image": {"value": "https://example.com/image.png", "title": "Imagem Personalizada"},
+            "custom_image": {"value": "https://example.com/image.png", "title": "Imagem Personalizada", "hidden": True},
         }]
 
         result = get_styled_composition_values("Lista de Aniversarios", values, "pt-br")
@@ -275,22 +275,20 @@ class TestBirthdayCompositionSummary:
         assert "Aniversario: **15 de maio**" in result
         assert "Mes do Aniversario" not in result
         assert "Mensagem: **Personalizado**" in result
-        assert "> **Parabens, {user}!**" in result
-        assert "> Feliz aniversario!" in result
         assert "Titulo:" not in result
         assert "Conteudo:" not in result
-        assert "Imagem Personalizada: **Sim**" in result
+        assert "Imagem Personalizada: **Personalizado**" in result
         assert "https://example.com/image.png" not in result
 
     def test_hides_default_birthday_customization_fields(self):
         values = [{
             "user": {"value": "123", "title": "Member", "style": "user"},
-            "date": {"value": "05-15", "title": "Birthday", "style": "birthday_date"},
-            "use_custom_message": {"value": "default", "title": "Message"},
-            "custom_message_title": {"value": None, "title": "Title"},
-            "custom_message_content": {"value": None, "title": "Content"},
-            "use_custom_image": {"value": "default", "title": "Custom Birthday Image"},
-            "custom_image": {"value": None, "title": "Custom Birthday Image"},
+            "date": {"value": "05-15", "title": "Birthday", "style": "mm_dd"},
+            "use_custom_message": {"value": "default", "title": "Message", "hidden": True},
+            "custom_message_title": {"value": None, "title": "Title", "hidden": True},
+            "custom_message_content": {"value": None, "title": "Content", "hidden": True},
+            "use_custom_image": {"value": "default", "title": "Custom Birthday Image", "hidden": True},
+            "custom_image": {"value": None, "title": "Custom Birthday Image", "hidden": True},
         }]
 
         result = get_styled_composition_values("Birthday List", values, "en-us")
@@ -340,11 +338,14 @@ class TestBirthdayItemDefaults:
         assert stats["max_date"] == ("05-15", 2)
 
     def test_reuses_existing_reminder_for_date(self):
-        from app.services.reminders_birthdays import ensure_reminder_for_date
-
-        with patch("app.services.reminders_birthdays.birthdays_data.find_reminder_id_by_date", return_value="rem-1"):
-            with patch("app.services.reminders_birthdays.create_reminder_for_date") as create:
-                assert ensure_reminder_for_date("05-15") == "rem-1"
+        with patch("app.services.reminders_birthdays.birthdays_data.find_reminder_id_by_guild_and_date", return_value="rem-1"):
+            with patch("app.services.reminders_birthdays.birthdays_data.find_birthday_item", return_value=None):
+                with patch(
+                    "app.services.reminders_birthdays.birthdays_data.upsert_birthday_item",
+                    return_value={"reminder_id": "rem-1"},
+                ):
+                    with patch("app.services.reminders_birthdays.reminders_service.create_reminder") as create:
+                        assert reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15")["reminder_id"] == "rem-1"
 
         create.assert_not_called()
 
@@ -365,7 +366,7 @@ class TestBirthdayItemDefaults:
                 "value": [
                     {
                         "user": {"value": "222", "title": "Member", "style": "user"},
-                        "date": {"value": "05-15", "title": "Birthday", "style": "birthday_date"},
+                        "date": {"value": "05-15", "title": "Birthday", "style": "mm_dd"},
                         "use_custom_message": {"value": "custom", "title": "Message"},
                         "custom_message_title": {"value": "Parabens", "title": "Title"},
                         "custom_message_content": {"value": "Feliz aniversario, {user}", "title": "Content"},
@@ -377,9 +378,9 @@ class TestBirthdayItemDefaults:
 
         with patch("app.services.reminders_birthdays.setup_birthdays") as setup:
             with patch("app.services.reminders_birthdays.upsert_birthday", return_value={"user_id": "222"}) as upsert:
-                saved = save_setup_form("guild-1", responses)
+                saved = save_setup_form("guild-1", responses, "pt-br")
 
-        setup.assert_called_once_with("guild-1", "111", True)
+        setup.assert_called_once_with("guild-1", "111", True, "pt-br")
         upsert.assert_called_once_with(
             "guild-1",
             "222",

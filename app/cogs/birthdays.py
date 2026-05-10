@@ -7,11 +7,11 @@ from app.constants import KeikoIcons
 from app.data import birthdays as birthdays_data
 from app.decorators import keiko_command
 from app.services import reminders_birthdays as birthdays_service
-from app.services.reminders_birthdays import format_birthday_date_value
-from app.services.dates import get_month_choices, parse_date_parts
+from app.services.dates import format_mm_dd_label, get_month_choices, parse_date_parts
+from app.services.utils import parse_locale
 from app.translator import locale_str
 from app.types.cogs import Cog
-from app.views.birthday_overwrite_confirm import BirthdayOverwriteConfirmView
+from app.views.confirm_action import ConfirmActionView
 
 
 @app_commands.guild_only()
@@ -53,7 +53,7 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
                 return await interaction.followup.send(embed=embed, ephemeral=True)
 
             current_date = existing.get("date")
-            current_date_text = format_birthday_date_value(current_date, interaction.locale) or "-"
+            current_date_text = format_mm_dd_label(current_date, interaction.locale) or "-"
             embed = response_embed(
                 "commands.commands.birthday-personal.overwrite-confirm",
                 interaction.locale,
@@ -63,18 +63,36 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
             embed.description = (
                 embed.description
                 .replace("{current_date}", current_date_text)
-                .replace("{new_date}", format_birthday_date_value(date, interaction.locale))
+                .replace("{new_date}", format_mm_dd_label(date, interaction.locale))
             )
-            view = BirthdayOverwriteConfirmView(
-                guild_id=guild_id,
-                user_id=str(interaction.user.id),
-                mm_dd=date,
-                locale=interaction.locale,
+            async def confirm_overwrite(confirm_interaction: discord.Interaction) -> None:
+                birthdays_service.upsert_birthday(
+                    guild_id=guild_id,
+                    user_id=str(interaction.user.id),
+                    mm_dd=date,
+                    increment_self_edit=True,
+                )
+                response = response_embed(
+                    "commands.commands.birthday-personal.overwrite-response",
+                    interaction.locale,
+                    footer=True,
+                    image=True,
+                )
+                response.set_thumbnail(url=KeikoIcons.IMAGE_03)
+                response.description = response.description.replace(
+                    "{date}",
+                    format_mm_dd_label(date, interaction.locale),
+                )
+                await confirm_interaction.response.edit_message(embed=response, view=None)
+
+            view = ConfirmActionView(
+                on_confirm=confirm_overwrite,
+                locale=parse_locale(interaction.locale),
             )
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
             return
 
-        birthdays_service.upsert_self_birthday(
+        birthdays_service.upsert_birthday(
             guild_id=guild_id,
             user_id=str(interaction.user.id),
             mm_dd=date,
@@ -89,7 +107,7 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
         embed.set_thumbnail(url=KeikoIcons.IMAGE_03)
         embed.description = embed.description.replace(
             "{date}",
-            format_birthday_date_value(date, interaction.locale),
+            format_mm_dd_label(date, interaction.locale),
         )
 
         await interaction.followup.send(embed=embed, ephemeral=True)

@@ -37,8 +37,8 @@ steps:
     auto_confirm: true
     style: boolean
     title:
-      en-us: Mention @everyone?
-      pt-br: Mencionar @everyone?
+      en-us: Mention @everyone
+      pt-br: Mencionar @everyone
     description:
       en-us: Choose whether birthday reminders should start with @everyone.
       pt-br: Escolha se os lembretes de aniversário devem começar com @everyone.
@@ -102,7 +102,7 @@ steps:
 
       - action: modal
         key: date
-        response_transform: birthday_date_parts
+        response_transform: mm_dd_date_parts
         validation: validate_date
         validation_context_keys:
           - month
@@ -123,17 +123,86 @@ steps:
               pt-br: "15"
       - action: summary_card
         key: customizations
-        fields:
-          - key: use_custom_message
-            label: buttons.summary-card.message
-          - key: custom_message_title
-            label: buttons.summary-card.label-title
-          - key: custom_message_content
-            label: buttons.summary-card.label-content
-          - key: use_custom_image
-            label: buttons.summary-card.modal-title-image
-          - key: custom_image
-            label: buttons.summary-card.modal-title-image
+        header:
+          title:
+            en-us: "Reminder Setup"
+            pt-br: "Configuração do Lembrete"
+          title-emoji: "🎂"
+          thumbnail: BIRTHDAY_GIF
+          lines:
+            - emoji: "👤"
+              label:
+                en-us: Member
+                pt-br: Membro
+              value-from: response
+              value-key: user
+              value-format: user
+            - emoji: "📅"
+              label:
+                en-us: Date
+                pt-br: Data
+              value-from: response
+              value-key: date
+              value-format: mm_dd
+        template-vars:
+          user:
+            from: response
+            key: user
+            format: user
+          server:
+            from: interaction
+            attr: guild.name
+          date:
+            from: response
+            key: date
+            format: mm_dd
+        sections:
+          - key: message
+            icon: "💬"
+            label:
+              en-us: Message
+              pt-br: Mensagem
+            type: title-content
+            state:
+              mode: use_custom_message
+              title: custom_message_title
+              content: custom_message_content
+            modal:
+              title:
+                en-us: Customize Message
+                pt-br: Personalizar Mensagem
+              title-label:
+                en-us: Title
+                pt-br: Título
+              content-label:
+                en-us: Content
+                pt-br: Conteúdo
+            default:
+              title:
+                en-us: "🎂 It's {user}'s birthday!"
+                pt-br: "🎂 É aniversário do {user}!"
+              content:
+                en-us: "Happy birthday {user}! 🎉 Hope your day is full of joy and treats! 🐾"
+                pt-br: "Feliz aniversário, {user}! 🎉 Que seu dia seja cheio de alegria e mimos! 🐾"
+            customize-label:
+              en-us: Customize message
+              pt-br: Personalizar mensagem
+          - key: image
+            icon: "🖼️"
+            label:
+              en-us: Image
+              pt-br: Imagem
+            type: file-upload
+            state:
+              mode: use_custom_image
+              url: custom_image
+            modal:
+              title:
+                en-us: Custom Image
+                pt-br: Imagem Personalizada
+            customize-label:
+              en-us: Customize image
+              pt-br: Personalizar imagem
         title:
           en-us: "Reminder Setup"
           pt-br: "Configuração do Lembrete"
