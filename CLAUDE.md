@@ -53,7 +53,21 @@ make clean        # clean cache and venv
 
 Every implementation plan must follow @.claude/rules/implementation-planning.md
 (path: `.claude/rules/implementation-planning.md`), including its required
-"Implementation decision" summary block and all ten sections.
+"Implementation decision" summary block and all its required sections,
+including "Regression and blast-radius analysis" for changes to shared code.
+
+## Tests and regressions
+
+The test system is layered (unit, YAML contracts, offline behavioral
+scenarios): see `docs/testing-strategy.md` and `docs/form-scenario-testing.md`.
+Two standing rules:
+
+- A reported bug gets a failing automated test BEFORE the fix, and that test
+  stays in the suite permanently — follow `@.claude/rules/bug-fix-protocol.md`
+  (path: `.claude/rules/bug-fix-protocol.md`).
+- A change to shared code (form engine, manager, components, formatters,
+  loaders, i18n helpers) is not done until the consumer contracts pass:
+  `pytest -m "shared_contract"` plus the impact map in the strategy doc.
 
 ## Architecture reviews
 

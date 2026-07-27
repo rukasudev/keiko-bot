@@ -260,6 +260,11 @@ For an on-demand audit of a branch, file, directory, or the whole project agains
 conventions, use the `keiko-architecture-review` skill
 (`.claude/skills/keiko-architecture-review/SKILL.md`).
 
+The offline behavioral suite (`tests/behavioral/` — YAML contract tests,
+full-flow scenarios, shared-component consumer contracts and permanent
+regression scenarios) enforces this architecture end to end; see
+`docs/testing-strategy.md` and `docs/form-scenario-testing.md`.
+
 Future recommendations (out of scope for routine changes; do not do silently):
 unify the unwrap helpers;
 fix the bullet/numbered swap (behavior change — needs its own test); migrate the

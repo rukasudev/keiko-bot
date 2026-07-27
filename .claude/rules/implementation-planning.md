@@ -107,6 +107,28 @@ nearest simpler option and the nearest more generic option (e.g. command-specifi
 duplicated component, hardcoded text, parallel service, redundant YAML property, oversized
 refactor).
 
+### 11. Regression and blast-radius analysis
+Required verbatim whenever the plan touches shared code (form engine, manager,
+views, components, validators, transforms, formatters, state helpers, YAML
+loader, localization helpers, services or copy used by multiple commands):
+
+```markdown
+## Regression and blast-radius analysis
+- Shared code affected:
+- Existing consumers:
+- Existing tests:
+- New regression tests:
+- Related suites to run:
+```
+
+Identify every consumer of the shared capability BEFORE implementing; a feature
+that modifies shared infrastructure is not complete because its own happy path
+works — representative existing consumers must be exercised (see the impact map
+in `docs/testing-strategy.md` and the consumer contracts under
+`tests/behavioral/contracts/`). When the plan follows a reported bug, the fix
+workflow in `.claude/rules/bug-fix-protocol.md` applies: failing test first,
+generic fix, related suites run, test kept permanently.
+
 ## Anti-patterns (never propose these when a generic path exists)
 
 `if command_name == "...":` branches; copying and renaming an existing handler; duplicating

@@ -184,6 +184,7 @@ def auto_inject_dependencies(deps):
         patch('app.data.notifications_twitch.mongo_client', deps.mongo_client),
         patch('app.data.notifications_youtube_video.mongo_client', deps.mongo_client),
         patch('app.data.moderations.mongo_client', deps.mongo_client),
+        patch('app.data.birthdays.mongo_client', deps.mongo_client),
         patch('app.data.reminder.mongo_client', deps.mongo_client),
         patch('app.services.cache.redis_client', deps.redis_client),
         patch('app.services.cache.cogs_data.mongo_client', deps.mongo_client),
