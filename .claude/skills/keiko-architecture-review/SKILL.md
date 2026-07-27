@@ -76,6 +76,10 @@ contents in the report beyond what a finding needs):
   enforcement test suite.
 - `.claude/rules/implementation-planning.md` — decision order details and the anti-patterns
   list findings should cite.
+- `docs/testing-strategy.md` — read whenever the scope touches shared
+  infrastructure (form engine, manager, components, formatters, loaders, i18n
+  helpers) or test code: it defines the regression workflow, the consumer
+  contracts, and the change→suite impact map the review must check against.
 - `.claude/skills/keiko-writing-style/SKILL.md` — MANDATORY read whenever the scope touches
   user-facing text, `app/languages/`, embeds, forms, modals, buttons, notifications,
   errors, or any visual presentation. It is the source of truth for personality, voice,
@@ -111,6 +115,16 @@ Follow all six steps before writing findings.
    buttons/components and command-description voice per the writing-style skill; errors,
    success messages, and transitions match Keiko's personality; new forms follow the
    established interaction structure; no competing visual or writing pattern introduced.
+
+**Regression protection (mandatory when shared code changed).** When the
+reviewed scope modifies a shared component, flag as findings (category
+`Testing and regression risk`): changes that add no regression coverage;
+tests that exercise only the new consumer while existing consumers remain
+untested; failure to identify the existing consumers of the changed code;
+command-specific fixes for failures that originate in generic behavior; and
+bug fixes merged without a permanent failing-first test
+(`.claude/rules/bug-fix-protocol.md`). Verify the related consumer contracts
+(`pytest -m "shared_contract"`) were run or run them yourself.
 
 ## Finding categories
 
