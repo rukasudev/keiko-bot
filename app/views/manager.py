@@ -434,7 +434,7 @@ class Manager(discord.ui.View):
         if self.command_key not in constants.COMPOSITION_COMMANDS_LIST:
             return
 
-        if len(self.cogs[constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]]["values"]) == 1:
+        if len(self.cogs[constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]]["values"]) <= 1:
             return
 
         return self.add_item(RemoveItemButton(self.remove_item_callback, locale=self.locale))

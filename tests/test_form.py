@@ -329,6 +329,116 @@ class TestFormSummaryCard:
         assert state["use_custom_image"] == "custom"
         assert state["custom_image"] == "https://example.com/saved.png"
 
+    def test_configuration_card_response_is_saved_as_form_responses(self):
+        with patch('app.views.form.parse_form_yaml_to_dict', return_value=[{"key": "test", "action": "form"}]):
+            form = Form("test_command", "pt-br")
+            form._step = {
+                "key": "config",
+                "action": constants.CONFIGURATION_CARD_ACTION_KEY,
+                "sections": [
+                    {
+                        "label": {"en-us": "Channel", "pt-br": "Canal"},
+                        "style": "channel",
+                        "state": {"value": "channel"},
+                    },
+                    {
+                        "label": {"en-us": "Mention", "pt-br": "Menção"},
+                        "style": "boolean",
+                        "state": {"value": "mention_everyone"},
+                    },
+                ],
+            }
+            form.view = MagicMock()
+            form.view.get_response.return_value = {
+                "channel": "123",
+                "mention_everyone": True,
+            }
+
+            form._save_step_response()
+
+            responses = {item["key"]: item for item in form.responses}
+            assert responses["channel"]["title"] == "Canal"
+            assert responses["channel"]["style"] == "channel"
+            assert responses["mention_everyone"]["title"] == "Menção"
+            assert responses["mention_everyone"]["style"] == "boolean"
+
+    def test_configuration_card_fields_are_listed_in_first_form_embed(self):
+        steps = [
+            {
+                "key": "form",
+                "action": constants.FORM_ACTION_KEY,
+                "title": {"en-us": "Setup", "pt-br": "Setup"},
+                "description": {"en-us": "Start", "pt-br": "Inicio"},
+            },
+            {
+                "key": "config",
+                "action": constants.CONFIGURATION_CARD_ACTION_KEY,
+                "title": {"en-us": "Config", "pt-br": "Config"},
+                "description": {"en-us": "Configure", "pt-br": "Configure"},
+                "fields": [
+                    {
+                        "key": "channel",
+                        "label": {"en-us": "Channel", "pt-br": "Canal"},
+                        "description": {"en-us": "Pick a channel", "pt-br": "Escolha um canal"},
+                    },
+                    {
+                        "key": "timezone",
+                        "label": {"en-us": "Timezone", "pt-br": "Timezone"},
+                        "description": {"en-us": "Pick a timezone", "pt-br": "Escolha um timezone"},
+                    },
+                ],
+            },
+            {
+                "key": "items",
+                "action": constants.COMPOSITION_ACTION_KEY,
+                "title": {"en-us": "Items", "pt-br": "Itens"},
+                "description": {"en-us": "Items", "pt-br": "Itens"},
+                "condition": {"key": "register_now", "not_in": [False]},
+                "steps": [
+                    {
+                        "key": "member",
+                        "action": constants.USER_SELECT_ACTION_KEY,
+                        "title": {"en-us": "Member", "pt-br": "Membro"},
+                        "description": {"en-us": "Pick member", "pt-br": "Escolha membro"},
+                    }
+                ],
+            },
+        ]
+
+        with patch('app.views.form.parse_form_yaml_to_dict', return_value=steps):
+            form = Form("test_command", "pt-br")
+
+        assert form.get_form_titles_and_descriptions() == {
+            "Canal": "Escolha um canal",
+            "Timezone": "Escolha um timezone",
+        }
+
+    def test_configuration_card_builder_uses_step_description(self):
+        from types import SimpleNamespace
+        from app.views.summary_card import build_configuration_card_from_step
+
+        form = SimpleNamespace(
+            locale="pt-br",
+            responses=[],
+            cogs={},
+            state=SimpleNamespace(can_go_back=False),
+            _go_back=None,
+            _callback=None,
+        )
+        step = {
+            "description": {"en-us": "Configure settings", "pt-br": "Configure as opções"},
+            "header": {
+                "title": {"en-us": "Settings", "pt-br": "Configurações"},
+                "title-emoji": "🎂",
+                "lines": [],
+            },
+            "sections": [],
+        }
+
+        view = build_configuration_card_from_step(step, form, SimpleNamespace())
+
+        assert view.config.header.description == "Configure as opções"
+
 
 class TestBirthdayCompositionMerge:
     """Testes para unicidade da lista de aniversarios por usuario."""

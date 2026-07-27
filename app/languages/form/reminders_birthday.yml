@@ -5,54 +5,266 @@ steps:
       en-us: "🎂 Birthday Reminders"
       pt-br: "🎂 Lembretes de Aniversário"
     description:
-      en-us: Enable birthday notifications for this server. You'll add the first member now, and can add more members from the summary after saving.
-      pt-br: Ative as notificações de aniversário deste servidor. Você vai adicionar o primeiro membro agora e poderá adicionar mais membros no resumo depois de salvar.
+      en-us: Configure how I'll celebrate birthdays in this server. You can add the first member now or leave the list for later.
+      pt-br: Configure como vou comemorar aniversários neste servidor. Você pode cadastrar o primeiro membro agora ou deixar a lista para depois.
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
 
-  - action: channels
-    key: channel
-    emoji: "📺"
-    select: true
-    unique: true
-    required: true
-    style: channel
+  - action: configuration_card
+    key: birthday_config
+    editable: true
+    required:
+      - channel
+      - timezone
+      - notification_time
+    defaults:
+      mention_everyone: false
+      default_message_mode: default
+    header:
+      title:
+        en-us: "Reminder Settings"
+        pt-br: "Configuração do Lembrete"
+      title-emoji: "🎂"
+      thumbnail: BIRTHDAY_GIF
+      lines: []
     title:
-      en-us: Birthday Channel
-      pt-br: Canal de Aniversário
+      en-us: Birthday reminder settings
+      pt-br: Configuração do lembrete de aniversário
     description:
-      en-us: Pick the channel where I'll celebrate every birthday in this server list
-      pt-br: Escolha o canal onde vou comemorar todos os aniversários desta lista do servidor
+      en-us: Choose the channel, time, mention behavior and the default message for birthday reminders.
+      pt-br: Escolha o canal, horário, menção e mensagem padrão dos lembretes de aniversário.
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
+    fields:
+      - key: channel
+        style: channel
+        label:
+          en-us: Channel
+          pt-br: Canal
+        description:
+          en-us: Pick the channel where I'll send birthday reminders.
+          pt-br: Escolha o canal onde vou enviar os lembretes de aniversário.
+      - key: timezone
+        label:
+          en-us: Timezone
+          pt-br: Timezone
+        description:
+          en-us: Choose the timezone used to calculate the notification time.
+          pt-br: Escolha o timezone usado para calcular o horário da notificação.
+      - key: notification_time
+        label:
+          en-us: Notification time
+          pt-br: Horário da notificação
+        description:
+          en-us: Choose when I'll send the birthday notification.
+          pt-br: Escolha em qual horário vou enviar a notificação de aniversário.
+      - key: mention_everyone
+        style: boolean
+        label:
+          en-us: Mention @everyone
+          pt-br: Mencionar @everyone
+        description:
+          en-us: Decide whether birthday reminders should mention @everyone.
+          pt-br: Escolha se os lembretes de aniversário devem mencionar @everyone.
+      - key: default_message_mode
+        label:
+          en-us: Default member message
+          pt-br: Mensagem padrão dos membros
+        description:
+          en-us: Customize the default message used when a member has no custom message.
+          pt-br: Personalize a mensagem padrão usada quando um membro não tiver mensagem própria.
+      - key: default_message_title
+        hidden: true
+        label:
+          en-us: Default message title
+          pt-br: Título da mensagem padrão
+      - key: default_message_content
+        hidden: true
+        label:
+          en-us: Default message content
+          pt-br: Conteúdo da mensagem padrão
+    sections:
+      - key: channel
+        icon: "📺"
+        type: channel-select
+        style: channel
+        label:
+          en-us: Channel
+          pt-br: Canal
+        state:
+          value: channel
+        picker-title:
+          en-us: Choose the birthday channel
+          pt-br: Escolha o canal de aniversário
+        customize-label:
+          en-us: Choose channel
+          pt-br: Escolher canal
+      - key: timezone
+        icon: "🌎"
+        type: value-select
+        label:
+          en-us: Timezone
+          pt-br: Timezone
+        state:
+          value: timezone
+        picker-title:
+          en-us: Choose the notification timezone
+          pt-br: Escolha o timezone da notificação
+        customize-label:
+          en-us: Choose timezone
+          pt-br: Escolher timezone
+        options:
+          - label:
+              en-us: "🇧🇷 Brazil (UTC-3)"
+              pt-br: "🇧🇷 Brasil (UTC-3)"
+            value: America/Sao_Paulo
+          - label:
+              en-us: "🇦🇷 Argentina (UTC-3)"
+              pt-br: "🇦🇷 Argentina (UTC-3)"
+            value: America/Argentina/Buenos_Aires
+          - label:
+              en-us: "🇺🇸 United States (UTC-5/UTC-4)"
+              pt-br: "🇺🇸 Estados Unidos (UTC-5/UTC-4)"
+            value: America/New_York
+          - label:
+              en-us: "🇵🇹 Portugal (UTC+0/UTC+1)"
+              pt-br: "🇵🇹 Portugal (UTC+0/UTC+1)"
+            value: Europe/Lisbon
+          - label:
+              en-us: "🇬🇧 United Kingdom (UTC+0/UTC+1)"
+              pt-br: "🇬🇧 Reino Unido (UTC+0/UTC+1)"
+            value: Europe/London
+          - label:
+              en-us: "🇪🇸 Spain (UTC+1/UTC+2)"
+              pt-br: "🇪🇸 Espanha (UTC+1/UTC+2)"
+            value: Europe/Madrid
+          - label:
+              en-us: "🇩🇪 Germany (UTC+1/UTC+2)"
+              pt-br: "🇩🇪 Alemanha (UTC+1/UTC+2)"
+            value: Europe/Berlin
+          - label:
+              en-us: "🇯🇵 Japan (UTC+9)"
+              pt-br: "🇯🇵 Japão (UTC+9)"
+            value: Asia/Tokyo
+          - label:
+              en-us: "🌐 UTC (UTC+0)"
+              pt-br: "🌐 UTC (UTC+0)"
+            value: UTC
+      - key: notification_time
+        icon: "🕒"
+        type: button-options
+        label:
+          en-us: Notification time
+          pt-br: Horário da notificação
+        state:
+          value: notification_time
+        picker-title:
+          en-us: Choose the notification time
+          pt-br: Escolha o horário da notificação
+        customize-label:
+          en-us: Choose time
+          pt-br: Escolher horário
+        options:
+          - label:
+              en-us: "08:00"
+              pt-br: "08:00"
+            value: "08:00"
+          - label:
+              en-us: "10:00"
+              pt-br: "10:00"
+            value: "10:00"
+          - label:
+              en-us: "12:00"
+              pt-br: "12:00"
+            value: "12:00"
+          - label:
+              en-us: "14:00"
+              pt-br: "14:00"
+            value: "14:00"
+          - label:
+              en-us: "16:00"
+              pt-br: "16:00"
+            value: "16:00"
+          - label:
+              en-us: "18:00"
+              pt-br: "18:00"
+            value: "18:00"
+          - label:
+              en-us: "20:00"
+              pt-br: "20:00"
+            value: "20:00"
+          - label:
+              en-us: "22:00"
+              pt-br: "22:00"
+            value: "22:00"
+      - key: mention_everyone
+        icon: "📣"
+        type: boolean-toggle
+        label:
+          en-us: Mention @everyone
+          pt-br: Mencionar @everyone
+        state:
+          value: mention_everyone
+        customize-label:
+          en-us: Toggle mention
+          pt-br: Alternar menção
+      - key: default_message
+        icon: "💬"
+        type: title-content
+        label:
+          en-us: Default member message
+          pt-br: Mensagem padrão dos membros
+        state:
+          mode: default_message_mode
+          title: default_message_title
+          content: default_message_content
+        modal:
+          title:
+            en-us: Customize Default Message
+            pt-br: Personalizar Mensagem Padrão
+          title-label:
+            en-us: Title
+            pt-br: Título
+          content-label:
+            en-us: Content
+            pt-br: Conteúdo
+        default:
+          title:
+            en-us: "🎂 Happy Birthday {user}!"
+            pt-br: "🎂 Feliz Aniversário {user}!"
+          content:
+            en-us: "May your day be full of joy and treats! 🎉🐾"
+            pt-br: "Que seu dia seja cheio de alegria e mimos! 🎉🐾"
+        customize-label:
+          en-us: Customize message
+          pt-br: Personalizar mensagem
 
   - action: options
-    key: mention_everyone
-    emoji: "📣"
+    key: register_now
+    hidden: true
+    emoji: "🎂"
     required: true
     unique: true
     styled_values: true
     auto_confirm: true
     style: boolean
     title:
-      en-us: Mention @everyone
-      pt-br: Mencionar @everyone
+      en-us: Add the first birthday?
+      pt-br: Adicionar o primeiro aniversário?
     description:
-      en-us: Choose whether birthday reminders should start with @everyone.
-      pt-br: Escolha se os lembretes de aniversário devem começar com @everyone.
-    footer:
-      en-us: "• Use the `/report` command to tell me a bug"
-      pt-br: "• Use o comando `/reportar` para me contar um bug"
+      en-us: Start the list now or leave it for later. Members can also save their own date with /birthday.
+      pt-br: Comece a lista agora ou deixe para depois. Os membros também podem cadastrar a própria data com /aniversario.
     options:
       - label:
           en-us: "Yes"
           pt-br: "Sim"
         value: true
+        style: success
       - label:
-          en-us: "No"
-          pt-br: "Não"
+          en-us: "Later"
+          pt-br: "Depois"
         value: false
 
   - action: composition
@@ -65,11 +277,17 @@ steps:
       en-us: Birthday List
       pt-br: Lista de Aniversários
     description:
-      en-us: "Build the server birthday list one member at a time. Add this member now; after saving, use Add to include more members. (Max: 25)"
-      pt-br: "Monte a lista de aniversários do servidor um membro por vez. Adicione este membro agora; depois de salvar, use Adicionar para incluir mais membros. (Máx: 25)"
+      en-us: "Build the server birthday list one member at a time. After saving, use Add to include more members. (Max: 25)"
+      pt-br: "Monte a lista de aniversários do servidor um membro por vez. Depois de salvar, use Adicionar para incluir mais membros. (Máx: 25)"
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
+    condition:
+      key: register_now
+      not_in:
+        - false
+        - "false"
+        - "False"
     steps:
       - action: user_select
         key: user
@@ -87,46 +305,60 @@ steps:
           en-us: "• Use the `/report` command to tell me a bug"
           pt-br: "• Use o comando `/reportar` para me contar um bug"
 
-      - action: month_select
-        key: month
-        required: true
-        title:
-          en-us: Birthday Month
-          pt-br: Mês do Aniversário
-        description:
-          en-us: "Pick the member's birthday month."
-          pt-br: "Escolha o mês do aniversário do membro."
-        footer:
-          en-us: "• Use the `/report` command to tell me a bug"
-          pt-br: "• Use o comando `/reportar` para me contar um bug"
-
-      - action: modal
-        key: date
+      - action: configuration_card
+        key: birthday_member_config
         response_transform: mm_dd_date_parts
-        validation: validate_date
-        validation_context_keys:
+        required:
           - month
-        title:
-          en-us: Birthday Day
-          pt-br: Dia do Aniversário
-        description:
-          en-us: "Enter the birthday day. I'll validate it against the selected month."
-          pt-br: "Informe o dia do aniversário. Vou validar com o mês selecionado."
+          - day
+        defaults:
+          use_custom_message: default
+          use_custom_image: default
         fields:
-          - key: day
-            max_length: 2
+          - key: month
+            hidden: true
             label:
-              en-us: "Day"
-              pt-br: "Dia"
-            placeholder:
-              en-us: "15"
-              pt-br: "15"
-      - action: summary_card
-        key: customizations
+              en-us: Birthday month
+              pt-br: Mês do aniversário
+          - key: day
+            hidden: true
+            label:
+              en-us: Birthday day
+              pt-br: Dia do aniversário
+          - key: date
+            style: mm_dd
+            label:
+              en-us: Birthday
+              pt-br: Dia do Aniversário
+          - key: use_custom_message
+            style: boolean-mode
+            label:
+              en-us: Custom message
+              pt-br: Mensagem personalizada
+          - key: custom_message_title
+            hidden: true
+            label:
+              en-us: Message title
+              pt-br: Título da mensagem
+          - key: custom_message_content
+            hidden: true
+            label:
+              en-us: Message content
+              pt-br: Conteúdo da mensagem
+          - key: use_custom_image
+            style: boolean-mode
+            label:
+              en-us: Custom image
+              pt-br: Imagem personalizada
+          - key: custom_image
+            hidden: true
+            label:
+              en-us: Custom image
+              pt-br: Imagem personalizada
         header:
           title:
-            en-us: "Reminder Setup"
-            pt-br: "Configuração do Lembrete"
+            en-us: "Member Reminder"
+            pt-br: "Lembrete do Membro"
           title-emoji: "🎂"
           thumbnail: BIRTHDAY_GIF
           lines:
@@ -137,13 +369,15 @@ steps:
               value-from: response
               value-key: user
               value-format: user
-            - emoji: "📅"
-              label:
-                en-us: Date
-                pt-br: Data
-              value-from: response
-              value-key: date
-              value-format: mm_dd
+        title:
+          en-us: Member reminder settings
+          pt-br: Configuração do lembrete do membro
+        description:
+          en-us: Configure the birthday date, message and image for this member.
+          pt-br: Configure a data, mensagem e imagem de aniversário deste membro.
+        footer:
+          en-us: "• Use the `/report` command to tell me a bug"
+          pt-br: "• Use o comando `/reportar` para me contar um bug"
         template-vars:
           user:
             from: response
@@ -157,6 +391,61 @@ steps:
             key: date
             format: mm_dd
         sections:
+          - key: month
+            icon: "📅"
+            type: value-select
+            state:
+              value: month
+            label:
+              en-us: Birthday month
+              pt-br: Mês do aniversário
+            picker-title:
+              en-us: Choose the birthday month
+              pt-br: Escolha o mês do aniversário
+            customize-label:
+              en-us: Choose month
+              pt-br: Selecionar mês
+            reset-on-change:
+              - key: day
+                validation: validate_date
+            options:
+              - { label: { en-us: January, pt-br: Janeiro }, value: "01" }
+              - { label: { en-us: February, pt-br: Fevereiro }, value: "02" }
+              - { label: { en-us: March, pt-br: Março }, value: "03" }
+              - { label: { en-us: April, pt-br: Abril }, value: "04" }
+              - { label: { en-us: May, pt-br: Maio }, value: "05" }
+              - { label: { en-us: June, pt-br: Junho }, value: "06" }
+              - { label: { en-us: July, pt-br: Julho }, value: "07" }
+              - { label: { en-us: August, pt-br: Agosto }, value: "08" }
+              - { label: { en-us: September, pt-br: Setembro }, value: "09" }
+              - { label: { en-us: October, pt-br: Outubro }, value: "10" }
+              - { label: { en-us: November, pt-br: Novembro }, value: "11" }
+              - { label: { en-us: December, pt-br: Dezembro }, value: "12" }
+          - key: day
+            icon: "🗓️"
+            type: modal-input
+            state:
+              value: day
+            label:
+              en-us: Birthday day
+              pt-br: Dia do aniversário
+            customize-label:
+              en-us: Choose day
+              pt-br: Selecionar dia
+            modal:
+              title:
+                en-us: Birthday Day
+                pt-br: Dia do Aniversário
+              validation: validate_date
+              fields:
+                - key: day
+                  max_length: 2
+                  label:
+                    en-us: Day
+                    pt-br: Dia
+                  placeholder:
+                    en-us: "15"
+                    pt-br: "15"
           - key: message
             icon: "💬"
             label:
@@ -179,11 +468,11 @@ steps:
                 pt-br: Conteúdo
             default:
               title:
-                en-us: "🎂 It's {user}'s birthday!"
-                pt-br: "🎂 É aniversário do {user}!"
+                en-us: "🎂 Happy Birthday {user}!"
+                pt-br: "🎂 Feliz Aniversário {user}!"
               content:
-                en-us: "Happy birthday {user}! 🎉 Hope your day is full of joy and treats! 🐾"
-                pt-br: "Feliz aniversário, {user}! 🎉 Que seu dia seja cheio de alegria e mimos! 🐾"
+                en-us: "May your day be full of joy and treats! 🎉🐾"
+                pt-br: "Que seu dia seja cheio de alegria e mimos! 🎉🐾"
             customize-label:
               en-us: Customize message
               pt-br: Personalizar mensagem
@@ -203,16 +492,6 @@ steps:
             customize-label:
               en-us: Customize image
               pt-br: Personalizar imagem
-        title:
-          en-us: "Reminder Setup"
-          pt-br: "Configuração do Lembrete"
-        description:
-          en-us: "Review this member's birthday. After saving, you can add more members to this same birthday notification setup."
-          pt-br: "Revise o aniversário deste membro. Depois de salvar, você poderá adicionar mais membros a esta mesma configuração de notificações."
-        footer:
-          en-us: "• Use the `/report` command to tell me a bug"
-          pt-br: "• Use o comando `/reportar` para me contar um bug"
-
   - action: resume
     key: confirm
     title:

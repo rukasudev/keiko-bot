@@ -6,6 +6,8 @@ en-us:
   cancel:
     label: Cancel
     desc: Cancel the action
+    keep: Continue configuring
+    discard: Discard everything
 
   edit:
     label: Edit
@@ -108,6 +110,7 @@ en-us:
     edit: Edit
     reset: Reset to default
     done: Next
+    required: "I still need you to configure: {fields}."
     modal-title-image: Custom Image
 
   execute:

@@ -23,6 +23,7 @@ class OptionsView(discord.ui.View):
         required: bool = False,
         unique: bool = False,
         auto_confirm: bool = False,
+        option_styles: Dict[str, discord.ButtonStyle] = None,
     ) -> None:
         super().__init__(timeout=1800)
         self.callback = callback
@@ -30,6 +31,7 @@ class OptionsView(discord.ui.View):
         self.required = required
         self.unique = unique
         self.auto_confirm = auto_confirm
+        self.option_styles = option_styles or {}
         self.response = {}
         self.styled_values = styled_values
         self.options = options
@@ -55,6 +57,7 @@ class OptionsView(discord.ui.View):
                 unique=self.unique,
                 checked=str(value) in self.response,
                 auto_confirm=self.auto_confirm,
+                default_style=self.option_styles.get(str(value), discord.ButtonStyle.gray),
             )
             self.add_item(option_button)
 

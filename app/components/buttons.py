@@ -30,9 +30,9 @@ class CancelButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        view = self.view
-        view.clear_items()
-        await interaction.response.edit_message(view=view)
+        from app.views.confirm_action import request_discard_confirmation
+
+        await request_discard_confirmation(interaction, self.view)
 
 
 class OptionsButton(discord.ui.Button):
@@ -43,12 +43,14 @@ class OptionsButton(discord.ui.Button):
         unique: bool = False,
         checked: bool = False,
         auto_confirm: bool = False,
+        default_style: discord.ButtonStyle = discord.ButtonStyle.gray,
     ) -> None:
         self.unique = unique
         self.auto_confirm = auto_confirm
+        self.default_style = default_style
         super().__init__(
             label=options_label,
-            style=discord.ButtonStyle.gray if not checked else discord.ButtonStyle.primary,
+            style=default_style if not checked else discord.ButtonStyle.primary,
             custom_id=options_custom_id,
         )
 
@@ -57,7 +59,7 @@ class OptionsButton(discord.ui.Button):
             self.handle_unique()
 
         if self.style == discord.ButtonStyle.primary:
-            self.style = discord.ButtonStyle.gray
+            self.style = self.default_style
             del self.view.response[self.custom_id]
         else:
             self.style = discord.ButtonStyle.primary
@@ -97,7 +99,7 @@ class OptionsButton(discord.ui.Button):
                 continue
 
             if item.style == discord.ButtonStyle.primary:
-                item.style = discord.ButtonStyle.gray
+                item.style = item.default_style
 
         self.view.response = {self.custom_id: self.label}
 

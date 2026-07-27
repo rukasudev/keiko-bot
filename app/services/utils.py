@@ -70,6 +70,8 @@ def verify_twitch_signature(request, twitch_secret_key: str):
 
     return hmac.compare_digest(signature, expected_signature)
 
+# Loads app/languages/form/<key>.yml (cached: restart to pick up YAML edits).
+# Schema reference: docs/form-configuration.md
 @functools.cache
 def parse_form_yaml_to_dict(key: str) -> Dict[str, str]:
     file = Path.joinpath(
@@ -120,7 +122,8 @@ def parse_form_steps_titles(form_steps: List[Dict[str, str]], locale: str) -> Di
     return {
         item["key"]: item["title"][locale]
         for item in form_steps
-        if item["action"] not in formconstants.NO_ACTION_LIST
+        if not item.get("hidden")
+        if item["action"] not in formconstants.NO_ACTION_LIST or item["action"] == formconstants.CONFIGURATION_CARD_ACTION_KEY
     }
 
 
@@ -149,6 +152,7 @@ async def get_translated_qualified_name(
 def parse_settings_with_database_values(cog_data: Dict[str, str], form_steps: Dict[str, str], locale: str) -> List[Dict[str, str]]:
     response = []
     cogs_title = parse_form_steps_titles(form_steps, locale)
+    nested_selects = {}
 
     # Build maps for step conditions and design options
     step_conditions = {}
@@ -161,9 +165,20 @@ def parse_settings_with_database_values(cog_data: Dict[str, str], form_steps: Di
                 d["key"]: d["label"].get(locale) or d["label"].get("en-us", d["key"])
                 for d in step.get("designs", [])
             }
+        if step.get("action") == formconstants.MULTI_SELECT_ACTION_KEY:
+            for select in step.get("selects", []):
+                label = select.get("label", {})
+                nested_selects[select.get("key")] = {
+                    "title": label.get(locale) or label.get("en-us") or select.get("key"),
+                    "style": select.get("style"),
+                }
 
     for cog_key, value in cog_data.items():
-        if not cogs_title.get(cog_key):
+        nested_select = nested_selects.get(cog_key)
+        title = cogs_title.get(cog_key) or (
+            nested_select.get("title") if nested_select else None
+        )
+        if not title:
             continue
 
         # Skip settings that don't meet their condition
@@ -181,9 +196,13 @@ def parse_settings_with_database_values(cog_data: Dict[str, str], form_steps: Di
 
         if isinstance(value, dict) and value.get("style") == "composition":
             value = parse_settings_with_database_values_composition(form_steps, locale, value["values"])
-            response.append({"title": cogs_title[cog_key], "value": value, "style": "composition"})
+            response.append({"title": title, "value": value, "style": "composition"})
         else:
-            response.append({"title": cogs_title[cog_key], "value": value})
+            response.append({
+                "title": title,
+                "value": value,
+                "style": nested_select.get("style") if nested_select else None,
+            })
 
     return response
 
@@ -205,10 +224,19 @@ def get_form_step_title_composition(form_steps: Dict[str, str], key: str, locale
 
 def parse_form_steps_title_by_key(form_steps: Dict[str, str], key: str, locale: str) -> Dict[str, str]:
     for item in form_steps:
+        if item.get("action") == formconstants.CONFIGURATION_CARD_ACTION_KEY:
+            field = next(
+                (field for field in item.get("fields", []) if field.get("key") == key),
+                None,
+            )
+            if field:
+                label = field.get("label", {})
+                return label.get(locale) or label.get("en-us") or key
         if item["action"] not in formconstants.NO_ACTION_LIST and item["key"] == key:
             return item["title"][locale]
 
 
+# YAML `style:` values resolve here. Reference: docs/form-configuration.md
 def format_values_by_style(values: Any, style: str, locale: str = None) -> str:
     if isinstance(values, (str, bool, int, float)) or values is None:
         return format_single_value(values, style, locale)
@@ -216,6 +244,8 @@ def format_values_by_style(values: Any, style: str, locale: str = None) -> str:
 
 
 def format_single_value(value: str, style: str, locale: str = None) -> str:
+    if style == "boolean-mode":
+        return _format_boolean_value(value == "custom", locale)
     if value in ("default", "custom"):
         return ml(f"buttons.summary-card.{value}-label", locale=locale) or value
     if style == "boolean":

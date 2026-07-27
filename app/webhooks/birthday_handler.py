@@ -27,10 +27,17 @@ def birthday_default_text(key: str, locale: str) -> str:
     return ml(f"messages.birthday-defaults.{key}", locale=locale)
 
 
-def resolve_message(item: Dict[str, Any], locale: str) -> Tuple[str, str]:
+def resolve_message(item: Dict[str, Any], config: Dict[str, Any], locale: str) -> Tuple[str, str]:
     message = item.get("message") or {}
     if message.get("mode") == "custom" and message.get("title") and message.get("content"):
         return message["title"], message["content"]
+    default_message = (config or {}).get("default_message") or {}
+    if (
+        default_message.get("mode") == "custom"
+        and default_message.get("title")
+        and default_message.get("content")
+    ):
+        return default_message["title"], default_message["content"]
     return birthday_default_text("title", locale), birthday_default_text("content", locale)
 
 
@@ -45,9 +52,10 @@ def build_celebration_embed(
     item: Dict[str, Any],
     member: discord.Member,
     guild: discord.Guild,
+    config: Dict[str, Any],
     locale: str,
 ) -> discord.Embed:
-    title, content = resolve_message(item, locale)
+    title, content = resolve_message(item, config, locale)
     title = render_birthday_message(title, member.display_name, guild.name, item.get("date"), locale)
     content = render_birthday_message(content, member.mention, guild.name, item.get("date"), locale)
     embed = default_welcome_embed(title=title, message=content, image=resolve_image(item))
@@ -100,7 +108,7 @@ async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
                     logger.warn(f"Member not found: {item['user_id']}", log_type=logconstants.COMMAND_WARN_TYPE)
                     continue
 
-                embed = build_celebration_embed(item, member, guild, locale)
+                embed = build_celebration_embed(item, member, guild, config, locale)
                 content = "@everyone" if mention_everyone else None
                 allowed_mentions = discord.AllowedMentions(everyone=mention_everyone, users=False, roles=False)
                 await channel.send(content=content, embed=embed, allowed_mentions=allowed_mentions)

@@ -42,6 +42,9 @@ pt-br:
         settings:
           channel: Canal de aniversário
           mention-everyone: "Mencionar @everyone"
+          timezone: Timezone
+          notification-time: Horário da notificação
+          default-message: Mensagem padrão dos membros
           total: Total de aniversários
           next: Próximos aniversários
         disable:

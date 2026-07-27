@@ -42,6 +42,9 @@ en-us:
         settings:
           channel: Birthday Channel
           mention-everyone: "Mention @everyone"
+          timezone: Timezone
+          notification-time: Notification time
+          default-message: Default member message
           total: Total birthdays
           next: Next birthdays
         disable:

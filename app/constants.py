@@ -89,6 +89,12 @@ class Commands:
 
     BIRTHDAY_CONFIG_CHANNEL: Final[str] = "channel"
     BIRTHDAY_CONFIG_MENTION_EVERYONE: Final[str] = "mention_everyone"
+    BIRTHDAY_CONFIG_TIMEZONE: Final[str] = "timezone"
+    BIRTHDAY_CONFIG_NOTIFICATION_TIME: Final[str] = "notification_time"
+    BIRTHDAY_CONFIG_DEFAULT_MESSAGE_MODE: Final[str] = "default_message_mode"
+    BIRTHDAY_CONFIG_DEFAULT_MESSAGE_TITLE: Final[str] = "default_message_title"
+    BIRTHDAY_CONFIG_DEFAULT_MESSAGE_CONTENT: Final[str] = "default_message_content"
+    BIRTHDAY_CONFIG_REGISTER_NOW: Final[str] = "register_now"
 
     SELF_BIRTHDAY_EDIT_LIMIT: Final[int] = 1
 
@@ -195,8 +201,15 @@ class FormConstants:
     USER_SELECT_ACTION_KEY: Final[str] = "user_select"
     MONTH_SELECT_ACTION_KEY: Final[str] = "month_select"
     SUMMARY_CARD_ACTION_KEY: Final[str] = "summary_card"
+    CONFIGURATION_CARD_ACTION_KEY: Final[str] = "configuration_card"
 
-    NO_ACTION_LIST: Final[List[str]] = [FORM_ACTION_KEY, BUTTON_ACTION_KEY, RESUME_ACTION_KEY, SUMMARY_CARD_ACTION_KEY]
+    NO_ACTION_LIST: Final[List[str]] = [
+        FORM_ACTION_KEY,
+        BUTTON_ACTION_KEY,
+        RESUME_ACTION_KEY,
+        SUMMARY_CARD_ACTION_KEY,
+        CONFIGURATION_CARD_ACTION_KEY,
+    ]
 
 
 class WelcomeDesign:
