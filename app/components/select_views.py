@@ -1,5 +1,5 @@
 from io import BytesIO
-from typing import Callable, Dict
+from typing import Any, Callable, Dict
 
 import discord
 
@@ -216,6 +216,7 @@ class MultiSelectView(discord.ui.View):
         self.responses: Dict[str, Dict[str, str]] = {}
         self.select_styles: Dict[str, str] = {}
         self.selects: Dict[str, discord.ui.Select] = {}
+        self.select_types: Dict[str, str] = {}
 
         for select_config in config.get("selects", []):
             select_type = select_config.get("type")
@@ -243,6 +244,7 @@ class MultiSelectView(discord.ui.View):
 
             select.callback = self._make_callback(key, select_type, select)
             self.selects[key] = select
+            self.select_types[key] = select_type
             self.add_item(select)
 
         self.add_item(SelectConfirmButton(callback=callback, locale=locale, required=False))
@@ -260,12 +262,40 @@ class MultiSelectView(discord.ui.View):
     def get_response(self):
         result = {}
         for key, values in self.responses.items():
-            if values:
-                result[key] = {
-                    "values": list(values.keys())[0] if len(values) == 1 else list(values.keys()),
-                    "style": self.select_styles.get(key)
-                }
+            result[key] = {
+                "values": list(values.keys())[0] if len(values) == 1 else list(values.keys()),
+                "style": self.select_styles.get(key)
+            }
         return result
+
+    def set_defaults(self, values_by_key: Dict[str, Any]) -> bool:
+        hydrated = False
+        for key, select in self.selects.items():
+            entry = values_by_key.get(key)
+            if isinstance(entry, dict):
+                values = entry.get("values", entry.get("value"))
+            else:
+                values = entry
+            if values in (None, ""):
+                continue
+
+            values = values if isinstance(values, list) else [values]
+            string_values = [str(value) for value in values]
+            self.responses[key] = {value: value for value in string_values}
+
+            select_type = self.select_types.get(key)
+            default_type = (
+                discord.SelectDefaultValueType.channel
+                if select_type == "channels"
+                else discord.SelectDefaultValueType.role
+            )
+            select.default_values = [
+                discord.SelectDefaultValue(id=int(value), type=default_type)
+                for value in string_values
+                if value.isdigit()
+            ]
+            hydrated = True
+        return hydrated
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
         logger.error(
@@ -346,9 +376,9 @@ class DesignSelectView(discord.ui.LayoutView):
         custom_id = interaction.data.get("custom_id", "")
 
         if custom_id == "cancel_design":
-            await interaction.response.defer()
-            await interaction.delete_original_response()
-            self.stop()
+            from app.views.confirm_action import request_discard_confirmation
+
+            await request_discard_confirmation(interaction, self)
             return False
 
         if custom_id == "back_design" and self._back_callback:

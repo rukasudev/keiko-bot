@@ -56,6 +56,10 @@ pt-br:
     title: Seleção Obrigatória
     message: "Ops! Selecione uma opção antes de confirmar :)"
 
+  discard-settings-confirmation:
+    title: Cancelar Configuração?
+    message: Se você cancelar agora, vou encerrar esta mensagem e tudo o que configuramos até aqui será perdido. Para configurar de novo, você precisará começar do zero. Tem certeza de que quer descartar tudo?
+
   invalid-date:
     title: Data Inválida
     message: "Ops! Essa data não existe. Escolha um dia válido para o mês selecionado."

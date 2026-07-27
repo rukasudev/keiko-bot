@@ -15,7 +15,7 @@ from app.services.utils import (
     split_welcome_messages,
     get_styled_composition_values,
 )
-import app.services.reminders_birthdays  # noqa: F401
+from app.services import reminders_birthdays
 from app.data.birthdays import build_default_item
 from app.services.reminders_birthdays import can_self_edit_birthday, get_self_edit_count
 from datetime import date, timedelta
@@ -380,7 +380,15 @@ class TestBirthdayItemDefaults:
             with patch("app.services.reminders_birthdays.upsert_birthday", return_value={"user_id": "222"}) as upsert:
                 saved = save_setup_form("guild-1", responses, "pt-br")
 
-        setup.assert_called_once_with("guild-1", "111", True, "pt-br")
+        setup.assert_called_once_with(
+            "guild-1",
+            "111",
+            True,
+            "pt-br",
+            None,
+            None,
+            {"mode": "default", "title": None, "content": None},
+        )
         upsert.assert_called_once_with(
             "guild-1",
             "222",
@@ -393,6 +401,80 @@ class TestBirthdayItemDefaults:
             image={"mode": "default", "url": None},
         )
         assert saved == [{"user_id": "222"}]
+
+    def test_save_setup_form_writes_schedule_and_default_message(self):
+        from app.services.reminders_birthdays import save_setup_form
+
+        responses = [
+            {"key": "channel", "value": "111", "style": "channel"},
+            {"key": "mention_everyone", "value": False, "style": "boolean"},
+            {"key": "timezone", "value": "America/Sao_Paulo"},
+            {"key": "notification_time", "value": "12:00"},
+            {"key": "default_message_mode", "value": "custom"},
+            {"key": "default_message_title", "value": "Parabens, {user}!"},
+            {"key": "default_message_content", "value": "Hoje tem festa no {server}."},
+        ]
+
+        with patch("app.services.reminders_birthdays.setup_birthdays") as setup:
+            saved = save_setup_form("guild-1", responses, "pt-br")
+
+        setup.assert_called_once_with(
+            "guild-1",
+            "111",
+            False,
+            "pt-br",
+            "America/Sao_Paulo",
+            "12:00",
+            {
+                "mode": "custom",
+                "title": "Parabens, {user}!",
+                "content": "Hoje tem festa no {server}.",
+            },
+        )
+        assert saved == []
+
+    def test_upsert_birthday_creates_reminder_with_guild_schedule(self):
+        with patch("app.services.reminders_birthdays.birthdays_data.find_reminder_id_by_guild_and_date", return_value=None):
+            with patch("app.services.reminders_birthdays.birthdays_data.find_birthday_item", return_value=None):
+                with patch(
+                    "app.services.reminders_birthdays.birthdays_data.find_birthday_config",
+                    return_value={"timezone": "America/Sao_Paulo", "notification_time": "12:00"},
+                ):
+                    with patch(
+                        "app.services.reminders_birthdays.birthdays_data.upsert_birthday_item",
+                        return_value={"reminder_id": "rem-1"},
+                    ):
+                        with patch(
+                            "app.services.reminders_birthdays.reminders_service.create_reminder",
+                            return_value="rem-1",
+                        ) as create:
+                            assert reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15")["reminder_id"] == "rem-1"
+
+        create.assert_called_once_with(
+            "birthday_reminder",
+            "05-15",
+            notes="05-15",
+            timezone_name="America/Sao_Paulo",
+            notification_time="12:00",
+        )
+
+    def test_birthday_message_uses_server_default_before_keiko_default(self):
+        from app.webhooks.birthday_handler import resolve_message
+
+        title, content = resolve_message(
+            {"message": {"mode": "default", "title": None, "content": None}},
+            {
+                "default_message": {
+                    "mode": "custom",
+                    "title": "Servidor feliz, {user}",
+                    "content": "Hoje e dia de bolo em {server}.",
+                }
+            },
+            "pt-br",
+        )
+
+        assert title == "Servidor feliz, {user}"
+        assert content == "Hoje e dia de bolo em {server}."
 
 class TestSplitWelcomeMessages:
     """Testes para divisao de mensagens de boas-vindas."""

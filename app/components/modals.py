@@ -216,6 +216,8 @@ class ConfirmationModal(discord.ui.Modal):
         )
 
 
+# YAML `validation: <name>` resolves to a method here via getattr.
+# Reference: docs/form-configuration.md
 class ModalValidations:
     def __init__(self, cogs: List[Dict[str, Any]]) -> None:
         self.cogs = cogs

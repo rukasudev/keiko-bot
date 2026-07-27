@@ -19,6 +19,9 @@ def upsert_birthday_config(
     channel_id: str,
     mention_everyone: bool = False,
     locale: str = None,
+    timezone: str = None,
+    notification_time: str = None,
+    default_message: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     existing = find_birthday_config(guild_id) or {}
     data = {
@@ -28,6 +31,12 @@ def upsert_birthday_config(
     }
     if locale:
         data["locale"] = str(locale)
+    if timezone is not None:
+        data["timezone"] = str(timezone)
+    if notification_time is not None:
+        data["notification_time"] = str(notification_time)
+    if default_message is not None:
+        data["default_message"] = default_message
     update = parse_update_timestamp(data) if existing else parse_insert_timestamp(data)
     mongo_client.guild.reminders_birthday.update_one(
         {"guild_id": str(guild_id)},
@@ -157,6 +166,7 @@ def to_summary_composition(item: Dict[str, Any]) -> Dict[str, Any]:
         "use_custom_message": {
             "value": message.get("mode", "default"),
             "title": "Message",
+            "style": "boolean-mode",
             "hidden": message.get("mode", "default") != "custom",
         },
         "custom_message_title": {"value": message.get("title"), "title": "Title", "hidden": True},
@@ -164,9 +174,18 @@ def to_summary_composition(item: Dict[str, Any]) -> Dict[str, Any]:
         "use_custom_image": {
             "value": image.get("mode", "default"),
             "title": "Custom Birthday Image",
+            "style": "boolean-mode",
             "hidden": image.get("mode", "default") != "custom",
         },
         "custom_image": {"value": image.get("url"), "title": "Custom Birthday Image", "hidden": True},
-        "reminder_id": item.get("reminder_id"),
-        "self_edit_count": item.get("self_edit_count", 0),
+        "reminder_id": {
+            "value": item.get("reminder_id"),
+            "title": "Reminder ID",
+            "hidden": True,
+        },
+        "self_edit_count": {
+            "value": item.get("self_edit_count", 0),
+            "title": "Self edit count",
+            "hidden": True,
+        },
     }

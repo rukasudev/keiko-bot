@@ -41,6 +41,7 @@ class TestBirthdaysManagerEdit:
 
         interaction = MagicMock()
         interaction.guild_id = "guild-1"
+        interaction.locale = "pt-BR"
 
         with patch("app.services.reminders_birthdays.setup_birthdays") as setup:
             with patch(
@@ -49,7 +50,15 @@ class TestBirthdaysManagerEdit:
             ):
                 await edit_birthday_save(interaction, manager_view, data)
 
-        setup.assert_called_once_with("guild-1", "999", True, "pt-br")
+        setup.assert_called_once_with(
+            "guild-1",
+            "999",
+            True,
+            "pt-br",
+            None,
+            None,
+            {"mode": "default", "title": None, "content": None},
+        )
 
 
 class TestBirthdaysManagerComposition:

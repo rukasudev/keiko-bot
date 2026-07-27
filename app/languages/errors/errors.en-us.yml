@@ -56,6 +56,10 @@ en-us:
     title: Selection Required
     message: "Oops! Please pick an option before confirming :)"
 
+  discard-settings-confirmation:
+    title: Cancel Settings?
+    message: If you cancel now, I'll close this message and everything we configured so far will be lost. To configure it again, you'll need to start over. Are you sure you want to discard everything?
+
   invalid-date:
     title: Invalid Date
     message: "Oops! That date doesn't exist. Pick a valid day for the selected month."
