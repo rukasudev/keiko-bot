@@ -110,6 +110,7 @@ pt-br:
     reset: Voltar ao padrão
     done: Avançar
     required: "Ainda preciso que você configure: {fields}."
+    required-separator: " e "
     modal-title-image: Imagem Personalizada
 
   execute:

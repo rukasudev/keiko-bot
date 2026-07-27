@@ -11,13 +11,15 @@ class ConfirmActionView(discord.ui.View):
         on_confirm: Callable[[discord.Interaction], Awaitable[None]],
         locale: str,
         on_cancel: Optional[Callable[[discord.Interaction], Awaitable[None]]] = None,
+        confirm_label_key: str = "buttons.confirm.label",
+        cancel_label_key: str = "buttons.cancel.label",
     ) -> None:
         super().__init__(timeout=300)
         self._on_confirm = on_confirm
         self._on_cancel = on_cancel
         self.locale = locale
-        self.confirm.label = ml("buttons.confirm.label", locale=locale)
-        self.cancel.label = ml("buttons.cancel.label", locale=locale)
+        self.confirm.label = ml(confirm_label_key, locale=locale)
+        self.cancel.label = ml(cancel_label_key, locale=locale)
 
     @discord.ui.button(style=discord.ButtonStyle.green)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
@@ -30,39 +32,6 @@ class ConfirmActionView(discord.ui.View):
             await self._on_cancel(interaction)
         else:
             await interaction.response.edit_message(view=None)
-        self.stop()
-
-
-class DiscardChangesView(discord.ui.View):
-    def __init__(
-        self,
-        source_interaction: discord.Interaction,
-        source_view: discord.ui.View,
-        locale: str,
-    ) -> None:
-        super().__init__(timeout=300)
-        self.source_interaction = source_interaction
-        self.source_view = source_view
-        self.locale = locale
-        self.keep.label = ml("buttons.cancel.keep", locale=locale)
-        self.discard.label = ml("buttons.cancel.discard", locale=locale)
-
-    @discord.ui.button(style=discord.ButtonStyle.green)
-    async def keep(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        await interaction.response.defer()
-        await interaction.delete_original_response()
-        self.stop()
-
-    @discord.ui.button(style=discord.ButtonStyle.red)
-    async def discard(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
-        finalize_configuration_view(self.source_view)
-        self.source_view.stop()
-        try:
-            await self.source_interaction.edit_original_response(view=self.source_view)
-        except discord.NotFound:
-            pass
-        await interaction.response.defer()
-        await interaction.delete_original_response()
         self.stop()
 
 
@@ -86,15 +55,31 @@ async def request_discard_confirmation(
 ) -> None:
     from app.components.embed import response_error_embed
 
+    async def keep(keep_interaction: discord.Interaction) -> None:
+        await keep_interaction.response.defer()
+        await keep_interaction.delete_original_response()
+
+    async def discard(discard_interaction: discord.Interaction) -> None:
+        finalize_configuration_view(source_view)
+        source_view.stop()
+        try:
+            await interaction.edit_original_response(view=source_view)
+        except discord.NotFound:
+            pass
+        await discard_interaction.response.defer()
+        await discard_interaction.delete_original_response()
+
     embed = response_error_embed(
         "discard-settings-confirmation",
         source_view.locale,
         footer=False,
     )
-    view = DiscardChangesView(
-        source_interaction=interaction,
-        source_view=source_view,
+    view = ConfirmActionView(
+        on_confirm=keep,
         locale=source_view.locale,
+        on_cancel=discard,
+        confirm_label_key="buttons.cancel.keep",
+        cancel_label_key="buttons.cancel.discard",
     )
     await interaction.response.defer()
     await interaction.followup.send(embed=embed, view=view, ephemeral=True)

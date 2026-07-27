@@ -208,7 +208,6 @@ class FormConstants:
         BUTTON_ACTION_KEY,
         RESUME_ACTION_KEY,
         SUMMARY_CARD_ACTION_KEY,
-        CONFIGURATION_CARD_ACTION_KEY,
     ]
 
 

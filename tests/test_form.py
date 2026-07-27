@@ -415,7 +415,7 @@ class TestFormSummaryCard:
 
     def test_configuration_card_builder_uses_step_description(self):
         from types import SimpleNamespace
-        from app.views.summary_card import build_configuration_card_from_step
+        from app.views.summary_card import build_summary_card_from_step
 
         form = SimpleNamespace(
             locale="pt-br",
@@ -435,7 +435,7 @@ class TestFormSummaryCard:
             "sections": [],
         }
 
-        view = build_configuration_card_from_step(step, form, SimpleNamespace())
+        view = build_summary_card_from_step(step, form, SimpleNamespace())
 
         assert view.config.header.description == "Configure as opções"
 

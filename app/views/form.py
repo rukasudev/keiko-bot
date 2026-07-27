@@ -27,6 +27,7 @@ from app.services.cogs import insert_cog_by_guild, insert_cog_event
 from app.services.compositions import merge_composition_item_by_nested_value
 from app.services.moderations import update_moderations_by_guild
 from app.services.notifications_twitch import unsubscribe_streamer
+from app.services.transforms import get_response_transform
 from app.services.utils import (
     get_available_roles_by_guild,
     get_form_settings_with_database_values,
@@ -307,28 +308,29 @@ class Form(discord.ui.View):
         return self.responses
 
     def _transform_step_response(self, response: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-        transform = self._get_step_item("response_transform")
-        if transform == "mm_dd_date_parts" and "day" in response:
-            from app.services.dates import parse_date_parts
+        transform = get_response_transform(self._get_step_item("response_transform"))
+        if not transform or not any(key in response for key in transform["part_keys"]):
+            return None
 
-            month = next((r.get("_raw_value", r["value"]) for r in self.responses if r["key"] == "month"), None)
-            return {
-                "key": self._get_step_item("key"),
-                "title": self._get_step_item("title"),
-                "value": parse_date_parts(response["day"], month),
-                "style": "mm_dd",
-            }
-        return None
+        parts = dict(response)
+        for part_key in transform["part_keys"]:
+            if part_key not in parts:
+                parts[part_key] = next(
+                    (r.get("_raw_value", r["value"]) for r in self.responses if r["key"] == part_key),
+                    None,
+                )
+        return {
+            "key": self._get_step_item("key"),
+            "title": self._get_step_item("title"),
+            "value": transform["serialize"](parts),
+            "style": transform["style"],
+        }
 
     def _save_summary_card_response(self, response: Dict[str, Any]) -> None:
         response = dict(response)
-        if self._step.get("response_transform") == "mm_dd_date_parts":
-            from app.services.dates import parse_date_parts
-
-            response["date"] = parse_date_parts(
-                response.get("day"),
-                response.get("month"),
-            )
+        transform = get_response_transform(self._step.get("response_transform"))
+        if transform:
+            response[transform["value_key"]] = transform["serialize"](response)
 
         fields = self._step.get("fields", [])
         hidden_keys = set()
@@ -656,14 +658,6 @@ class Form(discord.ui.View):
         await interaction.response.defer()
 
         self.view = build_summary_card_from_step(self._step, form=self, interaction=interaction)
-        await self._send_layout_view(interaction)
-
-    async def show_configuration_card(self, interaction: discord.Interaction):
-        from app.views.summary_card import build_configuration_card_from_step
-
-        await interaction.response.defer()
-
-        self.view = build_configuration_card_from_step(self._step, form=self, interaction=interaction)
         await self._send_layout_view(interaction)
 
     async def show_available_roles(self, interaction: discord.Interaction):
@@ -1065,7 +1059,7 @@ class Form(discord.ui.View):
             constants.USER_SELECT_ACTION_KEY: self.show_user_select,
             constants.MONTH_SELECT_ACTION_KEY: self.show_month_select,
             constants.SUMMARY_CARD_ACTION_KEY: self.show_summary_card,
-            constants.CONFIGURATION_CARD_ACTION_KEY: self.show_configuration_card,
+            constants.CONFIGURATION_CARD_ACTION_KEY: self.show_summary_card,
         }
 
         if action in action_dict:

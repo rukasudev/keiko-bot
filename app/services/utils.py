@@ -122,8 +122,7 @@ def parse_form_steps_titles(form_steps: List[Dict[str, str]], locale: str) -> Di
     return {
         item["key"]: item["title"][locale]
         for item in form_steps
-        if not item.get("hidden")
-        if item["action"] not in formconstants.NO_ACTION_LIST or item["action"] == formconstants.CONFIGURATION_CARD_ACTION_KEY
+        if not item.get("hidden") and item["action"] not in formconstants.NO_ACTION_LIST
     }
 
 

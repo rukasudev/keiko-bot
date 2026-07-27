@@ -21,8 +21,6 @@ class TestBirthdaysManagerEdit:
         interaction = MagicMock()
         interaction.guild_id = "guild-1"
         interaction.locale = "pt-BR"
-        interaction.locale = "pt-BR"
-        interaction.locale = "pt-BR"
 
         with patch("app.services.reminders_birthdays.save_form_birthday_item") as save_item:
             await edit_birthday_save(interaction, manager_view, data)

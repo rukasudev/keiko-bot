@@ -13,7 +13,6 @@ steps:
 
   - action: configuration_card
     key: birthday_config
-    editable: true
     required:
       - channel
       - timezone
@@ -49,10 +48,10 @@ steps:
       - key: timezone
         label:
           en-us: Timezone
-          pt-br: Timezone
+          pt-br: Fuso horário
         description:
           en-us: Choose the timezone used to calculate the notification time.
-          pt-br: Escolha o timezone usado para calcular o horário da notificação.
+          pt-br: Escolha o fuso horário usado para calcular o horário da notificação.
       - key: notification_time
         label:
           en-us: Notification time
@@ -106,15 +105,15 @@ steps:
         type: value-select
         label:
           en-us: Timezone
-          pt-br: Timezone
+          pt-br: Fuso horário
         state:
           value: timezone
         picker-title:
           en-us: Choose the notification timezone
-          pt-br: Escolha o timezone da notificação
+          pt-br: Escolha o fuso horário da notificação
         customize-label:
           en-us: Choose timezone
-          pt-br: Escolher timezone
+          pt-br: Escolher fuso horário
         options:
           - label:
               en-us: "🇧🇷 Brazil (UTC-3)"
@@ -254,8 +253,11 @@ steps:
       en-us: Add the first birthday?
       pt-br: Adicionar o primeiro aniversário?
     description:
-      en-us: Start the list now or leave it for later. Members can also save their own date with /birthday.
-      pt-br: Comece a lista agora ou deixe para depois. Os membros também podem cadastrar a própria data com /aniversario.
+      en-us: Start the list now or leave it for later. Members can also save their own date with `/birthday`.
+      pt-br: Comece a lista agora ou deixe para depois. Os membros também podem cadastrar a própria data com `/aniversário`.
+    footer:
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
     options:
       - label:
           en-us: "Yes"

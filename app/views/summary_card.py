@@ -8,6 +8,7 @@ from app import logger
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
 from app.constants import Style
+from app.services.transforms import get_response_transform
 from app.services.utils import format_values_by_style, ml
 
 
@@ -538,6 +539,38 @@ def _build_file_upload_section(
     )
 
 
+def _picker_title(section_cfg: Dict[str, Any], locale: str) -> str:
+    return _localized(
+        section_cfg.get("picker-title"),
+        locale,
+        _localized(section_cfg.get("label"), locale),
+    )
+
+
+def _always_set_section(
+    section_cfg: Dict[str, Any],
+    locale: str,
+    state_key: str,
+    render_preview: Callable[..., None],
+    open_customize: Callable[..., Awaitable[None]],
+    reset_value: Any = None,
+) -> CustomizableSection:
+    def reset(state: Dict[str, Any]) -> None:
+        state[state_key] = reset_value
+
+    return CustomizableSection(
+        key=section_cfg["key"],
+        icon=section_cfg["icon"],
+        label=_localized(section_cfg.get("label"), locale),
+        is_custom=lambda state: True,
+        render_preview=render_preview,
+        open_customize=open_customize,
+        reset=reset,
+        customize_label=_localized(section_cfg.get("customize-label"), locale),
+        always_set=True,
+    )
+
+
 def _build_channel_select_section(
     section_cfg: Dict[str, Any],
     form,
@@ -547,38 +580,21 @@ def _build_channel_select_section(
 ) -> CustomizableSection:
     state_key = section_cfg.get("state", {}).get("value")
 
-    def is_custom(state: Dict[str, Any]) -> bool:
-        return True
-
     def render_preview(view: SummaryCardView, state: Dict[str, Any], container: discord.ui.Container) -> None:
         value = _format_state_value(state.get(state_key), section_cfg.get("style"), view.locale)
         container.add_item(discord.ui.TextDisplay(f"> {value}"))
 
     async def open_customize(customize_interaction: discord.Interaction, view: SummaryCardView) -> None:
-        picker_title = _localized(section_cfg.get("picker-title"), view.locale, _localized(section_cfg.get("label"), view.locale))
         picker = SummaryCardPickerView(
             view,
-            picker_title,
+            _picker_title(section_cfg, view.locale),
             state_key,
             channel=True,
             icon=section_cfg.get("icon", ""),
         )
         await customize_interaction.response.edit_message(view=picker)
 
-    def reset(state: Dict[str, Any]) -> None:
-        state[state_key] = None
-
-    return CustomizableSection(
-        key=section_cfg["key"],
-        icon=section_cfg["icon"],
-        label=_localized(section_cfg.get("label"), locale),
-        is_custom=is_custom,
-        render_preview=render_preview,
-        open_customize=open_customize,
-        reset=reset,
-        customize_label=_localized(section_cfg.get("customize-label"), locale),
-        always_set=True,
-    )
+    return _always_set_section(section_cfg, locale, state_key, render_preview, open_customize)
 
 
 def _build_value_select_section(
@@ -590,9 +606,6 @@ def _build_value_select_section(
 ) -> CustomizableSection:
     state_key = section_cfg.get("state", {}).get("value")
 
-    def is_custom(state: Dict[str, Any]) -> bool:
-        return True
-
     def render_preview(view: SummaryCardView, state: Dict[str, Any], container: discord.ui.Container) -> None:
         options = section_cfg.get("options", [])
         raw_value = state.get(state_key)
@@ -601,10 +614,9 @@ def _build_value_select_section(
         container.add_item(discord.ui.TextDisplay(f"> {value}"))
 
     async def open_customize(customize_interaction: discord.Interaction, view: SummaryCardView) -> None:
-        picker_title = _localized(section_cfg.get("picker-title"), view.locale, _localized(section_cfg.get("label"), view.locale))
         picker = SummaryCardPickerView(
             view,
-            picker_title,
+            _picker_title(section_cfg, view.locale),
             state_key,
             options=section_cfg.get("options", []),
             reset_state_keys=section_cfg.get("reset-on-change", []),
@@ -612,20 +624,7 @@ def _build_value_select_section(
         )
         await customize_interaction.response.edit_message(view=picker)
 
-    def reset(state: Dict[str, Any]) -> None:
-        state[state_key] = None
-
-    return CustomizableSection(
-        key=section_cfg["key"],
-        icon=section_cfg["icon"],
-        label=_localized(section_cfg.get("label"), locale),
-        is_custom=is_custom,
-        render_preview=render_preview,
-        open_customize=open_customize,
-        reset=reset,
-        customize_label=_localized(section_cfg.get("customize-label"), locale),
-        always_set=True,
-    )
+    return _always_set_section(section_cfg, locale, state_key, render_preview, open_customize)
 
 
 def _build_button_options_section(
@@ -637,37 +636,20 @@ def _build_button_options_section(
 ) -> CustomizableSection:
     state_key = section_cfg.get("state", {}).get("value")
 
-    def is_custom(state: Dict[str, Any]) -> bool:
-        return True
-
     def render_preview(view: SummaryCardView, state: Dict[str, Any], container: discord.ui.Container) -> None:
         container.add_item(discord.ui.TextDisplay(f"> {_format_state_value(state.get(state_key), section_cfg.get('style'), view.locale)}"))
 
     async def open_customize(customize_interaction: discord.Interaction, view: SummaryCardView) -> None:
-        picker_title = _localized(section_cfg.get("picker-title"), view.locale, _localized(section_cfg.get("label"), view.locale))
         picker = SummaryCardButtonOptionsView(
             view,
-            picker_title,
+            _picker_title(section_cfg, view.locale),
             state_key,
             section_cfg.get("options", []),
             icon=section_cfg.get("icon", ""),
         )
         await customize_interaction.response.edit_message(view=picker)
 
-    def reset(state: Dict[str, Any]) -> None:
-        state[state_key] = None
-
-    return CustomizableSection(
-        key=section_cfg["key"],
-        icon=section_cfg["icon"],
-        label=_localized(section_cfg.get("label"), locale),
-        is_custom=is_custom,
-        render_preview=render_preview,
-        open_customize=open_customize,
-        reset=reset,
-        customize_label=_localized(section_cfg.get("customize-label"), locale),
-        always_set=True,
-    )
+    return _always_set_section(section_cfg, locale, state_key, render_preview, open_customize)
 
 
 def _build_boolean_toggle_section(
@@ -679,9 +661,6 @@ def _build_boolean_toggle_section(
 ) -> CustomizableSection:
     state_key = section_cfg.get("state", {}).get("value")
 
-    def is_custom(state: Dict[str, Any]) -> bool:
-        return True
-
     def render_preview(view: SummaryCardView, state: Dict[str, Any], container: discord.ui.Container) -> None:
         container.add_item(discord.ui.TextDisplay(f"> {_format_state_value(bool(state.get(state_key)), 'boolean', view.locale)}"))
 
@@ -689,20 +668,7 @@ def _build_boolean_toggle_section(
         view.update_state(**{state_key: not bool(view.state.get(state_key))})
         await customize_interaction.response.edit_message(view=view)
 
-    def reset(state: Dict[str, Any]) -> None:
-        state[state_key] = False
-
-    return CustomizableSection(
-        key=section_cfg["key"],
-        icon=section_cfg["icon"],
-        label=_localized(section_cfg.get("label"), locale),
-        is_custom=is_custom,
-        render_preview=render_preview,
-        open_customize=open_customize,
-        reset=reset,
-        customize_label=_localized(section_cfg.get("customize-label"), locale),
-        always_set=True,
-    )
+    return _always_set_section(section_cfg, locale, state_key, render_preview, open_customize, reset_value=False)
 
 
 def _build_modal_input_section(
@@ -713,9 +679,6 @@ def _build_modal_input_section(
     template_vars_resolver: Callable[[str], Dict[str, Any]],
 ) -> CustomizableSection:
     state_key = section_cfg.get("state", {}).get("value")
-
-    def is_custom(state: Dict[str, Any]) -> bool:
-        return True
 
     def render_preview(view: SummaryCardView, state: Dict[str, Any], container: discord.ui.Container) -> None:
         value = _format_state_value(state.get(state_key), section_cfg.get("style"), view.locale)
@@ -761,20 +724,7 @@ def _build_modal_input_section(
         )
         await customize_interaction.response.send_modal(modal_holder["modal"])
 
-    def reset(state: Dict[str, Any]) -> None:
-        state[state_key] = None
-
-    return CustomizableSection(
-        key=section_cfg["key"],
-        icon=section_cfg["icon"],
-        label=_localized(section_cfg.get("label"), locale),
-        is_custom=is_custom,
-        render_preview=render_preview,
-        open_customize=open_customize,
-        reset=reset,
-        customize_label=_localized(section_cfg.get("customize-label"), locale),
-        always_set=True,
-    )
+    return _always_set_section(section_cfg, locale, state_key, render_preview, open_customize)
 
 
 SECTION_TYPES: Dict[str, Callable[..., CustomizableSection]] = {
@@ -828,7 +778,7 @@ def _format_required_labels(labels: List[str], locale: str) -> str:
     emphasized = [f"**{label}**" for label in labels]
     if len(emphasized) <= 1:
         return emphasized[0] if emphasized else ""
-    conjunction = " e " if str(locale).lower() == "pt-br" else " and "
+    conjunction = ml("buttons.summary-card.required-separator", locale=locale)
     if len(emphasized) == 2:
         return conjunction.join(emphasized)
     return f"{', '.join(emphasized[:-1])}{conjunction}{emphasized[-1]}"
@@ -886,25 +836,23 @@ def build_summary_card_from_step(step: Dict[str, Any], form, interaction: discor
 
     state_keys = _collect_state_keys(sections_cfg)
     initial_state = prior_state_from_form(form.responses, form.cogs, state_keys) or {}
-    if step.get("response_transform") == "mm_dd_date_parts":
-        date_value = next(
+    transform = get_response_transform(step.get("response_transform"))
+    if transform:
+        stored_value = next(
             (
                 response.get("_raw_value", response.get("value"))
                 for response in form.responses
-                if response.get("key") == "date"
+                if response.get("key") == transform["value_key"]
             ),
             None,
         )
-        if date_value is None and isinstance(form.cogs, dict):
-            date_value = form.cogs.get("date")
-            if isinstance(date_value, dict):
-                date_value = date_value.get("value", date_value.get("values"))
-        if isinstance(date_value, str) and "-" in date_value:
-            month, day = date_value.split("-", 1)
-            if "month" in state_keys and not initial_state.get("month"):
-                initial_state["month"] = month
-            if "day" in state_keys and not initial_state.get("day"):
-                initial_state["day"] = str(int(day))
+        if stored_value is None and isinstance(form.cogs, dict):
+            stored_value = form.cogs.get(transform["value_key"])
+            if isinstance(stored_value, dict):
+                stored_value = stored_value.get("value", stored_value.get("values"))
+        for part_key, part_value in transform["hydrate"](stored_value).items():
+            if part_key in state_keys and not initial_state.get(part_key):
+                initial_state[part_key] = part_value
     for key, value in (step.get("defaults") or {}).items():
         initial_state.setdefault(key, value)
     for key in state_keys:
@@ -933,14 +881,8 @@ def build_summary_card_from_step(step: Dict[str, Any], form, interaction: discor
     async def on_done(done_interaction: discord.Interaction, _state: Dict[str, Any]) -> None:
         missing = [key for key in config.required_keys if _state.get(key) in (None, "", [])]
         if missing:
-            message = ml("buttons.summary-card.required", locale=locale)
-            if not message or message == "buttons.summary-card.required":
-                message = "Please configure: {fields}."
-            labels = [
-                config.required_labels.get(key, key.replace("_", " ").title())
-                for key in missing
-            ]
-            message = message.replace(
+            labels = [config.required_labels.get(key, key) for key in missing]
+            message = ml("buttons.summary-card.required", locale=locale).replace(
                 "{fields}",
                 _format_required_labels(labels, locale),
             )
@@ -953,7 +895,3 @@ def build_summary_card_from_step(step: Dict[str, Any], form, interaction: discor
         locale=locale,
         on_back=form._go_back if form.state.can_go_back else None,
     )
-
-
-def build_configuration_card_from_step(step: Dict[str, Any], form, interaction: discord.Interaction) -> SummaryCardView:
-    return build_summary_card_from_step(step, form, interaction)

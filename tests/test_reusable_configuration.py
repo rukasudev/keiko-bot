@@ -22,10 +22,10 @@ from app.views.summary_card import (
     SummaryCardHeader,
     SummaryCardPickerView,
     SummaryCardView,
-    build_configuration_card_from_step,
+    build_summary_card_from_step,
 )
 from app.views.confirm_action import (
-    DiscardChangesView,
+    ConfirmActionView,
     finalize_configuration_view,
     request_discard_confirmation,
 )
@@ -84,7 +84,7 @@ def test_birthday_member_uses_shared_configuration_card_sections():
     ]
 
 
-def test_register_first_birthday_screen_is_compact_and_yes_is_green():
+def test_register_first_birthday_screen_keeps_conventions_and_yes_is_green():
     steps = list(parse_form_yaml_to_dict("reminders_birthday"))
     step = next(item for item in steps if item.get("key") == "register_now")
 
@@ -99,9 +99,9 @@ def test_register_first_birthday_screen_is_compact_and_yes_is_green():
     assert embed.title == "🎂 Adicionar o primeiro aniversário?"
     assert embed.description == (
         "Comece a lista agora ou deixe para depois. "
-        "Os membros também podem cadastrar a própria data com /aniversario."
+        "Os membros também podem cadastrar a própria data com `/aniversário`."
     )
-    assert embed.footer.text is None
+    assert embed.footer.text == "• Use o comando `/reportar` para me contar um bug"
     assert form._get_option_styles()["True"] == discord.ButtonStyle.success
     options_view = OptionsView(
         options=form._get_options(),
@@ -243,7 +243,7 @@ def test_birthday_card_hydrates_month_and_day_from_saved_date():
     )
     interaction = SimpleNamespace(guild=SimpleNamespace(name="Guild"))
 
-    view = build_configuration_card_from_step(card, form, interaction)
+    view = build_summary_card_from_step(card, form, interaction)
 
     assert view.state["month"] == "02"
     assert view.state["day"] == "29"
@@ -292,7 +292,7 @@ async def test_required_message_uses_missing_labels_from_current_card():
         _go_back=None,
         _callback=AsyncMock(),
     )
-    view = build_configuration_card_from_step(
+    view = build_summary_card_from_step(
         card,
         form,
         SimpleNamespace(guild=SimpleNamespace(name="Guild")),
@@ -329,7 +329,7 @@ async def test_configuration_subscreens_inherit_each_section_icon():
     )
     source_interaction = SimpleNamespace(guild=SimpleNamespace(name="Guild"))
 
-    global_view = build_configuration_card_from_step(
+    global_view = build_summary_card_from_step(
         _birthday_global_card(),
         form,
         source_interaction,
@@ -349,7 +349,7 @@ async def test_configuration_subscreens_inherit_each_section_icon():
         picker = interaction.response.edit_message.await_args.kwargs["view"]
         assert picker.title.startswith(f"{expected_picker_icons[section.key]} ")
 
-    member_view = build_configuration_card_from_step(
+    member_view = build_summary_card_from_step(
         _birthday_member_card(),
         form,
         source_interaction,
@@ -486,18 +486,21 @@ async def test_discard_confirmation_preserves_or_finalizes_source_message():
         "precisará começar do zero. Tem certeza de que quer descartar tudo?"
     )
     warning_view = kwargs["view"]
-    assert isinstance(warning_view, DiscardChangesView)
+    assert isinstance(warning_view, ConfirmActionView)
+    assert warning_view.confirm.label == "Continuar configurando"
+    assert warning_view.confirm.style == discord.ButtonStyle.green
+    assert warning_view.cancel.label == "Descartar tudo"
+    assert warning_view.cancel.style == discord.ButtonStyle.red
     source_interaction.edit_original_response.assert_not_awaited()
 
-    await warning_view.keep.callback(warning_interaction)
+    await warning_view.confirm.callback(warning_interaction)
     warning_interaction.response.defer.assert_awaited_once()
     warning_interaction.delete_original_response.assert_awaited_once()
     source_interaction.edit_original_response.assert_not_awaited()
 
     warning_interaction.response.defer.reset_mock()
     warning_interaction.delete_original_response.reset_mock()
-    warning_view = DiscardChangesView(source_interaction, source_view, "pt-br")
-    await warning_view.discard.callback(warning_interaction)
+    await warning_view.cancel.callback(warning_interaction)
     source_interaction.edit_original_response.assert_awaited_once_with(
         view=source_view,
     )
@@ -507,7 +510,11 @@ async def test_discard_confirmation_preserves_or_finalizes_source_message():
 
 async def test_discard_ignores_source_message_already_deleted_by_discord():
     response = MagicMock(status=404, reason="Not Found")
+    source_view = MagicMock()
+    source_view.locale = "pt-br"
     source_interaction = SimpleNamespace(
+        response=SimpleNamespace(defer=AsyncMock()),
+        followup=SimpleNamespace(send=AsyncMock()),
         edit_original_response=AsyncMock(
             side_effect=discord.NotFound(
                 response,
@@ -515,14 +522,14 @@ async def test_discard_ignores_source_message_already_deleted_by_discord():
             ),
         ),
     )
-    source_view = MagicMock()
     warning_interaction = SimpleNamespace(
         response=SimpleNamespace(defer=AsyncMock()),
         delete_original_response=AsyncMock(),
     )
 
-    view = DiscardChangesView(source_interaction, source_view, "pt-br")
-    await view.discard.callback(warning_interaction)
+    await request_discard_confirmation(source_interaction, source_view)
+    warning_view = source_interaction.followup.send.await_args.kwargs["view"]
+    await warning_view.cancel.callback(warning_interaction)
 
     warning_interaction.response.defer.assert_awaited_once()
     warning_interaction.delete_original_response.assert_awaited_once()
