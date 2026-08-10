@@ -67,6 +67,12 @@ class MockChannel:
     async def fetch_message(self, message_id: int):
         return await self._fetch_message(message_id)
 
+    def register_message(self, message: "MockMessage") -> "MockMessage":
+        """Make an already existing message fetchable through fetch_message
+        (edits arrive as a raw payload, so the service re-fetches by id)."""
+        self._sent_messages.append(message)
+        return message
+
     @property
     def mention(self) -> str:
         return f"<#{self.id}>"

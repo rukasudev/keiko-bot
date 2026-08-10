@@ -60,6 +60,7 @@ User actions (each mints a fresh interaction, like Discord):
 | `click(target)` | see locator semantics below |
 | `select_option(values, target=None)` | names/ids resolve against the mock guild; `target` optional when one select is on screen |
 | `submit_modal({label: value})` | matches TextInput labels (exact, then contains) |
+| `dismiss_modal()` | the user closes the modal without submitting — Discord tells the bot nothing, the message that opened it stays on screen |
 | `submit_confirmation(word=None)` | submits a pending ConfirmationModal (pause/disable); defaults to the correct action word — pass a wrong `word` to test rejection |
 | `submit_file_upload(filename=, content=)` | submits a pending FileUploadModal with a fake attachment (async `read()` runs for real) |
 | `pending_modal_fields()` | labels of the pending modal's inputs (useful to build the dict for `submit_modal`) |
@@ -95,9 +96,27 @@ through the real i18n keys):
 | `option:<label>` | an options-grid button by label |
 | `design:<key>` | `design_<key>` |
 
+`section:<step_key>` finds a manager-panel section's own edit button by the
+step it opens (they all share the "Edit" label).
+
 Unknown targets raise `LocatorError` listing everything clickable on
 screen. For multi-selects, `select_option(..., target=...)` also accepts
 the YAML select key (e.g. `allowed_chats`).
+
+## View lifecycle is modeled like discord.py's ViewStore
+
+What a message shows is the snapshot taken when it was sent or edited
+(`FakeMessage.registered_items`), not the view object's current children —
+and dispatch reads `item.view` live, exactly like `ViewStore.dispatch_view`.
+Two real behaviors fall out of that model:
+
+- mutating a view without editing its message leaves the old buttons on
+  screen; clicking one whose view was cleared fails the scenario with the
+  real `View interaction referencing unknown view for item ...` warning —
+  the silent dead-button bug this catches offline
+  (`tests/behavioral/regressions/test_view_lifecycle_regressions.py`);
+- on edits, an explicit `view=None` / `embed=None` REMOVES that field
+  (`MISSING` semantics), while not passing it keeps what was there.
 
 The dispatcher supports the four callback patterns used in the repo
 (attribute-shadowed callbacks, `callback` subclasses, `@discord.ui.button`

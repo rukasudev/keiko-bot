@@ -11,7 +11,7 @@ from typing import Any, Dict, Optional
 import discord
 
 from tests.behavioral.harness.errors import HarnessProtocolError
-from tests.behavioral.harness.message_store import FakeMessage, MessageStore
+from tests.behavioral.harness.message_store import MISSING, FakeMessage, MessageStore
 from tests.behavioral.harness.transcript import format_transcript
 
 
@@ -45,7 +45,7 @@ class FakeResponse:
         self._mark("response.defer")
         self._interaction.store.record("defer", ephemeral=ephemeral, thinking=thinking)
 
-    async def edit_message(self, *, content=None, embed=None, view=None, **kwargs):
+    async def edit_message(self, *, content=None, embed=MISSING, view=MISSING, **kwargs):
         self._mark("response.edit_message")
         message = self._interaction.message
         if message is None:
@@ -86,8 +86,8 @@ class FakeFollowup:
                      embeds=all_embeds, view=view, ephemeral=ephemeral)
         return message
 
-    async def edit_message(self, message_id: int, *, content=None, embed=None,
-                           view=None, **kwargs) -> FakeMessage:
+    async def edit_message(self, message_id: int, *, content=None, embed=MISSING,
+                           view=MISSING, **kwargs) -> FakeMessage:
         store = self._interaction.store
         message = store.messages.get(message_id)
         if message is None or message.deleted:
@@ -144,7 +144,7 @@ class FakeInteraction:
             )
         return target
 
-    async def edit_original_response(self, *, content=None, embed=None, view=None,
+    async def edit_original_response(self, *, content=None, embed=MISSING, view=MISSING,
                                      **kwargs) -> FakeMessage:
         message = self._original_target()
         if message.deleted:

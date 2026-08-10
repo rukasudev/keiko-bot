@@ -52,10 +52,23 @@ def walk_items(view: Any) -> Iterator[Any]:
             yield accessory
 
 
-def clickable_targets(view: Any) -> List[str]:
+def clickable_items(surface: Any) -> List[Any]:
+    """The items a user can actually interact with on `surface`.
+
+    A FakeMessage carries `registered_items`, the snapshot taken when the
+    message was sent or edited — the same model as discord.py's ViewStore,
+    which maps message -> item at registration time. A bare view (older
+    call sites, introspection in tests) is walked live."""
+    registered = getattr(surface, "registered_items", None)
+    if registered is not None:
+        return registered
+    return list(walk_items(surface))
+
+
+def clickable_targets(surface: Any) -> List[str]:
     """Human-readable list of what could be clicked, for error messages."""
     targets = []
-    for item in walk_items(view):
+    for item in clickable_items(surface):
         if isinstance(item, discord.ui.Button):
             custom = item.custom_id if getattr(item, "_provided_custom_id", False) else None
             targets.append(f"button label={item.label!r} custom_id={custom!r}")
@@ -85,16 +98,30 @@ def _resolve_alias(target: str, locale) -> tuple:
     return labels, custom_ids
 
 
-def find_button(view: Any, target: str, locale) -> discord.ui.Button:
+def find_button(surface: Any, target: str, locale) -> discord.ui.Button:
+    items = clickable_items(surface)
+
+    if target.startswith("section:"):
+        # The manager panel gives every section its own edit button, all with
+        # the same label — the step it opens is what tells them apart.
+        step_key = target.split(":", 1)[1]
+        for item in items:
+            if getattr(item, "step_key", None) == step_key:
+                return item
+        raise LocatorError(
+            f"no section button opens step {step_key!r}.\n"
+            f"On screen: {clickable_targets(surface)}"
+        )
+
     labels, custom_ids = _resolve_alias(target, locale)
     lowered = [label.lower() for label in labels]
 
-    for item in walk_items(view):
+    for item in items:
         if not isinstance(item, discord.ui.Button):
             continue
         if getattr(item, "_provided_custom_id", False) and item.custom_id in custom_ids:
             return item
-    for item in walk_items(view):
+    for item in items:
         if not isinstance(item, discord.ui.Button):
             continue
         if (item.label or "").lower() in lowered:
@@ -102,14 +129,15 @@ def find_button(view: Any, target: str, locale) -> discord.ui.Button:
     raise LocatorError(
         f"no button matches target {target!r} "
         f"(tried labels={labels}, custom_ids={custom_ids}).\n"
-        f"On screen: {clickable_targets(view)}"
+        f"On screen: {clickable_targets(surface)}"
     )
 
 
-def find_select(view: Any, target: Optional[str]) -> Any:
-    selects = [item for item in walk_items(view) if isinstance(item, _SELECT_TYPES)]
+def find_select(surface: Any, target: Optional[str]) -> Any:
+    view = getattr(surface, "view", None) if hasattr(surface, "registered_items") else surface
+    selects = [item for item in clickable_items(surface) if isinstance(item, _SELECT_TYPES)]
     if not selects:
-        raise LocatorError(f"no select on screen. On screen: {clickable_targets(view)}")
+        raise LocatorError(f"no select on screen. On screen: {clickable_targets(surface)}")
     if target is None:
         if len(selects) == 1:
             return selects[0]
@@ -142,7 +170,20 @@ def _view_of(view_or_item: Any) -> Any:
 
 
 async def dispatch_click(view: Any, button: discord.ui.Button, interaction) -> None:
-    """Route the click the way discord.py's ViewStore would."""
+    """Route the click the way discord.py's ViewStore would.
+
+    The liveness check mirrors `ViewStore.dispatch_view`: the store maps
+    message -> item at send/edit time but reads `item.view` at dispatch time,
+    so an item whose view was cleared without editing the message is found
+    and then silently discarded. Discord shows the user "This interaction
+    failed"; here it fails the scenario with the real warning text."""
+    if button.view is None:
+        raise LocatorError(
+            f"View interaction referencing unknown view for item {button!r}. "
+            "Discarding — discord.py drops this click: the message still "
+            "shows the button, but its view was cleared or replaced without "
+            "editing the message, so every click on it dies silently."
+        )
     if _has_custom_callback(button):
         await button.callback(interaction)
         return

@@ -201,10 +201,7 @@ async def test_transcript_is_ordered_and_attached_to_failures(scenario_factory):
 
 
 async def test_modal_field_mismatch_lists_available_fields(scenario_factory):
-    scenario = await scenario_factory().start("block_links")
-    await scenario.confirm()             # -> multi_select
-    await scenario.confirm()             # -> options
-    await scenario.click("option:Youtube")
+    scenario = await scenario_factory().start("stream_elements_commands")
     await scenario.confirm()             # -> modal step
     scenario.expect_modal()
     with pytest.raises(LocatorError):

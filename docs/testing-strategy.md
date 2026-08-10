@@ -96,11 +96,16 @@ done (manual map — extend it when a new shared surface appears):
 |---|---|
 | `app/views/form.py`, `app/views/form_state.py` | entire `tests/behavioral` |
 | `app/views/manager.py`, `app/services/moderations.py`, `parse_settings_*` / `format_values_by_style` (`app/services/utils.py`) | `pytest -m "shared_contract"` + regressions |
+| `app/views/manager_panel.py`, `icon:` in a form YAML, `resolve_form_settings_groups` | `tests/behavioral/contracts/test_manager_panel.py` (saved values, per-row icon, sections, the global Edit fallback and Discord's Components V2 limits) + `tests/behavioral/regressions/test_manager_event_embeds.py` |
+| `app/views/panel_transitions.py`, any `interaction.response.edit_message` reached from the manager panel | `tests/behavioral/contracts/test_panel_transitions.py` — a message's Components V2 flag is fixed at send time, so crossing between a container panel and an embed screen must replace the message, never edit it |
 | `app/views/summary_card.py` | birthday scenarios + harness self-tests + CV2 limit contracts |
 | `app/views/edit.py`, `app/views/remove.py`, lifecycle callbacks | manager lifecycle + edit scenarios (`tests/behavioral/scenarios/test_manager_lifecycle_flow.py`, `test_edit_flow.py`) |
 | `app/components/` (buttons, selects, modals) | entire `tests/behavioral` |
 | `app/languages/form/*.yml` | YAML contracts + that form's scenarios |
 | `app/languages/{buttons,commands,errors}/` | baseline + one pt-br and one en-us scenario |
+| `commands.*.yml` slash `desc:`/`name:` entries | `tests/behavioral/contracts/test_slash_command_copy.py` (Discord's 100/32-char sync limits — violations only surface at bot startup) |
+| context menus (`app_commands.ContextMenu` registrations, their callbacks and decorators) | `tests/behavioral/contracts/test_context_menu_registration.py` (the tree is only built at startup) |
+| `app/data/indexes.py`, new collections | boot the bot once: `ensure_indexes` runs in `create_app` and the offline mock treats `create_index` as a no-op |
 | `app/services/transforms.py`, `ModalValidations` | YAML contracts + validation scenarios |
 | `app/data/` | persistence assertions in scenarios |
 

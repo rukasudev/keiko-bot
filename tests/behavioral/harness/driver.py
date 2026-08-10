@@ -34,6 +34,11 @@ _LOCALES = {
 # settings_provider to the generic moderation entry points.
 _PERSISTENCE = {"reminders_birthday": ("app.services.reminders_birthdays", "persist_setup_form")}
 _SETTINGS_PROVIDERS = {"reminders_birthday": ("app.services.reminders_birthdays", "birthday_manager_settings")}
+# Buttons a command adds to its own manager panel, resolved the same way, so
+# scenarios exercise the panel the user actually sees.
+_ADDITIONAL_BUTTONS = {"block_links": ("app.services.block_links", "_manager_buttons")}
+_MANAGER_INFO = {"block_links": ("app.services.block_links", "_manager_info")}
+_MANAGER_INFO_TITLE = {"block_links": ("app.services.block_links", "_manager_info_title")}
 
 _CONTENT_KINDS = ("send", "edit", "followup_send", "followup_edit", "edit_original")
 
@@ -82,6 +87,15 @@ class FormScenario:
 
         if settings_provider is AUTO:
             settings_provider = _resolve(_SETTINGS_PROVIDERS, command_key)
+        buttons_provider = _resolve(_ADDITIONAL_BUTTONS, command_key)
+        additional_buttons = (
+            buttons_provider(self.locale_str) if buttons_provider else None
+        )
+        info_provider = _resolve(_MANAGER_INFO, command_key)
+        if not additional_info and info_provider:
+            additional_info = info_provider(self.locale_str)
+        title_provider = _resolve(_MANAGER_INFO_TITLE, command_key)
+        additional_info_title = title_provider(self.locale_str) if title_provider else ""
         self.command_key = command_key
         self.store.record("start_manager", actor="user", target=command_key,
                           values=self.locale_str)
@@ -89,8 +103,10 @@ class FormScenario:
         await send_command_manager_message(
             interaction, command_key, cog_data,
             additional_info=additional_info,
+            additional_buttons=additional_buttons,
             settings_provider=settings_provider,
             lifecycle_callbacks=lifecycle_callbacks,
+            additional_info_title=additional_info_title,
         )
         self.manager_view = self.current_message.view
         return self
@@ -99,7 +115,7 @@ class FormScenario:
 
     async def click(self, target: str) -> None:
         message = self._require_message()
-        button = locators.find_button(message.view, target, self.locale)
+        button = locators.find_button(message, target, self.locale)
         custom_id = button.custom_id if getattr(button, "_provided_custom_id", False) else None
         self.store.record("click", actor="user", message=message.id,
                           target=target, custom_id=custom_id)
@@ -109,7 +125,14 @@ class FormScenario:
     async def select_option(self, values: Union[Any, Sequence[Any]], *,
                             target: Optional[str] = None) -> None:
         message = self._require_message()
-        select = locators.find_select(message.view, target)
+        select = locators.find_select(message, target)
+        if select.view is None:
+            raise LocatorError(
+                f"View interaction referencing unknown view for item {select!r}. "
+                "Discarding — the message still shows this select, but its view "
+                "was cleared or replaced without editing the message.",
+                self.transcript,
+            )
         if not isinstance(values, (list, tuple)):
             values = [values]
         resolved = [self._resolve_select_value(select, value) for value in values]
@@ -133,6 +156,15 @@ class FormScenario:
                           fields={k: v for k, v in fields.items()})
         interaction = self._mint(message=self.current_message)
         await modal.on_submit(interaction)
+
+    def dismiss_modal(self) -> None:
+        """The user closes the modal without submitting (Esc / clicking away).
+        Discord tells the bot NOTHING when this happens: no interaction, no
+        event. The message that opened the modal stays on screen unchanged."""
+        if self.store.pending_modal is None:
+            raise LocatorError("no modal is pending", self.transcript)
+        self.store.pending_modal = None
+        self.store.record("modal_dismiss", actor="user")
 
     def pending_modal_fields(self) -> List[str]:
         modal = self.store.pending_modal
@@ -227,7 +259,7 @@ class FormScenario:
                          disabled: Optional[bool] = None) -> None:
         message = self._require_message()
         try:
-            button = locators.find_button(message.view, label_or_action, self.locale)
+            button = locators.find_button(message, label_or_action, self.locale)
         except LocatorError:
             self._fail(f"component {label_or_action!r} not on current message")
             return
@@ -266,15 +298,34 @@ class FormScenario:
             if missing:
                 self._fail(f"modal is missing fields {missing} (has {labels})")
 
+    @property
+    def rendered_summary(self) -> str:
+        """Everything the user reads on the panel, wherever the design put it:
+        the embed description, its fields, and — for a Components V2 panel,
+        which carries no embed at all — the container's text displays."""
+        embed = self._last_content_event().get("embed") or {}
+        parts = [embed.get("description") or ""]
+        parts += [
+            f"{field.get('name')}\n{field.get('value')}"
+            for field in embed.get("fields") or []
+        ]
+        message = self.current_message
+        if message is not None:
+            parts += [
+                item.content or ""
+                for item in locators.walk_items(message.view)
+                if isinstance(item, discord.ui.TextDisplay)
+            ]
+        return "\n".join(part for part in parts if part)
+
     def expect_configuration_values(self, *values: str) -> None:
         """Assert saved configuration values appear in the manager summary."""
-        event = self._last_content_event()
-        description = (event.get("embed") or {}).get("description") or ""
-        missing = [value for value in values if value not in description]
+        summary = self.rendered_summary
+        missing = [value for value in values if value not in summary]
         if missing:
             self._fail(
-                f"manager summary is missing {missing!r}.\nRendered description:\n"
-                f"{description}"
+                f"manager summary is missing {missing!r}.\nRendered summary:\n"
+                f"{summary}"
             )
 
     def expect_persisted(self, database: str, collection: str,

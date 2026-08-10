@@ -15,6 +15,29 @@ from tests.behavioral.harness import normalizer
 FIXED_MESSAGE_TIME = datetime.datetime(2026, 1, 1, 12, 0, 0,
                                        tzinfo=datetime.timezone.utc)
 
+# Mirrors discord.utils.MISSING: on edits, "not passed" keeps the field and an
+# explicit None REMOVES it (view=None strips the components, embed=None the
+# embeds) — exactly what the real API does.
+MISSING = object()
+
+
+def _walk_view_items(view) -> List[Any]:
+    """Depth-first over a view's items, containers and section accessories
+    included. Local copy of locators.walk_items to keep this module a leaf."""
+    items: List[Any] = []
+
+    def walk(node) -> None:
+        for item in getattr(node, "children", None) or []:
+            items.append(item)
+            walk(item)
+            accessory = getattr(item, "accessory", None)
+            if accessory is not None:
+                items.append(accessory)
+
+    if view is not None:
+        walk(view)
+    return items
+
 
 class FakeMessage:
     def __init__(self, store: "MessageStore", message_id: int, embeds, view, ephemeral: bool):
@@ -30,6 +53,11 @@ class FakeMessage:
         self.edited_at = None
         self.channel = SimpleNamespace(id=999, send=self._channel_send)
         self.flags = SimpleNamespace(components_v2=isinstance(view, discord.ui.LayoutView))
+        # What the user can actually click: the items as they were when the
+        # message was sent, exactly like discord.py's ViewStore, which maps
+        # message -> item at send/edit time and reads `item.view` live at
+        # dispatch. Mutating a view later does NOT change the message.
+        self.registered_items = _walk_view_items(view)
 
     async def _channel_send(self, *args, **kwargs):
         self.store.record(
@@ -38,12 +66,15 @@ class FakeMessage:
             embeds=[kwargs["embed"]] if kwargs.get("embed") else None,
         )
 
-    def apply_edit(self, embed=None, view=None) -> None:
-        if embed is not None:
-            self.embeds = [embed]
-        if view is not None:
+    def apply_edit(self, embed=MISSING, view=MISSING) -> None:
+        if embed is not MISSING:
+            self.embeds = [embed] if embed is not None else []
+        if view is not MISSING:
             self.view = view
             self.flags.components_v2 = isinstance(view, discord.ui.LayoutView)
+            # An edit that carries a view re-registers it — and view=None
+            # strips the components — like the ViewStore and the real API.
+            self.registered_items = _walk_view_items(view)
 
 
 class MessageStore:
@@ -102,10 +133,12 @@ class MessageStore:
     @property
     def current(self) -> Optional[FakeMessage]:
         """The message the user would act on next: the newest live message
-        that has components (plain notices, e.g. delete_after errors, do not
-        steal focus from the actionable view)."""
+        that shows components (plain notices, e.g. delete_after errors, do not
+        steal focus from the actionable view). "Shows" is judged by what was
+        registered at send/edit time, not by the view's current children: a
+        view mutated after sending still displays its old buttons on Discord."""
         live = [m for m in self.messages.values() if not m.deleted]
-        with_view = [m for m in live if m.view is not None and getattr(m.view, "children", None)]
+        with_view = [m for m in live if m.registered_items]
         if with_view:
             return with_view[-1]
         return live[-1] if live else None
