@@ -123,8 +123,90 @@ class TestBlockLinksCheckMessage:
         await check_message(str(guild.id), msg)
 
         # Assert
-        # Mesmo permitindo twitter, o link com path pode ser bloqueado
-        # dependendo da implementacao - verificamos apenas que nao falhou
+        # Permitir um site permite os links reais dele (match por dominio),
+        # nao apenas a homepage.
+        msg.assert_not_deleted()
+
+    @pytest.mark.asyncio
+    async def test_answer_mentions_author_with_user_placeholder(
+        self, mock_cache, mongodb, guild, bot, channel, member
+    ):
+        """{user} na resposta vira a mencao do autor da mensagem."""
+        msg = create_message(channel, member, "olha https://spam-site.com")
+        mock_cache.return_value = {
+            "mode": "block_all",
+            "allowed_roles": {"values": []},
+            "allowed_chats": {"values": []},
+            "allowed_links": {"values": []},
+            "answer": "Sem links, {user}!",
+        }
+
+        await check_message(str(guild.id), msg)
+
+        msg.assert_deleted()
+        sent = channel._sent_messages[-1]
+        assert member.mention in str(sent.content)
+
+    @pytest.mark.asyncio
+    async def test_blocks_schemeless_spam_link(
+        self, mock_cache, mongodb, guild, bot, channel, member
+    ):
+        """Spam sem http(s):// tambem e detectado (dominio.tld/caminho)."""
+        msg = create_message(channel, member, "corre em bit.ly/golpe")
+        mock_cache.return_value = {
+            "mode": "allow_all",
+            "allowed_roles": {"values": []},
+            "allowed_chats": {"values": []},
+            "custom_links": {"values": [
+                {"link": {"value": "bit.ly/golpe"},
+                 "match_type": {"_raw_value": "exact"}},
+            ]},
+            "answer": "Nada disso!",
+        }
+
+        await check_message(str(guild.id), msg)
+
+        msg.assert_deleted()
+
+    @pytest.mark.asyncio
+    async def test_allow_all_mode_only_blocks_listed_links(
+        self, mock_cache, mongodb, guild, bot, channel, member
+    ):
+        """No modo permitir-todos, links comuns passam livres."""
+        msg = create_message(channel, member, "veja https://youtube.com/watch?v=abc")
+        mock_cache.return_value = {
+            "mode": "allow_all",
+            "allowed_roles": {"values": []},
+            "allowed_chats": {"values": []},
+            "custom_links": {"values": [
+                {"link": {"value": "spam.com"},
+                 "match_type": {"_raw_value": "domain"}},
+            ]},
+            "answer": "Nada disso!",
+        }
+
+        await check_message(str(guild.id), msg)
+
+        msg.assert_not_deleted()
+
+    @pytest.mark.asyncio
+    async def test_single_exempt_role_scalar_still_exempts(
+        self, mock_cache, mongodb, guild, bot, channel, admin_member
+    ):
+        """Regressao: 1 cargo unico era persistido como escalar e a isencao
+        virava interseccao char a char (silenciosamente inerte)."""
+        msg = create_message(channel, admin_member, "https://spam-site.com")
+        mock_cache.return_value = {
+            "mode": "block_all",
+            "allowed_roles": {"values": "200"},   # escalar, como persistido
+            "allowed_chats": {"values": []},
+            "allowed_links": {"values": []},
+            "answer": "Sem links!",
+        }
+
+        await check_message(str(guild.id), msg)
+
+        msg.assert_not_deleted()
 
     @pytest.mark.asyncio
     async def test_does_nothing_when_block_links_disabled(
@@ -283,3 +365,223 @@ class TestBlockLinksEdgeCases:
 
         # Assert
         msg.assert_deleted()
+
+
+class TestBlockLinksEditedMessages:
+    """Mensagens editadas depois de enviadas (bug reportado em teste manual)."""
+
+    def _payload(self, guild, channel, message_id, data):
+        from types import SimpleNamespace
+
+        return SimpleNamespace(
+            guild_id=guild.id,
+            channel_id=channel.id,
+            message_id=message_id,
+            data=data,
+        )
+
+    @pytest.mark.asyncio
+    async def test_blocks_a_link_added_by_editing_the_message(
+        self, mock_cache, mongodb, guild, bot, channel, member
+    ):
+        """
+        Bug reportado: mandar uma mensagem sem link e depois edita-la
+        incluindo um link burlava o bloqueio, porque so existia listener
+        de on_message.
+
+        Input: edicao cujo conteudo novo tem um link bloqueado
+        Output: mensagem deletada e resposta enviada
+        """
+        from unittest.mock import MagicMock
+
+        from app.services.block_links import check_edited_message
+
+        msg = create_message(channel, member, "Agora vai https://spam-site.com")
+        channel.register_message(msg)
+        bot.get_channel = MagicMock(return_value=channel)
+        mock_cache.return_value = {
+            "allowed_roles": {"values": []},
+            "allowed_chats": {"values": []},
+            "allowed_links": {"values": []},
+            "answer": "Nada de links por aqui! :p",
+        }
+
+        await check_edited_message(
+            bot,
+            self._payload(guild, channel, msg.id,
+                          {"content": "Agora vai https://spam-site.com"}),
+        )
+
+        msg.assert_deleted()
+
+    @pytest.mark.asyncio
+    async def test_ignores_an_edit_that_only_attached_an_embed(
+        self, mock_cache, mongodb, guild, bot, channel, member
+    ):
+        """
+        Discord dispara uma edicao quando anexa o preview do link. Sem
+        conteudo novo nao ha nada para reavaliar, e buscar a mensagem
+        custaria uma chamada HTTP por preview.
+
+        Input: payload de edicao sem a chave content
+        Output: nenhuma busca de mensagem
+        """
+        from unittest.mock import MagicMock
+
+        from app.services.block_links import check_edited_message
+
+        bot.get_channel = MagicMock(return_value=channel)
+
+        await check_edited_message(
+            bot,
+            self._payload(guild, channel, 500, {"embeds": [{"url": "x"}]}),
+        )
+
+        channel._fetch_message.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_ignores_an_edit_whose_new_content_has_no_link(
+        self, mock_cache, mongodb, guild, bot, channel, member
+    ):
+        """
+        Input: edicao para um texto sem link
+        Output: nenhuma busca de mensagem (nada a bloquear)
+        """
+        from unittest.mock import MagicMock
+
+        from app.services.block_links import check_edited_message
+
+        bot.get_channel = MagicMock(return_value=channel)
+
+        await check_edited_message(
+            bot,
+            self._payload(guild, channel, 500, {"content": "corrigindo o texto"}),
+        )
+
+        channel._fetch_message.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_ignores_edits_from_bots(
+        self, mock_cache, mongodb, guild, bot, channel, bot_member
+    ):
+        """
+        Input: edicao de mensagem cujo autor e um bot
+        Output: mensagem preservada
+        """
+        from unittest.mock import MagicMock
+
+        from app.services.block_links import check_edited_message
+
+        msg = create_message(channel, bot_member, "https://spam-site.com")
+        channel.register_message(msg)
+        bot.get_channel = MagicMock(return_value=channel)
+        mock_cache.return_value = {
+            "allowed_roles": {"values": []},
+            "allowed_chats": {"values": []},
+            "allowed_links": {"values": []},
+            "answer": "Nada de links por aqui! :p",
+        }
+
+        await check_edited_message(
+            bot,
+            self._payload(guild, channel, msg.id,
+                          {"content": "https://spam-site.com"}),
+        )
+
+        msg.assert_not_deleted()
+
+
+class TestBlockLinksRecords:
+    """O que eu bloqueei fica registrado para a listagem e as estatisticas."""
+
+    def _cog(self):
+        return {
+            "enabled": True,
+            "allowed_roles": {"values": []},
+            "allowed_chats": {"values": []},
+            "allowed_links": {"values": ["youtube.com"]},
+            "answer": "Nada de links por aqui!",
+        }
+
+    @pytest.mark.asyncio
+    async def test_records_the_blocked_link_with_the_rule_that_decided_it(
+        self, mock_cache, mongodb, guild, bot, channel, member
+    ):
+        from app.data.blocked_links import find_blocked_links_by_guild
+
+        mock_cache.return_value = self._cog()
+        msg = create_message(channel, member, "olha https://spam-site.com/promo")
+
+        await check_message(str(guild.id), msg)
+
+        records = find_blocked_links_by_guild(str(guild.id))
+        assert len(records) == 1
+        assert records[0]["host"] == "spam-site.com"
+        assert records[0]["reason"] == "blocked-no-rule"
+        assert records[0]["user_id"] == str(member.id)
+        assert records[0]["deleted"] is True
+        assert "created_at" in records[0]
+
+    @pytest.mark.asyncio
+    async def test_allowed_link_records_nothing(
+        self, mock_cache, mongodb, guild, bot, channel, member
+    ):
+        from app.data.blocked_links import find_blocked_links_by_guild
+
+        mock_cache.return_value = self._cog()
+        msg = create_message(channel, member, "https://youtube.com/watch?v=abc")
+
+        await check_message(str(guild.id), msg)
+
+        msg.assert_not_deleted()
+        assert find_blocked_links_by_guild(str(guild.id)) == []
+
+    @pytest.mark.asyncio
+    async def test_a_failed_deletion_is_recorded_as_not_deleted(
+        self, mock_cache, mongodb, guild, bot, channel, member
+    ):
+        """Faltou permissao de apagar mensagens: o registro precisa existir
+        marcado como nao apagado, senao o dono do servidor nunca descobre."""
+        from app.data.blocked_links import find_blocked_links_by_guild
+
+        mock_cache.return_value = self._cog()
+        msg = create_message(channel, member, "https://spam-site.com")
+        msg._delete.side_effect = RuntimeError("missing permissions")
+
+        with pytest.raises(RuntimeError):
+            await check_message(str(guild.id), msg)
+
+        records = find_blocked_links_by_guild(str(guild.id))
+        assert len(records) == 1
+        assert records[0]["deleted"] is False
+
+    @pytest.mark.asyncio
+    async def test_recording_never_breaks_the_moderation(
+        self, mock_cache, mongodb, guild, bot, channel, member
+    ):
+        """A escrita de auditoria e fail-soft: se o banco cair, a mensagem
+        ainda tem que ser apagada."""
+        from unittest.mock import patch
+
+        mock_cache.return_value = self._cog()
+        msg = create_message(channel, member, "https://spam-site.com")
+
+        with patch("app.data.blocked_links.insert_blocked_link",
+                   side_effect=RuntimeError("mongo down")):
+            await check_message(str(guild.id), msg)
+
+        msg.assert_deleted()
+
+    @pytest.mark.asyncio
+    async def test_records_are_capped_per_message(
+        self, mock_cache, mongodb, guild, bot, channel, member
+    ):
+        from app.data.blocked_links import find_blocked_links_by_guild
+
+        mock_cache.return_value = self._cog()
+        links = " ".join(f"https://spam{index}.com" for index in range(9))
+        msg = create_message(channel, member, links)
+
+        await check_message(str(guild.id), msg)
+
+        assert len(find_blocked_links_by_guild(str(guild.id))) == 3

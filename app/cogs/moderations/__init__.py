@@ -1,3 +1,4 @@
+import discord
 from discord import app_commands
 
 from app.bot import DiscordBot
@@ -18,10 +19,19 @@ class Moderations(GroupCog, name=locale_str("moderations", type="groups")):
 
 async def setup(bot: DiscordBot) -> None:
     moderations = Moderations(bot)
+    block = Block(bot)
 
     moderations.app_command.add_command(Birthdays(bot))
-    moderations.app_command.add_command(Block(bot))
+    moderations.app_command.add_command(block)
     moderations.app_command.add_command(Roles(bot))
     moderations.app_command.add_command(Welcome(bot))
+
+    bot.tree.add_command(app_commands.ContextMenu(
+        name=locale_str(
+            "block-links-check", type="context-menu", namespace="block-links-check"
+        ),
+        callback=block.validate_block_link,
+        type=discord.AppCommandType.message,
+    ))
 
     await bot.add_cog(moderations)

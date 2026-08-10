@@ -79,19 +79,19 @@ async def block_links(
     """
     Insere configuracao de block_links no banco.
     """
+    # Runtime shape (card-first redesign): mode + envelopes + composition.
     doc = {
         "guild_id": guild_id,
         "enabled": enabled,
-        "block_links_allowed_roles": {
-            "values": allowed_roles or []
+        "mode": "block_all",
+        "allowed_roles": {"style": "role", "values": allowed_roles or []},
+        "allowed_chats": {"style": "channel", "values": allowed_channels or []},
+        "allowed_links": {
+            "style": "bullet",
+            "values": allowed_links or ["discord.gg", "youtube.com"],
         },
-        "block_links_allowed_chats": {
-            "values": allowed_channels or []
-        },
-        "block_links_allowed_links": {
-            "values": allowed_links or ["discord.gg", "youtube.com"]
-        },
-        "block_links_answer": answer
+        "custom_links": {"style": "composition", "values": []},
+        "answer": answer,
     }
 
     if hasattr(db, 'guild'):

@@ -1,0 +1,139 @@
+"""Regressions: block_links redesign (2026-07-27).
+"""
+import pytest
+
+from app.services.utils import ml
+
+pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
+
+GUILD_ID = "123456789"
+
+
+@pytest.mark.shared_contract("manager_form")
+async def test_manager_add_works_on_documents_without_the_composition_envelope(
+        scenario_factory, deps):
+    """What broke (caught before release by the consumer contract): when
+    block_links joined COMPOSITION_COMMANDS_LIST, Manager.handle_add_item_button
+    did a raw `cogs[composition_key]["values"]` lookup that raised KeyError
+    for every legacy/empty document, so the manager panel crashed on open.
+
+    Guaranteed behavior: the manager renders (with the Add button) for any
+    composition command whose document lacks the composition envelope."""
+    from app.services.block_links import normalize_block_links_config
+
+    legacy = {"guild_id": GUILD_ID, "enabled": True,
+              "allowed_links": ["Youtube"], "answer": "x"}
+    scenario = await scenario_factory(locale="pt-br").start_manager(
+        "block_links", normalize_block_links_config(legacy)
+    )
+    scenario.expect_message(kind="send", ephemeral=True)
+    scenario.expect_component(label_or_action=ml("buttons.add.label", locale="pt-br"))
+
+    raw_without_envelope = {"guild_id": "2", "enabled": True}
+    bare = await scenario_factory(locale="pt-br").start_manager(
+        "block_links", raw_without_envelope
+    )
+    bare.expect_message(kind="send", ephemeral=True)
+
+
+@pytest.mark.shared_contract("form_engine")
+async def test_options_label_mapping_keeps_boolean_gates_untouched(scenario_factory):
+    """What broke: nothing — this pins the boundary of the label<->raw
+    mapping added for styled options steps. Gate steps with `style: boolean`
+    (birthday register_now, block_links add_custom) must keep persisting raw
+    True/False, or their conditions and boolean rendering would break.
+
+    Guaranteed behavior: a boolean-styled gate answer stays raw."""
+    from tests.behavioral.scenarios.test_reminders_birthday_flow import (
+        _complete_global_card,
+    )
+
+    scenario = await scenario_factory(locale="pt-br").start("reminders_birthday")
+    await scenario.confirm()
+    await _complete_global_card(scenario)
+    await scenario.click("Depois")                # register_now = False (raw)
+
+    gate = next(r for r in scenario.responses if r["key"] == "register_now")
+    assert gate.get("_raw_value", gate["value"]) in (False, "False"), (
+        f"boolean gate must persist raw, got {gate!r}"
+    )
+    await scenario.finish()
+
+
+@pytest.mark.shared_contract("form_engine")
+async def test_failed_validation_in_first_composition_step_does_not_skip_it(
+        scenario_factory):
+    """What broke (found by the behavioral suite during the redesign): when
+    the FIRST step of a composition failed validation, the on-screen buttons
+    still belonged to the OUTER form; clicking them saved an EMPTY
+    composition and skipped ahead, abandoning the sub-form and the user's
+    retry path. Shared fix in Form._handle_after_step (composition guard).
+
+    Guaranteed behavior: re-clicking the gate after a failed entry re-opens
+    the entry modal instead of skipping the composition."""
+    scenario = await scenario_factory(locale="pt-br").start("block_links")
+    await scenario.confirm()
+    await scenario.click("done")
+    await scenario.click("Sim")
+    await scenario.submit_modal({"Digite o link ou site": "não é link"})
+
+    await scenario.click("Sim")                   # retry through the gate
+    scenario.expect_modal(title_contains="Link ou Site")
+    await scenario.finish()
+
+
+@pytest.mark.shared_contract("manager_form")
+async def test_edit_dropdown_names_a_composition_entry_by_its_configuration_title():
+    """What broke (reported from a live Discord test): the Editar dropdown of
+    block_links listed a saved link as the option label, formatted through
+    format_values_by_style(..., "code"). Discord never renders markdown inside
+    a select, so the user saw literal backticks (`` `twitch.tv/jway` ``) where
+    a configuration name belonged.
+
+    Shared behavior affected: EditCommand._composition_item_label plus the
+    generic Select option builder, consumed by every command with a
+    composition (block_links today, twitch/youtube/birthday through the same
+    view).
+
+    Guaranteed behavior: the option label is the configuration title with its
+    position, the stored value identifies the entry in the option description,
+    and no markdown leaks into either."""
+    from app.views.edit import EditCommand
+
+    cogs = {
+        "enabled": True,
+        "mode": "block_all",
+        "custom_links": {
+            "style": "composition",
+            "values": [
+                {
+                    "link": {
+                        "value": "twitch.tv/jway",
+                        "title": "Link ou Site",
+                        "style": "code",
+                    },
+                    "match_type": {
+                        "value": "🌐 Todos os links desse site",
+                        "_raw_value": "domain",
+                    },
+                }
+            ],
+        },
+    }
+
+    view = EditCommand("block_links", cogs, "pt-br", callback=None)
+    select = view.children[0]
+    entry = next(
+        option for option in select.options
+        if option.value.startswith("custom_links$")
+    )
+
+    assert "`" not in entry.label, (
+        f"markdown must never reach a select option label, got {entry.label!r}"
+    )
+    assert entry.label == "Seus Links #1", (
+        f"the label must name the configuration, got {entry.label!r}"
+    )
+    assert entry.description == "twitch.tv/jway", (
+        "the stored value must still identify the entry, in the description"
+    )
