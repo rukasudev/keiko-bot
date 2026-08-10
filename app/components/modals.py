@@ -248,6 +248,17 @@ class ModalValidations:
         ok = bot.youtube.get_channel_id_from_username(response) is not None
         return {"ok": ok, "error_key": "youtuber-not-found"}
 
+    def validate_link_or_domain(self, response: Any) -> Dict[str, Any]:
+        from app.services.block_links import parse_link
+
+        text = str(response or "").strip()
+        ok = False
+        if text and " " not in text:
+            host = parse_link(text).host
+            tld = host.rsplit(".", 1)[-1] if "." in host else ""
+            ok = bool(host) and tld.isalpha() and len(tld) >= 2
+        return {"ok": ok, "error_key": "link-not-recognized"}
+
     def validate_date(self, response: Any) -> Dict[str, Any]:
         from app.services.dates import parse_date_parts
 

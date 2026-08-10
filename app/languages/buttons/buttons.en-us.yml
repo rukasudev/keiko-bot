@@ -60,6 +60,10 @@ en-us:
     label: History
     desc: See the history of changes made to the feature settings
 
+  stats:
+    label: Statistics
+    desc: See the numbers of the feature
+
 
   select:
     label: Select
@@ -85,6 +89,10 @@ en-us:
 
   captions:
     desc: Here is a brief description of the buttons and their functionalities
+
+  cooldown:
+    title: "⏳ One Second!"
+    message: "I just answered you! You can ask me again in a moment 🐶"
 
   changes-history:
     label: 📜 Changes history

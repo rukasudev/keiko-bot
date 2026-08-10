@@ -713,3 +713,104 @@ class TestFormatDatetimeOutput:
 
         # Assert
         assert result == "0s"
+
+
+class TestEnsureList:
+    """ensure_list coerces the scalar-collapsed {style, values} envelopes."""
+
+    def test_none_becomes_empty_list(self):
+        from app.services.utils import ensure_list
+        assert ensure_list(None) == []
+
+    def test_scalar_is_wrapped(self):
+        from app.services.utils import ensure_list
+        assert ensure_list("201") == ["201"]
+
+    def test_list_is_returned_as_list(self):
+        from app.services.utils import ensure_list
+        assert ensure_list(["a", "b"]) == ["a", "b"]
+
+    def test_tuple_and_set_become_lists(self):
+        from app.services.utils import ensure_list
+        assert ensure_list(("a",)) == ["a"]
+        assert sorted(ensure_list({"a", "b"})) == ["a", "b"]
+
+
+class TestGetMessageLinksSchemeless:
+    """Conservative schemeless detection: www.* hosts and domain.tld/path."""
+
+    def test_detects_www_host_without_scheme(self):
+        assert get_message_links("olha www.spam-site.com ai") == ["www.spam-site.com"]
+
+    def test_detects_bare_domain_with_path(self):
+        assert get_message_links("entra em discord.gg/abc123") == ["discord.gg/abc123"]
+
+    def test_bare_domain_without_path_is_ignored(self):
+        assert get_message_links("gosto de youtube.com e pronto") == []
+
+    def test_common_dotted_words_are_not_links(self):
+        assert get_message_links("uso node.js e li o package.json na v1.2.3") == []
+
+    def test_trailing_punctuation_is_trimmed(self):
+        assert get_message_links("corre em bit.ly/promo!") == ["bit.ly/promo"]
+
+    def test_email_is_not_a_link(self):
+        assert get_message_links("fala com a gente em contato@site.com") == []
+
+    def test_http_link_is_not_double_extracted(self):
+        assert get_message_links("veja https://youtube.com/watch?v=a") == [
+            "https://youtube.com/watch?v=a"
+        ]
+
+
+class TestBooleanStyleWithStringValues:
+    """Regressao: options estilizadas persistem "True"/"False" como STRING;
+    o formatter boolean tratava "False" como truthy e exibia "Sim"."""
+
+    def test_string_false_renders_nao(self):
+        from app.services.utils import format_values_by_style
+        assert format_values_by_style("False", "boolean", "pt-br") == "Não"
+        assert format_values_by_style("false", "boolean", "pt-br") == "Não"
+
+    def test_string_true_renders_sim(self):
+        from app.services.utils import format_values_by_style
+        assert format_values_by_style("True", "boolean", "pt-br") == "Sim"
+
+    def test_real_booleans_keep_working(self):
+        from app.services.utils import format_values_by_style
+        assert format_values_by_style(False, "boolean", "pt-br") == "Não"
+        assert format_values_by_style(True, "boolean", "en-us") == "Yes"
+
+
+class TestCodeStyle:
+    """Style `code`: valores monoespacados (URLs em resumo/manager)."""
+
+    def test_single_value_renders_inline_code(self):
+        from app.services.utils import format_values_by_style
+        assert format_values_by_style("meusite.com.br", "code", "pt-br") == "`meusite.com.br`"
+
+    def test_list_renders_code_block(self):
+        from app.services.utils import format_values_by_style
+        result = format_values_by_style(["a.com", "b.com"], "code", "pt-br")
+        assert result.startswith("\n```") and "a.com\nb.com" in result
+
+
+class TestConditionAllows:
+    """condition_allows: avaliador unico de conditions (not_in + matches)."""
+
+    def test_no_condition_always_allows(self):
+        from app.services.utils import condition_allows
+        assert condition_allows(None, "x") is True
+
+    def test_not_in_blocks_listed_values(self):
+        from app.services.utils import condition_allows
+        condition = {"key": "mode", "not_in": ["allow_all"]}
+        assert condition_allows(condition, "allow_all") is False
+        assert condition_allows(condition, "block_all") is True
+
+    def test_matches_requires_pattern(self):
+        from app.services.utils import condition_allows
+        condition = {"key": "link", "matches": "[/?]"}
+        assert condition_allows(condition, "youtube.com") is False
+        assert condition_allows(condition, "youtube.com/watch") is True
+        assert condition_allows(condition, None) is False

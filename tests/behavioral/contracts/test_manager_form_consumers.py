@@ -33,13 +33,20 @@ CONSUMERS = [
         "block_links",
         {
             "guild_id": GUILD_ID, "enabled": True,
+            "mode": "block_all",
             "allowed_chats": {"style": "channel", "values": "100"},
             "allowed_roles": {"style": "role", "values": "201"},
-            "allowed_links": ["Youtube", "Spotify"],
+            "allowed_links": {"style": "bullet", "values": ["youtube.com", "twitch.tv"]},
+            "custom_links": {"style": "composition", "values": [
+                {"link": {"value": "meusite.com.br", "title": "Link ou Site"},
+                 "match_type": {"value": "🌐 Todos os links desse site", "_raw_value": "domain",
+                                "title": "Como Devo Considerar?"}},
+            ]},
             "answer": "Nada de links aqui! :p",
         },
-        ["<#100>", "<@&201>", "Youtube", "Nada de links aqui! :p"],
-        id="block_links-options-and-modal",
+        ["Bloquear todos, com exceções", "<#100>", "<@&201>", "youtube.com",
+         "meusite.com.br", "Nada de links aqui! :p"],
+        id="block_links-card-first-shape",
     ),
     pytest.param(
         "notifications_twitch",
@@ -96,6 +103,29 @@ async def test_manager_form_renders_birthday_via_real_settings_provider(
     scenario.expect_configuration_values("<#100>", "08:00")
 
 
+async def test_manager_form_renders_legacy_block_links_through_normalize(
+        scenario_factory):
+    """Legacy (pre-redesign) block_links documents reach the manager through
+    normalize_block_links_config — the real read seam in the service."""
+    from app.services.block_links import normalize_block_links_config
+
+    legacy = {
+        "guild_id": GUILD_ID, "enabled": True,
+        "allowed_chats": {"style": "channel", "values": "100"},
+        "allowed_links": ["Youtube", "Spotify"],
+        "answer": "Nada de links aqui! :p",
+    }
+    scenario = await scenario_factory(locale="pt-br").start_manager(
+        "block_links", normalize_block_links_config(legacy)
+    )
+    scenario.expect_message(kind="send", ephemeral=True)
+    scenario.expect_configuration_values(
+        "Bloquear todos, com exceções",     # defaulted mode, localized label
+        "youtube.com", "spotify.com",       # labels translated to domains
+        "<#100>", "Nada de links aqui! :p",
+    )
+
+
 async def test_manager_form_supports_empty_configuration(scenario_factory):
     scenario = await scenario_factory(locale="pt-br").start_manager(
         "block_links", {"guild_id": GUILD_ID, "enabled": True}
@@ -122,7 +152,7 @@ async def test_one_command_config_does_not_leak_into_another(scenario_factory):
         },
     )
 
-    roles_description = (roles_scenario.outputs[-1].get("embed") or {}).get("description", "")
-    twitch_description = (twitch_scenario.outputs[-1].get("embed") or {}).get("description", "")
-    assert "<@&201>" in roles_description and "gaules" not in roles_description
-    assert "gaules" in twitch_description and "<@&201>" not in twitch_description
+    roles_summary = roles_scenario.rendered_summary
+    twitch_summary = twitch_scenario.rendered_summary
+    assert "<@&201>" in roles_summary and "gaules" not in roles_summary
+    assert "gaules" in twitch_summary and "<@&201>" not in twitch_summary

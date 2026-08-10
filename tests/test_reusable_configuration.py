@@ -426,16 +426,28 @@ def test_default_roles_nested_selects_are_rendered_in_manager_summary():
 
     settings = parse_settings_with_database_values(cogs, steps, "pt-br")
 
+    # Both selects belong to the same multi-select step, so the panel can draw
+    # them as one section without any new YAML.
     assert settings == [
         {
+            "key": "default_roles_bot",
             "title": "Cargos para Bots",
             "value": {"style": "role", "values": ["101"]},
             "style": "role",
+            "icon": "🤖",
+            "group": "default_roles_config",
+            "group_title": "Cargos Padrão",
+            "group_icon": None,
         },
         {
+            "key": "default_roles",
             "title": "Cargos para Membros",
             "value": {"style": "role", "values": ["202", "203"]},
             "style": "role",
+            "icon": "👥",
+            "group": "default_roles_config",
+            "group_title": "Cargos Padrão",
+            "group_icon": None,
         },
     ]
 

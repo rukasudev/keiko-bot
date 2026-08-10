@@ -58,6 +58,58 @@ class Commands:
     BLOCK_LINKS_ALLOWED_ROLES_KEY: Final[str] = "allowed_roles"
     BLOCK_LINKS_ALLOWED_LINKS_KEY: Final[str] = "allowed_links"
     BLOCK_LINKS_ANSWER_KEY: Final[str] = "answer"
+    BLOCK_LINKS_MODE_KEY: Final[str] = "mode"
+    BLOCK_LINKS_MODE_BLOCK_ALL: Final[str] = "block_all"
+    BLOCK_LINKS_MODE_ALLOW_ALL: Final[str] = "allow_all"
+    BLOCK_LINKS_CUSTOM_LINKS_KEY: Final[str] = "custom_links"
+    BLOCK_LINKS_LINK_KEY: Final[str] = "link"
+    BLOCK_LINKS_MATCH_TYPE_KEY: Final[str] = "match_type"
+    BLOCK_LINKS_MATCH_DOMAIN: Final[str] = "domain"
+    BLOCK_LINKS_MATCH_EXACT: Final[str] = "exact"
+    BLOCK_LINKS_ADD_CUSTOM_KEY: Final[str] = "add_custom"
+
+    # block links diagnostics: gate keys and reason codes. Closed vocabulary —
+    # each value is also a localization key suffix and a stored enum value.
+    BLOCK_LINKS_GATE_FEATURE: Final[str] = "feature"
+    BLOCK_LINKS_GATE_ROLE: Final[str] = "role"
+    BLOCK_LINKS_GATE_CHANNEL: Final[str] = "channel"
+    BLOCK_LINKS_GATE_LINKS: Final[str] = "links"
+    BLOCK_LINKS_GATE_RULES: Final[str] = "rules"
+    BLOCK_LINKS_REASON_NOT_CONFIGURED: Final[str] = "not-configured"
+    BLOCK_LINKS_REASON_PAUSED: Final[str] = "paused"
+    BLOCK_LINKS_REASON_ACTIVE: Final[str] = "active"
+    BLOCK_LINKS_REASON_ROLE_EXEMPT: Final[str] = "role-exempt"
+    BLOCK_LINKS_REASON_ROLE_NOT_EXEMPT: Final[str] = "role-not-exempt"
+    BLOCK_LINKS_REASON_CHANNEL_EXEMPT: Final[str] = "channel-exempt"
+    BLOCK_LINKS_REASON_CHANNEL_NOT_EXEMPT: Final[str] = "channel-not-exempt"
+    BLOCK_LINKS_REASON_NO_LINKS: Final[str] = "no-links"
+    BLOCK_LINKS_REASON_HAS_LINKS: Final[str] = "has-links"
+    BLOCK_LINKS_REASON_ALL_ALLOWED: Final[str] = "all-allowed"
+    BLOCK_LINKS_REASON_SOME_BLOCKED: Final[str] = "some-blocked"
+    BLOCK_LINKS_REASON_ALLOWED_BY_POPULAR: Final[str] = "allowed-by-popular"
+    BLOCK_LINKS_REASON_ALLOWED_BY_CUSTOM: Final[str] = "allowed-by-custom"
+    BLOCK_LINKS_REASON_ALLOWED_BY_DEFAULT: Final[str] = "allowed-by-default"
+    BLOCK_LINKS_REASON_BLOCKED_BY_CUSTOM: Final[str] = "blocked-by-custom"
+    BLOCK_LINKS_REASON_BLOCKED_NO_RULE: Final[str] = "blocked-no-rule"
+    # Discord caps an embed field value at 1024 chars.
+    BLOCK_LINKS_DIAGNOSTIC_MAX_LINKS: Final[int] = 5
+    # Blocked-link records: bounded by a TTL index, capped per message so a
+    # link-spam message cannot write hundreds of rows, and read in one page.
+    BLOCK_LINKS_EVENTS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 90
+    BLOCK_LINKS_EVENTS_MAX_PER_MESSAGE: Final[int] = 3
+    BLOCK_LINKS_EVENTS_READ_LIMIT: Final[int] = 200
+    # How many composition entries the settings summary lists before
+    # collapsing into "and N more" (the full list lives in Edit/Remove).
+    SETTINGS_COMPOSITION_PREVIEW_LIMIT: Final[int] = 10
+    # Anti-spam window for view buttons that answer with their own message
+    # (Help, Preview, Stats...). Clicking again inside it gets a self-deleting
+    # notice instead of a second copy of the message.
+    VIEW_ACTION_COOLDOWN_SECONDS: Final[int] = 10
+    # All-time counters, kept in Redis without expiry so the numbers survive
+    # the 90-day retention of the detailed records.
+    BLOCK_LINKS_COUNTER_TOTAL: Final[str] = "guild:{guild_id}:block_links:total"
+    BLOCK_LINKS_COUNTER_HOST: Final[str] = "guild:{guild_id}:block_links:host:{value}"
+    BLOCK_LINKS_COUNTER_USER: Final[str] = "guild:{guild_id}:block_links:user:{value}"
 
     # moderations
     MODERATIONS_KEY: Final[str] = "moderations"
@@ -111,18 +163,21 @@ class Commands:
         NOTIFICATIONS_TWITCH_KEY: NOTIFICATIONS_KEY,
         NOTIFICATIONS_YOUTUBE_VIDEO_KEY: NOTIFICATIONS_KEY,
         REMINDERS_BIRTHDAY_KEY: REMINDERS_BIRTHDAY_KEY,
+        BLOCK_LINKS_KEY: BLOCK_LINKS_CUSTOM_LINKS_KEY,
     }
 
     COMPOSITION_COMMANDS_LIST: Final[List[str]] = [
         NOTIFICATIONS_TWITCH_KEY,
         NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
         REMINDERS_BIRTHDAY_KEY,
+        BLOCK_LINKS_KEY,
     ]
 
     COMPOSITION_MAX_LENGTH: Final[Dict[str, int]] = {
         NOTIFICATIONS_TWITCH_KEY: 3,
         NOTIFICATIONS_YOUTUBE_VIDEO_KEY: 2,
         REMINDERS_BIRTHDAY_KEY: 25,
+        BLOCK_LINKS_KEY: 25,
     }
 
     SETUP_FEATURES: Final[List[Dict[str, str]]] = [
@@ -225,6 +280,16 @@ class WelcomeDesign:
     ]
 
 
+class DiscordLimits:
+    """Hard API limits. Exceeding one makes Discord reject the whole message,
+    which only shows up at runtime, so the renderers guard against them."""
+    EMBED_TOTAL: Final[int] = 6000
+    EMBED_DESCRIPTION: Final[int] = 4096
+    EMBED_FIELDS: Final[int] = 25
+    EMBED_FIELD_NAME: Final[int] = 256
+    EMBED_FIELD_VALUE: Final[int] = 1024
+
+
 class KeikoIcons:
     IMAGE_01: Final[str] = (
         "https://cdn.discordapp.com/attachments/927208560360820766/1246698994160242739/KEIKO_DEFAULT.png?ex=665d566a&is=665c04ea&hm=5b3fe0e80b2a83e0e88b5bded1db17a6b98b4661e175b460b3e6e4a27d59711e&"
@@ -317,16 +382,33 @@ class Emojis:
     FRISBEE_EMOJI: Final[str] = ":flying_disc:"
     EDIT_EMOJI: Final[str] = ":pencil:"
 
-default_allowed_links: Final[Dict[str, str]] = {
-    "facebook": "https://facebook.com",
-    "instagram": "https://instagram.com",
-    "twitter": "https://twitter.com",
-    "twitch": "https://twitch.tv",
-    "youtube": "https://youtube.com",
-    "discord": "https://discord.gg",
-    "spotify": "https://open.spotify.com",
-    "tiktok": "https://tiktok.com",
-    "reddit": "https://reddit.com",
+# Quick-pick domains offered in the block_links card, with the extra hosts
+# each one also covers. Keys must stay in sync with the card options in
+# app/languages/form/block_links.yml (pinned by the YAML contract suite).
+BLOCK_LINKS_QUICK_PICK_DOMAINS: Final[Dict[str, List[str]]] = {
+    "facebook.com": [],
+    "instagram.com": [],
+    "twitter.com": ["x.com"],
+    "twitch.tv": [],
+    "youtube.com": ["youtu.be"],
+    "discord.gg": ["discord.com"],
+    "spotify.com": ["open.spotify.com"],
+    "tiktok.com": [],
+    "reddit.com": [],
+}
+
+# Legacy saved configs stored the option LABELS ("Youtube"); translated to
+# domains at read time by normalize_block_links_config.
+BLOCK_LINKS_LEGACY_LABEL_TO_DOMAIN: Final[Dict[str, str]] = {
+    "facebook": "facebook.com",
+    "instagram": "instagram.com",
+    "twitter": "twitter.com",
+    "twitch": "twitch.tv",
+    "youtube": "youtube.com",
+    "discord": "discord.gg",
+    "spotify": "spotify.com",
+    "tiktok": "tiktok.com",
+    "reddit": "reddit.com",
 }
 
 supported_locales = [

@@ -1,9 +1,19 @@
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 import discord
 
 from app.components.buttons import BackButton, ExecuteCommandButton
 from app.services.utils import ml
+
+# Discord caps both a select option label and its description at 100 chars.
+OPTION_TEXT_LIMIT = 100
+
+
+def _fit(text: Optional[str]) -> Optional[str]:
+    if text in (None, ""):
+        return None
+    text = str(text)
+    return text if len(text) <= OPTION_TEXT_LIMIT else f"{text[:OPTION_TEXT_LIMIT - 1]}…"
 
 
 class Select(discord.ui.Select):
@@ -22,14 +32,19 @@ class Select(discord.ui.Select):
             **kwargs,
         )
 
-    def parse_options(self, options_dict: Dict[str, str]) -> List[discord.SelectOption]:
+    def parse_options(self, options_dict: Dict[str, Any]) -> List[discord.SelectOption]:
         options = []
 
         if not options_dict:
             return options
 
-        for key, label in options_dict.items():
-            option = discord.SelectOption(label=label, value=key)
+        for key, item in options_dict.items():
+            label, description = item, None
+            if isinstance(item, dict):
+                label, description = item.get("label"), item.get("description")
+            option = discord.SelectOption(
+                label=_fit(label), value=key, description=_fit(description)
+            )
             options.append(option)
 
         return options

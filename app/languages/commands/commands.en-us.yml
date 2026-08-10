@@ -26,6 +26,39 @@ en-us:
         month:
           name: month
           desc: "Birthday month"
+      block-links-manager:
+        info-title: "🔎 Why did a link get through?"
+        info: "Right click the message, pick **Apps** and then **Check Link Blocking**: I show you which rule allowed or blocked every link in it!"
+        blocked-list:
+          button:
+            label: Blocks
+            desc: See the links I blocked and filter them by member
+          embed:
+            title: "🔎 Links I blocked"
+            description: "The most recent blocks of this server! I keep these details for 90 days."
+            empty: "I haven't blocked any link here yet! 🐶"
+          filter:
+            label: Filter by member
+            all-label: See everyone
+            title: "🔎 Filter by member"
+            description: "Pick the member and I'll show you only their blocks!"
+            empty: "I haven't blocked any link from this member yet! 🐶"
+          record:
+            line: "$user · $channel · $date"
+            rule: "Rule: $rule"
+            not-deleted: "⚠️ I could not delete this message. Check if I have the manage messages permission!"
+        stats:
+          button:
+            desc: See the numbers of the links I blocked
+          embed:
+            title: "📊 Link blocking stats"
+          fields:
+            total: Blocks of all time
+            recent: Blocks in the last 90 days
+            top-websites: Most blocked websites
+            top-member: Member with most blocks
+            not-deleted: Messages I could not delete
+          empty: "I haven't blocked any link here yet! 🐶"
       reminders-birthdays-manager:
         stats:
           button:
@@ -114,7 +147,38 @@ en-us:
     block-links:
       subgroup: block
       name: links
-      desc: Keiko lovingly protects our server by blocking any suspicious links
+      desc: Keiko blocks links your way, everything with exceptions or only the links you choose
+
+    block-links-check:
+      name: Check Link Blocking
+      desc: Keiko explains why she blocked or allowed the links of a message
+      embed:
+        title-blocked: "🚫 I would block this message"
+        title-allowed: "✅ I would let this message through"
+      fields:
+        feature:
+          title: "1️⃣ Is the feature active?"
+          not-configured: "❌ I'm not set up here yet, so I block no links at all. Use `/moderations block links` to get started!"
+          paused: "⏸️ I'm paused here, so I let every link through. Bring me back with `/moderations block links`!"
+          active: "✅ I'm active, in **$mode** mode."
+        exemptions:
+          title: "2️⃣ Are the author or the channel exempt?"
+          role-exempt: "🔓 The role $roles is exempt, so I never block links from this member."
+          role-not-exempt: "🔒 No role of this member is on the exempt list."
+          channel-exempt: "🔓 The channel $channel is exempt, so I never block links there."
+          channel-not-exempt: "🔒 This channel is not on the exempt list."
+        links:
+          title: "3️⃣ What about the links?"
+          none: "I found no link in this message."
+          more: "And $count more links."
+          reasons:
+            allowed-by-popular: "✅ `$link`: allowed because **$rule** is on your popular websites list."
+            allowed-by-custom-domain: "✅ `$link`: allowed by your website rule **$rule**."
+            allowed-by-custom-exact: "✅ `$link`: allowed by your exact link rule **$rule**."
+            allowed-by-default: "✅ `$link`: allowed because the mode allows everything and no rule of yours blocks it."
+            blocked-by-custom-domain: "🚫 `$link`: blocked by your website rule **$rule**."
+            blocked-by-custom-exact: "🚫 `$link`: blocked by your exact link rule **$rule**."
+            blocked-no-rule: "🚫 `$link`: blocked because nothing on your list allows it."
 
     welcome-messages:
       subgroup: welcome
@@ -227,32 +291,31 @@ en-us:
       member-picker:
         title: 👤 Select a member to edit
         description: Tell me which member you want to update in this list.
-        not-found: Hmm, I do not have a birthday saved for that member yet. Pick someone already on the list.
+        not-found: Hmm, I don't have anything saved for that member yet. Pick someone already on the list.
       short-description: 📝 Edited by $user
       short-description-with-cog: 📝 **$cog_name** edited by $user
 
     added:
       title: ➕ Item added to **$command_name** successfully!
       action: Add
-      description: A item was added to **$command_name** on $date by $user
-      duplicate: This member is already on the list. Use **Edit** if you want to change something.
+      description: An item was added to **$command_name** on $date by $user
       short-description: ➕ Item added by $user
       short-description-with-cog: ➕ **$cog_name** added by $user
 
     removed:
       title: 🗑️ Item removed from **$command_name** successfully!
       action: Remove
-      description: A item was removed from **$command_name** on $date by $user
+      description: An item was removed from **$command_name** on $date by $user
       placeholder: Select the item you want to remove
       member-picker:
         title: 👤 Select a member to remove
         description: Tell me which member you want to remove from this list.
-        not-found: Hmm, I do not have anything saved for that member yet. Pick someone already on the list.
+        not-found: Hmm, I don't have anything saved for that member yet. Pick someone already on the list.
       short-description: 🗑️ Item removed by $user
       short-description-with-cog: 🗑️ **$cog_name** removed by $user
 
     system:
-      description: That is a default action taken by Keiko when leaving the server
+      description: That's an automatic action I take when leaving the server
 
   confirmation-modal:
     title: Are you sure?
@@ -263,3 +326,5 @@ en-us:
 
   resume:
     settings: Settings
+    empty: nothing here yet
+    more: "and $count more"

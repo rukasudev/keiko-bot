@@ -8,7 +8,7 @@ from app.components.select import Select
 from app.components.select_views import UserSelectView
 from app.constants import LogTypes as logconstants
 from app.constants import FormConstants as constants
-from app.services.utils import format_values_by_style, ml, parse_form_steps_titles, parse_form_yaml_to_dict
+from app.services.utils import condition_allows, ml, parse_form_steps_titles, parse_form_yaml_to_dict
 from app.views.form import Form
 
 
@@ -48,11 +48,9 @@ class EditCommand(discord.ui.View):
                 continue
 
             key = condition.get("key")
-            not_in = condition.get("not_in", [])
-
             current_value = self.form_view.cogs.get(key) if self.form_view.cogs else None
 
-            if current_value in not_in:
+            if not condition_allows(condition, current_value):
                 step_key = step.get("key")
                 if step_key in filtered:
                     del filtered[step_key]
@@ -100,16 +98,20 @@ class EditCommand(discord.ui.View):
             and self.composition_picker_step.get("action") == constants.USER_SELECT_ACTION_KEY
         )
 
-    def _composition_item_label(self, items: List[Dict[str, Any]], index: int, fallback_title: str) -> str:
+    def _composition_item_label(self, items: List[Dict[str, Any]], index: int, fallback_title: str) -> Any:
+        """Label of one composition entry in the edit dropdown.
+
+        Discord renders no markdown inside a select, so the stored value goes
+        to the option description raw (never through format_values_by_style,
+        whose `code` style leaks literal backticks) and the label keeps naming
+        the configuration the user is about to edit."""
+        title = f"{fallback_title} #{index + 1}"
         unique_by = getattr(self, "composition_unique_by", None)
         if unique_by and index < len(items):
             field = items[index].get(unique_by)
-            if isinstance(field, dict):
-                raw = field.get("value")
-                style = field.get("style")
-                if raw:
-                    return format_values_by_style(raw, style, self.locale)
-        return f"{fallback_title} #{index + 1}"
+            if isinstance(field, dict) and field.get("value"):
+                return {"label": title, "description": str(field["value"])}
+        return title
 
     async def callback(self, interaction: discord.Interaction):
         selected = self.selected_options[0]
@@ -145,8 +147,6 @@ class EditCommand(discord.ui.View):
         )
         if index is None:
             message = ml("commands.command-events.edited.member-picker.not-found", locale=self.locale)
-            if not message or message == "commands.command-events.edited.member-picker.not-found":
-                message = "This member does not have an item configured."
             await interaction.response.send_message(
                 message,
                 ephemeral=True,

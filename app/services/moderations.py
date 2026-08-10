@@ -11,7 +11,6 @@ from app.data import cogs as cogs_data
 from app.data import moderations as moderations_data
 from app.services.cogs import insert_cog_event, update_cog_by_guild
 from app.services.utils import (
-    get_form_settings_with_database_values,
     ml,
     parse_form_titles_descriptions,
     parse_form_yaml_to_dict,
@@ -121,7 +120,7 @@ async def send_command_form_message(
     await interaction.response.send_message(embed=embed, view=form_view, ephemeral=True)
 
 
-async def send_command_manager_message(
+def build_command_manager_message(
     interaction: discord.Interaction,
     key: str,
     cog_data: Dict[str, str],
@@ -130,8 +129,18 @@ async def send_command_manager_message(
     settings_provider: Optional[Callable[[discord.Interaction, Dict[str, Any], str], List[Dict[str, Any]]]] = None,
     enable_composition_controls: bool = True,
     lifecycle_callbacks: Optional[Dict[str, Callable]] = None,
+    additional_info_title: str = "",
 ):
+    """Assemble the manager panel without sending it, so a button can also
+    re-render it in place.
+
+    The panel is a Components V2 container and carries no embed at all: the
+    first YAML step is still parsed into one, but only to read the header the
+    container draws (title, intro, footer) from the same source the form uses.
+    """
+    from app.constants import KeikoIcons as icons
     from app.views.manager import Manager
+    from app.views.manager_panel import ManagerPanelView
 
     if not additional_buttons:
         additional_buttons = []
@@ -145,7 +154,6 @@ async def send_command_manager_message(
     else:
         description = parse_settings_with_database_values(cog_data, form_steps, locale)
 
-    embed.description += get_form_settings_with_database_values(interaction, description)
     view = Manager(
         key,
         cog_data,
@@ -157,16 +165,23 @@ async def send_command_manager_message(
     if not cog_data.get(commands_constants.ENABLED_KEY):
         embed.title += f" ({ml('commands.command-events.paused.key', locale=locale)})"
 
-    if additional_info:
-        embed.description += f"\n\n{additional_info}"
-
     additional_buttons.append(HelpButton(locale=locale))
 
-    row = 1
-    for button in additional_buttons:
-        if len(view.children) % 4 == 0:
-            row += 1
-        button.row = row
-        view.add_item(button)
+    return ManagerPanelView(
+        manager=view,
+        title=embed.title,
+        intro=embed.description,
+        rows=description,
+        locale=locale,
+        thumbnail=icons.IMAGE_01,
+        footer=(form_steps[0].get("footer") or {}).get(locale, ""),
+        info=additional_info,
+        info_title=additional_info_title,
+        extra_buttons=additional_buttons,
+    )
 
-    await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+
+async def send_command_manager_message(*args, **kwargs):
+    interaction = args[0] if args else kwargs["interaction"]
+    panel = build_command_manager_message(*args, **kwargs)
+    await interaction.response.send_message(view=panel, ephemeral=True)

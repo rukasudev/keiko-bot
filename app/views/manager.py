@@ -41,6 +41,7 @@ from app.services.utils import (
     parse_locale,
 )
 from app.views.pagination import PaginationView
+from app.views.panel_transitions import close_panel
 
 
 class Manager(discord.ui.View):
@@ -113,9 +114,8 @@ class Manager(discord.ui.View):
         elif interaction.message.embeds:
             embed = interaction.message.embeds[0]
         else:
-            from app.constants import Style as style_constants
             embed = discord.Embed(color=int(style_constants.BACKGROUND_COLOR, base=16))
-            footer_text = ml("buttons.footer.report", locale=self.locale) or "Use the command /report to tell me a bug"
+            footer_text = ml("commands.commands.commons.embed.footer", locale=self.locale)
             embed.set_footer(text=f"• {footer_text}")
 
         embed.clear_fields()
@@ -153,7 +153,41 @@ class Manager(discord.ui.View):
         except Exception:
             pass
 
-        await interaction.followup.send(embed=embed, view=self, ephemeral=True)
+        await interaction.followup.send(
+            embed=embed, view=self._announce_event(), ephemeral=True
+        )
+
+    def _announce_event(self):
+        """Strip the controls before announcing a state change.
+
+        The buttons hold the configuration as it was *before* the change, so
+        leaving them under the announcement offers actions on data that no
+        longer exists. Clearing has to happen here and not in the button that
+        was clicked: that button may live in a Components V2 panel, and
+        clearing that view leaves this one — the one the announcement is sent
+        with — untouched.
+        """
+        self.clear_items()
+        return self
+
+    def _event_embed(self, interaction: discord.Interaction) -> discord.Embed:
+        """The embed that announces a state change (paused, unpaused,
+        disabled).
+
+        An embed panel is reused so the announcement keeps the header the user
+        was looking at — and its fields are cleared, because only title and
+        description get rewritten and the settings must not survive under the
+        new message. A Components V2 panel has no embed to reuse, so the
+        announcement starts from a clean one."""
+        if interaction.message and interaction.message.embeds:
+            embed = interaction.message.embeds[0]
+            embed.clear_fields()
+            return embed
+
+        embed = discord.Embed(color=int(style_constants.BACKGROUND_COLOR, base=16))
+        footer_text = ml("commands.commands.commons.embed.footer", locale=self.locale)
+        embed.set_footer(text=f"• {footer_text}")
+        return embed
 
     def pause_handler(self) -> discord.ui.Button:
         if self.cogs.get(constants.ENABLED_KEY):
@@ -170,7 +204,7 @@ class Manager(discord.ui.View):
     @need_confirmation_modal
     async def unpause_callback(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
-        embed = interaction.message.embeds[0]
+        embed = self._event_embed(interaction)
 
         unpause_moderations_by_guild(guild_id=guild_id, key=self.command_key)
 
@@ -198,13 +232,13 @@ class Manager(discord.ui.View):
             interaction=interaction,
         )
 
-        await interaction.response.edit_message(view=self)
+        await close_panel(interaction, self)
         await interaction.followup.send(embed=embed, view=self, ephemeral=True)
 
     @need_confirmation_modal
     async def pause_callback(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
-        embed = interaction.message.embeds[0]
+        embed = self._event_embed(interaction)
 
         pause_moderations_by_guild(guild_id=guild_id, key=self.command_key)
 
@@ -232,19 +266,13 @@ class Manager(discord.ui.View):
             interaction=interaction,
         )
 
-        await interaction.response.edit_message(view=self)
+        await close_panel(interaction, self)
         await interaction.followup.send(embed=embed, view=self, ephemeral=True)
 
     @need_confirmation_modal
     async def disable_callback(self, interaction: discord.Interaction):
         guild_id = str(interaction.guild.id)
-        if interaction.message and interaction.message.embeds:
-            embed = interaction.message.embeds[0]
-        else:
-            from app.constants import Style as style_constants
-            embed = discord.Embed(color=int(style_constants.BACKGROUND_COLOR, base=16))
-            footer_text = ml("commands.commands.commons.embed.footer", locale=self.locale)
-            embed.set_footer(text=f"• {footer_text}")
+        embed = self._event_embed(interaction)
 
         # TODO: handle this type of logic in a service
         if self.command_key == constants.NOTIFICATIONS_TWITCH_KEY:
@@ -285,12 +313,13 @@ class Manager(discord.ui.View):
             interaction=interaction,
         )
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
-        if interaction.message:
-            try:
-                await interaction.followup.edit_message(interaction.message.id, view=self)
-            except Exception:
-                pass
+        # Same order as pause and unpause: take the panel off the screen first,
+        # then announce. Editing the panel afterwards used to be enough while
+        # it was an embed; a Components V2 message cannot have its components
+        # replaced at all, so that edit failed silently and left the controls
+        # of a command that no longer exists on screen.
+        await close_panel(interaction, self)
+        await interaction.followup.send(embed=embed, view=self, ephemeral=True)
 
     async def history_callback(self, interaction: discord.Interaction):
         raw_data = find_cog_events_by_guild(self.interaction.guild_id, self.command_key)
@@ -308,7 +337,9 @@ class Manager(discord.ui.View):
         if self.command_key not in constants.COMPOSITION_COMMANDS_LIST:
             return
 
-        if len(self.cogs[constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]]["values"]) == constants.COMPOSITION_MAX_LENGTH[self.command_key]:
+        composition_key = constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]
+        values = (self.cogs.get(composition_key) or {}).get("values") or []
+        if len(values) == constants.COMPOSITION_MAX_LENGTH[self.command_key]:
             return
 
         return self.add_item(AddItemButton(self.add_item_callback, locale=self.locale))
@@ -369,10 +400,11 @@ class Manager(discord.ui.View):
             interaction=interaction,
         )
 
+        view = self._announce_event()
         try:
-            await interaction.edit_original_response(embed=embed, view=self)
+            await interaction.edit_original_response(embed=embed, view=view)
         except Exception:
-            await interaction.followup.send(embed=embed, view=self, ephemeral=True)
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     def _composition_unique_by(self, composition_key: str) -> str:
         form_steps = parse_form_yaml_to_dict(self.command_key)
@@ -404,13 +436,16 @@ class Manager(discord.ui.View):
         return str(field) if field is not None else None
 
     async def _send_duplicate_add_feedback(self, interaction: discord.Interaction) -> None:
-        message = ml("commands.command-events.added.duplicate", locale=self.locale)
-        if not message or message == "commands.command-events.added.duplicate":
-            message = "I already have this item saved in the list."
+        """A duplicate is a rejected action, so it speaks like every other
+        rejection: the shared error embed, with copy generic enough for any
+        composition (the item may be a member, a streamer, a link...)."""
+        from app.components.embed import response_error_embed
+
+        embed = response_error_embed("item-already-registered", self.locale)
         try:
-            await interaction.edit_original_response(content=message, embed=None, view=None)
+            await interaction.edit_original_response(embed=embed, view=None)
         except Exception:
-            await interaction.followup.send(message, ephemeral=True)
+            await interaction.followup.send(embed=embed, ephemeral=True)
 
     def _response_embed(self, interaction: discord.Interaction) -> discord.Embed:
         if interaction.message and interaction.message.embeds:
@@ -434,7 +469,9 @@ class Manager(discord.ui.View):
         if self.command_key not in constants.COMPOSITION_COMMANDS_LIST:
             return
 
-        if len(self.cogs[constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]]["values"]) <= 1:
+        composition_key = constants.COMMAND_KEY_TO_COMPOSITION_KEY[self.command_key]
+        values = (self.cogs.get(composition_key) or {}).get("values") or []
+        if len(values) <= 1:
             return
 
         return self.add_item(RemoveItemButton(self.remove_item_callback, locale=self.locale))
@@ -485,7 +522,8 @@ class Manager(discord.ui.View):
             interaction=interaction,
         )
 
+        view = self._announce_event()
         try:
-            await interaction.edit_original_response(embed=embed, view=self)
+            await interaction.edit_original_response(embed=embed, view=view)
         except Exception:
-            await interaction.followup.send(embed=embed, view=self, ephemeral=True)
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)

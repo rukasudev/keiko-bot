@@ -46,7 +46,7 @@ async def manager(interaction: discord.Interaction, guild_id: str) -> None:
         emoji="📊",
         style=discord.ButtonStyle.grey,
         defer=True,
-        auto_disable=True,
+        cooldown=commands_constants.VIEW_ACTION_COOLDOWN_SECONDS,
     )
     await send_command_manager_message(
         interaction,

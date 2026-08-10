@@ -1,8 +1,8 @@
 """Behavioral scenarios: editing an already-saved configuration.
 
-Runs the real EditCommand view: manager -> Editar -> step Select -> the
-form re-runs prefilled for that step only -> Manager.update_command merges
-the change into the persisted document.
+Runs the real EditCommand view: manager -> the section's Editar -> the form
+re-runs prefilled for that step only -> Manager.update_command merges the
+change into the persisted document.
 """
 import pytest
 
@@ -12,7 +12,7 @@ pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form"
 
 GUILD_ID = "123456789"
 
-COG = {
+LEGACY_COG = {
     "guild_id": GUILD_ID, "enabled": True,
     "allowed_chats": {"style": "channel", "values": "100"},
     "allowed_links": ["Youtube"],
@@ -20,34 +20,41 @@ COG = {
 }
 
 
-async def test_edit_single_step_updates_only_that_field(scenario_factory, deps):
-    deps.mongo_client.guild["block_links"].insert_one(dict(COG))
+async def test_edit_card_updates_answer_and_upgrades_legacy_shape(
+        scenario_factory, deps):
+    """A legacy (pre-redesign) document is edited through the new card: the
+    card hydrates from the translated config, only the edited field changes
+    meaningfully, and untouched keys survive."""
+    from app.services.block_links import normalize_block_links_config
+
+    deps.mongo_client.guild["block_links"].insert_one(dict(LEGACY_COG))
     scenario = await scenario_factory(locale="pt-br").start_manager(
-        "block_links", dict(COG)
+        "block_links", normalize_block_links_config(LEGACY_COG)
     )
 
-    await scenario.click(ml("buttons.edit.label", locale="pt-br"))
-    await scenario.select_option("answer")            # step picker (EditCommand)
+    await scenario.click("section:link_settings")     # the section's own pencil
 
-    scenario.expect_modal(title_contains="Resposta ao bloquear links")
-    # The modal must come prefilled with the saved answer.
-    modal = scenario.store.pending_modal
-    assert any(
-        getattr(child, "default", None) == "Resposta antiga"
-        for child in modal.children
-    ), "edit modal should be prefilled with the persisted value"
+    scenario.expect_message(components_v2=True)
+    card = scenario.current_message.view
+    assert card.state["mode"] == "block_all"
+    assert card.state["allowed_links"] == ["youtube.com"], \
+        "legacy labels must hydrate as translated domains"
+    assert card.state["answer"] == "Resposta antiga"
 
-    await scenario.submit_modal({"Digite minha resposta": "Resposta nova"})
+    await scenario.click("customize:2")               # answer modal-input
+    await scenario.submit_modal({"resposta": "Resposta nova"})
+    await scenario.click("done")
 
     scenario.expect_message(
         title_contains=ml("commands.command-events.edited.title", locale="pt-br"),
     )
     document = scenario.expect_persisted(
-        "guild", "block_links", {"guild_id": GUILD_ID}, {"answer": "Resposta nova"}
+        "guild", "block_links", {"guild_id": GUILD_ID},
+        {"answer": "Resposta nova", "mode": "block_all"},
     )
-    # Editing one step must not clobber the other saved fields.
-    assert document["allowed_links"] == ["Youtube"]
+    # Untouched keys survive the merge; quick-picks got upgraded to domains.
     assert document["allowed_chats"]["values"] == "100"
+    assert document["allowed_links"]["values"] == ["youtube.com"]
 
 
 async def test_edit_conditional_step_is_hidden_when_condition_unmet(

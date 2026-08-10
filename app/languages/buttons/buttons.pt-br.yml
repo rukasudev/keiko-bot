@@ -61,6 +61,10 @@ pt-br:
     label: Histórico
     desc: Veja o histórico de alterações feitas nas configurações da funcionalidade
 
+  stats:
+    label: Estatísticas
+    desc: Veja os números da funcionalidade
+
   select:
     label: Selecionar
     desc: Selecione uma opção
@@ -84,6 +88,10 @@ pt-br:
 
   captions:
     desc: Aqui está uma breve descrição dos botões e suas funcionalidades
+
+  cooldown:
+    title: "⏳ Um segundinho!"
+    message: "Acabei de te responder! Já já você pode me pedir de novo 🐶"
 
   changes-history:
     label: 📜 Histórico de alterações

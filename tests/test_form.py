@@ -505,3 +505,37 @@ class TestBirthdayCompositionMerge:
         assert items[0]["user"]["value"] == "rukasu"
         assert items[1]["user"]["value"] == "luna"
         assert items[1]["date"]["value"] == "08-25"
+
+
+class TestResponseTokens:
+    """{response:key|fallback} em descricoes de step ecoa a resposta real."""
+
+    def test_replaces_token_with_response_value(self):
+        with patch('app.views.form.parse_form_yaml_to_dict',
+                   return_value=[{"key": "test", "action": "form"}]):
+            form = Form("test", "pt-br")
+        form.responses = [{"key": "link", "value": "meusite.com.br"}]
+        result = form._apply_response_tokens("regra para `{response:link|exemplo.com}`")
+        assert result == "regra para `meusite.com.br`"
+
+    def test_uses_fallback_when_response_missing(self):
+        with patch('app.views.form.parse_form_yaml_to_dict',
+                   return_value=[{"key": "test", "action": "form"}]):
+            form = Form("test", "pt-br")
+        form.responses = []
+        result = form._apply_response_tokens("para `{response:link|exemplo.com}`!")
+        assert result == "para `exemplo.com`!"
+
+    def test_joins_list_values(self):
+        with patch('app.views.form.parse_form_yaml_to_dict',
+                   return_value=[{"key": "test", "action": "form"}]):
+            form = Form("test", "pt-br")
+        form.responses = [{"key": "sites", "value": ["a.com", "b.com"]}]
+        assert form._apply_response_tokens("{response:sites}") == "a.com, b.com"
+
+    def test_text_without_tokens_is_untouched(self):
+        with patch('app.views.form.parse_form_yaml_to_dict',
+                   return_value=[{"key": "test", "action": "form"}]):
+            form = Form("test", "pt-br")
+        text = "sem tokens, com {user} e `code`"
+        assert form._apply_response_tokens(text) == text

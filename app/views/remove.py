@@ -99,8 +99,6 @@ class RemoveItem(discord.ui.View):
         )
         if index is None:
             message = ml("commands.command-events.removed.member-picker.not-found", locale=self.locale)
-            if not message or message == "commands.command-events.removed.member-picker.not-found":
-                message = "This member does not have an item configured."
             await interaction.response.send_message(message, ephemeral=True)
             return
         await self.remove_selected_item(interaction, f"{self.composition_key}${index}")

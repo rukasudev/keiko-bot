@@ -26,6 +26,7 @@ steps:
       - type: available_roles
         key: default_roles_bot
         style: role
+        icon: "🤖"
         label:
           en-us: "Roles for Bots"
           pt-br: "Cargos para Bots"
@@ -35,6 +36,7 @@ steps:
       - type: available_roles
         key: default_roles
         style: role
+        icon: "👥"
         label:
           en-us: "Roles for Members"
           pt-br: "Cargos para Membros"
