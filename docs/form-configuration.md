@@ -73,9 +73,16 @@ cog (app/cogs/...)
 
   ```yaml
   condition:
-    key: register_now        # a previous step's key
+    key: register_now        # a previous step's key (or a card field key)
     not_in: [false, "false", "False"]
+    # matches: "[/?]"        # optional regex: step runs only when the value matches
   ```
+
+  Both rules are evaluated by the single helper `condition_allows`
+  (`app/services/utils.py`), shared by the form engine, the manager summary
+  and the edit-step filter. `matches` lets a step ask only what cannot be
+  assumed from an earlier answer (e.g. block_links only asks domain-vs-exact
+  when the typed link goes beyond a bare domain).
 
 - **State**: `FormStateManager` (`app/views/form_state.py`) owns the step index and previous
   answers; its `fill_*` methods re-populate a component when the user navigates back.
@@ -115,6 +122,11 @@ no-op.
 | `month_select` | `show_month_select` | **dead path** — registered, no YAML uses it |
 | `summary_card` | `show_summary_card` | **dead path** — superseded by `configuration_card` |
 
+Step descriptions may echo an earlier answer with `{response:<key>|<fallback>}`
+(resolved by `Form._apply_response_tokens` against the running form's responses;
+the fallback renders while the key has no answer). Prefer this over canned
+examples whenever a step explains a choice about something the user just typed.
+
 Common step keys: `key`, `title`/`description`/`footer` (locale dicts), `emoji`, `style`,
 `hidden`, `required`, `unique`, `auto_confirm`, `condition`, `options[]`, `fields[]`,
 `selects[]`, `steps[]` (composition only), `parent_key`, `unique_by`, `response_transform`,
@@ -138,7 +150,10 @@ YAML `response_transform: <name>` resolves to a registry entry declaring `part_k
 the stored `value_key`, the summary `style`, and a `serialize`/`hydrate` pair.
 `Form._transform_step_response` and `Form._save_summary_card_response` serialize parts
 into the stored value; `build_summary_card_from_step` hydrates the stored value back into
-per-part state keys. Existing: `mm_dd_date_parts` (`day`+`month` ⇄ `date`, style `mm_dd`).
+per-part state keys. Single-input (scalar) steps also apply their transform when
+`value_key` equals the step key. Existing: `mm_dd_date_parts` (`day`+`month` ⇄ `date`,
+style `mm_dd`) and `normalize_link` (strips scheme/`www.`/trailing slash/fragment,
+keeps the query — used by block_links so saved links are clean and comparable).
 
 ### Value formatting styles — `format_values_by_style` (`app/services/utils.py`)
 YAML `style:` on steps/fields selects how stored values render in summaries and the manager
@@ -153,14 +168,104 @@ are added here, not as new one-off views.
 ### Card section types — `SECTION_TYPES` (`app/views/summary_card.py`)
 `configuration_card` steps declare `sections[]` with a `type` resolved by this registry:
 `title-content`, `file-upload`, `channel-select`, `value-select`, `button-options`,
-`boolean-toggle`, `modal-input`. Supporting card keys, all YAML-driven:
+`boolean-toggle`, `modal-input`, `multi-select` (multi-value string picker; state holds a
+list). Supporting card keys, all YAML-driven:
 - `state:` — maps a section to the state keys it edits (`{value: X}` or `{mode, title, content}`…);
-- `defaults:` — initial state values;
-- `required:` — keys that must be set before Done (missing labels are listed in the warning);
+- `defaults:` — initial state values; a `{en-us, pt-br}` dict is resolved to the user's
+  locale (used for prefilled text like the block_links default answer);
+- `required:` — keys that must be set before Done (missing labels are listed in the
+  warning; keys owned only by hidden sections are skipped);
+- `visible-when:` — `{key, not_in}` on a section: it only renders (and only counts for
+  `required:`) while the card state satisfies the rule (e.g. block_links hides the
+  popular-websites section in allow_all mode);
+- `picker-title:` / `picker-description:` — heading and body copy of the picker screen the
+  section opens (`SummaryCardPickerView` / `SummaryCardButtonOptionsView`). The description
+  is where a section explains what each option does before the user commits (one line per
+  option, led by its emoji, per the writing-style choice layout);
+- `options[].style:` — `primary`/`secondary`/`success`/`danger`, resolved by the shared
+  `resolve_option_style` (`app/components/buttons.py`), the same helper the `options` steps
+  use. The card's button picker paints each option from it (block_links: allow-all green,
+  block-all red);
 - `template-vars:` — resolved by `_resolve_value` (`from: response|interaction`, `key`/`attr`,
   `format` → `format_values_by_style`) and substituted into previews with `{name}`;
 - `reset-on-change:` — `[{key, validation}]` clears a dependent key when the named
   validator rejects the new combination (e.g. changing month invalidates day 31).
+
+Card fields whose sections carry `options` store the localized label as the response
+`value` and the raw option value as `_raw_value` (persistence and `condition:` use the
+raw; resume/manager show the label). Step-level `condition:` may reference card state
+keys, since card fields become responses.
+
+The card and its pickers are Components V2 LayoutViews, so they never go through
+`parse_form_dict_to_embed`: the step's `footer:` is rendered by `_add_footer` as `-#`
+subtext at the bottom of the container (`SummaryCardConfig.footer`).
+
+### Conditional copy — `description-when:` (`app/views/form.py`)
+A step may carry variants of its description, each guarded by the same `condition:` grammar
+used to skip steps:
+
+```yaml
+description:            # the default wording
+  en-us: "..."
+description-when:
+  - condition: {key: mode, not_in: [block_all]}
+    en-us: "..."
+    pt-br: "..."
+```
+
+The first variant whose condition holds replaces the description, before `{response:...}`
+tokens are substituted. The condition value is looked up in this order: answers given in
+this run, the saved configuration (`cogs`, so the manager Edit/Add flows still resolve it),
+and the context inherited from the parent form. That last step is what lets a composition
+sub-step word itself by a choice made before the composition started
+(`FormComposition(parent_context=...)`) — block_links uses it to say whether an entry will
+always allow or always block the link. Pinned by
+`test_description_variants_reference_keys_produced_earlier`.
+
+### Manager panel — `ManagerPanelView` (`app/views/manager_panel.py`)
+`build_command_manager_message` returns the manager as a **Components V2 container**, not an
+embed: the header, the saved configuration and every button live inside it. The first YAML step
+is still parsed into an embed, but only to read the header the container draws (title, intro,
+footer) from the source the form already uses.
+
+The rows come from `parse_settings_with_database_values`. Each row carries the `icon` its own
+YAML declares, resolved by `resolve_form_settings_icons` (`app/services/utils.py`) in this order,
+first hit wins: card `sections[].icon` (applied to every state key the section owns) → card
+`fields[].icon` → `selects[].icon` → the step's `emoji:` → 🥏 as fallback. Add `icon:` to a select
+or card field to give a setting its own identity in the panel — no Python involved.
+
+Rows are grouped into the panel's **sections** by `resolve_form_settings_groups`, which maps each
+setting to the step that owns it (a card owns its `fields`, a multi-select owns its `selects`, a
+composition owns itself). Each section sits next to a `SectionEditButton` that jumps straight into
+that step of the edit flow, skipping the "which setting?" dropdown. Two rules keep the hierarchy
+readable: a section whose title repeats the command's draws no heading, and the emoji belongs to
+the heading alone — the settings under it are plain `**Label:** value` lines.
+
+A setting no step owns (a command with a custom `settings_provider`, like birthday) falls into the
+group with no key: no heading, no pencil of its own, and the panel keeps the **global Edit button**
+— which is then the only way into the edit flow. Pinned by
+`tests/behavioral/contracts/test_manager_panel.py`, including Discord's Components V2 limits
+(40 components, 4000 characters of text), which the API only enforces at runtime.
+
+Events (pause, unpause, disable, edit, add, remove) answer with a fresh embed message and no
+controls: the panel's own buttons hold the configuration as it was *before* the change. That is
+`Manager._announce_event` / `_event_embed`, pinned by
+`tests/behavioral/regressions/test_manager_event_embeds.py`.
+
+Buttons that answer with a message of their own (Help, Preview, Stats, the blocked-links list,
+role sync) carry an `ActionCooldown` (`app/components/buttons.py`): a click inside the window
+gets a self-deleting notice (`buttons.cooldown.*`) instead of a second copy, and the button never
+leaves the screen — never remove or clear items from a view whose message stays visible.
+Navigation buttons (Add, Edit, Remove, lifecycle) have no cooldown: double-clicking them is
+protected behavior. Pinned by `tests/behavioral/contracts/test_view_action_cooldown.py` and
+`tests/behavioral/regressions/test_view_lifecycle_regressions.py`.
+
+> **Components V2 flags are fixed at send time.** A message sent with a container can never be
+> edited back into an embed message. Every screen reached from the panel therefore goes through
+> `app/views/panel_transitions.py` (`transition_to_embed`, `close_panel`), which replaces the
+> message instead of editing it. The form engine uses the same helper
+> (`Form._transition_from_layout_view`). Pinned by
+> `tests/behavioral/contracts/test_panel_transitions.py`.
 
 ### State refill — `FormStateManager.fill_*` (`app/views/form_state.py`)
 One `fill_<kind>` method per component family restores the previous answer on back
@@ -178,6 +283,18 @@ Turns a step dict into the step embed (title + `emoji`, description, `footer`, t
   custom summary rendering and per-lifecycle hooks (`Commands.LIFECYCLE_EDIT`, `_PAUSE`,
   `_UNPAUSE`, `_DISABLE`, `_ADD_ITEM`, `_REMOVE_ITEM` in `app/constants.py`). Prefer these
   hooks over `if command_key == ...` branches.
+- `send_command_manager_message(..., additional_buttons=[...], additional_info="...")` —
+  buttons and a closing paragraph that belong to one command only (birthday stats;
+  block_links blocked list, stats and the app-command tip). `AdditionalButton` answers the
+  interaction for the callback, unless it is built with `own_response=True`, which a callback
+  that opens its own view (a `PaginationView`, for instance) requires. The behavioral harness
+  resolves both through `_ADDITIONAL_BUTTONS` / `_MANAGER_INFO` / `_MANAGER_INFO_TITLE`
+  (`tests/behavioral/harness/driver.py`), so scenarios see the panel the user sees; register
+  a command there when it starts passing them. `additional_info_title="..."` turns that
+  paragraph into a titled section instead of a trailing note.
+- `build_command_manager_message(...) -> (embed, view)` is the same assembly without sending,
+  for a button that needs to redraw the panel in place (`interaction.response.edit_message`).
+- Mongo indexes and retention live in `app/data/indexes.py`, applied once by `create_app`.
 
 ### Reusable localized copy (never hardcode strings in Python)
 - Button labels: `buttons.*` in `app/languages/buttons/*.yml` (confirm, cancel, edit, back,
