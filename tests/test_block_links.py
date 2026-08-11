@@ -507,7 +507,7 @@ class TestBlockLinksRecords:
     async def test_records_the_blocked_link_with_the_rule_that_decided_it(
         self, mock_cache, mongodb, guild, bot, channel, member
     ):
-        from app.data.blocked_links import find_blocked_links_by_guild
+        from app.data.block_links import find_blocked_links_by_guild
 
         mock_cache.return_value = self._cog()
         msg = create_message(channel, member, "olha https://spam-site.com/promo")
@@ -526,7 +526,7 @@ class TestBlockLinksRecords:
     async def test_allowed_link_records_nothing(
         self, mock_cache, mongodb, guild, bot, channel, member
     ):
-        from app.data.blocked_links import find_blocked_links_by_guild
+        from app.data.block_links import find_blocked_links_by_guild
 
         mock_cache.return_value = self._cog()
         msg = create_message(channel, member, "https://youtube.com/watch?v=abc")
@@ -542,7 +542,7 @@ class TestBlockLinksRecords:
     ):
         """Faltou permissao de apagar mensagens: o registro precisa existir
         marcado como nao apagado, senao o dono do servidor nunca descobre."""
-        from app.data.blocked_links import find_blocked_links_by_guild
+        from app.data.block_links import find_blocked_links_by_guild
 
         mock_cache.return_value = self._cog()
         msg = create_message(channel, member, "https://spam-site.com")
@@ -566,7 +566,7 @@ class TestBlockLinksRecords:
         mock_cache.return_value = self._cog()
         msg = create_message(channel, member, "https://spam-site.com")
 
-        with patch("app.data.blocked_links.insert_blocked_link",
+        with patch("app.data.block_links.insert_blocked_link",
                    side_effect=RuntimeError("mongo down")):
             await check_message(str(guild.id), msg)
 
@@ -576,7 +576,7 @@ class TestBlockLinksRecords:
     async def test_records_are_capped_per_message(
         self, mock_cache, mongodb, guild, bot, channel, member
     ):
-        from app.data.blocked_links import find_blocked_links_by_guild
+        from app.data.block_links import find_blocked_links_by_guild
 
         mock_cache.return_value = self._cog()
         links = " ".join(f"https://spam{index}.com" for index in range(9))

@@ -158,27 +158,12 @@ class Manager(discord.ui.View):
         )
 
     def _announce_event(self):
-        """Strip the controls before announcing a state change.
-
-        The buttons hold the configuration as it was *before* the change, so
-        leaving them under the announcement offers actions on data that no
-        longer exists. Clearing has to happen here and not in the button that
-        was clicked: that button may live in a Components V2 panel, and
-        clearing that view leaves this one — the one the announcement is sent
-        with — untouched.
-        """
+        """Strip the manager controls before announcing a state change."""
         self.clear_items()
         return self
 
     def _event_embed(self, interaction: discord.Interaction) -> discord.Embed:
-        """The embed that announces a state change (paused, unpaused,
-        disabled).
-
-        An embed panel is reused so the announcement keeps the header the user
-        was looking at — and its fields are cleared, because only title and
-        description get rewritten and the settings must not survive under the
-        new message. A Components V2 panel has no embed to reuse, so the
-        announcement starts from a clean one."""
+        """The embed that announces a state change (paused, unpaused, disabled)."""
         if interaction.message and interaction.message.embeds:
             embed = interaction.message.embeds[0]
             embed.clear_fields()
@@ -313,11 +298,6 @@ class Manager(discord.ui.View):
             interaction=interaction,
         )
 
-        # Same order as pause and unpause: take the panel off the screen first,
-        # then announce. Editing the panel afterwards used to be enough while
-        # it was an embed; a Components V2 message cannot have its components
-        # replaced at all, so that edit failed silently and left the controls
-        # of a command that no longer exists on screen.
         await close_panel(interaction, self)
         await interaction.followup.send(embed=embed, view=self, ephemeral=True)
 

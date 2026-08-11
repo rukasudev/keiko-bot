@@ -119,13 +119,13 @@ async def test_a_new_notice_may_appear_once_the_previous_one_expired(
     """delete_after removed the first notice from the screen; a hot click
     after that must not be answered with silence (that would read as the
     dead-button bug). The action itself stays blocked for the full window."""
-    from app.components.buttons import NOTICE_LIFETIME
+    from app.constants import Commands as constants
 
     scenario = await _panel(scenario_factory, deps)
 
     await scenario.click(HELP)
     await scenario.click(HELP)                    # first notice
-    clock.advance(NOTICE_LIFETIME)                # notice self-deleted; window hot
+    clock.advance(constants.VIEW_ACTION_NOTICE_SECONDS)   # notice gone; window hot
     await scenario.click(HELP)                    # second notice, no help
 
     assert len(_events_titled(scenario, NOTICE_TITLE)) == 2

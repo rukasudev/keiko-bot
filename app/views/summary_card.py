@@ -55,8 +55,6 @@ class CustomizableSection:
     reset: Callable[[Dict[str, Any]], None]
     customize_label: str = ""
     always_set: bool = False
-    # YAML `visible-when: {key, not_in}`: section only renders (and only
-    # counts for `required:`) while the card state satisfies the rule.
     visible_when: Optional[Dict[str, Any]] = None
     state_keys: List[str] = field(default_factory=list)
 

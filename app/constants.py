@@ -59,57 +59,21 @@ class Commands:
     BLOCK_LINKS_ALLOWED_LINKS_KEY: Final[str] = "allowed_links"
     BLOCK_LINKS_ANSWER_KEY: Final[str] = "answer"
     BLOCK_LINKS_MODE_KEY: Final[str] = "mode"
-    BLOCK_LINKS_MODE_BLOCK_ALL: Final[str] = "block_all"
-    BLOCK_LINKS_MODE_ALLOW_ALL: Final[str] = "allow_all"
     BLOCK_LINKS_CUSTOM_LINKS_KEY: Final[str] = "custom_links"
     BLOCK_LINKS_LINK_KEY: Final[str] = "link"
     BLOCK_LINKS_MATCH_TYPE_KEY: Final[str] = "match_type"
-    BLOCK_LINKS_MATCH_DOMAIN: Final[str] = "domain"
-    BLOCK_LINKS_MATCH_EXACT: Final[str] = "exact"
     BLOCK_LINKS_ADD_CUSTOM_KEY: Final[str] = "add_custom"
 
-    # block links diagnostics: gate keys and reason codes. Closed vocabulary —
-    # each value is also a localization key suffix and a stored enum value.
-    BLOCK_LINKS_GATE_FEATURE: Final[str] = "feature"
-    BLOCK_LINKS_GATE_ROLE: Final[str] = "role"
-    BLOCK_LINKS_GATE_CHANNEL: Final[str] = "channel"
-    BLOCK_LINKS_GATE_LINKS: Final[str] = "links"
-    BLOCK_LINKS_GATE_RULES: Final[str] = "rules"
-    BLOCK_LINKS_REASON_NOT_CONFIGURED: Final[str] = "not-configured"
-    BLOCK_LINKS_REASON_PAUSED: Final[str] = "paused"
-    BLOCK_LINKS_REASON_ACTIVE: Final[str] = "active"
-    BLOCK_LINKS_REASON_ROLE_EXEMPT: Final[str] = "role-exempt"
-    BLOCK_LINKS_REASON_ROLE_NOT_EXEMPT: Final[str] = "role-not-exempt"
-    BLOCK_LINKS_REASON_CHANNEL_EXEMPT: Final[str] = "channel-exempt"
-    BLOCK_LINKS_REASON_CHANNEL_NOT_EXEMPT: Final[str] = "channel-not-exempt"
-    BLOCK_LINKS_REASON_NO_LINKS: Final[str] = "no-links"
-    BLOCK_LINKS_REASON_HAS_LINKS: Final[str] = "has-links"
-    BLOCK_LINKS_REASON_ALL_ALLOWED: Final[str] = "all-allowed"
-    BLOCK_LINKS_REASON_SOME_BLOCKED: Final[str] = "some-blocked"
-    BLOCK_LINKS_REASON_ALLOWED_BY_POPULAR: Final[str] = "allowed-by-popular"
-    BLOCK_LINKS_REASON_ALLOWED_BY_CUSTOM: Final[str] = "allowed-by-custom"
-    BLOCK_LINKS_REASON_ALLOWED_BY_DEFAULT: Final[str] = "allowed-by-default"
-    BLOCK_LINKS_REASON_BLOCKED_BY_CUSTOM: Final[str] = "blocked-by-custom"
-    BLOCK_LINKS_REASON_BLOCKED_NO_RULE: Final[str] = "blocked-no-rule"
-    # Discord caps an embed field value at 1024 chars.
     BLOCK_LINKS_DIAGNOSTIC_MAX_LINKS: Final[int] = 5
-    # Blocked-link records: bounded by a TTL index, capped per message so a
-    # link-spam message cannot write hundreds of rows, and read in one page.
     BLOCK_LINKS_EVENTS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 90
     BLOCK_LINKS_EVENTS_MAX_PER_MESSAGE: Final[int] = 3
     BLOCK_LINKS_EVENTS_READ_LIMIT: Final[int] = 200
-    # How many composition entries the settings summary lists before
-    # collapsing into "and N more" (the full list lives in Edit/Remove).
     SETTINGS_COMPOSITION_PREVIEW_LIMIT: Final[int] = 10
-    # Anti-spam window for view buttons that answer with their own message
-    # (Help, Preview, Stats...). Clicking again inside it gets a self-deleting
-    # notice instead of a second copy of the message.
     VIEW_ACTION_COOLDOWN_SECONDS: Final[int] = 10
-    # All-time counters, kept in Redis without expiry so the numbers survive
-    # the 90-day retention of the detailed records.
-    BLOCK_LINKS_COUNTER_TOTAL: Final[str] = "guild:{guild_id}:block_links:total"
-    BLOCK_LINKS_COUNTER_HOST: Final[str] = "guild:{guild_id}:block_links:host:{value}"
-    BLOCK_LINKS_COUNTER_USER: Final[str] = "guild:{guild_id}:block_links:user:{value}"
+    VIEW_ACTION_NOTICE_SECONDS: Final[int] = 5
+    REDIS_BLOCK_LINKS_COUNTER_TOTAL: Final[str] = "guild:{guild_id}:block_links:total"
+    REDIS_BLOCK_LINKS_COUNTER_HOST: Final[str] = "guild:{guild_id}:block_links:host:{value}"
+    REDIS_BLOCK_LINKS_COUNTER_USER: Final[str] = "guild:{guild_id}:block_links:user:{value}"
 
     # moderations
     MODERATIONS_KEY: Final[str] = "moderations"
@@ -288,6 +252,7 @@ class DiscordLimits:
     EMBED_FIELDS: Final[int] = 25
     EMBED_FIELD_NAME: Final[int] = 256
     EMBED_FIELD_VALUE: Final[int] = 1024
+    SELECT_OPTION_TEXT: Final[int] = 100
 
 
 class KeikoIcons:

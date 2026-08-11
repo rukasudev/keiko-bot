@@ -16,7 +16,7 @@ from app.constants import Commands as constants
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
 from app.constants import Style
-from app.data import blocked_links as blocked_links_data
+from app.data import block_links as blocked_links_data
 from app.exceptions import ErrorContext
 from app.services import cache
 from app.services.moderations import (
@@ -44,8 +44,7 @@ class ParsedLink:
 
 @dataclass(frozen=True)
 class MessageSubject:
-    """The only Discord-aware boundary of the evaluation: everything past this
-    point is primitives, so the whole decision is unit-testable offline."""
+    """The Discord-aware boundary of the evaluation."""
     author_role_ids: Tuple[str, ...] = ()
     channel_id: str = ""
     content: str = ""
@@ -83,10 +82,8 @@ class LinkVerdict:
 
 @dataclass(frozen=True)
 class BlockLinksEvaluation:
-    """`blocked_links` is what the link RULES reject; `would_block` is what
-    actually happens, which also requires every gate to have passed. They
-    differ exactly when an exemption spares a message that breaks a rule,
-    which is the most useful thing the diagnostic can tell a moderator."""
+    """`blocked_links` is what the rules reject; `would_block` also requires
+    every gate to have passed."""
     mode: str
     gates: Tuple[GateOutcome, ...]
     links: Tuple[LinkVerdict, ...]
@@ -99,8 +96,7 @@ class BlockLinksEvaluation:
 
 
 def parse_link(text: str) -> ParsedLink:
-    """Normalize a link or domain: optional scheme, lowercase host, single
-    leading www. stripped, single trailing slash stripped, fragment dropped."""
+    """Normalize a link or domain (scheme optional, lowercase, no www.)."""
     text = str(text).strip()
     if "://" not in text:
         text = f"http://{text}"
@@ -115,8 +111,7 @@ def parse_link(text: str) -> ParsedLink:
 
 
 def matches_domain(link: ParsedLink, domain: str) -> bool:
-    """The link's host is the domain, one of its subdomains, or one of the
-    quick-pick alias hosts (youtu.be for youtube.com, x.com for twitter.com...)."""
+    """The domain itself, a subdomain, or a quick-pick alias host."""
     candidates = [domain] + BLOCK_LINKS_QUICK_PICK_DOMAINS.get(domain, [])
     return any(
         link.host == candidate or link.host.endswith(f".{candidate}")
@@ -125,9 +120,7 @@ def matches_domain(link: ParsedLink, domain: str) -> bool:
 
 
 def matches_exact(link: ParsedLink, stored: ParsedLink) -> bool:
-    """Same host and path; the stored query params must be a subset of the
-    link's (so tracking params on the message side never defeat a match,
-    but a different ?v= does)."""
+    """Same host and path; the stored query params are a subset of the link's."""
     if link.host != stored.host or link.path != stored.path:
         return False
     return all(link.query.get(key) == value for key, value in stored.query.items())
@@ -145,8 +138,8 @@ def _custom_entry_rules(config: Dict[str, Any]) -> List[Dict[str, str]]:
             continue
         match_field = entry.get(constants.BLOCK_LINKS_MATCH_TYPE_KEY) or {}
         match = match_field.get("_raw_value") or match_field.get("value")
-        if match != constants.BLOCK_LINKS_MATCH_EXACT:
-            match = constants.BLOCK_LINKS_MATCH_DOMAIN
+        if match != "exact":
+            match = "domain"
         rules.append({"link": link_value, "match": match})
     return rules
 
@@ -154,12 +147,10 @@ def _custom_entry_rules(config: Dict[str, Any]) -> List[Dict[str, str]]:
 def _first_matching_rule(
     link: ParsedLink, rules: List[Dict[str, str]]
 ) -> Optional[Dict[str, str]]:
-    """The custom entry that decides this link, or None. Returning the rule
-    (instead of a bare bool) is what lets both the recorded event and the
-    diagnostic name WHY a link was allowed or blocked."""
+    """The custom entry that decides this link, or None."""
     for rule in rules:
         stored = parse_link(rule["link"])
-        if rule["match"] == constants.BLOCK_LINKS_MATCH_EXACT:
+        if rule["match"] == "exact":
             if matches_exact(link, stored):
                 return rule
         elif matches_domain(link, stored.host):
@@ -172,9 +163,8 @@ def _matches_entries(link: ParsedLink, rules: List[Dict[str, str]]) -> bool:
 
 
 def link_verdicts(links: List[str], config: Dict[str, Any]) -> List["LinkVerdict"]:
-    """Per-link decision under this (normalized) config, with the rule that
-    decided it. The single place where the block/allow call is made."""
-    mode = config.get(constants.BLOCK_LINKS_MODE_KEY) or constants.BLOCK_LINKS_MODE_BLOCK_ALL
+    """Per-link decision under this normalized config, with the deciding rule."""
+    mode = config.get(constants.BLOCK_LINKS_MODE_KEY) or "block_all"
     rules = _custom_entry_rules(config)
     domains = ensure_list(
         (config.get(constants.BLOCK_LINKS_ALLOWED_LINKS_KEY) or {}).get("values")
@@ -185,17 +175,17 @@ def link_verdicts(links: List[str], config: Dict[str, Any]) -> List["LinkVerdict
         link = parse_link(raw)
         rule = _first_matching_rule(link, rules)
 
-        if mode == constants.BLOCK_LINKS_MODE_ALLOW_ALL:
+        if mode == "allow_all":
             if rule:
                 verdicts.append(LinkVerdict(
                     raw=raw, host=link.host, blocked=True,
-                    reason=constants.BLOCK_LINKS_REASON_BLOCKED_BY_CUSTOM,
+                    reason="blocked-by-custom",
                     rule=rule["link"], match=rule["match"],
                 ))
             else:
                 verdicts.append(LinkVerdict(
                     raw=raw, host=link.host, blocked=False,
-                    reason=constants.BLOCK_LINKS_REASON_ALLOWED_BY_DEFAULT,
+                    reason="allowed-by-default",
                 ))
             continue
 
@@ -203,26 +193,25 @@ def link_verdicts(links: List[str], config: Dict[str, Any]) -> List["LinkVerdict
         if domain:
             verdicts.append(LinkVerdict(
                 raw=raw, host=link.host, blocked=False,
-                reason=constants.BLOCK_LINKS_REASON_ALLOWED_BY_POPULAR,
-                rule=domain, match=constants.BLOCK_LINKS_MATCH_DOMAIN,
+                reason="allowed-by-popular",
+                rule=domain, match="domain",
             ))
         elif rule:
             verdicts.append(LinkVerdict(
                 raw=raw, host=link.host, blocked=False,
-                reason=constants.BLOCK_LINKS_REASON_ALLOWED_BY_CUSTOM,
+                reason="allowed-by-custom",
                 rule=rule["link"], match=rule["match"],
             ))
         else:
             verdicts.append(LinkVerdict(
                 raw=raw, host=link.host, blocked=True,
-                reason=constants.BLOCK_LINKS_REASON_BLOCKED_NO_RULE,
+                reason="blocked-no-rule",
             ))
     return verdicts
 
 
 def find_blocked_links(links: List[str], config: Dict[str, Any]) -> List[str]:
-    """Which of the extracted links must be blocked under this (normalized)
-    config. Never mutates the input."""
+    """The extracted links this normalized config blocks."""
     return [verdict.raw for verdict in link_verdicts(links, config) if verdict.blocked]
 
 
@@ -237,15 +226,12 @@ def _envelope(config: Dict[str, Any], key: str, style: Optional[str]) -> Dict[st
 
 
 def normalize_block_links_config(cogs: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    """Read-time translation used by BOTH enforcement and the manager.
-
-    Legacy documents (saved before the two-mode redesign) carry option
-    LABELS in allowed_links and no mode; they keep working forever through
-    this function. Never mutates the stored document."""
+    """Read-time translation of legacy documents, used by enforcement and the
+    manager alike. Never mutates the stored document."""
     config = dict(cogs or {})
 
     if not config.get(constants.BLOCK_LINKS_MODE_KEY):
-        config[constants.BLOCK_LINKS_MODE_KEY] = constants.BLOCK_LINKS_MODE_BLOCK_ALL
+        config[constants.BLOCK_LINKS_MODE_KEY] = "block_all"
         legacy_value = config.get(constants.BLOCK_LINKS_ALLOWED_LINKS_KEY)
         if not isinstance(legacy_value, dict):
             domains = [
@@ -271,8 +257,7 @@ def normalize_block_links_config(cogs: Optional[Dict[str, Any]]) -> Dict[str, An
     config[constants.BLOCK_LINKS_CUSTOM_LINKS_KEY] = _envelope(
         config, constants.BLOCK_LINKS_CUSTOM_LINKS_KEY, "composition"
     )
-    # Setup-only gate: if kept, its condition would hide entries added later
-    # through the manager Add button.
+    # Setup-only gate; keeping it would hide entries added through the manager.
     config.pop(constants.BLOCK_LINKS_ADD_CUSTOM_KEY, None)
     return config
 
@@ -280,16 +265,11 @@ def normalize_block_links_config(cogs: Optional[Dict[str, Any]]) -> Dict[str, An
 def evaluate_message(
     subject: MessageSubject, cogs: Optional[Dict[str, Any]], *, full: bool = False
 ) -> BlockLinksEvaluation:
-    """The single decision path of this command.
-
-    Enforcement (`full=False`) stops at the first gate that fails, doing
-    exactly the work it did when the gates were inline early returns. The
-    diagnostic (`full=True`) walks every gate so it can tell the user which
-    rules a message passed and which it did not. Both read the same gates in
-    the same order, so an explanation can never disagree with what the bot
-    actually does."""
+    """The single decision path of this command: enforcement (`full=False`)
+    stops at the first failing gate, the diagnostic (`full=True`) walks all
+    of them."""
     config = normalize_block_links_config(cogs)
-    mode = config.get(constants.BLOCK_LINKS_MODE_KEY) or constants.BLOCK_LINKS_MODE_BLOCK_ALL
+    mode = config.get(constants.BLOCK_LINKS_MODE_KEY) or "block_all"
     answer = config.get(constants.BLOCK_LINKS_ANSWER_KEY) or ""
 
     gates: List[GateOutcome] = []
@@ -307,13 +287,13 @@ def evaluate_message(
         )
 
     if not cogs:
-        reason = constants.BLOCK_LINKS_REASON_NOT_CONFIGURED
+        reason = "not-configured"
     elif not cogs.get(constants.ENABLED_KEY, True):
-        reason = constants.BLOCK_LINKS_REASON_PAUSED
+        reason = "paused"
     else:
-        reason = constants.BLOCK_LINKS_REASON_ACTIVE
-    active = reason == constants.BLOCK_LINKS_REASON_ACTIVE
-    gates.append(GateOutcome(constants.BLOCK_LINKS_GATE_FEATURE, active, reason))
+        reason = "active"
+    active = reason == "active"
+    gates.append(GateOutcome("feature", active, reason))
     if not active and not full:
         return finish()
 
@@ -325,10 +305,10 @@ def evaluate_message(
         list(subject.author_role_ids), exempt_roles
     )
     gates.append(GateOutcome(
-        constants.BLOCK_LINKS_GATE_ROLE,
+        "role",
         not role_exempt,
-        constants.BLOCK_LINKS_REASON_ROLE_EXEMPT if role_exempt
-        else constants.BLOCK_LINKS_REASON_ROLE_NOT_EXEMPT,
+        "role-exempt" if role_exempt
+        else "role-not-exempt",
         matched_roles,
     ))
     if role_exempt and not full:
@@ -338,10 +318,10 @@ def evaluate_message(
         constants.BLOCK_LINKS_ALLOWED_CHATS_KEY
     ]["values"]
     gates.append(GateOutcome(
-        constants.BLOCK_LINKS_GATE_CHANNEL,
+        "channel",
         not channel_exempt,
-        constants.BLOCK_LINKS_REASON_CHANNEL_EXEMPT if channel_exempt
-        else constants.BLOCK_LINKS_REASON_CHANNEL_NOT_EXEMPT,
+        "channel-exempt" if channel_exempt
+        else "channel-not-exempt",
         (subject.channel_id,),
     ))
     if channel_exempt and not full:
@@ -349,10 +329,10 @@ def evaluate_message(
 
     message_links = get_message_links(subject.content)
     gates.append(GateOutcome(
-        constants.BLOCK_LINKS_GATE_LINKS,
+        "links",
         bool(message_links),
-        constants.BLOCK_LINKS_REASON_HAS_LINKS if message_links
-        else constants.BLOCK_LINKS_REASON_NO_LINKS,
+        "has-links" if message_links
+        else "no-links",
         tuple(message_links),
     ))
     if not message_links:
@@ -361,10 +341,10 @@ def evaluate_message(
     verdicts = link_verdicts(message_links, config)
     blocked = [verdict.raw for verdict in verdicts if verdict.blocked]
     gates.append(GateOutcome(
-        constants.BLOCK_LINKS_GATE_RULES,
+        "rules",
         bool(blocked),
-        constants.BLOCK_LINKS_REASON_SOME_BLOCKED if blocked
-        else constants.BLOCK_LINKS_REASON_ALL_ALLOWED,
+        "some-blocked" if blocked
+        else "all-allowed",
         tuple(blocked),
     ))
     return finish()
@@ -413,14 +393,7 @@ def record_blocked_links(
     *,
     deleted: bool,
 ) -> None:
-    """Store what I blocked, so the server can list it and see its stats.
-
-    Recorded after the delete attempt and including failures: `deleted: False`
-    means I matched a link but could not remove it (usually a missing Manage
-    Messages permission), which is the most useful thing an owner can learn.
-
-    Never raises: an audit write must not break moderation, nor turn a
-    successful delete into an error path."""
+    """Store what was blocked (including failed deletes). Never raises."""
     try:
         author = getattr(message, "author", None)
         channel = getattr(message, "channel", None)
@@ -441,15 +414,15 @@ def record_blocked_links(
                 "deleted": deleted,
             })
             cache.increment_redis_key(
-                constants.BLOCK_LINKS_COUNTER_TOTAL.format(guild_id=guild_id)
+                constants.REDIS_BLOCK_LINKS_COUNTER_TOTAL.format(guild_id=guild_id)
             )
             cache.increment_redis_key(
-                constants.BLOCK_LINKS_COUNTER_HOST.format(
+                constants.REDIS_BLOCK_LINKS_COUNTER_HOST.format(
                     guild_id=guild_id, value=verdict.host
                 )
             )
             cache.increment_redis_key(
-                constants.BLOCK_LINKS_COUNTER_USER.format(
+                constants.REDIS_BLOCK_LINKS_COUNTER_USER.format(
                     guild_id=guild_id, value=getattr(author, "id", "")
                 )
             )
@@ -462,16 +435,7 @@ def record_blocked_links(
 
 
 async def check_edited_message(bot, payload) -> None:
-    """Re-run the check when a message is edited after being sent.
-
-    Editing a harmless message into a link was a free bypass while the bot
-    only listened to on_message. The raw event is used (not on_message_edit)
-    because it also fires for messages that left the client cache, and it
-    fires exactly once per edit.
-
-    Two cheap guards run before any HTTP call: Discord also emits an update
-    when it attaches the link preview (no `content` in the payload), and an
-    edit whose new text carries no link has nothing to re-evaluate."""
+    """Re-run the check when a message is edited after being sent."""
     if not getattr(payload, "guild_id", None):
         return
 
@@ -494,21 +458,16 @@ async def check_edited_message(bot, payload) -> None:
     await check_message(str(payload.guild_id), message)
 
 
-MANAGER_NAMESPACE = "commands.commands.commons.block-links-manager"
-CHECK_NAMESPACE = "commands.commands.block-links-check"
-
-
 def _bm(key: str, locale: str) -> str:
-    return ml(f"{MANAGER_NAMESPACE}.{key}", locale=locale)
+    return ml(f"commands.commands.commons.block-links-manager.{key}", locale=locale)
 
 
 def _bc(key: str, locale: str) -> str:
-    return ml(f"{CHECK_NAMESPACE}.{key}", locale=locale)
+    return ml(f"commands.commands.block-links-check.{key}", locale=locale)
 
 
 def _mode_label(mode: str, locale: str) -> str:
-    """The mode as the user picked it, read from the same YAML that renders
-    the picker, so the diagnostic can never drift from the card."""
+    """The mode label, read from the same YAML that renders the picker."""
     for step in parse_form_yaml_to_dict(constants.BLOCK_LINKS_KEY):
         for section in step.get("sections", []) or []:
             if section.get("key") != constants.BLOCK_LINKS_MODE_KEY:
@@ -521,33 +480,31 @@ def _mode_label(mode: str, locale: str) -> str:
 
 def _link_reason_key(verdict: LinkVerdict) -> str:
     if verdict.reason in (
-        constants.BLOCK_LINKS_REASON_ALLOWED_BY_CUSTOM,
-        constants.BLOCK_LINKS_REASON_BLOCKED_BY_CUSTOM,
+        "allowed-by-custom",
+        "blocked-by-custom",
     ):
-        return f"{verdict.reason}-{verdict.match or constants.BLOCK_LINKS_MATCH_DOMAIN}"
+        return f"{verdict.reason}-{verdict.match or 'domain'}"
     return verdict.reason
 
 
 def parse_evaluation_to_fields(
     evaluation: BlockLinksEvaluation, locale: str
 ) -> List[Dict[str, str]]:
-    """The diagnostic as exactly three items: is the feature on, is anyone
-    exempt, and what happened to each link. Pure, so the wording is asserted
-    without touching Discord."""
-    feature = evaluation.gate(constants.BLOCK_LINKS_GATE_FEATURE)
+    """The diagnostic as three items: feature on, exemptions, per-link fate."""
+    feature = evaluation.gate("feature")
     feature_text = _bc(f"fields.feature.{feature.reason}", locale).replace(
         "$mode", _mode_label(evaluation.mode, locale)
     )
 
     exemptions = []
-    role = evaluation.gate(constants.BLOCK_LINKS_GATE_ROLE)
+    role = evaluation.gate("role")
     if role:
         exemptions.append(
             _bc(f"fields.exemptions.{role.reason}", locale).replace(
                 "$roles", ", ".join(f"<@&{value}>" for value in role.detail)
             )
         )
-    channel = evaluation.gate(constants.BLOCK_LINKS_GATE_CHANNEL)
+    channel = evaluation.gate("channel")
     if channel:
         exemptions.append(
             _bc(f"fields.exemptions.{channel.reason}", locale).replace(
@@ -620,9 +577,7 @@ def get_blocked_link_records(
 def parse_blocked_link_records(
     records: List[Dict[str, Any]], locale: str
 ) -> Dict[str, str]:
-    """Records as the {field name: field value} dict PaginationView renders.
-    Field names carry the position so two blocks of the same website never
-    collapse into one another."""
+    """Records as the {field name: field value} dict PaginationView renders."""
     data = {}
     for index, record in enumerate(records, start=1):
         icon = "⚠️" if record.get("deleted") is False else "🚫"
@@ -647,24 +602,21 @@ def parse_blocked_link_records(
 
 
 def _discord_timestamp(created_at: Any) -> str:
-    """`<t:unix:R>` renders as a relative time ("2 hours ago") translated by
-    each reader's own Discord client, which a formatted UTC string never is."""
+    """`<t:unix:R>`: a relative time localized by each reader's client."""
     if not hasattr(created_at, "timestamp"):
         return "-"
     return f"<t:{int(created_at.timestamp())}:R>"
 
 
 def get_blocked_links_stats(guild_id: str) -> Dict[str, Any]:
-    """All-time numbers come from the Redis counters, which outlive the 90-day
-    retention of the records; the recent cut and the failure count come from
-    the records themselves. The two windows are labeled apart in the copy."""
+    """All-time numbers from the Redis counters, recent ones from the records."""
     records = blocked_links_data.find_blocked_links_by_guild(guild_id)
 
     host_counters = cache.get_redis_counters_by_prefix(
-        constants.BLOCK_LINKS_COUNTER_HOST.format(guild_id=guild_id, value="")
+        constants.REDIS_BLOCK_LINKS_COUNTER_HOST.format(guild_id=guild_id, value="")
     ) or Counter(record.get("host") for record in records if record.get("host"))
     user_counters = cache.get_redis_counters_by_prefix(
-        constants.BLOCK_LINKS_COUNTER_USER.format(guild_id=guild_id, value="")
+        constants.REDIS_BLOCK_LINKS_COUNTER_USER.format(guild_id=guild_id, value="")
     ) or Counter(record.get("user_id") for record in records if record.get("user_id"))
 
     top_hosts = Counter(host_counters).most_common(3)
@@ -672,7 +624,7 @@ def get_blocked_links_stats(guild_id: str) -> Dict[str, Any]:
 
     return {
         "total": cache.get_redis_counter(
-            constants.BLOCK_LINKS_COUNTER_TOTAL.format(guild_id=guild_id)
+            constants.REDIS_BLOCK_LINKS_COUNTER_TOTAL.format(guild_id=guild_id)
         ) or len(records),
         "recent": len(records),
         "top_hosts": top_hosts,
@@ -714,8 +666,6 @@ async def send_blocked_links_stats_message(interaction: discord.Interaction) -> 
         description=description,
         color=int(Style.BACKGROUND_COLOR, base=16),
     )
-    # Same picture as the blocked-links list: both screens are the same feature
-    # seen from two angles.
     embed.set_thumbnail(url=KeikoIcons.IMAGE_02)
     footer = ml("commands.commands.commons.embed.footer", locale=locale)
     if footer:
@@ -725,14 +675,88 @@ async def send_blocked_links_stats_message(interaction: discord.Interaction) -> 
 
 
 def disable_block_links(interaction: discord.Interaction, cogs: Any = None) -> None:
-    """Turning the feature off purges what I recorded: the user asked me to
-    stop watching, so I stop keeping their history too."""
     blocked_links_data.delete_blocked_links_by_guild(str(interaction.guild_id))
 
 
+async def send_blocked_links_message(
+    interaction: discord.Interaction, user_id: Optional[str] = None
+) -> None:
+    from app.views.pagination import PaginationView
+
+    locale = parse_locale(interaction.locale)
+    records = get_blocked_link_records(str(interaction.guild_id), user_id=user_id)
+
+    if not records:
+        empty_key = "blocked-list.filter.empty" if user_id else "blocked-list.embed.empty"
+        embed = discord.Embed(
+            title=_bm("blocked-list.embed.title", locale),
+            description=_bm(empty_key, locale),
+            color=int(Style.BACKGROUND_COLOR, base=16),
+        )
+        embed.set_thumbnail(url=KeikoIcons.IMAGE_02)
+        return await interaction.response.send_message(embed=embed, ephemeral=True)
+
+    view = PaginationView(
+        interaction,
+        title=_bm("blocked-list.embed.title", locale),
+        description=_bm("blocked-list.embed.description", locale),
+        data=parse_blocked_link_records(records, locale),
+        sep=4,
+    )
+    view.add_item(_blocked_links_filter_button(locale, filtered=bool(user_id)))
+    await view.send(ephemeral=True)
+
+
+def _blocked_links_filter_button(locale: str, filtered: bool) -> discord.ui.Button:
+    from app.components.buttons import GenericButton
+
+    if filtered:
+        return GenericButton(
+            label=_bm("blocked-list.filter.all-label", locale),
+            callback=_show_all_blocked_links,
+            style=discord.ButtonStyle.grey,
+            emoji="🔎",
+            row=1,
+        )
+    return GenericButton(
+        label=_bm("blocked-list.filter.label", locale),
+        callback=_show_blocked_links_member_picker,
+        style=discord.ButtonStyle.grey,
+        emoji="🔎",
+        row=1,
+    )
+
+
+async def _show_all_blocked_links(interaction: discord.Interaction) -> None:
+    await send_blocked_links_message(interaction)
+
+
+async def _show_blocked_links_member_picker(interaction: discord.Interaction) -> None:
+    from app.components.select_views import UserSelectView
+
+    locale = parse_locale(interaction.locale)
+
+    async def on_selected(select_interaction: discord.Interaction) -> None:
+        selected = picker.get_response()
+        if isinstance(selected, (list, tuple)):
+            selected = selected[0] if selected else None
+        if not selected:
+            return
+        await send_blocked_links_message(select_interaction, user_id=str(selected))
+
+    picker = UserSelectView(
+        callback=on_selected, locale=locale, required=True, unique=True
+    )
+    embed = discord.Embed(
+        title=_bm("blocked-list.filter.title", locale),
+        description=_bm("blocked-list.filter.description", locale),
+        color=int(Style.BACKGROUND_COLOR, base=16),
+    )
+    embed.set_thumbnail(url=KeikoIcons.IMAGE_02)
+    await interaction.response.edit_message(embed=embed, view=picker)
+
+
 def _manager_info(locale: str) -> str:
-    """The step by step to reach the diagnostic app command, shown on the
-    manager panel because a context menu is easy to never discover."""
     return _bm("info", locale)
 
 
@@ -741,8 +765,6 @@ def _manager_info_title(locale: str) -> str:
 
 
 def _manager_buttons(locale: str) -> List[discord.ui.Button]:
-    from app.views.blocked_links import send_blocked_links_message
-
     return [
         AdditionalButton(
             callback=send_blocked_links_message,

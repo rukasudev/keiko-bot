@@ -76,6 +76,9 @@ contents in the report beyond what a finding needs):
   enforcement test suite.
 - `.claude/rules/implementation-planning.md` — decision order details and the anti-patterns
   list findings should cite.
+- `.claude/rules/code-style.md` — maintainer-reviewed code patterns (comments, constants,
+  data-layer shape, views scope, Redis key naming, unversioned migrations). Audit the scope
+  against every rule in it; these came from real review comments and repeat findings.
 - `docs/testing-strategy.md` — read whenever the scope touches shared
   infrastructure (form engine, manager, components, formatters, loaders, i18n
   helpers) or test code: it defines the regression workflow, the consumer
@@ -131,7 +134,7 @@ bug fixes merged without a permanent failing-first test
 Group findings under these categories when applicable; never create empty sections:
 `YAML-driven architecture`, `Existing implementation reuse`, `Generic design`,
 `Command-specific logic`, `Architecture exception`, `Configuration consistency`,
-`Keiko writing style`, `Discord UI conventions`, `Localization`,
+`Code style`, `Keiko writing style`, `Discord UI conventions`, `Localization`,
 `Testing and regression risk`, `Documentation`.
 
 ## Severity levels

@@ -6,7 +6,7 @@ real records in the (mocked) database.
 """
 import pytest
 
-from app.data.blocked_links import insert_blocked_link
+from app.data.block_links import insert_blocked_link
 from app.services.utils import ml
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]

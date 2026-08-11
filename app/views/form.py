@@ -134,12 +134,6 @@ class Form(discord.ui.View):
 
         return update_counter
 
-    # YAML step descriptions may echo an earlier answer with
-    # {response:<key>[:<formatter>]|<fallback>} — the fallback shows before the
-    # key is answered (e.g. the form intro), and the optional formatter derives
-    # a part of the answer, so a step can explain one choice with the website
-    # and another with the exact address the user typed.
-    # Reference: docs/form-configuration.md
     RESPONSE_TOKEN_PATTERN = re.compile(
         r"\{response:([A-Za-z0-9_]+)(?::([a-z_]+))?(?:\|([^}]*))?\}"
     )
@@ -288,9 +282,6 @@ class Form(discord.ui.View):
         if action in (constants.MODAL_ACTION_KEY, constants.FILE_UPLOAD_ACTION_KEY) and not self.view.get_response():
             return
 
-        # A composition with no completed item means its sub-form is still
-        # in flight (e.g. a failed modal validation): re-drive it instead of
-        # saving an empty list and skipping ahead.
         if action == constants.COMPOSITION_ACTION_KEY and not self.view.get_response():
             return
 

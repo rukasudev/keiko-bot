@@ -13,31 +13,13 @@ from app.services.cache import increment_redis_key
 from app.services.utils import get_command_by_key, ml, parse_locale
 
 
-# How long the cooldown notice stays on screen; also how long hot clicks are
-# answered with silence, so at most one notice is ever visible.
-NOTICE_LIFETIME = 5
-
 READY, NOTIFY, SILENT = "ready", "notify", "silent"
 
 
 class ActionCooldown:
-    """Anti-spam for buttons that answer with a message of their own.
-
-    One instance per button, so the window is per user per panel (panels are
-    ephemeral). The button never leaves the screen and its view is never
-    touched: a click inside the window is answered with a self-deleting
-    notice, which is what replaced the old remove-the-button pattern — that
-    removal was a silent no-op on the panel (`remove_item` only sees
-    top-level children) and killed views where it did work.
-
-    The notice must not be spammable either, so `poll` distinguishes the hot
-    click that deserves one from the hot clicks that arrive while the previous
-    notice is still on screen — those are acknowledged in silence. Hot clicks
-    never extend the window: spam is ignored, not punished.
-
-    Navigation buttons (Add, Edit, Remove, lifecycle) must NOT get one:
-    double-clicking them is protected behavior.
-    """
+    """Anti-spam window for buttons that answer with a message of their own.
+    At most one notice is visible at a time; navigation buttons never get
+    one (double-clicking them must keep working)."""
 
     def __init__(self, seconds: float = command_constants.VIEW_ACTION_COOLDOWN_SECONDS):
         self.seconds = seconds
@@ -50,7 +32,11 @@ class ActionCooldown:
             self._last_use = now
             self._notified_at = None
             return READY
-        if self._notified_at is None or now - self._notified_at >= NOTICE_LIFETIME:
+        notice_expired = (
+            self._notified_at is None
+            or now - self._notified_at >= command_constants.VIEW_ACTION_NOTICE_SECONDS
+        )
+        if notice_expired:
             self._notified_at = now
             return NOTIFY
         return SILENT
@@ -58,12 +44,6 @@ class ActionCooldown:
 
 async def acknowledge_hot_click(interaction: discord.Interaction, locale: str,
                                 state: str) -> None:
-    """Answer a click that arrived inside the cooldown window.
-
-    The first one gets the notice; while that notice is still on screen the
-    rest get a bare deferred update — Discord accepts the interaction and
-    nothing changes, which is fine exactly because the user is looking at the
-    notice that just told them why."""
     if state == SILENT:
         if not interaction.response.is_done():
             await interaction.response.defer()
@@ -73,7 +53,8 @@ async def acknowledge_hot_click(interaction: discord.Interaction, locale: str,
     if interaction.response.is_done():
         return await interaction.followup.send(embed=embed, ephemeral=True)
     await interaction.response.send_message(
-        embed=embed, ephemeral=True, delete_after=NOTICE_LIFETIME
+        embed=embed, ephemeral=True,
+        delete_after=command_constants.VIEW_ACTION_NOTICE_SECONDS,
     )
 
 
@@ -200,12 +181,7 @@ class OptionsButton(discord.ui.Button):
 
 def panel_screen_embed(interaction: discord.Interaction, command_key: str,
                        locale: str) -> discord.Embed:
-    """The embed a screen opened from the manager panel starts from.
-
-    An embed panel hands its own embed down, keeping the header the user was
-    already looking at. A Components V2 panel has no embed to hand down, so the
-    screen is rebuilt from the command's first YAML step — the same header,
-    from the same source."""
+    """The embed a screen opened from the manager panel starts from."""
     from app.components.embed import parse_form_dict_to_embed
     from app.services.utils import parse_form_yaml_to_dict
 
@@ -231,12 +207,7 @@ class EditButton(discord.ui.Button):
         from app.views.edit import EditCommand
         from app.views.panel_transitions import transition_to_embed
 
-        # Never clear_items() here: the ViewStore reads `item.view` live, so
-        # clearing a view whose message is still on screen kills every button
-        # the user can see. The transition below replaces the message; if the
-        # next screen is a modal, the panel stays and must keep working.
         parent_view = self.view
-
         view = EditCommand(parent_view.command_key, parent_view.cogs or parent_view._parse_responses_to_cog(), self.locale, self.after_callback)
         parent_view.edited_form_view = view.form_view
         embed = panel_screen_embed(interaction, parent_view.command_key, self.locale)
@@ -406,9 +377,7 @@ class RemoveItemButton(discord.ui.Button):
         from app.views.panel_transitions import transition_to_embed
         from app.views.remove import RemoveItem
 
-        # See EditButton.callback: never clear a view the message still shows.
         parent_view = self.view
-
         view = RemoveItem(parent_view.command_key, parent_view.cogs or parent_view._parse_responses_to_cog(), self.locale, self.after_callback)
         embed = panel_screen_embed(interaction, parent_view.command_key, self.locale)
 
@@ -429,11 +398,7 @@ class AddItemButton(discord.ui.Button):
         from app.constants import Commands as constants
         from app.views.form import Form
 
-        # See EditButton.callback: never clear a view the message still shows.
-        # This flow can answer with a modal (block_links does), which leaves
-        # the panel on screen — dismiss the modal and the panel must still work.
         parent_view = self.view
-
         view = Form(parent_view.command_key, self.locale, cogs=parent_view.cogs or parent_view._parse_responses_to_cog())
         view.filter_steps(constants.COMMAND_KEY_TO_COMPOSITION_KEY[parent_view.command_key])
         view._set_after_callback(self.after_callback)
@@ -494,12 +459,7 @@ class AdditionalButton(discord.ui.Button):
         self.custom_callback = callback
         self.desc = desc
         self.defer = kwargs.pop("defer", False)
-        # Some callbacks open a view that answers the interaction themselves
-        # (a paginated list, for instance); responding here first would make
-        # that view raise InteractionResponded.
         self.own_response = kwargs.pop("own_response", False)
-        # Buttons that answer with their own message opt into the anti-spam
-        # window; pass the seconds to size it (heavier actions, longer window).
         cooldown = kwargs.pop("cooldown", None)
         self.cooldown = ActionCooldown(cooldown) if cooldown else None
         super().__init__(**kwargs)

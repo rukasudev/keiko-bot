@@ -27,10 +27,6 @@ class Block(
 
         await block_links_service.manager(interaction=interaction, guild_id=guild_id)
 
-    # Message context menu, registered on the tree in
-    # app/cogs/moderations/__init__.py (only `app/cogs/base` is auto-discovered
-    # file by file). It discloses the server's exempt roles, exempt channels
-    # and rule list, so it is gated like the command it explains.
     @app_commands.default_permissions(administrator=True)
     @keiko_admin_only
     async def validate_block_link(

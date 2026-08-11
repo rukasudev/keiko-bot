@@ -25,8 +25,6 @@ class FormComposition(discord.ui.View):
         self.locale = locale
         self.index = index
         self.prefilled_fields = prefilled_fields or {}
-        # Answers already given in the parent form, so a sub-step can word
-        # itself according to a choice made before the composition started.
         self.parent_context = parent_context or {}
         self.responses = []
 

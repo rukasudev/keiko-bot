@@ -59,10 +59,7 @@ def format_relative_time(dt: datetime.datetime) -> str:
 
 
 HTTP_LINK_PATTERN = r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
-# Conservative schemeless detection: "www.<host>" (path optional) or
-# "<host>.<alpha tld>/<path>" (path REQUIRED, so "node.js"/"package.json"/
-# bare "youtube.com" are not treated as links). The lookbehind keeps emails
-# and segments inside http(s) URLs out.
+# Schemeless links need "www." or a path, so "package.json" never matches.
 SCHEMELESS_LINK_PATTERN = (
     r"(?<![\w@./-])"
     r"(?:www\.[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:/\S*)?"
@@ -239,8 +236,6 @@ def parse_settings_with_database_values(cog_data: Dict[str, str], form_steps: Di
             formconstants.CONFIGURATION_CARD_ACTION_KEY,
             formconstants.SUMMARY_CARD_ACTION_KEY,
         ):
-            # Card fields carry the per-key titles/styles for the summary,
-            # and option-backed sections map raw values to localized labels.
             for card_field in step.get("fields", []) or []:
                 field_label = card_field.get("label")
                 if card_field.get("key") and isinstance(field_label, dict):
@@ -426,8 +421,7 @@ def format_single_value(value: str, style: str, locale: str = None) -> str:
 
 
 def _format_boolean_value(value: Any, locale: str = None) -> str:
-    # Styled options persist their values as strings ("False"), which are
-    # truthy; parse them before rendering.
+    # Styled option values persist as strings ("False"), which are truthy.
     if isinstance(value, str):
         value = value.strip().lower() not in ("false", "no", "não", "nao", "0", "")
     if str(locale).lower() == "pt-br":

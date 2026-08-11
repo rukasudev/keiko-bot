@@ -131,13 +131,7 @@ def build_command_manager_message(
     lifecycle_callbacks: Optional[Dict[str, Callable]] = None,
     additional_info_title: str = "",
 ):
-    """Assemble the manager panel without sending it, so a button can also
-    re-render it in place.
-
-    The panel is a Components V2 container and carries no embed at all: the
-    first YAML step is still parsed into one, but only to read the header the
-    container draws (title, intro, footer) from the same source the form uses.
-    """
+    """Assemble the manager panel without sending it."""
     from app.constants import KeikoIcons as icons
     from app.views.manager import Manager
     from app.views.manager_panel import ManagerPanelView

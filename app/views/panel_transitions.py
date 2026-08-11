@@ -1,12 +1,5 @@
-"""Moving away from a Components V2 message.
-
-Discord stamps a message sent with a LayoutView with a flag it never lets go:
-that message can never be edited back into an embed message. So every screen
-that leaves a Components V2 panel has to replace it (delete + send) instead of
-editing it in place, while an embed panel keeps editing itself as always.
-
-The form engine has always done this for card steps; this is that logic in one
-place, so the manager, its buttons and the form all leave a panel the same way.
+"""Leaving a Components V2 message: its flags are fixed at send time, so any
+screen that replaces a panel with an embed must delete and resend.
 """
 from typing import Optional
 
@@ -45,8 +38,7 @@ async def transition_to_embed(
 
 async def close_panel(interaction: discord.Interaction,
                       view: Optional[discord.ui.View] = None) -> None:
-    """Acknowledge the interaction and take the panel off the screen, for the
-    flows that answer with a brand new message (pause, unpause, disable)."""
+    """Acknowledge the interaction and take the panel off the screen."""
     if is_layout_message(interaction.message):
         await interaction.response.defer()
         try:
