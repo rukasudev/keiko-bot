@@ -7,6 +7,7 @@ Reference: docs/form-configuration.md
 from typing import Any, Dict, Optional
 
 from app.services.dates import parse_date_parts
+from app.services.utils import parse_link
 
 
 def _mm_dd_serialize(parts: Dict[str, Any]) -> Optional[str]:
@@ -25,8 +26,6 @@ def _mm_dd_hydrate(value: Any) -> Dict[str, str]:
 
 def _normalize_link_serialize(parts: Dict[str, Any]) -> Optional[str]:
     from urllib.parse import urlencode
-
-    from app.services.block_links import parse_link
 
     raw = parts.get("link")
     if not raw:

@@ -71,3 +71,31 @@ When a Redis key template lives in `app/constants.py`, its NAME starts with `RED
 Data-migration scripts run once; they do not enter the repository. Keep them outside
 the repo (the maintainer stores them with his task notes) and record what was run in
 the PR description or deploy notes.
+
+## 10. Reusable orchestration becomes a generic view
+
+Rule 7 says where a command's screen lives; this rule says what must be extracted
+from it. When a screen's structure could serve another command — fetch records →
+format → paginate/filter, an interaction round trip, an embed skeleton — the
+orchestration becomes (or extends) a generic primitive (`RecordsBrowser`,
+`PaginationView`, `ManagerPanelView` in `app/views/`; `base_embed` in
+`app/components/embed.py`), and the feature service keeps only the fetch, the
+formatter, and the copy. The smell: near-identical screen functions accumulating
+across `app/services/*.py`.
+
+## 11. Feature services hold only domain logic
+
+A helper with no feature-specific content (URL parsing, timestamp formatting,
+envelope unwrapping) does not live in a feature service — it goes to the generic
+home: `app/services/utils.py`, a focused module like `app/services/dates.py`, or
+`app/components/embed.py` for embeds. Absolute red flag: generic engine code
+(validators, transforms, the form engine) importing from a feature service — that
+inversion means the helper is in the wrong module.
+
+## 12. View/UI tunables are global
+
+Timeouts, cooldowns, notice lifetimes, and preview limits live in `ViewConstants`
+(`app/constants.py`), and every view/modal reads them from there — never a literal,
+never a command-prefixed constant. Domain numerics (a retention TTL, a per-message
+cap) keep the feature prefix in `Commands`. Refines rules 2-3: a UI tunable is
+always "genuinely shared".

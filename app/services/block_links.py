@@ -1,7 +1,5 @@
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import parse_qsl, urlparse
-
 import discord
 
 from collections import Counter
@@ -27,21 +25,17 @@ from app.services.moderations import (
 )
 
 from .utils import (
+    ParsedLink,
     check_two_lists_intersection,
     ensure_list,
+    format_discord_timestamp,
     get_message_links,
     list_roles_id,
     ml,
     parse_form_yaml_to_dict,
+    parse_link,
     parse_locale,
 )
-
-
-@dataclass(frozen=True)
-class ParsedLink:
-    host: str
-    path: str
-    query: Dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -97,21 +91,6 @@ class BlockLinksEvaluation:
         return next((gate for gate in self.gates if gate.key == key), None)
 
 
-def parse_link(text: str) -> ParsedLink:
-    """Normalize a link or domain (scheme optional, lowercase, no www.)."""
-    text = str(text).strip()
-    if "://" not in text:
-        text = f"http://{text}"
-    parsed = urlparse(text)
-    host = (parsed.hostname or "").lower()
-    if host.startswith("www."):
-        host = host[len("www."):]
-    path = parsed.path or ""
-    if path.endswith("/"):
-        path = path[:-1]
-    return ParsedLink(host=host, path=path, query=dict(parse_qsl(parsed.query)))
-
-
 def matches_domain(link: ParsedLink, domain: str) -> bool:
     """The domain itself, a subdomain, or a quick-pick alias host."""
     candidates = [domain] + BLOCK_LINKS_QUICK_PICK_DOMAINS.get(domain, [])
@@ -158,10 +137,6 @@ def _first_matching_rule(
         elif matches_domain(link, stored.host):
             return rule
     return None
-
-
-def _matches_entries(link: ParsedLink, rules: List[Dict[str, str]]) -> bool:
-    return _first_matching_rule(link, rules) is not None
 
 
 def link_verdicts(links: List[str], config: Dict[str, Any]) -> List["LinkVerdict"]:
@@ -590,7 +565,7 @@ def parse_blocked_link_records(
             _bm("blocked-list.record.line", locale)
             .replace("$user", f"<@{record.get('user_id')}>")
             .replace("$channel", f"<#{record.get('channel_id')}>")
-            .replace("$date", _discord_timestamp(record.get("created_at")))
+            .replace("$date", format_discord_timestamp(record.get("created_at")))
         )
         if record.get("rule"):
             lines.append(
@@ -601,13 +576,6 @@ def parse_blocked_link_records(
 
         data[title] = "\n".join(lines)
     return data
-
-
-def _discord_timestamp(created_at: Any) -> str:
-    """`<t:unix:R>`: a relative time localized by each reader's client."""
-    if not hasattr(created_at, "timestamp"):
-        return "-"
-    return f"<t:{int(created_at.timestamp())}:R>"
 
 
 def get_blocked_links_stats(guild_id: str) -> Dict[str, Any]:

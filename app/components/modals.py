@@ -250,7 +250,7 @@ class ModalValidations:
         return {"ok": ok, "error_key": "youtuber-not-found"}
 
     def validate_link_or_domain(self, response: Any) -> Dict[str, Any]:
-        from app.services.block_links import parse_link
+        from app.services.utils import parse_link
 
         text = str(response or "").strip()
         ok = False

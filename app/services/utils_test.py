@@ -7,9 +7,11 @@ Estes testes NAO fazem I/O - apenas testam logica pura.
 import pytest
 from unittest.mock import MagicMock, patch
 from app.services.utils import (
+    get_link_host,
     get_message_links,
     check_two_lists_intersection,
     list_roles_id,
+    parse_link,
     parse_welcome_messages,
     format_datetime_output,
     split_welcome_messages,
@@ -761,6 +763,31 @@ class TestGetMessageLinksSchemeless:
         assert get_message_links("veja https://youtube.com/watch?v=a") == [
             "https://youtube.com/watch?v=a"
         ]
+
+
+class TestParseLink:
+    def test_defaults_scheme_when_absent(self):
+        assert parse_link("discord.gg/abc").host == "discord.gg"
+
+    def test_lowercases_host_and_strips_www(self):
+        parsed = parse_link("https://WWW.Youtube.com/Watch")
+        assert parsed.host == "youtube.com"
+
+    def test_strips_single_trailing_slash_and_fragment(self):
+        parsed = parse_link("https://twitter.com/user/#section")
+        assert parsed.path == "/user"
+
+    def test_keeps_query(self):
+        parsed = parse_link("https://youtube.com/watch?v=abc")
+        assert parsed.query.get("v") == "abc"
+
+    def test_get_link_host_agrees_with_parse_link(self):
+        for value in ("https://WWW.Youtube.com/Watch", "discord.gg/abc", "x.com"):
+            assert get_link_host(value) == parse_link(value).host
+
+    def test_get_link_host_keeps_the_empty_guard(self):
+        assert get_link_host("") == ""
+        assert get_link_host(None) == ""
 
 
 class TestBooleanStyleWithStringValues:

@@ -77,8 +77,10 @@ contents in the report beyond what a finding needs):
 - `.claude/rules/implementation-planning.md` — decision order details and the anti-patterns
   list findings should cite.
 - `.claude/rules/code-style.md` — maintainer-reviewed code patterns (comments, constants,
-  data-layer shape, views scope, Redis key naming, unversioned migrations). Audit the scope
-  against every rule in it; these came from real review comments and repeat findings.
+  data-layer shape, views scope, Redis key naming, unversioned migrations, generic
+  orchestration extracted to generic views, generic helpers in `utils.py` not in feature
+  services, global UI tunables in `ViewConstants`). Audit the scope against every rule in
+  it; these came from real review comments and repeat findings.
 - `docs/testing-strategy.md` — read whenever the scope touches shared
   infrastructure (form engine, manager, components, formatters, loaders, i18n
   helpers) or test code: it defines the regression workflow, the consumer

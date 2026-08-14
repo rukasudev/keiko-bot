@@ -16,8 +16,8 @@ from app.services.block_links import (
     matches_domain,
     matches_exact,
     normalize_block_links_config,
-    parse_link,
 )
+from app.services.utils import parse_link
 
 
 def _config(mode="block_all", domains=None, entries=None):
@@ -33,23 +33,6 @@ def _entry(link, match="domain"):
         "link": {"value": link},
         "match_type": {"value": "label ignored", "_raw_value": match},
     }
-
-
-class TestParseLink:
-    def test_defaults_scheme_when_absent(self):
-        assert parse_link("discord.gg/abc").host == "discord.gg"
-
-    def test_lowercases_host_and_strips_www(self):
-        parsed = parse_link("https://WWW.Youtube.com/Watch")
-        assert parsed.host == "youtube.com"
-
-    def test_strips_single_trailing_slash_and_fragment(self):
-        parsed = parse_link("https://twitter.com/user/#section")
-        assert parsed.path == "/user"
-
-    def test_keeps_query(self):
-        parsed = parse_link("https://youtube.com/watch?v=abc")
-        assert parsed.query.get("v") == "abc"
 
 
 class TestMatchesDomain:

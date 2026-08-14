@@ -4,10 +4,11 @@ import hashlib
 import hmac
 import os
 import random
+from dataclasses import dataclass, field
 from pathlib import Path
 from re import findall, finditer, search
 from typing import Any, Dict, List, Optional, Tuple
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlparse
 
 import discord
 import yaml
@@ -58,6 +59,13 @@ def format_relative_time(dt: datetime.datetime) -> str:
     return f"{years} year{'s' if years != 1 else ''} ago"
 
 
+def format_discord_timestamp(created_at: Any) -> str:
+    """`<t:unix:R>`: a relative time localized by each reader's client."""
+    if not hasattr(created_at, "timestamp"):
+        return "-"
+    return f"<t:{int(created_at.timestamp())}:R>"
+
+
 HTTP_LINK_PATTERN = r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
 # Schemeless links need "www." or a path, so "package.json" never matches.
 SCHEMELESS_LINK_PATTERN = (
@@ -67,17 +75,34 @@ SCHEMELESS_LINK_PATTERN = (
 )
 
 
+@dataclass(frozen=True)
+class ParsedLink:
+    host: str
+    path: str
+    query: Dict[str, str] = field(default_factory=dict)
+
+
+def parse_link(text: str) -> ParsedLink:
+    """Normalize a link or domain (scheme optional, lowercase, no www.)."""
+    text = str(text).strip()
+    if "://" not in text:
+        text = f"http://{text}"
+    parsed = urlparse(text)
+    host = (parsed.hostname or "").lower()
+    if host.startswith("www."):
+        host = host[len("www."):]
+    path = parsed.path or ""
+    if path.endswith("/"):
+        path = path[:-1]
+    return ParsedLink(host=host, path=path, query=dict(parse_qsl(parsed.query)))
+
+
 def get_link_host(value: str) -> str:
     """The website of a link or domain: no scheme, no leading www., no path.
     Single source of truth for "which site is this", so copy that echoes the
     user's own link and the matcher never disagree."""
     text = str(value or "").strip()
-    if not text:
-        return ""
-    if "://" not in text:
-        text = f"http://{text}"
-    host = (urlparse(text).hostname or "").lower()
-    return host[len("www."):] if host.startswith("www.") else host
+    return parse_link(text).host if text else ""
 
 
 def get_message_links(message: str) -> List[str]:
