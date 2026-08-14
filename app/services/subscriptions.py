@@ -6,6 +6,7 @@ from app.components.buttons import (
     SyncronizeRemindersButton,
     SyncronizeSubscriptionsButton,
 )
+from app.constants import ViewConstants as view_constants
 from app.data.notifications_twitch import count_streamers_guilds
 from app.data.notifications_youtube_video import (
     count_youtube_video_subscription_by_guilds,
@@ -32,7 +33,7 @@ def get_reminder_subscriptions() -> discord.ui.View:
 
 
 def generate_reminders_by_streamer_view(reminders: dict, streamers_by_reminder: dict, reminders_count_by_streamer: dict) -> discord.Embed:
-    view = discord.ui.View()
+    view = discord.ui.View(timeout=view_constants.LONG_TIMEOUT_SECONDS)
     view.guilds_by_reminder = reminders
     view.streamers_by_reminder = streamers_by_reminder
     view.reminders_count_by_streamers = reminders_count_by_streamer
@@ -61,7 +62,7 @@ def get_twitch_subscriptions() -> discord.ui.View:
     return generate_guilds_by_twitch_subscription_view(guils_by_streamer)
 
 def generate_guilds_by_twitch_subscription_view(subscriptions: dict) -> discord.Embed:
-    view = discord.ui.View()
+    view = discord.ui.View(timeout=view_constants.LONG_TIMEOUT_SECONDS)
     view.guilds_by_streamer = subscriptions
     view.add_item(SyncronizeSubscriptionsButton())
 

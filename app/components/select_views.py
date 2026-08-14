@@ -6,6 +6,7 @@ import discord
 from app import logger
 from app.components.buttons import CancelButton
 from app.constants import LogTypes as logconstants
+from app.constants import ViewConstants as view_constants
 from app.services.utils import ml
 
 
@@ -37,7 +38,7 @@ class ChannelSelectView(discord.ui.View):
     """Native Discord ChannelSelect for channel selection."""
 
     def __init__(self, callback: Callable, locale: str, required: bool = False, unique: bool = True):
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.callback = callback
         self.locale = locale
         self.required = required
@@ -78,7 +79,7 @@ class RoleSelectView(discord.ui.View):
     """Native Discord RoleSelect for role selection."""
 
     def __init__(self, callback: Callable, locale: str, required: bool = False, unique: bool = True):
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.callback = callback
         self.locale = locale
         self.required = required
@@ -118,7 +119,7 @@ class UserSelectView(discord.ui.View):
     """Native Discord UserSelect for member selection."""
 
     def __init__(self, callback: Callable, locale: str, required: bool = False, unique: bool = True):
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.callback = callback
         self.locale = locale
         self.required = required
@@ -160,7 +161,7 @@ class MonthSelectView(discord.ui.View):
     def __init__(self, callback: Callable, locale: str, required: bool = True):
         from app.services.dates import MONTH_KEYS
 
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.callback = callback
         self.locale = locale
         self.required = required
@@ -210,7 +211,7 @@ class MultiSelectView(discord.ui.View):
     """View with multiple native selects (channels and/or roles)."""
 
     def __init__(self, config: dict, callback: Callable, locale: str):
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.callback = callback
         self.locale = locale
         self.responses: Dict[str, Dict[str, str]] = {}
@@ -308,7 +309,7 @@ class MultiSelectView(discord.ui.View):
 
 class DesignSelectView(discord.ui.LayoutView):
     def __init__(self, callback: Callable, locale: str, designs: list, back_callback: Callable = None, preview_urls: dict = None):
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.custom_callback = callback
         self.locale = locale
         self.response: Dict[str, str] = {}
@@ -411,7 +412,7 @@ class DesignSelectView(discord.ui.LayoutView):
 
 class FileUploadModal(discord.ui.Modal):
     def __init__(self, callback: Callable, locale: str, title: str = None):
-        super().__init__(title=title, timeout=300)
+        super().__init__(title=title, timeout=view_constants.SHORT_TIMEOUT_SECONDS)
         self.custom_callback = callback
         self.locale = locale
         self._response = None

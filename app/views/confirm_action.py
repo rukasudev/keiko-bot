@@ -3,6 +3,7 @@ from typing import Awaitable, Callable, Optional
 import discord
 
 from app.services.utils import ml
+from app.constants import ViewConstants as view_constants
 
 
 class ConfirmActionView(discord.ui.View):
@@ -14,7 +15,7 @@ class ConfirmActionView(discord.ui.View):
         confirm_label_key: str = "buttons.confirm.label",
         cancel_label_key: str = "buttons.cancel.label",
     ) -> None:
-        super().__init__(timeout=300)
+        super().__init__(timeout=view_constants.SHORT_TIMEOUT_SECONDS)
         self._on_confirm = on_confirm
         self._on_cancel = on_cancel
         self.locale = locale

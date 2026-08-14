@@ -9,8 +9,8 @@ from typing import Any, Dict, List, Optional, Tuple
 
 import discord
 
-from app.constants import Commands as commandconstants
 from app.constants import Style
+from app.constants import ViewConstants as view_constants
 from app.services.utils import format_values_by_style, ml
 from app.views.panel_transitions import transition_to_embed
 
@@ -59,7 +59,7 @@ def _list_items(values: Any, style: Optional[str]) -> Optional[List[Any]]:
 
 def _composition_lines(values: List[Dict[str, Any]], locale: str) -> List[str]:
     """A numbered header per entry and one labelled line per field."""
-    limit = commandconstants.SETTINGS_COMPOSITION_PREVIEW_LIMIT
+    limit = view_constants.COMPOSITION_PREVIEW_LIMIT
     lines = []
     for index, composition in enumerate(values[:limit], start=1):
         lines.append(f"**#{index}**")
@@ -171,7 +171,7 @@ class ManagerPanelView(discord.ui.LayoutView):
                  locale: str, thumbnail: str = "", footer: str = "",
                  info: str = "", info_title: str = "",
                  extra_buttons: Optional[List[discord.ui.Button]] = None):
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.manager = manager
         self.locale = locale
         self._render(title, intro, rows, thumbnail, footer, info, info_title,

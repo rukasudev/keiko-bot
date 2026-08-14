@@ -9,6 +9,7 @@ from app.components.buttons import resolve_option_style
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
 from app.constants import Style
+from app.constants import ViewConstants as view_constants
 from app.services.transforms import get_response_transform
 from app.services.utils import format_values_by_style, ml
 
@@ -88,7 +89,7 @@ class SummaryCardView(discord.ui.LayoutView):
         locale: str,
         on_back: Optional[Callable[[discord.Interaction], Awaitable[None]]] = None,
     ) -> None:
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.config = config
         self._on_done = on_done
         self.locale = locale
@@ -318,7 +319,7 @@ class SummaryCardPickerView(discord.ui.LayoutView):
         selected: List[str] = None,
         description: str = "",
     ) -> None:
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.parent = parent
         self.title = _title_with_icon(icon, title)
         self.state_key = state_key
@@ -426,7 +427,7 @@ class SummaryCardButtonOptionsView(discord.ui.LayoutView):
         icon: str = "",
         description: str = "",
     ) -> None:
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.parent = parent
         self.title = _title_with_icon(icon, title)
         self.state_key = state_key

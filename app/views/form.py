@@ -24,6 +24,7 @@ from app.components.modals import CustomModal
 from app.constants import Commands as commandconstants
 from app.constants import FormConstants as constants
 from app.constants import LogTypes as logconstants
+from app.constants import ViewConstants as view_constants
 from app.exceptions import ErrorContext
 from app.integrations.stream_elements import StreamElementsClient
 from app.services.cogs import insert_cog_by_guild, insert_cog_event
@@ -73,7 +74,7 @@ class Form(discord.ui.View):
         self.responses = []
         self.persistence_callback = None
         self._using_layout_view = False
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.add_item(ConfirmButton(callback=self._callback, locale=locale))
         self.add_item(CancelButton(locale=locale))
 

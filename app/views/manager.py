@@ -18,6 +18,7 @@ from app.components.buttons import (
 )
 from app.constants import Commands as constants
 from app.constants import KeikoIcons as icons
+from app.constants import ViewConstants as view_constants
 from app.services.cogs import (
     delete_cog_by_guild,
     find_cog_events_by_guild,
@@ -40,7 +41,7 @@ from app.services.utils import (
     parse_form_yaml_to_dict,
     parse_locale,
 )
-from app.views.pagination import PaginationView
+from app.views.records import RecordsBrowser
 from app.views.panel_transitions import close_panel
 
 
@@ -68,7 +69,7 @@ class Manager(discord.ui.View):
         self.enable_composition_controls = enable_composition_controls
         self.lifecycle_callbacks = lifecycle_callbacks or {}
         self.locale = parse_locale(interaction.locale)
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.add_item(EditButton(
             self.update_command,
             locale=self.locale,
@@ -302,14 +303,15 @@ class Manager(discord.ui.View):
         await interaction.followup.send(embed=embed, view=self, ephemeral=True)
 
     async def history_callback(self, interaction: discord.Interaction):
-        raw_data = find_cog_events_by_guild(self.interaction.guild_id, self.command_key)
-        data = parse_history_data(raw_data, interaction)
-
-        title = ml("buttons.changes-history.label", locale=self.locale)
-        desc = parse_history_desc(interaction, self.command_key)
-        pagination_view = PaginationView(interaction, title, desc, data, sep=4)
-
-        await pagination_view.send(ephemeral=True)
+        browser = RecordsBrowser(
+            fetch=lambda i, uid: find_cog_events_by_guild(
+                self.interaction.guild_id, self.command_key
+            ),
+            to_fields=parse_history_data,
+            title=ml("buttons.changes-history.label", locale=self.locale),
+            description=parse_history_desc(interaction, self.command_key),
+        )
+        await browser.send(interaction)
 
     def handle_add_item_button(self) -> None:
         if not self.enable_composition_controls:

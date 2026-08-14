@@ -6,6 +6,7 @@ from app import logger
 from app.constants import KeikoIcons as icons_constants
 from app.constants import LogTypes as logconstants
 from app.constants import Style as constants
+from app.constants import ViewConstants as view_constants
 from app.services.utils import ml
 
 
@@ -30,7 +31,7 @@ class PaginationView(discord.ui.View):
             list(data)[i : i + sep] for i in range(0, len(list(data)), sep)
         ]
 
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
 
     async def send(self, ephemeral: bool = False):
         if hasattr(self, "select"):

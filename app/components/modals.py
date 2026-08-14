@@ -4,6 +4,7 @@ import discord
 
 from app import logger
 from app.constants import LogTypes as logconstants
+from app.constants import ViewConstants as view_constants
 
 
 class CustomModal(discord.ui.Modal):
@@ -15,7 +16,7 @@ class CustomModal(discord.ui.Modal):
         self.validation = config.get("validation", None)
         self.modal_validation = ModalValidations(cogs=cogs)
         self.field_keys = []
-        super().__init__(title=config.get("title").get(locale), timeout=300)
+        super().__init__(title=config.get("title").get(locale), timeout=view_constants.SHORT_TIMEOUT_SECONDS)
         self.add_inputs(config, locale)
 
     def add_inputs(self, config: Dict[str, Any], locale: str) -> None:
@@ -153,7 +154,7 @@ class TitleContentModal(discord.ui.Modal):
         title_max_length: int = 50,
         content_max_length: int = 200,
     ) -> None:
-        super().__init__(title=title, timeout=300)
+        super().__init__(title=title, timeout=view_constants.SHORT_TIMEOUT_SECONDS)
         self.custom_callback = callback
 
         self.title_input = discord.ui.TextInput(

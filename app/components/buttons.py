@@ -6,9 +6,9 @@ import discord
 
 from app import logger
 from app.components.embed import response_embed
-from app.constants import Commands as command_constants
 from app.constants import KeikoIcons as icons
 from app.constants import LogTypes as logconstants
+from app.constants import ViewConstants as view_constants
 from app.services.cache import increment_redis_key
 from app.services.utils import get_command_by_key, ml, parse_locale
 
@@ -21,7 +21,7 @@ class ActionCooldown:
     At most one notice is visible at a time; navigation buttons never get
     one (double-clicking them must keep working)."""
 
-    def __init__(self, seconds: float = command_constants.VIEW_ACTION_COOLDOWN_SECONDS):
+    def __init__(self, seconds: float = view_constants.ACTION_COOLDOWN_SECONDS):
         self.seconds = seconds
         self._last_use: Optional[float] = None
         self._notified_at: Optional[float] = None
@@ -34,7 +34,7 @@ class ActionCooldown:
             return READY
         notice_expired = (
             self._notified_at is None
-            or now - self._notified_at >= command_constants.VIEW_ACTION_NOTICE_SECONDS
+            or now - self._notified_at >= view_constants.ACTION_NOTICE_SECONDS
         )
         if notice_expired:
             self._notified_at = now
@@ -54,7 +54,7 @@ async def acknowledge_hot_click(interaction: discord.Interaction, locale: str,
         return await interaction.followup.send(embed=embed, ephemeral=True)
     await interaction.response.send_message(
         embed=embed, ephemeral=True,
-        delete_after=command_constants.VIEW_ACTION_NOTICE_SECONDS,
+        delete_after=view_constants.ACTION_NOTICE_SECONDS,
     )
 
 

@@ -11,14 +11,15 @@ import pytest
 
 from app.components.modals import ConfirmationModal, CustomModal
 from app.components.select_views import FileUploadModal, MultiSelectView
+from app.constants import ViewConstants
 from app.views.confirm_action import ConfirmActionView
 from app.views.form import Form
 from app.views.options import OptionsView
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("form_engine")]
 
-LONG = 1800   # interactive configuration surfaces
-SHORT = 300   # modals and confirmation prompts
+LONG = ViewConstants.LONG_TIMEOUT_SECONDS    # interactive configuration surfaces
+SHORT = ViewConstants.SHORT_TIMEOUT_SECONDS  # modals and confirmation prompts
 
 
 def test_form_and_option_views_use_the_long_timeout():

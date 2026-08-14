@@ -86,7 +86,8 @@ cog (app/cogs/...)
 
 - **State**: `FormStateManager` (`app/views/form_state.py`) owns the step index and previous
   answers; its `fill_*` methods re-populate a component when the user navigates back.
-  Everything lives on the view instance (timeout 1800s) — there is no cross-request draft
+  Everything lives on the view instance (`ViewConstants.LONG_TIMEOUT_SECONDS`; modals and
+  confirmations use `SHORT_TIMEOUT_SECONDS`) — there is no cross-request draft
   persistence.
 - **Responses**: each answered step is stored in `Form.responses` as
   `{key, title, value, style, hidden?, _raw_value?}`. `_raw_value` keeps the machine value
@@ -267,6 +268,24 @@ protected behavior. Pinned by `tests/behavioral/contracts/test_view_action_coold
 > (`Form._transition_from_layout_view`). Pinned by
 > `tests/behavioral/contracts/test_panel_transitions.py`.
 
+### Records browser — `RecordsBrowser` (`app/views/records.py`)
+The generic browse screen for a command's records: `fetch(interaction, user_id)` returns the
+raw records, `to_fields(records, interaction)` turns them into the `{name: value}` dict
+`PaginationView` renders (`sep=4` by default), and the primitive owns everything around them —
+the ephemeral send, the optional empty state (`empty_description`; when omitted, the empty
+pagination goes out, the history screens' shape) and the optional **filter-by-member round
+trip**: `filter_namespace` names an i18n prefix with the leaf keys `label`, `all-label`,
+`title`, `description`, `empty`, and enables the row-1 toggle button → `UserSelectView` picker
+→ re-render filtered → back to all. Domain code stays in the consumer: the fetch, the
+formatter and the copy.
+
+Consumers: the blocked-links list (`send_blocked_links_message`,
+`app/services/block_links.py`), the manager history (`Manager.history_callback`) and the
+log-inspection history (`app/views/log_inspection.py`). Pinned by
+`tests/behavioral/contracts/test_records_view.py`; the blocked-links scenarios
+(`tests/behavioral/scenarios/test_block_links_records_flow.py`) drive it end to end through
+the panel.
+
 ### State refill — `FormStateManager.fill_*` (`app/views/form_state.py`)
 One `fill_<kind>` method per component family restores the previous answer on back
 navigation; `Form._send_view` falls back to hydrating from saved DB config (`cogs`).
@@ -292,8 +311,8 @@ Turns a step dict into the step embed (title + `emoji`, description, `footer`, t
   (`tests/behavioral/harness/driver.py`), so scenarios see the panel the user sees; register
   a command there when it starts passing them. `additional_info_title="..."` turns that
   paragraph into a titled section instead of a trailing note.
-- `build_command_manager_message(...) -> (embed, view)` is the same assembly without sending,
-  for a button that needs to redraw the panel in place (`interaction.response.edit_message`).
+- `build_command_manager_message(...) -> ManagerPanelView` is the same assembly without
+  sending, for a button that needs to redraw the panel in place.
 - Mongo indexes and retention live in `app/data/indexes.py`, applied once by `create_app`.
 
 ### Reusable localized copy (never hardcode strings in Python)

@@ -11,6 +11,7 @@ from app.components.buttons import (
 )
 from app.components.embed import response_error_embed
 from app.constants import LogTypes as logconstants
+from app.constants import ViewConstants as view_constants
 
 
 class OptionsView(discord.ui.View):
@@ -25,7 +26,7 @@ class OptionsView(discord.ui.View):
         auto_confirm: bool = False,
         option_styles: Dict[str, discord.ButtonStyle] = None,
     ) -> None:
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.callback = callback
         self.locale = locale
         self.required = required

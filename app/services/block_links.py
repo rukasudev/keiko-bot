@@ -8,6 +8,7 @@ from collections import Counter
 
 from app import logger
 from app.components.buttons import AdditionalButton
+from app.components.embed import base_embed
 from app.constants import (
     BLOCK_LINKS_LEGACY_LABEL_TO_DOMAIN,
     BLOCK_LINKS_QUICK_PICK_DOMAINS,
@@ -16,6 +17,7 @@ from app.constants import Commands as constants
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
 from app.constants import Style
+from app.constants import ViewConstants as view_constants
 from app.data import block_links as blocked_links_data
 from app.exceptions import ErrorContext
 from app.services import cache
@@ -661,16 +663,11 @@ async def send_blocked_links_stats_message(interaction: discord.Interaction) -> 
             )
         description = "\n".join(lines)
 
-    embed = discord.Embed(
-        title=_bm("stats.embed.title", locale),
-        description=description,
-        color=int(Style.BACKGROUND_COLOR, base=16),
+    embed = base_embed(
+        _bm("stats.embed.title", locale),
+        description,
+        footer=ml("commands.commands.commons.embed.footer", locale=locale),
     )
-    embed.set_thumbnail(url=KeikoIcons.IMAGE_02)
-    footer = ml("commands.commands.commons.embed.footer", locale=locale)
-    if footer:
-        embed.set_footer(text=f"• {footer}")
-
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
@@ -681,79 +678,20 @@ def disable_block_links(interaction: discord.Interaction, cogs: Any = None) -> N
 async def send_blocked_links_message(
     interaction: discord.Interaction, user_id: Optional[str] = None
 ) -> None:
-    from app.views.pagination import PaginationView
+    from app.views.records import RecordsBrowser
 
     locale = parse_locale(interaction.locale)
-    records = get_blocked_link_records(str(interaction.guild_id), user_id=user_id)
-
-    if not records:
-        empty_key = "blocked-list.filter.empty" if user_id else "blocked-list.embed.empty"
-        embed = discord.Embed(
-            title=_bm("blocked-list.embed.title", locale),
-            description=_bm(empty_key, locale),
-            color=int(Style.BACKGROUND_COLOR, base=16),
-        )
-        embed.set_thumbnail(url=KeikoIcons.IMAGE_02)
-        return await interaction.response.send_message(embed=embed, ephemeral=True)
-
-    view = PaginationView(
-        interaction,
+    browser = RecordsBrowser(
+        fetch=lambda i, uid: get_blocked_link_records(str(i.guild_id), user_id=uid),
+        to_fields=lambda records, i: parse_blocked_link_records(
+            records, parse_locale(i.locale)
+        ),
         title=_bm("blocked-list.embed.title", locale),
         description=_bm("blocked-list.embed.description", locale),
-        data=parse_blocked_link_records(records, locale),
-        sep=4,
+        empty_description=_bm("blocked-list.embed.empty", locale),
+        filter_namespace="commands.commands.commons.block-links-manager.blocked-list.filter",
     )
-    view.add_item(_blocked_links_filter_button(locale, filtered=bool(user_id)))
-    await view.send(ephemeral=True)
-
-
-def _blocked_links_filter_button(locale: str, filtered: bool) -> discord.ui.Button:
-    from app.components.buttons import GenericButton
-
-    if filtered:
-        return GenericButton(
-            label=_bm("blocked-list.filter.all-label", locale),
-            callback=_show_all_blocked_links,
-            style=discord.ButtonStyle.grey,
-            emoji="🔎",
-            row=1,
-        )
-    return GenericButton(
-        label=_bm("blocked-list.filter.label", locale),
-        callback=_show_blocked_links_member_picker,
-        style=discord.ButtonStyle.grey,
-        emoji="🔎",
-        row=1,
-    )
-
-
-async def _show_all_blocked_links(interaction: discord.Interaction) -> None:
-    await send_blocked_links_message(interaction)
-
-
-async def _show_blocked_links_member_picker(interaction: discord.Interaction) -> None:
-    from app.components.select_views import UserSelectView
-
-    locale = parse_locale(interaction.locale)
-
-    async def on_selected(select_interaction: discord.Interaction) -> None:
-        selected = picker.get_response()
-        if isinstance(selected, (list, tuple)):
-            selected = selected[0] if selected else None
-        if not selected:
-            return
-        await send_blocked_links_message(select_interaction, user_id=str(selected))
-
-    picker = UserSelectView(
-        callback=on_selected, locale=locale, required=True, unique=True
-    )
-    embed = discord.Embed(
-        title=_bm("blocked-list.filter.title", locale),
-        description=_bm("blocked-list.filter.description", locale),
-        color=int(Style.BACKGROUND_COLOR, base=16),
-    )
-    embed.set_thumbnail(url=KeikoIcons.IMAGE_02)
-    await interaction.response.edit_message(embed=embed, view=picker)
+    await browser.send(interaction, user_id=user_id)
 
 
 def _manager_info(locale: str) -> str:
@@ -773,7 +711,7 @@ def _manager_buttons(locale: str) -> List[discord.ui.Button]:
             emoji="🔎",
             style=discord.ButtonStyle.grey,
             own_response=True,
-            cooldown=constants.VIEW_ACTION_COOLDOWN_SECONDS,
+            cooldown=view_constants.ACTION_COOLDOWN_SECONDS,
         ),
         AdditionalButton(
             callback=send_blocked_links_stats_message,
@@ -782,7 +720,7 @@ def _manager_buttons(locale: str) -> List[discord.ui.Button]:
             emoji="📊",
             style=discord.ButtonStyle.grey,
             defer=True,
-            cooldown=constants.VIEW_ACTION_COOLDOWN_SECONDS,
+            cooldown=view_constants.ACTION_COOLDOWN_SECONDS,
         ),
     ]
 

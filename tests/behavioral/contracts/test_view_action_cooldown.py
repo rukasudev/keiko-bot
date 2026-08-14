@@ -119,13 +119,13 @@ async def test_a_new_notice_may_appear_once_the_previous_one_expired(
     """delete_after removed the first notice from the screen; a hot click
     after that must not be answered with silence (that would read as the
     dead-button bug). The action itself stays blocked for the full window."""
-    from app.constants import Commands as constants
+    from app.constants import ViewConstants as constants
 
     scenario = await _panel(scenario_factory, deps)
 
     await scenario.click(HELP)
     await scenario.click(HELP)                    # first notice
-    clock.advance(constants.VIEW_ACTION_NOTICE_SECONDS)   # notice gone; window hot
+    clock.advance(constants.ACTION_NOTICE_SECONDS)   # notice gone; window hot
     await scenario.click(HELP)                    # second notice, no help
 
     assert len(_events_titled(scenario, NOTICE_TITLE)) == 2
@@ -136,13 +136,13 @@ async def test_a_new_notice_may_appear_once_the_previous_one_expired(
 async def test_help_works_again_after_the_cooldown_passes(
     scenario_factory, deps, clock
 ):
-    from app.constants import Commands as constants
+    from app.constants import ViewConstants as constants
 
     scenario = await _panel(scenario_factory, deps)
     help_title = f"🙋 {HELP}"
 
     await scenario.click(HELP)
-    clock.advance(constants.VIEW_ACTION_COOLDOWN_SECONDS + 1)
+    clock.advance(constants.ACTION_COOLDOWN_SECONDS + 1)
     await scenario.click(HELP)
 
     assert len(_events_titled(scenario, help_title)) == 2, \

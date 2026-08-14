@@ -4,6 +4,7 @@ import discord
 
 from app.components.buttons import BackButton, ExecuteCommandButton
 from app.constants import DiscordLimits as limits
+from app.constants import ViewConstants as view_constants
 from app.services.utils import ml
 
 
@@ -116,7 +117,7 @@ class HelpSelect(Select):
         )
 
         locale = str(interaction.locale)
-        new_view = discord.ui.View(timeout=1800)
+        new_view = discord.ui.View(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         new_view.add_item(
             BackButton(embed=embed, view=self.view, locale=interaction.locale)
         )

@@ -68,9 +68,6 @@ class Commands:
     BLOCK_LINKS_EVENTS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 90
     BLOCK_LINKS_EVENTS_MAX_PER_MESSAGE: Final[int] = 3
     BLOCK_LINKS_EVENTS_READ_LIMIT: Final[int] = 200
-    SETTINGS_COMPOSITION_PREVIEW_LIMIT: Final[int] = 10
-    VIEW_ACTION_COOLDOWN_SECONDS: Final[int] = 10
-    VIEW_ACTION_NOTICE_SECONDS: Final[int] = 5
     REDIS_BLOCK_LINKS_COUNTER_TOTAL: Final[str] = "guild:{guild_id}:block_links:total"
     REDIS_BLOCK_LINKS_COUNTER_HOST: Final[str] = "guild:{guild_id}:block_links:host:{value}"
     REDIS_BLOCK_LINKS_COUNTER_USER: Final[str] = "guild:{guild_id}:block_links:user:{value}"
@@ -228,6 +225,15 @@ class FormConstants:
         RESUME_ACTION_KEY,
         SUMMARY_CARD_ACTION_KEY,
     ]
+
+
+class ViewConstants:
+    """Timing and sizing standards shared by every interactive view and modal."""
+    LONG_TIMEOUT_SECONDS: Final[int] = 1800
+    SHORT_TIMEOUT_SECONDS: Final[int] = 300
+    ACTION_COOLDOWN_SECONDS: Final[int] = 10
+    ACTION_NOTICE_SECONDS: Final[int] = 5
+    COMPOSITION_PREVIEW_LIMIT: Final[int] = 10
 
 
 class WelcomeDesign:

@@ -4,6 +4,7 @@ import discord
 
 from app import logger
 from app.constants import LogTypes as logconstants
+from app.constants import ViewConstants as view_constants
 from app.services.compositions import merge_composition_item_by_nested_value
 
 
@@ -18,7 +19,7 @@ class FormComposition(discord.ui.View):
         prefilled_fields: Dict[str, Any] = None,
         parent_context: Dict[str, Any] = None,
     ) -> None:
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.composition = composition
         self.parent_callback = parent_callback
         self.cogs = cogs
