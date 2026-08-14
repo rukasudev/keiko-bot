@@ -4,9 +4,11 @@ import hashlib
 import hmac
 import os
 import random
+from dataclasses import dataclass, field
 from pathlib import Path
-from re import findall
-from typing import Any, Dict, List, Tuple
+from re import findall, finditer, search
+from typing import Any, Dict, List, Optional, Tuple
+from urllib.parse import parse_qsl, urlparse
 
 import discord
 import yaml
@@ -57,8 +59,63 @@ def format_relative_time(dt: datetime.datetime) -> str:
     return f"{years} year{'s' if years != 1 else ''} ago"
 
 
+def format_discord_timestamp(created_at: Any) -> str:
+    """`<t:unix:R>`: a relative time localized by each reader's client."""
+    if not hasattr(created_at, "timestamp"):
+        return "-"
+    return f"<t:{int(created_at.timestamp())}:R>"
+
+
+HTTP_LINK_PATTERN = r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+"
+# Schemeless links need "www." or a path, so "package.json" never matches.
+SCHEMELESS_LINK_PATTERN = (
+    r"(?<![\w@./-])"
+    r"(?:www\.[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:/\S*)?"
+    r"|[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}/\S+)"
+)
+
+
+@dataclass(frozen=True)
+class ParsedLink:
+    host: str
+    path: str
+    query: Dict[str, str] = field(default_factory=dict)
+
+
+def parse_link(text: str) -> ParsedLink:
+    """Normalize a link or domain (scheme optional, lowercase, no www.)."""
+    text = str(text).strip()
+    if "://" not in text:
+        text = f"http://{text}"
+    parsed = urlparse(text)
+    host = (parsed.hostname or "").lower()
+    if host.startswith("www."):
+        host = host[len("www."):]
+    path = parsed.path or ""
+    if path.endswith("/"):
+        path = path[:-1]
+    return ParsedLink(host=host, path=path, query=dict(parse_qsl(parsed.query)))
+
+
+def get_link_host(value: str) -> str:
+    """The website of a link or domain: no scheme, no leading www., no path.
+    Single source of truth for "which site is this", so copy that echoes the
+    user's own link and the matcher never disagree."""
+    text = str(value or "").strip()
+    return parse_link(text).host if text else ""
+
+
 def get_message_links(message: str) -> List[str]:
-    links = findall(r"http[s]?://(?:[a-zA-Z]|[0-9]|[$-_@.&+]|[!*(),]|(?:%[0-9a-fA-F][0-9a-fA-F]))+", message.lower())
+    text = message.lower()
+    http_matches = list(finditer(HTTP_LINK_PATTERN, text))
+    links = [match.group(0) for match in http_matches]
+    http_spans = [match.span() for match in http_matches]
+
+    for match in finditer(SCHEMELESS_LINK_PATTERN, text):
+        start = match.start()
+        if any(span_start <= start < span_end for span_start, span_end in http_spans):
+            continue
+        links.append(match.group(0).rstrip(".,;:!?)\"'"))
 
     return links
 
@@ -106,6 +163,33 @@ def get_available_roles_by_guild(guild: discord.Guild) -> Dict[str, str]:
     }
 
 
+def condition_allows(condition: Optional[Dict[str, Any]], value: Any) -> bool:
+    """Single evaluator for YAML step `condition:` rules.
+
+    `not_in`: the step runs unless the referenced value is in the list.
+    `matches`: the step runs only when the value matches the regex.
+    Both may be combined (AND). Reference: docs/form-configuration.md
+    """
+    if not condition:
+        return True
+    if value in condition.get("not_in", []):
+        return False
+    pattern = condition.get("matches")
+    if pattern is not None and not search(pattern, str(value or "")):
+        return False
+    return True
+
+
+def ensure_list(value: Any) -> list:
+    """Coerce a persisted envelope value to a list. Single selections are
+    stored as bare scalars, which breaks membership checks downstream."""
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        return list(value)
+    return [value]
+
+
 def list_roles_id(roles: List[discord.Role]) -> List[int]:
     return [str(role.id) for role in roles]
 
@@ -151,6 +235,8 @@ async def get_translated_qualified_name(
 def parse_settings_with_database_values(cog_data: Dict[str, str], form_steps: Dict[str, str], locale: str) -> List[Dict[str, str]]:
     response = []
     cogs_title = parse_form_steps_titles(form_steps, locale)
+    icons = resolve_form_settings_icons(form_steps)
+    groups = resolve_form_settings_groups(form_steps, locale)
     nested_selects = {}
 
     # Build maps for step conditions and design options
@@ -171,6 +257,29 @@ def parse_settings_with_database_values(cog_data: Dict[str, str], form_steps: Di
                     "title": label.get(locale) or label.get("en-us") or select.get("key"),
                     "style": select.get("style"),
                 }
+        if step.get("action") in (
+            formconstants.CONFIGURATION_CARD_ACTION_KEY,
+            formconstants.SUMMARY_CARD_ACTION_KEY,
+        ):
+            for card_field in step.get("fields", []) or []:
+                field_label = card_field.get("label")
+                if card_field.get("key") and isinstance(field_label, dict):
+                    nested_selects[card_field["key"]] = {
+                        "title": field_label.get(locale) or field_label.get("en-us"),
+                        "style": card_field.get("style"),
+                    }
+            for section in step.get("sections", []) or []:
+                section_state_key = (section.get("state") or {}).get("value")
+                section_options = section.get("options") or []
+                if section_state_key and section_options \
+                        and isinstance(section_options[0], dict):
+                    design_options[section_state_key] = {
+                        str(option.get("value")):
+                            option["label"].get(locale)
+                            or option["label"].get("en-us", str(option.get("value")))
+                        for option in section_options
+                        if isinstance(option.get("label"), dict)
+                    }
 
     for cog_key, value in cog_data.items():
         nested_select = nested_selects.get(cog_key)
@@ -182,12 +291,8 @@ def parse_settings_with_database_values(cog_data: Dict[str, str], form_steps: Di
 
         # Skip settings that don't meet their condition
         condition = step_conditions.get(cog_key)
-        if condition:
-            condition_key = condition.get("key")
-            not_in = condition.get("not_in", [])
-            current_value = cog_data.get(condition_key)
-            if current_value in not_in:
-                continue
+        if condition and not condition_allows(condition, cog_data.get(condition.get("key"))):
+            continue
 
         # Convert design key to friendly label
         if cog_key in design_options and isinstance(value, str):
@@ -195,15 +300,88 @@ def parse_settings_with_database_values(cog_data: Dict[str, str], form_steps: Di
 
         if isinstance(value, dict) and value.get("style") == "composition":
             value = parse_settings_with_database_values_composition(form_steps, locale, value["values"])
-            response.append({"title": title, "value": value, "style": "composition"})
+            response.append({
+                "key": cog_key, "title": title, "value": value,
+                "style": "composition", "icon": icons.get(cog_key),
+                **groups.get(cog_key, {}),
+            })
         else:
             response.append({
+                "key": cog_key,
                 "title": title,
                 "value": value,
                 "style": nested_select.get("style") if nested_select else None,
+                "icon": icons.get(cog_key),
+                **groups.get(cog_key, {}),
             })
 
     return response
+
+
+def resolve_form_settings_groups(form_steps: List[Dict[str, Any]],
+                                 locale: str) -> Dict[str, Dict[str, str]]:
+    """Settings-row key -> the step that owns it, already localized.
+
+    The YAML already groups settings: a card owns its fields, a multi-select
+    owns its selects, a composition owns itself. Reading that structure gives
+    the panel real sections ("Configuração de Links", "Permissões", "Seus
+    Links") without a single new key in the language files."""
+    groups: Dict[str, Dict[str, str]] = {}
+
+    def label(node: Optional[Dict[str, Any]]) -> Optional[str]:
+        if not isinstance(node, dict):
+            return None
+        return node.get(locale) or node.get("en-us")
+
+    for step in form_steps:
+        header = step.get("header") or {}
+        group = {
+            "group": step.get("key"),
+            "group_title": label(header.get("title")) or label(step.get("title")),
+            "group_icon": step.get("emoji") or header.get("title-emoji"),
+        }
+        if not group["group_title"]:
+            continue
+
+        keys = [card_field.get("key") for card_field in step.get("fields", []) or []
+                if isinstance(card_field, dict)]
+        keys += [select.get("key") for select in step.get("selects", []) or []]
+        if step.get("action") == formconstants.COMPOSITION_ACTION_KEY:
+            keys.append(step.get("key"))
+
+        for key in keys:
+            if key and key not in groups:
+                groups[key] = group
+
+    return groups
+
+
+def resolve_form_settings_icons(form_steps: List[Dict[str, Any]]) -> Dict[str, str]:
+    """Settings-row key -> leading emoji, read only from YAML.
+
+    Every saved setting used to render behind the same icon, which flattened
+    the panel into one undifferentiated block. Resolution order (first hit
+    wins): card section `icon:` (applied to every state key it owns), card
+    `fields[].icon`, `selects[].icon`, then the step's own `emoji:`."""
+    icons: Dict[str, str] = {}
+
+    def claim(key: Optional[str], icon: Optional[str]) -> None:
+        if key and icon and key not in icons:
+            icons[key] = icon
+
+    for step in form_steps:
+        for section in step.get("sections", []) or []:
+            for state_key in (section.get("state") or {}).values():
+                claim(state_key, section.get("icon"))
+            claim(section.get("key"), section.get("icon"))
+        for card_field in step.get("fields", []) or []:
+            if isinstance(card_field, dict):
+                claim(card_field.get("key"), card_field.get("icon"))
+        for select in step.get("selects", []) or []:
+            claim(select.get("key"), select.get("icon"))
+        claim(step.get("key"), step.get("emoji"))
+
+    return icons
 
 def parse_settings_with_database_values_composition(form_steps: Dict[str, str], locale: str, values: List[Dict[str, str]]) -> List[Dict[str, str]]:
     for value in values:
@@ -260,6 +438,7 @@ def format_single_value(value: str, style: str, locale: str = None) -> str:
         "channel": f"<#{value}>",
         "role": f"<@&{value}>",
         "user": f"<@{value}>",
+        "code": f"`{value}`",
         "bullet": "\n```" + "\n".join([f"{i + 1}. {v.lstrip()}" for i, v in enumerate(value.split(";"))]) + "```",
         "numbered": "\n```" + "\n".join([f"• {v.lstrip()}" for v in value.split(";")]) + "```",
     }
@@ -267,6 +446,9 @@ def format_single_value(value: str, style: str, locale: str = None) -> str:
 
 
 def _format_boolean_value(value: Any, locale: str = None) -> str:
+    # Styled option values persist as strings ("False"), which are truthy.
+    if isinstance(value, str):
+        value = value.strip().lower() not in ("false", "no", "não", "nao", "0", "")
     if str(locale).lower() == "pt-br":
         return "Sim" if value else "Não"
     return "Yes" if value else "No"
@@ -277,6 +459,7 @@ def format_list_values(values: List[str], style: str) -> str:
         "channel": ", ".join([f"<#{value}>" for value in values]),
         "role": ", ".join([f"<@&{value}>" for value in values]),
         "user": ", ".join([f"<@{value}>" for value in values]),
+        "code": "\n```" + "\n".join(str(value) for value in values) + "```",
         "bullet": "\n```" + "\n".join([f"• {v}" for v in values]) + "```",
         "numbered": "\n```" + "\n".join([f"{i + 1}. {v}" for i, v in enumerate(values)]) + "```",
     }
@@ -296,6 +479,8 @@ def get_form_settings_with_database_values(interaction: discord.Interaction, res
 
     result = f"\n\n:pencil: **{settings_label}**\n"
     for item in responses:
+        if item.get("hidden"):
+            continue
         values = item.get("value", "-")
         style = item.get("style")
 

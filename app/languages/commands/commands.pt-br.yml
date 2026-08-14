@@ -26,6 +26,39 @@ pt-br:
         month:
           name: mes
           desc: "Mês do aniversário"
+      block-links-manager:
+        info-title: "🔎 Por que um link passou?"
+        info: "Clique com o botão direito na mensagem, escolha **Apps** e depois **Validar Bloqueio de Link**: eu te mostro qual regra liberou ou bloqueou cada link dela!"
+        blocked-list:
+          button:
+            label: Bloqueios
+            desc: Veja os links que eu bloqueei e filtre por membro
+          embed:
+            title: "🔎 Links que eu bloqueei"
+            description: "Os bloqueios mais recentes deste servidor! Eu guardo esses detalhes por 90 dias."
+            empty: "Ainda não bloqueei nenhum link por aqui! 🐶"
+          filter:
+            label: Filtrar por membro
+            all-label: Ver todos
+            title: "🔎 Filtrar por membro"
+            description: "Escolha o membro e eu te mostro só os bloqueios dele!"
+            empty: "Ainda não bloqueei nenhum link desse membro! 🐶"
+          record:
+            line: "$user · $channel · $date"
+            rule: "Regra: $rule"
+            not-deleted: "⚠️ Eu não consegui apagar essa mensagem. Confira se eu tenho a permissão de gerenciar mensagens!"
+        stats:
+          button:
+            desc: Veja os números dos links bloqueados
+          embed:
+            title: "📊 Estatísticas de bloqueio de links"
+          fields:
+            total: Bloqueios desde sempre
+            recent: Bloqueios nos últimos 90 dias
+            top-websites: Sites mais bloqueados
+            top-member: Membro com mais bloqueios
+            not-deleted: Mensagens que eu não consegui apagar
+          empty: "Ainda não bloqueei nenhum link por aqui! 🐶"
       reminders-birthdays-manager:
         stats:
           button:
@@ -114,7 +147,38 @@ pt-br:
     block-links:
       subgroup: bloquear
       name: links
-      desc: Keiko protege carinhosamente nosso servidor bloqueando qualquer link suspeito
+      desc: Keiko bloqueia links do seu jeito, tudo com exceções ou só os links que você escolher
+
+    block-links-check:
+      name: Validar Bloqueio de Link
+      desc: Keiko explica por que bloqueou ou liberou os links de uma mensagem
+      embed:
+        title-blocked: "🚫 Eu bloquearia essa mensagem"
+        title-allowed: "✅ Eu deixaria essa mensagem passar"
+      fields:
+        feature:
+          title: "1️⃣ A função está ativa?"
+          not-configured: "❌ Ainda não fui configurada aqui, então não bloqueio link nenhum. Use `/moderações bloquear links` para começar!"
+          paused: "⏸️ Estou pausada por aqui, então deixo todos os links passarem. Me reative com `/moderações bloquear links`!"
+          active: "✅ Estou ativa, no modo **$mode**."
+        exemptions:
+          title: "2️⃣ O autor ou o canal estão liberados?"
+          role-exempt: "🔓 O cargo $roles é liberado, então eu nunca bloqueio links desse membro."
+          role-not-exempt: "🔒 Nenhum cargo desse membro está na lista de liberados."
+          channel-exempt: "🔓 O canal $channel é liberado, então eu nunca bloqueio links por lá."
+          channel-not-exempt: "🔒 Esse canal não está na lista de liberados."
+        links:
+          title: "3️⃣ E os links da mensagem?"
+          none: "Não encontrei nenhum link nessa mensagem."
+          more: "E mais $count links."
+          reasons:
+            allowed-by-popular: "✅ `$link`: liberado porque **$rule** está nos sites populares permitidos."
+            allowed-by-custom-domain: "✅ `$link`: liberado pela sua regra de site **$rule**."
+            allowed-by-custom-exact: "✅ `$link`: liberado pela sua regra de link exato **$rule**."
+            allowed-by-default: "✅ `$link`: liberado porque o modo permite todos e nenhuma regra sua bloqueia ele."
+            blocked-by-custom-domain: "🚫 `$link`: bloqueado pela sua regra de site **$rule**."
+            blocked-by-custom-exact: "🚫 `$link`: bloqueado pela sua regra de link exato **$rule**."
+            blocked-no-rule: "🚫 `$link`: bloqueado porque nada na sua lista libera ele."
 
     welcome-messages:
       subgroup: mensagens
@@ -223,14 +287,13 @@ pt-br:
       member-picker:
         title: 👤 Selecione um membro para editar
         description: Me diga qual membro você quer atualizar nesta lista.
-        not-found: Hmm, eu ainda não tenho um aniversário salvo para esse membro. Escolha alguém que já esteja na lista.
+        not-found: Hmm, eu ainda não tenho nada salvo para esse membro. Escolha alguém que já esteja na lista.
       short-description: 📝 Editado por $user
 
     added:
       title: ➕ Item adicionado ao **$command_name** com sucesso!
       action: Adicionar
       description: Um item foi adicionado a **$command_name** as $date por $user
-      duplicate: Esse membro já está na lista. Se quiser mudar algo, use **Editar**.
       short-description: ➕ Item adicionado por $user
 
     removed:
@@ -245,7 +308,7 @@ pt-br:
       short-description: 🗑️ Item removido por $user
 
     system:
-      description: Essa é uma ação padrão feita por Keiko ao sair do servidor
+      description: Essa é uma ação automática que eu faço ao sair do servidor
 
   confirmation-modal:
     title: Tem certeza?
@@ -256,3 +319,5 @@ pt-br:
 
   resume:
     settings: Configurações
+    empty: nada por aqui
+    more: "e mais $count"

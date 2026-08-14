@@ -1,5 +1,6 @@
 import importlib
-from typing import Any, Callable
+import time
+from typing import Any, Callable, Optional
 
 import discord
 
@@ -7,8 +8,54 @@ from app import logger
 from app.components.embed import response_embed
 from app.constants import KeikoIcons as icons
 from app.constants import LogTypes as logconstants
+from app.constants import ViewConstants as view_constants
 from app.services.cache import increment_redis_key
 from app.services.utils import get_command_by_key, ml, parse_locale
+
+
+READY, NOTIFY, SILENT = "ready", "notify", "silent"
+
+
+class ActionCooldown:
+    """Anti-spam window for buttons that answer with a message of their own.
+    At most one notice is visible at a time; navigation buttons never get
+    one (double-clicking them must keep working)."""
+
+    def __init__(self, seconds: float = view_constants.ACTION_COOLDOWN_SECONDS):
+        self.seconds = seconds
+        self._last_use: Optional[float] = None
+        self._notified_at: Optional[float] = None
+
+    def poll(self) -> str:
+        now = time.monotonic()
+        if self._last_use is None or now - self._last_use >= self.seconds:
+            self._last_use = now
+            self._notified_at = None
+            return READY
+        notice_expired = (
+            self._notified_at is None
+            or now - self._notified_at >= view_constants.ACTION_NOTICE_SECONDS
+        )
+        if notice_expired:
+            self._notified_at = now
+            return NOTIFY
+        return SILENT
+
+
+async def acknowledge_hot_click(interaction: discord.Interaction, locale: str,
+                                state: str) -> None:
+    if state == SILENT:
+        if not interaction.response.is_done():
+            await interaction.response.defer()
+        return
+
+    embed = response_embed("buttons.cooldown", locale)
+    if interaction.response.is_done():
+        return await interaction.followup.send(embed=embed, ephemeral=True)
+    await interaction.response.send_message(
+        embed=embed, ephemeral=True,
+        delete_after=view_constants.ACTION_NOTICE_SECONDS,
+    )
 
 
 class ConfirmButton(discord.ui.Button):
@@ -33,6 +80,34 @@ class CancelButton(discord.ui.Button):
         from app.views.confirm_action import request_discard_confirmation
 
         await request_discard_confirmation(interaction, self.view)
+
+
+def keep_cancel_button_last(view: discord.ui.View) -> None:
+    """Keiko UI convention: the red Cancel button is always the last button in
+    a view. Buttons render in add-order, so callers that append items after the
+    view is built (like the form back button) must re-anchor Cancel at the end."""
+    for item in [child for child in view.children if isinstance(child, CancelButton)]:
+        view.remove_item(item)
+        view.add_item(item)
+
+
+OPTION_BUTTON_STYLES = {
+    "primary": discord.ButtonStyle.primary,
+    "secondary": discord.ButtonStyle.secondary,
+    "success": discord.ButtonStyle.success,
+    "danger": discord.ButtonStyle.danger,
+}
+
+
+def resolve_option_style(
+    option: Any, default: discord.ButtonStyle = discord.ButtonStyle.gray
+) -> discord.ButtonStyle:
+    """YAML `options[].style` -> ButtonStyle, for every view that renders an
+    option as a button (form options steps and card option pickers alike).
+    Unknown or missing styles keep the neutral default."""
+    if not isinstance(option, dict):
+        return default
+    return OPTION_BUTTON_STYLES.get(option.get("style"), default)
 
 
 class OptionsButton(discord.ui.Button):
@@ -104,6 +179,19 @@ class OptionsButton(discord.ui.Button):
         self.view.response = {self.custom_id: self.label}
 
 
+def panel_screen_embed(interaction: discord.Interaction, command_key: str,
+                       locale: str) -> discord.Embed:
+    """The embed a screen opened from the manager panel starts from."""
+    from app.components.embed import parse_form_dict_to_embed
+    from app.services.utils import parse_form_yaml_to_dict
+
+    if interaction.message and interaction.message.embeds:
+        return interaction.message.embeds[0]
+
+    first_step = list(parse_form_yaml_to_dict(command_key))[0]
+    return parse_form_dict_to_embed(first_step, locale, True)
+
+
 class EditButton(discord.ui.Button):
     def __init__(self, after_callback: Callable, locale: str) -> None:
         self.after_callback = after_callback
@@ -117,16 +205,15 @@ class EditButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         from app.views.edit import EditCommand
+        from app.views.panel_transitions import transition_to_embed
 
         parent_view = self.view
-        parent_view.clear_items()
-
         view = EditCommand(parent_view.command_key, parent_view.cogs or parent_view._parse_responses_to_cog(), self.locale, self.after_callback)
         parent_view.edited_form_view = view.form_view
-        embed = interaction.message.embeds[0]
+        embed = panel_screen_embed(interaction, parent_view.command_key, self.locale)
         parent_view._original_embed = embed
 
-        await interaction.response.edit_message(embed=embed, view=view)
+        await transition_to_embed(interaction, embed, view)
 
 
 class PauseButton(discord.ui.Button):
@@ -144,7 +231,9 @@ class PreviewButton(discord.ui.Button):
     def __init__(self, custom_callback: Callable, locale: str, command_key: str) -> None:
         self.custom_callback = custom_callback
         self.command_key = command_key
+        self.locale = locale
         self.desc = ml("buttons.preview.desc", locale=locale)
+        self.cooldown = ActionCooldown()
         super().__init__(
             label=ml("buttons.preview.label", locale=locale),
             emoji="👁️",
@@ -152,16 +241,14 @@ class PreviewButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> Any:
+        state = self.cooldown.poll()
+        if state != READY:
+            return await acknowledge_hot_click(interaction, self.locale, state)
+
+        await interaction.response.defer()
+
         view = self.view
-        view.remove_item(self)
-
-        await interaction.response.edit_message(view=view)
-
-        if not hasattr(view, "responses"):
-            responses = []
-        else:
-            responses = view.responses
-
+        responses = view.responses if hasattr(view, "responses") else []
         await self.custom_callback(interaction, responses)
 
 
@@ -287,15 +374,14 @@ class RemoveItemButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction):
+        from app.views.panel_transitions import transition_to_embed
         from app.views.remove import RemoveItem
 
         parent_view = self.view
-        parent_view.clear_items()
-
         view = RemoveItem(parent_view.command_key, parent_view.cogs or parent_view._parse_responses_to_cog(), self.locale, self.after_callback)
-        embed = interaction.message.embeds[0]
+        embed = panel_screen_embed(interaction, parent_view.command_key, self.locale)
 
-        await interaction.response.edit_message(embed=embed, view=view)
+        await transition_to_embed(interaction, embed, view)
 
 class AddItemButton(discord.ui.Button):
     def __init__(self, after_callback: Callable, locale: str) -> None:
@@ -313,8 +399,6 @@ class AddItemButton(discord.ui.Button):
         from app.views.form import Form
 
         parent_view = self.view
-        parent_view.clear_items()
-
         view = Form(parent_view.command_key, self.locale, cogs=parent_view.cogs or parent_view._parse_responses_to_cog())
         view.filter_steps(constants.COMMAND_KEY_TO_COMPOSITION_KEY[parent_view.command_key])
         view._set_after_callback(self.after_callback)
@@ -328,6 +412,7 @@ class HelpButton(discord.ui.Button):
     def __init__(self, locale: str) -> None:
         self.locale = locale
         self.desc = ml("buttons.help.desc", locale=locale)
+        self.cooldown = ActionCooldown()
         super().__init__(
             label=ml("buttons.help.label", locale=locale),
             emoji="🙋",
@@ -335,52 +420,62 @@ class HelpButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> Any:
-        view = self.view
-        view.remove_item(self)
+        state = self.cooldown.poll()
+        if state != READY:
+            return await acknowledge_hot_click(interaction, self.locale, state)
+        """Read-only screen: the captions arrive as their own ephemeral
+        message and the panel is left exactly as it was.
+
+        Editing the panel here is what used to kill it: the old
+        edit-then-clear_items dance left the on-screen buttons pointing at a
+        cleared view, and on a Components V2 panel the edit itself crashed
+        (the message has no embeds). Help must never cost the user the panel.
+        """
+        from app.constants import Style as style_constants
 
         embed = discord.Embed(
             title=f"🙋 {ml('buttons.help.label', self.locale)}",
             description=ml("buttons.captions.desc", self.locale),
+            color=int(style_constants.BACKGROUND_COLOR, base=16),
         )
         embed.set_thumbnail(url=icons.IMAGE_02)
 
-        for item in view.children:
-            if not isinstance(item, discord.ui.Button):
+        for item in self.view.walk_children():
+            if not isinstance(item, discord.ui.Button) or item is self:
                 continue
-
+            if not item.label or not getattr(item, "desc", None):
+                continue
             embed.add_field(
-                name=f"{item.emoji} {item.label}",
+                name=f"{item.emoji} {item.label}" if item.emoji else item.label,
                 value=item.desc,
                 inline=False,
             )
 
-        await interaction.response.edit_message(
-            embed=interaction.message.embeds[0], view=view
-        )
-
-        view.clear_items()
-
-        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 class AdditionalButton(discord.ui.Button):
     def __init__(self, callback: Callable, desc: str, **kwargs):
         self.custom_callback = callback
         self.desc = desc
-        self.auto_disable = kwargs.pop("auto_disable", False)
         self.defer = kwargs.pop("defer", False)
+        self.own_response = kwargs.pop("own_response", False)
+        cooldown = kwargs.pop("cooldown", None)
+        self.cooldown = ActionCooldown(cooldown) if cooldown else None
         super().__init__(**kwargs)
 
     async def callback(self, interaction: discord.Interaction) -> Any:
-        view = self.view
-        if self.auto_disable:
-            view.remove_item(self)
+        if self.cooldown:
+            state = self.cooldown.poll()
+            if state != READY:
+                locale = parse_locale(interaction.locale)
+                return await acknowledge_hot_click(interaction, locale, state)
+
+        if self.own_response:
+            return await self.custom_callback(interaction)
 
         if self.defer:
             await interaction.response.defer()
-            await interaction.edit_original_response(view=view)
-        else:
-            await interaction.response.edit_message(view=view)
 
         await self.custom_callback(interaction)
 

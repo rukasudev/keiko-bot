@@ -49,7 +49,7 @@ DISPATCHABLE_ACTIONS = {
 # Value styles resolved by format_values_by_style (app/services/utils.py)
 # plus "composition", rendered separately by get_styled_composition_values.
 KNOWN_VALUE_STYLES = {
-    "channel", "role", "user", "bullet", "numbered",
+    "channel", "role", "user", "bullet", "numbered", "code",
     "boolean", "boolean-mode", "mm_dd", "composition",
 }
 # options[].style maps to discord.ButtonStyle via Form._get_option_styles.
@@ -162,6 +162,21 @@ def test_locale_dicts_have_both_languages(form_steps):
     assert not broken, f"{name}.yml has locale dicts missing en-us or pt-br: {broken}"
 
 
+def _response_keys_of(step) -> set:
+    """Keys a step contributes to Form.responses: its own key, nested select
+    keys, and (for cards) section state keys and field keys."""
+    keys = {step.get("key")}
+    for select in step.get("selects", []) or []:
+        keys.add(select.get("key"))
+    for section in step.get("sections", []) or []:
+        keys.update(value for value in (section.get("state") or {}).values() if value)
+    for card_field in step.get("fields", []) or []:
+        if isinstance(card_field, dict):
+            keys.add(card_field.get("key"))
+    keys.discard(None)
+    return keys
+
+
 def test_conditions_reference_earlier_step_keys(form_steps):
     name, steps = form_steps
     seen = set()
@@ -170,10 +185,39 @@ def test_conditions_reference_earlier_step_keys(form_steps):
         condition = step.get("condition")
         if condition and condition.get("key") not in seen:
             broken.append((step.get("key"), condition.get("key")))
-        seen.add(step.get("key"))
+        seen.update(_response_keys_of(step))
     assert not broken, (
         f"{name}.yml has conditions referencing keys not defined earlier: {broken}"
     )
+
+
+def test_card_visible_when_references_card_state_keys(form_steps):
+    name, steps = form_steps
+    broken = []
+    for step in walk_steps(steps):
+        sections = step.get("sections", []) or []
+        if not sections:
+            continue
+        state_keys = set(_collect_state_keys(sections))
+        for section in sections:
+            rule = section.get("visible-when")
+            if rule and rule.get("key") not in state_keys:
+                broken.append((section.get("key"), rule.get("key")))
+    assert not broken, (
+        f"{name}.yml has visible-when rules referencing unknown state keys: {broken}"
+    )
+
+
+def test_block_links_quick_picks_match_domain_table():
+    """The card's popular-website options must stay in sync with the alias
+    table the matcher expands (constants.BLOCK_LINKS_QUICK_PICK_DOMAINS)."""
+    from app.constants import BLOCK_LINKS_QUICK_PICK_DOMAINS
+
+    steps = parse_form_yaml_to_dict("block_links")
+    card = next(s for s in steps if s.get("action") == "configuration_card")
+    section = next(s for s in card["sections"] if s.get("key") == "allowed_links")
+    option_values = {str(o.get("value")) for o in section.get("options", [])}
+    assert option_values == set(BLOCK_LINKS_QUICK_PICK_DOMAINS.keys())
 
 
 def test_card_sections_use_registered_types_and_valid_state_keys(form_steps):
@@ -204,3 +248,74 @@ def test_card_sections_use_registered_types_and_valid_state_keys(form_steps):
             if key not in valid_keys:
                 problems.append((step.get("key"), f"default key {key!r} unknown"))
     assert not problems, f"{name}.yml card issues: {problems}"
+
+
+def _split_option_label(option: Dict[str, Any], locale: str) -> Tuple[str, str]:
+    """(leading emoji, remaining text) of a localized option label."""
+    label = option.get("label")
+    text = ((label.get(locale) if isinstance(label, dict) else label) or "").strip()
+    head, _, tail = text.partition(" ")
+    if tail and head[:1] and not head[:1].isalnum():
+        return head, tail.strip()
+    return "", text
+
+
+def test_option_explanations_are_written_as_own_lines(form_steps):
+    """Keiko explains choices as a scannable list, never as a paragraph.
+
+    When a step's description spells out its own option labels, each mention
+    opens its own line: led by the option's emoji when the label carries one,
+    and by a "- " bullet when it does not. A bullet in front of an emoji reads
+    as visual noise, and prose hiding the options reads as a wall of text.
+
+    Pinned after the block_links match-type step shipped both explanations
+    glued inside one dense paragraph, then extended when the mode picker
+    shipped bullet-plus-emoji lines.
+    """
+    name, steps = form_steps
+    problems = []
+    for step in walk_steps(steps):
+        explainers = []
+        if step.get("action") == FormConstants.OPTIONS_ACTION_KEY:
+            explainers.append((step.get("key"), step.get("description"), step.get("options")))
+        for section in step.get("sections", []) or []:
+            explainers.append(
+                (section.get("key"), section.get("picker-description"), section.get("options"))
+            )
+
+        for key, description_dict, options in explainers:
+            for locale in ("en-us", "pt-br"):
+                description = (description_dict or {}).get(locale) or ""
+                for option in options or []:
+                    emoji, core = _split_option_label(option, locale)
+                    if not core or core not in description:
+                        continue
+                    openers = ("- ",) if not emoji else ("- ", emoji)
+                    for line in description.split("\n"):
+                        if core in line and not line.lstrip().startswith(openers):
+                            problems.append((key, locale, core))
+                        if emoji and line.lstrip().startswith(f"- {emoji}"):
+                            problems.append((key, locale, f"bullet before {emoji}"))
+    assert not problems, (
+        f"{name}.yml must explain each option on its own line, led by its "
+        f"emoji (or a '- ' bullet when there is none): {problems}"
+    )
+
+
+def test_description_variants_reference_keys_produced_earlier(form_steps):
+    """`description-when:` lets one step word itself differently depending on
+    an earlier answer. A variant pointing at a key no step produces would
+    silently never fire (or always fire), so the reference is pinned here."""
+    name, steps = form_steps
+    seen = set()
+    broken = []
+    for step in walk_steps(steps):
+        for variant in step.get("description-when", []) or []:
+            key = (variant.get("condition") or {}).get("key")
+            if key not in seen:
+                broken.append((step.get("key"), key))
+        seen.update(_response_keys_of(step))
+    assert not broken, (
+        f"{name}.yml has description-when variants referencing keys not "
+        f"defined earlier: {broken}"
+    )

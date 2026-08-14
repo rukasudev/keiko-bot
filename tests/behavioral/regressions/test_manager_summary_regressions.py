@@ -48,6 +48,8 @@ async def test_adding_a_new_consumer_must_not_drop_other_forms_saved_values(
     render their saved values side by side in one process, so a change that
     helps one consumer but breaks another fails here immediately.
     """
+    from app.services.block_links import normalize_block_links_config
+
     roles = await scenario_factory(locale="pt-br").start_manager(
         "default_roles",
         {"guild_id": "1", "enabled": True,
@@ -55,9 +57,12 @@ async def test_adding_a_new_consumer_must_not_drop_other_forms_saved_values(
     )
     links = await scenario_factory(locale="pt-br").start_manager(
         "block_links",
-        {"guild_id": "2", "enabled": True,
-         "allowed_chats": {"style": "channel", "values": "100"},
-         "allowed_links": ["Youtube"]},
+        normalize_block_links_config(
+            {"guild_id": "2", "enabled": True,
+             "allowed_chats": {"style": "channel", "values": "100"},
+             "allowed_links": ["Youtube"]}
+        ),
     )
     roles.expect_configuration_values("<@&201>")
-    links.expect_configuration_values("<#100>", "Youtube")
+    # Legacy labels render as translated domains since the card-first redesign.
+    links.expect_configuration_values("<#100>", "youtube.com")

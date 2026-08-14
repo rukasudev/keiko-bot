@@ -5,9 +5,10 @@ from typing import Any, Dict, List, Optional
 import discord
 
 from app.components.buttons import AdditionalButton
+from app.components.embed import base_embed
 from app.constants import Commands as commands_constants
 from app.constants import KeikoIcons
-from app.constants import Style
+from app.constants import ViewConstants as view_constants
 from app.data import birthdays as birthdays_data
 from app.data.birthdays import to_summary_composition
 from app.services.dates import (
@@ -46,7 +47,7 @@ async def manager(interaction: discord.Interaction, guild_id: str) -> None:
         emoji="📊",
         style=discord.ButtonStyle.grey,
         defer=True,
-        auto_disable=True,
+        cooldown=view_constants.ACTION_COOLDOWN_SECONDS,
     )
     await send_command_manager_message(
         interaction,
@@ -354,15 +355,12 @@ async def send_stats_message(interaction: discord.Interaction) -> None:
         f"📉 **{_mb('stats.fields.quietest', locale)}:** {format_month_count(stats['min_month'], locale)}",
         f"⭐ **{_mb('stats.fields.most-common', locale)}:** {format_mm_dd_count(stats['max_date'], locale)}",
     ]
-    embed = discord.Embed(
-        title=_mb("stats.embed.title", locale),
-        description="\n".join(lines),
-        color=int(Style.BACKGROUND_COLOR, base=16),
+    embed = base_embed(
+        _mb("stats.embed.title", locale),
+        "\n".join(lines),
+        thumbnail=KeikoIcons.IMAGE_03,
+        footer=ml("commands.commands.commons.embed.footer", locale=locale),
     )
-    embed.set_thumbnail(url=KeikoIcons.IMAGE_03)
-    footer_text = ml("commands.commands.commons.embed.footer", locale=locale)
-    if footer_text:
-        embed.set_footer(text=f"• {footer_text}")
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 

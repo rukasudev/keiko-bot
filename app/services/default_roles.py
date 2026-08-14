@@ -151,7 +151,8 @@ async def manager(interaction: discord.Interaction, guild_id: str):
         label=ml("buttons.roles-sync.label", interaction.locale),
         desc=ml("buttons.roles-sync.desc", interaction.locale),
         emoji="🔄",
-        auto_disable=True,
+        # Syncing writes roles to every member: one run per minute is plenty.
+        cooldown=60,
         defer=True,
     )
 

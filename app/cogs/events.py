@@ -86,6 +86,11 @@ class Events(Cog, name="events"):
         await block_links_service.check_message(guild_id, message)
 
     @commands.Cog.listener()
+    @with_error_context("on_raw_message_edit")
+    async def on_raw_message_edit(self, payload: discord.RawMessageUpdateEvent):
+        await block_links_service.check_edited_message(self.bot, payload)
+
+    @commands.Cog.listener()
     @with_error_context("on_interaction")
     async def on_interaction(self, interaction: discord.Interaction) -> None:
         if interaction.type != discord.InteractionType.application_command:

@@ -48,6 +48,10 @@ pt-br:
     title: Youtuber Já Registrado
     message: "A notificação dos vídeos desse youtuber já está configurada nesse servidor. Por favor, selecione outro youtuber e tente novamente."
 
+  item-already-registered:
+    title: Item Já Cadastrado
+    message: "Opa! Esse item já está na minha lista! Se quiser mudar algo nele, é só usar o botão **Editar** 🐶"
+
   youtuber-not-found:
     title: Youtuber Não Encontrado
     message: "Desculpe, mas não consegui encontrar o youtuber que você está procurando. Por favor, verifique o nome e tente novamente."
@@ -63,6 +67,10 @@ pt-br:
   invalid-date:
     title: Data Inválida
     message: "Ops! Essa data não existe. Escolha um dia válido para o mês selecionado."
+
+  link-not-recognized:
+    title: Link Não Reconhecido
+    message: "Ops! Não consegui entender esse link. Tente algo como `youtube.com` ou `youtube.com/watch?v=abc123` e envie de novo!"
 
   reminders-birthdays-disabled:
     title: Lembretes de Aniversário Não Configurados

@@ -4,6 +4,7 @@ from app import logger
 from app.constants import Commands as commands_constants
 from app.constants import LogTypes as logconstants
 from app.constants import Style as style
+from app.constants import ViewConstants as view_constants
 from app.data.cogs import find_cog_by_guild_id
 from app.services.cache import increment_redis_key
 from app.services.utils import get_command_by_key, ml
@@ -56,7 +57,7 @@ class SetupFeatureButton(discord.ui.Button):
 
 class SetupView(discord.ui.View):
     def __init__(self, moderations: dict, locale: str, guild_id: str = None):
-        super().__init__(timeout=300)
+        super().__init__(timeout=view_constants.SHORT_TIMEOUT_SECONDS)
         self.locale = locale
         self.moderations = moderations
         self.guild_id = guild_id

@@ -1,5 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import discord
+
 import pytest
 
 
@@ -84,6 +86,10 @@ class TestBirthdaysManagerComposition:
         }
 
         manager = Manager.__new__(Manager)
+        # Bare instance: the persistence branch is what is under test, but the
+        # event message it ends with clears the view, so the View machinery
+        # has to exist.
+        discord.ui.View.__init__(manager)
         manager.command_key = constants.REMINDERS_BIRTHDAY_KEY
         manager.cogs = {constants.REMINDERS_BIRTHDAY_KEY: {"values": []}}
         manager.locale = "en-us"
@@ -131,6 +137,10 @@ class TestBirthdaysManagerComposition:
         from app.views.manager import Manager
 
         manager = Manager.__new__(Manager)
+        # Bare instance: the persistence branch is what is under test, but the
+        # event message it ends with clears the view, so the View machinery
+        # has to exist.
+        discord.ui.View.__init__(manager)
         manager.command_key = constants.REMINDERS_BIRTHDAY_KEY
         manager.locale = "en-us"
         manager.interaction = MagicMock()

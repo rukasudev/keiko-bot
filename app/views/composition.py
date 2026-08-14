@@ -4,6 +4,7 @@ import discord
 
 from app import logger
 from app.constants import LogTypes as logconstants
+from app.constants import ViewConstants as view_constants
 from app.services.compositions import merge_composition_item_by_nested_value
 
 
@@ -16,14 +17,16 @@ class FormComposition(discord.ui.View):
         cogs: List[Dict[str, Any]] = None,
         index: int = None,
         prefilled_fields: Dict[str, Any] = None,
+        parent_context: Dict[str, Any] = None,
     ) -> None:
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.composition = composition
         self.parent_callback = parent_callback
         self.cogs = cogs
         self.locale = locale
         self.index = index
         self.prefilled_fields = prefilled_fields or {}
+        self.parent_context = parent_context or {}
         self.responses = []
 
     def get_response(self):
@@ -67,6 +70,8 @@ class FormComposition(discord.ui.View):
                 value['style'] = item.get('style')
             if item.get("hidden"):
                 value["hidden"] = True
+            if item.get("_raw_value") is not None:
+                value["_raw_value"] = item.get("_raw_value")
 
             result[key] = value
 
@@ -94,6 +99,7 @@ class FormComposition(discord.ui.View):
 
         self.form_view = Form("", self.locale, self.composition.get("steps", {}), cogs=current_cog or cogs)
         self.form_view.all_cogs = cogs
+        self.form_view.parent_context = self.parent_context
         self.form_view.composition_responses = self.responses
         self._apply_prefilled_fields(self.form_view)
 

@@ -1,5 +1,6 @@
 import asyncio
 import inspect
+import re
 from typing import Any, Callable, Dict, Generator, List, Optional, Union
 
 import discord
@@ -7,6 +8,7 @@ from discord import SelectDefaultValue, SelectDefaultValueType
 
 from app import logger
 from app.components.buttons import (
+    OPTION_BUTTON_STYLES,
     AddItemButton,
     CancelButton,
     ConfirmButton,
@@ -14,6 +16,7 @@ from app.components.buttons import (
     FormBackButton,
     PreviewButton,
     RemoveItemButton,
+    keep_cancel_button_last,
 )
 from app.components.select_views import ChannelSelectView, RoleSelectView, MultiSelectView, DesignSelectView, FileUploadModal, UserSelectView, MonthSelectView
 from app.components.embed import parse_form_dict_to_embed
@@ -21,6 +24,7 @@ from app.components.modals import CustomModal
 from app.constants import Commands as commandconstants
 from app.constants import FormConstants as constants
 from app.constants import LogTypes as logconstants
+from app.constants import ViewConstants as view_constants
 from app.exceptions import ErrorContext
 from app.integrations.stream_elements import StreamElementsClient
 from app.services.cogs import insert_cog_by_guild, insert_cog_event
@@ -29,8 +33,10 @@ from app.services.moderations import update_moderations_by_guild
 from app.services.notifications_twitch import unsubscribe_streamer
 from app.services.transforms import get_response_transform
 from app.services.utils import (
+    condition_allows,
     get_available_roles_by_guild,
     get_form_settings_with_database_values,
+    get_link_host,
     get_roles_by_guild,
     get_text_channels_by_guild,
     ml,
@@ -68,7 +74,7 @@ class Form(discord.ui.View):
         self.responses = []
         self.persistence_callback = None
         self._using_layout_view = False
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.add_item(ConfirmButton(callback=self._callback, locale=locale))
         self.add_item(CancelButton(locale=locale))
 
@@ -117,9 +123,81 @@ class Form(discord.ui.View):
                 self._step = self.state.current_step
 
             self.step_embed = parse_form_dict_to_embed(self._step, self.locale)
+            if self.step_embed:
+                variant = self._description_variant()
+                if variant:
+                    self.step_embed.description = variant
+                if self.step_embed.description:
+                    self.step_embed.description = self._apply_response_tokens(
+                        self.step_embed.description
+                    )
             await func(self, args)
 
         return update_counter
+
+    RESPONSE_TOKEN_PATTERN = re.compile(
+        r"\{response:([A-Za-z0-9_]+)(?::([a-z_]+))?(?:\|([^}]*))?\}"
+    )
+    RESPONSE_TOKEN_FORMATTERS = {"host": get_link_host}
+
+    def _apply_response_tokens(self, text: str) -> str:
+        def replace(match: "re.Match") -> str:
+            key, formatter, fallback = (
+                match.group(1), match.group(2), match.group(3) or ""
+            )
+            response = next(
+                (r for r in self.responses if r.get("key") == key), None
+            )
+            value = response.get("value") if response else None
+            if isinstance(value, (list, tuple)):
+                value = ", ".join(str(item) for item in value)
+            if value in (None, ""):
+                return fallback
+            if formatter:
+                apply = self.RESPONSE_TOKEN_FORMATTERS.get(formatter)
+                value = apply(str(value)) if apply else value
+            return str(value)
+
+        return self.RESPONSE_TOKEN_PATTERN.sub(replace, text)
+
+    def _condition_value(self, key: str):
+        """Value a copy condition is evaluated against: the answer given in
+        this run, then the saved configuration (the manager re-runs a single
+        step with the rest of the document already stored), then the context
+        inherited from the parent form (a composition sub-step runs in a form
+        of its own and would otherwise see nothing chosen before it)."""
+        response = next((r for r in self.responses if r.get("key") == key), None)
+        if response:
+            return response.get("_raw_value", response.get("value"))
+
+        stored = self.cogs.get(key) if isinstance(self.cogs, dict) else None
+        if stored is None:
+            stored = getattr(self, "parent_context", {}).get(key)
+        if isinstance(stored, dict):
+            return stored.get("_raw_value", stored.get("value", stored.get("values")))
+        return stored
+
+    def _condition_context(self) -> Dict[str, Any]:
+        """Answers this form hands down to a nested composition form."""
+        context = dict(self.cogs) if isinstance(self.cogs, dict) else {}
+        context.update(getattr(self, "parent_context", {}))
+        for response in self.responses:
+            key = response.get("key")
+            if key:
+                context[key] = response.get("_raw_value", response.get("value"))
+        return context
+
+    def _description_variant(self) -> Optional[str]:
+        """YAML `description-when:` — the first variant whose condition holds
+        replaces the step description. Lets one step speak differently
+        depending on an earlier answer (an entry that allows or blocks, a
+        server-wide or per-member setup) without duplicating the step.
+        Reference: docs/form-configuration.md"""
+        for variant in self._get_step_item("description-when") or []:
+            condition = variant.get("condition") or {}
+            if condition_allows(condition, self._condition_value(condition.get("key"))):
+                return variant.get(self.locale)
+        return None
 
     def _should_skip_step(self) -> bool:
         """Check if current step should be skipped based on conditions."""
@@ -132,14 +210,12 @@ class Form(discord.ui.View):
             return False
 
         key = condition.get("key")
-        not_in = condition.get("not_in", [])
-
         response = next((r for r in self.responses if r["key"] == key), None)
         if response:
             value = response.get("_raw_value", response.get("value"))
         else:
             value = None
-        return value in not_in
+        return not condition_allows(condition, value)
 
     def _should_skip_step_on_back(self) -> bool:
         """Check if current step should be skipped when navigating back.
@@ -207,6 +283,9 @@ class Form(discord.ui.View):
         if action in (constants.MODAL_ACTION_KEY, constants.FILE_UPLOAD_ACTION_KEY) and not self.view.get_response():
             return
 
+        if action == constants.COMPOSITION_ACTION_KEY and not self.view.get_response():
+            return
+
         return self._save_step_response()
 
     def _upsert_response(self, response_data: Dict[str, Any]) -> None:
@@ -221,6 +300,9 @@ class Form(discord.ui.View):
     def _save_step_response(self):
         response = self.view.get_response()
         self.state.save_response(response, self._step)
+        # Steps marked hidden (transient gates like register_now/add_custom)
+        # must not surface in the resume or manager summary.
+        step_hidden = bool(self._get_step_item("hidden"))
 
         if self._get_step_item("action") == constants.DESIGN_SELECT_ACTION_KEY:
             designs = self._get_step_item("designs", [])
@@ -233,6 +315,30 @@ class Form(discord.ui.View):
                     "value": label,
                     "style": None,
                     "_raw_value": response,
+                })
+                return self.responses
+
+        if (
+            self._get_step_item("action") == constants.OPTIONS_ACTION_KEY
+            and self._get_step_item("styled_values")
+            and not self._get_step_item("style")
+        ):
+            options = [o for o in self._get_step_item("options", []) if isinstance(o, dict)]
+            labels_by_value = {
+                str(o.get("value")): o["label"].get(self.locale) or o["label"].get("en-us")
+                for o in options
+                if isinstance(o.get("label"), dict)
+            }
+            if labels_by_value:
+                raw_values = response if isinstance(response, list) else [response]
+                labels = [labels_by_value.get(str(raw), raw) for raw in raw_values]
+                self._upsert_response({
+                    "key": self._get_step_item("key"),
+                    "title": self._get_step_item("title"),
+                    "value": labels if isinstance(response, list) else labels[0],
+                    "style": None,
+                    "_raw_value": response,
+                    "hidden": step_hidden,
                 })
                 return self.responses
 
@@ -299,11 +405,20 @@ class Form(discord.ui.View):
 
             return self.responses
 
+        # Scalar steps (single-input modals) honor response_transform too,
+        # e.g. normalize_link stores the cleaned value the user typed.
+        transform = get_response_transform(self._get_step_item("response_transform"))
+        if transform and transform["value_key"] == self._get_step_item("key"):
+            transformed = transform["serialize"]({self._get_step_item("key"): response})
+            if transformed is not None:
+                response = transformed
+
         self._upsert_response({
             "key": self._get_step_item("key"),
             "title": self._get_step_item("title"),
             "value": response,
             "style": self._get_step_item("style"),
+            "hidden": step_hidden,
         })
         return self.responses
 
@@ -372,6 +487,13 @@ class Form(discord.ui.View):
                 if key not in used_keys
             ]
 
+        options_by_state_key = {}
+        for section in self._step.get("sections", []) or []:
+            state_value = (section.get("state") or {}).get("value")
+            options = section.get("options") or []
+            if state_value and options and isinstance(options[0], dict):
+                options_by_state_key[state_value] = options
+
         for field in fields:
             key = field.get("key")
             if key in response:
@@ -385,13 +507,29 @@ class Form(discord.ui.View):
                     or key in hidden_keys
                     or (key in hidden_when_default and response.get(key) != "custom")
                 )
-                self._upsert_response({
+                value = response.get(key)
+                raw_value = None
+                option = next(
+                    (
+                        item for item in options_by_state_key.get(key, [])
+                        if str(item.get("value")) == str(value)
+                    ),
+                    None,
+                )
+                if option and isinstance(option.get("label"), dict):
+                    raw_value = value
+                    value = option["label"].get(self.locale) \
+                        or option["label"].get("en-us") or value
+                entry = {
                     "key": key,
                     "title": title or key,
-                    "value": response.get(key),
+                    "value": value,
                     "style": field.get("style"),
                     "hidden": hidden,
-                })
+                }
+                if raw_value is not None:
+                    entry["_raw_value"] = raw_value
+                self._upsert_response(entry)
 
     def _get_step_item(self, key: str, default_value: Any = None) -> Dict[str, Any]:
         multi_lang_keys = ["title", "description", "footer", "fields"]
@@ -571,16 +709,10 @@ class Form(discord.ui.View):
         options = self._get_step_item("options")
         if not isinstance(options, list):
             return {}
-        styles = {
-            "primary": discord.ButtonStyle.primary,
-            "secondary": discord.ButtonStyle.secondary,
-            "success": discord.ButtonStyle.success,
-            "danger": discord.ButtonStyle.danger,
-        }
         return {
-            str(option.get("value")): styles[option["style"]]
+            str(option.get("value")): OPTION_BUTTON_STYLES[option["style"]]
             for option in options
-            if isinstance(option, dict) and option.get("style") in styles
+            if isinstance(option, dict) and option.get("style") in OPTION_BUTTON_STYLES
         }
 
     async def show_channels(self, interaction: discord.Interaction):
@@ -771,9 +903,9 @@ class Form(discord.ui.View):
             self.step_embed.add_field(name=field["title"], value=field["message"], inline=False)
 
         self.add_item(ConfirmButton(callback=self._callback, locale=self.locale))
-        self.add_item(CancelButton(locale=self.locale))
         if self.state.can_go_back:
             self.add_item(FormBackButton(self, self.locale))
+        self.add_item(CancelButton(locale=self.locale))
 
         await self._transition_from_layout_view(interaction, self.step_embed, self)
 
@@ -785,6 +917,7 @@ class Form(discord.ui.View):
             self.cogs,
             self.composition_index if hasattr(self, "composition_index") else None,
             prefilled_fields=getattr(self, "prefilled_composition_fields", None),
+            parent_context=self._condition_context(),
         )
 
         await self.view.send_form(interaction)
@@ -868,6 +1001,9 @@ class Form(discord.ui.View):
 
         if interaction.message.embeds:
             embed = interaction.message.embeds[0]
+            # Same rule as the manager lifecycle: an event embed states only
+            # the event, never fields left over from what it replaced.
+            embed.clear_fields()
         else:
             from app.constants import Style as style_constants
             embed = discord.Embed(color=int(style_constants.BACKGROUND_COLOR, base=16))
@@ -1090,6 +1226,7 @@ class Form(discord.ui.View):
     def _add_back_button(self):
         if self.state.can_go_back:
             self.view.add_item(FormBackButton(self, self.locale))
+            keep_cancel_button_last(self.view)
 
     async def _send_view(self, interaction: discord.Interaction):
         """Prepare and send view with auto-fill and back button."""
@@ -1121,25 +1258,16 @@ class Form(discord.ui.View):
         deferred: bool = False
     ):
         """Handle transition from Components V2 LayoutView back to embed-based view."""
-        previous_is_layout = (
-            self._using_layout_view
-            or bool(interaction.message and interaction.message.flags.components_v2)
-        )
+        from app.views.panel_transitions import is_layout_message, transition_to_embed
+
+        previous_is_layout = self._using_layout_view or is_layout_message(interaction.message)
         if previous_is_layout:
             self._using_layout_view = False
-            if not deferred:
-                await interaction.response.defer()
-            await interaction.followup.delete_message(interaction.message.id)
-            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
-        else:
-            if deferred:
-                await interaction.followup.edit_message(
-                    message_id=interaction.message.id,
-                    embed=embed,
-                    view=view
-                )
-            else:
-                await interaction.response.edit_message(embed=embed, view=view)
+
+        await transition_to_embed(
+            interaction, embed, view,
+            deferred=deferred, from_layout=previous_is_layout,
+        )
 
     async def _send_layout_view(self, interaction: discord.Interaction):
         """Send LayoutView (Components V2) without embed."""

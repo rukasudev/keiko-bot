@@ -28,6 +28,23 @@ def increment_redis_key(key: str, increment_by=1):
     return redis_client.incrby(key, increment_by)
 
 
+def get_redis_counter(key: str) -> int:
+    try:
+        return int(redis_client.get(key) or 0)
+    except (TypeError, ValueError):
+        return 0
+
+
+def get_redis_counters_by_prefix(prefix: str) -> Dict[str, int]:
+    """Every counter under a prefix, keyed by its last segment. Mirrors the
+    scan-and-sum aggregation the admin dashboard already does over the
+    command-call counters."""
+    counters = {}
+    for key in redis_client.scan_iter(f"{prefix}*"):
+        counters[str(key).rsplit(":", 1)[-1]] = get_redis_counter(key)
+    return counters
+
+
 def get_cog_data_or_populate(guild_id: str, key: str, manager: bool=False) -> Dict[str, Any]:
     redis_key = f"guild:{guild_id}:cog.{key}"
     data = redis_client.get(redis_key)

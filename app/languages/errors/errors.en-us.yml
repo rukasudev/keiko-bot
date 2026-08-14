@@ -48,6 +48,10 @@ en-us:
     title: Youtuber Already Registered
     message: "The notification of this youtuber's videos is already set up on this server. Please select another youtuber and try again."
 
+  item-already-registered:
+    title: Item Already Registered
+    message: "Oops! That item is already on my list! If you want to change something about it, just use the **Edit** button 🐶"
+
   youtuber-not-found:
     title: Youtuber Not Found
     message: "I'm sorry, but I couldn't find the youtuber you're looking for. Please check the name and try again."
@@ -63,6 +67,10 @@ en-us:
   invalid-date:
     title: Invalid Date
     message: "Oops! That date doesn't exist. Pick a valid day for the selected month."
+
+  link-not-recognized:
+    title: Link Not Recognized
+    message: "Oops! I couldn't understand that link. Try something like `youtube.com` or `youtube.com/watch?v=abc123` and send it again!"
 
   reminders-birthdays-disabled:
     title: Birthday Reminders Not Set Up

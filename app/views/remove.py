@@ -8,12 +8,13 @@ from app.components.select import Select
 from app.components.select_views import UserSelectView
 from app.constants import LogTypes as logconstants
 from app.constants import FormConstants as constants
+from app.constants import ViewConstants as view_constants
 from app.services.utils import ml, parse_form_steps_titles, parse_form_yaml_to_dict
 
 
 class RemoveItem(discord.ui.View):
     def __init__(self, command_key: str, cogs: Dict[str, Any], locale: str, callback: Callable):
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.command_key = command_key
         self.locale = locale
         self.after_callback = callback
@@ -99,8 +100,6 @@ class RemoveItem(discord.ui.View):
         )
         if index is None:
             message = ml("commands.command-events.removed.member-picker.not-found", locale=self.locale)
-            if not message or message == "commands.command-events.removed.member-picker.not-found":
-                message = "This member does not have an item configured."
             await interaction.response.send_message(message, ephemeral=True)
             return
         await self.remove_selected_item(interaction, f"{self.composition_key}${index}")

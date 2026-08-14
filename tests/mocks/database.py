@@ -193,6 +193,10 @@ class MockMongoCollection:
     def count_documents(self, filter_dict=None):
         return len(list(self.find(filter_dict or {})))
 
+    def create_index(self, keys, **options):
+        """Indexes are a real-driver concern; offline they are a no-op."""
+        return "mock_index"
+
     def insert_one(self, doc):
         self._data.append(doc.copy())
         return MagicMock(inserted_id="mock_id")

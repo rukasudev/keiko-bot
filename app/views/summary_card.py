@@ -5,9 +5,11 @@ from typing import Any, Awaitable, Callable, Dict, List, Optional
 import discord
 
 from app import logger
+from app.components.buttons import resolve_option_style
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
 from app.constants import Style
+from app.constants import ViewConstants as view_constants
 from app.services.transforms import get_response_transform
 from app.services.utils import format_values_by_style, ml
 
@@ -27,6 +29,22 @@ class SummaryCardHeader:
     thumbnail_url: str
 
 
+def _section_hidden_by_state(section: "CustomizableSection", state: Dict[str, Any]) -> bool:
+    rule = getattr(section, "visible_when", None)
+    if not rule:
+        return False
+    return state.get(rule.get("key")) in rule.get("not_in", [])
+
+
+def hidden_state_keys(sections: List["CustomizableSection"], state: Dict[str, Any]) -> set:
+    """State keys owned exclusively by sections hidden by visible-when."""
+    hidden = set()
+    for section in sections:
+        if _section_hidden_by_state(section, state):
+            hidden.update(getattr(section, "state_keys", []))
+    return hidden
+
+
 @dataclass
 class CustomizableSection:
     key: str
@@ -38,6 +56,8 @@ class CustomizableSection:
     reset: Callable[[Dict[str, Any]], None]
     customize_label: str = ""
     always_set: bool = False
+    visible_when: Optional[Dict[str, Any]] = None
+    state_keys: List[str] = field(default_factory=list)
 
 
 @dataclass
@@ -47,6 +67,18 @@ class SummaryCardConfig:
     initial_state: Dict[str, Any] = field(default_factory=dict)
     required_keys: List[str] = field(default_factory=list)
     required_labels: Dict[str, str] = field(default_factory=dict)
+    # The step's YAML `footer:`. Card screens are LayoutViews, so they never
+    # pass through parse_form_dict_to_embed, where every other step renders it.
+    footer: str = ""
+
+
+def _add_footer(container: discord.ui.Container, footer: str) -> None:
+    """Render the standard step footer as Components V2 subtext, at the bottom
+    of the container, where an embed footer would sit."""
+    if not footer:
+        return
+    container.add_item(discord.ui.Separator())
+    container.add_item(discord.ui.TextDisplay(f"-# {footer}"))
 
 
 class SummaryCardView(discord.ui.LayoutView):
@@ -57,7 +89,7 @@ class SummaryCardView(discord.ui.LayoutView):
         locale: str,
         on_back: Optional[Callable[[discord.Interaction], Awaitable[None]]] = None,
     ) -> None:
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.config = config
         self._on_done = on_done
         self.locale = locale
@@ -95,6 +127,8 @@ class SummaryCardView(discord.ui.LayoutView):
         container.add_item(discord.ui.Separator())
 
         for index, section in enumerate(self.config.sections):
+            if not self._is_section_visible(section):
+                continue
             self._render_section(container, section, index)
             container.add_item(discord.ui.Separator())
 
@@ -102,14 +136,15 @@ class SummaryCardView(discord.ui.LayoutView):
         done_label = ml("buttons.summary-card.done", locale=self.locale)
         action_buttons.append(discord.ui.Button(label=done_label, custom_id="card_done", style=discord.ButtonStyle.green))
 
-        cancel_label = ml("buttons.cancel.label", locale=self.locale)
-        action_buttons.append(discord.ui.Button(label=cancel_label, custom_id="card_cancel", style=discord.ButtonStyle.red))
-
         if self._on_back:
             back_label = ml("buttons.back.label", locale=self.locale)
             action_buttons.append(discord.ui.Button(label=back_label, custom_id="card_back", style=discord.ButtonStyle.secondary))
 
+        cancel_label = ml("buttons.cancel.label", locale=self.locale)
+        action_buttons.append(discord.ui.Button(label=cancel_label, custom_id="card_cancel", style=discord.ButtonStyle.red))
+
         container.add_item(discord.ui.ActionRow(*action_buttons))
+        _add_footer(container, self.config.footer)
         self.add_item(container)
 
     def _render_section(self, container: discord.ui.Container, section: CustomizableSection, index: int) -> None:
@@ -142,6 +177,9 @@ class SummaryCardView(discord.ui.LayoutView):
             container.add_item(discord.ui.ActionRow(
                 discord.ui.Button(label=section.customize_label, custom_id=f"card_customize_{index}", style=discord.ButtonStyle.grey),
             ))
+
+    def _is_section_visible(self, section: CustomizableSection) -> bool:
+        return not _section_hidden_by_state(section, self.state)
 
     def update_state(self, **changes) -> None:
         self.state.update(changes)
@@ -205,7 +243,10 @@ def prior_state_from_form(
 ) -> Optional[Dict[str, Any]]:
     state: Dict[str, Any] = {}
     for key in keys:
-        value = next((r.get("value") for r in responses if r["key"] == key), None)
+        value = next(
+            (r.get("_raw_value", r.get("value")) for r in responses if r["key"] == key),
+            None,
+        )
         if isinstance(value, dict):
             value = value.get("value")
         if value is None and isinstance(cogs, dict):
@@ -273,19 +314,30 @@ class SummaryCardPickerView(discord.ui.LayoutView):
         channel: bool = False,
         reset_state_keys: List[Any] = None,
         icon: str = "",
+        min_values: int = 1,
+        max_values: int = 1,
+        selected: List[str] = None,
+        description: str = "",
     ) -> None:
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.parent = parent
         self.title = _title_with_icon(icon, title)
         self.state_key = state_key
         self.options = options or []
         self.channel = channel
         self.reset_state_keys = reset_state_keys or []
+        self.min_values = min_values
+        self.max_values = max_values
+        self.selected = [str(value) for value in (selected or [])]
+        self.description = description
+        self.footer = getattr(getattr(parent, "config", None), "footer", "")
         self._render()
 
     def _render(self) -> None:
         container = discord.ui.Container(accent_colour=discord.Colour(int(Style.BACKGROUND_COLOR, 16)))
         container.add_item(discord.ui.TextDisplay(f"## {self.title}"))
+        if self.description:
+            container.add_item(discord.ui.TextDisplay(self.description))
 
         if self.channel:
             self.select = discord.ui.ChannelSelect(
@@ -299,25 +351,37 @@ class SummaryCardPickerView(discord.ui.LayoutView):
         elif self.options:
             self.select = discord.ui.Select(
                 placeholder=self.title,
-                min_values=1,
-                max_values=1,
+                min_values=self.min_values,
+                max_values=min(self.max_values, len(self.options)),
                 options=[
-                    discord.SelectOption(label=_option_label(option, self.parent.locale), value=str(option.get("value")))
+                    discord.SelectOption(
+                        label=_option_label(option, self.parent.locale),
+                        value=str(option.get("value")),
+                        default=str(option.get("value")) in self.selected,
+                    )
                     for option in self.options
                 ],
             )
-            self.select.callback = self._select_option
+            if self.max_values > 1:
+                self.select.callback = self._select_multiple
+            else:
+                self.select.callback = self._select_option
             container.add_item(discord.ui.ActionRow(self.select))
 
         back_label = ml("buttons.back.label", locale=self.parent.locale)
         container.add_item(discord.ui.ActionRow(
             discord.ui.Button(label=back_label, custom_id="picker_back", style=discord.ButtonStyle.secondary),
         ))
+        _add_footer(container, self.footer)
         self.add_item(container)
 
     async def _select_channel(self, interaction: discord.Interaction) -> None:
         selected = self.select.values[0]
         self.parent.update_state(**{self.state_key: str(selected.id)})
+        await interaction.response.edit_message(view=self.parent)
+
+    async def _select_multiple(self, interaction: discord.Interaction) -> None:
+        self.parent.update_state(**{self.state_key: [str(value) for value in self.select.values]})
         await interaction.response.edit_message(view=self.parent)
 
     async def _select_option(self, interaction: discord.Interaction) -> None:
@@ -361,23 +425,28 @@ class SummaryCardButtonOptionsView(discord.ui.LayoutView):
         state_key: str,
         options: List[Dict[str, Any]],
         icon: str = "",
+        description: str = "",
     ) -> None:
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.parent = parent
         self.title = _title_with_icon(icon, title)
         self.state_key = state_key
         self.options = options
+        self.description = description
+        self.footer = getattr(getattr(parent, "config", None), "footer", "")
         self._render()
 
     def _render(self) -> None:
         container = discord.ui.Container(accent_colour=discord.Colour(int(Style.BACKGROUND_COLOR, 16)))
         container.add_item(discord.ui.TextDisplay(f"## {self.title}"))
+        if self.description:
+            container.add_item(discord.ui.TextDisplay(self.description))
 
         buttons = [
             discord.ui.Button(
                 label=_option_label(option, self.parent.locale),
                 custom_id=f"picker_option_{index}",
-                style=discord.ButtonStyle.grey,
+                style=resolve_option_style(option, discord.ButtonStyle.grey),
             )
             for index, option in enumerate(self.options)
         ]
@@ -388,6 +457,7 @@ class SummaryCardButtonOptionsView(discord.ui.LayoutView):
         container.add_item(discord.ui.ActionRow(
             discord.ui.Button(label=back_label, custom_id="picker_back", style=discord.ButtonStyle.secondary),
         ))
+        _add_footer(container, self.footer)
         self.add_item(container)
 
     async def interaction_check(self, interaction: discord.Interaction) -> bool:
@@ -547,6 +617,12 @@ def _picker_title(section_cfg: Dict[str, Any], locale: str) -> str:
     )
 
 
+def _picker_description(section_cfg: Dict[str, Any], locale: str) -> str:
+    """Optional body copy shown under the picker title, so a section can
+    explain what each option does before the user commits to one."""
+    return _localized(section_cfg.get("picker-description"), locale, "")
+
+
 def _always_set_section(
     section_cfg: Dict[str, Any],
     locale: str,
@@ -621,6 +697,7 @@ def _build_value_select_section(
             options=section_cfg.get("options", []),
             reset_state_keys=section_cfg.get("reset-on-change", []),
             icon=section_cfg.get("icon", ""),
+            description=_picker_description(section_cfg, view.locale),
         )
         await customize_interaction.response.edit_message(view=picker)
 
@@ -637,7 +714,12 @@ def _build_button_options_section(
     state_key = section_cfg.get("state", {}).get("value")
 
     def render_preview(view: SummaryCardView, state: Dict[str, Any], container: discord.ui.Container) -> None:
-        container.add_item(discord.ui.TextDisplay(f"> {_format_state_value(state.get(state_key), section_cfg.get('style'), view.locale)}"))
+        options = section_cfg.get("options", [])
+        raw_value = state.get(state_key)
+        option = next((item for item in options if str(item.get("value")) == str(raw_value)), None)
+        value = _option_label(option, view.locale) if option \
+            else _format_state_value(raw_value, section_cfg.get("style"), view.locale)
+        container.add_item(discord.ui.TextDisplay(f"> {value}"))
 
     async def open_customize(customize_interaction: discord.Interaction, view: SummaryCardView) -> None:
         picker = SummaryCardButtonOptionsView(
@@ -646,6 +728,49 @@ def _build_button_options_section(
             state_key,
             section_cfg.get("options", []),
             icon=section_cfg.get("icon", ""),
+            description=_picker_description(section_cfg, view.locale),
+        )
+        await customize_interaction.response.edit_message(view=picker)
+
+    return _always_set_section(section_cfg, locale, state_key, render_preview, open_customize)
+
+
+def _build_multi_select_section(
+    section_cfg: Dict[str, Any],
+    form,
+    interaction: discord.Interaction,
+    locale: str,
+    template_vars_resolver: Callable[[str], Dict[str, Any]],
+) -> CustomizableSection:
+    state_key = section_cfg.get("state", {}).get("value")
+    options = section_cfg.get("options", [])
+
+    def _selected(state: Dict[str, Any]) -> List[str]:
+        values = state.get(state_key) or []
+        if not isinstance(values, (list, tuple, set)):
+            values = [values]
+        return [str(value) for value in values]
+
+    def render_preview(view: SummaryCardView, state: Dict[str, Any], container: discord.ui.Container) -> None:
+        selected = _selected(state)
+        labels = [
+            _option_label(option, view.locale)
+            for option in options
+            if str(option.get("value")) in selected
+        ]
+        container.add_item(discord.ui.TextDisplay(f"> {', '.join(labels) if labels else '—'}"))
+
+    async def open_customize(customize_interaction: discord.Interaction, view: SummaryCardView) -> None:
+        picker = SummaryCardPickerView(
+            view,
+            _picker_title(section_cfg, view.locale),
+            state_key,
+            options=options,
+            icon=section_cfg.get("icon", ""),
+            min_values=0,
+            max_values=len(options) or 1,
+            selected=_selected(view.state),
+            description=_picker_description(section_cfg, view.locale),
         )
         await customize_interaction.response.edit_message(view=picker)
 
@@ -735,6 +860,7 @@ SECTION_TYPES: Dict[str, Callable[..., CustomizableSection]] = {
     "button-options": _build_button_options_section,
     "boolean-toggle": _build_boolean_toggle_section,
     "modal-input": _build_modal_input_section,
+    "multi-select": _build_multi_select_section,
 }
 
 
@@ -854,6 +980,8 @@ def build_summary_card_from_step(step: Dict[str, Any], form, interaction: discor
             if part_key in state_keys and not initial_state.get(part_key):
                 initial_state[part_key] = part_value
     for key, value in (step.get("defaults") or {}).items():
+        if isinstance(value, dict) and ("en-us" in value or "pt-br" in value):
+            value = _localized(value, locale)
         initial_state.setdefault(key, value)
     for key in state_keys:
         initial_state.setdefault(key, None)
@@ -868,7 +996,12 @@ def build_summary_card_from_step(step: Dict[str, Any], form, interaction: discor
                 log_type=logconstants.COMMAND_WARN_TYPE,
             )
             continue
-        sections.append(handler(section_cfg, form, interaction, locale, resolve_template_vars))
+        section = handler(section_cfg, form, interaction, locale, resolve_template_vars)
+        section.visible_when = section_cfg.get("visible-when")
+        section.state_keys = [
+            value for value in (section_cfg.get("state") or {}).values() if value
+        ]
+        sections.append(section)
 
     config = SummaryCardConfig(
         header=header,
@@ -876,10 +1009,15 @@ def build_summary_card_from_step(step: Dict[str, Any], form, interaction: discor
         initial_state=initial_state,
         required_keys=step.get("required", []),
         required_labels=_required_labels(step, locale),
+        footer=_localized(step.get("footer"), locale, ""),
     )
 
     async def on_done(done_interaction: discord.Interaction, _state: Dict[str, Any]) -> None:
-        missing = [key for key in config.required_keys if _state.get(key) in (None, "", [])]
+        hidden_keys = hidden_state_keys(config.sections, _state)
+        missing = [
+            key for key in config.required_keys
+            if key not in hidden_keys and _state.get(key) in (None, "", [])
+        ]
         if missing:
             labels = [config.required_labels.get(key, key) for key in missing]
             message = ml("buttons.summary-card.required", locale=locale).replace(

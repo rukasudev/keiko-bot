@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from typing import Awaitable, Callable, List, Optional
 
 import discord
+from app.constants import ViewConstants as view_constants
 
 
 @dataclass
@@ -14,7 +15,7 @@ class ChoiceConfig:
 
 class ChoiceMenuView(discord.ui.View):
     def __init__(self, choices: List[ChoiceConfig], locale: str) -> None:
-        super().__init__(timeout=1800)
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.locale = locale
         for choice in choices:
             self.add_item(_ChoiceButton(choice, self))

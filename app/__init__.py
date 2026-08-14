@@ -28,6 +28,15 @@ def create_app(config: AppConfig) -> DiscordBot:
     redis_status = "OK" if redis_client.ping() else "Error"
     logger.info(f"Redis: {redis_status}")
 
+    try:
+        from app.data.indexes import ensure_indexes
+
+        ensure_indexes()
+    except Exception as error:
+        # Indexes are an optimization and a retention policy, never a reason
+        # to keep the bot from starting.
+        logger.warn(f"Could not ensure Mongo indexes: {type(error).__name__}: {error}")
+
     bot = DiscordBot(config)
 
     return bot

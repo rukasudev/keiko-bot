@@ -1,9 +1,20 @@
-from typing import Dict, List
+from typing import Any, Dict, List, Optional
 
 import discord
 
 from app.components.buttons import BackButton, ExecuteCommandButton
+from app.constants import DiscordLimits as limits
+from app.constants import ViewConstants as view_constants
 from app.services.utils import ml
+
+
+def _fit(text: Optional[str]) -> Optional[str]:
+    if text in (None, ""):
+        return None
+    text = str(text)
+    if len(text) <= limits.SELECT_OPTION_TEXT:
+        return text
+    return f"{text[:limits.SELECT_OPTION_TEXT - 1]}…"
 
 
 class Select(discord.ui.Select):
@@ -22,14 +33,19 @@ class Select(discord.ui.Select):
             **kwargs,
         )
 
-    def parse_options(self, options_dict: Dict[str, str]) -> List[discord.SelectOption]:
+    def parse_options(self, options_dict: Dict[str, Any]) -> List[discord.SelectOption]:
         options = []
 
         if not options_dict:
             return options
 
-        for key, label in options_dict.items():
-            option = discord.SelectOption(label=label, value=key)
+        for key, item in options_dict.items():
+            label, description = item, None
+            if isinstance(item, dict):
+                label, description = item.get("label"), item.get("description")
+            option = discord.SelectOption(
+                label=_fit(label), value=key, description=_fit(description)
+            )
             options.append(option)
 
         return options
@@ -101,7 +117,7 @@ class HelpSelect(Select):
         )
 
         locale = str(interaction.locale)
-        new_view = discord.ui.View(timeout=1800)
+        new_view = discord.ui.View(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         new_view.add_item(
             BackButton(embed=embed, view=self.view, locale=interaction.locale)
         )

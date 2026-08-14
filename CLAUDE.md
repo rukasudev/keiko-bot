@@ -48,6 +48,10 @@ make clean        # clean cache and venv
   which must be explicitly declared and justified — never introduced silently.
 - Do not reinvent or duplicate existing behavior: no `if command_name == ...` branches, no
   copied-and-renamed handlers, no parallel state management, no near-duplicate components.
+- Follow `.claude/rules/code-style.md` — maintainer-reviewed code patterns (no narrative
+  comments, where constants live, data-layer shape, what belongs in `app/views/`, generic
+  orchestration extracted to generic views, generic helpers in `utils.py` not in feature
+  services, UI tunables global in `ViewConstants`).
 
 ## Planning contract
 

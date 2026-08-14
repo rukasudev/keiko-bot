@@ -35,6 +35,20 @@ def parse_form_dict_to_embed(data: Dict[str, str], locale: str, manager: bool = 
     return embed
 
 
+def base_embed(title: str, description: str, thumbnail: str = icons.IMAGE_02,
+               footer: str = "") -> discord.Embed:
+    """Standard Keiko embed: background color, thumbnail, optional bullet footer."""
+    embed = discord.Embed(
+        title=title,
+        description=description,
+        color=int(constants.BACKGROUND_COLOR, base=16),
+    )
+    embed.set_thumbnail(url=thumbnail)
+    if footer:
+        embed.set_footer(text=f"• {footer}")
+    return embed
+
+
 def response_embed(multilang_key: str, locale: str, color: str = None, footer: bool = False, image: bool = False) -> discord.Embed:
     title = ml(f"{multilang_key}.title", locale)
 

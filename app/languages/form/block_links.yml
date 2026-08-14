@@ -2,23 +2,258 @@ steps:
   - action: form
     key: form
     title:
-      en-us: ":no_entry_sign: Block links"
-      pt-br: ":no_entry_sign: Bloquear links"
+      en-us: ":no_entry_sign: Block Links"
+      pt-br: ":no_entry_sign: Bloquear Links"
     description:
-      en-us: "Activate this feature to have me scan every message and remove it if it contains a link"
-      pt-br: "Ativar esta função faz com que eu analise cada mensagem enviada no seu servidor e exclua caso contenha algum link"
+      en-us: "Enabling this feature allows me to watch every message and delete the links you don't want here! You choose how I do it: block all links with your exceptions, or allow links and block only the ones you pick."
+      pt-br: "Ativar esta função faz com que eu fique de olho em cada mensagem e exclua os links que você não quer por aqui! Você escolhe como eu faço isso: bloquear todos os links com as suas exceções, ou permitir links e bloquear só os que você escolher."
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
 
+  - action: configuration_card
+    key: link_settings
+    editable: true
+    required:
+      - mode
+    defaults:
+      mode: block_all
+      answer:
+        en-us: "No links here! :p"
+        pt-br: "Nada de links por aqui! :p"
+    title:
+      en-us: "Link Settings"
+      pt-br: "Configuração de Links"
+    description:
+      en-us: "Choose how I should treat links in your server"
+      pt-br: "Escolha como eu devo tratar os links do seu servidor"
+    footer:
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
+    header:
+      title:
+        en-us: "Link Settings"
+        pt-br: "Configuração de Links"
+      title-emoji: "🚦"
+      thumbnail: IMAGE_01
+      lines: []
+    fields:
+      - key: mode
+        label:
+          en-us: "Blocking mode"
+          pt-br: "Modo de bloqueio"
+      - key: allowed_links
+        style: bullet
+        label:
+          en-us: "Allowed popular websites"
+          pt-br: "Sites populares permitidos"
+      - key: answer
+        label:
+          en-us: "My response when blocking"
+          pt-br: "Minha resposta ao bloquear"
+    sections:
+      - key: mode
+        icon: "🚦"
+        type: button-options
+        label:
+          en-us: "Blocking mode"
+          pt-br: "Modo de bloqueio"
+        state:
+          value: mode
+        picker-title:
+          en-us: "How should I block links?"
+          pt-br: "Como devo bloquear os links?"
+        picker-description:
+          en-us: "✅ **Allow all, block only some**\nI let every link through, except the ones you tell me to block.\n\n🚫 **Block all, with exceptions**\nI delete every link, except the websites and links you allow.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
+          pt-br: "✅ **Permitir todos, bloquear alguns**\nEu deixo todos os links passarem, menos os que você mandar bloquear.\n\n🚫 **Bloquear todos, com exceções**\nEu apago todos os links, menos os sites e links que você liberar.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
+        customize-label:
+          en-us: "Choose mode"
+          pt-br: "Escolher modo"
+        options:
+          - label:
+              en-us: "✅ Allow all, block only some"
+              pt-br: "✅ Permitir todos, bloquear alguns"
+            value: allow_all
+            style: success
+          - label:
+              en-us: "🚫 Block all, with exceptions"
+              pt-br: "🚫 Bloquear todos, com exceções"
+            value: block_all
+            style: danger
+      - key: allowed_links
+        icon: "🔗"
+        type: multi-select
+        visible-when:
+          key: mode
+          not_in: [allow_all]
+        label:
+          en-us: "Allowed popular websites"
+          pt-br: "Sites populares permitidos"
+        state:
+          value: allowed_links
+        picker-title:
+          en-us: "Pick the websites I should always allow"
+          pt-br: "Escolha os sites que devo sempre permitir"
+        customize-label:
+          en-us: "Choose websites"
+          pt-br: "Escolher sites"
+        options:
+          - label: { en-us: "Youtube", pt-br: "Youtube" }
+            value: youtube.com
+          - label: { en-us: "Spotify", pt-br: "Spotify" }
+            value: spotify.com
+          - label: { en-us: "Twitter", pt-br: "Twitter" }
+            value: twitter.com
+          - label: { en-us: "Facebook", pt-br: "Facebook" }
+            value: facebook.com
+          - label: { en-us: "Instagram", pt-br: "Instagram" }
+            value: instagram.com
+          - label: { en-us: "Twitch", pt-br: "Twitch" }
+            value: twitch.tv
+          - label: { en-us: "Tiktok", pt-br: "Tiktok" }
+            value: tiktok.com
+          - label: { en-us: "Reddit", pt-br: "Reddit" }
+            value: reddit.com
+          - label: { en-us: "Discord", pt-br: "Discord" }
+            value: discord.gg
+      - key: answer
+        icon: "💬"
+        type: modal-input
+        label:
+          en-us: "My response when blocking"
+          pt-br: "Minha resposta ao bloquear"
+        state:
+          value: answer
+        customize-label:
+          en-us: "Customize response"
+          pt-br: "Personalizar resposta"
+        modal:
+          title:
+            en-us: "My Response When Blocking Links"
+            pt-br: "Minha Resposta ao Bloquear Links"
+          fields:
+            - key: answer
+              max_length: 100
+              label:
+                en-us: "Type my answer when blocking links"
+                pt-br: "Digite minha resposta ao bloquear links"
+              placeholder:
+                en-us: "No links here! :p (use {user} to mention)"
+                pt-br: "Nada de links por aqui! :p (use {user} para mencionar)"
+
+  - action: options
+    key: add_custom
+    hidden: true
+    emoji: "🔗"
+    required: true
+    unique: true
+    styled_values: true
+    auto_confirm: true
+    style: boolean
+    condition:
+      key: mode
+      not_in: [allow_all]
+    title:
+      en-us: "Add Your Own Links?"
+      pt-br: "Adicionar Seus Próprios Links?"
+    description:
+      en-us: "Want to allow other websites or links besides the popular ones? You can also add more later!"
+      pt-br: "Quer permitir outros sites ou links além dos populares? Você também pode adicionar mais depois!"
+    footer:
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
+    options:
+      - label: { en-us: "Yes", pt-br: "Sim" }
+        value: true
+        style: success
+      - label: { en-us: "Later", pt-br: "Depois" }
+        value: false
+
+  - action: composition
+    key: custom_links
+    parent_key: block_links
+    unique_by: link
+    emoji: "📌"
+    style: composition
+    condition:
+      key: add_custom
+      not_in: [false, "false", "False"]
+    title:
+      en-us: "Your Links"
+      pt-br: "Seus Links"
+    description:
+      en-us: "Your own links, one at a time! In block-all mode these are the exceptions I always allow, and in allow-all mode they are the only ones I block."
+      pt-br: "Seus próprios links, um de cada vez! No modo bloquear todos eles são as exceções que eu sempre libero, e no modo permitir todos são os únicos que eu bloqueio."
+    footer:
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
+    steps:
+      - action: modal
+        key: link
+        lowercase: true
+        max_length: 100
+        style: code
+        response_transform: normalize_link
+        validation: validate_link_or_domain
+        title:
+          en-us: "Link or Website"
+          pt-br: "Link ou Site"
+        label:
+          en-us: "Type the link or website"
+          pt-br: "Digite o link ou site"
+        description:
+          en-us: "A whole website or one exact link. Example: `twitch.tv` or `youtube.com/watch?v=abc123`"
+          pt-br: "Um site inteiro ou um link exato. Exemplo: `twitch.tv` ou `youtube.com/watch?v=abc123`"
+        placeholder:
+          en-us: "twitch.tv"
+          pt-br: "twitch.tv"
+        footer:
+          en-us: "• Use the `/report` command to tell me a bug"
+          pt-br: "• Use o comando `/reportar` para me contar um bug"
+      - action: options
+        key: match_type
+        emoji: "🎯"
+        required: true
+        unique: true
+        styled_values: true
+        auto_confirm: true
+        condition:
+          key: link
+          matches: "[/?]"
+        title:
+          en-us: "How Far Does This Rule Go?"
+          pt-br: "Qual o Alcance da Regra?"
+        description:
+          en-us: "Tell me how far this rule goes!\n\n🌐 **Every link from this website**\nI always allow everything on `{response:link:host|youtube.com}`, any page or video of it.\n\n🔗 **Only this specific link**\nI always allow only `{response:link|youtube.com/watch?v=abc123}`, and the rest of the website stays blocked.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
+          pt-br: "Me diga o alcance dessa regra!\n\n🌐 **Todos os links desse site**\nEu sempre libero tudo em `{response:link:host|youtube.com}`, qualquer página ou vídeo dele.\n\n🔗 **Só esse link específico**\nEu sempre libero só `{response:link|youtube.com/watch?v=abc123}`, e o resto do site continua bloqueado.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
+        description-when:
+          - condition:
+              key: mode
+              not_in: [block_all]
+            en-us: "Tell me how far this rule goes!\n\n🌐 **Every link from this website**\nI always block everything on `{response:link:host|youtube.com}`, any page or video of it.\n\n🔗 **Only this specific link**\nI always block only `{response:link|youtube.com/watch?v=abc123}`, and the rest of the website stays allowed.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
+            pt-br: "Me diga o alcance dessa regra!\n\n🌐 **Todos os links desse site**\nEu sempre bloqueio tudo em `{response:link:host|youtube.com}`, qualquer página ou vídeo dele.\n\n🔗 **Só esse link específico**\nEu sempre bloqueio só `{response:link|youtube.com/watch?v=abc123}`, e o resto do site continua liberado.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
+        footer:
+          en-us: "• Use the `/report` command to tell me a bug"
+          pt-br: "• Use o comando `/reportar` para me contar um bug"
+        options:
+          - label:
+              en-us: "🌐 Every link from this website"
+              pt-br: "🌐 Todos os links desse site"
+            value: domain
+          - label:
+              en-us: "🔗 Only this specific link"
+              pt-br: "🔗 Só esse link específico"
+            value: exact
+
   - action: multi_select
     key: permissions
+    emoji: "🔓"
     title:
       en-us: "Permissions"
       pt-br: "Permissões"
     description:
-      en-us: "Configure which channels and roles are allowed to send links"
-      pt-br: "Configure quais canais e cargos podem enviar links"
+      en-us: "Choose the channels and roles I should never block. Links from them are always allowed!"
+      pt-br: "Escolha os canais e cargos que eu nunca devo bloquear. Links deles são sempre permitidos!"
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
@@ -26,59 +261,23 @@ steps:
       - type: channels
         key: allowed_chats
         style: channel
+        icon: "#️⃣"
         label:
-          en-us: "Allowed Channels"
-          pt-br: "Canais Permitidos"
+          en-us: "Exempt Channels"
+          pt-br: "Canais Liberados"
         placeholder:
-          en-us: "Allowed channels..."
-          pt-br: "Canais permitidos..."
+          en-us: "Channels I'll never block..."
+          pt-br: "Canais que nunca vou bloquear..."
       - type: roles
         key: allowed_roles
         style: role
+        icon: "🏷️"
         label:
-          en-us: "Allowed Roles"
-          pt-br: "Cargos Permitidos"
+          en-us: "Exempt Roles"
+          pt-br: "Cargos Liberados"
         placeholder:
-          en-us: "Allowed roles..."
-          pt-br: "Cargos permitidos..."
-
-  - action: options
-    key: allowed_links
-    emoji: ":link:"
-    title:
-      en-us: "Allowed links"
-      pt-br: "Links permitidos"
-    description:
-      en-us: "Choose some websites that sending links will be allowed"
-      pt-br: "Escolha alguns sites que o envio de links serão permitidos"
-    footer:
-      en-us: "• Use the `/report` command to tell me a bug"
-      pt-br: "• Use o comando `/reportar` para me contar um bug"
-    options:
-      - "Youtube"
-      - "Spotify"
-      - "Twitter"
-      - "Facebook"
-      - "Instagram"
-      - "Twitch"
-      - "Tiktok"
-      - "Reddit"
-      - "Discord"
-
-  - action: modal
-    key: answer
-    title:
-      en-us: "My response when blocking links"
-      pt-br: "Resposta ao bloquear links"
-    label:
-      en-us: "Type my answer when blocking links"
-      pt-br: "Digite minha resposta ao bloquear links"
-    description:
-      en-us: "Here you can set the message that I will send when I block a message with a link"
-      pt-br: "Escreva a mensagem que eu devo enviar quando um link for bloqueado"
-    placeholder:
-      en-us: "No links here! :p"
-      pt-br: "Nada de links por aqui! :p"
+          en-us: "Roles I'll never block..."
+          pt-br: "Cargos que nunca vou bloquear..."
 
   - action: resume
     key: confirm
@@ -86,8 +285,8 @@ steps:
       en-us: ":white_check_mark: Alright?"
       pt-br: ":white_check_mark: Tudo certo?"
     description:
-      en-us: "Activate this feature to have me scan every message and remove it if it contains a link"
-      pt-br: "Ativar esta função faz com que eu analise cada mensagem enviada no seu servidor e exclua caso contenha algum link"
+      en-us: "Enabling this feature allows me to watch every message and delete the links you don't want here! You choose how I do it: block all links with your exceptions, or allow links and block only the ones you pick."
+      pt-br: "Ativar esta função faz com que eu fique de olho em cada mensagem e exclua os links que você não quer por aqui! Você escolhe como eu faço isso: bloquear todos os links com as suas exceções, ou permitir links e bloquear só os que você escolher."
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"

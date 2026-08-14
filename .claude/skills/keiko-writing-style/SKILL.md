@@ -31,6 +31,49 @@ Subtle dog-themed wordplay is welcome when it lands naturally. Example: the pt-b
 - Success titles end with `... successfully!` or `... sent!`. Optional warm closer (`Now everyone is even cuter! 🐶`).
 - Instructions address the user directly (`Choose which channel I should ...`).
 - Keep it natural and simple. Avoid corporate or formal phrasing; if a sentence reads like a press release, rewrite it.
+- **Explanatory clarity is Keiko's superpower.** Prefer explicit descriptive phrasing over compact labels: `Todos os links desse site` / `Só esse link específico` beats `Site inteiro` / `Link exato`. Whenever a configuration choice could be ambiguous, add a concrete backticked example showing the difference (`youtube.com` vs `youtube.com/watch?v=abc123`).
+- **Explain with the user's own data, not canned examples.** When a step explains a choice about something the user just provided, echo their real input via the `{response:<key>|<fallback>}` token in the step description (the form engine substitutes the earlier answer; the fallback shows while it doesn't exist yet). "How far does this rule go for `meusite.com.br`?" teaches instantly; a generic example makes the user translate in their head.
+- **Never explain two or more choices inside one paragraph.** A wall of prose with the options bolded inline is unreadable in Discord: the user has to parse a paragraph to find which button to press. Always use the choice layout below.
+
+## Choice layout (steps that ask the user to pick)
+
+Whenever a step presents options whose consequences are not self-evident from the labels
+(modes, matching rules, scopes), the description follows exactly three parts, separated by
+blank lines (`\n\n`). A plain yes/no gate ("Want to add your own links?") needs only the
+question.
+
+1. **The question**, one line, naming what it applies to (echo the user's own data with
+   `{response:<key>|<fallback>}` when the choice is about something they just typed).
+2. **One line per option**, in the same order as the buttons, each led by that option's
+   emoji: `{emoji} **{exact button label}**: {what happens, in one sentence}`. The emoji and
+   the label must match the button character for character, so the eye maps line to button
+   without rereading. **The emoji IS the bullet: never write `- 🚫 ...`.** A `- ` bullet is
+   only for options whose label carries no emoji. Never explain an option outside its line.
+3. **A short closing invitation** pointing at the buttons, with one cute beat:
+   `Qual você prefere? É só escolher nos botões abaixo! 🐶`.
+
+Keep each line to one sentence. If an option needs a caveat, it belongs in that option's
+line, not in a trailing paragraph. Give the option a `style:` (`success` / `danger`) when one
+choice is the permissive one and the other the strict one: the card picker and the options
+step both paint the button from it.
+
+```yaml
+description:
+  en-us: "This rule will **always allow** `{response:link|youtube.com/watch?v=abc123}`. Tell me how far it goes!\n\n🌐 **Every link from this website**: the rule covers the whole website, any page or video on it.\n🔗 **Only this specific link**: the rule covers only that exact address, and the rest of the website stays out of it.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
+  pt-br: "Essa regra vai **sempre liberar** `{response:link|youtube.com/watch?v=abc123}`. Me diga o alcance dela!\n\n🌐 **Todos os links desse site**: a regra vale para o site inteiro, qualquer página ou vídeo dele.\n🔗 **Só esse link específico**: a regra vale só para esse endereço exato, e o resto do site fica de fora dela.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
+```
+
+When the same step means different things depending on an earlier answer, do not write one
+sentence covering both cases: give it `description-when:` variants (see
+`docs/form-configuration.md`), so each case reads as if it were the only one.
+
+Pinned by `test_option_explanations_are_written_as_own_lines`
+(`tests/behavioral/test_form_yaml_contracts.py`): an options step that names its own labels
+in prose, or that puts a bullet in front of an emoji, fails the suite.
+
+**Visual rhythm, generally:** any description longer than about three lines gets structure.
+One idea per line, blank line between blocks, bullets for anything enumerable. A dense block
+of text is a bug, not a style choice.
 
 ## Discord UI rules
 
@@ -40,6 +83,7 @@ Subtle dog-themed wordplay is welcome when it lands naturally. Example: the pt-b
 - Title format: `"{ONE_EMOJI} {Title Case}"`. Exactly one leading emoji.
 - Use `description` for short bodies. Use `add_field(name=..., value=..., inline=False)` for stacked record-style content (DM reports, button caption lists, help indexes).
 - Footer always: `embed.set_footer(text=f"• {text}")`. The `"• "` prefix is mandatory.
+- Card screens (`configuration_card` / `summary_card`) are Components V2 LayoutViews, not embeds: their footer comes from the step's `footer:` and renders as `-# {text}` subtext at the bottom of the container (`_add_footer`, `app/views/summary_card.py`). Pickers opened from a card keep the same footer. Pinned by `tests/behavioral/contracts/test_card_footer_and_option_styles.py`.
 - Thumbnail: `KeikoIcons.IMAGE_01` for branded responses; `KeikoIcons.ACTION_IMAGE.get(action)` for action-specific icons.
 
 ### Buttons (`app/components/buttons.py`)
@@ -49,6 +93,12 @@ Subtle dog-themed wordplay is welcome when it lands naturally. Example: the pt-b
 - `ButtonStyle.gray` / `grey` → Edit, Pause, Unpause, Preview, Help, Disable, Add, Remove, History, Sync
 - `ButtonStyle.secondary` → form back navigation
 - Reuse generic labels from `buttons.{lang}.yml` (`confirm`, `cancel`, `edit`, `add`, `remove`, `back`, `select`, `continue`, `pause`, `unpause`, `preview`, `history`). Only add a new key when the action is genuinely new.
+- **Cancel is ALWAYS the last button in the view.** Order: the step's own actions first
+  (options, Confirm, Done, Add/Remove), then Back, then Cancel. Buttons render in the order
+  they are added, so anything appended after the view is built (like the form back button)
+  must re-anchor Cancel at the end with `keep_cancel_button_last(view)`
+  (`app/components/buttons.py`). Pinned by
+  `tests/behavioral/contracts/test_cancel_button_last.py`.
 
 ### Modals (`app/components/modals.py`)
 - Default `max_length` = 40. Cap at 100 for free-text fields.
@@ -71,6 +121,7 @@ Subtle dog-themed wordplay is welcome when it lands naturally. Example: the pt-b
 - Examples / values → backticks: `` `ks!mouse` ``.
 - Variables shown to the user (welcome / notification message templates) → curly braces: `{user}`, `{server}`, `{member_count}`, `{streamer}`, `{stream_link}`, `{youtuber}`, `{video_link}`.
 - Variables in system/event descriptions (substituted by `services/utils.py`) → dollar prefix: `$user`, `$command_name`, `$date`, `$setup_command`, `$cog_name`, `$cog_key`, `$ping`, `$action`, `$roles`.
+- Earlier form answers echoed in step descriptions → `{response:<key>|<fallback>}` (substituted by the form engine; always provide the fallback).
 - Never mix `{}` and `$` in the same string.
 - Footer prefix: `"• "` (bullet + space). Never use `•` as an inline bullet in body copy.
 - Lists: `\n- ` for unordered, `\n1. ` / `\n2. ` for sequential. `\n\n` between paragraphs.
@@ -100,6 +151,10 @@ Subtle dog-themed wordplay is welcome when it lands naturally. Example: the pt-b
 - ALWAYS provide both `en-us` and `pt-br` for new strings.
 - ALWAYS reuse `command-events.{enabled,paused,unpaused,disabled,edited,added,removed}` for state changes; do not invent new state-change copy.
 - ALWAYS reuse generic button keys from `buttons.{lang}.yml` when an existing label fits.
+- ALWAYS place the Cancel button last in a view (own actions, then Back, then Cancel).
+- ALWAYS use the choice layout (question, one line per option led by its emoji, closing invitation) when a step asks the user to pick between options.
+- NEVER put a `- ` bullet in front of an emoji: the emoji is already the bullet.
+- NEVER explain two or more options inside a single paragraph.
 - NEVER stack multiple emojis adjacent.
 - NEVER hardcode user-facing strings in Python.
 - NEVER use `•` as an inline bullet in body copy.

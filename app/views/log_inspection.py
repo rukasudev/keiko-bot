@@ -8,7 +8,7 @@ from app.data import moderations as moderations_data
 from app.services.cogs import find_cog_events_by_guild
 from app.services.manager import parse_history_data
 from app.services.utils import format_relative_time, ml
-from app.views.pagination import PaginationView
+from app.views.records import RecordsBrowser
 
 COMMAND_STATUS_ICONS = {
     True: "\u2705",
@@ -144,17 +144,21 @@ class LogInspectionView(discord.ui.View):
 
     async def history_callback(self, interaction: discord.Interaction):
         guild_id = self.guild.id if self.guild else self.guild_id
-        raw_data = []
 
-        for cog_key in constants.COMMANDS_LIST:
-            raw_data += find_cog_events_by_guild(guild_id, cog_key)
+        def fetch(i: discord.Interaction, uid) -> list:
+            raw_data = []
+            for cog_key in constants.COMMANDS_LIST:
+                raw_data += find_cog_events_by_guild(guild_id, cog_key)
+            return raw_data
 
-        data = parse_history_data(raw_data, interaction, guild=self.guild, with_cog=True)
-
-        title = ml("buttons.changes-history.label", locale=interaction.locale)
-        pagination_view = PaginationView(interaction, title, "", data, sep=4)
-
-        await pagination_view.send(ephemeral=True)
+        browser = RecordsBrowser(
+            fetch=fetch,
+            to_fields=lambda raw, i: parse_history_data(
+                raw, i, guild=self.guild, with_cog=True
+            ),
+            title=ml("buttons.changes-history.label", locale=interaction.locale),
+        )
+        await browser.send(interaction)
 
     def parse_if_time(self, value):
         try:
