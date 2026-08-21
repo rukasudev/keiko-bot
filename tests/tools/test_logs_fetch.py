@@ -16,7 +16,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from tools.keiko.logs import cli, fetch  # noqa: E402
+from tools.keiko.logs import cli, fetch, store  # noqa: E402
 
 pytestmark = pytest.mark.unit
 
@@ -151,3 +151,18 @@ def test_relative_windows_become_absolute_timestamps():
     assert cli.parse_since("2026-08-01") == "2026-08-01"
     assert cli.parse_since("24h") < cli.parse_since("1h")
     assert cli.parse_since("7d") < cli.parse_since("24h")
+
+
+def test_the_database_flag_works_on_either_side_of_the_verb():
+    """`logs status --db X` is what a person types first, and it used to fail."""
+    parser = cli.build_parser()
+
+    assert parser.parse_args(["--db", "/tmp/a.db", "status"]).db == "/tmp/a.db"
+    assert parser.parse_args(["status", "--db", "/tmp/a.db"]).db == "/tmp/a.db"
+    assert parser.parse_args(["status"]).db == store.DEFAULT_PATH
+
+
+def test_a_flag_given_before_the_verb_is_not_overwritten_by_the_subcommand():
+    parser = cli.build_parser()
+
+    assert parser.parse_args(["--db", "/tmp/before.db", "errors"]).db == "/tmp/before.db"

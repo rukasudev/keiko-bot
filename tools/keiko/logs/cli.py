@@ -133,9 +133,16 @@ def command_status(args) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m tools.keiko logs")
     parser.add_argument("--db", default=store.DEFAULT_PATH)
+
+    # `--db` also on every subcommand, because putting it after the verb is the
+    # first thing anyone types. SUPPRESS keeps the subparser from overwriting a
+    # value already given before the verb.
+    common = argparse.ArgumentParser(add_help=False)
+    common.add_argument("--db", default=argparse.SUPPRESS)
+
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    sync = subparsers.add_parser("sync", help="index daily log files from Discord")
+    sync = subparsers.add_parser("sync", help="index daily log files from Discord", parents=[common])
     sync.add_argument("--limit", type=int, default=0, help="stop after N files")
     sync.add_argument("--force", action="store_true", help="re-index indexed files")
     sync.add_argument(
@@ -145,7 +152,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     sync.set_defaults(handler=command_sync)
 
-    query = subparsers.add_parser("query", help="search indexed logs")
+    query = subparsers.add_parser("query", help="search indexed logs", parents=[common])
     query.add_argument("text", nargs="?", help="full-text match on message/traceback")
     query.add_argument("--level")
     query.add_argument("--guild")
@@ -156,14 +163,14 @@ def build_parser() -> argparse.ArgumentParser:
     query.add_argument("--json", action="store_true")
     query.set_defaults(handler=command_query)
 
-    errors = subparsers.add_parser("errors", help="repeated failures, grouped")
+    errors = subparsers.add_parser("errors", help="repeated failures, grouped", parents=[common])
     errors.add_argument("--level", default="ERROR")
     errors.add_argument("--since", help="24h, 7d, or an ISO date")
     errors.add_argument("--limit", type=int, default=20)
     errors.add_argument("--json", action="store_true")
     errors.set_defaults(handler=command_errors)
 
-    status = subparsers.add_parser("status", help="what the local index holds")
+    status = subparsers.add_parser("status", help="what the local index holds", parents=[common])
     status.set_defaults(handler=command_status)
 
     return parser
