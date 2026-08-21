@@ -28,6 +28,7 @@ class Analytics(commands.Cog):
         self.send_weekly_digest.cancel()
         self.export_daily_logs.cancel()
         analytics.flush()
+        debug_logs.stop_writer()
         debug_logs.flush()
 
     @tasks.loop(seconds=constants.ANALYTICS_FLUSH_SECONDS)

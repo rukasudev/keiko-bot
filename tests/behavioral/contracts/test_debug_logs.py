@@ -506,3 +506,81 @@ def test_every_field_the_sink_builds_is_a_column_the_index_stores():
     assert persisted <= set(tools_store.COLUMNS), (
         f"not indexable: {persisted - set(tools_store.COLUMNS)}"
     )
+
+
+# --------------------------------------------------------------------------
+# The writer thread: durable immediately, batched only when it helps
+# --------------------------------------------------------------------------
+
+@pytest.fixture
+def writer():
+    """The suite never starts it implicitly, so assertions stay deterministic."""
+    debug_logs.start_writer()
+    yield
+    debug_logs.stop_writer()
+
+
+def wait_for(predicate, timeout=2.0):
+    import time
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        time.sleep(0.005)
+    return predicate()
+
+
+def test_a_log_reaches_mongo_without_waiting_for_any_tick(writer):
+    """The whole point of the writer: no poll interval stands between a line
+    being logged and it being queryable.
+
+    Broke as: writes rode the analytics cog's 5-second loop, so a crash inside
+    that window lost exactly the records that explained it.
+    """
+    handler = install_handler()
+    handler.emit(make_record("written straight away", level=logging.ERROR))
+
+    assert wait_for(lambda: len(stored()) == 1), "record never reached Mongo"
+    assert stored()[0]["message"] == "written straight away"
+
+
+def test_a_burst_is_written_in_batches_not_one_document_at_a_time(monkeypatch, writer):
+    """A busy on_message must not cost one round trip per line."""
+    batches = []
+    monkeypatch.setattr(logs_data, "insert_logs", lambda docs: batches.append(len(docs)))
+
+    for index in range(600):
+        debug_logs.record(debug_logs.build_document(level="INFO", message=f"L{index}"))
+
+    assert wait_for(lambda: sum(batches) == 600), f"only wrote {sum(batches)}"
+    assert len(batches) < 600, "every document went out on its own round trip"
+    assert max(batches) <= constants.DEBUG_LOGS_FLUSH_BATCH
+
+
+def test_stopping_the_writer_drains_what_is_still_queued():
+    """Shutdown must not drop the last lines before the process goes away."""
+    debug_logs.start_writer()
+    for index in range(5):
+        debug_logs.record(debug_logs.build_document(level="INFO", message=f"L{index}"))
+
+    debug_logs.stop_writer()
+
+    assert len(stored()) == 5
+
+
+def test_a_failing_write_leaves_the_writer_alive(monkeypatch, capsys, writer):
+    """One bad batch must not silently end logging for the rest of the process."""
+    monkeypatch.setattr(
+        logs_data, "insert_logs",
+        lambda docs: (_ for _ in ()).throw(ConnectionError("mongo is down")),
+    )
+    debug_logs.record(debug_logs.build_document(level="ERROR", message="first"))
+    assert wait_for(lambda: debug_logs.stats()["failed"] == 1)
+
+    monkeypatch.undo()
+    debug_logs.record(debug_logs.build_document(level="INFO", message="after recovery"))
+
+    assert wait_for(lambda: any(d["message"] == "after recovery" for d in stored()))
+    assert debug_logs.writer_running()
+    assert "mongo is down" in capsys.readouterr().err

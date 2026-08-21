@@ -10,6 +10,14 @@ Deliberately NOT `analytics.emit`: that path validates against the catalog and
 traceback are. Same rails — a bounded queue drained by the Analytics cog — and
 a separate destination, so neither contract has to bend for the other.
 
+Writes leave on a dedicated thread, not on a timer. `logging` runs on the
+thread that called it, which for a command is the event loop, and `pymongo` is
+synchronous — so writing inside `emit` would put a network round trip in front
+of every one of the ~108 log calls in `app/`. The writer instead blocks on
+`queue.get()`, so a line on a quiet bot is written in microseconds, and drains
+whatever else is already queued into one `insert_many`, so a burst on
+`on_message` costs one round trip per 200 lines rather than 200.
+
 Two invariants the tests pin:
 
 - Recording a log never blocks, never raises, and never grows without bound.
@@ -20,6 +28,7 @@ Two invariants the tests pin:
 """
 import queue
 import sys
+import threading
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -34,6 +43,8 @@ _QUEUE: "queue.Queue[Dict[str, Any]]" = queue.Queue(
 _ENABLED = True
 _ENVIRONMENT = "dev"
 _STATS: Dict[str, int] = {"recorded": 0, "dropped": 0, "flushed": 0, "failed": 0}
+_SENTINEL = object()
+_writer: Optional["_Writer"] = None
 
 
 def configure(config: Any) -> None:
@@ -156,34 +167,99 @@ def report_flush_failure(error: Exception) -> None:
 
 
 def flush(on_error=report_flush_failure) -> int:
-    """Drain the queue into Mongo. Called by the Analytics cog loop.
-
-    Imported lazily because `app.data.logs` reads `app.mongo_client`, which does
-    not exist yet while `app.logger` is being imported.
-    """
-    from app.data import logs as logs_data
-
+    """Drain synchronously. The writer thread covers production; this is the
+    test path and the cog's backstop for a writer that never started."""
     flushed = 0
     for _ in range(constants.DEBUG_LOGS_FLUSH_MAX_BATCHES):
         batch = drain()
         if not batch:
             break
-        try:
-            logs_data.insert_logs(batch)
-            flushed += len(batch)
-        except Exception as error:  # noqa: BLE001 - reported out of band, never logged
-            _STATS["failed"] += len(batch)
-            if on_error:
-                on_error(error)
+        written = _write(batch, on_error=on_error)
+        if not written:
             break
+        flushed += written
 
-    _STATS["flushed"] += flushed
     return flushed
+
+
+class _Writer(threading.Thread):
+    """Drains the queue into Mongo as records arrive.
+
+    Blocking `get` for the first record and `get_nowait` for the rest is what
+    gives both properties at once: no latency when the bot is quiet, and
+    automatic batching exactly when there is enough traffic to need it.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(name="keiko-debug-logs", daemon=True)
+
+    def run(self) -> None:
+        while True:
+            first = _QUEUE.get()
+            if first is _SENTINEL:
+                return
+
+            batch = [first]
+            while len(batch) < constants.DEBUG_LOGS_FLUSH_BATCH:
+                try:
+                    batch.append(_QUEUE.get_nowait())
+                except queue.Empty:
+                    break
+
+            if batch and batch[-1] is _SENTINEL:
+                batch.pop()
+                _write(batch)
+                return
+
+            _write(batch)
+
+
+def _write(batch: List[Dict[str, Any]], on_error=None) -> int:
+    """Imported lazily: `app.data.logs` reads `app.mongo_client`, which does not
+    exist yet while `app.logger` is being imported."""
+    if not batch:
+        return 0
+
+    from app.data import logs as logs_data
+
+    try:
+        logs_data.insert_logs(batch)
+    except Exception as error:  # noqa: BLE001 - reported out of band, never logged
+        _STATS["failed"] += len(batch)
+        (on_error or report_flush_failure)(error)
+        return 0
+
+    _STATS["flushed"] += len(batch)
+    return len(batch)
+
+
+def start_writer() -> None:
+    """Called once the Mongo client exists. Never started by the test suite,
+    which drives `flush` directly so assertions stay deterministic."""
+    global _writer
+    if _writer is None or not _writer.is_alive():
+        _writer = _Writer()
+        _writer.start()
+
+
+def stop_writer(timeout: float = 2.0) -> None:
+    global _writer
+    if _writer is None:
+        return
+
+    _QUEUE.put(_SENTINEL)
+    _writer.join(timeout=timeout)
+    _writer = None
+
+
+def writer_running() -> bool:
+    return _writer is not None and _writer.is_alive()
 
 
 def reset() -> None:
     """Test hook: forget queued documents and counters."""
     global _ENABLED
+    stop_writer()
     drain(limit=constants.DEBUG_LOGS_QUEUE_MAXSIZE)
     _ENABLED = True
     for key in _STATS:
