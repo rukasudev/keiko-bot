@@ -28,6 +28,13 @@ def increment_redis_key(key: str, increment_by=1):
     return redis_client.incrby(key, increment_by)
 
 
+def increment_redis_key_with_expiration(key: str, increment_by: int, expiration: int):
+    """Counters that must not outlive their window: every analytics key expires."""
+    value = redis_client.incrby(key, increment_by)
+    redis_client.expire(key, expiration)
+    return value
+
+
 def get_redis_counter(key: str) -> int:
     try:
         return int(redis_client.get(key) or 0)

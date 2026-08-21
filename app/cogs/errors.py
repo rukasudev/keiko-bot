@@ -8,7 +8,7 @@ from app.bot import DiscordBot
 from app.components.embed import response_error_embed
 from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
-from app.services import utils
+from app.services import analytics, utils
 from app.services.cache import increment_redis_key
 from app.services.moderations import insert_error_by_command
 from app.types.cogs import Cog
@@ -85,6 +85,14 @@ class Errors(Cog, name="errors"):
             command_name = getattr(interaction.command, "_attr", interaction.command.qualified_name)
 
         increment_redis_key(f"{logconstants.COMMAND_ERROR_TYPE}:{command_name}")
+
+        analytics.emit(
+            "command.failed",
+            guild_id=interaction.guild_id,
+            user_id=interaction.user.id,
+            command=command_name,
+            error_type=type(error).__name__,
+        )
 
 
 async def setup(bot: DiscordBot) -> None:

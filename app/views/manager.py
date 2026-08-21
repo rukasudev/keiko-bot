@@ -41,11 +41,13 @@ from app.services.utils import (
     parse_form_yaml_to_dict,
     parse_locale,
 )
+from app.services.analytics_reports import feature_history
+from app.views.form_state import FormSession, SessionAwareView
 from app.views.records import RecordsBrowser
 from app.views.panel_transitions import close_panel
 
 
-class Manager(discord.ui.View):
+class Manager(SessionAwareView, discord.ui.View):
     """
     A custom view to create a form message with questions and
     save to database.
@@ -69,6 +71,8 @@ class Manager(discord.ui.View):
         self.enable_composition_controls = enable_composition_controls
         self.lifecycle_callbacks = lifecycle_callbacks or {}
         self.locale = parse_locale(interaction.locale)
+        self.session = FormSession()
+        self.source = "manager"
         super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.add_item(EditButton(
             self.update_command,
@@ -83,6 +87,9 @@ class Manager(discord.ui.View):
         self.handle_remove_item_button()
         self.add_item(HistoryButton(callback=self.history_callback, locale=self.locale))
 
+    async def on_timeout(self) -> None:
+        await self.report_abandoned()
+
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
         context = ErrorContext(
             flow=f"manager_{self.command_key}",
@@ -96,6 +103,7 @@ class Manager(discord.ui.View):
             context=context,
             exc_info=True,
         )
+        self.close_journey(logconstants.TRACE_RESULT_FAILURE)
 
     async def update_command(self, interaction: discord.Interaction):
         await interaction.response.defer(thinking=True, ephemeral=True)
@@ -134,8 +142,12 @@ class Manager(discord.ui.View):
             str(interaction.guild_id),
             self.command_key,
             constants.EDITED_KEY,
-            interaction.message.edited_at,
+            interaction.message.edited_at or interaction.message.created_at,
             str(interaction.user.id),
+            source=self.source,
+            session_id=self.session.id,
+            changed_keys=sorted(data.keys()) if isinstance(data, dict) else None,
+            changed_count=len(data) if isinstance(data, dict) else None,
         )
 
         view = self.edited_form_view.view
@@ -209,6 +221,8 @@ class Manager(discord.ui.View):
             constants.UNPAUSED_KEY,
             interaction.message.created_at,
             str(interaction.user.id),
+            source=self.source,
+            session_id=self.session.id,
         )
 
         logger.info(
@@ -243,6 +257,9 @@ class Manager(discord.ui.View):
             constants.PAUSED_KEY,
             interaction.message.created_at,
             str(interaction.user.id),
+            source=self.source,
+            session_id=self.session.id,
+            **feature_history(str(interaction.guild_id), self.command_key),
         )
 
         logger.info(
@@ -290,6 +307,9 @@ class Manager(discord.ui.View):
             constants.DISABLED_KEY,
             interaction.message.created_at,
             str(interaction.user.id),
+            source=self.source,
+            session_id=self.session.id,
+            **feature_history(str(interaction.guild_id), self.command_key),
         )
 
         logger.info(
@@ -373,6 +393,8 @@ class Manager(discord.ui.View):
             constants.ADDED_KEY,
             event_date,
             str(interaction.user.id),
+            source=self.source,
+            session_id=self.session.id,
         )
 
         logger.info(
@@ -495,6 +517,8 @@ class Manager(discord.ui.View):
             constants.REMOVED_KEY,
             event_date,
             str(interaction.user.id),
+            source=self.source,
+            session_id=self.session.id,
         )
 
         logger.info(

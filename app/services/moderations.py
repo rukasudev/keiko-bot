@@ -9,6 +9,7 @@ from app.constants import Commands as commands_constants
 from app.constants import GuildConstants as guild_constants
 from app.data import cogs as cogs_data
 from app.data import moderations as moderations_data
+from app.services import analytics
 from app.services.cogs import insert_cog_event, update_cog_by_guild
 from app.services.utils import (
     ml,
@@ -100,6 +101,12 @@ def insert_error_by_command(cog_key: str, error_message: str):
     return cogs_data.insert_error_by_command(cog_key, data)
 
 
+def _command_label(interaction: discord.Interaction, key: str) -> str:
+    """The command name the journey message is titled with."""
+    command = getattr(interaction, "command", None)
+    return getattr(command, "qualified_name", None) or key
+
+
 async def send_command_form_message(
     interaction: discord.Interaction,
     key: str,
@@ -111,6 +118,10 @@ async def send_command_form_message(
         command_key=key,
         locale=parse_locale(interaction.locale),
     )
+    form_view.source = analytics.resolve_source(interaction)
+    form_view.open_journey(interaction, _command_label(interaction, key))
+    form_view.emit_event("feature.setup_opened", interaction)
+
     if persistence_callback:
         form_view._set_persistence_callback(persistence_callback)
     embed = form_view.get_form_embed()
@@ -154,6 +165,12 @@ def build_command_manager_message(
         interaction,
         enable_composition_controls=enable_composition_controls,
         lifecycle_callbacks=lifecycle_callbacks,
+    )
+    view.source = analytics.resolve_source(interaction)
+    view.open_journey(interaction, _command_label(interaction, key))
+    view.emit_event(
+        "feature.manager_opened", interaction,
+        enabled=bool(cog_data.get(commands_constants.ENABLED_KEY)),
     )
 
     if not cog_data.get(commands_constants.ENABLED_KEY):

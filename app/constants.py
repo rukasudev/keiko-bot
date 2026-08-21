@@ -72,6 +72,27 @@ class Commands:
     REDIS_BLOCK_LINKS_COUNTER_HOST: Final[str] = "guild:{guild_id}:block_links:host:{value}"
     REDIS_BLOCK_LINKS_COUNTER_USER: Final[str] = "guild:{guild_id}:block_links:user:{value}"
 
+    # analytics
+    ANALYTICS_EVENTS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 90
+    ANALYTICS_MONTHLY_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 400
+    ANALYTICS_PROFILE_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 365
+    ANALYTICS_QUEUE_MAXSIZE: Final[int] = 5000
+    ANALYTICS_FLUSH_SECONDS: Final[float] = 5.0
+    ANALYTICS_FLUSH_BATCH: Final[int] = 200
+    ANALYTICS_FLUSH_MAX_BATCHES: Final[int] = 25
+    ANALYTICS_MAX_PROPS: Final[int] = 12
+    ANALYTICS_MAX_VALUE_LENGTH: Final[int] = 64
+    ANALYTICS_HOT_WINDOW_SECONDS: Final[int] = 60 * 60 * 24 * 8
+    ANALYTICS_ATTEMPTS_WINDOW_SECONDS: Final[int] = 60 * 60 * 24
+    ANALYTICS_TIMELINE_READ_LIMIT: Final[int] = 25
+    ANALYTICS_DIGEST_HOUR: Final[int] = 9
+    ANALYTICS_DIGEST_WEEKDAY: Final[int] = 0
+    ANALYTICS_DIGEST_WINDOW_DAYS: Final[int] = 7
+    ANALYTICS_JOURNEY_HISTORY_LIMIT: Final[int] = 4
+    ANALYTICS_JOURNEY_DEBOUNCE_SECONDS: Final[float] = 1.0
+    REDIS_ANALYTICS_DAILY: Final[str] = "guild:{guild_id}:analytics:{date}:{metric}"
+    REDIS_ANALYTICS_ATTEMPTS: Final[str] = "guild:{guild_id}:analytics:attempts:{feature}"
+
     # moderations
     MODERATIONS_KEY: Final[str] = "moderations"
     WELCOME_MESSAGES_KEY: Final[str] = "welcome_messages"
@@ -308,6 +329,17 @@ class LogTypes:
     COMMAND_ERROR_TYPE: Final[str] = "command.error"
     COMMAND_ERROR_TITLE: Final[str] = "❌ Command Error"
 
+    TRACE_TYPE: Final[str] = "trace"
+    TRACE_TITLE: Final[str] = "🧵 Trace"
+    JOURNEY_TITLE: Final[str] = "🧭"
+
+    TRACE_MAX_LINES: Final[int] = 20
+    TRACE_LINE_MAX_LENGTH: Final[int] = 180
+    TRACE_RESULT_SUCCESS: Final[str] = "success"
+    TRACE_RESULT_FAILURE: Final[str] = "failure"
+    TRACE_RESULT_ABANDONED: Final[str] = "abandoned"
+    TRACE_RESULT_RUNNING: Final[str] = "running"
+
     LOG_TYPE_MAP: Final[Dict] = {
         APPLICATION_STARTUP_TYPE: (
             APPLICATION_STARTUP_TITLE,
@@ -344,6 +376,10 @@ class LogTypes:
         COMMAND_ERROR_TYPE: (
             COMMAND_ERROR_TITLE,
             discord.Color.red(),
+        ),
+        TRACE_TYPE: (
+            TRACE_TITLE,
+            discord.Color.blurple(),
         ),
     }
     UNKNOWN_COMMAND: Final[str] = "unknown_command"

@@ -13,7 +13,9 @@ from app.cogs.admin.configs import Configs
 from app.cogs.admin.debug import Debug
 from app.cogs.admin.subscriptions import Subscriptions
 from app.cogs.admin.sync import Sync
+from app.data.analytics import delete_analytics_by_guild
 from app.logger import DiscordLogsHandler
+from app.services import admin_analytics
 from app.services.admin import (
     build_overview_embed,
     get_overview_data,
@@ -25,6 +27,7 @@ from app.services.utils import (
     parse_log_filename_with_date,
 )
 from app.types.cogs import GroupCog
+from app.views.report_browser import ReportBrowser
 from app.views.user_inspection import UserInspectionView
 
 
@@ -61,6 +64,44 @@ class Admin(GroupCog, name="admin"):
 
         view = UserInspectionView(user)
         await view.send(interaction)
+
+    @keiko_command(
+        name="insights",
+        description="Keiko opens every product report it keeps, in one place",
+    )
+    async def show_insights(self, interaction: discord.Interaction) -> None:
+        browser = ReportBrowser(
+            sections=admin_analytics.insight_sections(),
+            placeholder="Pick a report...",
+        )
+        await browser.send(interaction)
+
+    @keiko_command(
+        name="guild",
+        description="Keiko retells the whole story of one guild, from arrival to today",
+    )
+    async def show_guild_journey(
+        self, interaction: discord.Interaction, guild_id: str
+    ) -> None:
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        embed = admin_analytics.build_guild_journey_embed(guild_id)
+        await interaction.followup.send(embed=embed, ephemeral=True)
+
+    @keiko_command(
+        name="forget",
+        description="Keiko erases every analytics record it holds about a guild",
+    )
+    async def forget_guild(
+        self, interaction: discord.Interaction, guild_id: str
+    ) -> None:
+        await interaction.response.defer(thinking=True, ephemeral=True)
+        deleted = delete_analytics_by_guild(guild_id)
+        await interaction.followup.send(
+            f"Erased analytics for guild `{guild_id}` — "
+            f"**{deleted['events']}** events, **{deleted['months']}** monthly buckets, "
+            f"**{deleted['profile']}** profile.",
+            ephemeral=True,
+        )
 
     @keiko_command(
         name="logs",

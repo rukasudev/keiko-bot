@@ -8,7 +8,7 @@ from app.components.embed import response_embed, response_error_embed
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
-from app.services import cache
+from app.services import analytics, cache
 from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
@@ -100,7 +100,15 @@ async def set_default_roles(
 
     for member in members:
         roles_to_add = get_roles_to_add(member, guild, roles_mapping)
-        await member.add_roles(*roles_to_add)
+        try:
+            await member.add_roles(*roles_to_add)
+        except discord.Forbidden as error:
+            analytics.record_permission_failure(
+                guild.id, constants.DEFAULT_ROLES_KEY, error
+            )
+            raise
+        if roles_to_add:
+            analytics.record_value(guild.id, constants.DEFAULT_ROLES_KEY)
 
 
 def get_roles_to_add(

@@ -13,7 +13,7 @@ from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.constants import WelcomeDesign
 from app.exceptions import ErrorContext
-from app.services import cache
+from app.services import analytics, cache
 from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
@@ -75,6 +75,12 @@ async def send_welcome_message(member: discord.Member):
             design=design, custom_image=custom_image
         )
         await channel.send(embed=embed_message)
+        analytics.record_value(member.guild.id, constants.WELCOME_MESSAGES_KEY)
+    except discord.Forbidden as e:
+        analytics.record_permission_failure(
+            member.guild.id, constants.WELCOME_MESSAGES_KEY, e
+        )
+        raise
     except Exception as e:
         logger.error(
             f"Failed to send welcome message: {type(e).__name__}: {e}",

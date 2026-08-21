@@ -45,21 +45,44 @@ def test_modals_and_confirmations_use_the_short_timeout():
     assert confirm_action.timeout == SHORT
 
 
-def test_no_view_defines_custom_timeout_behavior():
-    """Executable documentation: no Keiko view overrides on_timeout today.
-    If one starts to, it must get behavioral coverage and this pin updated."""
+def test_only_the_session_views_define_timeout_behavior():
+    """Form and Manager own a session, so they close its story when the view
+    expires. Every other view still has nothing to do on timeout — the buttons
+    simply stop responding. A new override here needs behavioral coverage and
+    this pin updated."""
+    import app.views.confirm_action as confirm_module
     import app.views.form as form_module
     import app.views.manager as manager_module
     import app.views.summary_card as card_module
-    import app.views.confirm_action as confirm_module
 
+    assert "on_timeout" in form_module.Form.__dict__
+    assert "on_timeout" in manager_module.Manager.__dict__
+
+    allowed = {form_module.Form, manager_module.Manager}
     for module in (form_module, manager_module, card_module, confirm_module):
         for name in dir(module):
             obj = getattr(module, name)
             if isinstance(obj, type) \
                     and issubclass(obj, (discord.ui.View, discord.ui.LayoutView)) \
-                    and obj.__module__ == module.__name__:
+                    and obj.__module__ == module.__name__ \
+                    and obj not in allowed:
                 assert "on_timeout" not in obj.__dict__, (
                     f"{module.__name__}.{name} now overrides on_timeout: add a "
                     f"behavioral scenario for it and update this contract"
                 )
+
+
+async def test_a_timeout_never_says_anything_to_the_user():
+    """The user closed Discord or walked away. Timing out is bookkeeping, not
+    a conversation — it must not try to send or edit anything."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    form = Form("block_links", "pt-br")
+    form.session.guild_id = "1"
+    form.session.user_id = "9"
+    form.view = MagicMock()
+    form.view.send = AsyncMock()
+
+    await form.on_timeout()
+
+    assert not form.view.send.await_args_list

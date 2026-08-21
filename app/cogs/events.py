@@ -14,6 +14,7 @@ from app.data.moderations import count_moderations_by_owner, find_moderations_by
 from app.services import block_links as block_links_service
 from app.services import default_roles as default_roles_service
 from app.services import stream_elements as stream_elements_service
+from app.services import analytics, analytics_reports
 from app.services.cache import increment_redis_key, remove_all_cache_by_guild
 from app.services.moderations import (
     insert_moderations_by_guild,
@@ -99,19 +100,23 @@ class Events(Cog, name="events"):
         if not interaction.command:
             return None
 
-        if not hasattr(interaction.command, "_attr"):
-            return None
+        # Context menus are ContextMenu, not Command, so they carry no `_attr`.
+        feature = getattr(interaction.command, "_attr", None)
 
-        if str(interaction.user.id) != str(self.bot.owner_id):
-            increment_redis_key(
-                f"{logconstants.COMMAND_CALL_TYPE}:{interaction.command._attr}"
-            )
+        if feature and str(interaction.user.id) != str(self.bot.owner_id):
+            increment_redis_key(f"{logconstants.COMMAND_CALL_TYPE}:{feature}")
 
-        logger.info(
-            f"command started ({interaction.id}): command {interaction.command.qualified_name} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}",
-            interaction=interaction,
-            log_type=logconstants.COMMAND_CALL_TYPE,
-            interaction_source="slash command",
+        analytics.emit(
+            "command.invoked",
+            guild_id=interaction.guild_id,
+            user_id=interaction.user.id,
+            command=interaction.command.qualified_name,
+            source=analytics.resolve_source(interaction),
+            feature=feature,
+            is_admin=bool(
+                getattr(interaction.user, "guild_permissions", None)
+                and interaction.user.guild_permissions.administrator
+            ),
         )
 
     @commands.Cog.listener()
@@ -130,6 +135,14 @@ class Events(Cog, name="events"):
         action = "Joined new guild" if not exist else "Joined again"
 
         total_guilds = len(self.bot.guilds)
+
+        analytics.emit(
+            "guild.joined",
+            guild_id=guild.id,
+            returning=bool(exist),
+            size_bucket=analytics.bucket_size(guild.member_count),
+            owner_guilds=total_servers,
+        )
 
         logger.info(
             f"{action} by {guild.owner.mention}\nInvited by: {guild.owner.mention} ({total_servers} server{'s' if total_servers != 1 else ''} total)\nTotal servers: {total_guilds}",
@@ -164,6 +177,14 @@ class Events(Cog, name="events"):
             owner_id=guild.owner.id,
             log_type=logconstants.EVENT_LEFT_GUILD_TYPE,
         )
+
+        analytics.emit(
+            "guild.removed",
+            guild_id=guild.id,
+            **analytics_reports.guild_snapshot(str(guild.id)),
+        )
+        analytics.flush()
+
         remove_all_cache_by_guild(guild.id)
         return pause_all_moderations_by_guild(guild.id, str(self.bot.user.id))
 

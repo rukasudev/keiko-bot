@@ -17,7 +17,7 @@ from app.data.reminder import (
     find_reminder_by_value,
     insert_reminder,
 )
-from app.services import cache
+from app.services import analytics, cache
 from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
@@ -73,6 +73,9 @@ def send_youtube_video_notification(video_id: str, channel_id: str) -> None:
                 embed = create_video_notification_embed(video_info, youtuber_info)
 
                 bot.loop.create_task(channel.send(content=message, embed=embed))
+                analytics.record_value(
+                    guild.id, constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY
+                )
                 count += 1
 
         logger.info(
@@ -196,22 +199,11 @@ def unsubscribe_youtube_new_video(interaction: discord.Interaction, notification
     if not reminder:
         return
 
-    logger.info(
-        f"Reminder {reminder.get('reminder_id')} found for youtuber {youtuber}",
-        interaction=interaction,
-        log_type=logconstants.COMMAND_INFO_TYPE,
-    )
-
     bot.reminder.delete_reminder(reminder.get("reminder_id"))
-    logger.info(
-        f"Reminder {reminder.get('reminder_id')} deleted from reminder",
-        interaction=interaction,
-        log_type=logconstants.COMMAND_INFO_TYPE,
-    )
-
     delete_reminder_by_id(reminder.get("id"))
+
     logger.info(
-        f"Reminder {reminder.get('reminder_id')} deleted from database",
+        f"renewal reminder {reminder.get('reminder_id')} deleted — {youtuber}",
         interaction=interaction,
         log_type=logconstants.COMMAND_INFO_TYPE,
     )

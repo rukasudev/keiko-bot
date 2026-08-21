@@ -106,6 +106,14 @@ done (manual map — extend it when a new shared surface appears):
 | `commands.*.yml` slash `desc:`/`name:` entries | `tests/behavioral/contracts/test_slash_command_copy.py` (Discord's 100/32-char sync limits — violations only surface at bot startup) |
 | context menus (`app_commands.ContextMenu` registrations, their callbacks and decorators) | `tests/behavioral/contracts/test_context_menu_registration.py` (the tree is only built at startup) |
 | `app/data/indexes.py`, new collections | boot the bot once: `ensure_indexes` runs in `create_app` and the offline mock treats `create_index` as a no-op |
+| `app/services/analytics.py`, `app/analytics/catalog.yml`, `app/services/analytics_sink.py` | `tests/behavioral/contracts/test_analytics_catalog.py` (the catalog and the code must agree in both directions) + `tests/test_analytics_storage.py` (what becomes a document and what stays a counter) |
+| `app/views/form_state.py` (`SessionAwareView`, `FormSession`), any new seam emitting product events | `tests/behavioral/scenarios/test_analytics_funnel_flow.py` — including the assertion that nothing typed into a modal reaches an event |
+| `app/logger.py`, `app/services/trace.py`, anything opening a trace | `tests/behavioral/contracts/test_logger_trace.py` — one unit of work is one Discord message, ordered, and a broken sink never breaks the work |
+| `app/views/report_browser.py`, any command composing it | `tests/behavioral/contracts/test_report_browser.py` — choosing a section edits the message instead of sending another, and sections build lazily |
+| `app/services/admin_digest.py`, `app/cogs/analytics.py` loops | `tests/test_admin_digest.py` — the digest must survive an empty install and stay readable on a quiet week |
+| `analytics.records_raw_choice`, a new field or step type in a form YAML | `tests/test_config_usage.py` + `test_no_free_text_or_id_field_of_any_form_is_ever_tabulated` — a new field cannot opt itself into having its values recorded |
+| `app/services/journey.py`, `analytics.register_observer`, `Form`/`Manager` `on_timeout` | `tests/behavioral/contracts/test_journey.py` + `tests/behavioral/scenarios/test_journey_flow.py` — one session is one message, finalizing is idempotent, and an edit lists field names only |
+| any new `on_timeout` on a view | `tests/behavioral/contracts/test_view_timeouts.py` — only `Form` and `Manager` may define one, and a timeout never sends anything to the user |
 | `app/services/transforms.py`, `ModalValidations` | YAML contracts + validation scenarios |
 | `app/data/` | persistence assertions in scenarios |
 

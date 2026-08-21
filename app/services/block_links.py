@@ -18,7 +18,7 @@ from app.constants import Style
 from app.constants import ViewConstants as view_constants
 from app.data import block_links as blocked_links_data
 from app.exceptions import ErrorContext
-from app.services import cache
+from app.services import analytics, cache
 from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
@@ -403,6 +403,24 @@ def record_blocked_links(
                     guild_id=guild_id, value=getattr(author, "id", "")
                 )
             )
+
+        for verdict in blocked:
+            analytics.emit(
+                "feature.action_performed",
+                guild_id=guild_id,
+                feature=constants.BLOCK_LINKS_KEY,
+                mode=evaluation.mode,
+                reason=verdict.reason,
+                deleted=deleted,
+            )
+
+        if blocked and not deleted:
+            analytics.emit(
+                "value.blocked_by_permission",
+                guild_id=guild_id,
+                feature=constants.BLOCK_LINKS_KEY,
+                error_type="Forbidden",
+            )
     except Exception as e:
         logger.error(
             f"Failed to record blocked links: {type(e).__name__}: {e}",
@@ -519,6 +537,14 @@ async def send_link_check_message(
     interaction: discord.Interaction, message: discord.Message
 ) -> None:
     """Message context menu: why a link of this message was (not) blocked."""
+    analytics.emit(
+        "feature.tested",
+        guild_id=interaction.guild_id,
+        user_id=interaction.user.id,
+        feature=constants.BLOCK_LINKS_KEY,
+        source="context_menu",
+        surface="diagnostic",
+    )
     locale = parse_locale(interaction.locale)
     cogs = cache.get_cog_data_or_populate(
         str(interaction.guild_id), constants.BLOCK_LINKS_KEY, manager=True

@@ -8,6 +8,8 @@ from app import logger
 from app.components.embed import response_embed
 from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
+from app.services import analytics
+from app.services.trace import trace_scope
 from app.services.utils import parse_locale, parse_valid_locale
 
 
@@ -23,7 +25,26 @@ def keiko_command(
         @functools.wraps(func)
         async def wrapper(self, interaction: discord.Interaction, *args, **kwargs):
             interaction.locale = parse_valid_locale(interaction.locale)
-            await func(self, interaction, *args, **kwargs)
+            command_name = (
+                interaction.command.qualified_name if interaction.command
+                else (name or func.__name__)
+            )
+            async with trace_scope(
+                command_name,
+                guild_id=interaction.guild_id,
+                user_id=interaction.user.id,
+                source="slash",
+            ) as trace:
+                trace.add(f"`/{command_name}` invoked")
+
+                feature = getattr(interaction.command, "_attr", None)
+                if feature:
+                    trace.feature = feature
+                    trace.footnote = analytics.describe_attempt(
+                        analytics.count_attempt(interaction.guild_id, feature), feature
+                    )
+
+                await func(self, interaction, *args, **kwargs)
 
         return Command(
             name=name if name != "" else func.__name__,
@@ -78,16 +99,23 @@ def with_error_context(flow: str) -> Callable:
                 if hasattr(arg, "channel") and arg.channel:
                     context.channel_id = str(arg.channel.id)
 
-            try:
-                return await func(*args, **kwargs)
-            except Exception as e:
-                logger.error(
-                    f"Error in {flow}: {type(e).__name__}: {e}",
-                    log_type=logconstants.COMMAND_ERROR_TYPE,
-                    context=context,
-                    exc_info=True,
-                )
-                raise
+            async with trace_scope(
+                flow,
+                guild_id=context.guild_id,
+                user_id=context.user_id,
+                source="internal",
+                silent_when_clean=True,
+            ):
+                try:
+                    return await func(*args, **kwargs)
+                except Exception as e:
+                    logger.error(
+                        f"Error in {flow}: {type(e).__name__}: {e}",
+                        log_type=logconstants.COMMAND_ERROR_TYPE,
+                        context=context,
+                        exc_info=True,
+                    )
+                    raise
 
         return wrapper
 
