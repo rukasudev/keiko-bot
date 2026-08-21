@@ -140,12 +140,13 @@ def test_two_different_files_with_identical_lines_both_survive(connection):
     assert store.summary(connection)["total"] == 8
 
 
-def test_a_synced_file_is_remembered_so_the_next_run_can_skip_it(connection):
-    assert store.already_synced(connection, "day-one.log") is False
+def test_a_synced_message_is_remembered_so_the_next_run_can_skip_it(connection):
+    assert store.already_synced(connection, "1") is False
 
-    store.mark_synced(connection, "day-one.log", message_id="1", entries=4)
+    store.mark_synced(connection, "1", filename="keiko_log.log", entries=4)
 
-    assert store.already_synced(connection, "day-one.log") is True
+    assert store.already_synced(connection, "1") is True
+    assert store.already_synced(connection, "2") is False
 
 
 # --------------------------------------------------------------------------
@@ -202,3 +203,90 @@ def test_a_session_id_returns_the_whole_interaction(connection):
 
     assert len(rows) == 2
     assert {row["message"] for row in rows} == {"step 1", "step 2"}
+
+
+# --------------------------------------------------------------------------
+# Every daily attachment on the channel is named `keiko_log.log`
+# --------------------------------------------------------------------------
+
+def day_log(date, message):
+    return f"[INFO] {date} 10:00:00 - {message}\n".encode()
+
+
+def run_sync(tmp_path, monkeypatch, attachments, payloads, **flags):
+    from types import SimpleNamespace
+
+    from tools.keiko.logs import cli, fetch
+
+    monkeypatch.setattr(fetch, "iter_log_attachments", lambda: iter(attachments))
+    monkeypatch.setattr(fetch, "download", lambda url: payloads[url])
+
+    args = SimpleNamespace(
+        db=str(tmp_path / "logs.db"), force=False, incremental=False, limit=0
+    )
+    for key, value in flags.items():
+        setattr(args, key, value)
+
+    cli.command_sync(args)
+    return store.connect(args.db)
+
+
+def test_every_day_is_indexed_even_though_they_all_share_one_filename(
+    tmp_path, monkeypatch
+):
+    """`doRollover` posts `logs/keiko_log.log` every night, so the name repeats.
+
+    Broke as: idempotence keyed on the filename, so a full backfill reported
+    success after indexing exactly one of 745 attachments and silently skipping
+    the rest. A hole in the archive that announces itself as "done" is worse
+    than a crash.
+    """
+    attachments = [
+        {"filename": "keiko_log.log", "url": f"https://cdn/{day}",
+         "size": 10, "message_id": str(day)}
+        for day in (3, 2, 1)
+    ]
+    payloads = {
+        "https://cdn/3": day_log("2026-08-20", "third day"),
+        "https://cdn/2": day_log("2026-08-19", "second day"),
+        "https://cdn/1": day_log("2026-08-18", "first day"),
+    }
+
+    connection = run_sync(tmp_path, monkeypatch, attachments, payloads)
+
+    summary = store.summary(connection)
+    assert summary["total"] == 3, "one entry per day must survive"
+    assert summary["files"] == 3
+
+    messages = {row["message"] for row in store.query(connection)}
+    assert messages == {"first day", "second day", "third day"}
+
+
+def test_resyncing_the_same_messages_still_adds_nothing(tmp_path, monkeypatch):
+    attachments = [
+        {"filename": "keiko_log.log", "url": "https://cdn/1",
+         "size": 10, "message_id": "1"},
+    ]
+    payloads = {"https://cdn/1": day_log("2026-08-18", "only line")}
+
+    run_sync(tmp_path, monkeypatch, attachments, payloads)
+    connection = run_sync(tmp_path, monkeypatch, list(attachments), payloads)
+
+    assert store.summary(connection)["total"] == 1
+
+
+def test_identical_lines_on_different_days_are_both_kept(tmp_path, monkeypatch):
+    """Two days can legitimately contain the exact same line."""
+    attachments = [
+        {"filename": "keiko_log.log", "url": f"https://cdn/{day}",
+         "size": 10, "message_id": str(day)}
+        for day in (2, 1)
+    ]
+    payloads = {
+        "https://cdn/2": day_log("2026-08-19", "MongoDB: OK"),
+        "https://cdn/1": day_log("2026-08-18", "MongoDB: OK"),
+    }
+
+    connection = run_sync(tmp_path, monkeypatch, attachments, payloads)
+
+    assert store.summary(connection)["total"] == 2

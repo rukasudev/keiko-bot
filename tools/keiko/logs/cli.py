@@ -31,28 +31,36 @@ def parse_since(value: Optional[str]) -> Optional[str]:
     return value
 
 
+def describe(attachment, records) -> str:
+    """Every attachment is named `keiko_log.log`, so the date is what identifies it."""
+    for record in records:
+        if record.get("ts"):
+            return str(record["ts"])[:10]
+    return f"message {attachment['message_id']}"
+
+
 def command_sync(args) -> int:
     connection = store.connect(args.db)
     seen = added = files = 0
 
     for attachment in fetch.iter_log_attachments():
         seen += 1
-        if not args.force and store.already_synced(connection, attachment["filename"]):
+        message_id = attachment["message_id"]
+
+        if not args.force and store.already_synced(connection, message_id):
             if args.incremental:
-                print(f"Reached {attachment['filename']}, already indexed. Stopping.")
+                print(f"Reached an already indexed message ({message_id}). Stopping.")
                 break
             continue
 
         payload = fetch.download(attachment["url"])
         records = list(parse.parse_attachment(attachment["filename"], payload))
-        inserted = store.insert_entries(connection, records, attachment["filename"])
-        store.mark_synced(
-            connection, attachment["filename"], attachment["message_id"], len(records)
-        )
+        inserted = store.insert_entries(connection, records, message_id)
+        store.mark_synced(connection, message_id, attachment["filename"], len(records))
 
         files += 1
         added += inserted
-        print(f"  {attachment['filename']}: {len(records)} parsed, {inserted} new")
+        print(f"  {describe(attachment, records)}: {len(records)} parsed, {inserted} new")
 
         if args.limit and files >= args.limit:
             print(f"Stopped at --limit {args.limit}; more files remain unindexed.")

@@ -4,9 +4,10 @@ SQLite with FTS5 over message and traceback. It holds the cold tail — anything
 older than the 30 days Mongo keeps — rebuilt from the daily files on the
 Discord logs channel. Losing this file costs nothing: re-run the backfill.
 
-`UNIQUE(source, source_ref)` is what makes syncing idempotent and lets the text
-render and the structured export of the same day coexist without doubling every
-line: re-ingesting an attachment replaces nothing and inserts nothing.
+Idempotence keys on the Discord message id, never on the filename. Every nightly
+attachment is literally `logs/keiko_log.log` — `doRollover` posts `baseFilename`
+as-is — so 745 days of history arrive under one name. A filename key skips 744 of
+them and reports success.
 """
 import json
 import os
@@ -14,6 +15,10 @@ import sqlite3
 from typing import Any, Dict, Iterable, List, Optional
 
 DEFAULT_PATH = os.path.expanduser("~/.keiko/logs.db")
+
+# Bumped when the shape changes. The index is rebuilt from Discord, never a
+# source of truth, so an old one is discarded instead of migrated.
+SCHEMA_VERSION = 2
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS entries (
@@ -53,8 +58,8 @@ CREATE TRIGGER IF NOT EXISTS entries_ai AFTER INSERT ON entries BEGIN
 END;
 
 CREATE TABLE IF NOT EXISTS synced_files (
-    filename    TEXT PRIMARY KEY,
-    message_id  TEXT,
+    message_id  TEXT PRIMARY KEY,
+    filename    TEXT,
     entries     INTEGER,
     synced_at   TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -73,13 +78,44 @@ def connect(path: str = DEFAULT_PATH) -> sqlite3.Connection:
         os.makedirs(directory, exist_ok=True)
     connection = sqlite3.connect(path)
     connection.row_factory = sqlite3.Row
+    _reset_if_stale(connection)
     connection.executescript(SCHEMA)
+    connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     return connection
 
 
-def already_synced(connection: sqlite3.Connection, filename: str) -> bool:
+def _reset_if_stale(connection: sqlite3.Connection) -> None:
+    """An index built by an older shape is dropped, not migrated.
+
+    Everything here is rebuilt from the Discord channel by re-running `sync`, so
+    discarding is cheaper and safer than a migration path nobody will test.
+    """
+    version = connection.execute("PRAGMA user_version").fetchone()[0]
+    if version == SCHEMA_VERSION:
+        return
+
+    existing = [
+        row[0]
+        for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type IN ('table','trigger')"
+        )
+    ]
+    if not existing:
+        return
+
+    connection.executescript(
+        "DROP TRIGGER IF EXISTS entries_ai;"
+        "DROP TABLE IF EXISTS entries_fts;"
+        "DROP TABLE IF EXISTS entries;"
+        "DROP TABLE IF EXISTS synced_files;"
+    )
+    connection.commit()
+
+
+def already_synced(connection: sqlite3.Connection, message_id: str) -> bool:
+    """Keyed on the message, because every attachment shares one filename."""
     row = connection.execute(
-        "SELECT 1 FROM synced_files WHERE filename = ?", (filename,)
+        "SELECT 1 FROM synced_files WHERE message_id = ?", (str(message_id),)
     ).fetchone()
     return row is not None
 
@@ -89,7 +125,12 @@ def insert_entries(
     records: Iterable[Dict[str, Any]],
     origin: str,
 ) -> int:
-    """Returns how many rows were new; re-running the same origin adds none."""
+    """Returns how many rows were new; re-running the same origin adds none.
+
+    `origin` must be the Discord message id. Using the filename would make every
+    day collide on `UNIQUE(origin, origin_ref)`, so two days holding the same
+    line would keep only one of them.
+    """
     inserted = 0
     statement = (
         f"INSERT OR IGNORE INTO entries ({', '.join(COLUMNS)}, origin, origin_ref) "
@@ -106,12 +147,12 @@ def insert_entries(
 
 
 def mark_synced(
-    connection: sqlite3.Connection, filename: str, message_id: str, entries: int
+    connection: sqlite3.Connection, message_id: str, filename: str, entries: int
 ) -> None:
     connection.execute(
-        "INSERT OR REPLACE INTO synced_files (filename, message_id, entries) "
+        "INSERT OR REPLACE INTO synced_files (message_id, filename, entries) "
         "VALUES (?, ?, ?)",
-        (filename, message_id, entries),
+        (str(message_id), filename, entries),
     )
     connection.commit()
 
