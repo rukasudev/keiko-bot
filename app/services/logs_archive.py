@@ -19,8 +19,10 @@ from typing import Any, Dict, Optional, Tuple
 import discord
 
 from app.data import logs as logs_data
+from app.services.utils import ml
 
 FILENAME = "keiko_logs_{date}.jsonl.gz"
+ADMIN_LOCALE = "en-us"
 
 
 def previous_day(now: Optional[datetime] = None) -> datetime:
@@ -61,8 +63,8 @@ def build_daily_file(day: datetime) -> Tuple[Optional[discord.File], int]:
     return discord.File(io.BytesIO(payload), filename=filename), written
 
 
-def build_message(day: datetime, written: int) -> str:
-    return (
-        f":card_index_dividers: Here is my structured log for: "
-        f"**{day.strftime('%Y-%m-%d')}**! ({written} records)"
+def build_message(day: datetime, written: int, locale: str = ADMIN_LOCALE) -> str:
+    """The admin channel has no user, so the bot's own locale is the one used."""
+    return ml("messages.admin-logs.daily-export", locale).format(
+        date=day.strftime("%Y-%m-%d"), count=written
     )

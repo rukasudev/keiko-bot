@@ -14,6 +14,8 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterator, List, Optional
 
+from tools.keiko.logs import store
+
 # "[INFO] 2026-08-20 14:23:01 (guild_id: 123) - message"
 TEXT_LINE = re.compile(
     r"^\[(?P<level>[A-Z]+)\] "
@@ -22,11 +24,9 @@ TEXT_LINE = re.compile(
     r" - (?P<message>.*)$"
 )
 
-FIELDS = (
-    "ts", "level", "message", "log_type", "guild_id", "user_id", "interaction_id",
-    "channel_id", "feature", "source", "session_id", "trace_id", "module",
-    "function", "line", "traceback", "env",
-)
+# The store owns the column list; duplicating it here would let a new field be
+# parsed and then silently dropped on insert.
+FIELDS = store.COLUMNS
 
 
 def empty_record() -> Dict[str, Any]:

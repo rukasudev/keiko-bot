@@ -1,4 +1,7 @@
 en-us:
+  admin-logs:
+    daily-export: ":card_index_dividers: Here is my structured log for: **{date}**! ({count} records)"
+
   birthday-defaults:
     title: "🎂 It's {user}'s birthday!"
     content: "Happy birthday {user}! 🎉 Hope your day is full of joy and treats! 🐾"

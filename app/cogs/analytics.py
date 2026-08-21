@@ -1,4 +1,3 @@
-import sys
 from datetime import datetime, time
 
 from discord.ext import commands, tasks
@@ -29,7 +28,7 @@ class Analytics(commands.Cog):
         self.send_weekly_digest.cancel()
         self.export_daily_logs.cancel()
         analytics.flush()
-        debug_logs.flush(on_error=report_flush_failure)
+        debug_logs.flush()
 
     @tasks.loop(seconds=constants.ANALYTICS_FLUSH_SECONDS)
     async def flush_events(self) -> None:
@@ -41,7 +40,7 @@ class Analytics(commands.Cog):
                 log_type=logconstants.COMMAND_WARN_TYPE,
             )
 
-        debug_logs.flush(on_error=report_flush_failure)
+        debug_logs.flush()
 
     @flush_events.before_loop
     async def before_flush(self) -> None:
@@ -102,19 +101,6 @@ class Analytics(commands.Cog):
     @export_daily_logs.before_loop
     async def before_export(self) -> None:
         await self.bot.wait_until_ready()
-
-
-def report_flush_failure(error: Exception) -> None:
-    """The debug-log sink must never reach the logger it drains.
-
-    A `logger.warn` here would be recorded by StoredLogsHandler, queued, fail on
-    the same broken connection, and warn again. Failures go to stderr, which is
-    outside the logging tree and therefore cannot feed itself.
-    """
-    print(
-        f"[keiko] debug log flush failed: {type(error).__name__}: {error}",
-        file=sys.stderr,
-    )
 
 
 async def setup(bot: DiscordBot) -> None:

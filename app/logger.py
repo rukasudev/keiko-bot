@@ -90,6 +90,44 @@ warn = lambda message, **kwargs: log(logger.warning, message, **kwargs)
 error = lambda message, **kwargs: log(logger.error, message, **kwargs)
 
 
+CONTEXT_IDENTITY_KEYS = ("guild_id", "user_id", "channel_id")
+
+
+def record_identity(record: logging.LogRecord) -> dict:
+    """The ids a log record carries, from whichever source supplied them.
+
+    A record gets them three ways — an `interaction`, an `ErrorContext` from
+    `with_error_context`, or a bare `guild_id` — and both handlers need the same
+    answer. Keeping the knowledge here means a new field on `ErrorContext`
+    reaches the embed and the stored document together, instead of one of them
+    quietly falling behind.
+    """
+    identity = {key: None for key in ("guild_id", "user_id", "channel_id", "interaction_id")}
+
+    guild_id = getattr(record, "guild_id", None)
+    if guild_id:
+        identity["guild_id"] = str(guild_id)
+
+    context = getattr(record, "context", None)
+    if context is not None:
+        values = context.to_dict() if hasattr(context, "to_dict") else context
+        if isinstance(values, dict):
+            for key in CONTEXT_IDENTITY_KEYS:
+                if values.get(key):
+                    identity[key] = str(values[key])
+
+    interaction = getattr(record, "interaction", None)
+    if interaction is not None:
+        if getattr(interaction, "id", None) is not None:
+            identity["interaction_id"] = str(interaction.id)
+        for attribute, key in (("guild", "guild_id"), ("user", "user_id"), ("channel", "channel_id")):
+            value = getattr(interaction, attribute, None)
+            if value is not None and getattr(value, "id", None) is not None:
+                identity[key] = str(value.id)
+
+    return identity
+
+
 class StoredLogsHandler(logging.Handler):
     """Writes every log record to Mongo, where it can be queried for 30 days.
 
@@ -125,37 +163,9 @@ class StoredLogsHandler(logging.Handler):
             "function": record.funcName,
             "line": record.lineno,
             "traceback_text": self.format_exception(record),
-            "guild_id": getattr(record, "guild_id", None),
         }
-        fields.update(self.extract_interaction(getattr(record, "interaction", None)))
-        fields.update(self.extract_context(getattr(record, "context", None)))
+        fields.update(record_identity(record))
         return fields
-
-    def extract_interaction(self, interaction) -> dict:
-        if not interaction:
-            return {}
-
-        fields = {"interaction_id": getattr(interaction, "id", None)}
-        for attribute, key in (("guild", "guild_id"), ("user", "user_id"), ("channel", "channel_id")):
-            value = getattr(interaction, attribute, None)
-            if value is not None and getattr(value, "id", None) is not None:
-                fields[key] = value.id
-        return fields
-
-    def extract_context(self, context) -> dict:
-        """`with_error_context` carries the ids the record itself never got."""
-        if not context:
-            return {}
-
-        values = context.to_dict() if hasattr(context, "to_dict") else context
-        if not isinstance(values, dict):
-            return {}
-
-        return {
-            key: values[key]
-            for key in ("guild_id", "user_id", "channel_id")
-            if values.get(key)
-        }
 
     def format_exception(self, record: logging.LogRecord):
         """The whole traceback, unlike the Discord embed which has to truncate."""
@@ -474,11 +484,12 @@ class DiscordLogsHandler(logging.Handler):
         interaction: discord.Interaction = getattr(record, "interaction", None)
         guild_id = getattr(record, "guild_id", None)
         context = getattr(record, "context", None)
+        identity = record_identity(record)
 
         if interaction:
-            embed.add_field(name="Interaction ID", value=interaction.id)
+            embed.add_field(name="Interaction ID", value=identity["interaction_id"])
             if interaction.guild:
-                embed.add_field(name="Guild ID", value=interaction.guild.id)
+                embed.add_field(name="Guild ID", value=identity["guild_id"])
             embed.add_field(name="User ID", value=interaction.user.mention)
 
             if embed.title == constants.COMMAND_CALL_TITLE:
@@ -495,14 +506,14 @@ class DiscordLogsHandler(logging.Handler):
                     embed.add_field(name="Interaction Source", value=interaction_source, inline=True)
 
             if interaction.channel:
-                embed.add_field(name="Channel ID", value=interaction.channel.id)
+                embed.add_field(name="Channel ID", value=identity["channel_id"])
 
             if interaction.message:
                 embed.add_field(name="Message ID", value=interaction.message.id)
         elif context:
             self._add_context_fields(embed, context)
         elif guild_id:
-            embed.add_field(name="Guild ID", value=guild_id)
+            embed.add_field(name="Guild ID", value=identity["guild_id"])
 
             owner_id = getattr(record, "owner_id", None)
             if owner_id:

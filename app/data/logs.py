@@ -16,11 +16,6 @@ def day_bounds(day: datetime):
     return start, start + timedelta(days=1)
 
 
-def count_logs_for_day(day: datetime) -> int:
-    start, end = day_bounds(day)
-    return mongo_client.guild.logs.count_documents({"ts": {"$gte": start, "$lt": end}})
-
-
 def iter_logs_for_day(day: datetime) -> Iterator[Dict[str, Any]]:
     """Stream one day in `ts` order, so the export never holds it all in memory."""
     start, end = day_bounds(day)

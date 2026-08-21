@@ -19,6 +19,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.constants import Commands as constants
+from app.constants import LogTypes as logconstants
 from app.data import indexes
 from app.data import logs as logs_data
 from app.logger import StoredLogsHandler
@@ -124,13 +125,30 @@ def test_a_failing_write_never_produces_another_log(monkeypatch):
         logging.getLogger().removeHandler(handler)
 
 
-def test_the_failure_reporter_does_not_call_the_logger(capsys):
-    from app.cogs.analytics import report_flush_failure
+def test_flushing_without_arguments_still_reports_the_failure(monkeypatch, capsys):
+    """The guard is the default, not something a caller has to remember.
 
+    Broke as: `flush(on_error=None)` swallowed the exception entirely when the
+    argument was omitted, so a second caller would lose write failures in
+    silence. Every caller getting it right is not an invariant.
+    """
+    def explode(_documents):
+        raise ConnectionError("mongo is down")
+
+    monkeypatch.setattr(logs_data, "insert_logs", explode)
+    debug_logs.record(debug_logs.build_document(level="ERROR", message="boom"))
+
+    debug_logs.flush()
+
+    assert "mongo is down" in capsys.readouterr().err
+    assert debug_logs.stats()["failed"] == 1
+
+
+def test_the_failure_reporter_does_not_call_the_logger(capsys):
     handler = install_handler()
     logging.getLogger().addHandler(handler)
     try:
-        report_flush_failure(ConnectionError("mongo is down"))
+        debug_logs.report_flush_failure(ConnectionError("mongo is down"))
     finally:
         logging.getLogger().removeHandler(handler)
 
@@ -192,7 +210,7 @@ def test_an_oversized_message_keeps_its_tail():
         level="ERROR", message="x" * (constants.DEBUG_LOGS_MESSAGE_MAX_LENGTH + 500)
     )
 
-    assert len(document["message"]) <= constants.DEBUG_LOGS_MESSAGE_MAX_LENGTH + 2
+    assert len(document["message"]) == constants.DEBUG_LOGS_MESSAGE_MAX_LENGTH
     assert document["message"].startswith("…")
 
 
@@ -270,3 +288,221 @@ def test_an_empty_day_produces_no_file_to_post():
 
     assert payload is None
     assert written == 0
+
+
+# --------------------------------------------------------------------------
+# The existing consumer of app/logger.py, with the new handler installed
+# --------------------------------------------------------------------------
+
+class _NoopCoroutine:
+    def __await__(self):
+        yield
+        return None
+
+    def close(self):
+        return None
+
+
+class _FakeChannel:
+    def __init__(self, sends):
+        self._sends = sends
+
+    def send(self, **kwargs):
+        self._sends.append(kwargs)
+        return _NoopCoroutine()
+
+
+@pytest.fixture
+def both_handlers():
+    """Both sinks on the same logger, in the order the bot installs them.
+
+    StoredLogsHandler is created in `LoggerHooks.start()` and DiscordLogsHandler
+    by the admin cog, so the stored one always runs first. That ordering matters:
+    the embed footer reads `record.asctime`, which only exists once something has
+    formatted the record.
+    """
+    from types import SimpleNamespace
+    from unittest.mock import MagicMock
+
+    from app import logger as logger_module
+    from app.services import trace as trace_service
+
+    sends = []
+    channel = _FakeChannel(sends)
+    bot = SimpleNamespace(
+        loop=MagicMock(),
+        config=SimpleNamespace(
+            ADMIN_LOGS_CHANNEL_ID=1,
+            ADMIN_LOGS_ERROR_CHANNEL_ID=2,
+            ADMIN_LOGS_COMMAND_CALL_ID=3,
+            ADMIN_LOGS_BOT_ACTIONS_CHANNEL_ID=4,
+        ),
+        get_channel=lambda _channel_id: channel,
+    )
+
+    trace_service.clear_sinks()
+    stored_handler = StoredLogsHandler()
+    discord_handler = logger_module.DiscordLogsHandler(bot)
+    discord_handler.schedule_send = lambda coroutine: coroutine.close()
+
+    yield SimpleNamespace(sends=sends, discord=discord_handler, stored=stored_handler)
+
+    logging.getLogger().removeHandler(stored_handler)
+    logging.getLogger().removeHandler(discord_handler)
+    trace_service.clear_sinks()
+
+
+def test_the_discord_embed_survives_the_stored_handler_being_installed(both_handlers):
+    """Adding a sink to the root logger must not degrade the existing one.
+
+    The embed is the surface a person reads while on call; the stored document
+    is the one queried afterwards. Both come off the same record, and nothing
+    pinned that they stay independent.
+    """
+    logging.getLogger().error(
+        "twitch subscription failed",
+        extra={"guild_id": 4242, "log_type": logconstants.COMMAND_ERROR_TYPE},
+    )
+
+    embed = both_handlers.sends[0]["embed"]
+    fields = {field.name: field.value for field in embed.fields}
+
+    assert embed.title == logconstants.COMMAND_ERROR_TITLE
+    assert fields["Guild ID"] == "4242"
+    assert embed.footer.text.startswith("• ")
+
+    debug_logs.flush()
+    document = stored()[0]
+    assert document["guild_id"] == "4242"
+    assert document["message"] == "twitch subscription failed"
+
+
+def test_both_sinks_read_the_same_identity_from_one_record(both_handlers):
+    """One source of truth for ids: the embed and the document cannot disagree.
+
+    Before `record_identity`, each handler derived guild/user/channel on its own,
+    so a new field on ErrorContext could reach one and not the other.
+    """
+    from app.exceptions import ErrorContext
+
+    context = ErrorContext(
+        flow="block_links", guild_id="77", user_id="8", channel_id="9"
+    )
+    logging.getLogger().error("failed in flow", extra={"context": context})
+
+    fields = {f.name: f.value for f in both_handlers.sends[0]["embed"].fields}
+    debug_logs.flush()
+    document = stored()[0]
+
+    assert fields["Guild Id"] == "77"
+    assert document["guild_id"] == "77"
+    assert document["user_id"] == "8"
+    assert document["channel_id"] == "9"
+
+
+def test_an_error_still_routes_to_the_error_channel(both_handlers):
+    logging.getLogger().error("boom", extra={"guild_id": 1})
+
+    assert len(both_handlers.sends) == 1
+
+
+# --------------------------------------------------------------------------
+# The daily task that turns the hot window into the archive
+# --------------------------------------------------------------------------
+
+def run_export(channel, day=None):
+    """Drives the cog's task body without starting its loop."""
+    import asyncio
+    from types import SimpleNamespace
+
+    from app.cogs.analytics import Analytics
+
+    bot = SimpleNamespace(
+        config=SimpleNamespace(ADMIN_LOGS_FILES_CHANNEL_ID=7),
+        get_channel=lambda _id: channel,
+    )
+    return asyncio.get_event_loop().run_until_complete(
+        Analytics.export_daily_logs.coro(SimpleNamespace(bot=bot))
+    )
+
+
+def test_the_daily_export_posts_yesterday_to_the_files_channel():
+    sends = []
+
+    class Channel:
+        async def send(self, content, file=None):
+            sends.append((content, file))
+
+    yesterday = logs_archive.previous_day()
+    logs_data.insert_logs([
+        debug_logs.build_document(level="ERROR", message="yesterday's failure", ts=yesterday)
+    ])
+
+    run_export(Channel())
+
+    assert len(sends) == 1
+    content, sent_file = sends[0]
+    assert yesterday.strftime("%Y-%m-%d") in content
+    assert sent_file.filename.endswith(".jsonl.gz")
+
+
+def test_a_quiet_day_posts_nothing_at_all():
+    """An empty file every morning is noise that trains people to ignore it."""
+    sends = []
+
+    class Channel:
+        async def send(self, content, file=None):
+            sends.append(content)
+
+    run_export(Channel())
+
+    assert sends == []
+
+
+def test_a_missing_channel_does_not_raise():
+    assert run_export(None) is None
+
+
+def test_the_export_failing_never_takes_down_the_loop(monkeypatch):
+    class Channel:
+        async def send(self, content, file=None):
+            raise RuntimeError("discord is down")
+
+    logs_data.insert_logs([
+        debug_logs.build_document(
+            level="INFO", message="something", ts=logs_archive.previous_day()
+        )
+    ])
+
+    assert run_export(Channel()) is None
+
+
+# --------------------------------------------------------------------------
+# Localization of the one string this feature renders
+# --------------------------------------------------------------------------
+
+def test_the_export_message_exists_in_both_locales():
+    """Copy lives in YAML, so the pt-br half cannot silently go missing."""
+    day = datetime(2026, 8, 20, tzinfo=timezone.utc)
+
+    english = logs_archive.build_message(day, 5, "en-us")
+    portuguese = logs_archive.build_message(day, 5, "pt-br")
+
+    assert "2026-08-20" in english and "2026-08-20" in portuguese
+    assert "5" in english and "5" in portuguese
+    assert english != portuguese
+    for rendered in (english, portuguese):
+        assert "messages.admin-logs" not in rendered
+        assert "—" not in rendered and "–" not in rendered
+
+
+def test_every_field_the_sink_builds_is_a_column_the_index_stores():
+    """A field added to the document but not to the store is dropped in silence."""
+    from tools.keiko.logs import store as tools_store
+
+    document = debug_logs.build_document(level="INFO", message="x")
+    persisted = set(document) - {"v"}
+
+    assert persisted <= set(tools_store.COLUMNS), (
+        f"not indexable: {persisted - set(tools_store.COLUMNS)}"
+    )

@@ -208,8 +208,8 @@ def auto_inject_dependencies(deps):
 
 
 @pytest.fixture(autouse=True)
-def analytics_isolation():
-    """AUTOUSE: nenhum evento vaza de um teste para o proximo."""
+def observability_isolation():
+    """AUTOUSE: nenhum evento nem log vaza de um teste para o proximo."""
     from app.services import analytics, debug_logs, trace
 
     analytics.reset()

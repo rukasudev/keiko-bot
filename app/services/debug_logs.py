@@ -14,10 +14,12 @@ Two invariants the tests pin:
 
 - Recording a log never blocks, never raises, and never grows without bound.
 - Persisting a log never logs. The sink runs underneath `logging`, so a warning
-  about a failed write would be recorded, fail, and warn again. Failures go to
-  `sys.stderr` through `logging.Handler.handleError` instead.
+  about a failed write would be recorded, fail, and warn again. Write failures
+  go to stderr via `report_flush_failure`, and a record that cannot even be
+  built goes out through `logging.Handler.handleError`.
 """
 import queue
+import sys
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -111,13 +113,19 @@ def _as_id(value: Any) -> Optional[str]:
     return str(value) if value not in (None, "") else None
 
 
+ELLIPSIS = "…\n"
+
+
 def _clip(value: Optional[str], limit: int) -> Optional[str]:
-    """Keep the tail of an oversized value: the last frames explain the failure."""
+    """Keep the tail of an oversized value: the last frames explain the failure.
+
+    The marker counts against the limit, so the result never exceeds it.
+    """
     if not value:
         return None
     if len(value) <= limit:
         return value
-    return "…\n" + value[-limit:]
+    return ELLIPSIS + value[-(limit - len(ELLIPSIS)):]
 
 
 def drain(limit: int = constants.DEBUG_LOGS_FLUSH_BATCH) -> List[Dict[str, Any]]:
@@ -130,14 +138,28 @@ def drain(limit: int = constants.DEBUG_LOGS_FLUSH_BATCH) -> List[Dict[str, Any]]
     return batch
 
 
-def flush(on_error=None) -> int:
+def report_flush_failure(error: Exception) -> None:
+    """Where a failed write is reported, and why it is not the logger.
+
+    This module drains the logger. A `logger.warn` here would be recorded by
+    StoredLogsHandler, queued, fail on the same broken connection, and warn
+    again. stderr is outside the logging tree, so it cannot feed itself.
+
+    It is the default of `flush` rather than something a caller passes, because
+    an invariant that depends on every caller remembering it is not an
+    invariant.
+    """
+    print(
+        f"[keiko] debug log flush failed: {type(error).__name__}: {error}",
+        file=sys.stderr,
+    )
+
+
+def flush(on_error=report_flush_failure) -> int:
     """Drain the queue into Mongo. Called by the Analytics cog loop.
 
     Imported lazily because `app.data.logs` reads `app.mongo_client`, which does
     not exist yet while `app.logger` is being imported.
-
-    `on_error` receives the exception instead of a logger call — see the module
-    docstring for why this path must never log.
     """
     from app.data import logs as logs_data
 
