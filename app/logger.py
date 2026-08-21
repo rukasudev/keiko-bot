@@ -12,6 +12,7 @@ from app.config import AppConfig
 from app.constants import Commands as constants_commands
 from app.constants import DiscordLimits as limits
 from app.constants import LogTypes as constants
+from app.services import debug_logs
 from app.services import journey as journey_service
 from app.services import trace as trace_service
 from app.services.utils import format_traceback_message
@@ -87,6 +88,80 @@ def log(level, message, **kwargs):
 info = lambda message, **kwargs: log(logger.info, message, **kwargs)
 warn = lambda message, **kwargs: log(logger.warning, message, **kwargs)
 error = lambda message, **kwargs: log(logger.error, message, **kwargs)
+
+
+class StoredLogsHandler(logging.Handler):
+    """Writes every log record to Mongo, where it can be queried for 30 days.
+
+    Installed at process start rather than with the cogs, so the records that
+    explain a failed boot — the ones the Discord handler can never see, because
+    it is created by a cog that a failed boot never loads — are kept too.
+
+    Nothing here may call `logger.*`: this runs underneath logging, so a warning
+    about a failed write would be recorded, fail, and warn again. Failures go to
+    `sys.stderr` via `handleError`, which is what that hook exists for.
+    """
+
+    def __init__(self, config=None):
+        super().__init__()
+        self.setLevel(logging.INFO)
+        if config is not None:
+            debug_logs.configure(config)
+        logger.addHandler(self)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            document = debug_logs.build_document(**self.extract(record))
+            debug_logs.record(document)
+        except Exception:
+            self.handleError(record)
+
+    def extract(self, record: logging.LogRecord) -> dict:
+        fields = {
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "log_type": getattr(record, "log_type", None),
+            "module": record.filename,
+            "function": record.funcName,
+            "line": record.lineno,
+            "traceback_text": self.format_exception(record),
+            "guild_id": getattr(record, "guild_id", None),
+        }
+        fields.update(self.extract_interaction(getattr(record, "interaction", None)))
+        fields.update(self.extract_context(getattr(record, "context", None)))
+        return fields
+
+    def extract_interaction(self, interaction) -> dict:
+        if not interaction:
+            return {}
+
+        fields = {"interaction_id": getattr(interaction, "id", None)}
+        for attribute, key in (("guild", "guild_id"), ("user", "user_id"), ("channel", "channel_id")):
+            value = getattr(interaction, attribute, None)
+            if value is not None and getattr(value, "id", None) is not None:
+                fields[key] = value.id
+        return fields
+
+    def extract_context(self, context) -> dict:
+        """`with_error_context` carries the ids the record itself never got."""
+        if not context:
+            return {}
+
+        values = context.to_dict() if hasattr(context, "to_dict") else context
+        if not isinstance(values, dict):
+            return {}
+
+        return {
+            key: values[key]
+            for key in ("guild_id", "user_id", "channel_id")
+            if values.get(key)
+        }
+
+    def format_exception(self, record: logging.LogRecord):
+        """The whole traceback, unlike the Discord embed which has to truncate."""
+        if not record.exc_info:
+            return None
+        return "".join(traceback.format_exception(*record.exc_info))
 
 
 TRACE_RESULT_ICONS = {
@@ -169,6 +244,8 @@ class LoggerHooks:
         self.file_logs = file_logs
 
     def start(self) -> None:
+        StoredLogsHandler(self.config)
+
         if self.file_logs:
             self.set_timed_rotating_file_handler()
             add_handler(self.file_handler)

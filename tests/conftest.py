@@ -188,6 +188,7 @@ def auto_inject_dependencies(deps):
         patch('app.data.reminder.mongo_client', deps.mongo_client),
         patch('app.data.block_links.mongo_client', deps.mongo_client),
         patch('app.data.analytics.mongo_client', deps.mongo_client),
+        patch('app.data.logs.mongo_client', deps.mongo_client),
         patch('app.services.cache.redis_client', deps.redis_client),
         patch('app.services.cache.cogs_data.mongo_client', deps.mongo_client),
     ]
@@ -209,12 +210,14 @@ def auto_inject_dependencies(deps):
 @pytest.fixture(autouse=True)
 def analytics_isolation():
     """AUTOUSE: nenhum evento vaza de um teste para o proximo."""
-    from app.services import analytics, trace
+    from app.services import analytics, debug_logs, trace
 
     analytics.reset()
+    debug_logs.reset()
     trace.clear_sinks()
     yield
     analytics.reset()
+    debug_logs.reset()
     trace.clear_sinks()
 
 

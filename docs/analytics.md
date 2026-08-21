@@ -9,7 +9,7 @@ how to add a metric to a new feature (usually: you do not have to).
 | **Operational** | Is the system healthy? | Prometheus → Grafana (`app/cogs/prometheus.py`) | Grafana's | yes |
 | **Product analytics** | How do people use Keiko? | `guild.analytics_*` (this document) | 90d raw, counters 13mo | **yes, by design** |
 | **Audit** | Who changed what, when? | `events.<cog_key>` (`insert_cog_event`) | permanent | **no** |
-| **Debug** | Why did it break? | log file + Discord log channels | days | yes |
+| **Debug** | Why did it break? | `guild.logs` + the daily file on the logs channel | 30d hot, file permanent | yes |
 
 Boundary rules:
 
@@ -192,6 +192,56 @@ executable instead of documented.
 
 `ANALYTICS_ENABLED=false` turns `emit` into a no-op without a deploy.
 `/admin pipeline` shows emitted, flushed, dropped, unknown and queue depth.
+
+---
+
+# Debug logs: queryable, and older than the container
+
+The Discord channels render logs for a person to read, and rendering costs
+information: `format_traceback_message` keeps the last 15 frames and 3000
+characters, so the frame that actually explains a failure is often the one that
+was cut. The log file kept everything and then deleted it — the container has no
+volume, so a deploy takes the current day with it.
+
+Three pieces close that:
+
+| Piece | Where | Holds |
+|---|---|---|
+| `StoredLogsHandler` | `app/logger.py` | every record, into a queue |
+| `guild.logs` | Mongo, 30-day TTL | the hot window, with the full traceback |
+| daily `.jsonl.gz` | the logs channel | the archive, one file per day |
+
+## Why not `analytics.emit`
+
+Because the catalog drops undeclared events and `sanitize_props` strips free
+text — and a log message and a traceback *are* free text. The two share the
+rails (a bounded queue drained by `AnalyticsCog`) and nothing else.
+
+## The rule that is easy to break
+
+Nothing in `app/services/debug_logs.py` or its callers may call `logger.*`. The
+sink runs underneath `logging`: a warning about a failed write is itself a
+write, which fails, and warns again. `flush(on_error=...)` hands the exception
+back instead, and `report_flush_failure` prints to stderr — outside the logging
+tree, where it cannot feed itself. `test_debug_logs.py` pins this.
+
+## Reading them
+
+Inside 30 days, query `guild.logs` directly; `session_id` returns every line of
+one interaction. Older than that, the daily files are the source, and
+`python -m tools.keiko logs sync` indexes them into a local SQLite with
+full-text search:
+
+```bash
+python -m tools.keiko logs sync --incremental   # index new daily files
+python -m tools.keiko logs errors --since 7d    # repeated failures, grouped
+python -m tools.keiko logs query "ConnectionError" --traceback
+python -m tools.keiko logs query --session a1b2c3
+```
+
+`tools/` never ships in the deploy image and `app/` never imports it
+(`tests/tools/test_tools_boundary.py`).
+
 
 ---
 

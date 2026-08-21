@@ -93,6 +93,18 @@ class Commands:
     REDIS_ANALYTICS_DAILY: Final[str] = "guild:{guild_id}:analytics:{date}:{metric}"
     REDIS_ANALYTICS_ATTEMPTS: Final[str] = "guild:{guild_id}:analytics:attempts:{feature}"
 
+    # debug logs — the hot window of "why did it break?", queried directly in
+    # Mongo. Anything older lives in the daily file on the Discord logs channel.
+    DEBUG_LOGS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 30
+    DEBUG_LOGS_QUEUE_MAXSIZE: Final[int] = 5000
+    DEBUG_LOGS_FLUSH_BATCH: Final[int] = 200
+    DEBUG_LOGS_FLUSH_MAX_BATCHES: Final[int] = 25
+    DEBUG_LOGS_MESSAGE_MAX_LENGTH: Final[int] = 8000
+    DEBUG_LOGS_TRACEBACK_MAX_LENGTH: Final[int] = 16000
+    DEBUG_LOGS_EXPORT_PAGE_SIZE: Final[int] = 5000
+    DEBUG_LOGS_EXPORT_HOUR: Final[int] = 0
+    DEBUG_LOGS_EXPORT_MINUTE: Final[int] = 30
+
     # moderations
     MODERATIONS_KEY: Final[str] = "moderations"
     WELCOME_MESSAGES_KEY: Final[str] = "welcome_messages"

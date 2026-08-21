@@ -145,6 +145,20 @@ class MockCursor:
         self._data = data
 
     def sort(self, field, direction=-1):
+        """Really sorts: a test asserting order must fail when order is wrong."""
+        keys = field if isinstance(field, list) else [(field, direction)]
+        for key, key_direction in reversed(keys):
+            self._data.sort(
+                key=lambda doc: (doc.get(key) is None, doc.get(key)),
+                reverse=key_direction == -1,
+            )
+        return self
+
+    def batch_size(self, size):
+        return self
+
+    def limit(self, count):
+        self._data = self._data[:count]
         return self
 
     def __iter__(self):
@@ -206,6 +220,30 @@ def _apply_update(doc, update, inserted):
             existing.append(value)
 
 
+def _matches_value(actual, expected):
+    """Equality, plus the comparison operators a range query needs."""
+    if not isinstance(expected, dict):
+        return actual == expected
+
+    operators = {
+        "$gte": lambda a, b: a is not None and a >= b,
+        "$gt": lambda a, b: a is not None and a > b,
+        "$lte": lambda a, b: a is not None and a <= b,
+        "$lt": lambda a, b: a is not None and a < b,
+        "$ne": lambda a, b: a != b,
+        "$in": lambda a, b: a in b,
+        "$exists": lambda a, b: (a is not None) == b,
+    }
+
+    for operator, argument in expected.items():
+        check = operators.get(operator)
+        if check is None:
+            return actual == expected
+        if not check(actual, argument):
+            return False
+    return True
+
+
 class MockMongoCollection:
     """Mock de uma collection MongoDB."""
 
@@ -247,7 +285,7 @@ class MockMongoCollection:
                     if current != v:
                         match = False
                         break
-                elif doc.get(k) != v:
+                elif not _matches_value(doc.get(k), v):
                     match = False
                     break
             if match:
