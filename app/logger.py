@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import sys
@@ -8,7 +9,12 @@ from logging.handlers import TimedRotatingFileHandler
 import discord
 
 from app.config import AppConfig
+from app.constants import Commands as constants_commands
+from app.constants import DiscordLimits as limits
 from app.constants import LogTypes as constants
+from app.services import debug_logs
+from app.services import journey as journey_service
+from app.services import trace as trace_service
 from app.services.utils import format_traceback_message
 
 logger = logging.getLogger()
@@ -32,12 +38,11 @@ class CustomTimedRotatingFileHandler(TimedRotatingFileHandler):
         yesterday_date = datetime.now() - timedelta(days=1)
         strftime_yesterday_date = yesterday_date.strftime("%Y-%m-%d")
 
-        self.bot.loop.create_task(
-            channel.send(
-                f":package: Here is my log file for: **{strftime_yesterday_date}**!",
-                file=discord.File(self.baseFilename),
-            )
+        coroutine = channel.send(
+            f":package: Here is my log file for: **{strftime_yesterday_date}**!",
+            file=discord.File(self.baseFilename),
         )
+        asyncio.run_coroutine_threadsafe(coroutine, self.bot.loop)
         os.remove(self.baseFilename)
 
         super().doRollover()
@@ -85,6 +90,161 @@ warn = lambda message, **kwargs: log(logger.warning, message, **kwargs)
 error = lambda message, **kwargs: log(logger.error, message, **kwargs)
 
 
+CONTEXT_IDENTITY_KEYS = ("guild_id", "user_id", "channel_id")
+
+
+def record_identity(record: logging.LogRecord) -> dict:
+    """The ids a log record carries, from whichever source supplied them.
+
+    A record gets them three ways — an `interaction`, an `ErrorContext` from
+    `with_error_context`, or a bare `guild_id` — and both handlers need the same
+    answer. Keeping the knowledge here means a new field on `ErrorContext`
+    reaches the embed and the stored document together, instead of one of them
+    quietly falling behind.
+    """
+    identity = {key: None for key in ("guild_id", "user_id", "channel_id", "interaction_id")}
+
+    guild_id = getattr(record, "guild_id", None)
+    if guild_id:
+        identity["guild_id"] = str(guild_id)
+
+    context = getattr(record, "context", None)
+    if context is not None:
+        values = context.to_dict() if hasattr(context, "to_dict") else context
+        if isinstance(values, dict):
+            for key in CONTEXT_IDENTITY_KEYS:
+                if values.get(key):
+                    identity[key] = str(values[key])
+
+    interaction = getattr(record, "interaction", None)
+    if interaction is not None:
+        if getattr(interaction, "id", None) is not None:
+            identity["interaction_id"] = str(interaction.id)
+        for attribute, key in (("guild", "guild_id"), ("user", "user_id"), ("channel", "channel_id")):
+            value = getattr(interaction, attribute, None)
+            if value is not None and getattr(value, "id", None) is not None:
+                identity[key] = str(value.id)
+
+    return identity
+
+
+class StoredLogsHandler(logging.Handler):
+    """Writes every log record to Mongo, where it can be queried for 30 days.
+
+    Installed at process start rather than with the cogs, so the records that
+    explain a failed boot — the ones the Discord handler can never see, because
+    it is created by a cog that a failed boot never loads — are kept too.
+
+    Nothing here may call `logger.*`: this runs underneath logging, so a warning
+    about a failed write would be recorded, fail, and warn again. Failures go to
+    `sys.stderr` via `handleError`, which is what that hook exists for.
+    """
+
+    def __init__(self, config=None):
+        super().__init__()
+        self.setLevel(logging.INFO)
+        if config is not None:
+            debug_logs.configure(config)
+        logger.addHandler(self)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            document = debug_logs.build_document(**self.extract(record))
+            debug_logs.record(document)
+        except Exception:
+            self.handleError(record)
+
+    def extract(self, record: logging.LogRecord) -> dict:
+        fields = {
+            "level": record.levelname,
+            "message": record.getMessage(),
+            "log_type": getattr(record, "log_type", None),
+            "module": record.filename,
+            "function": record.funcName,
+            "line": record.lineno,
+            "traceback_text": self.format_exception(record),
+        }
+        fields.update(record_identity(record))
+        return fields
+
+    def format_exception(self, record: logging.LogRecord):
+        """The whole traceback, unlike the Discord embed which has to truncate."""
+        if not record.exc_info:
+            return None
+        return "".join(traceback.format_exception(*record.exc_info))
+
+
+TRACE_RESULT_ICONS = {
+    constants.TRACE_RESULT_SUCCESS: "✅",
+    constants.TRACE_RESULT_FAILURE: "❌",
+    constants.TRACE_RESULT_ABANDONED: "⚠️",
+    constants.TRACE_RESULT_RUNNING: "⏳",
+}
+
+TRACE_LEVEL_ICONS = {
+    logging.WARNING: "⚠️ ",
+    logging.ERROR: "❌ ",
+}
+
+
+def format_duration(milliseconds: int) -> str:
+    seconds = milliseconds / 1000
+    if seconds < 60:
+        return f"{seconds:.1f}s"
+    minutes, seconds = divmod(int(seconds), 60)
+    return f"{minutes}m{seconds:02d}s"
+
+
+def build_trace_header(trace) -> str:
+    parts = []
+    if trace.user_id:
+        parts.append(f"<@{trace.user_id}>")
+    if trace.guild_id:
+        parts.append(f"guild `{trace.guild_id}`")
+    if trace.source:
+        parts.append(f"via `{trace.source}`")
+    parts.append(format_duration(trace.duration_ms))
+    if trace.result:
+        icon = (
+            journey_service.outcome_icon(trace.result) if trace.is_journey
+            else TRACE_RESULT_ICONS.get(trace.result, "")
+        )
+        parts.append(f"{icon} {trace.result}".strip())
+    return " · ".join(parts)
+
+
+def build_trace_timeline(trace) -> str:
+    lines = []
+    for line in trace.lines:
+        icon = TRACE_LEVEL_ICONS.get(line["levelno"], "")
+        lines.append(f"`{line['ts'].strftime('%H:%M:%S')}` {icon}{line['message']}")
+    if trace.truncated:
+        lines.append(f"`…` +{trace.truncated} more")
+    return "\n".join(lines)
+
+
+def build_trace_embed(trace) -> discord.Embed:
+    description = f"{build_trace_header(trace)}\n{'─' * 20}\n{build_trace_timeline(trace)}"
+    if trace.footnote:
+        description += f"\n{'─' * 20}\n{trace.footnote}"
+
+    color = (
+        discord.Color.red() if trace.has_error
+        else constants.LOG_TYPE_MAP[constants.TRACE_TYPE][1]
+    )
+    prefix = constants.JOURNEY_TITLE if trace.is_journey else constants.TRACE_TITLE
+    label = "session" if trace.is_journey else "trace"
+    embed = discord.Embed(
+        title=f"{prefix} {trace.name}",
+        description=description[: limits.EMBED_DESCRIPTION],
+        color=color,
+    )
+    embed.set_footer(
+        text=f"• {label} {trace.id} | {trace.started_at.strftime('%Y-%m-%d %H:%M:%S')}"
+    )
+    return embed
+
+
 class LoggerHooks:
     def __init__(
         self, config: AppConfig, file_logs: bool = False, console_logs: bool = True
@@ -94,6 +254,8 @@ class LoggerHooks:
         self.file_logs = file_logs
 
     def start(self) -> None:
+        StoredLogsHandler(self.config)
+
         if self.file_logs:
             self.set_timed_rotating_file_handler()
             add_handler(self.file_handler)
@@ -131,11 +293,26 @@ class LoggerHooks:
 
 
 class DiscordLogsHandler(logging.Handler):
+    """Routes log records to Discord, one message per unit of work.
+
+    While a trace is open the records become lines of its timeline instead of
+    separate messages; the trace sink posts the assembled result when the work
+    finishes. Errors always keep a message of their own so they never wait on a
+    trace that may never close. Reference: docs/analytics.md
+    """
+
     def __init__(self, bot):
         self.bot = bot
+        self._journey_messages = {}
+        self._journey_tasks = set()
+        self._journey_dirty = set()
         super(DiscordLogsHandler, self).__init__()
         self.setLevel(logging.INFO)
+        self.setFormatter(OptionalGuildIDFormatter(datefmt="%Y-%m-%d %H:%M:%S"))
         logger.addHandler(self)
+        trace_service.register_sink(self.send_trace)
+        journey_service.set_publisher(self.publish_journey)
+        journey_service.install()
 
     BOT_ACTIONS_LOG_TYPES = (
         constants.EVENT_JOIN_GUILD_TYPE,
@@ -144,42 +321,128 @@ class DiscordLogsHandler(logging.Handler):
     )
 
     def emit(self, record):
-        embed = self.add_embed(record)
-        log_channel = self.bot.get_channel(self.bot.config.ADMIN_LOGS_CHANNEL_ID)
+        self.format(record)
 
-        if record.levelno == logging.ERROR:
-            log_channel = self.bot.get_channel(
-                self.bot.config.ADMIN_LOGS_ERROR_CHANNEL_ID
-            )
-
-        interaction = getattr(record, "interaction", None)
-        if interaction and interaction.command:
-            if interaction.command.qualified_name == "Log Inspection":
-                return
-
-        log_type = getattr(record, "log_type", None)
-
-        if log_type == constants.COMMAND_CALL_TYPE:
-            log_channel = self.bot.get_channel(
-                self.bot.config.ADMIN_LOGS_COMMAND_CALL_ID
-            )
-
-        if log_type in self.BOT_ACTIONS_LOG_TYPES and self.bot.config.ADMIN_LOGS_BOT_ACTIONS_CHANNEL_ID:
-            log_channel = self.bot.get_channel(
-                self.bot.config.ADMIN_LOGS_BOT_ACTIONS_CHANNEL_ID
-            )
-
-        if record.levelno == logging.ERROR and record.exc_info:
-            if "WebSocket closed with 1000" in str(record.exc_info[1]):
-                return
-
-        if hasattr(record, "message") and "We are being rate limited." in record.message:
+        if self.is_muted(record):
             return
 
+        folded = trace_service.add_line(record.getMessage(), record.levelno)
+        if folded and record.levelno < logging.ERROR:
+            return
+
+        log_channel = self.get_log_channel(record)
         if not log_channel:
             return
 
-        self.bot.loop.create_task(log_channel.send(embed=embed))
+        self.schedule_send(log_channel.send(embed=self.add_embed(record)))
+
+    def is_muted(self, record: logging.LogRecord) -> bool:
+        interaction = getattr(record, "interaction", None)
+        if interaction and interaction.command:
+            if interaction.command.qualified_name == "Log Inspection":
+                return True
+
+        if record.levelno == logging.ERROR and record.exc_info:
+            if "WebSocket closed with 1000" in str(record.exc_info[1]):
+                return True
+
+        return "We are being rate limited." in record.getMessage()
+
+    def get_log_channel(self, record: logging.LogRecord):
+        log_type = getattr(record, "log_type", None)
+
+        if record.levelno == logging.ERROR:
+            return self.bot.get_channel(self.bot.config.ADMIN_LOGS_ERROR_CHANNEL_ID)
+
+        if log_type == constants.COMMAND_CALL_TYPE:
+            return self.bot.get_channel(self.bot.config.ADMIN_LOGS_COMMAND_CALL_ID)
+
+        if log_type in self.BOT_ACTIONS_LOG_TYPES and self.bot.config.ADMIN_LOGS_BOT_ACTIONS_CHANNEL_ID:
+            return self.bot.get_channel(
+                self.bot.config.ADMIN_LOGS_BOT_ACTIONS_CHANNEL_ID
+            )
+
+        return self.bot.get_channel(self.bot.config.ADMIN_LOGS_CHANNEL_ID)
+
+    def schedule_send(self, coroutine) -> None:
+        """Webhooks run on the Flask thread, where create_task is not safe."""
+        loop = getattr(self.bot, "loop", None)
+        if not loop:
+            coroutine.close()
+            return
+
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
+
+        try:
+            if running is loop:
+                loop.create_task(coroutine)
+            else:
+                asyncio.run_coroutine_threadsafe(coroutine, loop)
+        except Exception:
+            coroutine.close()
+
+    def send_trace(self, trace) -> None:
+        if not trace.is_noteworthy:
+            return
+
+        log_channel = self.trace_channel(trace)
+        if not log_channel:
+            return
+
+        self.schedule_send(log_channel.send(embed=build_trace_embed(trace)))
+
+    def trace_channel(self, trace):
+        channel_id = (
+            self.bot.config.ADMIN_LOGS_COMMAND_CALL_ID
+            if trace.user_id
+            else self.bot.config.ADMIN_LOGS_CHANNEL_ID
+        )
+        return self.bot.get_channel(channel_id)
+
+    def publish_journey(self, journey) -> None:
+        """Post the session message once, then keep editing that same message.
+
+        Scheduled, never awaited by the caller: a step of a form must not wait
+        on a Discord round trip inside the three seconds it has to answer.
+        """
+        if not getattr(self.bot, "loop", None):
+            return
+
+        if journey.id in self._journey_tasks:
+            self._journey_dirty.add(journey.id)
+            return
+
+        self._journey_tasks.add(journey.id)
+        self.schedule_send(self._render_journey(journey))
+
+    async def _render_journey(self, journey) -> None:
+        """Coalesces the edits a burst of steps would otherwise each trigger."""
+        try:
+            await asyncio.sleep(constants_commands.ANALYTICS_JOURNEY_DEBOUNCE_SECONDS)
+            channel = self.trace_channel(journey)
+            if channel:
+                embed = build_trace_embed(journey)
+                message = self._journey_messages.get(journey.id)
+                if message is None:
+                    from app.components.buttons import journey_message_view
+
+                    self._journey_messages[journey.id] = await channel.send(
+                        embed=embed, view=journey_message_view(journey.session_id)
+                    )
+                else:
+                    await message.edit(embed=embed)
+        except Exception:
+            pass
+        finally:
+            self._journey_tasks.discard(journey.id)
+            if journey.id in self._journey_dirty:
+                self._journey_dirty.discard(journey.id)
+                self.publish_journey(journey)
+            elif journey.finished_at:
+                self._journey_messages.pop(journey.id, None)
 
     def add_embed(self, record: logging.LogRecord):
         title, color = self.get_log_type(record)
@@ -214,16 +477,19 @@ class DiscordLogsHandler(logging.Handler):
     def parse_application_error_desc(self, record: logging.LogRecord):
         tb = traceback.format_exc()
         tb_formatted = format_traceback_message(tb)
-        return f"Unexpected error raised an exception: ```{record.exc_info[1]}```\n**Path** ```{record.pathname}```\n**Traceback**```{tb_formatted or record.msg}```"
+        exception = record.exc_info[1] if record.exc_info else record.getMessage()
+        return f"Unexpected error raised an exception: ```{exception}```\n**Path** ```{record.pathname}```\n**Traceback**```{tb_formatted or record.msg}```"
 
     def add_fields(self, embed: discord.Embed, record: logging.LogRecord):
         interaction: discord.Interaction = getattr(record, "interaction", None)
         guild_id = getattr(record, "guild_id", None)
         context = getattr(record, "context", None)
+        identity = record_identity(record)
 
         if interaction:
-            embed.add_field(name="Interaction ID", value=interaction.id)
-            embed.add_field(name="Guild ID", value=interaction.guild.id)
+            embed.add_field(name="Interaction ID", value=identity["interaction_id"])
+            if interaction.guild:
+                embed.add_field(name="Guild ID", value=identity["guild_id"])
             embed.add_field(name="User ID", value=interaction.user.mention)
 
             if embed.title == constants.COMMAND_CALL_TITLE:
@@ -240,14 +506,14 @@ class DiscordLogsHandler(logging.Handler):
                     embed.add_field(name="Interaction Source", value=interaction_source, inline=True)
 
             if interaction.channel:
-                embed.add_field(name="Channel ID", value=interaction.channel.id)
+                embed.add_field(name="Channel ID", value=identity["channel_id"])
 
             if interaction.message:
                 embed.add_field(name="Message ID", value=interaction.message.id)
         elif context:
             self._add_context_fields(embed, context)
         elif guild_id:
-            embed.add_field(name="Guild ID", value=guild_id)
+            embed.add_field(name="Guild ID", value=identity["guild_id"])
 
             owner_id = getattr(record, "owner_id", None)
             if owner_id:

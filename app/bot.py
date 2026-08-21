@@ -41,5 +41,11 @@ class DiscordBot(Bot):
         )
 
     async def setup_hook(self) -> None:
+        from app.components.buttons import JourneyRefreshButton
+
+        # Registered as a class, not per message: a session's refresh button
+        # keeps working across restarts because its id carries the session.
+        self.add_dynamic_items(JourneyRefreshButton)
+
         await cogs_manager(self, "load", get_cogs_folder())
         await self.tree.set_translator(Translator(self))

@@ -18,7 +18,7 @@ from app.data.notifications_twitch import (
     save_stream_notification,
     update_last_stream_date,
 )
-from app.services import cache
+from app.services import analytics, cache
 from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
@@ -131,6 +131,7 @@ async def process_notifications(guilds_data, streamer_name, stream_info, user_in
                 embed=create_stream_notification_embed(streamer_name, stream_info, user_info)
             )
             save_stream_notification(guild.id, channel.id, streamer_name, message.id)
+            analytics.record_value(guild.id, constants.NOTIFICATIONS_TWITCH_KEY)
             count += 1
     return count
 

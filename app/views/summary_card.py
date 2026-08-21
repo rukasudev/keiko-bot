@@ -1024,6 +1024,12 @@ def build_summary_card_from_step(step: Dict[str, Any], form, interaction: discor
                 "{fields}",
                 _format_required_labels(labels, locale),
             )
+            form.emit_event(
+                "setup.required_missing", done_interaction,
+                card_key=step.get("key"),
+                missing_count=len(missing),
+                missing_keys=missing,
+            )
             return await done_interaction.response.send_message(message, ephemeral=True, delete_after=10)
         await form._callback(done_interaction)
 

@@ -36,7 +36,7 @@ class YoutubeClient:
             "hub.verify": "async",
         }
         response = requests.post(url, data=body)
-        logger.info(f"Subscribed to new video event for channel: {channel_id}. Status Code: {response.status_code}", log_type=logconstants.COMMAND_INFO_TYPE)
+        logger.info(f"subscribed — channel {channel_id} ({response.status_code})", log_type=logconstants.COMMAND_INFO_TYPE)
         return response
 
     def unsubscribe_from_new_video_event(self, channel_id: str) -> None:
@@ -48,6 +48,6 @@ class YoutubeClient:
             "hub.verify": "async",
         }
         response = requests.post(url, data=body)
-        logger.info(f"Unsubscribed from new video event for channel: {channel_id}. Status Code: {response.status_code}", log_type=logconstants.COMMAND_INFO_TYPE)
+        logger.info(f"unsubscribed — channel {channel_id} ({response.status_code})", log_type=logconstants.COMMAND_INFO_TYPE)
         return response
 

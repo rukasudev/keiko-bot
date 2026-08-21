@@ -36,6 +36,24 @@ class ConfirmActionView(discord.ui.View):
         self.stop()
 
 
+def emit_from_view(event: str, view: discord.ui.View, interaction: discord.Interaction) -> None:
+    """Terminal setup events carry the friction the session accumulated.
+
+    The cancelled view may be the form itself or any screen it rendered, so the
+    owning session is resolved rather than assumed.
+    """
+    owner = view if hasattr(view, "emit_event") else getattr(view, "owner_form", None)
+    if not owner:
+        return
+
+    session = owner.session
+    owner.emit_event(
+        event, interaction,
+        step_key=session.last_step_key,
+        **session.friction(),
+    )
+
+
 def finalize_configuration_view(view: discord.ui.View) -> None:
     if isinstance(view, discord.ui.LayoutView):
         def remove_action_rows(parent) -> None:
@@ -57,10 +75,12 @@ async def request_discard_confirmation(
     from app.components.embed import response_error_embed
 
     async def keep(keep_interaction: discord.Interaction) -> None:
+        emit_from_view("setup.discard_recovered", source_view, keep_interaction)
         await keep_interaction.response.defer()
         await keep_interaction.delete_original_response()
 
     async def discard(discard_interaction: discord.Interaction) -> None:
+        emit_from_view("setup.discarded", source_view, discard_interaction)
         finalize_configuration_view(source_view)
         source_view.stop()
         try:

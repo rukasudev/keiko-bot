@@ -8,13 +8,21 @@ from app.constants import ViewConstants as view_constants
 
 
 class CustomModal(discord.ui.Modal):
-    def __init__(self, config: dict, callback: Callable, locale: str, cogs: Dict[str, Any]) -> None:
+    def __init__(
+        self,
+        config: dict,
+        callback: Callable,
+        locale: str,
+        cogs: Dict[str, Any],
+        on_validation_error: Callable = None,
+    ) -> None:
         self.config = config
         self.callback = callback
         self.lowercase = config.get("lowercase", False)
         self.locale = locale
         self.validation = config.get("validation", None)
         self.modal_validation = ModalValidations(cogs=cogs)
+        self.on_validation_error = on_validation_error
         self.field_keys = []
         super().__init__(title=config.get("title").get(locale), timeout=view_constants.SHORT_TIMEOUT_SECONDS)
         self.add_inputs(config, locale)
@@ -126,6 +134,10 @@ class CustomModal(discord.ui.Modal):
             validation = self.modal_validation.validate(self.validation, responses=self.response)
             if not validation["ok"]:
                 self.response = None
+                if self.on_validation_error:
+                    self.on_validation_error(
+                        interaction, self.validation, validation["error_key"]
+                    )
                 embed = response_error_embed(validation["error_key"], self.locale)
                 return await interaction.response.send_message(embed=embed, ephemeral=True, delete_after=10)
 

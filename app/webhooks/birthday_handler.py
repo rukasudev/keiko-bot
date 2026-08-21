@@ -5,10 +5,12 @@ import discord
 
 from app import bot, logger
 from app.components.embed import default_welcome_embed
+from app.constants import Commands
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
 from app.data import birthdays as birthdays_data
 from app.exceptions import ErrorContext
+from app.services import analytics
 from app.services.dates import format_mm_dd_label, is_valid_mm_dd
 from app.services.utils import ml, parse_locale
 
@@ -112,6 +114,7 @@ async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
                 content = "@everyone" if mention_everyone else None
                 allowed_mentions = discord.AllowedMentions(everyone=mention_everyone, users=False, roles=False)
                 await channel.send(content=content, embed=embed, allowed_mentions=allowed_mentions)
+                analytics.record_value(guild.id, Commands.REMINDERS_BIRTHDAY_KEY)
 
     except Exception as e:
         logger.error(

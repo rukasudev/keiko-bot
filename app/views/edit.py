@@ -14,12 +14,14 @@ from app.views.form import Form
 
 
 class EditCommand(discord.ui.View):
-    def __init__(self, command_key: str, cogs: Dict[str, Any], locale: str, callback: Callable):
+    def __init__(self, command_key: str, cogs: Dict[str, Any], locale: str,
+                 callback: Callable, parent_view: Any = None):
         super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.command_key = command_key
         self.locale = locale
         self.after_callback = callback
         self.form_view = Form(command_key, locale, cogs=cogs)
+        self.form_view.inherit_context(parent_view)
         self.composition = False
         self.composition_picker_step = None
         self.composition_picker_view = None

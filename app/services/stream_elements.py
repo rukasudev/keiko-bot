@@ -11,7 +11,7 @@ from app.constants import LogTypes as logconstants
 from app.constants import Style as style_constants
 from app.exceptions import ErrorContext
 from app.integrations.stream_elements import StreamElementsClient
-from app.services import cache
+from app.services import analytics, cache
 from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
@@ -59,6 +59,9 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
             return
 
         await message.reply(embed=create_response_embed(command, reply, message.author, streamer))
+        analytics.record_value(
+            guild_id, constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY
+        )
     except Exception as e:
         logger.error(
             f"Failed in stream_elements: {type(e).__name__}: {e}",

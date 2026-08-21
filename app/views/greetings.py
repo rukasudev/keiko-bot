@@ -7,8 +7,8 @@ from app.constants import Commands as commands_constants
 from app.constants import LogTypes as logconstants
 from app.constants import supported_locales
 from app.integrations.google_translate import GoogleTranslate
-from app.services.cache import increment_redis_key
-from app.services.utils import get_command_by_key, ml, parse_locale
+from app.services import analytics
+from app.services.utils import ml, parse_locale
 
 SETUP_FEATURES = [
     {
@@ -51,25 +51,9 @@ class SetupButton(discord.ui.Button):
             embed = response_embed("buttons.setup.admin-only", self.locale)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        import importlib
-        from app.components.buttons import ExecuteCommandButton
+        from app.components.buttons import run_feature_command
 
-        command = get_command_by_key(interaction.client, self.command_key)
-        command_name = command.qualified_name if command else self.command_key
-
-        logger.info(
-            f"command started ({interaction.id}): command {command_name} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}",
-            interaction=interaction,
-            log_type=logconstants.COMMAND_CALL_TYPE,
-            command_name=command_name,
-            interaction_source="button (greetings)",
-        )
-
-        increment_redis_key(f"{logconstants.COMMAND_CALL_TYPE}:{self.command_key}:button")
-
-        guild_id = str(interaction.guild.id)
-        service = importlib.import_module(ExecuteCommandButton.COMMAND_SERVICES[self.command_key])
-        await service.manager(interaction=interaction, guild_id=guild_id)
+        await run_feature_command(interaction, self.command_key, "greeting_button")
 
 
 class DashboardButton(discord.ui.Button):
@@ -170,7 +154,19 @@ class GreetingsView(discord.ui.View):
         for channel in guild.text_channels:
             if not channel.permissions_for(guild.me).send_messages:
                 continue
+            self._emit_greeting_sent(guild, channel_found=True)
             return await channel.send(embed=embed, view=self)
+
+        self._emit_greeting_sent(guild, channel_found=False)
+
+    def _emit_greeting_sent(self, guild: discord.Guild, channel_found: bool) -> None:
+        """A greeting nobody could receive is the quietest onboarding failure."""
+        analytics.emit(
+            "guild.greeting_sent",
+            guild_id=guild.id,
+            features_offered=len(SETUP_FEATURES),
+            channel_found=channel_found,
+        )
 
     async def language_callback(self, interaction: discord.Interaction):
         selected = self.selected_options[0]

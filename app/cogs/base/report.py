@@ -9,6 +9,7 @@ from app.bot import DiscordBot
 from app.components.embed import report_embed, response_embed
 from app.constants import LogTypes as logconstants
 from app.decorators import keiko_command
+from app.services import analytics
 from app.services.utils import parse_valid_locale
 from app.translator import locale_str
 from app.types.cogs import Cog
@@ -46,6 +47,13 @@ class Report(Cog, name="report"):
         attachment: discord.Attachment = None,
     ) -> None:
         await interaction.response.defer()
+
+        analytics.emit(
+            "report.submitted",
+            guild_id=interaction.guild_id,
+            user_id=interaction.user.id,
+            command=command,
+        )
 
         notion_response = self._create_notion_report(interaction, title, description, command, attachment)
         ticket_id = self._get_ticket_unique_id(notion_response)

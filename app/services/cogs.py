@@ -1,7 +1,19 @@
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
+from app.constants import Commands as constants
 from app.data import cogs as cogs_data
+from app.services import analytics
 from app.services.cache import remove_cog_cache_by_guild
+
+LIFECYCLE_ANALYTICS_EVENTS = {
+    constants.ENABLED_KEY: "feature.enabled",
+    constants.EDITED_KEY: "config.changed",
+    constants.PAUSED_KEY: "feature.paused",
+    constants.UNPAUSED_KEY: "feature.unpaused",
+    constants.DISABLED_KEY: "feature.disabled",
+    constants.ADDED_KEY: "feature.item_added",
+    constants.REMOVED_KEY: "feature.item_removed",
+}
 
 
 def insert_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
@@ -19,7 +31,15 @@ def insert_cog_event(
     event: str,
     date: str,
     user_id: str,
+    source: Optional[str] = None,
+    session_id: Optional[str] = None,
+    **props: Any,
 ):
+    """Writes the permanent audit record and emits its analytics counterpart.
+
+    Every state change already passes through here, so the product view comes
+    for free — no handler gains an analytics call of its own.
+    """
     data = {
         "guild_id": guild_id,
         "cog_key": cog_key,
@@ -27,6 +47,18 @@ def insert_cog_event(
         "datetime": date,
         "event": event,
     }
+
+    analytics_event = LIFECYCLE_ANALYTICS_EVENTS.get(event)
+    if analytics_event:
+        analytics.emit(
+            analytics_event,
+            guild_id=guild_id,
+            user_id=user_id,
+            feature=cog_key,
+            source=source or "manager",
+            session_id=session_id,
+            **props,
+        )
 
     return cogs_data.insert_cog_event(cog_key, data)
 

@@ -291,6 +291,7 @@ async def test_required_message_uses_missing_labels_from_current_card():
         state=SimpleNamespace(can_go_back=False),
         _go_back=None,
         _callback=AsyncMock(),
+        emit_event=MagicMock(),
     )
     view = build_summary_card_from_step(
         card,

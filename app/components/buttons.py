@@ -208,7 +208,7 @@ class EditButton(discord.ui.Button):
         from app.views.panel_transitions import transition_to_embed
 
         parent_view = self.view
-        view = EditCommand(parent_view.command_key, parent_view.cogs or parent_view._parse_responses_to_cog(), self.locale, self.after_callback)
+        view = EditCommand(parent_view.command_key, parent_view.cogs or parent_view._parse_responses_to_cog(), self.locale, self.after_callback, parent_view=parent_view)
         parent_view.edited_form_view = view.form_view
         embed = panel_screen_embed(interaction, parent_view.command_key, self.locale)
         parent_view._original_embed = embed
@@ -249,6 +249,16 @@ class PreviewButton(discord.ui.Button):
 
         view = self.view
         responses = view.responses if hasattr(view, "responses") else []
+
+        from app.services import analytics
+        analytics.emit(
+            "feature.tested",
+            guild_id=interaction.guild_id,
+            user_id=interaction.user.id,
+            feature=self.command_key,
+            surface="preview",
+        )
+
         await self.custom_callback(interaction, responses)
 
 
@@ -294,6 +304,88 @@ class BackButton(discord.ui.Button):
         )
 
 
+class JourneyRefreshButton(
+    discord.ui.DynamicItem[discord.ui.Button],
+    template=r"journey:refresh:(?P<session_id>[A-Za-z0-9_-]+)",
+):
+    """Pulls a session's story from storage, on demand.
+
+    The message is not rewritten on every step — the Discord edit bucket is per
+    channel and every session shares one. This button is how you see the middle
+    of a story before it ends, and it also repairs a message a restart left
+    stuck, because it renders from the events rather than from memory.
+    """
+
+    def __init__(self, session_id: str) -> None:
+        self.session_id = session_id
+        super().__init__(
+            discord.ui.Button(
+                label="Refresh",
+                emoji="🔄",
+                style=discord.ButtonStyle.grey,
+                custom_id=f"journey:refresh:{session_id}",
+            )
+        )
+
+    @classmethod
+    async def from_custom_id(cls, interaction, item, match):
+        return cls(match["session_id"])
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        from app.logger import build_trace_embed
+        from app.services import journey
+
+        story = journey.rebuild(self.session_id)
+        if not story:
+            return await interaction.response.defer()
+
+        await interaction.response.edit_message(
+            embed=build_trace_embed(story), view=self.view
+        )
+
+
+def journey_message_view(session_id: str) -> discord.ui.View:
+    """The refresh control that rides along with a session's log message."""
+    view = discord.ui.View(timeout=None)
+    view.add_item(JourneyRefreshButton(session_id))
+    return view
+
+
+async def run_feature_command(
+    interaction: discord.Interaction, command_key: str, source: str
+) -> None:
+    """The single entry point from any button into a feature's configuration.
+
+    Opens the trace the whole invocation is logged under, records where the
+    user came from, and hands over to the feature service.
+    """
+    from app.services import analytics
+    from app.services.trace import trace_scope
+
+    analytics.mark_source(interaction, source)
+    command = get_command_by_key(interaction.client, command_key)
+    command_name = command.qualified_name if command else command_key
+
+    async with trace_scope(
+        command_name,
+        guild_id=interaction.guild_id,
+        user_id=interaction.user.id,
+        source=source,
+        feature=command_key,
+    ) as trace:
+        trace.add(f"`/{command_name}` invoked")
+        trace.footnote = analytics.describe_attempt(
+            analytics.count_attempt(interaction.guild_id, command_key), command_key
+        )
+        analytics.emit("command.invoked", command=command_name)
+        increment_redis_key(f"{logconstants.COMMAND_CALL_TYPE}:{command_key}:button")
+
+        service = importlib.import_module(ExecuteCommandButton.COMMAND_SERVICES[command_key])
+        await service.manager(
+            interaction=interaction, guild_id=str(interaction.guild.id)
+        )
+
+
 class ExecuteCommandButton(discord.ui.Button):
     COMMAND_SERVICES = {
         "welcome_messages": "app.services.welcome_messages",
@@ -319,22 +411,7 @@ class ExecuteCommandButton(discord.ui.Button):
             embed = response_embed("buttons.setup.admin-only", parse_locale(interaction.locale))
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        command = get_command_by_key(interaction.client, self.command_key)
-        command_name = command.qualified_name if command else self.command_key
-
-        logger.info(
-            f"command started ({interaction.id}): command {command_name} called by {interaction.user.id} in channel {interaction.channel.id} at guild {interaction.guild.id}",
-            interaction=interaction,
-            log_type=logconstants.COMMAND_CALL_TYPE,
-            command_name=command_name,
-            interaction_source="button (help)",
-        )
-
-        increment_redis_key(f"{logconstants.COMMAND_CALL_TYPE}:{self.command_key}:button")
-
-        guild_id = str(interaction.guild.id)
-        service = importlib.import_module(self.COMMAND_SERVICES[self.command_key])
-        await service.manager(interaction=interaction, guild_id=guild_id)
+        await run_feature_command(interaction, self.command_key, "help_button")
 
 
 class FormBackButton(discord.ui.Button):
@@ -400,6 +477,7 @@ class AddItemButton(discord.ui.Button):
 
         parent_view = self.view
         view = Form(parent_view.command_key, self.locale, cogs=parent_view.cogs or parent_view._parse_responses_to_cog())
+        view.inherit_context(parent_view)
         view.filter_steps(constants.COMMAND_KEY_TO_COMPOSITION_KEY[parent_view.command_key])
         view._set_after_callback(self.after_callback)
 

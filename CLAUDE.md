@@ -43,6 +43,10 @@ make clean        # clean cache and venv
   exist without searching for it.
 - Read `docs/form-configuration.md` before touching any form or YAML-driven command — it
   maps the engine, its registries, and its extension points.
+- Read `docs/analytics.md` before adding any metric, event or log call — event names live
+  in `app/analytics/catalog.yml` and nowhere else, instrumentation belongs in the shared
+  seams (never in a command handler), and the Discord log channels get one message per
+  unit of work, not one per log line.
 - Decision order, mandatory: **1)** YAML-only change → **2)** reuse an existing Python
   capability → **3)** add a new generic, reusable primitive → **4)** architecture exception,
   which must be explicitly declared and justified — never introduced silently.

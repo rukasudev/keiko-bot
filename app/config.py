@@ -18,6 +18,8 @@ class AppConfig:
 
         self.ENVIRONMENT = os.getenv("APPLICATION_ENVIRONMENT")
         self.DEBUG = os.getenv("DEBUG")
+        self.ANALYTICS_ENABLED = os.getenv("ANALYTICS_ENABLED", "true").lower() != "false"
+        self.DEBUG_LOGS_ENABLED = os.getenv("DEBUG_LOGS_ENABLED", "true").lower() != "false"
         self.get_ssm_configs() if self.is_prod() else self.get_local_configs()
 
     def get_local_configs(self):

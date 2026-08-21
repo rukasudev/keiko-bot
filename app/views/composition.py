@@ -18,6 +18,7 @@ class FormComposition(discord.ui.View):
         index: int = None,
         prefilled_fields: Dict[str, Any] = None,
         parent_context: Dict[str, Any] = None,
+        parent_form: Any = None,
     ) -> None:
         super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.composition = composition
@@ -27,6 +28,7 @@ class FormComposition(discord.ui.View):
         self.index = index
         self.prefilled_fields = prefilled_fields or {}
         self.parent_context = parent_context or {}
+        self.parent_form = parent_form
         self.responses = []
 
     def get_response(self):
@@ -98,6 +100,7 @@ class FormComposition(discord.ui.View):
                 del cogs[self.index]
 
         self.form_view = Form("", self.locale, self.composition.get("steps", {}), cogs=current_cog or cogs)
+        self.form_view.inherit_context(self.parent_form)
         self.form_view.all_cogs = cogs
         self.form_view.parent_context = self.parent_context
         self.form_view.composition_responses = self.responses

@@ -71,6 +71,12 @@ class _EarlyMockRedisClient:
     def delete(self, *keys):
         pass
 
+    def incrby(self, key, amount=1):
+        return amount
+
+    def expire(self, key, seconds):
+        return True
+
 
 # Install early mocks into app module before anything imports from it
 import app
@@ -88,6 +94,7 @@ class MockRedisClient:
 
     def __init__(self):
         self._data = {}
+        self._expirations = {}
 
     def get(self, key):
         return self._data.get(key)
@@ -104,13 +111,11 @@ class MockRedisClient:
 
     def keys(self, pattern):
         import fnmatch
-        pattern = pattern.replace('*', '.*')
         return [k for k in self._data.keys() if fnmatch.fnmatch(k, pattern)]
 
     def scan_iter(self, pattern):
         import fnmatch
-        pattern = pattern.replace('*', '.*')
-        for key in self._data.keys():
+        for key in list(self._data.keys()):
             if fnmatch.fnmatch(key, pattern):
                 yield key
 
@@ -125,6 +130,13 @@ class MockRedisClient:
         self._data[key] = str(current + amount)
         return current + amount
 
+    def expire(self, key, seconds):
+        self._expirations[key] = seconds
+        return True
+
+    def ttl(self, key):
+        return self._expirations.get(key, -1)
+
 
 class MockCursor:
     """Mock de um cursor MongoDB."""
@@ -133,6 +145,20 @@ class MockCursor:
         self._data = data
 
     def sort(self, field, direction=-1):
+        """Really sorts: a test asserting order must fail when order is wrong."""
+        keys = field if isinstance(field, list) else [(field, direction)]
+        for key, key_direction in reversed(keys):
+            self._data.sort(
+                key=lambda doc: (doc.get(key) is None, doc.get(key)),
+                reverse=key_direction == -1,
+            )
+        return self
+
+    def batch_size(self, size):
+        return self
+
+    def limit(self, count):
+        self._data = self._data[:count]
         return self
 
     def __iter__(self):
@@ -140,6 +166,82 @@ class MockCursor:
 
     def __len__(self):
         return len(self._data)
+
+
+def _resolve_path(doc, dotted_key, create=False):
+    """Walk a dotted update path, returning the owning dict and the leaf name."""
+    parts = dotted_key.split(".")
+    current = doc
+    for part in parts[:-1]:
+        nested = current.get(part)
+        if not isinstance(nested, dict):
+            if not create:
+                return None, parts[-1]
+            nested = {}
+            current[part] = nested
+        current = nested
+    return current, parts[-1]
+
+
+def _apply_update(doc, update, inserted):
+    """The update operators the app actually uses, dotted paths included."""
+    for key, value in (update.get("$set") or {}).items():
+        owner, leaf = _resolve_path(doc, key, create=True)
+        owner[leaf] = value
+
+    if inserted:
+        for key, value in (update.get("$setOnInsert") or {}).items():
+            owner, leaf = _resolve_path(doc, key, create=True)
+            owner[leaf] = value
+
+    for key, amount in (update.get("$inc") or {}).items():
+        owner, leaf = _resolve_path(doc, key, create=True)
+        owner[leaf] = (owner.get(leaf) or 0) + amount
+
+    for key, value in (update.get("$max") or {}).items():
+        owner, leaf = _resolve_path(doc, key, create=True)
+        current = owner.get(leaf)
+        if current is None or value > current:
+            owner[leaf] = value
+
+    for key, value in (update.get("$min") or {}).items():
+        owner, leaf = _resolve_path(doc, key, create=True)
+        current = owner.get(leaf)
+        if current is None or value < current:
+            owner[leaf] = value
+
+    for key, value in (update.get("$addToSet") or {}).items():
+        owner, leaf = _resolve_path(doc, key, create=True)
+        existing = owner.get(leaf)
+        if not isinstance(existing, list):
+            existing = []
+            owner[leaf] = existing
+        if value not in existing:
+            existing.append(value)
+
+
+def _matches_value(actual, expected):
+    """Equality, plus the comparison operators a range query needs."""
+    if not isinstance(expected, dict):
+        return actual == expected
+
+    operators = {
+        "$gte": lambda a, b: a is not None and a >= b,
+        "$gt": lambda a, b: a is not None and a > b,
+        "$lte": lambda a, b: a is not None and a <= b,
+        "$lt": lambda a, b: a is not None and a < b,
+        "$ne": lambda a, b: a != b,
+        "$in": lambda a, b: a in b,
+        "$exists": lambda a, b: (a is not None) == b,
+    }
+
+    for operator, argument in expected.items():
+        check = operators.get(operator)
+        if check is None:
+            return actual == expected
+        if not check(actual, argument):
+            return False
+    return True
 
 
 class MockMongoCollection:
@@ -183,7 +285,7 @@ class MockMongoCollection:
                     if current != v:
                         match = False
                         break
-                elif doc.get(k) != v:
+                elif not _matches_value(doc.get(k), v):
                     match = False
                     break
             if match:
@@ -201,19 +303,29 @@ class MockMongoCollection:
         self._data.append(doc.copy())
         return MagicMock(inserted_id="mock_id")
 
+    def insert_many(self, docs, ordered=True):
+        for doc in docs:
+            self._data.append(doc.copy())
+        return MagicMock(inserted_ids=["mock_id"] * len(docs))
+
     def update_one(self, filter_dict, update, upsert=False):
         for doc in self._data:
             if all(doc.get(k) == v for k, v in filter_dict.items()):
-                if "$set" in update:
-                    doc.update(update["$set"])
+                _apply_update(doc, update, inserted=False)
                 return MagicMock(modified_count=1)
         if upsert:
             new_doc = filter_dict.copy()
-            if "$set" in update:
-                new_doc.update(update["$set"])
+            _apply_update(new_doc, update, inserted=True)
             self._data.append(new_doc)
             return MagicMock(modified_count=0, upserted_id="mock_id")
         return MagicMock(modified_count=0)
+
+    def bulk_write(self, operations, ordered=True):
+        for operation in operations:
+            self.update_one(
+                operation._filter, operation._doc, upsert=operation._upsert
+            )
+        return MagicMock(modified_count=len(operations))
 
     def delete_one(self, filter_dict):
         for i, doc in enumerate(self._data):

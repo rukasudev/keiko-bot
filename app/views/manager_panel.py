@@ -152,7 +152,8 @@ class SectionEditButton(discord.ui.Button):
 
         manager = self.panel.manager
         view = EditCommand(
-            manager.command_key, manager.cogs, manager.locale, manager.update_command
+            manager.command_key, manager.cogs, manager.locale, manager.update_command,
+            parent_view=manager,
         )
         manager.edited_form_view = view.form_view
         manager._original_embed = panel_screen_embed(

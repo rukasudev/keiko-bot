@@ -7,6 +7,7 @@ from app.bot import DiscordBot
 from app.components.select import HelpSelect
 from app.constants import CogsConstants as constants
 from app.decorators import keiko_command
+from app.services import analytics
 from app.services.utils import ml, parse_valid_locale
 from app.translator import locale_str
 from app.types.cogs import Cog
@@ -104,6 +105,12 @@ class Help(Cog, name=locale_str("help", type="name", namespace="help")):
         description=locale_str("help", type="desc", namespace="help"),
     )
     async def help(self, interaction: discord.Interaction) -> None:
+        analytics.emit(
+            "help.opened",
+            guild_id=interaction.guild_id,
+            user_id=interaction.user.id,
+            source=analytics.resolve_source(interaction),
+        )
         data = self.populate_data(interaction)
 
         title = ml(f"{self.base_i18n_path}.embed.title", locale=interaction.locale)

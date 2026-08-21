@@ -1,0 +1,396 @@
+# Product analytics catalog — the single source of truth for what Keiko records.
+#
+# `emit()` refuses any event name that is not declared here, and
+# tests/behavioral/contracts/test_analytics_catalog.py fails the build when the
+# code and this file disagree. Reference: docs/analytics.md
+#
+# class:  event   -> one document in guild.analytics_events (TTL retention_days)
+#         counter -> incremented in guild.analytics_guild_month (no document)
+#         audit   -> also written to events.<cog_key> by insert_cog_event
+# actor:  user | system | job
+
+sources:
+  - slash
+  - greeting_button
+  - setup_dashboard
+  - help_button
+  - manager
+  - context_menu
+  - webhook
+  - job
+  - internal
+
+results:
+  - success
+  - failure
+  - abandoned
+
+events:
+  command.invoked:
+    version: 1
+    class: [event, counter]
+    description: An application command reached the bot.
+    emitted_at: app/cogs/events.py — Events.on_interaction
+    actor: user
+    required: [command, source]
+    optional: [feature, is_admin]
+    retention_days: 90
+    cardinality_risk: low
+
+  command.failed:
+    version: 1
+    class: [event, counter]
+    description: A command raised an error that reached the error handler.
+    emitted_at: app/cogs/errors.py — Errors.on_app_command_error
+    actor: user
+    required: [command, error_type]
+    optional: [feature, step_key]
+    retention_days: 90
+    cardinality_risk: low
+
+  feature.setup_opened:
+    version: 1
+    class: [event]
+    description: The first-time configuration form was opened for a feature.
+    emitted_at: app/services/moderations.py — send_command_form_message
+    actor: user
+    required: [feature, source, session_id]
+    optional: []
+    retention_days: 90
+    cardinality_risk: low
+
+  feature.manager_opened:
+    version: 1
+    class: [event]
+    description: The manager panel of an already configured feature was opened.
+    emitted_at: app/services/moderations.py — send_command_manager_message
+    actor: user
+    required: [feature, source, session_id]
+    optional: [enabled]
+    retention_days: 90
+    cardinality_risk: low
+
+  setup.step_viewed:
+    version: 1
+    class: [event]
+    description: A form step was rendered to the user.
+    emitted_at: app/views/form.py — Form._update_form_step
+    actor: user
+    required: [feature, session_id, step_key, step_action, step_index]
+    optional: [ms_since_prev]
+    retention_days: 90
+    cardinality_risk: low
+
+  setup.step_completed:
+    version: 1
+    class: [event]
+    description: A step left the screen, with how long it was on it.
+    emitted_at: app/views/form.py — Form._update_form_step, when moving on
+    actor: user
+    required: [feature, session_id, step_key, step_action]
+    optional: [ms_on_step, choice]
+    retention_days: 90
+    cardinality_risk: low
+
+  setup.step_back:
+    version: 1
+    class: [event]
+    description: The user navigated back to the previous step.
+    emitted_at: app/views/form.py — Form._go_back
+    actor: user
+    required: [feature, session_id, step_key]
+    optional: []
+    retention_days: 90
+    cardinality_risk: low
+
+  setup.validation_failed:
+    version: 1
+    class: [event, counter]
+    description: A YAML validator refused the value submitted in a modal.
+    emitted_at: app/components/modals.py — CustomModal.on_submit, failure branch
+    actor: user
+    required: [feature, session_id, step_key, validation, error_key]
+    optional: [attempt_n]
+    retention_days: 90
+    cardinality_risk: low
+
+  setup.required_missing:
+    version: 1
+    class: [event, counter]
+    description: The configuration card was confirmed with required fields empty.
+    emitted_at: app/views/summary_card.py — on_done, missing branch
+    actor: user
+    required: [feature, session_id, card_key, missing_count]
+    optional: [missing_keys]
+    retention_days: 90
+    cardinality_risk: low
+
+  setup.completed:
+    version: 1
+    class: [event, audit]
+    description: A configuration form was finished and persisted.
+    emitted_at: app/views/form.py — Form._finish
+    actor: user
+    required: [feature, session_id, source, duration_ms, steps_viewed]
+    optional: [validation_failures, back_count, duration_bucket]
+    retention_days: 90
+    audit: true
+    cardinality_risk: low
+
+  setup.discarded:
+    version: 1
+    class: [event]
+    description: The user explicitly discarded a configuration in progress.
+    emitted_at: app/views/confirm_action.py — request_discard_confirmation, discard
+    actor: user
+    required: [feature, session_id]
+    optional:
+      - step_key
+      - steps_viewed
+      - validation_failures
+      - back_count
+      - duration_ms
+      - duration_bucket
+    retention_days: 90
+    cardinality_risk: low
+
+  setup.abandoned:
+    version: 1
+    class: [event, counter]
+    description: The view timed out with the configuration unfinished.
+    emitted_at: app/views/form.py — Form.on_timeout
+    actor: user
+    required: [feature, session_id]
+    optional:
+      - step_key
+      - steps_viewed
+      - validation_failures
+      - back_count
+      - duration_ms
+      - duration_bucket
+    retention_days: 90
+    cardinality_risk: low
+
+  setup.discard_recovered:
+    version: 1
+    class: [event]
+    description: The user opened the discard prompt and chose to keep the setup.
+    emitted_at: app/views/confirm_action.py — request_discard_confirmation, keep
+    actor: user
+    required: [feature, session_id]
+    optional:
+      - step_key
+      - steps_viewed
+      - validation_failures
+      - back_count
+      - duration_ms
+      - duration_bucket
+    retention_days: 90
+    cardinality_risk: low
+
+  config.changed:
+    version: 1
+    class: [event, audit]
+    description: An existing configuration was edited through the manager.
+    emitted_at: app/views/manager.py — Manager.update_command
+    actor: user
+    required: [feature, source]
+    optional: [session_id, changed_keys, changed_count]
+    retention_days: 90
+    audit: true
+    cardinality_risk: low
+
+  feature.enabled:
+    version: 1
+    class: [event, audit]
+    description: A feature became active for a guild.
+    emitted_at: app/views/form.py — Form._finish
+    actor: user
+    required: [feature, source]
+    optional: [session_id]
+    retention_days: 90
+    audit: true
+    cardinality_risk: low
+
+  feature.paused:
+    version: 1
+    class: [event, audit]
+    description: A feature was paused from the manager.
+    emitted_at: app/views/manager.py — Manager.pause_callback
+    actor: user
+    required: [feature, source]
+    optional: [days_since_enabled, value_events_since_enabled]
+    retention_days: 90
+    audit: true
+    cardinality_risk: low
+
+  feature.unpaused:
+    version: 1
+    class: [event, audit]
+    description: A paused feature was resumed.
+    emitted_at: app/views/manager.py — Manager.unpause_callback
+    actor: user
+    required: [feature, source]
+    optional: [days_since_enabled]
+    retention_days: 90
+    audit: true
+    cardinality_risk: low
+
+  feature.disabled:
+    version: 1
+    class: [event, audit]
+    description: A feature was turned off and its configuration removed.
+    emitted_at: app/views/manager.py — Manager.disable_callback
+    actor: user
+    required: [feature, source]
+    optional: [days_since_enabled, value_events_since_enabled]
+    retention_days: 90
+    audit: true
+    cardinality_risk: low
+
+  feature.item_added:
+    version: 1
+    class: [event, audit]
+    description: An item was added to a composition-based feature.
+    emitted_at: app/views/manager.py — Manager.add_item_callback
+    actor: user
+    required: [feature, source]
+    optional: [item_count]
+    retention_days: 90
+    audit: true
+    cardinality_risk: low
+
+  feature.item_removed:
+    version: 1
+    class: [event, audit]
+    description: An item was removed from a composition-based feature.
+    emitted_at: app/views/manager.py — Manager.remove_item_callback
+    actor: user
+    required: [feature, source]
+    optional: [item_count]
+    retention_days: 90
+    audit: true
+    cardinality_risk: low
+
+  value.delivered:
+    version: 1
+    class: [counter]
+    description: The feature did the thing the user configured it to do.
+    emitted_at: the send/assign call site of each feature service
+    actor: system
+    required: [feature]
+    optional: [outcome]
+    retention_days: 0
+    cardinality_risk: low
+
+  value.blocked_by_permission:
+    version: 1
+    class: [event, counter]
+    description: Delivery failed because Discord refused the bot's permission.
+    emitted_at: the same call sites as value.delivered, failure branch
+    actor: system
+    required: [feature, error_type]
+    optional: []
+    retention_days: 90
+    cardinality_risk: low
+
+  feature.action_performed:
+    version: 1
+    class: [counter]
+    description: A moderation action was taken automatically.
+    emitted_at: app/services/block_links.py — record_blocked_links
+    actor: system
+    required: [feature]
+    optional: [mode, reason, deleted]
+    retention_days: 0
+    cardinality_risk: low
+
+  feature.tested:
+    version: 1
+    class: [event]
+    description: The user exercised a preview or diagnostic surface.
+    emitted_at: PreviewButton and the block links diagnostic
+    actor: user
+    required: [feature, surface]
+    optional: [session_id]
+    retention_days: 90
+    cardinality_risk: low
+
+  guild.joined:
+    version: 1
+    class: [event, audit]
+    description: The bot was added to a guild.
+    emitted_at: app/cogs/events.py — Events.on_guild_join
+    actor: system
+    required: [returning]
+    optional: [size_bucket, owner_guilds]
+    retention_days: 90
+    audit: true
+    cardinality_risk: low
+
+  guild.removed:
+    version: 1
+    class: [event, audit]
+    description: The bot was removed from a guild, with the frozen guild profile.
+    emitted_at: app/cogs/events.py — Events.on_guild_remove
+    actor: system
+    required: [days_in_guild]
+    optional:
+      - features_configured
+      - features_active
+      - days_since_last_value
+      - setups_completed
+      - setups_discarded
+      - value_events
+      - permission_failures
+      - distinct_admins
+      - greeting_sent
+      - first_feature
+    retention_days: 90
+    audit: true
+    cardinality_risk: low
+
+  guild.greeting_sent:
+    version: 1
+    class: [event]
+    description: The onboarding greeting was posted (or could not be posted).
+    emitted_at: app/views/greetings.py — GreetingsView.send
+    actor: system
+    required: [features_offered, channel_found]
+    optional: []
+    retention_days: 90
+    cardinality_risk: low
+
+  help.opened:
+    version: 1
+    class: [event, counter]
+    description: The /help command was opened.
+    emitted_at: app/cogs/base/help.py
+    actor: user
+    required: [source]
+    optional: []
+    retention_days: 90
+    cardinality_risk: low
+
+  dashboard.opened:
+    version: 1
+    class: [event, counter]
+    description: The /setup dashboard was opened.
+    emitted_at: app/cogs/base/setup.py
+    actor: user
+    required: [source]
+    optional: []
+    retention_days: 90
+    cardinality_risk: low
+
+  report.submitted:
+    version: 1
+    class: [event, audit]
+    description: A user sent feedback through /report.
+    emitted_at: app/services/report.py
+    actor: user
+    required: []
+    optional: [command]
+    retention_days: 90
+    audit: true
+    cardinality_risk: low

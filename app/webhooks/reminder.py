@@ -10,17 +10,24 @@ from app.webhooks import webhooks
 
 @webhooks.route('/reminder', methods=['GET', 'POST'])
 def reminder_webhook():
-    logger.info('Reminder webhook received', log_type=logconstants.COMMAND_INFO_TYPE)
+    reminders = request.json.get('reminders_notified') or []
+    logger.info(
+        f'{len(reminders)} reminder(s) notified',
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )
 
-    for reminder in request.json.get('reminders_notified'):
-        logger.info(f'Reminder: {reminder}', log_type=logconstants.COMMAND_INFO_TYPE)
-        logger.info(f"Reminder title: {reminder.get('title')}", log_type=logconstants.COMMAND_INFO_TYPE)
+    for reminder in reminders:
+        title = reminder.get('title')
 
-        if reminder.get('title') == 'youtube_notification':
+        if title == 'youtube_notification':
             proccess_youtube_notification(reminder.get('id'), reminder.get('notes'))
-
-        if reminder.get('title') == commands_constants.REMINDER_API_TITLE_BIRTHDAY:
+        elif title == commands_constants.REMINDER_API_TITLE_BIRTHDAY:
             process_birthday_reminder(reminder.get('id'), reminder.get('notes'))
+        else:
+            logger.warn(
+                f'Unknown reminder title: {title}',
+                log_type=logconstants.COMMAND_WARN_TYPE,
+            )
 
     return 'Reminder webhook received', 200
 
@@ -28,15 +35,20 @@ def reminder_webhook():
 def process_birthday_reminder(reminder_id: str, notes: str) -> None:
     from app import bot
     from app.webhooks.birthday_handler import process_birthday_webhook
-    logger.info(f"Processing birthday reminder: {reminder_id}", log_type=logconstants.COMMAND_INFO_TYPE)
-    logger.info(f"Date: {notes}", log_type=logconstants.COMMAND_INFO_TYPE)
 
-    bot.loop.create_task(process_birthday_webhook(reminder_id, notes))
+    logger.info(
+        f"birthday reminder {reminder_id} — date {notes}",
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )
+    schedule_on_bot_loop(process_birthday_webhook(reminder_id, notes))
 
 def proccess_youtube_notification(reminder_id: str, youtuber: str):
     from app import bot
 
-    logger.info(f'Renewing youtube notification subscription for **{youtuber}**', log_type=logconstants.COMMAND_INFO_TYPE)
+    logger.info(
+        f'renewing subscription — {youtuber}',
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )
 
     channel_id = bot.youtube.get_channel_id_from_username(youtuber)
     if not channel_id:
@@ -44,12 +56,20 @@ def proccess_youtube_notification(reminder_id: str, youtuber: str):
         return
 
     bot.youtube.subscribe_to_new_video_event(channel_id)
-    logger.info(
-        f"Youtuber {youtuber} resubscribed",
-        log_type=logconstants.COMMAND_INFO_TYPE,
-    )
 
     new_renew_date = datetime.now() + timedelta(days=4)
 
     bot.reminder.update_reminder(reminder_id, new_renew_date.date())
-    logger.info(f'Reminder updated. New renew date: {new_renew_date.date()}', log_type=logconstants.COMMAND_INFO_TYPE)
+    logger.info(
+        f'renewal scheduled for {new_renew_date.date()}',
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )
+
+
+def schedule_on_bot_loop(coroutine):
+    """The webhook runs on the Flask thread; create_task would not be safe."""
+    import asyncio
+
+    from app import bot
+
+    return asyncio.run_coroutine_threadsafe(coroutine, bot.loop)

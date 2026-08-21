@@ -311,6 +311,30 @@ def build_overview_embed(bot: DiscordBot, data: dict) -> discord.Embed:
         inline=False,
     )
 
+    embed.add_field(
+        name=":chart_with_upwards_trend: Product",
+        value=build_product_summary(),
+        inline=False,
+    )
+
     embed.set_footer(text=f"\u2022 Keiko {bot.config.ENVIRONMENT}")
 
     return embed
+
+
+def build_product_summary() -> str:
+    """Configured versus actually working \u2014 the distinction command counts hide."""
+    from app.data import analytics as analytics_data
+    from app.services import analytics_reports
+
+    profiles = analytics_data.find_profiles()
+    live = [profile for profile in profiles if not profile.get("removed_at")]
+    activated = [profile for profile in live if profile.get("last_value_at")]
+    abandoned = analytics_reports.abandoned_features()
+    at_risk = analytics_reports.guilds_at_risk()
+
+    return (
+        f"Guilds delivering value: **{len(activated)}** of **{len(live)}**\n"
+        f"Features configured but never used: **{len(abandoned)}**\n"
+        f"Guilds quiet for 14+ days: **{len(at_risk)}**"
+    )

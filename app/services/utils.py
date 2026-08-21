@@ -202,6 +202,63 @@ def check_answer_message(ctx, message) -> bool:
     return message.author == ctx.author and message.channel == ctx.channel
 
 
+@functools.lru_cache(maxsize=64)
+def step_titles(command_key: str, locale: str = "en-us") -> Dict[str, str]:
+    """Every step key of a form mapped to the title a human reads.
+
+    Goes deeper than `parse_form_steps_titles`: a composition runs its own
+    sub-steps and a card owns fields, and those keys are the ones that show up
+    in reports as `custom_link` — meaningless to anyone who has not read the
+    YAML. Cached because a form's copy cannot change at runtime.
+    """
+    titles: Dict[str, str] = {}
+
+    def label(node: Dict[str, Any]) -> Optional[str]:
+        for holder in (node.get("title"), node.get("label"), (node.get("header") or {}).get("title")):
+            if isinstance(holder, dict):
+                text = holder.get(locale) or holder.get("en-us")
+                if text:
+                    return text
+        return None
+
+    def children(step: Dict[str, Any]) -> List[Any]:
+        """`fields:` is a list on a card and a locale map on a button step."""
+        found = []
+        for name in ("fields", "selects", "sections"):
+            value = step.get(name)
+            if isinstance(value, list):
+                found += value
+        return found
+
+    def walk(steps: Any) -> None:
+        if not isinstance(steps, list):
+            return
+        for step in steps:
+            if not isinstance(step, dict):
+                continue
+            key, text = step.get("key"), label(step)
+            if key and text:
+                titles.setdefault(key, text)
+
+            for child in children(step):
+                if isinstance(child, dict) and child.get("key"):
+                    child_text = label(child)
+                    if child_text:
+                        titles.setdefault(child["key"], child_text)
+
+            walk(step.get("steps"))
+
+    walk(list(parse_form_yaml_to_dict(command_key)))
+    return titles
+
+
+def describe_step(command_key: str, step_key: str, locale: str = "en-us") -> str:
+    """The step's human title, falling back to its key when it has none."""
+    if not step_key:
+        return "—"
+    return step_titles(command_key, locale).get(step_key, step_key)
+
+
 def parse_form_steps_titles(form_steps: List[Dict[str, str]], locale: str) -> Dict[str, str]:
     return {
         item["key"]: item["title"][locale]

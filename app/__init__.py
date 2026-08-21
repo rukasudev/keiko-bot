@@ -37,6 +37,11 @@ def create_app(config: AppConfig) -> DiscordBot:
         # to keep the bot from starting.
         logger.warn(f"Could not ensure Mongo indexes: {type(error).__name__}: {error}")
 
+    from app.services import analytics, debug_logs
+
+    analytics.configure(config)
+    debug_logs.start_writer()
+
     bot = DiscordBot(config)
 
     return bot

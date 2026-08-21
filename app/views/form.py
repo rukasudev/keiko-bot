@@ -44,13 +44,14 @@ from app.services.utils import (
     parse_form_yaml_to_dict,
     parse_valid_locale,
 )
+from app.services import analytics
 from app.services.welcome_messages import send_welcome_message_preview
 from app.views.composition import FormComposition
-from app.views.form_state import FormStateManager
+from app.views.form_state import FormSession, FormStateManager, SessionAwareView
 from app.views.options import OptionsView
 
 
-class Form(discord.ui.View):
+class Form(SessionAwareView, discord.ui.View):
     """
     A custom view to create a form message with steps and
     after save the answers to database.
@@ -66,6 +67,7 @@ class Form(discord.ui.View):
         locale: str,
         steps: List[Dict[str, str]] = None,
         cogs: Dict[str, Any] = None,
+        session_id: str = None,
     ) -> None:
         self.command_key = command_key
         self.locale = locale
@@ -74,9 +76,61 @@ class Form(discord.ui.View):
         self.responses = []
         self.persistence_callback = None
         self._using_layout_view = False
+        self.session = FormSession(session_id)
+        self.source = None
         super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.add_item(ConfirmButton(callback=self._callback, locale=locale))
         self.add_item(CancelButton(locale=locale))
+
+    def _report_step_completed(
+        self, interaction: discord.Interaction, ms_on_step: int = None
+    ) -> None:
+        """The step that just left the screen, with how long it was on it."""
+        previous = self.session.last_step
+        if not previous:
+            return
+
+        if ms_on_step is None:
+            ms_on_step = self.session.close_step()
+
+        self.emit_event(
+            "setup.step_completed", interaction,
+            step_key=previous.get("key"),
+            step_action=previous.get("action"),
+            ms_on_step=ms_on_step,
+            choice=self._step_choice(previous),
+        )
+
+    def _step_choice(self, step: Dict[str, Any]) -> Optional[str]:
+        """The answer, only when the YAML declares the list it came from."""
+        if not analytics.records_raw_choice(step):
+            return None
+
+        response = next(
+            (r for r in self.responses if r.get("key") == step.get("key")), None
+        )
+        if not response:
+            return None
+
+        value = response.get("_raw_value", response.get("value"))
+        if isinstance(value, (list, tuple)):
+            value = ", ".join(str(item) for item in value)
+        return str(value) if value not in (None, "", []) else None
+
+    def _record_validation_failure(
+        self, interaction: discord.Interaction, validation: str, error_key: str
+    ) -> None:
+        step_key = self._step.get("key")
+        self.emit_event(
+            "setup.validation_failed", interaction,
+            step_key=step_key,
+            validation=validation,
+            error_key=error_key,
+            attempt_n=self.session.record_validation_failure(step_key),
+        )
+
+    async def on_timeout(self) -> None:
+        await self.report_abandoned()
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
         context = ErrorContext(
@@ -92,6 +146,7 @@ class Form(discord.ui.View):
             context=context,
             exc_info=True,
         )
+        self.close_journey(logconstants.TRACE_RESULT_FAILURE)
 
     def _get_steps(self, steps: List[Dict[str, str]] = None) -> Generator[Any, Any, Any]:
         if not steps:
@@ -131,6 +186,17 @@ class Form(discord.ui.View):
                     self.step_embed.description = self._apply_response_tokens(
                         self.step_embed.description
                     )
+
+            self._report_step_completed(args)
+
+            self.session.record_step(self._step)
+            self.emit_event(
+                "setup.step_viewed", args,
+                step_key=self._step.get("key"),
+                step_action=self._step.get("action"),
+                step_index=self.state.step_index,
+            )
+
             await func(self, args)
 
         return update_counter
@@ -273,7 +339,7 @@ class Form(discord.ui.View):
         self.persistence_callback = persistence_callback
 
     def _handle_after_step(self):
-        if not hasattr(self, "view"):
+        if self.view is None:
             return True
 
         if self._get_step_item("action") == constants.BUTTON_ACTION_KEY:
@@ -627,7 +693,10 @@ class Form(discord.ui.View):
             validation_context = {"responses": self.responses}
         else:
             validation_context = self.get_possible_values()
-        self.view = CustomModal(self._step, self._callback, self.locale, validation_context)
+        self.view = CustomModal(
+            self._step, self._callback, self.locale, validation_context,
+            on_validation_error=self._record_validation_failure,
+        )
         if not self.state.fill_modal(self.view) and self.cogs:
             self.parse_cogs_to_modal()
 
@@ -918,6 +987,7 @@ class Form(discord.ui.View):
             self.composition_index if hasattr(self, "composition_index") else None,
             prefilled_fields=getattr(self, "prefilled_composition_fields", None),
             parent_context=self._condition_context(),
+            parent_form=self,
         )
 
         await self.view.send_form(interaction)
@@ -1024,7 +1094,12 @@ class Form(discord.ui.View):
             commandconstants.ENABLED_KEY,
             event_date,
             str(interaction.user.id),
+            source=self.source,
+            session_id=self.session.id,
         )
+
+        self._report_step_completed(interaction)
+        self.emit_event("setup.completed", interaction, **self.session.friction())
 
         logger.info(
             f"Command enabled: **{self.command_key}**",
@@ -1204,6 +1279,11 @@ class Form(discord.ui.View):
     async def _go_back(self, interaction: discord.Interaction):
         if not self.state.go_back():
             return
+
+        self.session.back_count += 1
+        self.emit_event(
+            "setup.step_back", interaction, step_key=self.session.last_step_key
+        )
 
         if self.responses and self._get_step_item("action") != constants.BUTTON_ACTION_KEY:
             self.responses.pop()
