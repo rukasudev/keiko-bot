@@ -293,6 +293,43 @@ class DiscordLimits:
     SELECT_OPTION_TEXT: Final[int] = 100
 
 
+class TraceTitles:
+    """What the admin log channel calls each kind of event.
+
+    The emoji names the event, so two runs of the same kind never look
+    different: every plain command run is `▶️`, every webhook is `🔔`. What
+    happened wins over where it came from, because "an item was added" says
+    more than "a slash command ran".
+
+    Deliberately separate from the user-facing `commands.command-events.*` copy.
+    That vocabulary is shipped in two locales and read by server admins; this
+    one is read by whoever is on call, and the two are free to diverge.
+    """
+
+    BY_OUTCOME: Final[Dict[str, str]] = {
+        "added": "➕ Item Added",
+        "removed": "🗑️ Item Removed",
+        "edited": "📝 Config Edited",
+        "enabled": "🎉 Command Enabled",
+        "disabled": "🚫 Command Disabled",
+        "paused": "⏸️ Command Paused",
+        "resumed": "▶️ Command Resumed",
+        "saved": "✅ Setup Saved",
+        "discarded": "↩️ Setup Discarded",
+        "abandoned": "⌛ Setup Abandoned",
+        "in progress": "⏳ Setup In Progress",
+        "failure": "❌ Command Error",
+    }
+
+    BY_SOURCE: Final[Dict[str, str]] = {
+        "webhook": "🔔 Webhook Event",
+        "job": "⏰ Scheduled Job",
+        "internal": "👂 Listener Event",
+    }
+
+    DEFAULT: Final[str] = "▶️ Command Run"
+
+
 class KeikoIcons:
     IMAGE_01: Final[str] = (
         "https://cdn.discordapp.com/attachments/927208560360820766/1246698994160242739/KEIKO_DEFAULT.png?ex=665d566a&is=665c04ea&hm=5b3fe0e80b2a83e0e88b5bded1db17a6b98b4661e175b460b3e6e4a27d59711e&"

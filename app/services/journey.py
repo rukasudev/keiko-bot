@@ -99,6 +99,8 @@ TERMINAL_OUTCOMES = {
     "feature.disabled": "disabled",
     "feature.paused": "paused",
     "feature.unpaused": "resumed",
+    "feature.item_added": "added",
+    "feature.item_removed": "removed",
 }
 
 

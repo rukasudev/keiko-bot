@@ -368,12 +368,12 @@ async def run_feature_command(
 
     async with trace_scope(
         command_name,
+        opening=f"`/{command_name}` started",
         guild_id=interaction.guild_id,
         user_id=interaction.user.id,
         source=source,
         feature=command_key,
     ) as trace:
-        trace.add(f"`/{command_name}` invoked")
         trace.footnote = analytics.describe_attempt(
             analytics.count_attempt(interaction.guild_id, command_key), command_key
         )

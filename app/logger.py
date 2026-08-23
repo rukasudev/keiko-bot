@@ -12,6 +12,8 @@ from app.config import AppConfig
 from app.constants import Commands as constants_commands
 from app.constants import DiscordLimits as limits
 from app.constants import LogTypes as constants
+from app.constants import Style as style
+from app.constants import TraceTitles as titles
 from app.services import debug_logs
 from app.services import journey as journey_service
 from app.services import trace as trace_service
@@ -128,6 +130,46 @@ def record_identity(record: logging.LogRecord) -> dict:
     return identity
 
 
+NOISE_MARKERS = (
+    "We are being rate limited.",
+    "WebSocket closed with 1000",
+)
+
+
+def is_noise(record: logging.LogRecord) -> bool:
+    """Records that describe the network, not the work.
+
+    Shared by the folding handler and the Discord one: a rate-limit retry has no
+    business becoming a line of somebody's command timeline either.
+    """
+    if record.levelno == logging.ERROR and record.exc_info:
+        if NOISE_MARKERS[1] in str(record.exc_info[1]):
+            return True
+    return any(marker in record.getMessage() for marker in NOISE_MARKERS)
+
+
+class TraceFoldingHandler(logging.Handler):
+    """Turns log records into timeline lines, for whoever renders the trace.
+
+    This used to live inside DiscordLogsHandler, which made the timeline depend
+    on the admin cog being loaded: a boot that failed before the cogs had no
+    timeline at all, which is exactly the run worth reading. Folding belongs to
+    the bus, so it is installed with the other handlers at startup.
+    """
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.setLevel(logging.INFO)
+
+    def emit(self, record: logging.LogRecord) -> None:
+        try:
+            if is_noise(record):
+                return
+            trace_service.add_line(record.getMessage(), record.levelno)
+        except Exception:
+            self.handleError(record)
+
+
 class StoredLogsHandler(logging.Handler):
     """Writes every log record to Mongo, where it can be queried for 30 days.
 
@@ -174,13 +216,6 @@ class StoredLogsHandler(logging.Handler):
         return "".join(traceback.format_exception(*record.exc_info))
 
 
-TRACE_RESULT_ICONS = {
-    constants.TRACE_RESULT_SUCCESS: "✅",
-    constants.TRACE_RESULT_FAILURE: "❌",
-    constants.TRACE_RESULT_ABANDONED: "⚠️",
-    constants.TRACE_RESULT_RUNNING: "⏳",
-}
-
 TRACE_LEVEL_ICONS = {
     logging.WARNING: "⚠️ ",
     logging.ERROR: "❌ ",
@@ -195,22 +230,29 @@ def format_duration(milliseconds: int) -> str:
     return f"{minutes}m{seconds:02d}s"
 
 
-def build_trace_header(trace) -> str:
-    parts = []
-    if trace.user_id:
-        parts.append(f"<@{trace.user_id}>")
-    if trace.guild_id:
-        parts.append(f"guild `{trace.guild_id}`")
-    if trace.source:
-        parts.append(f"via `{trace.source}`")
-    parts.append(format_duration(trace.duration_ms))
-    if trace.result:
-        icon = (
-            journey_service.outcome_icon(trace.result) if trace.is_journey
-            else TRACE_RESULT_ICONS.get(trace.result, "")
-        )
-        parts.append(f"{icon} {trace.result}".strip())
-    return " · ".join(parts)
+def trace_title(trace) -> str:
+    """One emoji per kind of event, and the same one every time.
+
+    What happened decides the title; where it came from is the fallback. Two
+    runs of the same command used to render under different icons depending on
+    whether a form session was involved, which made the channel unreadable at a
+    glance.
+    """
+    if trace.has_error:
+        return titles.BY_OUTCOME[constants.TRACE_RESULT_FAILURE]
+
+    by_outcome = titles.BY_OUTCOME.get(trace.result)
+    if by_outcome:
+        return by_outcome
+
+    return titles.BY_SOURCE.get(trace.source, titles.DEFAULT)
+
+
+def trace_subject(trace) -> str:
+    """Slash commands read as commands; a webhook path reads as itself."""
+    if trace.source in titles.BY_SOURCE:
+        return f"`{trace.name}`"
+    return f"`/{trace.name}`"
 
 
 def build_trace_timeline(trace) -> str:
@@ -223,22 +265,48 @@ def build_trace_timeline(trace) -> str:
     return "\n".join(lines)
 
 
-def build_trace_embed(trace) -> discord.Embed:
-    description = f"{build_trace_header(trace)}\n{'─' * 20}\n{build_trace_timeline(trace)}"
-    if trace.footnote:
-        description += f"\n{'─' * 20}\n{trace.footnote}"
+def clip(text: str, limit: int) -> str:
+    return text if len(text) <= limit else text[: limit - 1] + "…"
 
-    color = (
-        discord.Color.red() if trace.has_error
-        else constants.LOG_TYPE_MAP[constants.TRACE_TYPE][1]
-    )
-    prefix = constants.JOURNEY_TITLE if trace.is_journey else constants.TRACE_TITLE
-    label = "session" if trace.is_journey else "trace"
+
+def build_trace_embed(trace) -> discord.Embed:
+    """Metadata in fields, the story in the body, one label on top."""
     embed = discord.Embed(
-        title=f"{prefix} {trace.name}",
-        description=description[: limits.EMBED_DESCRIPTION],
-        color=color,
+        title=trace_title(trace),
+        description=clip(trace_subject(trace), limits.EMBED_DESCRIPTION),
+        color=(
+            # The house error colour, not discord.Color.red(): every other error
+            # surface in Keiko uses this one.
+            discord.Colour(int(style.RED_COLOR, base=16)) if trace.has_error
+            else constants.LOG_TYPE_MAP[constants.TRACE_TYPE][1]
+        ),
     )
+
+    if trace.user_id:
+        embed.add_field(name="User", value=f"<@{trace.user_id}>", inline=True)
+    if trace.guild_id:
+        embed.add_field(name="Guild", value=f"`{trace.guild_id}`", inline=True)
+    if trace.source:
+        embed.add_field(name="Source", value=f"`{trace.source}`", inline=True)
+
+    embed.add_field(name="Duration", value=format_duration(trace.duration_ms), inline=True)
+    if trace.result:
+        embed.add_field(name="Result", value=trace.result, inline=True)
+
+    timeline = build_trace_timeline(trace)
+    if timeline:
+        embed.add_field(
+            name="Timeline",
+            value=clip(timeline, limits.EMBED_FIELD_VALUE),
+            inline=False,
+        )
+
+    if trace.footnote:
+        embed.add_field(
+            name="Note", value=clip(trace.footnote, limits.EMBED_FIELD_VALUE), inline=False
+        )
+
+    label = "session" if trace.is_journey else "trace"
     embed.set_footer(
         text=f"• {label} {trace.id} | {trace.started_at.strftime('%Y-%m-%d %H:%M:%S')}"
     )
@@ -254,6 +322,7 @@ class LoggerHooks:
         self.file_logs = file_logs
 
     def start(self) -> None:
+        logger.addHandler(TraceFoldingHandler())
         StoredLogsHandler(self.config)
 
         if self.file_logs:
@@ -326,8 +395,9 @@ class DiscordLogsHandler(logging.Handler):
         if self.is_muted(record):
             return
 
-        folded = trace_service.add_line(record.getMessage(), record.levelno)
-        if folded and record.levelno < logging.ERROR:
+        # The folding itself is done by TraceFoldingHandler on the bus; here we
+        # only decide whether this record already has a home in a timeline.
+        if trace_service.has_open_trace() and record.levelno < logging.ERROR:
             return
 
         log_channel = self.get_log_channel(record)
@@ -339,14 +409,11 @@ class DiscordLogsHandler(logging.Handler):
     def is_muted(self, record: logging.LogRecord) -> bool:
         interaction = getattr(record, "interaction", None)
         if interaction and interaction.command:
+            # Inspecting a log must not log about inspecting a log.
             if interaction.command.qualified_name == "Log Inspection":
                 return True
 
-        if record.levelno == logging.ERROR and record.exc_info:
-            if "WebSocket closed with 1000" in str(record.exc_info[1]):
-                return True
-
-        return "We are being rate limited." in record.getMessage()
+        return is_noise(record)
 
     def get_log_channel(self, record: logging.LogRecord):
         log_type = getattr(record, "log_type", None)
