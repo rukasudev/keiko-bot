@@ -104,6 +104,12 @@ class Commands:
     DEBUG_LOGS_EXPORT_HOUR: Final[int] = 0
     DEBUG_LOGS_EXPORT_MINUTE: Final[int] = 30
 
+    # Reminders that failed to be created are retried on a slow loop: the
+    # reason one fails is rarely fixed within a minute, and the birthday it
+    # belongs to is usually months away.
+    BIRTHDAY_RECONCILE_MINUTES: Final[int] = 30
+    BIRTHDAY_RECONCILE_BATCH: Final[int] = 50
+
     # moderations
     MODERATIONS_KEY: Final[str] = "moderations"
     WELCOME_MESSAGES_KEY: Final[str] = "welcome_messages"

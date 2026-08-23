@@ -69,6 +69,28 @@ def find_reminder_id_by_guild_and_date(guild_id: str, date: str) -> Optional[str
     return item.get("reminder_id") if item else None
 
 
+def find_birthdays_missing_reminder(limit: int = 50) -> List[Dict[str, Any]]:
+    """Birthdays stored with no reminder behind them.
+
+    A null id is the whole signal: it is what a refused creation leaves, and it
+    needs no new field, so records broken before this existed are found by the
+    same query as new ones.
+    """
+    cursor = mongo_client.reminders.birthdays.find(
+        {"reminder_id": None}
+    ).limit(limit)
+    return list(cursor)
+
+
+def set_reminder_id_for_guild_and_date(guild_id: str, date: str, reminder_id: str) -> int:
+    """One reminder serves everyone in a guild who shares a date."""
+    result = mongo_client.reminders.birthdays.update_many(
+        {"guild_id": str(guild_id), "date": str(date)},
+        {"$set": parse_update_timestamp({"reminder_id": str(reminder_id)})},
+    )
+    return getattr(result, "modified_count", 0)
+
+
 def count_birthday_items_by_guild_and_date(guild_id: str, date: str) -> int:
     return mongo_client.reminders.birthdays.count_documents({
         "guild_id": str(guild_id),

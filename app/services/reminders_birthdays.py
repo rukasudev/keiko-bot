@@ -4,10 +4,12 @@ from typing import Any, Dict, List, Optional
 
 import discord
 
+from app import logger
 from app.components.buttons import AdditionalButton
 from app.components.embed import base_embed
 from app.constants import Commands as commands_constants
 from app.constants import KeikoIcons
+from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
 from app.data import birthdays as birthdays_data
 from app.data.birthdays import to_summary_composition
@@ -121,6 +123,54 @@ def upsert_birthday(
         )
 
     return item
+
+
+def reconcile_missing_reminders(limit: int = 50) -> int:
+    """Create the reminders that a failed save left behind. Returns how many.
+
+    Runs on a loop rather than at save time on purpose: the reason a creation
+    fails is usually not going to be fixed by retrying twice in a row, and a
+    command must not wait on it either way.
+    """
+    repaired = 0
+    done: set = set()
+
+    for item in birthdays_data.find_birthdays_missing_reminder(limit):
+        guild_id = item.get("guild_id")
+        mm_dd = item.get("date")
+        if not guild_id or not mm_dd or (guild_id, mm_dd) in done:
+            continue
+        done.add((guild_id, mm_dd))
+
+        config = birthdays_data.find_birthday_config(guild_id)
+        if not config:
+            # No configuration means no channel to greet in; a reminder for it
+            # would schedule a message with nowhere to go.
+            continue
+
+        try:
+            reminder_id = reminders_service.create_reminder(
+                commands_constants.REMINDER_API_TITLE_BIRTHDAY,
+                mm_dd,
+                notes=mm_dd,
+                timezone_name=config.get("timezone"),
+                notification_time=config.get("notification_time"),
+            )
+        except Exception as error:
+            logger.warn(
+                f"Reminder reconciliation failed for guild {guild_id} on {mm_dd}: "
+                f"{type(error).__name__}: {error}",
+                log_type=logconstants.COMMAND_WARN_TYPE,
+            )
+            continue
+
+        if not reminder_id:
+            continue
+
+        birthdays_data.set_reminder_id_for_guild_and_date(guild_id, mm_dd, reminder_id)
+        repaired += 1
+
+    return repaired
 
 
 def remove_birthday(guild_id: str, user_id: str) -> Optional[Dict[str, Any]]:
