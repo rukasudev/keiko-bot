@@ -522,7 +522,9 @@ class DiscordLogsHandler(logging.Handler):
 
         embed = discord.Embed(
             title=title,
-            description=description,
+            # Discord rejects the whole message over the limit, so an oversized
+            # error used to cost the very log that explained it.
+            description=clip(str(description), limits.EMBED_DESCRIPTION),
             color=color,
         )
 
