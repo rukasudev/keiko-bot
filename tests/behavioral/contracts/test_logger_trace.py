@@ -61,15 +61,43 @@ def discord_logs():
     )
 
     trace_service.clear_sinks()
+    # Folding lives on the bus now, not inside DiscordLogsHandler, so the wiring
+    # under test is the same pair `LoggerHooks.start` installs.
+    folding = logger_module.TraceFoldingHandler()
+    logger_module.logger.addHandler(folding)
     handler = logger_module.DiscordLogsHandler(bot)
     logger_module.logger.removeHandler(handler)
     handler.schedule_send = lambda coroutine: coroutine.close()
 
+    def dispatch(record):
+        """What `Logger.callHandlers` does: every handler sees every record.
+
+        Folding and rendering are two handlers now, so a test that drives only
+        the Discord one is testing half the bus.
+        """
+        folding.emit(record)
+        handler.emit(record)
+
     yield SimpleNamespace(
-        handler=handler, channels=channels, sends=sends, routed=routed
+        handler=handler, channels=channels, sends=sends, routed=routed,
+        emit=dispatch,
     )
 
+    logger_module.logger.removeHandler(folding)
+
     trace_service.clear_sinks()
+
+
+def rendered(embed):
+    """Everything the reader sees, wherever the layout puts it.
+
+    These tests pin the contract (one unit of work is one message, in order),
+    not whether a line lives in the description or in a field.
+    """
+    parts = [embed.title or "", embed.description or ""]
+    parts += [f"{field.name} {field.value}" for field in embed.fields]
+    parts.append(embed.footer.text or "")
+    return "\n".join(parts)
 
 
 def make_record(message, level=logging.INFO, **extra):
@@ -85,28 +113,28 @@ def make_record(message, level=logging.INFO, **extra):
 def test_seven_records_in_one_trace_become_one_message(discord_logs):
     with trace_scope("reminder", source="webhook") as trace:
         for index in range(7):
-            discord_logs.handler.emit(make_record(f"step {index}"))
+            discord_logs.emit(make_record(f"step {index}"))
         assert discord_logs.sends == []
 
     assert len(discord_logs.sends) == 1
     embed = discord_logs.sends[0]["embed"]
     for index in range(7):
-        assert f"step {index}" in embed.description
+        assert f"step {index}" in rendered(embed)
 
 
 def test_the_timeline_keeps_the_order_things_happened(discord_logs):
     with trace_scope("reminder", source="webhook"):
-        discord_logs.handler.emit(make_record("webhook received"))
-        discord_logs.handler.emit(make_record("renewing subscription"))
-        discord_logs.handler.emit(make_record("renewal scheduled"))
+        discord_logs.emit(make_record("webhook received"))
+        discord_logs.emit(make_record("renewing subscription"))
+        discord_logs.emit(make_record("renewal scheduled"))
 
-    description = discord_logs.sends[0]["embed"].description
+    description = rendered(discord_logs.sends[0]["embed"])
     assert description.index("webhook received") < description.index("renewing subscription")
     assert description.index("renewing subscription") < description.index("renewal scheduled")
 
 
 def test_records_outside_a_trace_still_get_their_own_message(discord_logs):
-    discord_logs.handler.emit(make_record("standalone"))
+    discord_logs.emit(make_record("standalone"))
 
     assert len(discord_logs.sends) == 1
     assert discord_logs.sends[0]["embed"].description == "standalone"
@@ -114,39 +142,39 @@ def test_records_outside_a_trace_still_get_their_own_message(discord_logs):
 
 def test_errors_keep_a_message_of_their_own_and_stay_in_the_timeline(discord_logs):
     with trace_scope("reminder", source="webhook"):
-        discord_logs.handler.emit(make_record("starting"))
-        discord_logs.handler.emit(
+        discord_logs.emit(make_record("starting"))
+        discord_logs.emit(
             make_record("boom", level=logging.ERROR,
                         log_type=logconstants.COMMAND_ERROR_TYPE)
         )
 
     assert len(discord_logs.sends) == 2
     trace_embed = discord_logs.sends[-1]["embed"]
-    assert "boom" in trace_embed.description
-    assert "starting" in trace_embed.description
+    assert "boom" in rendered(trace_embed)
+    assert "starting" in rendered(trace_embed)
 
 
 def test_a_failed_trace_is_marked_as_such(discord_logs):
     with trace_scope("reminder", source="webhook"):
-        discord_logs.handler.emit(
+        discord_logs.emit(
             make_record("boom", level=logging.ERROR,
                         log_type=logconstants.COMMAND_ERROR_TYPE)
         )
 
     trace_embed = discord_logs.sends[-1]["embed"]
-    assert logconstants.TRACE_RESULT_FAILURE in trace_embed.description
+    assert logconstants.TRACE_RESULT_FAILURE in rendered(trace_embed)
 
 
 def test_a_clean_silent_trace_never_reaches_discord(discord_logs):
     with trace_scope("on_message", source="internal", silent_when_clean=True):
-        discord_logs.handler.emit(make_record("checked a message"))
+        discord_logs.emit(make_record("checked a message"))
 
     assert discord_logs.sends == []
 
 
 def test_a_silent_trace_that_fails_does_reach_discord(discord_logs):
     with trace_scope("on_message", source="internal", silent_when_clean=True):
-        discord_logs.handler.emit(
+        discord_logs.emit(
             make_record("boom", level=logging.ERROR,
                         log_type=logconstants.COMMAND_ERROR_TYPE)
         )
@@ -162,11 +190,11 @@ def test_a_repeated_attempt_is_called_out_on_the_message_you_already_read(
     with trace_scope("moderations block links", user_id="9", guild_id="1",
                      source="slash") as trace:
         trace.footnote = "⚠️ 2º run of `block_links` by this guild in the last 24h"
-        discord_logs.handler.emit(make_record("command invoked"))
+        discord_logs.emit(make_record("`/moderations block links` started"))
 
-    description = discord_logs.sends[-1]["embed"].description
-    assert "2º run of `block_links`" in description
-    assert "command invoked" in description
+    message = rendered(discord_logs.sends[-1]["embed"])
+    assert "2º run of `block_links`" in message
+    assert "`/moderations block links` started" in message
 
 
 def test_a_first_attempt_carries_no_footnote():
@@ -201,20 +229,20 @@ def test_long_lines_are_trimmed_instead_of_breaking_the_embed():
 
 def test_nested_scopes_share_one_timeline(discord_logs):
     with trace_scope("outer", source="webhook"):
-        discord_logs.handler.emit(make_record("outer line"))
+        discord_logs.emit(make_record("outer line"))
         with trace_scope("inner", source="webhook"):
-            discord_logs.handler.emit(make_record("inner line"))
+            discord_logs.emit(make_record("inner line"))
         assert discord_logs.sends == []
 
     assert len(discord_logs.sends) == 1
-    description = discord_logs.sends[0]["embed"].description
+    description = rendered(discord_logs.sends[0]["embed"])
     assert "outer line" in description
     assert "inner line" in description
 
 
 def test_a_muted_record_never_becomes_a_trace_line(discord_logs):
     with trace_scope("gateway", source="internal") as trace:
-        discord_logs.handler.emit(make_record("We are being rate limited."))
+        discord_logs.emit(make_record("We are being rate limited."))
         assert trace.lines == []
 
 
@@ -228,7 +256,7 @@ def test_user_traces_and_system_traces_go_to_different_channels(discord_logs):
 
 
 def test_errors_are_routed_to_the_error_channel(discord_logs):
-    discord_logs.handler.emit(
+    discord_logs.emit(
         make_record("boom", level=logging.ERROR,
                     log_type=logconstants.COMMAND_ERROR_TYPE)
     )
@@ -250,7 +278,7 @@ def test_the_handler_formats_the_record_itself(discord_logs):
     """asctime only exists because the handler creates it, not because some
     other handler happened to run first."""
     record = make_record("hello")
-    discord_logs.handler.emit(record)
+    discord_logs.emit(record)
 
     assert hasattr(record, "asctime")
     assert discord_logs.sends[0]["embed"].footer.text.endswith(record.asctime)
@@ -261,7 +289,7 @@ def test_an_error_without_a_log_type_or_exception_still_reaches_discord(discord_
     raise TypeError inside the handler (`record.exc_info[1]` on None), and
     logging swallows handler errors — so the one message that mattered most was
     the one that silently disappeared."""
-    discord_logs.handler.emit(make_record("plain failure", level=logging.ERROR))
+    discord_logs.emit(make_record("plain failure", level=logging.ERROR))
 
     assert len(discord_logs.sends) == 1
     assert "plain failure" in discord_logs.sends[0]["embed"].description
@@ -272,6 +300,6 @@ def test_an_interaction_without_a_guild_does_not_crash_the_handler(discord_logs)
         id=1, guild=None, user=SimpleNamespace(mention="<@9>"),
         channel=None, message=None, command=None,
     )
-    discord_logs.handler.emit(make_record("dm interaction", interaction=interaction))
+    discord_logs.emit(make_record("dm interaction", interaction=interaction))
 
     assert len(discord_logs.sends) == 1

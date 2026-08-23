@@ -320,6 +320,15 @@ class MockMongoCollection:
             return MagicMock(modified_count=0, upserted_id="mock_id")
         return MagicMock(modified_count=0)
 
+    def update_many(self, filter_dict, update):
+        """Every match, not just the first: the real driver's semantics."""
+        modified = 0
+        for doc in self._data:
+            if all(_matches_value(doc.get(key), value) for key, value in filter_dict.items()):
+                _apply_update(doc, update, inserted=False)
+                modified += 1
+        return MagicMock(modified_count=modified)
+
     def bulk_write(self, operations, ordered=True):
         for operation in operations:
             self.update_one(

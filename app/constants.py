@@ -104,6 +104,12 @@ class Commands:
     DEBUG_LOGS_EXPORT_HOUR: Final[int] = 0
     DEBUG_LOGS_EXPORT_MINUTE: Final[int] = 30
 
+    # Reminders that failed to be created are retried on a slow loop: the
+    # reason one fails is rarely fixed within a minute, and the birthday it
+    # belongs to is usually months away.
+    BIRTHDAY_RECONCILE_MINUTES: Final[int] = 30
+    BIRTHDAY_RECONCILE_BATCH: Final[int] = 50
+
     # moderations
     MODERATIONS_KEY: Final[str] = "moderations"
     WELCOME_MESSAGES_KEY: Final[str] = "welcome_messages"
@@ -291,6 +297,49 @@ class DiscordLimits:
     EMBED_FIELD_NAME: Final[int] = 256
     EMBED_FIELD_VALUE: Final[int] = 1024
     SELECT_OPTION_TEXT: Final[int] = 100
+
+
+class TraceTitles:
+    """What the admin log channel calls each kind of event.
+
+    The emoji names the event, so two runs of the same kind never look
+    different: every plain command run is `▶️`, every webhook is `🔔`.
+
+    Only the *labels* live here. The emoji for an outcome comes from
+    `journey.OUTCOME_ICONS`, which already owned that vocabulary — keeping a
+    second copy is how `edited` ended up as 📝 in one place and 🔧 in another.
+
+    Deliberately separate from the user-facing `commands.command-events.*` copy:
+    that is shipped in two locales and read by server admins, this is read by
+    whoever is on call, and the two are free to diverge.
+    """
+
+    OUTCOME_LABELS: Final[Dict[str, str]] = {
+        "added": "Item Added",
+        "removed": "Item Removed",
+        "edited": "Config Edited",
+        "enabled": "Command Enabled",
+        "disabled": "Command Disabled",
+        "paused": "Command Paused",
+        "resumed": "Command Resumed",
+        "saved": "Setup Saved",
+        "discarded": "Setup Discarded",
+        "abandoned": "Setup Abandoned",
+        "in progress": "Setup In Progress",
+        "failure": "Command Error",
+    }
+
+    SOURCE_TITLES: Final[Dict[str, str]] = {
+        "webhook": "🔔 Webhook Event",
+        "job": "⏰ Scheduled Job",
+        "internal": "👂 Listener Event",
+    }
+
+    # Results that say nothing about what was done, so the last action gets to
+    # name the message instead.
+    GENERIC_RESULTS: Final[frozenset] = frozenset({"in progress", "success"})
+
+    DEFAULT: Final[str] = "▶️ Command Run"
 
 
 class KeikoIcons:

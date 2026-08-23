@@ -157,11 +157,32 @@ def subscribe_youtube_new_video(interaction: discord.Interaction, response: Dict
 
     bot.youtube.subscribe_to_new_video_event(channel_id)
     renew_date = datetime.now() + timedelta(days=4)
-    reminder = bot.reminder.create_reminder(
-        {"title": "youtube_notification", "notes": youtuber, "date_tz": renew_date.date()}
-    )
 
-    insert_reminder(reminder["id"], "youtube_notification", youtuber)
+    # A refused reminder used to surface as KeyError on the line below, which
+    # aborted the subscription that had already succeeded.
+    try:
+        reminder = bot.reminder.create_reminder(
+            {"title": "youtube_notification", "notes": youtuber, "date_tz": renew_date.date()}
+        )
+        reminder_id = reminder.get("id") if isinstance(reminder, dict) else None
+    except Exception as error:
+        reminder_id = None
+        logger.error(
+            f"Failed to create renewal reminder for youtuber {youtuber}: "
+            f"{type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+        )
+
+    if not reminder_id:
+        logger.warn(
+            f"Youtuber {youtuber} subscribed without a renewal reminder",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+        return
+
+    insert_reminder(reminder_id, "youtube_notification", youtuber)
     logger.info(
         f"Youtuber {youtuber} subscribed. Reminder created for youtuber {youtuber} to renew subscription. Date: {renew_date}",
         interaction=interaction,

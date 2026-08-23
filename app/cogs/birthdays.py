@@ -1,9 +1,13 @@
 import discord
 from discord import app_commands
+from discord.ext import tasks
 
 from app.bot import DiscordBot
 from app.components.embed import response_embed, response_error_embed
+from app import logger
+from app.constants import Commands as commands_constants
 from app.constants import KeikoIcons
+from app.constants import LogTypes as logconstants
 from app.data import birthdays as birthdays_data
 from app.decorators import keiko_command
 from app.services import reminders_birthdays as birthdays_service
@@ -19,6 +23,40 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
     def __init__(self, bot: DiscordBot):
         self.bot = bot
         super().__init__()
+        self.reconcile_reminders.start()
+
+    async def cog_unload(self) -> None:
+        self.reconcile_reminders.cancel()
+
+    @tasks.loop(minutes=commands_constants.BIRTHDAY_RECONCILE_MINUTES)
+    async def reconcile_reminders(self) -> None:
+        """Finish the birthdays whose reminder could not be created at the time.
+
+        A refusal from the reminders API used to be stored as a null id and
+        forgotten, so the birthday was kept and simply never fired. This is the
+        pass that closes that, including for the records already saved that way.
+        """
+        try:
+            repaired = birthdays_service.reconcile_missing_reminders(
+                commands_constants.BIRTHDAY_RECONCILE_BATCH
+            )
+        except Exception as error:
+            logger.warn(
+                f"Birthday reminder reconciliation failed: "
+                f"{type(error).__name__}: {error}",
+                log_type=logconstants.COMMAND_WARN_TYPE,
+            )
+            return
+
+        if repaired:
+            logger.info(
+                f"Created {repaired} birthday reminder(s) that had been left pending",
+                log_type=logconstants.BOT_ACTION_TYPE,
+            )
+
+    @reconcile_reminders.before_loop
+    async def before_reconcile(self) -> None:
+        await self.bot.wait_until_ready()
 
     @keiko_command(
         name=locale_str("birthday", type="name", namespace="birthday-personal"),

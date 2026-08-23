@@ -13,6 +13,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 from app.constants import LogTypes as constants
 
+_logger = logging.getLogger(__name__)
 _current_trace: ContextVar[Optional["Trace"]] = ContextVar("keiko_trace", default=None)
 _sinks: List[Callable[["Trace"], None]] = []
 
@@ -74,6 +75,10 @@ class Trace:
         self.truncated = 0
         self.max_level = logging.NOTSET
         self.footnote: Optional[str] = None
+        # What was last *done*, kept apart from `result`, which is the
+        # lifecycle. A manager adds several items before it saves; the title
+        # wants the action, the session wants to stay open.
+        self.last_action: Optional[str] = None
         self.is_journey = False
         self.superseded = False
         self.message_id: Optional[int] = None
@@ -148,8 +153,9 @@ class trace_scope:
     fragment its own timeline.
     """
 
-    def __init__(self, name: str, **kwargs: Any) -> None:
+    def __init__(self, name: str, opening: Optional[str] = None, **kwargs: Any) -> None:
         self.name = name
+        self.opening = opening
         self.kwargs = kwargs
         self.trace: Optional[Trace] = None
         self._token = None
@@ -164,6 +170,15 @@ class trace_scope:
         self.trace = Trace(self.name, **self.kwargs)
         self._token = _current_trace.set(self.trace)
         self._owns_trace = True
+
+        if self.opening:
+            # Logged, never `trace.add`. The Discord handler folds this into the
+            # timeline and suppresses the separate embed, so one call reaches the
+            # channel, the file and Mongo at once. Emitting it here, and only
+            # when the trace is created, is also what keeps a command reached
+            # through a button from announcing itself twice.
+            _logger.info(self.opening)
+
         return self.trace
 
     def _exit(self, exc: Optional[BaseException]) -> None:
@@ -207,3 +222,7 @@ def add_line(message: str, levelno: int = logging.INFO) -> bool:
         return False
     trace.add(message, levelno)
     return True
+
+
+def has_open_trace() -> bool:
+    return _current_trace.get() is not None

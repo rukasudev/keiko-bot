@@ -160,13 +160,21 @@ def parse_stream_status(status: str) -> str:
 
 async def fetch_notification_message(guild_id: str, channel_id: str, streamer_name: str) -> discord.Message:
     stream_notification = find_stream_notification(guild_id, channel_id, streamer_name)
-    if stream_notification:
-        channel = bot.get_guild(guild_id).get_channel(channel_id)
-        try:
-            return await channel.fetch_message(stream_notification["message_id"])
-        except discord.NotFound:
-            return None
-    return None
+    if not stream_notification:
+        return None
+
+    # A guild Keiko was removed from, or a channel that was deleted, both read
+    # back as None here. Chaining through them raised AttributeError inside a
+    # listener, which is how it reached the error channel 213 times.
+    guild = bot.get_guild(guild_id)
+    channel = guild.get_channel(channel_id) if guild else None
+    if not channel:
+        return None
+
+    try:
+        return await channel.fetch_message(stream_notification["message_id"])
+    except (discord.NotFound, discord.Forbidden):
+        return None
 
 def is_more_than_one_hour(start_time: str, last_time: str) -> bool:
     return (parser.parse(start_time) - parser.parse(last_time)).total_seconds() > 3600

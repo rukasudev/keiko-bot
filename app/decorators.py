@@ -31,12 +31,11 @@ def keiko_command(
             )
             async with trace_scope(
                 command_name,
+                opening=f"`/{command_name}` started",
                 guild_id=interaction.guild_id,
                 user_id=interaction.user.id,
                 source="slash",
             ) as trace:
-                trace.add(f"`/{command_name}` invoked")
-
                 feature = getattr(interaction.command, "_attr", None)
                 if feature:
                     trace.feature = feature

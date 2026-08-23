@@ -1,10 +1,12 @@
 from datetime import datetime, time
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app import bot, logger
 from app.constants import LogTypes as logconstants
 from app.services.dates import next_mm_dd_occurrence, parse_mm_dd
+
+REFUSAL_PREVIEW = 300
 
 
 def mm_dd_yearly_rrule(mm_dd: str) -> str:
@@ -42,6 +44,25 @@ def next_mm_dd_occurrence_for_timezone(
     return datetime.combine(occurrence, _parse_notification_time(notification_time), tzinfo=tz)
 
 
+def clock(notification_time: Optional[str]) -> Optional[str]:
+    """`time_tz` as the API documents it, or nothing at all.
+
+    Sending no hour is what every reminder created before per-guild schedules
+    did, and the API fills its own default, so an unscheduled guild keeps
+    exactly the payload that has always worked.
+    """
+    if not notification_time:
+        return None
+    parsed = _parse_notification_time(notification_time)
+    return f"{parsed.hour:02d}:{parsed.minute:02d}"
+
+
+def describe_response(response: Any) -> str:
+    """What the API said, short enough to live on one log line."""
+    text = str(response)
+    return text[:REFUSAL_PREVIEW] if text else "empty response"
+
+
 def create_reminder(
     title: str,
     mm_dd: str,
@@ -49,20 +70,39 @@ def create_reminder(
     timezone_name: str = None,
     notification_time: str = None,
 ) -> Optional[str]:
+    """The reminder id, or None with the reason on the log.
+
+    `date_tz` and `time_tz` are separate fields by the API's contract. Folding
+    the hour into `date_tz` as a tz-aware datetime is what silently rejected
+    every scheduled birthday between 2026-07-27 and this fix.
+    """
     if bot.config.is_dev():
         return None
+
     occurrence = next_mm_dd_occurrence_for_timezone(mm_dd, timezone_name, notification_time)
-    response = bot.reminder.create_reminder({
-        "title": title,
-        "date_tz": occurrence if timezone_name else occurrence.date(),
-        "rrule": mm_dd_yearly_rrule(mm_dd),
-        "timezone": timezone_name or "UTC",
-        "notes": notes or mm_dd,
-    })
+
+    try:
+        response = bot.reminder.create_reminder({
+            "title": title,
+            "date_tz": occurrence.date(),
+            "time_tz": clock(notification_time),
+            "rrule": mm_dd_yearly_rrule(mm_dd),
+            "timezone": timezone_name or "UTC",
+            "notes": notes or mm_dd,
+        })
+    except Exception as error:
+        logger.error(
+            f"Failed to create reminder title={title} date={mm_dd}: "
+            f"{type(error).__name__}: {error}",
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+        )
+        return None
+
     reminder_id = response.get("id") if isinstance(response, dict) else None
     if not reminder_id:
         logger.error(
-            f"Failed to create reminder title={title} date={mm_dd}",
+            f"Failed to create reminder title={title} date={mm_dd}: "
+            f"{describe_response(response)}",
             log_type=logconstants.COMMAND_ERROR_TYPE,
         )
         return None
@@ -81,9 +121,10 @@ def update_reminder(
         occurrence = next_mm_dd_occurrence_for_timezone(mm_dd, timezone_name, notification_time)
         bot.reminder.update_reminder(
             reminder_id,
-            occurrence if timezone_name else occurrence.date(),
+            occurrence.date(),
             rrule=mm_dd_yearly_rrule(mm_dd),
             timezone=timezone_name or "UTC",
+            time_tz=clock(notification_time),
         )
     except Exception as e:
         logger.warn(
