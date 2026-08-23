@@ -12,17 +12,124 @@ import os
 import sys
 from typing import Any, Dict, List
 
+REPO_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 
-def load_app(environment: str):
-    """`tools` may import `app`; the reverse is what the boundary test forbids."""
-    os.environ.setdefault("APPLICATION_ENVIRONMENT", environment)
 
-    from app import create_app
-    from app.config import AppConfig
+def connect_readonly(mongo_url: str) -> None:
+    """Just enough wiring to read birthdays. Deliberately not `create_app`.
 
-    config = AppConfig()
-    create_app(config)
-    return config
+    `create_app` calls `ensure_indexes`, which writes. A command whose default
+    mode is "show me what you would do" must not touch the database to answer.
+    """
+    import certifi
+    from pymongo import MongoClient
+
+    import app
+
+    app.mongo_client = MongoClient(
+        mongo_url, tls=True, tlsCAFile=certifi.where()
+    )
+
+
+def mongo_url_from_environment() -> str:
+    from dotenv import load_dotenv
+
+    load_dotenv(os.path.join(REPO_ROOT, ".env"), override=False)
+
+    url = os.getenv("MONGO_URL_PROD") or os.getenv("MONGO_URL")
+    if not url:
+        raise SystemExit(
+            "Set MONGO_URL_PROD (or MONGO_URL) so the plan can be read."
+        )
+    return url
+
+
+def mongo_host(url: str) -> str:
+    """The host only. The URL carries credentials and must never be printed."""
+    if not url:
+        return "unknown"
+    tail = url.split("@")[-1] if "@" in url else url.split("//")[-1]
+    return tail.split("/")[0]
+
+
+REMINDER_SECRETS = (
+    "REMINDER_API_KEY",
+    "REMINDER_APPLICATION_ID",
+    "REMINDER_AUTH_PASSWORD",
+    "WEBHOOK_URL",
+)
+
+
+def load_for_apply(environment: str):
+    """The smallest wiring that can create a reminder and store its id.
+
+    Deliberately not `create_app`: that pulls every secret out of SSM, opens
+    Redis, builds the Discord client and runs `ensure_indexes`, none of which
+    this needs. It also loads `.env` with `override=True`, so the environment
+    asked for on the command line lost to whatever the file said — which once
+    pointed this command at the development database while it reported on
+    production.
+    """
+    from types import SimpleNamespace
+
+    import app
+    from app.integrations.reminder_webhook import ReminderWebhook
+
+    url = mongo_url_from_environment()
+    host = mongo_host(url)
+    if environment.lower() == "prod" and "localhost" in host:
+        raise SystemExit(f"Refusing to run: --environment prod resolved to {host}.")
+
+    missing = [name for name in REMINDER_SECRETS if not os.getenv(name)]
+    if missing:
+        raise SystemExit(
+            "Missing "
+            + ", ".join(missing)
+            + ".\nPull them once with:\n"
+            + "\n".join(
+                f"  export {name}=$(aws ssm get-parameter --name /keiko/reminder/"
+                f"{name.replace('REMINDER_', '').lower()} --with-decryption "
+                f"--region sa-east-1 --query Parameter.Value --output text)"
+                for name in missing if name != "WEBHOOK_URL"
+            )
+            + ("\n  export WEBHOOK_URL=$(aws ssm get-parameter --name /keiko/webhook/url"
+               " --region sa-east-1 --query Parameter.Value --output text)"
+               if "WEBHOOK_URL" in missing else "")
+        )
+
+    connect_readonly(url)
+
+    # `app.services.reminders_birthdays` imports `app.components.buttons`, which
+    # imports `app.services.cache`, which reads `app.redis_client` at import
+    # time. The repair never touches Redis, so it gets a stand-in that shouts if
+    # anything ever does rather than silently dropping a write.
+    class _NoRedis:
+        def __getattr__(self, name):
+            def refuse(*_args, **_kwargs):
+                raise RuntimeError(
+                    f"The repair tool does not have Redis, and something called "
+                    f"redis_client.{name}()."
+                )
+
+            return refuse
+
+    app.redis_client = _NoRedis()
+
+    config = SimpleNamespace(
+        WEBHOOK_URL=os.getenv("WEBHOOK_URL"),
+        REMINDER_APPLICATION_ID=os.getenv("REMINDER_APPLICATION_ID"),
+        REMINDER_API_KEY=os.getenv("REMINDER_API_KEY"),
+        REMINDER_AUTH_PASSWORD=os.getenv("REMINDER_AUTH_PASSWORD"),
+        is_dev=lambda: False,
+        is_prod=lambda: environment.lower() == "prod",
+    )
+    stand_in = SimpleNamespace(config=config)
+    stand_in.reminder = ReminderWebhook(stand_in)
+    app.bot = stand_in
+
+    print(f"Environment: {environment.lower()}\nDatabase:    {host}\n")
 
 
 def plan() -> List[Dict[str, Any]]:
@@ -85,7 +192,11 @@ def main(argv: List[str]) -> int:
     )
     args = parser.parse_args(argv)
 
-    load_app(args.environment)
+    if args.apply:
+        load_for_apply(args.environment)
+    else:
+        connect_readonly(mongo_url_from_environment())
+
     entries = plan()
     describe(entries)
 
