@@ -211,6 +211,29 @@ Three pieces close that:
 | `guild.logs` | Mongo, 30-day TTL | the hot window, with the full traceback |
 | daily `.jsonl.gz` | the logs channel | the archive, one file per day |
 
+## Everything on the timeline travels through `logging`
+
+`TraceFoldingHandler` (`app/logger.py`) turns log records into timeline lines,
+and `DiscordLogsHandler` suppresses the separate embed while a trace is open. So
+a `logger.info` inside a trace becomes a line *and* reaches the daily file and
+`guild.logs` from one call.
+
+Writing straight to `trace.add()` skips that bus. It did, for command
+invocation, and the result was `guild.logs` holding boot records and nothing
+about the commands people ran. `trace_scope(..., opening=...)` is the supported
+way to open a trace with a first line: it logs once, when the trace is created,
+so a nested scope cannot repeat it.
+
+## What the log channel calls an event
+
+`TraceTitles` (`app/constants.py`) maps an event to one emoji and one label.
+What happened wins; where it came from is the fallback. The same kind of event
+always renders the same way, which is the point.
+
+Deliberately separate from `commands.command-events.*`: that copy is shipped in
+two locales and read by server admins, this one is read by whoever is on call,
+and the two are free to move independently.
+
 ## Why not `analytics.emit`
 
 Because the catalog drops undeclared events and `sanitize_props` strips free
