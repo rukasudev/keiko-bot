@@ -153,3 +153,48 @@ def test_a_guild_that_deleted_its_config_is_skipped(monkeypatch):
     # No config means no channel to greet in; creating a reminder for it would
     # schedule a message with nowhere to go.
     assert birthdays_service.reconcile_missing_reminders() == 0
+
+
+# --------------------------------------------------------------------------
+# The loop that runs it in production
+# --------------------------------------------------------------------------
+
+def run_loop(monkeypatch, outcome):
+    """Drives the cog's task body without starting its loop."""
+    import asyncio
+    from types import SimpleNamespace
+
+    from app.cogs.birthdays import Birthday
+
+    monkeypatch.setattr(
+        birthdays_service, "reconcile_missing_reminders", outcome
+    )
+    return asyncio.get_event_loop().run_until_complete(
+        Birthday.reconcile_reminders.coro(SimpleNamespace(bot=SimpleNamespace()))
+    )
+
+
+def test_the_loop_reports_what_it_repaired(monkeypatch, caplog):
+    with caplog.at_level("INFO"):
+        run_loop(monkeypatch, lambda limit: 3)
+
+    assert "3 birthday reminder" in caplog.text
+
+
+def test_a_quiet_pass_says_nothing(monkeypatch, caplog):
+    """Every thirty minutes forever: silence when there is nothing to do."""
+    with caplog.at_level("INFO"):
+        run_loop(monkeypatch, lambda limit: 0)
+
+    assert "birthday reminder" not in caplog.text
+
+
+def test_a_failing_pass_never_kills_the_loop(monkeypatch, caplog):
+    """A task that raises stops rescheduling, and the repair would stop with it."""
+    def explode(limit):
+        raise ConnectionError("mongo is down")
+
+    with caplog.at_level("WARNING"):
+        assert run_loop(monkeypatch, explode) is None
+
+    assert "mongo is down" in caplog.text

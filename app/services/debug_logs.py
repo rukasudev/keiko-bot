@@ -102,7 +102,7 @@ def build_document(
         "v": SCHEMA_VERSION,
         "ts": ts or datetime.now(timezone.utc),
         "level": level,
-        "message": _clip(message, constants.DEBUG_LOGS_MESSAGE_MAX_LENGTH),
+        "message": clip_tail(message, constants.DEBUG_LOGS_MESSAGE_MAX_LENGTH),
         "log_type": log_type,
         "guild_id": _as_id(guild_id) or (trace.guild_id if trace else None),
         "user_id": _as_id(user_id) or (trace.user_id if trace else None),
@@ -115,7 +115,7 @@ def build_document(
         "module": module,
         "function": function,
         "line": line,
-        "traceback": _clip(traceback_text, constants.DEBUG_LOGS_TRACEBACK_MAX_LENGTH),
+        "traceback": clip_tail(traceback_text, constants.DEBUG_LOGS_TRACEBACK_MAX_LENGTH),
         "env": _ENVIRONMENT,
     }
 
@@ -127,10 +127,12 @@ def _as_id(value: Any) -> Optional[str]:
 ELLIPSIS = "…\n"
 
 
-def _clip(value: Optional[str], limit: int) -> Optional[str]:
-    """Keep the tail of an oversized value: the last frames explain the failure.
+def clip_tail(value: Optional[str], limit: int) -> Optional[str]:
+    """Keep the end: the last frames of a traceback are what explain it.
 
-    The marker counts against the limit, so the result never exceeds it.
+    The counterpart is `logger.clip_head`, which keeps the beginning because an
+    embed is identified by its first line. The marker counts against the limit,
+    so the result never exceeds it.
     """
     if not value:
         return None

@@ -53,9 +53,9 @@ def test_the_same_kind_of_event_always_carries_the_same_emoji():
 
 @pytest.mark.parametrize("outcome,expected", [
     ("added", "➕ Item Added"),
-    ("removed", "🗑️ Item Removed"),
-    ("edited", "📝 Config Edited"),
-    ("disabled", "🚫 Command Disabled"),
+    ("removed", "➖ Item Removed"),
+    ("edited", "🔧 Config Edited"),
+    ("disabled", "🛑 Command Disabled"),
     ("paused", "⏸️ Command Paused"),
     ("saved", "✅ Setup Saved"),
 ])
@@ -84,7 +84,10 @@ def test_an_error_outranks_everything_else():
 
 def test_every_title_carries_exactly_one_leading_emoji():
     """The writing-style skill: `{ONE_EMOJI} {Title Case}`."""
-    for title in list(titles.BY_OUTCOME.values()) + list(titles.BY_SOURCE.values()) + [titles.DEFAULT]:
+    rendered_titles = [
+        logger_module.outcome_title(outcome) for outcome in titles.OUTCOME_LABELS
+    ] + list(titles.SOURCE_TITLES.values()) + [titles.DEFAULT]
+    for title in rendered_titles:
         emoji, _, label = title.partition(" ")
         assert label, title
         assert label[0].isupper(), title
@@ -147,3 +150,54 @@ def test_a_trace_without_a_guild_or_user_omits_those_fields():
 
     assert "User" not in named and "Guild" not in named
     assert "Duration" in named
+
+
+# --------------------------------------------------------------------------
+# The title reads the action without the session paying for it
+# --------------------------------------------------------------------------
+
+def with_action(action, result=None, **kwargs):
+    trace = Trace("moderations block links", source="slash", **kwargs)
+    trace.last_action = action
+    trace.finish(result)
+    return logger_module.build_trace_embed(trace)
+
+
+def test_an_open_session_is_titled_by_what_it_last_did():
+    """"In progress" says nothing; "an item was added" says something."""
+    assert with_action("added", result="in progress").title == "➕ Item Added"
+    assert with_action("removed", result="in progress").title == "➖ Item Removed"
+
+
+def test_how_the_work_ended_outranks_what_it_last_did():
+    """A session that added three items and then saved ended as a save."""
+    assert with_action("added", result="saved").title == "✅ Setup Saved"
+    assert with_action("added", result="discarded").title == "🚫 Setup Discarded"
+
+
+def test_a_failure_outranks_both():
+    trace = Trace("moderations block links", source="slash")
+    trace.last_action = "added"
+    trace.add("boom", logging.ERROR)
+    trace.finish("saved")
+
+    assert logger_module.build_trace_embed(trace).title == "❌ Command Error"
+
+
+def test_an_open_session_with_no_action_yet_still_says_it_is_running():
+    assert with_action(None, result="in progress").title == "⏳ Setup In Progress"
+
+
+def test_a_plain_command_is_unaffected_by_the_action_path():
+    assert with_action(None, result="success").title == titles.DEFAULT
+
+
+def test_the_title_and_the_timeline_agree_on_the_icon():
+    """One vocabulary: what the timeline line shows and what the title shows
+    for the same outcome must not diverge, which is how this started."""
+    from app.services import journey
+
+    for outcome in titles.OUTCOME_LABELS:
+        icon = journey.outcome_icon(outcome)
+        assert icon != "•", f"{outcome} has no entry in OUTCOME_ICONS"
+        assert logger_module.outcome_title(outcome).startswith(icon)

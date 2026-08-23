@@ -20,6 +20,12 @@ _JOURNEYS: Dict[str, Trace] = {}
 _PUBLISHER: Optional[Callable[[Trace], None]] = None
 
 OUTCOME_ICONS = {
+    # The one vocabulary for "what happened". The log embed titles read from
+    # here rather than keeping their own copy, which is how `edited` once ended
+    # up as 📝 in one place and 🔧 in another.
+    "added": "➕",
+    "removed": "➖",
+    "enabled": "🎉",
     "saved": "✅",
     "edited": "🔧",
     "discarded": "🚫",
@@ -99,8 +105,14 @@ TERMINAL_OUTCOMES = {
     "feature.disabled": "disabled",
     "feature.paused": "paused",
     "feature.unpaused": "resumed",
+}
+
+# Steps, not endings: a manager exists to add more than one. They name the last
+# action so the log embed can be titled by it, without closing the session.
+ACTIONS = {
     "feature.item_added": "added",
     "feature.item_removed": "removed",
+    "feature.enabled": "enabled",
 }
 
 
@@ -174,6 +186,10 @@ def record(envelope: Dict[str, Any]) -> None:
     failed = envelope["event"] == "command.failed"
     level = logging.ERROR if failed else logging.INFO
     journey.add(line, level, timestamp=envelope.get("ts"))
+
+    action = ACTIONS.get(envelope["event"])
+    if action:
+        journey.last_action = action
 
     outcome = TERMINAL_OUTCOMES.get(envelope["event"])
     if outcome:

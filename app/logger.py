@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 import traceback
+from typing import Optional
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
 
@@ -230,27 +231,46 @@ def format_duration(milliseconds: int) -> str:
     return f"{minutes}m{seconds:02d}s"
 
 
+def outcome_title(outcome) -> Optional[str]:
+    """Label from TraceTitles, emoji from the vocabulary the journey owns."""
+    label = titles.OUTCOME_LABELS.get(outcome)
+    if not label:
+        return None
+    return f"{journey_service.outcome_icon(outcome)} {label}"
+
+
 def trace_title(trace) -> str:
     """One emoji per kind of event, and the same one every time.
 
-    What happened decides the title; where it came from is the fallback. Two
-    runs of the same command used to render under different icons depending on
-    whether a form session was involved, which made the channel unreadable at a
-    glance.
+    Order: a failure outranks everything, then how the work ended, then the last
+    thing it did, then where it came from. The middle two are separate on
+    purpose — a session that added three items and then saved ended as a save,
+    but while it is open the interesting fact is the item.
     """
     if trace.has_error:
-        return titles.BY_OUTCOME[constants.TRACE_RESULT_FAILURE]
+        return outcome_title(constants.TRACE_RESULT_FAILURE)
 
-    by_outcome = titles.BY_OUTCOME.get(trace.result)
-    if by_outcome:
-        return by_outcome
+    result = trace.result
+    if result and result not in titles.GENERIC_RESULTS:
+        settled = outcome_title(result)
+        if settled:
+            return settled
 
-    return titles.BY_SOURCE.get(trace.source, titles.DEFAULT)
+    action = outcome_title(getattr(trace, "last_action", None))
+    if action:
+        return action
+
+    if result:
+        ongoing = outcome_title(result)
+        if ongoing:
+            return ongoing
+
+    return titles.SOURCE_TITLES.get(trace.source, titles.DEFAULT)
 
 
 def trace_subject(trace) -> str:
     """Slash commands read as commands; a webhook path reads as itself."""
-    if trace.source in titles.BY_SOURCE:
+    if trace.source in titles.SOURCE_TITLES:
         return f"`{trace.name}`"
     return f"`/{trace.name}`"
 
@@ -265,7 +285,13 @@ def build_trace_timeline(trace) -> str:
     return "\n".join(lines)
 
 
-def clip(text: str, limit: int) -> str:
+def clip_head(text: str, limit: int) -> str:
+    """Keep the beginning: the first line is what identifies a failure.
+
+    The counterpart is `debug_logs.clip_tail`, which keeps the end because the
+    last frames of a traceback are the ones that explain it. Same shape,
+    opposite choice, so the names say which.
+    """
     return text if len(text) <= limit else text[: limit - 1] + "…"
 
 
@@ -273,7 +299,7 @@ def build_trace_embed(trace) -> discord.Embed:
     """Metadata in fields, the story in the body, one label on top."""
     embed = discord.Embed(
         title=trace_title(trace),
-        description=clip(trace_subject(trace), limits.EMBED_DESCRIPTION),
+        description=clip_head(trace_subject(trace), limits.EMBED_DESCRIPTION),
         color=(
             # The house error colour, not discord.Color.red(): every other error
             # surface in Keiko uses this one.
@@ -297,13 +323,13 @@ def build_trace_embed(trace) -> discord.Embed:
     if timeline:
         embed.add_field(
             name="Timeline",
-            value=clip(timeline, limits.EMBED_FIELD_VALUE),
+            value=clip_head(timeline, limits.EMBED_FIELD_VALUE),
             inline=False,
         )
 
     if trace.footnote:
         embed.add_field(
-            name="Note", value=clip(trace.footnote, limits.EMBED_FIELD_VALUE), inline=False
+            name="Note", value=clip_head(trace.footnote, limits.EMBED_FIELD_VALUE), inline=False
         )
 
     label = "session" if trace.is_journey else "trace"
@@ -524,7 +550,7 @@ class DiscordLogsHandler(logging.Handler):
             title=title,
             # Discord rejects the whole message over the limit, so an oversized
             # error used to cost the very log that explained it.
-            description=clip(str(description), limits.EMBED_DESCRIPTION),
+            description=clip_head(str(description), limits.EMBED_DESCRIPTION),
             color=color,
         )
 

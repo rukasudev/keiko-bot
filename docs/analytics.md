@@ -224,6 +224,27 @@ about the commands people ran. `trace_scope(..., opening=...)` is the supported
 way to open a trace with a first line: it logs once, when the trace is created,
 so a nested scope cannot repeat it.
 
+## What is localized on the admin surfaces, and what is not
+
+Declared exception, with a boundary, because the two halves were decided a turn
+apart and the inconsistency was the real problem:
+
+- **A sentence in Keiko's voice is localized.** The daily export message
+  ("Here is my structured log for…") lives in `app/languages/messages/` and is
+  resolved through `ml()`. It reads like Keiko talking, so it follows every rule
+  that applies to Keiko talking, in both locales.
+- **A structural label is English, in Python.** `TraceTitles.OUTCOME_LABELS`,
+  and the embed field names beside them — `User`, `Guild`, `Duration`,
+  `Interaction ID` — are a taxonomy for whoever is on call, not copy. They have
+  always been hardcoded here; adding a locale file for them would localize half
+  of one embed and leave the other half in English.
+
+`docs/form-configuration.md` §7 lists user-facing strings in Python as a
+documented exception. This is one, named and bounded rather than inherited by
+analogy. If the boundary moves, it moves in
+`.claude/skills/keiko-writing-style/SKILL.md`, which has no carve-out for
+operator surfaces today.
+
 ## What the log channel calls an event
 
 `TraceTitles` (`app/constants.py`) maps an event to one emoji and one label.

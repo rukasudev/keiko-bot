@@ -75,6 +75,10 @@ class Trace:
         self.truncated = 0
         self.max_level = logging.NOTSET
         self.footnote: Optional[str] = None
+        # What was last *done*, kept apart from `result`, which is the
+        # lifecycle. A manager adds several items before it saves; the title
+        # wants the action, the session wants to stay open.
+        self.last_action: Optional[str] = None
         self.is_journey = False
         self.superseded = False
         self.message_id: Optional[int] = None

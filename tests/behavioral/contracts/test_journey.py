@@ -337,3 +337,63 @@ def test_the_timeline_cap_still_applies_to_a_long_session(published):
 
     from app.constants import LogTypes as logconstants
     assert len(lines_now()) <= logconstants.TRACE_MAX_LINES
+
+
+# --------------------------------------------------------------------------
+# Adding items is a step, not the end of the session
+# --------------------------------------------------------------------------
+
+def test_a_second_item_added_still_reaches_the_timeline(published):
+    """Broke as: `feature.item_added` was made a terminal outcome so the log
+    embed could be titled "Item Added". That closed the session on the first
+    item and dropped the message from `_JOURNEYS`, so everything after it —
+    further items, and the `saved` that ends the setup — reached nothing.
+
+    A manager exists to add several items. `_line_for` renders these as steps,
+    which is what they are.
+    """
+    start()
+    journey.record(event("feature.item_added"))
+    journey.record(event("feature.item_added"))
+    journey.record(event("feature.item_removed"))
+
+    assert lines_now().count("➕ item added") == 2
+    assert "➖ item removed" in lines_now()
+
+
+def test_adding_an_item_leaves_the_session_open(published):
+    start()
+    journey.record(event("feature.item_added"))
+
+    story = journey.get(SESSION)
+    assert story is not None, "the session was closed by a step"
+    assert story.finished_at is None
+    assert story.result == "in progress"
+
+
+def test_a_setup_that_adds_items_still_records_the_save(published):
+    start()
+    journey.record(event("feature.item_added"))
+    journey.record(event("setup.completed", steps_viewed=3))
+
+    assert published[-1]["result"] == "saved"
+    assert published[-1]["finished"] is True
+
+
+def test_the_last_action_is_remembered_for_the_title(published):
+    """What the embed title needs, without touching the session lifecycle."""
+    start()
+    journey.record(event("feature.item_added"))
+
+    assert journey.get(SESSION).last_action == "added"
+
+
+def test_a_terminal_outcome_outranks_the_last_action(published):
+    start()
+    journey.record(event("feature.item_added"))
+    journey.record(event("setup.discarded"))
+
+    from app import logger as logger_module
+
+    story = published[-1]
+    assert story["result"] == "discarded"
