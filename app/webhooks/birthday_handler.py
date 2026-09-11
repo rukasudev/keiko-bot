@@ -11,6 +11,7 @@ from app.constants import LogTypes as logconstants
 from app.data import birthdays as birthdays_data
 from app.exceptions import ErrorContext
 from app.services import analytics
+from app.services.blocking import off_loop
 from app.services.dates import format_mm_dd_label, is_valid_mm_dd
 from app.services.utils import ml, parse_locale
 
@@ -74,7 +75,9 @@ async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
             logger.warn(f"Invalid birthday reminder notes: {notes}", log_type=logconstants.COMMAND_WARN_TYPE)
             return
 
-        items = birthdays_data.find_birthday_items_by_date(mm_dd)
+        # This runs on the bot's loop, and the reads below are synchronous
+        # pymongo — one for the whole date, then two more per guild.
+        items = await off_loop(birthdays_data.find_birthday_items_by_date, mm_dd)
         grouped: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
         for item in items:
             grouped[str(item.get("guild_id"))].append(item)
@@ -85,10 +88,10 @@ async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
         )
 
         for guild_id, guild_items in grouped.items():
-            if not birthdays_data.is_birthday_enabled(guild_id):
+            if not await off_loop(birthdays_data.is_birthday_enabled, guild_id):
                 continue
 
-            config = birthdays_data.find_birthday_config(guild_id)
+            config = await off_loop(birthdays_data.find_birthday_config, guild_id)
             if not config or not config.get("channel_id"):
                 continue
 

@@ -79,7 +79,7 @@ async def test_a_failed_send_leaves_the_person_where_they_were():
     form.view = OneContainerView()
 
     with pytest.raises(discord.HTTPException):
-        await form._send_layout_view(interaction)
+        await form._send_layout_view(interaction, view=form.view)
 
     assert "original" in followup.visible, (
         "the message was deleted before the replacement was sent, so a failed "
@@ -92,7 +92,7 @@ async def test_a_successful_send_still_replaces_the_message():
     form, interaction = make_form(followup)
     form.view = OneContainerView()
 
-    await form._send_layout_view(interaction)
+    await form._send_layout_view(interaction, view=form.view)
 
     assert "replacement" in followup.visible
     assert "original" not in followup.visible, "the old message must not linger"
@@ -108,3 +108,12 @@ async def test_the_step_sends_the_view_it_built():
     await form._send_layout_view(interaction, view=built)
 
     assert followup.sent_view is built
+
+
+def test_the_view_cannot_be_left_to_chance():
+    """No default: a future caller must not be able to reopen the gap."""
+    import inspect
+
+    parameter = inspect.signature(Form._send_layout_view).parameters["view"]
+
+    assert parameter.default is inspect.Parameter.empty

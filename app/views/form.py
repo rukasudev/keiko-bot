@@ -1357,17 +1357,16 @@ class Form(SessionAwareView, discord.ui.View):
             deferred=deferred, from_layout=previous_is_layout,
         )
 
-    async def _send_layout_view(self, interaction: discord.Interaction, view=None):
+    async def _send_layout_view(self, interaction: discord.Interaction, view):
         """Send LayoutView (Components V2) without embed.
 
-        `view` is an argument rather than a read of `self.view` because that
+        `view` is required rather than read from `self.view` because that
         attribute is reassigned for fifteen different objects in this class —
         selects, modals, compositions, layout views — and the send happens two
-        awaits after the step set it. A step sends what it built.
+        awaits after the step set it. A step sends what it built, and there is
+        no default that would let a future caller reopen that gap.
         """
         from app.views.summary_card import SummaryCardView
-
-        view = view if view is not None else self.view
 
         view_config = {
             DesignSelectView: ('design_select', self._parse_cogs_to_design_select),

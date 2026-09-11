@@ -620,7 +620,7 @@ configured long before analytics existed — it works retroactively, today.
 ### Step 2 is a registry, not a collection read
 
 A YAML-driven cog stores exactly the keys its form names, so its document *is*
-that shape and `config_state` just reads the collection. A feature that owns its
+that shape and `feature_config_states` just reads the collection. A feature that owns its
 persistence is the exception, and it is not hypothetical: birthdays store the
 channel as `channel_id`, fold three settings into a nested `default_message`,
 and keep the birthdays themselves in the `reminders` database. Walking the raw

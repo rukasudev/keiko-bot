@@ -1,6 +1,6 @@
 import random
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import discord
 
@@ -58,10 +58,16 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
 
     try:
         if command == "commands":
-            view = parse_command_list_view(channel_id, message, streamer)
+            view = await parse_command_list_view(channel_id, message, streamer)
+            if not view:
+                return
             return await view.send(message)
 
-        reply = get_reply_in_cache_or_populate(channel_id, command, message.author)
+        # Every miss here is a `requests` call to StreamElements, on the same
+        # coroutine as the read above.
+        reply = await off_loop(
+            get_reply_in_cache_or_populate, channel_id, command, message.author
+        )
         if not reply:
             return
 
@@ -78,15 +84,27 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
         )
         raise
 
-def parse_command_list_view(channel_id: str, message: discord.Message, streamer: str) -> discord.ui.View:
+async def parse_command_list_view(
+    channel_id: str, message: discord.Message, streamer: str
+) -> Optional[discord.ui.View]:
+    """The command list, with both API calls off the loop.
+
+    The view itself is built here rather than inside `off_loop`: only the two
+    lookups block, and a Discord view belongs to the thread running the loop.
+    """
     from app import bot
-    commands_list = get_commands_in_cache_or_populate(channel_id, message.author)
+
+    commands_list = await off_loop(
+        get_commands_in_cache_or_populate, channel_id, message.author
+    )
     if not commands_list:
-        return []
+        # Used to be `[]`, which the caller then asked to `.send()`.
+        return None
 
     title = "StreamElements Commands"
     description = f"Here is a list of all the StreamElements commands available in {streamer}'s channel"
-    icon = bot.twitch.get_user_info(streamer).get("profile_image_url")
+    user_info = await off_loop(bot.twitch.get_user_info, streamer)
+    icon = (user_info or {}).get("profile_image_url")
     view = PaginationWithoutInteractionView(title, description, commands_list, message, thumbnail=icon, sep=4)
     return view
 

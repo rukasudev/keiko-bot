@@ -13,7 +13,8 @@ import os
 import pytest
 
 from app.constants import Commands as constants
-from app.services import analytics, analytics_reports, config_state
+from app.services import analytics, analytics_reports
+from app.services import cogs as cogs_service
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("analytics")]
 
@@ -167,18 +168,18 @@ def test_every_configuration_provider_resolves_to_something_callable():
     `/admin insights` in production — and the failure it restores is the one
     that reported settings used by every guild as used by nobody.
     """
-    for feature, path in config_state.PROVIDERS.items():
+    for feature, path in cogs_service.CONFIG_STATE_PROVIDERS.items():
         assert feature in constants.COMMANDS_LIST, (
             f"{feature} is not a command, so no report will ever ask for it"
         )
-        provider = config_state._resolve(path)
+        provider = cogs_service.resolve_config_state_provider(path)
         assert callable(provider), f"{path} is not callable"
 
 
 def test_every_configuration_provider_answers_in_the_shape_the_form_names(deps):
     """The point of the registry: a provider speaks YAML keys, not storage keys."""
-    for feature in config_state.PROVIDERS:
-        states = config_state.feature_config_states(feature)
+    for feature in cogs_service.CONFIG_STATE_PROVIDERS:
+        states = cogs_service.feature_config_states(feature)
         assert isinstance(states, list)
         assert all(isinstance(state, dict) for state in states)
 

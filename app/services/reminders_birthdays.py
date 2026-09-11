@@ -247,7 +247,8 @@ def birthday_manager_cog_data(guild_id: str, apply_defaults: bool = True) -> Dic
 def birthday_config_states() -> List[Dict[str, Any]]:
     """Every guild's birthday configuration, in the shape the YAML names it.
 
-    Registered in `config_state` so a report never walks the raw document: this
+    Registered in `cogs.CONFIG_STATE_PROVIDERS` so a report never walks the raw
+    document: this
     feature stores `channel_id`, folds three settings into `default_message`,
     and keeps the birthdays themselves in another database, so a reader looking
     for the form's keys finds nothing and calls a used setting dead.

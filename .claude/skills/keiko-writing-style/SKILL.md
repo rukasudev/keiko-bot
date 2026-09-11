@@ -146,7 +146,7 @@ Everything above governs what a Discord **user** sees. Two surfaces are read onl
 - the `/admin` commands, restricted to `ADMIN_GUILD_ID` (`app/services/admin_analytics.py`, `app/services/admin_digest.py`);
 - the admin log channels: trace and journey messages, and the labels around them (`app/logger.py`, `app/services/journey.py`).
 
-On those two surfaces only: English only, no `ml()` and no pt-br counterpart; no personality, no 1st person, no apology-plus-recovery shape; structural punctuation such as `—` and `·` is allowed, because the line is a record, not a sentence. Keep every other habit — one leading emoji on a title, `"• "` on a footer, `**bold**` for names — so the messages still read as one product.
+On those two surfaces only: English only, no `ml()` and no pt-br counterpart; no personality, no 1st person, no apology-plus-recovery shape; structural punctuation such as `—` and `·` is allowed, because the line is a record, not a sentence; and `• ` opens each item of a list in the body, which is how the weekly digest and every `/admin` report are already written. Keep every other habit — one leading emoji on a title, `"• "` on a footer, `**bold**` for names — so the messages still read as one product.
 
 Everything else stays fully under the rules above, including anything a server member can see: an error a user triggers is user-facing even when an operator also reads it, and a notification is user-facing even when it was posted by a job.
 

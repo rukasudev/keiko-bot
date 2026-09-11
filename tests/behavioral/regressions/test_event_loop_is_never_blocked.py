@@ -94,6 +94,61 @@ async def test_a_stream_elements_command_never_freezes_the_bot(
     assert ticks >= MIN_TICKS
 
 
+async def test_answering_a_stream_elements_command_never_freezes_the_bot(
+    deps, mock_cache, guild, bot, channel, member, monkeypatch
+):
+    """The cache read is not the only blocking call on this path.
+
+    A `ks!` command that misses the cache goes to the StreamElements API over
+    `requests`, from the same coroutine, right after the read that was fixed.
+    """
+    mock_cache.return_value = {"streamer": "gaules", "channel_id": "c1", "enabled": True}
+    monkeypatch.setattr(
+        "app.services.stream_elements.get_reply_in_cache_or_populate", blocking(None)
+    )
+    message = create_message(content="ks!mouse", author=member, channel=channel)
+
+    ticks = await ticks_while(
+        stream_elements.check_message(str(guild.id), message, "ks!")
+    )
+
+    assert ticks >= MIN_TICKS, (
+        f"the loop only came back {ticks} times: the API call beside the cache "
+        f"read blocks the gateway just the same"
+    )
+
+
+async def test_listing_stream_elements_commands_never_freezes_the_bot(
+    deps, mock_cache, guild, bot, channel, member, monkeypatch
+):
+    mock_cache.return_value = {"streamer": "gaules", "channel_id": "c1", "enabled": True}
+    monkeypatch.setattr(
+        "app.services.stream_elements.get_commands_in_cache_or_populate", blocking([])
+    )
+    message = create_message(content="ks!commands", author=member, channel=channel)
+
+    ticks = await ticks_while(
+        stream_elements.check_message(str(guild.id), message, "ks!")
+    )
+
+    assert ticks >= MIN_TICKS
+
+
+async def test_a_birthday_reminder_never_freezes_the_bot(deps, monkeypatch):
+    """The webhook job runs on the loop, and reads Mongo once per guild."""
+    from app.webhooks import birthday_handler
+
+    monkeypatch.setattr(
+        "app.data.birthdays.find_birthday_items_by_date", blocking([])
+    )
+
+    ticks = await ticks_while(
+        birthday_handler.process_birthday_webhook("reminder-1", "03-15")
+    )
+
+    assert ticks >= MIN_TICKS
+
+
 async def test_waiting_for_a_stream_never_freezes_the_bot(deps, monkeypatch):
     """The retry loop sleeps 15 seconds at a time, twice, between Twitch calls."""
     monkeypatch.setattr(
