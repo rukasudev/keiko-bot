@@ -14,6 +14,11 @@ def find_birthday_config(guild_id: str) -> Optional[Dict[str, Any]]:
     return mongo_client.guild.reminders_birthday.find_one({"guild_id": str(guild_id)})
 
 
+def find_all_birthday_configs() -> List[Dict[str, Any]]:
+    """Every guild that configured birthdays, for reports that count guilds."""
+    return list(mongo_client.guild.reminders_birthday.find({}, {"_id": False}))
+
+
 def upsert_birthday_config(
     guild_id: str,
     channel_id: str,

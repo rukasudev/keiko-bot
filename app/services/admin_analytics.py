@@ -13,7 +13,7 @@ import discord
 from app.components.embed import base_embed
 from app.constants import Commands as constants
 from app.services import analytics, analytics_reports
-from app.services.utils import describe_step
+from app.services.utils import describe_default, describe_step
 
 EVENT_ICONS = {
     "guild.joined": "➡️",
@@ -284,7 +284,7 @@ def build_config_usage_embed(feature: Optional[str] = None) -> discord.Embed:
 
     lines = [
         f"**{row['feature']}** / `{row['key']}` — **{row['filled']}** of "
-        f"**{row['total']}** guilds ({row['share']}%)"
+        f"**{row['total']}** guilds ({row['share']}%){describe_default(row)}"
         for row in rows[:15]
     ]
     return base_embed(
