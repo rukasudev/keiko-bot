@@ -27,6 +27,7 @@ from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
 from app.exceptions import ErrorContext
 from app.integrations.stream_elements import StreamElementsClient
+from app.services.blocking import off_loop
 from app.services.cogs import insert_cog_by_guild, insert_cog_event
 from app.services.compositions import merge_composition_item_by_nested_value
 from app.services.moderations import update_moderations_by_guild
@@ -859,7 +860,7 @@ class Form(SessionAwareView, discord.ui.View):
         await interaction.response.defer()
 
         self.view = build_summary_card_from_step(self._step, form=self, interaction=interaction)
-        await self._send_layout_view(interaction)
+        await self._send_layout_view(interaction, view=self.view)
 
     async def show_available_roles(self, interaction: discord.Interaction):
         if self._get_step_item("select"):
@@ -1025,7 +1026,7 @@ class Form(SessionAwareView, discord.ui.View):
             preview_urls=preview_urls,
         )
         self.view = self._design_select_view
-        await self._send_layout_view(interaction)
+        await self._send_layout_view(interaction, view=self._design_select_view)
 
     async def _design_select_callback(self, interaction: discord.Interaction, reselection: bool = False):
         if reselection:
@@ -1142,13 +1143,20 @@ class Form(SessionAwareView, discord.ui.View):
             }
         }
 
+        # Both branches below reach a third-party API over `requests`, and this
+        # runs between the click and the acknowledgement. Discord allows three
+        # seconds; two blocking POSTs spent them, so the subscription was saved
+        # and the person got `10062 Unknown interaction` instead of a card.
         if self.command_key in subscriptions:
             sub = subscriptions[self.command_key]
-            sub["handler"](interaction, sub["subscribe"], sub["unsubscribe"], sub["key"])
+            await off_loop(
+                sub["handler"],
+                interaction, sub["subscribe"], sub["unsubscribe"], sub["key"],
+            )
 
         if self.command_key == commandconstants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY:
             streamer = self.responses[0]["value"]
-            channel_info = StreamElementsClient.get_channel_info(streamer)
+            channel_info = await off_loop(StreamElementsClient.get_channel_info, streamer)
             self.responses.append({"key": "channel_id", "title": "Channel ID", "value": channel_info["_id"]})
 
 
@@ -1349,25 +1357,48 @@ class Form(SessionAwareView, discord.ui.View):
             deferred=deferred, from_layout=previous_is_layout,
         )
 
-    async def _send_layout_view(self, interaction: discord.Interaction):
-        """Send LayoutView (Components V2) without embed."""
+    async def _send_layout_view(self, interaction: discord.Interaction, view=None):
+        """Send LayoutView (Components V2) without embed.
+
+        `view` is an argument rather than a read of `self.view` because that
+        attribute is reassigned for fifteen different objects in this class —
+        selects, modals, compositions, layout views — and the send happens two
+        awaits after the step set it. A step sends what it built.
+        """
         from app.views.summary_card import SummaryCardView
+
+        view = view if view is not None else self.view
 
         view_config = {
             DesignSelectView: ('design_select', self._parse_cogs_to_design_select),
             SummaryCardView: (None, None),
         }
 
-        config = view_config.get(type(self.view))
+        config = view_config.get(type(view))
         if config:
             fill_type, cogs_fallback = config
             if fill_type:
                 fill_fn = getattr(self.state, f'fill_{fill_type}', None)
-                if fill_fn and not fill_fn(self.view) and self.cogs and cogs_fallback:
+                if fill_fn and not fill_fn(view) and self.cogs and cogs_fallback:
                     cogs_fallback()
 
-        await interaction.followup.delete_message(interaction.message.id)
-        await interaction.followup.send(view=self.view, ephemeral=True)
+        # Send before deleting. The other order meant a rejected payload left
+        # the person with no message at all: every later click answered `10008
+        # Unknown Message`, and the step after that tried to open a modal from a
+        # modal submission, which Discord refuses outright.
+        await interaction.followup.send(view=view, ephemeral=True)
+
+        try:
+            await interaction.followup.delete_message(interaction.message.id)
+        except discord.HTTPException as error:
+            # The replacement is already on screen; failing to clear the old
+            # message is cosmetic and must not break the flow.
+            logger.warn(
+                f"Could not remove the previous step message: "
+                f"{type(error).__name__}: {error}",
+                log_type=logconstants.COMMAND_WARN_TYPE,
+            )
+
         self._using_layout_view = True
 
     @_update_form_step

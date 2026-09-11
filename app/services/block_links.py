@@ -19,6 +19,7 @@ from app.constants import ViewConstants as view_constants
 from app.data import block_links as blocked_links_data
 from app.exceptions import ErrorContext
 from app.services import analytics, cache
+from app.services.blocking import off_loop
 from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
@@ -329,7 +330,12 @@ def evaluate_message(
 
 async def check_message(guild_id: str, message: discord.Message) -> None:
     """Command service to check whether a message carries a blocked link."""
-    cogs = cache.get_cog_data_or_populate(guild_id, constants.BLOCK_LINKS_KEY)
+    # Every message in every guild reaches this line, and a cache miss goes to
+    # Mongo. Called synchronously, it blocked the gateway heartbeat for more
+    # than 20 seconds, 52 times in one day.
+    cogs = await off_loop(
+        cache.get_cog_data_or_populate, guild_id, constants.BLOCK_LINKS_KEY
+    )
 
     evaluation = evaluate_message(MessageSubject.from_message(message), cogs)
     if not evaluation.would_block:

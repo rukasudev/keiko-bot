@@ -32,7 +32,16 @@ prometheus_client>=0.21.0
 
 # 2. Then override with discord.py master for Components V2 support
 # This MUST be installed last to override the stable version
-discord.py @ git+https://github.com/Rapptz/discord.py@master
+#
+# Pinned to a commit, not to `@master`. Every other line in this file is pinned;
+# this one moved on its own at every image build, so the library under the bot
+# was whatever master happened to be that day and production could not be
+# reproduced locally. Components V2 is still changing upstream, which is exactly
+# the part of the API the forms depend on.
+#
+# This is the commit the suite is green against. Moving it is a deliberate
+# change: bump it, run `make test`, and read the Components V2 changes.
+discord.py @ git+https://github.com/Rapptz/discord.py@1add8a0b40577186431cdb5f63f97affadab285b
 
 # Required for discord.py voice on Python 3.13+
 audioop-lts>=0.2.1; python_version >= "3.13"

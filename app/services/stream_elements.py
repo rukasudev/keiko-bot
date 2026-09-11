@@ -12,6 +12,7 @@ from app.constants import Style as style_constants
 from app.exceptions import ErrorContext
 from app.integrations.stream_elements import StreamElementsClient
 from app.services import analytics, cache
+from app.services.blocking import off_loop
 from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
@@ -30,7 +31,13 @@ async def manager(interaction: discord.Interaction, guild_id: str):
     )
 
 async def check_message(guild_id: str, message: discord.Message, prefix: str) -> None:
-    cogs = cache.get_cog_data_or_populate(guild_id, constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY)
+    # Same reason as `block_links.check_message`: this is the message path, and
+    # a cache miss reads Mongo synchronously.
+    cogs = await off_loop(
+        cache.get_cog_data_or_populate,
+        guild_id,
+        constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
+    )
 
     if not cogs:
         return
