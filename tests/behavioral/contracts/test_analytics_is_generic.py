@@ -13,7 +13,7 @@ import os
 import pytest
 
 from app.constants import Commands as constants
-from app.services import analytics
+from app.services import analytics, analytics_reports, config_state
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("analytics")]
 
@@ -158,3 +158,33 @@ def test_a_new_command_needs_no_analytics_code_to_be_measured():
         "only guild lifecycle, support commands and domain-specific value "
         "delivery should ever need an explicit call site"
     )
+
+
+def test_every_configuration_provider_resolves_to_something_callable():
+    """The registry is resolved by name at call time, so nothing else checks it.
+
+    A rename or a move passes every test in this repository and breaks
+    `/admin insights` in production — and the failure it restores is the one
+    that reported settings used by every guild as used by nobody.
+    """
+    for feature, path in config_state.PROVIDERS.items():
+        assert feature in constants.COMMANDS_LIST, (
+            f"{feature} is not a command, so no report will ever ask for it"
+        )
+        provider = config_state._resolve(path)
+        assert callable(provider), f"{path} is not callable"
+
+
+def test_every_configuration_provider_answers_in_the_shape_the_form_names(deps):
+    """The point of the registry: a provider speaks YAML keys, not storage keys."""
+    for feature in config_state.PROVIDERS:
+        states = config_state.feature_config_states(feature)
+        assert isinstance(states, list)
+        assert all(isinstance(state, dict) for state in states)
+
+        keys = {field["key"] for field in analytics_reports.configurable_fields(feature)}
+        assert keys, f"{feature} declares no configurable field"
+        for state in states:
+            assert keys & set(state), (
+                f"{feature} answered with none of the keys its form declares"
+            )

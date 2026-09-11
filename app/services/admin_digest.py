@@ -6,7 +6,7 @@ short. A quiet week still gets a message: a digest that sometimes fails to
 arrive makes you doubt it every week. Reference: docs/analytics.md
 """
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Set
 
 import discord
 
@@ -15,6 +15,7 @@ from app.constants import Commands as constants
 from app.data import analytics as analytics_data
 from app.services import analytics_reports
 from app.services.analytics_sink import metric_key
+from app.services.utils import describe_default, describe_step
 
 VALUE_LABELS = {
     constants.BLOCK_LINKS_KEY: "links blocked",
@@ -27,7 +28,15 @@ VALUE_LABELS = {
 }
 
 
-def build_weekly_digest(days: int = constants.ANALYTICS_DIGEST_WINDOW_DAYS) -> discord.Embed:
+def build_weekly_digest(
+    days: int = constants.ANALYTICS_DIGEST_WINDOW_DAYS,
+    guild_count: Optional[int] = None,
+) -> discord.Embed:
+    """`guild_count` is how many guilds the bot is in, which only the bot knows.
+
+    Counting analytics profiles instead reports how many guilds did something
+    since analytics was deployed — on the first week that was 12 out of 73.
+    """
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
     attention = _attention_lines(since)
@@ -35,7 +44,7 @@ def build_weekly_digest(days: int = constants.ANALYTICS_DIGEST_WINDOW_DAYS) -> d
     unused = _unused_lines()
     slowest = _slow_step_lines()
 
-    description = [_headline(since)]
+    description = [_headline(since, guild_count)]
 
     if attention:
         description += ["", "**⚠️ Needs attention**"] + attention
@@ -57,23 +66,54 @@ def build_weekly_digest(days: int = constants.ANALYTICS_DIGEST_WINDOW_DAYS) -> d
     )
 
 
-def _headline(since: datetime) -> str:
+def _headline(since: datetime, guild_count: Optional[int] = None) -> str:
     profiles = analytics_data.find_profiles()
     live = [profile for profile in profiles if not profile.get("removed_at")]
-    delivering = [profile for profile in live if profile.get("last_value_at")]
 
     joined = len(_events_since("guild.joined", since))
     removed = len(_events_since("guild.removed", since))
 
-    line = f"**{len(live)}** guilds"
+    # Two different numbers, and never the same label: a caller that cannot
+    # supply the real count must not publish the smaller one as if it were.
+    line = (
+        f"**{guild_count}** guilds" if guild_count is not None
+        else f"**{len(live)}** guilds seen"
+    )
     if joined or removed:
         line += f" ({_signed(joined)} joined, {_signed(-removed)} left)"
-    line += f" · **{len(delivering)}** delivering value"
+    # In the window, not ever: a profile keeps `last_value_at` for as long as it
+    # exists, so counting profiles turns "this week" into "at some point".
+    line += f" · **{len(_delivering_guilds(since))}** delivered value this week"
     return line
+
+
+def _delivering_guilds(since: datetime) -> Set[str]:
+    """Guilds with at least one delivery inside the window."""
+    wanted = _value_metrics()
+    days = _window_days(since)
+
+    guilds = set()
+    for bucket in _all_month_buckets():
+        month = bucket.get("month")
+        for day, metrics in (bucket.get("days") or {}).items():
+            if f"{month}|{day}" in days and any(metric in wanted for metric in metrics):
+                guilds.add(bucket.get("guild_id"))
+    return guilds
 
 
 def _signed(value: int) -> str:
     return f"+{value}" if value >= 0 else str(value)
+
+
+def _where(row: Dict[str, Any]) -> str:
+    """A session that reached no step has no step to name — `None` is not one.
+
+    It is also the most interesting drop-off there is: whoever opened the setup
+    closed it on the opening screen, so the copy on that screen is the suspect.
+    """
+    if not row["step_key"]:
+        return "before the first step"
+    return f"at `{describe_step(row['feature'], row['step_key'])}`"
 
 
 def _attention_lines(since: datetime) -> List[str]:
@@ -84,8 +124,8 @@ def _attention_lines(since: datetime) -> List[str]:
         top_reason = reasons[0][0] if reasons else "unknown"
         setups = "setup" if row["lost"] == 1 else "setups"
         lines.append(
-            f"• **{row['feature']}**: {row['lost']} {setups} died at "
-            f"`{row['step_key']}` ({top_reason.replace('-', ' ')})"
+            f"• **{row['feature']}**: {row['lost']} {setups} died "
+            f"{_where(row)} ({top_reason.replace('-', ' ')})"
         )
 
     blocked = _guilds_with_permission_failures(since)
@@ -126,7 +166,7 @@ def _unused_lines() -> List[str]:
         seen.add(row["feature"])
         lines.append(
             f"• **{row['feature']}** / `{row['key']}` — **{row['filled']}** of "
-            f"**{row['total']}** guilds"
+            f"**{row['total']}** guilds{describe_default(row)}"
         )
         if len(lines) == 3:
             break
@@ -156,17 +196,26 @@ def _delivered_lines(since: datetime) -> List[str]:
     return ["• " + " · ".join(parts)]
 
 
-def _value_totals(since: datetime) -> Dict[str, int]:
-    """Deliveries in the window, summed from the monthly buckets."""
-    wanted = {
+def _value_metrics() -> Dict[str, str]:
+    """Every counter that means "the feature did its job", mapped to its feature."""
+    return {
         metric_key(event, feature): feature
         for feature in constants.COMMANDS_LIST
         for event in ("value.delivered", "feature.action_performed")
     }
-    days = {
+
+
+def _window_days(since: datetime) -> Set[str]:
+    return {
         (since + timedelta(days=offset)).strftime("%Y-%m|%d")
         for offset in range((datetime.now(timezone.utc) - since).days + 1)
     }
+
+
+def _value_totals(since: datetime) -> Dict[str, int]:
+    """Deliveries in the window, summed from the monthly buckets."""
+    wanted = _value_metrics()
+    days = _window_days(since)
 
     totals: Dict[str, int] = {}
     for bucket in _all_month_buckets():

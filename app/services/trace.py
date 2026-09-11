@@ -82,14 +82,24 @@ class Trace:
         self.is_journey = False
         self.superseded = False
         self.message_id: Optional[int] = None
+        # The lifecycle event this trace reported, if any. It decides both
+        # whether a silent trace is published and what the message is called.
+        self.reported_event: Optional[str] = None
 
     def add(
         self,
         message: str,
         levelno: int = logging.INFO,
         timestamp: Optional[datetime] = None,
+        log_type: Optional[str] = None,
     ) -> None:
         self.max_level = max(self.max_level, levelno)
+
+        if log_type in constants.REPORTED_EVENT_TYPES:
+            # Kept even when the line itself is truncated away: what decides
+            # whether this trace is published is that the event happened, not
+            # whether its line fit.
+            self.reported_event = log_type
 
         if len(self.lines) >= constants.TRACE_MAX_LINES:
             self.truncated += 1
@@ -103,6 +113,7 @@ class Trace:
             "ts": as_utc(timestamp) or datetime.now(timezone.utc),
             "message": text,
             "levelno": levelno,
+            "log_type": log_type,
         })
 
     def finish(self, result: Optional[str] = None) -> None:
@@ -123,12 +134,21 @@ class Trace:
 
     @property
     def is_noteworthy(self) -> bool:
-        """A clean routine trace can stay out of Discord and live in the file."""
+        """A clean routine trace can stay out of Discord and live in the file.
+
+        "Clean" is not the same as "empty of meaning". A listener that reported
+        an event — a guild added Keiko, a guild removed it — did the one thing
+        the log channel exists for, and it did it without failing. Silence there
+        is how the "Left Guild" message disappeared while the record was sitting
+        in `guild.logs` all along.
+        """
         if self.superseded:
             return False
         if not self.silent_when_clean:
             return True
-        return self.has_error or self.result == constants.TRACE_RESULT_FAILURE
+        return bool(self.reported_event) or self.has_error or (
+            self.result == constants.TRACE_RESULT_FAILURE
+        )
 
     def supersede(self, journey: "Trace") -> None:
         """Hand this interaction's lines to the session that outlives it.
@@ -206,6 +226,38 @@ class trace_scope:
         return False
 
 
+async def run_traced(coroutine: Any, name: str, **kwargs: Any) -> None:
+    """Await work that outlives whatever scheduled it, under a trace of its own.
+
+    A task inherits the context it was created in, so background work started
+    from a request keeps pointing at that request's trace — which its scope
+    closed, and posted, before the work ever ran. Every line the work logs then
+    lands on a message nobody will look at again: that is why a Twitch
+    `stream.online` fan-out produced a webhook message with an empty timeline.
+
+    `trace_scope` is deliberately not reused here: it joins the surrounding
+    trace so a fan-out does not fragment its timeline, which is the right rule
+    inside one unit of work and the wrong one across two.
+
+    A failure is recorded and swallowed. This is fire-and-forget work — there is
+    no caller left to raise to, and an exception escaping into a task nobody
+    awaits is only a warning on stderr.
+    """
+    trace = Trace(name, **kwargs)
+    token = _current_trace.set(trace)
+    try:
+        await coroutine
+    except Exception:
+        # Through `logging`, never `trace.add`: the traceback belongs in the
+        # error channel and in the debug sink, and the timeline gets its line
+        # from that same call.
+        _logger.exception(f"{name} failed")
+    finally:
+        trace.finish()
+        _current_trace.reset(token)
+        emit_to_sinks(trace)
+
+
 def emit_to_sinks(trace: Trace) -> None:
     """A failing sink never propagates into the work being traced."""
     for sink in list(_sinks):
@@ -215,12 +267,31 @@ def emit_to_sinks(trace: Trace) -> None:
             pass
 
 
-def add_line(message: str, levelno: int = logging.INFO) -> bool:
-    """Record a line on the active trace, if there is one."""
+def add_line(
+    message: str,
+    levelno: int = logging.INFO,
+    log_type: Optional[str] = None,
+    guild_id: Optional[Any] = None,
+) -> bool:
+    """Record a line on the active trace, if there is one.
+
+    A trace also learns its subject here when it could not know it: a listener
+    receives a `discord.Guild`, which carries no `.guild` for the decorator to
+    read, so `on_guild_remove` had a message that never said which guild left.
+    The record knows — it was given `guild_id`.
+
+    Only a reported event may settle it, which is narrower than it looks. Any
+    line would work for a listener, and be wrong for a fan-out: one birthday job
+    walks several guilds in a single trace, and the first line to mention one
+    would label the whole message with it. An event is about exactly one guild
+    by definition.
+    """
     trace = _current_trace.get()
     if not trace:
         return False
-    trace.add(message, levelno)
+    if guild_id and not trace.guild_id and log_type in constants.REPORTED_EVENT_TYPES:
+        trace.guild_id = str(guild_id)
+    trace.add(message, levelno, log_type=log_type)
     return True
 
 

@@ -58,7 +58,11 @@ class Analytics(commands.Cog):
             return
 
         try:
-            await channel.send(embed=admin_digest.build_weekly_digest())
+            # The bot is the only one that knows how many guilds it is in:
+            # analytics only ever sees the guilds that did something.
+            await channel.send(
+                embed=admin_digest.build_weekly_digest(guild_count=len(self.bot.guilds))
+            )
         except Exception as error:
             logger.warn(
                 f"Weekly digest failed: {type(error).__name__}: {error}",

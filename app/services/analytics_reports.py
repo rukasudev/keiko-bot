@@ -1,7 +1,16 @@
 """Reading side of analytics: the numbers the admin surfaces ask for.
 
-Everything here reads the guild profile or the monthly buckets, never a scan of
-raw events, so a dashboard costs one document instead of a collection sweep.
+Two kinds of read, and only the first one is cheap by construction:
+
+- **behavior** — the guild profile and the monthly buckets, never a scan of raw
+  events, so a funnel or a churn screen costs one document instead of a
+  collection sweep;
+- **configuration** — `config_usage` reads what guilds actually saved, through
+  `config_state`. That is a read per feature, and a feature with its own
+  persistence pays a few reads per configured guild. It is bounded by the number
+  of guilds that configured the feature, on an admin-only screen; if one of them
+  grows past a few hundred, the provider is where the batching goes.
+
 Reference: docs/analytics.md
 """
 from datetime import datetime, timezone
@@ -11,8 +20,8 @@ from app.constants import Commands as constants
 from app.constants import FormConstants as form_constants
 from app.constants import ViewConstants as view_constants
 from app.data import analytics as analytics_data
-from app.data import cogs as cogs_data
 from app.services import analytics
+from app.services import config_state
 from app.services.analytics_sink import metric_key
 from app.services.utils import ensure_list, parse_form_yaml_to_dict
 
@@ -30,6 +39,8 @@ def configurable_fields(feature: str) -> List[Dict[str, Any]]:
         if action in form_constants.NO_ACTION_LIST or step.get("hidden"):
             continue
 
+        defaults = step.get("defaults") or {}
+
         for key, node in _value_nodes(step):
             if any(field["key"] == key for field in fields):
                 continue
@@ -38,9 +49,24 @@ def configurable_fields(feature: str) -> List[Dict[str, Any]]:
                 "step_key": step.get("key"),
                 "action": node.get("type") or action,
                 "closed_vocabulary": analytics.records_raw_choice(node),
+                # What an unset field means. A setting the YAML gives a default
+                # is *in effect* everywhere, whether or not a document stores
+                # it, so a fill rate of zero is "nobody changed it", not
+                # "nobody uses it" — a difference that decides whether the
+                # setting is a candidate for removal.
+                "default": _default_label(defaults.get(key)),
             })
 
     return fields
+
+
+def _default_label(value: Any) -> Optional[str]:
+    """A default worth showing: the localized ones say nothing to an operator."""
+    if isinstance(value, bool) or isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, str) and value:
+        return value
+    return None
 
 
 def _value_nodes(step: Dict[str, Any]):
@@ -94,10 +120,14 @@ def stored_value(value: Any) -> Any:
 def config_usage(feature: str) -> Dict[str, Any]:
     """Which settings of a feature are actually used, across every guild.
 
-    Needs no event: the answer is already sitting in the saved documents, so it
-    covers every guild configured before analytics existed.
+    Needs no event: the answer is already sitting in the saved configuration, so
+    it covers every guild configured before analytics existed.
+
+    Read through `config_state`, never straight from the collection: a feature
+    that owns its persistence answers every raw lookup with `None`, and this
+    report is read as a list of settings to delete.
     """
-    documents = cogs_data.find_all_cogs(feature)
+    documents = config_state.feature_config_states(feature)
     total = len(documents)
     rows = []
 
@@ -144,6 +174,7 @@ def unused_settings(threshold: int = 10) -> List[Dict[str, Any]]:
                     "filled": field["filled"],
                     "total": field["total"],
                     "share": field["share"],
+                    "default": field["default"],
                 })
     return sorted(rows, key=lambda row: (row["share"], -row["total"]))
 

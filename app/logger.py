@@ -199,7 +199,15 @@ class TraceFoldingHandler(logging.Handler):
         try:
             if is_noise(record):
                 return
-            trace_service.add_line(record.getMessage(), record.levelno)
+            trace_service.add_line(
+                record.getMessage(),
+                record.levelno,
+                # The record's own classification travels with the line: it is
+                # what tells a silent listener trace that it reported an event,
+                # and it is where the message gets its title from.
+                log_type=getattr(record, "log_type", None),
+                guild_id=record_identity(record)["guild_id"],
+            )
         except Exception:
             self.handleError(record)
 
@@ -275,13 +283,22 @@ def outcome_title(outcome) -> Optional[str]:
 def trace_title(trace) -> str:
     """One emoji per kind of event, and the same one every time.
 
-    Order: a failure outranks everything, then how the work ended, then the last
-    thing it did, then where it came from. The middle two are separate on
-    purpose — a session that added three items and then saved ended as a save,
-    but while it is open the interesting fact is the item.
+    Order: a failure outranks everything, then the lifecycle event it reported,
+    then how the work ended, then the last thing it did, then where it came
+    from. The last two are separate on purpose — a session that added three
+    items and then saved ended as a save, but while it is open the interesting
+    fact is the item.
+
+    A reported event names the message because `👂 Listener Event` says nothing:
+    the reader is looking for `🚪 Left Guild`, which is what the record was
+    already classified as.
     """
     if trace.has_error:
         return outcome_title(constants.TRACE_RESULT_FAILURE)
+
+    reported = getattr(trace, "reported_event", None)
+    if reported in constants.LOG_TYPE_MAP:
+        return constants.LOG_TYPE_MAP[reported][0]
 
     result = trace.result
     if result and result not in titles.GENERIC_RESULTS:
@@ -299,6 +316,14 @@ def trace_title(trace) -> str:
             return ongoing
 
     return titles.SOURCE_TITLES.get(trace.source, titles.DEFAULT)
+
+
+def trace_colour(trace):
+    """Title and colour come from the same pair, so they cannot disagree."""
+    reported = getattr(trace, "reported_event", None)
+    if reported in constants.LOG_TYPE_MAP:
+        return constants.LOG_TYPE_MAP[reported][1]
+    return constants.LOG_TYPE_MAP[constants.TRACE_TYPE][1]
 
 
 def trace_subject(trace) -> str:
@@ -337,7 +362,7 @@ def build_trace_embed(trace) -> discord.Embed:
             # The house error colour, not discord.Color.red(): every other error
             # surface in Keiko uses this one.
             discord.Colour(int(style.RED_COLOR, base=16)) if trace.has_error
-            else constants.LOG_TYPE_MAP[constants.TRACE_TYPE][1]
+            else trace_colour(trace)
         ),
     )
 

@@ -6,6 +6,7 @@ from app import logger
 from app.constants import Commands as commands_constants
 from app.constants import LogTypes as logconstants
 from app.webhooks import webhooks
+from app.webhooks.jobs import schedule_webhook_job
 
 
 @webhooks.route('/reminder', methods=['GET', 'POST'])
@@ -33,14 +34,16 @@ def reminder_webhook():
 
 
 def process_birthday_reminder(reminder_id: str, notes: str) -> None:
-    from app import bot
     from app.webhooks.birthday_handler import process_birthday_webhook
 
     logger.info(
         f"birthday reminder {reminder_id} — date {notes}",
         log_type=logconstants.COMMAND_INFO_TYPE,
     )
-    schedule_on_bot_loop(process_birthday_webhook(reminder_id, notes))
+    schedule_webhook_job(
+        process_birthday_webhook(reminder_id, notes),
+        f"birthday reminder {reminder_id}",
+    )
 
 def proccess_youtube_notification(reminder_id: str, youtuber: str):
     from app import bot
@@ -64,12 +67,3 @@ def proccess_youtube_notification(reminder_id: str, youtuber: str):
         f'renewal scheduled for {new_renew_date.date()}',
         log_type=logconstants.COMMAND_INFO_TYPE,
     )
-
-
-def schedule_on_bot_loop(coroutine):
-    """The webhook runs on the Flask thread; create_task would not be safe."""
-    import asyncio
-
-    from app import bot
-
-    return asyncio.run_coroutine_threadsafe(coroutine, bot.loop)

@@ -241,9 +241,11 @@ apart and the inconsistency was the real problem:
 
 `docs/form-configuration.md` §7 lists user-facing strings in Python as a
 documented exception. This is one, named and bounded rather than inherited by
-analogy. If the boundary moves, it moves in
-`.claude/skills/keiko-writing-style/SKILL.md`, which has no carve-out for
-operator surfaces today.
+analogy — and it is no longer only described here: the carve-out now lives in
+`.claude/skills/keiko-writing-style/SKILL.md` ("Where these rules do NOT apply"),
+which names the two surfaces it covers, the `/admin` commands and the log
+channels, and says everything else stays under the full rules. That is where the
+boundary moves if it ever moves again; this section explains why it exists.
 
 ## What the log channel calls an event
 
@@ -343,11 +345,53 @@ Traces are opened at the boundaries:
 |---|---|---|
 | Slash commands | `keiko_command` (`app/decorators.py`) | one message per invocation |
 | Webhooks | `app/webhooks/__init__.py` before/teardown request | one message per request |
-| Listeners | `with_error_context` (`app/decorators.py`) | silent unless something fails |
+| Deferred work | `schedule_webhook_job` → `trace.run_traced` | one message per job |
+| Listeners | `with_error_context` (`app/decorators.py`) | silent unless it fails or reports an event |
 
 `silent_when_clean` is what keeps `on_message` from flooding the channel: a
 routine check that succeeds stays in the log file, and only surfaces in Discord
 if it errors.
+
+### Silent is not the same as clean
+
+That rule swallowed the two lines the log channel exists for. `on_guild_remove`
+never fails, so its trace was clean, so the "Left Guild" message was dropped on
+the way to Discord — while the record sat in `guild.logs` and the `guild.removed`
+analytics event was written normally. Every symptom pointed at a listener that
+had stopped running, and the listener was fine.
+
+A line carries the type it was logged with, and the types in
+`LogTypes.REPORTED_EVENT_TYPES` are the ones that exist to be read. A silent
+trace that recorded one is published, titled and coloured by that type
+(`➡️ Joined Guild`, `🚪 Left Guild`) instead of by `👂 Listener Event`, and it
+adopts the `guild_id` the record carried — a listener receives a
+`discord.Guild`, which has no `.guild` for the decorator to read, so the message
+could not otherwise say which guild left.
+
+The flood protection is untouched: `on_message`, `on_member_join` and
+`on_raw_message_edit` log nothing at all on a successful run, which is why only
+the two guild events ever went missing. A warning inside a listener is still
+swallowed — no path logs one today, and lifting that is a separate decision.
+
+### Work that outlives the request needs a trace of its own
+
+A task inherits the context it was created in, so a coroutine scheduled from a
+webhook keeps pointing at that webhook's trace — which the teardown closed, and
+posted, before the coroutine ran. Its lines were appended to a message nobody
+would look at again.
+
+That is the whole story of "the log does not say which streamer went live": the
+`stream.offline` branch logged one line synchronously inside the request and the
+`stream.online` branch logged nothing at all, so one message named the streamer
+and the other arrived with an empty timeline. Both branches now name their
+subject inside the request — the message that is guaranteed to arrive has to be
+readable on its own — and hand the fan-out to `schedule_webhook_job`, which runs
+it through `run_traced` under a `job` trace of its own.
+
+`trace_scope` is not what deferred work wants: it joins the surrounding trace so
+a fan-out does not fragment its timeline, which is right inside one unit of work
+and wrong across two. `run_traced` always owns its trace, and swallows the
+failure it records — there is no caller left to raise to.
 
 Errors always keep a message of their own in the error channel, so they never
 wait on a trace that may never close — and the trace timeline is posted too, as
@@ -486,14 +530,16 @@ a decision and keeps the rest short:
 
 ```
 📊 Keiko — week of 08/08 – 14/08
-82 guilds (+3 joined, -1 left) · 14 delivering value
+82 guilds (+3 joined, -1 left) · 14 delivered value this week
 
 ⚠️ Needs attention
 • block_links: 4 setups died at `custom_link` (repeated validation failure)
+• reminders_birthday: 1 setup died before the first step (left without a recorded problem)
 • 2 guilds where Discord refused an action
 
 📉 Settings nobody uses
 • welcome_messages / `welcome_custom_image` — 0 of 31 guilds
+• block_links / `mode` — 0 of 9 guilds — all on the default `block_all`
 
 ⏱️ Slowest steps
 • block_links / `custom_link` — median 48s
@@ -505,6 +551,19 @@ a decision and keeps the rest short:
 The window is a rolling 7 days with no stored watermark, so a restart never
 skips or duplicates a week. A quiet week still gets a message — a digest that
 sometimes fails to arrive makes you doubt it every week.
+
+Two numbers in the headline are easy to get wrong, and were:
+
+- **the guild count comes from the bot** (`len(bot.guilds)`, passed in by the
+  cog). Counting analytics profiles counts the guilds that *did something since
+  analytics was deployed* — on the first week that read 12 out of 73, because a
+  profile is created by the first event a guild produces;
+- **"delivered value" is the window, not the lifetime.** A profile keeps
+  `last_value_at` for as long as it exists, so counting profiles quietly turns
+  "this week" into "at some point". It is read from the daily buckets instead.
+
+On the first run after a deploy the window also over-claims itself: the title
+says seven days, and the counters only exist from the day the collector started.
 
 Tunables live in `Commands.ANALYTICS_DIGEST_*`.
 
@@ -548,13 +607,41 @@ is answered in place instead of by correlating two messages by hand.
 `analytics_reports.config_usage(feature)` answers "which configuration options
 does nobody touch" by reading what is already stored:
 
-1. `parse_form_yaml_to_dict(feature)` enumerates every configurable key;
-2. `cogs_data.find_all_cogs(feature)` reads every saved document;
+1. `parse_form_yaml_to_dict(feature)` enumerates every configurable key, and the
+   `defaults:` its step declares for them;
+2. `config_state.feature_config_states(feature)` reads every guild's stored
+   configuration **in the shape the form names it**;
 3. each field gets a fill rate, and a field whose **YAML declares its options**
    also gets the distribution of chosen values.
 
 Because it reads stored state rather than events, it covers every guild
 configured long before analytics existed — it works retroactively, today.
+
+### Step 2 is a registry, not a collection read
+
+A YAML-driven cog stores exactly the keys its form names, so its document *is*
+that shape and `config_state` just reads the collection. A feature that owns its
+persistence is the exception, and it is not hypothetical: birthdays store the
+channel as `channel_id`, fold three settings into a nested `default_message`,
+and keep the birthdays themselves in the `reminders` database. Walking the raw
+document found none of those keys, so the first weekly digest reported five
+settings as used by nobody while every guild was using them — including the list
+of birthdays, at 100%.
+
+`app/services/config_state.py` maps such a feature to the translation the
+**manager already renders** (`birthday_manager_cog_data`), imported by name at
+call time so the report can depend on a feature service without the service
+importing the report back. One mapping, two consumers: a report cannot disagree
+with the screen. A new feature with its own storage adds one line there — or,
+better, keeps the form's keys and needs nothing.
+
+### A default is not silence
+
+A setting the YAML gives a `default:` is in effect in every guild whether or not
+a document stores it — nobody stores `block_links / mode`, and all of them run
+`block_all`. `configurable_fields` carries that default, and both surfaces print
+`— all on the default \`block_all\`` next to a zero, because the section is read
+as a list of settings to delete.
 
 The privacy line is the same one the engine uses, and it is structural:
 `analytics.records_raw_choice(node)` returns true only when the YAML itself
