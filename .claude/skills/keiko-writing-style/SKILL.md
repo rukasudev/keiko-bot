@@ -139,7 +139,22 @@ of text is a bug, not a style choice.
 - Python code must NEVER hardcode user-facing strings. Always: `ml("namespace.key", locale)`.
 - pt-br tone matches en-us exactly: same warmth, same emoji, same 1st person, same `**Keiko**` bolding, same `"• "` footer prefix.
 
+## Where these rules do NOT apply: operator surfaces
+
+Everything above governs what a Discord **user** sees. Two surfaces are read only by whoever runs the bot, and they are a taxonomy for on-call, not Keiko talking:
+
+- the `/admin` commands, restricted to `ADMIN_GUILD_ID` (`app/services/admin_analytics.py`, `app/services/admin_digest.py`);
+- the admin log channels: trace and journey messages, and the labels around them (`app/logger.py`, `app/services/journey.py`).
+
+On those two surfaces only: English only, no `ml()` and no pt-br counterpart; no personality, no 1st person, no apology-plus-recovery shape; structural punctuation such as `—` and `·` is allowed, because the line is a record, not a sentence. Keep every other habit — one leading emoji on a title, `"• "` on a footer, `**bold**` for names — so the messages still read as one product.
+
+Everything else stays fully under the rules above, including anything a server member can see: an error a user triggers is user-facing even when an operator also reads it, and a notification is user-facing even when it was posted by a job.
+
+The boundary is deliberately narrow and it lives here. Do not widen it by analogy — a new surface is user-facing unless it is one of the two listed. `docs/analytics.md` explains the reasoning behind the split.
+
 ## Strict behavior rules
+
+Every rule below is about what a user sees; on the two operator surfaces named above, the English-only, no-personality, structural-punctuation exceptions apply instead.
 
 - ALWAYS prefix titles with exactly one leading emoji + space.
 - ALWAYS apologize at the start of error messages and provide a recovery hint.

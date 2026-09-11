@@ -182,6 +182,41 @@ def test_a_silent_trace_that_fails_does_reach_discord(discord_logs):
     assert any("embed" in send for send in discord_logs.sends)
 
 
+def test_a_silent_trace_that_reported_an_event_does_reach_discord(discord_logs):
+    """Silence protects `on_message` from flooding, not the guild lifecycle.
+
+    A listener trace publishes nothing unless it failed, and `on_guild_remove`
+    never fails: the "Left Guild" line was written to `guild.logs` and dropped
+    on its way to the channel that exists for it.
+    """
+    with trace_scope("on_guild_remove", source="internal", silent_when_clean=True):
+        discord_logs.emit(make_record(
+            "Left guild by 313", guild_id="42",
+            log_type=logconstants.EVENT_LEFT_GUILD_TYPE,
+        ))
+
+    assert len(discord_logs.sends) == 1
+    embed = discord_logs.sends[0]["embed"]
+    assert embed.title == logconstants.EVENT_LEFT_GUILD_TITLE, (
+        "`👂 Listener Event` is not what someone scanning the channel looks for"
+    )
+    assert "Left guild by 313" in rendered(embed)
+    assert "42" in rendered(embed), "the message has to say which guild left"
+
+
+def test_an_event_line_keeps_its_trace_even_when_the_timeline_overflows(discord_logs):
+    """What publishes the message is that the event happened, not that it fit."""
+    with trace_scope("on_guild_join", source="internal", silent_when_clean=True):
+        for index in range(logconstants.TRACE_MAX_LINES + 3):
+            discord_logs.emit(make_record(f"noise {index}"))
+        discord_logs.emit(make_record(
+            "Joined new guild", log_type=logconstants.EVENT_JOIN_GUILD_TYPE,
+        ))
+
+    assert len(discord_logs.sends) == 1
+    assert discord_logs.sends[0]["embed"].title == logconstants.EVENT_JOIN_GUILD_TITLE
+
+
 def test_a_repeated_attempt_is_called_out_on_the_message_you_already_read(
     discord_logs,
 ):

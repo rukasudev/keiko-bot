@@ -204,9 +204,18 @@ def get_birthday_stats(guild_id: str, today: Optional[date] = None) -> Dict[str,
     }
 
 
-def birthday_manager_cog_data(guild_id: str) -> Dict[str, Any]:
+def birthday_manager_cog_data(guild_id: str, apply_defaults: bool = True) -> Dict[str, Any]:
+    """The saved configuration, keyed as the form names it.
+
+    `apply_defaults` is the difference between drawing and measuring. The card
+    needs a value in every row, so a guild that never chose a message mode still
+    renders as `default`. A report must not read that invented value as a
+    choice: it counted three guilds as having configured a message they never
+    touched. Absence stays absence when the caller says so.
+    """
     config = birthdays_data.find_birthday_config(guild_id) or {}
     items = birthdays_data.find_birthday_items_by_guild(guild_id)
+    message = config.get("default_message") or {}
     return {
         "guild_id": str(guild_id),
         commands_constants.ENABLED_KEY: birthdays_data.is_birthday_enabled(guild_id),
@@ -216,18 +225,41 @@ def birthday_manager_cog_data(guild_id: str) -> Dict[str, Any]:
         },
         commands_constants.BIRTHDAY_CONFIG_MENTION_EVERYONE: {
             "style": "boolean",
-            "values": bool(config.get("mention_everyone")),
+            "values": (
+                bool(config.get("mention_everyone")) if apply_defaults
+                else config.get("mention_everyone")
+            ),
         },
         commands_constants.BIRTHDAY_CONFIG_TIMEZONE: config.get("timezone"),
         commands_constants.BIRTHDAY_CONFIG_NOTIFICATION_TIME: config.get("notification_time"),
-        commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_MODE: (config.get("default_message") or {}).get("mode", "default"),
-        commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_TITLE: (config.get("default_message") or {}).get("title"),
-        commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_CONTENT: (config.get("default_message") or {}).get("content"),
+        commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_MODE: (
+            message.get("mode", "default") if apply_defaults else message.get("mode")
+        ),
+        commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_TITLE: message.get("title"),
+        commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_CONTENT: message.get("content"),
         commands_constants.REMINDERS_BIRTHDAY_KEY: {
             "style": "composition",
             "values": [to_summary_composition(item) for item in items],
         },
     }
+
+
+def birthday_config_states() -> List[Dict[str, Any]]:
+    """Every guild's birthday configuration, in the shape the YAML names it.
+
+    Registered in `config_state` so a report never walks the raw document: this
+    feature stores `channel_id`, folds three settings into `default_message`,
+    and keeps the birthdays themselves in another database, so a reader looking
+    for the form's keys finds nothing and calls a used setting dead.
+
+    Read without the manager's rendering defaults, so "nobody chose this" cannot
+    arrive as "everybody chose the default".
+    """
+    return [
+        birthday_manager_cog_data(config["guild_id"], apply_defaults=False)
+        for config in birthdays_data.find_all_birthday_configs()
+        if config.get("guild_id")
+    ]
 
 
 async def edit_birthday_save(interaction: discord.Interaction, manager_view: discord.ui.View, data: Dict[str, Any]) -> None:

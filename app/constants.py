@@ -393,6 +393,16 @@ class LogTypes:
     TRACE_TITLE: Final[str] = "🧵 Trace"
     JOURNEY_TITLE: Final[str] = "🧭"
 
+    # Log types that exist to be read. A listener runs under a trace that stays
+    # silent unless something failed — the rule that keeps `on_message` from
+    # flooding the channel — and that silence swallowed the two lines the log
+    # exists for: a server adding or removing Keiko. A line of one of these
+    # types is never routine, so it publishes the trace that carries it.
+    REPORTED_EVENT_TYPES: Final[frozenset] = frozenset({
+        EVENT_JOIN_GUILD_TYPE,
+        EVENT_LEFT_GUILD_TYPE,
+    })
+
     TRACE_MAX_LINES: Final[int] = 20
     TRACE_LINE_MAX_LENGTH: Final[int] = 180
     TRACE_RESULT_SUCCESS: Final[str] = "success"

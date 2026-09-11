@@ -259,6 +259,20 @@ def describe_step(command_key: str, step_key: str, locale: str = "en-us") -> str
     return step_titles(command_key, locale).get(step_key, step_key)
 
 
+def describe_default(row: Dict[str, Any]) -> str:
+    """Zero filled plus a declared default is not the same as zero used.
+
+    Nobody stores `block_links / mode`, and every guild runs `block_all` because
+    that is what the YAML says an unset value means. Read without this, the line
+    proposes deleting the setting that decides how the feature behaves. Lives
+    next to `describe_step` because both admin surfaces render through it and
+    neither owns it.
+    """
+    if row.get("filled") or not row.get("default"):
+        return ""
+    return f" · all on the default `{row['default']}`"
+
+
 def parse_form_steps_titles(form_steps: List[Dict[str, str]], locale: str) -> Dict[str, str]:
     return {
         item["key"]: item["title"][locale]
