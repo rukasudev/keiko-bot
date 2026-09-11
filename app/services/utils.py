@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import functools
 import hashlib
@@ -7,7 +8,7 @@ import random
 from dataclasses import dataclass, field
 from pathlib import Path
 from re import findall, finditer, search
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar
 from urllib.parse import parse_qsl, urlparse
 
 import discord
@@ -22,6 +23,17 @@ from app.constants import Emojis as constants
 from app.constants import FormConstants as formconstants
 from app.constants import LogTypes as logconstants
 from app.constants import supported_locales
+
+T = TypeVar("T")
+
+
+async def off_loop(func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
+    """Await a blocking call in a worker thread.
+
+    `requests`, `pymongo` and `time.sleep` on the loop stop the whole bot, and
+    Discord only waits three seconds for an interaction to be acknowledged.
+    """
+    return await asyncio.to_thread(func, *args, **kwargs)
 
 
 def format_relative_time(dt: datetime.datetime) -> str:

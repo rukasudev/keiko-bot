@@ -12,7 +12,7 @@ from app.constants import Style as style_constants
 from app.exceptions import ErrorContext
 from app.integrations.stream_elements import StreamElementsClient
 from app.services import analytics, cache
-from app.services.blocking import off_loop
+from app.services.utils import off_loop
 from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
@@ -31,8 +31,6 @@ async def manager(interaction: discord.Interaction, guild_id: str):
     )
 
 async def check_message(guild_id: str, message: discord.Message, prefix: str) -> None:
-    # Same reason as `block_links.check_message`: this is the message path, and
-    # a cache miss reads Mongo synchronously.
     cogs = await off_loop(
         cache.get_cog_data_or_populate,
         guild_id,
@@ -63,8 +61,6 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
                 return
             return await view.send(message)
 
-        # Every miss here is a `requests` call to StreamElements, on the same
-        # coroutine as the read above.
         reply = await off_loop(
             get_reply_in_cache_or_populate, channel_id, command, message.author
         )
@@ -87,18 +83,14 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
 async def parse_command_list_view(
     channel_id: str, message: discord.Message, streamer: str
 ) -> Optional[discord.ui.View]:
-    """The command list, with both API calls off the loop.
-
-    The view itself is built here rather than inside `off_loop`: only the two
-    lookups block, and a Discord view belongs to the thread running the loop.
-    """
+    """The command list. The view is built here, on the loop; only the two
+    lookups go to a thread."""
     from app import bot
 
     commands_list = await off_loop(
         get_commands_in_cache_or_populate, channel_id, message.author
     )
     if not commands_list:
-        # Used to be `[]`, which the caller then asked to `.send()`.
         return None
 
     title = "StreamElements Commands"

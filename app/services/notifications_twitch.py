@@ -19,12 +19,11 @@ from app.data.notifications_twitch import (
     update_last_stream_date,
 )
 from app.services import analytics, cache
-from app.services.blocking import off_loop
 from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
 )
-from app.services.utils import format_datetime_output
+from app.services.utils import format_datetime_output, off_loop
 
 
 async def manager(interaction: discord.Interaction, guild_id: str):
@@ -47,8 +46,7 @@ async def handle_send_streamer_notification(streamer_name: str) -> None:
     )
 
     try:
-        # Both call Twitch over `requests`, and the second one sleeps 15 seconds
-        # between attempts. On the loop, that is the whole bot standing still.
+        # The second one sleeps 15 seconds between attempts.
         user_info = await off_loop(bot.twitch.get_user_info, streamer_name)
         stream_info = await off_loop(wait_for_stream_info, streamer_name)
 

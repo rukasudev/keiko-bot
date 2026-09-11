@@ -161,24 +161,30 @@ def test_a_new_command_needs_no_analytics_code_to_be_measured():
     )
 
 
-def test_every_configuration_provider_resolves_to_something_callable():
-    """The registry is resolved by name at call time, so nothing else checks it.
+def test_a_feature_declares_how_its_configuration_is_read_by_defining_it():
+    """Nothing registers a provider: the reader looks for `config_states`.
 
-    A rename or a move passes every test in this repository and breaks
-    `/admin insights` in production — and the failure it restores is the one
-    that reported settings used by every guild as used by nobody.
+    Birthdays store a shape their form does not name, so their service defines
+    it. Every other command is a plain read, and a new one is too until it
+    needs otherwise.
     """
-    for feature, path in cogs_service.CONFIG_STATE_PROVIDERS.items():
-        assert feature in constants.COMMANDS_LIST, (
-            f"{feature} is not a command, so no report will ever ask for it"
-        )
-        provider = cogs_service.resolve_config_state_provider(path)
-        assert callable(provider), f"{path} is not callable"
+    declared = {
+        feature for feature in constants.COMMANDS_LIST
+        if cogs_service.config_states_provider(feature)
+    }
+
+    assert constants.REMINDERS_BIRTHDAY_KEY in declared
+    assert all(
+        callable(cogs_service.config_states_provider(feature)) for feature in declared
+    )
 
 
-def test_every_configuration_provider_answers_in_the_shape_the_form_names(deps):
-    """The point of the registry: a provider speaks YAML keys, not storage keys."""
-    for feature in cogs_service.CONFIG_STATE_PROVIDERS:
+def test_a_declared_reader_answers_in_the_shape_the_form_names(deps):
+    """The point of the convention: it speaks YAML keys, not storage keys."""
+    for feature in constants.COMMANDS_LIST:
+        if not cogs_service.config_states_provider(feature):
+            continue
+
         states = cogs_service.feature_config_states(feature)
         assert isinstance(states, list)
         assert all(isinstance(state, dict) for state in states)

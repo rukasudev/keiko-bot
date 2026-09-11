@@ -6,6 +6,7 @@ import discord
 
 from app import logger
 from app.components.embed import response_embed
+from app.constants import Commands as commands_constants
 from app.constants import KeikoIcons as icons
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
@@ -380,23 +381,13 @@ async def run_feature_command(
         analytics.emit("command.invoked", command=command_name)
         increment_redis_key(f"{logconstants.COMMAND_CALL_TYPE}:{command_key}:button")
 
-        service = importlib.import_module(ExecuteCommandButton.COMMAND_SERVICES[command_key])
+        service = importlib.import_module(commands_constants.COMMAND_SERVICES[command_key])
         await service.manager(
             interaction=interaction, guild_id=str(interaction.guild.id)
         )
 
 
 class ExecuteCommandButton(discord.ui.Button):
-    COMMAND_SERVICES = {
-        "welcome_messages": "app.services.welcome_messages",
-        "default_roles": "app.services.default_roles",
-        "block_links": "app.services.block_links",
-        "notifications_twitch": "app.services.notifications_twitch",
-        "notifications_youtube_video": "app.services.notifications_youtube_video",
-        "reminders_birthday": "app.services.reminders_birthdays",
-        "stream_elements_commands": "app.services.stream_elements",
-    }
-
     def __init__(self, command_key: str, locale: str) -> None:
         self.command_key = command_key
         label = ml("buttons.execute.label", locale=locale)

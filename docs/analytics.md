@@ -286,7 +286,7 @@ a coroutine that reaches them directly stops the bot — and Discord gives an
 interaction three seconds, so a blocking call between the click and the
 acknowledgement is a failed interaction the person sees.
 
-`off_loop` (`app/services/blocking.py`) is the one way through. Production had
+`off_loop` (`app/services/utils.py`) is the one way through. Production had
 52 `heartbeat blocked for more than 20 seconds` warnings in a day, every
 traceback ending in a `find_one` reached from `on_message`, and a `10062 Unknown
 interaction` on a guild whose youtuber had just been saved by two blocking

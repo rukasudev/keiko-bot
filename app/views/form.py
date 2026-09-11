@@ -27,7 +27,6 @@ from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
 from app.exceptions import ErrorContext
 from app.integrations.stream_elements import StreamElementsClient
-from app.services.blocking import off_loop
 from app.services.cogs import insert_cog_by_guild, insert_cog_event
 from app.services.compositions import merge_composition_item_by_nested_value
 from app.services.moderations import update_moderations_by_guild
@@ -41,6 +40,7 @@ from app.services.utils import (
     get_roles_by_guild,
     get_text_channels_by_guild,
     ml,
+    off_loop,
     parse_command_event_description,
     parse_form_yaml_to_dict,
     parse_valid_locale,
@@ -1143,10 +1143,8 @@ class Form(SessionAwareView, discord.ui.View):
             }
         }
 
-        # Both branches below reach a third-party API over `requests`, and this
-        # runs between the click and the acknowledgement. Discord allows three
-        # seconds; two blocking POSTs spent them, so the subscription was saved
-        # and the person got `10062 Unknown interaction` instead of a card.
+        # Both branches reach a third-party API, between the click and the
+        # acknowledgement Discord gives three seconds for.
         if self.command_key in subscriptions:
             sub = subscriptions[self.command_key]
             await off_loop(
@@ -1360,11 +1358,8 @@ class Form(SessionAwareView, discord.ui.View):
     async def _send_layout_view(self, interaction: discord.Interaction, view):
         """Send LayoutView (Components V2) without embed.
 
-        `view` is required rather than read from `self.view` because that
-        attribute is reassigned for fifteen different objects in this class —
-        selects, modals, compositions, layout views — and the send happens two
-        awaits after the step set it. A step sends what it built, and there is
-        no default that would let a future caller reopen that gap.
+        `view` is required: `self.view` is reassigned for fifteen kinds of
+        object and the send happens two awaits after the step set it.
         """
         from app.views.summary_card import SummaryCardView
 
@@ -1381,17 +1376,14 @@ class Form(SessionAwareView, discord.ui.View):
                 if fill_fn and not fill_fn(view) and self.cogs and cogs_fallback:
                     cogs_fallback()
 
-        # Send before deleting. The other order meant a rejected payload left
-        # the person with no message at all: every later click answered `10008
-        # Unknown Message`, and the step after that tried to open a modal from a
-        # modal submission, which Discord refuses outright.
+        # Send before deleting: the other order left a rejected payload with
+        # no message at all, and every later click answered `10008`.
         await interaction.followup.send(view=view, ephemeral=True)
 
         try:
             await interaction.followup.delete_message(interaction.message.id)
         except discord.HTTPException as error:
-            # The replacement is already on screen; failing to clear the old
-            # message is cosmetic and must not break the flow.
+            # The replacement is on screen; clearing the old one is cosmetic.
             logger.warn(
                 f"Could not remove the previous step message: "
                 f"{type(error).__name__}: {error}",

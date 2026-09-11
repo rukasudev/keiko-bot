@@ -149,9 +149,6 @@ def is_noise(record: logging.LogRecord) -> bool:
     return any(marker in record.getMessage() for marker in NOISE_MARKERS)
 
 
-# Keiko's own code, by the directory it lives in. `logging` fills `pathname`
-# from the frame that logged, so every record raised through `app/logger.py` or
-# a module under `app/` answers here, whatever logger name it used.
 KEIKO_PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
 KEIKO_LOGGER_NAMES = ("root", "app")
 
@@ -159,19 +156,10 @@ KEIKO_LOGGER_NAMES = ("root", "app")
 def is_foreign(record: logging.LogRecord) -> bool:
     """A record a library wrote about itself, not about Keiko's work.
 
-    The handlers hang off the **root** logger, so every library in the process
-    writes into them. For the file and `guild.logs` that is exactly right — it
-    is how a gateway stall or a driver timeout stays queryable. For the admin
-    channel it is not: that channel is read by a person asking what Keiko did.
-
-    Production made the difference expensive. The webhook API is a development
-    server bound to `0.0.0.0`, `werkzeug` is set to ERROR, and a port scanner
-    sending TLS bytes to a plain HTTP port produced 984 ERROR records — 467 in
-    one day — each one an embed. The bot then rate-limited itself posting them,
-    1790 times on that channel in three days.
-
-    Origin is the test, not the logger name: a name is easy to get wrong from
-    inside our own code, while `pathname` says which file actually logged.
+    The handlers hang off the root logger, so every library writes into them.
+    That is right for the file and `guild.logs`, and wrong for the admin
+    channel: a port scanner hitting the webhook port put 984 embeds in it.
+    Judged by origin rather than logger name, which is easy to get wrong.
     """
     name = record.name
     if name in KEIKO_LOGGER_NAMES or any(
