@@ -23,7 +23,7 @@ from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
 )
-from app.services.utils import format_datetime_output
+from app.services.utils import format_datetime_output, off_loop
 
 
 async def manager(interaction: discord.Interaction, guild_id: str):
@@ -46,8 +46,9 @@ async def handle_send_streamer_notification(streamer_name: str) -> None:
     )
 
     try:
-        user_info = bot.twitch.get_user_info(streamer_name)
-        stream_info = wait_for_stream_info(streamer_name)
+        # The second one sleeps 15 seconds between attempts.
+        user_info = await off_loop(bot.twitch.get_user_info, streamer_name)
+        stream_info = await off_loop(wait_for_stream_info, streamer_name)
 
         if not stream_info:
             logger.info(f"Stream info not found for streamer **{streamer_name}**", log_type=logconstants.COMMAND_INFO_TYPE)

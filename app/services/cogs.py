@@ -1,4 +1,5 @@
-from typing import Any, Dict, Optional
+from importlib import import_module
+from typing import Any, Callable, Dict, List, Optional
 
 from app.constants import Commands as constants
 from app.data import cogs as cogs_data
@@ -14,6 +15,25 @@ LIFECYCLE_ANALYTICS_EVENTS = {
     constants.ADDED_KEY: "feature.item_added",
     constants.REMOVED_KEY: "feature.item_removed",
 }
+
+CONFIG_STATES_ATTRIBUTE = "config_states"
+
+
+def feature_config_states(feature: str) -> List[Dict[str, Any]]:
+    """Every guild's saved configuration, keyed as the feature's form names it.
+
+    A feature whose storage shape differs from its form defines `config_states`
+    in its service; everything else is a plain read of the collection.
+    """
+    provider = config_states_provider(feature)
+    return provider() if provider else cogs_data.find_all_cogs(feature)
+
+
+def config_states_provider(feature: str) -> Optional[Callable[[], List[Dict[str, Any]]]]:
+    module_path = constants.COMMAND_SERVICES.get(feature)
+    if not module_path:
+        return None
+    return getattr(import_module(module_path), CONFIG_STATES_ATTRIBUTE, None)
 
 
 def insert_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):

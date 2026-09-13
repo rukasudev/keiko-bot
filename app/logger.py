@@ -149,6 +149,27 @@ def is_noise(record: logging.LogRecord) -> bool:
     return any(marker in record.getMessage() for marker in NOISE_MARKERS)
 
 
+KEIKO_PACKAGE_ROOT = os.path.dirname(os.path.abspath(__file__))
+KEIKO_LOGGER_NAMES = ("root", "app")
+
+
+def is_foreign(record: logging.LogRecord) -> bool:
+    """A record a library wrote about itself, not about Keiko's work.
+
+    The handlers hang off the root logger, so every library writes into them.
+    That is right for the file and `guild.logs`, and wrong for the admin
+    channel: a port scanner hitting the webhook port put 984 embeds in it.
+    Judged by origin rather than logger name, which is easy to get wrong.
+    """
+    name = record.name
+    if name in KEIKO_LOGGER_NAMES or any(
+        name.startswith(f"{prefix}.") for prefix in KEIKO_LOGGER_NAMES
+    ):
+        return False
+
+    return not os.path.abspath(record.pathname).startswith(KEIKO_PACKAGE_ROOT)
+
+
 class TraceFoldingHandler(logging.Handler):
     """Turns log records into timeline lines, for whoever renders the trace.
 
@@ -464,7 +485,7 @@ class DiscordLogsHandler(logging.Handler):
             if interaction.command.qualified_name == "Log Inspection":
                 return True
 
-        return is_noise(record)
+        return is_foreign(record) or is_noise(record)
 
     def get_log_channel(self, record: logging.LogRecord):
         log_type = getattr(record, "log_type", None)

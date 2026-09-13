@@ -257,6 +257,41 @@ Deliberately separate from `commands.command-events.*`: that copy is shipped in
 two locales and read by server admins, this one is read by whoever is on call,
 and the two are free to move independently.
 
+## What reaches the channel, and what only reaches the file
+
+The handlers hang off the **root** logger, so every library in the process
+writes into them. That is deliberate for storage — a gateway stall or a driver
+timeout has to stay queryable — and wrong for Discord, where the channel is read
+by a person asking what Keiko did.
+
+`is_foreign` (`app/logger.py`) draws that line by origin: a record whose code
+lives under `app/` is Keiko's, anything else is a library talking about itself.
+It stays in `guild.logs` and the daily archive; it does not become an embed.
+
+The cost of not having it was concrete. The webhook API is a development server
+bound to `0.0.0.0` and `werkzeug` logs at ERROR, so a port scanner sending TLS
+bytes to a plain HTTP port produced 984 error embeds — 467 in one day — and the
+bot rate-limited itself posting them, 1790 times on that channel in three days.
+A stranger on the internet could degrade Keiko by sending it garbage.
+
+> The scanner is still reaching the port. Closing it is an infrastructure
+> change, not a code one: bind the API to localhost behind a proxy, or close
+> 5000 in the VPS panel. Filtering only stops it from costing the bot anything.
+
+## Never block the event loop
+
+Everything runs on one loop: the gateway heartbeat, every interaction, every
+listener, every job. `requests`, `pymongo` and `time.sleep` are synchronous, so
+a coroutine that reaches them directly stops the bot — and Discord gives an
+interaction three seconds, so a blocking call between the click and the
+acknowledgement is a failed interaction the person sees.
+
+`off_loop` (`app/services/utils.py`) is the one way through. Production had
+52 `heartbeat blocked for more than 20 seconds` warnings in a day, every
+traceback ending in a `find_one` reached from `on_message`, and a `10062 Unknown
+interaction` on a guild whose youtuber had just been saved by two blocking
+`requests.post` calls.
+
 ## Why not `analytics.emit`
 
 Because the catalog drops undeclared events and `sanitize_props` strips free
@@ -585,7 +620,7 @@ configured long before analytics existed — it works retroactively, today.
 ### Step 2 is a registry, not a collection read
 
 A YAML-driven cog stores exactly the keys its form names, so its document *is*
-that shape and `config_state` just reads the collection. A feature that owns its
+that shape and `feature_config_states` just reads the collection. A feature that owns its
 persistence is the exception, and it is not hypothetical: birthdays store the
 channel as `channel_id`, fold three settings into a nested `default_message`,
 and keep the birthdays themselves in the `reminders` database. Walking the raw

@@ -32,6 +32,7 @@ from .utils import (
     get_message_links,
     list_roles_id,
     ml,
+    off_loop,
     parse_form_yaml_to_dict,
     parse_link,
     parse_locale,
@@ -329,7 +330,10 @@ def evaluate_message(
 
 async def check_message(guild_id: str, message: discord.Message) -> None:
     """Command service to check whether a message carries a blocked link."""
-    cogs = cache.get_cog_data_or_populate(guild_id, constants.BLOCK_LINKS_KEY)
+    # Every message in every guild reaches this line, and a cache miss reads Mongo.
+    cogs = await off_loop(
+        cache.get_cog_data_or_populate, guild_id, constants.BLOCK_LINKS_KEY
+    )
 
     evaluation = evaluate_message(MessageSubject.from_message(message), cogs)
     if not evaluation.would_block:

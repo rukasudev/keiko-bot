@@ -165,6 +165,16 @@ class Commands:
         BLOCK_LINKS_KEY: BLOCK_LINKS_CUSTOM_LINKS_KEY,
     }
 
+    COMMAND_SERVICES: Final[Dict[str, str]] = {
+        WELCOME_MESSAGES_KEY: "app.services.welcome_messages",
+        DEFAULT_ROLES_KEY: "app.services.default_roles",
+        BLOCK_LINKS_KEY: "app.services.block_links",
+        NOTIFICATIONS_TWITCH_KEY: "app.services.notifications_twitch",
+        NOTIFICATIONS_YOUTUBE_VIDEO_KEY: "app.services.notifications_youtube_video",
+        REMINDERS_BIRTHDAY_KEY: "app.services.reminders_birthdays",
+        INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: "app.services.stream_elements",
+    }
+
     COMPOSITION_COMMANDS_LIST: Final[List[str]] = [
         NOTIFICATIONS_TWITCH_KEY,
         NOTIFICATIONS_YOUTUBE_VIDEO_KEY,

@@ -1,6 +1,6 @@
 import random
 import re
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import discord
 
@@ -12,6 +12,7 @@ from app.constants import Style as style_constants
 from app.exceptions import ErrorContext
 from app.integrations.stream_elements import StreamElementsClient
 from app.services import analytics, cache
+from app.services.utils import off_loop
 from app.services.moderations import (
     send_command_form_message,
     send_command_manager_message,
@@ -30,7 +31,11 @@ async def manager(interaction: discord.Interaction, guild_id: str):
     )
 
 async def check_message(guild_id: str, message: discord.Message, prefix: str) -> None:
-    cogs = cache.get_cog_data_or_populate(guild_id, constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY)
+    cogs = await off_loop(
+        cache.get_cog_data_or_populate,
+        guild_id,
+        constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
+    )
 
     if not cogs:
         return
@@ -51,10 +56,14 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
 
     try:
         if command == "commands":
-            view = parse_command_list_view(channel_id, message, streamer)
+            view = await parse_command_list_view(channel_id, message, streamer)
+            if not view:
+                return
             return await view.send(message)
 
-        reply = get_reply_in_cache_or_populate(channel_id, command, message.author)
+        reply = await off_loop(
+            get_reply_in_cache_or_populate, channel_id, command, message.author
+        )
         if not reply:
             return
 
@@ -71,15 +80,23 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
         )
         raise
 
-def parse_command_list_view(channel_id: str, message: discord.Message, streamer: str) -> discord.ui.View:
+async def parse_command_list_view(
+    channel_id: str, message: discord.Message, streamer: str
+) -> Optional[discord.ui.View]:
+    """The command list. The view is built here, on the loop; only the two
+    lookups go to a thread."""
     from app import bot
-    commands_list = get_commands_in_cache_or_populate(channel_id, message.author)
+
+    commands_list = await off_loop(
+        get_commands_in_cache_or_populate, channel_id, message.author
+    )
     if not commands_list:
-        return []
+        return None
 
     title = "StreamElements Commands"
     description = f"Here is a list of all the StreamElements commands available in {streamer}'s channel"
-    icon = bot.twitch.get_user_info(streamer).get("profile_image_url")
+    user_info = await off_loop(bot.twitch.get_user_info, streamer)
+    icon = (user_info or {}).get("profile_image_url")
     view = PaginationWithoutInteractionView(title, description, commands_list, message, thumbnail=icon, sep=4)
     return view
 

@@ -6,10 +6,10 @@ Two kinds of read, and only the first one is cheap by construction:
   events, so a funnel or a churn screen costs one document instead of a
   collection sweep;
 - **configuration** — `config_usage` reads what guilds actually saved, through
-  `config_state`. That is a read per feature, and a feature with its own
-  persistence pays a few reads per configured guild. It is bounded by the number
-  of guilds that configured the feature, on an admin-only screen; if one of them
-  grows past a few hundred, the provider is where the batching goes.
+  `cogs.feature_config_states`. That is a read per feature, and a feature with
+  its own persistence pays a few reads per configured guild. It is bounded by
+  the number of guilds that configured the feature, on an admin-only screen; if
+  one of them grows past a few hundred, the provider is where batching goes.
 
 Reference: docs/analytics.md
 """
@@ -21,7 +21,7 @@ from app.constants import FormConstants as form_constants
 from app.constants import ViewConstants as view_constants
 from app.data import analytics as analytics_data
 from app.services import analytics
-from app.services import config_state
+from app.services import cogs as cogs_service
 from app.services.analytics_sink import metric_key
 from app.services.utils import ensure_list, parse_form_yaml_to_dict
 
@@ -123,11 +123,11 @@ def config_usage(feature: str) -> Dict[str, Any]:
     Needs no event: the answer is already sitting in the saved configuration, so
     it covers every guild configured before analytics existed.
 
-    Read through `config_state`, never straight from the collection: a feature
-    that owns its persistence answers every raw lookup with `None`, and this
-    report is read as a list of settings to delete.
+    Read through `cogs.feature_config_states`, never straight from the
+    collection: a feature that owns its persistence answers every raw lookup
+    with `None`, and this report is read as a list of settings to delete.
     """
-    documents = config_state.feature_config_states(feature)
+    documents = cogs_service.feature_config_states(feature)
     total = len(documents)
     rows = []
 
