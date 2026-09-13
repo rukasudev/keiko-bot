@@ -1,5 +1,6 @@
 """Steps every form shares: seeding a saved configuration, opening the
 command through its service, and the manager lifecycle buttons."""
+import copy
 import datetime
 from typing import Any, Callable, Dict
 
@@ -31,7 +32,9 @@ def discard_label(locale: str) -> str:
 
 
 def seed_document(deps, form: str, document: Dict[str, Any]) -> None:
-    deps.mongo_client.guild[form].insert_one(dict(document))
+    """A deep copy: the old engine edits nested lists of the document in place,
+    and a shared module-level seed would carry one path's edits into the next."""
+    deps.mongo_client.guild[form].insert_one(copy.deepcopy(document))
 
 
 def seed_history(deps, form: str, *events: str) -> None:

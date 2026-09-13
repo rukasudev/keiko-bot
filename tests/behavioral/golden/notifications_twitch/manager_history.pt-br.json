@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "notifications_twitch",
     "values": "pt-br"
   },
@@ -33,7 +32,7 @@
           {
             "children": [
               {
-                "content": "### :busts_in_silhouette: Notificações\n**#1**\n**Canal de Texto:** <#102>\n**Streamer:** cellbit\n**Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```\n**#2**\n**Canal de Texto:** <#100>\n**Streamer:** shroud\n**Mensagens de Notificação:** ```1. {streamer} entrou ao vivo: {stream_link}```",
+                "content": "### :busts_in_silhouette: Notificações\n**#1**\n**Canal de Texto:** <#100>\n**Streamer:** gaules\n**Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```\n**#2**\n**Canal de Texto:** <#102>\n**Streamer:** cellbit\n**Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
                 "type": "text"
               },
               {
@@ -103,16 +102,13 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "history"
   },
   {
@@ -147,8 +143,7 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M2",
-    "seq": 4,
-    "step": null
+    "seq": 4
   },
   {
     "actor": "bot",
@@ -202,7 +197,6 @@
     "ephemeral": true,
     "kind": "edit_original",
     "message": "M2",
-    "seq": 5,
-    "step": null
+    "seq": 5
   }
 ]

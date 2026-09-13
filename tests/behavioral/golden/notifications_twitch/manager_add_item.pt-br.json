@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "notifications_twitch",
     "values": "pt-br"
   },
@@ -33,7 +32,7 @@
           {
             "children": [
               {
-                "content": "### :busts_in_silhouette: Notificações\n**#1**\n**Canal de Texto:** <#102>\n**Streamer:** gaules\n**Mensagens de Notificação:** ```1. {streamer} entrou ao vivo: {stream_link}```\n**#2**\n**Canal de Texto:** <#102>\n**Streamer:** cellbit\n**Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+                "content": "### :busts_in_silhouette: Notificações\n**#1**\n**Canal de Texto:** <#100>\n**Streamer:** gaules\n**Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```\n**#2**\n**Canal de Texto:** <#102>\n**Streamer:** cellbit\n**Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
                 "type": "text"
               },
               {
@@ -103,16 +102,13 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "add"
   },
   {
@@ -121,15 +117,13 @@
     "kind": "defer",
     "message": null,
     "seq": 4,
-    "step": null,
     "thinking": false
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M1",
-    "seq": 5,
-    "step": null
+    "seq": 5
   },
   {
     "actor": "bot",
@@ -167,15 +161,13 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 6,
-    "step": null
+    "seq": 6
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M2",
     "seq": 7,
-    "step": null,
     "target": "Selecione um canal...",
     "values": [
       "general"
@@ -187,16 +179,13 @@
     "kind": "defer",
     "message": null,
     "seq": 8,
-    "step": null,
     "thinking": false
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M2",
     "seq": 9,
-    "step": null,
     "target": "continue"
   },
   {
@@ -215,8 +204,7 @@
       ],
       "title": "Streamer"
     },
-    "seq": 10,
-    "step": null
+    "seq": 10
   },
   {
     "actor": "user",
@@ -225,8 +213,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 11,
-    "step": null
+    "seq": 11
   },
   {
     "actor": "bot",
@@ -279,16 +266,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 12,
-    "step": null
+    "seq": 12
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M2",
     "seq": 13,
-    "step": null,
     "target": "continue"
   },
   {
@@ -321,8 +305,7 @@
       ],
       "title": "Mensagens de Notificação"
     },
-    "seq": 14,
-    "step": null
+    "seq": 14
   },
   {
     "actor": "user",
@@ -331,8 +314,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 15,
-    "step": null
+    "seq": 15
   },
   {
     "actor": "bot",
@@ -340,7 +322,6 @@
     "kind": "defer",
     "message": null,
     "seq": 16,
-    "step": null,
     "thinking": false
   },
   {
@@ -359,7 +340,6 @@
     "ephemeral": true,
     "kind": "edit_original",
     "message": "M2",
-    "seq": 17,
-    "step": null
+    "seq": 17
   }
 ]
