@@ -36,6 +36,7 @@ from app.forms.definitions.schema import (
     ValueSelectSection,
     When,
 )
+from app.forms.engine.rules import same_value
 from app.forms.extensions.transforms import TRANSFORMS
 from app.forms.extensions.validators import VALIDATORS
 
@@ -378,13 +379,6 @@ def _leaves(rule: When | None) -> list[Leaf]:
     if isinstance(rule, AnyOf):
         return [leaf for child in rule.any for leaf in _leaves(child)]
     return _leaves(rule.not_)
-
-
-def same_value(left: Any, right: Any) -> bool:
-    """Equality across the spellings a value takes in YAML and in answers."""
-    if isinstance(left, bool) or isinstance(right, bool):
-        return str(left).lower() == str(right).lower()
-    return str(left) == str(right)
 
 
 def _check_leaf(
