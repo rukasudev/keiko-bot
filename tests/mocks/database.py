@@ -78,9 +78,99 @@ class _EarlyMockRedisClient:
         return True
 
 
+class _EarlyMockMotorClient(_EarlyMockMongoClient):
+    """Early mock for motor_client: the same empty answers, awaited."""
+
+    def __getitem__(self, name):
+        return _EarlyMockMotorDatabase()
+
+    def __getattr__(self, name):
+        return _EarlyMockMotorDatabase()
+
+
+class _EarlyMockMotorDatabase(_EarlyMockDatabase):
+    def __getitem__(self, name):
+        return MockMotorCollection(_EarlyMockCollection())
+
+    def __getattr__(self, name):
+        return MockMotorCollection(_EarlyMockCollection())
+
+
+class MockMotorCursor:
+    """The awaitable side of a cursor: `to_list` and `async for`."""
+
+    def __init__(self, cursor):
+        self._cursor = cursor
+
+    def sort(self, field, direction=-1):
+        self._cursor.sort(field, direction)
+        return self
+
+    def limit(self, count):
+        self._cursor.limit(count)
+        return self
+
+    async def to_list(self, length=None):
+        items = list(self._cursor)
+        return items if length is None else items[:length]
+
+    def __aiter__(self):
+        self._items = iter(list(self._cursor))
+        return self
+
+    async def __anext__(self):
+        try:
+            return next(self._items)
+        except StopIteration:
+            raise StopAsyncIteration from None
+
+
+class MockMotorCollection:
+    """A motor-shaped collection over the same in-memory documents."""
+
+    def __init__(self, collection):
+        self._collection = collection
+
+    def find(self, *args, **kwargs):
+        return MockMotorCursor(self._collection.find(*args, **kwargs))
+
+    def __getattr__(self, name):
+        method = getattr(self._collection, name)
+
+        async def call(*args, **kwargs):
+            return method(*args, **kwargs)
+
+        return call
+
+
+class MockMotorDatabase:
+    def __init__(self, database):
+        self._database = database
+
+    def __getitem__(self, name):
+        return MockMotorCollection(self._database[name])
+
+    def __getattr__(self, name):
+        return self[name]
+
+
+class MockMotorClient:
+    """motor over the MockMongoClient: every write lands in the same store."""
+
+    def __init__(self, backing):
+        self._backing = backing
+
+    def __getitem__(self, name):
+        return MockMotorDatabase(self._backing[name])
+
+    def __getattr__(self, name):
+        return self[name]
+
+
 # Install early mocks into app module before anything imports from it
 import app
 app.mongo_client = _EarlyMockMongoClient()
+app.motor_client = _EarlyMockMotorClient()
 app.redis_client = _EarlyMockRedisClient()
 app.bot = MagicMock()
 

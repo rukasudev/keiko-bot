@@ -16,6 +16,7 @@ known-first-party = ["app", "tests"]
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D1", "ARG"]
 "app/forms/kinds/*.py" = ["ARG001"]
+"app/forms/features/*.py" = ["ARG002"]
 
 [tool.mypy]
 python_version = "3.10"

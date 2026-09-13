@@ -1,6 +1,6 @@
 from typing import Any, Dict, List
 
-from app import mongo_client
+from app import mongo_client, motor_client
 from app.data.util import parse_insert_timestamp, parse_update_timestamp
 
 
@@ -53,3 +53,43 @@ def update_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]) -> str:
 
 def delete_cog_by_guild_id(guild_id: str, cog: str):
     return mongo_client.guild[cog].delete_one({"guild_id": str(guild_id)})
+
+
+async def find_cog_by_guild_id_async(guild_id: str, cog: str) -> Dict[str, Any]:
+    return await motor_client.guild[cog].find_one({"guild_id": str(guild_id)})
+
+
+async def insert_cog_by_guild_id_async(cog: str, data: Dict[str, Any]) -> Any:
+    guild_id = data.get("guild_id")
+    existing = await find_cog_by_guild_id_async(guild_id, cog) if guild_id else None
+    if existing:
+        data = parse_update_timestamp(data)
+        return await motor_client.guild[cog].replace_one(
+            {"guild_id": str(guild_id)}, {**existing, **data}
+        )
+    data = parse_insert_timestamp(data)
+    return await motor_client.guild[cog].insert_one(data)
+
+
+async def update_cog_by_guild_async(guild_id: str, cog: str, data: Dict[str, Any]) -> Any:
+    data = parse_update_timestamp(data)
+    return await motor_client.guild[cog].update_one(
+        {"guild_id": str(guild_id)}, {"$set": data}
+    )
+
+
+async def delete_cog_by_guild_id_async(guild_id: str, cog: str) -> Any:
+    return await motor_client.guild[cog].delete_one({"guild_id": str(guild_id)})
+
+
+async def insert_cog_event_async(cog_key: str, data: Dict[str, Any]) -> Any:
+    return await motor_client.events[cog_key].insert_one(data)
+
+
+async def find_cog_events_by_guild_id_async(guild_id: str, cog_key: str) -> List[Dict[str, Any]]:
+    cursor = (
+        motor_client.events[cog_key]
+        .find({"guild_id": str(guild_id)}, {"_id": False})
+        .sort("datetime", -1)
+    )
+    return await cursor.to_list(length=None)

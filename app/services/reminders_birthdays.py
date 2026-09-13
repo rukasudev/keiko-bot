@@ -272,6 +272,11 @@ async def edit_birthday_save(interaction: discord.Interaction, manager_view: dis
             save_form_birthday_item(guild_id, items[index])
         return
 
+    save_birthday_config_changes(guild_id, data, parse_locale(interaction.locale))
+
+
+def save_birthday_config_changes(guild_id: str, data: Dict[str, Any], locale: str) -> None:
+    """Apply the edited settings on top of the saved birthday configuration."""
     config_keys = {
         commands_constants.BIRTHDAY_CONFIG_CHANNEL,
         commands_constants.BIRTHDAY_CONFIG_MENTION_EVERYONE,
@@ -300,7 +305,7 @@ async def edit_birthday_save(interaction: discord.Interaction, manager_view: dis
             guild_id,
             str(channel_id),
             mention_everyone,
-            parse_locale(interaction.locale),
+            locale,
             timezone_value,
             notification_time,
             default_message,
@@ -381,7 +386,11 @@ def birthday_manager_settings(
     cog_data: Dict[str, Any],
     locale: str,
 ) -> List[Dict[str, Any]]:
-    guild_id = str(interaction.guild_id)
+    return birthday_settings_rows(str(interaction.guild_id), locale)
+
+
+def birthday_settings_rows(guild_id: str, locale: str) -> List[Dict[str, Any]]:
+    """The panel rows of the birthday feature, from its own collections."""
     config = birthdays_data.find_birthday_config(guild_id) or {}
     stats = get_birthday_stats(guild_id)
     upcoming = get_upcoming_birthdays(guild_id, limit=3)
@@ -570,7 +579,11 @@ def _parse_form_birthday_item(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 
 def handle_unsubscribe_birthdays(interaction: discord.Interaction, cogs: Any = None) -> None:
-    guild_id = str(interaction.guild_id)
+    disable_birthdays(str(interaction.guild_id))
+
+
+def disable_birthdays(guild_id: str) -> None:
+    """Forget every birthday and reminder of the guild and flag the feature off."""
     items = birthdays_data.find_birthday_items_by_guild(guild_id)
     reminder_ids = {item.get("reminder_id") for item in items if item.get("reminder_id")}
 
