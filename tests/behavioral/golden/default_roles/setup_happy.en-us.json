@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "default_roles",
     "values": "en-us"
   },
@@ -37,26 +36,14 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "continue"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 4,
-    "step": "default_roles_config",
-    "thinking": false
   },
   {
     "actor": "bot",
@@ -99,17 +86,15 @@
       "title": "Default Roles"
     },
     "ephemeral": true,
-    "kind": "followup_edit",
+    "kind": "edit",
     "message": "M1",
-    "seq": 5,
-    "step": "default_roles_config"
+    "seq": 4
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M1",
-    "seq": 6,
-    "step": "default_roles_config",
+    "seq": 5,
     "target": "default_roles",
     "values": [
       "Member"
@@ -120,16 +105,14 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 7,
-    "step": "default_roles_config",
+    "seq": 6,
     "thinking": false
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M1",
-    "seq": 8,
-    "step": "default_roles_config",
+    "seq": 7,
     "target": "default_roles_bot",
     "values": [
       "Moderator"
@@ -140,17 +123,14 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 9,
-    "step": "default_roles_config",
+    "seq": 8,
     "thinking": false
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
-    "seq": 10,
-    "step": "default_roles_config",
+    "seq": 9,
     "target": "continue"
   },
   {
@@ -188,26 +168,14 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M1",
-    "seq": 11,
-    "step": "confirm"
+    "seq": 10
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
-    "seq": 12,
-    "step": "confirm",
+    "seq": 11,
     "target": "continue"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": true,
-    "kind": "defer",
-    "message": null,
-    "seq": 13,
-    "step": "confirm",
-    "thinking": false
   },
   {
     "actor": "bot",
@@ -223,9 +191,8 @@
       "title": "🎉 Command enabled successfully!"
     },
     "ephemeral": true,
-    "kind": "edit_original",
+    "kind": "edit",
     "message": "M1",
-    "seq": 14,
-    "step": "confirm"
+    "seq": 12
   }
 ]

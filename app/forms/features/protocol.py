@@ -40,6 +40,7 @@ class Opened:
     extra_buttons: tuple[Button, ...] = ()
     enabled: bool = True
     previews: Mapping[str, str] = field(default_factory=dict)
+    pending_previews: Awaitable[Mapping[str, str]] | None = None
     refusal: str | None = None
 
 

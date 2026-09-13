@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "welcome_messages",
     "values": "pt-br"
   },
@@ -92,16 +91,13 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "edit"
   },
   {
@@ -110,15 +106,7 @@
     "kind": "defer",
     "message": null,
     "seq": 4,
-    "step": null,
     "thinking": false
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M1",
-    "seq": 5,
-    "step": null
   },
   {
     "actor": "bot",
@@ -161,28 +149,23 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 6,
-    "step": null
+    "seq": 5
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 6
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M2",
     "seq": 7,
-    "step": null,
     "target": "Selecione as configurações que deseja editar",
     "values": [
       "welcome_messages_channel"
     ]
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 8,
-    "step": null,
-    "thinking": false
   },
   {
     "actor": "bot",
@@ -218,17 +201,15 @@
       "title": "Canal de Mensagens de Boas-Vindas"
     },
     "ephemeral": true,
-    "kind": "followup_edit",
+    "kind": "edit",
     "message": "M2",
-    "seq": 9,
-    "step": null
+    "seq": 8
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M2",
-    "seq": 10,
-    "step": null,
+    "seq": 9,
     "target": "Selecione um canal...",
     "values": [
       "announcements"
@@ -239,17 +220,14 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 11,
-    "step": null,
+    "seq": 10,
     "thinking": false
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M2",
-    "seq": 12,
-    "step": null,
+    "seq": 11,
     "target": "continue"
   },
   {
@@ -257,16 +235,8 @@
     "ephemeral": true,
     "kind": "defer",
     "message": null,
-    "seq": 13,
-    "step": null,
+    "seq": 12,
     "thinking": true
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M2",
-    "seq": 14,
-    "step": null
   },
   {
     "actor": "bot",
@@ -284,7 +254,12 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 15,
-    "step": null
+    "seq": 13
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 14
   }
 ]

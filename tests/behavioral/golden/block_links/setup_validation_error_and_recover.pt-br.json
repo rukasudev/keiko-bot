@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "block_links",
     "values": "pt-br"
   },
@@ -37,16 +36,13 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "continue"
   },
   {
@@ -55,7 +51,6 @@
     "kind": "defer",
     "message": null,
     "seq": 4,
-    "step": "link_settings",
     "thinking": false
   },
   {
@@ -166,23 +161,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 5,
-    "step": "link_settings"
+    "seq": 5
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M1",
-    "seq": 6,
-    "step": "link_settings"
+    "seq": 6
   },
   {
     "actor": "user",
-    "custom_id": "card_done",
     "kind": "click",
     "message": "M2",
     "seq": 7,
-    "step": "link_settings",
     "target": "done"
   },
   {
@@ -191,15 +182,7 @@
     "kind": "defer",
     "message": null,
     "seq": 8,
-    "step": "add_custom",
     "thinking": false
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M2",
-    "seq": 9,
-    "step": "add_custom"
   },
   {
     "actor": "bot",
@@ -242,16 +225,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 10,
-    "step": "add_custom"
+    "seq": 9
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 10
   },
   {
     "actor": "user",
-    "custom_id": "True",
     "kind": "click",
     "message": "M3",
     "seq": 11,
-    "step": "add_custom",
     "target": "Sim"
   },
   {
@@ -270,8 +256,7 @@
       ],
       "title": "Link ou Site"
     },
-    "seq": 12,
-    "step": "link"
+    "seq": 12
   },
   {
     "actor": "user",
@@ -280,11 +265,12 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 13,
-    "step": "link"
+    "seq": 13
   },
   {
     "actor": "bot",
+    "components": [],
+    "components_v2": false,
     "delete_after": 10,
     "embed": {
       "color": 16711680,
@@ -298,16 +284,13 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M4",
-    "seq": 14,
-    "step": "link"
+    "seq": 14
   },
   {
     "actor": "user",
-    "custom_id": "True",
     "kind": "click",
     "message": "M3",
     "seq": 15,
-    "step": "link",
     "target": "Sim"
   },
   {
@@ -326,8 +309,7 @@
       ],
       "title": "Link ou Site"
     },
-    "seq": 16,
-    "step": "link"
+    "seq": 16
   },
   {
     "actor": "user",
@@ -336,17 +318,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 17,
-    "step": "link"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 18,
-    "step": "match_type",
-    "thinking": false
+    "seq": 17
   },
   {
     "actor": "bot",
@@ -387,28 +359,16 @@
       "title": "🎯 Qual o Alcance da Regra?"
     },
     "ephemeral": true,
-    "kind": "followup_edit",
+    "kind": "edit",
     "message": "M3",
-    "seq": 19,
-    "step": "match_type"
+    "seq": 18
   },
   {
     "actor": "user",
-    "custom_id": "domain",
     "kind": "click",
     "message": "M3",
-    "seq": 20,
-    "step": "match_type",
+    "seq": 19,
     "target": "option:🌐 Todos os links desse site"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 21,
-    "step": "permissions",
-    "thinking": false
   },
   {
     "actor": "bot",
@@ -457,9 +417,8 @@
       "title": "🔓 Permissões"
     },
     "ephemeral": true,
-    "kind": "followup_edit",
+    "kind": "edit",
     "message": "M3",
-    "seq": 22,
-    "step": "permissions"
+    "seq": 20
   }
 ]

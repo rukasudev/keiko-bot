@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "stream_elements_commands",
     "values": "pt-br"
   },
@@ -81,16 +80,13 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "edit"
   },
   {
@@ -99,15 +95,7 @@
     "kind": "defer",
     "message": null,
     "seq": 4,
-    "step": null,
     "thinking": false
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M1",
-    "seq": 5,
-    "step": null
   },
   {
     "actor": "bot",
@@ -140,15 +128,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 6,
-    "step": null
+    "seq": 5
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 6
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M2",
     "seq": 7,
-    "step": null,
     "target": "Selecione as configurações que deseja editar",
     "values": [
       "streamer"
@@ -170,8 +162,7 @@
       ],
       "title": "Streamer"
     },
-    "seq": 8,
-    "step": null
+    "seq": 8
   },
   {
     "actor": "user",
@@ -180,8 +171,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 9,
-    "step": null
+    "seq": 9
   },
   {
     "actor": "bot",
@@ -189,15 +179,7 @@
     "kind": "defer",
     "message": null,
     "seq": 10,
-    "step": null,
     "thinking": true
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M2",
-    "seq": 11,
-    "step": null
   },
   {
     "actor": "bot",
@@ -215,7 +197,12 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 12,
-    "step": null
+    "seq": 11
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 12
   }
 ]

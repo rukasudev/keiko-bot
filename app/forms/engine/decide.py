@@ -317,14 +317,26 @@ class Engine:
         """The last step was answered: hand over to the parent, or commit."""
         mode = self.session.mode
         parent_id = self.session.parent_id
+        answers = self.edited_answers()
         if parent_id is not None:
             self.session = self.session.with_status(Status.COMPLETED)
             index = mode.index if isinstance(mode, EditItem) else None
-            self.effects.append(
-                ResumeParent(parent_id, mode.kind, self.session.answers, index)
-            )
+            self.effects.append(ResumeParent(parent_id, mode.kind, answers, index))
             return
-        self.commit(mode.kind, {"answers": self.session.answers})
+        self.commit(mode.kind, {"answers": answers})
+
+    def edited_answers(self) -> Mapping[str, Answer]:
+        """Every answer, or only the edited steps' answers in an edit session."""
+        mode = self.session.mode
+        if not isinstance(mode, Edit):
+            return self.session.answers
+        edited = {
+            key
+            for step in self.steps
+            if step.key in mode.keys
+            for key in produced_keys(step)
+        }
+        return {k: v for k, v in self.session.answers.items() if k in edited}
 
     def commit(self, kind: str, payload: Mapping[str, Any]) -> None:
         """Ask the feature to write; the session waits for the outcome."""

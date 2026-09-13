@@ -5,7 +5,6 @@ from typing import Any, Dict, List, Optional
 import discord
 
 from app import logger
-from app.components.buttons import AdditionalButton
 from app.components.embed import base_embed
 from app.constants import Commands as commands_constants
 from app.constants import KeikoIcons
@@ -20,6 +19,7 @@ from app.services.dates import (
     is_valid_mm_dd,
     next_mm_dd_occurrence,
 )
+from app.forms.adapters.discord.entrypoints import open_feature
 from app.services.moderations import update_moderations_by_guild
 from app.services import reminders as reminders_service
 from app.services.utils import (
@@ -29,41 +29,8 @@ from app.services.utils import (
 
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:
-    from app.services.moderations import send_command_form_message
-    from app.services.moderations import send_command_manager_message
-
-    locale = parse_locale(interaction.locale)
-    config = birthdays_data.find_birthday_config(guild_id)
-    enabled = birthdays_data.is_birthday_enabled(guild_id)
-    if not enabled or not config:
-        return await send_command_form_message(
-            interaction,
-            commands_constants.REMINDERS_BIRTHDAY_KEY,
-            persistence_callback=persist_setup_form,
-        )
-
-    stats_button = AdditionalButton(
-        callback=send_stats_message,
-        label=_mb("stats.button.label", locale),
-        desc=_mb("stats.button.desc", locale),
-        emoji="📊",
-        style=discord.ButtonStyle.grey,
-        defer=True,
-        cooldown=view_constants.ACTION_COOLDOWN_SECONDS,
-    )
-    await send_command_manager_message(
-        interaction,
-        commands_constants.REMINDERS_BIRTHDAY_KEY,
-        birthday_manager_cog_data(guild_id),
-        additional_buttons=[stats_button],
-        settings_provider=birthday_manager_settings,
-        lifecycle_callbacks={
-            commands_constants.LIFECYCLE_EDIT: edit_birthday_save,
-            commands_constants.LIFECYCLE_DISABLE: disable_birthdays_manager,
-            commands_constants.LIFECYCLE_ADD_ITEM: add_birthdays_manager_item,
-            commands_constants.LIFECYCLE_REMOVE_ITEM: remove_birthdays_manager_item,
-        },
-    )
+    """The slash command: the setup form, or the manager of what is saved."""
+    await open_feature(interaction, commands_constants.REMINDERS_BIRTHDAY_KEY)
 
 
 def _mb(key: str, locale: str) -> str:
@@ -259,22 +226,6 @@ def config_states() -> List[Dict[str, Any]]:
     ]
 
 
-async def edit_birthday_save(interaction: discord.Interaction, manager_view: discord.ui.View, data: Dict[str, Any]) -> None:
-    guild_id = str(interaction.guild_id)
-    form = manager_view.edited_form_view
-    composition_index = getattr(form, "composition_index", None)
-
-    composition_data = data.get(commands_constants.REMINDERS_BIRTHDAY_KEY)
-    if composition_index is not None and composition_data:
-        items = composition_data.get("values") or []
-        index = int(composition_index)
-        if 0 <= index < len(items):
-            save_form_birthday_item(guild_id, items[index])
-        return
-
-    save_birthday_config_changes(guild_id, data, parse_locale(interaction.locale))
-
-
 def save_birthday_config_changes(guild_id: str, data: Dict[str, Any], locale: str) -> None:
     """Apply the edited settings on top of the saved birthday configuration."""
     config_keys = {
@@ -381,14 +332,6 @@ def reschedule_birthdays(guild_id: str, timezone_value: str, notification_time: 
         )
 
 
-def birthday_manager_settings(
-    interaction: discord.Interaction,
-    cog_data: Dict[str, Any],
-    locale: str,
-) -> List[Dict[str, Any]]:
-    return birthday_settings_rows(str(interaction.guild_id), locale)
-
-
 def birthday_settings_rows(guild_id: str, locale: str) -> List[Dict[str, Any]]:
     """The panel rows of the birthday feature, from its own collections."""
     config = birthdays_data.find_birthday_config(guild_id) or {}
@@ -452,10 +395,6 @@ async def send_stats_message(interaction: discord.Interaction) -> None:
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
-def disable_birthdays_manager(interaction: discord.Interaction, cogs: Any = None) -> None:
-    handle_unsubscribe_birthdays(interaction)
-
-
 def setup_birthdays(
     guild_id: str,
     channel_id: str,
@@ -479,10 +418,6 @@ def setup_birthdays(
     if _schedule_changed(previous_config, config):
         reschedule_birthdays(guild_id, config.get("timezone"), config.get("notification_time"))
     return config
-
-
-def persist_setup_form(interaction: discord.Interaction, responses: List[Dict[str, Any]], cog_param: Dict[str, Any]) -> List[Dict[str, Any]]:
-    return save_setup_form(str(interaction.guild_id), responses, parse_locale(interaction.locale))
 
 
 def save_setup_form(guild_id: str, responses: List[Dict[str, Any]], locale: str = None) -> List[Dict[str, Any]]:
@@ -578,10 +513,6 @@ def _parse_form_birthday_item(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     }
 
 
-def handle_unsubscribe_birthdays(interaction: discord.Interaction, cogs: Any = None) -> None:
-    disable_birthdays(str(interaction.guild_id))
-
-
 def disable_birthdays(guild_id: str) -> None:
     """Forget every birthday and reminder of the guild and flag the feature off."""
     items = birthdays_data.find_birthday_items_by_guild(guild_id)
@@ -594,34 +525,3 @@ def disable_birthdays(guild_id: str) -> None:
         reminders_service.delete_reminder(reminder_id)
 
     update_moderations_by_guild(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY, False)
-
-
-async def add_birthdays_manager_item(interaction: discord.Interaction, manager_view: discord.ui.View, response: Dict[str, Any]) -> Optional[bool]:
-    birthday = _parse_form_birthday_item(response)
-    if birthday and birthdays_data.find_birthday_item(str(interaction.guild_id), birthday["user_id"]):
-        return False
-
-    saved_item = save_form_birthday_item(str(interaction.guild_id), response)
-    if not saved_item:
-        return
-
-    from app.services.compositions import merge_composition_item_by_nested_value
-
-    values = manager_view.cogs[commands_constants.REMINDERS_BIRTHDAY_KEY]["values"]
-    merge_composition_item_by_nested_value(
-        values,
-        to_summary_composition(saved_item),
-        "user",
-    )
-
-
-async def remove_birthdays_manager_item(
-    interaction: discord.Interaction,
-    manager_view: discord.ui.View,
-    item_removed: Dict[str, Any],
-    new_cogs: Dict[str, Any],
-) -> None:
-    user = item_removed.get("user") if isinstance(item_removed, dict) else None
-    user_id = user.get("value") if isinstance(user, dict) else user
-    if user_id:
-        remove_birthday(str(interaction.guild_id), str(user_id))

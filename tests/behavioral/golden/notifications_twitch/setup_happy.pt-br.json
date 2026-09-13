@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "notifications_twitch",
     "values": "pt-br"
   },
@@ -37,26 +36,14 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "continue"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 4,
-    "step": "channel",
-    "thinking": false
   },
   {
     "actor": "bot",
@@ -92,17 +79,15 @@
       "title": ":tv: Canal de Texto"
     },
     "ephemeral": true,
-    "kind": "followup_edit",
+    "kind": "edit",
     "message": "M1",
-    "seq": 5,
-    "step": "channel"
+    "seq": 4
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M1",
-    "seq": 6,
-    "step": "channel",
+    "seq": 5,
     "target": "Selecione um canal...",
     "values": [
       "general"
@@ -113,17 +98,14 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 7,
-    "step": "channel",
+    "seq": 6,
     "thinking": false
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
-    "seq": 8,
-    "step": "channel",
+    "seq": 7,
     "target": "continue"
   },
   {
@@ -142,8 +124,7 @@
       ],
       "title": "Streamer"
     },
-    "seq": 9,
-    "step": "streamer"
+    "seq": 8
   },
   {
     "actor": "user",
@@ -152,8 +133,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 10,
-    "step": "streamer"
+    "seq": 9
   },
   {
     "actor": "bot",
@@ -206,16 +186,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M1",
-    "seq": 11,
-    "step": "continue_to_messages"
+    "seq": 10
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
-    "seq": 12,
-    "step": "continue_to_messages",
+    "seq": 11,
     "target": "continue"
   },
   {
@@ -248,8 +225,7 @@
       ],
       "title": "Mensagens de Notificação"
     },
-    "seq": 13,
-    "step": "notification_messages"
+    "seq": 12
   },
   {
     "actor": "user",
@@ -258,8 +234,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 14,
-    "step": "notification_messages"
+    "seq": 13
   },
   {
     "actor": "bot",
@@ -292,7 +267,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!\n\n:pencil: **Configurações**\n\n\n:flying_disc: **Notificações #1**\n- Canal de Texto: **<#100>**\n- Streamer: **gaules**\n- Mensagens de Notificação: **\n```1. {streamer} entrou ao vivo: {stream_link}```**\n",
+      "description": "Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!\n\n:pencil: **Configurações**\n\n\n:flying_disc: **Notificações #1**\n- Canal de Texto: **<#100>**\n- Streamer: **gaules**\n- Mensagens de Notificação: **\n```• {streamer} entrou ao vivo: {stream_link}```**\n",
       "fields": [],
       "footer": "• Use o comando `/reportar` para me contar um bug",
       "image": null,
@@ -302,26 +277,14 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M1",
-    "seq": 15,
-    "step": "confirm"
+    "seq": 14
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
-    "seq": 16,
-    "step": "confirm",
+    "seq": 15,
     "target": "continue"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": true,
-    "kind": "defer",
-    "message": null,
-    "seq": 17,
-    "step": "confirm",
-    "thinking": false
   },
   {
     "actor": "bot",
@@ -337,9 +300,8 @@
       "title": "🎉 Funcionalidade ativada com sucesso!"
     },
     "ephemeral": true,
-    "kind": "edit_original",
+    "kind": "edit",
     "message": "M1",
-    "seq": 18,
-    "step": "confirm"
+    "seq": 16
   }
 ]

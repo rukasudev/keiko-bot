@@ -64,6 +64,23 @@ class Session:
     friction: observability.Friction = field(default_factory=observability.Friction)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     cooldowns: dict[str, float] = field(default_factory=dict)
+    previews: asyncio.Task[Mapping[str, str]] | None = None
+
+    async def ready_previews(self, wait: bool) -> Mapping[str, str]:
+        """The previews drawn in the background, waiting for them when `wait`."""
+        if self.previews is None:
+            return self.opened.previews
+        if not self.previews.done() and not wait:
+            return {}
+        try:
+            return dict(await self.previews)
+        except Exception:
+            return {}
+
+    def forget(self) -> None:
+        """Stop what still runs for this session."""
+        if self.previews is not None and not self.previews.done():
+            self.previews.cancel()
 
 
 class Runtime:
@@ -76,6 +93,8 @@ class Runtime:
 
     def reset(self) -> None:
         """Forget every session (tests)."""
+        for state in self.sessions.values():
+            state.forget()
         self.store = InMemorySessionStore()
         self.sessions.clear()
 
@@ -116,11 +135,10 @@ class Runtime:
             guild=guild,
             member=member,
         )
-        observability.open_journey(
-            session,
-            self.sessions[session.id].command_name,
-            self.sessions[session.id].source,
-        )
+        state = self.sessions[session.id]
+        if opened.pending_previews is not None:
+            state.previews = asyncio.ensure_future(opened.pending_previews)
+        observability.open_journey(session, state.command_name, state.source)
         await self._apply(interaction, session, ev.Started(str(interaction.id)))
 
     # ------------------------------------------------------------ handling
@@ -207,7 +225,7 @@ class Runtime:
             items=items,
             external=external,
             server_name=str(getattr(state.guild, "name", "")),
-            previews=opened.previews,
+            previews=await state.ready_previews(isinstance(event, ev.Answered)),
             panel_rows=opened.rows,
             panel_info=opened.info,
             panel_info_title=opened.info_title,
@@ -260,6 +278,7 @@ class Runtime:
             self._close(session, decision)
 
     def _close(self, session: FormSession, decision: Decision) -> None:
+        self.sessions[session.id].forget()
         outcomes = {
             Status.CANCELLED: "discarded",
             Status.EXPIRED: "abandoned",
@@ -293,6 +312,7 @@ class Runtime:
                 member=state.member,
                 friction=state.friction,
                 lock=state.lock,
+                previews=state.previews,
             )
             state.surface.replace_next = (
                 isinstance(session.mode, Manage) and state.surface.is_layout
@@ -374,7 +394,6 @@ class Runtime:
                 info_title=state.opened.info_title,
                 extra_buttons=state.opened.extra_buttons,
                 enabled=state.opened.enabled,
-                previews=state.opened.previews,
             )
         await self._apply(
             interaction,

@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "reminders_birthday",
     "values": "pt-br"
   },
@@ -98,16 +97,13 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "history"
   },
   {
@@ -142,8 +138,7 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M2",
-    "seq": 4,
-    "step": null
+    "seq": 4
   },
   {
     "actor": "bot",
@@ -197,7 +192,6 @@
     "ephemeral": true,
     "kind": "edit_original",
     "message": "M2",
-    "seq": 5,
-    "step": null
+    "seq": 5
   }
 ]

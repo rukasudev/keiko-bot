@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "reminders_birthday",
     "values": "pt-br"
   },
@@ -37,16 +36,13 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "continue"
   },
   {
@@ -55,7 +51,6 @@
     "kind": "defer",
     "message": null,
     "seq": 4,
-    "step": "birthday_config",
     "thinking": false
   },
   {
@@ -204,23 +199,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 5,
-    "step": "birthday_config"
+    "seq": 5
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M1",
-    "seq": 6,
-    "step": "birthday_config"
+    "seq": 6
   },
   {
     "actor": "user",
-    "custom_id": "card_cancel",
     "kind": "click",
     "message": "M2",
     "seq": 7,
-    "step": "birthday_config",
     "target": "cancel"
   },
   {
@@ -229,7 +220,6 @@
     "kind": "defer",
     "message": null,
     "seq": 8,
-    "step": "birthday_config",
     "thinking": false
   },
   {
@@ -261,16 +251,13 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 9,
-    "step": "birthday_config"
+    "seq": 9
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M3",
     "seq": 10,
-    "step": "birthday_config",
     "target": "Continuar configurando"
   },
   {
@@ -279,14 +266,12 @@
     "kind": "defer",
     "message": null,
     "seq": 11,
-    "step": "birthday_config",
     "thinking": false
   },
   {
     "actor": "bot",
     "kind": "delete_original",
     "message": "M3",
-    "seq": 12,
-    "step": "birthday_config"
+    "seq": 12
   }
 ]

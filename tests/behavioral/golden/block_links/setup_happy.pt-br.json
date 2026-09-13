@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "block_links",
     "values": "pt-br"
   },
@@ -37,16 +36,13 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "continue"
   },
   {
@@ -55,7 +51,6 @@
     "kind": "defer",
     "message": null,
     "seq": 4,
-    "step": "link_settings",
     "thinking": false
   },
   {
@@ -166,23 +161,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 5,
-    "step": "link_settings"
+    "seq": 5
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M1",
-    "seq": 6,
-    "step": "link_settings"
+    "seq": 6
   },
   {
     "actor": "user",
-    "custom_id": "card_done",
     "kind": "click",
     "message": "M2",
     "seq": 7,
-    "step": "link_settings",
     "target": "done"
   },
   {
@@ -191,15 +182,7 @@
     "kind": "defer",
     "message": null,
     "seq": 8,
-    "step": "add_custom",
     "thinking": false
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M2",
-    "seq": 9,
-    "step": "add_custom"
   },
   {
     "actor": "bot",
@@ -242,26 +225,20 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 10,
-    "step": "add_custom"
-  },
-  {
-    "actor": "user",
-    "custom_id": "False",
-    "kind": "click",
-    "message": "M3",
-    "seq": 11,
-    "step": "add_custom",
-    "target": "Depois"
+    "seq": 9
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 12,
-    "step": "permissions",
-    "thinking": false
+    "kind": "delete",
+    "message": "M2",
+    "seq": 10
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M3",
+    "seq": 11,
+    "target": "Depois"
   },
   {
     "actor": "bot",
@@ -310,17 +287,15 @@
       "title": "🔓 Permissões"
     },
     "ephemeral": true,
-    "kind": "followup_edit",
+    "kind": "edit",
     "message": "M3",
-    "seq": 13,
-    "step": "permissions"
+    "seq": 12
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M3",
-    "seq": 14,
-    "step": "permissions",
+    "seq": 13,
     "target": "allowed_chats",
     "values": [
       "general"
@@ -331,17 +306,14 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 15,
-    "step": "permissions",
+    "seq": 14,
     "thinking": false
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M3",
-    "seq": 16,
-    "step": "permissions",
+    "seq": 15,
     "target": "continue"
   },
   {
@@ -385,26 +357,14 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M3",
-    "seq": 17,
-    "step": "confirm"
+    "seq": 16
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M3",
-    "seq": 18,
-    "step": "confirm",
+    "seq": 17,
     "target": "continue"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": true,
-    "kind": "defer",
-    "message": null,
-    "seq": 19,
-    "step": "confirm",
-    "thinking": false
   },
   {
     "actor": "bot",
@@ -420,9 +380,8 @@
       "title": "🎉 Funcionalidade ativada com sucesso!"
     },
     "ephemeral": true,
-    "kind": "edit_original",
+    "kind": "edit",
     "message": "M3",
-    "seq": 20,
-    "step": "confirm"
+    "seq": 18
   }
 ]

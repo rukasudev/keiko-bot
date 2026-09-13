@@ -7,7 +7,6 @@ These are the UX contract of the form engine (review II.3). Record them with
 import pytest
 
 from tests.behavioral.golden.paths import all_paths
-from tests.behavioral.harness import golden as golden_module
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("form_engine")]
 
@@ -19,8 +18,7 @@ CASES = [
 
 
 @pytest.mark.parametrize("path,locale", CASES)
-async def test_golden_transcript(path, locale, scenario_factory, deps, golden, engine):
+async def test_golden_transcript(path, locale, scenario_factory, deps, golden):
     scenario = await path.run(scenario_factory, deps, locale)
     await scenario.finish()
-    golden.check(scenario, path.form, path.name, locale,
-                 allowed=golden_module.allowed_for(engine, path.form))
+    golden.check(scenario, path.form, path.name, locale)

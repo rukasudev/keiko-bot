@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "welcome_messages",
     "values": "en-us"
   },
@@ -37,26 +36,14 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "continue"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 4,
-    "step": "welcome_messages_channel",
-    "thinking": false
   },
   {
     "actor": "bot",
@@ -92,17 +79,15 @@
       "title": "Welcome Messages Channel"
     },
     "ephemeral": true,
-    "kind": "followup_edit",
+    "kind": "edit",
     "message": "M1",
-    "seq": 5,
-    "step": "welcome_messages_channel"
+    "seq": 4
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M1",
-    "seq": 6,
-    "step": "welcome_messages_channel",
+    "seq": 5,
     "target": "Select a channel...",
     "values": [
       "welcome"
@@ -113,17 +98,14 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 7,
-    "step": "welcome_messages_channel",
+    "seq": 6,
     "thinking": false
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
-    "seq": 8,
-    "step": "welcome_messages_channel",
+    "seq": 7,
     "target": "continue"
   },
   {
@@ -131,8 +113,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 9,
-    "step": "welcome_design",
+    "seq": 8,
     "thinking": false
   },
   {
@@ -209,14 +190,14 @@
             "children": [
               {
                 "disabled": false,
-                "label": "Cancel",
-                "style": "danger",
+                "label": "Back",
+                "style": "secondary",
                 "type": "button"
               },
               {
                 "disabled": false,
-                "label": "Back",
-                "style": "secondary",
+                "label": "Cancel",
+                "style": "danger",
                 "type": "button"
               }
             ],
@@ -230,23 +211,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 10,
-    "step": "welcome_design"
+    "seq": 9
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M1",
-    "seq": 11,
-    "step": "welcome_design"
+    "seq": 10
   },
   {
     "actor": "user",
-    "custom_id": "design_server_blur",
     "kind": "click",
     "message": "M2",
-    "seq": 12,
-    "step": "welcome_design",
+    "seq": 11,
     "target": "design:server_blur"
   },
   {
@@ -254,16 +231,8 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 13,
-    "step": "question_welcome_messages",
+    "seq": 12,
     "thinking": false
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M2",
-    "seq": 14,
-    "step": "question_welcome_messages"
   },
   {
     "actor": "bot",
@@ -321,16 +290,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 15,
-    "step": "question_welcome_messages"
+    "seq": 13
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 14
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M3",
-    "seq": 16,
-    "step": "question_welcome_messages",
+    "seq": 15,
     "target": "continue"
   },
   {
@@ -377,8 +349,7 @@
       ],
       "title": "Welcome Messages"
     },
-    "seq": 17,
-    "step": "welcome_messages"
+    "seq": 16
   },
   {
     "actor": "user",
@@ -388,8 +359,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 18,
-    "step": "welcome_messages"
+    "seq": 17
   },
   {
     "actor": "bot",
@@ -422,7 +392,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n:pencil: **Settings**\n\n:flying_disc: Welcome Messages Channel: **<#101>**\n:flying_disc: Banner Design: **Server Image**\n:flying_disc: Title: **Bem-vindo, {user}!**\n:flying_disc: Footer: **Leia as regras :)**\n:flying_disc: Welcome Messages:\n**\n```1. Welcome {user} to {server}!\n2. Look who just arrived! {user}\n3. {user} just arrived!```**",
+      "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n:pencil: **Settings**\n\n:flying_disc: Welcome Messages Channel: **<#101>**\n:flying_disc: Banner Design: **Server Image**\n:flying_disc: Title: **Bem-vindo, {user}!**\n:flying_disc: Footer: **Leia as regras :)**\n:flying_disc: Welcome Messages:\n**\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```**",
       "fields": [],
       "footer": "• Use the `/report` command to tell me a bug",
       "image": null,
@@ -432,26 +402,14 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M3",
-    "seq": 19,
-    "step": "confirm"
+    "seq": 18
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M3",
-    "seq": 20,
-    "step": "confirm",
+    "seq": 19,
     "target": "continue"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": true,
-    "kind": "defer",
-    "message": null,
-    "seq": 21,
-    "step": "confirm",
-    "thinking": false
   },
   {
     "actor": "bot",
@@ -467,9 +425,8 @@
       "title": "🎉 Command enabled successfully!"
     },
     "ephemeral": true,
-    "kind": "edit_original",
+    "kind": "edit",
     "message": "M3",
-    "seq": 22,
-    "step": "confirm"
+    "seq": 20
   }
 ]

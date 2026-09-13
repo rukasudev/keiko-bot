@@ -3,16 +3,12 @@ from typing import Dict, List, Union
 import discord
 
 from app import logger
-from app.components.buttons import AdditionalButton
 from app.components.embed import response_embed, response_error_embed
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
+from app.forms.adapters.discord.entrypoints import open_feature
 from app.services import analytics, cache
-from app.services.moderations import (
-    send_command_form_message,
-    send_command_manager_message,
-)
 from app.services.utils import get_available_roles_by_guild, ml
 
 
@@ -139,34 +135,9 @@ def filter_roles(roles: List[str], available_roles: Dict[str, str]) -> List[str]
     return [role for role in roles if role in available_roles.values()]
 
 
-async def manager(interaction: discord.Interaction, guild_id: str):
-    cogs = cache.get_cog_data_or_populate(guild_id, constants.DEFAULT_ROLES_KEY, manager=True)
-
-    available_roles = get_available_roles_by_guild(interaction.guild)
-    if cogs == None:
-        if not available_roles:
-            embed = response_error_embed(
-                "command-default-roles-low-permissions", interaction.locale
-            )
-            return await interaction.response.send_message(embed=embed, ephemeral=True)
-
-        return await send_command_form_message(interaction, constants.DEFAULT_ROLES_KEY)
-
-    roles = cogs[constants.DEFAULT_ROLES_KEY].get("values")
-    info = get_not_available_roles(roles, available_roles, interaction.locale)
-    sync_button = AdditionalButton(
-        callback=set_on_default_roles_sync,
-        label=ml("buttons.roles-sync.label", interaction.locale),
-        desc=ml("buttons.roles-sync.desc", interaction.locale),
-        emoji="🔄",
-        # Syncing writes roles to every member: one run per minute is plenty.
-        cooldown=60,
-        defer=True,
-    )
-
-    await send_command_manager_message(
-        interaction, constants.DEFAULT_ROLES_KEY, cogs, info, [sync_button]
-    )
+async def manager(interaction: discord.Interaction, guild_id: str) -> None:
+    """The slash command: the setup form, or the manager of what is saved."""
+    await open_feature(interaction, constants.DEFAULT_ROLES_KEY)
 
 
 def get_not_available_roles(

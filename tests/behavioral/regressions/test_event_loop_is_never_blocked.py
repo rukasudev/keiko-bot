@@ -25,7 +25,6 @@ import pytest
 
 from app.constants import Commands as commands_constants
 from app.services import block_links, notifications_twitch, stream_elements
-from app.views.form import Form
 from tests.mocks import create_message
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("event_loop")]
@@ -166,19 +165,28 @@ async def test_waiting_for_a_stream_never_freezes_the_bot(deps, monkeypatch):
 
 
 async def test_subscribing_a_youtuber_never_freezes_the_bot(deps, monkeypatch):
-    """The reported bug: two blocking POSTs between the click and the ack."""
-    deps.bot.config.is_dev.return_value = False
-    monkeypatch.setattr(
-        "app.services.notifications_youtube_video.handle_subscribe_youtubers_new_video",
-        blocking(),
+    """The reported bug: two blocking POSTs between the click and the ack.
+
+    The platform commits an added item through its feature module, which
+    runs the subscription in a worker thread; a blocking subscribe must
+    still leave the loop free to acknowledge the interaction.
+    """
+    from datetime import datetime, timezone
+
+    from app.forms.engine.session import Answer
+    from app.forms.features import feature_for
+    from app.forms.features.protocol import CommitContext
+
+    deps.bot.config.is_dev = lambda: False
+    feature = feature_for(commands_constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY)
+    monkeypatch.setattr(feature, "subscribe", blocking())
+    context = CommitContext(
+        "123456789", "555", "pt-br", {}, datetime.now(timezone.utc), "slash", "s1"
     )
+    item = {"channel": Answer("100"), "youtuber": Answer("sondureacts"),
+            "notification_messages": Answer("oi")}
 
-    form = Form.__new__(Form)
-    form.command_key = commands_constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY
-    form.responses = [{"value": [{"youtuber": {"value": "sondureacts"}}]}]
-    form.view = type("V", (), {"form_view": type("F", (), {})()})()
-
-    ticks = await ticks_while(form.pre_finish_step(interaction=None))
+    ticks = await ticks_while(feature.commit("add_item", {"answers": item}, context))
 
     assert ticks >= MIN_TICKS, (
         f"the loop only came back {ticks} times: Discord's three second budget "

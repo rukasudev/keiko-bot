@@ -1,4 +1,4 @@
-"""The Discord adapter under the offline harness, driving engine v2.
+"""The Discord adapter under the offline harness.
 
 The goldens prove the screens; these prove the hostile-environment rules the
 review names (4.6, II.1): a duplicate click does nothing, a stale click gets a
@@ -52,14 +52,14 @@ def v2(deps):
         guild = guild or create_guild()
         user = create_member(guild, id=555, name="Tester")
         return FormScenario(
-            guild=guild, user=user, locale=locale, mongo=deps.mongo_client, engine="v2"
+            guild=guild, user=user, locale=locale, mongo=deps.mongo_client
         )
 
     return factory
 
 
 def _session_of(scenario):
-    return scenario._v2_session()
+    return scenario.session
 
 
 def _button(scenario, target):

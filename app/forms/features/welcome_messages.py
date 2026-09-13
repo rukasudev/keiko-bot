@@ -33,10 +33,11 @@ class WelcomeMessagesFeature(GenericCogFeature):
                 enabled=opened.enabled,
                 extra_buttons=self.extra_buttons(context),
             )
-        return Opened(previews=await self.previews(context))
+        return Opened(pending_previews=self.previews(context))
 
     async def previews(self, context: OpenContext) -> Mapping[str, str]:
-        """One rendered banner per design, for the member opening the form."""
+        """One rendered banner per design, drawn in the background while the
+        member answers the first steps."""
         gallery = next(
             (
                 step

@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "notifications_twitch",
     "values": "pt-br"
   },
@@ -37,26 +36,14 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "continue"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 4,
-    "step": "channel",
-    "thinking": false
   },
   {
     "actor": "bot",
@@ -92,18 +79,15 @@
       "title": ":tv: Canal de Texto"
     },
     "ephemeral": true,
-    "kind": "followup_edit",
+    "kind": "edit",
     "message": "M1",
-    "seq": 5,
-    "step": "channel"
+    "seq": 4
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
-    "seq": 6,
-    "step": "channel",
+    "seq": 5,
     "target": "cancel"
   },
   {
@@ -111,8 +95,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 7,
-    "step": "channel",
+    "seq": 6,
     "thinking": false
   },
   {
@@ -144,16 +127,13 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 8,
-    "step": "channel"
+    "seq": 7
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M2",
-    "seq": 9,
-    "step": "channel",
+    "seq": 8,
     "target": "Continuar configurando"
   },
   {
@@ -161,15 +141,13 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 10,
-    "step": "channel",
+    "seq": 9,
     "thinking": false
   },
   {
     "actor": "bot",
     "kind": "delete_original",
     "message": "M2",
-    "seq": 11,
-    "step": "channel"
+    "seq": 10
   }
 ]

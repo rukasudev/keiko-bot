@@ -121,12 +121,6 @@
   },
   {
     "actor": "bot",
-    "kind": "delete",
-    "message": "M1",
-    "seq": 5
-  },
-  {
-    "actor": "bot",
     "components": [
       {
         "disabled": false,
@@ -161,6 +155,12 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
+    "seq": 5
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
     "seq": 6
   },
   {
@@ -318,14 +318,6 @@
   },
   {
     "actor": "bot",
-    "ephemeral": true,
-    "kind": "defer",
-    "message": null,
-    "seq": 16,
-    "thinking": false
-  },
-  {
-    "actor": "bot",
     "components": [],
     "components_v2": false,
     "embed": {
@@ -338,8 +330,8 @@
       "title": "➕ Item adicionado ao **notificações twitch lives** com sucesso!"
     },
     "ephemeral": true,
-    "kind": "edit_original",
+    "kind": "edit",
     "message": "M2",
-    "seq": 17
+    "seq": 16
   }
 ]

@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "notifications_youtube_video",
     "values": "pt-br"
   },
@@ -37,26 +36,14 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "continue"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 4,
-    "step": "channel",
-    "thinking": false
   },
   {
     "actor": "bot",
@@ -92,17 +79,15 @@
       "title": ":tv: Canal de Texto"
     },
     "ephemeral": true,
-    "kind": "followup_edit",
+    "kind": "edit",
     "message": "M1",
-    "seq": 5,
-    "step": "channel"
+    "seq": 4
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M1",
-    "seq": 6,
-    "step": "channel",
+    "seq": 5,
     "target": "Selecione um canal...",
     "values": [
       "general"
@@ -113,17 +98,14 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 7,
-    "step": "channel",
+    "seq": 6,
     "thinking": false
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
-    "seq": 8,
-    "step": "channel",
+    "seq": 7,
     "target": "continue"
   },
   {
@@ -142,8 +124,7 @@
       ],
       "title": "Youtuber"
     },
-    "seq": 9,
-    "step": "youtuber"
+    "seq": 8
   },
   {
     "actor": "user",
@@ -152,11 +133,12 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 10,
-    "step": "youtuber"
+    "seq": 9
   },
   {
     "actor": "bot",
+    "components": [],
+    "components_v2": false,
     "delete_after": 10,
     "embed": {
       "color": 16711680,
@@ -170,16 +152,13 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M2",
-    "seq": 11,
-    "step": "youtuber"
+    "seq": 10
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
-    "seq": 12,
-    "step": "youtuber",
+    "seq": 11,
     "target": "continue"
   },
   {
@@ -198,8 +177,7 @@
       ],
       "title": "Youtuber"
     },
-    "seq": 13,
-    "step": "youtuber"
+    "seq": 12
   },
   {
     "actor": "user",
@@ -208,8 +186,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 14,
-    "step": "youtuber"
+    "seq": 13
   },
   {
     "actor": "bot",
@@ -262,7 +239,6 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M1",
-    "seq": 15,
-    "step": "continue_to_messages"
+    "seq": 14
   }
 ]

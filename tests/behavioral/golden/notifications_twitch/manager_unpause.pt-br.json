@@ -148,12 +148,6 @@
   },
   {
     "actor": "bot",
-    "kind": "delete",
-    "message": "M1",
-    "seq": 7
-  },
-  {
-    "actor": "bot",
     "components": [],
     "components_v2": false,
     "embed": {
@@ -168,6 +162,12 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
+    "seq": 7
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
     "seq": 8
   }
 ]

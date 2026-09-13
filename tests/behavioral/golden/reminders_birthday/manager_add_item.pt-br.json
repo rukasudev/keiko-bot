@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "reminders_birthday",
     "values": "pt-br"
   },
@@ -98,16 +97,13 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "add"
   },
   {
@@ -116,15 +112,7 @@
     "kind": "defer",
     "message": null,
     "seq": 4,
-    "step": null,
     "thinking": false
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M1",
-    "seq": 5,
-    "step": null
   },
   {
     "actor": "bot",
@@ -162,15 +150,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 6,
-    "step": null
+    "seq": 5
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 6
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M2",
     "seq": 7,
-    "step": null,
     "target": "Selecione um membro...",
     "values": [
       "Amiga"
@@ -182,16 +174,13 @@
     "kind": "defer",
     "message": null,
     "seq": 8,
-    "step": null,
     "thinking": false
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M2",
     "seq": 9,
-    "step": null,
     "target": "continue"
   },
   {
@@ -200,7 +189,6 @@
     "kind": "defer",
     "message": null,
     "seq": 10,
-    "step": null,
     "thinking": false
   },
   {
@@ -336,23 +324,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 11,
-    "step": null
+    "seq": 11
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M2",
-    "seq": 12,
-    "step": null
+    "seq": 12
   },
   {
     "actor": "user",
-    "custom_id": "card_customize_0",
     "kind": "click",
     "message": "M3",
     "seq": 13,
-    "step": null,
     "target": "customize:0"
   },
   {
@@ -461,15 +445,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M3",
-    "seq": 14,
-    "step": null
+    "seq": 14
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M3",
     "seq": 15,
-    "step": null,
     "target": "📅 Escolha o mês do aniversário",
     "values": [
       "11"
@@ -608,16 +590,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M3",
-    "seq": 16,
-    "step": null
+    "seq": 16
   },
   {
     "actor": "user",
-    "custom_id": "card_customize_1",
     "kind": "click",
     "message": "M3",
     "seq": 17,
-    "step": null,
     "target": "customize:1"
   },
   {
@@ -636,8 +615,7 @@
       ],
       "title": "🗓️ Dia do Aniversário"
     },
-    "seq": 18,
-    "step": null
+    "seq": 18
   },
   {
     "actor": "user",
@@ -646,8 +624,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 19,
-    "step": null
+    "seq": 19
   },
   {
     "actor": "bot",
@@ -782,25 +759,21 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M3",
-    "seq": 20,
-    "step": null
+    "seq": 20
   },
   {
     "actor": "user",
-    "custom_id": "card_done",
     "kind": "click",
     "message": "M3",
     "seq": 21,
-    "step": null,
     "target": "done"
   },
   {
     "actor": "bot",
-    "ephemeral": true,
+    "ephemeral": false,
     "kind": "defer",
     "message": null,
     "seq": 22,
-    "step": null,
     "thinking": false
   },
   {
@@ -819,7 +792,12 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M4",
-    "seq": 23,
-    "step": null
+    "seq": 23
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M3",
+    "seq": 24
   }
 ]

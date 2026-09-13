@@ -67,9 +67,10 @@ When the same step means different things depending on an earlier answer, do not
 sentence covering both cases: give it `description-when:` variants (see
 `docs/form-configuration.md`), so each case reads as if it were the only one.
 
-Pinned by `test_option_explanations_are_written_as_own_lines`
-(`tests/behavioral/test_form_yaml_contracts.py`): an options step that names its own labels
-in prose, or that puts a bullet in front of an emoji, fails the suite.
+Pinned by `test_mode_picker_explains_each_mode_in_its_own_line`
+(`tests/behavioral/scenarios/test_block_links_flow.py`) and by the golden transcripts: an
+options step that names its own labels in prose, or that puts a bullet in front of an
+emoji, fails the suite.
 
 **Visual rhythm, generally:** any description longer than about three lines gets structure.
 One idea per line, blank line between blocks, bullets for anything enumerable. A dense block
@@ -83,7 +84,7 @@ of text is a bug, not a style choice.
 - Title format: `"{ONE_EMOJI} {Title Case}"`. Exactly one leading emoji.
 - Use `description` for short bodies. Use `add_field(name=..., value=..., inline=False)` for stacked record-style content (DM reports, button caption lists, help indexes).
 - Footer always: `embed.set_footer(text=f"• {text}")`. The `"• "` prefix is mandatory.
-- Card screens (`configuration_card` / `summary_card`) are Components V2 LayoutViews, not embeds: their footer comes from the step's `footer:` and renders as `-# {text}` subtext at the bottom of the container (`_add_footer`, `app/views/summary_card.py`). Pickers opened from a card keep the same footer. Pinned by `tests/behavioral/contracts/test_card_footer_and_option_styles.py`.
+- Card screens (`configuration_card`) and the manager panel are Components V2 LayoutViews, not embeds: their footer comes from the step's `footer:` and renders as `-# {text}` subtext at the bottom of the container (`app/forms/adapters/discord/renderer.py`). Pickers opened from a card keep the same footer. Pinned by the golden transcripts (`tests/behavioral/golden/`).
 - Thumbnail: `KeikoIcons.IMAGE_01` for branded responses; `KeikoIcons.ACTION_IMAGE.get(action)` for action-specific icons.
 
 ### Buttons (`app/components/buttons.py`)
@@ -94,13 +95,12 @@ of text is a bug, not a style choice.
 - `ButtonStyle.secondary` → form back navigation
 - Reuse generic labels from `buttons.{lang}.yml` (`confirm`, `cancel`, `edit`, `add`, `remove`, `back`, `select`, `continue`, `pause`, `unpause`, `preview`, `history`). Only add a new key when the action is genuinely new.
 - **Cancel is ALWAYS the last button in the view.** Order: the step's own actions first
-  (options, Confirm, Done, Add/Remove), then Back, then Cancel. Buttons render in the order
-  they are added, so anything appended after the view is built (like the form back button)
-  must re-anchor Cancel at the end with `keep_cancel_button_last(view)`
-  (`app/components/buttons.py`). Pinned by
-  `tests/behavioral/contracts/test_cancel_button_last.py`.
+  (options, Confirm, Done, Add/Remove), then Back, then Cancel. Inside a form the engine's
+  screen model builds the row in that order by construction
+  (`app/forms/kinds/common.py`, `step_buttons`); a view outside the forms appends Cancel
+  last by hand. Pinned by the golden transcripts.
 
-### Modals (`app/components/modals.py`)
+### Modals (`app/forms/adapters/discord/renderer.py`)
 - Default `max_length` = 40. Cap at 100 for free-text fields.
 - `placeholder` falls back to `description` if not set; otherwise use a realistic example (`"shroud"`, `"pewdiepie"`, `"No links here! :p"`).
 - `multiline: true` in YAML → `discord.TextStyle.long`. Otherwise `short`.

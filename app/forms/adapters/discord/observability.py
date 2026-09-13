@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -46,15 +47,25 @@ class Friction:
     steps_viewed: int = 0
     back_count: int = 0
     validation_failures: int = 0
+    viewed_at: dict[str, float] = field(default_factory=dict)
 
-    def observe(self, name: str) -> None:
+    def observe(self, name: str, props: Mapping[str, Any] | None = None) -> None:
         """Count one product event."""
+        step_key = str((props or {}).get("step_key") or "")
         if name == "setup.step_viewed":
             self.steps_viewed += 1
+            self.viewed_at[step_key] = time.monotonic()
         elif name == "setup.step_back":
             self.back_count += 1
         elif name in ("setup.validation_failed", "setup.required_missing"):
             self.validation_failures += 1
+
+    def time_on(self, step_key: str) -> int | None:
+        """Milliseconds since `step_key` was shown, when it was."""
+        shown = self.viewed_at.pop(step_key, None)
+        if shown is None:
+            return None
+        return int((time.monotonic() - shown) * 1000)
 
     def props(self) -> dict[str, Any]:
         """The numbers every terminal setup event reports the same way."""
@@ -91,8 +102,12 @@ def emit(
     """Emit the decision's product events with the session's identity."""
     root = session.id if session.parent_id is None else session.parent_id
     for name, props in decision.analytics:
-        friction.observe(name)
+        friction.observe(name, props)
         extra: dict[str, Any] = dict(props)
+        if name == "setup.step_completed":
+            elapsed = friction.time_on(str(props.get("step_key") or ""))
+            if elapsed is not None:
+                extra["ms_on_step"] = elapsed
         if name in TERMINAL:
             extra.update(friction.props())
         analytics.emit(

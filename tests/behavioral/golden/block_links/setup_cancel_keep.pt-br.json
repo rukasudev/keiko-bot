@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "block_links",
     "values": "pt-br"
   },
@@ -37,16 +36,13 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "continue"
   },
   {
@@ -55,7 +51,6 @@
     "kind": "defer",
     "message": null,
     "seq": 4,
-    "step": "link_settings",
     "thinking": false
   },
   {
@@ -166,23 +161,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 5,
-    "step": "link_settings"
+    "seq": 5
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M1",
-    "seq": 6,
-    "step": "link_settings"
+    "seq": 6
   },
   {
     "actor": "user",
-    "custom_id": "card_done",
     "kind": "click",
     "message": "M2",
     "seq": 7,
-    "step": "link_settings",
     "target": "done"
   },
   {
@@ -191,15 +182,7 @@
     "kind": "defer",
     "message": null,
     "seq": 8,
-    "step": "add_custom",
     "thinking": false
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M2",
-    "seq": 9,
-    "step": "add_custom"
   },
   {
     "actor": "bot",
@@ -242,16 +225,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 10,
-    "step": "add_custom"
+    "seq": 9
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 10
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M3",
     "seq": 11,
-    "step": "add_custom",
     "target": "cancel"
   },
   {
@@ -260,7 +246,6 @@
     "kind": "defer",
     "message": null,
     "seq": 12,
-    "step": "add_custom",
     "thinking": false
   },
   {
@@ -292,16 +277,13 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M4",
-    "seq": 13,
-    "step": "add_custom"
+    "seq": 13
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M4",
     "seq": 14,
-    "step": "add_custom",
     "target": "Continuar configurando"
   },
   {
@@ -310,14 +292,12 @@
     "kind": "defer",
     "message": null,
     "seq": 15,
-    "step": "add_custom",
     "thinking": false
   },
   {
     "actor": "bot",
     "kind": "delete_original",
     "message": "M4",
-    "seq": 16,
-    "step": "add_custom"
+    "seq": 16
   }
 ]

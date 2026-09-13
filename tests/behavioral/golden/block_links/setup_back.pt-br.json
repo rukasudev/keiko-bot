@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "block_links",
     "values": "pt-br"
   },
@@ -37,16 +36,13 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "continue"
   },
   {
@@ -55,7 +51,6 @@
     "kind": "defer",
     "message": null,
     "seq": 4,
-    "step": "link_settings",
     "thinking": false
   },
   {
@@ -166,23 +161,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 5,
-    "step": "link_settings"
+    "seq": 5
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M1",
-    "seq": 6,
-    "step": "link_settings"
+    "seq": 6
   },
   {
     "actor": "user",
-    "custom_id": "card_customize_1",
     "kind": "click",
     "message": "M2",
     "seq": 7,
-    "step": "link_settings",
     "target": "customize:1"
   },
   {
@@ -276,15 +267,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 8,
-    "step": "link_settings"
+    "seq": 8
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M2",
     "seq": 9,
-    "step": "link_settings",
     "target": "🔗 Escolha os sites que devo sempre permitir",
     "values": [
       "youtube.com"
@@ -398,16 +387,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 10,
-    "step": "link_settings"
+    "seq": 10
   },
   {
     "actor": "user",
-    "custom_id": "card_done",
     "kind": "click",
     "message": "M2",
     "seq": 11,
-    "step": "link_settings",
     "target": "done"
   },
   {
@@ -416,15 +402,7 @@
     "kind": "defer",
     "message": null,
     "seq": 12,
-    "step": "add_custom",
     "thinking": false
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M2",
-    "seq": 13,
-    "step": "add_custom"
   },
   {
     "actor": "bot",
@@ -467,16 +445,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 14,
-    "step": "add_custom"
+    "seq": 13
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 14
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M3",
     "seq": 15,
-    "step": "add_custom",
     "target": "back"
   },
   {
@@ -485,7 +466,6 @@
     "kind": "defer",
     "message": null,
     "seq": 16,
-    "step": "link_settings",
     "thinking": false
   },
   {
@@ -553,7 +533,7 @@
             "type": "text"
           },
           {
-            "content": "> -",
+            "content": "> Nada de links por aqui! :p",
             "type": "text"
           },
           {
@@ -596,23 +576,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M4",
-    "seq": 17,
-    "step": "link_settings"
+    "seq": 17
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M3",
-    "seq": 18,
-    "step": "link_settings"
+    "seq": 18
   },
   {
     "actor": "user",
-    "custom_id": "card_done",
     "kind": "click",
     "message": "M4",
     "seq": 19,
-    "step": "link_settings",
     "target": "done"
   },
   {
@@ -621,15 +597,7 @@
     "kind": "defer",
     "message": null,
     "seq": 20,
-    "step": "add_custom",
     "thinking": false
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M4",
-    "seq": 21,
-    "step": "add_custom"
   },
   {
     "actor": "bot",
@@ -672,7 +640,12 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M5",
-    "seq": 22,
-    "step": "add_custom"
+    "seq": 21
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M4",
+    "seq": 22
   }
 ]

@@ -35,11 +35,10 @@ async def test_edit_card_updates_answer_and_upgrades_legacy_shape(
     await scenario.click("section:link_settings")     # the section's own pencil
 
     scenario.expect_message(components_v2=True)
-    card = scenario.current_message.view
-    assert card.state["mode"] == "block_all"
-    assert card.state["allowed_links"] == ["youtube.com"], \
+    assert scenario.card_state["mode"] == "block_all"
+    assert scenario.card_state["allowed_links"] == ["youtube.com"], \
         "legacy labels must hydrate as translated domains"
-    assert card.state["answer"] == "Resposta antiga"
+    assert scenario.card_state["answer"] == "Resposta antiga"
 
     await scenario.click("customize:2")               # answer modal-input
     await scenario.submit_modal({"resposta": "Resposta nova"})
@@ -59,18 +58,17 @@ async def test_edit_card_updates_answer_and_upgrades_legacy_shape(
 
 async def test_edit_conditional_step_is_hidden_when_condition_unmet(
         scenario_factory, deps):
-    """EditCommand filters steps whose YAML condition is not met by the
-    saved config (register_now=false hides the composition for birthday)."""
-    from app.views.edit import EditCommand
+    """The edit picker leaves out steps whose `when` the saved document does
+    not satisfy (register_now=false hides the composition for birthday)."""
+    from app.forms.definitions.registry import registry
+    from app.forms.kinds.manage import edit_options
 
-    edit_view = EditCommand(
-        "reminders_birthday",
+    options = edit_options(
+        registry.get("reminders_birthday"),
         {"register_now": False, "reminders_birthday": {"values": []}},
         "pt-br",
-        callback=None,
     )
-    select = edit_view.children[0]
-    option_values = [option.value for option in select.options]
+    option_values = [option.value for option in options]
     assert "reminders_birthday" not in option_values, (
         "composition step must be hidden when register_now condition is unmet"
     )

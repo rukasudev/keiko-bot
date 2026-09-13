@@ -106,59 +106,6 @@ def test_a_thinking_defer_stays_visible():
 
 # ---------------------------------------------------------------- allowed deltas
 
-def test_ux1_forgives_a_self_deleting_notice_only():
-    expected = [_event(1, "click", actor="user"), _event(2, "edit")]
-    actual = [_event(1, "click", actor="user"),
-              _event(2, "followup_send", ephemeral=True, delete_after=5.0),
-              _event(3, "edit")]
-    left, right = golden.apply_deltas(expected, actual, ["ux-1"])
-    assert left == right
-    plain = [_event(1, "click", actor="user"),
-             _event(2, "followup_send", ephemeral=True), _event(3, "edit")]
-    left, right = golden.apply_deltas(expected, plain, ["ux-1"])
-    assert left != right, "a followup without delete_after is a real difference"
-
-
-def test_ux2_compares_nothing_after_a_recorded_timeout():
-    expected = [_event(1, "send"), _event(2, "timeout", actor="user")]
-    actual = [_event(1, "send"), _event(2, "timeout", actor="user"),
-              _event(3, "edit_original", components=[])]
-    left, right = golden.apply_deltas(expected, actual, ["ux-2"])
-    assert left == right == [_event(1, "send")]
-
-
-def test_ux3_pairs_a_public_error_with_an_ephemeral_error_embed_in_place():
-    expected = [_event(1, "channel_send", content="Escolha uma opção")]
-    actual = [_event(1, "followup_send", ephemeral=True,
-                     embed={"title": "Ops", "color": golden.ERROR_COLOR})]
-    left, right = golden.apply_deltas(expected, actual, ["ux-3"])
-    assert left == right
-    unrelated = [_event(1, "followup_send", ephemeral=True,
-                        embed={"title": "Ops", "color": 0x4F97F9})]
-    left, right = golden.apply_deltas(expected, unrelated, ["ux-3"])
-    assert left != right
-
-
-def test_ux4_accepts_either_replacement_order_and_renumbers():
-    expected = [_event(1, "delete", message="M1"),
-                _event(2, "followup_send", message="M2")]
-    actual = [_event(1, "followup_send", message="M2"),
-              _event(2, "delete", message="M1")]
-    left, right = golden.apply_deltas(expected, actual, ["ux-4"])
-    assert left == right
-    assert [event["seq"] for event in right] == [1, 2]
-
-
-def test_ux5_forgives_deleting_the_card_after_the_final_message():
-    expected = [_event(1, "followup_send", message="M2")]
-    actual = [_event(1, "followup_send", message="M2"), _event(2, "delete", message="M1")]
-    left, right = golden.apply_deltas(expected, actual, ["ux-5"])
-    assert left == right
-    stray = [_event(1, "delete", message="M1"), _event(2, "followup_send", message="M2")]
-    left, right = golden.apply_deltas(expected, stray, ["ux-5"])
-    assert left != right, "a delete that does not follow the final message stays"
-
-
 def test_deltas_are_only_applied_when_allowed():
     expected = [_event(1, "delete", message="M1"),
                 _event(2, "followup_send", message="M2")]

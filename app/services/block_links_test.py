@@ -191,8 +191,8 @@ class TestNormalizeLinkTransform:
     """Transform normalize_link: valor salvo sem esquema/www/barra/fragment."""
 
     def _serialize(self, value):
-        from app.services.transforms import RESPONSE_TRANSFORMS
-        return RESPONSE_TRANSFORMS["normalize_link"]["serialize"]({"link": value})
+        from app.forms.extensions.transforms import TRANSFORMS
+        return TRANSFORMS["normalize_link"].serialize({"link": value})
 
     def test_strips_scheme_www_trailing_slash_and_fragment(self):
         assert self._serialize("https://WWW.YouTube.com/watch?v=abc#t=10") == \

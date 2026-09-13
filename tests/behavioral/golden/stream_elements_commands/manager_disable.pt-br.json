@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "stream_elements_commands",
     "values": "pt-br"
   },
@@ -81,16 +80,13 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": "Desativar",
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "disable"
   },
   {
@@ -100,7 +96,7 @@
     "modal": {
       "fields": [
         {
-          "default": null,
+          "default": "",
           "label": "Digite `desativar` para confirmar.",
           "max_length": 9,
           "required": true,
@@ -109,8 +105,7 @@
       ],
       "title": "Tem certeza?"
     },
-    "seq": 4,
-    "step": null
+    "seq": 4
   },
   {
     "actor": "user",
@@ -119,8 +114,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 5,
-    "step": null
+    "seq": 5
   },
   {
     "actor": "bot",
@@ -128,15 +122,7 @@
     "kind": "defer",
     "message": null,
     "seq": 6,
-    "step": null,
     "thinking": false
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M1",
-    "seq": 7,
-    "step": null
   },
   {
     "actor": "bot",
@@ -154,7 +140,12 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 8,
-    "step": null
+    "seq": 7
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 8
   }
 ]

@@ -233,6 +233,6 @@ async def test_scenarios_do_not_share_state(scenario_factory):
     second = await scenario_factory().start("block_links")
 
     assert first.store is not second.store
-    assert first.form_view is not second.form_view
+    assert first.session is not second.session
     assert first.outputs[0]["target"] == "default_roles"
     assert second.outputs[0]["target"] == "block_links"

@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "welcome_messages",
     "values": "pt-br"
   },
@@ -37,26 +36,14 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "continue"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 4,
-    "step": "welcome_messages_channel",
-    "thinking": false
   },
   {
     "actor": "bot",
@@ -92,17 +79,15 @@
       "title": "Canal de Mensagens de Boas-Vindas"
     },
     "ephemeral": true,
-    "kind": "followup_edit",
+    "kind": "edit",
     "message": "M1",
-    "seq": 5,
-    "step": "welcome_messages_channel"
+    "seq": 4
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M1",
-    "seq": 6,
-    "step": "welcome_messages_channel",
+    "seq": 5,
     "target": "Selecione um canal...",
     "values": [
       "welcome"
@@ -113,17 +98,14 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 7,
-    "step": "welcome_messages_channel",
+    "seq": 6,
     "thinking": false
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
-    "seq": 8,
-    "step": "welcome_messages_channel",
+    "seq": 7,
     "target": "continue"
   },
   {
@@ -131,8 +113,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 9,
-    "step": "welcome_design",
+    "seq": 8,
     "thinking": false
   },
   {
@@ -209,14 +190,14 @@
             "children": [
               {
                 "disabled": false,
-                "label": "Cancelar",
-                "style": "danger",
+                "label": "Voltar",
+                "style": "secondary",
                 "type": "button"
               },
               {
                 "disabled": false,
-                "label": "Voltar",
-                "style": "secondary",
+                "label": "Cancelar",
+                "style": "danger",
                 "type": "button"
               }
             ],
@@ -230,23 +211,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 10,
-    "step": "welcome_design"
+    "seq": 9
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M1",
-    "seq": 11,
-    "step": "welcome_design"
+    "seq": 10
   },
   {
     "actor": "user",
-    "custom_id": "design_custom_only",
     "kind": "click",
     "message": "M2",
-    "seq": 12,
-    "step": "welcome_design",
+    "seq": 11,
     "target": "design:custom_only"
   },
   {
@@ -261,8 +238,7 @@
       ],
       "title": "📷 Enviar Imagem Personalizada"
     },
-    "seq": 13,
-    "step": "welcome_custom_image"
+    "seq": 12
   },
   {
     "actor": "user",
@@ -271,24 +247,15 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 14,
-    "step": "welcome_custom_image"
+    "seq": 13
   },
   {
     "actor": "bot",
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 15,
-    "step": "question_welcome_messages",
+    "seq": 14,
     "thinking": false
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M2",
-    "seq": 16,
-    "step": "question_welcome_messages"
   },
   {
     "actor": "bot",
@@ -346,16 +313,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 17,
-    "step": "question_welcome_messages"
+    "seq": 15
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 16
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M3",
-    "seq": 18,
-    "step": "question_welcome_messages",
+    "seq": 17,
     "target": "continue"
   },
   {
@@ -402,8 +372,7 @@
       ],
       "title": "Mensagens de Boas-Vindas"
     },
-    "seq": 19,
-    "step": "welcome_messages"
+    "seq": 18
   },
   {
     "actor": "user",
@@ -413,8 +382,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 20,
-    "step": "welcome_messages"
+    "seq": 19
   },
   {
     "actor": "bot",
@@ -447,7 +415,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: Canal de Mensagens de Boas-Vindas: **<#101>**\n:flying_disc: Design do Banner: **Apenas Imagem Personalizada**\n:flying_disc: Imagem Personalizada: **https://cdn.discordapp.com/attachments/999/1/custom-banner.png**\n:flying_disc: Título: **Bem-vindo, {user}!**\n:flying_disc: Rodapé: **Leia as regras :)**\n:flying_disc: Mensagens de Boas-Vindas:\n**\n```1. {user} bem-vindo ao {server}!\n2. Olha quem chegou! {user}\n3. {user} acabou de chegar!```**",
+      "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: Canal de Mensagens de Boas-Vindas: **<#101>**\n:flying_disc: Design do Banner: **Apenas Imagem Personalizada**\n:flying_disc: Imagem Personalizada: **https://cdn.discordapp.com/attachments/999/1/custom-banner.png**\n:flying_disc: Título: **Bem-vindo, {user}!**\n:flying_disc: Rodapé: **Leia as regras :)**\n:flying_disc: Mensagens de Boas-Vindas:\n**\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```**",
       "fields": [],
       "footer": "• Use o comando `/reportar` para me contar um bug",
       "image": null,
@@ -457,26 +425,14 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M3",
-    "seq": 21,
-    "step": "confirm"
+    "seq": 20
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M3",
-    "seq": 22,
-    "step": "confirm",
+    "seq": 21,
     "target": "continue"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": true,
-    "kind": "defer",
-    "message": null,
-    "seq": 23,
-    "step": "confirm",
-    "thinking": false
   },
   {
     "actor": "bot",
@@ -492,9 +448,8 @@
       "title": "🎉 Funcionalidade ativada com sucesso!"
     },
     "ephemeral": true,
-    "kind": "edit_original",
+    "kind": "edit",
     "message": "M3",
-    "seq": 24,
-    "step": "confirm"
+    "seq": 22
   }
 ]

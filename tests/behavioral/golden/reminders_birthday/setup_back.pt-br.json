@@ -4,7 +4,6 @@
     "kind": "start_command",
     "message": null,
     "seq": 1,
-    "step": null,
     "target": "reminders_birthday",
     "values": "pt-br"
   },
@@ -37,16 +36,13 @@
     "ephemeral": true,
     "kind": "send",
     "message": "M1",
-    "seq": 2,
-    "step": null
+    "seq": 2
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "step": null,
     "target": "continue"
   },
   {
@@ -55,7 +51,6 @@
     "kind": "defer",
     "message": null,
     "seq": 4,
-    "step": "birthday_config",
     "thinking": false
   },
   {
@@ -204,23 +199,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 5,
-    "step": "birthday_config"
+    "seq": 5
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M1",
-    "seq": 6,
-    "step": "birthday_config"
+    "seq": 6
   },
   {
     "actor": "user",
-    "custom_id": "card_customize_0",
     "kind": "click",
     "message": "M2",
     "seq": 7,
-    "step": "birthday_config",
     "target": "customize:0"
   },
   {
@@ -267,15 +258,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 8,
-    "step": "birthday_config"
+    "seq": 8
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M2",
     "seq": 9,
-    "step": "birthday_config",
     "target": "Selecione um canal...",
     "values": [
       "general"
@@ -427,16 +416,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 10,
-    "step": "birthday_config"
+    "seq": 10
   },
   {
     "actor": "user",
-    "custom_id": "card_customize_1",
     "kind": "click",
     "message": "M2",
     "seq": 11,
-    "step": "birthday_config",
     "target": "customize:1"
   },
   {
@@ -530,15 +516,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 12,
-    "step": "birthday_config"
+    "seq": 12
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M2",
     "seq": 13,
-    "step": "birthday_config",
     "target": "🌎 Escolha o fuso horário da notificação",
     "values": [
       "America/Sao_Paulo"
@@ -690,16 +674,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 14,
-    "step": "birthday_config"
+    "seq": 14
   },
   {
     "actor": "user",
-    "custom_id": "card_customize_2",
     "kind": "click",
     "message": "M2",
     "seq": 15,
-    "step": "birthday_config",
     "target": "customize:2"
   },
   {
@@ -792,16 +773,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 16,
-    "step": "birthday_config"
+    "seq": 16
   },
   {
     "actor": "user",
-    "custom_id": "picker_option_0",
     "kind": "click",
     "message": "M2",
     "seq": 17,
-    "step": "birthday_config",
     "target": "08:00"
   },
   {
@@ -950,16 +928,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 18,
-    "step": "birthday_config"
+    "seq": 18
   },
   {
     "actor": "user",
-    "custom_id": "card_done",
     "kind": "click",
     "message": "M2",
     "seq": 19,
-    "step": "birthday_config",
     "target": "done"
   },
   {
@@ -968,15 +943,7 @@
     "kind": "defer",
     "message": null,
     "seq": 20,
-    "step": "register_now",
     "thinking": false
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M2",
-    "seq": 21,
-    "step": "register_now"
   },
   {
     "actor": "bot",
@@ -1019,16 +986,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 22,
-    "step": "register_now"
+    "seq": 21
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 22
   },
   {
     "actor": "user",
-    "custom_id": null,
     "kind": "click",
     "message": "M3",
     "seq": 23,
-    "step": "register_now",
     "target": "back"
   },
   {
@@ -1037,7 +1007,6 @@
     "kind": "defer",
     "message": null,
     "seq": 24,
-    "step": "birthday_config",
     "thinking": false
   },
   {
@@ -1186,23 +1155,19 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M4",
-    "seq": 25,
-    "step": "birthday_config"
+    "seq": 25
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M3",
-    "seq": 26,
-    "step": "birthday_config"
+    "seq": 26
   },
   {
     "actor": "user",
-    "custom_id": "card_customize_1",
     "kind": "click",
     "message": "M4",
     "seq": 27,
-    "step": "birthday_config",
     "target": "customize:1"
   },
   {
@@ -1296,15 +1261,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M4",
-    "seq": 28,
-    "step": "birthday_config"
+    "seq": 28
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M4",
     "seq": 29,
-    "step": "birthday_config",
     "target": "🌎 Escolha o fuso horário da notificação",
     "values": [
       "America/New_York"
@@ -1456,16 +1419,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M4",
-    "seq": 30,
-    "step": "birthday_config"
+    "seq": 30
   },
   {
     "actor": "user",
-    "custom_id": "card_done",
     "kind": "click",
     "message": "M4",
     "seq": 31,
-    "step": "birthday_config",
     "target": "done"
   },
   {
@@ -1474,15 +1434,7 @@
     "kind": "defer",
     "message": null,
     "seq": 32,
-    "step": "register_now",
     "thinking": false
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M4",
-    "seq": 33,
-    "step": "register_now"
   },
   {
     "actor": "bot",
@@ -1525,7 +1477,12 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M5",
-    "seq": 34,
-    "step": "register_now"
+    "seq": 33
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M4",
+    "seq": 34
   }
 ]
