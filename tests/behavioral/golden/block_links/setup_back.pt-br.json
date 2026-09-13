@@ -1,0 +1,678 @@
+[
+  {
+    "actor": "user",
+    "kind": "start_command",
+    "message": null,
+    "seq": 1,
+    "step": null,
+    "target": "block_links",
+    "values": "pt-br"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Ativar esta função faz com que eu fique de olho em cada mensagem e exclua os links que você não quer por aqui! Você escolhe como eu faço isso: bloquear todos os links com as suas exceções, ou permitir links e bloquear só os que você escolher.\n\n:pencil: **Configurações**\n\n:flying_disc: **Permissões**: Escolha os canais e cargos que eu nunca devo bloquear. Links deles são sempre permitidos!",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": ":no_entry_sign: Bloquear Links"
+    },
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M1",
+    "seq": 2,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M1",
+    "seq": 3,
+    "step": null,
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 4,
+    "step": "link_settings",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🚦 Configuração de Links",
+                "type": "text"
+              },
+              {
+                "content": "Escolha como eu devo tratar os links do seu servidor",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "🚦 **Modo de bloqueio**",
+            "type": "text"
+          },
+          {
+            "content": "> 🚫 Bloquear todos, com exceções",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher modo",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🔗 **Sites populares permitidos**",
+            "type": "text"
+          },
+          {
+            "content": "> —",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher sites",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Minha resposta ao bloquear**",
+            "type": "text"
+          },
+          {
+            "content": "> Nada de links por aqui! :p",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Personalizar resposta",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Avançar",
+                "style": "success",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Cancelar",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 5,
+    "step": "link_settings"
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 6,
+    "step": "link_settings"
+  },
+  {
+    "actor": "user",
+    "custom_id": "card_customize_1",
+    "kind": "click",
+    "message": "M2",
+    "seq": 7,
+    "step": "link_settings",
+    "target": "customize:1"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## 🔗 Escolha os sites que devo sempre permitir",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 9,
+                "min": 0,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Youtube",
+                    "value": "youtube.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Spotify",
+                    "value": "spotify.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Twitter",
+                    "value": "twitter.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Facebook",
+                    "value": "facebook.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Instagram",
+                    "value": "instagram.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Twitch",
+                    "value": "twitch.tv"
+                  },
+                  {
+                    "default": false,
+                    "label": "Tiktok",
+                    "value": "tiktok.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Reddit",
+                    "value": "reddit.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Discord",
+                    "value": "discord.gg"
+                  }
+                ],
+                "placeholder": "🔗 Escolha os sites que devo sempre permitir",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Voltar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 8,
+    "step": "link_settings"
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M2",
+    "seq": 9,
+    "step": "link_settings",
+    "target": "🔗 Escolha os sites que devo sempre permitir",
+    "values": [
+      "youtube.com"
+    ]
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🚦 Configuração de Links",
+                "type": "text"
+              },
+              {
+                "content": "Escolha como eu devo tratar os links do seu servidor",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "🚦 **Modo de bloqueio**",
+            "type": "text"
+          },
+          {
+            "content": "> 🚫 Bloquear todos, com exceções",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher modo",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🔗 **Sites populares permitidos**",
+            "type": "text"
+          },
+          {
+            "content": "> Youtube",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher sites",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Minha resposta ao bloquear**",
+            "type": "text"
+          },
+          {
+            "content": "> Nada de links por aqui! :p",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Personalizar resposta",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Avançar",
+                "style": "success",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Cancelar",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 10,
+    "step": "link_settings"
+  },
+  {
+    "actor": "user",
+    "custom_id": "card_done",
+    "kind": "click",
+    "message": "M2",
+    "seq": 11,
+    "step": "link_settings",
+    "target": "done"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 12,
+    "step": "add_custom",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 13,
+    "step": "add_custom"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Sim",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Depois",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Voltar",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Quer permitir outros sites ou links além dos populares? Você também pode adicionar mais depois!",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "🔗 Adicionar Seus Próprios Links?"
+    },
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M3",
+    "seq": 14,
+    "step": "add_custom"
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M3",
+    "seq": 15,
+    "step": "add_custom",
+    "target": "back"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 16,
+    "step": "link_settings",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🚦 Configuração de Links",
+                "type": "text"
+              },
+              {
+                "content": "Escolha como eu devo tratar os links do seu servidor",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "🚦 **Modo de bloqueio**",
+            "type": "text"
+          },
+          {
+            "content": "> 🚫 Bloquear todos, com exceções",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher modo",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🔗 **Sites populares permitidos**",
+            "type": "text"
+          },
+          {
+            "content": "> Youtube",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher sites",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Minha resposta ao bloquear**",
+            "type": "text"
+          },
+          {
+            "content": "> -",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Personalizar resposta",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Avançar",
+                "style": "success",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Cancelar",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M4",
+    "seq": 17,
+    "step": "link_settings"
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M3",
+    "seq": 18,
+    "step": "link_settings"
+  },
+  {
+    "actor": "user",
+    "custom_id": "card_done",
+    "kind": "click",
+    "message": "M4",
+    "seq": 19,
+    "step": "link_settings",
+    "target": "done"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 20,
+    "step": "add_custom",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M4",
+    "seq": 21,
+    "step": "add_custom"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Sim",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Depois",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Voltar",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Quer permitir outros sites ou links além dos populares? Você também pode adicionar mais depois!",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "🔗 Adicionar Seus Próprios Links?"
+    },
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M5",
+    "seq": 22,
+    "step": "add_custom"
+  }
+]

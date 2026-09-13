@@ -1,0 +1,1827 @@
+[
+  {
+    "actor": "user",
+    "kind": "start_command",
+    "message": null,
+    "seq": 1,
+    "step": null,
+    "target": "reminders_birthday",
+    "values": "pt-br"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Configure como vou comemorar aniversários neste servidor. Você pode cadastrar o primeiro membro agora ou deixar a lista para depois.\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal**: Escolha o canal onde vou enviar os lembretes de aniversário.\n:flying_disc: **Fuso horário**: Escolha o fuso horário usado para calcular o horário da notificação.\n:flying_disc: **Horário da notificação**: Escolha em qual horário vou enviar a notificação de aniversário.\n:flying_disc: **Mencionar @everyone**: Escolha se os lembretes de aniversário devem mencionar @everyone.\n:flying_disc: **Mensagem padrão dos membros**: Personalize a mensagem padrão usada quando um membro não tiver mensagem própria.",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "🎂 Lembretes de Aniversário"
+    },
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M1",
+    "seq": 2,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M1",
+    "seq": 3,
+    "step": null,
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 4,
+    "step": "birthday_config",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎂 Configuração do Lembrete",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal, horário, menção e mensagem padrão dos lembretes de aniversário.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal**",
+            "type": "text"
+          },
+          {
+            "content": "> -",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher canal",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🌎 **Fuso horário**",
+            "type": "text"
+          },
+          {
+            "content": "> -",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher fuso horário",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🕒 **Horário da notificação**",
+            "type": "text"
+          },
+          {
+            "content": "> -",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher horário",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "📣 **Mencionar @everyone**",
+            "type": "text"
+          },
+          {
+            "content": "> Não",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Alternar menção",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagem padrão dos membros:** 📌 Padrão do Keiko",
+            "type": "text"
+          },
+          {
+            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Personalizar mensagem",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Avançar",
+                "style": "success",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Cancelar",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 5,
+    "step": "birthday_config"
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 6,
+    "step": "birthday_config"
+  },
+  {
+    "actor": "user",
+    "custom_id": "card_customize_0",
+    "kind": "click",
+    "message": "M2",
+    "seq": 7,
+    "step": "birthday_config",
+    "target": "customize:0"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## 📺 Escolha o canal de aniversário",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Voltar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 8,
+    "step": "birthday_config"
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M2",
+    "seq": 9,
+    "step": "birthday_config",
+    "target": "Selecione um canal...",
+    "values": [
+      "general"
+    ]
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎂 Configuração do Lembrete",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal, horário, menção e mensagem padrão dos lembretes de aniversário.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal**",
+            "type": "text"
+          },
+          {
+            "content": "> <#100>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher canal",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🌎 **Fuso horário**",
+            "type": "text"
+          },
+          {
+            "content": "> -",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher fuso horário",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🕒 **Horário da notificação**",
+            "type": "text"
+          },
+          {
+            "content": "> -",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher horário",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "📣 **Mencionar @everyone**",
+            "type": "text"
+          },
+          {
+            "content": "> Não",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Alternar menção",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagem padrão dos membros:** 📌 Padrão do Keiko",
+            "type": "text"
+          },
+          {
+            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Personalizar mensagem",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Avançar",
+                "style": "success",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Cancelar",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 10,
+    "step": "birthday_config"
+  },
+  {
+    "actor": "user",
+    "custom_id": "card_customize_1",
+    "kind": "click",
+    "message": "M2",
+    "seq": 11,
+    "step": "birthday_config",
+    "target": "customize:1"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## 🌎 Escolha o fuso horário da notificação",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "🇧🇷 Brasil (UTC-3)",
+                    "value": "America/Sao_Paulo"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇦🇷 Argentina (UTC-3)",
+                    "value": "America/Argentina/Buenos_Aires"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇺🇸 Estados Unidos (UTC-5/UTC-4)",
+                    "value": "America/New_York"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇵🇹 Portugal (UTC+0/UTC+1)",
+                    "value": "Europe/Lisbon"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇬🇧 Reino Unido (UTC+0/UTC+1)",
+                    "value": "Europe/London"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇪🇸 Espanha (UTC+1/UTC+2)",
+                    "value": "Europe/Madrid"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇩🇪 Alemanha (UTC+1/UTC+2)",
+                    "value": "Europe/Berlin"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇯🇵 Japão (UTC+9)",
+                    "value": "Asia/Tokyo"
+                  },
+                  {
+                    "default": false,
+                    "label": "🌐 UTC (UTC+0)",
+                    "value": "UTC"
+                  }
+                ],
+                "placeholder": "🌎 Escolha o fuso horário da notificação",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Voltar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 12,
+    "step": "birthday_config"
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M2",
+    "seq": 13,
+    "step": "birthday_config",
+    "target": "🌎 Escolha o fuso horário da notificação",
+    "values": [
+      "America/Sao_Paulo"
+    ]
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎂 Configuração do Lembrete",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal, horário, menção e mensagem padrão dos lembretes de aniversário.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal**",
+            "type": "text"
+          },
+          {
+            "content": "> <#100>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher canal",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🌎 **Fuso horário**",
+            "type": "text"
+          },
+          {
+            "content": "> 🇧🇷 Brasil (UTC-3)",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher fuso horário",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🕒 **Horário da notificação**",
+            "type": "text"
+          },
+          {
+            "content": "> -",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher horário",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "📣 **Mencionar @everyone**",
+            "type": "text"
+          },
+          {
+            "content": "> Não",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Alternar menção",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagem padrão dos membros:** 📌 Padrão do Keiko",
+            "type": "text"
+          },
+          {
+            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Personalizar mensagem",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Avançar",
+                "style": "success",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Cancelar",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 14,
+    "step": "birthday_config"
+  },
+  {
+    "actor": "user",
+    "custom_id": "card_customize_2",
+    "kind": "click",
+    "message": "M2",
+    "seq": 15,
+    "step": "birthday_config",
+    "target": "customize:2"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## 🕒 Escolha o horário da notificação",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "08:00",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "10:00",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "12:00",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "14:00",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "16:00",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "18:00",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "20:00",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "22:00",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Voltar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 16,
+    "step": "birthday_config"
+  },
+  {
+    "actor": "user",
+    "custom_id": "picker_option_0",
+    "kind": "click",
+    "message": "M2",
+    "seq": 17,
+    "step": "birthday_config",
+    "target": "08:00"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎂 Configuração do Lembrete",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal, horário, menção e mensagem padrão dos lembretes de aniversário.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal**",
+            "type": "text"
+          },
+          {
+            "content": "> <#100>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher canal",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🌎 **Fuso horário**",
+            "type": "text"
+          },
+          {
+            "content": "> 🇧🇷 Brasil (UTC-3)",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher fuso horário",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🕒 **Horário da notificação**",
+            "type": "text"
+          },
+          {
+            "content": "> 08:00",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher horário",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "📣 **Mencionar @everyone**",
+            "type": "text"
+          },
+          {
+            "content": "> Não",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Alternar menção",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagem padrão dos membros:** 📌 Padrão do Keiko",
+            "type": "text"
+          },
+          {
+            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Personalizar mensagem",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Avançar",
+                "style": "success",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Cancelar",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 18,
+    "step": "birthday_config"
+  },
+  {
+    "actor": "user",
+    "custom_id": "card_done",
+    "kind": "click",
+    "message": "M2",
+    "seq": 19,
+    "step": "birthday_config",
+    "target": "done"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 20,
+    "step": "register_now",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 21,
+    "step": "register_now"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Sim",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Depois",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Voltar",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Comece a lista agora ou deixe para depois. Os membros também podem cadastrar a própria data com `/aniversário`.",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "🎂 Adicionar o primeiro aniversário?"
+    },
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M3",
+    "seq": 22,
+    "step": "register_now"
+  },
+  {
+    "actor": "user",
+    "custom_id": "True",
+    "kind": "click",
+    "message": "M3",
+    "seq": 23,
+    "step": "register_now",
+    "target": "Sim"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 24,
+    "step": "user",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "max": 1,
+        "min": 0,
+        "placeholder": "Selecione um membro...",
+        "type": "user_select"
+      },
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Escolha o primeiro membro para adicionar à lista de aniversários do servidor",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "👤 Membro"
+    },
+    "ephemeral": true,
+    "kind": "followup_edit",
+    "message": "M3",
+    "seq": 25,
+    "step": "user"
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M3",
+    "seq": 26,
+    "step": "user",
+    "target": "Selecione um membro...",
+    "values": [
+      "Amiga"
+    ]
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 27,
+    "step": "user",
+    "thinking": false
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M3",
+    "seq": 28,
+    "step": "user",
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 29,
+    "step": "birthday_member_config",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎂 Lembrete do Membro",
+                "type": "text"
+              },
+              {
+                "content": "Configure a data, mensagem e imagem de aniversário deste membro.",
+                "type": "text"
+              },
+              {
+                "content": "👤 **Membro:** <@777>",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📅 **Mês do aniversário**",
+            "type": "text"
+          },
+          {
+            "content": "> -",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Selecionar mês",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🗓️ **Dia do aniversário**",
+            "type": "text"
+          },
+          {
+            "content": "> -",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Selecionar dia",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagem:** 📌 Padrão do Keiko",
+            "type": "text"
+          },
+          {
+            "content": "> **🎂 Feliz Aniversário <@777>!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Personalizar mensagem",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🖼️ **Imagem:** 📌 Padrão do Keiko",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Personalizar imagem",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Avançar",
+                "style": "success",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Voltar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Cancelar",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M4",
+    "seq": 30,
+    "step": "birthday_member_config"
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M3",
+    "seq": 31,
+    "step": "birthday_member_config"
+  },
+  {
+    "actor": "user",
+    "custom_id": "card_customize_0",
+    "kind": "click",
+    "message": "M4",
+    "seq": 32,
+    "step": "birthday_member_config",
+    "target": "customize:0"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## 📅 Escolha o mês do aniversário",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Janeiro",
+                    "value": "01"
+                  },
+                  {
+                    "default": false,
+                    "label": "Fevereiro",
+                    "value": "02"
+                  },
+                  {
+                    "default": false,
+                    "label": "Março",
+                    "value": "03"
+                  },
+                  {
+                    "default": false,
+                    "label": "Abril",
+                    "value": "04"
+                  },
+                  {
+                    "default": false,
+                    "label": "Maio",
+                    "value": "05"
+                  },
+                  {
+                    "default": false,
+                    "label": "Junho",
+                    "value": "06"
+                  },
+                  {
+                    "default": false,
+                    "label": "Julho",
+                    "value": "07"
+                  },
+                  {
+                    "default": false,
+                    "label": "Agosto",
+                    "value": "08"
+                  },
+                  {
+                    "default": false,
+                    "label": "Setembro",
+                    "value": "09"
+                  },
+                  {
+                    "default": false,
+                    "label": "Outubro",
+                    "value": "10"
+                  },
+                  {
+                    "default": false,
+                    "label": "Novembro",
+                    "value": "11"
+                  },
+                  {
+                    "default": false,
+                    "label": "Dezembro",
+                    "value": "12"
+                  }
+                ],
+                "placeholder": "📅 Escolha o mês do aniversário",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Voltar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M4",
+    "seq": 33,
+    "step": "birthday_member_config"
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M4",
+    "seq": 34,
+    "step": "birthday_member_config",
+    "target": "📅 Escolha o mês do aniversário",
+    "values": [
+      "02"
+    ]
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎂 Lembrete do Membro",
+                "type": "text"
+              },
+              {
+                "content": "Configure a data, mensagem e imagem de aniversário deste membro.",
+                "type": "text"
+              },
+              {
+                "content": "👤 **Membro:** <@777>",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📅 **Mês do aniversário**",
+            "type": "text"
+          },
+          {
+            "content": "> Fevereiro",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Selecionar mês",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🗓️ **Dia do aniversário**",
+            "type": "text"
+          },
+          {
+            "content": "> -",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Selecionar dia",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagem:** 📌 Padrão do Keiko",
+            "type": "text"
+          },
+          {
+            "content": "> **🎂 Feliz Aniversário <@777>!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Personalizar mensagem",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🖼️ **Imagem:** 📌 Padrão do Keiko",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Personalizar imagem",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Avançar",
+                "style": "success",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Voltar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Cancelar",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M4",
+    "seq": 35,
+    "step": "birthday_member_config"
+  },
+  {
+    "actor": "user",
+    "custom_id": "card_customize_1",
+    "kind": "click",
+    "message": "M4",
+    "seq": 36,
+    "step": "birthday_member_config",
+    "target": "customize:1"
+  },
+  {
+    "actor": "bot",
+    "kind": "modal",
+    "message": null,
+    "modal": {
+      "fields": [
+        {
+          "default": "",
+          "label": "Dia",
+          "max_length": 2,
+          "required": true,
+          "style": "short"
+        }
+      ],
+      "title": "🗓️ Dia do Aniversário"
+    },
+    "seq": 37,
+    "step": "birthday_member_config"
+  },
+  {
+    "actor": "user",
+    "fields": {
+      "Dia": "31"
+    },
+    "kind": "modal_submit",
+    "message": null,
+    "seq": 38,
+    "step": "birthday_member_config"
+  },
+  {
+    "actor": "bot",
+    "delete_after": 10,
+    "embed": {
+      "color": 16711680,
+      "description": "Ops! Essa data não existe. Escolha um dia válido para o mês selecionado.",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": null,
+      "title": "🚨 Data Inválida"
+    },
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M5",
+    "seq": 39,
+    "step": "birthday_member_config"
+  },
+  {
+    "actor": "user",
+    "custom_id": "card_customize_1",
+    "kind": "click",
+    "message": "M4",
+    "seq": 40,
+    "step": "birthday_member_config",
+    "target": "customize:1"
+  },
+  {
+    "actor": "bot",
+    "kind": "modal",
+    "message": null,
+    "modal": {
+      "fields": [
+        {
+          "default": "",
+          "label": "Dia",
+          "max_length": 2,
+          "required": true,
+          "style": "short"
+        }
+      ],
+      "title": "🗓️ Dia do Aniversário"
+    },
+    "seq": 41,
+    "step": "birthday_member_config"
+  },
+  {
+    "actor": "user",
+    "fields": {
+      "Dia": "28"
+    },
+    "kind": "modal_submit",
+    "message": null,
+    "seq": 42,
+    "step": "birthday_member_config"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎂 Lembrete do Membro",
+                "type": "text"
+              },
+              {
+                "content": "Configure a data, mensagem e imagem de aniversário deste membro.",
+                "type": "text"
+              },
+              {
+                "content": "👤 **Membro:** <@777>",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📅 **Mês do aniversário**",
+            "type": "text"
+          },
+          {
+            "content": "> Fevereiro",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Selecionar mês",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🗓️ **Dia do aniversário**",
+            "type": "text"
+          },
+          {
+            "content": "> 28",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Selecionar dia",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagem:** 📌 Padrão do Keiko",
+            "type": "text"
+          },
+          {
+            "content": "> **🎂 Feliz Aniversário <@777>!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Personalizar mensagem",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🖼️ **Imagem:** 📌 Padrão do Keiko",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Personalizar imagem",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Avançar",
+                "style": "success",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Voltar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Cancelar",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M4",
+    "seq": 43,
+    "step": "birthday_member_config"
+  },
+  {
+    "actor": "user",
+    "custom_id": "card_done",
+    "kind": "click",
+    "message": "M4",
+    "seq": 44,
+    "step": "birthday_member_config",
+    "target": "done"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 45,
+    "step": "confirm",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M4",
+    "seq": 46,
+    "step": "confirm"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Editar",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Adicionar",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Revise a configuração de notificações de aniversário do servidor. Use **Adicionar** ou **Remover** para gerenciar a lista.\n\n:pencil: **Configurações**\n\n:flying_disc: Canal: **<#100>**\n:flying_disc: Fuso horário: **🇧🇷 Brasil (UTC-3)**\n:flying_disc: Horário da notificação: **08:00**\n:flying_disc: Mencionar @everyone: **Não**\n\n:flying_disc: **Lista de Aniversários #1**\n- Membro: **<@777>**\n- Dia do Aniversário: **28 de fevereiro**\n",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_BOLO.png",
+      "title": ":white_check_mark: Tudo certo?"
+    },
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M6",
+    "seq": 47,
+    "step": "confirm"
+  }
+]

@@ -1,0 +1,228 @@
+[
+  {
+    "actor": "user",
+    "kind": "start_command",
+    "message": null,
+    "seq": 1,
+    "step": null,
+    "target": "block_links",
+    "values": "pt-br"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## :no_entry_sign: Bloquear Links",
+                "type": "text"
+              },
+              {
+                "content": "Ativar esta função faz com que eu fique de olho em cada mensagem e exclua os links que você não quer por aqui! Você escolhe como eu faço isso: bloquear todos os links com as suas exceções, ou permitir links e bloquear só os que você escolher.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 🚦 Configuração de Links\n**Modo de bloqueio:** Bloquear todos, com exceções\n**Sites populares permitidos:**\n```• youtube.com\n• twitch.tv```\n**Minha resposta ao bloquear:** Nada de links aqui! :p",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 🔓 Permissões\n**Canais Liberados:** <#100>\n**Cargos Liberados:** <@&201>",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 📌 Seus Links\n**#1**\n**Link ou Site:** `meusite.com.br`\n**Qual o Alcance da Regra?** 🌐 Todos os links desse site\n**#2**\n**Link ou Site:** `docs.example.org`",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "### 🔎 Por que um link passou?\nClique com o botão direito na mensagem, escolha **Apps** e depois **Validar Bloqueio de Link**: eu te mostro qual regra liberou ou bloqueou cada link dela!",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Pausar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Desativar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Adicionar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Remover",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Histórico",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Bloqueios",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Estatísticas",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Ajuda",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M1",
+    "seq": 2,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "custom_id": "Pausar",
+    "kind": "click",
+    "message": "M1",
+    "seq": 3,
+    "step": null,
+    "target": "pause"
+  },
+  {
+    "actor": "bot",
+    "kind": "modal",
+    "message": null,
+    "modal": {
+      "fields": [
+        {
+          "default": null,
+          "label": "Digite `pausar` para confirmar.",
+          "max_length": 6,
+          "required": true,
+          "style": "short"
+        }
+      ],
+      "title": "Tem certeza?"
+    },
+    "seq": 4,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "fields": {
+      "confirmation": "Pausar"
+    },
+    "kind": "modal_submit",
+    "message": null,
+    "seq": 5,
+    "step": null
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 6,
+    "step": null,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 7,
+    "step": null
+  },
+  {
+    "actor": "bot",
+    "components": [],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Comando **moderações bloquear links** pausado as 2026-01-01 12:00:00 UTC por <@555>",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": null,
+      "title": "⏸️ Comando pausado com sucesso!"
+    },
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 8,
+    "step": null
+  }
+]

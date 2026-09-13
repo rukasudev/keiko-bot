@@ -1,0 +1,431 @@
+[
+  {
+    "actor": "user",
+    "kind": "start_command",
+    "message": null,
+    "seq": 1,
+    "step": null,
+    "target": "notifications_twitch",
+    "values": "pt-br"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🔔 Twitch Notificações",
+                "type": "text"
+              },
+              {
+                "content": "Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### :busts_in_silhouette: Notificações\n**#1**\n**Canal de Texto:** <#100>\n**Streamer:** gaules\n**Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```\n**#2**\n**Canal de Texto:** <#102>\n**Streamer:** cellbit\n**Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Pausar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Desativar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Adicionar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Remover",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Histórico",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Ajuda",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M1",
+    "seq": 2,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M1",
+    "seq": 3,
+    "step": null,
+    "target": "section:notifications"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 4,
+    "step": null,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 5,
+    "step": null
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "max": true,
+        "min": 1,
+        "options": [
+          {
+            "default": false,
+            "label": "Notificações #1",
+            "value": "notifications$0"
+          },
+          {
+            "default": false,
+            "label": "Notificações #2",
+            "value": "notifications$1"
+          }
+        ],
+        "placeholder": "Selecione as configurações que deseja editar",
+        "type": "select"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "🔔 Twitch Notificações"
+    },
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 6,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M2",
+    "seq": 7,
+    "step": null,
+    "target": "Selecione as configurações que deseja editar",
+    "values": [
+      "notifications$0"
+    ]
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 8,
+    "step": null,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "max": 1,
+        "min": 0,
+        "placeholder": "Selecione um canal...",
+        "type": "channel_select"
+      },
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Escolha em qual canal de texto você deseja ser notificado",
+      "fields": [],
+      "footer": "• Utilize o comando /reportar para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": ":tv: Canal de Texto"
+    },
+    "ephemeral": true,
+    "kind": "followup_edit",
+    "message": "M2",
+    "seq": 9,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M2",
+    "seq": 10,
+    "step": null,
+    "target": "Selecione um canal...",
+    "values": [
+      "announcements"
+    ]
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 11,
+    "step": null,
+    "thinking": false
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M2",
+    "seq": 12,
+    "step": null,
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "kind": "modal",
+    "message": null,
+    "modal": {
+      "fields": [
+        {
+          "default": "gaules",
+          "label": "Streamer",
+          "max_length": 30,
+          "required": true,
+          "style": "short"
+        }
+      ],
+      "title": "Streamer"
+    },
+    "seq": 13,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "fields": {
+      "Streamer": "gaules"
+    },
+    "kind": "modal_submit",
+    "message": null,
+    "seq": 14,
+    "step": null
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Voltar",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Agora vamos configurar as mensagens de notificação! Leia com atenção as seguintes observações:",
+      "fields": [
+        {
+          "inline": false,
+          "name": "1. Mensagem aleatória",
+          "value": "Sempre que o streamer ficar online, uma das mensagens configuradas será aleatoriamente escolhida"
+        },
+        {
+          "inline": false,
+          "name": "2. Até 3 mensagens",
+          "value": "Você poderá configurar até 3 mensagens de notificação. Caso queira configurar menos de 3, deixe os outros campos em branco"
+        },
+        {
+          "inline": false,
+          "name": "3. Variáveis",
+          "value": "Você pode utilizar as seguintes variáveis em sua mensagem:\n- `{streamer}`: Username do streamer\n- `{stream_link}`: Link da live"
+        }
+      ],
+      "footer": "• Utilize o comando /reportar para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_NERD.png",
+      "title": "📩 Mensagens de Notificação"
+    },
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 15,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M2",
+    "seq": 16,
+    "step": null,
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "kind": "modal",
+    "message": null,
+    "modal": {
+      "fields": [
+        {
+          "default": "",
+          "label": "Mensagem Aleatória #1",
+          "max_length": 100,
+          "required": true,
+          "style": "paragraph"
+        },
+        {
+          "default": "",
+          "label": "Mensagem Aleatória #2",
+          "max_length": 100,
+          "required": false,
+          "style": "paragraph"
+        },
+        {
+          "default": "",
+          "label": "Mensagem Aleatória #3",
+          "max_length": 100,
+          "required": false,
+          "style": "paragraph"
+        }
+      ],
+      "title": "Mensagens de Notificação"
+    },
+    "seq": 17,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "fields": {
+      "Mensagem Aleatória #1": "{streamer} entrou ao vivo: {stream_link}"
+    },
+    "kind": "modal_submit",
+    "message": null,
+    "seq": 18,
+    "step": null
+  },
+  {
+    "actor": "bot",
+    "ephemeral": true,
+    "kind": "defer",
+    "message": null,
+    "seq": 19,
+    "step": null,
+    "thinking": true
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 20,
+    "step": null
+  },
+  {
+    "actor": "bot",
+    "components": [],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Comando **notificações twitch lives** editado as 2026-01-01 12:00:00 UTC por <@555>",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_NERD.png",
+      "title": "📝 Comando editado com sucesso!"
+    },
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M3",
+    "seq": 21,
+    "step": null
+  }
+]

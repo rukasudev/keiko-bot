@@ -1,0 +1,175 @@
+[
+  {
+    "actor": "user",
+    "kind": "start_command",
+    "message": null,
+    "seq": 1,
+    "step": null,
+    "target": "stream_elements_commands",
+    "values": "pt-br"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Sempre que alguém usar um comando com o prefixo **ks!**, eu buscarei a resposta no StreamElements!\n\n**Exemplo:** `ks!mouse` -> \"O streamer usa um Logitech G Pro!\"\n\n\n:pencil: **Configurações**\n\n:flying_disc: **Streamer**: De qual streamer devo buscar os comandos?",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": ":bulb: Comandos do StreamElements"
+    },
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M1",
+    "seq": 2,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M1",
+    "seq": 3,
+    "step": null,
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "kind": "modal",
+    "message": null,
+    "modal": {
+      "fields": [
+        {
+          "default": "",
+          "label": "Username do streamer",
+          "max_length": 30,
+          "required": true,
+          "style": "short"
+        }
+      ],
+      "title": "Streamer"
+    },
+    "seq": 4,
+    "step": "streamer"
+  },
+  {
+    "actor": "user",
+    "fields": {
+      "Username do streamer": "naoexiste"
+    },
+    "kind": "modal_submit",
+    "message": null,
+    "seq": 5,
+    "step": "streamer"
+  },
+  {
+    "actor": "bot",
+    "delete_after": 10,
+    "embed": {
+      "color": 16711680,
+      "description": "Desculpe, mas não consegui encontrar o streamer que você está procurando. Por favor, verifique o nome e tente novamente.",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": null,
+      "title": "🚨 Streamer Não Encontrado"
+    },
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M2",
+    "seq": 6,
+    "step": "streamer"
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M1",
+    "seq": 7,
+    "step": "streamer",
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "kind": "modal",
+    "message": null,
+    "modal": {
+      "fields": [
+        {
+          "default": "",
+          "label": "Username do streamer",
+          "max_length": 30,
+          "required": true,
+          "style": "short"
+        }
+      ],
+      "title": "Streamer"
+    },
+    "seq": 8,
+    "step": "streamer"
+  },
+  {
+    "actor": "user",
+    "fields": {
+      "Username do streamer": "shroud"
+    },
+    "kind": "modal_submit",
+    "message": null,
+    "seq": 9,
+    "step": "streamer"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Editar",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Sempre que alguém usar um comando, eu buscarei a resposta no StreamElements e enviarei no chat!\n\n:pencil: **Configurações**\n\n:flying_disc: Streamer: **shroud**",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_BOLO.png",
+      "title": ":white_check_mark: Tudo certo?"
+    },
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M1",
+    "seq": 10,
+    "step": "confirm"
+  }
+]

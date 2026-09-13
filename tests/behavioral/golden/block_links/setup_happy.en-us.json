@@ -1,0 +1,428 @@
+[
+  {
+    "actor": "user",
+    "kind": "start_command",
+    "message": null,
+    "seq": 1,
+    "step": null,
+    "target": "block_links",
+    "values": "en-us"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Confirm",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancel",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Enabling this feature allows me to watch every message and delete the links you don't want here! You choose how I do it: block all links with your exceptions, or allow links and block only the ones you pick.\n\n:pencil: **Settings**\n\n:flying_disc: **Permissions**: Choose the channels and roles I should never block. Links from them are always allowed!",
+      "fields": [],
+      "footer": "• Use the `/report` command to tell me a bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": ":no_entry_sign: Block Links"
+    },
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M1",
+    "seq": 2,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M1",
+    "seq": 3,
+    "step": null,
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 4,
+    "step": "link_settings",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🚦 Link Settings",
+                "type": "text"
+              },
+              {
+                "content": "Choose how I should treat links in your server",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "🚦 **Blocking mode**",
+            "type": "text"
+          },
+          {
+            "content": "> 🚫 Block all, with exceptions",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose mode",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🔗 **Allowed popular websites**",
+            "type": "text"
+          },
+          {
+            "content": "> —",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose websites",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **My response when blocking**",
+            "type": "text"
+          },
+          {
+            "content": "> No links here! :p",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Customize response",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Next",
+                "style": "success",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Cancel",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 5,
+    "step": "link_settings"
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 6,
+    "step": "link_settings"
+  },
+  {
+    "actor": "user",
+    "custom_id": "card_done",
+    "kind": "click",
+    "message": "M2",
+    "seq": 7,
+    "step": "link_settings",
+    "target": "done"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 8,
+    "step": "add_custom",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 9,
+    "step": "add_custom"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Yes",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Later",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Back",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancel",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Want to allow other websites or links besides the popular ones? You can also add more later!",
+      "fields": [],
+      "footer": "• Use the `/report` command to tell me a bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "🔗 Add Your Own Links?"
+    },
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M3",
+    "seq": 10,
+    "step": "add_custom"
+  },
+  {
+    "actor": "user",
+    "custom_id": "False",
+    "kind": "click",
+    "message": "M3",
+    "seq": 11,
+    "step": "add_custom",
+    "target": "Later"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 12,
+    "step": "permissions",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "max": 25,
+        "min": 1,
+        "placeholder": "Channels I'll never block...",
+        "type": "channel_select"
+      },
+      {
+        "disabled": false,
+        "max": 25,
+        "min": 1,
+        "placeholder": "Roles I'll never block...",
+        "type": "role_select"
+      },
+      {
+        "disabled": false,
+        "label": "Confirm",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Back",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancel",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Choose the channels and roles I should never block. Links from them are always allowed!",
+      "fields": [],
+      "footer": "• Use the `/report` command to tell me a bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "🔓 Permissions"
+    },
+    "ephemeral": true,
+    "kind": "followup_edit",
+    "message": "M3",
+    "seq": 13,
+    "step": "permissions"
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M3",
+    "seq": 14,
+    "step": "permissions",
+    "target": "allowed_chats",
+    "values": [
+      "general"
+    ]
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 15,
+    "step": "permissions",
+    "thinking": false
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M3",
+    "seq": 16,
+    "step": "permissions",
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Edit",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Add",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Confirm",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancel",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Enabling this feature allows me to watch every message and delete the links you don't want here! You choose how I do it: block all links with your exceptions, or allow links and block only the ones you pick.\n\n:pencil: **Settings**\n\n:flying_disc: Blocking mode: **🚫 Block all, with exceptions**\n:flying_disc: Allowed popular websites: **-**\n:flying_disc: My response when blocking: **No links here! :p**\n:flying_disc: Exempt Channels: **<#100>**\n:flying_disc: Exempt Roles: **-**",
+      "fields": [],
+      "footer": "• Use the `/report` command to tell me a bug",
+      "image": null,
+      "thumbnail": "KEIKO_BOLO.png",
+      "title": ":white_check_mark: Alright?"
+    },
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M3",
+    "seq": 17,
+    "step": "confirm"
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M3",
+    "seq": 18,
+    "step": "confirm",
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": true,
+    "kind": "defer",
+    "message": null,
+    "seq": 19,
+    "step": "confirm",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Command **moderations block links** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/moderations block links` or `/setup` 🔄",
+      "fields": [],
+      "footer": "• Use the `/report` command to tell me a bug",
+      "image": null,
+      "thumbnail": "KEIKO_BOLO.png",
+      "title": "🎉 Command enabled successfully!"
+    },
+    "ephemeral": true,
+    "kind": "edit_original",
+    "message": "M3",
+    "seq": 20,
+    "step": "confirm"
+  }
+]

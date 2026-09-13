@@ -1,0 +1,500 @@
+[
+  {
+    "actor": "user",
+    "kind": "start_command",
+    "message": null,
+    "seq": 1,
+    "step": null,
+    "target": "welcome_messages",
+    "values": "pt-br"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Mensagens de Boas-Vindas**: Escolha em qual canal devo enviar as mensagens de boas-vindas\n:flying_disc: **Design do Banner**: Escolha o estilo do banner de boas-vindas\n:flying_disc: **Imagem Personalizada**: Envie sua imagem personalizada para o banner\n:flying_disc: **Mensagens de Boas-Vindas**: Configure suas mensagens de boas-vindas. Use {user}, {server}, {member_count}.",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "🎉 Mensagens de Boas-Vindas"
+    },
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M1",
+    "seq": 2,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M1",
+    "seq": 3,
+    "step": null,
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 4,
+    "step": "welcome_messages_channel",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "max": 1,
+        "min": 0,
+        "placeholder": "Selecione um canal...",
+        "type": "channel_select"
+      },
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Escolha em qual canal devo enviar as mensagens de boas-vindas",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "Canal de Mensagens de Boas-Vindas"
+    },
+    "ephemeral": true,
+    "kind": "followup_edit",
+    "message": "M1",
+    "seq": 5,
+    "step": "welcome_messages_channel"
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M1",
+    "seq": 6,
+    "step": "welcome_messages_channel",
+    "target": "Selecione um canal...",
+    "values": [
+      "welcome"
+    ]
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 7,
+    "step": "welcome_messages_channel",
+    "thinking": false
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M1",
+    "seq": 8,
+    "step": "welcome_messages_channel",
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 9,
+    "step": "welcome_design",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "content": "⬇️ Selecione um dos designs abaixo:",
+            "type": "text"
+          },
+          {
+            "content": "**Imagem do Servidor**\nÍcone do servidor de fundo com efeito blur e seu avatar centralizado",
+            "type": "text"
+          },
+          {
+            "count": 1,
+            "type": "media"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Selecionar",
+                "style": "primary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "**Personalizada com Blur**\nSua imagem personalizada de fundo com efeito blur e avatar centralizado",
+            "type": "text"
+          },
+          {
+            "count": 1,
+            "type": "media"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Selecionar",
+                "style": "primary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "**Apenas Imagem Personalizada**\nSua imagem/gif personalizada como banner, avatar como thumbnail. Veja o exemplo abaixo :)",
+            "type": "text"
+          },
+          {
+            "count": 1,
+            "type": "media"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Selecionar",
+                "style": "primary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "⬆️ Role para cima para ver todas as opções",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Cancelar",
+                "style": "danger",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Voltar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 10,
+    "step": "welcome_design"
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 11,
+    "step": "welcome_design"
+  },
+  {
+    "actor": "user",
+    "custom_id": "design_custom_only",
+    "kind": "click",
+    "message": "M2",
+    "seq": 12,
+    "step": "welcome_design",
+    "target": "design:custom_only"
+  },
+  {
+    "actor": "bot",
+    "kind": "modal",
+    "message": null,
+    "modal": {
+      "fields": [
+        {
+          "type": "fileupload"
+        }
+      ],
+      "title": "📷 Enviar Imagem Personalizada"
+    },
+    "seq": 13,
+    "step": "welcome_custom_image"
+  },
+  {
+    "actor": "user",
+    "fields": {
+      "file": "custom-banner.png"
+    },
+    "kind": "modal_submit",
+    "message": null,
+    "seq": 14,
+    "step": "welcome_custom_image"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 15,
+    "step": "question_welcome_messages",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 16,
+    "step": "question_welcome_messages"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Voltar",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "No próximo passo, você poderá personalizar as mensagens de boas-vindas que enviarei aos novos membros. Leia com atenção as seguintes observações:",
+      "fields": [
+        {
+          "inline": false,
+          "name": "1. Título",
+          "value": "O título aparece no topo do embed da mensagem de boas-vindas"
+        },
+        {
+          "inline": false,
+          "name": "2. Mensagens aleatórias",
+          "value": "Sempre que um membro entrar no servidor, uma das mensagens configuradas será aleatoriamente escolhida. Você poderá configurar até 3 mensagens de boas-vindas. Caso queira menos de 3, deixe os outros campos em branco"
+        },
+        {
+          "inline": false,
+          "name": "3. Rodapé",
+          "value": "O rodapé aparece na parte inferior do embed da mensagem de boas-vindas"
+        },
+        {
+          "inline": false,
+          "name": "4. Variáveis",
+          "value": "Você pode utilizar as seguintes variáveis em sua mensagem:\n- `{user}`: Menção do usuário\n- `{server}`: Nome do servidor\n- `{member_count}`: Quantidade de membros do servidor"
+        }
+      ],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_NERD.png",
+      "title": "🎉 Mensagens de Boas-Vindas"
+    },
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M3",
+    "seq": 17,
+    "step": "question_welcome_messages"
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M3",
+    "seq": 18,
+    "step": "question_welcome_messages",
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "kind": "modal",
+    "message": null,
+    "modal": {
+      "fields": [
+        {
+          "default": "Um novo membro chegou! 🎉",
+          "label": "Título",
+          "max_length": 50,
+          "required": true,
+          "style": "paragraph"
+        },
+        {
+          "default": "{user} bem-vindo ao {server}!",
+          "label": "Mensagem Aleatória #1",
+          "max_length": 100,
+          "required": true,
+          "style": "paragraph"
+        },
+        {
+          "default": "Olha quem chegou! {user}",
+          "label": "Mensagem Aleatória #2",
+          "max_length": 100,
+          "required": false,
+          "style": "paragraph"
+        },
+        {
+          "default": "{user} acabou de chegar!",
+          "label": "Mensagem Aleatória #3",
+          "max_length": 100,
+          "required": false,
+          "style": "paragraph"
+        },
+        {
+          "default": "Divirta-se!",
+          "label": "Rodapé",
+          "max_length": 50,
+          "required": false,
+          "style": "paragraph"
+        }
+      ],
+      "title": "Mensagens de Boas-Vindas"
+    },
+    "seq": 19,
+    "step": "welcome_messages"
+  },
+  {
+    "actor": "user",
+    "fields": {
+      "Rodapé": "Leia as regras :)",
+      "Título": "Bem-vindo, {user}!"
+    },
+    "kind": "modal_submit",
+    "message": null,
+    "seq": 20,
+    "step": "welcome_messages"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Editar",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Pré-visualizar",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: Canal de Mensagens de Boas-Vindas: **<#101>**\n:flying_disc: Design do Banner: **Apenas Imagem Personalizada**\n:flying_disc: Imagem Personalizada: **https://cdn.discordapp.com/attachments/999/1/custom-banner.png**\n:flying_disc: Título: **Bem-vindo, {user}!**\n:flying_disc: Rodapé: **Leia as regras :)**\n:flying_disc: Mensagens de Boas-Vindas:\n**\n```1. {user} bem-vindo ao {server}!\n2. Olha quem chegou! {user}\n3. {user} acabou de chegar!```**",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_BOLO.png",
+      "title": ":white_check_mark: Tudo certo?"
+    },
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M3",
+    "seq": 21,
+    "step": "confirm"
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M3",
+    "seq": 22,
+    "step": "confirm",
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": true,
+    "kind": "defer",
+    "message": null,
+    "seq": 23,
+    "step": "confirm",
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Comando **moderações mensagens boas-vindas** ativado as 2026-01-01 12:00:00 UTC por <@555> 🚀\n\n Para fazer alterações ou desativar, use o comando `/moderações mensagens boas-vindas` ou `/configurar` 🔄",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_BOLO.png",
+      "title": "🎉 Funcionalidade ativada com sucesso!"
+    },
+    "ephemeral": true,
+    "kind": "edit_original",
+    "message": "M3",
+    "seq": 24,
+    "step": "confirm"
+  }
+]

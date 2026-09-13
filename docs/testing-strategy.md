@@ -11,6 +11,7 @@ scenarios). Architecture reference: `docs/form-configuration.md`.
 | 1. Unit | pure logic: formatters, date utils, services | `tests/test_*.py`, `app/**/*_test.py` | every run |
 | 2. YAML contracts | every real form YAML resolves against the engine registries | `tests/behavioral/test_form_yaml_contracts.py` | every run |
 | 3. Behavioral scenarios | full user flows through the real engine, offline | `tests/behavioral/scenarios/`, `contracts/`, `regressions/` | every run |
+| 3b. Golden transcripts | every canonical admin path of every form, byte for byte, in both locales where copy differs | `tests/behavioral/golden/` (`docs/form-scenario-testing.md`, "Golden transcripts") | every run |
 | 4. Discord adapter | the fake interaction surface itself | `tests/behavioral/harness/` + `test_harness.py` | every run |
 | 5. Live smoke | what no simulator can represent | manual, private test guild | on demand only |
 
@@ -101,7 +102,8 @@ done (manual map — extend it when a new shared surface appears):
 | `app/views/summary_card.py` | birthday scenarios + harness self-tests + CV2 limit contracts |
 | `app/views/edit.py`, `app/views/remove.py`, lifecycle callbacks | manager lifecycle + edit scenarios (`tests/behavioral/scenarios/test_manager_lifecycle_flow.py`, `test_edit_flow.py`) |
 | `app/components/` (buttons, selects, modals) | entire `tests/behavioral` |
-| `app/languages/form/*.yml` | YAML contracts + that form's scenarios |
+| `app/languages/form/*.yml` | YAML contracts + that form's scenarios + `pytest tests/behavioral/golden -q` (a copy change moves the form's goldens: list it in `docs/ux-changes.md`, then re-record with `--update-golden`) |
+| anything an admin can see: a screen, a button order, an embed, a transition (send/edit/delete) | `pytest tests/behavioral/golden -q` — the goldens are the UX contract; a diff means an entry in `docs/ux-changes.md` before re-recording |
 | `app/languages/{buttons,commands,errors}/` | baseline + one pt-br and one en-us scenario |
 | `commands.*.yml` slash `desc:`/`name:` entries | `tests/behavioral/contracts/test_slash_command_copy.py` (Discord's 100/32-char sync limits — violations only surface at bot startup) |
 | context menus (`app_commands.ContextMenu` registrations, their callbacks and decorators) | `tests/behavioral/contracts/test_context_menu_registration.py` (the tree is only built at startup) |

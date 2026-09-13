@@ -14,6 +14,8 @@ from tests.behavioral.harness.errors import HarnessProtocolError
 from tests.behavioral.harness.message_store import MISSING, FakeMessage, MessageStore
 from tests.behavioral.harness.transcript import format_transcript
 
+BOT_USER = SimpleNamespace(id=1, mention="<@1>", name="Keiko")
+
 
 class FakeResponse:
     def __init__(self, interaction: "FakeInteraction"):
@@ -46,14 +48,16 @@ class FakeResponse:
         self._interaction.store.record("defer", ephemeral=ephemeral, thinking=thinking)
 
     async def edit_message(self, *, content=None, embed=MISSING, view=MISSING, **kwargs):
-        self._mark("response.edit_message")
         message = self._interaction.message
         if message is None:
             raise HarnessProtocolError(
                 "response.edit_message on an interaction without a component message",
                 self._interaction._transcript(),
             )
-        message.apply_edit(embed=embed, view=view)
+        if self._done:
+            self._mark("response.edit_message")
+        message.apply_edit(embed=embed, view=view, content=content)
+        self._done = True
         self._interaction.store.record(
             "edit", message=message.id, embeds=message.embeds, view=message.view,
             ephemeral=message.ephemeral,
@@ -95,7 +99,7 @@ class FakeFollowup:
                 f"followup.edit_message on missing/deleted message {message_id}",
                 self._interaction._transcript(),
             )
-        message.apply_edit(embed=embed, view=view)
+        message.apply_edit(embed=embed, view=view, content=content)
         store.record("followup_edit", message=message.id, embeds=message.embeds,
                      view=message.view, ephemeral=message.ephemeral)
         return message
@@ -126,7 +130,7 @@ class FakeInteraction:
         self.locale = locale  # engine reassigns this; keep writable
         self.message = message
         self.data = data or {}
-        self.client = SimpleNamespace(app_commands=[])
+        self.client = SimpleNamespace(app_commands=[], user=BOT_USER)
         self.response = FakeResponse(self)
         self.followup = FakeFollowup(self)
         self._original_response: Optional[FakeMessage] = None
@@ -151,7 +155,7 @@ class FakeInteraction:
             raise discord.NotFound(
                 SimpleNamespace(status=404), {"code": 10008, "message": "Unknown Message"}
             )
-        message.apply_edit(embed=embed, view=view)
+        message.apply_edit(embed=embed, view=view, content=content)
         self.store.record("edit_original", message=message.id, embeds=message.embeds,
                           view=message.view, ephemeral=message.ephemeral)
         return message

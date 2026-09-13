@@ -52,6 +52,12 @@ Entry points (the real seams every cog goes through —
 - `await ....start_manager(command_key, cog_data)` — the manage panel for
   an already-configured command. `settings_provider` resolves like the
   cogs do (birthday → `birthday_manager_settings`).
+- `await ....start_command(command_key)` — the command as a slash command
+  or a `/setup` button opens it: through the feature service in
+  `Commands.COMMAND_SERVICES`, the same registry `run_feature_command`
+  uses. It routes to the setup form or to the manager from what is saved
+  (seed Mongo first), with the buttons, info and callbacks the cog really
+  passes. The golden transcripts use only this entry point.
 
 User actions (each mints a fresh interaction, like Discord):
 
@@ -116,7 +122,12 @@ Two real behaviors fall out of that model:
   the silent dead-button bug this catches offline
   (`tests/behavioral/regressions/test_view_lifecycle_regressions.py`);
 - on edits, an explicit `view=None` / `embed=None` REMOVES that field
-  (`MISSING` semantics), while not passing it keeps what was there.
+  (`MISSING` semantics), while not passing it keeps what was there;
+- a message sent as a Components V2 container refuses `content` and
+  `embed` on edit with the real `50035` (`discord.HTTPException`), and
+  keeps what it showed — the flag is fixed at send time, so production
+  code that edits an embed into a card reaches its `except` fallback here
+  exactly as it does on Discord.
 
 The dispatcher supports the four callback patterns used in the repo
 (attribute-shadowed callbacks, `callback` subclasses, `@discord.ui.button`
@@ -157,8 +168,33 @@ Unstable data never appears: message ids become `M1, M2, ...` aliases,
 auto-generated custom_ids are omitted (only ids set by production code
 show up as `action`), timestamps are dropped, URLs reduced to basenames.
 Two identical runs produce identical `outputs` (enforced by
-`test_harness.py`). There is no snapshot file mechanism; assert on the
-normalized dicts or with the `expect_*` helpers.
+`test_harness.py`). Assert on the normalized dicts, with the `expect_*`
+helpers, or against a golden transcript (below).
+
+## Golden transcripts
+
+`tests/behavioral/golden/` pins what an admin sees on every canonical path
+of every form: `tests/behavioral/golden/<form>/<scenario>.<locale>.json`
+is the normalized output of the driver registered under that name in
+`tests/behavioral/golden/paths/<form>.py`. They are the UX contract of the
+engine (`docs/form-platform-architecture-review.md`, II.3): a change that
+moves one must be listed first in `docs/ux-changes.md`.
+
+- `pytest tests/behavioral/golden -q` compares every path with its file
+  and fails with the first differing event in transcript form plus a JSON
+  diff (`tests/behavioral/harness/golden.py`);
+- `pytest tests/behavioral/golden -q --update-golden` rewrites the files
+  from the engine under test — only after the changelog entry exists;
+- component ids (`action`) never enter a golden: they are invisible to the
+  user and the new engine's `k:<session>:<revision>:<action>` codec changes
+  them on every render (the normalizer drops those ids like the random ones);
+- `golden.check(..., allowed=["ux-4"])` forgives one listed delta by id;
+  every id has a canonicalizer in `golden.DELTAS` and a self-test in
+  `tests/behavioral/test_golden_harness.py`.
+
+Adding a path: write the driver with `@golden_path(form, name, locales)`
+in the form's module, run once with `--update-golden`, read the recorded
+transcript, commit the JSON with the driver.
 
 ## Regression scenarios
 

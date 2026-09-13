@@ -21,6 +21,24 @@ FIXED_MESSAGE_TIME = datetime.datetime(2026, 1, 1, 12, 0, 0,
 MISSING = object()
 
 
+def reject_embed_on_layout_message(message: "FakeMessage", embed, content) -> None:
+    """Discord refuses content and embeds on a Components V2 message, and the
+    flag is fixed at send time: the edit fails with 50035 and nothing changes."""
+    if not message.flags.components_v2:
+        return
+    if content is None and (embed is MISSING or embed is None):
+        return
+    raise discord.HTTPException(
+        SimpleNamespace(status=400, reason="Bad Request"),
+        {"code": 50035, "message": "Invalid Form Body", "errors": {
+            "embeds": {"_errors": [{
+                "code": "BASE_TYPE_BAD_CONTENT",
+                "message": "Cannot use content or embeds with IS_COMPONENTS_V2 flag",
+            }]},
+        }},
+    )
+
+
 def _walk_view_items(view) -> List[Any]:
     """Depth-first over a view's items, containers and section accessories
     included. Local copy of locators.walk_items to keep this module a leaf."""
@@ -66,7 +84,8 @@ class FakeMessage:
             embeds=[kwargs["embed"]] if kwargs.get("embed") else None,
         )
 
-    def apply_edit(self, embed=MISSING, view=MISSING) -> None:
+    def apply_edit(self, embed=MISSING, view=MISSING, content=None) -> None:
+        reject_embed_on_layout_message(self, embed, content)
         if embed is not MISSING:
             self.embeds = [embed] if embed is not None else []
         if view is not MISSING:

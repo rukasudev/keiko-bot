@@ -1,0 +1,160 @@
+[
+  {
+    "actor": "user",
+    "kind": "start_command",
+    "message": null,
+    "seq": 1,
+    "step": null,
+    "target": "stream_elements_commands",
+    "values": "pt-br"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## :bulb: Comandos do StreamElements",
+                "type": "text"
+              },
+              {
+                "content": "Sempre que alguém usar um comando com o prefixo **ks!**, eu buscarei a resposta no StreamElements!\n\n**Exemplo:** `ks!mouse` -> \"O streamer usa um Logitech G Pro!\"\n",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "**Streamer:** shroud",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Pausar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Desativar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Histórico",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Ajuda",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M1",
+    "seq": 2,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "custom_id": "Desativar",
+    "kind": "click",
+    "message": "M1",
+    "seq": 3,
+    "step": null,
+    "target": "disable"
+  },
+  {
+    "actor": "bot",
+    "kind": "modal",
+    "message": null,
+    "modal": {
+      "fields": [
+        {
+          "default": null,
+          "label": "Digite `desativar` para confirmar.",
+          "max_length": 9,
+          "required": true,
+          "style": "short"
+        }
+      ],
+      "title": "Tem certeza?"
+    },
+    "seq": 4,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "fields": {
+      "confirmation": "Desativar"
+    },
+    "kind": "modal_submit",
+    "message": null,
+    "seq": 5,
+    "step": null
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 6,
+    "step": null,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 7,
+    "step": null
+  },
+  {
+    "actor": "bot",
+    "components": [],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Comando **stream elements commands** desativado as 2026-01-01 12:00:00 UTC por <@555>",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": null,
+      "title": "🚫 Comando desativado com sucesso!"
+    },
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 8,
+    "step": null
+  }
+]

@@ -1,0 +1,290 @@
+[
+  {
+    "actor": "user",
+    "kind": "start_command",
+    "message": null,
+    "seq": 1,
+    "step": null,
+    "target": "welcome_messages",
+    "values": "pt-br"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎉 Mensagens de Boas-Vindas",
+                "type": "text"
+              },
+              {
+                "content": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "**Canal de Mensagens de Boas-Vindas:** <#101>\n**Design do Banner:** Imagem do Servidor\n**Mensagens de Boas-Vindas:**\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Pausar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Desativar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Histórico",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Pré-visualizar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Ajuda",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M1",
+    "seq": 2,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M1",
+    "seq": 3,
+    "step": null,
+    "target": "edit"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 4,
+    "step": null,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 5,
+    "step": null
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "max": 3,
+        "min": 1,
+        "options": [
+          {
+            "default": false,
+            "label": "Canal de Mensagens de Boas-Vindas",
+            "value": "welcome_messages_channel"
+          },
+          {
+            "default": false,
+            "label": "Design do Banner",
+            "value": "welcome_design"
+          },
+          {
+            "default": false,
+            "label": "Mensagens de Boas-Vindas",
+            "value": "welcome_messages"
+          }
+        ],
+        "placeholder": "Selecione as configurações que deseja editar",
+        "type": "select"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "🎉 Mensagens de Boas-Vindas"
+    },
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 6,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M2",
+    "seq": 7,
+    "step": null,
+    "target": "Selecione as configurações que deseja editar",
+    "values": [
+      "welcome_messages_channel"
+    ]
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 8,
+    "step": null,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "max": 1,
+        "min": 0,
+        "placeholder": "Selecione um canal...",
+        "type": "channel_select"
+      },
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Escolha em qual canal devo enviar as mensagens de boas-vindas",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "Canal de Mensagens de Boas-Vindas"
+    },
+    "ephemeral": true,
+    "kind": "followup_edit",
+    "message": "M2",
+    "seq": 9,
+    "step": null
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M2",
+    "seq": 10,
+    "step": null,
+    "target": "Selecione um canal...",
+    "values": [
+      "announcements"
+    ]
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 11,
+    "step": null,
+    "thinking": false
+  },
+  {
+    "actor": "user",
+    "custom_id": null,
+    "kind": "click",
+    "message": "M2",
+    "seq": 12,
+    "step": null,
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": true,
+    "kind": "defer",
+    "message": null,
+    "seq": 13,
+    "step": null,
+    "thinking": true
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 14,
+    "step": null
+  },
+  {
+    "actor": "bot",
+    "components": [],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Comando **moderações mensagens boas-vindas** editado as 2026-01-01 12:00:00 UTC por <@555>",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_NERD.png",
+      "title": "📝 Comando editado com sucesso!"
+    },
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M3",
+    "seq": 15,
+    "step": null
+  }
+]

@@ -13,7 +13,9 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 
 import discord
 
+from app.constants import Commands as commands_constants
 from app.views.composition import FormComposition
+from app.views.form import Form
 from tests.behavioral.harness import locators
 from tests.behavioral.harness.errors import (
     LocatorError,
@@ -109,6 +111,27 @@ class FormScenario:
             additional_info_title=additional_info_title,
         )
         self.manager_view = self.current_message.view
+        return self
+
+    async def start_command(self, command_key: str) -> "FormScenario":
+        """Open the command the way a slash command or a /setup button does.
+
+        Goes through the feature service (the same registry
+        `run_feature_command` uses), which routes to the setup form or the
+        manager from what is saved, with the buttons, info and callbacks the
+        cog really passes."""
+        service = importlib.import_module(commands_constants.COMMAND_SERVICES[command_key])
+        self.command_key = command_key
+        self.store.record("start_command", actor="user", target=command_key,
+                          values=self.locale_str)
+        interaction = self._mint()
+        await service.manager(interaction=interaction, guild_id=str(self.guild.id))
+        view = self.current_message.view if self.current_message else None
+        if isinstance(view, Form):
+            self.form_view = view
+            self.store.step_provider = self._current_step_key
+        else:
+            self.manager_view = view
         return self
 
     # ------------------------------------------------------------ user actions
