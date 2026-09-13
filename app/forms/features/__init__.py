@@ -7,7 +7,7 @@ from app.forms.features.protocol import FeatureModule
 
 
 def feature_for(key: str) -> FeatureModule:
-    """The feature module behind the form `key`."""
+    """The feature module behind `key`; a compiled form without one is generic."""
     from app.forms.features import (
         block_links,
         default_roles,
@@ -27,7 +27,13 @@ def feature_for(key: str) -> FeatureModule:
         Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: stream_elements.FEATURE,
         Commands.WELCOME_MESSAGES_KEY: welcome_messages.FEATURE,
     }
-    return modules[key]
+    if key in modules:
+        return modules[key]
+    from app.forms.definitions.registry import registry
+    from app.forms.features.generic import GenericCogFeature
+
+    registry.get(key)
+    return GenericCogFeature(key)
 
 
 def feature_keys() -> tuple[str, ...]:

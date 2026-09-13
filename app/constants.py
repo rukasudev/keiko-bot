@@ -1,4 +1,4 @@
-from typing import Dict, Final, List
+from typing import Dict, Final, FrozenSet, List
 
 import discord
 
@@ -181,6 +181,16 @@ class Commands:
         REMINDERS_BIRTHDAY_KEY,
         BLOCK_LINKS_KEY,
     ]
+
+    FORM_ENGINE_V2_KEYS: Final[FrozenSet[str]] = frozenset({
+        DEFAULT_ROLES_KEY,
+        INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
+        WELCOME_MESSAGES_KEY,
+        BLOCK_LINKS_KEY,
+        NOTIFICATIONS_TWITCH_KEY,
+        NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
+        REMINDERS_BIRTHDAY_KEY,
+    })
 
     COMPOSITION_MAX_LENGTH: Final[Dict[str, int]] = {
         NOTIFICATIONS_TWITCH_KEY: 3,

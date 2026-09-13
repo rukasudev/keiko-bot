@@ -23,4 +23,4 @@ async def test_golden_transcript(path, locale, scenario_factory, deps, golden, e
     scenario = await path.run(scenario_factory, deps, locale)
     await scenario.finish()
     golden.check(scenario, path.form, path.name, locale,
-                 allowed=golden_module.allowed_for(engine))
+                 allowed=golden_module.allowed_for(engine, path.form))

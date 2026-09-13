@@ -7,6 +7,7 @@ components, i18n, data layer — is real; only the Discord transport
 (FakeInteraction) and Mongo/Redis (existing mocks) are fake.
 """
 import asyncio
+import copy
 import datetime
 import importlib
 from types import SimpleNamespace
@@ -77,7 +78,7 @@ class FormScenario:
     # ------------------------------------------------------------------ setup
 
     async def start(self, command_key: str, *, persistence_callback=AUTO) -> "FormScenario":
-        from app.services.moderations import send_command_form_message
+        from app.services.moderations import send_legacy_form_message
 
         if persistence_callback is AUTO:
             persistence_callback = _resolve(_PERSISTENCE, command_key)
@@ -85,16 +86,26 @@ class FormScenario:
         self.store.record("start", actor="user", target=command_key,
                           values=self.locale_str)
         interaction = self._mint()
-        await send_command_form_message(interaction, command_key,
-                                        persistence_callback=persistence_callback)
+        if self.engine == "v2":
+            await self._open_feature(interaction, command_key)
+            return self
+        await send_legacy_form_message(interaction, command_key,
+                                       persistence_callback=persistence_callback)
         self.form_view = self.current_message.view
         self.store.step_provider = self._current_step_key
         return self
 
+    async def _open_feature(self, interaction, command_key: str) -> None:
+        from app.forms.adapters.discord.entrypoints import RUNTIME
+
+        RUNTIME.reset()
+        await RUNTIME.open_feature(interaction, command_key)
+        self.store.step_provider = self._current_step_key
+
     async def start_manager(self, command_key: str, cog_data: Dict[str, Any], *,
                             settings_provider=AUTO, lifecycle_callbacks=None,
                             additional_info: str = "") -> "FormScenario":
-        from app.services.moderations import send_command_manager_message
+        from app.services.moderations import send_legacy_manager_message
 
         if settings_provider is AUTO:
             settings_provider = _resolve(_SETTINGS_PROVIDERS, command_key)
@@ -111,7 +122,11 @@ class FormScenario:
         self.store.record("start_manager", actor="user", target=command_key,
                           values=self.locale_str)
         interaction = self._mint()
-        await send_command_manager_message(
+        if self.engine == "v2":
+            self._seed_document(command_key, cog_data)
+            await self._open_feature(interaction, command_key)
+            return self
+        await send_legacy_manager_message(
             interaction, command_key, cog_data,
             additional_info=additional_info,
             additional_buttons=additional_buttons,
@@ -121,6 +136,17 @@ class FormScenario:
         )
         self.manager_view = self.current_message.view
         return self
+
+    def _seed_document(self, command_key: str, cog_data: Dict[str, Any]) -> None:
+        """What the old manager received as an argument, the new one reads from Mongo."""
+        document = copy.deepcopy(cog_data)
+        document.setdefault("guild_id", str(self.guild.id))
+        collection = self.db.guild[command_key]
+        if collection.find_one({"guild_id": str(self.guild.id)}) is None:
+            collection.insert_one(document)
+        self.db.guild.moderations.insert_one(
+            {"guild_id": str(self.guild.id), command_key: True}
+        )
 
     async def start_command(self, command_key: str) -> "FormScenario":
         """Open the command the way a slash command or a /setup button does.
@@ -134,11 +160,7 @@ class FormScenario:
                           values=self.locale_str)
         interaction = self._mint()
         if self.engine == "v2":
-            from app.forms.adapters.discord.entrypoints import RUNTIME
-
-            RUNTIME.reset()
-            await RUNTIME.open_feature(interaction, command_key)
-            self.store.step_provider = self._current_step_key
+            await self._open_feature(interaction, command_key)
             return self
         service = importlib.import_module(commands_constants.COMMAND_SERVICES[command_key])
         await service.manager(interaction=interaction, guild_id=str(self.guild.id))

@@ -22,7 +22,7 @@ from app.services.utils import (
 
 def update_moderations_by_guild(guild_id: str, key: str, value: str):
     if not guild_id:
-        return
+        return None
 
     moderations = moderations_data.find_moderations_by_guild(guild_id)
     if not moderations:
@@ -107,7 +107,24 @@ def _command_label(interaction: discord.Interaction, key: str) -> str:
     return getattr(command, "qualified_name", None) or key
 
 
+def runs_on_the_platform(key: str) -> bool:
+    """True when the form platform owns `key` (the cut-over flag of Phase D)."""
+    return key in commands_constants.FORM_ENGINE_V2_KEYS
+
+
 async def send_command_form_message(
+    interaction: discord.Interaction,
+    key: str,
+    persistence_callback: Optional[Callable] = None,
+):
+    if runs_on_the_platform(key):
+        from app.forms.adapters.discord.entrypoints import open_feature
+
+        return await open_feature(interaction, key)
+    await send_legacy_form_message(interaction, key, persistence_callback)
+
+
+async def send_legacy_form_message(
     interaction: discord.Interaction,
     key: str,
     persistence_callback: Optional[Callable] = None,
@@ -193,6 +210,16 @@ def build_command_manager_message(
 
 
 async def send_command_manager_message(*args, **kwargs):
+    interaction = args[0] if args else kwargs["interaction"]
+    key = args[1] if len(args) > 1 else kwargs["key"]
+    if runs_on_the_platform(key):
+        from app.forms.adapters.discord.entrypoints import open_feature
+
+        return await open_feature(interaction, key)
+    await send_legacy_manager_message(*args, **kwargs)
+
+
+async def send_legacy_manager_message(*args, **kwargs):
     interaction = args[0] if args else kwargs["interaction"]
     panel = build_command_manager_message(*args, **kwargs)
     await interaction.response.send_message(view=panel, ephemeral=True)

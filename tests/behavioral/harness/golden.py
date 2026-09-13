@@ -21,7 +21,7 @@ import difflib
 import json
 import re
 from pathlib import Path
-from typing import Any, Callable, Dict, Iterable, List, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple
 
 from tests.behavioral.harness.errors import ScenarioAssertionError
 from tests.behavioral.harness.transcript import format_event
@@ -308,9 +308,12 @@ DELTAS: Dict[str, Delta] = {
 }
 
 
-def allowed_for(engine: str) -> Tuple[str, ...]:
-    """The deltas an engine may show against goldens recorded on the old one."""
-    return tuple(DELTAS) if engine == "v2" else ()
+def allowed_for(engine: str, form: Optional[str] = None) -> Tuple[str, ...]:
+    """The deltas allowed when `form` runs on the platform: by fixture or by flag."""
+    from app.constants import Commands
+
+    on_platform = engine == "v2" or form in Commands.FORM_ENGINE_V2_KEYS
+    return tuple(DELTAS) if on_platform else ()
 
 
 def apply_deltas(expected: Events, actual: Events,

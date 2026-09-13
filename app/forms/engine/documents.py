@@ -1,8 +1,8 @@
 """The saved document and the answers, in both directions.
 
 Documents keep the shape the rest of the bot reads today, `{style, values}`
-envelopes and composition items with titled entries, tagged with
-`schema_version` so a later shape can be read by the same function.
+envelopes and composition items with titled entries; a `schema_version`
+field, when a migration adds one, is bookkeeping this module skips.
 """
 
 from __future__ import annotations
@@ -14,7 +14,6 @@ from app.forms.definitions.schema import Step
 from app.forms.engine.session import Answer
 from app.forms.engine.summary import ResponseView, responses
 
-SCHEMA_VERSION = 1
 BOOKKEEPING = (
     "_id",
     "guild_id",
@@ -77,11 +76,10 @@ def _stored(view: ResponseView) -> Any:
 def to_document(
     steps: Sequence[Step], answers: Mapping[str, Answer], locale: str
 ) -> dict[str, Any]:
-    """The document the answers persist as, `enabled` and versioned."""
+    """The document the answers persist as, enabled, in the v1 shape."""
     document: dict[str, Any] = {"enabled": True}
     for view in responses(steps, answers, locale):
         document[view.key] = _stored(view)
-    document["schema_version"] = SCHEMA_VERSION
     return document
 
 

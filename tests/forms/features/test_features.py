@@ -8,6 +8,7 @@ from app.forms.definitions.registry import DefinitionRegistry
 from app.forms.engine.documents import unwrap
 from app.forms.engine.session import Answer
 from app.forms.features import feature_for, feature_keys
+from app.forms.features.generic import GenericCogFeature
 from app.forms.features.protocol import CommitContext, OpenContext
 
 pytestmark = pytest.mark.unit
@@ -112,7 +113,23 @@ def test_a_document_survives_the_round_trip_through_answers(form):
     answers = feature.from_document(DOCUMENTS[form])
     document = feature.to_document(answers, "pt-br")
     assert _machine(document) == _machine(DOCUMENTS[form])
-    assert document["schema_version"] == 1 and document["enabled"] is True
+    assert "schema_version" not in document and document["enabled"] is True
+
+
+def test_a_form_without_a_module_gets_the_generic_feature(tmp_path):
+    from app.forms.definitions.registry import registry
+
+    source = registry.source
+    (tmp_path / "plain_form.yml").write_text(
+        (source.root / "default_roles.yml").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    registry.source = type(source)(tmp_path)
+    try:
+        feature = feature_for("plain_form")
+    finally:
+        registry.source = source
+    assert isinstance(feature, GenericCogFeature) and feature.key == "plain_form"
 
 
 def test_the_seven_features_are_registered_with_their_definitions():
