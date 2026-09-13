@@ -5,8 +5,10 @@ a later run of the same path, on any engine, must reproduce it exactly, except
 for the deltas listed in `docs/ux-changes.md` and passed by id in `allowed`.
 
 Component ids never enter a golden. They are the one normalized field the
-user cannot see (`action`, a custom_id production code chose), and the new
-engine encodes session and revision in every id.
+user cannot see (`action` on a component, `custom_id` on the click that hit
+it: both a custom_id production code chose), and the new engine encodes
+session and revision in every id. The harness's own `step` annotation stays
+out for the same reason: it names the engine's cursor, not anything on screen.
 
 Transport is not compared either: a screen edited through the initial
 response, a followup or the original-response endpoint looks the same, and a
@@ -17,6 +19,7 @@ an engine is free to choose the call, never the outcome.
 import copy
 import difflib
 import json
+import re
 from pathlib import Path
 from typing import Any, Callable, Dict, Iterable, List, Tuple
 
@@ -26,7 +29,7 @@ from tests.behavioral.harness.transcript import format_event
 Events = List[Dict[str, Any]]
 Delta = Callable[[Events, Events], Tuple[Events, Events]]
 
-INVISIBLE_FIELDS = ("action",)
+INVISIBLE_FIELDS = ("action", "custom_id", "step")
 TRANSPORT_KINDS = {
     "followup_edit": "edit",
     "edit_original": "edit",
@@ -49,9 +52,26 @@ def _strip_invisible(node: Any) -> Any:
     return node
 
 
+CONTENT_KINDS = ("send", "edit", "followup_send", "followup_edit", "edit_original")
+
+
+def _with_component_defaults(event: Dict[str, Any]) -> Dict[str, Any]:
+    """A message sent or edited without a view shows no components: say so."""
+    if event.get("actor") == "bot" and event.get("kind") in CONTENT_KINDS:
+        event.setdefault("components", [])
+        event.setdefault("components_v2", False)
+    for field in (event.get("modal") or {}).get("fields", []):
+        if "default" in field and field["default"] is None:
+            field["default"] = ""
+    return event
+
+
 def project(events: Events) -> Events:
     """The events as a golden stores them: a deep copy without invisible fields."""
-    return [_strip_invisible(copy.deepcopy(event)) for event in events]
+    return [
+        _with_component_defaults(_strip_invisible(copy.deepcopy(event)))
+        for event in events
+    ]
 
 
 def _is_silent_defer(event: Dict[str, Any]) -> bool:
@@ -83,7 +103,8 @@ def record(scenario: Any, path: Path) -> Events:
 
 
 def load(path: Path) -> Events:
-    return json.loads(path.read_text(encoding="utf-8"))
+    """The golden at `path`, projected again so an older file compares alike."""
+    return project(json.loads(path.read_text(encoding="utf-8")))
 
 
 def _renumber(events: Events) -> Events:
@@ -97,6 +118,7 @@ def _is_notice(event: Dict[str, Any]) -> bool:
         event.get("actor") == "bot"
         and event.get("kind") == "send"
         and event.get("delete_after") is not None
+        and not event.get("embed")
     )
 
 
@@ -179,13 +201,116 @@ def _card_replaced_after_item_added(expected: Events,
     return expected, kept
 
 
+def _texts(node: Any) -> List[Dict[str, Any]]:
+    """Every text display of a component tree, in reading order."""
+    found: List[Dict[str, Any]] = []
+    if isinstance(node, dict):
+        if node.get("type") == "text":
+            found.append(node)
+        for child in node.get("children") or []:
+            found.extend(_texts(child))
+    elif isinstance(node, list):
+        for item in node:
+            found.extend(_texts(item))
+    return found
+
+
+def _follows_back(events: Events, index: int) -> bool:
+    for event in reversed(events[:index]):
+        if event.get("actor") == "user":
+            return event.get("kind") == "click" and event.get("target") == "back"
+    return False
+
+
+def _card_keeps_values_after_back(expected: Events, actual: Events) -> Tuple[Events, Events]:
+    """ux-7: the card drawn after Back shows the values it had; the old one showed `-`."""
+    actual = copy.deepcopy(actual)
+    for index, event in enumerate(expected):
+        if index >= len(actual) or not event.get("components_v2"):
+            continue
+        if not _follows_back(expected, index):
+            continue
+        for wanted, shown in zip(_texts(event.get("components")),
+                                 _texts(actual[index].get("components"))):
+            if wanted.get("content") == "> -" and shown.get("content") != "> -":
+                shown["content"] = "> -"
+    return expected, actual
+
+
+def _has_media(node: Any) -> bool:
+    if isinstance(node, dict):
+        return node.get("type") == "media" or any(
+            _has_media(child) for child in node.get("children") or []
+        )
+    return isinstance(node, list) and any(_has_media(item) for item in node)
+
+
+def _cancel_last(node: Any) -> None:
+    if isinstance(node, dict):
+        children = node.get("children")
+        if isinstance(children, list):
+            if node.get("type") == "actionrow":
+                children.sort(key=lambda item: item.get("style") == "danger")
+            for child in children:
+                _cancel_last(child)
+    elif isinstance(node, list):
+        for item in node:
+            _cancel_last(item)
+
+
+def _gallery_cancel_last(expected: Events, actual: Events) -> Tuple[Events, Events]:
+    """ux-6: the design gallery keeps Cancel last, like every other screen."""
+    expected, actual = copy.deepcopy(expected), copy.deepcopy(actual)
+    for events in (expected, actual):
+        for event in events:
+            if event.get("components_v2") and _has_media(event.get("components")):
+                _cancel_last(event.get("components"))
+    return expected, actual
+
+
+_NUMBERED = re.compile(r"(^|```)\d+\. ", re.MULTILINE)
+
+
+def _review_bullets(expected: Events, actual: Events) -> Tuple[Events, Events]:
+    """ux-8: the review lists bullet-style values with bullets, as the panel does."""
+    expected = copy.deepcopy(expected)
+    for event in expected:
+        embed = event.get("embed") or {}
+        description = embed.get("description")
+        if description and "```" in description:
+            embed["description"] = _NUMBERED.sub(r"\1• ", description)
+    return expected, actual
+
+
+def _modals_prefilled(expected: Events, actual: Events) -> Tuple[Events, Events]:
+    """ux-9: a modal that edits a saved value opens with it; the old one opened empty."""
+    expected = copy.deepcopy(expected)
+    for index, event in enumerate(expected):
+        if index >= len(actual) or "modal" not in event or "modal" not in actual[index]:
+            continue
+        pairs = zip(event["modal"].get("fields", []), actual[index]["modal"].get("fields", []))
+        for wanted, shown in pairs:
+            if wanted.get("default") == "" and shown.get("default"):
+                wanted["default"] = shown["default"]
+    return expected, actual
+
+
 DELTAS: Dict[str, Delta] = {
     "ux-1": _without_notices,
     "ux-2": _without_expiry,
     "ux-3": _ephemeral_required_error,
     "ux-4": _replace_order,
     "ux-5": _card_replaced_after_item_added,
+    "ux-6": _gallery_cancel_last,
+    "ux-7": _card_keeps_values_after_back,
+    "ux-8": _review_bullets,
+    "ux-9": _modals_prefilled,
 }
+
+
+def allowed_for(engine: str) -> Tuple[str, ...]:
+    """The deltas an engine may show against goldens recorded on the old one."""
+    return tuple(DELTAS) if engine == "v2" else ()
 
 
 def apply_deltas(expected: Events, actual: Events,

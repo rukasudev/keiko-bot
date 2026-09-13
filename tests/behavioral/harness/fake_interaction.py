@@ -81,13 +81,14 @@ class FakeFollowup:
             )
 
     async def send(self, content=None, *, embed=None, embeds=None, view=None,
-                   ephemeral=False, **kwargs) -> FakeMessage:
+                   ephemeral=False, delete_after=None, **kwargs) -> FakeMessage:
         self._require_done("followup.send")
         all_embeds = list(embeds) if embeds else ([embed] if embed else [])
         store = self._interaction.store
         message = store.create(all_embeds, view, ephemeral)
         store.record("followup_send", message=message.id, content=content,
-                     embeds=all_embeds, view=view, ephemeral=ephemeral)
+                     embeds=all_embeds, view=view, ephemeral=ephemeral,
+                     delete_after=delete_after)
         return message
 
     async def edit_message(self, message_id: int, *, content=None, embed=MISSING,
@@ -119,9 +120,13 @@ class FakeFollowup:
 class FakeInteraction:
     """Covers the attribute surface the form engine touches (verified by audit)."""
 
+    _next_id = 0
+
     def __init__(self, store: MessageStore, *, guild, user, locale: discord.Locale,
                  message: Optional[FakeMessage] = None,
                  data: Optional[Dict[str, Any]] = None):
+        FakeInteraction._next_id += 1
+        self.id = FakeInteraction._next_id
         self.store = store
         self.guild = guild
         self.guild_id = str(guild.id)
@@ -147,6 +152,9 @@ class FakeInteraction:
                 self._transcript(),
             )
         return target
+
+    async def original_response(self) -> FakeMessage:
+        return self._original_target()
 
     async def edit_original_response(self, *, content=None, embed=MISSING, view=MISSING,
                                      **kwargs) -> FakeMessage:

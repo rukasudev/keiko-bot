@@ -123,6 +123,11 @@ class ItemRemoved(Event):
 
 
 @dataclass(frozen=True)
+class ScreenRequested(Event):
+    """Show the current screen again (a modal dismissed, a parent clicked)."""
+
+
+@dataclass(frozen=True)
 class ChildFinished(Event):
     """A child session completed and hands its answers back."""
 

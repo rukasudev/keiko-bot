@@ -375,6 +375,7 @@ def open_section(
             text("buttons.components.select.channel-placeholder", locale),
             unique=True,
             slot=key,
+            required=True,
         )
         return _picker_screen(card, section, locale, picker), None
     if isinstance(section, ValueSelectSection):
@@ -570,6 +571,28 @@ def apply_change(
         key = section.state.value or ""
         return {key: not bool(state.get(key))}
     return _choice_change(section, payload, state)
+
+
+def apply_drafts(
+    card: CardStep,
+    changes: Mapping[str, Any],
+    session: FormSession,
+    context: RenderContext,
+) -> Mapping[str, Any] | Refusal:
+    """What a section's select reported, through the section's own rules."""
+    applied: dict[str, Any] = {}
+    for slot, payload in changes.items():
+        index = next(
+            (i for i, s in enumerate(card.sections) if s.state.value == slot), None
+        )
+        if index is None:
+            applied[slot] = payload
+            continue
+        change = apply_change(card, index, payload, session, context)
+        if isinstance(change, Refusal):
+            return change
+        applied.update(change)
+    return applied
 
 
 def reset_section(card: CardStep, index: int) -> Mapping[str, Any]:

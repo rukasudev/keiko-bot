@@ -24,9 +24,16 @@ class Render(Effect):
 
 @dataclass(frozen=True)
 class OpenModal(Effect):
-    """Open `screen` as a modal on the interaction."""
+    """Open `screen` as a modal; its submit comes back as `action`:`arg`."""
 
     screen: Screen
+    action: str = "modal"
+    arg: str | None = None
+
+
+@dataclass(frozen=True)
+class ResumeChild(Effect):
+    """A click on the parent's screen while a child is open: show the child again."""
 
 
 @dataclass(frozen=True)

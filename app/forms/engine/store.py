@@ -25,6 +25,12 @@ class SessionStore(Protocol):
     def put(self, session: FormSession) -> None:
         """Replace a session with a newer revision of itself."""
 
+    def remember(self, session: FormSession) -> None:
+        """Keep a session whose only change is the events it has seen."""
+
+    def due(self, now: datetime | None = None) -> tuple[FormSession, ...]:
+        """Open sessions past their deadline, untouched."""
+
     def expire(self, now: datetime | None = None) -> tuple[FormSession, ...]:
         """Mark sessions past their deadline expired and return them."""
 
@@ -54,13 +60,26 @@ class InMemorySessionStore:
             raise StaleWrite(f"{session.id}: {session.revision} <= {current.revision}")
         self._sessions[session.id] = session
 
+    def remember(self, session: FormSession) -> None:
+        """Keep a session whose only change is the events it has seen."""
+        current = self._sessions.get(session.id)
+        if current is not None and session.revision != current.revision:
+            raise StaleWrite(f"{session.id}: {session.revision} != {current.revision}")
+        self._sessions[session.id] = session
+
+    def due(self, now: datetime | None = None) -> tuple[FormSession, ...]:
+        """Open sessions past their deadline, untouched."""
+        moment = now or datetime.now(timezone.utc)
+        return tuple(
+            session
+            for session in self._sessions.values()
+            if not session.is_closed and session.expires_at <= moment
+        )
+
     def expire(self, now: datetime | None = None) -> tuple[FormSession, ...]:
         """Mark open sessions past their deadline expired and return them."""
-        moment = now or datetime.now(timezone.utc)
         expired: list[FormSession] = []
-        for session in list(self._sessions.values()):
-            if session.is_closed or session.expires_at > moment:
-                continue
+        for session in self.due(now):
             closed = session.with_status(Status.EXPIRED)
             self._sessions[session.id] = closed
             expired.append(closed)

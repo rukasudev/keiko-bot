@@ -298,9 +298,10 @@ def panel_buttons(
     buttons.append(_button("disable", "lifecycle:disable", "🚫", locale))
     composition = definition.composition
     if composition is not None:
-        buttons.append(_button("add", "add", "➕", locale))
         stored = document.get(composition.key)
         count = len(stored.get("values") or []) if isinstance(stored, Mapping) else 0
+        if count < composition.items.max:
+            buttons.append(_button("add", "add", "➕", locale))
         if count > 1:
             buttons.append(_button("remove", "remove", "🗑️", locale))
     buttons.append(_button("history", "aside:history", "📜", locale))
@@ -426,7 +427,12 @@ def picker_screen(
 ) -> Screen:
     """An embed with one select over `options`."""
     select = OptionSelect(
-        "", placeholder, options, 1, 1 if unique else max(len(options), 1)
+        "",
+        placeholder,
+        options,
+        1,
+        1 if unique else max(len(options), 1),
+        action="target",
     )
     return Screen(
         title=base.title,
@@ -456,7 +462,10 @@ def member_picker_screen(
         color=Style.BACKGROUND_COLOR,
         components=(
             Picker(
-                "", "user", text("buttons.components.select.user-placeholder", locale)
+                "",
+                "user",
+                text("buttons.components.select.user-placeholder", locale),
+                slot="member",
             ),
         ),
         buttons=(confirm_button(locale), cancel_button(locale)),

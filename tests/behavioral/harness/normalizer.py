@@ -51,20 +51,30 @@ def _provided_custom_id(item: Any) -> Optional[str]:
     return item.custom_id
 
 
+_SELECT_KINDS = (
+    (discord.ui.ChannelSelect, "channel_select"),
+    (discord.ui.RoleSelect, "role_select"),
+    (discord.ui.UserSelect, "user_select"),
+    (discord.ui.MentionableSelect, "mentionable_select"),
+    (discord.ui.Select, "select"),
+)
+
+
+def _select_kind(item: Any) -> str:
+    """What the admin sees: the native select kind, whatever subclass drew it."""
+    for base, kind in _SELECT_KINDS:
+        if isinstance(item, base):
+            return kind
+    return type(item).__name__.lower()
+
+
 def _normalize_select(item: Any) -> Dict[str, Any]:
-    kind = type(item).__name__
     normalized: Dict[str, Any] = {
-        "type": {
-            "Select": "select",
-            "ChannelSelect": "channel_select",
-            "RoleSelect": "role_select",
-            "UserSelect": "user_select",
-            "MentionableSelect": "mentionable_select",
-        }.get(kind, kind.lower()),
+        "type": _select_kind(item),
         "placeholder": item.placeholder,
         "action": _provided_custom_id(item),
-        "min": item.min_values,
-        "max": item.max_values,
+        "min": int(item.min_values),
+        "max": int(item.max_values),
         "disabled": item.disabled,
     }
     if isinstance(item, discord.ui.Select):
@@ -127,7 +137,7 @@ def normalize_modal(modal: discord.ui.Modal) -> Dict[str, Any]:
                 "required": inner.required,
                 "style": inner.style.name,
                 "max_length": inner.max_length,
-                "default": inner.default,
+                "default": inner.default or "",
             })
         else:
             fields.append({"type": type(inner).__name__.lower()})

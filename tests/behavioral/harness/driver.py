@@ -7,6 +7,7 @@ components, i18n, data layer — is real; only the Discord transport
 (FakeInteraction) and Mongo/Redis (existing mocks) are fake.
 """
 import asyncio
+import datetime
 import importlib
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Sequence, Union
@@ -14,6 +15,8 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 import discord
 
 from app.constants import Commands as commands_constants
+from app.forms.adapters.discord.ids import decode as decode_component_id
+from app.forms.kinds.manage import confirmation_word
 from app.views.composition import FormComposition
 from app.views.form import Form
 from tests.behavioral.harness import locators
@@ -53,8 +56,14 @@ def _resolve(registry: Dict[str, tuple], command_key: str):
     return getattr(importlib.import_module(module), attribute)
 
 
+ENGINES = ("legacy", "v2")
+
+
 class FormScenario:
-    def __init__(self, *, guild, user, locale: str, mongo=None):
+    def __init__(self, *, guild, user, locale: str, mongo=None, engine: str = "legacy"):
+        if engine not in ENGINES:
+            raise ValueError(f"engine must be one of {ENGINES}, not {engine!r}")
+        self.engine = engine
         self.locale_str = locale
         self.locale = _LOCALES[locale]
         self.guild = guild
@@ -120,11 +129,18 @@ class FormScenario:
         `run_feature_command` uses), which routes to the setup form or the
         manager from what is saved, with the buttons, info and callbacks the
         cog really passes."""
-        service = importlib.import_module(commands_constants.COMMAND_SERVICES[command_key])
         self.command_key = command_key
         self.store.record("start_command", actor="user", target=command_key,
                           values=self.locale_str)
         interaction = self._mint()
+        if self.engine == "v2":
+            from app.forms.adapters.discord.entrypoints import RUNTIME
+
+            RUNTIME.reset()
+            await RUNTIME.open_feature(interaction, command_key)
+            self.store.step_provider = self._current_step_key
+            return self
+        service = importlib.import_module(commands_constants.COMMAND_SERVICES[command_key])
         await service.manager(interaction=interaction, guild_id=str(self.guild.id))
         view = self.current_message.view if self.current_message else None
         if isinstance(view, Form):
@@ -201,7 +217,7 @@ class FormScenario:
         modal = self.store.pending_modal
         if modal is None:
             raise LocatorError("no confirmation modal is pending", self.transcript)
-        typed = word if word is not None else getattr(modal, "action", None)
+        typed = word if word is not None else self._confirmation_word(modal)
         inputs = self._modal_inputs(modal)
         inputs[0]._value = typed
         self.store.pending_modal = None
@@ -232,6 +248,15 @@ class FormScenario:
 
     async def go_back(self) -> None:
         await self.click("back")
+
+    async def expire(self) -> None:
+        """The clock passes the session's deadline with nobody clicking."""
+        if self.engine != "v2":
+            raise LocatorError("expire() drives the new engine only", self.transcript)
+        from app.forms.adapters.discord.entrypoints import RUNTIME
+
+        self.store.record("expire", actor="clock")
+        await RUNTIME.expire_stale(datetime.datetime.max.replace(tzinfo=datetime.timezone.utc))
 
     async def finish(self) -> None:
         """Drain stray tasks the engine may have spawned (design previews)."""
@@ -435,9 +460,29 @@ class FormScenario:
         return message
 
     def _current_step_key(self) -> Optional[str]:
+        if self.engine == "v2":
+            session = self._v2_session()
+            return session.cursor if session is not None else None
         form = self.active_form
         step = getattr(form, "_step", None) if form is not None else None
         return step.get("key") if step else None
+
+    def _v2_session(self):
+        """The engine session behind the current message, from its component ids."""
+        from app.forms.adapters.discord.entrypoints import RUNTIME
+
+        message = self.current_message
+        for item in locators.clickable_items(message) if message else []:
+            component = decode_component_id(getattr(item, "custom_id", None) or "")
+            if component is not None:
+                return RUNTIME.store.get(component.session_id)
+        return None
+
+    def _confirmation_word(self, modal) -> Optional[str]:
+        component = decode_component_id(getattr(modal, "custom_id", None) or "")
+        if component is not None and component.action == "word":
+            return confirmation_word(component.arg or "", self.locale_str)
+        return getattr(modal, "action", None)
 
     def _last_content_event(self) -> Dict[str, Any]:
         for event in reversed(self.store.events):

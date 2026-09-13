@@ -10,6 +10,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from app.forms.definitions.compiler import produced_keys
 from app.forms.definitions.schema import (
     ButtonOptionsSection,
     CardStep,
@@ -203,15 +204,21 @@ def _views_for(
 def responses(
     steps: Sequence[Step], answers: Mapping[str, Answer], locale: str
 ) -> tuple[ResponseView, ...]:
-    """Every answer of `answers` the way a summary lists it, in answer order."""
+    """Every answer of `answers` the way a summary lists it, in declaration order."""
     views: list[ResponseView] = []
-    for key, answer in answers.items():
+    for key in _declared_order(steps, answers):
         found = _producer(steps, key)
         if found is None:
             continue
         step, role = found
-        views.extend(_views_for(step, role, key, answer, locale))
+        views.extend(_views_for(step, role, key, answers[key], locale))
     return tuple(views)
+
+
+def _declared_order(steps: Sequence[Step], answers: Mapping[str, Answer]) -> list[str]:
+    """The answered keys in the order the definition declares them."""
+    ordered = [key for step in steps for key in produced_keys(step) if key in answers]
+    return ordered + [key for key in answers if key not in ordered]
 
 
 def transformed_value(step: TextStep | CardStep, parts: Mapping[str, Any]) -> Any:

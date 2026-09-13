@@ -33,6 +33,7 @@ from app.forms.engine.effects import (
     OpenChild,
     OpenModal,
     Render,
+    ResumeChild,
     ResumeParent,
     RunAside,
     ShowError,
@@ -221,15 +222,23 @@ class Engine:
         return None
 
     def previous_key(self, before: int) -> str | None:
-        """The step Back lands on from position `before`, None at the start."""
+        """The step Back lands on from position `before`, None at the start.
+
+        A screen wins over a modal: Back skips the modal steps when a screen
+        comes before them, and reopens the nearest modal when nothing else does.
+        """
+        modal: str | None = None
         for index in range(before - 1, -1, -1):
             step = self.steps[index]
             if step.kind == "intro":
-                return None
-            if step.kind in NOT_ON_BACK or not self.allowed(step):
+                break
+            if not self.allowed(step):
+                continue
+            if step.kind in NOT_ON_BACK:
+                modal = modal or step.key
                 continue
             return step.key
-        return None
+        return modal
 
     def can_go_back(self, key: str | None) -> bool:
         """True when Back has somewhere to go from `key`."""
@@ -253,7 +262,7 @@ class Engine:
         )
         self.session = self.session.at(key)
         if screen.flavour == "modal":
-            self.effects.append(OpenModal(screen))
+            self.effects.append(OpenModal(screen, "modal", key))
         else:
             self.effects.append(Render(screen))
         self.emit(
@@ -266,7 +275,12 @@ class Engine:
     def refuse(self, refusal: Refusal, step: Step) -> None:
         """Answer a refused payload with its error and the matching event."""
         self.effects.append(
-            ShowError(refusal.error_key, refusal.args or {}, refusal.plain)
+            ShowError(
+                refusal.error_key,
+                refusal.args or {},
+                refusal.plain,
+                refusal.delete_after,
+            )
         )
         if isinstance(step, CardStep):
             self.emit("setup.required_missing", card_key=step.key)
@@ -344,7 +358,10 @@ class Engine:
         screen = registry()[step.kind].render(
             step, self.session, self.render_context(self.can_go_back(key))
         )
-        self.effects.append(Render(screen))
+        if screen.flavour == "modal":
+            self.effects.append(OpenModal(screen, "modal", step.key))
+        else:
+            self.effects.append(Render(screen))
 
     def panel(self) -> Screen:
         """The manager panel over the saved document."""
@@ -422,10 +439,20 @@ def _on_started(engine: Engine) -> None:
     engine.advance(-1)
 
 
+def _on_screen_requested(engine: Engine) -> None:
+    engine.rerender()
+
+
 def _on_answered(engine: Engine) -> None:
     event = engine.event
     assert isinstance(event, ev.Answered)
+    if isinstance(engine.session.mode, Manage):
+        _on_manager_confirmed(engine)
+        return
     step = engine.step(engine.session.cursor)
+    if step is not None and step.kind in NOT_ON_BACK and step.key != event.step_key:
+        engine.rerender()
+        return
     if step is None or step.key != event.step_key:
         engine.effects.append(Notice("stale"))
         engine.rerender()
@@ -443,18 +470,41 @@ def _on_answered(engine: Engine) -> None:
     engine.advance(engine.index(step.key))
 
 
+def _on_manager_confirmed(engine: Engine) -> None:
+    """Confirm on the member picker: act on the member drafted there."""
+    awaiting = engine.session.awaiting or ""
+    if not awaiting.startswith("member:"):
+        engine.effects.append(Notice("stale"))
+        engine.rerender()
+        return
+    drafted = engine.session.answers.get("member")
+    chosen = list(drafted.raw) if drafted and isinstance(drafted.raw, list) else []
+    if not chosen:
+        engine.effects.append(ShowError("selection-required", {}, True, 5))
+        return
+    _choose_member(engine, str(chosen[0]))
+
+
 def _on_drafted(engine: Engine) -> None:
     event = engine.event
     assert isinstance(event, ev.Drafted)
+    if isinstance(engine.session.mode, Manage):
+        answers = {key: Answer(value) for key, value in event.changes.items()}
+        engine.session = engine.session.with_answers(answers)
+        engine.effects.append(Ack())
+        return
     step = engine.step(engine.session.cursor)
     if step is None or step.key != event.step_key:
         engine.effects.append(Notice("stale"))
         engine.rerender()
         return
     if isinstance(step, CardStep):
-        answer = card_kind.draft(
-            step, event.changes, engine.session, engine.render_context()
-        )
+        context = engine.render_context()
+        changes = card_kind.apply_drafts(step, event.changes, engine.session, context)
+        if isinstance(changes, Refusal):
+            engine.refuse(changes, step)
+            return
+        answer = card_kind.draft(step, changes, engine.session, context)
         engine.session = engine.session.with_answer(step.key, answer)
         engine.rerender()
         return
@@ -484,7 +534,7 @@ def _on_section_opened(engine: Engine) -> None:
         return
     assert screen is not None
     if screen.flavour == "modal":
-        engine.effects.append(OpenModal(screen))
+        engine.effects.append(OpenModal(screen, "modal", f"section:{event.index}"))
     else:
         engine.session = engine.session.with_status(
             Status.ACTIVE, awaiting=f"section:{event.index}"
@@ -582,8 +632,11 @@ def _on_commit_succeeded(engine: Engine) -> None:
 
 
 def _on_commit_failed(engine: Engine) -> None:
+    event = engine.event
+    assert isinstance(event, ev.CommitFailed)
     engine.session = engine.session.with_status(Status.FAILED)
-    engine.effects.append(Finalize("error"))
+    kind = "duplicate" if event.error == "duplicate" else "error"
+    engine.effects.append(Finalize(kind))
 
 
 def _seed_for_edit(engine: Engine) -> dict[str, Answer]:
@@ -595,7 +648,9 @@ def _seed_for_edit(engine: Engine) -> dict[str, Answer]:
 def _on_edit_requested(engine: Engine) -> None:
     event = engine.event
     assert isinstance(event, ev.EditRequested)
-    if event.target:
+    composition = engine.definition.composition
+    items_target = composition is not None and event.target == composition.key
+    if event.target and not items_target:
         engine.open_child(Edit((event.target,)), _seed_for_edit(engine))
         return
     base = manage.panel_embed(engine.definition, engine.locale)
@@ -605,6 +660,8 @@ def _on_edit_requested(engine: Engine) -> None:
         else _review_document(engine)
     )
     options = manage.edit_options(engine.definition, document, engine.locale)
+    if items_target:
+        options = tuple(o for o in options if o.value.startswith(f"{event.target}$"))
     placeholder = text("commands.command-events.edited.placeholder", engine.locale)
     unique = engine.definition.composition is not None
     engine.session = engine.session.with_status(Status.AWAITING, awaiting="edit")
@@ -685,6 +742,10 @@ def _on_target_chosen(engine: Engine) -> None:
 def _on_member_chosen(engine: Engine) -> None:
     event = engine.event
     assert isinstance(event, ev.MemberChosen)
+    _choose_member(engine, event.user_id)
+
+
+def _choose_member(engine: Engine, user_id: str) -> None:
     composition = engine.definition.composition
     assert composition is not None and composition.items.unique_by
     unique = composition.items.unique_by
@@ -698,7 +759,7 @@ def _on_member_chosen(engine: Engine) -> None:
             (
                 i
                 for i, item in enumerate(items)
-                if str(unwrap(item.get(unique))) == event.user_id
+                if str(unwrap(item.get(unique))) == user_id
             ),
             None,
         )
@@ -707,7 +768,7 @@ def _on_member_chosen(engine: Engine) -> None:
             (
                 i
                 for i, item in enumerate(engine.composition_items())
-                if _raw(item.get(unique)) == event.user_id
+                if _raw(item.get(unique)) == user_id
             ),
             None,
         )
@@ -806,7 +867,9 @@ def _on_lifecycle(engine: Engine) -> None:
     assert isinstance(event, ev.Lifecycle)
     engine.session = engine.session.with_status(Status.AWAITING, awaiting=event.action)
     engine.effects.append(
-        OpenModal(manage.confirmation_modal(event.action, engine.locale))
+        OpenModal(
+            manage.confirmation_modal(event.action, engine.locale), "word", event.action
+        )
     )
 
 
@@ -852,6 +915,7 @@ HANDLERS: dict[type[ev.Event], Handler] = {
     ev.MemberChosen: _on_member_chosen,
     ev.ItemRemoved: _on_item_removed,
     ev.ChildFinished: _on_child_finished,
+    ev.ScreenRequested: _on_screen_requested,
     ev.Lifecycle: _on_lifecycle,
     ev.LifecycleConfirmed: _on_lifecycle_confirmed,
     ev.Aside: _on_aside,
@@ -867,6 +931,27 @@ INTERNAL: tuple[type[ev.Event], ...] = (
     ev.Expired,
 )
 ALWAYS_ALLOWED: tuple[type[ev.Event], ...] = (ev.Aside, ev.Expired)
+
+
+def _rejected(
+    definition: FormDefinition,
+    session: FormSession,
+    event: ev.Event,
+    context: Context,
+    reason: str,
+) -> Decision:
+    """A duplicate does nothing; a stale click gets a notice and the screen again."""
+    if reason == "duplicate":
+        return Decision(session, (), rejected=reason)
+    if reason == "closed" and session.status is Status.EXPIRED:
+        return Decision(session, (Finalize("expired"),), rejected=reason)
+    if reason != "stale" or session.awaiting == "child":
+        return Decision(session, (Notice(reason),), rejected=reason)
+    engine = Engine(definition, session, event, context)
+    engine.rerender()
+    effects = (Notice(reason), *engine.effects)
+    after = session.rendered() if engine.effects else session
+    return Decision(after, effects, rejected=reason)
 
 
 def _rejection(session: FormSession, event: ev.Event) -> str | None:
@@ -897,14 +982,9 @@ def decide(
     context = context or Context()
     rejected = _rejection(session, event)
     if rejected is not None:
-        effects: tuple[Effect, ...]
-        if rejected == "closed" and session.status is Status.EXPIRED:
-            effects = (Finalize("expired"),)
-        elif rejected == "duplicate":
-            effects = ()
-        else:
-            effects = (Notice(rejected),)
-        return Decision(session, effects, rejected=rejected)
+        return _rejected(definition, session, event, context, rejected)
+    if session.awaiting == "child" and isinstance(event, (ev.Answered, ev.Drafted)):
+        return Decision(session.remember(event.event_id), (ResumeChild(),))
     engine = Engine(definition, session, event, context)
     handler = HANDLERS.get(type(event))
     if handler is None:
@@ -914,7 +994,7 @@ def decide(
     else:
         handler(engine)
     session_after = engine.session.remember(event.event_id)
-    if any(isinstance(effect, (Render, OpenChild)) for effect in engine.effects):
+    if any(isinstance(effect, Render) for effect in engine.effects):
         session_after = session_after.rendered()
     return Decision(
         session_after,

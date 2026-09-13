@@ -344,6 +344,8 @@ def _check_shape(definition: FormDefinition) -> None:
 def produced_keys(step: Step) -> tuple[str, ...]:
     """The answer keys a step writes: its own plus its selects and card keys."""
     keys = [step.key]
+    if isinstance(step, TextStep):
+        keys = [field.key for field in step.fields if field.key] + keys
     if isinstance(step, MultiPickStep):
         keys += [select.key for select in step.selects]
     if isinstance(step, CardStep):

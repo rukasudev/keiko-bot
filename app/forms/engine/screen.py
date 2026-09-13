@@ -57,6 +57,8 @@ class Picker:
     unique: bool = True
     slot: str | None = None
     available_only: bool = False
+    action: str = "draft"
+    required: bool = False
 
 
 @dataclass(frozen=True)
@@ -69,6 +71,7 @@ class OptionSelect:
     min_values: int = 1
     max_values: int = 1
     slot: str | None = None
+    action: str = "draft"
 
 
 @dataclass(frozen=True)

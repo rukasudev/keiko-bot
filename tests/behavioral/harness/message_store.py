@@ -77,6 +77,17 @@ class FakeMessage:
         # dispatch. Mutating a view later does NOT change the message.
         self.registered_items = _walk_view_items(view)
 
+    async def edit(self, *, content=None, embed=MISSING, view=MISSING, **kwargs):
+        """The bot editing its own message outside any interaction (a timeout)."""
+        if self.deleted:
+            raise discord.NotFound(
+                SimpleNamespace(status=404), {"code": 10008, "message": "Unknown Message"}
+            )
+        self.apply_edit(embed=embed, view=view, content=content)
+        self.store.record("edit", message=self.id, embeds=self.embeds, view=self.view,
+                          ephemeral=self.ephemeral)
+        return self
+
     async def _channel_send(self, *args, **kwargs):
         self.store.record(
             "channel_send",

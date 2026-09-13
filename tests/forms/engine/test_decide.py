@@ -193,7 +193,9 @@ def test_a_click_from_an_older_screen_is_stale():
     moved = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
     stale = decide(definition, moved.session, ev.Answered("late", old, "form"))
     assert stale.rejected == "stale"
-    assert kinds(stale) == ["Notice"]
+    assert kinds(stale) == ["Notice", "Render"]
+    assert stale.session.cursor == moved.session.cursor
+    assert stale.session.revision == moved.session.revision
 
 
 def test_a_closed_session_refuses_everything_but_says_when_it_expired():

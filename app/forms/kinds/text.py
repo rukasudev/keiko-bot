@@ -7,7 +7,7 @@ from typing import Any
 
 from app.forms.definitions.schema import TextField, TextStep
 from app.forms.engine.screen import FileInput, Input, Screen, TextInputs
-from app.forms.engine.session import Answer, FormSession
+from app.forms.engine.session import Answer, EditItem, FormSession
 from app.forms.extensions.copy import text
 from app.forms.extensions.transforms import transform
 from app.forms.extensions.validators import ValidationContext, validator
@@ -111,10 +111,22 @@ def _validate(
     error = check.check(
         value,
         ValidationContext(
-            answers=session.values(), items=context.items, external=context.external
+            answers=session.values(),
+            items=_other_items(session, context.items),
+            external=context.external,
         ),
     )
     return Refusal(error) if error else None
+
+
+def _other_items(
+    session: FormSession, items: Sequence[Mapping[str, Any]]
+) -> tuple[Mapping[str, Any], ...]:
+    """The composition's items except the one this session edits."""
+    mode = session.mode
+    if isinstance(mode, EditItem):
+        return tuple(item for i, item in enumerate(items) if i != mode.index)
+    return tuple(items)
 
 
 def _scalar(step: TextStep, values: Sequence[str]) -> Any:

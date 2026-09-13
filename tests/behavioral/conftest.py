@@ -23,6 +23,10 @@ def pytest_addoption(parser):
         "--update-golden", action="store_true", default=False,
         help="rewrite the golden transcripts from the engine under test",
     )
+    parser.addoption(
+        "--engine", action="store", default="legacy", choices=("legacy", "v2"),
+        help="which form engine the scenarios drive",
+    )
 
 
 @pytest.fixture(autouse=True)
@@ -31,14 +35,20 @@ def _repo_root_cwd(monkeypatch):
 
 
 @pytest.fixture
-def scenario_factory(deps):
+def engine(request) -> str:
+    """The form engine under test: `legacy` unless `--engine v2`."""
+    return request.config.getoption("--engine", default="legacy")
+
+
+@pytest.fixture
+def scenario_factory(deps, engine):
     """Build FormScenario instances bound to a fresh mock guild + Mongo."""
 
     def factory(locale: str = "pt-br", guild=None, user=None) -> FormScenario:
         guild = guild or create_guild()
         user = user or create_member(guild, id=555, name="Tester")
         return FormScenario(guild=guild, user=user, locale=locale,
-                            mongo=deps.mongo_client)
+                            mongo=deps.mongo_client, engine=engine)
 
     return factory
 

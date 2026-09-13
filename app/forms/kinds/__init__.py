@@ -18,6 +18,7 @@ class Refusal:
     error_key: str
     args: Mapping[str, str] | None = None
     plain: bool = False
+    delete_after: int | None = 10
 
 
 Render = Callable[["Any", FormSession, RenderContext], Screen]

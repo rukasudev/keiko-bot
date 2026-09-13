@@ -86,5 +86,5 @@ def parse(
         _ids(payload) if payload is not None else (_ids(draft.raw) if draft else ())
     )
     if step.required and not values:
-        return Refusal("selection-required", plain=True)
+        return Refusal("selection-required", plain=True, delete_after=5)
     return {step.key: Answer(_stored(values) if values else [])}

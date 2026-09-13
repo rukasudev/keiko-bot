@@ -46,7 +46,9 @@ def settings_summary(listed: Sequence[ResponseView], locale: str) -> str:
         if view.hidden:
             continue
         if view.style == "composition":
-            result += f"\n{composition_lines(view.title, view.value, locale)}"
+            lines = composition_lines(view.title, view.value, locale)
+            if lines:
+                result += f"\n{lines}"
             continue
         formatted = format_value(view.value, view.style, locale)
         if isinstance(formatted, str) and "\n" in formatted:
