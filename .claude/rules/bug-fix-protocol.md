@@ -7,8 +7,10 @@ were reintroduced.
 1. **Reproduce with a failing test.** Translate the reported behavior into an
    automated test at the most realistic appropriate layer:
    - unit test — isolated pure logic;
-   - YAML contract test (`tests/behavioral/test_form_yaml_contracts.py`) —
-     configuration resolution;
+   - definition test (`tests/forms/definitions/`) — a form that must or
+     must not compile, a rule the compiler must check;
+   - engine test (`tests/forms/engine/`) — one event on one session,
+     asserted on the decision's session and effects;
    - behavioral scenario (`tests/behavioral/scenarios/`) — user interaction
      flows (see `docs/form-scenario-testing.md`);
    - shared-component contract (`tests/behavioral/contracts/`) — reusable

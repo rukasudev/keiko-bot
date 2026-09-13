@@ -1,19 +1,22 @@
-"""FormScenario: drives real Keiko form/manager flows offline.
+"""FormScenario: drives real Keiko form flows offline, on the form platform.
 
-Entry points are the production seams every cog funnels through
-(`send_command_form_message` / `send_command_manager_message` in
-app/services/moderations.py). Everything downstream — YAML, engine,
-components, i18n, data layer — is real; only the Discord transport
+Entry points are the production seams every cog funnels through: the
+adapter's `open_feature` (a slash command, a `/setup` or a greeting button).
+Everything downstream — YAML definitions, the engine, the renderer, i18n,
+features, the data layer — is real; only the Discord transport
 (FakeInteraction) and Mongo/Redis (existing mocks) are fake.
 """
 import asyncio
-import importlib
+import copy
+import datetime
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional, Sequence, Union
 
 import discord
 
-from app.views.composition import FormComposition
+from app.forms.adapters.discord.entrypoints import RUNTIME
+from app.forms.adapters.discord.ids import decode as decode_component_id
+from app.forms.kinds.manage import confirmation_word
 from tests.behavioral.harness import locators
 from tests.behavioral.harness.errors import (
     LocatorError,
@@ -21,34 +24,15 @@ from tests.behavioral.harness.errors import (
 )
 from tests.behavioral.harness.fake_interaction import FakeInteraction
 from tests.behavioral.harness.message_store import FakeMessage, MessageStore
+from tests.behavioral.harness.normalizer import is_session_coded
 from tests.behavioral.harness.transcript import format_transcript
-
-AUTO = object()
 
 _LOCALES = {
     "pt-br": discord.Locale.brazil_portuguese,
     "en-us": discord.Locale.american_english,
 }
 
-# Mirrors the cog wiring: which commands pass a custom persistence_callback /
-# settings_provider to the generic moderation entry points.
-_PERSISTENCE = {"reminders_birthday": ("app.services.reminders_birthdays", "persist_setup_form")}
-_SETTINGS_PROVIDERS = {"reminders_birthday": ("app.services.reminders_birthdays", "birthday_manager_settings")}
-# Buttons a command adds to its own manager panel, resolved the same way, so
-# scenarios exercise the panel the user actually sees.
-_ADDITIONAL_BUTTONS = {"block_links": ("app.services.block_links", "_manager_buttons")}
-_MANAGER_INFO = {"block_links": ("app.services.block_links", "_manager_info")}
-_MANAGER_INFO_TITLE = {"block_links": ("app.services.block_links", "_manager_info_title")}
-
 _CONTENT_KINDS = ("send", "edit", "followup_send", "followup_edit", "edit_original")
-
-
-def _resolve(registry: Dict[str, tuple], command_key: str):
-    entry = registry.get(command_key)
-    if entry is None:
-        return None
-    module, attribute = entry
-    return getattr(importlib.import_module(module), attribute)
 
 
 class FormScenario:
@@ -59,57 +43,51 @@ class FormScenario:
         self.user = user
         self.db = mongo
         self.store = MessageStore()
-        self.form_view = None
-        self.manager_view = None
         self.command_key: Optional[str] = None
 
     # ------------------------------------------------------------------ setup
 
-    async def start(self, command_key: str, *, persistence_callback=AUTO) -> "FormScenario":
-        from app.services.moderations import send_command_form_message
-
-        if persistence_callback is AUTO:
-            persistence_callback = _resolve(_PERSISTENCE, command_key)
+    async def start(self, command_key: str) -> "FormScenario":
+        """Open the command with nothing saved: the setup form."""
         self.command_key = command_key
         self.store.record("start", actor="user", target=command_key,
                           values=self.locale_str)
-        interaction = self._mint()
-        await send_command_form_message(interaction, command_key,
-                                        persistence_callback=persistence_callback)
-        self.form_view = self.current_message.view
-        self.store.step_provider = self._current_step_key
+        await self._open_feature(self._mint(), command_key)
         return self
 
-    async def start_manager(self, command_key: str, cog_data: Dict[str, Any], *,
-                            settings_provider=AUTO, lifecycle_callbacks=None,
-                            additional_info: str = "") -> "FormScenario":
-        from app.services.moderations import send_command_manager_message
-
-        if settings_provider is AUTO:
-            settings_provider = _resolve(_SETTINGS_PROVIDERS, command_key)
-        buttons_provider = _resolve(_ADDITIONAL_BUTTONS, command_key)
-        additional_buttons = (
-            buttons_provider(self.locale_str) if buttons_provider else None
-        )
-        info_provider = _resolve(_MANAGER_INFO, command_key)
-        if not additional_info and info_provider:
-            additional_info = info_provider(self.locale_str)
-        title_provider = _resolve(_MANAGER_INFO_TITLE, command_key)
-        additional_info_title = title_provider(self.locale_str) if title_provider else ""
+    async def start_manager(self, command_key: str, cog_data: Dict[str, Any]) -> "FormScenario":
+        """Open the command over a saved document: the manager panel."""
         self.command_key = command_key
         self.store.record("start_manager", actor="user", target=command_key,
                           values=self.locale_str)
-        interaction = self._mint()
-        await send_command_manager_message(
-            interaction, command_key, cog_data,
-            additional_info=additional_info,
-            additional_buttons=additional_buttons,
-            settings_provider=settings_provider,
-            lifecycle_callbacks=lifecycle_callbacks,
-            additional_info_title=additional_info_title,
-        )
-        self.manager_view = self.current_message.view
+        self._seed_document(command_key, cog_data)
+        await self._open_feature(self._mint(), command_key)
         return self
+
+    async def start_command(self, command_key: str) -> "FormScenario":
+        """Open the command the way a slash command or a /setup button does:
+        the platform routes to the setup form or the manager from what is
+        saved (seed Mongo first)."""
+        self.command_key = command_key
+        self.store.record("start_command", actor="user", target=command_key,
+                          values=self.locale_str)
+        await self._open_feature(self._mint(), command_key)
+        return self
+
+    async def _open_feature(self, interaction, command_key: str) -> None:
+        await RUNTIME.open_feature(interaction, command_key)
+        self.store.step_provider = self._current_step_key
+
+    def _seed_document(self, command_key: str, cog_data: Dict[str, Any]) -> None:
+        """What the old manager received as an argument, the platform reads from Mongo."""
+        document = copy.deepcopy(cog_data)
+        document["guild_id"] = str(self.guild.id)
+        collection = self.db.guild[command_key]
+        if collection.find_one({"guild_id": str(self.guild.id)}) is None:
+            collection.insert_one(document)
+        self.db.guild.moderations.insert_one(
+            {"guild_id": str(self.guild.id), command_key: True}
+        )
 
     # ------------------------------------------------------------ user actions
 
@@ -117,8 +95,8 @@ class FormScenario:
         message = self._require_message()
         button = locators.find_button(message, target, self.locale)
         custom_id = button.custom_id if getattr(button, "_provided_custom_id", False) else None
-        self.store.record("click", actor="user", message=message.id,
-                          target=target, custom_id=custom_id)
+        self.store.record("click", actor="user", message=message.id, target=target,
+                          custom_id=None if is_session_coded(custom_id) else custom_id)
         interaction = self._mint(message=message, custom_id=custom_id)
         await locators.dispatch_click(message.view, button, interaction)
 
@@ -173,12 +151,13 @@ class FormScenario:
         return [i.label for i in self._modal_inputs(modal)]
 
     async def submit_confirmation(self, word: Optional[str] = None) -> None:
-        """Submit a ConfirmationModal (pause/disable flows). Defaults to the
-        correct action word; pass a wrong `word` to test the rejection path."""
+        """Submit the typed confirmation of a lifecycle action (pause, unpause,
+        disable). Defaults to the correct word; pass a wrong `word` to test
+        the rejection path."""
         modal = self.store.pending_modal
         if modal is None:
             raise LocatorError("no confirmation modal is pending", self.transcript)
-        typed = word if word is not None else getattr(modal, "action", None)
+        typed = word if word is not None else self._confirmation_word(modal)
         inputs = self._modal_inputs(modal)
         inputs[0]._value = typed
         self.store.pending_modal = None
@@ -187,9 +166,9 @@ class FormScenario:
 
     async def submit_file_upload(self, *, filename: str = "image.png",
                                  content: bytes = b"fake-image-bytes") -> None:
-        """Submit a pending FileUploadModal with a fake attachment."""
+        """Submit a pending file-upload modal with a fake attachment."""
         modal = self.store.pending_modal
-        if modal is None or not hasattr(modal, "file_upload"):
+        if modal is None or getattr(modal, "file_upload", None) is None:
             raise LocatorError("no file-upload modal is pending", self.transcript)
 
         async def read():
@@ -210,12 +189,13 @@ class FormScenario:
     async def go_back(self) -> None:
         await self.click("back")
 
+    async def expire(self) -> None:
+        """The clock passes every open session's deadline with nobody clicking."""
+        self.store.record("expire", actor="clock")
+        await RUNTIME.expire_stale(datetime.datetime.max.replace(tzinfo=datetime.timezone.utc))
+
     async def finish(self) -> None:
-        """Drain stray tasks the engine may have spawned (design previews)."""
-        for form in (self.form_view,):
-            task = getattr(form, "_preview_task", None)
-            if task is not None and not task.done():
-                task.cancel()
+        """Let any task the flow scheduled settle."""
         await asyncio.sleep(0)
 
     # ------------------------------------------------------------- assertions
@@ -378,24 +358,58 @@ class FormScenario:
         return self.store.current
 
     @property
-    def active_form(self):
-        """The innermost live form (descends into compositions)."""
-        form = self.form_view
-        while form is not None:
-            step = getattr(form, "_step", None)
-            inner_view = getattr(form, "view", None)
-            if step is not None and step.get("action") == "composition" \
-                    and isinstance(inner_view, FormComposition):
-                nested = getattr(inner_view, "form_view", None)
-                if nested is not None and getattr(nested, "_step", None) is not None:
-                    form = nested
-                    continue
-            return form
-        return None
+    def session(self):
+        """The engine session in front of the admin: the one behind the current
+        message, or the child it opened when that child shows a modal."""
+        message = self.current_message
+        session = None
+        for item in locators.clickable_items(message) if message else []:
+            component = decode_component_id(getattr(item, "custom_id", None) or "")
+            if component is not None:
+                session = RUNTIME.store.get(component.session_id)
+                break
+        while session is not None and session.awaiting == "child":
+            children = [c for c in RUNTIME.store.children(session.id) if not c.is_closed]
+            if not children:
+                break
+            session = children[-1]
+        return session
 
     @property
-    def responses(self) -> List[Dict[str, Any]]:
-        return list(self.form_view.responses) if self.form_view else []
+    def card_state(self) -> Dict[str, Any]:
+        """The state the card on screen is drawn from (defaults included)."""
+        from app.forms.definitions.registry import registry
+        from app.forms.definitions.schema import CardStep
+        from app.forms.engine.decide import steps_for
+        from app.forms.engine.documents import document_values
+        from app.forms.engine.rules import Scope
+        from app.forms.kinds.card import state_of
+        from app.forms.kinds.context import RenderContext
+
+        session = self.session
+        if session is None:
+            return {}
+        definition = registry.get(*session.definition)
+        steps = steps_for(definition, session.mode)
+        step = next((s for s in steps if s.key == session.cursor), None)
+        if not isinstance(step, CardStep):
+            return {}
+        state = RUNTIME.sessions.get(session.id)
+        document = state.opened.document if state and state.opened.document else {}
+        context = RenderContext(
+            definition=definition,
+            steps=steps,
+            locale=self.locale_str,
+            scope=Scope(session.values()),
+            document=document_values(document),
+        )
+        return state_of(step, session, context)
+
+    @property
+    def answers(self) -> Dict[str, Any]:
+        """The raw answers of the session on screen, by key."""
+        session = self.session
+        return dict(session.values()) if session is not None else {}
 
     # ---------------------------------------------------------------- internal
 
@@ -412,9 +426,14 @@ class FormScenario:
         return message
 
     def _current_step_key(self) -> Optional[str]:
-        form = self.active_form
-        step = getattr(form, "_step", None) if form is not None else None
-        return step.get("key") if step else None
+        session = self.session
+        return session.cursor if session is not None else None
+
+    def _confirmation_word(self, modal) -> Optional[str]:
+        component = decode_component_id(getattr(modal, "custom_id", None) or "")
+        if component is not None and component.action == "word":
+            return confirmation_word(component.arg or "", self.locale_str)
+        return None
 
     def _last_content_event(self) -> Dict[str, Any]:
         for event in reversed(self.store.events):

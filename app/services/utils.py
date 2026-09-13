@@ -16,7 +16,6 @@ import yaml
 from discord.ext import commands
 from i18n import t
 
-from app.components.modals import ConfirmationModal
 from app.constants import CogsConstants as cogconstants
 from app.constants import Commands as commandconstants
 from app.constants import Emojis as constants
@@ -25,15 +24,6 @@ from app.constants import LogTypes as logconstants
 from app.constants import supported_locales
 
 T = TypeVar("T")
-
-
-async def off_loop(func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
-    """Await a blocking call in a worker thread.
-
-    `requests`, `pymongo` and `time.sleep` on the loop stop the whole bot, and
-    Discord only waits three seconds for an interaction to be acknowledged.
-    """
-    return await asyncio.to_thread(func, *args, **kwargs)
 
 
 def format_relative_time(dt: datetime.datetime) -> str:
@@ -774,38 +764,6 @@ def admin_only_command():
 
     return commands.check(predicate)
 
-
-def need_confirmation_modal(func):
-    async def wrapper(*args, **kwargs):
-        self_instance = args[0]
-        interaction = args[1]
-
-        locale = parse_locale(interaction.locale)
-        action = interaction.data.get("custom_id")
-
-        async def callback_with_all_args(interaction):
-            await func(self_instance, interaction)
-
-        confirmation_modal = ConfirmationModal(
-            action=action,
-            locale=locale,
-            callback=callback_with_all_args,
-        )
-        return await interaction.response.send_modal(confirmation_modal)
-
-    return wrapper
-
-
-def parse_confirmation_title(action: str, locale: str) -> str:
-    title = ml(f"commands.confirmation-modal.title", locale=locale)
-    title = title.replace("$action", action.lower())
-    return title
-
-
-def parse_confirmation_desc(action: str, locale: str) -> str:
-    desc = ml(f"commands.confirmation-modal.desc", locale=locale)
-    desc = desc.replace("$action", action.lower())
-    return desc
 
 def split_welcome_messages(welcome_messages: str) -> List[str]:
     return welcome_messages.split(";")

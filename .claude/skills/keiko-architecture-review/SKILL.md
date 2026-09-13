@@ -61,7 +61,7 @@ into patterns instead of listing every occurrence; distinguish the current archi
 from historical or isolated code; surface the biggest reuse and standardization
 opportunities rather than an unstructured list of minor style issues. You MAY launch
 parallel Explore agents, one per area (cogs+services, views+components, languages+data,
-tests); give each the four required-reading paths and the finding format below, then
+tests); give each the required-reading paths and the finding format below, then
 dedupe, classify severity, and assemble the single report yourself.
 
 ## Required reading
@@ -70,21 +70,27 @@ Read these before producing findings (they are the review criteria; do not resta
 contents in the report beyond what a finding needs):
 
 - `CLAUDE.md` — the core principle and the mandatory decision order.
-- `docs/form-configuration.md` — the form-engine map. Read §4 (extension points/registries)
-  before claiming a capability does or doesn't exist; read §7 before flagging something as
-  a new architecture exception (it may already be a known, documented one); §8 names the
-  enforcement test suite.
+- `docs/form-configuration.md` — the form-platform map. Read §3 (the schema and step
+  kinds) and §5 (extension points/registries) before claiming a capability does or
+  doesn't exist; §6 says what a feature module may and may not do; §7 the adapter's
+  choreography; §9 the decision order for a change; §10 names the enforcement suites.
+  Anything in `app/forms/` that names a command key, imports `discord` outside
+  `adapters/discord/`, blocks the event loop, or reaches another feature's document is a
+  Blocking finding (`tests/forms/test_boundary.py`).
 - `.claude/rules/implementation-planning.md` — decision order details and the anti-patterns
   list findings should cite.
 - `.claude/rules/code-style.md` — maintainer-reviewed code patterns (comments, constants,
   data-layer shape, views scope, Redis key naming, unversioned migrations, generic
   orchestration extracted to generic views, generic helpers in `utils.py` not in feature
-  services, global UI tunables in `ViewConstants`). Audit the scope against every rule in
-  it; these came from real review comments and repeat findings.
+  services, global UI tunables in `ViewConstants`; rules 13 to 18 for `app/forms/`: typed
+  and linted, one-sentence docstrings, no reflection, typed boundaries, no command key,
+  nothing blocking). Audit the scope against every rule in it; these came from real
+  review comments and repeat findings.
 - `docs/testing-strategy.md` — read whenever the scope touches shared
-  infrastructure (form engine, manager, components, formatters, loaders, i18n
-  helpers) or test code: it defines the regression workflow, the consumer
-  contracts, and the change→suite impact map the review must check against.
+  infrastructure (the form platform, its step kinds and extensions, the Discord
+  adapter, components, formatters, i18n helpers) or test code: it defines the
+  regression workflow, the consumer contracts, the golden transcripts and the
+  change→suite impact map the review must check against.
 - `.claude/skills/keiko-writing-style/SKILL.md` — MANDATORY read whenever the scope touches
   user-facing text, `app/languages/`, embeds, forms, modals, buttons, notifications,
   errors, or any visual presentation. It is the source of truth for personality, voice,
@@ -185,13 +191,16 @@ their real results in the validation checklist — never claim tests passed with
 executing them.
 
 - Every scope: run the architectural contract suite once,
-  `.venv/bin/python -m pytest tests/test_reusable_configuration.py -q`. A failure caused
-  by the reviewed code is a Blocking finding.
+  `.venv/bin/python -m pytest tests/forms -q` (boundary, invariants, compiler, engine,
+  adapter). A failure caused by the reviewed code is a Blocking finding. When the scope
+  touches `app/forms/`, also run `make lint` (ruff and `mypy --strict` over the platform).
 - File/directory: also run the matching tests (`tests/test_<module>.py`, else
   `git grep -l <symbol> tests/`). If none exist, record
   `Relevant tests executed: none found for <target>` and consider a test-coverage finding.
 - Branch: run the tests for changed modules; escalate to `make test` when the diff touches
-  the form engine or its registries.
+  the form platform or its registries, and to `pytest tests/behavioral/golden -q` when it
+  touches anything an admin can see (a diff there needs an entry in
+  `docs/ux-changes.md`).
 - Entire project: `make test` once, after exploration.
 
 ## Report format
@@ -243,8 +252,9 @@ Requires architectural adjustments | Conflicts with the current architecture
 
 ## Restrictions
 
-- Do not formalize the YAML system as a complete DSL; do not require enums, Pydantic,
-  JSON Schema, a parser, an AST, or a compiler.
+- Do not ask for more formalism than the platform has: the definition schema
+  (`app/forms/definitions/schema.py`), the compiler and the `when` grammar are the whole
+  contract; do not require a new DSL, a parser or an AST on top of them.
 - Do not suggest a large refactor when a small reuse change solves the issue.
 - Do not recommend YAML-only implementation when the behavior genuinely requires runtime code.
 - Do not treat every new method as duplication.

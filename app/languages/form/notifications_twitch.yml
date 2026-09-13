@@ -14,6 +14,7 @@ steps:
   - action: composition
     key: notifications
     parent_key: notifications_twitch
+    max: 3
     emoji: ":busts_in_silhouette:"
     style: composition
     title:

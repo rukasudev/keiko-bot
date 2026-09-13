@@ -33,7 +33,7 @@ if os.path.isdir(_LANGUAGES_ROOT):
     i18n.set("fallback", "en")
 
 # Early patching happens as side-effect of this import
-from tests.mocks.database import MockRedisClient, MockMongoClient
+from tests.mocks.database import MockMotorClient, MockRedisClient, MockMongoClient
 
 from tests.mocks import (
     create_guild,
@@ -131,6 +131,7 @@ def deps(mongodb, redis_client):
 
     # Banco de dados
     ns.mongo_client = mongodb
+    ns.motor_client = MockMotorClient(mongodb)
     ns.redis_client = redis_client
 
     # APIs mockadas
@@ -181,6 +182,8 @@ def auto_inject_dependencies(deps):
         patch('app.services.default_roles.bot', deps.bot),
         patch('app.services.subscriptions.bot', deps.bot),
         patch('app.data.cogs.mongo_client', deps.mongo_client),
+        patch('app.data.cogs.motor_client', deps.motor_client),
+        patch('app.data.moderations.motor_client', deps.motor_client),
         patch('app.data.notifications_twitch.mongo_client', deps.mongo_client),
         patch('app.data.notifications_youtube_video.mongo_client', deps.mongo_client),
         patch('app.data.moderations.mongo_client', deps.mongo_client),

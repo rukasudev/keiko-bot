@@ -1,4 +1,3 @@
-from importlib import import_module
 from typing import Any, Callable, Dict, List, Optional
 
 from app.constants import Commands as constants
@@ -16,9 +15,6 @@ LIFECYCLE_ANALYTICS_EVENTS = {
     constants.REMOVED_KEY: "feature.item_removed",
 }
 
-CONFIG_STATES_ATTRIBUTE = "config_states"
-
-
 def feature_config_states(feature: str) -> List[Dict[str, Any]]:
     """Every guild's saved configuration, keyed as the feature's form names it.
 
@@ -30,10 +26,11 @@ def feature_config_states(feature: str) -> List[Dict[str, Any]]:
 
 
 def config_states_provider(feature: str) -> Optional[Callable[[], List[Dict[str, Any]]]]:
-    module_path = constants.COMMAND_SERVICES.get(feature)
-    if not module_path:
+    if feature != constants.REMINDERS_BIRTHDAY_KEY:
         return None
-    return getattr(import_module(module_path), CONFIG_STATES_ATTRIBUTE, None)
+    from app.services.reminders_birthdays import config_states
+
+    return config_states
 
 
 def insert_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):

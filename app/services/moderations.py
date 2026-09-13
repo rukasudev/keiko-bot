@@ -1,28 +1,16 @@
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Dict
 
-import discord
-
-from app.components.buttons import HelpButton
-from app.components.embed import parse_form_dict_to_embed
 from app.constants import Commands as commands_constants
 from app.constants import GuildConstants as guild_constants
 from app.data import cogs as cogs_data
 from app.data import moderations as moderations_data
-from app.services import analytics
 from app.services.cogs import insert_cog_event, update_cog_by_guild
-from app.services.utils import (
-    ml,
-    parse_form_titles_descriptions,
-    parse_form_yaml_to_dict,
-    parse_locale,
-    parse_settings_with_database_values,
-)
 
 
 def update_moderations_by_guild(guild_id: str, key: str, value: str):
     if not guild_id:
-        return
+        return None
 
     moderations = moderations_data.find_moderations_by_guild(guild_id)
     if not moderations:
@@ -99,100 +87,3 @@ def insert_error_by_command(cog_key: str, error_message: str):
 
     data = {"error_message": error_message}
     return cogs_data.insert_error_by_command(cog_key, data)
-
-
-def _command_label(interaction: discord.Interaction, key: str) -> str:
-    """The command name the journey message is titled with."""
-    command = getattr(interaction, "command", None)
-    return getattr(command, "qualified_name", None) or key
-
-
-async def send_command_form_message(
-    interaction: discord.Interaction,
-    key: str,
-    persistence_callback: Optional[Callable] = None,
-):
-    from app.views.form import Form
-
-    form_view = Form(
-        command_key=key,
-        locale=parse_locale(interaction.locale),
-    )
-    form_view.source = analytics.resolve_source(interaction)
-    form_view.open_journey(interaction, _command_label(interaction, key))
-    form_view.emit_event("feature.setup_opened", interaction)
-
-    if persistence_callback:
-        form_view._set_persistence_callback(persistence_callback)
-    embed = form_view.get_form_embed()
-    list_titles_descriptions = form_view.get_form_titles_and_descriptions()
-    embed.description += parse_form_titles_descriptions(interaction, list_titles_descriptions)
-
-    await interaction.response.send_message(embed=embed, view=form_view, ephemeral=True)
-
-
-def build_command_manager_message(
-    interaction: discord.Interaction,
-    key: str,
-    cog_data: Dict[str, str],
-    additional_info: str = "",
-    additional_buttons: Optional[List[discord.ui.Button]] = None,
-    settings_provider: Optional[Callable[[discord.Interaction, Dict[str, Any], str], List[Dict[str, Any]]]] = None,
-    enable_composition_controls: bool = True,
-    lifecycle_callbacks: Optional[Dict[str, Callable]] = None,
-    additional_info_title: str = "",
-):
-    """Assemble the manager panel without sending it."""
-    from app.constants import KeikoIcons as icons
-    from app.views.manager import Manager
-    from app.views.manager_panel import ManagerPanelView
-
-    if not additional_buttons:
-        additional_buttons = []
-
-    locale = parse_locale(interaction.locale)
-
-    form_steps = list(parse_form_yaml_to_dict(key))
-    embed = parse_form_dict_to_embed(form_steps[0], locale, True)
-    if settings_provider:
-        description = settings_provider(interaction, cog_data, locale)
-    else:
-        description = parse_settings_with_database_values(cog_data, form_steps, locale)
-
-    view = Manager(
-        key,
-        cog_data,
-        interaction,
-        enable_composition_controls=enable_composition_controls,
-        lifecycle_callbacks=lifecycle_callbacks,
-    )
-    view.source = analytics.resolve_source(interaction)
-    view.open_journey(interaction, _command_label(interaction, key))
-    view.emit_event(
-        "feature.manager_opened", interaction,
-        enabled=bool(cog_data.get(commands_constants.ENABLED_KEY)),
-    )
-
-    if not cog_data.get(commands_constants.ENABLED_KEY):
-        embed.title += f" ({ml('commands.command-events.paused.key', locale=locale)})"
-
-    additional_buttons.append(HelpButton(locale=locale))
-
-    return ManagerPanelView(
-        manager=view,
-        title=embed.title,
-        intro=embed.description,
-        rows=description,
-        locale=locale,
-        thumbnail=icons.IMAGE_01,
-        footer=(form_steps[0].get("footer") or {}).get(locale, ""),
-        info=additional_info,
-        info_title=additional_info_title,
-        extra_buttons=additional_buttons,
-    )
-
-
-async def send_command_manager_message(*args, **kwargs):
-    interaction = args[0] if args else kwargs["interaction"]
-    panel = build_command_manager_message(*args, **kwargs)
-    await interaction.response.send_message(view=panel, ephemeral=True)

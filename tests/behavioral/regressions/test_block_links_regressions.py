@@ -53,10 +53,8 @@ async def test_options_label_mapping_keeps_boolean_gates_untouched(scenario_fact
     await _complete_global_card(scenario)
     await scenario.click("Depois")                # register_now = False (raw)
 
-    gate = next(r for r in scenario.responses if r["key"] == "register_now")
-    assert gate.get("_raw_value", gate["value"]) in (False, "False"), (
-        f"boolean gate must persist raw, got {gate!r}"
-    )
+    gate = scenario.answers["register_now"]
+    assert gate in (False, "False"), f"boolean gate must persist raw, got {gate!r}"
     await scenario.finish()
 
 
@@ -90,15 +88,16 @@ async def test_edit_dropdown_names_a_composition_entry_by_its_configuration_titl
     a select, so the user saw literal backticks (`` `twitch.tv/jway` ``) where
     a configuration name belonged.
 
-    Shared behavior affected: EditCommand._composition_item_label plus the
-    generic Select option builder, consumed by every command with a
-    composition (block_links today, twitch/youtube/birthday through the same
-    view).
+    Shared behavior affected: the edit picker options
+    (app/forms/kinds/manage.py, edit_options), consumed by every command with
+    a composition (block_links today, twitch/youtube/birthday through the
+    same screen).
 
     Guaranteed behavior: the option label is the configuration title with its
     position, the stored value identifies the entry in the option description,
     and no markdown leaks into either."""
-    from app.views.edit import EditCommand
+    from app.forms.definitions.registry import registry
+    from app.forms.kinds.manage import edit_options
 
     cogs = {
         "enabled": True,
@@ -121,11 +120,9 @@ async def test_edit_dropdown_names_a_composition_entry_by_its_configuration_titl
         },
     }
 
-    view = EditCommand("block_links", cogs, "pt-br", callback=None)
-    select = view.children[0]
+    options = edit_options(registry.get("block_links"), cogs, "pt-br")
     entry = next(
-        option for option in select.options
-        if option.value.startswith("custom_links$")
+        option for option in options if option.value.startswith("custom_links$")
     )
 
     assert "`" not in entry.label, (

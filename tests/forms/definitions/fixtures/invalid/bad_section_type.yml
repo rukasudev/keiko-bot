@@ -1,0 +1,19 @@
+steps:
+  - action: form
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - action: configuration_card
+    key: card
+    title: {en-us: Card, pt-br: Card}
+    description: {en-us: card, pt-br: card}
+    sections:
+      - key: colour
+        icon: "🎨"
+        type: rainbow
+        label: {en-us: Colour, pt-br: Cor}
+        state: {value: colour}
+  - action: resume
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

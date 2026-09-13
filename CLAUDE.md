@@ -24,8 +24,13 @@ make clean        # clean cache and venv
 - `app/services/` — business logic; one module per feature command exposing
   `async manager(interaction, guild_id)`, plus shared helpers (`utils.py`, `moderations.py`).
 - `app/data/` — MongoDB access (pymongo); `app/services/cache.py` — Redis caching.
-- `app/views/` + `app/components/` — the generic form/manager UI engine (`form.py`,
-  `manager.py`, `summary_card.py`; buttons, modals, selects, embeds).
+- `app/forms/` — the form platform: `definitions/` (schema, YAML compiler, registry),
+  `engine/` (frozen session, events, effects, `decide`), `kinds/` (one render/parse pair
+  per step kind), `extensions/` (validators, transforms, formatters), `features/` (one
+  module per feature: document, commit, asides) and `adapters/discord/` (the only place
+  that imports `discord`).
+- `app/views/` + `app/components/` — generic Discord UI outside the forms (records
+  browser, pagination, report browser; buttons, selects, embeds).
 - `app/languages/form/<command_key>.yml` — one bilingual YAML per feature command declaring
   its entire interaction flow (`steps:`).
 - `app/languages/{buttons,commands,errors,messages,locales}/<ns>.<locale>.yml` — paired
@@ -33,7 +38,8 @@ make clean        # clean cache and venv
 - `app/integrations/`, `app/webhooks/`, `app/api/` — third-party clients, webhook handlers,
   Flask API.
 - `tests/` — pytest suite; `conftest.py` loads real i18n and mocks Mongo/Redis/Discord.
-  `tests/test_reusable_configuration.py` is the architectural contract suite.
+  `tests/forms/` (boundary, invariants, compiler, engine, adapter) is the architectural
+  contract suite of the platform.
 
 ## Before planning or writing code
 
