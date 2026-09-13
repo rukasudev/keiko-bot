@@ -85,6 +85,25 @@ def test_mismatch_reports_extra_events(tmp_path):
     assert "only in actual: [02] BOT  delete" in str(failure.value)
 
 
+# -------------------------------------------------------------- transport folding
+
+def test_transport_is_folded_before_comparing():
+    through_followup = [_event(1, "click", actor="user"), _event(2, "defer", ephemeral=True),
+                        _event(3, "followup_edit", embed={"title": "x"})]
+    through_response = [_event(1, "click", actor="user"),
+                        _event(2, "edit", embed={"title": "x"})]
+    left, right = golden.apply_deltas(through_followup, through_response, [])
+    assert left == right
+    assert [event["kind"] for event in right] == ["click", "edit"]
+
+
+def test_a_thinking_defer_stays_visible():
+    thinking = [_event(1, "defer", thinking=True, ephemeral=True), _event(2, "followup_send")]
+    silent = [_event(1, "defer", ephemeral=True), _event(2, "followup_send")]
+    left, right = golden.apply_deltas(thinking, silent, [])
+    assert left != right
+
+
 # ---------------------------------------------------------------- allowed deltas
 
 def test_ux1_forgives_a_self_deleting_notice_only():

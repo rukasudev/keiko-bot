@@ -7,6 +7,12 @@ for the deltas listed in `docs/ux-changes.md` and passed by id in `allowed`.
 Component ids never enter a golden. They are the one normalized field the
 user cannot see (`action`, a custom_id production code chose), and the new
 engine encodes session and revision in every id.
+
+Transport is not compared either: a screen edited through the initial
+response, a followup or the original-response endpoint looks the same, and a
+`defer` without "thinking" shows nothing. Both sides are canonicalized to
+`send`, `edit`, `delete` and the visible `defer` before they are compared, so
+an engine is free to choose the call, never the outcome.
 """
 import copy
 import difflib
@@ -21,6 +27,12 @@ Events = List[Dict[str, Any]]
 Delta = Callable[[Events, Events], Tuple[Events, Events]]
 
 INVISIBLE_FIELDS = ("action",)
+TRANSPORT_KINDS = {
+    "followup_edit": "edit",
+    "edit_original": "edit",
+    "followup_send": "send",
+    "delete_original": "delete",
+}
 ERROR_COLOR = 0xFF0000
 DIFF_LINES = 80
 
@@ -40,6 +52,22 @@ def _strip_invisible(node: Any) -> Any:
 def project(events: Events) -> Events:
     """The events as a golden stores them: a deep copy without invisible fields."""
     return [_strip_invisible(copy.deepcopy(event)) for event in events]
+
+
+def _is_silent_defer(event: Dict[str, Any]) -> bool:
+    return event.get("kind") == "defer" and not event.get("thinking")
+
+
+def canonical(events: Events) -> Events:
+    """The events with transport folded away: what the admin could tell apart."""
+    kept = []
+    for event in events:
+        if _is_silent_defer(event):
+            continue
+        folded = dict(event)
+        folded["kind"] = TRANSPORT_KINDS.get(event.get("kind"), event.get("kind"))
+        kept.append(folded)
+    return _renumber(kept)
 
 
 def dump(events: Events) -> str:
@@ -67,7 +95,7 @@ def _renumber(events: Events) -> Events:
 def _is_notice(event: Dict[str, Any]) -> bool:
     return (
         event.get("actor") == "bot"
-        and event.get("kind") == "followup_send"
+        and event.get("kind") == "send"
         and event.get("delete_after") is not None
     )
 
@@ -76,7 +104,7 @@ def _is_ephemeral_error(event: Dict[str, Any]) -> bool:
     embed = event.get("embed") or {}
     return (
         event.get("actor") == "bot"
-        and event.get("kind") == "followup_send"
+        and event.get("kind") == "send"
         and bool(event.get("ephemeral"))
         and embed.get("color") == ERROR_COLOR
     )
@@ -124,7 +152,7 @@ def _send_before_delete(events: Events) -> Events:
     index = 0
     while index + 1 < len(ordered):
         first, second = ordered[index], ordered[index + 1]
-        if first.get("kind") == "delete" and second.get("kind") == "followup_send":
+        if first.get("kind") == "delete" and second.get("kind") == "send":
             ordered[index], ordered[index + 1] = second, first
             index += 2
             continue
@@ -143,7 +171,7 @@ def _card_replaced_after_item_added(expected: Events,
     kept = []
     for index, event in enumerate(actual):
         previous = actual[index - 1] if index else None
-        follows_send = bool(previous) and previous.get("kind") == "followup_send"
+        follows_send = bool(previous) and previous.get("kind") == "send"
         expected_delete = index < len(expected) and expected[index].get("kind") == "delete"
         if event.get("kind") == "delete" and follows_send and not expected_delete:
             continue
@@ -162,8 +190,8 @@ DELTAS: Dict[str, Delta] = {
 
 def apply_deltas(expected: Events, actual: Events,
                  allowed: Iterable[str]) -> Tuple[Events, Events]:
-    """Canonicalize both sides under the allowed deltas, then renumber."""
-    expected, actual = copy.deepcopy(expected), copy.deepcopy(actual)
+    """Fold transport away, canonicalize under the allowed deltas, renumber."""
+    expected, actual = canonical(copy.deepcopy(expected)), canonical(copy.deepcopy(actual))
     for delta_id in allowed:
         expected, actual = DELTAS[delta_id](expected, actual)
     return _renumber(expected), _renumber(actual)
