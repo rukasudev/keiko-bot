@@ -74,7 +74,7 @@ def test_answer_parts_are_read_only():
 @given(
     st.lists(st.sampled_from(["answer", "status", "cursor", "remember"]), max_size=30)
 )
-def test_every_change_bumps_the_revision_by_exactly_one(steps):
+def test_every_state_change_bumps_the_revision_by_exactly_one(steps):
     session = fresh()
     for step in steps:
         before = session.revision
@@ -86,6 +86,8 @@ def test_every_change_bumps_the_revision_by_exactly_one(steps):
             session = session.at("k")
         else:
             session = session.remember("e")
+            assert session.revision == before, "remembering an event is bookkeeping"
+            continue
         assert session.revision == before + 1
 
 

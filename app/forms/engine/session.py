@@ -134,6 +134,7 @@ class FormSession:
     parent_id: str | None
     expires_at: datetime
     awaiting: str | None = None
+    screen_revision: int = 0
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "answers", _frozen(self.answers))
@@ -186,9 +187,13 @@ class FormSession:
         return self._next(status=status, awaiting=awaiting)
 
     def remember(self, event_id: str) -> FormSession:
-        """The session that has applied `event_id`, revision bumped."""
+        """The session that has applied `event_id`; bookkeeping, no revision."""
         seen = (*self.seen_events, event_id)[-SEEN_EVENTS_KEPT:]
-        return self._next(seen_events=seen)
+        return replace(self, seen_events=seen)
+
+    def rendered(self) -> FormSession:
+        """The session whose screen now shows this revision."""
+        return replace(self, screen_revision=self.revision)
 
     def has_seen(self, event_id: str) -> bool:
         """True when `event_id` was applied to this session already."""
