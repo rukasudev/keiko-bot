@@ -160,6 +160,22 @@ class Trace:
             journey.lines.append(dict(line))
         self.superseded = True
 
+    def handover(self) -> "Trace":
+        """The trace that carries this unit of work on after its first owner returns."""
+        successor = Trace(
+            self.name,
+            source=self.source,
+            guild_id=self.guild_id,
+            user_id=self.user_id,
+            feature=self.feature,
+            session_id=self.session_id,
+            silent_when_clean=self.silent_when_clean,
+        )
+        successor.started_at = self.started_at
+        successor.footnote = self.footnote
+        self.supersede(successor)
+        return successor
+
     def _implicit_result(self) -> str:
         if self.has_error:
             return constants.TRACE_RESULT_FAILURE
@@ -226,7 +242,9 @@ class trace_scope:
         return False
 
 
-async def run_traced(coroutine: Any, name: str, **kwargs: Any) -> None:
+async def run_traced(
+    coroutine: Any, name: str, *, trace: Optional[Trace] = None, **kwargs: Any
+) -> None:
     """Await work that outlives whatever scheduled it, under a trace of its own.
 
     A task inherits the context it was created in, so background work started
@@ -242,8 +260,10 @@ async def run_traced(coroutine: Any, name: str, **kwargs: Any) -> None:
     A failure is recorded and swallowed. This is fire-and-forget work — there is
     no caller left to raise to, and an exception escaping into a task nobody
     awaits is only a warning on stderr.
+
+    A `trace` handed over by the caller continues the caller's message.
     """
-    trace = Trace(name, **kwargs)
+    trace = trace or Trace(name, **kwargs)
     token = _current_trace.set(trace)
     try:
         await coroutine
