@@ -376,7 +376,7 @@ events:
     version: 1
     class: [event, counter]
     description: The /help command was opened.
-    emitted_at: app/cogs/base/help.py
+    emitted_at: app/services/help.py — send_help, from /help and the /setup Commands button
     actor: user
     required: [source]
     optional: []

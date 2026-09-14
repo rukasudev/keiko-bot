@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 import discord
 
@@ -6,7 +6,11 @@ from app.services.utils import get_command_display_name, ml
 
 
 def parse_history_data(
-    data: List[Dict[str, Any]], interaction: discord.Interaction, guild: discord.Guild=None, with_cog: bool = None
+    data: List[Dict[str, Any]],
+    interaction: discord.Interaction,
+    guild: discord.Guild = None,
+    with_cog: bool = None,
+    label_for: Optional[Callable[[str], str]] = None,
 ) -> Dict[str, Any]:
     system_desc = ml(
         "commands.command-events.system.description", locale=interaction.locale
@@ -33,6 +37,9 @@ def parse_history_data(
 
         if is_bot_user:
             desc += f" _({system_desc})_"
+
+        if label_for is not None:
+            desc = f"{label_for(item['cog_key'])} · {desc}"
 
         if key not in response:
             response[key] = []

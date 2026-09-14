@@ -151,6 +151,15 @@ en-us:
     manage:
       label: Manage
       desc: Manage this feature
+    commands:
+      label: Commands
+      desc: See every command I have
+    permissions:
+      label: Permissions
+      desc: Check what I need for each feature
+    support:
+      label: Support
+      desc: Join my official server for help
     dashboard:
       label: Setup
       desc: See all features and their status

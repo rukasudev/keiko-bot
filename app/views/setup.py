@@ -5,6 +5,7 @@ from app import logger
 from app.constants import Commands as commands_constants
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
+from app.components.buttons import GenericButton
 from app.constants import ViewConstants as view_constants
 from app.data.cogs import find_cog_by_guild_id_async
 from app.data.moderations import find_moderations_by_guild_async
@@ -38,6 +39,39 @@ def _row_text(feature: dict, state: str, locale: str) -> str:
     if state == "paused":
         details.insert(0, ml(f"{base}.paused", locale))
     return f"{feature['emoji']} **{name}**\n-# " + " · ".join(details)
+
+
+async def _open_commands(interaction: discord.Interaction) -> None:
+    from app.services.help import send_help
+
+    await send_help(interaction, "setup_dashboard", ephemeral=True)
+
+
+async def _open_history(interaction: discord.Interaction) -> None:
+    from app.services.setup import send_history
+
+    await send_history(interaction)
+
+
+async def _open_permissions(interaction: discord.Interaction) -> None:
+    from app.services.setup import send_permissions
+
+    await send_permissions(interaction)
+
+
+def _card_buttons(locale: str) -> list:
+    grey = discord.ButtonStyle.secondary
+    return [
+        GenericButton(ml("buttons.setup.commands.label", locale), _open_commands, grey, emoji="📚"),
+        GenericButton(ml("buttons.history.label", locale), _open_history, grey, emoji="📜"),
+        GenericButton(ml("buttons.setup.permissions.label", locale), _open_permissions, grey, emoji="🩺"),
+        discord.ui.Button(
+            label=ml("buttons.setup.support.label", locale),
+            emoji="💬",
+            style=discord.ButtonStyle.link,
+            url=commands_constants.SUPPORT_SERVER_URL,
+        ),
+    ]
 
 
 class SetupFeatureButton(discord.ui.Button):
@@ -104,6 +138,8 @@ async def setup_dashboard(guild_id: str, locale: str) -> discord.ui.LayoutView:
                 feature["command_key"], ml(label_key, locale), group_key == "configured"
             )
             layout.row(card, _row_text(feature, state, locale), button, separated=False)
+    card.add_item(discord.ui.Separator())
+    card.add_item(discord.ui.ActionRow(*_card_buttons(locale)))
     layout.footer(card, f"• {ml(f'{base}.footer', locale)}")
 
     view = SetupView()

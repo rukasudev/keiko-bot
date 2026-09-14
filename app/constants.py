@@ -1,4 +1,4 @@
-from typing import Dict, Final, List
+from typing import Any, Dict, Final, List
 
 import discord
 
@@ -151,14 +151,21 @@ class Commands:
         WELCOME_MESSAGES_KEY,
     ]
 
-    SETUP_FEATURES: Final[List[Dict[str, str]]] = [
-        {"command_key": WELCOME_MESSAGES_KEY, "button_key": "welcome-messages", "emoji": "🎉"},
-        {"command_key": DEFAULT_ROLES_KEY, "button_key": "default-roles", "emoji": "👩‍🎓"},
-        {"command_key": BLOCK_LINKS_KEY, "button_key": "block-links", "emoji": "🚫"},
-        {"command_key": NOTIFICATIONS_TWITCH_KEY, "button_key": "twitch", "emoji": "📡"},
-        {"command_key": NOTIFICATIONS_YOUTUBE_VIDEO_KEY, "button_key": "youtube", "emoji": "▶️"},
-        {"command_key": REMINDERS_BIRTHDAY_KEY, "button_key": "birthdays", "emoji": "🎂"},
+    SETUP_FEATURES: Final[List[Dict[str, Any]]] = [
+        {"command_key": WELCOME_MESSAGES_KEY, "button_key": "welcome-messages", "emoji": "🎉",
+         "channel_permissions": ["view_channel", "send_messages", "embed_links", "attach_files"]},
+        {"command_key": DEFAULT_ROLES_KEY, "button_key": "default-roles", "emoji": "👩‍🎓",
+         "server_permissions": ["manage_roles"], "assigns_roles": True},
+        {"command_key": BLOCK_LINKS_KEY, "button_key": "block-links", "emoji": "🚫",
+         "server_permissions": ["manage_messages"]},
+        {"command_key": NOTIFICATIONS_TWITCH_KEY, "button_key": "twitch", "emoji": "📡",
+         "channel_permissions": ["view_channel", "send_messages", "embed_links"]},
+        {"command_key": NOTIFICATIONS_YOUTUBE_VIDEO_KEY, "button_key": "youtube", "emoji": "▶️",
+         "channel_permissions": ["view_channel", "send_messages", "embed_links"]},
+        {"command_key": REMINDERS_BIRTHDAY_KEY, "button_key": "birthdays", "emoji": "🎂",
+         "channel_permissions": ["view_channel", "send_messages", "embed_links"]},
     ]
+    SUPPORT_SERVER_URL: Final[str] = "https://discord.gg/Hdg239Cvbd"
 
     FEATURE_COMMANDS: Final[Dict[str, Dict[str, str]]] = {
         WELCOME_MESSAGES_KEY: {"group": "moderations", "namespace": "welcome-messages"},

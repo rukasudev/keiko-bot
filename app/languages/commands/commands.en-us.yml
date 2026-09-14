@@ -254,6 +254,25 @@ en-us:
           twitch: Notifies you when your streamers go live
           youtube: Notifies you when a new video is out
           birthdays: Birthday wishes for your members
+      history:
+        desc: "The latest changes across all my features in this server:"
+        empty: "No changes recorded here yet. Set up a feature and it shows up in this list!"
+      permissions:
+        title: "🩺 Keiko's Permissions"
+        desc: "I checked what I need for each configured feature:"
+        ok: "✅ All good here"
+        nothing: "No feature is set up yet, so there is nothing for me to check. Set one up and come back!"
+        server: "⚠️ I need the **{permission}** permission in the server"
+        channel: "⚠️ I need the **{permission}** permission in <#{channel}>"
+        channel-gone: "⚠️ A configured channel no longer exists"
+        role-above: "⚠️ The <@&{role}> role is above mine, so I can't assign it"
+        names:
+          view_channel: View Channels
+          send_messages: Send Messages
+          embed_links: Embed Links
+          attach_files: Attach Files
+          manage_roles: Manage Roles
+          manage_messages: Manage Messages
 
   groups:
     moderations: moderations

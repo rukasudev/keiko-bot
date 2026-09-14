@@ -150,6 +150,15 @@ pt-br:
     manage:
       label: Gerenciar
       desc: Gerenciar esta funcionalidade
+    commands:
+      label: Comandos
+      desc: Veja todos os meus comandos
+    permissions:
+      label: Permissões
+      desc: Confira o que eu preciso para cada funcionalidade
+    support:
+      label: Suporte
+      desc: Entre no meu servidor oficial para pedir ajuda
     dashboard:
       label: Configurar
       desc: Veja todas as funcionalidades e seus status

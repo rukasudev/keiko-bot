@@ -227,3 +227,43 @@ async def test_the_greeting_dashboard_button_sends_the_same_screen(configured):
     kwargs = sent.await_args.kwargs
     assert isinstance(kwargs["view"], discord.ui.LayoutView)
     assert kwargs.get("embed") is None, "a Components V2 message carries no embed"
+
+
+def action_row_buttons(view):
+    rows = [item for item in walk_items(view) if isinstance(item, discord.ui.ActionRow)]
+    assert len(rows) == 1, "one row of buttons closes the card"
+    return list(rows[0].children)
+
+
+async def test_the_card_ends_with_commands_history_permissions_and_support(configured):
+    buttons = action_row_buttons(await dashboard())
+
+    assert [button.label for button in buttons] == [
+        ml("buttons.setup.commands.label", "pt-br"),
+        ml("buttons.history.label", "pt-br"),
+        ml("buttons.setup.permissions.label", "pt-br"),
+        ml("buttons.setup.support.label", "pt-br"),
+    ]
+    support = buttons[-1]
+    assert support.style is discord.ButtonStyle.link
+    assert support.url == Commands.SUPPORT_SERVER_URL
+
+
+@pytest.mark.parametrize("position,module,function", [
+    (0, "app.services.help", "send_help"),
+    (1, "app.services.setup", "send_history"),
+    (2, "app.services.setup", "send_permissions"),
+])
+async def test_each_card_button_opens_its_screen(
+    configured, monkeypatch, position, module, function
+):
+    import importlib
+
+    opened = AsyncMock()
+    monkeypatch.setattr(importlib.import_module(module), function, opened)
+    interaction = SimpleNamespace()
+
+    await action_row_buttons(await dashboard())[position].callback(interaction)
+
+    assert opened.await_args.args[0] is interaction
+
