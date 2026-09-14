@@ -138,10 +138,9 @@ async def setup_dashboard(guild_id: str, locale: str) -> discord.ui.LayoutView:
                 feature["command_key"], ml(label_key, locale), group_key == "configured"
             )
             layout.row(card, _row_text(feature, state, locale), button, separated=False)
-    card.add_item(discord.ui.Separator())
-    card.add_item(discord.ui.ActionRow(*_card_buttons(locale)))
     layout.footer(card, f"• {ml(f'{base}.footer', locale)}")
 
     view = SetupView()
     view.add_item(card)
+    view.add_item(discord.ui.ActionRow(*_card_buttons(locale)))
     return view

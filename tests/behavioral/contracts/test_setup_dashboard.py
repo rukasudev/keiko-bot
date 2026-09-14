@@ -235,6 +235,19 @@ def action_row_buttons(view):
     return list(rows[0].children)
 
 
+async def test_the_button_row_sits_below_the_card_not_inside_it(configured):
+    view = await dashboard()
+
+    top_level = list(view.children)
+    assert [type(item) for item in top_level] == [
+        discord.ui.Container,
+        discord.ui.ActionRow,
+    ], "the card first, then its buttons outside the coloured frame"
+    inside = list(walk_items(top_level[0]))
+    assert not any(isinstance(item, discord.ui.ActionRow) for item in inside)
+    assert inside[-1].content.startswith("-# • "), "the footer still closes the card"
+
+
 async def test_the_card_ends_with_commands_history_permissions_and_support(configured):
     buttons = action_row_buttons(await dashboard())
 
