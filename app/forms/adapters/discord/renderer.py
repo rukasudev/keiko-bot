@@ -15,6 +15,7 @@ import discord
 
 from app.constants import DiscordLimits, Style
 from app.constants import ViewConstants as view_constants
+from app.forms.adapters.discord import layout
 from app.forms.adapters.discord.ids import encode
 from app.forms.engine.screen import (
     Button,
@@ -341,30 +342,16 @@ def _card(
 def _panel(
     container: discord.ui.Container[Any], panel: Panel, ids: Ids, dispatcher: Dispatcher
 ) -> None:
-    header = [f"## {panel.title}"]
-    if panel.intro:
-        header.append(panel.intro)
-    if panel.thumbnail:
-        container.add_item(
-            discord.ui.Section(*header, accessory=discord.ui.Thumbnail(panel.thumbnail))
-        )
-    else:
-        for line in header:
-            container.add_item(discord.ui.TextDisplay(line))
+    layout.header(container, panel.title, panel.intro, panel.thumbnail)
     for group in panel.groups:
-        container.add_item(discord.ui.Separator())
-        body = "\n".join(group.lines)
+        accessory = None
         if group.key:
             spec = Button(panel.edit_label, f"edit:{group.key}", "secondary", "✏️")
-            container.add_item(
-                discord.ui.Section(body, accessory=_button(dispatcher, ids, spec))
-            )
-        else:
-            container.add_item(discord.ui.TextDisplay(body))
+            accessory = _button(dispatcher, ids, spec)
+        layout.row(container, "\n".join(group.lines), accessory)
     if panel.info:
-        container.add_item(discord.ui.Separator())
         heading = f"### {panel.info_title}\n" if panel.info_title else ""
-        container.add_item(discord.ui.TextDisplay(f"{heading}{panel.info}"))
+        layout.row(container, f"{heading}{panel.info}")
     container.add_item(discord.ui.Separator())
 
 
@@ -400,9 +387,9 @@ def layout_of(
     accent = (
         discord.Colour.blurple()
         if any(isinstance(c, Gallery) for c in screen.components)
-        else discord.Colour(int(Style.BACKGROUND_COLOR, 16))
+        else None
     )
-    container: discord.ui.Container[Any] = discord.ui.Container(accent_colour=accent)
+    container = layout.container(accent)
     is_picker = not screen.components or not isinstance(
         screen.components[0], (Card, Panel, Gallery)
     )
@@ -423,8 +410,7 @@ def layout_of(
     for row in _action_rows(action_buttons):
         container.add_item(row)
     if screen.layout_footer:
-        container.add_item(discord.ui.Separator())
-        container.add_item(discord.ui.TextDisplay(f"-# {screen.layout_footer}"))
+        layout.footer(container, screen.layout_footer)
     view.add_item(container)
     return view
 

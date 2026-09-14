@@ -240,11 +240,12 @@ en-us:
       desc: Keiko shows you all features available and helps you set them up
       embed:
         title: "⚙️ Server Setup"
-        desc: "Here you can see and manage all my features! Use the buttons below or type the command to get started 🐾"
+        desc: "Hi! I'm **Keiko** 🐶 and I'm here to make your server feel just right. Pick a feature below and I'll guide you step by step!"
+        progress: "**{ready} of {total}** features set up"
         enabled: Enabled
         not-configured: Not configured
         paused: Paused
-        all-configured: "All features are configured! Use each command to manage them ✨"
+        all-configured: "Everything is set up! Use the buttons to fine-tune whatever you like ✨"
         footer: "Use the `/report` command to tell me a bug"
 
   groups:

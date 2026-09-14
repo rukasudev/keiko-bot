@@ -1,14 +1,18 @@
+"""The /setup card: every feature Keiko offers, its status, and a button to open it."""
 import discord
 
 from app import logger
 from app.constants import Commands as commands_constants
+from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
-from app.constants import Style as style
 from app.constants import ViewConstants as view_constants
-from app.data.cogs import find_cog_by_guild_id
+from app.data.cogs import find_cog_by_guild_id_async
+from app.data.moderations import find_moderations_by_guild_async
+from app.forms.adapters.discord import layout
 from app.services.utils import ml
 
-def _get_translated_command(command_key: str, locale: str) -> str:
+
+def _translated_command(command_key: str, locale: str) -> str:
     info = commands_constants.FEATURE_COMMANDS[command_key]
     group = ml(f"commands.groups.{info['group']}", locale)
     subgroup = ml(f"commands.commands.{info['namespace']}.subgroup", locale)
@@ -16,20 +20,24 @@ def _get_translated_command(command_key: str, locale: str) -> str:
     return f"/{group} {subgroup} {name}"
 
 
-def _get_translated_group(command_key: str, locale: str) -> str:
-    info = commands_constants.FEATURE_COMMANDS[command_key]
-    return ml(f"commands.groups.{info['group']}", locale).capitalize()
+async def _status(guild_id: str, command_key: str, moderations: dict) -> tuple:
+    if not moderations.get(command_key, False):
+        return "not-configured", "🔴"
+    cog_data = await find_cog_by_guild_id_async(guild_id, command_key)
+    if cog_data and not cog_data.get(commands_constants.ENABLED_KEY, True):
+        return "paused", "⏸️"
+    return "enabled", "🟢"
 
 
 class SetupFeatureButton(discord.ui.Button):
-    def __init__(self, command_key: str, label: str, emoji: str, locale: str):
-        self.command_key = command_key
-        self.locale = locale
+    """Opens one feature from the /setup card."""
+
+    def __init__(self, command_key: str, label: str, configured: bool):
         super().__init__(
             label=label,
-            emoji=emoji,
-            style=discord.ButtonStyle.primary,
+            style=discord.ButtonStyle.secondary if configured else discord.ButtonStyle.success,
         )
+        self.command_key = command_key
 
     async def callback(self, interaction: discord.Interaction):
         from app.components.buttons import run_feature_command
@@ -37,74 +45,11 @@ class SetupFeatureButton(discord.ui.Button):
         await run_feature_command(interaction, self.command_key, "setup_dashboard")
 
 
-class SetupView(discord.ui.View):
-    def __init__(self, moderations: dict, locale: str, guild_id: str = None):
+class SetupView(discord.ui.LayoutView):
+    """The /setup card as a view."""
+
+    def __init__(self) -> None:
         super().__init__(timeout=view_constants.SHORT_TIMEOUT_SECONDS)
-        self.locale = locale
-        self.moderations = moderations
-        self.guild_id = guild_id
-        self._build(moderations, locale)
-
-    def _get_feature_status(self, command_key: str, is_configured: bool):
-        if not is_configured:
-            return "not-configured", "🔴"
-
-        if self.guild_id:
-            cog_data = find_cog_by_guild_id(self.guild_id, command_key)
-            if cog_data and not cog_data.get(commands_constants.ENABLED_KEY, True):
-                return "paused", "⏸"
-
-        return "enabled", "🟢"
-
-    def _build(self, moderations: dict, locale: str):
-        for feature in commands_constants.SETUP_FEATURES:
-            label = ml(f"buttons.setup.{feature['button_key']}.label", locale)
-            self.add_item(
-                SetupFeatureButton(
-                    command_key=feature["command_key"],
-                    label=label,
-                    emoji=feature["emoji"],
-                    locale=locale,
-                )
-            )
-
-    def get_embed(self) -> discord.Embed:
-        locale = self.locale
-        base = "commands.commands.setup.embed"
-
-        title = ml(f"{base}.title", locale)
-        description = ml(f"{base}.desc", locale)
-
-        embed = discord.Embed(
-            color=int(style.BACKGROUND_COLOR, base=16),
-            title=title,
-            description=description,
-        )
-
-        all_configured = True
-        for feature in commands_constants.SETUP_FEATURES:
-            is_configured = self.moderations.get(feature["command_key"], False)
-            status_key, status_emoji = self._get_feature_status(feature["command_key"], is_configured)
-            command = _get_translated_command(feature["command_key"], locale)
-            group = _get_translated_group(feature["command_key"], locale)
-            name = ml(f"buttons.setup.{feature['button_key']}.label", locale)
-            status_text = ml(f"{base}.{status_key}", locale)
-
-            field_name = f"[ {group} ] {name} - {status_text} {status_emoji}"
-            field_value = f"`{command}`"
-
-            if not is_configured:
-                all_configured = False
-
-            embed.add_field(name=field_name, value=field_value, inline=False)
-
-        if all_configured:
-            embed.description += f"\n\n{ml(f'{base}.all-configured', locale)}"
-
-        footer_text = ml(f"{base}.footer", locale)
-        embed.set_footer(text=f"• {footer_text}")
-
-        return embed
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
         logger.error(
@@ -113,3 +58,41 @@ class SetupView(discord.ui.View):
             log_type=logconstants.COMMAND_ERROR_TYPE,
             exc_info=True,
         )
+
+
+async def setup_dashboard(guild_id: str, locale: str) -> discord.ui.LayoutView:
+    """The /setup card for this guild, in the admin's language."""
+    base = "commands.commands.setup.embed"
+    features = commands_constants.SETUP_FEATURES
+    moderations = await find_moderations_by_guild_async(guild_id) or {}
+    statuses = [await _status(guild_id, f["command_key"], moderations) for f in features]
+    ready = sum(1 for status, _ in statuses if status != "not-configured")
+
+    progress = ml(f"{base}.progress", locale)
+    intro = [
+        ml(f"{base}.desc", locale),
+        progress.replace("{ready}", str(ready)).replace("{total}", str(len(features))),
+    ]
+    if ready == len(features):
+        intro.append(ml(f"{base}.all-configured", locale))
+
+    card = layout.container()
+    layout.header(card, ml(f"{base}.title", locale), "\n\n".join(intro), KeikoIcons.IMAGE_01)
+    for feature, (status, emoji) in zip(features, statuses):
+        button_key = feature["button_key"]
+        name = ml(f"buttons.setup.{button_key}.label", locale)
+        description = ml(f"buttons.setup.{button_key}.desc", locale)
+        status_text = ml(f"{base}.{status}", locale)
+        command = _translated_command(feature["command_key"], locale)
+        configured = status != "not-configured"
+        label_key = "buttons.setup.manage.label" if configured else "buttons.setup.start.label"
+        layout.row(
+            card,
+            f"{feature['emoji']} **{name}** · {emoji} {status_text}\n{description}\n`{command}`",
+            SetupFeatureButton(feature["command_key"], ml(label_key, locale), configured),
+        )
+    layout.footer(card, f"• {ml(f'{base}.footer', locale)}")
+
+    view = SetupView()
+    view.add_item(card)
+    return view

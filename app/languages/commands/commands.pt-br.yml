@@ -240,11 +240,12 @@ pt-br:
       desc: Keiko mostra todas as funcionalidades disponíveis e te ajuda a configurá-las
       embed:
         title: "⚙️ Configuração do Servidor"
-        desc: "Aqui você pode ver e gerenciar todas as minhas funcionalidades! Use os botões abaixo ou digite o comando para começar 🐾"
+        desc: "Oi! Eu sou o **Keiko** 🐶 e estou aqui para deixar seu servidor do jeitinho que você quer. Escolha uma funcionalidade abaixo e eu te guio passo a passo!"
+        progress: "**{ready} de {total}** funcionalidades configuradas"
         enabled: Ativado
         not-configured: Não configurado
         paused: Pausado
-        all-configured: "Todas as funcionalidades estão configuradas! Use cada comando para gerenciá-las ✨"
+        all-configured: "Tudo configurado! Use os botões para ajustar o que quiser ✨"
         footer: "Use o comando `/reportar` para me contar um bug"
 
   groups:

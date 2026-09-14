@@ -145,6 +145,12 @@ en-us:
     birthdays:
       label: Birthdays
       desc: Celebrate your members' birthdays with a personalized message
+    start:
+      label: Set up
+      desc: Set up this feature
+    manage:
+      label: Manage
+      desc: Manage this feature
     dashboard:
       label: Setup
       desc: See all features and their status
