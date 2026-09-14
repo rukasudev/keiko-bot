@@ -1,14 +1,19 @@
 """The /setup screen: the first thing most servers see of Keiko.
 
 It was a dense embed: one bold line per feature, the command on the next line,
-and a row of buttons far from the lines they belonged to.
+and a row of buttons far from the lines they belonged to. Its first card
+redesign still read as busy: every row said its status three times (a coloured
+circle, a word, the button) over three lines with three emoji.
 
-Guaranteed: a Components V2 card with Keiko's picture beside the title; one row
-per feature with its status, what it does, its command and a button beside it;
-the button reads Set up until the feature is configured and Manage after; the
-card stays inside Discord's limits in both locales; a row button opens the
-feature through the setup_dashboard source; and the greeting's dashboard button
-sends the same card.
+Guaranteed: a Components V2 card with Keiko's picture beside a one-sentence
+intro; features grouped under "configured" and "to set up" headings with their
+counts, in declared order inside each group; every row is its name plus one
+subtext line with what it does and its command, with no status circles; a
+paused feature says so in its subtext; the button reads Manage in the first
+group and Set up in the second; a server with everything set up sees no second
+group; the card stays inside Discord's limits in both locales; a row button
+opens the feature through the setup_dashboard source; and the greeting's
+dashboard button sends the same card.
 """
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -24,18 +29,26 @@ from tests.behavioral.harness.locators import walk_items
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("setup_dashboard")]
 
 GUILD_ID = "123456789"
+BASE = "commands.commands.setup.embed"
+
+
+def seed(deps, enabled, paused=()):
+    deps.mongo_client.guild.moderations.insert_one(
+        {"guild_id": GUILD_ID, **{key: True for key in enabled}}
+    )
+    for key in paused:
+        deps.mongo_client.guild[key].insert_one(
+            {"guild_id": GUILD_ID, Commands.ENABLED_KEY: False}
+        )
 
 
 @pytest.fixture
 def configured(deps):
     """Welcome messages enabled, block links paused, the rest never set up."""
-    deps.mongo_client.guild.moderations.insert_one({
-        "guild_id": GUILD_ID,
-        Commands.WELCOME_MESSAGES_KEY: True,
-        Commands.BLOCK_LINKS_KEY: True,
-    })
-    deps.mongo_client.guild[Commands.BLOCK_LINKS_KEY].insert_one(
-        {"guild_id": GUILD_ID, Commands.ENABLED_KEY: False}
+    seed(
+        deps,
+        enabled=(Commands.WELCOME_MESSAGES_KEY, Commands.BLOCK_LINKS_KEY),
+        paused=(Commands.BLOCK_LINKS_KEY,),
     )
 
 
@@ -54,12 +67,26 @@ def rows(view):
     ]
 
 
+def texts(view):
+    return [
+        item.content for item in walk_items(view) if isinstance(item, discord.ui.TextDisplay)
+    ]
+
+
 def text_of(section):
     return "\n".join(
         child.content
         for child in section.children
         if isinstance(child, discord.ui.TextDisplay)
     )
+
+
+def heading(key, count, locale="pt-br"):
+    return "### " + ml(f"{BASE}.{key}", locale).replace("{count}", str(count))
+
+
+def feature(command_key):
+    return next(f for f in Commands.SETUP_FEATURES if f["command_key"] == command_key)
 
 
 async def test_the_setup_screen_is_a_components_v2_card_with_keiko_on_the_right(
@@ -74,34 +101,69 @@ async def test_the_setup_screen_is_a_components_v2_card_with_keiko_on_the_right(
         if isinstance(item, discord.ui.Thumbnail)
     ]
     assert pictures == [KeikoIcons.IMAGE_01]
+    assert ml(f"{BASE}.desc", "pt-br") in texts(view)
 
 
-async def test_every_feature_has_its_own_row_with_a_button_beside_it(configured):
-    found = rows(await dashboard())
+async def test_features_are_grouped_by_whether_they_are_set_up(configured):
+    view = await dashboard()
 
-    assert len(found) == len(Commands.SETUP_FEATURES)
-    for section, feature in zip(found, Commands.SETUP_FEATURES):
-        text = text_of(section)
-        assert ml(f"buttons.setup.{feature['button_key']}.label", "pt-br") in text
-        assert ml(f"buttons.setup.{feature['button_key']}.desc", "pt-br") in text
-        assert "`/" in text, "the command sits on the row its button opens"
+    headings = [text for text in texts(view) if text.startswith("### ")]
+    assert headings == [heading("configured", 2), heading("pending", 4)]
+    assert [row.accessory.command_key for row in rows(view)] == [
+        Commands.WELCOME_MESSAGES_KEY,
+        Commands.BLOCK_LINKS_KEY,
+        Commands.DEFAULT_ROLES_KEY,
+        Commands.NOTIFICATIONS_TWITCH_KEY,
+        Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
+        Commands.REMINDERS_BIRTHDAY_KEY,
+    ], "configured first, then the rest, each group in declared order"
 
 
-async def test_the_button_reads_set_up_or_manage_from_the_saved_state(configured):
-    by_key = {section.accessory.command_key: section for section in rows(await dashboard())}
+async def test_every_row_is_its_name_and_one_subtext_line_with_its_command(configured):
+    for section in rows(await dashboard()):
+        spec = feature(section.accessory.command_key)
+        name_line, subtext = text_of(section).split("\n")
+        assert ml(f"buttons.setup.{spec['button_key']}.label", "pt-br") in name_line
+        assert subtext.startswith("-# "), "what it does reads as quiet subtext"
+        assert ml(f"{BASE}.features.{spec['button_key']}", "pt-br") in subtext
+        assert "`/" in subtext, "the command still teaches the shortcut"
+
+
+async def test_no_row_repeats_its_status_as_a_coloured_circle(configured):
+    rendered = "\n".join(texts(await dashboard()))
+
+    assert "🔴" not in rendered and "🟢" not in rendered
+    assert ml(f"{BASE}.enabled", "pt-br") not in rendered
+
+
+async def test_a_paused_feature_says_so_in_its_subtext(configured):
+    by_key = {row.accessory.command_key: row for row in rows(await dashboard())}
+
+    paused = ml(f"{BASE}.paused", "pt-br")
+    assert paused in text_of(by_key[Commands.BLOCK_LINKS_KEY]).split("\n")[1]
+    assert paused not in text_of(by_key[Commands.WELCOME_MESSAGES_KEY])
+
+
+async def test_the_button_reads_manage_when_set_up_and_set_up_otherwise(configured):
+    by_key = {row.accessory.command_key: row.accessory for row in rows(await dashboard())}
     start = ml("buttons.setup.start.label", "pt-br")
     manage = ml("buttons.setup.manage.label", "pt-br")
 
-    assert by_key[Commands.DEFAULT_ROLES_KEY].accessory.label == start
-    assert by_key[Commands.DEFAULT_ROLES_KEY].accessory.style is discord.ButtonStyle.success
-    assert by_key[Commands.WELCOME_MESSAGES_KEY].accessory.label == manage
-    assert by_key[Commands.WELCOME_MESSAGES_KEY].accessory.style is discord.ButtonStyle.secondary
-    assert by_key[Commands.BLOCK_LINKS_KEY].accessory.label == manage, (
-        "a paused feature is still set up"
-    )
-    assert ml("commands.commands.setup.embed.paused", "pt-br") in text_of(
-        by_key[Commands.BLOCK_LINKS_KEY]
-    )
+    assert by_key[Commands.DEFAULT_ROLES_KEY].label == start
+    assert by_key[Commands.DEFAULT_ROLES_KEY].style is discord.ButtonStyle.success
+    assert by_key[Commands.WELCOME_MESSAGES_KEY].label == manage
+    assert by_key[Commands.WELCOME_MESSAGES_KEY].style is discord.ButtonStyle.secondary
+    assert by_key[Commands.BLOCK_LINKS_KEY].label == manage, "a paused feature is still set up"
+
+
+async def test_a_server_with_everything_set_up_sees_no_second_group(deps):
+    seed(deps, enabled=[spec["command_key"] for spec in Commands.SETUP_FEATURES])
+
+    view = await dashboard()
+
+    headings = [text for text in texts(view) if text.startswith("### ")]
+    assert headings == [heading("configured", len(Commands.SETUP_FEATURES))]
+    assert ml(f"{BASE}.all-configured", "pt-br") in texts(view)
 
 
 @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
@@ -118,10 +180,10 @@ async def test_a_row_button_opens_the_feature_through_the_setup_dashboard_source
 
     opened = AsyncMock()
     monkeypatch.setattr(buttons, "run_feature_command", opened)
-    button = rows(await dashboard())[1].accessory
+    by_key = {row.accessory.command_key: row.accessory for row in rows(await dashboard())}
     interaction = SimpleNamespace()
 
-    await button.callback(interaction)
+    await by_key[Commands.DEFAULT_ROLES_KEY].callback(interaction)
 
     opened.assert_awaited_once_with(
         interaction, Commands.DEFAULT_ROLES_KEY, "setup_dashboard"

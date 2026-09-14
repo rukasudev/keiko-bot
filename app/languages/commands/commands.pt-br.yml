@@ -240,13 +240,19 @@ pt-br:
       desc: Keiko mostra todas as funcionalidades disponíveis e te ajuda a configurá-las
       embed:
         title: "⚙️ Configuração do Servidor"
-        desc: "Oi! Eu sou o **Keiko** 🐶 e estou aqui para deixar seu servidor do jeitinho que você quer. Escolha uma funcionalidade abaixo e eu te guio passo a passo!"
-        progress: "**{ready} de {total}** funcionalidades configuradas"
-        enabled: Ativado
-        not-configured: Não configurado
+        desc: "Escolha o que você quer ajustar e eu te guio passo a passo!"
+        configured: "Configuradas · {count}"
+        pending: "Para configurar · {count}"
         paused: Pausado
         all-configured: "Tudo configurado! Use os botões para ajustar o que quiser ✨"
         footer: "Use o comando `/reportar` para me contar um bug"
+        features:
+          welcome-messages: Boas-vindas para novos membros
+          default-roles: Cargos automáticos para novos membros
+          block-links: Bloqueia links indesejados no servidor
+          twitch: Avisa quando seus streamers entram ao vivo
+          youtube: Avisa quando sai um vídeo novo no canal
+          birthdays: Parabéns no aniversário dos membros
 
   groups:
     moderations: moderações

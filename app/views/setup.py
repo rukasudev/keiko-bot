@@ -20,13 +20,24 @@ def _translated_command(command_key: str, locale: str) -> str:
     return f"/{group} {subgroup} {name}"
 
 
-async def _status(guild_id: str, command_key: str, moderations: dict) -> tuple:
+async def _state(guild_id: str, command_key: str, moderations: dict) -> str:
     if not moderations.get(command_key, False):
-        return "not-configured", "🔴"
+        return "pending"
     cog_data = await find_cog_by_guild_id_async(guild_id, command_key)
     if cog_data and not cog_data.get(commands_constants.ENABLED_KEY, True):
-        return "paused", "⏸️"
-    return "enabled", "🟢"
+        return "paused"
+    return "configured"
+
+
+def _row_text(feature: dict, state: str, locale: str) -> str:
+    base = "commands.commands.setup.embed"
+    button_key = feature["button_key"]
+    name = ml(f"buttons.setup.{button_key}.label", locale)
+    command = _translated_command(feature["command_key"], locale)
+    details = [ml(f"{base}.features.{button_key}", locale), f"`{command}`"]
+    if state == "paused":
+        details.insert(0, ml(f"{base}.paused", locale))
+    return f"{feature['emoji']} **{name}**\n-# " + " · ".join(details)
 
 
 class SetupFeatureButton(discord.ui.Button):
@@ -63,34 +74,30 @@ class SetupView(discord.ui.LayoutView):
 async def setup_dashboard(guild_id: str, locale: str) -> discord.ui.LayoutView:
     """The /setup card for this guild, in the admin's language."""
     base = "commands.commands.setup.embed"
-    features = commands_constants.SETUP_FEATURES
     moderations = await find_moderations_by_guild_async(guild_id) or {}
-    statuses = [await _status(guild_id, f["command_key"], moderations) for f in features]
-    ready = sum(1 for status, _ in statuses if status != "not-configured")
-
-    progress = ml(f"{base}.progress", locale)
-    intro = [
-        ml(f"{base}.desc", locale),
-        progress.replace("{ready}", str(ready)).replace("{total}", str(len(features))),
+    states = [
+        (feature, await _state(guild_id, feature["command_key"], moderations))
+        for feature in commands_constants.SETUP_FEATURES
     ]
-    if ready == len(features):
-        intro.append(ml(f"{base}.all-configured", locale))
+    groups = (
+        ("configured", [(f, s) for f, s in states if s != "pending"], "buttons.setup.manage.label"),
+        ("pending", [(f, s) for f, s in states if s == "pending"], "buttons.setup.start.label"),
+    )
+    has_pending = bool(groups[1][1])
 
     card = layout.container()
-    layout.header(card, ml(f"{base}.title", locale), "\n\n".join(intro), KeikoIcons.IMAGE_01)
-    for feature, (status, emoji) in zip(features, statuses):
-        button_key = feature["button_key"]
-        name = ml(f"buttons.setup.{button_key}.label", locale)
-        description = ml(f"buttons.setup.{button_key}.desc", locale)
-        status_text = ml(f"{base}.{status}", locale)
-        command = _translated_command(feature["command_key"], locale)
-        configured = status != "not-configured"
-        label_key = "buttons.setup.manage.label" if configured else "buttons.setup.start.label"
-        layout.row(
-            card,
-            f"{feature['emoji']} **{name}** · {emoji} {status_text}\n{description}\n`{command}`",
-            SetupFeatureButton(feature["command_key"], ml(label_key, locale), configured),
-        )
+    intro = ml(f"{base}.desc" if has_pending else f"{base}.all-configured", locale)
+    layout.header(card, ml(f"{base}.title", locale), intro, KeikoIcons.IMAGE_01)
+    for group_key, members, label_key in groups:
+        if not members:
+            continue
+        title = ml(f"{base}.{group_key}", locale).replace("{count}", str(len(members)))
+        layout.row(card, f"### {title}")
+        for feature, state in members:
+            button = SetupFeatureButton(
+                feature["command_key"], ml(label_key, locale), group_key == "configured"
+            )
+            layout.row(card, _row_text(feature, state, locale), button, separated=False)
     layout.footer(card, f"• {ml(f'{base}.footer', locale)}")
 
     view = SetupView()

@@ -240,13 +240,19 @@ en-us:
       desc: Keiko shows you all features available and helps you set them up
       embed:
         title: "⚙️ Server Setup"
-        desc: "Hi! I'm **Keiko** 🐶 and I'm here to make your server feel just right. Pick a feature below and I'll guide you step by step!"
-        progress: "**{ready} of {total}** features set up"
-        enabled: Enabled
-        not-configured: Not configured
+        desc: "Pick what you want to set up and I'll guide you step by step!"
+        configured: "Configured · {count}"
+        pending: "Not set up yet · {count}"
         paused: Paused
         all-configured: "Everything is set up! Use the buttons to fine-tune whatever you like ✨"
         footer: "Use the `/report` command to tell me a bug"
+        features:
+          welcome-messages: A warm welcome for new members
+          default-roles: Roles given to new members automatically
+          block-links: Keeps unwanted links out of your server
+          twitch: Notifies you when your streamers go live
+          youtube: Notifies you when a new video is out
+          birthdays: Birthday wishes for your members
 
   groups:
     moderations: moderations

@@ -35,9 +35,11 @@ def row(
     frame: discord.ui.Container[Any],
     body: str,
     accessory: discord.ui.Button[Any] | None = None,
+    separated: bool = True,
 ) -> None:
-    """A separator, then one block of text with its button beside it."""
-    frame.add_item(discord.ui.Separator())
+    """One block of text with its button beside it, under a separator by default."""
+    if separated:
+        frame.add_item(discord.ui.Separator())
     if accessory is None:
         frame.add_item(discord.ui.TextDisplay(body))
         return
