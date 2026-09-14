@@ -350,14 +350,29 @@ Traces are opened at the boundaries:
 
 | Boundary | Where | Behavior |
 |---|---|---|
-| Slash commands | `keiko_command` (`app/decorators.py`) | one message per invocation |
-| Webhooks | `app/webhooks/__init__.py` before/teardown request | one message per request |
-| Deferred work | `schedule_webhook_job` → `trace.run_traced` | one message per job |
+| Slash commands | `keiko_command` (`app/decorators.py`) | one message per invocation, handed to the journey when it opens a form |
+| Form events | `Runtime._apply`, `Runtime.expire_stale` (`app/forms/adapters/discord/entrypoints.py`) | quiet: never a message of their own, even on failure; the journey tells the story |
+| Webhooks | `app/webhooks/__init__.py` before/teardown request | one message per request, continued by its first job |
+| Deferred work | `schedule_webhook_job` → `Trace.handover` + `trace.run_traced` | the first job continues the request's message; a second job in the same request gets its own |
+| Confirmations | `ConfirmActionView(trace_name=)` (`app/views/confirm_action.py`) | one message for what the confirmation did |
 | Listeners | `with_error_context` (`app/decorators.py`) | silent unless it fails or reports an event |
 
 `silent_when_clean` is what keeps `on_message` from flooding the channel: a
 routine check that succeeds stays in the log file, and only surfaces in Discord
 if it errors.
+
+`quiet` is stronger: a quiet trace never posts, clean or not. Form events use it
+because the journey is the surface a person reads; before, every click posted a
+`▶️ Command Run` of raw engine lines (`form block_links … rev=17 cursor=confirm
+EditRequested -> awaiting effects=[Render]`). The lines still reach `guild.logs`
+with the session id, and an error record still gets its own message in the
+error channel.
+
+Every trace opened for a person carries `is_admin` (`is_guild_admin`,
+`app/services/utils.py`), rendered as the `Admin` field. A unit of work names
+how it ended with `trace.settle(result)`; `Trace.finish` keeps that result
+unless the work failed, so `/birthday` reads `registered`, `asked`, `replaced`
+or `refused` instead of `success`, with one line per outcome and never the date.
 
 ### Silent is not the same as clean
 
@@ -392,8 +407,18 @@ That is the whole story of "the log does not say which streamer went live": the
 `stream.online` branch logged nothing at all, so one message named the streamer
 and the other arrived with an empty timeline. Both branches now name their
 subject inside the request — the message that is guaranteed to arrive has to be
-readable on its own — and hand the fan-out to `schedule_webhook_job`, which runs
-it through `run_traced` under a `job` trace of its own.
+readable on its own — and hand the fan-out to `schedule_webhook_job`.
+
+That fix posted **two** messages per Twitch live: the request closed its trace
+naming the streamer, and the job closed another with the fan-out. So
+`schedule_webhook_job` calls `Trace.handover()` on the request's trace, on the
+Flask thread and before Flask returns: the successor keeps the request's name,
+source, ids and start time, receives its lines, and the request is marked
+`superseded`. `run_traced(..., trace=successor)` finishes it on the bot loop, so
+one event is one `🔔 Webhook Event` message that names the streamer, lists the
+fan-out and spans the whole event. A second job in the same request (several
+birthdays in one `/reminder` call) gets a `job` trace of its own, and a job that
+cannot be scheduled leaves the request's message intact.
 
 `trace_scope` is not what deferred work wants: it joins the surrounding trace so
 a fan-out does not fragment its timeline, which is right inside one unit of work
@@ -408,26 +433,52 @@ the context for that error.
 
 A trace covers one interaction. A configuration attempt spans many, and the
 interesting part — the steps, the rejected value, the abandonment — happens in
-button clicks, which open no trace. So a session gets a **journey**: the same
+button clicks, whose traces are quiet. So a session gets a **journey**: the same
 `Trace` structure kept open and re-rendered instead of closed
 (`app/services/journey.py`).
 
+A saved session reads as a summary:
+
 ```
-🧭 moderations block links
-<@151…748> · guild `1` · via `greeting_button` · 3m12s · ⌛ abandoned
-────────────────────
-`18:55:15` command invoked
-`18:55:16` setup opened
-`18:55:22` step: link_settings (configuration_card)
-`18:55:40` ⚠️ `custom_link` rejected — link-not-recognized (try 2)
-`18:56:02` step: custom_links (composition)
-`18:58:27` ⌛ expired at `custom_links`
-────────────────────
-**Last 24h · block_links · this guild**
-`19:42` 🚫 discarded at `custom_link`
-`19:42` ⌛ expired at `mode`
-• session 160ed3 | 2026-08-14 18:58:27
+✅ Setup Saved
+`/moderations block links`
+User @rukasu · Guild `1` · Source `slash` · Admin `yes` · 1m26s · saved
+`00:18:10` `/moderations block links` started
+`00:18:10` setup opened
+`00:19:08` ⚠️ `Link or Website` rejected — link-not-recognized (try 1)
+`00:19:36` 🟢 feature enabled
+`00:19:36` ✅ saved: Link Settings, Permissions, Your Links · 1 item · 9 steps, 1-5m
+• session 3cf778 | 2026-09-14 00:18:10
 ```
+
+A session that went wrong keeps every step:
+
+```
+❌ Command Error
+`/moderations block links`
+User @rukasu · Guild `1` · Source `slash` · Admin `yes` · 52s · failure
+`00:18:10` `/moderations block links` started
+`00:18:10` setup opened
+`00:18:10` step: 🚫 Block Links (intro)
+`00:18:16` step: Link Settings (card)
+`00:18:53` step: Permissions (multi_pick)
+`00:18:57` step: ✅ Alright? (review)
+`00:19:02` ❌ setup failed at `✅ Alright?`: ServerSelectionTimeoutError
+• session 9a1c04 | 2026-09-14 00:18:10
+```
+
+**A save is read for what it configured.** Journey lines carry a `kind`, and the
+step lines (`setup.step_viewed`, `setup.step_back`) are `step`. When a session
+ends `saved` or `edited`, `journey.record` drops them before adding the final
+line, so the outcome is never the line the 20-line cap cuts. The summary comes
+from `setup.completed` props the engine computes: `configured_steps` (step keys,
+rendered as their titles) and `item_count`, never a value. A failure, a discard
+or an expiry keeps every step, because that is when the path matters. `rebuild`
+applies the same rule, so Refresh shows the same message.
+
+A failed commit emits `feature.commit_failed` with the commit kind, the step and
+the exception type (its message is free text and stays in the error record), and
+the journey closes as `❌ failure` with that line.
 
 **Lines come from the events that are already emitted.** `journey.record` is
 registered through `analytics.register_observer`, the same pattern as
@@ -484,15 +535,24 @@ Losing a frame costs a frame, never the command.
 
 The interaction that opens a session hands its lines to the journey and marks
 itself `superseded`, so an invocation posts **one** message rather than two.
+`journey.open_journey(inherit=trace)` does that hand-over once; copying the lines
+a second time is why every session message used to begin with `started` twice.
 
 ### Closing an abandoned session
 
-`Runtime.expire_stale` hands every due session to `decide` as `Expired`; the
-decision emits `setup.abandoned`, and the adapter closes the journey and takes
+The events cog runs `Runtime.sweep` every `ViewConstants.FORM_SWEEP_SECONDS`
+(`Events.sweep_forms`). A pass hands every due session to `decide` as `Expired`
+through `Runtime.expire_stale`, under a quiet trace; the decision emits
+`setup.abandoned`, and the adapter closes the journey and takes
 the controls off the message with the expired copy. It is guarded on the
 journey still being open, so a child session expiring after its parent
 finished cannot report a second abandonment, and an expiry after a save
 changes nothing.
+
+The same pass forgets closed sessions past their deadline, with their adapter
+state, so the store no longer grows for the life of the process. Before the
+sweep, nothing called `expire_stale` in production: abandoned sessions stayed
+`⏳ in progress` until someone clicked them.
 
 No view owns a timeout any more: the session store owns the deadline
 (`ViewConstants.LONG_TIMEOUT_SECONDS`), and `tests/forms/adapters` pins that an
