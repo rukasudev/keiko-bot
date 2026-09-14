@@ -319,3 +319,16 @@ async def test_a_raising_commit_puts_a_failure_line_on_the_story_not_the_message
         "an exception message is free text and never reaches an event"
     )
     assert any(line.startswith("step:") for line in lines)
+
+
+async def test_the_session_story_says_whether_the_person_is_an_admin(deps, stories):
+    guild = create_guild()
+    user = create_member(guild, id=555, name="Tester")
+    user.guild_permissions = SimpleNamespace(administrator=True)
+    scenario = FormScenario(
+        guild=guild, user=user, locale="pt-br", mongo=deps.mongo_client
+    )
+
+    await scenario.start_command("default_roles")
+
+    assert [story.is_admin for story in stories.values()] == [True]

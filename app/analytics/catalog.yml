@@ -55,7 +55,7 @@ events:
     emitted_at: app/forms/adapters/discord/observability.py — emit, from Decision.analytics (feature.setup_opened)
     actor: user
     required: [feature, source, session_id]
-    optional: []
+    optional: [is_admin]
     retention_days: 90
     cardinality_risk: low
 
@@ -66,7 +66,7 @@ events:
     emitted_at: app/forms/adapters/discord/observability.py — emit, from Decision.analytics (feature.manager_opened)
     actor: user
     required: [feature, source, session_id]
-    optional: [enabled]
+    optional: [enabled, is_admin]
     retention_days: 90
     cardinality_risk: low
 

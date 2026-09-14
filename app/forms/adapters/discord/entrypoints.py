@@ -48,6 +48,7 @@ from app.forms.features.protocol import (
 )
 from app.services import analytics
 from app.services.trace import trace_scope
+from app.services.utils import is_guild_admin
 
 
 @dataclass
@@ -61,6 +62,7 @@ class Session:
     command_name: str
     guild: Any
     member: Any
+    is_admin: bool = False
     friction: observability.Friction = field(default_factory=observability.Friction)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     cooldowns: dict[str, float] = field(default_factory=dict)
@@ -134,11 +136,14 @@ class Runtime:
             command_name=_command_label(interaction, key),
             guild=guild,
             member=member,
+            is_admin=is_guild_admin(member),
         )
         state = self.sessions[session.id]
         if opened.pending_previews is not None:
             state.previews = asyncio.ensure_future(opened.pending_previews)
-        observability.open_journey(session, state.command_name, state.source)
+        observability.open_journey(
+            session, state.command_name, state.source, state.is_admin
+        )
         await self._apply(interaction, session, ev.Started(str(interaction.id)))
 
     # ------------------------------------------------------------ handling
@@ -246,6 +251,7 @@ class Runtime:
             source=state.source,
             session_id=session.id if session.parent_id is None else session.parent_id,
             quiet=True,
+            is_admin=state.is_admin,
         ):
             context = await self._context(session, event)
             decision = decide(definition, session, event, context)
@@ -254,7 +260,9 @@ class Runtime:
                 self.store.put(decision.session)
             elif decision.session is not session:
                 self.store.remember(decision.session)
-            observability.emit(decision, decision.session, state.source, state.friction)
+            observability.emit(
+                decision, decision.session, state.source, state.friction, state.is_admin
+            )
             await self._run(interaction, decision)
 
     async def _run(self, interaction: discord.Interaction, decision: Decision) -> None:
@@ -502,7 +510,11 @@ class Runtime:
                 observability.log_decision(decision, event, session)
                 self.store.put(decision.session)
                 observability.emit(
-                    decision, decision.session, state.source, state.friction
+                    decision,
+                    decision.session,
+                    state.source,
+                    state.friction,
+                    state.is_admin,
                 )
                 await expire_surface(state.surface, session.origin.locale)
             if session.parent_id is None:

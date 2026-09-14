@@ -520,3 +520,23 @@ def test_a_rebuilt_saved_session_is_condensed_the_same_way(deps):
         "refreshing must show the same message the session posted"
     )
     assert rebuilt.result == "saved"
+
+
+def test_the_story_carries_whether_the_person_was_an_admin(published):
+    story = start(is_admin=True)
+
+    assert story.is_admin is True
+
+
+def test_a_rebuilt_story_still_says_whether_the_person_was_an_admin(deps):
+    analytics.reset()
+    journey.install()
+    start(is_admin=True)
+    analytics.emit(
+        "feature.setup_opened", guild_id="1", user_id="9", feature="block_links",
+        source="slash", session_id=SESSION, is_admin=True,
+    )
+    analytics.flush()
+    journey.clear()
+
+    assert journey.rebuild(SESSION).is_admin is True

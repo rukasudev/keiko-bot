@@ -171,6 +171,7 @@ def open_journey(
     feature: str = None,
     source: str = None,
     inherit: Optional[Trace] = None,
+    is_admin: Optional[bool] = None,
 ) -> Trace:
     """Start (or reuse) the message that will follow this session to its end.
 
@@ -188,6 +189,7 @@ def open_journey(
         user_id=user_id,
         feature=feature,
         session_id=session_id,
+        is_admin=is_admin,
     )
     journey.result = "in progress"
     journey.is_journey = True
@@ -276,6 +278,14 @@ def rebuild(session_id: str) -> Optional[Trace]:
     )
     story.is_journey = True
     story.started_at = first.get("ts") or story.started_at
+    story.is_admin = next(
+        (
+            envelope["props"]["is_admin"]
+            for envelope in events
+            if "is_admin" in (envelope.get("props") or {})
+        ),
+        None,
+    )
 
     outcome = None
     entries = []

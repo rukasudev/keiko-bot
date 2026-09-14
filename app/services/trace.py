@@ -60,6 +60,7 @@ class Trace:
         session_id: Optional[str] = None,
         silent_when_clean: bool = False,
         quiet: bool = False,
+        is_admin: Optional[bool] = None,
     ) -> None:
         self.id = new_trace_id()
         self.name = name
@@ -70,6 +71,7 @@ class Trace:
         self.session_id = session_id or self.id
         self.silent_when_clean = silent_when_clean
         self.quiet = quiet
+        self.is_admin = is_admin
         self.started_at = datetime.now(timezone.utc)
         self.finished_at: Optional[datetime] = None
         self.result: Optional[str] = None
@@ -124,7 +126,10 @@ class Trace:
         if self.finished_at:
             return
         self.finished_at = datetime.now(timezone.utc)
-        self.result = result or self._implicit_result()
+        if result:
+            self.result = result
+        elif self.has_error or not self.result:
+            self.result = self._implicit_result()
 
     @property
     def duration_ms(self) -> int:
@@ -174,6 +179,7 @@ class Trace:
             feature=self.feature,
             session_id=self.session_id,
             silent_when_clean=self.silent_when_clean,
+            is_admin=self.is_admin,
         )
         successor.started_at = self.started_at
         successor.footnote = self.footnote
@@ -321,3 +327,10 @@ def add_line(
 
 def has_open_trace() -> bool:
     return _current_trace.get() is not None
+
+
+def settle(result: str) -> None:
+    """Name how the current unit of work ended, for its Result field."""
+    trace = _current_trace.get()
+    if trace is not None:
+        trace.result = result

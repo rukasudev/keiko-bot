@@ -22,7 +22,12 @@ from app.services.moderations import (
     pause_all_moderations_by_guild,
     update_moderations_by_guild,
 )
-from app.services.utils import cogs_manager, format_relative_time, get_available_roles_by_guild
+from app.services.utils import (
+    cogs_manager,
+    format_relative_time,
+    get_available_roles_by_guild,
+    is_guild_admin,
+)
 from app.services.welcome_messages import send_welcome_message
 from app.types.cogs import Cog
 from app.views.greetings import GreetingsView
@@ -137,10 +142,7 @@ class Events(Cog, name="events"):
             command=interaction.command.qualified_name,
             source=analytics.resolve_source(interaction),
             feature=feature,
-            is_admin=bool(
-                getattr(interaction.user, "guild_permissions", None)
-                and interaction.user.guild_permissions.administrator
-            ),
+            is_admin=is_guild_admin(interaction.user),
         )
 
     @commands.Cog.listener()
