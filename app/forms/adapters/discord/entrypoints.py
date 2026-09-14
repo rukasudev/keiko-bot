@@ -162,7 +162,7 @@ class Runtime:
         state = self.sessions[session.id]
         async with state.lock:
             current = self.store.get(session.id) or session
-            if not current.is_closed and current.expires_at <= _now():
+            if not current.is_closed and self._due(current, _now()):
                 await self._apply(
                     interaction, current, ev.Expired(f"expire:{interaction.id}")
                 )
@@ -488,7 +488,10 @@ class Runtime:
     ) -> tuple[FormSession, ...]:
         """Close every session past its deadline, on screen and in the store."""
         expired: list[FormSession] = []
-        for session in self.store.due(now or _now()):
+        moment = now or _now()
+        for session in self.store.due(moment):
+            if not self._due(session, moment):
+                continue
             state = self.sessions[session.id]
             root = session.id if session.parent_id is None else session.parent_id
             async with (
@@ -521,6 +524,15 @@ class Runtime:
                 observability.close_journey(session, "abandoned")
             expired.append(decision.session)
         return tuple(expired)
+
+    def _due(self, session: FormSession, now: datetime) -> bool:
+        """Past its deadline, with no open child still inside its own."""
+        if session.expires_at > now:
+            return False
+        return not any(
+            not child.is_closed and child.expires_at > now
+            for child in self.store.children(session.id)
+        )
 
     async def sweep(self, now: datetime | None = None) -> None:
         """Expire what nobody finished and forget what already ended."""

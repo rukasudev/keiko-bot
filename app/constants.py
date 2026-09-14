@@ -270,6 +270,7 @@ class DiscordLimits:
     EMBED_FIELD_NAME: Final[int] = 256
     EMBED_FIELD_VALUE: Final[int] = 1024
     SELECT_OPTION_TEXT: Final[int] = 100
+    INTERACTION_TOKEN_SECONDS: Final[int] = 900
 
 
 class TraceTitles:

@@ -1015,7 +1015,10 @@ def decide(
     if rejected is not None:
         return _rejected(definition, session, event, context, rejected)
     if session.awaiting == "child" and isinstance(event, (ev.Answered, ev.Drafted)):
-        return Decision(session.remember(event.event_id), (ResumeChild(),))
+        resumed = session.remember(event.event_id).touched(
+            context.now, context.ttl_seconds
+        )
+        return Decision(resumed, (ResumeChild(),))
     engine = Engine(definition, session, event, context)
     handler = HANDLERS.get(type(event))
     if handler is None:
@@ -1025,6 +1028,8 @@ def decide(
     else:
         handler(engine)
     session_after = engine.session.remember(event.event_id)
+    if not session_after.is_closed:
+        session_after = session_after.touched(context.now, context.ttl_seconds)
     if any(isinstance(effect, Render) for effect in engine.effects):
         session_after = session_after.rendered()
     return Decision(

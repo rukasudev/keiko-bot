@@ -543,8 +543,9 @@ a second time is why every session message used to begin with `started` twice.
 The events cog runs `Runtime.sweep` every `ViewConstants.FORM_SWEEP_SECONDS`
 (`Events.sweep_forms`). A pass hands every due session to `decide` as `Expired`
 through `Runtime.expire_stale`, under a quiet trace; the decision emits
-`setup.abandoned`, and the adapter closes the journey and takes
-the controls off the message with the expired copy. It is guarded on the
+`setup.abandoned`, and the adapter closes the journey and, while
+Discord still honours the interaction token, takes the controls off the message
+with the expired copy. It is guarded on the
 journey still being open, so a child session expiring after its parent
 finished cannot report a second abandonment, and an expiry after a save
 changes nothing.
@@ -553,6 +554,17 @@ The same pass forgets closed sessions past their deadline, with their adapter
 state, so the store no longer grows for the life of the process. Before the
 sweep, nothing called `expire_stale` in production: abandoned sessions stayed
 `⏳ in progress` until someone clicked them.
+
+A session's deadline counts from its last accepted event (`FormSession.touched`,
+applied by `decide`), like the discord.py view timeout the old engine had; it was
+first fixed at creation, which killed a session thirty minutes after it opened
+however recently the admin had clicked. A parent waiting on a child still in use
+is not due. Taking the controls off needs the latest interaction's token, which
+Discord honours for fifteen minutes (`DiscordLimits.INTERACTION_TOKEN_SECONDS`);
+a session idle long enough to expire is usually past that window, so the pass
+closes the journey without calling Discord (every such edit used to fail with
+`401 Invalid Webhook Token`), and the next click on the message closes it
+through its own, fresh interaction.
 
 No view owns a timeout any more: the session store owns the deadline
 (`ViewConstants.LONG_TIMEOUT_SECONDS`), and `tests/forms/adapters` pins that an

@@ -1,6 +1,6 @@
 """The engine, event by event, on the real definitions."""
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 import pytest
 
@@ -720,3 +720,42 @@ def test_choice_steps_type_their_values():
     )
     assert yes.session.raw("add_custom") is True
     assert kinds(yes) == ["OpenChild"], "the composition opens right away"
+
+
+def test_an_accepted_event_moves_the_deadline_forward():
+    """Found running the local bot: a session died thirty minutes after it
+    opened, however recently the admin had clicked, because `expires_at` was
+    fixed at creation. A discord.py view, which the old engine used, counted its
+    timeout from the last interaction."""
+    definition, decision = start("block_links")
+    later = NOW + timedelta(seconds=45)
+
+    moved = decide(
+        definition,
+        decision.session,
+        evt(ev.Answered, step_key="form"),
+        Context(now=later, ttl_seconds=60),
+    )
+
+    assert moved.session.expires_at == later + timedelta(seconds=60)
+
+
+def test_a_rejected_event_leaves_the_deadline_where_it_was():
+    definition, decision = start("block_links")
+    answered = evt(ev.Answered, step_key="form")
+    first = decide(
+        definition,
+        decision.session,
+        answered,
+        Context(now=NOW + timedelta(seconds=10), ttl_seconds=60),
+    )
+
+    again = decide(
+        definition,
+        first.session,
+        answered,
+        Context(now=NOW + timedelta(seconds=50), ttl_seconds=60),
+    )
+
+    assert again.rejected is not None
+    assert again.session.expires_at == first.session.expires_at

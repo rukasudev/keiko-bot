@@ -332,3 +332,63 @@ async def test_the_session_story_says_whether_the_person_is_an_admin(deps, stori
     await scenario.start_command("default_roles")
 
     assert [story.is_admin for story in stories.values()] == [True]
+
+
+async def test_an_expiry_after_the_interaction_token_died_leaves_discord_alone(
+    v2, stories
+):
+    """Found running the local bot: every sweep expiry failed with
+    `401 Invalid Webhook Token`. Discord honours an interaction token for fifteen
+    minutes and a session expires later than that, so the edit could never land;
+    the next click on the message closes it instead."""
+    import time
+    from datetime import datetime, timezone
+
+    scenario = await v2().start_command("default_roles")
+    RUNTIME.sessions[scenario.session.id].surface.touched_at = (
+        time.monotonic() - 16 * 60
+    )
+    before = len(scenario.outputs)
+
+    await RUNTIME.sweep(datetime.max.replace(tzinfo=timezone.utc))
+
+    assert len(scenario.outputs) == before, "no edit is attempted with a dead token"
+    assert [story.result for story in stories.values()] == ["abandoned"]
+
+
+async def test_an_expiry_inside_the_token_window_edits_through_the_latest_click(v2):
+    from datetime import datetime, timezone
+
+    scenario = await v2().start_command("default_roles")
+    await scenario.confirm()
+
+    await RUNTIME.sweep(datetime.max.replace(tzinfo=timezone.utc))
+
+    assert scenario.outputs[-1]["kind"] == "followup_edit", (
+        "the newest click's webhook is the one Discord still honours"
+    )
+
+
+async def test_a_parent_waiting_on_a_live_child_is_not_expired(v2):
+    from dataclasses import replace
+    from datetime import datetime, timedelta, timezone
+
+    scenario = await v2().start_command("block_links")
+    await scenario.confirm()
+    await scenario.click("done")
+    await scenario.click("Sim")
+    parent = next(
+        session
+        for session in RUNTIME.store._sessions.values()
+        if session.parent_id is None
+    )
+    assert parent.awaiting == "child"
+    RUNTIME.store._sessions[parent.id] = replace(
+        parent, expires_at=datetime.now(timezone.utc) - timedelta(seconds=1)
+    )
+
+    await RUNTIME.sweep(datetime.now(timezone.utc))
+
+    assert RUNTIME.store.get(parent.id).status is not Status.EXPIRED, (
+        "a child still in use keeps its parent alive"
+    )

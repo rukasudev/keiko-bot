@@ -246,10 +246,13 @@ one place that shape is built and read.
   components (`CV2_MAX_COMPONENTS`), and the renderer truncates select
   option text at `DiscordLimits.SELECT_OPTION_TEXT`.
 - **Expiry.** The events cog runs `Runtime.sweep` every
-  `ViewConstants.FORM_SWEEP_SECONDS`: sessions past their deadline
-  (`ViewConstants.LONG_TIMEOUT_SECONDS`) reach `decide` as `Expired`, the
-  message loses its buttons and shows the expired copy, and closed sessions
-  past their deadline are forgotten.
+  `ViewConstants.FORM_SWEEP_SECONDS`. A session is due when it sat idle for
+  `ViewConstants.LONG_TIMEOUT_SECONDS` since its last accepted event and no
+  child of it is still in use; it reaches `decide` as `Expired` and its journey
+  closes. The message loses its buttons only while the latest interaction token
+  is valid (`DiscordLimits.INTERACTION_TOKEN_SECONDS`); after that, the next
+  click on the message closes it. Closed sessions past their deadline are
+  forgotten.
 - **Layout.** `layout.py` holds the Components V2 frame, header, rows and
   footer; the renderer and the `/setup` card (`app/views/setup.py`) both draw
   through it.
