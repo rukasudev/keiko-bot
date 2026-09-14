@@ -113,3 +113,66 @@ def _clear_sinks():
     trace_service.clear_sinks()
     yield
     trace_service.clear_sinks()
+
+
+def test_a_quiet_trace_stores_its_lines_under_the_session_and_posts_nothing(sink):
+    """A form click is told by the session message; the engine lines it wrote
+    still belong in the stored log, grouped by the session."""
+    with trace_scope(
+        "moderations block links:Answered", quiet=True, session_id="sess01"
+    ) as trace:
+        logging.getLogger("app.test").info(
+            "form block_links sess01 rev=2 cursor=mode Answered -> active"
+        )
+
+    assert trace.is_noteworthy is False
+    debug_logs.flush()
+    from app.data import logs as logs_data
+
+    stored = [
+        document
+        for document in logs_data.mongo_client.guild.logs.find({})
+        if "rev=2" in document["message"]
+    ]
+    assert stored and stored[0].get("session_id") == "sess01"
+
+
+def test_a_unit_of_work_keeps_the_result_it_named(sink):
+    with trace_scope("birthday") as trace:
+        trace.result = "registered"
+
+    assert trace.result == "registered", "the Result field says how the command ended"
+
+    with trace_scope("birthday") as failed:
+        failed.result = "registered"
+        logging.getLogger("app.test").error("reminders-api refused the payload")
+
+    assert failed.result == "failure", "an error still wins"
+
+
+async def test_a_confirmation_view_can_run_its_callback_under_a_trace_of_its_own(sink):
+    """A confirmation answered after its command returned used to run with no
+    trace, so what it did never reached the log channel."""
+    from types import SimpleNamespace
+
+    from app.views.confirm_action import ConfirmActionView
+
+    seen = []
+    closed = []
+    trace_service.register_sink(closed.append)
+
+    async def on_confirm(interaction):
+        seen.append(trace_service.current_trace())
+        logging.getLogger("app.test").info("🎂 birthday replaced")
+
+    view = ConfirmActionView(on_confirm=on_confirm, locale="pt-br", trace_name="birthday")
+    interaction = SimpleNamespace(
+        guild_id=1,
+        user=SimpleNamespace(id=9, guild_permissions=SimpleNamespace(administrator=False)),
+    )
+    await view.confirm.callback(interaction)
+
+    assert seen[0] is not None and seen[0].name == "birthday"
+    assert [trace.name for trace in closed] == ["birthday"]
+    assert any("birthday replaced" in line["message"] for line in closed[0].lines)
+    assert closed[0].is_admin is False

@@ -31,6 +31,8 @@ SESSIONS = Counter(
 )
 LOOP_LAG = Gauge("keiko_event_loop_lag_seconds", "How late the event loop wakes up")
 
+OPENED = ("feature.setup_opened", "feature.manager_opened")
+
 TERMINAL = (
     "setup.completed",
     "setup.discarded",
@@ -79,10 +81,12 @@ class Friction:
         }
 
 
-def open_journey(session: FormSession, name: str, source: str) -> None:
+def open_journey(session: FormSession, name: str, source: str, is_admin: bool) -> None:
     """Start the single log message that follows this session to its end."""
     trace = current_trace()
-    story = journey.open_journey(
+    if trace is not None:
+        trace.session_id = session.id
+    journey.open_journey(
         session.id,
         name,
         guild_id=session.origin.guild_id,
@@ -90,14 +94,16 @@ def open_journey(session: FormSession, name: str, source: str) -> None:
         feature=session.key,
         source=source,
         inherit=trace,
+        is_admin=is_admin,
     )
-    story.is_journey = True
-    if trace:
-        trace.supersede(story)
 
 
 def emit(
-    decision: Decision, session: FormSession, source: str, friction: Friction
+    decision: Decision,
+    session: FormSession,
+    source: str,
+    friction: Friction,
+    is_admin: bool | None = None,
 ) -> None:
     """Emit the decision's product events with the session's identity."""
     root = session.id if session.parent_id is None else session.parent_id
@@ -110,6 +116,8 @@ def emit(
                 extra["ms_on_step"] = elapsed
         if name in TERMINAL:
             extra.update(friction.props())
+        if name in OPENED and is_admin is not None:
+            extra["is_admin"] = is_admin
         analytics.emit(
             name,
             guild_id=session.origin.guild_id,

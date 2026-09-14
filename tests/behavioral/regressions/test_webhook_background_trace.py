@@ -6,11 +6,17 @@ one line synchronously inside the request; the online branch logged nothing and
 scheduled a coroutine, and everything that coroutine logged was appended to a
 trace the teardown had already closed and posted.
 
-Two things must stay guaranteed:
+Reported later, from production: that fix posted two messages for one Twitch
+live, a `🔔 Webhook Event` naming the streamer and a `⏰ Scheduled Job` with the
+fan-out, because the request and the job each closed a trace of their own.
+
+Three things must stay guaranteed:
 
 - every webhook branch names its subject inside the request, so the message
   that arrives is readable even if the deferred work never finishes;
-- deferred work opens a trace of its own instead of writing into the closed one.
+- deferred work never writes into a trace that was already posted;
+- the first job a request schedules continues the request's message, so one
+  event is one message, and a request that cannot schedule still posts its own.
 """
 import asyncio
 from types import SimpleNamespace
@@ -162,3 +168,92 @@ async def test_deferred_work_that_explodes_still_closes_its_message(traces):
 
     assert len(traces) == 1
     assert traces[0].has_error
+
+
+async def _settle(traces, count):
+    for _ in range(100):
+        if len(traces) >= count:
+            return
+        await asyncio.sleep(0.01)
+
+
+def posted(traces):
+    return [trace for trace in traces if trace.is_noteworthy]
+
+
+async def test_a_webhook_that_defers_its_work_posts_one_message_named_after_the_event(
+    traces, monkeypatch,
+):
+    loop = asyncio.get_running_loop()
+    monkeypatch.setattr(app_module, "bot", SimpleNamespace(loop=loop), raising=False)
+    ran = asyncio.Event()
+
+    async def fan_out():
+        logger_module.info("Notifications sent for gaules in 3 guilds")
+        ran.set()
+
+    with trace_service.trace_scope("twitch", source="webhook") as request:
+        logger_module.info("stream.online — gaules")
+        schedule_webhook_job(fan_out(), "twitch stream.online — gaules")
+
+    await asyncio.wait_for(ran.wait(), timeout=1)
+    await _settle(traces, 2)
+
+    messages = posted(traces)
+    assert len(messages) == 1, "one Twitch live is one message in the log channel"
+    event = messages[0]
+    assert event.source == "webhook" and event.name == "twitch"
+    assert "gaules" in timeline(event), "the message still says who went live"
+    assert "Notifications sent" in timeline(event), "and what was done about it"
+    assert event.started_at == request.started_at, (
+        "the duration covers the whole event, from arrival to the last guild"
+    )
+
+
+def test_a_hand_over_that_cannot_be_scheduled_leaves_the_request_message_intact(
+    traces, monkeypatch,
+):
+    monkeypatch.setattr(app_module, "bot", SimpleNamespace(loop=None), raising=False)
+
+    async def fan_out():
+        logger_module.info("Notifications sent for gaules in 3 guilds")
+
+    with pytest.raises(Exception):
+        with trace_service.trace_scope("twitch", source="webhook"):
+            logger_module.info("stream.online — gaules")
+            schedule_webhook_job(fan_out(), "twitch stream.online — gaules")
+
+    messages = posted(traces)
+    assert len(messages) == 1, "the request is the only message that can arrive"
+    assert "gaules" in timeline(messages[0])
+
+
+async def test_a_second_job_in_the_same_request_gets_a_message_of_its_own(
+    traces, monkeypatch,
+):
+    loop = asyncio.get_running_loop()
+    monkeypatch.setattr(app_module, "bot", SimpleNamespace(loop=loop), raising=False)
+    done = []
+
+    async def reminder(number):
+        logger_module.info(f"birthday reminder {number} processed")
+        done.append(number)
+
+    with trace_service.trace_scope("reminder", source="webhook"):
+        logger_module.info("2 reminder(s) notified")
+        schedule_webhook_job(reminder(1), "birthday reminder 1")
+        schedule_webhook_job(reminder(2), "birthday reminder 2")
+
+    for _ in range(100):
+        if len(done) == 2:
+            break
+        await asyncio.sleep(0.01)
+    await _settle(traces, 3)
+
+    messages = posted(traces)
+    assert len(messages) == 2
+    request = next(trace for trace in messages if trace.source == "webhook")
+    second = next(trace for trace in messages if trace.source == "job")
+    assert "reminder 1 processed" in timeline(request)
+    assert "reminder 2 processed" not in timeline(request)
+    assert second.name == "birthday reminder 2"

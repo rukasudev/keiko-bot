@@ -360,6 +360,8 @@ def build_trace_embed(trace) -> discord.Embed:
         embed.add_field(name="Guild", value=f"`{trace.guild_id}`", inline=True)
     if trace.source:
         embed.add_field(name="Source", value=f"`{trace.source}`", inline=True)
+    if trace.is_admin is not None:
+        embed.add_field(name="Admin", value="yes" if trace.is_admin else "no", inline=True)
 
     embed.add_field(name="Duration", value=format_duration(trace.duration_ms), inline=True)
     if trace.result:

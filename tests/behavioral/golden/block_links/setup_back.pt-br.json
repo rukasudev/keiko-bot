@@ -133,28 +133,28 @@
             "type": "actionrow"
           },
           {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Avançar",
-                "style": "success",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Cancelar",
-                "style": "danger",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
           }
         ],
         "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
     "components_v2": true,
@@ -245,22 +245,22 @@
             "type": "actionrow"
           },
           {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Voltar",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
           }
         ],
         "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Voltar",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
     "components_v2": true,
@@ -359,28 +359,28 @@
             "type": "actionrow"
           },
           {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Avançar",
-                "style": "success",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Cancelar",
-                "style": "danger",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
           }
         ],
         "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
     "components_v2": true,
@@ -548,28 +548,28 @@
             "type": "actionrow"
           },
           {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Avançar",
-                "style": "success",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Cancelar",
-                "style": "danger",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
           }
         ],
         "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
     "components_v2": true,

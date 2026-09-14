@@ -338,3 +338,16 @@ def test_an_interaction_without_a_guild_does_not_crash_the_handler(discord_logs)
     discord_logs.emit(make_record("dm interaction", interaction=interaction))
 
     assert len(discord_logs.sends) == 1
+
+
+def test_a_quiet_trace_that_fails_posts_only_the_error_record(discord_logs):
+    """A form click that fails is told by the session message and by the error
+    channel; the click's raw engine timeline is not a third message."""
+    with trace_scope("moderations block links:CommitFailed", quiet=True, user_id="9"):
+        discord_logs.emit(make_record(
+            "form block_links commit setup failed: RuntimeError",
+            logging.ERROR,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+        ))
+
+    assert discord_logs.routed == ["errors"]

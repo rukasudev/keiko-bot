@@ -48,6 +48,7 @@ from app.forms.features.protocol import (
 )
 from app.services import analytics
 from app.services.trace import trace_scope
+from app.services.utils import is_guild_admin
 
 
 @dataclass
@@ -61,6 +62,7 @@ class Session:
     command_name: str
     guild: Any
     member: Any
+    is_admin: bool = False
     friction: observability.Friction = field(default_factory=observability.Friction)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     cooldowns: dict[str, float] = field(default_factory=dict)
@@ -134,11 +136,14 @@ class Runtime:
             command_name=_command_label(interaction, key),
             guild=guild,
             member=member,
+            is_admin=is_guild_admin(member),
         )
         state = self.sessions[session.id]
         if opened.pending_previews is not None:
             state.previews = asyncio.ensure_future(opened.pending_previews)
-        observability.open_journey(session, state.command_name, state.source)
+        observability.open_journey(
+            session, state.command_name, state.source, state.is_admin
+        )
         await self._apply(interaction, session, ev.Started(str(interaction.id)))
 
     # ------------------------------------------------------------ handling
@@ -157,7 +162,7 @@ class Runtime:
         state = self.sessions[session.id]
         async with state.lock:
             current = self.store.get(session.id) or session
-            if not current.is_closed and current.expires_at <= _now():
+            if not current.is_closed and self._due(current, _now()):
                 await self._apply(
                     interaction, current, ev.Expired(f"expire:{interaction.id}")
                 )
@@ -245,6 +250,8 @@ class Runtime:
             feature=session.key,
             source=state.source,
             session_id=session.id if session.parent_id is None else session.parent_id,
+            quiet=True,
+            is_admin=state.is_admin,
         ):
             context = await self._context(session, event)
             decision = decide(definition, session, event, context)
@@ -253,7 +260,9 @@ class Runtime:
                 self.store.put(decision.session)
             elif decision.session is not session:
                 self.store.remember(decision.session)
-            observability.emit(decision, decision.session, state.source, state.friction)
+            observability.emit(
+                decision, decision.session, state.source, state.friction, state.is_admin
+            )
             await self._run(interaction, decision)
 
     async def _run(self, interaction: discord.Interaction, decision: Decision) -> None:
@@ -370,12 +379,12 @@ class Runtime:
         try:
             result = await state.feature.commit(kind, payload, context)
         except Exception as error:
-            reason = (
-                "duplicate" if type(error).__name__ == "DuplicateItem" else repr(error)
-            )
-            if reason != "duplicate":
+            reason = type(error).__name__
+            if reason == "DuplicateItem":
+                reason = "duplicate"
+            else:
                 logger.error(
-                    f"form {session.key} commit {kind} failed: {reason}",
+                    f"form {session.key} commit {kind} failed: {error!r}",
                     log_type=logconstants.COMMAND_ERROR_TYPE,
                     context=observability.error_context(session, commit=kind),
                     exc_info=True,
@@ -479,9 +488,24 @@ class Runtime:
     ) -> tuple[FormSession, ...]:
         """Close every session past its deadline, on screen and in the store."""
         expired: list[FormSession] = []
-        for session in self.store.due(now or _now()):
+        moment = now or _now()
+        for session in self.store.due(moment):
+            if not self._due(session, moment):
+                continue
             state = self.sessions[session.id]
-            async with state.lock:
+            root = session.id if session.parent_id is None else session.parent_id
+            async with (
+                state.lock,
+                trace_scope(
+                    f"{state.command_name}:Expired",
+                    guild_id=session.origin.guild_id,
+                    user_id=session.origin.user_id,
+                    feature=session.key,
+                    source=state.source,
+                    session_id=root,
+                    quiet=True,
+                ),
+            ):
                 event = ev.Expired(f"expire:{session.id}")
                 definition = registry.get(*session.definition)
                 context = await self._context(session, event)
@@ -489,13 +513,35 @@ class Runtime:
                 observability.log_decision(decision, event, session)
                 self.store.put(decision.session)
                 observability.emit(
-                    decision, decision.session, state.source, state.friction
+                    decision,
+                    decision.session,
+                    state.source,
+                    state.friction,
+                    state.is_admin,
                 )
                 await expire_surface(state.surface, session.origin.locale)
             if session.parent_id is None:
                 observability.close_journey(session, "abandoned")
             expired.append(decision.session)
         return tuple(expired)
+
+    def _due(self, session: FormSession, now: datetime) -> bool:
+        """Past its deadline, with no open child still inside its own."""
+        if session.expires_at > now:
+            return False
+        return not any(
+            not child.is_closed and child.expires_at > now
+            for child in self.store.children(session.id)
+        )
+
+    async def sweep(self, now: datetime | None = None) -> None:
+        """Expire what nobody finished and forget what already ended."""
+        moment = now or _now()
+        await self.expire_stale(moment)
+        for session_id in self.store.forget_closed(moment):
+            state = self.sessions.pop(session_id, None)
+            if state is not None:
+                state.forget()
 
 
 def _cooled(state: Session, name: str, seconds: int) -> bool:

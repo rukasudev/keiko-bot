@@ -59,6 +59,8 @@ class Trace:
         feature: Optional[str] = None,
         session_id: Optional[str] = None,
         silent_when_clean: bool = False,
+        quiet: bool = False,
+        is_admin: Optional[bool] = None,
     ) -> None:
         self.id = new_trace_id()
         self.name = name
@@ -68,6 +70,8 @@ class Trace:
         self.feature = feature
         self.session_id = session_id or self.id
         self.silent_when_clean = silent_when_clean
+        self.quiet = quiet
+        self.is_admin = is_admin
         self.started_at = datetime.now(timezone.utc)
         self.finished_at: Optional[datetime] = None
         self.result: Optional[str] = None
@@ -92,6 +96,7 @@ class Trace:
         levelno: int = logging.INFO,
         timestamp: Optional[datetime] = None,
         log_type: Optional[str] = None,
+        kind: Optional[str] = None,
     ) -> None:
         self.max_level = max(self.max_level, levelno)
 
@@ -114,13 +119,17 @@ class Trace:
             "message": text,
             "levelno": levelno,
             "log_type": log_type,
+            "kind": kind,
         })
 
     def finish(self, result: Optional[str] = None) -> None:
         if self.finished_at:
             return
         self.finished_at = datetime.now(timezone.utc)
-        self.result = result or self._implicit_result()
+        if result:
+            self.result = result
+        elif self.has_error or not self.result:
+            self.result = self._implicit_result()
 
     @property
     def duration_ms(self) -> int:
@@ -142,7 +151,7 @@ class Trace:
         is how the "Left Guild" message disappeared while the record was sitting
         in `guild.logs` all along.
         """
-        if self.superseded:
+        if self.superseded or self.quiet:
             return False
         if not self.silent_when_clean:
             return True
@@ -159,6 +168,23 @@ class Trace:
         for line in self.lines:
             journey.lines.append(dict(line))
         self.superseded = True
+
+    def handover(self) -> "Trace":
+        """The trace that carries this unit of work on after its first owner returns."""
+        successor = Trace(
+            self.name,
+            source=self.source,
+            guild_id=self.guild_id,
+            user_id=self.user_id,
+            feature=self.feature,
+            session_id=self.session_id,
+            silent_when_clean=self.silent_when_clean,
+            is_admin=self.is_admin,
+        )
+        successor.started_at = self.started_at
+        successor.footnote = self.footnote
+        self.supersede(successor)
+        return successor
 
     def _implicit_result(self) -> str:
         if self.has_error:
@@ -226,7 +252,9 @@ class trace_scope:
         return False
 
 
-async def run_traced(coroutine: Any, name: str, **kwargs: Any) -> None:
+async def run_traced(
+    coroutine: Any, name: str, *, trace: Optional[Trace] = None, **kwargs: Any
+) -> None:
     """Await work that outlives whatever scheduled it, under a trace of its own.
 
     A task inherits the context it was created in, so background work started
@@ -242,8 +270,10 @@ async def run_traced(coroutine: Any, name: str, **kwargs: Any) -> None:
     A failure is recorded and swallowed. This is fire-and-forget work — there is
     no caller left to raise to, and an exception escaping into a task nobody
     awaits is only a warning on stderr.
+
+    A `trace` handed over by the caller continues the caller's message.
     """
-    trace = Trace(name, **kwargs)
+    trace = trace or Trace(name, **kwargs)
     token = _current_trace.set(trace)
     try:
         await coroutine
@@ -297,3 +327,10 @@ def add_line(
 
 def has_open_trace() -> bool:
     return _current_trace.get() is not None
+
+
+def settle(result: str) -> None:
+    """Name how the current unit of work ended, for its Result field."""
+    trace = _current_trace.get()
+    if trace is not None:
+        trace.result = result

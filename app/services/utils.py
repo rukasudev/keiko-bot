@@ -599,6 +599,12 @@ def parse_locale(locale: str) -> str:
             return supported
     return "en-us"
 
+def is_guild_admin(user: Any) -> bool:
+    """Whether the member holds the administrator permission in their guild."""
+    permissions = getattr(user, "guild_permissions", None)
+    return bool(permissions and permissions.administrator)
+
+
 def parse_valid_locale(locale: discord.Locale) -> discord.Locale:
     locale_value = getattr(locale, "value", str(locale))
     if locale_value == discord.Locale.brazil_portuguese.value:

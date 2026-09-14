@@ -195,6 +195,10 @@ class FormSession:
         """The session whose screen now shows this revision."""
         return replace(self, screen_revision=self.revision)
 
+    def touched(self, now: datetime, ttl_seconds: int) -> FormSession:
+        """The session whose deadline counts from `now`; bookkeeping, no revision."""
+        return replace(self, expires_at=now + timedelta(seconds=ttl_seconds))
+
     def has_seen(self, event_id: str) -> bool:
         """True when `event_id` was applied to this session already."""
         return event_id in self.seen_events
