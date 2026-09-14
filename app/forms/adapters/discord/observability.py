@@ -82,7 +82,9 @@ class Friction:
 def open_journey(session: FormSession, name: str, source: str) -> None:
     """Start the single log message that follows this session to its end."""
     trace = current_trace()
-    story = journey.open_journey(
+    if trace is not None:
+        trace.session_id = session.id
+    journey.open_journey(
         session.id,
         name,
         guild_id=session.origin.guild_id,
@@ -91,9 +93,6 @@ def open_journey(session: FormSession, name: str, source: str) -> None:
         source=source,
         inherit=trace,
     )
-    story.is_journey = True
-    if trace:
-        trace.supersede(story)
 
 
 def emit(

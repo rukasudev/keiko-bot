@@ -245,6 +245,7 @@ class Runtime:
             feature=session.key,
             source=state.source,
             session_id=session.id if session.parent_id is None else session.parent_id,
+            quiet=True,
         ):
             context = await self._context(session, event)
             decision = decide(definition, session, event, context)
@@ -370,12 +371,12 @@ class Runtime:
         try:
             result = await state.feature.commit(kind, payload, context)
         except Exception as error:
-            reason = (
-                "duplicate" if type(error).__name__ == "DuplicateItem" else repr(error)
-            )
-            if reason != "duplicate":
+            reason = type(error).__name__
+            if reason == "DuplicateItem":
+                reason = "duplicate"
+            else:
                 logger.error(
-                    f"form {session.key} commit {kind} failed: {reason}",
+                    f"form {session.key} commit {kind} failed: {error!r}",
                     log_type=logconstants.COMMAND_ERROR_TYPE,
                     context=observability.error_context(session, commit=kind),
                     exc_info=True,

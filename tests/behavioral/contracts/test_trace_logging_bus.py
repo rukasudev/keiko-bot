@@ -113,3 +113,25 @@ def _clear_sinks():
     trace_service.clear_sinks()
     yield
     trace_service.clear_sinks()
+
+
+def test_a_quiet_trace_stores_its_lines_under_the_session_and_posts_nothing(sink):
+    """A form click is told by the session message; the engine lines it wrote
+    still belong in the stored log, grouped by the session."""
+    with trace_scope(
+        "moderations block links:Answered", quiet=True, session_id="sess01"
+    ) as trace:
+        logging.getLogger("app.test").info(
+            "form block_links sess01 rev=2 cursor=mode Answered -> active"
+        )
+
+    assert trace.is_noteworthy is False
+    debug_logs.flush()
+    from app.data import logs as logs_data
+
+    stored = [
+        document
+        for document in logs_data.mongo_client.guild.logs.find({})
+        if "rev=2" in document["message"]
+    ]
+    assert stored and stored[0].get("session_id") == "sess01"

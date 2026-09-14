@@ -37,6 +37,8 @@ def published():
         "result": story.result,
         "lines": [line["message"] for line in story.lines],
         "finished": bool(story.finished_at),
+        "is_journey": story.is_journey,
+        "truncated": story.truncated,
     }))
     return renders
 
@@ -130,6 +132,7 @@ def test_an_edit_without_key_names_still_says_how_many_changed(published):
     ("setup.abandoned", "abandoned"),
     ("feature.disabled", "disabled"),
     ("feature.paused", "paused"),
+    ("feature.commit_failed", "failure"),
 ])
 def test_each_terminal_event_closes_the_story_with_its_own_outcome(
     published, event_name, outcome
@@ -397,3 +400,123 @@ def test_a_terminal_outcome_outranks_the_last_action(published):
 
     story = published[-1]
     assert story["result"] == "discarded"
+
+
+def test_opening_from_a_trace_moves_the_opening_line_exactly_once():
+    """Reported from the log channel: every session message began with the
+    `started` line twice, because the journey copied the interaction's lines
+    and the interaction then handed the same lines over again."""
+    with trace_scope("moderations block links", guild_id="1", user_id="9",
+                     source="slash") as trace:
+        trace.add("`/moderations block links` started")
+        story = start(inherit=trace)
+
+    assert [line["message"] for line in story.lines] == [
+        "`/moderations block links` started"
+    ]
+    assert trace.is_noteworthy is False, "the interaction hands its message over"
+
+
+def test_the_first_render_is_already_labelled_a_session(published):
+    start()
+
+    assert published[0]["is_journey"] is True, (
+        "the footer of the first render must say session, not trace"
+    )
+
+
+def _walk_steps(count):
+    for index in range(count):
+        journey.record(event(
+            "setup.step_viewed", step_key=f"s{index}", step_action="options"
+        ))
+
+
+def test_a_saved_session_condenses_to_its_milestones_and_a_summary(published):
+    """A save is read for what it configured; the step by step belongs to a
+    session that went wrong."""
+    start()
+    _walk_steps(3)
+    journey.record(event(
+        "setup.validation_failed", step_key="s1", error_key="invalid-link",
+        attempt_n=1,
+    ))
+    journey.record(event("feature.enabled"))
+    journey.record(event(
+        "setup.completed", configured_steps=["link_settings", "permissions"],
+        item_count=2, steps_viewed=3, duration_bucket="1-5m",
+    ))
+
+    lines = published[-1]["lines"]
+    assert not any(line.startswith("step:") for line in lines)
+    assert any(line.startswith("⚠️") for line in lines), "friction is a milestone"
+    assert "🟢 feature enabled" in lines
+    assert lines[-1] == "✅ saved: Link Settings, Permissions · 2 items · 3 steps, 1-5m"
+
+
+@pytest.mark.parametrize("ending", ["setup.discarded", "setup.abandoned"])
+def test_a_discarded_or_expired_session_keeps_every_step(published, ending):
+    start()
+    _walk_steps(3)
+    journey.record(event(ending, step_key="s2"))
+
+    assert sum(line.startswith("step:") for line in published[-1]["lines"]) == 3
+
+
+def test_the_summary_line_survives_a_session_longer_than_the_cap(published):
+    from app.constants import LogTypes
+
+    start()
+    _walk_steps(LogTypes.TRACE_MAX_LINES + 5)
+    journey.record(event(
+        "setup.completed", configured_steps=["permissions"], steps_viewed=25,
+        duration_bucket="1-5m",
+    ))
+
+    assert published[-1]["lines"][-1].startswith("✅ saved: "), (
+        "a long session must never lose the line that says how it ended"
+    )
+    assert published[-1]["truncated"] == 0
+
+
+def test_a_failed_commit_names_the_step_and_the_reason_and_closes_as_failure(
+    published,
+):
+    start()
+    _walk_steps(2)
+    journey.record(event(
+        "feature.commit_failed", commit_kind="setup", error_type="RuntimeError",
+        step_key="permissions",
+    ))
+
+    last = published[-1]
+    assert last["result"] == "failure" and last["finished"] is True
+    assert last["lines"][-1] == "❌ setup failed at `Permissions`: RuntimeError"
+    assert sum(line.startswith("step:") for line in last["lines"]) == 2, (
+        "a failure keeps the step by step"
+    )
+
+
+def test_a_rebuilt_saved_session_is_condensed_the_same_way(deps):
+    analytics.reset()
+    journey.install()
+    start()
+    identity = dict(guild_id="1", user_id="9", feature="block_links",
+                    source="slash", session_id=SESSION)
+    for step in ("mode", "permissions"):
+        analytics.emit("setup.step_viewed", step_key=step, step_action="options",
+                       step_index=1, **identity)
+    analytics.emit("setup.completed", duration_ms=1000, steps_viewed=2,
+                   duration_bucket="<1m", configured_steps=["permissions"],
+                   **identity)
+    analytics.flush()
+    journey.clear()
+
+    rebuilt = journey.rebuild(SESSION)
+
+    messages = [line["message"] for line in rebuilt.lines]
+    assert not any(message.startswith("step:") for message in messages)
+    assert messages[-1] == "✅ saved: Permissions · 2 steps, <1m", (
+        "refreshing must show the same message the session posted"
+    )
+    assert rebuilt.result == "saved"

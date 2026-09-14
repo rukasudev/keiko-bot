@@ -59,6 +59,7 @@ class Trace:
         feature: Optional[str] = None,
         session_id: Optional[str] = None,
         silent_when_clean: bool = False,
+        quiet: bool = False,
     ) -> None:
         self.id = new_trace_id()
         self.name = name
@@ -68,6 +69,7 @@ class Trace:
         self.feature = feature
         self.session_id = session_id or self.id
         self.silent_when_clean = silent_when_clean
+        self.quiet = quiet
         self.started_at = datetime.now(timezone.utc)
         self.finished_at: Optional[datetime] = None
         self.result: Optional[str] = None
@@ -92,6 +94,7 @@ class Trace:
         levelno: int = logging.INFO,
         timestamp: Optional[datetime] = None,
         log_type: Optional[str] = None,
+        kind: Optional[str] = None,
     ) -> None:
         self.max_level = max(self.max_level, levelno)
 
@@ -114,6 +117,7 @@ class Trace:
             "message": text,
             "levelno": levelno,
             "log_type": log_type,
+            "kind": kind,
         })
 
     def finish(self, result: Optional[str] = None) -> None:
@@ -142,7 +146,7 @@ class Trace:
         is how the "Left Guild" message disappeared while the record was sitting
         in `guild.logs` all along.
         """
-        if self.superseded:
+        if self.superseded or self.quiet:
             return False
         if not self.silent_when_clean:
             return True

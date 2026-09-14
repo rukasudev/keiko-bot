@@ -144,7 +144,7 @@ def test_the_review_confirms_into_a_commit_and_completes_on_success():
     done = decide(definition, committing.session, evt(ev.CommitSucceeded, kind="setup"))
     assert done.session.status is Status.COMPLETED
     assert kinds(done) == ["Finalize"] and done.effects[0].kind == "enabled"
-    assert ("setup.completed", {}) in done.analytics
+    assert "setup.completed" in [name for name, _ in done.analytics]
 
 
 def test_a_failed_commit_fails_the_session_visibly():
@@ -155,6 +155,41 @@ def test_a_failed_commit_fails_the_session_visibly():
     )
     assert failed.session.status is Status.FAILED
     assert failed.effects[0].kind == "error"
+
+
+def test_a_completed_setup_names_the_steps_it_configured_never_their_values():
+    definition, session = _to_review()
+    committing = decide(definition, session, evt(ev.Answered, step_key="confirm"))
+    done = decide(definition, committing.session, evt(ev.CommitSucceeded, kind="setup"))
+    props = dict(done.analytics)["setup.completed"]
+
+    configured = props["configured_steps"]
+    declared = [step.key for step in definition.steps]
+    assert "link_settings" in configured
+    assert "form" not in configured and "confirm" not in configured, (
+        "an intro or a review configures nothing"
+    )
+    assert "add_custom" not in configured, "a hidden gate is not a setting"
+    assert list(configured) == [key for key in declared if key in configured], (
+        "the summary follows the order the form declares"
+    )
+    assert all(isinstance(value, (int, str, tuple, list)) for value in props.values())
+    assert set(configured) <= set(declared), "step keys only, never an answer"
+
+
+def test_a_failed_commit_reports_the_kind_the_step_and_the_reason():
+    definition, session = _to_review()
+    committing = decide(definition, session, evt(ev.Answered, step_key="confirm"))
+    failed = decide(
+        definition,
+        committing.session,
+        evt(ev.CommitFailed, kind="setup", error="RuntimeError"),
+    )
+
+    assert (
+        "feature.commit_failed",
+        {"commit_kind": "setup", "error_type": "RuntimeError", "step_key": "confirm"},
+    ) in failed.analytics
 
 
 def test_the_document_of_a_default_setup_keeps_the_stored_shape():

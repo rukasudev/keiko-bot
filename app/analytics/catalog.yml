@@ -132,9 +132,20 @@ events:
     emitted_at: app/forms/adapters/discord/observability.py — emit, from Decision.analytics (_on_commit_succeeded)
     actor: user
     required: [feature, session_id, source, duration_ms, steps_viewed]
-    optional: [validation_failures, back_count, duration_bucket]
+    optional: [validation_failures, back_count, duration_bucket, configured_steps, item_count]
     retention_days: 90
     audit: true
+    cardinality_risk: low
+
+  feature.commit_failed:
+    version: 1
+    class: [event, counter]
+    description: A feature's commit raised before finishing; the session closed as a failure.
+    emitted_at: app/forms/adapters/discord/observability.py — emit, from Decision.analytics (_on_commit_failed)
+    actor: user
+    required: [feature, session_id, commit_kind, error_type]
+    optional: [step_key]
+    retention_days: 90
     cardinality_risk: low
 
   setup.discarded:

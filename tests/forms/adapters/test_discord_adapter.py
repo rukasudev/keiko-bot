@@ -232,3 +232,90 @@ def test_a_text_modal_carries_only_text_inputs():
         discord.TextStyle.short,
         discord.TextStyle.long,
     ]
+
+
+# ------------------------------------------------------------------ logging
+
+
+@pytest.fixture
+def closed_traces():
+    from app import logger as logger_module
+    from app.services import trace as trace_service
+
+    trace_service.clear_sinks()
+    captured: list = []
+    trace_service.register_sink(captured.append)
+    folding = logger_module.TraceFoldingHandler()
+    logger_module.logger.addHandler(folding)
+    yield captured
+    logger_module.logger.removeHandler(folding)
+    trace_service.clear_sinks()
+
+
+@pytest.fixture
+def stories():
+    from app.services import journey
+
+    journey.clear()
+    seen: dict = {}
+    journey.set_publisher(lambda story: seen.__setitem__(story.session_id, story))
+    journey.install()
+    yield seen
+    journey.clear()
+    journey.set_publisher(None)
+
+
+async def _save_block_links_with_a_failing_commit(v2, monkeypatch):
+    from app.forms.features import block_links
+
+    async def boom(self, kind, payload, context):
+        raise RuntimeError("secret detail")
+
+    monkeypatch.setattr(type(block_links.FEATURE), "commit", boom)
+    scenario = await v2().start_command("block_links")
+    await scenario.confirm()
+    await scenario.click("done")
+    await scenario.click("Depois")
+    await scenario.confirm()
+    await scenario.confirm()
+    return scenario
+
+
+async def test_a_clean_click_posts_no_message_of_its_own(v2, closed_traces):
+    scenario = await v2().start_command("default_roles")
+    await scenario.confirm()
+
+    assert closed_traces, "every click still closes a trace"
+    assert not [trace for trace in closed_traces if trace.is_noteworthy], (
+        "a click must not post to the log channel; the session message tells the story"
+    )
+    assert any(
+        "form default_roles" in line["message"]
+        for trace in closed_traces
+        for line in trace.lines
+    ), "the engine lines still reach the stored log"
+
+
+async def test_a_failed_commit_posts_no_raw_timeline_and_marks_the_story_failed(
+    v2, closed_traces, stories, monkeypatch
+):
+    await _save_block_links_with_a_failing_commit(v2, monkeypatch)
+
+    assert not [trace for trace in closed_traces if trace.is_noteworthy], (
+        "a failed save is told by the session message and the error channel, "
+        "never by a third message of engine lines"
+    )
+    assert [story.result for story in stories.values()] == ["failure"]
+
+
+async def test_a_raising_commit_puts_a_failure_line_on_the_story_not_the_message(
+    v2, stories, monkeypatch
+):
+    await _save_block_links_with_a_failing_commit(v2, monkeypatch)
+
+    lines = [line["message"] for line in list(stories.values())[0].lines]
+    assert any(line.startswith("❌") and "RuntimeError" in line for line in lines)
+    assert not any("secret detail" in line for line in lines), (
+        "an exception message is free text and never reaches an event"
+    )
+    assert any(line.startswith("step:") for line in lines)

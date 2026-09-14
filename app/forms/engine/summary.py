@@ -221,6 +221,23 @@ def _declared_order(steps: Sequence[Step], answers: Mapping[str, Answer]) -> lis
     return ordered + [key for key in answers if key not in ordered]
 
 
+def configured_steps(
+    steps: Sequence[Step], answers: Mapping[str, Answer]
+) -> tuple[str, ...]:
+    """The steps a save configured, in declaration order, named by key only."""
+    configured: list[str] = []
+    for step in steps:
+        if step.kind in ("intro", "info", "review") or step.hidden:
+            continue
+        if any(_filled(answers.get(key)) for key in produced_keys(step)):
+            configured.append(step.key)
+    return tuple(configured)
+
+
+def _filled(answer: Answer | None) -> bool:
+    return answer is not None and answer.raw not in (None, "", [], (), {})
+
+
 def transformed_value(step: TextStep | CardStep, parts: Mapping[str, Any]) -> Any:
     """The stored value of a step's parts under its transform, if any."""
     rule = transform(step.transform)

@@ -68,10 +68,7 @@ def _line_for(event: str, props: Dict[str, Any], feature: str = None) -> Optiona
             f"⚠️ confirmed with {props.get('missing_count')} required field(s) empty"
         ),
         "setup.discard_recovered": "↩️ chose to keep the setup",
-        "setup.completed": (
-            f"✅ saved ({props.get('steps_viewed')} steps,"
-            f" {props.get('duration_bucket')})"
-        ),
+        "setup.completed": _saved(props, feature),
         "setup.discarded": f"🚫 discarded at `{step}`",
         "setup.abandoned": f"⌛ expired at `{step}`",
         "config.changed": f"🔧 edited — {_changed(props)}",
@@ -84,8 +81,31 @@ def _line_for(event: str, props: Dict[str, Any], feature: str = None) -> Optiona
         "feature.tested": f"👁️ tested via {props.get('surface')}",
         "value.blocked_by_permission": "🚷 Discord refused the action",
         "command.failed": f"❌ {props.get('error_type')}",
+        "feature.commit_failed": (
+            f"❌ {props.get('commit_kind')} failed at `{step}`:"
+            f" {props.get('error_type')}"
+        ),
     }
     return lines.get(event)
+
+
+def _saved(props: Dict[str, Any], feature: str = None) -> str:
+    """What a save configured: step titles and counts, never the values."""
+    from app.services.utils import describe_step
+
+    parts = []
+    steps = props.get("configured_steps")
+    if isinstance(steps, (list, tuple)) and steps:
+        parts.append(", ".join(
+            describe_step(feature, key) if feature else str(key) for key in steps
+        ))
+    items = props.get("item_count")
+    if isinstance(items, int) and not isinstance(items, bool) and items:
+        parts.append(f"{items} item" if items == 1 else f"{items} items")
+    timing = f"{props.get('steps_viewed')} steps, {props.get('duration_bucket')}"
+    if not parts:
+        return f"✅ saved ({timing})"
+    return "✅ saved: " + " · ".join(parts + [timing])
 
 
 def _changed(props: Dict[str, Any]) -> str:
@@ -98,6 +118,7 @@ def _changed(props: Dict[str, Any]) -> str:
 
 
 TERMINAL_OUTCOMES = {
+    "feature.commit_failed": "failure",
     "setup.completed": "saved",
     "setup.discarded": "discarded",
     "setup.abandoned": "abandoned",
@@ -120,6 +141,17 @@ def set_publisher(publisher: Optional[Callable[[Trace], None]]) -> None:
     """The logger registers how a journey reaches Discord."""
     global _PUBLISHER
     _PUBLISHER = publisher
+
+
+LINE_KINDS = {"setup.step_viewed": "step", "setup.step_back": "step"}
+CONDENSED_OUTCOMES = frozenset({"saved", "edited"})
+FAILURE_EVENTS = frozenset({"command.failed", "feature.commit_failed"})
+
+
+def _condense(story: Trace) -> None:
+    """A saved session is read for what it configured, not step by step."""
+    story.lines = [line for line in story.lines if line.get("kind") != "step"]
+    story.truncated = 0
 
 
 def get(session_id: str) -> Optional[Trace]:
@@ -158,10 +190,10 @@ def open_journey(
         session_id=session_id,
     )
     journey.result = "in progress"
+    journey.is_journey = True
 
     if inherit:
-        for line in inherit.lines:
-            journey.lines.append(dict(line))
+        inherit.supersede(journey)
 
     journey.footnote = recent_attempts(guild_id, feature, session_id)
     _JOURNEYS[session_id] = journey
@@ -183,15 +215,19 @@ def record(envelope: Dict[str, Any]) -> None:
 
     # The sentences carry their own icon, and a rejected value is ordinary
     # friction — only a real failure should colour the whole message red.
-    failed = envelope["event"] == "command.failed"
+    failed = envelope["event"] in FAILURE_EVENTS
     level = logging.ERROR if failed else logging.INFO
-    journey.add(line, level, timestamp=envelope.get("ts"))
+    outcome = TERMINAL_OUTCOMES.get(envelope["event"])
+    if outcome in CONDENSED_OUTCOMES:
+        _condense(journey)
+    journey.add(
+        line, level, timestamp=envelope.get("ts"), kind=LINE_KINDS.get(envelope["event"])
+    )
 
     action = ACTIONS.get(envelope["event"])
     if action:
         journey.last_action = action
 
-    outcome = TERMINAL_OUTCOMES.get(envelope["event"])
     if outcome:
         finalize(envelope["session_id"], outcome)
         return
@@ -242,17 +278,22 @@ def rebuild(session_id: str) -> Optional[Trace]:
     story.started_at = first.get("ts") or story.started_at
 
     outcome = None
+    entries = []
     for envelope in events:
         line = _line_for(
             envelope["event"], envelope.get("props") or {}, envelope.get("feature")
         )
         if line:
-            story.add(
-                line,
-                logging.ERROR if envelope["event"] == "command.failed" else logging.INFO,
-                timestamp=envelope.get("ts"),
+            level = logging.ERROR if envelope["event"] in FAILURE_EVENTS else logging.INFO
+            entries.append(
+                (line, level, envelope.get("ts"), LINE_KINDS.get(envelope["event"]))
             )
         outcome = TERMINAL_OUTCOMES.get(envelope["event"], outcome)
+
+    if outcome in CONDENSED_OUTCOMES:
+        entries = [entry for entry in entries if entry[3] != "step"]
+    for line, level, timestamp, kind in entries:
+        story.add(line, level, timestamp=timestamp, kind=kind)
 
     live = _JOURNEYS.get(session_id)
     story.name = live.name if live else story.name
