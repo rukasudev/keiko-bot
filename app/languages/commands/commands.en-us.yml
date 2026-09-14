@@ -239,8 +239,9 @@ en-us:
       name: setup
       desc: Keiko shows you all features available and helps you set them up
       embed:
-        title: "⚙️ Server Setup"
+        title: "🐶 Server Setup"
         desc: "Pick what you want to set up and I'll guide you step by step!"
+        note: "These are my moderation and notification features. More commands and help live in `/help`!"
         configured: "Configured · {count}"
         pending: "Not set up yet · {count}"
         paused: Paused

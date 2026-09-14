@@ -5,8 +5,10 @@ and a row of buttons far from the lines they belonged to. Its first card
 redesign still read as busy: every row said its status three times (a coloured
 circle, a word, the button) over three lines with three emoji.
 
-Guaranteed: a Components V2 card with Keiko's picture beside a one-sentence
-intro; features grouped under "configured" and "to set up" headings with their
+Guaranteed: a Components V2 card with Keiko's picture beside a dog-titled
+header of three lines (the title, a one-sentence intro, and a note on what these
+features are and where /help lives) so no blank space sits under the picture;
+features grouped under "to set up" first and "configured" second, with their
 counts, in declared order inside each group; every row is its name plus one
 subtext line with what it does and its command, with no status circles; a
 paused feature says so in its subtext; the button reads Manage in the first
@@ -89,34 +91,53 @@ def feature(command_key):
     return next(f for f in Commands.SETUP_FEATURES if f["command_key"] == command_key)
 
 
+def header_of(view):
+    return next(
+        item
+        for item in walk_items(view)
+        if isinstance(item, discord.ui.Section)
+        and isinstance(item.accessory, discord.ui.Thumbnail)
+    )
+
+
 async def test_the_setup_screen_is_a_components_v2_card_with_keiko_on_the_right(
     configured,
 ):
     view = await dashboard()
 
     assert isinstance(view, discord.ui.LayoutView)
-    pictures = [
-        item.media.url
-        for item in walk_items(view)
-        if isinstance(item, discord.ui.Thumbnail)
-    ]
-    assert pictures == [KeikoIcons.IMAGE_01]
-    assert ml(f"{BASE}.desc", "pt-br") in texts(view)
+    assert header_of(view).accessory.media.url == KeikoIcons.IMAGE_01
+
+
+@pytest.mark.parametrize("locale,help_command", [("pt-br", "/ajuda"), ("en-us", "/help")])
+async def test_the_header_fills_the_space_beside_keikos_picture(
+    configured, locale, help_command
+):
+    """Reported: with a title and one sentence, the section was shorter than
+    the picture and left a blank band under the intro."""
+    lines = [child.content for child in header_of(await dashboard(locale)).children]
+
+    assert len(lines) == 3, "title, intro and note fill the picture's height"
+    assert lines[0].startswith("## 🐶 "), "Keiko's own emoji leads the title"
+    assert lines[1] == ml(f"{BASE}.desc", locale)
+    assert lines[2].startswith("-# ") and help_command in lines[2], (
+        "the note says where the rest of the commands and the help are"
+    )
 
 
 async def test_features_are_grouped_by_whether_they_are_set_up(configured):
     view = await dashboard()
 
     headings = [text for text in texts(view) if text.startswith("### ")]
-    assert headings == [heading("configured", 2), heading("pending", 4)]
+    assert headings == [heading("pending", 4), heading("configured", 2)]
     assert [row.accessory.command_key for row in rows(view)] == [
-        Commands.WELCOME_MESSAGES_KEY,
-        Commands.BLOCK_LINKS_KEY,
         Commands.DEFAULT_ROLES_KEY,
         Commands.NOTIFICATIONS_TWITCH_KEY,
         Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
         Commands.REMINDERS_BIRTHDAY_KEY,
-    ], "configured first, then the rest, each group in declared order"
+        Commands.WELCOME_MESSAGES_KEY,
+        Commands.BLOCK_LINKS_KEY,
+    ], "what is left to set up comes first, each group in declared order"
 
 
 async def test_every_row_is_its_name_and_one_subtext_line_with_its_command(configured):

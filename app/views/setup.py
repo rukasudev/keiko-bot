@@ -79,15 +79,21 @@ async def setup_dashboard(guild_id: str, locale: str) -> discord.ui.LayoutView:
         (feature, await _state(guild_id, feature["command_key"], moderations))
         for feature in commands_constants.SETUP_FEATURES
     ]
+    pending = [(f, s) for f, s in states if s == "pending"]
     groups = (
+        ("pending", pending, "buttons.setup.start.label"),
         ("configured", [(f, s) for f, s in states if s != "pending"], "buttons.setup.manage.label"),
-        ("pending", [(f, s) for f, s in states if s == "pending"], "buttons.setup.start.label"),
     )
-    has_pending = bool(groups[1][1])
 
     card = layout.container()
-    intro = ml(f"{base}.desc" if has_pending else f"{base}.all-configured", locale)
-    layout.header(card, ml(f"{base}.title", locale), intro, KeikoIcons.IMAGE_01)
+    intro = ml(f"{base}.desc" if pending else f"{base}.all-configured", locale)
+    layout.header(
+        card,
+        ml(f"{base}.title", locale),
+        intro,
+        KeikoIcons.IMAGE_01,
+        note=f"-# {ml(f'{base}.note', locale)}",
+    )
     for group_key, members, label_key in groups:
         if not members:
             continue

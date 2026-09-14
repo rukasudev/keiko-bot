@@ -239,8 +239,9 @@ pt-br:
       name: configurar
       desc: Keiko mostra todas as funcionalidades disponíveis e te ajuda a configurá-las
       embed:
-        title: "⚙️ Configuração do Servidor"
+        title: "🐶 Configuração do Servidor"
         desc: "Escolha o que você quer ajustar e eu te guio passo a passo!"
+        note: "Aqui ficam minhas funcionalidades de moderação e notificações. Tem mais comandos e ajuda no `/ajuda`!"
         configured: "Configuradas · {count}"
         pending: "Para configurar · {count}"
         paused: Pausado

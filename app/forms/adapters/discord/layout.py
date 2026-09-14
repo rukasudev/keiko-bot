@@ -16,12 +16,18 @@ def container(accent: discord.Colour | None = None) -> discord.ui.Container[Any]
 
 
 def header(
-    frame: discord.ui.Container[Any], title: str, intro: str = "", thumbnail: str = ""
+    frame: discord.ui.Container[Any],
+    title: str,
+    intro: str = "",
+    thumbnail: str = "",
+    note: str = "",
 ) -> None:
-    """The `## title` block, with a picture on its right when one is given."""
+    """The `## title` block and up to two lines, with a picture on its right."""
     lines = [f"## {title}"]
     if intro:
         lines.append(intro)
+    if note:
+        lines.append(note)
     if thumbnail:
         frame.add_item(
             discord.ui.Section(*lines, accessory=discord.ui.Thumbnail(thumbnail))
