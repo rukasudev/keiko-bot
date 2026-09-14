@@ -133,28 +133,28 @@
             "type": "actionrow"
           },
           {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Next",
-                "style": "success",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Cancel",
-                "style": "danger",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "-# • Use the `/report` command to tell me a bug",
             "type": "text"
           }
         ],
         "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Next",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
     "components_v2": true,

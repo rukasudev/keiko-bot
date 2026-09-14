@@ -34,63 +34,63 @@
             "type": "text"
           },
           {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Editar",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Pausar",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Desativar",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Adicionar",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Histórico",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Estatísticas",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Ajuda",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
           }
         ],
         "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Editar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Pausar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Desativar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Adicionar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Histórico",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Estatísticas",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Ajuda",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
     "components_v2": true,
@@ -290,34 +290,34 @@
             "type": "actionrow"
           },
           {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Avançar",
-                "style": "success",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Voltar",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Cancelar",
-                "style": "danger",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
           }
         ],
         "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Voltar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
     "components_v2": true,
@@ -423,22 +423,22 @@
             "type": "actionrow"
           },
           {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Voltar",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
           }
         ],
         "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Voltar",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
     "components_v2": true,
@@ -556,34 +556,34 @@
             "type": "actionrow"
           },
           {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Avançar",
-                "style": "success",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Voltar",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Cancelar",
-                "style": "danger",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
           }
         ],
         "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Voltar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
     "components_v2": true,
@@ -725,34 +725,34 @@
             "type": "actionrow"
           },
           {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Avançar",
-                "style": "success",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Voltar",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Cancelar",
-                "style": "danger",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
           }
         ],
         "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Voltar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
     "components_v2": true,

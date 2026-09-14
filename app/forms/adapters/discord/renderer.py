@@ -402,16 +402,16 @@ def layout_of(
             _gallery(container, component, ids, dispatcher)
     if is_picker:
         _picker_screen(container, screen, ids, dispatcher)
+    if screen.layout_footer:
+        layout.footer(container, screen.layout_footer)
+    view.add_item(container)
     action_buttons = [
         _button(dispatcher, ids, spec)
         for spec in cancel_last(screen.buttons)
         if not spec.action.startswith("pick:")
     ]
     for row in _action_rows(action_buttons):
-        container.add_item(row)
-    if screen.layout_footer:
-        layout.footer(container, screen.layout_footer)
-    view.add_item(container)
+        view.add_item(row)
     return view
 
 

@@ -255,7 +255,9 @@ one place that shape is built and read.
   forgotten.
 - **Layout.** `layout.py` holds the Components V2 frame, header, rows and
   footer; the renderer and the `/setup` card (`app/views/setup.py`) both draw
-  through it.
+  through it. A screen's own buttons sit below the card, outside its frame;
+  a button that belongs to one part of the card (a section, a group's Edit, a
+  design, a picker's options) stays inside.
 - **Observability.** `observability.emit` is the only place a form's
   product events are emitted, from `Decision.analytics` (see
   `docs/analytics.md`); `log_decision` writes one line per decision and

@@ -54,5 +54,6 @@ def row(
 
 def footer(frame: discord.ui.Container[Any], text: str) -> None:
     """A separator and the `-#` subtext line that closes a card."""
-    frame.add_item(discord.ui.Separator())
+    if not frame.children or not isinstance(frame.children[-1], discord.ui.Separator):
+        frame.add_item(discord.ui.Separator())
     frame.add_item(discord.ui.TextDisplay(f"-# {text}"))

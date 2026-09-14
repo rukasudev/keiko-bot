@@ -185,26 +185,26 @@
           {
             "content": "⬆️ Role para cima para ver todas as opções",
             "type": "text"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Voltar",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Cancelar",
-                "style": "danger",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
           }
         ],
         "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Voltar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
     "components_v2": true,
@@ -380,26 +380,26 @@
           {
             "content": "⬆️ Role para cima para ver todas as opções",
             "type": "text"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Voltar",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Cancelar",
-                "style": "danger",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
           }
         ],
         "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Voltar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
     "components_v2": true,

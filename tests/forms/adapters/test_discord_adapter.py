@@ -19,6 +19,7 @@ from app.forms.engine.screen import FileInput, Input, Screen, TextInputs
 from app.forms.engine.session import Status
 from app.services.utils import ml
 from tests.behavioral.contracts.test_components_v2_limits import _assert_within_limits
+from tests.behavioral.golden.paths.block_links import _seed as seed_block_links
 from tests.behavioral.golden.paths.reminders_birthday import (
     _complete_settings_card,
     _guild,
@@ -193,6 +194,32 @@ async def test_a_layout_payload_carries_only_layout_components(v2):
     await scenario.confirm()
     for item in locators.walk_items(scenario.current_message.view):
         assert isinstance(item, LAYOUT_ITEMS), type(item).__name__
+
+
+async def test_a_panel_puts_its_buttons_below_the_card(v2, deps):
+    seed_block_links(deps)
+    scenario = await v2().start_command("block_links")
+    view = scenario.current_message.view
+
+    card, *rows = view.children
+    assert isinstance(card, discord.ui.Container)
+    assert rows and all(isinstance(row, discord.ui.ActionRow) for row in rows)
+    inside = list(locators.walk_items(card))
+    assert not any(isinstance(item, discord.ui.ActionRow) for item in inside)
+    assert inside[-1].content.startswith("-# "), "the footer still closes the card"
+    kinds = [type(item) for item in card.children]
+    assert (discord.ui.Separator, discord.ui.Separator) not in zip(kinds, kinds[1:])
+
+
+async def test_a_card_keeps_section_buttons_inside_and_its_own_below(v2):
+    scenario = await v2().start_command("block_links")
+    await scenario.confirm()
+    message, cancel = _button(scenario, "cancel")
+
+    card, *rows = message.view.children
+    assert isinstance(card, discord.ui.Container)
+    assert any(isinstance(item, discord.ui.ActionRow) for item in card.children)
+    assert any(cancel in row.children for row in rows)
 
 
 async def test_the_birthday_cards_stay_within_discord_limits(v2, deps):
