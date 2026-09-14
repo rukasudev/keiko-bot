@@ -85,12 +85,16 @@ class InMemorySessionStore:
             expired.append(closed)
         return tuple(expired)
 
-    def forget_closed(self) -> int:
-        """Drop closed sessions and return how many went."""
-        closed = [key for key, s in self._sessions.items() if s.is_closed]
+    def forget_closed(self, before: datetime | None = None) -> tuple[str, ...]:
+        """Drop closed sessions, only those past `before` if given, and return ids."""
+        closed = [
+            key
+            for key, session in self._sessions.items()
+            if session.is_closed and (before is None or session.expires_at <= before)
+        ]
         for key in closed:
             del self._sessions[key]
-        return len(closed)
+        return tuple(closed)
 
     def children(self, parent_id: str) -> tuple[FormSession, ...]:
         """Every session opened under `parent_id`."""

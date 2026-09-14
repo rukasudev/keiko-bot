@@ -244,6 +244,7 @@ class ViewConstants:
     ACTION_COOLDOWN_SECONDS: Final[int] = 10
     ACTION_NOTICE_SECONDS: Final[int] = 5
     COMPOSITION_PREVIEW_LIMIT: Final[int] = 10
+    FORM_SWEEP_SECONDS: Final[int] = 60
 
 
 class WelcomeDesign:

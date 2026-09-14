@@ -1,7 +1,7 @@
 from datetime import datetime
 
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from app import logger
 from app.bot import DiscordBot
@@ -9,6 +9,7 @@ from app.constants import CogsConstants as cogconstants
 from app.constants import Commands as commandsconstants
 from app.constants import GuildConstants as constants
 from app.constants import LogTypes as logconstants
+from app.constants import ViewConstants
 from app.decorators import with_error_context
 from app.data.moderations import count_moderations_by_owner, find_moderations_by_guild
 from app.services import block_links as block_links_service
@@ -31,6 +32,29 @@ class Events(Cog, name="events"):
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
         super().__init__()
+
+    async def cog_load(self) -> None:
+        self.sweep_forms.start()
+
+    async def cog_unload(self) -> None:
+        self.sweep_forms.cancel()
+
+    @tasks.loop(seconds=ViewConstants.FORM_SWEEP_SECONDS)
+    async def sweep_forms(self) -> None:
+        """Close the forms nobody finished and forget the ones that ended."""
+        from app.forms.adapters.discord.entrypoints import RUNTIME
+
+        try:
+            await RUNTIME.sweep()
+        except Exception as error:
+            logger.warn(
+                f"Form sweep failed: {type(error).__name__}: {error}",
+                log_type=logconstants.COMMAND_WARN_TYPE,
+            )
+
+    @sweep_forms.before_loop
+    async def before_sweep_forms(self) -> None:
+        await self.bot.wait_until_ready()
 
     @commands.Cog.listener()
     async def on_ready(self) -> None:

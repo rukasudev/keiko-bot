@@ -110,7 +110,7 @@ def test_the_store_expires_open_sessions_past_their_deadline():
     assert [s.id for s in expired] == [open_session.id]
     assert store.get(open_session.id).status is Status.EXPIRED
     assert store.get(done.id).status is Status.COMPLETED
-    assert store.forget_closed() == 2 and len(store) == 0
+    assert len(store.forget_closed()) == 2 and len(store) == 0
 
 
 def test_children_are_found_by_parent():

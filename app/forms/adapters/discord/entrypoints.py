@@ -482,7 +482,19 @@ class Runtime:
         expired: list[FormSession] = []
         for session in self.store.due(now or _now()):
             state = self.sessions[session.id]
-            async with state.lock:
+            root = session.id if session.parent_id is None else session.parent_id
+            async with (
+                state.lock,
+                trace_scope(
+                    f"{state.command_name}:Expired",
+                    guild_id=session.origin.guild_id,
+                    user_id=session.origin.user_id,
+                    feature=session.key,
+                    source=state.source,
+                    session_id=root,
+                    quiet=True,
+                ),
+            ):
                 event = ev.Expired(f"expire:{session.id}")
                 definition = registry.get(*session.definition)
                 context = await self._context(session, event)
@@ -497,6 +509,15 @@ class Runtime:
                 observability.close_journey(session, "abandoned")
             expired.append(decision.session)
         return tuple(expired)
+
+    async def sweep(self, now: datetime | None = None) -> None:
+        """Expire what nobody finished and forget what already ended."""
+        moment = now or _now()
+        await self.expire_stale(moment)
+        for session_id in self.store.forget_closed(moment):
+            state = self.sessions.pop(session_id, None)
+            if state is not None:
+                state.forget()
 
 
 def _cooled(state: Session, name: str, seconds: int) -> bool:
