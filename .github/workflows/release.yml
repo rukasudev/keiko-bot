@@ -1,0 +1,100 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "A version already released, to run again (e.g. v0.9.0)"
+        required: true
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ${{ secrets.DOCKERHUB_USERNAME }}/keiko-bot
+  VERSION: ${{ github.event.release.tag_name || inputs.version }}
+
+jobs:
+  check:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -r requirements-test.txt
+
+      - name: Run the test suite
+        run: make test
+
+  build:
+    if: github.event_name == 'release'
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          docker buildx build \
+            --build-arg APPLICATION_ENVIRONMENT=prod \
+            -t ${{ env.REGISTRY }}:${{ env.VERSION }} \
+            -t ${{ env.REGISTRY }}:latest .
+
+      - name: Push Docker image
+        run: |
+          docker push ${{ env.REGISTRY }}:${{ env.VERSION }}
+          docker push ${{ env.REGISTRY }}:latest
+
+  deploy:
+    needs: build
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: self-hosted
+    steps:
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Pull the version
+        run: docker pull ${{ env.REGISTRY }}:${{ env.VERSION }}
+
+      - name: Replace the running container
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          docker rm -f keiko-bot || true
+          docker run -d -p 5000:5000 -p 8000:8000 --name keiko-bot --restart unless-stopped \
+            -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_REGION \
+            ${{ env.REGISTRY }}:${{ env.VERSION }}
+
+      - name: Check the bot stayed up
+        run: |
+          sleep 30
+          state=$(docker inspect -f '{{.State.Status}} {{.RestartCount}}' keiko-bot)
+          echo "keiko-bot after 30 s: $state"
+          test "$state" = "running 0"
+
+      - name: Remove images no container uses
+        run: docker image prune -af
