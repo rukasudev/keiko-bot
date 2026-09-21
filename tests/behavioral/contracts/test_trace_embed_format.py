@@ -201,3 +201,11 @@ def test_the_title_and_the_timeline_agree_on_the_icon():
         icon = journey.outcome_icon(outcome)
         assert icon != "•", f"{outcome} has no entry in OUTCOME_ICONS"
         assert logger_module.outcome_title(outcome).startswith(icon)
+
+
+def test_an_admin_flag_renders_as_a_field_and_an_unknown_one_does_not():
+    """Whether the person who ran it is an admin matters for member commands
+    like /birthday; a webhook has no person, so it has no such field."""
+    assert fields(build(is_admin=True))["Admin"] == "yes"
+    assert fields(build(is_admin=False))["Admin"] == "no"
+    assert "Admin" not in fields(build("twitch", source="webhook"))

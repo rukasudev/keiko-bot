@@ -12,6 +12,7 @@ from app.data import birthdays as birthdays_data
 from app.decorators import keiko_command
 from app.services import reminders_birthdays as birthdays_service
 from app.services.dates import format_mm_dd_label, get_month_choices, parse_date_parts
+from app.services.trace import settle
 from app.services.utils import parse_locale
 from app.translator import locale_str
 from app.types.cogs import Cog
@@ -74,11 +75,13 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
     async def birthday_personal(self, interaction: discord.Interaction, month: int, day: int) -> None:
         date = parse_date_parts(day, month)
         if not date:
+            _refused("invalid-date")
             embed = response_error_embed("invalid-date", interaction.locale, footer=True)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         guild_id = str(interaction.guild.id)
         if not birthdays_data.is_birthday_enabled(guild_id) or not birthdays_data.find_birthday_config(guild_id):
+            _refused("reminders-birthdays-disabled")
             embed = response_error_embed("reminders-birthdays-disabled", interaction.locale, footer=True)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -87,6 +90,7 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
         existing = birthdays_data.find_birthday_item(guild_id, str(interaction.user.id))
         if existing:
             if not birthdays_service.can_self_edit_birthday(existing):
+                _refused("reminders-birthdays-self-edit-limit")
                 embed = response_error_embed("reminders-birthdays-self-edit-limit", interaction.locale, footer=True)
                 return await interaction.followup.send(embed=embed, ephemeral=True)
 
@@ -110,6 +114,8 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
                     mm_dd=date,
                     increment_self_edit=True,
                 )
+                settle("replaced")
+                logger.info("🎂 birthday replaced", log_type=logconstants.COMMAND_INFO_TYPE)
                 response = response_embed(
                     "commands.commands.birthday-personal.overwrite-response",
                     interaction.locale,
@@ -126,6 +132,12 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
             view = ConfirmActionView(
                 on_confirm=confirm_overwrite,
                 locale=parse_locale(interaction.locale),
+                trace_name=interaction.command.qualified_name,
+            )
+            settle("asked")
+            logger.info(
+                "🎂 asked to replace the saved birthday",
+                log_type=logconstants.COMMAND_INFO_TYPE,
             )
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
             return
@@ -135,6 +147,8 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
             user_id=str(interaction.user.id),
             mm_dd=date,
         )
+        settle("registered")
+        logger.info("🎂 birthday registered", log_type=logconstants.COMMAND_INFO_TYPE)
 
         embed = response_embed(
             "commands.commands.birthday-personal.response",
@@ -149,6 +163,11 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
         )
 
         await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+def _refused(reason: str) -> None:
+    settle("refused")
+    logger.warn(f"birthday refused: {reason}", log_type=logconstants.COMMAND_WARN_TYPE)
 
 
 async def setup(bot: DiscordBot) -> None:

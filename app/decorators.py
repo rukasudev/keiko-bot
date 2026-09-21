@@ -10,7 +10,7 @@ from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
 from app.services import analytics
 from app.services.trace import trace_scope
-from app.services.utils import parse_locale, parse_valid_locale
+from app.services.utils import is_guild_admin, parse_locale, parse_valid_locale
 
 
 def keiko_command(
@@ -35,6 +35,7 @@ def keiko_command(
                 guild_id=interaction.guild_id,
                 user_id=interaction.user.id,
                 source="slash",
+                is_admin=is_guild_admin(interaction.user),
             ) as trace:
                 feature = getattr(interaction.command, "_attr", None)
                 if feature:
