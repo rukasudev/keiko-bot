@@ -12,6 +12,7 @@ from typing import Any, Iterator, List, Optional
 
 import discord
 
+from app.settings.discord.interactions import decode
 from app.services.utils import ml
 from tests.behavioral.harness.errors import LocatorError
 
@@ -31,6 +32,24 @@ _ALIASES = {
     "help": ("buttons.help.label", []),
     "preview": ("buttons.preview.label", []),
     "history": ("buttons.history.label", []),
+}
+
+# Semantic aliases -> the `action[:arg]` targets the new engine's codec gives them
+_CODEC_TARGETS = {
+    "continue": ("confirm",),
+    "confirm": ("confirm",),
+    "cancel": ("cancel",),
+    "back": ("back", "picker_back"),
+    "done": ("done",),
+    "edit": ("edit",),
+    "add": ("add",),
+    "remove": ("remove",),
+    "pause": ("lifecycle:pause",),
+    "unpause": ("lifecycle:unpause",),
+    "disable": ("lifecycle:disable",),
+    "help": ("aside:help",),
+    "preview": ("aside:preview",),
+    "history": ("aside:history",),
 }
 
 _SELECT_TYPES = (
@@ -78,15 +97,17 @@ def clickable_targets(surface: Any) -> List[str]:
 
 
 def _resolve_alias(target: str, locale) -> tuple:
-    """Return (labels, custom_ids) a target may match."""
+    """Return (labels, custom_ids, codec targets) a target may match."""
     labels, custom_ids = [target], [target]
     parts = target.split(":", 1)
     if parts[0] in ("customize", "edit", "reset") and len(parts) == 2 and parts[1].isdigit():
-        return [], [f"card_{'customize' if parts[0] == 'customize' else parts[0]}_{parts[1]}"]
+        action = "reset" if parts[0] == "reset" else "section"
+        legacy = f"card_{'customize' if parts[0] == 'customize' else parts[0]}_{parts[1]}"
+        return [], [legacy], [f"{action}:{parts[1]}"]
     if parts[0] == "design" and len(parts) == 2:
-        return [], [f"design_{parts[1]}"]
+        return [], [f"design_{parts[1]}"], [target]
     if parts[0] == "option" and len(parts) == 2:
-        return [parts[1]], []
+        return [parts[1]], [], []
     alias = _ALIASES.get(target.lower())
     if alias:
         label_key, ids = alias
@@ -95,7 +116,21 @@ def _resolve_alias(target: str, locale) -> tuple:
             if label:
                 labels.append(label)
         custom_ids.extend(ids)
-    return labels, custom_ids
+    return labels, custom_ids, list(_CODEC_TARGETS.get(target.lower(), ()))
+
+
+def codec_target(item: Any) -> Optional[str]:
+    """`action[:arg]` of a component the new engine drew, else None."""
+    component = decode(getattr(item, "custom_id", None) or "")
+    return component.target if component else None
+
+
+def codec_matches(item: Any, targets) -> bool:
+    """An `action` alone matches whatever argument the component carries."""
+    component = decode(getattr(item, "custom_id", None) or "")
+    if component is None:
+        return False
+    return component.target in targets or component.action in targets
 
 
 def find_button(surface: Any, target: str, locale) -> discord.ui.Button:
@@ -113,13 +148,16 @@ def find_button(surface: Any, target: str, locale) -> discord.ui.Button:
             f"On screen: {clickable_targets(surface)}"
         )
 
-    labels, custom_ids = _resolve_alias(target, locale)
+    labels, custom_ids, codec_targets = _resolve_alias(target, locale)
     lowered = [label.lower() for label in labels]
 
     for item in items:
         if not isinstance(item, discord.ui.Button):
             continue
         if getattr(item, "_provided_custom_id", False) and item.custom_id in custom_ids:
+            return item
+    for item in items:
+        if isinstance(item, discord.ui.Button) and codec_matches(item, codec_targets):
             return item
     for item in items:
         if not isinstance(item, discord.ui.Button):
@@ -150,6 +188,8 @@ def find_select(surface: Any, target: Optional[str]) -> Any:
         return named[target]
     for select in selects:
         if getattr(select, "_provided_custom_id", False) and select.custom_id == target:
+            return select
+        if codec_target(select) == f"draft:{target}":
             return select
         if (select.placeholder or "").lower() == target.lower():
             return select

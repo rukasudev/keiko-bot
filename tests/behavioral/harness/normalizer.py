@@ -4,6 +4,8 @@ Rules:
 - never snapshot raw Discord objects;
 - auto-generated custom_ids (random per construction) are excluded — only
   ids explicitly provided by production code appear as "action";
+- session-coded ids (`k:<session>:<revision>:<action>`, the new engine's
+  codec) are excluded the same way: they change on every render by design;
 - timestamps are dropped; URLs reduced to their basename.
 """
 import os
@@ -34,26 +36,45 @@ def normalize_embed(embed: Optional[discord.Embed]) -> Optional[Dict[str, Any]]:
     }
 
 
+SESSION_ID_PREFIX = "k:"
+
+
+def is_session_coded(custom_id: Optional[str]) -> bool:
+    return bool(custom_id) and custom_id.startswith(SESSION_ID_PREFIX)
+
+
 def _provided_custom_id(item: Any) -> Optional[str]:
-    if getattr(item, "_provided_custom_id", False):
-        return item.custom_id
-    return None
+    if not getattr(item, "_provided_custom_id", False):
+        return None
+    if is_session_coded(item.custom_id):
+        return None
+    return item.custom_id
+
+
+_SELECT_KINDS = (
+    (discord.ui.ChannelSelect, "channel_select"),
+    (discord.ui.RoleSelect, "role_select"),
+    (discord.ui.UserSelect, "user_select"),
+    (discord.ui.MentionableSelect, "mentionable_select"),
+    (discord.ui.Select, "select"),
+)
+
+
+def _select_kind(item: Any) -> str:
+    """What the admin sees: the native select kind, whatever subclass drew it."""
+    for base, kind in _SELECT_KINDS:
+        if isinstance(item, base):
+            return kind
+    return type(item).__name__.lower()
 
 
 def _normalize_select(item: Any) -> Dict[str, Any]:
-    kind = type(item).__name__
     normalized: Dict[str, Any] = {
-        "type": {
-            "Select": "select",
-            "ChannelSelect": "channel_select",
-            "RoleSelect": "role_select",
-            "UserSelect": "user_select",
-            "MentionableSelect": "mentionable_select",
-        }.get(kind, kind.lower()),
+        "type": _select_kind(item),
         "placeholder": item.placeholder,
         "action": _provided_custom_id(item),
-        "min": item.min_values,
-        "max": item.max_values,
+        "min": int(item.min_values),
+        "max": int(item.max_values),
         "disabled": item.disabled,
     }
     if isinstance(item, discord.ui.Select):
@@ -116,7 +137,7 @@ def normalize_modal(modal: discord.ui.Modal) -> Dict[str, Any]:
                 "required": inner.required,
                 "style": inner.style.name,
                 "max_length": inner.max_length,
-                "default": inner.default,
+                "default": inner.default or "",
             })
         else:
             fields.append({"type": type(inner).__name__.lower()})
