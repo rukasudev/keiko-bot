@@ -57,7 +57,7 @@ class BirthdayFeature(GenericCogFeature):
             document=document,
             rows=tuple(
                 PanelRow(
-                    key="",
+                    key=row.get("key", ""),
                     title=row["title"],
                     value=row.get("value"),
                     style=row.get("style"),

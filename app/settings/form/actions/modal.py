@@ -6,10 +6,10 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from app.settings.form.actions import Refusal
-from app.settings.form.actions.action import RenderContext
+from app.settings.form.actions.action import RenderContext, other_items
 from app.settings.form.components import FileInput, Input, Screen, TextInputs
 from app.settings.form.copy import text
-from app.settings.form.form_state import Answer, EditItem, FormSession
+from app.settings.form.form_state import Answer, FormSession
 from app.settings.form.form_yaml import TextField, TextStep
 from app.settings.form.responses.transforms import normalizer, transform
 from app.settings.form.responses.validations import ValidationContext, validator
@@ -118,21 +118,19 @@ def _validate(
         value,
         ValidationContext(
             answers=session.values(),
-            items=_other_items(session, context.items),
+            items=other_items(session, context.items),
             external=context.external,
         ),
     )
     return Refusal(error) if error else None
 
 
-def _other_items(
-    session: FormSession, items: Sequence[Mapping[str, Any]]
-) -> tuple[Mapping[str, Any], ...]:
-    """The composition's items except the one this session edits."""
-    mode = session.mode
-    if isinstance(mode, EditItem):
-        return tuple(item for index, item in enumerate(items) if index != mode.index)
-    return tuple(items)
+def _looked_up(step: TextStep, context: RenderContext) -> dict[str, Answer]:
+    found: dict[str, Answer] = {}
+    for key, path in step.lookup_answers.items():
+        service, _, field = path.partition(".")
+        found[key] = Answer(context.external.get(service, {}).get(field))
+    return found
 
 
 def _scalar(step: TextStep, values: Sequence[str]) -> Any:
@@ -163,11 +161,23 @@ def parse(
         values = [normalize(value) for value in values]
     if not step.fields:
         refusal = _validate(step, values[0] if values else "", session, context)
-        return refusal or {step.key: Answer(_scalar(step, values))}
+
+        if refusal:
+            return refusal
+        return {step.key: Answer(_scalar(step, values)), **_looked_up(step, context)}
+    return _fields_answers(step, values, session, context)
+
+
+def _fields_answers(
+    step: TextStep, values: list[str], session: FormSession, context: RenderContext
+) -> Mapping[str, Answer] | Refusal:
     keyed: dict[str, Answer] = {}
     concat: list[str] = []
 
-    for field, value in zip(step.fields, values):
+    for field, typed in zip(step.fields, values):
+        normalize_field = normalizer(field.normalize)
+        value = normalize_field(typed) if normalize_field else typed
+
         if field.key:
             keyed[field.key] = Answer(value)
         elif value:
@@ -178,4 +188,4 @@ def parse(
     if refusal:
         return refusal
     parts = {"__inputs__": tuple(values)}
-    return {**keyed, step.key: Answer(joined, parts)}
+    return {**keyed, step.key: Answer(joined, parts), **_looked_up(step, context)}

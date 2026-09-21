@@ -19,7 +19,7 @@
                 "type": "text"
               },
               {
-                "content": "Configure como vou comemorar aniversários neste servidor. Você pode cadastrar o primeiro membro agora ou deixar a lista para depois.",
+                "content": "Comemoro o aniversário dos membros com as configurações abaixo.",
                 "type": "text"
               },
               {
@@ -30,8 +30,34 @@
             "type": "section"
           },
           {
-            "content": "**Canal de aniversário:** <#100>\n**Mencionar @everyone:** Não\n**Fuso horário:** America/Sao_Paulo\n**Horário da notificação:** 08:00\n**Mensagem padrão dos membros:** Padrão\n**Total de aniversários:** 1\n**Próximos aniversários:** 1. <@555> — 12 de maio",
-            "type": "text"
+            "children": [
+              {
+                "content": "### 🎂 Configuração do Lembrete\n📺 **Canal de aniversário:** <#100>\n📣 **Mencionar @everyone:** Não\n🌎 **Fuso horário:** America/Sao_Paulo\n🕒 **Horário da notificação:** 08:00\n💬 **Mensagem padrão dos membros:** Padrão",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 🎉 Lista de Aniversários\n🎉 **Total de aniversários:** 1\n🎉 **Próximos aniversários:** 1. <@555>: 12 de maio",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
           },
           {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
@@ -42,12 +68,6 @@
       },
       {
         "children": [
-          {
-            "disabled": false,
-            "label": "Editar",
-            "style": "secondary",
-            "type": "button"
-          },
           {
             "disabled": false,
             "label": "Pausar",
@@ -71,18 +91,18 @@
             "label": "Histórico",
             "style": "secondary",
             "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Estatísticas",
+            "style": "secondary",
+            "type": "button"
           }
         ],
         "type": "actionrow"
       },
       {
         "children": [
-          {
-            "disabled": false,
-            "label": "Estatísticas",
-            "style": "secondary",
-            "type": "button"
-          },
           {
             "disabled": false,
             "label": "Ajuda",
@@ -104,7 +124,7 @@
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "target": "edit"
+    "target": "section:birthday_config"
   },
   {
     "actor": "bot",
@@ -112,74 +132,6 @@
     "kind": "defer",
     "message": null,
     "seq": 4,
-    "thinking": false
-  },
-  {
-    "actor": "bot",
-    "components": [
-      {
-        "disabled": false,
-        "max": 1,
-        "min": 1,
-        "options": [
-          {
-            "default": false,
-            "label": "Configuração do lembrete de aniversário",
-            "value": "birthday_config"
-          },
-          {
-            "default": false,
-            "label": "Lista de Aniversários",
-            "value": "reminders_birthday"
-          }
-        ],
-        "placeholder": "Selecione as configurações que deseja editar",
-        "type": "select"
-      },
-      {
-        "disabled": false,
-        "label": "Voltar",
-        "style": "secondary",
-        "type": "button"
-      }
-    ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Configure como vou comemorar aniversários neste servidor. Você pode cadastrar o primeiro membro agora ou deixar a lista para depois.",
-      "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
-      "image": null,
-      "thumbnail": "KEIKO_DEFAULT.png",
-      "title": "🎂 Lembretes de Aniversário"
-    },
-    "ephemeral": true,
-    "kind": "followup_send",
-    "message": "M2",
-    "seq": 5
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M1",
-    "seq": 6
-  },
-  {
-    "actor": "user",
-    "kind": "select",
-    "message": "M2",
-    "seq": 7,
-    "target": "Selecione as configurações que deseja editar",
-    "values": [
-      "birthday_config"
-    ]
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 8,
     "thinking": false
   },
   {
@@ -327,20 +279,20 @@
     "components_v2": true,
     "ephemeral": true,
     "kind": "followup_send",
-    "message": "M3",
-    "seq": 9
+    "message": "M2",
+    "seq": 5
   },
   {
     "actor": "bot",
     "kind": "delete",
-    "message": "M2",
-    "seq": 10
+    "message": "M1",
+    "seq": 6
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M3",
-    "seq": 11,
+    "message": "M2",
+    "seq": 7,
     "target": "customize:2"
   },
   {
@@ -432,14 +384,14 @@
     "components_v2": true,
     "ephemeral": true,
     "kind": "edit",
-    "message": "M3",
-    "seq": 12
+    "message": "M2",
+    "seq": 8
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M3",
-    "seq": 13,
+    "message": "M2",
+    "seq": 9,
     "target": "10:00"
   },
   {
@@ -587,14 +539,14 @@
     "components_v2": true,
     "ephemeral": true,
     "kind": "edit",
-    "message": "M3",
-    "seq": 14
+    "message": "M2",
+    "seq": 10
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M3",
-    "seq": 15,
+    "message": "M2",
+    "seq": 11,
     "target": "done"
   },
   {
@@ -602,7 +554,7 @@
     "ephemeral": true,
     "kind": "defer",
     "message": null,
-    "seq": 16,
+    "seq": 12,
     "thinking": true
   },
   {
@@ -620,13 +572,13 @@
     },
     "ephemeral": true,
     "kind": "followup_send",
-    "message": "M4",
-    "seq": 17
+    "message": "M3",
+    "seq": 13
   },
   {
     "actor": "bot",
     "kind": "delete",
-    "message": "M3",
-    "seq": 18
+    "message": "M2",
+    "seq": 14
   }
 ]

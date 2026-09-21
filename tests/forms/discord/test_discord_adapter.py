@@ -569,3 +569,89 @@ async def test_an_aside_that_asks_first_spends_its_cooldown_only_when_confirmed(
     await click(panel, "Sincronizar")
     await click(scenario.current_message, "Confirmar")
     assert sync.await_count == 1 and "sync" in state.cooldowns
+
+
+async def test_a_modal_that_needs_a_lookup_is_answered_before_the_lookup_runs(
+    v2, deps, monkeypatch
+):
+    """Discord gives a modal three seconds; a slow Twitch lookup ran before any
+    answer."""
+    from app.settings.features import subscriptions
+
+    released = asyncio.Event()
+    original = subscriptions.SubscriptionFeature.prefetch
+
+    async def slow(self, *args):
+        await released.wait()
+        return await original(self, *args)
+
+    monkeypatch.setattr(subscriptions.SubscriptionFeature, "prefetch", slow)
+    deps.twitch.add_user("gaules", user_id="111")
+    scenario = await v2().start_command("notifications_twitch")
+    await scenario.confirm()
+    await scenario.select_option("general")
+    await scenario.confirm()
+    before = len(scenario.outputs)
+    field = scenario.pending_modal_fields()[0]
+    submit = asyncio.ensure_future(scenario.submit_modal({field: "gaules"}))
+
+    for _ in range(50):
+        deferred = any(e["kind"] == "defer" for e in scenario.outputs[before:])
+        if submit.done() or deferred:
+            break
+        await asyncio.sleep(0.01)
+    answered_while_looking_up = (
+        any(e["kind"] == "defer" for e in scenario.outputs[before:])
+        and not released.is_set()
+    )
+    released.set()
+    await submit
+
+    assert answered_while_looking_up
+
+
+def test_a_panel_part_has_its_own_edit_beside_its_lines():
+    from app.settings.discord.views import layout_of
+    from app.settings.form.components import Panel, PanelGroup, PanelPart
+
+    group = PanelGroup(
+        "card",
+        "",
+        (),
+        parts=(
+            PanelPart("channel", ("📺 **Canal:** <#1>",)),
+            PanelPart("messages", ("💬 **Mensagens:** A",)),
+        ),
+    )
+    panel = Panel(title="T", intro="i", groups=(group,), edit_label="Editar")
+    view = layout_of(
+        Screen(components=(panel,), flavour="components_v2"),
+        lambda action, arg=None: f"k:s:1:{action}:{arg}",
+        None,
+    )
+
+    sections = [
+        item
+        for item in locators.walk_items(view)
+        if isinstance(item, discord.ui.Section)
+        and isinstance(item.accessory, discord.ui.Button)
+    ]
+    assert [s.accessory.custom_id for s in sections] == [
+        "k:s:1:edit:card/channel",
+        "k:s:1:edit:card/messages",
+    ]
+
+
+async def test_confirming_a_card_review_replaces_it_with_the_enabled_message(v2, deps):
+    """Broke as: the enabled embed was edited onto the Components V2 review, which
+    Discord refuses."""
+    deps.twitch.add_user("gaules", user_id="111")
+    scenario = await v2().start_command("stream_elements_commands")
+    await scenario.confirm()
+    await scenario.submit_modal({scenario.pending_modal_fields()[0]: "gaules"})
+    assert scenario.current_message.flags.components_v2
+
+    await scenario.confirm()
+
+    assert not scenario.current_message.flags.components_v2
+    assert scenario.current_message.embeds

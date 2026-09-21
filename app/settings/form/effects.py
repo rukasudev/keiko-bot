@@ -80,6 +80,7 @@ class ResumeParent(Effect):
     child_mode: str
     answers: Mapping[str, Any]
     index: int | None = None
+    cancelled: bool = False
 
 
 @dataclass(frozen=True)

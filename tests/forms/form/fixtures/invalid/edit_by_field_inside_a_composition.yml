@@ -1,0 +1,27 @@
+steps:
+  - action: form
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - action: composition
+    key: items
+    parent_key: items
+    max: 3
+    title: {en-us: Items, pt-br: Itens}
+    description: {en-us: items, pt-br: itens}
+    steps:
+      - action: multi_select
+        key: pick
+        edit_by_field: true
+        title: {en-us: Pick, pt-br: Escolha}
+        description: {en-us: pick, pt-br: escolha}
+        selects:
+          - type: available_roles
+            key: roles
+            style: role
+            label: {en-us: Roles, pt-br: Cargos}
+            placeholder: {en-us: Roles, pt-br: Cargos}
+  - action: resume
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

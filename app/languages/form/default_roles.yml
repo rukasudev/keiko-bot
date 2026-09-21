@@ -7,6 +7,9 @@ steps:
     description:
       en-us: Enabling this feature allows me to automatically assign roles to new members when they join your server
       pt-br: Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor
+    manager_description:
+      en-us: "I give these roles automatically to everyone who joins the server."
+      pt-br: "Dou estes cargos automaticamente para quem entra no servidor."
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"

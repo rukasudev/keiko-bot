@@ -15,7 +15,7 @@ from typing import Any, Callable
 from app.constants import ViewConstants
 from app.settings.form import events as ev
 from app.settings.form import manager
-from app.settings.form.actions import Refusal, configuration_card, registry
+from app.settings.form.actions import Refusal, configuration_card, registry, selects
 from app.settings.form.actions.action import PanelRow, RenderContext
 from app.settings.form.components import Button, Screen
 from app.settings.form.conditions import Scope, evaluate, explain
@@ -51,6 +51,7 @@ from app.settings.form.form_yaml import (
     CardStep,
     CompositionStep,
     FormDefinition,
+    MultiPickStep,
     Step,
     produced_keys,
 )
@@ -118,6 +119,8 @@ def steps_for(definition: FormDefinition, mode: Mode) -> tuple[Step, ...]:
         return composition.steps if composition else ()
     if isinstance(mode, Edit):
         wanted = set(mode.keys)
+        if mode.part is not None:
+            return tuple(step for step in definition.steps if step.key in wanted)
         chosen = [
             step
             for step in definition.steps
@@ -455,7 +458,63 @@ def _on_started(engine: Engine) -> None:
         return
     if session.parent_id is None and session.mode.kind == "setup":
         engine.emit("feature.setup_opened")
+    if isinstance(session.mode, Edit) and session.mode.part is not None:
+        _open_part(engine, session.mode)
+        return
     engine.advance(-1)
+
+
+def _open_part(engine: Engine, mode: Edit) -> None:
+    step = engine.step(mode.keys[0])
+    if step is None:
+        engine.advance(-1)
+        return
+    engine.session = engine.session.at(step.key)
+    if isinstance(step, CardStep):
+        index = next(
+            (
+                position
+                for position, section in enumerate(step.sections)
+                if section.key == mode.part
+            ),
+            None,
+        )
+        if index is None:
+            engine.rerender()
+            return
+        _open_section(engine, step, index)
+        return
+    if isinstance(step, MultiPickStep):
+        screen = selects.part_screen(
+            step, mode.part or "", engine.session, engine.render_context()
+        )
+        engine.effects.append(Render(screen))
+        return
+    engine.rerender()
+
+
+def _is_part_edit(engine: Engine) -> bool:
+    mode = engine.session.mode
+    return isinstance(mode, Edit) and mode.part is not None
+
+
+def _finish_part(engine: Engine, step: Step) -> None:
+    context = engine.render_context()
+    parsed = registry()[step.kind].parse(step, None, engine.session, context)
+    engine.session = engine.session.with_status(Status.ACTIVE)
+    if isinstance(parsed, Refusal):
+        engine.refuse(parsed, step)
+        engine.rerender()
+        return
+    engine.session = engine.session.with_answers(parsed)
+    engine.complete()
+
+
+def _redraw_or_finish(engine: Engine, step: Step) -> None:
+    if _is_part_edit(engine):
+        _finish_part(engine, step)
+        return
+    engine.rerender()
 
 
 def _on_screen_requested(engine: Engine) -> None:
@@ -516,12 +575,15 @@ def _on_drafted(engine: Engine) -> None:
             return
         answer = configuration_card.draft(step, changes, engine.session, context)
         engine.session = engine.session.with_answer(step.key, answer)
-        engine.rerender()
+        _redraw_or_finish(engine, step)
 
         return
     answers = {key: Answer(value) for key, value in event.changes.items()}
     engine.session = engine.session.with_answers(answers)
 
+    if isinstance(step, MultiPickStep) and _is_part_edit(engine):
+        _finish_part(engine, step)
+        return
     if step.kind == "single_choice":
         engine.rerender()
         return
@@ -536,23 +598,27 @@ def _on_section_opened(engine: Engine) -> None:
         engine.effects.append(Notice("stale"))
         engine.rerender()
         return
+    _open_section(engine, step, event.index)
+
+
+def _open_section(engine: Engine, step: CardStep, index: int) -> None:
     screen, changes = configuration_card.open_section(
-        step, event.index, engine.session, engine.render_context()
+        step, index, engine.session, engine.render_context()
     )
     if changes is not None:
         answer = configuration_card.draft(
             step, changes, engine.session, engine.render_context()
         )
         engine.session = engine.session.with_answer(step.key, answer)
-        engine.rerender()
+        _redraw_or_finish(engine, step)
 
         return
     assert screen is not None
     if screen.flavour == "modal":
-        engine.effects.append(OpenModal(screen, "modal", f"section:{event.index}"))
+        engine.effects.append(OpenModal(screen, "modal", f"section:{index}"))
     else:
         engine.session = engine.session.with_status(
-            Status.ACTIVE, awaiting=f"section:{event.index}"
+            Status.ACTIVE, awaiting=f"section:{index}"
         )
         engine.effects.append(Render(screen))
 
@@ -579,7 +645,7 @@ def _on_section_changed(engine: Engine) -> None:
     engine.session = engine.session.with_answer(step.key, answer).with_status(
         Status.ACTIVE
     )
-    engine.rerender()
+    _redraw_or_finish(engine, step)
 
 
 def _on_section_reset(engine: Engine) -> None:
@@ -598,6 +664,11 @@ def _on_section_reset(engine: Engine) -> None:
 
 
 def _on_picker_closed(engine: Engine) -> None:
+    parent_id = engine.session.parent_id
+    if _is_part_edit(engine) and parent_id is not None:
+        engine.session = engine.session.with_status(Status.CANCELLED)
+        engine.effects.append(ResumeParent(parent_id, "edit", {}, cancelled=True))
+        return
     engine.session = engine.session.with_status(Status.ACTIVE)
     engine.rerender()
 

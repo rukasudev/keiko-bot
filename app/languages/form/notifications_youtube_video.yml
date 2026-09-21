@@ -7,6 +7,9 @@ steps:
     description:
       en-us: Enabling this feature allows me to notify when your favorite youtuber posts a new video!
       pt-br: Ativar esta função faz com que eu notifique quando seu youtuber favorito postar um novo vídeo!
+    manager_description:
+      en-us: "I let the server know when these channels post a new video."
+      pt-br: "Aviso no servidor quando estes canais postam um vídeo novo."
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
@@ -46,6 +49,7 @@ steps:
 
       - action: modal
         key: youtuber
+        emoji: "🎬"
         max_length: 30
         validation: validate_youtube_channel
         lowercase: true
@@ -93,6 +97,7 @@ steps:
 
       - action: modal
         key: notification_messages
+        emoji: "💬"
         style: bullet
         max_length: 100
         multiline: true

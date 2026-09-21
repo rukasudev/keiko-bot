@@ -19,7 +19,6 @@ from app.settings.features.feature import (
 )
 from app.settings.form.components import Button
 from app.settings.form.copy import text
-from app.settings.form.form_yaml import SingleChoiceStep
 
 
 class WelcomeMessagesFeature(GenericCogFeature):
@@ -36,23 +35,16 @@ class WelcomeMessagesFeature(GenericCogFeature):
                 document=opened.document,
                 enabled=opened.enabled,
                 extra_buttons=self.extra_buttons(context),
+                pending_previews=self.previews(context),
             )
         return Opened(pending_previews=self.previews(context))
 
     async def previews(self, context: OpenContext) -> Mapping[str, str]:
         """One rendered banner per design, drawn in the background while the
         member answers the first steps."""
-        gallery = next(
-            (
-                step
-                for step in self.definition.steps
-                if isinstance(step, SingleChoiceStep) and step.designs
-            ),
-            None,
-        )
-        if gallery is None or context.member is None:
+        designs = [{"key": design.key} for design in self.definition.designs()]
+        if not designs or context.member is None:
             return {}
-        designs = [{"key": design.key} for design in gallery.designs]
         try:
             return dict(await generate_design_previews(context.member, designs))
         except Exception:

@@ -158,12 +158,21 @@ class Card:
 
 
 @dataclass(frozen=True)
+class PanelPart:
+    """Lines of one field of a group, with an Edit that opens only that field."""
+
+    target: str
+    lines: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class PanelGroup:
     """A group of panel lines and the step whose button edits them."""
 
     key: str | None
     heading: str
     lines: tuple[str, ...]
+    parts: tuple[PanelPart, ...] = ()
 
 
 @dataclass(frozen=True)

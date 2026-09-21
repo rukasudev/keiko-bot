@@ -1,68 +1,25 @@
-"""The last screen: every answer listed, then Edit, Add, Remove, Confirm."""
+"""The last screen: a card of every answer, then Add, Remove, Preview, Confirm."""
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping
 from typing import Any
 
-from app.constants import Emojis
+from app.constants import KeikoIcons
+from app.settings.form import manager
 from app.settings.form.actions.action import (
     RenderContext,
     cancel_button,
     caption,
     confirm_button,
+    description_of,
+    footer_of,
     label,
-    step_screen,
-    views,
+    title_of,
 )
-from app.settings.form.components import Button, Screen
-from app.settings.form.copy import text
+from app.settings.form.components import Button, Panel, Screen
 from app.settings.form.form_state import Answer, FormSession
-from app.settings.form.responses.styles import empty_value, format_value
-from app.settings.form.responses.summary import ResponseView
-
-
-def composition_lines(
-    title: str, items: Sequence[Mapping[str, Any]], locale: str
-) -> str:
-    """One numbered block per item, one line per visible field."""
-    result = ""
-    for number, item in enumerate(items, start=1):
-        lines = ""
-        for entry in item.values():
-            if not isinstance(entry, Mapping) or entry.get("hidden"):
-                continue
-            formatted = format_value(entry.get("value"), entry.get("style"), locale)
-            lines += f"- {entry['title']}: **{formatted or empty_value(locale)}**\n"
-        result += f"\n{Emojis.FRISBEE_EMOJI} **{title} #{number}**\n{lines}"
-    return result
-
-
-def settings_summary(listed: Sequence[ResponseView], locale: str) -> str:
-    """The `:pencil: Settings` block the review appends to its description."""
-    heading = text("commands.resume.settings", locale)
-    result = f"\n\n:pencil: **{heading}**\n"
-
-    for view in listed:
-        if view.hidden:
-            continue
-        if view.style == "composition":
-            lines = composition_lines(view.title, view.value, locale)
-            if lines:
-                result += f"\n{lines}"
-            continue
-        formatted = format_value(view.value, view.style, locale)
-        if isinstance(formatted, str) and "\n" in formatted:
-            result += (
-                f"\n{Emojis.FRISBEE_EMOJI} {view.title}:\n"
-                f"**{formatted or empty_value(locale)}**"
-            )
-        else:
-            result += (
-                f"\n{Emojis.FRISBEE_EMOJI} {view.title}: "
-                f"**{formatted or empty_value(locale)}**"
-            )
-    return result
+from app.settings.form.responses.responses import to_document
 
 
 def _item_count(session: FormSession, context: RenderContext) -> int | None:
@@ -73,58 +30,56 @@ def _item_count(session: FormSession, context: RenderContext) -> int | None:
     return len(answer.raw or ()) if answer else 0
 
 
-def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
-    """The review embed with the settings summary and its action buttons."""
+def _has_edit(target: str, keyed: set[str]) -> bool:
+    return target in keyed or target.split("$", 1)[0] in keyed
+
+
+def _button(key: str, action: str, emoji: str, locale: str) -> Button:
+    return Button(
+        label(key, locale), action, "secondary", emoji, description=caption(key, locale)
+    )
+
+
+def _buttons(
+    step: Any, session: FormSession, context: RenderContext, covered: bool
+) -> tuple[Button, ...]:
     locale = context.locale
-    buttons: list[Button] = [
-        Button(
-            label("edit", locale),
-            "edit",
-            "secondary",
-            "📝",
-            description=caption("edit", locale),
-        )
-    ]
+    buttons: list[Button] = [] if covered else [_button("edit", "edit", "📝", locale)]
     count = _item_count(session, context)
 
     if count is not None:
         limit = context.definition.items.max if context.definition.items else 0
         if count < limit:
-            buttons.append(
-                Button(
-                    label("add", locale),
-                    "add",
-                    "secondary",
-                    "➕",
-                    description=caption("add", locale),
-                )
-            )
+            buttons.append(_button("add", "add", "➕", locale))
         if count > 1:
-            buttons.append(
-                Button(
-                    label("remove", locale),
-                    "remove",
-                    "secondary",
-                    "🗑️",
-                    description=caption("remove", locale),
-                )
-            )
+            buttons.append(_button("remove", "remove", "🗑️", locale))
     if step.preview:
-        buttons.append(
-            Button(
-                label("preview", locale),
-                "aside:preview",
-                "secondary",
-                "👁️",
-                description=caption("preview", locale),
-            )
-        )
-    buttons += [confirm_button(locale), cancel_button(locale)]
-    description = step.description.get(locale) + settings_summary(
-        views(session, context), locale
+        buttons.append(_button("preview", "aside:preview", "👁️", locale))
+    return (*buttons, confirm_button(locale), cancel_button(locale))
+
+
+def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
+    """The review card: every answer in blocks with their Edit, actions below."""
+    locale = context.locale
+    document = to_document(context.steps, session.answers, locale)
+    rows = manager.panel_rows(context.definition, document, locale)
+    title = title_of(step, locale)
+    groups = manager.panel_groups(rows, title, locale)
+    keyed = {group.key for group in groups if group.key}
+    options = manager.edit_options(context.definition, document, locale)
+    covered = bool(groups) and all(_has_edit(option.value, keyed) for option in options)
+    panel = Panel(
+        title=title,
+        intro=description_of(step, session, context),
+        groups=groups,
+        thumbnail=KeikoIcons.IMAGE_03,
+        edit_label=label("edit", locale),
     )
-    return step_screen(
-        step, session, context, buttons=tuple(buttons), description=description
+    return Screen(
+        components=(panel,),
+        buttons=_buttons(step, session, context, covered),
+        flavour="components_v2",
+        layout_footer=footer_of(step, locale),
     )
 
 

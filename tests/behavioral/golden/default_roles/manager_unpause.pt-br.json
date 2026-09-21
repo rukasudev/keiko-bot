@@ -19,7 +19,7 @@
                 "type": "text"
               },
               {
-                "content": "Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor",
+                "content": "Dou estes cargos automaticamente para quem entra no servidor.",
                 "type": "text"
               },
               {
@@ -32,7 +32,7 @@
           {
             "children": [
               {
-                "content": "### Cargos Padrão\n**Cargos para Membros:** <@&202>\n**Cargos para Bots:** <@&201>",
+                "content": "### Cargos Padrão\n👥 **Cargos para Membros:** <@&202>\n🤖 **Cargos para Bots:** <@&201>",
                 "type": "text"
               },
               {

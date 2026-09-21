@@ -19,7 +19,7 @@
                 "type": "text"
               },
               {
-                "content": "Sempre que alguém usar um comando com o prefixo **ks!**, eu buscarei a resposta no StreamElements!\n\n**Exemplo:** `ks!mouse` -> \"O streamer usa um Logitech G Pro!\"\n",
+                "content": "Respondo aos comandos do StreamElements deste streamer aqui no Discord.",
                 "type": "text"
               },
               {
@@ -30,8 +30,19 @@
             "type": "section"
           },
           {
-            "content": "**Streamer:** shroud",
-            "type": "text"
+            "children": [
+              {
+                "content": "🎮 **Streamer:** shroud",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
           },
           {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
@@ -42,12 +53,6 @@
       },
       {
         "children": [
-          {
-            "disabled": false,
-            "label": "Editar",
-            "style": "secondary",
-            "type": "button"
-          },
           {
             "disabled": false,
             "label": "Pausar",
@@ -87,70 +92,7 @@
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "target": "edit"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 4,
-    "thinking": false
-  },
-  {
-    "actor": "bot",
-    "components": [
-      {
-        "disabled": false,
-        "max": 1,
-        "min": 1,
-        "options": [
-          {
-            "default": false,
-            "label": "Streamer",
-            "value": "streamer"
-          }
-        ],
-        "placeholder": "Selecione as configurações que deseja editar",
-        "type": "select"
-      },
-      {
-        "disabled": false,
-        "label": "Voltar",
-        "style": "secondary",
-        "type": "button"
-      }
-    ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Sempre que alguém usar um comando com o prefixo **ks!**, eu buscarei a resposta no StreamElements!\n\n**Exemplo:** `ks!mouse` -> \"O streamer usa um Logitech G Pro!\"\n",
-      "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
-      "image": null,
-      "thumbnail": "KEIKO_DEFAULT.png",
-      "title": ":bulb: Comandos do StreamElements"
-    },
-    "ephemeral": true,
-    "kind": "followup_send",
-    "message": "M2",
-    "seq": 5
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M1",
-    "seq": 6
-  },
-  {
-    "actor": "user",
-    "kind": "select",
-    "message": "M2",
-    "seq": 7,
-    "target": "Selecione as configurações que deseja editar",
-    "values": [
-      "streamer"
-    ]
+    "target": "section:streamer"
   },
   {
     "actor": "bot",
@@ -168,7 +110,7 @@
       ],
       "title": "Streamer"
     },
-    "seq": 8
+    "seq": 4
   },
   {
     "actor": "user",
@@ -177,15 +119,15 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 9
+    "seq": 5
   },
   {
     "actor": "bot",
-    "ephemeral": true,
+    "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 10,
-    "thinking": true
+    "seq": 6,
+    "thinking": false
   },
   {
     "actor": "bot",
@@ -202,13 +144,13 @@
     },
     "ephemeral": true,
     "kind": "followup_send",
-    "message": "M3",
-    "seq": 11
+    "message": "M2",
+    "seq": 7
   },
   {
     "actor": "bot",
     "kind": "delete",
-    "message": "M2",
-    "seq": 12
+    "message": "M1",
+    "seq": 8
   }
 ]

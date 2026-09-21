@@ -19,7 +19,7 @@
                 "type": "text"
               },
               {
-                "content": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor",
+                "content": "Dou boas-vindas a quem entra no servidor com a mensagem abaixo.",
                 "type": "text"
               },
               {
@@ -30,8 +30,49 @@
             "type": "section"
           },
           {
-            "content": "**Canal de Mensagens de Boas-Vindas:** <#101>\n**Design do Banner:** Imagem do Servidor\n**Mensagens de Boas-Vindas:**\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}```",
-            "type": "text"
+            "children": [
+              {
+                "content": ":flying_disc: **Canal de Mensagens de Boas-Vindas:** <#101>",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": ":flying_disc: **Design do Banner:** Imagem do Servidor",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": ":flying_disc: **Mensagens de Boas-Vindas:**\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}```",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
           },
           {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
@@ -42,12 +83,6 @@
       },
       {
         "children": [
-          {
-            "disabled": false,
-            "label": "Editar",
-            "style": "secondary",
-            "type": "button"
-          },
           {
             "disabled": false,
             "label": "Pausar",
@@ -71,12 +106,7 @@
             "label": "Pré-visualizar",
             "style": "secondary",
             "type": "button"
-          }
-        ],
-        "type": "actionrow"
-      },
-      {
-        "children": [
+          },
           {
             "disabled": false,
             "label": "Ajuda",

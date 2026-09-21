@@ -74,47 +74,100 @@
   },
   {
     "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 6,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
     "components": [
       {
-        "disabled": false,
-        "label": "Editar",
-        "style": "secondary",
-        "type": "button"
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## :white_check_mark: Tudo certo?",
+                "type": "text"
+              },
+              {
+                "content": "Sempre que alguém usar um comando, eu buscarei a resposta no StreamElements e enviarei no chat!",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "🎮 **Streamer:** shroud",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
       },
       {
-        "disabled": false,
-        "label": "Confirmar",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancelar",
-        "style": "danger",
-        "type": "button"
+        "children": [
+          {
+            "disabled": false,
+            "label": "Confirmar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Sempre que alguém usar um comando, eu buscarei a resposta no StreamElements e enviarei no chat!\n\n:pencil: **Configurações**\n\n:flying_disc: Streamer: **shroud**",
-      "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
-      "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
-      "title": ":white_check_mark: Tudo certo?"
-    },
+    "components_v2": true,
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 7
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
     "message": "M1",
-    "seq": 6
+    "seq": 8
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M1",
-    "seq": 7,
+    "message": "M2",
+    "seq": 9,
     "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 10,
+    "thinking": false
   },
   {
     "actor": "bot",
@@ -126,12 +179,18 @@
       "fields": [],
       "footer": "• Use o comando `/reportar` para me contar um bug",
       "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
+      "thumbnail": null,
       "title": "🎉 Funcionalidade ativada com sucesso!"
     },
     "ephemeral": true,
-    "kind": "edit",
-    "message": "M1",
-    "seq": 8
+    "kind": "followup_send",
+    "message": "M3",
+    "seq": 11
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 12
   }
 ]

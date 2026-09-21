@@ -13,12 +13,16 @@ steps:
         Sempre que alguém usar um comando com o prefixo **ks!**, eu buscarei a resposta no StreamElements!
 
         **Exemplo:** `ks!mouse` -> "O streamer usa um Logitech G Pro!"
+    manager_description:
+      en-us: "I answer this streamer's StreamElements commands here on Discord."
+      pt-br: "Respondo aos comandos do StreamElements deste streamer aqui no Discord."
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
 
   - action: modal
     key: streamer
+    emoji: "🎮"
     max_length: 30
     lowercase: true
     normalize: handle

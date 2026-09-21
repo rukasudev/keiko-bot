@@ -19,7 +19,7 @@
                 "type": "text"
               },
               {
-                "content": "Configure como vou comemorar aniversários neste servidor. Você pode cadastrar o primeiro membro agora ou deixar a lista para depois.",
+                "content": "Comemoro o aniversário dos membros com as configurações abaixo.",
                 "type": "text"
               },
               {
@@ -30,8 +30,34 @@
             "type": "section"
           },
           {
-            "content": "**Canal de aniversário:** <#100>\n**Mencionar @everyone:** Não\n**Fuso horário:** America/Sao_Paulo\n**Horário da notificação:** 08:00\n**Mensagem padrão dos membros:** Padrão\n**Total de aniversários:** 1\n**Próximos aniversários:** 1. <@555> — 12 de maio",
-            "type": "text"
+            "children": [
+              {
+                "content": "### 🎂 Configuração do Lembrete\n📺 **Canal de aniversário:** <#100>\n📣 **Mencionar @everyone:** Não\n🌎 **Fuso horário:** America/Sao_Paulo\n🕒 **Horário da notificação:** 08:00\n💬 **Mensagem padrão dos membros:** Padrão",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 🎉 Lista de Aniversários\n🎉 **Total de aniversários:** 1\n🎉 **Próximos aniversários:** 1. <@555>: 12 de maio",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
           },
           {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
@@ -42,12 +68,6 @@
       },
       {
         "children": [
-          {
-            "disabled": false,
-            "label": "Editar",
-            "style": "secondary",
-            "type": "button"
-          },
           {
             "disabled": false,
             "label": "Pausar",
@@ -71,18 +91,18 @@
             "label": "Histórico",
             "style": "secondary",
             "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Estatísticas",
+            "style": "secondary",
+            "type": "button"
           }
         ],
         "type": "actionrow"
       },
       {
         "children": [
-          {
-            "disabled": false,
-            "label": "Estatísticas",
-            "style": "secondary",
-            "type": "button"
-          },
           {
             "disabled": false,
             "label": "Ajuda",

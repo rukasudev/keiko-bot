@@ -338,38 +338,45 @@ def birthday_settings_rows(guild_id: str, locale: str) -> List[Dict[str, Any]]:
     stats = get_birthday_stats(guild_id)
     upcoming = get_upcoming_birthdays(guild_id, limit=3)
     upcoming_text = "\n".join(
-        f"{index}. <@{item['user_id']}> — {format_mm_dd_label(item['date'], locale)}"
+        f"{index}. <@{item['user_id']}>: {format_mm_dd_label(item['date'], locale)}"
         for index, item in enumerate(upcoming, start=1)
     ) or "-"
 
     return [
         {
+            "key": "channel",
             "title": _mb("settings.channel", locale),
             "value": config.get("channel_id"),
             "style": "channel",
         },
         {
+            "key": "mention_everyone",
             "title": _mb("settings.mention-everyone", locale),
             "value": bool(config.get("mention_everyone")),
             "style": "boolean",
         },
         {
+            "key": "timezone",
             "title": _mb("settings.timezone", locale),
             "value": config.get("timezone") or "-",
         },
         {
+            "key": "notification_time",
             "title": _mb("settings.notification-time", locale),
             "value": config.get("notification_time") or "-",
         },
         {
+            "key": "default_message_mode",
             "title": _mb("settings.default-message", locale),
             "value": _default_message_label(config.get("default_message"), locale),
         },
         {
+            "key": "reminders_birthday",
             "title": _mb("settings.total", locale),
             "value": str(stats["total"]),
         },
         {
+            "key": "reminders_birthday",
             "title": _mb("settings.next", locale),
             "value": upcoming_text,
         },

@@ -386,53 +386,151 @@
   },
   {
     "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 20,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
     "components": [
       {
-        "disabled": false,
-        "label": "Editar",
-        "style": "secondary",
-        "type": "button"
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## :white_check_mark: Tudo certo?",
+                "type": "text"
+              },
+              {
+                "content": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": ":flying_disc: **Canal de Mensagens de Boas-Vindas:** <#101>",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": ":flying_disc: **Design do Banner:** Apenas Imagem Personalizada",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": ":flying_disc: **Imagem Personalizada:** https://cdn.discordapp.com/attachments/999/1/custom-banner.png",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### Mensagens de Boas-Vindas\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
       },
       {
-        "disabled": false,
-        "label": "Pré-visualizar",
-        "style": "secondary",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Confirmar",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancelar",
-        "style": "danger",
-        "type": "button"
+        "children": [
+          {
+            "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Confirmar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: Canal de Mensagens de Boas-Vindas: **<#101>**\n:flying_disc: Design do Banner: **Apenas Imagem Personalizada**\n:flying_disc: Imagem Personalizada: **https://cdn.discordapp.com/attachments/999/1/custom-banner.png**\n:flying_disc: Título: **Bem-vindo, {user}!**\n:flying_disc: Rodapé: **Leia as regras :)**\n:flying_disc: Mensagens de Boas-Vindas:\n**\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```**",
-      "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
-      "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
-      "title": ":white_check_mark: Tudo certo?"
-    },
+    "components_v2": true,
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_send",
+    "message": "M4",
+    "seq": 21
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
     "message": "M3",
-    "seq": 20
+    "seq": 22
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M3",
-    "seq": 21,
+    "message": "M4",
+    "seq": 23,
     "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 24,
+    "thinking": false
   },
   {
     "actor": "bot",
@@ -444,12 +542,18 @@
       "fields": [],
       "footer": "• Use o comando `/reportar` para me contar um bug",
       "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
+      "thumbnail": null,
       "title": "🎉 Funcionalidade ativada com sucesso!"
     },
     "ephemeral": true,
-    "kind": "edit",
-    "message": "M3",
-    "seq": 22
+    "kind": "followup_send",
+    "message": "M5",
+    "seq": 25
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M4",
+    "seq": 26
   }
 ]

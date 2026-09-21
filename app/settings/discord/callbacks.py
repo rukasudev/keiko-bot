@@ -62,6 +62,7 @@ from app.settings.form.form_state import (
     new_session,
 )
 from app.settings.form.form_yaml import registry
+from app.settings.form.lookups import Lookup, lookup_for
 
 
 @dataclass
@@ -244,16 +245,17 @@ class Runtime:
                 log_type=logconstants.COMMAND_WARN_TYPE,
             )
 
-    async def _context(self, session: FormSession, event: ev.Event) -> Context:
+    async def _context(
+        self, session: FormSession, lookup: Lookup | None = None
+    ) -> Context:
         state = self.sessions[session.id]
         opened = state.opened
         document = opened.document or {}
         external: Mapping[str, Mapping[str, Any]] = {}
 
-        if isinstance(event, ev.Answered) and event.payload is not None:
+        if lookup is not None:
             external = await state.feature.prefetch(
-                event.step_key,
-                event.payload,
+                lookup,
                 OpenContext(
                     session.origin.guild_id,
                     session.origin.user_id,
@@ -302,7 +304,10 @@ class Runtime:
             quiet=True,
             is_admin=state.is_admin,
         ):
-            context = await self._context(session, event)
+            lookup = lookup_for(definition, session, event)
+            if lookup is not None and not interaction.response.is_done():
+                await interaction.response.defer()
+            context = await self._context(session, lookup)
             decision = decide(definition, session, event, context)
             if state.previews_pending() and _draws_a_gallery(decision):
                 if not interaction.response.is_done():
@@ -418,6 +423,7 @@ class Runtime:
             effect.child_mode,
             effect.answers,
             effect.index,
+            effect.cancelled,
         )
         await self._apply(interaction, parent, event)
 
@@ -618,7 +624,7 @@ class Runtime:
             ):
                 event = ev.Expired(f"expire:{session.id}")
                 definition = registry.get(*session.definition)
-                context = await self._context(session, event)
+                context = await self._context(session)
                 decision = decide(definition, session, event, context)
                 observability.log_decision(decision, event, session)
                 self.store.put(decision.session)

@@ -7,6 +7,9 @@ steps:
     description:
       en-us: Enabling this feature allows me to send a personalized welcome message to new members when they join your server
       pt-br: Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor
+    manager_description:
+      en-us: "I welcome everyone who joins the server with the message below."
+      pt-br: "Dou boas-vindas a quem entra no servidor com a mensagem abaixo."
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"

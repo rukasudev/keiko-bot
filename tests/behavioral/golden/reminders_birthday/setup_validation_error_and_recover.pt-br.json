@@ -1704,59 +1704,91 @@
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 44,
-    "thinking": false
-  },
-  {
-    "actor": "bot",
     "components": [
       {
-        "disabled": false,
-        "label": "Editar",
-        "style": "secondary",
-        "type": "button"
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## :white_check_mark: Tudo certo?",
+                "type": "text"
+              },
+              {
+                "content": "Revise a configuração de notificações de aniversário do servidor. Use **Adicionar** ou **Remover** para gerenciar a lista.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 🎂 Configuração do Lembrete\n📺 **Canal:** <#100>\n🌎 **Fuso horário:** Brasil (UTC-3)\n🕒 **Horário da notificação:** 08:00\n📣 **Mencionar @everyone:** Não\n💬 **Mensagem padrão dos membros:** Padrão",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 🎉 Lista de Aniversários\n**#1**\n👤 **Membro:** <@777>\n:flying_disc: **Dia do Aniversário:** 28 de fevereiro",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
       },
       {
-        "disabled": false,
-        "label": "Adicionar",
-        "style": "secondary",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Confirmar",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancelar",
-        "style": "danger",
-        "type": "button"
+        "children": [
+          {
+            "disabled": false,
+            "label": "Adicionar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Confirmar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Revise a configuração de notificações de aniversário do servidor. Use **Adicionar** ou **Remover** para gerenciar a lista.\n\n:pencil: **Configurações**\n\n:flying_disc: Canal: **<#100>**\n:flying_disc: Fuso horário: **🇧🇷 Brasil (UTC-3)**\n:flying_disc: Horário da notificação: **08:00**\n:flying_disc: Mencionar @everyone: **Não**\n\n:flying_disc: **Lista de Aniversários #1**\n- Membro: **<@777>**\n- Dia do Aniversário: **28 de fevereiro**\n",
-      "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
-      "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
-      "title": ":white_check_mark: Tudo certo?"
-    },
+    "components_v2": true,
     "ephemeral": true,
-    "kind": "followup_send",
-    "message": "M6",
-    "seq": 45
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
+    "kind": "edit",
     "message": "M4",
-    "seq": 46
+    "seq": 44
   }
 ]

@@ -269,15 +269,17 @@ async def test_removing_an_item_unsubscribes_it(deps):
 
 async def test_the_streamer_lookup_is_prefetched_for_the_validator(deps):
     deps.twitch.add_user("gaules", user_id="111")
+    from app.settings.form.lookups import Lookup
+
     feature = feature_for("notifications_twitch")
     context = OpenContext(GUILD_ID, "555", "pt-br")
-    assert await feature.prefetch("streamer", {"inputs": ["Gaules"]}, context) == {
+    assert await feature.prefetch(Lookup(("twitch",), "gaules"), context) == {
         "twitch": {"user_id": "111"}
     }
-    assert await feature.prefetch("streamer", {"inputs": ["nobody"]}, context) == {
+    assert await feature.prefetch(Lookup(("twitch",), "nobody"), context) == {
         "twitch": {"user_id": None}
     }
-    assert await feature.prefetch("channel", None, context) == {}
+    assert await feature.prefetch(Lookup(("youtube",), "gaules"), context) == {}
 
 
 async def test_the_birthday_setup_writes_the_config_and_the_first_member(deps):
@@ -368,3 +370,25 @@ async def test_editing_the_streamer_refreshes_the_stream_elements_channel(
     assert stored["streamer"] == "cellbit"
     assert stored["channel_id"] == "channel-of-cellbit"
     assert result.document["channel_id"] == "channel-of-cellbit"
+
+
+async def test_the_welcome_manager_draws_previews_in_the_background(deps):
+    """The design gallery opened to edit a saved welcome message had no previews:
+    they were only drawn for a setup."""
+    from tests.mocks.discord import create_guild, create_member
+
+    deps.mongo_client.guild["moderations"].insert_one(
+        {"guild_id": GUILD_ID, "welcome_messages": True}
+    )
+    deps.mongo_client.guild["welcome_messages"].insert_one(
+        {"guild_id": GUILD_ID, "enabled": True, "welcome_design": "server_blur"}
+    )
+    guild = create_guild()
+    member = create_member(guild, id=555, name="Tester")
+    opened = await feature_for("welcome_messages").open(
+        OpenContext(GUILD_ID, "555", "pt-br", guild, member)
+    )
+
+    assert opened.document is not None
+    assert opened.pending_previews is not None
+    opened.pending_previews.close()
