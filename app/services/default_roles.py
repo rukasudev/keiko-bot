@@ -10,7 +10,7 @@ from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
 from app.settings import open_feature
 from app.services import analytics, cache
-from app.services.utils import get_available_roles_by_guild, ml
+from app.services.utils import fill, get_available_roles_by_guild, ml
 
 
 async def set_on_member_join(member: discord.Member):
@@ -53,7 +53,7 @@ async def set_on_default_roles_sync(interaction: discord.Interaction):
         )
 
     embed = response_embed(
-        "buttons.roles-sync.waiting", interaction.locale, discord.Color.light_grey()
+        "buttons.roles-sync.waiting", interaction.locale, footer=True, image=True
     )
     message = await interaction.followup.send(embed=embed, ephemeral=True)
 
@@ -64,10 +64,15 @@ async def set_on_default_roles_sync(interaction: discord.Interaction):
     )
 
     try:
-        await set_default_roles(cogs, interaction.guild, interaction.guild.members)
+        given = await set_default_roles(
+            cogs, interaction.guild, interaction.guild.members
+        )
 
         embed = response_embed(
-            "buttons.roles-sync.response", interaction.locale, discord.Color.green()
+            "buttons.roles-sync.response", interaction.locale, footer=True, image=True
+        )
+        embed.description = fill(
+            embed.description, members=given["members"], bots=given["bots"]
         )
         await message.edit(embed=embed)
     except Exception as e:
@@ -82,7 +87,8 @@ async def set_on_default_roles_sync(interaction: discord.Interaction):
 
 async def set_default_roles(
     cogs: Dict[str, str], guild: discord.Guild, members: List[discord.Member]
-):
+) -> Dict[str, int]:
+    """Give every member the roles their kind gets, and say how many got one."""
     default_roles_bot_data = cogs.get(constants.DEFAULT_ROLES_BOT_KEY)
     default_roles_bot = default_roles_bot_data.get("values") if isinstance(default_roles_bot_data, dict) else default_roles_bot_data
 
@@ -97,6 +103,8 @@ async def set_default_roles(
         constants.DEFAULT_ROLES_KEY: filter_roles(default_roles_user, available_roles),
     }
 
+    given = {"members": 0, "bots": 0}
+
     for member in members:
         roles_to_add = get_roles_to_add(member, guild, roles_mapping)
         try:
@@ -107,7 +115,10 @@ async def set_default_roles(
             )
             raise
         if roles_to_add:
+            given["bots" if member.bot else "members"] += 1
             analytics.record_value(guild.id, constants.DEFAULT_ROLES_KEY)
+
+    return given
 
 
 def get_roles_to_add(

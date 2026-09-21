@@ -9,6 +9,7 @@ built: decode, lock, prefetch, decide, run.
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
@@ -24,11 +25,17 @@ from app.services import analytics
 from app.services.trace import trace_scope
 from app.services.utils import is_guild_admin
 from app.settings.discord import observability
-from app.settings.discord.interactions import decode, to_event
-from app.settings.discord.transitions import Executor, Surface, expire_surface
+from app.settings.discord.interactions import ComponentId, decode, to_event
+from app.settings.discord.transitions import (
+    EffectFailed,
+    Executor,
+    Surface,
+    expire_surface,
+)
 from app.settings.discord.views import Dispatcher
 from app.settings.features import feature_for
 from app.settings.features.feature import (
+    AsideAction,
     CommitContext,
     FeatureModule,
     OpenContext,
@@ -168,7 +175,10 @@ class Runtime:
         observability.open_journey(
             session, state.command_name, state.source, state.is_admin
         )
-        await self._apply(interaction, session, ev.Started(str(interaction.id)))
+        try:
+            await self._apply(interaction, session, ev.Started(str(interaction.id)))
+        except EffectFailed as failed:
+            raise failed.error from None
 
     async def handle(
         self, interaction: discord.Interaction, custom_id: str, payload: Any
@@ -182,6 +192,19 @@ class Runtime:
             await self._unknown(interaction)
             return
         state = self.sessions[session.id]
+        try:
+            await self._handle_locked(interaction, component, session, payload, state)
+        except EffectFailed:
+            return
+
+    async def _handle_locked(
+        self,
+        interaction: discord.Interaction,
+        component: ComponentId,
+        session: FormSession,
+        payload: Any,
+        state: Session,
+    ) -> None:
         async with state.lock:
             current = self.store.get(session.id) or session
             if not current.is_closed and self._due(current, _now()):
@@ -316,6 +339,10 @@ class Runtime:
 
         try:
             await executor.run(decision.effects)
+        except EffectFailed:
+            raise
+        except Exception as error:
+            raise EffectFailed(error) from error
         finally:
             observability.log_effects(session, executor.outcomes)
         if session.is_closed and session.parent_id is None:
@@ -468,17 +495,54 @@ class Runtime:
         if action is None:
             await interaction.response.defer()
             return
-        if action.cooldown and not _cooled(state, name, action.cooldown):
+        if action.cooldown and _cooling(state, name, action.cooldown):
             await interaction.response.send_message(
                 embed=_cooldown_embed(locale),
                 ephemeral=True,
                 delete_after=view_constants.ACTION_NOTICE_SECONDS,
             )
             return
+        if action.confirm:
+            await self._ask_before(interaction, session, name, action, action.confirm)
+            return
+        if action.cooldown:
+            _cool(state, name)
         if action.defer and not action.own_response:
             await interaction.response.defer()
         responses = state.feature.responses_for_preview(session.answers, locale)
         await action.handler(interaction, responses)
+
+    async def _ask_before(
+        self,
+        interaction: discord.Interaction,
+        session: FormSession,
+        name: str,
+        action: AsideAction,
+        question: str,
+    ) -> None:
+        """Run a side action only once the admin confirms what it will do."""
+        from app.components.embed import response_embed
+        from app.views.confirm_action import ConfirmActionView
+
+        state = self.sessions[session.id]
+        locale = session.origin.locale
+
+        async def confirmed(answer: discord.Interaction) -> None:
+            if action.cooldown and _cooling(state, name, action.cooldown):
+                await answer.response.edit_message(
+                    embed=_cooldown_embed(locale), view=None
+                )
+                return
+            if action.cooldown:
+                _cool(state, name)
+            await answer.response.edit_message(view=None)
+            responses = state.feature.responses_for_preview(session.answers, locale)
+            await action.handler(answer, responses)
+
+        embed = response_embed(question, locale, footer=True, image=True)
+        await interaction.response.send_message(
+            embed=embed, view=ConfirmActionView(confirmed, locale), ephemeral=True
+        )
 
     async def _help(
         self, interaction: discord.Interaction, session: FormSession
@@ -590,15 +654,13 @@ class Runtime:
                 state.forget()
 
 
-def _cooled(state: Session, name: str, seconds: int) -> bool:
-    import time
-
-    now = time.monotonic()
+def _cooling(state: Session, name: str, seconds: int) -> bool:
     last = state.cooldowns.get(name)
-    if last is not None and now - last < seconds:
-        return False
-    state.cooldowns[name] = now
-    return True
+    return last is not None and time.monotonic() - last < seconds
+
+
+def _cool(state: Session, name: str) -> None:
+    state.cooldowns[name] = time.monotonic()
 
 
 def _cooldown_embed(locale: str) -> discord.Embed:

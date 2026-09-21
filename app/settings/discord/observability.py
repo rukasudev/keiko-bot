@@ -176,7 +176,7 @@ def log_effects(session: FormSession, outcomes: list[Any]) -> None:
                 f"{outcome.duration_ms}ms",
                 log_type=logconstants.COMMAND_INFO_TYPE,
             )
-        else:
+        elif not outcome.reported:
             EFFECT_FAILURES.labels(effect=outcome.effect).inc()
             logger.error(
                 f"form {session.key} {session.id} effect {outcome.effect} failed: "
@@ -185,7 +185,10 @@ def log_effects(session: FormSession, outcomes: list[Any]) -> None:
                 context=error_context(session, effect=outcome.effect),
             )
     if outcomes and all(outcome.succeeded for outcome in outcomes):
-        journey.recovered(story_id(session))
+        context = error_context(session)
+        journey.recovered(
+            journey.recovery_key(context.guild_id, context.user_id, context.flow)
+        )
 
 
 def story_id(session: FormSession) -> str:

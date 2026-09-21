@@ -80,7 +80,7 @@
             "type": "text"
           },
           {
-            "content": "> 🚫 Block all, with exceptions",
+            "content": "> 🚫 Block all",
             "type": "text"
           },
           {
@@ -347,7 +347,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Enabling this feature allows me to watch every message and delete the links you don't want here! You choose how I do it: block all links with your exceptions, or allow links and block only the ones you pick.\n\n:pencil: **Settings**\n\n:flying_disc: Blocking mode: **🚫 Block all, with exceptions**\n:flying_disc: Allowed popular websites: **-**\n:flying_disc: My response when blocking: **No links here! :p**\n:flying_disc: Exempt Channels: **<#100>**\n:flying_disc: Exempt Roles: **-**",
+      "description": "Enabling this feature allows me to watch every message and delete the links you don't want here! You choose how I do it: block all links with your exceptions, or allow links and block only the ones you pick.\n\n:pencil: **Settings**\n\n:flying_disc: Blocking mode: **🚫 Block all**\n:flying_disc: Allowed popular websites: **None**\n:flying_disc: My response when blocking: **No links here! :p**\n:flying_disc: Exempt Channels: **<#100>**\n:flying_disc: Exempt Roles: **None**",
       "fields": [],
       "footer": "• Use the `/report` command to tell me a bug",
       "image": null,

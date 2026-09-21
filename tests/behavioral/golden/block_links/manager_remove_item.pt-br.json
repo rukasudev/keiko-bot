@@ -32,7 +32,7 @@
           {
             "children": [
               {
-                "content": "### 🚦 Configuração de Links\n**Modo de bloqueio:** Bloquear todos, com exceções\n**Sites populares permitidos:**\n```• youtube.com\n• twitch.tv```\n**Minha resposta ao bloquear:** Nada de links aqui! :p",
+                "content": "### 🚦 Configuração de Links\n**Modo de bloqueio:** Bloquear todos\n**Sites populares permitidos:**\n```• youtube.com\n• twitch.tv```\n**Minha resposta ao bloquear:** Nada de links aqui! :p",
                 "type": "text"
               },
               {
@@ -186,6 +186,12 @@
         ],
         "placeholder": "Selecione o item que deseja remover",
         "type": "select"
+      },
+      {
+        "disabled": false,
+        "label": "Voltar",
+        "style": "secondary",
+        "type": "button"
       }
     ],
     "components_v2": false,

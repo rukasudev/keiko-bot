@@ -79,12 +79,18 @@ pt-br:
   roles-sync:
     label: Sincronizar
     desc: Keiko atribui imediatamente os cargos padrão a todos os usuários do servidor
+    confirm:
+      title: "🔄 Sincronizar cargos?"
+      message: "Vou dar os cargos padrão para **todos os membros e bots** que já estão no servidor, não só para quem entrar daqui pra frente. Isso pode levar alguns minutos. Quer continuar?"
+      footer: "Use o comando `/reportar` para me contar um bug"
     waiting:
       title: 🔄 Sincronizando cargos...
       message: Estou atribuindo os cargos padrão a todos os membros do servidor! Isso pode levar alguns minutos...
+      footer: "Use o comando `/reportar` para me contar um bug"
     response:
-      title: ✨ Cargos atribuídos com sucesso!
-      message: Adicionei os cargos padrão a todos os membros do servidor! Agora todos estão ainda mais fofos! 🐶
+      title: "✨ Cargos sincronizados com sucesso!"
+      message: "Pronto! Dei os cargos padrão para todo mundo que já estava no servidor. Agora todos estão ainda mais fofos! 🐶\n\n👥 Membros: **$members**\n🤖 Bots: **$bots**"
+      footer: "Use o comando `/reportar` para me contar um bug"
 
   captions:
     desc: Aqui está uma breve descrição dos botões e suas funcionalidades
@@ -144,6 +150,9 @@ pt-br:
     birthdays:
       label: Aniversários
       desc: Comemore o aniversário dos seus membros com uma mensagem personalizada
+    stream-elements:
+      label: StreamElements
+      desc: Responda aos comandos do StreamElements no chat do Discord
     start:
       label: Configurar
       desc: Configurar esta funcionalidade

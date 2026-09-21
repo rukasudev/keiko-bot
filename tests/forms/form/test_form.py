@@ -567,9 +567,7 @@ def test_the_manager_renders_the_panel_with_grouped_settings():
         "permissions",
         "custom_links",
     ]
-    assert (
-        "**Modo de bloqueio:** Bloquear todos, com exceções" in panel.groups[0].lines[1]
-    )
+    assert "**Modo de bloqueio:** Bloquear todos" in panel.groups[0].lines[1]
     assert [b.action for b in screen(decision).buttons] == [
         "lifecycle:pause",
         "lifecycle:disable",
@@ -661,6 +659,51 @@ def test_removing_from_the_manager_commits_the_item():
     commit = removed.effects[0]
     assert isinstance(commit, Commit) and commit.kind == "remove_item"
     assert commit.payload["item"]["link"]["value"] == "meusite.com.br"
+
+
+def test_back_on_the_edit_dropdown_redraws_the_panel():
+    definition, decision = start(
+        "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
+    )
+    picker = decide(
+        definition,
+        decision.session,
+        evt(ev.EditRequested, target="custom_links"),
+        Context(document=BLOCK_LINKS_DOC),
+    )
+    assert [b.action for b in screen(picker).buttons] == ["picker_back"]
+    back = decide(
+        definition,
+        picker.session,
+        evt(ev.PickerClosed),
+        Context(document=BLOCK_LINKS_DOC),
+    )
+    assert back.session.status is Status.ACTIVE
+    assert isinstance(screen(back).components[0], Panel)
+
+
+def test_back_on_the_remove_dropdown_redraws_the_review():
+    definition, decision = start("notifications_twitch")
+    opened = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
+    session = opened.session
+    for name in ("gaules", "cellbit"):
+        added = decide(
+            definition,
+            session,
+            evt(
+                ev.ChildFinished,
+                child_mode="add_item",
+                answers={"channel": Answer("100"), "streamer": Answer(name)},
+            ),
+        )
+        session = decide(definition, added.session, evt(ev.AddRequested)).session
+    session = session.with_status(Status.ACTIVE)
+    picker = decide(definition, session, evt(ev.RemoveRequested))
+    assert [b.action for b in screen(picker).buttons] == ["picker_back"]
+    back = decide(definition, picker.session, evt(ev.PickerClosed))
+    assert back.session.status is Status.ACTIVE
+    assert back.session.cursor == "confirm"
+    assert "cellbit" in screen(back).description
 
 
 def test_asides_never_touch_the_session():
@@ -759,3 +802,88 @@ def test_a_rejected_event_leaves_the_deadline_where_it_was():
 
     assert again.rejected is not None
     assert again.session.expires_at == first.session.expires_at
+
+
+def test_a_required_multi_select_refuses_confirm_when_every_select_is_empty():
+    """Broke as: default roles saved with both dropdowns empty."""
+    definition, decision = start("default_roles")
+    step = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
+    assert step.session.cursor == "default_roles_config"
+    empty = decide(
+        definition, step.session, evt(ev.Answered, step_key="default_roles_config")
+    )
+    assert kinds(empty) == ["ShowError"]
+    assert empty.effects[0].key == "selection-required"
+    assert empty.session.cursor == "default_roles_config"
+    drafted = decide(
+        definition,
+        empty.session,
+        evt(
+            ev.Drafted,
+            step_key="default_roles_config",
+            changes={"default_roles": ["202"]},
+        ),
+    )
+    one = decide(
+        definition, drafted.session, evt(ev.Answered, step_key="default_roles_config")
+    )
+    assert one.session.cursor == "confirm"
+
+
+BIRTHDAY_DOC = {
+    "guild_id": "123456789",
+    "enabled": True,
+    "reminders_birthday": {
+        "style": "composition",
+        "values": [{"user": {"value": "777", "title": "Membro", "style": "user"}}],
+    },
+}
+
+
+def test_edit_beside_a_member_keyed_list_opens_the_member_picker():
+    """Broke as: the birthday list's own Edit drew a dropdown with no option,
+    which Discord refuses."""
+    definition, decision = start(
+        "reminders_birthday", Manage(), context=Context(document=BIRTHDAY_DOC)
+    )
+    opened = decide(
+        definition,
+        decision.session,
+        evt(ev.EditRequested, target="reminders_birthday"),
+        Context(document=BIRTHDAY_DOC),
+    )
+    picker = screen(opened).components[0]
+    assert isinstance(picker, Picker) and picker.slot == "member"
+    assert opened.session.awaiting == "member:edit"
+
+
+def test_confirming_the_member_picker_on_the_review_does_not_save():
+    """Broke as: Confirm on the member picker opened from the birthday review ran
+    the review's Confirm and saved the whole setup."""
+    definition = REGISTRY.get("reminders_birthday")
+    session = (
+        new_session(
+            (definition.key, definition.version),
+            Setup(),
+            ORIGIN,
+            ttl_seconds=60,
+            now=NOW,
+            answers={"reminders_birthday": Answer([{"user": Answer("777")}])},
+        )
+        .at("confirm")
+        .with_status(Status.AWAITING, awaiting="edit")
+    )
+    picker = decide(
+        definition, session, evt(ev.TargetChosen, value="reminders_birthday")
+    )
+    assert picker.session.awaiting == "member:edit"
+    drafted = decide(
+        definition,
+        picker.session,
+        evt(ev.Drafted, step_key="confirm", changes={"member": ["777"]}),
+    )
+    confirmed = decide(
+        definition, drafted.session, evt(ev.Answered, step_key="confirm")
+    )
+    assert not [e for e in confirmed.effects if isinstance(e, Commit)]
+    assert kinds(confirmed) == ["OpenChild"]

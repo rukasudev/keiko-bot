@@ -90,6 +90,7 @@ pt-br:
         title: 📚 Comandos disponíveis
         desc:
           "Aqui estão meus comandos que irão te ajudar a deixar seu servidor mais aconchegante! ✨\n\n
+          Cuida deste servidor? Use `/configurar` para ativar e ajustar minhas funcionalidades! ⚙️\n\n
           Selecione um comando abaixo para ver sua descrição e executá-lo diretamente ⬇️\n\n"
         placeholder: Selecione um comando
         base-commands: Comandos base
@@ -241,7 +242,7 @@ pt-br:
       embed:
         title: "🐶 Configuração do Servidor"
         desc: "Escolha o que você quer ajustar e eu te guio passo a passo!"
-        note: "Aqui ficam minhas funcionalidades de moderação e notificações. Tem mais comandos e ajuda no `/ajuda`!"
+        note: "Aqui ficam minhas funcionalidades de moderação, notificações e integrações. Tem mais comandos e ajuda no `/ajuda`!"
         configured: "Configuradas · $count"
         pending: "Para configurar · $count"
         paused: Pausado
@@ -254,6 +255,7 @@ pt-br:
           twitch: Avisa quando seus streamers entram ao vivo
           youtube: Avisa quando sai um vídeo novo no canal
           birthdays: Parabéns no aniversário dos membros
+          stream-elements: Responde aos comandos do StreamElements no chat
       history:
         desc: "As últimas mudanças em todas as minhas funcionalidades neste servidor:"
         empty: "Ainda não tem nenhuma mudança registrada por aqui. Configure uma funcionalidade e ela aparece nesta lista!"
@@ -352,5 +354,5 @@ pt-br:
 
   resume:
     settings: Configurações
-    empty: nada por aqui
+    empty: "Nada ainda"
     more: "e mais $count"

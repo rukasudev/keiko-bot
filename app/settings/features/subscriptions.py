@@ -10,6 +10,7 @@ import app as app_module
 from app.settings.features.feature import CommitContext, GenericCogFeature, OpenContext
 from app.settings.form.form_state import Answer
 from app.settings.form.responses.responses import items_of
+from app.settings.form.responses.transforms import handle
 
 Subscribe = Callable[..., Any]
 
@@ -44,7 +45,7 @@ class SubscriptionFeature(GenericCogFeature):
         typed = (
             payload.get("inputs", [""])[0] if isinstance(payload, Mapping) else payload
         )
-        found = await asyncio.to_thread(self._lookup, str(typed or "").lower())
+        found = await asyncio.to_thread(self._lookup, handle(str(typed or "")))
         return {self.external: {self.lookup_result: found}}
 
     lookup_result: str = "user_id"

@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: **Cargos Padrão**: Escolha cargos para atribuir automaticamente a novos bots e membros",
+      "description": "Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: **Cargos Padrão**: Escolha os cargos que eu vou dar automaticamente:\n\n1. **Cargos para bots**: quando um bot entrar no servidor\n2. **Cargos para membros**: quando uma pessoa entrar no servidor\n\nPode deixar um dos dois vazio, só não os dois! 🐶",
       "fields": [],
       "footer": "• Use o comando `/reportar` para me contar um bug",
       "image": null,
@@ -78,7 +78,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Escolha cargos para atribuir automaticamente a novos bots e membros",
+      "description": "Escolha os cargos que eu vou dar automaticamente:\n\n1. **Cargos para bots**: quando um bot entrar no servidor\n2. **Cargos para membros**: quando uma pessoa entrar no servidor\n\nPode deixar um dos dois vazio, só não os dois! 🐶",
       "fields": [],
       "footer": "• Use o comando `/reportar` para me contar um bug",
       "image": null,
@@ -157,7 +157,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Escolha cargos para atribuir automaticamente a novos bots e membros",
+      "description": "Escolha os cargos que eu vou dar automaticamente:\n\n1. **Cargos para bots**: quando um bot entrar no servidor\n2. **Cargos para membros**: quando uma pessoa entrar no servidor\n\nPode deixar um dos dois vazio, só não os dois! 🐶",
       "fields": [],
       "footer": "• Use o comando `/reportar` para me contar um bug",
       "image": null,

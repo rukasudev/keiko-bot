@@ -85,6 +85,7 @@ class AsideAction:
     defer: bool = False
     own_response: bool = False
     cooldown: int | None = None
+    confirm: str | None = None
 
 
 class FeatureModule(Protocol):
@@ -300,6 +301,15 @@ class GenericCogFeature:
         """A hook for features that add to the document before it is stored."""
         return document
 
+    async def before_edit(
+        self,
+        changes: dict[str, Any],
+        answers: Mapping[str, Answer],
+        context: CommitContext,
+    ) -> dict[str, Any]:
+        """A hook for features that add to an edit before it is merged."""
+        return changes
+
     async def commit_edit(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
@@ -307,6 +317,7 @@ class GenericCogFeature:
         changes = self.to_document(payload["answers"], context.locale)
         changes.pop("enabled", None)
         changes.pop("schema_version", None)
+        changes = await self.before_edit(changes, payload["answers"], context)
         await self.update_document(context.guild_id, changes)
         return CommitResult((self.key,), document={**context.document, **changes})
 

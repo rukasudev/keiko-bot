@@ -10,7 +10,7 @@ from typing import Annotated, Any, Literal, Protocol, Union
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
-from app.settings.form.responses.transforms import TRANSFORMS
+from app.settings.form.responses.transforms import NORMALIZERS, TRANSFORMS
 from app.settings.form.responses.validations import VALIDATORS
 
 
@@ -406,6 +406,7 @@ class TextStep(StepBase):
     placeholder: Text | None = None
     max_length: int = 40
     lowercase: bool = False
+    normalize: str | None = None
     multiline: bool = False
     enumerate: bool = False
     validation: str | None = None
@@ -1050,6 +1051,14 @@ def _check_registries(definition: FormDefinition) -> None:
                 step.key,
                 "transform",
                 f"unknown transform {transform!r}",
+            )
+        normalize = step.normalize if isinstance(step, TextStep) else None
+        if normalize and normalize not in NORMALIZERS:
+            raise CompileError(
+                definition.key,
+                step.key,
+                "normalize",
+                f"unknown normalizer {normalize!r}",
             )
 
 

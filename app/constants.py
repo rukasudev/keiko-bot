@@ -95,6 +95,7 @@ class Commands:
     ANALYTICS_DIGEST_WINDOW_DAYS: Final[int] = 7
     ANALYTICS_JOURNEY_HISTORY_LIMIT: Final[int] = 4
     ANALYTICS_JOURNEY_DEBOUNCE_SECONDS: Final[float] = 1.0
+    ANALYTICS_RECOVERY_WINDOW_SECONDS: Final[int] = 60 * 60
     REDIS_ANALYTICS_DAILY: Final[str] = "guild:{guild_id}:analytics:{date}:{metric}"
     REDIS_ANALYTICS_ATTEMPTS: Final[str] = "guild:{guild_id}:analytics:attempts:{feature}"
 
@@ -170,6 +171,8 @@ class Commands:
          "channel_permissions": ["view_channel", "send_messages", "embed_links"]},
         {"command_key": REMINDERS_BIRTHDAY_KEY, "button_key": "birthdays", "emoji": "🎂",
          "channel_permissions": ["view_channel", "send_messages", "embed_links"]},
+        {"command_key": INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY, "button_key": "stream-elements",
+         "emoji": "🎮", "server_permissions": ["send_messages"]},
     ]
     SUPPORT_SERVER_URL: Final[str] = "https://discord.gg/Hdg239Cvbd"
 
@@ -180,6 +183,7 @@ class Commands:
         NOTIFICATIONS_TWITCH_KEY: {"group": "notifications", "namespace": "notifications-twitch"},
         NOTIFICATIONS_YOUTUBE_VIDEO_KEY: {"group": "notifications", "namespace": "notifications-youtube"},
         REMINDERS_BIRTHDAY_KEY: {"group": "moderations", "namespace": "moderations-birthdays"},
+        INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: {"group": "integrations", "namespace": "stream-elements"},
     }
 
 

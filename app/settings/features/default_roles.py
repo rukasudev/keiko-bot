@@ -65,7 +65,14 @@ class DefaultRolesFeature(GenericCogFeature):
         async def sync(interaction: Any, _responses: Any) -> None:
             await set_on_default_roles_sync(interaction)
 
-        return {"sync": AsideAction(sync, defer=True, cooldown=SYNC_COOLDOWN_SECONDS)}
+        return {
+            "sync": AsideAction(
+                sync,
+                defer=True,
+                cooldown=SYNC_COOLDOWN_SECONDS,
+                confirm="buttons.roles-sync.confirm",
+            )
+        }
 
 
 def _values(entry: Any) -> Any:
