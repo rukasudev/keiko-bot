@@ -178,7 +178,6 @@ def auto_inject_dependencies(deps):
         patch('app.services.notifications_twitch.bot', deps.bot),
         patch('app.services.notifications_youtube_video.bot', deps.bot),
         patch('app.services.stream_elements.bot', deps.bot),
-        patch('app.services.welcome_messages.bot', deps.bot),
         patch('app.services.default_roles.bot', deps.bot),
         patch('app.services.subscriptions.bot', deps.bot),
         patch('app.data.cogs.mongo_client', deps.mongo_client),

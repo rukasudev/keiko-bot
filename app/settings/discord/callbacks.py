@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any
 
@@ -35,8 +35,15 @@ from app.settings.features.feature import (
     Opened,
 )
 from app.settings.form import events as ev
+from app.settings.form.components import Gallery
 from app.settings.form.copy import normalize_locale, text
-from app.settings.form.effects import Finalize, OpenChild, ResumeChild, ResumeParent
+from app.settings.form.effects import (
+    Finalize,
+    OpenChild,
+    Render,
+    ResumeChild,
+    ResumeParent,
+)
 from app.settings.form.form import Context, Decision, decide
 from app.settings.form.form_state import (
     FormSession,
@@ -68,20 +75,38 @@ class Session:
     previews: asyncio.Task[Mapping[str, str]] | None = None
 
     async def ready_previews(self, wait: bool) -> Mapping[str, str]:
-        """The previews drawn in the background, waiting for them when `wait`."""
+        """The previews drawn in the background, waited for up to their own limit."""
         if self.previews is None:
             return self.opened.previews
         if not self.previews.done() and not wait:
             return {}
+
         try:
-            return dict(await self.previews)
-        except Exception:
+            return dict(
+                await asyncio.wait_for(
+                    asyncio.shield(self.previews),
+                    view_constants.PREVIEW_WAIT_SECONDS,
+                )
+            )
+        except (Exception, asyncio.TimeoutError):
             return {}
+
+    def previews_pending(self) -> bool:
+        """Whether the previews are still being drawn in the background."""
+        return self.previews is not None and not self.previews.done()
 
     def forget(self) -> None:
         """Stop what still runs for this session."""
         if self.previews is not None and not self.previews.done():
             self.previews.cancel()
+
+
+def _draws_a_gallery(decision: Decision) -> bool:
+    return any(
+        isinstance(effect, Render)
+        and any(isinstance(item, Gallery) for item in effect.screen.components)
+        for effect in decision.effects
+    )
 
 
 class Runtime:
@@ -230,7 +255,7 @@ class Runtime:
             items=items,
             external=external,
             server_name=str(getattr(state.guild, "name", "")),
-            previews=await state.ready_previews(isinstance(event, ev.Answered)),
+            previews=await state.ready_previews(False),
             panel_rows=opened.rows,
             panel_info=opened.info,
             panel_info_title=opened.info_title,
@@ -256,6 +281,13 @@ class Runtime:
         ):
             context = await self._context(session, event)
             decision = decide(definition, session, event, context)
+            if state.previews_pending() and _draws_a_gallery(decision):
+                if not interaction.response.is_done():
+                    await interaction.response.defer()
+                previews = await state.ready_previews(True)
+                context = replace(context, previews=previews, now=_now())
+                decision = decide(definition, session, event, context)
+
             observability.log_decision(decision, event, session)
 
             if decision.session.revision > session.revision:

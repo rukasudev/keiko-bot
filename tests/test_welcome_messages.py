@@ -5,8 +5,11 @@ Estes testes verificam o fluxo de envio de mensagens de boas-vindas
 quando um novo membro entra no servidor.
 """
 
+from types import SimpleNamespace
+from urllib.parse import urlparse
+
 import pytest
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 from app.services.welcome_messages import send_welcome_message
 from tests.mocks import create_member
 from tests.generators import moderations
@@ -328,7 +331,7 @@ class TestGenerateDesignPreviews:
 
     @pytest.mark.asyncio
     async def test_generates_preview_for_each_design(
-        self, mock_banner, guild
+        self, mock_banner, guild, bot
     ):
         """
         Verifica que previews sao gerados para cada design.
@@ -346,6 +349,10 @@ class TestGenerateDesignPreviews:
             {"key": "custom_blur"},
             {"key": "custom_only"},
         ]
+        uploaded = "https://cdn.discordapp.com/attachments/1/2/custom_only_preview.gif"
+        bot.get_channel.return_value.send = AsyncMock(
+            return_value=SimpleNamespace(attachments=[SimpleNamespace(url=uploaded)])
+        )
 
         # Act
         previews = await generate_design_previews(member, designs)
@@ -354,7 +361,7 @@ class TestGenerateDesignPreviews:
         assert "server_blur" in previews
         assert "custom_blur" in previews
         assert "custom_only" in previews
-        assert previews["custom_only"] == WelcomeDesign.CUSTOM_ONLY_PREVIEW
+        assert urlparse(previews["custom_only"]).hostname == "cdn.discordapp.com"
 
     @pytest.mark.asyncio
     async def test_handles_unknown_design_key(
