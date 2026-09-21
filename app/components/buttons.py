@@ -83,6 +83,7 @@ async def run_feature_command(
     """
     from app.services import analytics
     from app.services.trace import trace_scope
+    from app.services.utils import is_guild_admin
 
     analytics.mark_source(interaction, source)
     command = get_command_by_key(interaction.client, command_key)
@@ -95,6 +96,7 @@ async def run_feature_command(
         user_id=interaction.user.id,
         source=source,
         feature=command_key,
+        is_admin=is_guild_admin(interaction.user),
     ) as trace:
         trace.footnote = analytics.describe_attempt(
             analytics.count_attempt(interaction.guild_id, command_key), command_key

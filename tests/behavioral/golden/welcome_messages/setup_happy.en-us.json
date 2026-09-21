@@ -185,26 +185,26 @@
           {
             "content": "⬆️ Scroll up to see all options",
             "type": "text"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Back",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Cancel",
-                "style": "danger",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
           }
         ],
         "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Back",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
     "components_v2": true,

@@ -193,6 +193,10 @@ class FormSession:
         """The session whose screen now shows this revision."""
         return replace(self, screen_revision=self.revision)
 
+    def touched(self, now: datetime, ttl_seconds: int) -> FormSession:
+        """The session whose deadline counts from `now`; bookkeeping, no revision."""
+        return replace(self, expires_at=now + timedelta(seconds=ttl_seconds))
+
     def has_seen(self, event_id: str) -> bool:
         """True when `event_id` was applied to this session already."""
         return event_id in self.seen_events
@@ -302,12 +306,16 @@ class InMemorySessionStore:
             expired.append(closed)
         return tuple(expired)
 
-    def forget_closed(self) -> int:
-        """Drop closed sessions and return how many went."""
-        closed = [key for key, session in self._sessions.items() if session.is_closed]
+    def forget_closed(self, before: datetime | None = None) -> tuple[str, ...]:
+        """Drop closed sessions, only those past `before` if given, and return ids."""
+        closed = [
+            key
+            for key, session in self._sessions.items()
+            if session.is_closed and (before is None or session.expires_at <= before)
+        ]
         for key in closed:
             del self._sessions[key]
-        return len(closed)
+        return tuple(closed)
 
     def children(self, parent_id: str) -> tuple[FormSession, ...]:
         """Every session opened under `parent_id`."""

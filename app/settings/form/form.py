@@ -57,6 +57,7 @@ from app.settings.form.form_yaml import (
 from app.settings.form.responses.responses import (
     document_values,
 )
+from app.settings.form.responses.summary import configured_steps
 
 FINAL_KIND = {
     "setup": "enabled",
@@ -648,7 +649,19 @@ def _on_commit_succeeded(engine: Engine) -> None:
     engine.session = engine.session.with_status(Status.COMPLETED)
     engine.effects.append(Finalize(FINAL_KIND.get(event.kind, event.kind)))
     if event.kind == "setup":
-        engine.emit("setup.completed")
+        engine.emit(
+            "setup.completed",
+            configured_steps=configured_steps(engine.steps, engine.session.answers),
+            **_item_count(engine),
+        )
+
+
+def _item_count(engine: Engine) -> dict[str, int]:
+    composition = engine.definition.composition
+    answer = engine.session.answers.get(composition.key) if composition else None
+    if answer is None or not isinstance(answer.raw, (list, tuple)):
+        return {}
+    return {"item_count": len(answer.raw)}
 
 
 def _on_commit_failed(engine: Engine) -> None:
@@ -657,6 +670,12 @@ def _on_commit_failed(engine: Engine) -> None:
     engine.session = engine.session.with_status(Status.FAILED)
     kind = "duplicate" if event.error == "duplicate" else "error"
     engine.effects.append(Finalize(kind))
+    engine.emit(
+        "feature.commit_failed",
+        commit_kind=event.kind,
+        error_type=event.error,
+        step_key=engine.session.cursor,
+    )
 
 
 def _on_aside(engine: Engine) -> None:
@@ -761,7 +780,11 @@ def decide(
     if rejected is not None:
         return _rejected(definition, session, event, context, rejected)
     if session.awaiting == "child" and isinstance(event, (ev.Answered, ev.Drafted)):
-        return Decision(session.remember(event.event_id), (ResumeChild(),))
+        resumed = session.remember(event.event_id).touched(
+            context.now, context.ttl_seconds
+        )
+
+        return Decision(resumed, (ResumeChild(),))
     engine = Engine(definition, session, event, context)
     handler = HANDLERS.get(type(event))
 
@@ -772,6 +795,8 @@ def decide(
     else:
         handler(engine)
     session_after = engine.session.remember(event.event_id)
+    if not session_after.is_closed:
+        session_after = session_after.touched(context.now, context.ttl_seconds)
     if any(isinstance(effect, Render) for effect in engine.effects):
         session_after = session_after.rendered()
     return Decision(

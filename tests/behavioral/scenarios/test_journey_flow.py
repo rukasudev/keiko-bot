@@ -55,7 +55,25 @@ async def test_a_completed_setup_ends_as_saved(scenario_factory, story):
     assert session["result"] == "saved"
     assert session["finished"] is True
     assert any("setup opened" in line for line in session["lines"])
-    assert any("step:" in line for line in session["lines"])
+    await scenario.finish()
+
+
+async def test_a_saved_setup_reads_as_a_summary_of_what_was_configured(
+    scenario_factory, story
+):
+    scenario = await scenario_factory(locale="pt-br").start("block_links")
+    await scenario.confirm()
+    await scenario.click("done")
+    await scenario.click(LATER)
+    await scenario.confirm()
+    await scenario.confirm()
+
+    lines = only(story)["lines"]
+    assert not any(line.startswith("step:") for line in lines), (
+        "a save is read for what it configured, not step by step"
+    )
+    assert lines[-1].startswith("✅ saved: ")
+    assert "Link Settings" in lines[-1]
     await scenario.finish()
 
 
@@ -185,4 +203,32 @@ async def test_disabling_analytics_also_silences_the_journey(
     await scenario.confirm()
 
     assert all(not item.lines for item in story.values())
+    await scenario.finish()
+
+
+async def test_a_slash_invocation_starts_the_story_with_one_opening_line(
+    scenario_factory, story
+):
+    """Reported from the log channel: every session message began with
+    "`/moderations block links` started" twice. The harness opens the form with
+    no command trace around it, so this wraps it the way `keiko_command` does."""
+    from app import logger as logger_module
+    from app.services.trace import trace_scope
+
+    folding = logger_module.TraceFoldingHandler()
+    logger_module.logger.addHandler(folding)
+    try:
+        async with trace_scope(
+            "moderations block links",
+            opening="`/moderations block links` started",
+            guild_id=GUILD_ID,
+            user_id="555",
+            source="slash",
+        ):
+            scenario = await scenario_factory(locale="pt-br").start("block_links")
+    finally:
+        logger_module.logger.removeHandler(folding)
+
+    lines = only(story)["lines"]
+    assert lines.count("`/moderations block links` started") == 1, lines
     await scenario.finish()

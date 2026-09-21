@@ -599,6 +599,13 @@ def parse_locale(locale: str) -> str:
             return supported
     return "en-us"
 
+
+def is_guild_admin(user: Any) -> bool:
+    """Whether the member holds the administrator permission in their guild."""
+    permissions = getattr(user, "guild_permissions", None)
+    return bool(permissions and permissions.administrator)
+
+
 def parse_valid_locale(locale: discord.Locale) -> discord.Locale:
     locale_value = getattr(locale, "value", str(locale))
     if locale_value == discord.Locale.brazil_portuguese.value:
@@ -641,6 +648,18 @@ def get_command_display_name(bot, key: str, locale: discord.Locale) -> str:
         return " ".join(part for part in (group, subgroup, name) if part)
 
     return str(key).replace("_", " ")
+
+
+def stored_value(entry: Dict[str, Any]) -> Any:
+    """The value a saved entry holds, machine-readable when it kept both."""
+    return entry.get("_raw_value", entry.get("value"))
+
+
+def fill(text: str, **values: Any) -> str:
+    """Replace every `$name` in a localized line with the value given for it."""
+    for name, value in values.items():
+        text = text.replace(f"${name}", str(value))
+    return text
 
 
 def parse_command_event_description(

@@ -245,14 +245,26 @@ one place that shape is built and read.
 - **Limits.** The compiler refuses a card that would exceed Discord's forty
   components (`CV2_MAX_COMPONENTS`), and the renderer truncates select
   option text at `DiscordLimits.SELECT_OPTION_TEXT`.
-- **Expiry.** The store (`InMemorySessionStore`, TTL
-  `ViewConstants.LONG_TIMEOUT_SECONDS`) hands due sessions to `decide` as
-  `Expired`; the message loses its buttons and shows the expired copy.
+- **Expiry.** The events cog runs `Runtime.sweep` every
+  `ViewConstants.FORM_SWEEP_SECONDS`. A session is due when it sat idle for
+  `ViewConstants.LONG_TIMEOUT_SECONDS` since its last accepted event and no
+  child of it is still in use; it reaches `decide` as `Expired` and its journey
+  closes. The message loses its buttons only while the latest interaction token
+  is valid (`DiscordLimits.INTERACTION_TOKEN_SECONDS`); after that, the next
+  click on the message closes it. Closed sessions past their deadline are
+  forgotten.
+- **Layout.** `layout.py` holds the Components V2 frame, header, rows and
+  footer; the renderer and the `/setup` card (`app/views/setup.py`) both draw
+  through it. A screen's own buttons sit below the card, outside its frame;
+  a button that belongs to one part of the card (a section, a group's Edit, a
+  design, a picker's options) stays inside.
 - **Observability.** `observability.emit` is the only place a form's
   product events are emitted, from `Decision.analytics` (see
   `docs/analytics.md`); `log_decision` writes one line per decision and
   `log_effects` one per effect; `error_context` carries the session id,
   revision and definition version; the journey message follows the session.
+  Form event traces are quiet: the journey is the only log message a session
+  posts.
 
 ## 8. Adding a form
 

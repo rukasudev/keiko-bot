@@ -17,7 +17,7 @@ import discord
 
 from app import logger
 from app.components.embed import base_embed, response_error_embed
-from app.constants import KeikoIcons, Style
+from app.constants import DiscordLimits, KeikoIcons, Style
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
 from app.services.utils import parse_command_event_description
@@ -57,6 +57,8 @@ class Surface:
     embed: discord.Embed | None = None
     confirmation_id: int | None = None
     replace_next: bool = False
+    webhook: discord.Webhook | None = None
+    touched_at: float | None = None
 
 
 @dataclass
@@ -93,7 +95,10 @@ class Executor:
 
     async def run(self, effects: tuple[Effect, ...]) -> None:
         """Execute every effect, a modal first: it must be the interaction's answer."""
+        self.surface.webhook = self.interaction.followup
+        self.surface.touched_at = time.monotonic()
         ordered = sorted(effects, key=lambda effect: not isinstance(effect, OpenModal))
+
         for effect in ordered:
             name = type(effect).__name__
             started = time.monotonic()
@@ -386,11 +391,16 @@ def expired_payload(surface: Surface, locale: str) -> dict[str, Any]:
 
 
 async def expire_surface(surface: Surface, locale: str) -> None:
-    """Close the message of a session that expired with nobody clicking."""
-    if surface.message is None or surface.view is None:
+    """Close the message of a session that expired, while Discord still allows it."""
+    if surface.message_id is None or surface.view is None:
+        return
+    age = time.monotonic() - (surface.touched_at or 0.0)
+    if surface.webhook is None or age >= DiscordLimits.INTERACTION_TOKEN_SECONDS:
+        surface.view = None
         return
     try:
-        await surface.message.edit(**expired_payload(surface, locale))
+        payload = expired_payload(surface, locale)
+        await surface.webhook.edit_message(surface.message_id, **payload)
     except discord.HTTPException as error:
         logger.warn(
             f"Could not expire a form message: {type(error).__name__}: {error}",

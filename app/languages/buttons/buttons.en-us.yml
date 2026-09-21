@@ -145,6 +145,21 @@ en-us:
     birthdays:
       label: Birthdays
       desc: Celebrate your members' birthdays with a personalized message
+    start:
+      label: Set up
+      desc: Set up this feature
+    manage:
+      label: Manage
+      desc: Manage this feature
+    commands:
+      label: Commands
+      desc: See every command I have
+    permissions:
+      label: Permissions
+      desc: Check what I need for each feature
+    support:
+      label: Support
+      desc: Join my official server for help
     dashboard:
       label: Setup
       desc: See all features and their status

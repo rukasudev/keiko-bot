@@ -45,46 +45,46 @@
             "type": "section"
           },
           {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Pausar",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Desativar",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Remover",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Histórico",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Ajuda",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
           }
         ],
         "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Pausar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Desativar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Remover",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Histórico",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Ajuda",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
     "components_v2": true,
