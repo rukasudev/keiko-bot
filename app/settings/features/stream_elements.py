@@ -11,6 +11,7 @@ from app.constants import Commands
 from app.integrations.stream_elements import StreamElementsClient
 from app.settings.features.feature import CommitContext, GenericCogFeature, OpenContext
 from app.settings.form.form_state import Answer
+from app.settings.form.responses.transforms import handle
 
 
 class StreamElementsFeature(GenericCogFeature):
@@ -37,19 +38,34 @@ class StreamElementsFeature(GenericCogFeature):
         context: CommitContext,
     ) -> dict[str, Any]:
         """The StreamElements channel id of the streamer, outside dev."""
-        if cast(Any, app_module).bot.config.is_dev():
-            return document
-        info = await asyncio.to_thread(
-            StreamElementsClient.get_channel_info, str(document.get("streamer", ""))
-        )
-        return {**document, "channel_id": info["_id"]}
+        return await _with_channel(document)
+
+    async def before_edit(
+        self,
+        changes: dict[str, Any],
+        answers: Mapping[str, Answer],
+        context: CommitContext,
+    ) -> dict[str, Any]:
+        """A new streamer brings its own StreamElements channel id, outside dev."""
+        if "streamer" not in changes:
+            return changes
+        return await _with_channel(changes)
+
+
+async def _with_channel(document: dict[str, Any]) -> dict[str, Any]:
+    if cast(Any, app_module).bot.config.is_dev():
+        return document
+    info = await asyncio.to_thread(
+        StreamElementsClient.get_channel_info, str(document.get("streamer", ""))
+    )
+    return {**document, "channel_id": info["_id"]}
 
 
 def _typed(payload: Any) -> str:
     if isinstance(payload, Mapping):
         inputs = payload.get("inputs") or [""]
-        return str(inputs[0]).lower()
-    return str(payload or "").lower()
+        return handle(str(inputs[0]))
+    return handle(str(payload or ""))
 
 
 FEATURE = StreamElementsFeature()

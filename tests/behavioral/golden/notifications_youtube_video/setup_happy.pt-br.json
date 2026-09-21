@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar esta função faz com que eu notifique quando seu youtuber favorito postar um novo vídeo!\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Texto**: Escolha em qual canal de texto você deseja ser notificado\n:flying_disc: **Youtuber**: Apenas o username do youtuber. Exemplo: pewdiepie\n:flying_disc: **Mensagens de Notificação**: Use {youtuber} e {video_link}. Uma mensagem será escolhida aleatoriamente.",
+      "description": "Ativar esta função faz com que eu notifique quando seu youtuber favorito postar um novo vídeo!\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Texto**: Escolha em qual canal de texto você deseja ser notificado\n:flying_disc: **Youtuber**: O nome do canal no YouTube, com ou sem @. Exemplo: @pewdiepie\n:flying_disc: **Mensagens de Notificação**: Use {youtuber} e {video_link}. Uma mensagem será escolhida aleatoriamente.",
       "fields": [],
       "footer": "• Use o comando `/reportar` para me contar um bug",
       "image": null,

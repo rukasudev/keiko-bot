@@ -122,7 +122,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Command **stream elements commands** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/stream elements commands` or `/setup` 🔄",
+      "description": "Command **integrations streamelements commands** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/integrations streamelements commands` or `/setup` 🔄",
       "fields": [],
       "footer": "• Use the `/report` command to tell me a bug",
       "image": null,

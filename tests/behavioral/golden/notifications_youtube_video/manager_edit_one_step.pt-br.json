@@ -124,6 +124,12 @@
         ],
         "placeholder": "Selecione as configurações que deseja editar",
         "type": "select"
+      },
+      {
+        "disabled": false,
+        "label": "Voltar",
+        "style": "secondary",
+        "type": "button"
       }
     ],
     "components_v2": false,

@@ -34,6 +34,7 @@ REJECTED = [
     ("value_not_an_option.yml", "'c' is not an option of 'mode'"),
     ("bad_section_type.yml", "rainbow"),
     ("unknown_validator.yml", "unknown validator 'validate_unicorn'"),
+    ("unknown_normalizer.yml", "unknown normalizer 'unicorn'"),
     ("composition_without_max.yml", "max: a composition declares max"),
     ("last_step_not_review.yml", "the last step is review"),
 ]
