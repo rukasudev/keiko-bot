@@ -239,6 +239,10 @@ class Executor:
 
     async def open_modal(self, effect: OpenModal) -> None:
         """Open the modal as the interaction's first answer."""
+        if self.response.is_done():
+            raise EffectFailed(
+                RuntimeError("a modal cannot follow an answered interaction")
+            )
         modal = views.modal_of(
             effect.screen, self._ids(), self.dispatcher, effect.action, effect.arg
         )
@@ -346,7 +350,7 @@ class Executor:
             embed.clear_fields()
             embed.title, embed.description = title, description
 
-            return embed, False
+            return embed, self.surface.is_layout
         if kind == "edited":
             base = manager.panel_embed(self.session_definition(), self.locale)
             embed = views.embed_of(base)

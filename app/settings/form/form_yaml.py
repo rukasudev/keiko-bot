@@ -10,6 +10,7 @@ from typing import Annotated, Any, Literal, Protocol, Union
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
+from app.constants import DiscordLimits, ViewConstants
 from app.settings.form.responses.transforms import NORMALIZERS, TRANSFORMS
 from app.settings.form.responses.validations import VALIDATORS
 
@@ -176,6 +177,7 @@ class TextField(Node):
     default: Text | None = None
     placeholder: Text | None = None
     description: Text | None = None
+    normalize: str | None = None
 
 
 class Select(Node):
@@ -343,6 +345,13 @@ class MultiSelectSection(SectionBase):
     options: tuple[Option, ...]
 
 
+class DesignSection(SectionBase):
+    """One design chosen on a gallery of previews."""
+
+    type: Literal["design-select"]
+    designs: tuple[Design, ...]
+
+
 Section = Annotated[
     Union[
         TitleContentSection,
@@ -353,6 +362,7 @@ Section = Annotated[
         BooleanToggleSection,
         ModalInputSection,
         MultiSelectSection,
+        DesignSection,
     ],
     Field(discriminator="type"),
 ]
@@ -395,6 +405,7 @@ class IntroStep(StepBase):
     """The first screen: what the feature does, then Confirm."""
 
     kind: Literal["intro"]
+    manager_description: Text | None = None
 
 
 class TextStep(StepBase):
@@ -412,6 +423,7 @@ class TextStep(StepBase):
     validation: str | None = None
     transform: str | None = None
     fields: tuple[TextField, ...] = ()
+    lookup_answers: dict[str, str] = Field(default_factory=dict)
     modal_title: Text | None = None
 
 
@@ -459,6 +471,19 @@ class MultiPickStep(StepBase):
 
     kind: Literal["multi_pick"]
     selects: tuple[Select, ...]
+    edit_by_field: bool = False
+
+
+def owned_keys(section: Section) -> tuple[str, ...]:
+    """The state keys a section writes, with the keyed fields of its modal."""
+    keys = list(section.state.keys())
+    if isinstance(section, ModalInputSection):
+        keys += [
+            field.key
+            for field in section.modal.fields
+            if field.key and field.key not in keys
+        ]
+    return tuple(keys)
 
 
 class CardStep(StepBase):
@@ -466,6 +491,7 @@ class CardStep(StepBase):
 
     kind: Literal["card"]
     editable: bool = False
+    edit_by_field: bool = False
     required_keys: tuple[str, ...] = ()
     defaults: dict[str, Scalar | Text] = Field(default_factory=dict)
     header: Header | None = None
@@ -478,7 +504,7 @@ class CardStep(StepBase):
         """Every state key the sections own, in declaration order."""
         keys: list[str] = []
         for section in self.sections:
-            for key in section.state.keys():
+            for key in owned_keys(section):
                 if key not in keys:
                     keys.append(key)
         return tuple(keys)
@@ -509,6 +535,7 @@ class CompositionStep(StepBase):
     """A list of items, each built by a child session over `steps`."""
 
     kind: Literal["composition"]
+    edit_by_item: bool = False
     parent_key: str
     items: ItemsSpec
     steps: tuple[Step, ...]
@@ -552,6 +579,18 @@ class FormDefinition(Node):
     key: str
     version: int = 1
     steps: tuple[Step, ...]
+
+    def designs(self) -> tuple[Design, ...]:
+        """Every design a gallery of this form offers, in declaration order."""
+        found: list[Design] = []
+        for step in self.steps:
+            if isinstance(step, SingleChoiceStep):
+                found += step.designs
+            if isinstance(step, CardStep):
+                for section in step.sections:
+                    if isinstance(section, DesignSection):
+                        found += section.designs
+        return tuple(found)
 
     def step(self, key: str) -> Step:
         """The top-level step with `key`."""
@@ -833,8 +872,15 @@ def _raw_produced_keys(step: Mapping[str, Any]) -> list[str]:
     keys += [str(select.get("key")) for select in step.get("selects", []) or []]
     for section in step.get("sections", []) or []:
         keys += [str(value) for value in (section.get("state") or {}).values() if value]
+        modal = section.get("modal") or {}
+        keys += [
+            str(field.get("key"))
+            for field in modal.get("fields", []) or []
+            if field.get("key")
+        ]
     if step.get("kind") == "card":
         keys += [str(field.get("key")) for field in step.get("fields", []) or []]
+    keys += [str(key) for key in (step.get("lookup_answers") or {})]
     return keys
 
 
@@ -915,6 +961,7 @@ def produced_keys(step: Step) -> tuple[str, ...]:
     keys = [step.key]
     if isinstance(step, TextStep):
         keys = [field.key for field in step.fields if field.key] + keys
+        keys += list(step.lookup_answers)
     if isinstance(step, MultiPickStep):
         keys += [select.key for select in step.selects]
     if isinstance(step, CardStep):
@@ -937,6 +984,11 @@ def options_for(steps: Sequence[Step], key: str) -> tuple[Option, ...] | None:
                 )
                 if isinstance(section, with_options) and section.state.value == key:
                     return tuple(section.options)
+                if isinstance(section, DesignSection) and section.state.value == key:
+                    return tuple(
+                        Option(label=design.label, value=design.key)
+                        for design in section.designs
+                    )
     return None
 
 
@@ -1009,8 +1061,40 @@ def _check_scope(
         produced.extend(produced_keys(step))
 
 
+def _check_modal_section(
+    definition: FormDefinition, card: CardStep, section: ModalInputSection
+) -> None:
+    fields = section.modal.fields
+    if len(fields) > DiscordLimits.MODAL_INPUTS:
+        raise CompileError(
+            definition.key,
+            card.key,
+            "modal",
+            f"a modal holds at most {DiscordLimits.MODAL_INPUTS} inputs",
+        )
+    if any(field.key is None for field in fields) and not section.state.value:
+        raise CompileError(
+            definition.key,
+            card.key,
+            "state",
+            "fields without a key need state.value",
+        )
+    keyed = [field.key for field in fields if field.key]
+
+    if fields and len(keyed) == len(fields) and section.state.value not in keyed:
+        raise CompileError(
+            definition.key,
+            card.key,
+            "state",
+            "state.value names none of the fields",
+        )
+
+
 def _check_card(definition: FormDefinition, card: CardStep) -> None:
     state_keys = set(card.state_keys())
+    for section in card.sections:
+        if isinstance(section, ModalInputSection):
+            _check_modal_section(definition, card, section)
     for section in card.sections:
         for leaf in _leaves(section.visible_when):
             if leaf.key not in state_keys:
@@ -1031,7 +1115,38 @@ def _walk(steps: Sequence[Step]) -> list[Step]:
     return found
 
 
+def _check_edit_by_field(definition: FormDefinition) -> None:
+    for outer in definition.steps:
+        if not isinstance(outer, CompositionStep):
+            continue
+        for inner in outer.steps:
+            if isinstance(inner, (CardStep, MultiPickStep)) and inner.edit_by_field:
+                raise CompileError(
+                    definition.key,
+                    inner.key,
+                    "edit_by_field",
+                    "edit_by_field is not allowed inside a composition",
+                )
+
+
+def _check_lookup_answers(definition: FormDefinition) -> None:
+    for step in _walk(definition.steps):
+        if not isinstance(step, TextStep):
+            continue
+        for path in step.lookup_answers.values():
+            service, _, field = path.partition(".")
+            if not service or not field or "." in field:
+                raise CompileError(
+                    definition.key,
+                    step.key,
+                    "lookup_answers",
+                    "lookup_answers names service.field",
+                )
+
+
 def _check_registries(definition: FormDefinition) -> None:
+    _check_edit_by_field(definition)
+    _check_lookup_answers(definition)
     for step in _walk(definition.steps):
         names = list(_card_validations(step))
         if isinstance(step, TextStep) and step.validation:
@@ -1052,14 +1167,28 @@ def _check_registries(definition: FormDefinition) -> None:
                 "transform",
                 f"unknown transform {transform!r}",
             )
-        normalize = step.normalize if isinstance(step, TextStep) else None
-        if normalize and normalize not in NORMALIZERS:
-            raise CompileError(
-                definition.key,
-                step.key,
-                "normalize",
-                f"unknown normalizer {normalize!r}",
-            )
+        for normalize in _normalizers(step):
+            if normalize not in NORMALIZERS:
+                raise CompileError(
+                    definition.key,
+                    step.key,
+                    "normalize",
+                    f"unknown normalizer {normalize!r}",
+                )
+
+
+def _normalizers(step: Step) -> list[str]:
+    fields: list[TextField] = []
+    names: list[str] = []
+    if isinstance(step, TextStep):
+        fields += list(step.fields)
+        if step.normalize:
+            names.append(step.normalize)
+    if isinstance(step, CardStep):
+        for section in step.sections:
+            if isinstance(section, ModalInputSection):
+                fields += list(section.modal.fields)
+    return names + [field.normalize for field in fields if field.normalize]
 
 
 def _card_validations(step: Step) -> list[str]:
@@ -1077,6 +1206,16 @@ def _card_validations(step: Step) -> list[str]:
 
 def _check_limits(definition: FormDefinition) -> None:
     for step in _walk(definition.steps):
+        limit = ViewConstants.EDIT_BY_ITEM_MAX
+        if isinstance(step, CompositionStep) and step.edit_by_item:
+            if step.items.max > limit:
+                raise CompileError(
+                    definition.key,
+                    step.key,
+                    "edit_by_item",
+                    f"{step.items.max} items, at most {limit} items "
+                    "can each carry an Edit",
+                )
         if not isinstance(step, CardStep):
             continue
         estimate = 1 + 3 + len(step.sections) * 5 + 1 + 2

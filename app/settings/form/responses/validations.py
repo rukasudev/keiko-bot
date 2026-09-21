@@ -77,12 +77,11 @@ def _link_or_domain(value: Any, _context: ValidationContext) -> str | None:
 
 
 def _date(value: Any, context: ValidationContext) -> str | None:
-    if isinstance(value, Mapping):
-        day = value.get("day")
-        month = value.get("month") or context.answers.get("month")
-    else:
-        day, month = value, context.answers.get("month")
-    return None if parse_date_parts(day, month) else "invalid-date"
+    return (
+        None
+        if parse_date_parts(value, context.answers.get("month"))
+        else "invalid-date"
+    )
 
 
 VALIDATORS: dict[str, Validator] = {

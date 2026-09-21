@@ -51,8 +51,10 @@ lines are enforced by `tests/forms/test_boundary.py`.
 4. Every interaction on a form message carries a `custom_id` of the shape
    `k:<session>:<revision>:<action>[:<arg>]` (`interactions.py`). The adapter decodes
    it, takes the session's `asyncio.Lock`, turns the interaction into an
-   event (`interactions.to_event`), runs any `prefetch` the step's validator
-   declared, and calls `decide(definition, session, event, context)`.
+   event (`interactions.to_event`), and when a submitted modal's validator
+   declares an `external:<service>` need (`lookups.lookup_for`, for a text step
+   or a card section) defers the interaction and runs the feature's `prefetch`,
+   then calls `decide(definition, session, event, context)`.
 5. `decide` is pure: it returns a `Decision` with the next session, the
    effects to run in order, the rules it evaluated and the analytics events
    to emit. The adapter stores the session (`put` bumps the revision;
@@ -78,7 +80,7 @@ below names the YAML spelling first and the model second.
 | `key` | `key` | the answer key this step produces (a text step with named `fields` produces those keys instead) |
 | `action` | `kind` | the step kind, through the alias table in 3.2 |
 | `title`, `description`, `footer` | `Text` | copy in `en-us` and `pt-br`; `description` accepts `{response:key:formatter|fallback}` tokens (formatter: `host`) resolved from earlier answers |
-| `emoji` | `emoji` | the step's icon on summaries and the manager panel |
+| `emoji` | `emoji` | the step's icon on summaries; on the manager panel it leads each line the step owns (a card section's or a select's `icon` wins for its keys, the frisbee stands in when nothing is declared) |
 | `required` | `required` | the step must hold a value before Confirm |
 | `hidden` | `hidden` | the answer is a gate: never listed on the review or the panel |
 | `when` (legacy `condition`) | `when` | the step is shown only while the rule holds (section 4) |
@@ -89,8 +91,8 @@ below names the YAML spelling first and the model second.
 
 | `action:` in YAML | Kind | Model | What it renders |
 |---|---|---|---|
-| `form` | `intro` | `IntroStep` | the first screen: what the feature does, then Confirm |
-| `modal` | `text` | `TextStep` | a modal with one text input (`label`, `placeholder`, `max_length`, `multiline`, `lowercase`, `normalize` (a registered input normalizer such as `handle`: no spaces around, no leading @, lowercase), `validation`, `transform`) or several named `fields` |
+| `form` | `intro` | `IntroStep` | the first screen: what the feature does, then Confirm; `manager_description` is the manager panel's intro, written as what the feature is doing (falls back to `description`) |
+| `modal` | `text` | `TextStep` | a modal with one text input (`label`, `placeholder`, `max_length`, `multiline`, `lowercase`, `normalize` (a registered input normalizer such as `handle`: no spaces around, no leading @, lowercase), `validation`, `transform`) or several named `fields`; `lookup_answers` keeps named values of the lookup its modal ran (`answer_key: service.field`) as hidden answers a later description reads with `{response:answer_key\|fallback}`, never listed and never saved |
 | `file_upload` | `text` with `input: file` | `TextStep` | a modal with a file input |
 | `options` | `single_choice` | `SingleChoiceStep` | one button per `option` (`label`, `value`, `style`); `unique`, `styled_values`, `auto_confirm` |
 | `design_select` | `single_choice` with `designs` | `SingleChoiceStep` | a gallery, one `Design` (`key`, `label`, `description`) per entry, with the feature's previews |
@@ -101,7 +103,7 @@ below names the YAML spelling first and the model second.
 | `configuration_card` | `card` | `CardStep` | a Components V2 card whose sections each edit part of the answer (3.3) |
 | `composition` | `composition` | `CompositionStep` | a list of items, each built by a child session over `steps` (3.4) |
 | `button` | `info` | `InfoStep` | a read-only screen with titled paragraphs (`fields`, per locale) and Confirm |
-| `resume` | `review` | `ReviewStep` | the last screen: the summary and the final Confirm; `preview: true` adds the Preview aside |
+| `resume` | `review` | `ReviewStep` | the last screen: every answer as a card of the manager panel's blocks, each with its own Edit, and the actions below the card; a list shows its first `COMPOSITION_PREVIEW_LIMIT` items and a "+N more" line; `preview: true` adds the Preview aside |
 
 The alias table is `KIND_BY_ACTION` in the compiler. `condition:` still
 compiles into `when` with a deprecation warning; new forms write `when`.
@@ -142,6 +144,15 @@ session sees its parent's answers through the `parent.` scope (section 4).
 The manager panel offers Add while the list is under `items.max`, Edit and
 Remove per item; a duplicate by `unique_by` finalizes with the `duplicate`
 copy instead of writing.
+
+On the manager panel every visible step is a block with an Edit beside what it
+opens (`manage.groups`, `panel_groups`): a card lists its fields, a
+multi-select its selects, a list its items, and any other step its own answer.
+A block of one line shows no heading, and a block titled like the panel shows
+none either. A feature that builds its own rows (`Opened.rows`) names each
+row's `key`; a keyed row joins the block of the step that produces that key,
+and the global Edit only stays while some row names no step. The panel's
+intro is the intro step's `manager_description`.
 
 ## 4. The `when` grammar
 
@@ -205,7 +216,7 @@ contributes, and nothing more:
 |---|---|
 | `key` | the form key |
 | `open(context) -> Opened` | the saved document and panel extras (`rows`, `info`, `extra_buttons`, `enabled`, `previews` or `pending_previews`), or an empty `Opened` for setup; `refusal` names an error key when the feature cannot open |
-| `prefetch(step_key, payload, context)` | the external lookups a validator of that step declared in `needs` |
+| `prefetch(lookup, context)` | the external data a submitted modal asks for: `lookup.services` are the `external:<service>` needs of its validator (a text step's or a card section's modal) and `lookup.value` is the typed value after `lowercase` and `normalize`; the adapter defers the interaction before running it |
 | `to_document(answers, locale)` / `from_document(document)` | answers to the persisted document and back, any schema version |
 | `commit(kind, payload, context) -> CommitResult` | writes what `kind` asks (`setup`, `edit`, `edit_item`, `add_item`, `remove_item`, `pause`, `unpause`, `disable`), records the audit event, and reports `written` and `external` so a failure midway can say what happened |
 | `asides()` | read-only side actions by button action name (`AsideAction(handler, defer, own_response, cooldown, confirm)`) |

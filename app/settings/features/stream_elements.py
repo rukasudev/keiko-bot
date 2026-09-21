@@ -11,7 +11,7 @@ from app.constants import Commands
 from app.integrations.stream_elements import StreamElementsClient
 from app.settings.features.feature import CommitContext, GenericCogFeature, OpenContext
 from app.settings.form.form_state import Answer
-from app.settings.form.responses.transforms import handle
+from app.settings.form.lookups import Lookup
 
 
 class StreamElementsFeature(GenericCogFeature):
@@ -21,14 +21,13 @@ class StreamElementsFeature(GenericCogFeature):
         super().__init__(Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY)
 
     async def prefetch(
-        self, step_key: str, payload: Any, context: OpenContext
+        self, lookup: Lookup, context: OpenContext
     ) -> Mapping[str, Mapping[str, Any]]:
         """The Twitch user behind the typed streamer name."""
-        if step_key != "streamer":
+        if "twitch" not in lookup.services:
             return {}
-        name = _typed(payload)
         twitch = cast(Any, app_module).bot.twitch
-        user_id = await asyncio.to_thread(twitch.get_user_id_from_login, name)
+        user_id = await asyncio.to_thread(twitch.get_user_id_from_login, lookup.value)
         return {"twitch": {"user_id": user_id}}
 
     async def before_setup(
@@ -59,13 +58,6 @@ async def _with_channel(document: dict[str, Any]) -> dict[str, Any]:
         StreamElementsClient.get_channel_info, str(document.get("streamer", ""))
     )
     return {**document, "channel_id": info["_id"]}
-
-
-def _typed(payload: Any) -> str:
-    if isinstance(payload, Mapping):
-        inputs = payload.get("inputs") or [""]
-        return handle(str(inputs[0]))
-    return handle(str(payload or ""))
 
 
 FEATURE = StreamElementsFeature()

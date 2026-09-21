@@ -1,0 +1,30 @@
+steps:
+  - action: form
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - action: configuration_card
+    key: card
+    title: {en-us: Card, pt-br: Card}
+    description: {en-us: card, pt-br: card}
+    fields:
+      - {key: text, label: {en-us: Text, pt-br: Texto}}
+    sections:
+      - key: text
+        icon: "💬"
+        type: modal-input
+        label: {en-us: Text, pt-br: Texto}
+        state: {value: text}
+        modal:
+          title: {en-us: Text, pt-br: Texto}
+          fields:
+            - {label: {en-us: One, pt-br: Um}}
+            - {label: {en-us: Two, pt-br: Dois}}
+            - {label: {en-us: Three, pt-br: Três}}
+            - {label: {en-us: Four, pt-br: Quatro}}
+            - {label: {en-us: Five, pt-br: Cinco}}
+            - {label: {en-us: Six, pt-br: Seis}}
+  - action: resume
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

@@ -9,8 +9,8 @@ from typing import Any, cast
 import app as app_module
 from app.settings.features.feature import CommitContext, GenericCogFeature, OpenContext
 from app.settings.form.form_state import Answer
+from app.settings.form.lookups import Lookup
 from app.settings.form.responses.responses import items_of
-from app.settings.form.responses.transforms import handle
 
 Subscribe = Callable[..., Any]
 
@@ -37,15 +37,12 @@ class SubscriptionFeature(GenericCogFeature):
         return lookup(name)
 
     async def prefetch(
-        self, step_key: str, payload: Any, context: OpenContext
+        self, lookup: Lookup, context: OpenContext
     ) -> Mapping[str, Mapping[str, Any]]:
         """The external account behind the typed name."""
-        if step_key != self.item_key:
+        if self.external not in lookup.services:
             return {}
-        typed = (
-            payload.get("inputs", [""])[0] if isinstance(payload, Mapping) else payload
-        )
-        found = await asyncio.to_thread(self._lookup, handle(str(typed or "")))
+        found = await asyncio.to_thread(self._lookup, lookup.value)
         return {self.external: {self.lookup_result: found}}
 
     lookup_result: str = "user_id"

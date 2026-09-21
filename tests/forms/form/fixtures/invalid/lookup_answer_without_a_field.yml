@@ -4,8 +4,10 @@ steps:
     title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
     description: {en-us: intro, pt-br: intro}
   - action: modal
-    key: name
-    normalize: unicorn
+    key: streamer
+    validation: validate_streamer_name
+    lookup_answers:
+      count: stream_elements
     title: {en-us: Name, pt-br: Nome}
     description: {en-us: type, pt-br: digite}
     label: {en-us: Name, pt-br: Nome}

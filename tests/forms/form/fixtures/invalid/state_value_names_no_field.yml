@@ -1,0 +1,26 @@
+steps:
+  - action: form
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - action: configuration_card
+    key: card
+    title: {en-us: Card, pt-br: Card}
+    description: {en-us: card, pt-br: card}
+    fields:
+      - {key: total, label: {en-us: Total, pt-br: Total}}
+    sections:
+      - key: pair
+        icon: "💬"
+        type: modal-input
+        label: {en-us: Pair, pt-br: Par}
+        state: {value: total}
+        modal:
+          title: {en-us: Pair, pt-br: Par}
+          fields:
+            - {key: first, label: {en-us: First, pt-br: Primeiro}}
+            - {key: second, label: {en-us: Second, pt-br: Segundo}}
+  - action: resume
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

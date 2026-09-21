@@ -35,8 +35,17 @@ REJECTED = [
     ("bad_section_type.yml", "rainbow"),
     ("unknown_validator.yml", "unknown validator 'validate_unicorn'"),
     ("unknown_normalizer.yml", "unknown normalizer 'unicorn'"),
+    ("state_value_names_no_field.yml", "state.value names none of the fields"),
+    ("modal_with_six_inputs.yml", "a modal holds at most 5 inputs"),
+    ("unkeyed_field_without_value.yml", "fields without a key need state.value"),
+    (
+        "edit_by_field_inside_a_composition.yml",
+        "edit_by_field is not allowed inside a composition",
+    ),
     ("composition_without_max.yml", "max: a composition declares max"),
     ("last_step_not_review.yml", "the last step is review"),
+    ("edit_by_item_over_the_limit.yml", "at most 3 items can each carry an Edit"),
+    ("lookup_answer_without_a_field.yml", "lookup_answers names service.field"),
 ]
 
 

@@ -18,6 +18,7 @@ from app.settings.form.actions.action import PanelRow
 from app.settings.form.components import Button
 from app.settings.form.form_state import Answer
 from app.settings.form.form_yaml import registry
+from app.settings.form.lookups import Lookup
 from app.settings.form.responses.responses import (
     document_answers,
     items_of,
@@ -97,9 +98,9 @@ class FeatureModule(Protocol):
         """The saved document and panel extras, or an empty `Opened` for setup."""
 
     async def prefetch(
-        self, step_key: str, payload: Any, context: OpenContext
+        self, lookup: Lookup, context: OpenContext
     ) -> Mapping[str, Mapping[str, Any]]:
-        """External lookups a validator of `step_key` declared it needs."""
+        """The external data the `lookup` of a submitted modal asks for."""
 
     def to_document(self, answers: Mapping[str, Answer], locale: str) -> dict[str, Any]:
         """The document the answers persist as."""
@@ -211,7 +212,7 @@ class GenericCogFeature:
         return ()
 
     async def prefetch(
-        self, step_key: str, payload: Any, context: OpenContext
+        self, lookup: Lookup, context: OpenContext
     ) -> Mapping[str, Mapping[str, Any]]:
         """Nothing to look up by default."""
         return {}
