@@ -84,7 +84,7 @@ of text is a bug, not a style choice.
 - Title format: `"{ONE_EMOJI} {Title Case}"`. Exactly one leading emoji.
 - Use `description` for short bodies. Use `add_field(name=..., value=..., inline=False)` for stacked record-style content (DM reports, button caption lists, help indexes).
 - Footer always: `embed.set_footer(text=f"• {text}")`. The `"• "` prefix is mandatory.
-- Card screens (`configuration_card`) and the manager panel are Components V2 LayoutViews, not embeds: their footer comes from the step's `footer:` and renders as `-# {text}` subtext at the bottom of the container (`app/forms/adapters/discord/renderer.py`). Pickers opened from a card keep the same footer. Pinned by the golden transcripts (`tests/behavioral/golden/`).
+- Card screens (`configuration_card`) and the manager panel are Components V2 LayoutViews, not embeds: their footer comes from the step's `footer:` and renders as `-# {text}` subtext at the bottom of the container (`app/settings/discord/views.py`). Pickers opened from a card keep the same footer. Pinned by the golden transcripts (`tests/behavioral/golden/`).
 - Thumbnail: `KeikoIcons.IMAGE_01` for branded responses; `KeikoIcons.ACTION_IMAGE.get(action)` for action-specific icons.
 
 ### Buttons (`app/components/buttons.py`)
@@ -97,10 +97,10 @@ of text is a bug, not a style choice.
 - **Cancel is ALWAYS the last button in the view.** Order: the step's own actions first
   (options, Confirm, Done, Add/Remove), then Back, then Cancel. Inside a form the engine's
   screen model builds the row in that order by construction
-  (`app/forms/kinds/common.py`, `step_buttons`); a view outside the forms appends Cancel
+  (`app/settings/form/actions/action.py`, `step_buttons`); a view outside the forms appends Cancel
   last by hand. Pinned by the golden transcripts.
 
-### Modals (`app/forms/adapters/discord/renderer.py`)
+### Modals (`app/settings/discord/views.py`)
 - Default `max_length` = 40. Cap at 100 for free-text fields.
 - `placeholder` falls back to `description` if not set; otherwise use a realistic example (`"shroud"`, `"pewdiepie"`, `"No links here! :p"`).
 - `multiline: true` in YAML → `discord.TextStyle.long`. Otherwise `short`.
