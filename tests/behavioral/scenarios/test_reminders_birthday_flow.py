@@ -112,12 +112,11 @@ async def test_invalid_day_shows_error_and_recovers(scenario_factory):
     expected_error = ml("errors.invalid-date.message", locale="pt-br")
     scenario.expect_error(expected_error.split(".")[0])
 
-    card = scenario.current_message.view
-    assert card.state.get("day") in (None, ""), "invalid day must not be stored"
+    assert scenario.card_state.get("day") in (None, ""), "invalid day must not be stored"
 
     await scenario.click("customize:1")            # user retries
     await scenario.submit_modal({"Dia": "28"})
-    assert card.state.get("day") == "28"
+    assert scenario.card_state.get("day") == "28"
 
     await scenario.click("done")
     scenario.expect_step("confirm")
@@ -161,8 +160,7 @@ async def test_editing_card_value_before_done_keeps_last_choice(scenario_factory
     await scenario.go_back()                       # back onto the card
     scenario.expect_message(components_v2=True)
     # State must survive back-navigation (hydrated from saved responses).
-    card = scenario.current_message.view
-    assert card.state.get("timezone") == "America/Sao_Paulo"
+    assert scenario.card_state.get("timezone") == "America/Sao_Paulo"
 
     await scenario.click("customize:1")            # re-open timezone picker
     await scenario.select_option("America/New_York")

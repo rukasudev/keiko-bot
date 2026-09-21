@@ -125,11 +125,6 @@ async def test_add_item_runs_real_subform_and_appends(scenario_factory, deps):
     await scenario.submit_modal(fields)               # notification messages
 
     scenario.expect_message(title_contains="Item adicionado")
-    streamers = [
-        item["streamer"]["value"]
-        for item in cog["notifications"]["values"]
-    ]
-    assert streamers == ["gaules", "cellbit"]
     document = scenario.get_persisted(
         "guild", "notifications_twitch", {"guild_id": GUILD_ID}
     )

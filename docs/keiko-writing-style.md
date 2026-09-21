@@ -2,7 +2,7 @@
 
 A reusable writing/style system extracted from the existing Keiko Discord bot codebase. Use it whenever you write or edit user-facing text — slash command descriptions, embeds, modals, buttons, forms, error/success messages, and notification copy.
 
-All user-facing strings live in `app/languages/**/*.yml` and are routed through `ml()` (`app/services/utils.py:292`). Embed/modal/button construction is centralized in `app/components/embed.py`, `app/components/modals.py`, and `app/components/buttons.py`.
+All user-facing strings live in `app/languages/**/*.yml` and are routed through `ml()` (`app/services/utils.py:292`). Embed and button construction is centralized in `app/components/embed.py` and `app/components/buttons.py`; the form screens, modals and cards are drawn by `app/settings/discord/views.py` from the definitions in `app/languages/form/`.
 
 ---
 
@@ -65,12 +65,13 @@ Keiko is a friendly, loyal dog companion. Two voices coexist depending on **wher
 Button labels live in `buttons.{lang}.yml` under generic keys (`confirm`, `cancel`, `edit`, `add`, `remove`, `preview`, `back`, `pause`, `unpause`, `select`, `continue`, `history`). UI-component-specific copy (e.g., select placeholders) lives under `components.select.*`.
 
 ### Modals
-- `title` = `config["title"][locale]` (`modals.py:18`). Timeout 300s.
-- `max_length` defaults to **40** (`modals.py:32`); override via YAML `max_length`.
-- `placeholder` falls back to `description` when not set explicitly (`modals.py:34`).
+Drawn by `app/settings/discord/views.py` from the step or section definition.
+- `title` = the step's `modal_title` or `title` in the admin's locale.
+- `max_length` defaults to **40**; override via YAML `max_length`.
+- `placeholder` falls back to `description` when not set explicitly.
 - Multi-line: `style: long` when YAML sets `multiline: true`; otherwise `short`.
 - Repeated labels in the same modal get `#1`, `#2`, etc., appended automatically.
-- Confirmation modal asks the user to type the action verb back (`modals.py:142-156`).
+- The lifecycle confirmation modal (pause, unpause, disable) asks the user to type the action verb back.
 
 ### Forms (YAML schema)
 Each step has: `action`, `key`, optional `emoji`, `title.{en-us,pt-br}`, `description.{en-us,pt-br}`, `footer.{en-us,pt-br}`. Step actions seen: `form`, `channels`, `modal`, `multi_select`, `options`, `button`, `design_select`, `file_upload`, `composition`, `resume`.

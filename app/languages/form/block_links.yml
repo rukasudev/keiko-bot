@@ -172,6 +172,7 @@ steps:
   - action: composition
     key: custom_links
     parent_key: block_links
+    max: 25
     unique_by: link
     emoji: "📌"
     style: composition

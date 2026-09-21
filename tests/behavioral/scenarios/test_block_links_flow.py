@@ -24,9 +24,8 @@ async def test_happy_path_with_defaults_needs_only_done(scenario_factory):
     await scenario.confirm()
 
     scenario.expect_message(components_v2=True)
-    card = scenario.current_message.view
-    assert card.state["mode"] == "block_all"
-    assert card.state["answer"] == "Nada de links por aqui! :p"
+    assert scenario.card_state["mode"] == "block_all"
+    assert scenario.card_state["answer"] == "Nada de links por aqui! :p"
 
     await scenario.click("done")
     scenario.expect_step("add_custom")
@@ -235,8 +234,7 @@ async def test_back_from_gate_returns_to_card_with_state(scenario_factory):
 
     await scenario.go_back()
     scenario.expect_message(components_v2=True)
-    card = scenario.current_message.view
-    assert card.state["allowed_links"] == ["youtube.com"], \
+    assert scenario.card_state["allowed_links"] == ["youtube.com"], \
         "card state must survive back-navigation"
     await scenario.finish()
 

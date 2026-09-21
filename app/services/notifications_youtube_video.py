@@ -17,22 +17,14 @@ from app.data.reminder import (
     find_reminder_by_value,
     insert_reminder,
 )
+from app.settings import open_feature
 from app.services import analytics, cache
-from app.services.moderations import (
-    send_command_form_message,
-    send_command_manager_message,
-)
 
 
-async def manager(interaction: discord.Interaction, guild_id: str):
-    cogs = cache.get_cog_data_or_populate(guild_id, constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY, manager=True)
+async def manager(interaction: discord.Interaction, guild_id: str) -> None:
+    """The slash command: the setup form, or the manager of what is saved."""
+    await open_feature(interaction, constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY)
 
-    if cogs == None:
-        return await send_command_form_message(interaction, constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY)
-
-    await send_command_manager_message(
-        interaction, constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY, cogs
-    )
 
 def send_youtube_video_notification(video_id: str, channel_id: str) -> None:
     context = ErrorContext(

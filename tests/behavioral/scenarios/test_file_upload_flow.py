@@ -51,9 +51,8 @@ async def test_custom_image_upload_persists_permanent_url(
     await scenario.submit_file_upload(filename="dog.png", content=b"\x89PNG-fake")
 
     assert dump_channel.sent, "attachment must be re-uploaded to the dump channel"
-    card = scenario.current_message.view
-    assert FAKE_CDN_URL in card.state.values(), (
-        f"card state should hold the permanent URL, got {card.state}"
+    assert FAKE_CDN_URL in scenario.card_state.values(), (
+        f"card state should hold the permanent URL, got {scenario.card_state}"
     )
 
     await scenario.click("done")

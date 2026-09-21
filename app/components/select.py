@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional
 import discord
 
 from app.components.buttons import BackButton, ExecuteCommandButton
+from app.settings.features import feature_keys
 from app.constants import Commands as commands_constants
 from app.constants import DiscordLimits as limits
 from app.constants import ViewConstants as view_constants
@@ -124,7 +125,7 @@ class HelpSelect(Select):
         )
 
         command_key = command_data["command_key"]
-        if command_key in commands_constants.COMMAND_SERVICES:
+        if command_key in feature_keys():
             new_view.add_item(
                 ExecuteCommandButton(command_key=command_key, locale=locale)
             )

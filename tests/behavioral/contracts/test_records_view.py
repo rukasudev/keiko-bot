@@ -131,3 +131,54 @@ async def test_a_consumer_needs_nothing_command_shaped(scenario_factory):
 
     scenario.expect_message(title_contains="Qualquer coisa")
     assert isinstance(scenario.current_message.view, PaginationView)
+
+
+async def test_confirming_with_nobody_chosen_shows_every_record(scenario_factory):
+    """Confirm without picking anyone answers the click, showing everyone.
+
+    What broke: the picker's Confirm called back into a filter that returned
+    when nothing was selected, so the click was never answered and Discord
+    showed "This interaction failed". The shared primitive is RecordsBrowser's
+    member filter, consumed by the blocked-links list and both history screens.
+    What must stay true: every click on the picker ends in a screen.
+    """
+    from tests.mocks.discord import create_guild, create_member
+
+    guild = create_guild()
+    create_member(guild, id=111, name="Culpado", roles=["Member"])
+    data = [{"name": "spam", "user": "111"}, {"name": "ok", "user": "222"}]
+
+    scenario = scenario_factory(locale="pt-br", guild=guild)
+    browser = _browser(
+        fetch=lambda i, uid: [r for r in data if uid is None or r["user"] == uid],
+        filter_namespace=FILTER_NS,
+    )
+    await browser.send(scenario._mint())
+
+    await scenario.click(_flt("label"))
+    await scenario.confirm()
+
+    listing = str(scenario.expect_message(title_contains="Registros").get("embed"))
+    assert "spam" in listing and "ok" in listing
+
+
+async def test_cancelling_the_picker_returns_to_every_record(scenario_factory):
+    """Cancel leaves the picker for the list it was opened from."""
+    from tests.mocks.discord import create_guild, create_member
+
+    guild = create_guild()
+    create_member(guild, id=111, name="Culpado", roles=["Member"])
+    data = [{"name": "spam", "user": "111"}, {"name": "ok", "user": "222"}]
+
+    scenario = scenario_factory(locale="pt-br", guild=guild)
+    browser = _browser(
+        fetch=lambda i, uid: [r for r in data if uid is None or r["user"] == uid],
+        filter_namespace=FILTER_NS,
+    )
+    await browser.send(scenario._mint())
+
+    await scenario.click(_flt("label"))
+    await scenario.click(ml("buttons.cancel.label", locale="pt-br"))
+
+    listing = str(scenario.expect_message(title_contains="Registros").get("embed"))
+    assert "spam" in listing and "ok" in listing

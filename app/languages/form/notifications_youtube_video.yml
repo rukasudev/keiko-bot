@@ -14,6 +14,7 @@ steps:
   - action: composition
     key: notifications
     parent_key: notifications_youtube_video
+    max: 2
     emoji: ":busts_in_silhouette:"
     style: composition
     title:

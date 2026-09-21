@@ -1,3 +1,4 @@
+import asyncio
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 import discord
@@ -5,7 +6,6 @@ import discord
 from collections import Counter
 
 from app import logger
-from app.components.buttons import AdditionalButton
 from app.components.embed import base_embed
 from app.constants import (
     BLOCK_LINKS_LEGACY_LABEL_TO_DOMAIN,
@@ -18,11 +18,8 @@ from app.constants import Style
 from app.constants import ViewConstants as view_constants
 from app.data import block_links as blocked_links_data
 from app.exceptions import ErrorContext
+from app.settings import open_feature
 from app.services import analytics, cache
-from app.services.moderations import (
-    send_command_form_message,
-    send_command_manager_message,
-)
 
 from .utils import (
     ParsedLink,
@@ -32,7 +29,6 @@ from .utils import (
     get_message_links,
     list_roles_id,
     ml,
-    off_loop,
     parse_form_yaml_to_dict,
     parse_link,
     parse_locale,
@@ -331,7 +327,7 @@ def evaluate_message(
 async def check_message(guild_id: str, message: discord.Message) -> None:
     """Command service to check whether a message carries a blocked link."""
     # Every message in every guild reaches this line, and a cache miss reads Mongo.
-    cogs = await off_loop(
+    cogs = await asyncio.to_thread(
         cache.get_cog_data_or_populate, guild_id, constants.BLOCK_LINKS_KEY
     )
 
@@ -669,10 +665,6 @@ async def send_blocked_links_stats_message(interaction: discord.Interaction) -> 
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
-def disable_block_links(interaction: discord.Interaction, cogs: Any = None) -> None:
-    blocked_links_data.delete_blocked_links_by_guild(str(interaction.guild_id))
-
-
 async def send_blocked_links_message(
     interaction: discord.Interaction, user_id: Optional[str] = None
 ) -> None:
@@ -692,52 +684,6 @@ async def send_blocked_links_message(
     await browser.send(interaction, user_id=user_id)
 
 
-def _manager_info(locale: str) -> str:
-    return _bm("info", locale)
-
-
-def _manager_info_title(locale: str) -> str:
-    return _bm("info-title", locale)
-
-
-def _manager_buttons(locale: str) -> List[discord.ui.Button]:
-    return [
-        AdditionalButton(
-            callback=send_blocked_links_message,
-            label=_bm("blocked-list.button.label", locale),
-            desc=_bm("blocked-list.button.desc", locale),
-            emoji="🔎",
-            style=discord.ButtonStyle.grey,
-            own_response=True,
-            cooldown=view_constants.ACTION_COOLDOWN_SECONDS,
-        ),
-        AdditionalButton(
-            callback=send_blocked_links_stats_message,
-            label=ml("buttons.stats.label", locale=locale),
-            desc=_bm("stats.button.desc", locale),
-            emoji="📊",
-            style=discord.ButtonStyle.grey,
-            defer=True,
-            cooldown=view_constants.ACTION_COOLDOWN_SECONDS,
-        ),
-    ]
-
-
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:
-    cogs = cache.get_cog_data_or_populate(
-        guild_id, constants.BLOCK_LINKS_KEY, manager=True
-    )
-
-    if cogs is None:
-        return await send_command_form_message(interaction, constants.BLOCK_LINKS_KEY)
-
-    locale = parse_locale(interaction.locale)
-    await send_command_manager_message(
-        interaction,
-        constants.BLOCK_LINKS_KEY,
-        normalize_block_links_config(cogs),
-        additional_info=_manager_info(locale),
-        additional_buttons=_manager_buttons(locale),
-        lifecycle_callbacks={constants.LIFECYCLE_DISABLE: disable_block_links},
-        additional_info_title=_manager_info_title(locale),
-    )
+    """The slash command: the setup form, or the manager of what is saved."""
+    await open_feature(interaction, constants.BLOCK_LINKS_KEY)
