@@ -28,6 +28,12 @@ Components V2 (`LayoutView`, `Container`, `TextDisplay`, `MediaGallery`)
 plus master-only APIs (`ui.Label`, `ui.FileUpload`). No external test
 framework covers that surface:
 
+`app/services/cdn.py` also reaches past that library's public surface: it calls
+`bot.http.request(Route("POST", "/attachments/refresh-urls"))`, an endpoint
+discord.py does not wrap, to re-sign an attachment link Keiko already uploaded.
+It is the one place that does so, and `tests/behavioral/regressions/test_welcome_design_previews.py`
+fakes the response, so a discord.py bump or an API change shows up there first.
+
 - **dpytest 0.7.0** — last release Jun/2023, Alpha; simulates message
   flows; interactions/components support is an open issue (#125, since
   Nov/2023). Sources: <https://pypi.org/project/dpytest/>,
@@ -125,6 +131,9 @@ done (manual map — extend it when a new shared surface appears):
 | `app/logger.py`, `app/services/trace.py`, anything opening a trace | `tests/behavioral/contracts/test_logger_trace.py` — one unit of work is one Discord message, ordered, and a broken sink never breaks the work — plus `tests/behavioral/contracts/test_debug_logs.py`, which runs both handlers on the same logger: adding a sink must not degrade the embed, and both must read one identity |
 | `app/services/debug_logs.py`, `app/services/logs_archive.py`, `app/data/logs.py`, `StoredLogsHandler` | `tests/behavioral/contracts/test_debug_logs.py` — recording never blocks or raises, persisting never logs (a `logger.*` call in this path is an unbounded write storm), the whole traceback survives, and the daily export stays inside its day |
 | `app/data/*_async.py`, any `asyncio.to_thread` seam, or any new `requests` / `pymongo` / `time.sleep` call reached from a coroutine | `tests/behavioral/regressions/test_event_loop_is_never_blocked.py` — the test counts how many times the loop got control back while the call ran, because a blocked loop stops the whole bot and spends Discord's three-second interaction budget — + `tests/forms/test_boundary.py` (nothing under `app/settings/` may block) |
+| `app/services/images.py`, `app/services/cdn.py`, `create_banner` or `generate_design_previews` in `app/services/welcome_messages.py`, `app/assets/welcome/` | `tests/behavioral/regressions/test_welcome_design_previews.py` (the gallery downloads nothing from outside Discord, the example stays light and is uploaded once, previews are drawn together, a server without an icon or with an unreachable or expired background still gets a banner, a hanging download gives up, the image cache stays bounded) + `test_drawing_a_welcome_banner_never_freezes_the_bot` in `test_event_loop_is_never_blocked.py` + `tests/test_welcome_messages.py` + the welcome_messages goldens |
+| `connect_redis` in `app/__init__.py` or `DBConfigs.REDIS_SOCKET_TIMEOUT_SECONDS` | `test_a_stalled_redis_gives_up_instead_of_holding_a_thread` in `test_event_loop_is_never_blocked.py` |
+| `DiscordLogsHandler` session errors, `journey.recovered` or `observability.log_effects` | `tests/behavioral/regressions/test_recovered_session_errors.py` + `tests/behavioral/contracts/test_journey.py` + `tests/behavioral/regressions/test_foreign_logs_stay_out_of_discord.py` |
 | `is_foreign`, `is_muted`, `NOISE_MARKERS` (`app/logger.py`) | `tests/behavioral/regressions/test_foreign_logs_stay_out_of_discord.py` — a library writing about itself stays in `guild.logs` and out of the admin channel, and Keiko's own records still reach it |
 | `app/services/reminders.py`, `app/integrations/reminder_webhook.py` | `tests/behavioral/contracts/test_reminders_api_contract.py` — reminders-api takes date_tz and time_tz as separate fields; folding the hour into date_tz is refused, and the refusal looks like an ordinary empty response |
 | `app/services/reminders_birthdays.py`, the birthdays cog loop | `tests/behavioral/contracts/test_birthday_reminder_reconciliation.py` — a birthday saved without a reminder is found again and finished, a still-failing one is left for the next pass, and the loop survives a pass that raises |

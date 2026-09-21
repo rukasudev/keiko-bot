@@ -18,6 +18,7 @@ from app.services.trace import Trace
 
 _JOURNEYS: Dict[str, Trace] = {}
 _PUBLISHER: Optional[Callable[[Trace], None]] = None
+_RECOVERY_LISTENER: Optional[Callable[[str], None]] = None
 
 OUTCOME_ICONS = {
     # The one vocabulary for "what happened". The log embed titles read from
@@ -27,6 +28,7 @@ OUTCOME_ICONS = {
     "removed": "➖",
     "enabled": "🎉",
     "saved": "✅",
+    "recovered": "✅",
     "edited": "🔧",
     "discarded": "🚫",
     "abandoned": "⌛",
@@ -141,6 +143,18 @@ def set_publisher(publisher: Optional[Callable[[Trace], None]]) -> None:
     """The logger registers how a journey reaches Discord."""
     global _PUBLISHER
     _PUBLISHER = publisher
+
+
+def set_recovery_listener(listener: Optional[Callable[[str], None]]) -> None:
+    """The logger registers how the errors of a session that carried on are marked."""
+    global _RECOVERY_LISTENER
+    _RECOVERY_LISTENER = listener
+
+
+def recovered(session_id: str) -> None:
+    """A session ran a step cleanly, so whatever failed before did not stop it."""
+    if _RECOVERY_LISTENER is not None:
+        _RECOVERY_LISTENER(session_id)
 
 
 LINE_KINDS = {"setup.step_viewed": "step", "setup.step_back": "step"}

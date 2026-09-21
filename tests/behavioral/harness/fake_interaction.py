@@ -80,9 +80,15 @@ class FakeFollowup:
                 self._interaction._transcript(),
             )
 
-    async def send(self, content=None, *, embed=None, embeds=None, view=None,
+    async def send(self, content=None, *, embed=None, embeds=None, view=MISSING,
                    ephemeral=False, delete_after=None, **kwargs) -> FakeMessage:
         self._require_done("followup.send")
+        if view is None:
+            raise HarnessProtocolError(
+                "followup.send(view=None): discord.py raises TypeError, omit the view",
+                self._interaction._transcript(),
+            )
+        view = None if view is MISSING else view
         all_embeds = list(embeds) if embeds else ([embed] if embed else [])
         store = self._interaction.store
         message = store.create(all_embeds, view, ephemeral)

@@ -449,12 +449,14 @@ class DiscordLogsHandler(logging.Handler):
         self._journey_messages = {}
         self._journey_tasks = set()
         self._journey_dirty = set()
+        self._session_errors = {}
         super(DiscordLogsHandler, self).__init__()
         self.setLevel(logging.INFO)
         self.setFormatter(OptionalGuildIDFormatter(datefmt="%Y-%m-%d %H:%M:%S"))
         logger.addHandler(self)
         trace_service.register_sink(self.send_trace)
         journey_service.set_publisher(self.publish_journey)
+        journey_service.set_recovery_listener(self.mark_recovered)
         journey_service.install()
 
     BOT_ACTIONS_LOG_TYPES = (
@@ -478,7 +480,43 @@ class DiscordLogsHandler(logging.Handler):
         if not log_channel:
             return
 
-        self.schedule_send(log_channel.send(embed=self.add_embed(record)))
+        embed = self.add_embed(record)
+        session_id = self.session_of(record)
+        if session_id is None:
+            self.schedule_send(log_channel.send(embed=embed))
+            return
+
+        self._session_errors.setdefault(session_id, [])
+        self.schedule_send(self._post_session_error(log_channel, embed, session_id))
+
+    def session_of(self, record: logging.LogRecord):
+        """The form session an error belongs to, when it names one."""
+        if record.levelno < logging.ERROR:
+            return None
+        context = getattr(record, "context", None)
+        values = context.to_dict() if hasattr(context, "to_dict") else context
+        return values.get("session_id") if isinstance(values, dict) else None
+
+    async def _post_session_error(self, channel, embed, session_id) -> None:
+        message = await channel.send(embed=embed)
+        pending = self._session_errors.get(session_id)
+        if pending is None:
+            await self._react_recovered([message])
+        else:
+            pending.append(message)
+
+    def mark_recovered(self, session_id: str) -> None:
+        """React with a check to the errors of a session that went on working, once."""
+        messages = self._session_errors.pop(session_id, None)
+        if messages:
+            self.schedule_send(self._react_recovered(messages))
+
+    async def _react_recovered(self, messages) -> None:
+        for message in messages:
+            try:
+                await message.add_reaction(journey_service.outcome_icon("recovered"))
+            except discord.HTTPException:
+                pass
 
     def is_muted(self, record: logging.LogRecord) -> bool:
         interaction = getattr(record, "interaction", None)
@@ -584,6 +622,7 @@ class DiscordLogsHandler(logging.Handler):
                 self.publish_journey(journey)
             elif journey.finished_at:
                 self._journey_messages.pop(journey.id, None)
+                self._session_errors.pop(journey.session_id, None)
 
     def add_embed(self, record: logging.LogRecord):
         title, color = self.get_log_type(record)

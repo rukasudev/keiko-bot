@@ -546,8 +546,11 @@ async def send_link_check_message(
         surface="diagnostic",
     )
     locale = parse_locale(interaction.locale)
-    cogs = cache.get_cog_data_or_populate(
-        str(interaction.guild_id), constants.BLOCK_LINKS_KEY, manager=True
+    cogs = await asyncio.to_thread(
+        cache.get_cog_data_or_populate,
+        str(interaction.guild_id),
+        constants.BLOCK_LINKS_KEY,
+        True,
     )
     evaluation = evaluate_message(
         MessageSubject.from_message(message), cogs, full=True

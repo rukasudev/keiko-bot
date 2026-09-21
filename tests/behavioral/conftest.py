@@ -32,12 +32,15 @@ def _repo_root_cwd(monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _no_banner_rendering():
-    """Banners fetch images over the network; the offline suite gets a fixed URL."""
+    """Banners and examples go through the network; the offline suite gets fixed URLs."""
     from unittest.mock import AsyncMock, patch
 
     with patch(
         "app.services.welcome_messages.create_banner",
         new=AsyncMock(return_value="https://cdn.example.com/previews/welcome-preview.png"),
+    ), patch(
+        "app.services.cdn.upload_asset",
+        new=AsyncMock(return_value="https://cdn.example.com/previews/welcome-example.gif"),
     ):
         yield
 

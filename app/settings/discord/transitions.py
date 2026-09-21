@@ -364,7 +364,7 @@ class Executor:
 
     async def _final(self, embed: discord.Embed, replace: bool) -> None:
         if replace or self.surface.message_id is None:
-            await self._replace(embed=embed, view=None)
+            await self._replace(embed=embed)
         else:
             await self._edit(embed=embed, view=None)
         self.surface.is_layout = False

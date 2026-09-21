@@ -184,6 +184,13 @@ def log_effects(session: FormSession, outcomes: list[Any]) -> None:
                 log_type=logconstants.COMMAND_ERROR_TYPE,
                 context=error_context(session, effect=outcome.effect),
             )
+    if outcomes and all(outcome.succeeded for outcome in outcomes):
+        journey.recovered(story_id(session))
+
+
+def story_id(session: FormSession) -> str:
+    """The session whose story carries this one: a child is told by its parent."""
+    return session.id if session.parent_id is None else session.parent_id
 
 
 def error_context(session: FormSession, **extra: Any) -> ErrorContext:
@@ -193,7 +200,7 @@ def error_context(session: FormSession, **extra: Any) -> ErrorContext:
         guild_id=session.origin.guild_id,
         user_id=session.origin.user_id,
         extra={
-            "session_id": session.id,
+            "session_id": story_id(session),
             "revision": session.revision,
             "definition_version": session.definition[1],
             "cursor": session.cursor,
@@ -205,9 +212,7 @@ def error_context(session: FormSession, **extra: Any) -> ErrorContext:
 
 def close_journey(session: FormSession, outcome: str) -> None:
     """Close the session's story with `outcome`."""
-    journey.finalize(
-        session.id if session.parent_id is None else session.parent_id, outcome
-    )
+    journey.finalize(story_id(session), outcome)
 
 
 def record_loop_lag(expected_interval: float, measured: float) -> None:
