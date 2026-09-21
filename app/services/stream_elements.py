@@ -1,3 +1,4 @@
+import asyncio
 import random
 import re
 from typing import Any, Dict, List, Optional
@@ -11,27 +12,18 @@ from app.constants import LogTypes as logconstants
 from app.constants import Style as style_constants
 from app.exceptions import ErrorContext
 from app.integrations.stream_elements import StreamElementsClient
+from app.settings import open_feature
 from app.services import analytics, cache
-from app.services.utils import off_loop
-from app.services.moderations import (
-    send_command_form_message,
-    send_command_manager_message,
-)
 from app.views.pagination_without_interaction import PaginationWithoutInteractionView
 
 
-async def manager(interaction: discord.Interaction, guild_id: str):
-    cogs = cache.get_cog_data_or_populate(guild_id, constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY, manager=True)
+async def manager(interaction: discord.Interaction, guild_id: str) -> None:
+    """The slash command: the setup form, or the manager of what is saved."""
+    await open_feature(interaction, constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY)
 
-    if cogs == None:
-        return await send_command_form_message(interaction, constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY)
-
-    await send_command_manager_message(
-        interaction, constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY, cogs
-    )
 
 async def check_message(guild_id: str, message: discord.Message, prefix: str) -> None:
-    cogs = await off_loop(
+    cogs = await asyncio.to_thread(
         cache.get_cog_data_or_populate,
         guild_id,
         constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
@@ -61,7 +53,7 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
                 return
             return await view.send(message)
 
-        reply = await off_loop(
+        reply = await asyncio.to_thread(
             get_reply_in_cache_or_populate, channel_id, command, message.author
         )
         if not reply:
@@ -87,7 +79,7 @@ async def parse_command_list_view(
     lookups go to a thread."""
     from app import bot
 
-    commands_list = await off_loop(
+    commands_list = await asyncio.to_thread(
         get_commands_in_cache_or_populate, channel_id, message.author
     )
     if not commands_list:
@@ -95,7 +87,7 @@ async def parse_command_list_view(
 
     title = "StreamElements Commands"
     description = f"Here is a list of all the StreamElements commands available in {streamer}'s channel"
-    user_info = await off_loop(bot.twitch.get_user_info, streamer)
+    user_info = await asyncio.to_thread(bot.twitch.get_user_info, streamer)
     icon = (user_info or {}).get("profile_image_url")
     view = PaginationWithoutInteractionView(title, description, commands_list, message, thumbnail=icon, sep=4)
     return view

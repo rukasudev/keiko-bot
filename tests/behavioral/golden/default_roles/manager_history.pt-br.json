@@ -1,0 +1,191 @@
+[
+  {
+    "actor": "user",
+    "kind": "start_command",
+    "message": null,
+    "seq": 1,
+    "target": "default_roles",
+    "values": "pt-br"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 👩‍🎓 Cargos Padrão",
+                "type": "text"
+              },
+              {
+                "content": "Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "**Cargos para Membros:** <@&202>\n**Cargos para Bots:** <@&201>",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Pausar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Desativar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Histórico",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Sincronizar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Ajuda",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M1",
+    "seq": 2
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M1",
+    "seq": 3,
+    "target": "history"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "|<",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "<",
+        "style": "primary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": ">",
+        "style": "primary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": ">|",
+        "style": "success",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M2",
+    "seq": 4
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": true,
+        "label": "|<",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": true,
+        "label": "<",
+        "style": "primary",
+        "type": "button"
+      },
+      {
+        "disabled": true,
+        "label": ">",
+        "style": "primary",
+        "type": "button"
+      },
+      {
+        "disabled": true,
+        "label": ">|",
+        "style": "success",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Veja o histórico de alterações feitas na funcionalidade **moderações cargos padrão**:",
+      "fields": [
+        {
+          "inline": false,
+          "name": "2026-01-01 10:30:00 UTC",
+          "value": "📝 Editado por <@555>"
+        },
+        {
+          "inline": false,
+          "name": "2026-01-01 09:30:00 UTC",
+          "value": "✅ Ativado por <@555>"
+        }
+      ],
+      "footer": "• Página 1 / 1",
+      "image": null,
+      "thumbnail": "KEIKO_NERD.png",
+      "title": "📜 Histórico de alterações"
+    },
+    "ephemeral": true,
+    "kind": "edit_original",
+    "message": "M2",
+    "seq": 5
+  }
+]

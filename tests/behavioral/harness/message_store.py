@@ -21,6 +21,24 @@ FIXED_MESSAGE_TIME = datetime.datetime(2026, 1, 1, 12, 0, 0,
 MISSING = object()
 
 
+def reject_embed_on_layout_message(message: "FakeMessage", embed, content) -> None:
+    """Discord refuses content and embeds on a Components V2 message, and the
+    flag is fixed at send time: the edit fails with 50035 and nothing changes."""
+    if not message.flags.components_v2:
+        return
+    if content is None and (embed is MISSING or embed is None):
+        return
+    raise discord.HTTPException(
+        SimpleNamespace(status=400, reason="Bad Request"),
+        {"code": 50035, "message": "Invalid Form Body", "errors": {
+            "embeds": {"_errors": [{
+                "code": "BASE_TYPE_BAD_CONTENT",
+                "message": "Cannot use content or embeds with IS_COMPONENTS_V2 flag",
+            }]},
+        }},
+    )
+
+
 def _walk_view_items(view) -> List[Any]:
     """Depth-first over a view's items, containers and section accessories
     included. Local copy of locators.walk_items to keep this module a leaf."""
@@ -59,6 +77,17 @@ class FakeMessage:
         # dispatch. Mutating a view later does NOT change the message.
         self.registered_items = _walk_view_items(view)
 
+    async def edit(self, *, content=None, embed=MISSING, view=MISSING, **kwargs):
+        """The bot editing its own message outside any interaction (a timeout)."""
+        if self.deleted:
+            raise discord.NotFound(
+                SimpleNamespace(status=404), {"code": 10008, "message": "Unknown Message"}
+            )
+        self.apply_edit(embed=embed, view=view, content=content)
+        self.store.record("edit", message=self.id, embeds=self.embeds, view=self.view,
+                          ephemeral=self.ephemeral)
+        return self
+
     async def _channel_send(self, *args, **kwargs):
         self.store.record(
             "channel_send",
@@ -66,7 +95,8 @@ class FakeMessage:
             embeds=[kwargs["embed"]] if kwargs.get("embed") else None,
         )
 
-    def apply_edit(self, embed=MISSING, view=MISSING) -> None:
+    def apply_edit(self, embed=MISSING, view=MISSING, content=None) -> None:
+        reject_embed_on_layout_message(self, embed, content)
         if embed is not MISSING:
             self.embeds = [embed] if embed is not None else []
         if view is not MISSING:

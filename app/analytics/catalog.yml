@@ -52,7 +52,7 @@ events:
     version: 1
     class: [event]
     description: The first-time configuration form was opened for a feature.
-    emitted_at: app/services/moderations.py — send_command_form_message
+    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (feature.setup_opened)
     actor: user
     required: [feature, source, session_id]
     optional: []
@@ -63,7 +63,7 @@ events:
     version: 1
     class: [event]
     description: The manager panel of an already configured feature was opened.
-    emitted_at: app/services/moderations.py — send_command_manager_message
+    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (feature.manager_opened)
     actor: user
     required: [feature, source, session_id]
     optional: [enabled]
@@ -74,7 +74,7 @@ events:
     version: 1
     class: [event]
     description: A form step was rendered to the user.
-    emitted_at: app/views/form.py — Form._update_form_step
+    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (Engine.show)
     actor: user
     required: [feature, session_id, step_key, step_action, step_index]
     optional: [ms_since_prev]
@@ -85,7 +85,7 @@ events:
     version: 1
     class: [event]
     description: A step left the screen, with how long it was on it.
-    emitted_at: app/views/form.py — Form._update_form_step, when moving on
+    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (Engine.show)
     actor: user
     required: [feature, session_id, step_key, step_action]
     optional: [ms_on_step, choice]
@@ -96,7 +96,7 @@ events:
     version: 1
     class: [event]
     description: The user navigated back to the previous step.
-    emitted_at: app/views/form.py — Form._go_back
+    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_back)
     actor: user
     required: [feature, session_id, step_key]
     optional: []
@@ -107,7 +107,7 @@ events:
     version: 1
     class: [event, counter]
     description: A YAML validator refused the value submitted in a modal.
-    emitted_at: app/components/modals.py — CustomModal.on_submit, failure branch
+    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (Engine.refuse)
     actor: user
     required: [feature, session_id, step_key, validation, error_key]
     optional: [attempt_n]
@@ -118,7 +118,7 @@ events:
     version: 1
     class: [event, counter]
     description: The configuration card was confirmed with required fields empty.
-    emitted_at: app/views/summary_card.py — on_done, missing branch
+    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (Engine.refuse, card done)
     actor: user
     required: [feature, session_id, card_key, missing_count]
     optional: [missing_keys]
@@ -129,7 +129,7 @@ events:
     version: 1
     class: [event, audit]
     description: A configuration form was finished and persisted.
-    emitted_at: app/views/form.py — Form._finish
+    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_commit_succeeded)
     actor: user
     required: [feature, session_id, source, duration_ms, steps_viewed]
     optional: [validation_failures, back_count, duration_bucket]
@@ -141,7 +141,7 @@ events:
     version: 1
     class: [event]
     description: The user explicitly discarded a configuration in progress.
-    emitted_at: app/views/confirm_action.py — request_discard_confirmation, discard
+    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_discard_confirmed)
     actor: user
     required: [feature, session_id]
     optional:
@@ -158,7 +158,7 @@ events:
     version: 1
     class: [event, counter]
     description: The view timed out with the configuration unfinished.
-    emitted_at: app/views/form.py — Form.on_timeout
+    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_expired)
     actor: user
     required: [feature, session_id]
     optional:
@@ -175,7 +175,7 @@ events:
     version: 1
     class: [event]
     description: The user opened the discard prompt and chose to keep the setup.
-    emitted_at: app/views/confirm_action.py — request_discard_confirmation, keep
+    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_keep_editing)
     actor: user
     required: [feature, session_id]
     optional:
@@ -192,7 +192,7 @@ events:
     version: 1
     class: [event, audit]
     description: An existing configuration was edited through the manager.
-    emitted_at: app/views/manager.py — Manager.update_command
+    emitted_at: app/settings/features/generic.py — record_event, from the feature commit (edited); app/services/cogs.py — insert_cog_event for state changes made outside a form
     actor: user
     required: [feature, source]
     optional: [session_id, changed_keys, changed_count]
@@ -204,7 +204,7 @@ events:
     version: 1
     class: [event, audit]
     description: A feature became active for a guild.
-    emitted_at: app/views/form.py — Form._finish
+    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_commit_succeeded)
     actor: user
     required: [feature, source]
     optional: [session_id]
@@ -216,7 +216,7 @@ events:
     version: 1
     class: [event, audit]
     description: A feature was paused from the manager.
-    emitted_at: app/views/manager.py — Manager.pause_callback
+    emitted_at: app/settings/features/generic.py — record_event, from the feature commit (paused); app/services/cogs.py — insert_cog_event for state changes made outside a form
     actor: user
     required: [feature, source]
     optional: [days_since_enabled, value_events_since_enabled]
@@ -228,7 +228,7 @@ events:
     version: 1
     class: [event, audit]
     description: A paused feature was resumed.
-    emitted_at: app/views/manager.py — Manager.unpause_callback
+    emitted_at: app/settings/features/generic.py — record_event, from the feature commit (unpaused); app/services/cogs.py — insert_cog_event for state changes made outside a form
     actor: user
     required: [feature, source]
     optional: [days_since_enabled]
@@ -240,7 +240,7 @@ events:
     version: 1
     class: [event, audit]
     description: A feature was turned off and its configuration removed.
-    emitted_at: app/views/manager.py — Manager.disable_callback
+    emitted_at: app/settings/features/generic.py — record_event, from the feature commit (disabled); app/services/cogs.py — insert_cog_event for state changes made outside a form
     actor: user
     required: [feature, source]
     optional: [days_since_enabled, value_events_since_enabled]
@@ -252,7 +252,7 @@ events:
     version: 1
     class: [event, audit]
     description: An item was added to a composition-based feature.
-    emitted_at: app/views/manager.py — Manager.add_item_callback
+    emitted_at: app/settings/features/generic.py — record_event, from the feature commit (added); app/services/cogs.py — insert_cog_event for state changes made outside a form
     actor: user
     required: [feature, source]
     optional: [item_count]
@@ -264,7 +264,7 @@ events:
     version: 1
     class: [event, audit]
     description: An item was removed from a composition-based feature.
-    emitted_at: app/views/manager.py — Manager.remove_item_callback
+    emitted_at: app/settings/features/generic.py — record_event, from the feature commit (removed); app/services/cogs.py — insert_cog_event for state changes made outside a form
     actor: user
     required: [feature, source]
     optional: [item_count]
@@ -309,7 +309,7 @@ events:
     version: 1
     class: [event]
     description: The user exercised a preview or diagnostic surface.
-    emitted_at: PreviewButton and the block links diagnostic
+    emitted_at: the welcome preview aside (app/settings/features/welcome_messages.py) and the block links diagnostic
     actor: user
     required: [feature, surface]
     optional: [session_id]

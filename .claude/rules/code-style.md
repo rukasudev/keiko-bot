@@ -58,7 +58,7 @@ stores (`blocked_links.py`).
 
 Files in `app/views/` must be generic and reusable across commands. A screen that
 belongs to one command lives in that command's service module and composes the generic
-views (`PaginationView`, `ManagerPanelView`...).
+views (`PaginationView`, `RecordsBrowser`...).
 
 ## 8. Redis key constants carry a `REDIS_` prefix
 
@@ -78,7 +78,7 @@ Rule 7 says where a command's screen lives; this rule says what must be extracte
 from it. When a screen's structure could serve another command — fetch records →
 format → paginate/filter, an interaction round trip, an embed skeleton — the
 orchestration becomes (or extends) a generic primitive (`RecordsBrowser`,
-`PaginationView`, `ManagerPanelView` in `app/views/`; `base_embed` in
+`PaginationView`, `ReportBrowser` in `app/views/`; `base_embed` in
 `app/components/embed.py`), and the feature service keeps only the fetch, the
 formatter, and the copy. The smell: near-identical screen functions accumulating
 across `app/services/*.py`.
@@ -99,3 +99,68 @@ Timeouts, cooldowns, notice lifetimes, and preview limits live in `ViewConstants
 never a command-prefixed constant. Domain numerics (a retention TTL, a per-message
 cap) keep the feature prefix in `Commands`. Refines rules 2-3: a UI tunable is
 always "genuinely shared".
+
+## 13. `app/settings/` is typed, linted and silent
+
+The platform runs `ruff` (format plus `E`, `F`, `I`, `D1xx` on public names, `C901`,
+`ARG`, `RET`) and `mypy --strict` through `make lint`, at 88 columns, with two blank
+lines between top-level definitions. Rule 1 hardens here: no comment block longer
+than one line anywhere in `app/settings/`, and that one line only states an external
+constraint. `tests/forms/test_boundary.py` fails the build otherwise.
+
+## 14. One-sentence docstrings, public names only
+
+Every public module, class and function in `app/settings/` carries a docstring of one
+sentence that says what it is or does. Private helpers carry none. A docstring never
+narrates history, alternatives or rationale.
+
+## 15. No reflection in the platform
+
+`hasattr`, `getattr`, `isinstance` ladders on duck types and `__getattr__` proxies do
+not appear in `app/settings/form`, `engine`, `kinds`, `extensions` or `features`.
+The only exception is the Discord adapter reading `discord.py` objects, where the
+library's own surface is the boundary.
+
+## 16. Typed boundaries
+
+Nothing public in `app/settings/` accepts or returns `Dict[str, Any]` as its contract:
+definitions are pydantic models, sessions and effects are frozen dataclasses, and a
+feature exchanges `Answer` mappings and documents through the `FeatureModule`
+protocol. `Mapping[str, Any]` is allowed only where the value is a persisted document
+by definition.
+
+## 17. The platform never names a command
+
+No `command_key ==` branch, no feature key literal, no feature import anywhere
+under `app/settings/form/`. A behaviour that one
+feature needs is a registered extension or a member of its `FeatureModule`; the
+boundary test refuses the literal.
+
+## 18. Nothing in `app/settings/` blocks the loop
+
+No `requests`, `pymongo`, `time.sleep` or other synchronous I/O under `app/settings/`.
+Features await the async data layer (`app/data/*_async`) or hand legacy synchronous
+calls to `asyncio.to_thread`.
+
+## 19. A name says what it holds
+
+No one or two letter names, in a comprehension or anywhere else: `for index, option
+in enumerate(section.options)`, not `for i, o in ...`. A field is named after what it
+reports (`Outcome.succeeded`, never `Outcome.ok`). Real words of two letters that are
+the name of the thing, like `id`, are fine. `tests/forms/test_boundary.py` refuses the
+rest.
+
+## 20. A blank line between the blocks of a function
+
+A function that does two things separates them with a blank line: the setup from the
+branch that reads it, the loop from what follows it. Section markers (`# --- opening`)
+never appear: if a file needs headings to be read, it holds two contexts and should be
+two files.
+
+## 21. Functions tell a story, and files hold one context
+
+A function reads as its named steps, each handling a real part of the data; a tiny
+helper called from one place folds into the step that uses it, unless its name states
+a rule the call site would not say (`_truthy`, `_same_text`, `_declared_order`). A
+large file is fine when everything in it is one context: split a file by context,
+never by size.

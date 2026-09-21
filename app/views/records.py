@@ -4,9 +4,10 @@ from typing import Any, Callable, Dict, List, Optional
 
 import discord
 
+from app.constants import ViewConstants as view_constants
+
 from app.components.buttons import GenericButton
 from app.components.embed import base_embed
-from app.components.select_views import UserSelectView
 from app.services.utils import ml, parse_locale
 from app.views.pagination import PaginationView
 
@@ -90,15 +91,54 @@ class RecordsBrowser:
             selected = picker.get_response()
             if isinstance(selected, (list, tuple)):
                 selected = selected[0] if selected else None
-            if not selected:
-                return
-            await self.send(select_interaction, user_id=str(selected))
+            user_id = str(selected) if selected else None
 
-        picker = UserSelectView(
-            callback=on_selected, locale=locale, required=True, unique=True
-        )
+            await self.send(select_interaction, user_id=user_id)
+
+        picker = MemberPicker(on_selected, locale)
         embed = base_embed(
             ml(f"{self.filter_namespace}.title", locale=locale),
             ml(f"{self.filter_namespace}.description", locale=locale),
         )
         await interaction.response.edit_message(embed=embed, view=picker)
+
+
+class MemberPicker(discord.ui.View):
+    """One member select and a confirm button, for the records filter."""
+
+    def __init__(self, callback: Callable[[discord.Interaction], Any], locale: str):
+        super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
+        self.chosen: Callable[[discord.Interaction], Any] = callback
+        self.response: Dict[str, str] = {}
+        self.user_select: discord.ui.UserSelect = discord.ui.UserSelect(
+            placeholder=ml("buttons.components.select.user-placeholder", locale=locale),
+            min_values=0,
+            max_values=1,
+        )
+        self.user_select.callback = self._on_select
+        self.add_item(self.user_select)
+        self.add_item(GenericButton(
+            ml("buttons.confirm.label", locale=locale),
+            self._on_confirm,
+            discord.ButtonStyle.green,
+        ))
+        self.add_item(GenericButton(
+            ml("buttons.cancel.label", locale=locale),
+            self._on_cancel,
+            discord.ButtonStyle.grey,
+        ))
+
+    async def _on_select(self, interaction: discord.Interaction) -> None:
+        self.response = {str(user.id): user.display_name for user in self.user_select.values}
+        await interaction.response.defer()
+
+    async def _on_confirm(self, interaction: discord.Interaction) -> None:
+        await self.chosen(interaction)
+
+    async def _on_cancel(self, interaction: discord.Interaction) -> None:
+        self.response = {}
+        await self.chosen(interaction)
+
+    def get_response(self):
+        keys = list(self.response.keys())
+        return keys[0] if len(keys) == 1 else keys

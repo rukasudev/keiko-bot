@@ -272,6 +272,7 @@ steps:
   - action: composition
     key: reminders_birthday
     parent_key: reminders_birthday
+    max: 25
     unique_by: user
     emoji: "🎉"
     style: composition

@@ -43,9 +43,12 @@ for you:
 self.emit_event("setup.step_viewed", interaction, step_key=..., step_action=...)
 ```
 
-`emit_event` comes from `SessionAwareView` (`app/views/form_state.py`), mixed
-into `Form` and `Manager`. It supplies `guild_id`, `user_id`, `feature`,
-`source` and `session_id` so a call site only names what is specific to it.
+Inside a form nobody writes that call. `decide` (`app/settings/form/form.py`)
+returns the events of each decision in `Decision.analytics`, and
+`observability.emit` (`app/settings/discord/observability.py`) is the one
+place that hands them to `analytics.emit` with `guild_id`, `user_id`,
+`feature`, `source` and `session_id` from the session. An engine handler names
+only what is specific to it.
 
 ## 2. Where instrumentation lives
 
@@ -54,18 +57,20 @@ into `Form` and `Manager`. It supplies `guild_id`, `user_id`, `feature`,
 
 | Seam | File | Events it produces |
 |---|---|---|
-| `Form._update_form_step` | `app/views/form.py` | `setup.step_viewed` |
-| `Form._go_back` | `app/views/form.py` | `setup.step_back` |
-| `Form._finish` | `app/views/form.py` | `setup.completed` |
-| `CustomModal.on_submit` failure branch | `app/components/modals.py` | `setup.validation_failed` |
-| `on_done` of the configuration card | `app/views/summary_card.py` | `setup.required_missing` |
-| `request_discard_confirmation` | `app/views/confirm_action.py` | `setup.discarded`, `setup.discard_recovered` |
-| `send_command_form_message` / `send_command_manager_message` | `app/services/moderations.py` | `feature.setup_opened`, `feature.manager_opened` |
-| `insert_cog_event` | `app/services/cogs.py` | every lifecycle event (see below) |
+| `observability.emit`, from `Decision.analytics` | `app/settings/discord/observability.py` | every `setup.*` and `feature.*_opened` event a form produces: `feature.setup_opened`, `feature.manager_opened`, `setup.step_viewed`, `setup.step_completed`, `setup.step_back`, `setup.validation_failed`, `setup.required_missing`, `setup.completed`, `setup.discarded`, `setup.discard_recovered`, `setup.abandoned` |
+| `record_event`, called by the feature commit | `app/settings/features/generic.py` | every lifecycle event a form causes (see below) |
+| `insert_cog_event` | `app/services/cogs.py` | the same lifecycle events for state changes made outside a form (a feature disabled by a service) |
 | `run_feature_command` | `app/components/buttons.py` | `command.invoked` from any entry button |
 | `Events.on_interaction` / `on_guild_join` / `on_guild_remove` | `app/cogs/events.py` | `command.invoked`, `guild.joined`, `guild.removed` |
 | `Errors.on_app_command_error` | `app/cogs/errors.py` | `command.failed` |
 | `GreetingsView.send` | `app/views/greetings.py` | `guild.greeting_sent` |
+
+The engine decides *which* event a decision produces (`Engine.show`,
+`Engine.refuse`, `_on_back`, `_on_commit_succeeded`, `_on_discard_confirmed`,
+`_on_expired` in `form.py`); the adapter decides *how* it is emitted, once,
+after the session is stored. `ms_on_step` and the friction counters are
+measured by the adapter (`Friction`), never by the engine, because the engine
+has no clock.
 
 ### `insert_cog_event` is the audit + analytics facade
 
@@ -114,7 +119,7 @@ setup.validation_failed:
   version: 1
   class: [event, counter]
   description: A YAML validator refused the value submitted in a modal.
-  emitted_at: app/components/modals.py — CustomModal.on_submit, failure branch
+  emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (Engine.refuse)
   actor: user
   required: [feature, session_id, step_key, validation, error_key]
   optional: [attempt_n]
@@ -286,7 +291,9 @@ a coroutine that reaches them directly stops the bot — and Discord gives an
 interaction three seconds, so a blocking call between the click and the
 acknowledgement is a failed interaction the person sees.
 
-`off_loop` (`app/services/utils.py`) is the one way through. Production had
+`asyncio.to_thread` is the one way through for the legacy synchronous data
+calls, and `app/settings/` never reaches them at all (`tests/forms/test_boundary.py`
+refuses `requests`, `pymongo` and `time.sleep` there). Production had
 52 `heartbeat blocked for more than 20 seconds` warnings in a day, every
 traceback ending in a `find_one` reached from `on_message`, and a `10062 Unknown
 interaction` on a guild whose youtuber had just been saved by two blocking
@@ -480,16 +487,17 @@ itself `superseded`, so an invocation posts **one** message rather than two.
 
 ### Closing an abandoned session
 
-`Form.on_timeout` and `Manager.on_timeout` emit `setup.abandoned` and close the
-journey. Nothing is said to the user — a view timing out already just stops
-responding; this is bookkeeping. It is guarded on the journey still being open,
-so a sub-form expiring after its parent finished cannot report a second
-abandonment, and a timeout after a save changes nothing.
+`Runtime.expire_stale` hands every due session to `decide` as `Expired`; the
+decision emits `setup.abandoned`, and the adapter closes the journey and takes
+the controls off the message with the expired copy. It is guarded on the
+journey still being open, so a child session expiring after its parent
+finished cannot report a second abandonment, and an expiry after a save
+changes nothing.
 
-This is the one place a pinned contract was broken on purpose:
-`test_view_timeouts.py` used to assert that no view overrides `on_timeout`. It
-now asserts that exactly `Form` and `Manager` do, that nothing else does, and
-that a timeout never sends anything.
+No view owns a timeout any more: the session store owns the deadline
+(`ViewConstants.LONG_TIMEOUT_SECONDS`), and `tests/forms/discord` pins that an
+expired form finalizes its message once and that a click after expiry
+finalizes it again without opening anything.
 
 > With `ANALYTICS_ENABLED=false` the journey goes quiet too — it renders product
 > events, so without them there is nothing to render. The log falls back to the
@@ -499,8 +507,8 @@ that a timeout never sends anything.
 
 The `session_id` that groups a configuration attempt in analytics is the same
 identity the log uses to group a journey. One concept, two consumers:
-`FormSession` (`app/views/form_state.py`) lives on the view, which already
-lives for the whole attempt — no session store, no extra timeout.
+`FormSession` (`app/settings/form/form_state.py`) lives in the session store for
+the whole attempt; a child session reports under its parent's id.
 
 ## Contracts
 

@@ -42,7 +42,7 @@ def _emit_literals():
                     continue
                 func = node.func
                 called = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
-                if called not in ("emit", "emit_event", "emit_from_view"):
+                if called not in ("emit", "emit_event"):
                     continue
                 first = node.args[0]
                 if isinstance(first, ast.Constant) and isinstance(first.value, str):

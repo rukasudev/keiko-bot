@@ -310,6 +310,12 @@ pt-br:
     system:
       description: Essa é uma ação automática que eu faço ao sair do servidor
 
+  form-notices:
+    stale: "Ops! Essa tela já mudou, aqui está a atual 🐶"
+    busy: "Um segundinho! Ainda estou salvando o que você acabou de confirmar 🐶"
+    closed: "Esse formulário já foi fechado! Se precisar mudar algo, é só chamar o comando de novo 🐶"
+    expired: "⌛ Esse formulário expirou! Se quiser continuar, é só chamar o comando de novo 🐶"
+
   confirmation-modal:
     title: Tem certeza?
     desc: Digite `$action` para confirmar.

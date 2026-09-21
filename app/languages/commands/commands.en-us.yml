@@ -317,6 +317,12 @@ en-us:
     system:
       description: That's an automatic action I take when leaving the server
 
+  form-notices:
+    stale: "Oops! That screen is out of date, here's the current one 🐶"
+    busy: "One second! I'm still saving what you just confirmed 🐶"
+    closed: "This form is already closed! If you need to change something, just call the command again 🐶"
+    expired: "⌛ This form expired! If you'd like to continue, just call the command again 🐶"
+
   confirmation-modal:
     title: Are you sure?
     desc: Type `$action` to confirm.

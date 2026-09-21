@@ -90,7 +90,7 @@ async def test_a_timeout_ends_as_abandoned_at_the_last_step(scenario_factory, st
     await scenario.confirm()
     await scenario.click("done")
 
-    await scenario.form_view.on_timeout()
+    await scenario.expire()
 
     session = only(story)
     assert session["result"] == "abandoned"
@@ -102,14 +102,13 @@ async def test_a_timeout_after_a_save_does_not_reopen_the_story(
     scenario_factory, story
 ):
     scenario = await scenario_factory(locale="pt-br").start("block_links")
-    form = scenario.form_view
     await scenario.confirm()
     await scenario.click("done")
     await scenario.click(LATER)
     await scenario.confirm()
     await scenario.confirm()
 
-    await form.on_timeout()
+    await scenario.expire()
 
     assert only(story)["result"] == "saved"
     await scenario.finish()

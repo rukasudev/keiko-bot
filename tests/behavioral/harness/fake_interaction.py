@@ -14,6 +14,8 @@ from tests.behavioral.harness.errors import HarnessProtocolError
 from tests.behavioral.harness.message_store import MISSING, FakeMessage, MessageStore
 from tests.behavioral.harness.transcript import format_transcript
 
+BOT_USER = SimpleNamespace(id=1, mention="<@1>", name="Keiko")
+
 
 class FakeResponse:
     def __init__(self, interaction: "FakeInteraction"):
@@ -46,14 +48,16 @@ class FakeResponse:
         self._interaction.store.record("defer", ephemeral=ephemeral, thinking=thinking)
 
     async def edit_message(self, *, content=None, embed=MISSING, view=MISSING, **kwargs):
-        self._mark("response.edit_message")
         message = self._interaction.message
         if message is None:
             raise HarnessProtocolError(
                 "response.edit_message on an interaction without a component message",
                 self._interaction._transcript(),
             )
-        message.apply_edit(embed=embed, view=view)
+        if self._done:
+            self._mark("response.edit_message")
+        message.apply_edit(embed=embed, view=view, content=content)
+        self._done = True
         self._interaction.store.record(
             "edit", message=message.id, embeds=message.embeds, view=message.view,
             ephemeral=message.ephemeral,
@@ -77,13 +81,14 @@ class FakeFollowup:
             )
 
     async def send(self, content=None, *, embed=None, embeds=None, view=None,
-                   ephemeral=False, **kwargs) -> FakeMessage:
+                   ephemeral=False, delete_after=None, **kwargs) -> FakeMessage:
         self._require_done("followup.send")
         all_embeds = list(embeds) if embeds else ([embed] if embed else [])
         store = self._interaction.store
         message = store.create(all_embeds, view, ephemeral)
         store.record("followup_send", message=message.id, content=content,
-                     embeds=all_embeds, view=view, ephemeral=ephemeral)
+                     embeds=all_embeds, view=view, ephemeral=ephemeral,
+                     delete_after=delete_after)
         return message
 
     async def edit_message(self, message_id: int, *, content=None, embed=MISSING,
@@ -95,7 +100,7 @@ class FakeFollowup:
                 f"followup.edit_message on missing/deleted message {message_id}",
                 self._interaction._transcript(),
             )
-        message.apply_edit(embed=embed, view=view)
+        message.apply_edit(embed=embed, view=view, content=content)
         store.record("followup_edit", message=message.id, embeds=message.embeds,
                      view=message.view, ephemeral=message.ephemeral)
         return message
@@ -115,9 +120,13 @@ class FakeFollowup:
 class FakeInteraction:
     """Covers the attribute surface the form engine touches (verified by audit)."""
 
+    _next_id = 0
+
     def __init__(self, store: MessageStore, *, guild, user, locale: discord.Locale,
                  message: Optional[FakeMessage] = None,
                  data: Optional[Dict[str, Any]] = None):
+        FakeInteraction._next_id += 1
+        self.id = FakeInteraction._next_id
         self.store = store
         self.guild = guild
         self.guild_id = str(guild.id)
@@ -126,7 +135,7 @@ class FakeInteraction:
         self.locale = locale  # engine reassigns this; keep writable
         self.message = message
         self.data = data or {}
-        self.client = SimpleNamespace(app_commands=[])
+        self.client = SimpleNamespace(app_commands=[], user=BOT_USER)
         self.response = FakeResponse(self)
         self.followup = FakeFollowup(self)
         self._original_response: Optional[FakeMessage] = None
@@ -144,6 +153,9 @@ class FakeInteraction:
             )
         return target
 
+    async def original_response(self) -> FakeMessage:
+        return self._original_target()
+
     async def edit_original_response(self, *, content=None, embed=MISSING, view=MISSING,
                                      **kwargs) -> FakeMessage:
         message = self._original_target()
@@ -151,7 +163,7 @@ class FakeInteraction:
             raise discord.NotFound(
                 SimpleNamespace(status=404), {"code": 10008, "message": "Unknown Message"}
             )
-        message.apply_edit(embed=embed, view=view)
+        message.apply_edit(embed=embed, view=view, content=content)
         self.store.record("edit_original", message=message.id, embeds=message.embeds,
                           view=message.view, ephemeral=message.ephemeral)
         return message

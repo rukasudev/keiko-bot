@@ -1,0 +1,248 @@
+[
+  {
+    "actor": "user",
+    "kind": "start_command",
+    "message": null,
+    "seq": 1,
+    "target": "block_links",
+    "values": "pt-br"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## :no_entry_sign: Bloquear Links",
+                "type": "text"
+              },
+              {
+                "content": "Ativar esta função faz com que eu fique de olho em cada mensagem e exclua os links que você não quer por aqui! Você escolhe como eu faço isso: bloquear todos os links com as suas exceções, ou permitir links e bloquear só os que você escolher.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 🚦 Configuração de Links\n**Modo de bloqueio:** Bloquear todos, com exceções\n**Sites populares permitidos:**\n```• youtube.com\n• twitch.tv```\n**Minha resposta ao bloquear:** Nada de links aqui! :p",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 🔓 Permissões\n**Canais Liberados:** <#100>\n**Cargos Liberados:** <@&201>",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 📌 Seus Links\n**#1**\n**Link ou Site:** `meusite.com.br`\n**Qual o Alcance da Regra?** 🌐 Todos os links desse site\n**#2**\n**Link ou Site:** `docs.example.org`",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "### 🔎 Por que um link passou?\nClique com o botão direito na mensagem, escolha **Apps** e depois **Validar Bloqueio de Link**: eu te mostro qual regra liberou ou bloqueou cada link dela!",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Pausar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Desativar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Adicionar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Remover",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Histórico",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Bloqueios",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Estatísticas",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Ajuda",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M1",
+    "seq": 2
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M1",
+    "seq": 3,
+    "target": "history"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "|<",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "<",
+        "style": "primary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": ">",
+        "style": "primary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": ">|",
+        "style": "success",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M2",
+    "seq": 4
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": true,
+        "label": "|<",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": true,
+        "label": "<",
+        "style": "primary",
+        "type": "button"
+      },
+      {
+        "disabled": true,
+        "label": ">",
+        "style": "primary",
+        "type": "button"
+      },
+      {
+        "disabled": true,
+        "label": ">|",
+        "style": "success",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Veja o histórico de alterações feitas na funcionalidade **moderações bloquear links**:",
+      "fields": [
+        {
+          "inline": false,
+          "name": "2026-01-01 10:30:00 UTC",
+          "value": "📝 Editado por <@555>"
+        },
+        {
+          "inline": false,
+          "name": "2026-01-01 09:30:00 UTC",
+          "value": "✅ Ativado por <@555>"
+        }
+      ],
+      "footer": "• Página 1 / 1",
+      "image": null,
+      "thumbnail": "KEIKO_NERD.png",
+      "title": "📜 Histórico de alterações"
+    },
+    "ephemeral": true,
+    "kind": "edit_original",
+    "message": "M2",
+    "seq": 5
+  }
+]

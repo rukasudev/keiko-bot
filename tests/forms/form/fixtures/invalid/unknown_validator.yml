@@ -1,0 +1,15 @@
+steps:
+  - action: form
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - action: modal
+    key: name
+    validation: validate_unicorn
+    title: {en-us: Name, pt-br: Nome}
+    description: {en-us: type, pt-br: digite}
+    label: {en-us: Name, pt-br: Nome}
+  - action: resume
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

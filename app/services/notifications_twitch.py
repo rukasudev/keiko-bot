@@ -1,3 +1,4 @@
+import asyncio
 import datetime
 import random
 import time
@@ -18,23 +19,15 @@ from app.data.notifications_twitch import (
     save_stream_notification,
     update_last_stream_date,
 )
+from app.settings import open_feature
 from app.services import analytics, cache
-from app.services.moderations import (
-    send_command_form_message,
-    send_command_manager_message,
-)
-from app.services.utils import format_datetime_output, off_loop
+from app.services.utils import format_datetime_output
 
 
-async def manager(interaction: discord.Interaction, guild_id: str):
-    cogs = cache.get_cog_data_or_populate(guild_id, constants.NOTIFICATIONS_TWITCH_KEY, manager=True)
+async def manager(interaction: discord.Interaction, guild_id: str) -> None:
+    """The slash command: the setup form, or the manager of what is saved."""
+    await open_feature(interaction, constants.NOTIFICATIONS_TWITCH_KEY)
 
-    if cogs == None:
-        return await send_command_form_message(interaction, constants.NOTIFICATIONS_TWITCH_KEY)
-
-    await send_command_manager_message(
-        interaction, constants.NOTIFICATIONS_TWITCH_KEY, cogs
-    )
 
 async def handle_send_streamer_notification(streamer_name: str) -> None:
     context = ErrorContext(
@@ -47,8 +40,8 @@ async def handle_send_streamer_notification(streamer_name: str) -> None:
 
     try:
         # The second one sleeps 15 seconds between attempts.
-        user_info = await off_loop(bot.twitch.get_user_info, streamer_name)
-        stream_info = await off_loop(wait_for_stream_info, streamer_name)
+        user_info = await asyncio.to_thread(bot.twitch.get_user_info, streamer_name)
+        stream_info = await asyncio.to_thread(wait_for_stream_info, streamer_name)
 
         if not stream_info:
             logger.info(f"Stream info not found for streamer **{streamer_name}**", log_type=logconstants.COMMAND_INFO_TYPE)

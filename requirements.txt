@@ -12,7 +12,9 @@ itsdangerous==2.2.0
 Jinja2==3.1.6
 jmespath==1.0.1
 MarkupSafe==2.1.5
+motor==3.3.2
 pillow==12.1.1
+pydantic>=2.9,<3
 pymongo==4.8.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1

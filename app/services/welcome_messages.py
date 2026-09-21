@@ -1,3 +1,4 @@
+import asyncio
 import functools
 from io import BytesIO
 from typing import Dict, List
@@ -7,31 +8,20 @@ import requests
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from app import bot, logger
-from app.components.buttons import PreviewButton
 from app.components.embed import default_welcome_embed
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.constants import WelcomeDesign
 from app.exceptions import ErrorContext
+from app.settings import open_feature
 from app.services import analytics, cache
-from app.services.moderations import (
-    send_command_form_message,
-    send_command_manager_message,
-)
 from app.services.utils import parse_welcome_messages
 
 
-async def manager(interaction: discord.Interaction, guild_id: str):
-    cogs = cache.get_cog_data_or_populate(guild_id, constants.WELCOME_MESSAGES_KEY, manager=True)
+async def manager(interaction: discord.Interaction, guild_id: str) -> None:
+    """The slash command: the setup form, or the manager of what is saved."""
+    await open_feature(interaction, constants.WELCOME_MESSAGES_KEY)
 
-    if cogs == None:
-        return await send_command_form_message(interaction, constants.WELCOME_MESSAGES_KEY)
-
-    preview_button = PreviewButton(custom_callback=send_welcome_message_preview, locale=interaction.locale, command_key=constants.WELCOME_MESSAGES_KEY)
-
-    await send_command_manager_message(
-        interaction, constants.WELCOME_MESSAGES_KEY, cogs, "", [preview_button]
-    )
 
 async def send_welcome_message(member: discord.Member):
     cogs = cache.get_cog_data_or_populate(member.guild.id, constants.WELCOME_MESSAGES_KEY)
@@ -198,7 +188,7 @@ def request_image_url(url: str):
     return image
 
 async def create_banner(background_url: str, welcome_message: str, username: str, user_image_url: str, server_name: str):
-    background_img = request_image_url(background_url)
+    background_img = await asyncio.to_thread(request_image_url, background_url)
 
     banner_width = 800
     banner_height = 400

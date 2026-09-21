@@ -76,6 +76,24 @@ async def test_editing_deleted_message_raises():
         await interaction.followup.edit_message(message.id, content="y")
 
 
+async def test_a_components_v2_message_refuses_embeds_and_content_like_discord():
+    """The flag is fixed at send time: editing a container message with an
+    embed or content fails with 50035 and the message is left as it was."""
+    interaction = _interaction()
+    await interaction.response.defer()
+    layout = discord.ui.LayoutView()
+    layout.add_item(discord.ui.TextDisplay("card"))
+    message = await interaction.followup.send(view=layout, ephemeral=True)
+
+    with pytest.raises(discord.HTTPException) as failure:
+        await interaction.followup.edit_message(message.id, embed=discord.Embed(title="x"))
+    assert failure.value.code == 50035
+    assert message.view is layout and not message.embeds
+
+    await interaction.followup.edit_message(message.id, view=None)
+    assert message.registered_items == []
+
+
 async def test_locale_is_writable_like_the_engine_does():
     interaction = _interaction()
     interaction.locale = discord.Locale.american_english
@@ -215,6 +233,6 @@ async def test_scenarios_do_not_share_state(scenario_factory):
     second = await scenario_factory().start("block_links")
 
     assert first.store is not second.store
-    assert first.form_view is not second.form_view
+    assert first.session is not second.session
     assert first.outputs[0]["target"] == "default_roles"
     assert second.outputs[0]["target"] == "block_links"

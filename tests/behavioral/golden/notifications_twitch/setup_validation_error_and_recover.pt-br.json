@@ -1,0 +1,244 @@
+[
+  {
+    "actor": "user",
+    "kind": "start_command",
+    "message": null,
+    "seq": 1,
+    "target": "notifications_twitch",
+    "values": "pt-br"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Texto**: Escolha em qual canal de texto você deseja ser notificado\n:flying_disc: **Streamer**: Apenas o username do streamer. Exemplo: ninja\n:flying_disc: **Mensagens de Notificação**: Use {streamer} e {stream_link}. Uma mensagem será escolhida aleatoriamente.",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "🔔 Twitch Notificações"
+    },
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M1",
+    "seq": 2
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M1",
+    "seq": 3,
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "max": 1,
+        "min": 0,
+        "placeholder": "Selecione um canal...",
+        "type": "channel_select"
+      },
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Escolha em qual canal de texto você deseja ser notificado",
+      "fields": [],
+      "footer": "• Utilize o comando /reportar para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": ":tv: Canal de Texto"
+    },
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M1",
+    "seq": 4
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M1",
+    "seq": 5,
+    "target": "Selecione um canal...",
+    "values": [
+      "general"
+    ]
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 6,
+    "thinking": false
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M1",
+    "seq": 7,
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "kind": "modal",
+    "message": null,
+    "modal": {
+      "fields": [
+        {
+          "default": "",
+          "label": "Streamer",
+          "max_length": 30,
+          "required": true,
+          "style": "short"
+        }
+      ],
+      "title": "Streamer"
+    },
+    "seq": 8
+  },
+  {
+    "actor": "user",
+    "fields": {
+      "Streamer": "naoexiste"
+    },
+    "kind": "modal_submit",
+    "message": null,
+    "seq": 9
+  },
+  {
+    "actor": "bot",
+    "components": [],
+    "components_v2": false,
+    "delete_after": 10,
+    "embed": {
+      "color": 16711680,
+      "description": "Desculpe, mas não consegui encontrar o streamer que você está procurando. Por favor, verifique o nome e tente novamente.",
+      "fields": [],
+      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "image": null,
+      "thumbnail": null,
+      "title": "🚨 Streamer Não Encontrado"
+    },
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M2",
+    "seq": 10
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M1",
+    "seq": 11,
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "kind": "modal",
+    "message": null,
+    "modal": {
+      "fields": [
+        {
+          "default": "",
+          "label": "Streamer",
+          "max_length": 30,
+          "required": true,
+          "style": "short"
+        }
+      ],
+      "title": "Streamer"
+    },
+    "seq": 12
+  },
+  {
+    "actor": "user",
+    "fields": {
+      "Streamer": "gaules"
+    },
+    "kind": "modal_submit",
+    "message": null,
+    "seq": 13
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Voltar",
+        "style": "secondary",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Agora vamos configurar as mensagens de notificação! Leia com atenção as seguintes observações:",
+      "fields": [
+        {
+          "inline": false,
+          "name": "1. Mensagem aleatória",
+          "value": "Sempre que o streamer ficar online, uma das mensagens configuradas será aleatoriamente escolhida"
+        },
+        {
+          "inline": false,
+          "name": "2. Até 3 mensagens",
+          "value": "Você poderá configurar até 3 mensagens de notificação. Caso queira configurar menos de 3, deixe os outros campos em branco"
+        },
+        {
+          "inline": false,
+          "name": "3. Variáveis",
+          "value": "Você pode utilizar as seguintes variáveis em sua mensagem:\n- `{streamer}`: Username do streamer\n- `{stream_link}`: Link da live"
+        }
+      ],
+      "footer": "• Utilize o comando /reportar para me contar um bug",
+      "image": null,
+      "thumbnail": "KEIKO_NERD.png",
+      "title": "📩 Mensagens de Notificação"
+    },
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M1",
+    "seq": 14
+  }
+]
