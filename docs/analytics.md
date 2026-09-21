@@ -429,6 +429,11 @@ Errors always keep a message of their own in the error channel, so they never
 wait on a trace that may never close — and the trace timeline is posted too, as
 the context for that error.
 
+An error that names a form session gets a ✅ reaction once that session runs a
+step without a failure (`journey.recovered`, called from
+`observability.log_effects`): the person carried on. An error whose session
+never does keeps none, and the handler forgets the session when its journey ends.
+
 ## The journey: one session, one message, edited until it ends
 
 A trace covers one interaction. A configuration attempt spans many, and the

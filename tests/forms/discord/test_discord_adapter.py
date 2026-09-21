@@ -20,9 +20,13 @@ from app.settings.form.components import FileInput, Input, Screen, TextInputs
 from app.settings.form.form_state import Status
 from tests.behavioral.contracts.test_components_v2_limits import _assert_within_limits
 from tests.behavioral.golden.paths.block_links import _seed as seed_block_links
+from tests.behavioral.golden.paths.common import seed_document
 from tests.behavioral.golden.paths.reminders_birthday import (
     _complete_settings_card,
     _guild,
+)
+from tests.behavioral.golden.paths.welcome_messages import (
+    ENABLED as WELCOME_ENABLED,
 )
 from tests.behavioral.harness import locators
 from tests.behavioral.harness.driver import FormScenario
@@ -419,3 +423,84 @@ async def test_a_parent_waiting_on_a_live_child_is_not_expired(v2):
     assert RUNTIME.store.get(parent.id).status is not Status.EXPIRED, (
         "a child still in use keeps its parent alive"
     )
+
+
+# ------------------------------------------------------- background previews
+
+
+def _slow_previews(monkeypatch):
+    drawn = asyncio.Event()
+
+    async def previews(member, designs):
+        await drawn.wait()
+        return {
+            design[
+                "key"
+            ]: f"https://cdn.discordapp.com/attachments/1/2/{design['key']}.png"
+            for design in designs
+        }
+
+    monkeypatch.setattr(
+        "app.settings.features.welcome_messages.generate_design_previews", previews
+    )
+    return drawn
+
+
+async def test_a_click_that_opens_the_gallery_is_answered_before_the_previews_wait(
+    v2, monkeypatch
+):
+    drawn = _slow_previews(monkeypatch)
+    scenario = await v2().start_command("welcome_messages")
+    await asyncio.wait_for(scenario.confirm(), timeout=2)
+    await asyncio.wait_for(scenario.select_option("welcome"), timeout=2)
+    before = len(scenario.outputs)
+
+    click = asyncio.create_task(scenario.confirm())
+    for _ in range(50):
+        if click.done() or any(e["kind"] == "defer" for e in scenario.outputs[before:]):
+            break
+        await asyncio.sleep(0.01)
+    answered_while_drawing = (
+        any(e["kind"] == "defer" for e in scenario.outputs[before:])
+        and not drawn.is_set()
+    )
+    drawn.set()
+    await click
+
+    assert answered_while_drawing, (
+        "Discord gives a click three seconds; waiting for the previews before "
+        "answering lost the interaction (10062) on the local bot"
+    )
+    galleries = [
+        item
+        for item in locators.walk_items(scenario.current_message.view)
+        if isinstance(item, discord.ui.MediaGallery)
+    ]
+    assert len(galleries) == 3
+
+
+async def test_a_click_that_does_not_show_the_gallery_never_waits_for_previews(
+    v2, monkeypatch
+):
+    _slow_previews(monkeypatch)
+    scenario = await v2().start_command("welcome_messages")
+
+    await asyncio.wait_for(scenario.confirm(), timeout=1)
+
+    assert _session_of(scenario).cursor == "welcome_messages_channel"
+
+
+# ------------------------------------------------------------------ lifecycle
+
+
+async def test_pausing_from_a_card_panel_replaces_it_with_the_paused_message(v2, deps):
+    """Broke as: followup.send(view=None) raised TypeError once the pause saved."""
+    seed_document(deps, "welcome_messages", WELCOME_ENABLED)
+    scenario = await v2().start_command("welcome_messages")
+    assert scenario.current_message.flags.components_v2
+
+    await scenario.click("pause")
+    await scenario.submit_confirmation()
+
+    assert not scenario.current_message.flags.components_v2
+    assert scenario.current_message.embeds
