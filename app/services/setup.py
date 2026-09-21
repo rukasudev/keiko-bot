@@ -4,7 +4,7 @@ from typing import Any, Dict, List
 
 import discord
 
-from app.components.embed import base_embed
+from app.components.embed import base_embed, response_embed
 from app.constants import Commands as commands_constants
 from app.data.cogs import find_cog_events_by_guild_id_async
 from app import logger
@@ -15,6 +15,7 @@ from app.constants import ViewConstants as view_constants
 from app.data.cogs import find_cog_by_guild_id_async
 from app.settings.discord import layout
 from app.data.moderations import find_moderations_by_guild_async
+from app.services import analytics
 from app.services.manager import parse_history_data
 from app.services.trace import as_utc
 from app.services.utils import fill, is_guild_admin, ml, parse_locale, stored_value
@@ -271,6 +272,37 @@ class SetupView(discord.ui.LayoutView):
             log_type=logconstants.COMMAND_ERROR_TYPE,
             exc_info=True,
         )
+
+
+async def open_setup_dashboard(interaction: discord.Interaction, source: str) -> None:
+    """Send the /setup card privately to an admin, or say that it needs one."""
+    locale = parse_locale(interaction.locale)
+    if interaction.guild is None or not is_guild_admin(interaction.user):
+        embed = response_embed("buttons.setup.admin-only", locale)
+        await interaction.response.send_message(embed=embed, ephemeral=True)
+        return
+    analytics.emit(
+        "dashboard.opened",
+        guild_id=interaction.guild_id,
+        user_id=interaction.user.id,
+        source=source,
+    )
+    view = await setup_dashboard(str(interaction.guild.id), locale)
+    await interaction.response.send_message(view=view, ephemeral=True)
+
+
+def setup_dashboard_button(locale: str, source: str) -> discord.ui.Button:
+    """A button that opens the /setup card from another screen."""
+
+    async def open_dashboard(interaction: discord.Interaction) -> None:
+        await open_setup_dashboard(interaction, source)
+
+    return GenericButton(
+        ml("buttons.setup.dashboard.label", locale),
+        open_dashboard,
+        discord.ButtonStyle.primary,
+        emoji="🔧",
+    )
 
 
 async def setup_dashboard(guild_id: str, locale: str) -> discord.ui.LayoutView:

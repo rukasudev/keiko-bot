@@ -68,16 +68,9 @@ class DashboardButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction):
-        if not interaction.user.guild_permissions.administrator:
-            embed = response_embed("buttons.setup.admin-only", self.locale)
-            return await interaction.response.send_message(embed=embed, ephemeral=True)
+        from app.services.setup import open_setup_dashboard
 
-        from app.services.setup import setup_dashboard
-
-        view = await setup_dashboard(
-            str(interaction.guild.id), parse_locale(interaction.locale)
-        )
-        await interaction.response.send_message(view=view, ephemeral=True)
+        await open_setup_dashboard(interaction, "greeting_button")
 
 
 def _resolve_locale(guild: discord.Guild) -> str:

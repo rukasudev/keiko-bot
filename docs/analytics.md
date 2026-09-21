@@ -429,10 +429,12 @@ Errors always keep a message of their own in the error channel, so they never
 wait on a trace that may never close — and the trace timeline is posted too, as
 the context for that error.
 
-An error that names a form session gets a ✅ reaction once that session runs a
-step without a failure (`journey.recovered`, called from
-`observability.log_effects`): the person carried on. An error whose session
-never does keeps none, and the handler forgets the session when its journey ends.
+An error that names a form session gets a ✅ reaction once the same person uses
+the same feature in the same server without a failure, in that session or a new
+one (`journey.recovered` with `journey.recovery_key`, called from
+`observability.log_effects`): the person carried on, even by opening the command
+again. An error nobody got past keeps none, and the handler forgets a pending
+error after `Commands.ANALYTICS_RECOVERY_WINDOW_SECONDS`.
 
 ## The journey: one session, one message, edited until it ends
 

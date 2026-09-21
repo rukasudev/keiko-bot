@@ -387,7 +387,7 @@ events:
     version: 1
     class: [event, counter]
     description: The /setup dashboard was opened.
-    emitted_at: app/cogs/base/setup.py
+    emitted_at: app/services/setup.py — open_setup_dashboard, from /setup, the greeting's Setup button and the /help Setup button
     actor: user
     required: [source]
     optional: []

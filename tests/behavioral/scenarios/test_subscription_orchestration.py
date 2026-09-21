@@ -95,3 +95,30 @@ async def test_disable_unsubscribes_streamers(scenario_factory, deps,
     scenario.expect_not_persisted(
         "guild", "notifications_twitch", {"guild_id": GUILD_ID}
     )
+
+
+async def test_a_streamer_typed_with_an_at_sign_is_found_and_saved_without_it(
+        scenario_factory, deps, production_like_bot):
+    """The placeholder reads "your nick (e.g. @shroud)", so admins type the @:
+    the lookup, the subscription and the saved item all use the bare nick."""
+    deps.twitch.add_user("gaules", user_id="111")
+
+    scenario = await scenario_factory(locale="pt-br").start("notifications_twitch")
+    await scenario.confirm()
+    await scenario.select_option("general")
+    await scenario.confirm()
+    await scenario.submit_modal({scenario.pending_modal_fields()[0]: " @Gaules "})
+    await scenario.confirm()
+    fields = {label: "{streamer} on! {stream_link}"
+              for label in scenario.pending_modal_fields()}
+    await scenario.submit_modal(fields)
+    scenario.expect_step("confirm")
+    await scenario.confirm()
+
+    assert "111" in [call.get("user_id") for call in deps.twitch.subscribe_calls]
+    document = scenario.expect_persisted(
+        "guild", "notifications_twitch", {"guild_id": GUILD_ID}, {"enabled": True}
+    )
+    streamers = [i["streamer"]["value"] for i in document["notifications"]["values"]]
+    assert streamers == ["gaules"]
+    await scenario.finish()

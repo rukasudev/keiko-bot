@@ -334,3 +334,37 @@ async def test_an_unconfigured_feature_opens_empty(deps):
         OpenContext(GUILD_ID, "555", "pt-br")
     )
     assert opened.document is None and opened.refusal is None
+
+
+async def test_editing_the_streamer_refreshes_the_stream_elements_channel(
+    deps, monkeypatch
+):
+    """Broke as: an edited streamer kept the old streamer's StreamElements channel,
+    so the chat went on answering with the old streamer's commands."""
+    from app.settings.features import stream_elements as stream_elements_feature
+
+    deps.bot.config.is_dev = lambda: False
+    monkeypatch.setattr(
+        stream_elements_feature.StreamElementsClient,
+        "get_channel_info",
+        staticmethod(lambda name: {"_id": f"channel-of-{name}"}),
+    )
+    feature = feature_for("stream_elements_commands")
+    saved = {
+        "guild_id": GUILD_ID,
+        "enabled": True,
+        "streamer": "gaules",
+        "channel_id": "channel-of-gaules",
+    }
+    deps.mongo_client.guild["stream_elements_commands"].insert_one(dict(saved))
+
+    result = await feature.commit(
+        "edit", {"answers": {"streamer": Answer("cellbit")}}, _context(saved)
+    )
+
+    stored = deps.mongo_client.guild["stream_elements_commands"].find_one(
+        {"guild_id": GUILD_ID}
+    )
+    assert stored["streamer"] == "cellbit"
+    assert stored["channel_id"] == "channel-of-cellbit"
+    assert result.document["channel_id"] == "channel-of-cellbit"

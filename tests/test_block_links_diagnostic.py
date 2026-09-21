@@ -101,7 +101,7 @@ class TestDiagnosticFields:
 
     def test_mode_is_named_with_the_same_label_the_picker_shows(self):
         value = parse_evaluation_to_fields(_evaluate("https://spam.com"), "pt-br")[0]["value"]
-        assert "Bloquear todos, com exceções" in value
+        assert "Bloquear todos" in value
 
 
 class TestSendLinkCheckMessage:

@@ -146,15 +146,20 @@ def set_publisher(publisher: Optional[Callable[[Trace], None]]) -> None:
 
 
 def set_recovery_listener(listener: Optional[Callable[[str], None]]) -> None:
-    """The logger registers how the errors of a session that carried on are marked."""
+    """The logger registers how the errors of someone who carried on are marked."""
     global _RECOVERY_LISTENER
     _RECOVERY_LISTENER = listener
 
 
-def recovered(session_id: str) -> None:
-    """A session ran a step cleanly, so whatever failed before did not stop it."""
+def recovery_key(guild_id: Optional[str], user_id: Optional[str], flow: Optional[str]) -> str:
+    """The same person using the same feature in the same server."""
+    return f"{guild_id}:{user_id}:{flow}"
+
+
+def recovered(key: str) -> None:
+    """Someone used a feature cleanly, so what failed for them before did not stop them."""
     if _RECOVERY_LISTENER is not None:
-        _RECOVERY_LISTENER(session_id)
+        _RECOVERY_LISTENER(key)
 
 
 LINE_KINDS = {"setup.step_viewed": "step", "setup.step_back": "step"}

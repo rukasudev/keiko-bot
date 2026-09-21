@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import sys
+import time
 import traceback
 from typing import Optional
 from datetime import datetime, timedelta
@@ -481,35 +482,48 @@ class DiscordLogsHandler(logging.Handler):
             return
 
         embed = self.add_embed(record)
-        session_id = self.session_of(record)
-        if session_id is None:
+        key = self.recovery_of(record)
+        if key is None:
             self.schedule_send(log_channel.send(embed=embed))
             return
 
-        self._session_errors.setdefault(session_id, [])
-        self.schedule_send(self._post_session_error(log_channel, embed, session_id))
+        self._forget_stale_errors()
+        self._session_errors.setdefault(key, (time.monotonic(), []))
+        self.schedule_send(self._post_session_error(log_channel, embed, key))
 
-    def session_of(self, record: logging.LogRecord):
-        """The form session an error belongs to, when it names one."""
+    def recovery_of(self, record: logging.LogRecord):
+        """Who hit a form error in which feature, when the error names a form session."""
         if record.levelno < logging.ERROR:
             return None
         context = getattr(record, "context", None)
         values = context.to_dict() if hasattr(context, "to_dict") else context
-        return values.get("session_id") if isinstance(values, dict) else None
+        if not isinstance(values, dict) or not values.get("session_id"):
+            return None
+        return journey_service.recovery_key(
+            values.get("guild_id"), values.get("user_id"), values.get("flow")
+        )
 
-    async def _post_session_error(self, channel, embed, session_id) -> None:
+    def _forget_stale_errors(self) -> None:
+        window = constants_commands.ANALYTICS_RECOVERY_WINDOW_SECONDS
+        now = time.monotonic()
+        for key, (seen, _messages) in list(self._session_errors.items()):
+            if now - seen >= window:
+                self._session_errors.pop(key, None)
+
+    async def _post_session_error(self, channel, embed, key) -> None:
         message = await channel.send(embed=embed)
-        pending = self._session_errors.get(session_id)
+        pending = self._session_errors.get(key)
         if pending is None:
             await self._react_recovered([message])
         else:
-            pending.append(message)
+            pending[1].append(message)
 
-    def mark_recovered(self, session_id: str) -> None:
-        """React with a check to the errors of a session that went on working, once."""
-        messages = self._session_errors.pop(session_id, None)
-        if messages:
-            self.schedule_send(self._react_recovered(messages))
+    def mark_recovered(self, key: str) -> None:
+        """React with a check, once, to the errors of someone who went on working."""
+        self._forget_stale_errors()
+        pending = self._session_errors.pop(key, None)
+        if pending and pending[1]:
+            self.schedule_send(self._react_recovered(pending[1]))
 
     async def _react_recovered(self, messages) -> None:
         for message in messages:
@@ -622,7 +636,6 @@ class DiscordLogsHandler(logging.Handler):
                 self.publish_journey(journey)
             elif journey.finished_at:
                 self._journey_messages.pop(journey.id, None)
-                self._session_errors.pop(journey.session_id, None)
 
     def add_embed(self, record: logging.LogRecord):
         title, color = self.get_log_type(record)
