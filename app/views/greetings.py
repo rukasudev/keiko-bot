@@ -72,16 +72,12 @@ class DashboardButton(discord.ui.Button):
             embed = response_embed("buttons.setup.admin-only", self.locale)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        from app.data.moderations import find_moderations_by_guild
-        from app.views.setup import SetupView
+        from app.services.setup import setup_dashboard
 
-        locale = parse_locale(interaction.locale)
-        guild_id = str(interaction.guild.id)
-        moderations = find_moderations_by_guild(interaction.guild.id) or {}
-        view = SetupView(moderations, locale, guild_id=guild_id)
-        embed = view.get_embed()
-
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        view = await setup_dashboard(
+            str(interaction.guild.id), parse_locale(interaction.locale)
+        )
+        await interaction.response.send_message(view=view, ephemeral=True)
 
 
 def _resolve_locale(guild: discord.Guild) -> str:

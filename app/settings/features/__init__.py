@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
+import asyncio
+from typing import Any
+
 from app.constants import Commands
-from app.settings.features.feature import FeatureModule
+from app.settings.features.feature import FeatureModule, OpenContext
+from app.settings.form.responses.summary import ResponseView
 
 
 def feature_for(key: str) -> FeatureModule:
@@ -47,3 +51,23 @@ def feature_keys() -> tuple[str, ...]:
         Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
         Commands.WELCOME_MESSAGES_KEY,
     )
+
+
+async def saved_settings(
+    key: str, guild_id: str, user_id: str, locale: str, guild: Any = None
+) -> tuple[ResponseView, ...]:
+    """What a guild has saved for `key`, as the lines a screen would list it.
+
+    The read a screen outside the forms needs: no session is opened, and the
+    previews a feature would draw for one are never started.
+    """
+    from app.settings.form.form_yaml import registry
+    from app.settings.form.responses.summary import responses
+
+    feature = feature_for(key)
+    opened = await feature.open(OpenContext(guild_id, user_id, locale, guild, None))
+    if asyncio.iscoroutine(opened.pending_previews):
+        opened.pending_previews.close()
+
+    answers = feature.from_document(opened.document or {})
+    return responses(registry.get(key).steps, answers, locale)

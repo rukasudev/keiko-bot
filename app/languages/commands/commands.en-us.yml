@@ -239,13 +239,40 @@ en-us:
       name: setup
       desc: Keiko shows you all features available and helps you set them up
       embed:
-        title: "⚙️ Server Setup"
-        desc: "Here you can see and manage all my features! Use the buttons below or type the command to get started 🐾"
-        enabled: Enabled
-        not-configured: Not configured
+        title: "🐶 Server Setup"
+        desc: "Pick what you want to set up and I'll guide you step by step!"
+        note: "These are my moderation and notification features. More commands and help live in `/help`!"
+        configured: "Configured · $count"
+        pending: "Not set up yet · $count"
         paused: Paused
-        all-configured: "All features are configured! Use each command to manage them ✨"
+        all-configured: "Everything is set up! Use the buttons to fine-tune whatever you like ✨"
         footer: "Use the `/report` command to tell me a bug"
+        features:
+          welcome-messages: A warm welcome for new members
+          default-roles: Roles given to new members automatically
+          block-links: Keeps unwanted links out of your server
+          twitch: Notifies you when your streamers go live
+          youtube: Notifies you when a new video is out
+          birthdays: Birthday wishes for your members
+      history:
+        desc: "The latest changes across all my features in this server:"
+        empty: "No changes recorded here yet. Set up a feature and it shows up in this list!"
+      permissions:
+        title: "🩺 Keiko's Permissions"
+        desc: "I checked what I need for each configured feature:"
+        ok: "✅ All good here"
+        nothing: "No feature is set up yet, so there is nothing for me to check. Set one up and come back!"
+        server: "⚠️ I need the **$permission** permission in the server"
+        channel: "⚠️ I need the **$permission** permission in <#$channel>"
+        channel-gone: "⚠️ A configured channel no longer exists"
+        role-above: "⚠️ The <@&$role> role is above mine, so I can't assign it"
+        names:
+          view_channel: View Channels
+          send_messages: Send Messages
+          embed_links: Embed Links
+          attach_files: Attach Files
+          manage_roles: Manage Roles
+          manage_messages: Manage Messages
 
   groups:
     moderations: moderations

@@ -1,13 +1,12 @@
 import discord
 
 from app.bot import DiscordBot
-from app.data.moderations import find_moderations_by_guild
 from app.decorators import keiko_command
 from app.services import analytics
 from app.services.utils import parse_locale
 from app.translator import locale_str
 from app.types.cogs import Cog
-from app.views.setup import SetupView
+from app.services.setup import setup_dashboard
 
 
 class Setup(Cog, name=locale_str("setup", type="name", namespace="setup")):
@@ -27,13 +26,10 @@ class Setup(Cog, name=locale_str("setup", type="name", namespace="setup")):
             user_id=interaction.user.id,
             source=analytics.resolve_source(interaction),
         )
-        locale = parse_locale(interaction.locale)
-        guild_id = str(interaction.guild.id)
-        moderations = find_moderations_by_guild(interaction.guild.id) or {}
-        view = SetupView(moderations, locale, guild_id=guild_id)
-        embed = view.get_embed()
-
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        view = await setup_dashboard(
+            str(interaction.guild.id), parse_locale(interaction.locale)
+        )
+        await interaction.response.send_message(view=view, ephemeral=True)
 
 
 async def setup(bot: DiscordBot) -> None:

@@ -239,13 +239,40 @@ pt-br:
       name: configurar
       desc: Keiko mostra todas as funcionalidades disponíveis e te ajuda a configurá-las
       embed:
-        title: "⚙️ Configuração do Servidor"
-        desc: "Aqui você pode ver e gerenciar todas as minhas funcionalidades! Use os botões abaixo ou digite o comando para começar 🐾"
-        enabled: Ativado
-        not-configured: Não configurado
+        title: "🐶 Configuração do Servidor"
+        desc: "Escolha o que você quer ajustar e eu te guio passo a passo!"
+        note: "Aqui ficam minhas funcionalidades de moderação e notificações. Tem mais comandos e ajuda no `/ajuda`!"
+        configured: "Configuradas · $count"
+        pending: "Para configurar · $count"
         paused: Pausado
-        all-configured: "Todas as funcionalidades estão configuradas! Use cada comando para gerenciá-las ✨"
+        all-configured: "Tudo configurado! Use os botões para ajustar o que quiser ✨"
         footer: "Use o comando `/reportar` para me contar um bug"
+        features:
+          welcome-messages: Boas-vindas para novos membros
+          default-roles: Cargos automáticos para novos membros
+          block-links: Bloqueia links indesejados no servidor
+          twitch: Avisa quando seus streamers entram ao vivo
+          youtube: Avisa quando sai um vídeo novo no canal
+          birthdays: Parabéns no aniversário dos membros
+      history:
+        desc: "As últimas mudanças em todas as minhas funcionalidades neste servidor:"
+        empty: "Ainda não tem nenhuma mudança registrada por aqui. Configure uma funcionalidade e ela aparece nesta lista!"
+      permissions:
+        title: "🩺 Permissões do Keiko"
+        desc: "Conferi o que eu preciso para cada funcionalidade configurada:"
+        ok: "✅ Tudo certo por aqui"
+        nothing: "Nenhuma funcionalidade configurada ainda, então não tenho o que conferir. Configure uma e volte aqui!"
+        server: "⚠️ Preciso da permissão **$permission** no servidor"
+        channel: "⚠️ Preciso da permissão **$permission** em <#$channel>"
+        channel-gone: "⚠️ Um canal configurado não existe mais"
+        role-above: "⚠️ O cargo <@&$role> está acima do meu, então não consigo atribuí-lo"
+        names:
+          view_channel: Ver canais
+          send_messages: Enviar mensagens
+          embed_links: Inserir links
+          attach_files: Anexar arquivos
+          manage_roles: Gerenciar cargos
+          manage_messages: Gerenciar mensagens
 
   groups:
     moderations: moderações
