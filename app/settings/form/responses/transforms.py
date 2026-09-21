@@ -58,3 +58,16 @@ TRANSFORMS: dict[str, Transform] = {
 def transform(name: str | None) -> Transform | None:
     """The registered transform called `name`, None when there is none."""
     return TRANSFORMS.get(name) if name else None
+
+
+def handle(value: str) -> str:
+    """A typed nick or handle without spaces around it, a leading @ or capitals."""
+    return value.strip().removeprefix("@").strip().lower()
+
+
+NORMALIZERS: dict[str, Callable[[str], str]] = {"handle": handle}
+
+
+def normalizer(name: str | None) -> Callable[[str], str] | None:
+    """The registered input normalizer called `name`, None when there is none."""
+    return NORMALIZERS.get(name) if name else None

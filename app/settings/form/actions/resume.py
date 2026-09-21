@@ -18,7 +18,7 @@ from app.settings.form.actions.action import (
 from app.settings.form.components import Button, Screen
 from app.settings.form.copy import text
 from app.settings.form.form_state import Answer, FormSession
-from app.settings.form.responses.styles import format_value
+from app.settings.form.responses.styles import empty_value, format_value
 from app.settings.form.responses.summary import ResponseView
 
 
@@ -33,7 +33,7 @@ def composition_lines(
             if not isinstance(entry, Mapping) or entry.get("hidden"):
                 continue
             formatted = format_value(entry.get("value"), entry.get("style"), locale)
-            lines += f"- {entry['title']}: **{formatted or '-'}**\n"
+            lines += f"- {entry['title']}: **{formatted or empty_value(locale)}**\n"
         result += f"\n{Emojis.FRISBEE_EMOJI} **{title} #{number}**\n{lines}"
     return result
 
@@ -53,9 +53,15 @@ def settings_summary(listed: Sequence[ResponseView], locale: str) -> str:
             continue
         formatted = format_value(view.value, view.style, locale)
         if isinstance(formatted, str) and "\n" in formatted:
-            result += f"\n{Emojis.FRISBEE_EMOJI} {view.title}:\n**{formatted or '-'}**"
+            result += (
+                f"\n{Emojis.FRISBEE_EMOJI} {view.title}:\n"
+                f"**{formatted or empty_value(locale)}**"
+            )
         else:
-            result += f"\n{Emojis.FRISBEE_EMOJI} {view.title}: **{formatted or '-'}**"
+            result += (
+                f"\n{Emojis.FRISBEE_EMOJI} {view.title}: "
+                f"**{formatted or empty_value(locale)}**"
+            )
     return result
 
 

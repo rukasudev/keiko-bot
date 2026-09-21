@@ -129,12 +129,13 @@ async def test_features_are_grouped_by_whether_they_are_set_up(configured):
     view = await dashboard()
 
     headings = [text for text in texts(view) if text.startswith("### ")]
-    assert headings == [heading("pending", 4), heading("configured", 2)]
+    assert headings == [heading("pending", 5), heading("configured", 2)]
     assert [row.accessory.command_key for row in rows(view)] == [
         Commands.DEFAULT_ROLES_KEY,
         Commands.NOTIFICATIONS_TWITCH_KEY,
         Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
         Commands.REMINDERS_BIRTHDAY_KEY,
+        Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
         Commands.WELCOME_MESSAGES_KEY,
         Commands.BLOCK_LINKS_KEY,
     ], "what is left to set up comes first, each group in declared order"
@@ -216,8 +217,9 @@ async def test_the_greeting_dashboard_button_sends_the_same_screen(configured):
 
     sent = AsyncMock()
     interaction = SimpleNamespace(
-        user=SimpleNamespace(guild_permissions=SimpleNamespace(administrator=True)),
+        user=SimpleNamespace(id=555, guild_permissions=SimpleNamespace(administrator=True)),
         locale=discord.Locale.brazil_portuguese,
+        guild_id=int(GUILD_ID),
         guild=SimpleNamespace(id=int(GUILD_ID)),
         response=SimpleNamespace(send_message=sent),
     )
@@ -280,3 +282,84 @@ async def test_each_card_button_opens_its_screen(
 
     assert opened.await_args.args[0] is interaction
 
+
+
+async def test_stream_elements_commands_is_listed_on_setup(deps):
+    """Broke as: the StreamElements integration was a command nobody found."""
+    view = await dashboard()
+    by_key = {row.accessory.command_key: row for row in rows(view)}
+
+    row = by_key[Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY]
+    assert "`/integrações " in text_of(row)
+    assert "integraç" in ml(f"{BASE}.note", "pt-br")
+
+
+class _StubSelect(discord.ui.Select):
+    def update(self):
+        return None
+
+
+def _help_interaction(admin=True):
+    return SimpleNamespace(
+        client=SimpleNamespace(app_commands=[]),
+        locale=discord.Locale.brazil_portuguese,
+        guild_id=int(GUILD_ID),
+        guild=SimpleNamespace(id=int(GUILD_ID)),
+        user=SimpleNamespace(
+            id=555, guild_permissions=SimpleNamespace(administrator=admin)
+        ),
+        extras={},
+        response=SimpleNamespace(send_message=AsyncMock()),
+        edit_original_response=AsyncMock(),
+    )
+
+
+async def _help_setup_button(monkeypatch):
+    from app.services import help as help_service
+
+    monkeypatch.setattr(
+        help_service,
+        "HelpSelect",
+        lambda placeholder, data: _StubSelect(
+            placeholder=placeholder, options=[discord.SelectOption(label="x")]
+        ),
+    )
+    interaction = _help_interaction()
+    await help_service.send_help(interaction)
+    view = interaction.response.send_message.await_args.kwargs["view"]
+    embed = interaction.edit_original_response.await_args.kwargs["embed"]
+    label = ml("buttons.setup.dashboard.label", "pt-br")
+    buttons = [
+        child
+        for child in view.children
+        if isinstance(child, discord.ui.Button) and child.label == label
+    ]
+    return embed, buttons
+
+
+async def test_help_mentions_setup_and_its_button_opens_the_dashboard_for_admins(
+    configured, monkeypatch
+):
+    """Broke as: /help never told an admin that /setup holds every feature."""
+    embed, buttons = await _help_setup_button(monkeypatch)
+
+    assert "`/configurar`" in embed.description
+    assert len(buttons) == 1
+    clicker = _help_interaction(admin=True)
+    await buttons[0].callback(clicker)
+    sent = clicker.response.send_message.await_args.kwargs
+    assert isinstance(sent["view"], discord.ui.LayoutView)
+    assert sent.get("ephemeral") is True
+
+
+async def test_the_help_setup_button_tells_a_member_it_needs_an_admin(
+    configured, monkeypatch
+):
+    _embed, buttons = await _help_setup_button(monkeypatch)
+
+    clicker = _help_interaction(admin=False)
+    await buttons[0].callback(clicker)
+
+    sent = clicker.response.send_message.await_args.kwargs
+    assert ml("buttons.setup.admin-only.title", "pt-br") in sent["embed"].title
+    assert "view" not in sent

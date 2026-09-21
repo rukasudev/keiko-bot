@@ -90,7 +90,7 @@ below names the YAML spelling first and the model second.
 | `action:` in YAML | Kind | Model | What it renders |
 |---|---|---|---|
 | `form` | `intro` | `IntroStep` | the first screen: what the feature does, then Confirm |
-| `modal` | `text` | `TextStep` | a modal with one text input (`label`, `placeholder`, `max_length`, `multiline`, `lowercase`, `validation`, `transform`) or several named `fields` |
+| `modal` | `text` | `TextStep` | a modal with one text input (`label`, `placeholder`, `max_length`, `multiline`, `lowercase`, `normalize` (a registered input normalizer such as `handle`: no spaces around, no leading @, lowercase), `validation`, `transform`) or several named `fields` |
 | `file_upload` | `text` with `input: file` | `TextStep` | a modal with a file input |
 | `options` | `single_choice` | `SingleChoiceStep` | one button per `option` (`label`, `value`, `style`); `unique`, `styled_values`, `auto_confirm` |
 | `design_select` | `single_choice` with `designs` | `SingleChoiceStep` | a gallery, one `Design` (`key`, `label`, `description`) per entry, with the feature's previews |
@@ -208,7 +208,7 @@ contributes, and nothing more:
 | `prefetch(step_key, payload, context)` | the external lookups a validator of that step declared in `needs` |
 | `to_document(answers, locale)` / `from_document(document)` | answers to the persisted document and back, any schema version |
 | `commit(kind, payload, context) -> CommitResult` | writes what `kind` asks (`setup`, `edit`, `edit_item`, `add_item`, `remove_item`, `pause`, `unpause`, `disable`), records the audit event, and reports `written` and `external` so a failure midway can say what happened |
-| `asides()` | read-only side actions by button action name (`AsideAction(handler, defer, own_response, cooldown)`) |
+| `asides()` | read-only side actions by button action name (`AsideAction(handler, defer, own_response, cooldown, confirm)`) |
 | `responses_for_preview(answers, locale)` | the answers in the shape the preview functions read |
 
 A feature never sees the session, never renders, and never reaches another

@@ -44,7 +44,7 @@ CONSUMERS = [
             ]},
             "answer": "Nada de links aqui! :p",
         },
-        ["Bloquear todos, com exceções", "<#100>", "<@&201>", "youtube.com",
+        ["Bloquear todos", "<#100>", "<@&201>", "youtube.com",
          "meusite.com.br", "Nada de links aqui! :p"],
         id="block_links-card-first-shape",
     ),
@@ -120,7 +120,7 @@ async def test_manager_form_renders_legacy_block_links_through_normalize(
     )
     scenario.expect_message(kind="send", ephemeral=True)
     scenario.expect_configuration_values(
-        "Bloquear todos, com exceções",     # defaulted mode, localized label
+        "Bloquear todos",     # defaulted mode, localized label
         "youtube.com", "spotify.com",       # labels translated to domains
         "<#100>", "Nada de links aqui! :p",
     )

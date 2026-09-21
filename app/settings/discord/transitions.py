@@ -69,6 +69,15 @@ class Outcome:
     succeeded: bool
     duration_ms: int
     error: str | None = None
+    reported: bool = False
+
+
+class EffectFailed(Exception):
+    """An effect failure already logged by the run it happened in."""
+
+    def __init__(self, error: Exception) -> None:
+        super().__init__(repr(error))
+        self.error = error
 
 
 AsideRunner = Callable[[discord.Interaction, str, FormSession], Awaitable[None]]
@@ -106,6 +115,11 @@ class Executor:
             try:
                 await self._execute(effect)
                 self.outcomes.append(Outcome(name, True, _ms(started)))
+            except EffectFailed as failed:
+                self.outcomes.append(
+                    Outcome(name, False, _ms(started), str(failed), reported=True)
+                )
+                raise
             except Exception as error:
                 self.outcomes.append(Outcome(name, False, _ms(started), repr(error)))
                 raise

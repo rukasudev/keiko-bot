@@ -49,6 +49,7 @@ steps:
         max_length: 30
         validation: validate_youtube_channel
         lowercase: true
+        normalize: handle
         title:
           en-us: Youtuber
           pt-br: Youtuber
@@ -56,11 +57,11 @@ steps:
           en-us: Youtuber
           pt-br: Youtuber
         description:
-          en-us: "Only the youtuber's username. Example: pewdiepie"
-          pt-br: "Apenas o username do youtuber. Exemplo: pewdiepie"
+          en-us: "The youtuber's channel name, with or without @. Example: @pewdiepie"
+          pt-br: "O nome do canal no YouTube, com ou sem @. Exemplo: @pewdiepie"
         placeholder:
-          en-us: pewdiepie
-          pt-br: pewdiepie
+          en-us: "your channel (e.g. @pewdiepie)"
+          pt-br: "seu canal (ex: @pewdiepie)"
 
       - action: button
         key: continue_to_messages

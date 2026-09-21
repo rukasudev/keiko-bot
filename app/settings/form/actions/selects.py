@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
+from app.constants import ViewConstants as view_constants
 from app.settings.form.actions import Refusal
 from app.settings.form.actions.action import (
     RenderContext,
@@ -78,10 +79,18 @@ def parse(
     """The ids picked: one scalar, several as a list, none when nothing."""
     if isinstance(step, MultiPickStep):
         answers: dict[str, Answer] = {}
+        picked = False
         for select in step.selects:
             draft = session.answers.get(select.key)
             values = _ids(draft.raw) if draft else ()
+            picked = picked or bool(values)
             answers[select.key] = Answer(_stored(values))
+        if step.required and not picked:
+            return Refusal(
+                "selection-required",
+                plain=True,
+                delete_after=view_constants.ACTION_NOTICE_SECONDS,
+            )
         return answers
     draft = session.answers.get(step.key)
     values = (
@@ -89,5 +98,9 @@ def parse(
     )
 
     if step.required and not values:
-        return Refusal("selection-required", plain=True, delete_after=5)
+        return Refusal(
+            "selection-required",
+            plain=True,
+            delete_after=view_constants.ACTION_NOTICE_SECONDS,
+        )
     return {step.key: Answer(_stored(values) if values else [])}

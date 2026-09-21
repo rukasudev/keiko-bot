@@ -136,6 +136,12 @@
         ],
         "placeholder": "Selecione o item que deseja remover",
         "type": "select"
+      },
+      {
+        "disabled": false,
+        "label": "Voltar",
+        "style": "secondary",
+        "type": "button"
       }
     ],
     "components_v2": false,
@@ -187,8 +193,8 @@
       },
       {
         "disabled": false,
-        "label": "Cancelar",
-        "style": "danger",
+        "label": "Voltar",
+        "style": "secondary",
         "type": "button"
       }
     ],

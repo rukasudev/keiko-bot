@@ -90,6 +90,7 @@ en-us:
         title: 📚 Available commands
         desc:
           "Here are my commands that will help you make your server more cozy! ✨\n\n
+          Taking care of this server? Use `/setup` to turn on and adjust my features! ⚙️\n\n
           Select a command below to see its description and run it directly ⬇️\n\n"
         placeholder: Select a command
         base-commands: Base commands
@@ -241,7 +242,7 @@ en-us:
       embed:
         title: "🐶 Server Setup"
         desc: "Pick what you want to set up and I'll guide you step by step!"
-        note: "These are my moderation and notification features. More commands and help live in `/help`!"
+        note: "These are my moderation, notification and integration features. More commands and help live in `/help`!"
         configured: "Configured · $count"
         pending: "Not set up yet · $count"
         paused: Paused
@@ -254,6 +255,7 @@ en-us:
           twitch: Notifies you when your streamers go live
           youtube: Notifies you when a new video is out
           birthdays: Birthday wishes for your members
+          stream-elements: Answers StreamElements commands in chat
       history:
         desc: "The latest changes across all my features in this server:"
         empty: "No changes recorded here yet. Set up a feature and it shows up in this list!"
@@ -359,5 +361,5 @@ en-us:
 
   resume:
     settings: Settings
-    empty: nothing here yet
+    empty: "None"
     more: "and $count more"

@@ -80,12 +80,18 @@ en-us:
   roles-sync:
     label: Sync
     desc: Keiko immediately assigns the default roles to all server users
+    confirm:
+      title: "🔄 Sync roles?"
+      message: "I'll give the default roles to **every member and bot** already in the server, not only to whoever joins from now on. This may take a few minutes. Do you want to continue?"
+      footer: "Use the `/report` command to tell me a bug"
     waiting:
       title: 🔄 Syncing roles...
       message: I'm assigning the default roles to all members of the server! This may take a few minutes...
+      footer: "Use the `/report` command to tell me a bug"
     response:
-      title: ✨ Roles assigned successfully!
-      message: I've added the default roles to all members of the server! Now everyone is even cuter! 🐶
+      title: "✨ Roles synced successfully!"
+      message: "Done! I gave the default roles to everyone who was already in the server. Now everyone is even cuter! 🐶\n\n👥 Members: **$members**\n🤖 Bots: **$bots**"
+      footer: "Use the `/report` command to tell me a bug"
 
   captions:
     desc: Here is a brief description of the buttons and their functionalities
@@ -145,6 +151,9 @@ en-us:
     birthdays:
       label: Birthdays
       desc: Celebrate your members' birthdays with a personalized message
+    stream-elements:
+      label: StreamElements
+      desc: Answer StreamElements commands in your Discord chat
     start:
       label: Set up
       desc: Set up this feature

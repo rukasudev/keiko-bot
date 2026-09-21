@@ -11,7 +11,7 @@ from app.settings.form.components import FileInput, Input, Screen, TextInputs
 from app.settings.form.copy import text
 from app.settings.form.form_state import Answer, EditItem, FormSession
 from app.settings.form.form_yaml import TextField, TextStep
-from app.settings.form.responses.transforms import transform
+from app.settings.form.responses.transforms import normalizer, transform
 from app.settings.form.responses.validations import ValidationContext, validator
 
 DEFAULT_MAX_LENGTH = 40
@@ -158,6 +158,9 @@ def parse(
 
     if step.lowercase:
         values = [value.lower() for value in values]
+    normalize = normalizer(step.normalize)
+    if normalize:
+        values = [normalize(value) for value in values]
     if not step.fields:
         refusal = _validate(step, values[0] if values else "", session, context)
         return refusal or {step.key: Answer(_scalar(step, values))}

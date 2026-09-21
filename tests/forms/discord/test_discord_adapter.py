@@ -7,6 +7,7 @@ visible, a replacement survives a failed delete, and payloads obey Discord.
 """
 
 import asyncio
+import logging
 from types import SimpleNamespace
 
 import discord
@@ -504,3 +505,67 @@ async def test_pausing_from_a_card_panel_replaces_it_with_the_paused_message(v2,
 
     assert not scenario.current_message.flags.components_v2
     assert scenario.current_message.embeds
+
+
+async def test_a_finalize_that_fails_inside_a_commit_is_reported_once(
+    v2, deps, monkeypatch, caplog
+):
+    """Broke as: one failed finalize logged Finalize failed, a false Commit failed and
+    discord.py's Ignoring exception, three error messages for one failure."""
+    from app.settings.discord.transitions import Executor
+
+    async def broken(self, **kwargs):
+        raise RuntimeError("drawing failed")
+
+    seed_document(deps, "welcome_messages", WELCOME_ENABLED)
+    scenario = await v2().start_command("welcome_messages")
+    await scenario.click("pause")
+    monkeypatch.setattr(Executor, "_replace", broken)
+
+    raised = False
+    with caplog.at_level(logging.ERROR):
+        try:
+            await scenario.submit_confirmation()
+        except RuntimeError:
+            raised = True
+
+    failures = [
+        record.getMessage()
+        for record in caplog.records
+        if record.levelno >= logging.ERROR and " failed" in record.getMessage()
+    ]
+    assert not raised, "a logged effect failure must not reach discord.py"
+    assert len(failures) == 1, failures
+    assert "effect Finalize failed" in failures[0]
+
+
+async def test_an_aside_that_asks_first_spends_its_cooldown_only_when_confirmed(
+    v2, deps, monkeypatch
+):
+    """Broke as: Sync wrote roles to every member on one click, without a word."""
+    from unittest.mock import AsyncMock
+
+    from app.settings.features import default_roles as default_roles_feature
+    from tests.behavioral.golden.paths.default_roles import ENABLED as ROLES_ENABLED
+
+    sync = AsyncMock()
+    monkeypatch.setattr(default_roles_feature, "set_on_default_roles_sync", sync)
+    seed_document(deps, "default_roles", ROLES_ENABLED)
+    scenario = await v2().start_command("default_roles")
+    panel = scenario.current_message
+    state = RUNTIME.sessions[scenario.session.id]
+
+    async def click(message, label):
+        button = locators.find_button(message, label, scenario.locale)
+        interaction = scenario._mint(message=message, custom_id=button.custom_id)
+        await locators.dispatch_click(message.view, button, interaction)
+
+    await click(panel, "Sincronizar")
+    ask = scenario.current_message
+    assert ask is not panel and "Sincronizar cargos?" in ask.embeds[0].title
+    await click(ask, "Cancelar")
+    assert sync.await_count == 0 and not state.cooldowns
+
+    await click(panel, "Sincronizar")
+    await click(scenario.current_message, "Confirmar")
+    assert sync.await_count == 1 and "sync" in state.cooldowns

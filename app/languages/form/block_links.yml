@@ -64,20 +64,20 @@ steps:
           en-us: "How should I block links?"
           pt-br: "Como devo bloquear os links?"
         picker-description:
-          en-us: "✅ **Allow all, block only some**\nI let every link through, except the ones you tell me to block.\n\n🚫 **Block all, with exceptions**\nI delete every link, except the websites and links you allow.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
-          pt-br: "✅ **Permitir todos, bloquear alguns**\nEu deixo todos os links passarem, menos os que você mandar bloquear.\n\n🚫 **Bloquear todos, com exceções**\nEu apago todos os links, menos os sites e links que você liberar.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
+          en-us: "✅ **Allow all**\nI let every link through, except the ones you tell me to block.\n\n🚫 **Block all**\nI delete every link. If you want, you can still allow some websites and links as exceptions.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
+          pt-br: "✅ **Permitir todos**\nEu deixo todos os links passarem, menos os que você mandar bloquear.\n\n🚫 **Bloquear todos**\nEu apago todos os links. Se quiser, ainda dá para liberar alguns sites e links como exceção.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
         customize-label:
           en-us: "Choose mode"
           pt-br: "Escolher modo"
         options:
           - label:
-              en-us: "✅ Allow all, block only some"
-              pt-br: "✅ Permitir todos, bloquear alguns"
+              en-us: "✅ Allow all"
+              pt-br: "✅ Permitir todos"
             value: allow_all
             style: success
           - label:
-              en-us: "🚫 Block all, with exceptions"
-              pt-br: "🚫 Bloquear todos, com exceções"
+              en-us: "🚫 Block all"
+              pt-br: "🚫 Bloquear todos"
             value: block_all
             style: danger
       - key: allowed_links

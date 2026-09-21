@@ -287,3 +287,44 @@ class TestGetNotAvailableRoles:
 
         # Assert
         assert "<@&999>" in result
+
+
+class TestDefaultRolesSync:
+    """The sync button's messages."""
+
+    @pytest.mark.asyncio
+    async def test_the_sync_result_reads_like_keiko(self, mock_cache, guild, monkeypatch):
+        """Broke as: a bare green embed with no picture, no footer and no numbers."""
+        from unittest.mock import AsyncMock, MagicMock
+
+        from app.constants import KeikoIcons, Style
+        from app.services import default_roles as service
+
+        guild.members = [
+            create_member(guild, id=1, name="Ana"),
+            create_member(guild, id=2, name="Bia"),
+            create_member(guild, id=3, name="Helper", bot=True),
+        ]
+        mock_cache.return_value = {"default_roles": {"values": ["202"]}}
+        monkeypatch.setattr(
+            service, "set_default_roles", AsyncMock(return_value={"members": 2, "bots": 0})
+        )
+        message = MagicMock()
+        message.edit = AsyncMock()
+        interaction = MagicMock()
+        interaction.guild = guild
+        interaction.locale = "pt-br"
+        interaction.followup.send = AsyncMock(return_value=message)
+
+        await service.set_on_default_roles_sync(interaction)
+
+        waiting = interaction.followup.send.call_args.kwargs["embed"]
+        result = message.edit.call_args.kwargs["embed"]
+        for embed in (waiting, result):
+            assert embed.color.value == int(Style.BACKGROUND_COLOR, 16)
+            assert embed.thumbnail.url == KeikoIcons.IMAGE_01
+            assert embed.footer.text.startswith("• ")
+        assert "Membros: **2**" in result.description
+        assert "Bots: **0**" in result.description, (
+            "only the member roles are configured, so no bot got one"
+        )

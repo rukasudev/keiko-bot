@@ -7,7 +7,7 @@ from discord.app_commands.commands import Command
 from app.components.select import HelpSelect
 from app.constants import CogsConstants as cogs_constants
 from app.services import analytics
-from app.services.utils import ml, parse_valid_locale
+from app.services.utils import ml, parse_locale, parse_valid_locale
 from app.views.pagination import PaginationView
 
 
@@ -92,5 +92,10 @@ async def send_help(
     view.add_select(
         HelpSelect(ml(f"{base}.placeholder", locale=interaction.locale), select_data),
         first=True,
+    )
+    from app.services.setup import setup_dashboard_button
+
+    view.add_item(
+        setup_dashboard_button(parse_locale(interaction.locale), "help_button")
     )
     await view.send(ephemeral=ephemeral)

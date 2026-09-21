@@ -48,7 +48,7 @@ from app.settings.form.form_yaml import (
     TitleContentSection,
     ValueSelectSection,
 )
-from app.settings.form.responses.styles import format_boolean, format_value
+from app.settings.form.responses.styles import empty_value, format_boolean, format_value
 from app.settings.form.responses.summary import option_label
 from app.settings.form.responses.transforms import transform
 from app.settings.form.responses.validations import ValidationContext, validator
@@ -173,7 +173,7 @@ def _fill(body: str, variables: Mapping[str, str]) -> str:
 
 def _formatted(value: Any, style: str | None, locale: str) -> str:
     if value in EMPTY:
-        return "-"
+        return empty_value(locale)
     return format_value(value, style, locale) if style else str(value)
 
 

@@ -21,6 +21,7 @@ steps:
     key: streamer
     max_length: 30
     lowercase: true
+    normalize: handle
     validation: validate_streamer_name
     title:
       en-us: "Streamer"
@@ -32,8 +33,8 @@ steps:
       en-us: "Which streamer should I fetch commands from?"
       pt-br: "De qual streamer devo buscar os comandos?"
     placeholder:
-      en-us: "shroud"
-      pt-br: "shroud"
+      en-us: "your nick (e.g. @shroud)"
+      pt-br: "seu nick (ex: @shroud)"
 
   - action: resume
     key: confirm

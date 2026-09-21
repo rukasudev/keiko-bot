@@ -56,6 +56,8 @@ def format_mm_dd(value: Any, locale: str) -> str:
 
 
 def _lines(items: Sequence[str], style: str) -> str:
+    if not items:
+        return ""
     if style == "bullet":
         body = "\n".join(f"• {item}" for item in items)
     elif style == "numbered":
@@ -76,7 +78,7 @@ def format_single(value: Any, style: str | None, locale: str) -> str:
     if style == "mm_dd":
         return format_mm_dd(value, locale)
     if value is None:
-        return "-"
+        return empty_value(locale)
     mentions: dict[str, Callable[[Any], str]] = {
         "channel": lambda value: f"<#{value}>",
         "role": lambda value: f"<@&{value}>",
@@ -98,6 +100,11 @@ def format_list(values: Sequence[Any], style: str | None) -> str:
     if style in ("code", "bullet", "numbered"):
         return _lines([str(value) for value in values], style)
     return ", ".join(str(value) for value in values)
+
+
+def empty_value(locale: str) -> str:
+    """What a setting with nothing in it reads as, wherever it is shown."""
+    return text("commands.resume.empty", locale) or "-"
 
 
 def format_value(value: Any, style: str | None, locale: str) -> str:
