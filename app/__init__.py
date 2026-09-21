@@ -1,5 +1,6 @@
 import certifi
 import redis
+from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo import MongoClient
 
 from app import logger
@@ -8,9 +9,14 @@ from app.config import AppConfig
 
 
 def create_app(config: AppConfig) -> DiscordBot:
-    global mongo_client, redis_client, bot
+    global mongo_client, motor_client, redis_client, bot
 
     mongo_client = MongoClient(
+        config.MONGO_URL,
+        tls=config.is_prod(),
+        tlsCAFile=certifi.where() if config.is_prod() else None,
+    )
+    motor_client = AsyncIOMotorClient(
         config.MONGO_URL,
         tls=config.is_prod(),
         tlsCAFile=certifi.where() if config.is_prod() else None,

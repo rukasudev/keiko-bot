@@ -1,0 +1,20 @@
+steps:
+  - action: form
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - action: composition
+    key: items
+    parent_key: fixture
+    title: {en-us: Items, pt-br: Itens}
+    description: {en-us: list, pt-br: lista}
+    steps:
+      - action: modal
+        key: name
+        title: {en-us: Name, pt-br: Nome}
+        description: {en-us: type, pt-br: digite}
+        label: {en-us: Name, pt-br: Nome}
+  - action: resume
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

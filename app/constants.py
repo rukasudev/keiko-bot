@@ -131,13 +131,6 @@ class Commands:
     REMINDER_TYPE_BIRTHDAY: Final[str] = "reminders_birthday"
     REMINDER_API_TITLE_BIRTHDAY: Final[str] = "birthday_reminder"
 
-    LIFECYCLE_EDIT: Final[str] = "edit"
-    LIFECYCLE_PAUSE: Final[str] = "pause"
-    LIFECYCLE_UNPAUSE: Final[str] = "unpause"
-    LIFECYCLE_DISABLE: Final[str] = "disable"
-    LIFECYCLE_ADD_ITEM: Final[str] = "add_item"
-    LIFECYCLE_REMOVE_ITEM: Final[str] = "remove_item"
-
     BIRTHDAY_CONFIG_CHANNEL: Final[str] = "channel"
     BIRTHDAY_CONFIG_MENTION_EVERYONE: Final[str] = "mention_everyone"
     BIRTHDAY_CONFIG_TIMEZONE: Final[str] = "timezone"
@@ -157,37 +150,6 @@ class Commands:
         REMINDERS_BIRTHDAY_KEY,
         WELCOME_MESSAGES_KEY,
     ]
-
-    COMMAND_KEY_TO_COMPOSITION_KEY: Final[Dict[str, str]] = {
-        NOTIFICATIONS_TWITCH_KEY: NOTIFICATIONS_KEY,
-        NOTIFICATIONS_YOUTUBE_VIDEO_KEY: NOTIFICATIONS_KEY,
-        REMINDERS_BIRTHDAY_KEY: REMINDERS_BIRTHDAY_KEY,
-        BLOCK_LINKS_KEY: BLOCK_LINKS_CUSTOM_LINKS_KEY,
-    }
-
-    COMMAND_SERVICES: Final[Dict[str, str]] = {
-        WELCOME_MESSAGES_KEY: "app.services.welcome_messages",
-        DEFAULT_ROLES_KEY: "app.services.default_roles",
-        BLOCK_LINKS_KEY: "app.services.block_links",
-        NOTIFICATIONS_TWITCH_KEY: "app.services.notifications_twitch",
-        NOTIFICATIONS_YOUTUBE_VIDEO_KEY: "app.services.notifications_youtube_video",
-        REMINDERS_BIRTHDAY_KEY: "app.services.reminders_birthdays",
-        INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: "app.services.stream_elements",
-    }
-
-    COMPOSITION_COMMANDS_LIST: Final[List[str]] = [
-        NOTIFICATIONS_TWITCH_KEY,
-        NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
-        REMINDERS_BIRTHDAY_KEY,
-        BLOCK_LINKS_KEY,
-    ]
-
-    COMPOSITION_MAX_LENGTH: Final[Dict[str, int]] = {
-        NOTIFICATIONS_TWITCH_KEY: 3,
-        NOTIFICATIONS_YOUTUBE_VIDEO_KEY: 2,
-        REMINDERS_BIRTHDAY_KEY: 25,
-        BLOCK_LINKS_KEY: 25,
-    }
 
     SETUP_FEATURES: Final[List[Dict[str, str]]] = [
         {"command_key": WELCOME_MESSAGES_KEY, "button_key": "welcome-messages", "emoji": "🎉"},
