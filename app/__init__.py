@@ -6,6 +6,18 @@ from pymongo import MongoClient
 from app import logger
 from app.bot import DiscordBot
 from app.config import AppConfig
+from app.constants import DBConfigs
+
+
+def connect_redis(url: str) -> redis.Redis:
+    """A Redis client that gives up on a connection or a read that hangs."""
+    return redis.from_url(
+        url=url,
+        health_check_interval=30,
+        decode_responses=True,
+        socket_timeout=DBConfigs.REDIS_SOCKET_TIMEOUT_SECONDS,
+        socket_connect_timeout=DBConfigs.REDIS_SOCKET_TIMEOUT_SECONDS,
+    )
 
 
 def create_app(config: AppConfig) -> DiscordBot:
@@ -28,9 +40,7 @@ def create_app(config: AppConfig) -> DiscordBot:
     )
     logger.info(f"MongoDB: {mongo_status}")
 
-    redis_client = redis.from_url(
-        url=config.REDIS_URL, health_check_interval=30, decode_responses=True
-    )
+    redis_client = connect_redis(config.REDIS_URL)
     redis_status = "OK" if redis_client.ping() else "Error"
     logger.info(f"Redis: {redis_status}")
 

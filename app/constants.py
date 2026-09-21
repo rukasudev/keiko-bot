@@ -1,4 +1,4 @@
-from typing import Any, Dict, Final, List
+from typing import Any, Dict, Final, List, Tuple
 
 import discord
 
@@ -32,6 +32,11 @@ class DBConfigs:
     ADMIN_LOGS_FILES_CHANNEL_ID: Final[str] = "admin_logs_files_channel_id"
     ADMIN_LOGS_BOT_ACTIONS_CHANNEL_ID: Final[str] = "admin_logs_bot_actions_channel_id"
     ADMIN_DUMP_CHANNEL_ID: Final[str] = "admin_dump_channel_id"
+
+    REDIS_SOCKET_TIMEOUT_SECONDS: Final[float] = 5.0
+    IMAGE_DOWNLOAD_TIMEOUT_SECONDS: Final[float] = 10.0
+    IMAGE_CACHE_SIZE: Final[int] = 128
+    IMAGE_MAX_SIZE: Final[Tuple[int, int]] = (1024, 1024)
 
     ADMIN_CONFIGS_LIST: Final[List] = [
         ADMIN_GUILD_ID,
@@ -96,6 +101,7 @@ class Commands:
     # debug logs — the hot window of "why did it break?", queried directly in
     # Mongo. Anything older lives in the daily file on the Discord logs channel.
     DEBUG_LOGS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 30
+
     DEBUG_LOGS_QUEUE_MAXSIZE: Final[int] = 5000
     DEBUG_LOGS_FLUSH_BATCH: Final[int] = 200
     DEBUG_LOGS_FLUSH_MAX_BATCHES: Final[int] = 25
@@ -252,12 +258,13 @@ class ViewConstants:
     ACTION_NOTICE_SECONDS: Final[int] = 5
     COMPOSITION_PREVIEW_LIMIT: Final[int] = 10
     FORM_SWEEP_SECONDS: Final[int] = 60
+    PREVIEW_WAIT_SECONDS: Final[int] = 8  # a click waits this long for a gallery's pictures
 
 
 class WelcomeDesign:
-    CUSTOM_BLUR_PREVIEW: Final[str] = "https://i.ibb.co/yBnKHC5p/04af360692ff269044c6de5a30bd45e4.gif"
-    CUSTOM_ONLY_PREVIEW: Final[str] = "https://i.ibb.co/hxBscZDB/REC-20260213104214-ezgif-com-video-to-gif-converter.gif"
-    DEFAULT_ICON: Final[str] = "https://i.sstatic.net/41v2I.png"
+    BANNER_SIZE: Final[Tuple[int, int]] = (800, 400)
+    CUSTOM_BLUR_PREVIEW: Final[str] = "app/assets/welcome/custom_blur_preview.jpg"
+    CUSTOM_ONLY_PREVIEW: Final[str] = "app/assets/welcome/custom_only_preview.gif"
 
     PREVIEW_DATA_KEYS: Final[List[str]] = [
         "welcome_messages_title",
@@ -278,6 +285,8 @@ class DiscordLimits:
     EMBED_FIELD_VALUE: Final[int] = 1024
     SELECT_OPTION_TEXT: Final[int] = 100
     INTERACTION_TOKEN_SECONDS: Final[int] = 900
+    ATTACHMENT_URL_SECONDS: Final[int] = 86400
+    ATTACHMENT_URL_REFRESH_SECONDS: Final[int] = 82800  # an hour before the link dies
 
 
 class TraceTitles:

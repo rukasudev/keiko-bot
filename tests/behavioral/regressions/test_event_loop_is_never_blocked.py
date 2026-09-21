@@ -19,15 +19,32 @@ point against a call that blocks, and count how many times the event loop came
 back to life while it ran. A blocked loop cannot count.
 """
 import asyncio
+import socket
+import threading
 import time
+from io import BytesIO
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
+import redis
+import requests
+from PIL import Image
 
 from app.constants import Commands as commands_constants
-from app.services import block_links, notifications_twitch, stream_elements
-from tests.mocks import create_message
+from app.services import (
+    block_links,
+    default_roles,
+    notifications_twitch,
+    stream_elements,
+    welcome_messages,
+)
+from app.constants import DBConfigs
+from tests.mocks import create_member, create_message
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("event_loop")]
+
+REAL_CREATE_BANNER = welcome_messages.create_banner
 
 BLOCKING_SECONDS = 0.25
 TICK_SECONDS = 0.005
@@ -192,3 +209,129 @@ async def test_subscribing_a_youtuber_never_freezes_the_bot(deps, monkeypatch):
         f"the loop only came back {ticks} times: Discord's three second budget "
         f"is spent inside the subscribe, so the acknowledgement arrives too late"
     )
+
+
+async def test_a_member_joining_a_welcome_server_never_freezes_the_bot(
+    deps, mock_cache, guild, bot, member
+):
+    """`on_member_join` reads the welcome configuration for every new member."""
+    mock_cache.side_effect = blocking({})
+
+    ticks = await ticks_while(welcome_messages.send_welcome_message(member))
+
+    assert ticks >= MIN_TICKS, (
+        f"the loop only came back {ticks} times: every member join froze the "
+        f"gateway for the whole configuration read"
+    )
+
+
+async def test_a_member_joining_a_default_roles_server_never_freezes_the_bot(
+    deps, mock_cache, guild, bot, member
+):
+    mock_cache.side_effect = blocking({})
+
+    ticks = await ticks_while(default_roles.set_on_member_join(member))
+
+    assert ticks >= MIN_TICKS
+
+
+async def test_syncing_default_roles_never_freezes_the_bot(
+    deps, mock_cache, guild, bot, interaction
+):
+    mock_cache.side_effect = blocking({})
+
+    ticks = await ticks_while(default_roles.set_on_default_roles_sync(interaction))
+
+    assert ticks >= MIN_TICKS
+
+
+async def test_previewing_a_welcome_message_never_freezes_the_bot(
+    deps, mock_cache, guild, bot, interaction
+):
+    mock_cache.side_effect = blocking({})
+
+    ticks = await ticks_while(
+        welcome_messages.send_welcome_message_preview(interaction, [])
+    )
+
+    assert ticks >= MIN_TICKS
+
+
+async def test_checking_why_a_link_passed_never_freezes_the_bot(
+    deps, mock_cache, guild, bot, channel, member, interaction
+):
+    mock_cache.side_effect = blocking({})
+    message = create_message(content="https://example.com", author=member, channel=channel)
+
+    ticks = await ticks_while(block_links.send_link_check_message(interaction, message))
+
+    assert ticks >= MIN_TICKS
+
+
+async def test_drawing_a_welcome_banner_never_freezes_the_bot(
+    deps, mock_cache, guild, bot, channel, monkeypatch
+):
+    """A member join draws a banner: two image downloads and an upload."""
+    buffer = BytesIO()
+    Image.new("RGB", (64, 64), "orange").save(buffer, format="PNG")
+
+    def slow_download(url, *args, **kwargs):
+        if "/avatars/" in url:
+            time.sleep(BLOCKING_SECONDS)
+        response = requests.Response()
+        response.status_code = 200
+        response._content = buffer.getvalue()
+        return response
+
+    monkeypatch.setattr(welcome_messages, "create_banner", REAL_CREATE_BANNER)
+    monkeypatch.setattr(requests, "get", slow_download)
+    bot.get_channel.return_value.send = AsyncMock(
+        return_value=SimpleNamespace(
+            attachments=[SimpleNamespace(url="https://cdn.discordapp.com/attachments/9/9/b.png")]
+        )
+    )
+    mock_cache.return_value = {
+        "welcome_messages_channel": {"values": str(channel.id)},
+        "welcome_messages": {"values": "Welcome {user}!"},
+        "welcome_messages_title": "Welcome!",
+        "welcome_design": "server_blur",
+    }
+    member = create_member(guild, id=880011, name="Slowpoke")
+    member._user = SimpleNamespace(id=880011)
+
+    ticks = await ticks_while(welcome_messages.send_welcome_message(member))
+
+    assert ticks >= MIN_TICKS, (
+        f"the loop only came back {ticks} times: the avatar download ran on the "
+        f"loop, freezing the bot on every member join"
+    )
+
+
+def test_a_stalled_redis_gives_up_instead_of_holding_a_thread(monkeypatch):
+    """Cache reads run in threads; a Redis that never answers must not keep them."""
+    from app import connect_redis
+
+    monkeypatch.setattr(DBConfigs, "REDIS_SOCKET_TIMEOUT_SECONDS", 0.2)
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(8)
+    accepted = []
+
+    def serve():
+        while True:
+            try:
+                accepted.append(listener.accept()[0])
+            except OSError:
+                return
+
+    threading.Thread(target=serve, daemon=True).start()
+    try:
+        client = connect_redis(f"redis://127.0.0.1:{listener.getsockname()[1]}/0")
+        started = time.monotonic()
+        with pytest.raises(redis.exceptions.TimeoutError):
+            client.get("guild:1:cog.block_links")
+        assert time.monotonic() - started < 3
+    finally:
+        listener.close()
+        for connection in accepted:
+            connection.close()
