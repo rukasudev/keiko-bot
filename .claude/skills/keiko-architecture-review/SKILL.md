@@ -74,17 +74,19 @@ contents in the report beyond what a finding needs):
   kinds) and §5 (extension points/registries) before claiming a capability does or
   doesn't exist; §6 says what a feature module may and may not do; §7 the adapter's
   choreography; §9 the decision order for a change; §10 names the enforcement suites.
-  Anything in `app/forms/` that names a command key, imports `discord` outside
-  `adapters/discord/`, blocks the event loop, or reaches another feature's document is a
-  Blocking finding (`tests/forms/test_boundary.py`).
+  Anything in `app/settings/` that names a command key, imports `discord` outside
+  `app/settings/discord/`, blocks the event loop, or reaches another feature's document is
+  a Blocking finding (`tests/forms/test_boundary.py`).
 - `.claude/rules/implementation-planning.md` — decision order details and the anti-patterns
   list findings should cite.
 - `.claude/rules/code-style.md` — maintainer-reviewed code patterns (comments, constants,
   data-layer shape, views scope, Redis key naming, unversioned migrations, generic
   orchestration extracted to generic views, generic helpers in `utils.py` not in feature
-  services, global UI tunables in `ViewConstants`; rules 13 to 18 for `app/forms/`: typed
-  and linted, one-sentence docstrings, no reflection, typed boundaries, no command key,
-  nothing blocking). Audit the scope against every rule in it; these came from real
+  services, global UI tunables in `ViewConstants`; rules 13 to 18 for `app/settings/`:
+  typed and linted, one-sentence docstrings, no reflection, typed boundaries, no command
+  key, nothing blocking; rules 19 to 21: a name says what it holds, a blank line between
+  the blocks of a function and no section markers, functions that tell a story in files
+  that hold one context). Audit the scope against every rule in it; these came from real
   review comments and repeat findings.
 - `docs/testing-strategy.md` — read whenever the scope touches shared
   infrastructure (the form platform, its step kinds and extensions, the Discord
@@ -193,7 +195,8 @@ executing them.
 - Every scope: run the architectural contract suite once,
   `.venv/bin/python -m pytest tests/forms -q` (boundary, invariants, compiler, engine,
   adapter). A failure caused by the reviewed code is a Blocking finding. When the scope
-  touches `app/forms/`, also run `make lint` (ruff and `mypy --strict` over the platform).
+  touches `app/settings/`, also run `make lint` (ruff and `mypy --strict` over the
+  platform).
 - File/directory: also run the matching tests (`tests/test_<module>.py`, else
   `git grep -l <symbol> tests/`). If none exist, record
   `Relevant tests executed: none found for <target>` and consider a test-coverage finding.
@@ -253,7 +256,7 @@ Requires architectural adjustments | Conflicts with the current architecture
 ## Restrictions
 
 - Do not ask for more formalism than the platform has: the definition schema
-  (`app/forms/definitions/schema.py`), the compiler and the `when` grammar are the whole
+  (`app/settings/form/form_yaml.py`), the compiler and the `when` grammar are the whole
   contract; do not require a new DSL, a parser or an AST on top of them.
 - Do not suggest a large refactor when a small reuse change solves the issue.
 - Do not recommend YAML-only implementation when the behavior genuinely requires runtime code.
