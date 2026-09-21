@@ -12,6 +12,7 @@ from app.settings.form.actions.action import (
     back_button,
     cancel_button,
     confirm_button,
+    design_gallery,
     label,
     step_buttons,
     step_screen,
@@ -20,12 +21,9 @@ from app.settings.form.components import (
     Button,
     Choice,
     ChoiceOption,
-    DesignCard,
     Field,
-    Gallery,
     Screen,
 )
-from app.settings.form.copy import text
 from app.settings.form.form_state import Answer, FormSession
 from app.settings.form.form_yaml import SingleChoiceStep
 
@@ -40,22 +38,7 @@ def _selected(step: SingleChoiceStep, session: FormSession) -> list[str]:
 
 def _gallery(step: SingleChoiceStep, context: RenderContext) -> Screen:
     locale = context.locale
-    designs = tuple(
-        DesignCard(
-            key=design.key,
-            label=design.label.get(locale),
-            description=design.description.get(locale),
-            preview_url=context.previews.get(design.key),
-        )
-        for design in step.designs
-    )
-    gallery = Gallery(
-        step_key=step.key,
-        header=text("buttons.components.design-select.header", locale),
-        designs=designs,
-        footer=text("buttons.components.design-select.footer", locale),
-        select_label=label("select", locale),
-    )
+    gallery = design_gallery(step.key, step.designs, context)
     buttons: list[Button] = []
 
     if context.can_go_back:

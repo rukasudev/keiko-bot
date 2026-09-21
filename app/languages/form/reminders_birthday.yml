@@ -7,6 +7,9 @@ steps:
     description:
       en-us: Configure how I'll celebrate birthdays in this server. You can add the first member now or leave the list for later.
       pt-br: Configure como vou comemorar aniversários neste servidor. Você pode cadastrar o primeiro membro agora ou deixar a lista para depois.
+    manager_description:
+      en-us: "I celebrate the members' birthdays with the settings below."
+      pt-br: "Comemoro o aniversário dos membros com as configurações abaixo."
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"

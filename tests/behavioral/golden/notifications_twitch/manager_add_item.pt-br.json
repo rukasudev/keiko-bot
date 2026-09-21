@@ -19,7 +19,7 @@
                 "type": "text"
               },
               {
-                "content": "Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!",
+                "content": "Aviso no servidor quando estes streamers entram ao vivo.",
                 "type": "text"
               },
               {
@@ -32,7 +32,7 @@
           {
             "children": [
               {
-                "content": "### :busts_in_silhouette: Notificações\n**#1**\n**Canal de Texto:** <#100>\n**Streamer:** gaules\n**Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```\n**#2**\n**Canal de Texto:** <#102>\n**Streamer:** cellbit\n**Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+                "content": "### :busts_in_silhouette: Notificações\n**#1**\n:tv: **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```\n**#2**\n:tv: **Canal de Texto:** <#102>\n🎮 **Streamer:** cellbit\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
                 "type": "text"
               },
               {
@@ -217,6 +217,14 @@
   },
   {
     "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 12,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
     "components": [
       {
         "disabled": false,
@@ -264,15 +272,15 @@
       "title": "📩 Mensagens de Notificação"
     },
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_edit",
     "message": "M2",
-    "seq": 12
+    "seq": 13
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 13,
+    "seq": 14,
     "target": "continue"
   },
   {
@@ -305,7 +313,7 @@
       ],
       "title": "Mensagens de Notificação"
     },
-    "seq": 14
+    "seq": 15
   },
   {
     "actor": "user",
@@ -314,7 +322,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 15
+    "seq": 16
   },
   {
     "actor": "bot",
@@ -332,6 +340,6 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 16
+    "seq": 17
   }
 ]

@@ -318,53 +318,121 @@
   },
   {
     "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 16,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
     "components": [
       {
-        "disabled": false,
-        "label": "Editar",
-        "style": "secondary",
-        "type": "button"
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## :white_check_mark: Tudo certo?",
+                "type": "text"
+              },
+              {
+                "content": "Ativar esta função faz com que eu fique de olho em cada mensagem e exclua os links que você não quer por aqui! Você escolhe como eu faço isso: bloquear todos os links com as suas exceções, ou permitir links e bloquear só os que você escolher.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 🚦 Configuração de Links\n🚦 **Modo de bloqueio:** Bloquear todos\n🔗 **Sites populares permitidos:** Nada ainda\n💬 **Minha resposta ao bloquear:** Nada de links por aqui! :p",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 🔓 Permissões\n#️⃣ **Canais Liberados:** <#100>\n🏷️ **Cargos Liberados:** Nada ainda",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
       },
       {
-        "disabled": false,
-        "label": "Adicionar",
-        "style": "secondary",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Confirmar",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancelar",
-        "style": "danger",
-        "type": "button"
+        "children": [
+          {
+            "disabled": false,
+            "label": "Adicionar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Confirmar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Ativar esta função faz com que eu fique de olho em cada mensagem e exclua os links que você não quer por aqui! Você escolhe como eu faço isso: bloquear todos os links com as suas exceções, ou permitir links e bloquear só os que você escolher.\n\n:pencil: **Configurações**\n\n:flying_disc: Modo de bloqueio: **🚫 Bloquear todos**\n:flying_disc: Sites populares permitidos: **Nada ainda**\n:flying_disc: Minha resposta ao bloquear: **Nada de links por aqui! :p**\n:flying_disc: Canais Liberados: **<#100>**\n:flying_disc: Cargos Liberados: **Nada ainda**",
-      "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
-      "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
-      "title": ":white_check_mark: Tudo certo?"
-    },
+    "components_v2": true,
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_send",
+    "message": "M4",
+    "seq": 17
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
     "message": "M3",
-    "seq": 16
+    "seq": 18
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M3",
-    "seq": 17,
+    "message": "M4",
+    "seq": 19,
     "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 20,
+    "thinking": false
   },
   {
     "actor": "bot",
@@ -376,12 +444,18 @@
       "fields": [],
       "footer": "• Use o comando `/reportar` para me contar um bug",
       "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
+      "thumbnail": null,
       "title": "🎉 Funcionalidade ativada com sucesso!"
     },
     "ephemeral": true,
-    "kind": "edit",
-    "message": "M3",
-    "seq": 18
+    "kind": "followup_send",
+    "message": "M5",
+    "seq": 21
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M4",
+    "seq": 22
   }
 ]

@@ -5,6 +5,7 @@ with visible defaults) -> optional custom-links composition -> exempt
 channels/roles -> resume. Two modes: block_all (allowlist) and allow_all
 (blocklist). Everything runs the real YAML + engine + matcher offline.
 """
+import json
 import pytest
 
 from app.services.utils import ml
@@ -80,8 +81,8 @@ async def test_block_all_full_flow_persists_domains_and_custom_entry(scenario_fa
 
     # Custom link values render monospaced in the resume (style: code),
     # matching the popular-websites code block.
-    resume = scenario.expect_message()
-    assert "`meusite.com.br/promo`" in ((resume.get("embed") or {}).get("description") or "")
+    resume = scenario.expect_message(components_v2=True)
+    assert "`meusite.com.br/promo`" in json.dumps(resume, ensure_ascii=False)
 
     await scenario.confirm()
 

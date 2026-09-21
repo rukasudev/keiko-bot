@@ -7,6 +7,9 @@ steps:
     description:
       en-us: "Enabling this feature allows me to watch every message and delete the links you don't want here! You choose how I do it: block all links with your exceptions, or allow links and block only the ones you pick."
       pt-br: "Ativar esta função faz com que eu fique de olho em cada mensagem e exclua os links que você não quer por aqui! Você escolhe como eu faço isso: bloquear todos os links com as suas exceções, ou permitir links e bloquear só os que você escolher."
+    manager_description:
+      en-us: "I'm keeping an eye on links sent in the server, following the rules below."
+      pt-br: "Estou de olho nos links enviados no servidor e sigo as regras abaixo."
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
@@ -191,6 +194,7 @@ steps:
     steps:
       - action: modal
         key: link
+        emoji: "🔗"
         lowercase: true
         max_length: 100
         style: code

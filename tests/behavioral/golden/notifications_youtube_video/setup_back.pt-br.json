@@ -137,6 +137,14 @@
   },
   {
     "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 10,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
     "components": [
       {
         "disabled": false,
@@ -184,15 +192,15 @@
       "title": "📩 Mensagens de Notificação"
     },
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_edit",
     "message": "M1",
-    "seq": 10
+    "seq": 11
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M1",
-    "seq": 11,
+    "seq": 12,
     "target": "back"
   },
   {
@@ -231,13 +239,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M1",
-    "seq": 12
+    "seq": 13
   },
   {
     "actor": "user",
     "kind": "select",
     "message": "M1",
-    "seq": 13,
+    "seq": 14,
     "target": "Selecione um canal...",
     "values": [
       "announcements"
@@ -248,14 +256,14 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 14,
+    "seq": 15,
     "thinking": false
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M1",
-    "seq": 15,
+    "seq": 16,
     "target": "continue"
   },
   {
@@ -274,7 +282,7 @@
       ],
       "title": "Youtuber"
     },
-    "seq": 16
+    "seq": 17
   },
   {
     "actor": "user",
@@ -283,7 +291,15 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 17
+    "seq": 18
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 19,
+    "thinking": false
   },
   {
     "actor": "bot",
@@ -334,8 +350,8 @@
       "title": "📩 Mensagens de Notificação"
     },
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_edit",
     "message": "M1",
-    "seq": 18
+    "seq": 20
   }
 ]

@@ -137,6 +137,14 @@
   },
   {
     "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 10,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
     "components": [],
     "components_v2": false,
     "delete_after": 10,
@@ -150,15 +158,15 @@
       "title": "🚨 Youtuber Não Encontrado"
     },
     "ephemeral": true,
-    "kind": "send",
+    "kind": "followup_send",
     "message": "M2",
-    "seq": 10
+    "seq": 11
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M1",
-    "seq": 11,
+    "seq": 12,
     "target": "continue"
   },
   {
@@ -177,7 +185,7 @@
       ],
       "title": "Youtuber"
     },
-    "seq": 12
+    "seq": 13
   },
   {
     "actor": "user",
@@ -186,7 +194,15 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 13
+    "seq": 14
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 15,
+    "thinking": false
   },
   {
     "actor": "bot",
@@ -237,8 +253,8 @@
       "title": "📩 Mensagens de Notificação"
     },
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_edit",
     "message": "M1",
-    "seq": 14
+    "seq": 16
   }
 ]

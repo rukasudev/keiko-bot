@@ -363,53 +363,136 @@
   },
   {
     "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 18,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
     "components": [
       {
-        "disabled": false,
-        "label": "Edit",
-        "style": "secondary",
-        "type": "button"
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## :white_check_mark: Alright?",
+                "type": "text"
+              },
+              {
+                "content": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": ":flying_disc: **Welcome Messages Channel:** <#101>",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Edit",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": ":flying_disc: **Banner Design:** Server Image",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Edit",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### Welcome Messages\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Edit",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
       },
       {
-        "disabled": false,
-        "label": "Preview",
-        "style": "secondary",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Confirm",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancel",
-        "style": "danger",
-        "type": "button"
+        "children": [
+          {
+            "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Confirm",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n:pencil: **Settings**\n\n:flying_disc: Welcome Messages Channel: **<#101>**\n:flying_disc: Banner Design: **Server Image**\n:flying_disc: Title: **Bem-vindo, {user}!**\n:flying_disc: Footer: **Leia as regras :)**\n:flying_disc: Welcome Messages:\n**\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```**",
-      "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
-      "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
-      "title": ":white_check_mark: Alright?"
-    },
+    "components_v2": true,
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_send",
+    "message": "M4",
+    "seq": 19
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
     "message": "M3",
-    "seq": 18
+    "seq": 20
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M3",
-    "seq": 19,
+    "message": "M4",
+    "seq": 21,
     "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 22,
+    "thinking": false
   },
   {
     "actor": "bot",
@@ -421,12 +504,18 @@
       "fields": [],
       "footer": "• Use the `/report` command to tell me a bug",
       "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
+      "thumbnail": null,
       "title": "🎉 Command enabled successfully!"
     },
     "ephemeral": true,
-    "kind": "edit",
-    "message": "M3",
-    "seq": 20
+    "kind": "followup_send",
+    "message": "M5",
+    "seq": 23
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M4",
+    "seq": 24
   }
 ]

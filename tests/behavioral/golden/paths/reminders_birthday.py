@@ -6,9 +6,9 @@ A paused birthday feature has no Unpause: the service reads the moderation
 flag and reopens the setup form instead of the manager, so the lifecycle
 here records that reopening in place of `manager_unpause`.
 """
+
 from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
 from app.services.moderations import update_moderations_by_guild
-
 from tests.behavioral.golden.paths import golden_path
 from tests.behavioral.golden.paths.common import (
     GUILD_ID,
@@ -32,8 +32,11 @@ def _guild():
 
 def _seed_config(deps, enabled=True, members=("555",)):
     upsert_birthday_config(
-        GUILD_ID, "100", False,
-        timezone="America/Sao_Paulo", notification_time="08:00",
+        GUILD_ID,
+        "100",
+        False,
+        timezone="America/Sao_Paulo",
+        notification_time="08:00",
     )
     for index, user_id in enumerate(members):
         upsert_birthday_item(GUILD_ID, user_id, f"{5 + index:02d}-12")
@@ -129,8 +132,7 @@ async def _open_manager(scenario_factory, deps, locale, members=("555",)):
 @golden_path(FORM, "manager_edit_one_step")
 async def manager_edit_one_step(scenario_factory, deps, locale):
     scenario = await _open_manager(scenario_factory, deps, locale)
-    await scenario.click("edit")
-    await scenario.select_option("birthday_config")
+    await scenario.click("section:birthday_config")
     await scenario.click("customize:2")
     await scenario.click("10:00")
     await scenario.click("done")
@@ -149,7 +151,9 @@ async def manager_add_item(scenario_factory, deps, locale):
 
 @golden_path(FORM, "manager_remove_item")
 async def manager_remove_item(scenario_factory, deps, locale):
-    scenario = await _open_manager(scenario_factory, deps, locale, members=("555", "777"))
+    scenario = await _open_manager(
+        scenario_factory, deps, locale, members=("555", "777")
+    )
     await scenario.click("remove")
     await scenario.select_option("reminders_birthday")
     await scenario.select_option("Tester")

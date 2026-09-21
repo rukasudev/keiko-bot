@@ -6,6 +6,7 @@ member sub-form, and a custom persistence_callback (persist_setup_form).
 Everything below runs the real YAML + engine + services + data layer;
 only the Discord transport and Mongo/Redis are fakes.
 """
+import json
 import pytest
 
 from app.services.utils import ml
@@ -54,7 +55,8 @@ async def _run_happy_path(scenario_factory, locale):
     await _complete_member_card(scenario, locale)
 
     scenario.expect_step("confirm")
-    scenario.expect_message(title_contains=RESUME_TITLE[locale])
+    resume = scenario.expect_message(components_v2=True)
+    assert RESUME_TITLE[locale] in json.dumps(resume, ensure_ascii=False)
     await scenario.confirm()                       # -> _finish -> persist_setup_form
     await scenario.finish()
     return scenario

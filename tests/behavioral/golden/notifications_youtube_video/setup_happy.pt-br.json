@@ -137,6 +137,14 @@
   },
   {
     "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 10,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
     "components": [
       {
         "disabled": false,
@@ -184,15 +192,15 @@
       "title": "📩 Mensagens de Notificação"
     },
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_edit",
     "message": "M1",
-    "seq": 10
+    "seq": 11
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M1",
-    "seq": 11,
+    "seq": 12,
     "target": "continue"
   },
   {
@@ -225,7 +233,7 @@
       ],
       "title": "Mensagens de Notificação"
     },
-    "seq": 12
+    "seq": 13
   },
   {
     "actor": "user",
@@ -234,57 +242,110 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 13
+    "seq": 14
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 15,
+    "thinking": false
   },
   {
     "actor": "bot",
     "components": [
       {
-        "disabled": false,
-        "label": "Editar",
-        "style": "secondary",
-        "type": "button"
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## :white_check_mark: Tudo certo?",
+                "type": "text"
+              },
+              {
+                "content": "Ativar esta função faz com que eu notifique quando seu youtuber favorito postar um novo vídeo!",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### :busts_in_silhouette: Notificações\n**#1**\n:tv: **Canal de Texto:** <#100>\n🎬 **Youtuber:** pewdiepie\n💬 **Mensagens de Notificação:** ```• {youtuber} postou: {video_link}```",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
       },
       {
-        "disabled": false,
-        "label": "Adicionar",
-        "style": "secondary",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Confirmar",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancelar",
-        "style": "danger",
-        "type": "button"
+        "children": [
+          {
+            "disabled": false,
+            "label": "Adicionar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Confirmar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Ativar esta função faz com que eu notifique quando seu youtuber favorito postar um novo vídeo!\n\n:pencil: **Configurações**\n\n\n:flying_disc: **Notificações #1**\n- Canal de Texto: **<#100>**\n- Youtuber: **pewdiepie**\n- Mensagens de Notificação: **\n```• {youtuber} postou: {video_link}```**\n",
-      "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
-      "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
-      "title": ":white_check_mark: Tudo certo?"
-    },
+    "components_v2": true,
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 16
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
     "message": "M1",
-    "seq": 14
+    "seq": 17
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M1",
-    "seq": 15,
+    "message": "M2",
+    "seq": 18,
     "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 19,
+    "thinking": false
   },
   {
     "actor": "bot",
@@ -296,12 +357,18 @@
       "fields": [],
       "footer": "• Use o comando `/reportar` para me contar um bug",
       "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
+      "thumbnail": null,
       "title": "🎉 Funcionalidade ativada com sucesso!"
     },
     "ephemeral": true,
-    "kind": "edit",
-    "message": "M1",
-    "seq": 16
+    "kind": "followup_send",
+    "message": "M3",
+    "seq": 20
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 21
   }
 ]

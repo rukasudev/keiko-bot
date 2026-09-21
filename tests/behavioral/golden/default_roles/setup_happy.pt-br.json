@@ -135,47 +135,100 @@
   },
   {
     "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 10,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
     "components": [
       {
-        "disabled": false,
-        "label": "Editar",
-        "style": "secondary",
-        "type": "button"
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## :white_check_mark: Tudo certo?",
+                "type": "text"
+              },
+              {
+                "content": "Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor!",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### Cargos Padrão\n🤖 **Cargos para Bots:** <@&201>\n👥 **Cargos para Membros:** <@&202>",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
       },
       {
-        "disabled": false,
-        "label": "Confirmar",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancelar",
-        "style": "danger",
-        "type": "button"
+        "children": [
+          {
+            "disabled": false,
+            "label": "Confirmar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor!\n\n:pencil: **Configurações**\n\n:flying_disc: Cargos para Bots: **<@&201>**\n:flying_disc: Cargos para Membros: **<@&202>**",
-      "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
-      "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
-      "title": ":white_check_mark: Tudo certo?"
-    },
+    "components_v2": true,
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 11
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
     "message": "M1",
-    "seq": 10
+    "seq": 12
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M1",
-    "seq": 11,
+    "message": "M2",
+    "seq": 13,
     "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 14,
+    "thinking": false
   },
   {
     "actor": "bot",
@@ -187,12 +240,18 @@
       "fields": [],
       "footer": "• Use o comando `/reportar` para me contar um bug",
       "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
+      "thumbnail": null,
       "title": "🎉 Funcionalidade ativada com sucesso!"
     },
     "ephemeral": true,
-    "kind": "edit",
-    "message": "M1",
-    "seq": 12
+    "kind": "followup_send",
+    "message": "M3",
+    "seq": 15
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 16
   }
 ]

@@ -19,7 +19,7 @@
                 "type": "text"
               },
               {
-                "content": "Ativar esta função faz com que eu fique de olho em cada mensagem e exclua os links que você não quer por aqui! Você escolhe como eu faço isso: bloquear todos os links com as suas exceções, ou permitir links e bloquear só os que você escolher.",
+                "content": "Estou de olho nos links enviados no servidor e sigo as regras abaixo.",
                 "type": "text"
               },
               {
@@ -32,7 +32,7 @@
           {
             "children": [
               {
-                "content": "### 🚦 Configuração de Links\n**Modo de bloqueio:** Bloquear todos\n**Sites populares permitidos:**\n```• youtube.com\n• twitch.tv```\n**Minha resposta ao bloquear:** Nada de links aqui! :p",
+                "content": "### 🚦 Configuração de Links\n🚦 **Modo de bloqueio:** Bloquear todos\n🔗 **Sites populares permitidos:**\n```• youtube.com\n• twitch.tv```\n💬 **Minha resposta ao bloquear:** Nada de links aqui! :p",
                 "type": "text"
               },
               {
@@ -47,7 +47,7 @@
           {
             "children": [
               {
-                "content": "### 🔓 Permissões\n**Canais Liberados:** <#100>\n**Cargos Liberados:** <@&201>",
+                "content": "### 🔓 Permissões\n#️⃣ **Canais Liberados:** <#100>\n🏷️ **Cargos Liberados:** <@&201>",
                 "type": "text"
               },
               {
@@ -62,7 +62,7 @@
           {
             "children": [
               {
-                "content": "### 📌 Seus Links\n**#1**\n**Link ou Site:** `meusite.com.br`\n**Qual o Alcance da Regra?** 🌐 Todos os links desse site\n**#2**\n**Link ou Site:** `docs.example.org`",
+                "content": "### 📌 Seus Links\n**#1**\n🔗 **Link ou Site:** `meusite.com.br`\n🎯 **Qual o Alcance da Regra?** 🌐 Todos os links desse site\n**#2**\n🔗 **Link ou Site:** `docs.example.org`",
                 "type": "text"
               },
               {

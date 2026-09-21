@@ -19,7 +19,7 @@
                 "type": "text"
               },
               {
-                "content": "Sempre que alguém usar um comando com o prefixo **ks!**, eu buscarei a resposta no StreamElements!\n\n**Exemplo:** `ks!mouse` -> \"O streamer usa um Logitech G Pro!\"\n",
+                "content": "Respondo aos comandos do StreamElements deste streamer aqui no Discord.",
                 "type": "text"
               },
               {
@@ -30,8 +30,19 @@
             "type": "section"
           },
           {
-            "content": "**Streamer:** shroud",
-            "type": "text"
+            "children": [
+              {
+                "content": "🎮 **Streamer:** shroud",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
           },
           {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
@@ -42,12 +53,6 @@
       },
       {
         "children": [
-          {
-            "disabled": false,
-            "label": "Editar",
-            "style": "secondary",
-            "type": "button"
-          },
           {
             "disabled": false,
             "label": "Despausar",

@@ -16,7 +16,9 @@ from app.settings.form.actions.action import (
     RenderContext,
     back_button,
     cancel_button,
+    design_gallery,
     footer_of,
+    other_items,
 )
 from app.settings.form.components import (
     Button,
@@ -39,6 +41,7 @@ from app.settings.form.form_yaml import (
     ButtonOptionsSection,
     CardStep,
     ChannelSelectSection,
+    DesignSection,
     FileUploadSection,
     ModalInputSection,
     MultiSelectSection,
@@ -47,10 +50,11 @@ from app.settings.form.form_yaml import (
     Text,
     TitleContentSection,
     ValueSelectSection,
+    owned_keys,
 )
 from app.settings.form.responses.styles import empty_value, format_boolean, format_value
 from app.settings.form.responses.summary import option_label
-from app.settings.form.responses.transforms import transform
+from app.settings.form.responses.transforms import normalizer, transform
 from app.settings.form.responses.validations import ValidationContext, validator
 
 ICONS: dict[str, str] = {
@@ -133,7 +137,7 @@ def hidden_keys(card: CardStep, state: Mapping[str, Any]) -> set[str]:
     keys: set[str] = set()
     for section in card.sections:
         if not visible(section, state):
-            keys.update(section.state.keys())
+            keys.update(owned_keys(section))
     return keys
 
 
@@ -142,7 +146,9 @@ def is_custom(section: Section, state: Mapping[str, Any]) -> bool:
     if isinstance(section, TitleContentSection):
         return state.get(section.state.mode or "") == "custom"
     if isinstance(section, FileUploadSection):
-        mode, url = section.state.mode or "", section.state.url or ""
+        mode, url = section.state.mode, section.state.url or ""
+        if not mode:
+            return bool(state.get(url))
         return state.get(mode) == "custom" and bool(state.get(url))
     return True
 
@@ -206,25 +212,65 @@ def preview(
         return ((f"> {', '.join(labels) if labels else '—'}",), None)
     if isinstance(section, BooleanToggleSection):
         return ((f"> {format_boolean(bool(value), locale)}",), None)
+    if isinstance(section, DesignSection):
+        return _design_preview(section, value, locale)
+    if isinstance(section, ModalInputSection) and len(section.modal.fields) > 1:
+        return _fields_preview(section, state, locale)
     if isinstance(section, TitleContentSection):
-        if is_custom(section, state):
-            title = state.get(section.state.title or "") or ""
-            content = state.get(section.state.content or "") or ""
-        else:
-            title = section.default.title.get(locale)
-            content = section.default.content.get(locale)
-        variables = _template_vars(card, session, context)
-        lines = []
-
-        if title:
-            lines.append(f"> **{_fill(title, variables)}**")
-        if content:
-            lines.append(f"> {_fill(content, variables)}")
-        return (tuple(lines), None)
+        return _title_content_preview(section, state, card, session, context)
     if isinstance(section, FileUploadSection):
         url = state.get(section.state.url or "") if is_custom(section, state) else None
         return ((), str(url) if url else None)
     return ((f"> {_formatted(value, section.style, locale)}",), None)
+
+
+def _title_content_preview(
+    section: TitleContentSection,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: RenderContext,
+) -> tuple[tuple[str, ...], str | None]:
+    locale = context.locale
+    if is_custom(section, state):
+        title = state.get(section.state.title or "") or ""
+        content = state.get(section.state.content or "") or ""
+    else:
+        title = section.default.title.get(locale)
+        content = section.default.content.get(locale)
+    variables = _template_vars(card, session, context)
+    lines = []
+
+    if title:
+        lines.append(f"> **{_fill(title, variables)}**")
+    if content:
+        lines.append(f"> {_fill(content, variables)}")
+    return (tuple(lines), None)
+
+
+def _design_preview(
+    section: DesignSection, value: Any, locale: str
+) -> tuple[tuple[str, ...], str | None]:
+    chosen = next(
+        (design.label.get(locale) for design in section.designs if design.key == value),
+        None,
+    )
+    return ((f"> {chosen or _formatted(value, None, locale)}",), None)
+
+
+def _fields_preview(
+    section: ModalInputSection, state: Mapping[str, Any], locale: str
+) -> tuple[tuple[str, ...], str | None]:
+    lines = [
+        f"> **{field.label.get(locale)}:** {state.get(field.key)}"
+        for field in section.modal.fields
+        if field.key
+        and field.key != section.state.value
+        and state.get(field.key) not in EMPTY
+    ]
+    value = state.get(section.state.value or "")
+    lines.append(_formatted(value, section.style, locale).strip())
+    return (tuple(lines), None)
 
 
 def _section_view(
@@ -240,7 +286,7 @@ def _section_view(
     customize = section.customize_label.get(locale) if section.customize_label else ""
     lines, media = preview(section, state, card, session, context)
 
-    if isinstance(section, WITH_MODE):
+    if isinstance(section, WITH_MODE) and section.state.mode:
         custom = is_custom(section, state)
         badge_key = "badge-custom" if custom else "badge-default"
         badge = text(f"buttons.summary-card.{badge_key}", locale)
@@ -443,6 +489,12 @@ def open_section(
         ), None
     if isinstance(section, BooleanToggleSection):
         return None, {key: not bool(state.get(key))}
+    if isinstance(section, DesignSection):
+        gallery = design_gallery(card.key, section.designs, context)
+        back = Button(text("buttons.back.label", locale), "picker_back")
+        return Screen(
+            components=(gallery,), buttons=(back,), flavour="components_v2"
+        ), None
     return _modal_screen(card, section, state, locale), None
 
 
@@ -486,12 +538,18 @@ def _modal_screen(
         )
     assert isinstance(section, ModalInputSection)
     key = section.state.value or ""
+    unkeyed = _parts(state.get(key))
+    position = 0
     inputs: list[Input] = []
 
     for field in section.modal.fields:
-        default = (
-            str(state[key]) if field.key == key and state.get(key) is not None else None
-        )
+        if field.key:
+            saved = state.get(field.key)
+        else:
+            saved = unkeyed[position] if position < len(unkeyed) else None
+            position += 1
+        declared = field.default.get(locale) if field.default else None
+        default = str(saved) if saved not in EMPTY else declared
         placeholder = field.placeholder.get(locale) if field.placeholder else None
         inputs.append(
             Input(
@@ -510,6 +568,14 @@ def _modal_screen(
     )
 
 
+def _parts(value: Any) -> list[str]:
+    if isinstance(value, (list, tuple)):
+        return [str(part) for part in value]
+    if isinstance(value, str) and value:
+        return [part.strip() for part in value.split(";")]
+    return []
+
+
 def _reset_dependents(
     section: ValueSelectSection,
     state: Mapping[str, Any],
@@ -521,14 +587,17 @@ def _reset_dependents(
         check = validator(rule.validation)
         if check is None or not candidate.get(rule.key):
             continue
-        if check.check(candidate, ValidationContext(answers=candidate)):
+        if check.check(candidate.get(rule.key), ValidationContext(answers=candidate)):
             changes[rule.key] = None
 
 
 def _modal_change(
-    section: Section, payload: Any, state: Mapping[str, Any]
+    section: Section,
+    payload: Any,
+    state: Mapping[str, Any],
+    session: FormSession,
+    context: RenderContext,
 ) -> Mapping[str, Any] | Refusal:
-    key = section.state.value or ""
     if isinstance(section, TitleContentSection):
         values = payload.get("inputs") if isinstance(payload, Mapping) else payload
         title, content = (list(values or []) + ["", ""])[:2]
@@ -541,23 +610,65 @@ def _modal_change(
         url = payload.get("url") if isinstance(payload, Mapping) else payload
         if not url:
             return {}
-        return {section.state.mode or "": "custom", section.state.url or "": url}
+        uploaded: dict[str, Any] = {section.state.url or "": url}
+
+        if section.state.mode:
+            uploaded[section.state.mode] = "custom"
+        return uploaded
     assert isinstance(section, ModalInputSection)
+    return _fields_change(section, payload, state, session, context)
+
+
+def _fields_change(
+    section: ModalInputSection,
+    payload: Any,
+    state: Mapping[str, Any],
+    session: FormSession,
+    context: RenderContext,
+) -> Mapping[str, Any] | Refusal:
+    key = section.state.value or ""
     values = payload.get("inputs") if isinstance(payload, Mapping) else [payload]
-    value = list(values or [""])[0]
+    typed = list(values or [""])
+    fields = section.modal.fields
+    changes: dict[str, Any] = {} if fields else {key: str(typed[0])}
+    joined: list[str] = []
+
+    for position, field in enumerate(fields):
+        raw = str(typed[position]) if position < len(typed) else ""
+        normalize = normalizer(field.normalize)
+        value = normalize(raw) if normalize else raw
+
+        if field.key:
+            changes[field.key] = value
+        elif value:
+            joined.append(value)
+    if any(field.key is None for field in fields):
+        changes[key] = ";".join(joined) or None
     check = validator(section.modal.validation)
 
     if check:
-        error = check.check({**state, key: value}, ValidationContext(answers=state))
+        error = check.check(
+            changes.get(key) or "",
+            ValidationContext(
+                answers=state,
+                items=other_items(session, context.items),
+                external=context.external,
+            ),
+        )
         if error:
             return Refusal(error)
-    return {key: value}
+    return changes
 
 
 def _choice_change(
     section: Section, payload: Any, state: Mapping[str, Any]
 ) -> Mapping[str, Any]:
     key = section.state.value or ""
+
+    if isinstance(section, DesignSection):
+        design = str(payload[0] if isinstance(payload, (list, tuple)) else payload)
+        known = {candidate.key for candidate in section.designs}
+        return {key: design} if design in known else {}
     if isinstance(section, ButtonOptionsSection):
         index = int(payload) if str(payload).isdigit() else -1
         if 0 <= index < len(section.options):
@@ -587,7 +698,7 @@ def apply_change(
     state = state_of(card, session, context)
 
     if isinstance(section, WITH_MODE + (ModalInputSection,)):
-        return _modal_change(section, payload, state)
+        return _modal_change(section, payload, state, session, context)
     if isinstance(section, BooleanToggleSection):
         key = section.state.value or ""
         return {key: not bool(state.get(key))}
@@ -631,7 +742,10 @@ def reset_section(card: CardStep, index: int) -> Mapping[str, Any]:
             section.state.content or "": None,
         }
     if isinstance(section, FileUploadSection):
-        return {section.state.mode or "": "default", section.state.url or "": None}
+        cleared: dict[str, Any] = {section.state.url or "": None}
+        if section.state.mode:
+            cleared[section.state.mode] = "default"
+        return cleared
     if isinstance(section, BooleanToggleSection):
         return {section.state.value or "": False}
     return {section.state.value or "": None}
@@ -655,7 +769,7 @@ def required_labels(card: CardStep, locale: str) -> dict[str, str]:
     for field in card.fields:
         labels[field.key] = field.label.get(locale)
     for section in card.sections:
-        for key in section.state.keys():
+        for key in owned_keys(section):
             labels[key] = section.label.get(locale)
     return labels
 

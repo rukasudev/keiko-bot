@@ -1651,67 +1651,107 @@
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 40,
-    "thinking": false
-  },
-  {
-    "actor": "bot",
     "components": [
       {
-        "disabled": false,
-        "label": "Edit",
-        "style": "secondary",
-        "type": "button"
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## :white_check_mark: Alright?",
+                "type": "text"
+              },
+              {
+                "content": "Review the server birthday notification setup. Use **Add** or **Remove** to manage the list.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 🎂 Reminder Settings\n📺 **Channel:** <#100>\n🌎 **Timezone:** Brazil (UTC-3)\n🕒 **Notification time:** 08:00\n📣 **Mention @everyone:** No\n💬 **Default member message:** Default",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Edit",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 🎉 Birthday List\n**#1**\n👤 **Member:** <@777>\n:flying_disc: **Birthday:** May 12",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Edit",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
       },
       {
-        "disabled": false,
-        "label": "Add",
-        "style": "secondary",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Confirm",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancel",
-        "style": "danger",
-        "type": "button"
+        "children": [
+          {
+            "disabled": false,
+            "label": "Add",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Confirm",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Review the server birthday notification setup. Use **Add** or **Remove** to manage the list.\n\n:pencil: **Settings**\n\n:flying_disc: Channel: **<#100>**\n:flying_disc: Timezone: **🇧🇷 Brazil (UTC-3)**\n:flying_disc: Notification time: **08:00**\n:flying_disc: Mention @everyone: **No**\n\n:flying_disc: **Birthday List #1**\n- Member: **<@777>**\n- Birthday: **May 12**\n",
-      "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
-      "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
-      "title": ":white_check_mark: Alright?"
-    },
+    "components_v2": true,
     "ephemeral": true,
-    "kind": "followup_send",
-    "message": "M5",
-    "seq": 41
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
+    "kind": "edit",
     "message": "M4",
-    "seq": 42
+    "seq": 40
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M5",
-    "seq": 43,
+    "message": "M4",
+    "seq": 41,
     "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 42,
+    "thinking": false
   },
   {
     "actor": "bot",
@@ -1723,12 +1763,18 @@
       "fields": [],
       "footer": "• Use the `/report` command to tell me a bug",
       "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
+      "thumbnail": null,
       "title": "🎉 Command enabled successfully!"
     },
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_send",
     "message": "M5",
+    "seq": 43
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M4",
     "seq": 44
   }
 ]

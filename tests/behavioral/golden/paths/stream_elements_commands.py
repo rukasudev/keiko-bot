@@ -1,9 +1,9 @@
 """StreamElements commands: one validated modal (the streamer username).
 
 The only screen with a Cancel button is the intro; modals have no Back, so
-there is no `setup_back` path. The panel keeps the global Edit button (the
-saved channel id belongs to no step).
+there is no `setup_back` path. The streamer has its own Edit on the panel.
 """
+
 from tests.behavioral.golden.paths import golden_path
 from tests.behavioral.golden.paths.common import (
     GUILD_ID,
@@ -17,7 +17,8 @@ from tests.behavioral.golden.paths.common import (
 FORM = "stream_elements_commands"
 
 ENABLED = {
-    "guild_id": GUILD_ID, "enabled": True,
+    "guild_id": GUILD_ID,
+    "enabled": True,
     "streamer": "shroud",
     "channel_id": "5f1a2b3c4d5e6f7a8b9c0d1e",
 }
@@ -74,8 +75,7 @@ async def manager_edit_one_step(scenario_factory, deps, locale):
     scenario = await open_manager(
         scenario_factory, deps, locale, FORM, lambda d: seed_document(d, FORM, ENABLED)
     )
-    await scenario.click("edit")
-    await scenario.select_option("streamer")
+    await scenario.click("section:streamer")
     await _submit_streamer(scenario, "gaules")
     return scenario
 

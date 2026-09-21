@@ -318,53 +318,121 @@
   },
   {
     "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 16,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
     "components": [
       {
-        "disabled": false,
-        "label": "Edit",
-        "style": "secondary",
-        "type": "button"
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## :white_check_mark: Alright?",
+                "type": "text"
+              },
+              {
+                "content": "Enabling this feature allows me to watch every message and delete the links you don't want here! You choose how I do it: block all links with your exceptions, or allow links and block only the ones you pick.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 🚦 Link Settings\n🚦 **Blocking mode:** Block all\n🔗 **Allowed popular websites:** None\n💬 **My response when blocking:** No links here! :p",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Edit",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 🔓 Permissions\n#️⃣ **Exempt Channels:** <#100>\n🏷️ **Exempt Roles:** None",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Edit",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
       },
       {
-        "disabled": false,
-        "label": "Add",
-        "style": "secondary",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Confirm",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancel",
-        "style": "danger",
-        "type": "button"
+        "children": [
+          {
+            "disabled": false,
+            "label": "Add",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Confirm",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Enabling this feature allows me to watch every message and delete the links you don't want here! You choose how I do it: block all links with your exceptions, or allow links and block only the ones you pick.\n\n:pencil: **Settings**\n\n:flying_disc: Blocking mode: **🚫 Block all**\n:flying_disc: Allowed popular websites: **None**\n:flying_disc: My response when blocking: **No links here! :p**\n:flying_disc: Exempt Channels: **<#100>**\n:flying_disc: Exempt Roles: **None**",
-      "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
-      "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
-      "title": ":white_check_mark: Alright?"
-    },
+    "components_v2": true,
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_send",
+    "message": "M4",
+    "seq": 17
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
     "message": "M3",
-    "seq": 16
+    "seq": 18
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M3",
-    "seq": 17,
+    "message": "M4",
+    "seq": 19,
     "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 20,
+    "thinking": false
   },
   {
     "actor": "bot",
@@ -376,12 +444,18 @@
       "fields": [],
       "footer": "• Use the `/report` command to tell me a bug",
       "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
+      "thumbnail": null,
       "title": "🎉 Command enabled successfully!"
     },
     "ephemeral": true,
-    "kind": "edit",
-    "message": "M3",
-    "seq": 18
+    "kind": "followup_send",
+    "message": "M5",
+    "seq": 21
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M4",
+    "seq": 22
   }
 ]

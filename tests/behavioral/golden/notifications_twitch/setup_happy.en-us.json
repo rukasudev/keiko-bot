@@ -137,6 +137,14 @@
   },
   {
     "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 10,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
     "components": [
       {
         "disabled": false,
@@ -184,15 +192,15 @@
       "title": "📩 Notification Messages"
     },
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_edit",
     "message": "M1",
-    "seq": 10
+    "seq": 11
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M1",
-    "seq": 11,
+    "seq": 12,
     "target": "continue"
   },
   {
@@ -225,7 +233,7 @@
       ],
       "title": "Notification Messages"
     },
-    "seq": 12
+    "seq": 13
   },
   {
     "actor": "user",
@@ -234,57 +242,110 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 13
+    "seq": 14
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 15,
+    "thinking": false
   },
   {
     "actor": "bot",
     "components": [
       {
-        "disabled": false,
-        "label": "Edit",
-        "style": "secondary",
-        "type": "button"
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## :white_check_mark: Alright?",
+                "type": "text"
+              },
+              {
+                "content": "Enabling this feature allows me to notify when your favorite streamer is online on Twitch!",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### :busts_in_silhouette: Notifications\n**#1**\n:tv: **Text Channel:** <#100>\n🎮 **Streamer:** gaules\n💬 **Notification Messages:** ```• {streamer} entrou ao vivo: {stream_link}```",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Edit",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
       },
       {
-        "disabled": false,
-        "label": "Add",
-        "style": "secondary",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Confirm",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancel",
-        "style": "danger",
-        "type": "button"
+        "children": [
+          {
+            "disabled": false,
+            "label": "Add",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Confirm",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Enabling this feature allows me to notify when your favorite streamer is online on Twitch!\n\n:pencil: **Settings**\n\n\n:flying_disc: **Notifications #1**\n- Text Channel: **<#100>**\n- Streamer: **gaules**\n- Notification Messages: **\n```• {streamer} entrou ao vivo: {stream_link}```**\n",
-      "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
-      "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
-      "title": ":white_check_mark: Alright?"
-    },
+    "components_v2": true,
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 16
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
     "message": "M1",
-    "seq": 14
+    "seq": 17
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M1",
-    "seq": 15,
+    "message": "M2",
+    "seq": 18,
     "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 19,
+    "thinking": false
   },
   {
     "actor": "bot",
@@ -296,12 +357,18 @@
       "fields": [],
       "footer": "• Use the `/report` command to tell me a bug",
       "image": null,
-      "thumbnail": "KEIKO_BOLO.png",
+      "thumbnail": null,
       "title": "🎉 Command enabled successfully!"
     },
     "ephemeral": true,
-    "kind": "edit",
-    "message": "M1",
-    "seq": 16
+    "kind": "followup_send",
+    "message": "M3",
+    "seq": 20
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 21
   }
 ]
