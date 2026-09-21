@@ -15,6 +15,7 @@ from app.settings.form.form_yaml import (
     ButtonOptionsSection,
     CardStep,
     CompositionStep,
+    DesignSection,
     MultiPickStep,
     MultiSelectSection,
     Option,
@@ -124,11 +125,18 @@ def _card_hidden_keys(card: CardStep) -> tuple[set[str], set[str]]:
 
 def _card_options(card: CardStep) -> dict[str, tuple[Option, ...]]:
     with_options = (ValueSelectSection, ButtonOptionsSection, MultiSelectSection)
-    return {
-        section.state.value: tuple(section.options)
-        for section in card.sections
-        if isinstance(section, with_options) and section.state.value
-    }
+    found: dict[str, tuple[Option, ...]] = {}
+    for section in card.sections:
+        if not section.state.value:
+            continue
+        if isinstance(section, with_options):
+            found[section.state.value] = tuple(section.options)
+        if isinstance(section, DesignSection):
+            found[section.state.value] = tuple(
+                Option(label=design.label, value=design.key)
+                for design in section.designs
+            )
+    return found
 
 
 def _card_field_view(

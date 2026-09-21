@@ -261,6 +261,7 @@ class ViewConstants:
     ACTION_COOLDOWN_SECONDS: Final[int] = 10
     ACTION_NOTICE_SECONDS: Final[int] = 5
     COMPOSITION_PREVIEW_LIMIT: Final[int] = 10
+    EDIT_BY_ITEM_MAX: Final[int] = 3
     FORM_SWEEP_SECONDS: Final[int] = 60
     PREVIEW_WAIT_SECONDS: Final[int] = 8  # a click waits this long for a gallery's pictures
 
@@ -283,6 +284,7 @@ class DiscordLimits:
     """Hard API limits. Exceeding one makes Discord reject the whole message,
     which only shows up at runtime, so the renderers guard against them."""
     EMBED_TOTAL: Final[int] = 6000
+    MODAL_INPUTS: Final[int] = 5
     EMBED_DESCRIPTION: Final[int] = 4096
     EMBED_FIELDS: Final[int] = 25
     EMBED_FIELD_NAME: Final[int] = 256

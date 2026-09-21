@@ -6,6 +6,7 @@ would otherwise miss (the fake transport accepts anything), so the real
 cards are built through real scenarios and checked against the documented
 limits here.
 """
+
 import discord
 import pytest
 
@@ -52,3 +53,71 @@ async def test_birthday_member_card_is_within_discord_limits(scenario_factory):
     await scenario.confirm()
     _assert_within_limits(scenario.current_message.view, "birthday_member_config card")
     await scenario.finish()
+
+
+MANAGER_SEEDS = {
+    "block_links": "tests.behavioral.golden.paths.block_links",
+    "default_roles": "tests.behavioral.golden.paths.default_roles",
+    "welcome_messages": "tests.behavioral.golden.paths.welcome_messages",
+    "notifications_twitch": "tests.behavioral.golden.paths.notifications_twitch",
+    "notifications_youtube_video": "tests.behavioral.golden.paths.notifications_youtube_video",
+    "stream_elements_commands": "tests.behavioral.golden.paths.stream_elements_commands",
+}
+
+
+@pytest.mark.parametrize("form", sorted(MANAGER_SEEDS))
+@pytest.mark.parametrize("locale", ["pt-br", "en-us"])
+async def test_every_manager_panel_is_within_discord_limits(
+    scenario_factory, deps, form, locale
+):
+    import importlib
+
+    from tests.behavioral.golden.paths.common import seed_document
+
+    paths = importlib.import_module(MANAGER_SEEDS[form])
+    seed_document(deps, form, getattr(paths, "TWO_ENTRIES", paths.ENABLED))
+    scenario = await scenario_factory(locale=locale).start_command(form)
+    _assert_within_limits(scenario.current_message.view, f"{form} panel {locale}")
+    await scenario.finish()
+
+
+async def test_the_birthday_manager_panel_is_within_discord_limits(
+    scenario_factory, deps
+):
+    from tests.behavioral.golden.paths.reminders_birthday import _open_manager
+
+    scenario = await _open_manager(
+        scenario_factory, deps, "pt-br", members=tuple(str(555 + i) for i in range(8))
+    )
+    _assert_within_limits(scenario.current_message.view, "birthday panel")
+    await scenario.finish()
+
+
+@pytest.mark.parametrize("form", sorted(MANAGER_SEEDS))
+def test_every_setup_review_is_within_discord_limits(form):
+    import importlib
+
+    from app.settings.discord.views import layout_of
+    from app.settings.features import feature_for
+    from app.settings.form import events as ev
+    from app.settings.form.form import decide
+    from app.settings.form.form_state import Origin, Setup, new_session
+    from app.settings.form.form_yaml import DefinitionRegistry
+
+    paths = importlib.import_module(MANAGER_SEEDS[form])
+    definition = DefinitionRegistry().get(form)
+    document = getattr(paths, "TWO_ENTRIES", paths.ENABLED)
+    session = new_session(
+        (definition.key, definition.version),
+        Setup(),
+        Origin("123456789", "555", "pt-br"),
+        ttl_seconds=60,
+        answers=feature_for(form).from_document(document),
+    ).at(definition.steps[-1].key)
+
+    decision = decide(definition, session, ev.ScreenRequested("e1", None))
+
+    view = layout_of(
+        decision.effects[0].screen, lambda action, arg=None: "k:s:1:x", None
+    )
+    _assert_within_limits(view, f"{form} review")

@@ -134,6 +134,7 @@ class ChildFinished(Event):
     child_mode: str = ""
     answers: Mapping[str, Any] = field(default_factory=dict)
     index: int | None = None
+    cancelled: bool = False
 
 
 @dataclass(frozen=True)

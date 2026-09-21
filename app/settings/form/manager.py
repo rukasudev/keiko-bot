@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from typing import TYPE_CHECKING, Any
 
-from app.constants import KeikoIcons, Style
+from app.constants import Emojis, KeikoIcons, Style
 from app.constants import ViewConstants as view_constants
 from app.settings.form import events as ev
 from app.settings.form.actions.action import (
@@ -24,6 +25,7 @@ from app.settings.form.components import (
     OptionSelect,
     Panel,
     PanelGroup,
+    PanelPart,
     Picker,
     Screen,
     TextInputs,
@@ -55,13 +57,18 @@ from app.settings.form.form_yaml import (
     ButtonOptionsSection,
     CardStep,
     CompositionStep,
+    DesignSection,
     FormDefinition,
+    IntroStep,
     MultiPickStep,
     MultiSelectSection,
     SingleChoiceStep,
     Step,
+    TextStep,
     UserPickStep,
     ValueSelectSection,
+    owned_keys,
+    produced_keys,
 )
 from app.settings.form.responses.responses import unwrap
 from app.settings.form.responses.styles import empty_value, format_value
@@ -108,6 +115,11 @@ def _labels(steps: Sequence[Step], locale: str) -> dict[str, dict[str, str]]:
                         str(option.value): option.label.get(locale)
                         for option in section.options
                     }
+                if isinstance(section, DesignSection) and section.state.value:
+                    labels[section.state.value] = {
+                        design.key: design.label.get(locale)
+                        for design in section.designs
+                    }
     return labels
 
 
@@ -120,22 +132,31 @@ def icons(steps: Sequence[Step]) -> dict[str, str]:
             found[key] = icon
 
     for step in steps:
-        if isinstance(step, CardStep):
-            for section in step.sections:
-                for state_key in section.state.keys():
-                    claim(state_key, section.icon)
-                claim(section.key, section.icon)
-        if isinstance(step, MultiPickStep):
-            for select in step.selects:
-                claim(select.key, select.icon)
-        claim(step.key, step.emoji)
+        for key, icon in _declared_icons(step):
+            claim(key, icon)
     return found
+
+
+def _declared_icons(step: Step) -> list[tuple[str | None, str | None]]:
+    declared: list[tuple[str | None, str | None]] = []
+    if isinstance(step, CardStep):
+        for section in step.sections:
+            declared += [(key, section.icon) for key in owned_keys(section)]
+            declared.append((section.key, section.icon))
+    if isinstance(step, MultiPickStep):
+        declared += [(select.key, select.icon) for select in step.selects]
+    declared.append((step.key, step.emoji))
+    if isinstance(step, TextStep):
+        declared += [(field.key, step.emoji) for field in step.fields]
+    return declared
 
 
 def groups(steps: Sequence[Step], locale: str) -> dict[str, dict[str, str | None]]:
     """Row key to the step that owns it, localized."""
     found: dict[str, dict[str, str | None]] = {}
     for step in steps:
+        if step.hidden or step.kind in SILENT:
+            continue
         header = step.header if isinstance(step, CardStep) else None
         title = header.title.get(locale) if header else step.title.get(locale)
         group = {
@@ -147,12 +168,24 @@ def groups(steps: Sequence[Step], locale: str) -> dict[str, dict[str, str | None
 
         if isinstance(step, CardStep):
             keys += [field.key for field in step.fields]
-        if isinstance(step, MultiPickStep):
-            keys += [select.key for select in step.selects]
-        if isinstance(step, CompositionStep):
-            keys.append(step.key)
+        keys += [key for key in produced_keys(step) if key not in keys]
+
         for key in keys:
             found.setdefault(key, group)
+    return found
+
+
+def part_targets(steps: Sequence[Step]) -> dict[str, str]:
+    """Row key to the field an Edit beside it opens, for steps edited by field."""
+    found: dict[str, str] = {}
+    for step in steps:
+        if isinstance(step, CardStep) and step.edit_by_field:
+            for section in step.sections:
+                for key in owned_keys(section):
+                    found.setdefault(key, section.key)
+        if isinstance(step, MultiPickStep) and step.edit_by_field:
+            for select in step.selects:
+                found.setdefault(select.key, select.key)
     return found
 
 
@@ -160,6 +193,7 @@ def _composition_items(
     composition: CompositionStep, items: Sequence[Any], locale: str
 ) -> list[dict[str, Any]]:
     titles: dict[str, str] = {}
+    item_icons = icons(composition.steps)
     for step in composition.steps:
         if isinstance(step, CardStep):
             titles.update({field.key: field.label.get(locale) for field in step.fields})
@@ -173,9 +207,14 @@ def _composition_items(
                 row[key] = {
                     **entry,
                     "title": titles.get(key) or entry.get("title") or key,
+                    "icon": item_icons.get(key),
                 }
             else:
-                row[key] = {"value": entry, "title": titles.get(key) or key}
+                row[key] = {
+                    "value": entry,
+                    "title": titles.get(key) or key,
+                    "icon": item_icons.get(key),
+                }
         rows.append(row)
     return rows
 
@@ -189,6 +228,14 @@ def panel_rows(
     nested = _nested(steps, locale)
     labels = _labels(steps, locale)
     icon_by_key, group_by_key = icons(steps), groups(steps, locale)
+    targets = part_targets(steps)
+    hidden = {
+        field.key
+        for step in steps
+        if isinstance(step, CardStep)
+        for field in step.fields
+        if field.hidden
+    }
     values = {key: unwrap(value) for key, value in document.items()}
     rows: list[PanelRow] = []
 
@@ -202,6 +249,7 @@ def panel_rows(
         if key in labels and isinstance(value, str):
             value = labels[key].get(value, value)
         style = nested[key][1] if key in nested else None
+        per_item = False
         if isinstance(value, Mapping) and value.get("style") == "composition":
             composition = definition.composition
             items = value.get("values") or []
@@ -209,6 +257,7 @@ def panel_rows(
                 _composition_items(composition, items, locale) if composition else items
             )
             style = "composition"
+            per_item = bool(composition and composition.edit_by_item)
         group = group_by_key.get(key, {})
         rows.append(
             PanelRow(
@@ -220,9 +269,35 @@ def panel_rows(
                 group=group.get("group"),
                 group_title=group.get("group_title"),
                 group_icon=group.get("group_icon"),
+                hidden=key in hidden,
+                target=targets.get(key),
+                per_item=per_item,
             )
         )
     return tuple(rows)
+
+
+def placed(
+    rows: Sequence[PanelRow], steps: Sequence[Step], locale: str
+) -> tuple[PanelRow, ...]:
+    """Rows a feature built, given the icon and group of the step owning their key."""
+    icon_by_key, group_by_key = icons(steps), groups(steps, locale)
+    result = []
+    for row in rows:
+        group = group_by_key.get(row.key, {}) if row.key else {}
+        if row.group is not None or not group:
+            result.append(row)
+            continue
+        result.append(
+            replace(
+                row,
+                icon=row.icon or icon_by_key.get(row.key),
+                group=group.get("group"),
+                group_title=group.get("group_title"),
+                group_icon=group.get("group_icon"),
+            )
+        )
+    return tuple(result)
 
 
 def without_leading_emoji(value: str) -> str:
@@ -236,19 +311,41 @@ def labelled(title: str, value: str, separator: str = " ") -> str:
     return f"**{title}{punctuation}**{separator}{value}"
 
 
+def _item_lines(item: Mapping[str, Any], locale: str) -> list[str]:
+    lines = []
+    for entry in item.values():
+        if not isinstance(entry, Mapping) or entry.get("hidden"):
+            continue
+        value = format_value(
+            entry.get("value"), entry.get("style"), locale
+        ) or empty_value(locale)
+        line = labelled(entry.get("title") or "", str(value).strip())
+        lines.append(f"{entry.get('icon') or Emojis.FRISBEE_EMOJI} {line}")
+    return lines
+
+
+def _item_groups(row: PanelRow, icon: str, locale: str) -> list[PanelGroup]:
+    items = list(row.value or [])
+    if not items:
+        empty = empty_value(locale)
+        line = f"{row.icon or Emojis.FRISBEE_EMOJI} {labelled(row.title, empty)}"
+        return [PanelGroup(None, "", (line,))]
+    groups_of_items = []
+
+    for index, item in enumerate(items):
+        heading = f"### {icon} {row.title} #{index + 1}".replace("###  ", "### ")
+        lines = (heading, *_item_lines(item, locale))
+        groups_of_items.append(PanelGroup(f"{row.key}${index}", heading, lines))
+    return groups_of_items
+
+
 def _composition_lines(values: Sequence[Mapping[str, Any]], locale: str) -> list[str]:
     limit = view_constants.COMPOSITION_PREVIEW_LIMIT
     lines = []
 
     for index, item in enumerate(values[:limit], start=1):
         lines.append(f"**#{index}**")
-        for entry in item.values():
-            if not isinstance(entry, Mapping) or entry.get("hidden"):
-                continue
-            value = format_value(
-                entry.get("value"), entry.get("style"), locale
-            ) or empty_value(locale)
-            lines.append(labelled(entry.get("title") or "", str(value).strip()))
+        lines += _item_lines(item, locale)
     if len(values) > limit:
         more = text("commands.resume.more", locale).replace(
             "$count", str(len(values) - limit)
@@ -271,8 +368,10 @@ def row_value(row: PanelRow, locale: str) -> tuple[str, bool]:
         return "\n".join(lines) or empty, True
     if isinstance(values, (list, tuple)) and style in ("bullet", "numbered", "code"):
         return format_value(list(values), "bullet", locale).lstrip("\n"), True
-    formatted = format_value(values, style, locale)
-    return without_leading_emoji(str(formatted or empty)), False
+    formatted = str(format_value(values, style, locale) or empty)
+    if formatted.startswith("\n"):
+        return formatted.lstrip("\n"), True
+    return without_leading_emoji(formatted), False
 
 
 def _same_text(first: str, second: str) -> bool:
@@ -299,17 +398,34 @@ def panel_groups(
         bucket[3].append(row)
     result = []
     for key, title, icon, members in buckets:
+        if len(members) == 1 and members[0].per_item:
+            result.extend(_item_groups(members[0], icon, locale))
+            continue
+        values = [(row, *row_value(row, locale)) for row in members]
+        several = len(members) > 1 or any(is_block for _, _, is_block in values)
         heading = ""
-        if title and not _same_text(title, panel_title):
+        if several and title and not _same_text(title, panel_title):
             heading = f"### {icon} {title}".replace("###  ", "### ")
         lines = [heading] if heading else []
-        for row in members:
-            value, is_block = row_value(row, locale)
+        parts: dict[str, list[str]] = {}
+        for row, value, is_block in values:
             if heading and len(members) == 1 and row.title == title:
                 lines.append(value)
                 continue
-            lines.append(labelled(row.title, value, "\n" if is_block else " "))
-        result.append(PanelGroup(key, heading, tuple(lines)))
+            line = labelled(row.title, value, "\n" if is_block else " ")
+            line = f"{row.icon or Emojis.FRISBEE_EMOJI} {line}"
+            if row.target:
+                parts.setdefault(row.target, []).append(line)
+            else:
+                lines.append(line)
+        result.append(
+            PanelGroup(
+                key,
+                heading,
+                tuple(lines),
+                tuple(PanelPart(target, tuple(part)) for target, part in parts.items()),
+            )
+        )
     return tuple(result)
 
 
@@ -369,13 +485,17 @@ def panel_screen(
     if not context.enabled:
         title += f" ({text('commands.command-events.paused.key', locale)})"
     rows = (
-        context.panel_rows
+        placed(context.panel_rows, definition.steps, locale)
         if context.panel_rows is not None
         else panel_rows(definition, document, locale)
     )
     grouped = panel_groups(rows, title, locale)
     sections_cover = bool(grouped) and all(group.key for group in grouped)
-    described = first.description
+    described = (
+        first.manager_description
+        if isinstance(first, IntroStep) and first.manager_description
+        else first.description
+    )
     panel = Panel(
         title=title,
         intro=described.get(locale),
@@ -592,6 +712,20 @@ def on_edit_requested(engine: Engine) -> None:
     """Edit: open the form again, seeded with what is saved."""
     event = engine.event
     assert isinstance(event, ev.EditRequested)
+
+    if event.target and "/" in event.target:
+        _open_part_edit(engine, event.target)
+        return
+    if event.target and "$" in event.target:
+        index = int(event.target.split("$", 1)[1])
+        seed = _item_seed(engine, index)
+
+        if not seed:
+            engine.effects.append(Notice("stale"))
+            engine.rerender()
+            return
+        engine.open_child(EditItem(index), seed)
+        return
     composition = engine.definition.composition
     items_target = composition is not None and event.target == composition.key
 
@@ -670,6 +804,23 @@ def on_target_chosen(engine: Engine) -> None:
     engine.open_child(Edit(tuple(value.split(","))), _seed_for_edit(engine))
 
 
+def _open_part_edit(engine: Engine, target: str) -> None:
+    step_key, part = target.split("/", 1)
+    step = next(
+        (
+            candidate
+            for candidate in engine.definition.steps
+            if candidate.key == step_key
+        ),
+        None,
+    )
+    if isinstance(step, (CardStep, MultiPickStep)) and step.edit_by_field:
+        engine.open_child(Edit((step_key,), part=part), _seed_for_edit(engine))
+        return
+    engine.effects.append(Notice("stale"))
+    engine.rerender()
+
+
 def _open_member_picker(engine: Engine, awaiting: str) -> None:
     action = "edited" if awaiting == "edit" else "removed"
     engine.session = engine.session.with_status(
@@ -699,6 +850,10 @@ def on_child_finished(engine: Engine) -> None:
     event = engine.event
     assert isinstance(event, ev.ChildFinished)
     engine.session = engine.session.with_status(Status.ACTIVE)
+
+    if event.cancelled:
+        engine.rerender()
+        return
     answers = {
         key: answer
         for key, answer in event.answers.items()

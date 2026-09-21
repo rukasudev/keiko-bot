@@ -25,6 +25,7 @@ from app.settings.form.components import (
     Gallery,
     OptionSelect,
     Panel,
+    PanelGroup,
     Picker,
     Screen,
     TextInputs,
@@ -350,6 +351,9 @@ def _panel(
     layout.header(container, panel.title, panel.intro, panel.thumbnail)
 
     for group in panel.groups:
+        if group.parts:
+            _panel_parts(container, panel, group, ids, dispatcher)
+            continue
         accessory = None
         if group.key:
             spec = Button(panel.edit_label, f"edit:{group.key}", "secondary", "✏️")
@@ -360,6 +364,27 @@ def _panel(
         heading = f"### {panel.info_title}\n" if panel.info_title else ""
         layout.row(container, f"{heading}{panel.info}")
     container.add_item(discord.ui.Separator())
+
+
+def _panel_parts(
+    container: discord.ui.Container[Any],
+    panel: Panel,
+    group: PanelGroup,
+    ids: Ids,
+    dispatcher: Dispatcher,
+) -> None:
+    if group.lines:
+        layout.row(container, "\n".join(group.lines))
+    for index, part in enumerate(group.parts):
+        spec = Button(
+            panel.edit_label, f"edit:{group.key}/{part.target}", "secondary", "✏️"
+        )
+        layout.row(
+            container,
+            "\n".join(part.lines),
+            _button(dispatcher, ids, spec),
+            separated=index == 0 and not group.lines,
+        )
 
 
 def _picker_screen(

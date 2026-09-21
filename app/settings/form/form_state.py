@@ -73,6 +73,7 @@ class Edit:
 
     keys: tuple[str, ...]
     kind: str = "edit"
+    part: str | None = None
 
 
 @dataclass(frozen=True)

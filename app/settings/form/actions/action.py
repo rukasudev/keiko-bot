@@ -8,11 +8,18 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from app.constants import KeikoIcons, Style
-from app.settings.form.components import Button, Component, Field, Screen
+from app.settings.form.components import (
+    Button,
+    Component,
+    DesignCard,
+    Field,
+    Gallery,
+    Screen,
+)
 from app.settings.form.conditions import Scope, evaluate
 from app.settings.form.copy import text
-from app.settings.form.form_state import FormSession
-from app.settings.form.form_yaml import FormDefinition, Step
+from app.settings.form.form_state import EditItem, FormSession
+from app.settings.form.form_yaml import Design, FormDefinition, Step
 from app.settings.form.responses.links import link_host
 from app.settings.form.responses.summary import ResponseView, responses
 
@@ -30,6 +37,8 @@ class PanelRow:
     group_title: str | None = None
     group_icon: str | None = None
     hidden: bool = False
+    target: str | None = None
+    per_item: bool = False
 
 
 @dataclass(frozen=True)
@@ -124,7 +133,7 @@ def apply_tokens(body: str, session: FormSession, context: RenderContext) -> str
     def replace(match: re.Match[str]) -> str:
         key, formatter, fallback = match.group(1), match.group(2), match.group(3) or ""
         view = by_key.get(key)
-        value: Any = view.value if view else None
+        value: Any = view.value if view else session.raw(key)
 
         if isinstance(value, (list, tuple)):
             value = ", ".join(str(item) for item in value)
@@ -183,4 +192,36 @@ def step_screen(
         flavour="embed",
         thumbnail=THUMBNAILS.get(step.kind, KeikoIcons.IMAGE_01),
         color=Style.BACKGROUND_COLOR,
+    )
+
+
+def other_items(
+    session: FormSession, items: Sequence[Mapping[str, Any]]
+) -> tuple[Mapping[str, Any], ...]:
+    """The composition's items except the one this session edits."""
+    mode = session.mode
+    if isinstance(mode, EditItem):
+        return tuple(item for index, item in enumerate(items) if index != mode.index)
+    return tuple(items)
+
+
+def design_gallery(
+    step_key: str, designs: Sequence[Design], context: RenderContext
+) -> Gallery:
+    """A gallery of `designs` with their previews, header, footer and Select."""
+    locale = context.locale
+    return Gallery(
+        step_key=step_key,
+        header=text("buttons.components.design-select.header", locale),
+        designs=tuple(
+            DesignCard(
+                key=design.key,
+                label=design.label.get(locale),
+                description=design.description.get(locale),
+                preview_url=context.previews.get(design.key),
+            )
+            for design in designs
+        ),
+        footer=text("buttons.components.design-select.footer", locale),
+        select_label=label("select", locale),
     )

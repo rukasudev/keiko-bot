@@ -10,10 +10,11 @@ from app.settings.form.actions import Refusal
 from app.settings.form.actions.action import (
     RenderContext,
     confirm_button,
+    label,
     step_buttons,
     step_screen,
 )
-from app.settings.form.components import Picker, Screen
+from app.settings.form.components import Button, Picker, Screen
 from app.settings.form.copy import text
 from app.settings.form.form_state import Answer, FormSession
 from app.settings.form.form_yaml import MultiPickStep
@@ -66,6 +67,33 @@ def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
         context,
         components=pickers,
         buttons=step_buttons(locale, context, confirm_button(locale)),
+    )
+
+
+def part_screen(
+    step: MultiPickStep, part: str, session: FormSession, context: RenderContext
+) -> Screen:
+    """One select of a multi-select, with a way back and nothing else."""
+    locale = context.locale
+    select = next(
+        (candidate for candidate in step.selects if candidate.key == part),
+        step.selects[0],
+    )
+    picker = Picker(
+        step_key=step.key,
+        kind=SELECT_KIND[select.type],  # type: ignore[arg-type]
+        placeholder=select.placeholder.get(locale),
+        selected=_ids(session.raw(select.key)),
+        unique=False,
+        slot=select.key,
+        available_only=select.type == "available_roles",
+    )
+    return step_screen(
+        step,
+        session,
+        context,
+        components=(picker,),
+        buttons=(Button(label("back", locale), "picker_back"),),
     )
 
 
