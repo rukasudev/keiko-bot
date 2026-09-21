@@ -12,7 +12,6 @@ from app.settings.form import events as ev
 from app.settings.form.actions.action import (
     PanelRow,
     RenderContext,
-    cancel_button,
     caption,
     confirm_button,
     label,
@@ -65,7 +64,7 @@ from app.settings.form.form_yaml import (
     ValueSelectSection,
 )
 from app.settings.form.responses.responses import unwrap
-from app.settings.form.responses.styles import format_value
+from app.settings.form.responses.styles import empty_value, format_value
 
 SILENT = ("intro", "info", "review")
 EMOJI_PREFIX = re.compile(r"^(?:[\U0001F000-\U0001FAFF☀-➿⬀-⯿️‍])+\s*")
@@ -246,7 +245,9 @@ def _composition_lines(values: Sequence[Mapping[str, Any]], locale: str) -> list
         for entry in item.values():
             if not isinstance(entry, Mapping) or entry.get("hidden"):
                 continue
-            value = format_value(entry.get("value"), entry.get("style"), locale) or "-"
+            value = format_value(
+                entry.get("value"), entry.get("style"), locale
+            ) or empty_value(locale)
             lines.append(labelled(entry.get("title") or "", str(value).strip()))
     if len(values) > limit:
         more = text("commands.resume.more", locale).replace(
@@ -262,7 +263,9 @@ def row_value(row: PanelRow, locale: str) -> tuple[str, bool]:
     if isinstance(values, Mapping):
         style = values.get("style")
         values = values.get("values", "-")
-    empty = text("commands.resume.empty", locale) or "-"
+    empty = empty_value(locale)
+    if isinstance(values, (list, tuple)) and not values and style != "composition":
+        return empty, False
     if style == "composition":
         lines = _composition_lines(values or [], locale)
         return "\n".join(lines) or empty, True
@@ -372,9 +375,10 @@ def panel_screen(
     )
     grouped = panel_groups(rows, title, locale)
     sections_cover = bool(grouped) and all(group.key for group in grouped)
+    described = first.description
     panel = Panel(
         title=title,
-        intro=first.description.get(locale),
+        intro=described.get(locale),
         groups=grouped,
         info=context.panel_info,
         info_title=context.panel_info_title,
@@ -464,9 +468,13 @@ def remove_options(
 
 
 def picker_screen(
-    base: Screen, placeholder: str, options: tuple[ChoiceOption, ...], unique: bool
+    base: Screen,
+    placeholder: str,
+    options: tuple[ChoiceOption, ...],
+    unique: bool,
+    locale: str,
 ) -> Screen:
-    """An embed with one select over `options`."""
+    """An embed with one select over `options` and a way back."""
     select = OptionSelect(
         "",
         placeholder,
@@ -482,6 +490,7 @@ def picker_screen(
         thumbnail=base.thumbnail,
         color=base.color,
         components=(select,),
+        buttons=(Button(label("back", locale), "picker_back"),),
     )
 
 
@@ -509,7 +518,10 @@ def member_picker_screen(
                 slot="member",
             ),
         ),
-        buttons=(confirm_button(locale), cancel_button(locale)),
+        buttons=(
+            confirm_button(locale),
+            Button(label("back", locale), "picker_back"),
+        ),
     )
 
 
@@ -586,6 +598,10 @@ def on_edit_requested(engine: Engine) -> None:
     if event.target and not items_target:
         engine.open_child(Edit((event.target,)), _seed_for_edit(engine))
         return
+    if items_target and uses_member_picker(composition):
+        _open_member_picker(engine, "edit")
+        return
+
     base = panel_embed(engine.definition, engine.locale)
     document = (
         engine.context.document
@@ -601,7 +617,9 @@ def on_edit_requested(engine: Engine) -> None:
     placeholder = text("commands.command-events.edited.placeholder", engine.locale)
     unique = engine.definition.composition is not None
     engine.session = engine.session.with_status(Status.AWAITING, awaiting="edit")
-    engine.effects.append(Render(picker_screen(base, placeholder, options, unique)))
+    engine.effects.append(
+        Render(picker_screen(base, placeholder, options, unique, engine.locale))
+    )
 
 
 def on_add_requested(engine: Engine) -> None:
@@ -620,7 +638,9 @@ def on_remove_requested(engine: Engine) -> None:
     options = remove_options(engine.definition, document, engine.locale)
     placeholder = text("commands.command-events.removed.placeholder", engine.locale)
     engine.session = engine.session.with_status(Status.AWAITING, awaiting="remove")
-    engine.effects.append(Render(picker_screen(base, placeholder, options, True)))
+    engine.effects.append(
+        Render(picker_screen(base, placeholder, options, True, engine.locale))
+    )
 
 
 def on_target_chosen(engine: Engine) -> None:
@@ -636,14 +656,7 @@ def on_target_chosen(engine: Engine) -> None:
         and value == composition.key
         and uses_member_picker(composition)
     ):
-        action = "edited" if awaiting == "edit" else "removed"
-        engine.session = engine.session.with_status(
-            Status.AWAITING, awaiting=f"member:{awaiting}"
-        )
-        engine.effects.append(
-            Render(member_picker_screen(engine.definition, action, engine.locale))
-        )
-
+        _open_member_picker(engine, awaiting)
         return
     if "$" in value:
         key, number = value.split("$", 1)
@@ -655,6 +668,16 @@ def on_target_chosen(engine: Engine) -> None:
             engine.open_child(EditItem(index), _item_seed(engine, index))
         return
     engine.open_child(Edit(tuple(value.split(","))), _seed_for_edit(engine))
+
+
+def _open_member_picker(engine: Engine, awaiting: str) -> None:
+    action = "edited" if awaiting == "edit" else "removed"
+    engine.session = engine.session.with_status(
+        Status.AWAITING, awaiting=f"member:{awaiting}"
+    )
+    engine.effects.append(
+        Render(member_picker_screen(engine.definition, action, engine.locale))
+    )
 
 
 def on_member_chosen(engine: Engine) -> None:

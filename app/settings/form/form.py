@@ -465,7 +465,8 @@ def _on_screen_requested(engine: Engine) -> None:
 def _on_answered(engine: Engine) -> None:
     event = engine.event
     assert isinstance(event, ev.Answered)
-    if isinstance(engine.session.mode, Manage):
+    awaiting = engine.session.awaiting or ""
+    if awaiting.startswith("member:") or isinstance(engine.session.mode, Manage):
         manager.on_manager_confirmed(engine)
         return
     step = engine.step(engine.session.cursor)
