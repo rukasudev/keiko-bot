@@ -83,10 +83,10 @@ def _session(definition, mode, cursor, **kwargs):
     ).at(cursor)
 
 
-def test_a_text_modal_asks_for_the_services_its_validator_needs():
+def test_a_list_item_card_asks_for_the_lookup_of_its_streamer_modal():
     definition = REGISTRY.get("notifications_twitch")
-    session = _session(definition, AddItem(), "streamer", parent_id="p")
-    event = ev.Answered("e1", None, "streamer", {"inputs": [" @Gaules "]})
+    session = _session(definition, AddItem(), "notification", parent_id="p")
+    event = ev.Answered("e1", None, "section:1", {"inputs": [" @Gaules "]})
 
     assert lookup_for(definition, session, event) == Lookup(("twitch",), "gaules")
 

@@ -31,15 +31,16 @@ async def test_a_multi_line_value_is_never_wrapped_in_bold(scenario_factory, dep
     deps.twitch.add_user("gaules", user_id="111")
     scenario = await scenario_factory(locale="pt-br").start("notifications_twitch")
     await scenario.confirm()
+    await scenario.click("customize:0")
     await scenario.select_option("general")
-    await scenario.confirm()
+    await scenario.click("customize:1")
     await scenario.submit_modal({scenario.pending_modal_fields()[0]: "gaules"})
-    await scenario.confirm()
-    fields = {
-        label: "{streamer} on! {stream_link}"
-        for label in scenario.pending_modal_fields()
-    }
-    await scenario.submit_modal(fields)
+    await scenario.click("customize:2")
+    fields = scenario.pending_modal_fields()
+    await scenario.submit_modal(
+        {fields[0]: "{streamer} on!", fields[1]: "{stream_link}"}
+    )
+    await scenario.click("done")
     scenario.expect_step("confirm")
 
     joined = "\n".join(_texts(scenario.current_message))

@@ -392,3 +392,107 @@ async def test_the_welcome_manager_draws_previews_in_the_background(deps):
     assert opened.document is not None
     assert opened.pending_previews is not None
     opened.pending_previews.close()
+
+
+def test_the_welcome_card_saves_the_document_the_welcome_service_reads():
+    """The welcome card must save the keys and shapes send_welcome_message reads:
+    the channel as {style, values}, the design key, the title and footer, and the
+    messages as one ;-joined text the service splits."""
+    from app.settings.form import events as ev
+    from app.settings.form.form import Context, decide
+    from app.settings.form.form_state import Origin, Setup, new_session
+    from app.settings.form.responses.responses import to_document
+
+    definition = REGISTRY.get("welcome_messages")
+    session = new_session(
+        (definition.key, definition.version),
+        Setup(),
+        Origin(GUILD_ID, "555", "pt-br"),
+        ttl_seconds=60,
+    ).at("welcome_config")
+
+    def run(current, event):
+        return decide(definition, current, event, Context()).session
+
+    session = run(
+        session,
+        ev.Drafted("e1", None, "welcome_config", {"welcome_messages_channel": ["101"]}),
+    )
+    session = run(
+        session,
+        ev.Answered(
+            "e2",
+            None,
+            "section:3",
+            {"inputs": ["Oi {user}!", "Bem-vindo {user}", "", "Chegou!", "Divirta-se"]},
+        ),
+    )
+    session = run(session, ev.Answered("e3", None, "welcome_config"))
+
+    document = to_document(definition.steps, session.answers, "pt-br")
+    assert document["welcome_messages_channel"] == {"style": "channel", "values": "101"}
+    assert document["welcome_design"] == "server_blur"
+    assert document["welcome_messages_title"] == "Oi {user}!"
+    assert document["welcome_messages"] == {
+        "style": "bullet",
+        "values": "Bem-vindo {user};Chegou!",
+    }
+    assert document["welcome_messages_footer"] == "Divirta-se"
+    assert "welcome_config" not in document
+
+
+async def test_the_stream_elements_lookup_counts_enabled_commands(deps, monkeypatch):
+    """The review shows how many commands will load, so the streamer lookup also
+    asks StreamElements for the channel and counts its enabled commands."""
+    from app.settings.features import stream_elements as stream_elements_feature
+    from app.settings.form.lookups import Lookup
+
+    client = stream_elements_feature.StreamElementsClient
+    monkeypatch.setattr(
+        client, "get_channel_info", staticmethod(lambda name: {"_id": "se1"})
+    )
+    monkeypatch.setattr(
+        client,
+        "get_chat_commands",
+        staticmethod(
+            lambda channel_id: [
+                {"enabled": True},
+                {"enabled": False},
+                {"enabled": True},
+            ]
+        ),
+    )
+    deps.twitch.add_user("shroud", user_id="37402112")
+    feature = feature_for("stream_elements_commands")
+
+    found = await feature.prefetch(
+        Lookup(("twitch", "stream_elements"), "shroud"),
+        OpenContext(GUILD_ID, "555", "pt-br"),
+    )
+
+    assert found == {
+        "twitch": {"user_id": "37402112"},
+        "stream_elements": {"channel_id": "se1", "enabled_commands": 2},
+    }
+
+
+async def test_a_stream_elements_outage_leaves_no_count(deps, monkeypatch):
+    from app.settings.features import stream_elements as stream_elements_feature
+    from app.settings.form.lookups import Lookup
+
+    def unreachable(name):
+        raise ConnectionError("StreamElements is down")
+
+    monkeypatch.setattr(
+        stream_elements_feature.StreamElementsClient,
+        "get_channel_info",
+        staticmethod(unreachable),
+    )
+    deps.twitch.add_user("shroud", user_id="37402112")
+
+    found = await feature_for("stream_elements_commands").prefetch(
+        Lookup(("twitch", "stream_elements"), "shroud"),
+        OpenContext(GUILD_ID, "555", "pt-br"),
+    )
+
+    assert found == {"twitch": {"user_id": "37402112"}}

@@ -30,7 +30,7 @@ from app.settings.form.components import (
     Screen,
     TextInputs,
 )
-from app.settings.form.conditions import Scope, evaluate
+from app.settings.form.conditions import EMPTY, Scope, evaluate
 from app.settings.form.copy import text
 from app.settings.form.effects import (
     Ack,
@@ -67,6 +67,7 @@ from app.settings.form.form_yaml import (
     TextStep,
     UserPickStep,
     ValueSelectSection,
+    When,
     owned_keys,
     produced_keys,
 )
@@ -175,6 +176,20 @@ def groups(steps: Sequence[Step], locale: str) -> dict[str, dict[str, str | None
     return found
 
 
+def section_gates(steps: Sequence[Step]) -> dict[str, When]:
+    """Row key to the rule that decides whether its card section is shown."""
+    found: dict[str, When] = {}
+    for step in steps:
+        if not isinstance(step, CardStep):
+            continue
+        for section in step.sections:
+            if section.visible_when is None:
+                continue
+            for key in owned_keys(section):
+                found.setdefault(key, section.visible_when)
+    return found
+
+
 def part_targets(steps: Sequence[Step]) -> dict[str, str]:
     """Row key to the field an Edit beside it opens, for steps edited by field."""
     found: dict[str, str] = {}
@@ -219,6 +234,11 @@ def _composition_items(
     return rows
 
 
+def _has_value(value: Any) -> bool:
+    """A setting with something saved in it, envelope or not."""
+    return unwrap(value) not in EMPTY
+
+
 def panel_rows(
     definition: FormDefinition, document: Mapping[str, Any], locale: str
 ) -> tuple[PanelRow, ...]:
@@ -229,6 +249,7 @@ def panel_rows(
     labels = _labels(steps, locale)
     icon_by_key, group_by_key = icons(steps), groups(steps, locale)
     targets = part_targets(steps)
+    gates = section_gates(steps)
     hidden = {
         field.key
         for step in steps
@@ -244,7 +265,13 @@ def panel_rows(
         if not title:
             continue
         step = next((step for step in steps if step.key == key), None)
-        if step is not None and not evaluate(step.when, Scope(values)):
+        if (
+            step is not None
+            and not evaluate(step.when, Scope(values))
+            and not _has_value(value)
+        ):
+            continue
+        if key in gates and not evaluate(gates[key], Scope(values)):
             continue
         if key in labels and isinstance(value, str):
             value = labels[key].get(value, value)
@@ -324,6 +351,13 @@ def _item_lines(item: Mapping[str, Any], locale: str) -> list[str]:
     return lines
 
 
+def _empty_list(members: Sequence[PanelRow]) -> bool:
+    """A list block with no item has nothing its Edit could open."""
+    if len(members) != 1 or members[0].style != "composition":
+        return False
+    return not members[0].value
+
+
 def _item_groups(row: PanelRow, icon: str, locale: str) -> list[PanelGroup]:
     items = list(row.value or [])
     if not items:
@@ -381,11 +415,12 @@ def _same_text(first: str, second: str) -> bool:
     return bool(normalize(first)) and normalize(first) == normalize(second)
 
 
-def panel_groups(
-    rows: Sequence[PanelRow], panel_title: str, locale: str
-) -> tuple[PanelGroup, ...]:
-    """Rows bucketed by the step that owns them, each rendered as its lines."""
-    buckets: list[tuple[str | None, str | None, str, list[PanelRow]]] = []
+Bucket = tuple[str | None, str | None, str, list[PanelRow]]
+
+
+def _buckets(rows: Sequence[PanelRow]) -> list[Bucket]:
+    """The visible rows grouped by the step that owns them, in the order shown."""
+    buckets: list[Bucket] = []
     for row in rows:
         if row.hidden:
             continue
@@ -396,12 +431,21 @@ def panel_groups(
             bucket = (row.group, row.group_title, row.group_icon or "", [])
             buckets.append(bucket)
         bucket[3].append(row)
+    return buckets
+
+
+def panel_groups(
+    rows: Sequence[PanelRow], panel_title: str, locale: str
+) -> tuple[PanelGroup, ...]:
+    """Rows bucketed by the step that owns them, each rendered as its lines."""
     result = []
-    for key, title, icon, members in buckets:
+    for key, title, icon, members in _buckets(rows):
         if len(members) == 1 and members[0].per_item:
             result.extend(_item_groups(members[0], icon, locale))
             continue
         values = [(row, *row_value(row, locale)) for row in members]
+        if _empty_list(members):
+            key = None
         several = len(members) > 1 or any(is_block for _, _, is_block in values)
         heading = ""
         if several and title and not _same_text(title, panel_title):
@@ -547,7 +591,7 @@ def edit_options(
 
     for key, title in step_titles(definition.steps, locale).items():
         step = definition.step(key)
-        if not evaluate(step.when, Scope(values)):
+        if not evaluate(step.when, Scope(values)) and not _has_value(document.get(key)):
             continue
         if composition is not None and key == composition.key:
             if uses_member_picker(composition):
@@ -748,6 +792,10 @@ def on_edit_requested(engine: Engine) -> None:
         options = tuple(
             option for option in options if option.value.startswith(f"{event.target}$")
         )
+    if not options:
+        engine.effects.append(Notice("stale"))
+        engine.rerender()
+        return
     placeholder = text("commands.command-events.edited.placeholder", engine.locale)
     unique = engine.definition.composition is not None
     engine.session = engine.session.with_status(Status.AWAITING, awaiting="edit")
@@ -770,6 +818,11 @@ def on_remove_requested(engine: Engine) -> None:
         else _review_document(engine)
     )
     options = remove_options(engine.definition, document, engine.locale)
+
+    if not options:
+        engine.effects.append(Notice("stale"))
+        engine.rerender()
+        return
     placeholder = text("commands.command-events.removed.placeholder", engine.locale)
     engine.session = engine.session.with_status(Status.AWAITING, awaiting="remove")
     engine.effects.append(

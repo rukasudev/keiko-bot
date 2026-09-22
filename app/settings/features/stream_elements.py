@@ -23,12 +23,22 @@ class StreamElementsFeature(GenericCogFeature):
     async def prefetch(
         self, lookup: Lookup, context: OpenContext
     ) -> Mapping[str, Mapping[str, Any]]:
-        """The Twitch user behind the typed streamer name."""
-        if "twitch" not in lookup.services:
-            return {}
-        twitch = cast(Any, app_module).bot.twitch
-        user_id = await asyncio.to_thread(twitch.get_user_id_from_login, lookup.value)
-        return {"twitch": {"user_id": user_id}}
+        """The streamer's Twitch user and how many StreamElements commands it has."""
+        found: dict[str, Mapping[str, Any]] = {}
+        if "twitch" in lookup.services:
+            twitch = cast(Any, app_module).bot.twitch
+            user_id = await asyncio.to_thread(
+                twitch.get_user_id_from_login, lookup.value
+            )
+            found["twitch"] = {"user_id": user_id}
+        if "stream_elements" in lookup.services:
+            try:
+                found["stream_elements"] = await asyncio.to_thread(
+                    _enabled_commands, lookup.value
+                )
+            except Exception:
+                pass
+        return found
 
     async def before_setup(
         self,
@@ -49,6 +59,14 @@ class StreamElementsFeature(GenericCogFeature):
         if "streamer" not in changes:
             return changes
         return await _with_channel(changes)
+
+
+def _enabled_commands(streamer: str) -> dict[str, Any]:
+    info = StreamElementsClient.get_channel_info(streamer)
+    channel_id = info["_id"]
+    commands: Any = StreamElementsClient.get_chat_commands(channel_id) or []
+    count = sum(1 for command in commands if command.get("enabled"))
+    return {"channel_id": channel_id, "enabled_commands": count}
 
 
 async def _with_channel(document: dict[str, Any]) -> dict[str, Any]:

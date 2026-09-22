@@ -6,6 +6,7 @@ real subscription orchestration against the recording MockTwitchAPI.
 Only the Twitch HTTP boundary is fake; the YAML validator
 (validate_streamer_name) also hits the mock for real.
 """
+
 import pytest
 
 from app.services.utils import ml
@@ -22,25 +23,30 @@ def production_like_bot(deps):
     return deps.bot
 
 
-async def test_full_setup_subscribes_streamer(scenario_factory, deps,
-                                              production_like_bot):
+async def _card_to_review(scenario, streamer, messages=None):
+    """The item card: channel, streamer and, when given, the messages; then Done."""
+    await scenario.click("customize:0")
+    await scenario.select_option("general")
+    await scenario.click("customize:1")
+    await scenario.submit_modal({scenario.pending_modal_fields()[0]: streamer})
+    if messages:
+        await scenario.click("customize:2")
+        fields = scenario.pending_modal_fields()
+        await scenario.submit_modal(dict(zip(fields, messages)))
+    await scenario.click("done")
+
+
+async def test_full_setup_subscribes_streamer(
+    scenario_factory, deps, production_like_bot
+):
     deps.twitch.add_user("gaules", user_id="111")
 
     scenario = await scenario_factory(locale="pt-br").start("notifications_twitch")
     await scenario.confirm()
-
-    await scenario.select_option("general")           # composition: channel
-    await scenario.confirm()
-    await scenario.submit_modal(                      # streamer name; the real
-        {scenario.pending_modal_fields()[0]: "gaules"}    # validator hits the mock
-    )
-    await scenario.confirm()                          # info/button step
-    fields = {label: "@everyone {streamer} on! {stream_link}"
-              for label in scenario.pending_modal_fields()}
-    await scenario.submit_modal(fields)
+    await _card_to_review(scenario, "gaules")
 
     scenario.expect_step("confirm")
-    await scenario.confirm()                          # _finish -> pre_finish_step
+    await scenario.confirm()
 
     assert deps.twitch.subscribe_calls, "setup must subscribe the streamer"
     subscribed_user_ids = [call.get("user_id") for call in deps.twitch.subscribe_calls]
@@ -55,15 +61,13 @@ async def test_full_setup_subscribes_streamer(scenario_factory, deps,
 
 
 async def test_unknown_streamer_is_rejected_by_real_validator(
-        scenario_factory, deps, production_like_bot):
+    scenario_factory, deps, production_like_bot
+):
     scenario = await scenario_factory(locale="pt-br").start("notifications_twitch")
     await scenario.confirm()
-    await scenario.select_option("general")
-    await scenario.confirm()
+    await scenario.click("customize:1")
 
-    await scenario.submit_modal(
-        {scenario.pending_modal_fields()[0]: "naoexiste"}
-    )
+    await scenario.submit_modal({scenario.pending_modal_fields()[0]: "naoexiste"})
 
     error_message = ml("errors.streamer-not-found.message", locale="pt-br")
     scenario.expect_error(error_message.split(".")[0])
@@ -71,16 +75,22 @@ async def test_unknown_streamer_is_rejected_by_real_validator(
     await scenario.finish()
 
 
-async def test_disable_unsubscribes_streamers(scenario_factory, deps,
-                                              production_like_bot):
+async def test_disable_unsubscribes_streamers(
+    scenario_factory, deps, production_like_bot
+):
     deps.twitch.add_user("gaules", user_id="111")
     deps.twitch.subscribe_to_stream_online_event("111")
     cog = {
-        "guild_id": GUILD_ID, "enabled": True,
+        "guild_id": GUILD_ID,
+        "enabled": True,
         "notifications": {
             "style": "composition",
-            "values": [{"channel": {"value": "100", "style": "channel"},
-                        "streamer": {"value": "gaules"}}],
+            "values": [
+                {
+                    "channel": {"value": "100", "style": "channel"},
+                    "streamer": {"value": "gaules"},
+                }
+            ],
         },
     }
     deps.mongo_client.guild["notifications_twitch"].insert_one(dict(cog))
@@ -98,20 +108,15 @@ async def test_disable_unsubscribes_streamers(scenario_factory, deps,
 
 
 async def test_a_streamer_typed_with_an_at_sign_is_found_and_saved_without_it(
-        scenario_factory, deps, production_like_bot):
+    scenario_factory, deps, production_like_bot
+):
     """The placeholder reads "your nick (e.g. @shroud)", so admins type the @:
     the lookup, the subscription and the saved item all use the bare nick."""
     deps.twitch.add_user("gaules", user_id="111")
 
     scenario = await scenario_factory(locale="pt-br").start("notifications_twitch")
     await scenario.confirm()
-    await scenario.select_option("general")
-    await scenario.confirm()
-    await scenario.submit_modal({scenario.pending_modal_fields()[0]: " @Gaules "})
-    await scenario.confirm()
-    fields = {label: "{streamer} on! {stream_link}"
-              for label in scenario.pending_modal_fields()}
-    await scenario.submit_modal(fields)
+    await _card_to_review(scenario, " @Gaules ")
     scenario.expect_step("confirm")
     await scenario.confirm()
 
@@ -121,4 +126,59 @@ async def test_a_streamer_typed_with_an_at_sign_is_found_and_saved_without_it(
     )
     streamers = [i["streamer"]["value"] for i in document["notifications"]["values"]]
     assert streamers == ["gaules"]
+    await scenario.finish()
+
+
+async def test_an_item_card_saves_the_item_the_notifier_reads(
+    scenario_factory, deps, production_like_bot
+):
+    """The notifier reads channel.value, streamer.value and a ;-joined
+    notification_messages.value it splits: the item card must save exactly that."""
+    deps.twitch.add_user("gaules", user_id="111")
+
+    scenario = await scenario_factory(locale="pt-br").start("notifications_twitch")
+    await scenario.confirm()
+    await _card_to_review(
+        scenario,
+        "gaules",
+        messages=["{streamer} on! {stream_link}", "Corre, {streamer}!"],
+    )
+    await scenario.confirm()
+
+    document = scenario.expect_persisted(
+        "guild", "notifications_twitch", {"guild_id": GUILD_ID}, {"enabled": True}
+    )
+    [item] = document["notifications"]["values"]
+    assert item["streamer"]["value"] == "gaules"
+    assert str(item["channel"]["value"]).isdigit()
+    assert item["notification_messages"]["value"] == (
+        "{streamer} on! {stream_link};Corre, {streamer}!"
+    )
+    assert "notification" not in item
+    await scenario.finish()
+
+
+async def test_editing_an_item_from_its_own_edit_moves_the_subscription(
+    scenario_factory, deps, production_like_bot
+):
+    from tests.behavioral.golden.paths.common import seed_document
+    from tests.behavioral.golden.paths.notifications_twitch import (
+        ENABLED,
+        _known_streamers,
+    )
+
+    _known_streamers(deps)
+    deps.twitch.subscribe_to_stream_online_event("181077473")
+    seed_document(deps, "notifications_twitch", ENABLED)
+    scenario = await scenario_factory(locale="pt-br").start_command(
+        "notifications_twitch"
+    )
+
+    await scenario.click("section:notifications$0")
+    await scenario.click("customize:1")
+    await scenario.submit_modal({scenario.pending_modal_fields()[0]: "shroud"})
+    await scenario.click("done")
+
+    assert "37402112" in [call.get("user_id") for call in deps.twitch.subscribe_calls]
+    assert deps.twitch.unsubscribe_calls, "the old streamer is unsubscribed"
     await scenario.finish()

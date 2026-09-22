@@ -4,6 +4,7 @@ Runs the real EditCommand view: manager -> the section's Editar -> the form
 re-runs prefilled for that step only -> Manager.update_command merges the
 change into the persisted document.
 """
+
 import pytest
 
 from app.services.utils import ml
@@ -13,7 +14,8 @@ pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form"
 GUILD_ID = "123456789"
 
 LEGACY_COG = {
-    "guild_id": GUILD_ID, "enabled": True,
+    "guild_id": GUILD_ID,
+    "enabled": True,
     "allowed_chats": {"style": "channel", "values": "100"},
     "allowed_links": ["Youtube"],
     "answer": "Resposta antiga",
@@ -21,7 +23,8 @@ LEGACY_COG = {
 
 
 async def test_edit_card_updates_answer_and_upgrades_legacy_shape(
-        scenario_factory, deps):
+    scenario_factory, deps
+):
     """A legacy (pre-redesign) document is edited through the new card: the
     card hydrates from the translated config, only the edited field changes
     meaningfully, and untouched keys survive."""
@@ -32,15 +35,16 @@ async def test_edit_card_updates_answer_and_upgrades_legacy_shape(
         "block_links", normalize_block_links_config(LEGACY_COG)
     )
 
-    await scenario.click("section:link_settings")     # the section's own pencil
+    await scenario.click("section:link_settings")  # the section's own pencil
 
     scenario.expect_message(components_v2=True)
     assert scenario.card_state["mode"] == "block_all"
-    assert scenario.card_state["allowed_links"] == ["youtube.com"], \
+    assert scenario.card_state["allowed_links"] == ["youtube.com"], (
         "legacy labels must hydrate as translated domains"
+    )
     assert scenario.card_state["answer"] == "Resposta antiga"
 
-    await scenario.click("customize:2")               # answer modal-input
+    await scenario.click("customize:2")  # answer modal-input
     await scenario.submit_modal({"resposta": "Resposta nova"})
     await scenario.click("done")
 
@@ -48,7 +52,9 @@ async def test_edit_card_updates_answer_and_upgrades_legacy_shape(
         title_contains=ml("commands.command-events.edited.title", locale="pt-br"),
     )
     document = scenario.expect_persisted(
-        "guild", "block_links", {"guild_id": GUILD_ID},
+        "guild",
+        "block_links",
+        {"guild_id": GUILD_ID},
         {"answer": "Resposta nova", "mode": "block_all"},
     )
     # Untouched keys survive the merge; quick-picks got upgraded to domains.
@@ -57,7 +63,8 @@ async def test_edit_card_updates_answer_and_upgrades_legacy_shape(
 
 
 async def test_edit_conditional_step_is_hidden_when_condition_unmet(
-        scenario_factory, deps):
+    scenario_factory, deps
+):
     """The edit picker leaves out steps whose `when` the saved document does
     not satisfy (register_now=false hides the composition for birthday)."""
     from app.settings.form.form_yaml import registry
@@ -72,3 +79,32 @@ async def test_edit_conditional_step_is_hidden_when_condition_unmet(
     assert "reminders_birthday" not in option_values, (
         "composition step must be hidden when register_now condition is unmet"
     )
+
+
+async def test_editing_one_default_roles_select_commits_it_from_its_own_edit(
+    scenario_factory, deps
+):
+    """Each roles dropdown has its own Edit on the panel: it opens only that
+    dropdown and saves as soon as a role is chosen, leaving the other alone."""
+    from tests.behavioral.golden.paths.common import seed_document
+    from tests.behavioral.golden.paths.default_roles import ENABLED
+
+    seed_document(deps, "default_roles", ENABLED)
+    scenario = await scenario_factory(locale="pt-br").start_command("default_roles")
+
+    await scenario.click("section:default_roles_config/default_roles")
+    await scenario.select_option("Admin", target="default_roles")
+
+    scenario.expect_message(
+        title_contains=ml("commands.command-events.edited.title", locale="pt-br"),
+    )
+    document = deps.mongo_client.guild["default_roles"].find_one({"guild_id": GUILD_ID})
+
+    def ids(entry):
+        values = entry["values"]
+        return {str(v) for v in (values if isinstance(values, list) else [values])}
+
+    assert ids(document["default_roles_bot"]) == {"201"}, (
+        "the other dropdown is left alone"
+    )
+    assert ids(document["default_roles"]) == {"200"}, "the chosen role is saved"
