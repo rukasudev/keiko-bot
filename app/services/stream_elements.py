@@ -7,7 +7,6 @@ import discord
 
 from app import logger
 from app.constants import Commands as constants
-from app.constants import KeikoIcons as icons_constants
 from app.constants import LogTypes as logconstants
 from app.constants import Style as style_constants
 from app.constants import ViewConstants as view_constants

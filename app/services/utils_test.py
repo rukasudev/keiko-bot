@@ -7,15 +7,12 @@ Estes testes NAO fazem I/O - apenas testam logica pura.
 import pytest
 from unittest.mock import MagicMock, patch
 from app.services.utils import (
-    get_link_host,
     get_message_links,
     check_two_lists_intersection,
     list_roles_id,
-    parse_link,
     parse_welcome_messages,
     format_datetime_output,
     split_welcome_messages,
-    get_styled_composition_values,
 )
 from app.services import reminders_birthdays
 from app.data.birthdays import build_default_item
@@ -257,49 +254,6 @@ class TestListRolesId:
         assert result == []
 
 
-class TestBirthdayCompositionSummary:
-    """Testes para renderizacao do resumo de aniversarios."""
-
-    def test_formats_birthday_summary_without_auxiliary_month_or_image_url(self):
-        values = [{
-            "user": {"value": "123", "title": "Membro", "style": "user"},
-            "month": {"value": "05", "title": "Mes do Aniversario", "hidden": True},
-            "date": {"value": "05-15", "title": "Aniversario", "style": "mm_dd"},
-            "use_custom_message": {"value": "custom", "title": "Mensagem"},
-            "custom_message_title": {"value": "Parabens, {user}!", "title": "Titulo", "hidden": True},
-            "custom_message_content": {"value": "Feliz aniversario!", "title": "Conteudo", "hidden": True},
-            "use_custom_image": {"value": "custom", "title": "Imagem Personalizada"},
-            "custom_image": {"value": "https://example.com/image.png", "title": "Imagem Personalizada", "hidden": True},
-        }]
-
-        result = get_styled_composition_values("Lista de Aniversarios", values, "pt-br")
-
-        assert "Aniversario: **15 de maio**" in result
-        assert "Mes do Aniversario" not in result
-        assert "Mensagem: **Personalizado**" in result
-        assert "Titulo:" not in result
-        assert "Conteudo:" not in result
-        assert "Imagem Personalizada: **Personalizado**" in result
-        assert "https://example.com/image.png" not in result
-
-    def test_hides_default_birthday_customization_fields(self):
-        values = [{
-            "user": {"value": "123", "title": "Member", "style": "user"},
-            "date": {"value": "05-15", "title": "Birthday", "style": "mm_dd"},
-            "use_custom_message": {"value": "default", "title": "Message", "hidden": True},
-            "custom_message_title": {"value": None, "title": "Title", "hidden": True},
-            "custom_message_content": {"value": None, "title": "Content", "hidden": True},
-            "use_custom_image": {"value": "default", "title": "Custom Birthday Image", "hidden": True},
-            "custom_image": {"value": None, "title": "Custom Birthday Image", "hidden": True},
-        }]
-
-        result = get_styled_composition_values("Birthday List", values, "en-us")
-
-        assert "Birthday: **May 15**" in result
-        assert "Message:" not in result
-        assert "Title:" not in result
-        assert "Content:" not in result
-        assert "Custom Birthday Image:" not in result
 
 
 class TestBirthdayItemDefaults:
@@ -350,12 +304,6 @@ class TestBirthdayItemDefaults:
                         assert reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15")["reminder_id"] == "rem-1"
 
         create.assert_not_called()
-
-    def test_formats_boolean_style_as_scalar(self):
-        from app.services.utils import format_values_by_style
-
-        assert format_values_by_style(True, "boolean", "pt-br") == "Sim"
-        assert format_values_by_style(False, "boolean", "pt-br") == "Não"
 
     def test_save_setup_form_writes_config_and_items(self):
         from app.services.reminders_birthdays import save_setup_form
@@ -765,79 +713,9 @@ class TestGetMessageLinksSchemeless:
         ]
 
 
-class TestParseLink:
-    def test_defaults_scheme_when_absent(self):
-        assert parse_link("discord.gg/abc").host == "discord.gg"
-
-    def test_lowercases_host_and_strips_www(self):
-        parsed = parse_link("https://WWW.Youtube.com/Watch")
-        assert parsed.host == "youtube.com"
-
-    def test_strips_single_trailing_slash_and_fragment(self):
-        parsed = parse_link("https://twitter.com/user/#section")
-        assert parsed.path == "/user"
-
-    def test_keeps_query(self):
-        parsed = parse_link("https://youtube.com/watch?v=abc")
-        assert parsed.query.get("v") == "abc"
-
-    def test_get_link_host_agrees_with_parse_link(self):
-        for value in ("https://WWW.Youtube.com/Watch", "discord.gg/abc", "x.com"):
-            assert get_link_host(value) == parse_link(value).host
-
-    def test_get_link_host_keeps_the_empty_guard(self):
-        assert get_link_host("") == ""
-        assert get_link_host(None) == ""
 
 
-class TestBooleanStyleWithStringValues:
-    """Regressao: options estilizadas persistem "True"/"False" como STRING;
-    o formatter boolean tratava "False" como truthy e exibia "Sim"."""
-
-    def test_string_false_renders_nao(self):
-        from app.services.utils import format_values_by_style
-        assert format_values_by_style("False", "boolean", "pt-br") == "Não"
-        assert format_values_by_style("false", "boolean", "pt-br") == "Não"
-
-    def test_string_true_renders_sim(self):
-        from app.services.utils import format_values_by_style
-        assert format_values_by_style("True", "boolean", "pt-br") == "Sim"
-
-    def test_real_booleans_keep_working(self):
-        from app.services.utils import format_values_by_style
-        assert format_values_by_style(False, "boolean", "pt-br") == "Não"
-        assert format_values_by_style(True, "boolean", "en-us") == "Yes"
 
 
-class TestCodeStyle:
-    """Style `code`: valores monoespacados (URLs em resumo/manager)."""
-
-    def test_single_value_renders_inline_code(self):
-        from app.services.utils import format_values_by_style
-        assert format_values_by_style("meusite.com.br", "code", "pt-br") == "`meusite.com.br`"
-
-    def test_list_renders_code_block(self):
-        from app.services.utils import format_values_by_style
-        result = format_values_by_style(["a.com", "b.com"], "code", "pt-br")
-        assert result.startswith("\n```") and "a.com\nb.com" in result
 
 
-class TestConditionAllows:
-    """condition_allows: avaliador unico de conditions (not_in + matches)."""
-
-    def test_no_condition_always_allows(self):
-        from app.services.utils import condition_allows
-        assert condition_allows(None, "x") is True
-
-    def test_not_in_blocks_listed_values(self):
-        from app.services.utils import condition_allows
-        condition = {"key": "mode", "not_in": ["allow_all"]}
-        assert condition_allows(condition, "allow_all") is False
-        assert condition_allows(condition, "block_all") is True
-
-    def test_matches_requires_pattern(self):
-        from app.services.utils import condition_allows
-        condition = {"key": "link", "matches": "[/?]"}
-        assert condition_allows(condition, "youtube.com") is False
-        assert condition_allows(condition, "youtube.com/watch") is True
-        assert condition_allows(condition, None) is False

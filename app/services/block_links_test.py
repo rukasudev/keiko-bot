@@ -17,7 +17,7 @@ from app.services.block_links import (
     matches_exact,
     normalize_block_links_config,
 )
-from app.services.utils import parse_link
+from app.settings.form.responses.links import parse_link
 
 
 def _config(mode="block_all", domains=None, entries=None):

@@ -20,9 +20,9 @@ from app.data.notifications_twitch import (
     update_last_stream_date,
 )
 from app.settings import open_feature
-from app.services import analytics, cache
+from app.services import analytics
 from app.views.message_preview import MessagePreviewView
-from app.services.utils import format_datetime_output, ml
+from app.services.utils import format_datetime_output, ml, values_of
 
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:
@@ -306,11 +306,7 @@ async def send_notification_preview(
     interaction: discord.Interaction, responses: List[Dict[str, Any]]
 ) -> None:
     """The live announcement as it will arrive, one written message per click."""
-    values = {
-        item["key"]: item.get("_raw_value", item.get("value"))
-        for item in responses
-        if item.get("key")
-    }
+    values = values_of(responses)
     streamer = str(values.get("streamer") or "")
     stream_link = f"https://www.twitch.tv/{streamer}"
     texts = [

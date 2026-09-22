@@ -141,3 +141,22 @@ def test_a_list_longer_than_the_screen_keeps_the_panel_edit():
 
     assert _reachable(shown) is True, "the screen buttons all of them"
     assert _reachable(shown + 1) is False, "the panel keeps its Edit for the rest"
+
+
+def test_a_boolean_stored_as_a_string_reads_as_no():
+    """Broke as: a styled option persists "True"/"False" as a STRING, and the
+    old formatter read "False" as truthy and showed "Sim". The guarantee moved
+    here with the formatter when the old engine's copy was deleted."""
+    assert format_value("False", "boolean", "pt-br") == "Não"
+    assert format_value("false", "boolean", "pt-br") == "Não"
+    assert format_value("True", "boolean", "pt-br") == "Sim"
+    assert format_value(False, "boolean", "pt-br") == "Não"
+    assert format_value(True, "boolean", "en-us") == "Yes"
+
+
+def test_the_code_style_keeps_one_value_inline_and_a_list_in_a_block():
+    """The `code` style renders a URL monospaced on the panel and the review:
+    one value inline, several inside a block. Moved here with the formatter."""
+    assert format_value("meusite.com.br", "code", "pt-br") == "`meusite.com.br`"
+    listed = format_value(["a.com", "b.com"], "code", "pt-br")
+    assert listed.startswith("\n```") and "a.com\nb.com" in listed
