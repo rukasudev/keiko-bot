@@ -10,30 +10,6 @@ from app.integrations.google_translate import GoogleTranslate
 from app.services import analytics
 from app.services.utils import ml, parse_locale
 
-SETUP_FEATURES = [
-    {
-        "command_key": commands_constants.WELCOME_MESSAGES_KEY,
-        "button_key": "welcome-messages",
-        "emoji": "🎉",
-    },
-    {
-        "command_key": commands_constants.DEFAULT_ROLES_KEY,
-        "button_key": "default-roles",
-        "emoji": "👩‍🎓",
-    },
-    {
-        "command_key": commands_constants.NOTIFICATIONS_TWITCH_KEY,
-        "button_key": "twitch",
-        "emoji": "📡",
-    },
-    {
-        "command_key": commands_constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
-        "button_key": "youtube",
-        "emoji": "▶️",
-    },
-]
-
-
 class SetupButton(discord.ui.Button):
     def __init__(self, command_key: str, label: str, emoji: str, locale: str, custom_id: str):
         self.command_key = command_key
@@ -43,7 +19,6 @@ class SetupButton(discord.ui.Button):
             emoji=emoji,
             style=discord.ButtonStyle.grey,
             custom_id=custom_id,
-            row=0,
         )
 
     async def callback(self, interaction: discord.Interaction):
@@ -64,7 +39,6 @@ class DashboardButton(discord.ui.Button):
             emoji="🔧",
             style=discord.ButtonStyle.primary,
             custom_id="greetings:setup:dashboard",
-            row=0,
         )
 
     async def callback(self, interaction: discord.Interaction):
@@ -82,7 +56,7 @@ def _resolve_locale(guild: discord.Guild) -> str:
 
 def _build_setup_buttons(locale: str):
     buttons = []
-    for feature in SETUP_FEATURES:
+    for feature in commands_constants.SETUP_FEATURES:
         label = ml(f"buttons.setup.{feature['button_key']}.label", locale)
         custom_id = f"greetings:setup:{feature['command_key']}"
         buttons.append(
@@ -108,7 +82,7 @@ def _build_language_select(locale: str, callback):
         options,
         custom_callback=callback,
         custom_id="greetings:language_select",
-        row=1,
+        row=4,
     )
 
 
@@ -153,7 +127,7 @@ class GreetingsView(discord.ui.View):
         analytics.emit(
             "guild.greeting_sent",
             guild_id=guild.id,
-            features_offered=len(SETUP_FEATURES),
+            features_offered=len(commands_constants.SETUP_FEATURES),
             channel_found=channel_found,
         )
 
