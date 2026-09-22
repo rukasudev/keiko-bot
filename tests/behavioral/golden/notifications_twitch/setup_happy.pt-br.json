@@ -26,9 +26,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Texto**: Onde vou avisar da live.\n:flying_disc: **Streamer**: O nick do streamer na Twitch, com ou sem @.\n:flying_disc: **Mensagens de Notificação**: Até três mensagens, eu sorteio uma a cada live.",
+      "description": "Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Texto**: Onde vou avisar da live.\n:flying_disc: **Streamer**: O nick do streamer na Twitch, com ou sem @.\n:flying_disc: **Mensagens de Notificação**: Até três mensagens, eu sorteio uma a cada live.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "🔔 Twitch Notificações"
@@ -690,7 +690,7 @@
           {
             "children": [
               {
-                "content": "### :busts_in_silhouette: Notificações #1\n📺 **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• {streamer} entrou ao vivo: {stream_link}```",
+                "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• {streamer} entrou ao vivo: {stream_link}```",
                 "type": "text"
               },
               {
@@ -766,9 +766,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Comando **notificações twitch lives** ativado as 2026-01-01 12:00:00 UTC por <@555> 🚀\n\n Para fazer alterações ou desativar, use o comando `/notificações twitch lives` ou `/configurar` 🔄",
+      "description": "Comando **notificações twitch lives** ativado as 2026-01-01 12:00:00 UTC por <@555> 🚀\n\n Para fazer alterações ou desativar, use o comando `/notificações twitch lives` ou `/configurar` 🔄\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": null,
       "title": "🎉 Funcionalidade ativada com sucesso!"

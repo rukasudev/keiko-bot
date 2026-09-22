@@ -154,6 +154,7 @@ def deps(mongodb, redis_client):
     ns.bot.get_guild = MagicMock(return_value=ns.guild)
     ns.bot.config = MagicMock()
     ns.bot.config.ADMIN_DUMP_CHANNEL_ID = 999999
+    ns.bot.config.PREFIX = "ks!"
     mock_dump_channel = MagicMock()
     mock_dump_channel.send = MagicMock()
     ns.bot.get_channel = MagicMock(return_value=mock_dump_channel)

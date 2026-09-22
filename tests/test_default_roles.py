@@ -323,7 +323,7 @@ class TestDefaultRolesSync:
         for embed in (waiting, result):
             assert embed.color.value == int(Style.BACKGROUND_COLOR, 16)
             assert embed.thumbnail.url == KeikoIcons.IMAGE_01
-            assert embed.footer.text.startswith("• ")
+            assert "/reportar" in embed.description
         assert "Membros: **2**" in result.description
         assert "Bots: **0**" in result.description, (
             "only the member roles are configured, so no bot got one"

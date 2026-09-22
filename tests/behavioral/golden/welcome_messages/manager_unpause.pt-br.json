@@ -30,7 +30,7 @@
             "type": "section"
           },
           {
-            "content": "### 🎉 Mensagens de Boas-Vindas",
+            "content": "### Mensagens de Boas-Vindas",
             "type": "text"
           },
           {
@@ -175,9 +175,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Comando **moderações mensagens boas-vindas** despausado as 2026-01-01 12:00:00 UTC por <@555>",
+      "description": "Comando **moderações mensagens boas-vindas** despausado as 2026-01-01 12:00:00 UTC por <@555>\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": null,
       "title": "▶️ Comando despausado com sucesso!"

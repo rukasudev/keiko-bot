@@ -13,6 +13,7 @@ from typing import Any, cast
 
 import discord
 
+from app.components.embed import with_footer
 from app.constants import DiscordLimits, Style
 from app.constants import ViewConstants as view_constants
 from app.settings.discord import layout
@@ -245,8 +246,7 @@ def embed_of(screen: Screen) -> discord.Embed:
         embed.set_thumbnail(url=screen.thumbnail)
     if screen.image:
         embed.set_image(url=screen.image)
-    if screen.footer:
-        embed.set_footer(text=screen.footer)
+    with_footer(embed, screen.footer)
     return embed
 
 
@@ -353,17 +353,46 @@ def _panel(
     for group in panel.groups:
         if group.parts:
             _panel_parts(container, panel, group, ids, dispatcher)
-            continue
-        accessory = None
-        if group.key:
-            spec = Button(panel.edit_label, f"edit:{group.key}", "secondary", "✏️")
-            accessory = _button(dispatcher, ids, spec)
-        layout.row(container, "\n".join(group.lines), accessory)
+        elif group.actions:
+            container.add_item(discord.ui.TextDisplay("\n".join(group.lines)))
+        else:
+            accessory = None
+            if group.key:
+                spec = Button(panel.edit_label, f"edit:{group.key}", "secondary", "✏️")
+                accessory = _button(dispatcher, ids, spec)
+            layout.row(container, "\n".join(group.lines), accessory)
+        if group.actions:
+            row = [_button(dispatcher, ids, spec) for spec in group.actions]
+            container.add_item(discord.ui.ActionRow(*row))
+        _toggles(container, group, ids, dispatcher)
 
     if panel.info:
         heading = f"### {panel.info_title}\n" if panel.info_title else ""
         layout.row(container, f"{heading}{panel.info}")
     container.add_item(discord.ui.Separator())
+
+
+def _toggles(
+    container: discord.ui.Container[Any],
+    group: PanelGroup,
+    ids: Ids,
+    dispatcher: Dispatcher,
+) -> None:
+    """One button per choice, lit when it is on, four to a row."""
+    items = [
+        _button(
+            dispatcher,
+            ids,
+            Button(
+                option.label,
+                f"toggle:{group.choice_target}={option.value}",
+                "success" if option.selected else "secondary",
+            ),
+        )
+        for option in group.choices
+    ]
+    for index in range(0, len(items), 4):
+        container.add_item(discord.ui.ActionRow(*items[index : index + 4]))
 
 
 def _panel_parts(
@@ -377,7 +406,7 @@ def _panel_parts(
         layout.row(container, "\n".join(group.lines))
     for index, part in enumerate(group.parts):
         spec = Button(
-            part.label or panel.edit_label, f"edit:{part.target}", "secondary", "✏️"
+            part.label or panel.edit_label, part.button, "secondary", part.emoji
         )
         layout.row(
             container,

@@ -615,7 +615,7 @@ def test_the_manager_renders_the_panel_with_grouped_settings():
     assert [g.key for g in panel.groups] == [
         "link_settings",
         "permissions",
-        None,
+        "group:exceptions",
     ]
     assert "**Modo de bloqueio:** Bloquear todos" in panel.groups[0].lines[1]
     assert [b.action for b in screen(decision).buttons] == [
@@ -630,22 +630,29 @@ def test_the_manager_renders_the_panel_with_grouped_settings():
 
 def test_settings_of_different_steps_group_under_one_declared_heading():
     """The popular websites live on the card and the custom links are a list of
-    their own: on the panel they read as one group, each with its own button."""
+    their own: on the panel they read as one block, behind a single Edit, and
+    the screen it opens is where each of them gets its own button."""
     definition, decision = start(
         "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
     )
     panel = screen(decision).components[0]
     group = next(g for g in panel.groups if "Exceções" in g.heading)
 
-    assert group.key is None
-    assert [part.target for part in group.parts] == [
-        "link_settings/allowed_links",
-        "custom_links",
-    ]
-    assert [part.label for part in group.parts] == [
-        "Liberar site famoso",
-        "Liberar links específicos",
-    ]
+    assert group.key == "group:exceptions"
+    assert not group.parts, "one Edit for the heading, not one per line"
+    body = "\n".join(group.lines)
+    assert "Sites populares permitidos" in body and "Seus Links" in body
+
+    opened = decide(
+        definition,
+        decision.session,
+        evt(ev.EditRequested, target="group:exceptions"),
+        Context(document=BLOCK_LINKS_DOC),
+    )
+    view = screen(opened).components[0]
+    toggles = next(group for group in view.groups if group.choices)
+    assert toggles.choice_target == "allowed_links"
+    assert any(group.actions for group in view.groups), "each link keeps its buttons"
 
 
 def test_a_section_edit_opens_a_child_over_that_step_seeded_from_the_document():
@@ -1295,6 +1302,164 @@ def _open_part(definition, parent, context, target):
     return opened, decide(definition, child, evt(ev.Started), context)
 
 
+def test_the_exceptions_are_one_block_that_opens_a_screen_of_its_own():
+    """Lucas: the two exception buttons crowded the panel and only one of them
+    worked. The heading now holds one Edit, and the screen it opens carries the
+    popular websites as buttons, one block per link with its own Edit and
+    Remove, and a single way to add another."""
+    from tests.behavioral.golden.paths.block_links import ENABLED
+
+    context = Context(document=ENABLED)
+    definition, panel = start("block_links", Manage(), context=context)
+
+    groups = screen(panel).components[0].groups
+    assert groups[-1].key == "group:exceptions", [group.key for group in groups]
+    assert not groups[-1].parts, "the heading holds one Edit, not one per line"
+
+    opened = decide(
+        definition,
+        panel.session,
+        evt(ev.EditRequested, target="group:exceptions"),
+        context,
+    )
+
+    shown = screen(opened)
+    actions = [button.action for button in shown.buttons]
+    assert actions == ["add:custom_links", "picker_back"], actions
+    view = shown.components[0]
+    assert view.intro, "the screen says what the heading is for"
+    assert any(group.choices for group in view.groups), "the websites are buttons here"
+    beside_items = [button.action for group in view.groups for button in group.actions]
+    assert beside_items == [
+        "edit:custom_links$0",
+        "remove_one:custom_links$0",
+        "edit:custom_links$1",
+        "remove_one:custom_links$1",
+    ], beside_items
+
+
+EXCEPTIONS_DOC = {
+    **BLOCK_LINKS_DOC,
+    "allowed_links": {"style": "bullet", "values": ["youtube.com"]},
+}
+
+
+def _exceptions_screen(document):
+    context = Context(document=document)
+    definition, panel = start("block_links", Manage(), context=context)
+    opened = decide(
+        definition,
+        panel.session,
+        evt(ev.EditRequested, target="group:exceptions"),
+        context,
+    )
+    return definition, opened, context
+
+
+def test_a_popular_website_turns_on_where_it_is_read():
+    """Lucas: a screen with nothing but a dropdown does not even show that more
+    than one can be picked. The websites are buttons on the screen itself, and
+    turning one on saves without taking the screen away."""
+    definition, opened, context = _exceptions_screen(EXCEPTIONS_DOC)
+    toggles = next(g for g in screen(opened).components[0].groups if g.choices)
+    assert [c.selected for c in toggles.choices if c.value == "youtube.com"] == [True]
+
+    turned = decide(
+        definition,
+        opened.session,
+        evt(ev.OptionToggled, target="allowed_links", value="spotify.com"),
+        context,
+    )
+
+    written = next(e for e in turned.effects if isinstance(e, Commit))
+    assert written.kind == "edit" and written.quiet
+    assert written.payload["answers"]["allowed_links"].raw == [
+        "youtube.com",
+        "spotify.com",
+    ]
+    saved = decide(
+        definition, turned.session, evt(ev.CommitSucceeded, kind="edit"), context
+    )
+    assert kinds(saved) == ["Render"], "no success message, the screen stays"
+    assert "Exceções" in screen(saved).components[0].title
+
+
+def test_a_website_that_is_on_turns_off_on_the_same_click():
+    definition, opened, context = _exceptions_screen(EXCEPTIONS_DOC)
+
+    turned = decide(
+        definition,
+        opened.session,
+        evt(ev.OptionToggled, target="allowed_links", value="youtube.com"),
+        context,
+    )
+
+    written = next(e for e in turned.effects if isinstance(e, Commit))
+    assert written.payload["answers"]["allowed_links"].raw == []
+
+
+def test_removing_one_link_asks_first_and_stays_on_the_screen():
+    """Lucas: the Remove sits under each item here, and answering it should not
+    throw the admin back to the panel."""
+    definition, opened, context = _exceptions_screen(BLOCK_LINKS_DOC)
+
+    asked = decide(
+        definition,
+        opened.session,
+        evt(ev.RemoveRequested, target="custom_links$0"),
+        context,
+    )
+    assert kinds(asked) == ["Confirm"]
+
+    removed = decide(
+        definition,
+        asked.session,
+        evt(ev.RemoveItemConfirmed, target="custom_links$0"),
+        context,
+    )
+    written = next(e for e in removed.effects if isinstance(e, Commit))
+    assert written.kind == "remove_item" and written.quiet
+
+    saved = decide(
+        definition,
+        removed.session,
+        evt(ev.CommitSucceeded, kind="remove_item"),
+        context,
+    )
+    assert "Exceções" in screen(saved).components[0].title, "the screen stays"
+
+
+def test_back_from_the_exceptions_screen_returns_to_the_panel():
+    definition, opened, context = _exceptions_screen(BLOCK_LINKS_DOC)
+
+    closed = decide(definition, opened.session, evt(ev.PickerClosed), context)
+
+    assert closed.session.cursor is None
+    assert "Bloquear Links" in screen(closed).components[0].title
+
+
+def test_the_edit_beside_a_declared_group_opens_that_part():
+    """Broke as: the two buttons of the block links "Exceptions" heading did
+    nothing at all. The panel gives a card field its own Edit whenever the
+    field declares a panel group of its own, but the engine only honoured a
+    part target on a card that also declares `edit_by_field`, so the click
+    answered a stale notice and redrew the panel."""
+    from tests.behavioral.golden.paths.block_links import ENABLED
+
+    context = Context(document=ENABLED)
+    definition, panel = start("block_links", Manage(), context=context)
+    opened = decide(
+        definition,
+        panel.session,
+        evt(ev.EditRequested, target="link_settings/allowed_links"),
+        context,
+    )
+
+    assert kinds(opened) == ["OpenChild"], kinds(opened)
+    child = opened.effects[0].session
+    assert child.mode == Edit(("link_settings",), part="allowed_links")
+
+
 def test_a_part_edit_opens_only_that_section_picker():
     definition, parent, context = _part_manager()
     opened, started = _open_part(definition, parent, context, "welcome_card/channel")
@@ -1603,7 +1768,31 @@ def _typed_streamer(definition):
     return decide(definition, session, typed, context)
 
 
+def test_a_card_nobody_touched_yet_still_shows_its_defaults():
+    """Broke as: Preview answered nothing when pressed right after the welcome
+    card opened. Until the first change a card has no draft at all, so the
+    session held none of the values the admin was reading on the screen."""
+    from app.settings.form.form import shown_answers
+
+    definition, opened = start("welcome_messages")
+    answered = decide(
+        definition,
+        opened.session,
+        evt(ev.Answered, step_key="form", payload=None),
+        Context(),
+    )
+
+    shown = shown_answers(definition, answered.session, Context())
+
+    state = shown["welcome_config"].parts
+    assert state["welcome_messages_title"] == "Um novo membro chegou! 🎉"
+    assert "bem-vindo ao" in str(state["welcome_messages"])
+    assert not answered.session.answers.get("welcome_config"), "no draft yet"
+
+
 def test_a_lookup_answer_is_kept_hidden_and_never_saved():
+    """A looked up answer may be shown, as the review's own line, but it is
+    never written to the document and never becomes a setting with an Edit."""
     definition = _stream_elements_counting()
 
     reviewed = _typed_streamer(definition)
@@ -1613,15 +1802,21 @@ def test_a_lookup_answer_is_kept_hidden_and_never_saved():
     saved = to_document(definition.steps, reviewed.session.answers, "pt-br")
     assert "stream_elements_commands_count" not in saved
     groups = screen(reviewed).components[0].groups
-    assert not any("12" in line for group in groups for line in group.lines)
+    assert not any(
+        "12" in line for group in groups if group.key for line in group.lines
+    )
 
 
-def test_the_review_names_the_first_commands_the_lookup_found():
-    """Besides the count, the review names some of the commands that will load."""
+def test_the_review_lists_the_commands_it_found_under_the_streamer():
+    """Lucas: the count belongs in a field of its own under the streamer, not
+    buried in the paragraph above it, and the streamer's picture on the card."""
     definition, decision = start("stream_elements_commands")
     context = Context(
         external={
-            "twitch": {"user_id": "1"},
+            "twitch": {
+                "user_id": "1",
+                "profile_image": "https://static-cdn.jtvnw.net/shroud.png",
+            },
             "stream_elements": {
                 "enabled_commands": 12,
                 "top_commands": "`!mouse`, `!setup`",
@@ -1632,8 +1827,12 @@ def test_the_review_names_the_first_commands_the_lookup_found():
 
     reviewed = decide(definition, decision.session.at("streamer"), typed, context)
 
-    intro = screen(reviewed).components[0].intro
-    assert "12" in intro and "`!mouse`, `!setup`" in intro
+    panel = screen(reviewed).components[0]
+    lines = [line for group in panel.groups for line in group.lines]
+    assert "12" not in panel.intro, "the count is a field, not a paragraph"
+    assert any("Comandos ativos" in line and "12" in line for line in lines), lines
+    assert any("`!mouse`, `!setup`" in line for line in lines), lines
+    assert panel.thumbnail == "https://static-cdn.jtvnw.net/shroud.png"
 
 
 def test_a_lookup_answer_belongs_to_the_step_that_looked_it_up():
@@ -1654,18 +1853,29 @@ EMPTY_LINKS_DOC = {
 }
 
 
-def test_a_list_with_no_items_has_no_edit_of_its_own():
+def test_a_list_with_no_items_is_never_opened_by_an_edit():
     """Broke as: the Edit of an empty list built a dropdown with no option and
-    Discord refused the message (50035 Invalid Form Body)."""
-    drawn, panel = _panel("block_links", EMPTY_LINKS_DOC)
-
-    empty = next(
-        group
-        for group in panel.groups
-        if any("Seus Links" in line for line in group.lines)
+    Discord refused the message (50035 Invalid Form Body). The empty list keeps
+    a button of its own when its heading is shared with another setting, but
+    that button adds, so nothing ever opens a picker with nothing to pick."""
+    context = Context(document=EMPTY_LINKS_DOC)
+    definition, panel = start("block_links", Manage(), context=context)
+    opened = decide(
+        definition,
+        panel.session,
+        evt(ev.EditRequested, target="group:exceptions"),
+        context,
     )
-    assert empty.key is None
-    assert "edit" in [b.action for b in drawn.buttons], "the global Edit comes back"
+
+    shown = screen(opened)
+    view = shown.components[0]
+    parts = [part for group in view.groups for part in group.parts]
+    assert not [part for part in parts if "custom_links" in part.button], (
+        "there is no item to edit yet"
+    )
+    lines = [line for group in view.groups for line in group.lines]
+    assert any("Seus Links" in line and "Nada ainda" in line for line in lines), lines
+    assert "add:custom_links" in [button.action for button in shown.buttons]
 
 
 def test_an_edit_with_nothing_to_pick_redraws_the_panel():

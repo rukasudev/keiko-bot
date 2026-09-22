@@ -62,9 +62,21 @@ steps:
         panel_group:
           key: exceptions
           emoji: "✅"
+          own_screen: true
+          order: 1
           title:
             en-us: "Exceptions"
             pt-br: "Exceções"
+          description:
+            en-us: "These are the websites and links I always let through, even blocking every other one. Turn a popular website on or off right here, and add your own links below."
+            pt-br: "Estes são os sites e links que eu sempre libero, mesmo bloqueando todos os outros. Ligue ou desligue um site popular aqui mesmo, e adicione os seus próprios links abaixo."
+          description_when:
+            - when:
+                key: mode
+                not_in: [block_all]
+              text:
+                en-us: "These are the only websites and links I block, letting every other one through. Turn a popular website on or off right here, and add your own links below."
+                pt-br: "Estes são os únicos sites e links que eu bloqueio, deixando todos os outros passarem. Ligue ou desligue um site popular aqui mesmo, e adicione os seus próprios links abaixo."
           title_when:
             - when:
                 key: mode
@@ -209,6 +221,8 @@ steps:
       pt-br: "Liberar links específicos"
     panel_group:
       key: exceptions
+      own_screen: true
+      order: 1
     condition:
       key: add_custom
       not_in: [false, "false", "False"]

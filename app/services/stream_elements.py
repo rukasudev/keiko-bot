@@ -142,7 +142,7 @@ def create_response_embed(command: str, reply: str, user: discord.User, streamer
         color=(int(style_constants.BACKGROUND_COLOR, base=16)),
     )
     embed.set_author(name=f"!{command}", icon_url=user.avatar.url)
-    embed.set_footer(text=f"• See all {streamer}'s StreamElements commands with ks!commands")
+    embed.set_footer(text=f"• See all {streamer}'s StreamElements commands with {bot.config.PREFIX}commands")
 
     return embed
 

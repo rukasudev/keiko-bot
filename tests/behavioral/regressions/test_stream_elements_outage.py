@@ -2,12 +2,12 @@
 
 The StreamElements review counts the streamer's active commands with a
 lookup. When StreamElements cannot be reached the count is absent, and the
-review must say so instead of claiming zero commands.
+review must leave the line out rather than claim a number it does not have.
 
-Shared behaviour: `description-when` with a `present: false` leaf over an
-answer a lookup produced (`lookup_answers`). Consumer that exposed it:
-stream_elements_commands. Guaranteed: an unreachable service leaves no
-number on the screen and puts the outage sentence there instead.
+Shared behaviour: a review line over an answer a lookup produced
+(`lookup_answers`), which is dropped when the answer is absent. Consumer that
+exposed it: stream_elements_commands. Guaranteed: an unreachable service
+leaves no count on the screen, and a reachable one shows the count it found.
 """
 
 import discord
@@ -17,8 +17,7 @@ from tests.behavioral.harness.locators import walk_items
 
 pytestmark = pytest.mark.behavioral
 
-COUNTED = "Encontrei"
-UNREACHABLE = "Não consegui falar com o StreamElements"
+COUNTED = "Comandos ativos"
 
 
 def _texts(message):
@@ -40,7 +39,7 @@ async def _review_after_naming(scenario_factory, deps):
     return scenario
 
 
-async def test_an_unreachable_stream_elements_says_so_on_the_review(
+async def test_an_unreachable_stream_elements_leaves_no_count_on_the_review(
     scenario_factory, deps, monkeypatch
 ):
     from app.settings.features import stream_elements as feature
@@ -55,8 +54,8 @@ async def test_an_unreachable_stream_elements_says_so_on_the_review(
     scenario = await _review_after_naming(scenario_factory, deps)
 
     review = _texts(scenario.current_message)
-    assert UNREACHABLE in review
     assert COUNTED not in review
+    assert "shroud" in review
     await scenario.finish()
 
 
@@ -66,6 +65,5 @@ async def test_a_reachable_stream_elements_counts_the_commands_on_the_review(
     scenario = await _review_after_naming(scenario_factory, deps)
 
     review = _texts(scenario.current_message)
-    assert COUNTED in review and "**2**" in review
-    assert UNREACHABLE not in review
+    assert f"{COUNTED}:** 2" in review
     await scenario.finish()

@@ -26,9 +26,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Configure como vou comemorar aniversários neste servidor. Você pode cadastrar o primeiro membro agora ou deixar a lista para depois.\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal**: Escolha o canal onde vou enviar os lembretes de aniversário.\n:flying_disc: **Fuso horário**: Escolha o fuso horário usado para calcular o horário da notificação.\n:flying_disc: **Horário da notificação**: Escolha em qual horário vou enviar a notificação de aniversário.\n:flying_disc: **Mencionar @everyone**: Escolha se os lembretes de aniversário devem mencionar @everyone.\n:flying_disc: **Mensagem padrão dos membros**: Personalize a mensagem padrão usada quando um membro não tiver mensagem própria.",
+      "description": "Configure como vou comemorar aniversários neste servidor. Você pode cadastrar o primeiro membro agora ou deixar a lista para depois.\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal**: Escolha o canal onde vou enviar os lembretes de aniversário.\n:flying_disc: **Fuso horário**: Escolha o fuso horário usado para calcular o horário da notificação.\n:flying_disc: **Horário da notificação**: Escolha em qual horário vou enviar a notificação de aniversário.\n:flying_disc: **Mencionar @everyone**: Escolha se os lembretes de aniversário devem mencionar @everyone.\n:flying_disc: **Mensagem padrão dos membros**: Personalize a mensagem padrão usada quando um membro não tiver mensagem própria.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "🎂 Lembretes de Aniversário"
@@ -156,7 +156,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
             "type": "text"
           },
           {
@@ -373,7 +373,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
             "type": "text"
           },
           {
@@ -631,7 +631,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
             "type": "text"
           },
           {
@@ -885,7 +885,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
             "type": "text"
           },
           {
@@ -976,9 +976,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Comece a lista agora ou deixe para depois. Os membros também podem cadastrar a própria data com `/aniversário`.",
+      "description": "Comece a lista agora ou deixe para depois. Os membros também podem cadastrar a própria data com `/aniversário`.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "🎂 Adicionar o primeiro aniversário?"
@@ -1027,9 +1027,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Escolha o primeiro membro para adicionar à lista de aniversários do servidor",
+      "description": "Escolha o primeiro membro para adicionar à lista de aniversários do servidor\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "👤 Membro"
@@ -1141,7 +1141,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Feliz Aniversário <@777>!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "content": "> **🎂 Feliz Aniversário <@777>!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
             "type": "text"
           },
           {
@@ -1413,7 +1413,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Feliz Aniversário <@777>!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "content": "> **🎂 Feliz Aniversário <@777>!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
             "type": "text"
           },
           {
@@ -1526,9 +1526,9 @@
     "delete_after": 10,
     "embed": {
       "color": 16711680,
-      "description": "Ops! Essa data não existe. Escolha um dia válido para o mês selecionado.",
+      "description": "Ops! Essa data não existe. Escolha um dia válido para o mês selecionado.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": null,
       "title": "🚨 Data Inválida"
@@ -1641,7 +1641,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Feliz Aniversário <@777>!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "content": "> **🎂 Feliz Aniversário <@777>!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
             "type": "text"
           },
           {
@@ -1745,7 +1745,7 @@
           {
             "children": [
               {
-                "content": "### 🎂 Configuração do Lembrete\n📺 **Canal:** <#100>\n🌎 **Fuso horário:** Brasil (UTC-3)\n🕒 **Horário da notificação:** 08:00\n📣 **Mencionar @everyone:** Não\n💬 **Mensagem padrão dos membros:** Padrão",
+                "content": "### Configuração do Lembrete\n📺 **Canal:** <#100>\n🌎 **Fuso horário:** Brasil (UTC-3)\n🕒 **Horário da notificação:** 08:00\n📣 **Mencionar @everyone:** Não\n💬 **Mensagem padrão dos membros:** Padrão",
                 "type": "text"
               },
               {
@@ -1760,7 +1760,7 @@
           {
             "children": [
               {
-                "content": "### 🎉 Lista de Aniversários\n**#1**\n👤 **Membro:** <@777>\n:flying_disc: **Dia do Aniversário:** 28 de fevereiro",
+                "content": "### Lista de Aniversários\n**#1**\n👤 **Membro:** <@777>\n:flying_disc: **Dia do Aniversário:** 28 de fevereiro",
                 "type": "text"
               },
               {

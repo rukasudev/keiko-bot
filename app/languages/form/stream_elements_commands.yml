@@ -6,13 +6,13 @@ steps:
       pt-br: ":bulb: Comandos do StreamElements"
     description:
       en-us: |
-        Whenever someone uses a command with the **ks!** prefix, I'll fetch the response from StreamElements!
+        Whenever someone uses a command with the **{context:prefix}** prefix, I'll fetch the response from StreamElements!
 
-        **Example:** `ks!mouse` -> "The streamer uses a Logitech G Pro!"
+        **Example:** `{context:prefix}mouse` -> "The streamer uses a Logitech G Pro!"
       pt-br: |
-        Sempre que alguém usar um comando com o prefixo **ks!**, eu buscarei a resposta no StreamElements!
+        Sempre que alguém usar um comando com o prefixo **{context:prefix}**, eu buscarei a resposta no StreamElements!
 
-        **Exemplo:** `ks!mouse` -> "O streamer usa um Logitech G Pro!"
+        **Exemplo:** `{context:prefix}mouse` -> "O streamer usa um Logitech G Pro!"
     manager_description:
       en-us: "I answer this streamer's StreamElements commands here on Discord."
       pt-br: "Respondo aos comandos do StreamElements deste streamer aqui no Discord."
@@ -30,6 +30,8 @@ steps:
     lookup_answers:
       stream_elements_commands_count: stream_elements.enabled_commands
       stream_elements_top_commands: stream_elements.top_commands
+      stream_elements_keiko_commands: stream_elements.keiko_commands
+      streamer_image: twitch.profile_image
     title:
       en-us: "Streamer"
       pt-br: "Streamer"
@@ -45,29 +47,29 @@ steps:
 
   - action: resume
     key: confirm
+    thumbnail_key: streamer_image
     title:
       en-us: ":white_check_mark: All set?"
       pt-br: ":white_check_mark: Tudo certo?"
     description:
-      en-us: "I found **{response:stream_elements_commands_count|0}** active commands in `{response:streamer}`'s StreamElements! Whenever someone uses one with the **ks!** prefix, I'll send the response in chat.\n\nSome of them: {response:stream_elements_top_commands}"
-      pt-br: "Encontrei **{response:stream_elements_commands_count|0}** comandos ativos no StreamElements de `{response:streamer}`! Sempre que alguém usar um deles com o prefixo **ks!**, eu envio a resposta no chat.\n\nAlguns deles: {response:stream_elements_top_commands}"
-    description-when:
-      - when:
-          key: stream_elements_commands_count
-          present: false
-        en-us: "I couldn't reach StreamElements to count `{response:streamer}`'s commands right now, but I'll fetch each response when someone uses a command with the **ks!** prefix."
-        pt-br: "Não consegui falar com o StreamElements para contar os comandos de `{response:streamer}` agora, mas vou buscar cada resposta quando alguém usar um comando com o prefixo **ks!**."
-      - when:
-          key: stream_elements_commands_count
-          count:
-            max: 0
-        en-us: "`{response:streamer}` has no active commands on StreamElements yet. Create one there and I'll send its response in chat whenever someone uses it with the **ks!** prefix."
-        pt-br: "`{response:streamer}` ainda não tem comandos ativos no StreamElements. Crie um por lá e eu envio a resposta no chat sempre que alguém usar ele com o prefixo **ks!**."
-      - when:
-          key: stream_elements_top_commands
-          present: false
-        en-us: "I found **{response:stream_elements_commands_count|0}** active commands in `{response:streamer}`'s StreamElements! Whenever someone uses one with the **ks!** prefix, I'll send the response in chat."
-        pt-br: "Encontrei **{response:stream_elements_commands_count|0}** comandos ativos no StreamElements de `{response:streamer}`! Sempre que alguém usar um deles com o prefixo **ks!**, eu envio a resposta no chat."
+      en-us: "Whenever someone uses a command with the **{context:prefix}** prefix, I'll fetch the response in `{response:streamer}`'s StreamElements and send it in chat!"
+      pt-br: "Sempre que alguém usar um comando com o prefixo **{context:prefix}**, eu busco a resposta no StreamElements de `{response:streamer}` e envio no chat!"
+    lines:
+      - emoji: "💡"
+        value-key: stream_elements_commands_count
+        label:
+          en-us: "Active commands"
+          pt-br: "Comandos ativos"
+      - emoji: "✨"
+        value-key: stream_elements_top_commands
+        label:
+          en-us: "Some of them"
+          pt-br: "Alguns deles"
+      - emoji: "🐶"
+        value-key: stream_elements_keiko_commands
+        label:
+          en-us: "My version"
+          pt-br: "Versão do Keiko"
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"

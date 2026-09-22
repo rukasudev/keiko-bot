@@ -41,22 +41,33 @@ class WelcomeMessagesFeature(GenericCogFeature):
         return Opened(pending_previews=self.previews(context))
 
     async def previews(
-        self, context: OpenContext, title: str = ""
+        self, context: OpenContext, title: str = "", background: str = ""
     ) -> Mapping[str, str]:
         """One rendered banner per design, drawn with the saved title while the
-        member answers the first steps."""
+        member answers the first steps, over the sent picture when there is one."""
         designs = [{"key": design.key} for design in self.definition.designs()]
         if not designs or context.member is None:
             return {}
         try:
-            drawn = (
-                await generate_design_previews(context.member, designs, title)
-                if title
-                else await generate_design_previews(context.member, designs)
+            drawn = await generate_design_previews(
+                context.member,
+                designs,
+                title or "WELCOME",
+                background or None,
             )
             return dict(drawn)
         except Exception:
             return {}
+
+    async def previews_for(
+        self, values: Mapping[str, Any], context: OpenContext
+    ) -> Mapping[str, str]:
+        """The banners drawn again, now over the picture the admin just sent."""
+        return await self.previews(
+            context,
+            str(values.get("welcome_messages_title") or ""),
+            str(values.get("welcome_custom_image") or ""),
+        )
 
     def extra_buttons(self, context: OpenContext) -> tuple[Button, ...]:
         """The preview button."""

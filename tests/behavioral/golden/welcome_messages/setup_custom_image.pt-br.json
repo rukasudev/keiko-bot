@@ -26,9 +26,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal**: Onde vou enviar a mensagem de boas-vindas.\n:flying_disc: **Título**: O título da mensagem de boas-vindas.\n:flying_disc: **Mensagens**: Até três saudações, eu sorteio uma a cada vez.\n:flying_disc: **Rodapé**: A linha pequena que fecha a mensagem.\n:flying_disc: **Design do banner**: O visual do banner que eu desenho para cada novo membro.\n:flying_disc: **Imagem personalizada**: A imagem que eu coloco no banner quando você escolhe um design personalizado.",
+      "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal**: Onde vou enviar a mensagem de boas-vindas.\n:flying_disc: **Título**: O título da mensagem de boas-vindas.\n:flying_disc: **Mensagens**: Até três saudações, eu sorteio uma a cada vez.\n:flying_disc: **Rodapé**: A linha pequena que fecha a mensagem.\n:flying_disc: **Design do banner**: O visual do banner que eu desenho para cada novo membro.\n:flying_disc: **Imagem personalizada**: A imagem que eu coloco no banner quando você escolhe um design personalizado.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "🎉 Mensagens de Boas-Vindas"
@@ -120,6 +120,10 @@
           {
             "content": "> Imagem do Servidor",
             "type": "text"
+          },
+          {
+            "count": 1,
+            "type": "media"
           },
           {
             "children": [
@@ -307,6 +311,10 @@
             "type": "text"
           },
           {
+            "count": 1,
+            "type": "media"
+          },
+          {
             "children": [
               {
                 "disabled": false,
@@ -360,14 +368,6 @@
     "message": "M2",
     "seq": 11,
     "target": "customize:2"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 12,
-    "thinking": false
   },
   {
     "actor": "bot",
@@ -456,15 +456,15 @@
     ],
     "components_v2": true,
     "ephemeral": true,
-    "kind": "followup_edit",
+    "kind": "edit",
     "message": "M2",
-    "seq": 13
+    "seq": 12
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 14,
+    "seq": 13,
     "target": "design:custom_only"
   },
   {
@@ -536,6 +536,10 @@
             "type": "text"
           },
           {
+            "count": 1,
+            "type": "media"
+          },
+          {
             "children": [
               {
                 "disabled": false,
@@ -596,13 +600,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 15
+    "seq": 14
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 16,
+    "seq": 15,
     "target": "customize:3"
   },
   {
@@ -617,7 +621,7 @@
       ],
       "title": "🖼️ 📷 Enviar Imagem Personalizada"
     },
-    "seq": 17
+    "seq": 16
   },
   {
     "actor": "user",
@@ -626,7 +630,15 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 18
+    "seq": 17
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 18,
+    "thinking": false
   },
   {
     "actor": "bot",
@@ -697,6 +709,10 @@
             "type": "text"
           },
           {
+            "count": 1,
+            "type": "media"
+          },
+          {
             "children": [
               {
                 "disabled": false,
@@ -759,7 +775,7 @@
     ],
     "components_v2": true,
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_edit",
     "message": "M2",
     "seq": 19
   },
@@ -895,6 +911,10 @@
             "type": "text"
           },
           {
+            "count": 1,
+            "type": "media"
+          },
+          {
             "children": [
               {
                 "disabled": false,
@@ -991,7 +1011,7 @@
             "type": "section"
           },
           {
-            "content": "### 🎉 Mensagens de Boas-Vindas",
+            "content": "### Mensagens de Boas-Vindas",
             "type": "text"
           },
           {
@@ -1112,9 +1132,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Comando **moderações mensagens boas-vindas** ativado as 2026-01-01 12:00:00 UTC por <@555> 🚀\n\n Para fazer alterações ou desativar, use o comando `/moderações mensagens boas-vindas` ou `/configurar` 🔄",
+      "description": "Comando **moderações mensagens boas-vindas** ativado as 2026-01-01 12:00:00 UTC por <@555> 🚀\n\n Para fazer alterações ou desativar, use o comando `/moderações mensagens boas-vindas` ou `/configurar` 🔄\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": null,
       "title": "🎉 Funcionalidade ativada com sucesso!"

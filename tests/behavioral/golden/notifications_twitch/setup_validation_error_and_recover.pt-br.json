@@ -26,9 +26,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Texto**: Onde vou avisar da live.\n:flying_disc: **Streamer**: O nick do streamer na Twitch, com ou sem @.\n:flying_disc: **Mensagens de Notificação**: Até três mensagens, eu sorteio uma a cada live.",
+      "description": "Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Texto**: Onde vou avisar da live.\n:flying_disc: **Streamer**: O nick do streamer na Twitch, com ou sem @.\n:flying_disc: **Mensagens de Notificação**: Até três mensagens, eu sorteio uma a cada live.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "🔔 Twitch Notificações"
@@ -385,9 +385,9 @@
     "delete_after": 10,
     "embed": {
       "color": 16711680,
-      "description": "Desculpe, mas não consegui encontrar o streamer que você está procurando. Por favor, verifique o nome e tente novamente.",
+      "description": "Desculpe, mas não consegui encontrar o streamer que você está procurando. Por favor, verifique o nome e tente novamente.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": null,
       "title": "🚨 Streamer Não Encontrado"

@@ -213,7 +213,7 @@ def preview(
     if isinstance(section, BooleanToggleSection):
         return ((f"> {format_boolean(bool(value), locale)}",), None)
     if isinstance(section, DesignSection):
-        return _design_preview(section, value, locale)
+        return _design_preview(section, value, card, state, context)
     if isinstance(section, ModalInputSection) and len(section.modal.fields) > 1:
         return _fields_preview(section, state, locale)
     if isinstance(section, TitleContentSection):
@@ -249,13 +249,19 @@ def _title_content_preview(
 
 
 def _design_preview(
-    section: DesignSection, value: Any, locale: str
+    section: DesignSection,
+    value: Any,
+    card: CardStep,
+    state: Mapping[str, Any],
+    context: RenderContext,
 ) -> tuple[tuple[str, ...], str | None]:
+    locale = context.locale
     chosen = next(
         (design.label.get(locale) for design in section.designs if design.key == value),
         None,
     )
-    return ((f"> {chosen or _formatted(value, None, locale)}",), None)
+    drawn = context.previews.get(str(value)) if value else None
+    return ((f"> {chosen or _formatted(value, None, locale)}",), drawn)
 
 
 def _fields_preview(

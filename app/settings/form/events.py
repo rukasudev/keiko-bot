@@ -98,7 +98,24 @@ class AddRequested(Event):
 
 @dataclass(frozen=True)
 class RemoveRequested(Event):
-    """Remove was pressed on a review or a panel."""
+    """Remove was pressed on a review or a panel, maybe beside one item."""
+
+    target: str = ""
+
+
+@dataclass(frozen=True)
+class RemoveItemConfirmed(Event):
+    """The admin confirmed removing the item the Remove beside it named."""
+
+    target: str = ""
+
+
+@dataclass(frozen=True)
+class OptionToggled(Event):
+    """One option of a multiple choice was turned on or off, on the screen."""
+
+    target: str = ""
+    value: str = ""
 
 
 @dataclass(frozen=True)

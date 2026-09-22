@@ -1,6 +1,7 @@
+import asyncio
 import random
 from datetime import datetime, timedelta
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import discord
 
@@ -19,6 +20,7 @@ from app.data.reminder import (
 )
 from app.settings import open_feature
 from app.services import analytics, cache
+from app.services.utils import ml
 from app.views.message_preview import MessagePreviewView
 
 
@@ -86,10 +88,13 @@ def send_youtube_video_notification(video_id: str, channel_id: str) -> None:
 
 def create_video_notification_embed(video_info: Dict[str, Any], youtuber_info: Dict[str, Any]) -> discord.Embed:
     video_link = f"https://www.youtube.com/watch?v={video_info.get('id')}"
-    video_thumbnail = video_info.get("thumbnails").get("maxres") or video_info.get("thumbnails").get("high")
+    video_thumbnails = video_info.get("thumbnails") or {}
+    video_thumbnail = video_thumbnails.get("maxres") or video_thumbnails.get("high")
 
-    description = youtuber_info.get("description")
-    profile_picture = youtuber_info.get("thumbnails").get("high").get("url")
+    description = youtuber_info.get("description") or ""
+    channel_thumbnails = youtuber_info.get("thumbnails") or {}
+    picture = channel_thumbnails.get("high") or channel_thumbnails.get("default") or {}
+    profile_picture = picture.get("url")
 
     embed = discord.Embed(
         title=video_info.get("title"),
@@ -98,11 +103,13 @@ def create_video_notification_embed(video_info: Dict[str, Any], youtuber_info: D
         color=discord.Color.red(),
     )
 
-    video_description = video_info.get("description").split("\n")[0]
+    video_description = (video_info.get("description") or "").split("\n")[0]
     video_tags = video_info.get("tags")
 
-    embed.set_thumbnail(url=profile_picture)
-    embed.set_image(url=video_thumbnail.get("url"))
+    if profile_picture:
+        embed.set_thumbnail(url=profile_picture)
+    if video_thumbnail and video_thumbnail.get("url"):
+        embed.set_image(url=video_thumbnail["url"])
 
     if video_description:
         embed.add_field(name="Description", value=video_description, inline=True)
@@ -133,7 +140,37 @@ async def send_notification_preview(
             texts.append(parse_streamer_message(message.lstrip(), youtuber, video_link))
         except (KeyError, IndexError):
             texts.append(message.lstrip())
-    await MessagePreviewView(texts, interaction.locale).send(interaction)
+    embed = await build_preview_embed(youtuber, interaction.locale)
+    await MessagePreviewView(texts, interaction.locale, embed).send(interaction)
+
+async def build_preview_embed(youtuber: str, locale: str) -> Optional[discord.Embed]:
+    """The very embed a new video announcement carries, drawn for this channel.
+
+    The channel is the real one; the video lines show an example, since the
+    next video does not exist yet.
+    """
+    try:
+        channel_id = await asyncio.to_thread(
+            bot.youtube.get_channel_id_from_username, youtuber
+        )
+        youtuber_info = (
+            await asyncio.to_thread(bot.youtube.get_channel_info, channel_id)
+            if channel_id
+            else None
+        )
+    except Exception as error:
+        logger.warn(
+            f"Could not draw the youtube preview of {youtuber}: {error}",
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+        return None
+
+    if not youtuber_info:
+        return None
+
+    namespace = "commands.commands.commons.notifications-preview.youtube"
+    video_info = {"id": "", "title": ml(f"{namespace}.title", locale=locale)}
+    return create_video_notification_embed(video_info, youtuber_info)
 
 def compose_notification_message(notification: Dict[str, Any], youtuber: str, video_id: str) -> str:
     messages = notification.get("notification_messages").get("value")

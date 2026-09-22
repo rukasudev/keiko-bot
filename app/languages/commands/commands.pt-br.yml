@@ -59,6 +59,12 @@ pt-br:
             top-member: Membro com mais bloqueios
             not-deleted: Mensagens que eu não consegui apagar
           empty: "Ainda não bloqueei nenhum link por aqui! 🐶"
+      notifications-preview:
+        twitch:
+          title: "O título da live aparece aqui"
+          game: "A categoria da live"
+        youtube:
+          title: "O título do vídeo aparece aqui"
       stream-elements-manager:
         commands:
           button:

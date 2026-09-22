@@ -26,9 +26,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Sempre que alguém usar um comando com o prefixo **ks!**, eu buscarei a resposta no StreamElements!\n\n**Exemplo:** `ks!mouse` -> \"O streamer usa um Logitech G Pro!\"\n\n\n:pencil: **Configurações**\n\n:flying_disc: **Streamer**: De qual streamer devo buscar os comandos?",
+      "description": "Sempre que alguém usar um comando com o prefixo **ks!**, eu buscarei a resposta no StreamElements!\n\n**Exemplo:** `ks!mouse` -> \"O streamer usa um Logitech G Pro!\"\n\n\n:pencil: **Configurações**\n\n:flying_disc: **Streamer**: De qual streamer devo buscar os comandos?\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": ":bulb: Comandos do StreamElements"
@@ -105,9 +105,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Sempre que alguém usar um comando com o prefixo **ks!**, eu buscarei a resposta no StreamElements!\n\n**Exemplo:** `ks!mouse` -> \"O streamer usa um Logitech G Pro!\"\n\n\n:pencil: **Configurações**\n\n:flying_disc: **Streamer**: De qual streamer devo buscar os comandos?",
+      "description": "Sempre que alguém usar um comando com o prefixo **ks!**, eu buscarei a resposta no StreamElements!\n\n**Exemplo:** `ks!mouse` -> \"O streamer usa um Logitech G Pro!\"\n\n\n:pencil: **Configurações**\n\n:flying_disc: **Streamer**: De qual streamer devo buscar os comandos?\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": ":bulb: Comandos do StreamElements"

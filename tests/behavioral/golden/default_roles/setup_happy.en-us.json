@@ -26,9 +26,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Enabling this feature allows me to automatically assign roles to new members when they join your server\n\n:pencil: **Settings**\n\n:flying_disc: **Default Roles**: Choose the roles I'll give automatically:\n\n1. **Roles for bots**: when a bot joins the server\n2. **Roles for members**: when a person joins the server",
+      "description": "Enabling this feature allows me to automatically assign roles to new members when they join your server\n\n:pencil: **Settings**\n\n:flying_disc: **Default Roles**: Choose the roles I'll give automatically:\n\n1. **Roles for bots**: when a bot joins the server\n2. **Roles for members**: when a person joins the server\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "👩‍🎓 Default Roles"
@@ -78,9 +78,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Choose the roles I'll give automatically:\n\n1. **Roles for bots**: when a bot joins the server\n2. **Roles for members**: when a person joins the server",
+      "description": "Choose the roles I'll give automatically:\n\n1. **Roles for bots**: when a bot joins the server\n2. **Roles for members**: when a person joins the server\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "Default Roles"
@@ -255,9 +255,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Command **moderations default roles** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/moderations default roles` or `/setup` 🔄",
+      "description": "Command **moderations default roles** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/moderations default roles` or `/setup` 🔄\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
+      "footer": null,
       "image": null,
       "thumbnail": null,
       "title": "🎉 Command enabled successfully!"

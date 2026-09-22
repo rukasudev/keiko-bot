@@ -140,4 +140,4 @@ def test_events_older_than_the_window_do_not_count(deps):
 
 
 def test_it_points_at_where_to_dig_deeper():
-    assert "/admin insights" in admin_digest.build_weekly_digest().footer.text
+    assert "/admin insights" in admin_digest.build_weekly_digest().description

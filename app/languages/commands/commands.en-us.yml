@@ -59,6 +59,12 @@ en-us:
             top-member: Member with most blocks
             not-deleted: Messages I could not delete
           empty: "I haven't blocked any link here yet! 🐶"
+      notifications-preview:
+        twitch:
+          title: "The stream title shows up here"
+          game: "The stream category"
+        youtube:
+          title: "The video title shows up here"
       stream-elements-manager:
         commands:
           button:

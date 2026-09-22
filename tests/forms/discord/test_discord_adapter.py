@@ -432,7 +432,7 @@ async def test_a_parent_waiting_on_a_live_child_is_not_expired(v2):
 def _slow_previews(monkeypatch):
     drawn = asyncio.Event()
 
-    async def previews(member, designs, title="WELCOME"):
+    async def previews(member, designs, title="WELCOME", background=None):
         await drawn.wait()
         return {
             design[
@@ -451,6 +451,7 @@ async def test_a_click_that_opens_the_gallery_is_answered_before_the_previews_wa
     v2, monkeypatch
 ):
     drawn = _slow_previews(monkeypatch)
+    monkeypatch.setattr("app.constants.ViewConstants.PREVIEW_WAIT_SECONDS", 0.05)
     scenario = await v2().start_command("welcome_messages")
     await asyncio.wait_for(scenario.confirm(), timeout=2)
     before = len(scenario.outputs)
@@ -479,10 +480,12 @@ async def test_a_click_that_opens_the_gallery_is_answered_before_the_previews_wa
     assert len(galleries) == 3
 
 
-async def test_a_click_that_does_not_show_the_gallery_never_waits_for_previews(
-    v2, monkeypatch
-):
+async def test_a_card_never_waits_longer_than_the_preview_budget(v2, monkeypatch):
+    """The card carries the banner of the chosen design, so it waits for the
+    drawing, but only within a budget: previews that never arrive cost no
+    screen, and the screens that show no design never wait at all."""
     _slow_previews(monkeypatch)
+    monkeypatch.setattr("app.constants.ViewConstants.PREVIEW_WAIT_SECONDS", 0.05)
     scenario = await v2().start_command("welcome_messages")
 
     await asyncio.wait_for(scenario.confirm(), timeout=1)
@@ -539,19 +542,67 @@ async def test_a_finalize_that_fails_inside_a_commit_is_reported_once(
     assert "effect Finalize failed" in failures[0]
 
 
+async def test_a_command_that_answers_in_time_never_says_it_is_thinking(v2, deps):
+    """Lucas: a deferral on every command makes everyone read "thinking" for
+    work that took no time. Nothing is deferred while the answer is on time."""
+    seed_document(deps, "welcome_messages", WELCOME_ENABLED)
+
+    scenario = await v2().start_command("welcome_messages")
+
+    kinds = [event["kind"] for event in scenario.outputs]
+    assert "defer" not in kinds, kinds
+    assert scenario.current_message is not None
+
+
+async def test_a_command_that_runs_late_is_answered_before_the_clock_runs_out(
+    v2, deps, monkeypatch
+):
+    """Broke as: on a slow link the command answered nothing and the log filled
+    with "Unknown interaction" (10062). Discord gives three seconds, and the
+    panel was only sent after reading the document, so every slow read lost the
+    whole interaction."""
+    from app.settings.features.feature import GenericCogFeature
+
+    seed_document(deps, "welcome_messages", WELCOME_ENABLED)
+    monkeypatch.setattr("app.constants.ViewConstants.DEFER_AFTER_SECONDS", 0.01)
+    reading = GenericCogFeature.open
+
+    async def slow(self, context):
+        await asyncio.sleep(0.05)
+        return await reading(self, context)
+
+    monkeypatch.setattr(GenericCogFeature, "open", slow)
+
+    scenario = await v2().start_command("welcome_messages")
+
+    kinds = [event["kind"] for event in scenario.outputs]
+    answering = ("send_message", "followup_send")
+    sent = [i for i, kind in enumerate(kinds) if kind in answering]
+    assert "defer" in kinds, kinds
+    assert kinds.index("defer") < min(sent), kinds
+    assert scenario.current_message is not None, "the panel still arrives"
+
+
 async def test_an_aside_that_asks_first_spends_its_cooldown_only_when_confirmed(
     v2, deps, monkeypatch
 ):
-    """Broke as: Sync wrote roles to every member on one click, without a word."""
+    """Broke as: Sync wrote roles to every member on one click, without a word.
+
+    The question also says how many members and bots are about to get a role,
+    counting only the ones who do not have it yet (Lucas, 2026-09-16)."""
     from unittest.mock import AsyncMock
 
     from app.settings.features import default_roles as default_roles_feature
     from tests.behavioral.golden.paths.default_roles import ENABLED as ROLES_ENABLED
+    from tests.mocks.discord import create_member
 
     sync = AsyncMock()
     monkeypatch.setattr(default_roles_feature, "set_on_default_roles_sync", sync)
     seed_document(deps, "default_roles", ROLES_ENABLED)
-    scenario = await v2().start_command("default_roles")
+    guild = create_guild(roles=["Admin", "Moderator", "Member"])
+    create_member(guild, id=12, name="Bea", roles=["Member"])
+    create_member(guild, id=13, name="Robo", bot=True)
+    scenario = await v2(guild=guild).start_command("default_roles")
     panel = scenario.current_message
     state = RUNTIME.sessions[scenario.session.id]
 
@@ -563,8 +614,11 @@ async def test_an_aside_that_asks_first_spends_its_cooldown_only_when_confirmed(
     await click(panel, "Sincronizar")
     ask = scenario.current_message
     assert ask is not panel and "Sincronizar cargos?" in ask.embeds[0].title
-    assert "<@&202>" in ask.embeds[0].description, ask.embeds[0].description
-    assert "<@&201>" in ask.embeds[0].description, ask.embeds[0].description
+    described = ask.embeds[0].description
+    assert "<@&202>" in described, described
+    assert "<@&201>" in described, described
+    assert "👥 **Membros**\n- Quantidade: **1**" in described, described
+    assert "🤖 **Bots**\n- Quantidade: **1**" in described, described
     await click(ask, "Cancelar")
     assert sync.await_count == 0 and not state.cooldowns
 

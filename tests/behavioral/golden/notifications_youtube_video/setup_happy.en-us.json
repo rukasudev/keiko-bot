@@ -26,9 +26,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Enabling this feature allows me to notify when your favorite youtuber posts a new video!\n\n:pencil: **Settings**\n\n:flying_disc: **Text Channel**: Where I'll announce the new video.\n:flying_disc: **Youtuber**: The channel's name on YouTube, with or without the @.\n:flying_disc: **Notification Messages**: Up to three messages, I pick one at random each video.",
+      "description": "Enabling this feature allows me to notify when your favorite youtuber posts a new video!\n\n:pencil: **Settings**\n\n:flying_disc: **Text Channel**: Where I'll announce the new video.\n:flying_disc: **Youtuber**: The channel's name on YouTube, with or without the @.\n:flying_disc: **Notification Messages**: Up to three messages, I pick one at random each video.\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "🔔 Youtube Notifications"
@@ -672,7 +672,7 @@
           {
             "children": [
               {
-                "content": "### :busts_in_silhouette: Notifications #1\n📺 **Text Channel:** <#100>\n🎬 **Youtuber:** pewdiepie\n💬 **Notification Messages:** ```• {youtuber} postou: {video_link}```",
+                "content": "### Notifications #1\n📺 **Text Channel:** <#100>\n🎬 **Youtuber:** pewdiepie\n💬 **Notification Messages:** ```• {youtuber} postou: {video_link}```",
                 "type": "text"
               },
               {
@@ -748,9 +748,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Command **notifications youtube videos** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/notifications youtube videos` or `/setup` 🔄",
+      "description": "Command **notifications youtube videos** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/notifications youtube videos` or `/setup` 🔄\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
+      "footer": null,
       "image": null,
       "thumbnail": null,
       "title": "🎉 Command enabled successfully!"

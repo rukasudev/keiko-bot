@@ -83,7 +83,7 @@ of text is a bug, not a style choice.
 - Error color: `Style.RED_COLOR` = `0xff0000`. `response_error_embed()` auto-prefixes the title with `🚨` — do not duplicate.
 - Title format: `"{ONE_EMOJI} {Title Case}"`. Exactly one leading emoji.
 - Use `description` for short bodies. Use `add_field(name=..., value=..., inline=False)` for stacked record-style content (DM reports, button caption lists, help indexes).
-- Footer always: `embed.set_footer(text=f"• {text}")`. The `"• "` prefix is mandatory.
+- Closing line: the report line renders as `-# • {text}` subtext at the end of the description, through `app.components.embed.with_footer`. An embed footer renders no markdown, so `/report` came out with its backticks showing. A domain footer that carries no markdown may still use `embed.set_footer(text=f"• {text}")`. The `"• "` prefix is mandatory either way.
 - Card screens (`configuration_card`) and the manager panel are Components V2 LayoutViews, not embeds: their footer comes from the step's `footer:` and renders as `-# {text}` subtext at the bottom of the container (`app/settings/discord/views.py`). Pickers opened from a card keep the same footer. Pinned by the golden transcripts (`tests/behavioral/golden/`).
 - Thumbnail: `KeikoIcons.IMAGE_01` for branded responses; `KeikoIcons.ACTION_IMAGE.get(action)` for action-specific icons.
 

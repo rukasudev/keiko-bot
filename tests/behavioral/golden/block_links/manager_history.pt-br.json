@@ -32,7 +32,7 @@
           {
             "children": [
               {
-                "content": "### 🚦 Configuração de Links\n🚦 **Modo de bloqueio:** Bloquear todos\n💬 **Minha resposta ao bloquear:** Nada de links aqui! :p",
+                "content": "### Configuração de Links\n🚦 **Modo de bloqueio:** Bloquear todos\n💬 **Minha resposta ao bloquear:** Nada de links aqui! :p",
                 "type": "text"
               },
               {
@@ -47,7 +47,7 @@
           {
             "children": [
               {
-                "content": "### 🔓 Permissões\n#️⃣ **Canais Liberados:** <#100>\n🏷️ **Cargos Liberados:** <@&201>",
+                "content": "### Permissões\n#️⃣ **Canais Liberados:** <#100>\n🏷️ **Cargos Liberados:** <@&201>",
                 "type": "text"
               },
               {
@@ -60,33 +60,14 @@
             "type": "section"
           },
           {
-            "content": "### ✅ Exceções",
-            "type": "text"
-          },
-          {
             "children": [
               {
-                "content": "🔗 **Sites populares permitidos:**\n```• youtube.com\n• twitch.tv```",
+                "content": "### Exceções\n🔗 **Sites populares permitidos:**\n```• youtube.com\n• twitch.tv```\n📌 **Seus Links:** `meusite.com.br`, `docs.example.org`",
                 "type": "text"
               },
               {
                 "disabled": false,
-                "label": "Liberar site famoso",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "section"
-          },
-          {
-            "children": [
-              {
-                "content": "📌 **Seus Links:**\n**#1**\n🔗 **Link ou Site:** `meusite.com.br`\n🎯 **Qual o Alcance da Regra?** 🌐 Todos os links desse site\n**#2**\n🔗 **Link ou Site:** `docs.example.org`",
-                "type": "text"
-              },
-              {
-                "disabled": false,
-                "label": "Liberar links específicos",
+                "label": "Editar",
                 "style": "secondary",
                 "type": "button"
               }

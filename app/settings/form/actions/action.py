@@ -41,6 +41,8 @@ class PanelRow:
     per_item: bool = False
     group_declared: bool = False
     edit_label: str | None = None
+    group_order: int = 0
+    group_screen: bool = False
 
 
 @dataclass(frozen=True)
@@ -56,6 +58,7 @@ class RenderContext:
     items: Sequence[Mapping[str, Any]] = ()
     external: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     server_name: str = ""
+    prefix: str = ""
     previews: Mapping[str, str] = field(default_factory=dict)
     panel_rows: Sequence[PanelRow] | None = None
     panel_info: str = ""
@@ -67,6 +70,7 @@ class RenderContext:
 
 
 TOKEN = re.compile(r"\{response:([A-Za-z0-9_]+)(?::([a-z_]+))?(?:\|([^}]*))?\}")
+CONTEXT_TOKEN = re.compile(r"\{context:([a-z_]+)\}")
 TOKEN_FORMATTERS = {"host": link_host}
 
 THUMBNAILS: dict[str, str] = {
@@ -129,8 +133,9 @@ def views(session: FormSession, context: RenderContext) -> tuple[ResponseView, .
 
 
 def apply_tokens(body: str, session: FormSession, context: RenderContext) -> str:
-    """`{response:key:formatter|fallback}` tokens replaced by earlier answers."""
+    """`{response:...}` tokens from earlier answers, `{context:...}` from here."""
     by_key = {view.key: view for view in views(session, context)}
+    around = {"server_name": context.server_name, "prefix": context.prefix}
 
     def replace(match: re.Match[str]) -> str:
         key, formatter, fallback = match.group(1), match.group(2), match.group(3) or ""
@@ -145,7 +150,10 @@ def apply_tokens(body: str, session: FormSession, context: RenderContext) -> str
             return TOKEN_FORMATTERS[formatter](str(value))
         return str(value)
 
-    return TOKEN.sub(replace, body)
+    def surroundings(match: re.Match[str]) -> str:
+        return str(around.get(match.group(1), ""))
+
+    return CONTEXT_TOKEN.sub(surroundings, TOKEN.sub(replace, body))
 
 
 def description_of(step: Step, session: FormSession, context: RenderContext) -> str:

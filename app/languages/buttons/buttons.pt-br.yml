@@ -25,6 +25,13 @@ pt-br:
   remove:
     label: Remover
     desc: Remove um dos itens
+    confirm:
+      title: "🗑️ Remover este item?"
+      message: "Se eu remover, ele sai da lista na hora. Você pode adicionar de novo depois, é só me pedir!"
+
+  remove-item:
+    label: Remover este
+    desc: Remove este item da lista
 
   preview:
     label: Pré-visualizar
@@ -83,7 +90,7 @@ pt-br:
     desc: Keiko atribui imediatamente os cargos padrão a todos os usuários do servidor
     confirm:
       title: "🔄 Sincronizar cargos?"
-      message: "Vou sincronizar agora os cargos padrão para **todos os membros e bots** que já estão no servidor, não só para quem entrar daqui pra frente. No fim, todo mundo vai estar com estes cargos:\n\n👥 Membros: $members\n🤖 Bots: $bots\n\nIsso pode levar alguns minutos. Quer continuar?"
+      message: "Vou sincronizar agora os cargos padrão para **todos os membros e bots** que já estão no servidor, não só para quem entrar daqui pra frente. Veja como fica:\n\n👥 **Membros**\n- Quantidade: **$members_count**\n- Cargos: $members\n\n🤖 **Bots**\n- Quantidade: **$bots_count**\n- Cargos: $bots\n\nIsso pode levar alguns minutos. Quer continuar?"
       footer: "Use o comando `/reportar` para me contar um bug"
     waiting:
       title: 🔄 Sincronizando cargos...

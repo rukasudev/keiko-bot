@@ -26,9 +26,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar esta função faz com que eu fique de olho em cada mensagem e exclua os links que você não quer por aqui! Você escolhe como eu faço isso: bloquear todos os links com as suas exceções, ou permitir links e bloquear só os que você escolher.\n\n:pencil: **Configurações**\n\n:flying_disc: **Modo de bloqueio**: Se eu bloqueio todos os links ou só os que você escolher.\n:flying_disc: **Sites populares permitidos**: Sites populares que eu sempre libero.\n:flying_disc: **Minha resposta ao bloquear**: O que eu digo quando apago um link.\n:flying_disc: **Permissões**: Escolha os canais e cargos que eu nunca devo bloquear. Links deles são sempre permitidos!",
+      "description": "Ativar esta função faz com que eu fique de olho em cada mensagem e exclua os links que você não quer por aqui! Você escolhe como eu faço isso: bloquear todos os links com as suas exceções, ou permitir links e bloquear só os que você escolher.\n\n:pencil: **Configurações**\n\n:flying_disc: **Modo de bloqueio**: Se eu bloqueio todos os links ou só os que você escolher.\n:flying_disc: **Sites populares permitidos**: Sites populares que eu sempre libero.\n:flying_disc: **Minha resposta ao bloquear**: O que eu digo quando apago um link.\n:flying_disc: **Permissões**: Escolha os canais e cargos que eu nunca devo bloquear. Links deles são sempre permitidos!\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": ":no_entry_sign: Bloquear Links"
@@ -215,9 +215,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Quer permitir outros sites ou links além dos populares? Você também pode adicionar mais depois!",
+      "description": "Quer permitir outros sites ou links além dos populares? Você também pode adicionar mais depois!\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "🔗 Adicionar Seus Próprios Links?"
@@ -300,9 +300,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Quer permitir outros sites ou links além dos populares? Você também pode adicionar mais depois!",
+      "description": "Quer permitir outros sites ou links além dos populares? Você também pode adicionar mais depois!\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "🔗 Adicionar Seus Próprios Links?"

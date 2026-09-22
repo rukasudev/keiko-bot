@@ -116,7 +116,12 @@ def _resolve_alias(target: str, locale) -> tuple:
             if label:
                 labels.append(label)
         custom_ids.extend(ids)
-    return labels, custom_ids, list(_CODEC_TARGETS.get(target.lower(), ()))
+    codecs = list(_CODEC_TARGETS.get(target.lower(), ()))
+    if ":" in target and target not in codecs:
+        # A target that names an action and its argument matches the component
+        # carrying it, without an alias for every one of them.
+        codecs.append(target)
+    return labels, custom_ids, codecs
 
 
 def codec_target(item: Any) -> Optional[str]:

@@ -162,7 +162,7 @@ def test_the_screen_separates_discarded_from_expired():
 
     embed = admin_analytics.build_dropoff_embed(FEATURE)
     assert "1 discarded, 1 expired" in embed.description
-    assert "the view timed out" in embed.footer.text
+    assert "the view timed out" in embed.description
 
 
 def test_a_single_session_can_be_read_on_its_own():
