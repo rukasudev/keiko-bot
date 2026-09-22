@@ -78,6 +78,9 @@ class CommitResult:
 AsideHandler = Callable[[Any, Sequence[Mapping[str, Any]]], Awaitable[None]]
 
 
+ConfirmValues = Callable[[Mapping[str, Any], str], Mapping[str, str]]
+
+
 @dataclass(frozen=True)
 class AsideAction:
     """A read-only side action of the panel or the review."""
@@ -87,6 +90,7 @@ class AsideAction:
     own_response: bool = False
     cooldown: int | None = None
     confirm: str | None = None
+    confirm_values: ConfirmValues | None = None
 
 
 class FeatureModule(Protocol):
@@ -120,6 +124,11 @@ class FeatureModule(Protocol):
         self, answers: Mapping[str, Answer], locale: str
     ) -> list[dict[str, Any]]:
         """The answers as the legacy preview functions read them."""
+
+    def responses_for_aside(
+        self, answers: Mapping[str, Answer], locale: str
+    ) -> list[dict[str, Any]]:
+        """The answers a side action reads, one item of a list at a time."""
 
 
 EVENT_KEY = {
@@ -228,11 +237,32 @@ class GenericCogFeature:
     def responses_for_preview(
         self, answers: Mapping[str, Answer], locale: str
     ) -> list[dict[str, Any]]:
-        """The answers as the legacy preview functions read them."""
-        return [
-            {"key": view.key, **view.as_item_entry()}
-            for view in responses(self.definition.steps, answers, locale)
+        """The answers as the legacy preview functions read them, from the item's
+        own steps when the answers belong to one item of a composition."""
+        views = responses(self.definition.steps, answers, locale)
+        composition = self.definition.composition
+        if not views and composition is not None:
+            views = responses(composition.steps, _unpacked(answers), locale)
+        return [{"key": view.key, **view.as_item_entry()} for view in views]
+
+    def responses_for_aside(
+        self, answers: Mapping[str, Answer], locale: str
+    ) -> list[dict[str, Any]]:
+        """The same rows, with a listed composition replaced by its first item.
+
+        A side action runs over the screen the admin is looking at, and from a
+        review that screen lists the items rather than holding one of them.
+        """
+        composition = self.definition.composition
+        listed = _first_item(answers, composition.key) if composition else None
+        if listed is None:
+            return self.responses_for_preview(answers, locale)
+        kept = [
+            row
+            for row in self.responses_for_preview(answers, locale)
+            if row.get("key") != composition.key
         ]
+        return [*kept, *self.responses_for_preview(_unpacked(listed), locale)]
 
     def asides(self) -> Mapping[str, AsideAction]:
         """No side actions by default."""
@@ -424,3 +454,25 @@ class GenericCogFeature:
         self, item: Mapping[str, Any], context: CommitContext
     ) -> None:
         """Nothing else happens when an item is removed by default."""
+
+
+def _unpacked(answers: Mapping[str, Answer]) -> dict[str, Answer]:
+    found: dict[str, Answer] = {}
+    for key, answer in answers.items():
+        if answer.parts:
+            found.update({part: Answer(value) for part, value in answer.parts.items()})
+            continue
+        found[key] = answer
+    return found
+
+
+def _first_item(answers: Mapping[str, Answer], key: str) -> dict[str, Answer] | None:
+    """The answers of the first item, when `answers` holds the whole list."""
+    answer = answers.get(key)
+    items = list(answer.raw or ()) if answer else []
+    if not items or not isinstance(items[0], Mapping):
+        return None
+    return {
+        name: value if isinstance(value, Answer) else Answer(value)
+        for name, value in items[0].items()
+    }

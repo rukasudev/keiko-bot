@@ -313,6 +313,7 @@ steps:
 
       - action: configuration_card
         key: birthday_member_config
+        preview: true
         response_transform: mm_dd_date_parts
         required:
           - month
@@ -500,6 +501,7 @@ steps:
               pt-br: Personalizar imagem
   - action: resume
     key: confirm
+    preview: true
     title:
       en-us: ":white_check_mark: Alright?"
       pt-br: ":white_check_mark: Tudo certo?"

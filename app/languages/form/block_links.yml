@@ -56,6 +56,22 @@ steps:
         description:
           en-us: Popular websites I always let through.
           pt-br: Sites populares que eu sempre libero.
+        edit_label:
+          en-us: "Free a famous website"
+          pt-br: "Liberar site famoso"
+        panel_group:
+          key: exceptions
+          emoji: "✅"
+          title:
+            en-us: "Exceptions"
+            pt-br: "Exceções"
+          title_when:
+            - when:
+                key: mode
+                not_in: [block_all]
+              text:
+                en-us: "Blocked websites and links"
+                pt-br: "Sites e links bloqueados"
       - key: answer
         label:
           en-us: "My response when blocking"
@@ -76,15 +92,15 @@ steps:
           en-us: "How should I block links?"
           pt-br: "Como devo bloquear os links?"
         picker-description:
-          en-us: "✅ **Allow all**\nI let every link through, except the ones you tell me to block.\n\n🚫 **Block all**\nI delete every link. If you want, you can still allow some websites and links as exceptions.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
-          pt-br: "✅ **Permitir todos**\nEu deixo todos os links passarem, menos os que você mandar bloquear.\n\n🚫 **Bloquear todos**\nEu apago todos os links. Se quiser, ainda dá para liberar alguns sites e links como exceção.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
+          en-us: "🔗 **Block some**\nI let links through and block only the websites and links you pick.\n\n🚫 **Block all**\nI delete every link. If you want, you can free some websites and links afterwards.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
+          pt-br: "🔗 **Bloquear alguns**\nEu deixo os links passarem e bloqueio só os sites e links que você escolher.\n\n🚫 **Bloquear todos**\nEu apago todos os links. Se quiser, dá para liberar alguns sites e links depois.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
         customize-label:
           en-us: "Choose mode"
           pt-br: "Escolher modo"
         options:
           - label:
-              en-us: "✅ Allow all"
-              pt-br: "✅ Permitir todos"
+              en-us: "🔗 Block some"
+              pt-br: "🔗 Bloquear alguns"
             value: allow_all
             style: success
           - label:
@@ -188,6 +204,11 @@ steps:
     unique_by: link
     emoji: "📌"
     style: composition
+    edit_label:
+      en-us: "Free specific links"
+      pt-br: "Liberar links específicos"
+    panel_group:
+      key: exceptions
     condition:
       key: add_custom
       not_in: [false, "false", "False"]

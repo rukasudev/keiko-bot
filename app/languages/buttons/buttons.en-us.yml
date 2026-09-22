@@ -28,6 +28,8 @@ en-us:
   preview:
     label: Preview
     desc: Preview the feature settings
+    next: Next message
+    empty: I don't have any message written yet! Write one and I'll show you exactly how it arrives. 🐶
 
   help:
     label: Help
@@ -82,7 +84,7 @@ en-us:
     desc: Keiko immediately assigns the default roles to all server users
     confirm:
       title: "🔄 Sync roles?"
-      message: "I'll give the default roles to **every member and bot** already in the server, not only to whoever joins from now on. This may take a few minutes. Do you want to continue?"
+      message: "I'll sync the default roles now for **every member and bot** already in the server, not only for whoever joins from now on. When I'm done, everyone will have these roles:\n\n👥 Members: $members\n🤖 Bots: $bots\n\nThis may take a few minutes. Do you want to continue?"
       footer: "Use the `/report` command to tell me a bug"
     waiting:
       title: 🔄 Syncing roles...

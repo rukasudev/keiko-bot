@@ -17,6 +17,7 @@ steps:
   - action: configuration_card
     key: welcome_config
     edit_by_field: true
+    preview: true
     required:
       - welcome_messages_channel
       - welcome_custom_image
@@ -55,20 +56,6 @@ steps:
         description:
           en-us: Where I'll send the welcome message.
           pt-br: Onde vou enviar a mensagem de boas-vindas.
-      - key: welcome_design
-        label:
-          en-us: Banner design
-          pt-br: Design do banner
-        description:
-          en-us: The look of the banner I draw for each new member.
-          pt-br: O visual do banner que eu desenho para cada novo membro.
-      - key: welcome_custom_image
-        label:
-          en-us: Custom image
-          pt-br: Imagem personalizada
-        description:
-          en-us: The picture I put on the banner when you pick a custom design.
-          pt-br: A imagem que eu coloco no banner quando você escolhe um design personalizado.
       - key: welcome_messages_title
         label:
           en-us: Title
@@ -91,6 +78,20 @@ steps:
         description:
           en-us: The small line that closes the message.
           pt-br: A linha pequena que fecha a mensagem.
+      - key: welcome_design
+        label:
+          en-us: Banner design
+          pt-br: Design do banner
+        description:
+          en-us: The look of the banner I draw for each new member.
+          pt-br: O visual do banner que eu desenho para cada novo membro.
+      - key: welcome_custom_image
+        label:
+          en-us: Custom image
+          pt-br: Imagem personalizada
+        description:
+          en-us: The picture I put on the banner when you pick a custom design.
+          pt-br: A imagem que eu coloco no banner quando você escolhe um design personalizado.
     sections:
       - key: channel
         icon: "📺"
@@ -107,6 +108,54 @@ steps:
         picker-title:
           en-us: "Where should I welcome new members?"
           pt-br: "Onde devo dar boas-vindas aos novos membros?"
+      - key: messages
+        icon: "💬"
+        type: modal-input
+        style: bullet
+        label:
+          en-us: "Messages"
+          pt-br: "Mensagens"
+        state:
+          value: welcome_messages
+        customize-label:
+          en-us: "Edit messages"
+          pt-br: "Editar mensagens"
+        modal:
+          title:
+            en-us: "Welcome Messages"
+            pt-br: "Mensagens de Boas-Vindas"
+          fields:
+            - key: welcome_messages_title
+              multiline: true
+              max_length: 50
+              label:
+                en-us: Title
+                pt-br: Título
+            - max_length: 100
+              multiline: true
+              label:
+                en-us: "Random Message #1"
+                pt-br: "Mensagem Aleatória #1"
+            - max_length: 100
+              multiline: true
+              required: false
+              label:
+                en-us: "Random Message #2"
+                pt-br: "Mensagem Aleatória #2"
+            - max_length: 100
+              multiline: true
+              required: false
+              label:
+                en-us: "Random Message #3"
+                pt-br: "Mensagem Aleatória #3"
+            - key: welcome_messages_footer
+              multiline: true
+              max_length: 50
+              required: false
+              label:
+                en-us: Footer
+                pt-br: Rodapé
+
       - key: design
         icon: "🎨"
         type: design-select
@@ -159,54 +208,6 @@ steps:
           title:
             en-us: "📷 Upload Custom Image"
             pt-br: "📷 Enviar Imagem Personalizada"
-      - key: messages
-        icon: "💬"
-        type: modal-input
-        style: bullet
-        label:
-          en-us: "Messages"
-          pt-br: "Mensagens"
-        state:
-          value: welcome_messages
-        customize-label:
-          en-us: "Edit messages"
-          pt-br: "Editar mensagens"
-        modal:
-          title:
-            en-us: "Welcome Messages"
-            pt-br: "Mensagens de Boas-Vindas"
-          fields:
-            - key: welcome_messages_title
-              multiline: true
-              max_length: 50
-              label:
-                en-us: Title
-                pt-br: Título
-            - max_length: 100
-              multiline: true
-              label:
-                en-us: "Random Message #1"
-                pt-br: "Mensagem Aleatória #1"
-            - max_length: 100
-              multiline: true
-              required: false
-              label:
-                en-us: "Random Message #2"
-                pt-br: "Mensagem Aleatória #2"
-            - max_length: 100
-              multiline: true
-              required: false
-              label:
-                en-us: "Random Message #3"
-                pt-br: "Mensagem Aleatória #3"
-            - key: welcome_messages_footer
-              multiline: true
-              max_length: 50
-              required: false
-              label:
-                en-us: Footer
-                pt-br: Rodapé
-
   - action: resume
     key: confirm
     preview: true

@@ -60,6 +60,10 @@ pt-br:
     title: Seleção Obrigatória
     message: "Ops! Selecione uma opção antes de confirmar :)"
 
+  fill-one-field:
+    title: Campo Obrigatório
+    message: "Ops! Preencha um dos campos antes de confirmar :)"
+
   discard-settings-confirmation:
     title: Cancelar Configuração?
     message: Se você cancelar agora, vou encerrar esta mensagem e tudo o que configuramos até aqui será perdido. Para configurar de novo, você precisará começar do zero. Tem certeza de que quer descartar tudo?

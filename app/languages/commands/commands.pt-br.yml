@@ -59,6 +59,19 @@ pt-br:
             top-member: Membro com mais bloqueios
             not-deleted: Mensagens que eu não consegui apagar
           empty: "Ainda não bloqueei nenhum link por aqui! 🐶"
+      stream-elements-manager:
+        commands:
+          button:
+            label: Comandos
+            desc: Ver a lista de comandos que eu respondo
+          embed:
+            title: "💡 Comandos do StreamElements"
+            desc: "Comandos de `$streamer` que eu respondo aqui no Discord"
+          empty: "Não encontrei nenhum comando ativo no StreamElements de `$streamer`! 🐶"
+        loaded:
+          title: "💡 Comandos carregados"
+          message: "Respondo a **$count** comandos de `$streamer`."
+          unknown: "Não consegui falar com o StreamElements agora, mas busco a resposta assim que alguém usar um comando."
       reminders-birthdays-manager:
         stats:
           button:

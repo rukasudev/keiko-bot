@@ -35,6 +35,7 @@ REJECTED = [
     ("bad_section_type.yml", "rainbow"),
     ("unknown_validator.yml", "unknown validator 'validate_unicorn'"),
     ("unknown_normalizer.yml", "unknown normalizer 'unicorn'"),
+    ("panel_group_title_when_unknown_key.yml", "'nao_existe' is not produced earlier"),
     ("state_value_names_no_field.yml", "state.value names none of the fields"),
     ("modal_with_six_inputs.yml", "a modal holds at most 5 inputs"),
     ("unkeyed_field_without_value.yml", "fields without a key need state.value"),

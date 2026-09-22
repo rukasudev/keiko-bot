@@ -71,6 +71,7 @@ class DefaultRolesFeature(GenericCogFeature):
                 defer=True,
                 cooldown=SYNC_COOLDOWN_SECONDS,
                 confirm="buttons.roles-sync.confirm",
+                confirm_values=_roles_of,
             )
         }
 
@@ -79,6 +80,23 @@ def _values(entry: Any) -> Any:
     if isinstance(entry, Mapping):
         return entry.get("values")
     return entry
+
+
+def _roles_of(document: Mapping[str, Any], locale: str) -> Mapping[str, str]:
+    return {
+        "members": _mentions(document.get(Commands.DEFAULT_ROLES_KEY), locale),
+        "bots": _mentions(document.get(Commands.DEFAULT_ROLES_BOT_KEY), locale),
+    }
+
+
+def _mentions(entry: Any, locale: str) -> str:
+    values = _values(entry)
+    if isinstance(values, (list, tuple)):
+        roles = [str(value) for value in values]
+    else:
+        roles = [str(values)] if values else []
+    joined = ", ".join(f"<@&{role}>" for role in roles)
+    return joined or text("commands.resume.empty", locale)
 
 
 FEATURE = DefaultRolesFeature()

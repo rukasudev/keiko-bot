@@ -29,6 +29,8 @@ pt-br:
   preview:
     label: Pré-visualizar
     desc: Pré-visualiza as configurações da funcionalidade
+    next: Próxima mensagem
+    empty: Ainda não tenho nenhuma mensagem escrita! Escreva uma e eu te mostro exatamente como ela chega. 🐶
 
   help:
     label: Ajuda
@@ -81,7 +83,7 @@ pt-br:
     desc: Keiko atribui imediatamente os cargos padrão a todos os usuários do servidor
     confirm:
       title: "🔄 Sincronizar cargos?"
-      message: "Vou dar os cargos padrão para **todos os membros e bots** que já estão no servidor, não só para quem entrar daqui pra frente. Isso pode levar alguns minutos. Quer continuar?"
+      message: "Vou sincronizar agora os cargos padrão para **todos os membros e bots** que já estão no servidor, não só para quem entrar daqui pra frente. No fim, todo mundo vai estar com estes cargos:\n\n👥 Membros: $members\n🤖 Bots: $bots\n\nIsso pode levar alguns minutos. Quer continuar?"
       footer: "Use o comando `/reportar` para me contar um bug"
     waiting:
       title: 🔄 Sincronizando cargos...
