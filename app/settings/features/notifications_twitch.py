@@ -3,7 +3,11 @@
 from __future__ import annotations
 
 from app.constants import Commands
-from app.services.notifications_twitch import subscribe_streamer, unsubscribe_streamer
+from app.services.notifications_twitch import (
+    send_notification_preview,
+    subscribe_streamer,
+    unsubscribe_streamer,
+)
 from app.settings.features.subscriptions import SubscriptionFeature
 
 
@@ -18,6 +22,7 @@ class TwitchFeature(SubscriptionFeature):
         super().__init__(Commands.NOTIFICATIONS_TWITCH_KEY)
         self.subscribe = subscribe_streamer
         self.unsubscribe = unsubscribe_streamer
+        self.preview_sender = send_notification_preview
 
 
 FEATURE = TwitchFeature()

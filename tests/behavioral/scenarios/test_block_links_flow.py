@@ -145,7 +145,7 @@ async def test_mode_picker_explains_each_mode_in_its_own_line(scenario_factory):
 
     lines = rendered.split("\n")
     for emoji, label in (("🚫", "Bloquear todos"),
-                         ("✅", "Permitir todos")):
+                         ("🔗", "Bloquear alguns")):
         index = next(
             (i for i, line in enumerate(lines)
              if label in line and line.lstrip().startswith(emoji)),
@@ -171,7 +171,7 @@ async def test_allow_all_hides_popular_websites_and_requires_entries(scenario_fa
     await scenario.confirm()
 
     await scenario.click("customize:0")           # mode picker
-    await scenario.click("✅ Permitir todos")
+    await scenario.click("🔗 Bloquear alguns")
 
     card_event = scenario.expect_message(components_v2=True)
 
@@ -265,7 +265,7 @@ async def test_custom_links_copy_says_what_the_list_does_in_each_mode(scenario_f
     allowing = await scenario_factory(locale="pt-br").start("block_links")
     await allowing.confirm()
     await allowing.click("customize:0")
-    await allowing.click("✅ Permitir todos")
+    await allowing.click("🔗 Bloquear alguns")
     await allowing.click("done")                  # gate is skipped in allow_all
     await allowing.submit_modal({"Digite o link ou site": "twitch.tv/jway"})
     text = (allowing.expect_message().get("embed") or {}).get("description") or ""

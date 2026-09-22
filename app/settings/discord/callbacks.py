@@ -515,7 +515,7 @@ class Runtime:
             _cool(state, name)
         if action.defer and not action.own_response:
             await interaction.response.defer()
-        responses = state.feature.responses_for_preview(session.answers, locale)
+        responses = state.feature.responses_for_aside(session.answers, locale)
         await action.handler(interaction, responses)
 
     async def _ask_before(
@@ -542,10 +542,14 @@ class Runtime:
             if action.cooldown:
                 _cool(state, name)
             await answer.response.edit_message(view=None)
-            responses = state.feature.responses_for_preview(session.answers, locale)
+            responses = state.feature.responses_for_aside(session.answers, locale)
             await action.handler(answer, responses)
 
         embed = response_embed(question, locale, footer=True, image=True)
+        if action.confirm_values and embed.description:
+            values = action.confirm_values(state.opened.document or {}, locale)
+            for token, value in values.items():
+                embed.description = embed.description.replace(f"${token}", value)
         await interaction.response.send_message(
             embed=embed, view=ConfirmActionView(confirmed, locale), ephemeral=True
         )

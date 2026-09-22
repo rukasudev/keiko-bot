@@ -19,6 +19,7 @@ from app.data.reminder import (
 )
 from app.settings import open_feature
 from app.services import analytics, cache
+from app.views.message_preview import MessagePreviewView
 
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:
@@ -111,6 +112,28 @@ def create_video_notification_embed(video_info: Dict[str, Any], youtuber_info: D
         embed.add_field(name="Tags", value=", ".join(video_tags), inline=True)
 
     return embed
+
+async def send_notification_preview(
+    interaction: discord.Interaction, responses: List[Dict[str, Any]]
+) -> None:
+    """The video announcement as it will arrive, one written message per click."""
+
+    values = {
+        item["key"]: item.get("_raw_value", item.get("value"))
+        for item in responses
+        if item.get("key")
+    }
+    youtuber = str(values.get("youtuber") or "")
+    video_link = f"https://www.youtube.com/@{youtuber}"
+    texts = []
+    for message in str(values.get("notification_messages") or "").split(";"):
+        if not message.strip():
+            continue
+        try:
+            texts.append(parse_streamer_message(message.lstrip(), youtuber, video_link))
+        except (KeyError, IndexError):
+            texts.append(message.lstrip())
+    await MessagePreviewView(texts, interaction.locale).send(interaction)
 
 def compose_notification_message(notification: Dict[str, Any], youtuber: str, video_id: str) -> str:
     messages = notification.get("notification_messages").get("value")

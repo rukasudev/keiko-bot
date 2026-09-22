@@ -62,6 +62,26 @@ async def _run_happy_path(scenario_factory, locale):
     return scenario
 
 
+async def test_the_member_card_offers_a_preview_of_that_member_message(
+    scenario_factory,
+):
+    """Lucas: the birthday setup should preview the message, per member too."""
+    locale = "pt-br"
+    scenario = await scenario_factory(locale=locale).start("reminders_birthday")
+    await scenario.confirm()
+    await _complete_global_card(scenario)
+    await scenario.click(YES_LABEL[locale])
+    await scenario.select_option("Tester")
+    await scenario.confirm()
+
+    scenario.expect_component(label_or_action="Pré-visualizar")
+
+    await _complete_member_card(scenario, locale)
+    scenario.expect_step("confirm")
+    scenario.expect_component(label_or_action="Pré-visualizar")
+    await scenario.finish()
+
+
 async def test_happy_path_ptbr_persists_config_and_member(scenario_factory):
     scenario = await _run_happy_path(scenario_factory, "pt-br")
     guild_id = str(scenario.guild.id)

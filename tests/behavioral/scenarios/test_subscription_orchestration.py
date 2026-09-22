@@ -36,6 +36,59 @@ async def _card_to_review(scenario, streamer, messages=None):
     await scenario.click("done")
 
 
+async def test_the_card_shows_the_picture_of_the_streamer_just_typed(
+    scenario_factory, deps
+):
+    """Lucas: once the streamer is typed, show their picture on the card. The
+    picture comes from the same lookup that validates the nick, and it is never
+    saved with the item."""
+    import json
+
+    deps.twitch.add_user("gaules", user_id="111")
+
+    scenario = await scenario_factory(locale="pt-br").start("notifications_twitch")
+    await scenario.confirm()
+    await scenario.click("customize:1")
+    await scenario.submit_modal({scenario.pending_modal_fields()[0]: "gaules"})
+
+    card = json.dumps(scenario.expect_message(components_v2=True), ensure_ascii=False)
+    assert "gaules.jpg" in card, "the streamer picture belongs on the card"
+    await scenario.finish()
+
+
+async def test_the_item_card_offers_a_preview_of_the_notification(
+    scenario_factory, deps
+):
+    """Lucas: the same preview as the welcome message, one text at a time."""
+    deps.twitch.add_user("gaules", user_id="111")
+
+    scenario = await scenario_factory(locale="pt-br").start("notifications_twitch")
+    await scenario.confirm()
+
+    scenario.expect_component(label_or_action="Pré-visualizar")
+    await scenario.finish()
+
+
+async def test_the_message_preview_walks_through_every_text():
+    """The preview shows one written message per click, and wraps around."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from app.views.message_preview import MessagePreviewView
+
+    view = MessagePreviewView(["está ao vivo!", "chegou na live", "bora?"], "pt-br")
+
+    async def press():
+        interaction = MagicMock()
+        interaction.response.edit_message = AsyncMock()
+        await view.next_message.callback(interaction)
+        return interaction.response.edit_message.await_args.kwargs["content"]
+
+    assert view.content == "está ao vivo!"
+    assert await press() == "chegou na live"
+    assert await press() == "bora?"
+    assert await press() == "está ao vivo!"
+
+
 async def test_full_setup_subscribes_streamer(
     scenario_factory, deps, production_like_bot
 ):

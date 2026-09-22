@@ -10,10 +10,13 @@ from app.constants import Commands as constants
 from app.constants import KeikoIcons as icons_constants
 from app.constants import LogTypes as logconstants
 from app.constants import Style as style_constants
+from app.constants import ViewConstants as view_constants
 from app.exceptions import ErrorContext
 from app.integrations.stream_elements import StreamElementsClient
 from app.settings import open_feature
 from app.services import analytics, cache
+from app.services.utils import ml
+from app.views.pagination import PaginationView
 from app.views.pagination_without_interaction import PaginationWithoutInteractionView
 
 
@@ -85,12 +88,52 @@ async def parse_command_list_view(
     if not commands_list:
         return None
 
-    title = "StreamElements Commands"
-    description = f"Here is a list of all the StreamElements commands available in {streamer}'s channel"
+    locale = message.guild.preferred_locale if message.guild else None
+    namespace = "commands.commands.commons.stream-elements-manager.commands"
+    title = ml(f"{namespace}.embed.title", locale=locale)
+    description = ml(f"{namespace}.embed.desc", locale=locale).replace(
+        "$streamer", streamer
+    )
     user_info = await asyncio.to_thread(bot.twitch.get_user_info, streamer)
     icon = (user_info or {}).get("profile_image_url")
-    view = PaginationWithoutInteractionView(title, description, commands_list, message, thumbnail=icon, sep=4)
+    view = PaginationWithoutInteractionView(
+        title,
+        description,
+        commands_list,
+        message,
+        thumbnail=icon,
+        sep=view_constants.COMMANDS_PAGE_SIZE,
+    )
     return view
+
+
+async def send_commands_view(interaction: discord.Interaction) -> None:
+    """The paginated command list, opened from the manager panel."""
+    cogs = await asyncio.to_thread(
+        cache.get_cog_data_or_populate,
+        interaction.guild.id,
+        constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
+    )
+    streamer = str((cogs or {}).get("streamer", ""))
+    commands_list = await asyncio.to_thread(
+        get_commands_in_cache_or_populate,
+        str((cogs or {}).get("channel_id", "")),
+        interaction.user,
+    )
+    locale = interaction.locale
+    namespace = "commands.commands.commons.stream-elements-manager.commands"
+    if not commands_list:
+        empty = ml(f"{namespace}.empty", locale=locale).replace("$streamer", streamer)
+        return await interaction.response.send_message(empty, ephemeral=True)
+
+    view = PaginationView(
+        interaction,
+        ml(f"{namespace}.embed.title", locale=locale),
+        ml(f"{namespace}.embed.desc", locale=locale).replace("$streamer", streamer),
+        commands_list,
+        sep=view_constants.COMMANDS_PAGE_SIZE,
+    )
+    await view.send(ephemeral=True)
 
 
 def create_response_embed(command: str, reply: str, user: discord.User, streamer: str) -> discord.Embed:

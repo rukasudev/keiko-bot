@@ -329,11 +329,16 @@ def _header(card: CardStep, session: FormSession, context: RenderContext) -> Car
             else ("" if value is None else str(value))
         )
         lines.append(f"{line.emoji} **{line.label.get(locale)}:** {shown}")
+    thumbnail = ICONS.get(header.thumbnail, "")
+    if header.thumbnail_key:
+        state = state_of(card, session, context)
+        found = state.get(header.thumbnail_key) or session.raw(header.thumbnail_key)
+        thumbnail = str(found or thumbnail)
     return CardHeader(
         title=title,
         description=card.description.get(locale),
         lines=tuple(lines),
-        thumbnail=ICONS.get(header.thumbnail, ""),
+        thumbnail=thumbnail,
     )
 
 
@@ -351,6 +356,16 @@ def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
         Button(text("buttons.summary-card.done", locale), "done", "success")
     ]
 
+    if card.preview:
+        buttons.append(
+            Button(
+                text("buttons.preview.label", locale),
+                "aside:preview",
+                "secondary",
+                "👁️",
+                description=text("buttons.preview.desc", locale),
+            )
+        )
     if context.can_go_back:
         buttons.append(back_button(locale))
     buttons.append(cancel_button(locale))
@@ -658,6 +673,11 @@ def _fields_change(
         )
         if error:
             return Refusal(error)
+    for answer, path in section.lookup_answers.items():
+        service, _, name = path.partition(".")
+        found = context.external.get(service, {})
+        if name in found:
+            changes[answer] = found[name]
     return changes
 
 

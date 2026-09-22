@@ -66,9 +66,11 @@ def _card_lookup(
     )
     value = str(inputs[position]) if position < len(inputs) else ""
     field = fields[position] if position < len(fields) else None
+    named = tuple(path.split(".", 1)[0] for path in section.lookup_answers.values())
     return _lookup(
         section.modal.validation,
         _normalized(field.normalize if field else None, value),
+        named,
     )
 
 

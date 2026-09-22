@@ -17,6 +17,7 @@ from app.services.reminders_birthdays import (
     save_birthday_config_changes,
     save_form_birthday_item,
     save_setup_form,
+    send_birthday_preview,
     send_stats_message,
 )
 from app.settings.features.feature import (
@@ -82,15 +83,21 @@ class BirthdayFeature(GenericCogFeature):
         )
 
     def asides(self) -> Mapping[str, AsideAction]:
-        """The stats screen."""
+        """The stats screen and the preview of the celebration."""
 
         async def stats(interaction: Any, _responses: Any) -> None:
             await send_stats_message(interaction)
 
+        async def preview(interaction: Any, responses: Any) -> None:
+            await send_birthday_preview(interaction, list(responses))
+
         return {
             "stats": AsideAction(
                 stats, defer=True, cooldown=view_constants.ACTION_COOLDOWN_SECONDS
-            )
+            ),
+            "preview": AsideAction(
+                preview, defer=True, cooldown=view_constants.ACTION_COOLDOWN_SECONDS
+            ),
         }
 
     async def commit_setup(

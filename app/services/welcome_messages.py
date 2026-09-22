@@ -12,10 +12,17 @@ from app.components.embed import default_welcome_embed
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.constants import Style, WelcomeDesign
+from app.constants import ViewConstants as view_constants
 from app.exceptions import ErrorContext
 from app.settings import open_feature
 from app.services import analytics, cache, cdn, images
-from app.services.utils import parse_welcome_messages
+from app.views.message_preview import MessagePreviewView
+from app.services.utils import (
+    ml,
+    parse_welcome_messages,
+    render_welcome_message,
+    split_welcome_messages,
+)
 
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:
@@ -93,13 +100,15 @@ async def send_welcome_message(member: discord.Member):
         )
         raise
 
-async def generate_design_previews(member: discord.Member, designs: list) -> dict:
-    """One preview url per design, all drawn at the same time."""
+async def generate_design_previews(
+    member: discord.Member, designs: list, title: str = "WELCOME"
+) -> dict:
+    """One preview url per design, drawn with the chosen title, all at once."""
     server_icon = str(member.guild.icon.url) if member.guild.icon else None
 
     def banner(background: Optional[str]):
         return create_banner(
-            background, "WELCOME", member.name, member.display_avatar.url, member.guild.name
+            background, title.upper(), member.name, member.display_avatar.url, member.guild.name
         )
 
     generators = {
@@ -145,6 +154,23 @@ async def create_welcome_message(
     )
     return default_welcome_embed(title, message, footer, banner)
 
+async def welcome_preview_pages(
+    member: discord.Member, messages: List[str], settings: Dict[str, str]
+) -> List[discord.Embed]:
+    """One finished embed per written message, drawn before any click."""
+    return [
+        await create_welcome_message(
+            member,
+            settings["title"],
+            render_welcome_message(message, member),
+            settings["footer"],
+            design=settings["design"],
+            custom_image=settings["custom_image"],
+        )
+        for message in (messages or [""])
+    ]
+
+
 async def send_welcome_message_preview(interaction: discord.Interaction, response: List[Dict[str, str]]):
     welcome_data = {
         item["key"]: item.get("_raw_value", item.get("value"))
@@ -184,13 +210,17 @@ async def send_welcome_message_preview(interaction: discord.Interaction, respons
     if not member:
         return
 
-    welcome_message = parse_welcome_messages(messages, member)
-    embed_message = await create_welcome_message(
-        member, title, welcome_message, footer,
-        design=design, custom_image=custom_image
+    pages = await welcome_preview_pages(
+        member,
+        split_welcome_messages(messages),
+        {
+            "title": title,
+            "footer": footer,
+            "design": design,
+            "custom_image": custom_image,
+        },
     )
-
-    await interaction.followup.send(embed=embed_message, ephemeral=True)
+    await MessagePreviewView(pages, interaction.locale).send(interaction)
 
 
 def _asset_path(name: str) -> str:

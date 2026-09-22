@@ -31,22 +31,30 @@ class WelcomeMessagesFeature(GenericCogFeature):
         """The document with the preview button, or the previews for a setup."""
         opened = await super().open(context)
         if opened.document is not None:
+            title = str(opened.document.get("welcome_messages_title") or "")
             return Opened(
                 document=opened.document,
                 enabled=opened.enabled,
                 extra_buttons=self.extra_buttons(context),
-                pending_previews=self.previews(context),
+                pending_previews=self.previews(context, title),
             )
         return Opened(pending_previews=self.previews(context))
 
-    async def previews(self, context: OpenContext) -> Mapping[str, str]:
-        """One rendered banner per design, drawn in the background while the
+    async def previews(
+        self, context: OpenContext, title: str = ""
+    ) -> Mapping[str, str]:
+        """One rendered banner per design, drawn with the saved title while the
         member answers the first steps."""
         designs = [{"key": design.key} for design in self.definition.designs()]
         if not designs or context.member is None:
             return {}
         try:
-            return dict(await generate_design_previews(context.member, designs))
+            drawn = (
+                await generate_design_previews(context.member, designs, title)
+                if title
+                else await generate_design_previews(context.member, designs)
+            )
+            return dict(drawn)
         except Exception:
             return {}
 

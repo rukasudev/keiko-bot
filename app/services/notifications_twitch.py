@@ -21,6 +21,7 @@ from app.data.notifications_twitch import (
 )
 from app.settings import open_feature
 from app.services import analytics, cache
+from app.views.message_preview import MessagePreviewView
 from app.services.utils import format_datetime_output
 
 
@@ -298,6 +299,24 @@ def unsubscribe_streamer(interaction: discord.Interaction, notification: Dict[st
         interaction=interaction,
         log_type=logconstants.COMMAND_INFO_TYPE,
     )
+
+async def send_notification_preview(
+    interaction: discord.Interaction, responses: List[Dict[str, Any]]
+) -> None:
+    """The live announcement as it will arrive, one written message per click."""
+    values = {
+        item["key"]: item.get("_raw_value", item.get("value"))
+        for item in responses
+        if item.get("key")
+    }
+    streamer = str(values.get("streamer") or "")
+    stream_link = f"https://www.twitch.tv/{streamer}"
+    texts = [
+        parse_streamer_message(message.lstrip(), streamer, stream_link)
+        for message in str(values.get("notification_messages") or "").split(";")
+        if message.strip()
+    ]
+    await MessagePreviewView(texts, interaction.locale).send(interaction)
 
 def compose_notification_message(notification: Dict[str, Any], streamer: str) -> str:
     messages = notification.get("notification_messages").get("value")
