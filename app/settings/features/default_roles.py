@@ -7,6 +7,7 @@ from typing import Any
 
 from app.constants import Commands
 from app.services.default_roles import (
+    count_roles_receivers,
     get_not_available_roles,
     set_on_default_roles_sync,
 )
@@ -82,11 +83,22 @@ def _values(entry: Any) -> Any:
     return entry
 
 
-def _roles_of(document: Mapping[str, Any], locale: str) -> Mapping[str, str]:
+def _roles_of(
+    document: Mapping[str, Any], locale: str, guild: Any = None
+) -> Mapping[str, str]:
+    members, bots = _receivers(document, guild)
     return {
         "members": _mentions(document.get(Commands.DEFAULT_ROLES_KEY), locale),
         "bots": _mentions(document.get(Commands.DEFAULT_ROLES_BOT_KEY), locale),
+        "members_count": str(members),
+        "bots_count": str(bots),
     }
+
+
+def _receivers(document: Mapping[str, Any], guild: Any) -> tuple[int, int]:
+    """How many members and bots of the guild the sync would hand a role to."""
+    members, bots = count_roles_receivers(document, guild)
+    return int(members), int(bots)
 
 
 def _mentions(entry: Any, locale: str) -> str:

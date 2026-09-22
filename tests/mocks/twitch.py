@@ -79,6 +79,7 @@ class MockTwitchAPI:
     def __init__(self):
         self._users: Dict[str, UserInfo] = {}
         self._streams: Dict[str, Optional[StreamInfo]] = {}
+        self._last_videos: Dict[str, str] = {}
         self._subscriptions: List[dict] = []
         self._subscription_counter: int = 0
 
@@ -129,6 +130,23 @@ class MockTwitchAPI:
             started_at=(started_at or datetime.now(timezone.utc)).isoformat()
         )
         return self
+
+    def set_last_video(self, login: str, thumbnail_url: str) -> "MockTwitchAPI":
+        """Define a gravacao mais recente do streamer."""
+        user = self._users.get(login.lower())
+        if not user:
+            raise ValueError(f"User {login} not added. Call add_user first.")
+
+        self._last_videos[user.id] = thumbnail_url
+        return self
+
+    def get_last_video_thumbnail(self, user_id: str, width: int = 1280, height: int = 720) -> Optional[str]:
+        """Retorna a thumbnail da ultima gravacao, ja dimensionada."""
+        thumbnail = self._last_videos.get(str(user_id))
+        if not thumbnail:
+            return None
+
+        return thumbnail.replace("%{width}", str(width)).replace("%{height}", str(height))
 
     def set_stream_offline(self, login: str) -> "MockTwitchAPI":
         """Define que um streamer esta offline."""

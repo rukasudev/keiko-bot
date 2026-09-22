@@ -1,5 +1,5 @@
 import asyncio
-from typing import Dict, List, Union
+from typing import Any, Dict, List, Mapping, Union
 
 import discord
 
@@ -85,10 +85,8 @@ async def set_on_default_roles_sync(interaction: discord.Interaction):
         raise
 
 
-async def set_default_roles(
-    cogs: Dict[str, str], guild: discord.Guild, members: List[discord.Member]
-) -> Dict[str, int]:
-    """Give every member the roles their kind gets, and say how many got one."""
+def build_roles_mapping(cogs: Mapping[str, Any], guild: discord.Guild) -> dict:
+    """The roles a member and a bot end up with, filtered to what exists."""
     default_roles_bot_data = cogs.get(constants.DEFAULT_ROLES_BOT_KEY)
     default_roles_bot = default_roles_bot_data.get("values") if isinstance(default_roles_bot_data, dict) else default_roles_bot_data
 
@@ -96,13 +94,51 @@ async def set_default_roles(
     default_roles_user = default_roles_user_data.get("values") if isinstance(default_roles_user_data, dict) else default_roles_user_data
 
     available_roles = get_available_roles_by_guild(guild)
-    roles_mapping = {
+    return {
         constants.DEFAULT_ROLES_BOT_KEY: filter_roles(
             default_roles_bot, available_roles
         ),
         constants.DEFAULT_ROLES_KEY: filter_roles(default_roles_user, available_roles),
     }
 
+
+def count_roles_receivers(cogs: Mapping[str, Any], guild: discord.Guild) -> tuple:
+    """How many members and how many bots a sync would hand a role to.
+
+    Every member is looked at, so the roles are resolved once up front rather
+    than searched through the guild for each one.
+    """
+    if not guild:
+        return 0, 0
+
+    roles_mapping = build_roles_mapping(cogs, guild)
+    by_id = {role.id: role for role in guild.roles}
+    wanted = {
+        kind: [by_id[int(role_id)] for role_id in ids if int(role_id) in by_id]
+        for kind, ids in roles_mapping.items()
+    }
+    members = bots = 0
+
+    for member in guild.members:
+        kind = (
+            constants.DEFAULT_ROLES_BOT_KEY
+            if member.bot
+            else constants.DEFAULT_ROLES_KEY
+        )
+        if not any(role not in member.roles for role in wanted[kind]):
+            continue
+        if member.bot:
+            bots += 1
+        else:
+            members += 1
+    return members, bots
+
+
+async def set_default_roles(
+    cogs: Dict[str, str], guild: discord.Guild, members: List[discord.Member]
+) -> Dict[str, int]:
+    """Give every member the roles their kind gets, and say how many got one."""
+    roles_mapping = build_roles_mapping(cogs, guild)
     given = {"members": 0, "bots": 0}
 
     for member in members:

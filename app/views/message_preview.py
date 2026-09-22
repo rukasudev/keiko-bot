@@ -1,4 +1,4 @@
-from typing import Any, Dict, List, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 import discord
 
@@ -9,14 +9,25 @@ Page = Union[str, discord.Embed]
 
 
 class MessagePreviewView(discord.ui.View):
-    """Several written messages previewed one at a time, with a Next button."""
+    """Several written messages previewed one at a time, with a Next button.
 
-    def __init__(self, pages: Sequence[Page], locale):
+    A page is a written message or an embed already drawn. An `embed` given
+    here rides along with every page, so a preview shows the whole
+    announcement and not only the text above it.
+    """
+
+    def __init__(
+        self,
+        pages: Sequence[Page],
+        locale,
+        embed: Optional[discord.Embed] = None,
+    ):
         super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.pages: List[Page] = [page for page in pages if page] or [
             ml("buttons.preview.empty", locale=locale)
         ]
         self.index = 0
+        self.embed = embed
         self.next_message.label = ml("buttons.preview.next", locale=locale)
 
     @property
@@ -28,13 +39,16 @@ class MessagePreviewView(discord.ui.View):
         page = self.page
         return page if isinstance(page, str) else ""
 
-    def _payload(self) -> Dict[str, Any]:
+    def _payload(self, sending: bool = False) -> Dict[str, Any]:
         page = self.page
-        return {"embed": page} if isinstance(page, discord.Embed) else {"content": page}
+        if isinstance(page, discord.Embed):
+            return {"embed": page}
+        blank = discord.utils.MISSING if sending else None
+        return {"content": page, "embed": self.embed or blank}
 
     async def send(self, interaction: discord.Interaction):
         await interaction.followup.send(
-            **self._payload(),
+            **self._payload(sending=True),
             view=self if len(self.pages) > 1 else discord.utils.MISSING,
             ephemeral=True,
         )

@@ -159,6 +159,7 @@ steps:
       - key: design
         icon: "🎨"
         type: design-select
+        draws_from: welcome_custom_image
         label:
           en-us: "Banner design"
           pt-br: "Design do banner"

@@ -78,7 +78,8 @@ class StreamElementsFeature(GenericCogFeature):
             user_id = await asyncio.to_thread(
                 twitch.get_user_id_from_login, lookup.value
             )
-            found["twitch"] = {"user_id": user_id}
+            image = await asyncio.to_thread(_profile_image, lookup.value)
+            found["twitch"] = {"user_id": user_id, "profile_image": image}
         if "stream_elements" in lookup.services:
             try:
                 found["stream_elements"] = await asyncio.to_thread(
@@ -107,6 +108,14 @@ class StreamElementsFeature(GenericCogFeature):
         if "streamer" not in changes:
             return changes
         return await _with_channel(changes)
+
+
+def _profile_image(streamer: str) -> str:
+    try:
+        info = cast(Any, app_module).bot.twitch.get_user_info(streamer) or {}
+        return str(info.get("profile_image_url") or "")
+    except Exception:
+        return ""
 
 
 def _copy(key: str, locale: str) -> str:
@@ -140,10 +149,12 @@ def _enabled_commands(streamer: str) -> dict[str, Any]:
     enabled = [command for command in commands if command.get("enabled")]
     named = [command.get("command") for command in enabled if command.get("command")]
     sample = named[: view_constants.COMMANDS_PREVIEW_LIMIT]
+    prefix = str(cast(Any, app_module).bot.config.PREFIX)
     return {
         "channel_id": channel_id,
         "enabled_commands": len(enabled),
         "top_commands": ", ".join(f"`!{name}`" for name in sample),
+        "keiko_commands": ", ".join(f"`{prefix}{name}`" for name in sample),
     }
 
 

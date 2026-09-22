@@ -42,7 +42,7 @@ from app.settings.features.feature import (
     Opened,
 )
 from app.settings.form import events as ev
-from app.settings.form.components import Gallery
+from app.settings.form.components import Card, Gallery
 from app.settings.form.copy import normalize_locale, text
 from app.settings.form.effects import (
     Finalize,
@@ -51,7 +51,7 @@ from app.settings.form.effects import (
     ResumeChild,
     ResumeParent,
 )
-from app.settings.form.form import Context, Decision, decide
+from app.settings.form.form import Context, Decision, decide, shown_answers
 from app.settings.form.form_state import (
     FormSession,
     InMemorySessionStore,
@@ -81,21 +81,24 @@ class Session:
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     cooldowns: dict[str, float] = field(default_factory=dict)
     previews: asyncio.Task[Mapping[str, str]] | None = None
+    drawn_from: str = ""
 
-    async def ready_previews(self, wait: bool) -> Mapping[str, str]:
-        """The previews drawn in the background, waited for up to their own limit."""
+    async def ready_previews(
+        self, wait: bool, budget: float = view_constants.PREVIEW_WAIT_SECONDS
+    ) -> Mapping[str, str]:
+        """The previews drawn in the background, waiting for them when `wait`.
+
+        The wait is taken while this session's lock is held, so it is always
+        bounded; a drawing that outlasts its budget keeps going for the next
+        screen to pick up.
+        """
         if self.previews is None:
             return self.opened.previews
         if not self.previews.done() and not wait:
             return {}
 
         try:
-            return dict(
-                await asyncio.wait_for(
-                    asyncio.shield(self.previews),
-                    view_constants.PREVIEW_WAIT_SECONDS,
-                )
-            )
+            return dict(await asyncio.wait_for(asyncio.shield(self.previews), budget))
         except (Exception, asyncio.TimeoutError):
             return {}
 
@@ -113,6 +116,21 @@ def _draws_a_gallery(decision: Decision) -> bool:
     return any(
         isinstance(effect, Render)
         and any(isinstance(item, Gallery) for item in effect.screen.components)
+        for effect in decision.effects
+    )
+
+
+def _draws_previews(decision: Decision, definition: Any) -> bool:
+    """True when a screen of the decision shows a design drawn in the background.
+
+    The gallery is the previews themselves and waits for them; a card only
+    carries the chosen one beside its line, so it waits within a budget.
+    """
+    if not definition.designs():
+        return _draws_a_gallery(decision)
+    return any(
+        isinstance(effect, Render)
+        and any(isinstance(item, (Gallery, Card)) for item in effect.screen.components)
         for effect in decision.effects
     )
 
@@ -140,6 +158,23 @@ class Runtime:
         guild = interaction.guild
         member = interaction.user
         guild_id = str(getattr(guild, "id", interaction.guild_id))
+        in_time = _answer_in_time(interaction)
+
+        try:
+            await self._open(interaction, key, source, locale, guild, member, guild_id)
+        finally:
+            in_time.cancel()
+
+    async def _open(
+        self,
+        interaction: discord.Interaction,
+        key: str,
+        source: str | None,
+        locale: str,
+        guild: Any,
+        member: Any,
+        guild_id: str,
+    ) -> None:
         feature = feature_for(key)
         opened = await feature.open(
             OpenContext(guild_id, str(interaction.user.id), locale, guild, member)
@@ -147,7 +182,7 @@ class Runtime:
 
         if opened.refusal:
             embed = response_error_embed(opened.refusal, locale)
-            await interaction.response.send_message(embed=embed, ephemeral=True)
+            await _answer_with(interaction, embed)
             return
         definition = registry.get(key)
         mode = Manage() if opened.document is not None else Setup()
@@ -193,10 +228,13 @@ class Runtime:
             await self._unknown(interaction)
             return
         state = self.sessions[session.id]
+        in_time = _answer_in_time(interaction)
         try:
             await self._handle_locked(interaction, component, session, payload, state)
         except EffectFailed:
             return
+        finally:
+            in_time.cancel()
 
     async def _handle_locked(
         self,
@@ -280,6 +318,7 @@ class Runtime:
             items=items,
             external=external,
             server_name=str(getattr(state.guild, "name", "")),
+            prefix=_prefix(),
             previews=await state.ready_previews(False),
             panel_rows=opened.rows,
             panel_info=opened.info,
@@ -309,12 +348,20 @@ class Runtime:
                 await interaction.response.defer()
             context = await self._context(session, lookup)
             decision = decide(definition, session, event, context)
-            if state.previews_pending() and _draws_a_gallery(decision):
+            if state.previews_pending() and _draws_previews(decision, definition):
                 if not interaction.response.is_done():
                     await interaction.response.defer()
-                previews = await state.ready_previews(True)
+                budget = (
+                    view_constants.GALLERY_WAIT_SECONDS
+                    if _draws_a_gallery(decision)
+                    else view_constants.PREVIEW_WAIT_SECONDS
+                )
+                previews = await state.ready_previews(True, budget)
                 context = replace(context, previews=previews, now=_now())
                 decision = decide(definition, session, event, context)
+            decision = await self._redrawn(
+                interaction, definition, session, event, context, decision
+            )
 
             observability.log_decision(decision, event, session)
 
@@ -326,6 +373,44 @@ class Runtime:
                 decision, decision.session, state.source, state.friction, state.is_admin
             )
             await self._run(interaction, decision)
+
+    async def _redrawn(
+        self,
+        interaction: discord.Interaction,
+        definition: Any,
+        session: FormSession,
+        event: ev.Event,
+        context: Context,
+        decision: Decision,
+    ) -> Decision:
+        """Draw the designs again when the picture they are drawn over changed."""
+        state = self.sessions[session.id]
+        key = definition.draws_from()
+        if not key or not _draws_previews(decision, definition):
+            return decision
+        values = _flat(shown_answers(definition, decision.session, context))
+        background = str(values.get(key) or "")
+        if not background or background == state.drawn_from:
+            return decision
+        if not interaction.response.is_done():
+            await interaction.response.defer()
+        state.drawn_from = background
+        state.previews = asyncio.ensure_future(
+            state.feature.previews_for(values, self._open_context(session))
+        )
+        previews = await state.ready_previews(True, view_constants.PREVIEW_WAIT_SECONDS)
+        return decide(definition, session, event, replace(context, previews=previews))
+
+    def _open_context(self, session: FormSession) -> OpenContext:
+        """Who is on the other side of this session, for the feature."""
+        state = self.sessions[session.id]
+        return OpenContext(
+            session.origin.guild_id,
+            session.origin.user_id,
+            session.origin.locale,
+            state.guild,
+            state.member,
+        )
 
     async def _run(self, interaction: discord.Interaction, decision: Decision) -> None:
         session = decision.session
@@ -436,6 +521,7 @@ class Runtime:
     ) -> None:
         """Run the feature's commit and feed its outcome back to the engine."""
         state = self.sessions[session.id]
+        outcome_id = f"commit:{session.id}:{session.revision}"
         message = interaction.message
         when = (
             (message.edited_at or message.created_at) if message is not None else _now()
@@ -466,7 +552,7 @@ class Runtime:
             await self._apply(
                 interaction,
                 session,
-                ev.CommitFailed(f"commit:{session.id}", None, kind, reason),
+                ev.CommitFailed(outcome_id, None, kind, reason),
             )
             return
         if result.document is not None:
@@ -481,7 +567,7 @@ class Runtime:
         await self._apply(
             interaction,
             session,
-            ev.CommitSucceeded(f"commit:{session.id}", None, kind, result.written),
+            ev.CommitSucceeded(outcome_id, None, kind, result.written),
         )
 
     async def _aside(
@@ -499,24 +585,33 @@ class Runtime:
             return
         action = state.feature.asides().get(name)
         if action is None:
-            await interaction.response.defer()
+            if not interaction.response.is_done():
+                await interaction.response.defer()
             return
         if action.cooldown and _cooling(state, name, action.cooldown):
-            await interaction.response.send_message(
-                embed=_cooldown_embed(locale),
-                ephemeral=True,
-                delete_after=view_constants.ACTION_NOTICE_SECONDS,
-            )
+            await _answer_with(interaction, _cooldown_embed(locale))
             return
         if action.confirm:
             await self._ask_before(interaction, session, name, action, action.confirm)
             return
         if action.cooldown:
             _cool(state, name)
-        if action.defer and not action.own_response:
+        if (
+            action.defer
+            and not action.own_response
+            and not interaction.response.is_done()
+        ):
             await interaction.response.defer()
-        responses = state.feature.responses_for_aside(session.answers, locale)
+        responses = await self._shown(session, locale)
         await action.handler(interaction, responses)
+
+    async def _shown(self, session: FormSession, locale: str) -> list[dict[str, Any]]:
+        """What the screen is showing, as the preview functions read it."""
+        state = self.sessions[session.id]
+        definition = registry.get(*session.definition)
+        context = await self._context(session)
+        answers = shown_answers(definition, session, context)
+        return state.feature.responses_for_aside(answers, locale)
 
     async def _ask_before(
         self,
@@ -542,17 +637,23 @@ class Runtime:
             if action.cooldown:
                 _cool(state, name)
             await answer.response.edit_message(view=None)
-            responses = state.feature.responses_for_aside(session.answers, locale)
-            await action.handler(answer, responses)
+            await action.handler(answer, await self._shown(session, locale))
 
         embed = response_embed(question, locale, footer=True, image=True)
         if action.confirm_values and embed.description:
-            values = action.confirm_values(state.opened.document or {}, locale)
-            for token, value in values.items():
-                embed.description = embed.description.replace(f"${token}", value)
-        await interaction.response.send_message(
-            embed=embed, view=ConfirmActionView(confirmed, locale), ephemeral=True
-        )
+            values = action.confirm_values(
+                state.opened.document or {}, locale, state.guild
+            )
+            for token in sorted(values, key=len, reverse=True):
+                embed.description = embed.description.replace(
+                    f"${token}", values[token]
+                )
+        view = ConfirmActionView(confirmed, locale)
+
+        if interaction.response.is_done():
+            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+            return
+        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
 
     async def _help(
         self, interaction: discord.Interaction, session: FormSession
@@ -581,7 +682,7 @@ class Runtime:
                 value=desc,
                 inline=False,
             )
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await _answer_with(interaction, embed)
 
     async def _history(
         self, interaction: discord.Interaction, session: FormSession
@@ -721,6 +822,59 @@ def _items(
 def _command_label(interaction: Any, key: str) -> str:
     command = getattr(interaction, "command", None)
     return str(getattr(command, "qualified_name", None) or key)
+
+
+def _answer_in_time(interaction: discord.Interaction) -> asyncio.Task[None]:
+    """Answer Discord before its three seconds run out, and only if we are late.
+
+    A command answered on time needs no deferral, so nobody reads "thinking"
+    for work that took no time; one that is still reading or drawing when the
+    clock is nearly out is deferred and arrives as a followup instead of being
+    lost. On a button the deferral is invisible, on a command it is the
+    thinking state.
+    """
+
+    async def defer_if_late() -> None:
+        await asyncio.sleep(view_constants.DEFER_AFTER_SECONDS)
+        try:
+            if not interaction.response.is_done():
+                await interaction.response.defer(ephemeral=True)
+        except discord.HTTPException as error:
+            logger.warn(
+                f"Could not answer in time: {type(error).__name__}: {error}",
+                log_type=logconstants.COMMAND_WARN_TYPE,
+            )
+
+    return asyncio.ensure_future(defer_if_late())
+
+
+async def _answer_with(interaction: discord.Interaction, embed: discord.Embed) -> None:
+    """Send `embed` as the answer, or as a followup when one was deferred."""
+    if interaction.response.is_done():
+        await interaction.followup.send(embed=embed, ephemeral=True)
+        return
+    await interaction.response.send_message(embed=embed, ephemeral=True)
+
+
+def _flat(answers: Mapping[str, Any]) -> dict[str, Any]:
+    """Every answer as a value, a card's draft expanded into its own keys."""
+    values: dict[str, Any] = {}
+    for key, answer in answers.items():
+        if answer.parts:
+            values.update(answer.parts)
+            continue
+        values[key] = answer.raw
+    return values
+
+
+def _prefix() -> str:
+    """The prefix this bot answers to, for the copy that names a command."""
+    import app as app_module
+
+    try:
+        return str(app_module.bot.config.PREFIX)  # type: ignore[attr-defined]
+    except Exception:
+        return ""
 
 
 def _now() -> datetime:

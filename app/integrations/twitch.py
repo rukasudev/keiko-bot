@@ -94,6 +94,22 @@ class TwitchClient:
         return data[0] if data else None
 
     @check_auth_token
+    def get_last_video_thumbnail(self, user_id: str, width: int = 1280, height: int = 720) -> str:
+        """The picture of this channel's last stream, already sized."""
+        request_url = f"{TWITCH_API_URL}/videos?user_id={user_id}&type=archive&first=1"
+        headers = {
+            'Client-ID': self.bot.config.TWITCH_CLIENT_ID,
+            'Authorization': f'Bearer {self.token}'
+        }
+        response = requests.get(request_url, headers=headers)
+        data = response.json().get("data")
+        if not data:
+            return None
+
+        thumbnail = data[0].get("thumbnail_url") or ""
+        return thumbnail.replace("%{width}", str(width)).replace("%{height}", str(height)) or None
+
+    @check_auth_token
     def get_stream_info(self, login: str) -> dict:
         request_url = f"{TWITCH_API_URL}/streams?user_login={login}&first=1"
         headers = {

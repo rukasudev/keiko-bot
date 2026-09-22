@@ -1,66 +1,69 @@
 """The Preview on a review shows the announcement, not "nothing yet".
 
 Setting up a Twitch or YouTube notification ends on a review whose Preview
-button reads the answers through `FeatureModule.responses_for_preview`. From a
-review the answers hold the whole composition as one value, so the senders,
-which read flat keys, found nothing and the preview answered with the empty
-settings value.
+button reads the answers through the adapter's side-action seam. From a review
+the answers hold the whole composition as one value, so the senders, which
+read flat keys, found nothing and the preview answered with the empty value.
 
-Shared behaviour: `responses_for_aside` on the generic feature, read by every
-side action of the adapter. Consumer that exposed it: notifications_twitch. Guaranteed: a
-preview opened from a review shows the same text as one opened from the item
-card it lists.
+Shared behaviour: `Runtime._shown` in the adapter, which expands a card's
+draft with `shown_answers` and then collapses a listed composition with
+`responses_for_aside`. Consumer that exposed it: notifications_twitch.
+Guaranteed: pressing Preview on a review sends the announcement of the item
+the review lists, and never the empty value.
+
+This test drives the button through the adapter on purpose. Its first version
+called `responses_for_aside` directly and went on passing when the adapter
+stopped calling it.
 """
 
 import pytest
 
-from app.settings.features import feature_for
-from app.settings.form.form_state import Answer
-from app.settings.form.responses.responses import item_answers
+from tests.behavioral.harness import locators
 
-pytestmark = pytest.mark.unit
+pytestmark = pytest.mark.behavioral
 
-STORED = {
-    "streamer": {"value": "gaules", "title": "Streamer", "style": None},
-    "notification_messages": {
-        "value": "{streamer} está ao vivo!",
-        "title": "Mensagens",
-        "style": "bullet",
-    },
-}
+MESSAGE = "{streamer} esta ao vivo!"
 
 
-def _texts(feature, answers):
-    from app.services.notifications_twitch import parse_streamer_message
-
-    values = {
-        entry["key"]: entry.get("_raw_value", entry.get("value"))
-        for entry in feature.responses_for_aside(answers, "pt-br")
-        if entry.get("key")
-    }
-    streamer = str(values.get("streamer") or "")
-    link = f"https://www.twitch.tv/{streamer}"
-    return [
-        parse_streamer_message(message.lstrip(), streamer, link)
-        for message in str(values.get("notification_messages") or "").split(";")
-        if message.strip()
-    ]
+async def _review_with_one_streamer(scenario_factory, deps):
+    deps.twitch.add_user("gaules", user_id="111")
+    scenario = await scenario_factory(locale="pt-br").start("notifications_twitch")
+    await scenario.confirm()
+    await scenario.click("customize:0")
+    await scenario.select_option("general")
+    await scenario.click("customize:1")
+    await scenario.submit_modal({scenario.pending_modal_fields()[0]: "gaules"})
+    await scenario.click("customize:2")
+    fields = scenario.pending_modal_fields()
+    await scenario.submit_modal({fields[0]: MESSAGE})
+    await scenario.click("done")
+    return scenario
 
 
-def test_a_preview_from_the_review_says_what_one_from_the_item_card_says():
-    feature = feature_for("notifications_twitch")
-    item = item_answers(STORED)
-
-    from_review = _texts(feature, {"notifications": Answer([item])})
-    from_card = _texts(feature, item)
-
-    assert from_review == from_card
-    assert from_review and "gaules está ao vivo!" in from_review[0]
+async def _press(scenario, message, label):
+    button = locators.find_button(message, label, scenario.locale)
+    interaction = scenario._mint(message=message, custom_id=button.custom_id)
+    await locators.dispatch_click(message.view, button, interaction)
 
 
-def test_a_review_with_no_item_still_previews_what_was_answered():
-    feature = feature_for("notifications_twitch")
+async def test_pressing_preview_on_the_review_announces_the_item_it_lists(
+    scenario_factory, deps, monkeypatch
+):
+    from app.settings.features import feature_for
 
-    texts = _texts(feature, item_answers(STORED))
+    seen: dict = {}
 
-    assert texts and "gaules" in texts[0]
+    async def spy(interaction, responses):
+        seen["rows"] = {
+            row["key"]: row.get("_raw_value", row.get("value"))
+            for row in responses
+            if row.get("key")
+        }
+
+    monkeypatch.setattr(feature_for("notifications_twitch"), "preview_sender", spy)
+    scenario = await _review_with_one_streamer(scenario_factory, deps)
+
+    await _press(scenario, scenario.current_message, "Pré-visualizar")
+
+    assert seen["rows"].get("streamer") == "gaules", seen["rows"]
+    assert seen["rows"].get("notification_messages") == MESSAGE, seen["rows"]

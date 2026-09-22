@@ -37,6 +37,65 @@ def _assert_within_limits(view, label: str) -> None:
     )
 
 
+def _assert_ids_are_unique(view, label: str) -> None:
+    """Discord refuses a whole message when two components share a custom id."""
+    ids = [
+        item.custom_id
+        for item in walk_items(view)
+        if getattr(item, "custom_id", None) is not None
+    ]
+    duplicated = {found for found in ids if ids.count(found) > 1}
+    assert not duplicated, f"{label}: {len(duplicated)} custom id(s) used twice"
+
+
+async def test_a_panel_whose_list_is_empty_has_no_duplicated_custom_id(
+    scenario_factory, deps
+):
+    """Broke as: block links did not open at all (50035, "Component custom id
+    cannot be duplicated"). The button beside an empty list adds, like the Add
+    below the card, and both encoded the same action with no argument."""
+    from tests.behavioral.golden.paths.block_links import ENABLED
+    from tests.behavioral.golden.paths.common import seed_document
+
+    empty = {**ENABLED, "custom_links": {"style": "composition", "values": []}}
+    seed_document(deps, "block_links", empty)
+
+    scenario = await scenario_factory(locale="pt-br").start_command("block_links")
+
+    _assert_ids_are_unique(scenario.current_message.view, "block_links panel")
+    await scenario.click("edit:group:exceptions")
+    _assert_ids_are_unique(scenario.current_message.view, "exceptions screen")
+    await scenario.finish()
+
+
+async def test_the_exceptions_screen_is_within_discord_limits(scenario_factory, deps):
+    """A server that freed a long list of links must still open the screen:
+    Discord refuses a message over forty components, and every link there
+    carries a block of its own."""
+    from tests.behavioral.golden.paths.block_links import ENABLED
+    from tests.behavioral.golden.paths.common import seed_document
+
+    crowded = {
+        **ENABLED,
+        "custom_links": {
+            "style": "composition",
+            "values": [
+                {"link": {"value": f"site{i}.com", "title": "Link", "style": "code"}}
+                for i in range(25)
+            ],
+        },
+    }
+    seed_document(deps, "block_links", crowded)
+    scenario = await scenario_factory(locale="pt-br").start_command("block_links")
+
+    await scenario.click("edit:group:exceptions")
+
+    view = scenario.current_message.view
+    _assert_within_limits(view, "exceptions screen with 25 links")
+    _assert_ids_are_unique(view, "exceptions screen with 25 links")
+    await scenario.finish()
+
+
 async def test_birthday_global_card_is_within_discord_limits(scenario_factory):
     scenario = await scenario_factory(locale="pt-br").start("reminders_birthday")
     await scenario.confirm()

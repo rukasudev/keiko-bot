@@ -101,20 +101,31 @@ async def send_welcome_message(member: discord.Member):
         raise
 
 async def generate_design_previews(
-    member: discord.Member, designs: list, title: str = "WELCOME"
+    member: discord.Member, designs: list, title: str = "WELCOME",
+    background: Optional[str] = None,
 ) -> dict:
-    """One preview url per design, drawn with the chosen title, all at once."""
+    """One preview url per design, drawn with the chosen title, all at once.
+
+    A `background` is the picture the admin sent: the designs that are drawn
+    over one use it, so the preview is the banner a member would receive.
+    """
     server_icon = str(member.guild.icon.url) if member.guild.icon else None
 
-    def banner(background: Optional[str]):
+    def banner(background_url: Optional[str]):
         return create_banner(
-            background, title.upper(), member.name, member.display_avatar.url, member.guild.name
+            background_url, title.upper(), member.name, member.display_avatar.url, member.guild.name
         )
+
+    async def as_sent():
+        return background
 
     generators = {
         "server_blur": lambda: banner(server_icon),
-        "custom_blur": lambda: banner(WelcomeDesign.CUSTOM_BLUR_PREVIEW),
-        "custom_only": lambda: cdn.upload_asset(_asset_path(WelcomeDesign.CUSTOM_ONLY_PREVIEW)),
+        "custom_blur": lambda: banner(background or WelcomeDesign.CUSTOM_BLUR_PREVIEW),
+        "custom_only": (
+            as_sent if background
+            else lambda: cdn.upload_asset(_asset_path(WelcomeDesign.CUSTOM_ONLY_PREVIEW))
+        ),
     }
 
     async def preview(key: str):

@@ -16,7 +16,7 @@ from typing import Any, cast
 import discord
 
 from app import logger
-from app.components.embed import base_embed, response_error_embed
+from app.components.embed import base_embed, response_error_embed, with_footer
 from app.constants import DiscordLimits, KeikoIcons, Style
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
@@ -128,7 +128,8 @@ class Executor:
         if isinstance(effect, (OpenChild, ResumeParent, ResumeChild)):
             await self.continue_with(self.interaction, self.session, effect)
         elif isinstance(effect, Commit):
-            if effect.kind in EDITS and not self.response.is_done():
+            ends_in_a_message = effect.kind in EDITS and not effect.quiet
+            if ends_in_a_message and not self.response.is_done():
                 await self.response.defer(thinking=True, ephemeral=True)
             await self.commit(
                 self.interaction, effect.kind, effect.payload, self.session
@@ -311,11 +312,13 @@ class Executor:
         )
 
     def _fresh_embed(self) -> discord.Embed:
-        embed = discord.Embed(color=int(Style.BACKGROUND_COLOR, base=16))
-        footer = text("commands.commands.commons.embed.footer", self.locale)
-        if footer:
-            embed.set_footer(text=f"• {footer}")
-        return embed
+        return discord.Embed(color=int(Style.BACKGROUND_COLOR, base=16))
+
+    def _closed(self, embed: discord.Embed) -> discord.Embed:
+        """The same embed with the report line as its last subtext line."""
+        return with_footer(
+            embed, text("commands.commands.commons.embed.footer", self.locale)
+        )
 
     async def finalize(self, kind: str) -> None:
         """The final state of the session, controls gone."""
@@ -350,29 +353,25 @@ class Executor:
             embed.clear_fields()
             embed.title, embed.description = title, description
 
-            return embed, self.surface.is_layout
+            return self._closed(embed), self.surface.is_layout
         if kind == "edited":
             base = manager.panel_embed(self.session_definition(), self.locale)
             embed = views.embed_of(base)
             embed.title, embed.description = title, description
             embed.set_thumbnail(url=KeikoIcons.IMAGE_02)
 
-            return embed, True
+            return self._closed(embed), True
         if kind in ("added", "removed"):
             embed = self.surface.embed or discord.Embed(
                 color=int(Style.BACKGROUND_COLOR, base=16)
             )
             embed.clear_fields()
-            footer = text("commands.commands.commons.embed.footer", self.locale)
-
-            if footer:
-                embed.set_footer(text=f"• {footer}")
             embed.set_thumbnail(url=KeikoIcons.IMAGE_02)
             embed.title, embed.description = title, description
-            return embed, self.surface.is_layout
+            return self._closed(embed), self.surface.is_layout
         embed = self._fresh_embed()
         embed.title, embed.description = title, description
-        return embed, True
+        return self._closed(embed), True
 
     def session_definition(self) -> Any:
         """The definition the session runs, from the registry."""

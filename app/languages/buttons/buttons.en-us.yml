@@ -24,6 +24,13 @@ en-us:
   remove:
     label: Remove
     desc: Remove one of the items
+    confirm:
+      title: "🗑️ Remove this item?"
+      message: "If I remove it, it leaves the list right away. You can add it again later, just ask me!"
+
+  remove-item:
+    label: Remove this
+    desc: Removes this item from the list
 
   preview:
     label: Preview
@@ -84,7 +91,7 @@ en-us:
     desc: Keiko immediately assigns the default roles to all server users
     confirm:
       title: "🔄 Sync roles?"
-      message: "I'll sync the default roles now for **every member and bot** already in the server, not only for whoever joins from now on. When I'm done, everyone will have these roles:\n\n👥 Members: $members\n🤖 Bots: $bots\n\nThis may take a few minutes. Do you want to continue?"
+      message: "I'll sync the default roles now for **every member and bot** already in the server, not only for whoever joins from now on. Here is how it turns out:\n\n👥 **Members**\n- How many: **$members_count**\n- Roles: $members\n\n🤖 **Bots**\n- How many: **$bots_count**\n- Roles: $bots\n\nThis may take a few minutes. Do you want to continue?"
       footer: "Use the `/report` command to tell me a bug"
     waiting:
       title: 🔄 Syncing roles...

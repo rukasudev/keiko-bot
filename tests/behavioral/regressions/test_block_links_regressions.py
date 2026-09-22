@@ -134,3 +134,89 @@ async def test_edit_dropdown_names_a_composition_entry_by_its_configuration_titl
     assert entry.description == "twitch.tv/jway", (
         "the stored value must still identify the entry, in the description"
     )
+
+
+@pytest.mark.shared_contract("form_engine")
+async def test_two_changes_in_a_row_on_the_same_screen_both_save(
+        scenario_factory, deps):
+    """What broke (reported from a live Discord test, 2026-09-16): on the
+    Exceptions screen the first popular website turned on, and every click
+    after it did nothing at all — the screen then refused even Voltar.
+
+    The adapter reported every commit back to the engine as the event
+    `commit:<session id>`, and the engine drops an event it has already seen.
+    Until a commit closed the session, an id per session was unique enough; a
+    screen that stays open commits many times, so the second outcome was
+    dropped as a duplicate and the session stayed COMMITTING, which rejects
+    every later click as busy.
+
+    Shared behavior affected: Runtime._commit (app/settings/discord/
+    entrypoints.py), the single path that feeds a commit's outcome back into
+    the engine for every command.
+
+    Guaranteed behavior: consecutive changes on a screen that keeps itself
+    each save, and the screen goes on answering afterwards."""
+    from tests.behavioral.golden.paths.block_links import ENABLED
+    from tests.behavioral.golden.paths.common import GUILD_ID, seed_document
+    from tests.behavioral.harness.locators import clickable_items, codec_target
+
+    seed_document(deps, "block_links", ENABLED)
+    scenario = await scenario_factory(locale="pt-br").start_command("block_links")
+    await scenario.click("edit:group:exceptions")
+
+    await scenario.click("toggle:allowed_links=spotify.com")
+    await scenario.click("toggle:allowed_links=twitter.com")
+
+    saved = scenario.get_persisted("guild", "block_links", {"guild_id": GUILD_ID})
+    assert saved["allowed_links"]["values"] == [
+        "youtube.com", "twitch.tv", "spotify.com", "twitter.com"
+    ], "every click on the screen must save, not only the first"
+
+    await scenario.click("back")
+    busy = ml("commands.form-notices.busy", locale="pt-br")
+    said_busy = [
+        event for event in scenario.outputs
+        if busy and busy in (event.get("content") or "")
+    ]
+    assert not said_busy, "a screen that saved must not answer the next click busy"
+    targets = [codec_target(item) for item in clickable_items(scenario.current_message)]
+    assert not [target for target in targets if (target or "").startswith("toggle:")], (
+        "Voltar must leave the screen and draw the panel"
+    )
+    await scenario.finish()
+
+
+@pytest.mark.shared_contract("form_engine")
+async def test_a_change_that_keeps_its_screen_never_says_it_is_thinking(
+        scenario_factory, deps):
+    """What broke (same live test): every popular website clicked left an
+    ephemeral "Keiko is thinking..." message stuck on screen forever.
+
+    The executor defers with the thinking state before an `edit` commit,
+    because the edit of a step ends in a final message that answers it. A
+    change that keeps its screen writes under the same kind and answers by
+    editing the message instead, so nothing ever resolved the thinking state.
+
+    Shared behavior affected: Executor._execute (app/settings/discord/
+    executor.py), which runs the Commit effect of every command.
+
+    Guaranteed behavior: a quiet commit answers its click without ever
+    showing the thinking state."""
+    from tests.behavioral.golden.paths.block_links import ENABLED
+    from tests.behavioral.golden.paths.common import seed_document
+
+    seed_document(deps, "block_links", ENABLED)
+    scenario = await scenario_factory(locale="pt-br").start_command("block_links")
+    await scenario.click("edit:group:exceptions")
+
+    await scenario.click("toggle:allowed_links=spotify.com")
+
+    thinking = [
+        event for event in scenario.outputs
+        if event["kind"] == "defer" and event.get("thinking")
+    ]
+    assert not thinking, (
+        f"a click that redraws its own screen must not say it is thinking: "
+        f"{thinking}"
+    )
+    await scenario.finish()

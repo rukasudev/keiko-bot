@@ -337,6 +337,33 @@ def test_the_birthday_feature_previews_the_celebration():
     assert "preview" in feature_for("reminders_birthday").asides()
 
 
+def test_the_preview_of_a_card_reads_what_is_written_on_it():
+    """Broke as: Preview on the welcome card answered nothing at all. While the
+    card is open its answers live as one draft under the card's own key, and
+    the card key produces no view, so the preview found no message to draw."""
+    feature = feature_for("welcome_messages")
+    answers = {
+        "welcome_config": Answer(
+            None,
+            {
+                "welcome_messages_channel": "101",
+                "welcome_messages_title": "Chegou gente nova!",
+                "welcome_messages": "Oi {user}!;Olha quem chegou",
+                "welcome_messages_footer": "Divirta-se!",
+                "welcome_design": "custom_only",
+                "welcome_custom_image": "https://cdn.discordapp.com/a/b/banner.png",
+            },
+        )
+    }
+
+    views = feature.responses_for_preview(answers, "pt-br")
+
+    values = {view["key"]: view.get("_raw_value", view.get("value")) for view in views}
+    assert values.get("welcome_messages_title") == "Chegou gente nova!"
+    assert "Olha quem chegou" in str(values.get("welcome_messages"))
+    assert values.get("welcome_design") == "custom_only"
+
+
 def test_the_preview_of_an_item_card_reads_the_fields_of_that_item():
     """Broke as: previewing from a Twitch item card found no message at all and
     Discord refused an empty message. The card lives inside the composition, so
@@ -500,11 +527,17 @@ async def test_the_stream_elements_lookup_counts_enabled_commands(deps, monkeypa
     )
 
     assert found == {
-        "twitch": {"user_id": "37402112"},
+        "twitch": {
+            "user_id": "37402112",
+            "profile_image": (
+                "https://static-cdn.jtvnw.net/user-default-pictures/shroud.jpg"
+            ),
+        },
         "stream_elements": {
             "channel_id": "se1",
             "enabled_commands": 2,
             "top_commands": "`!mouse`, `!setup`",
+            "keiko_commands": "`ks!mouse`, `ks!setup`",
         },
     }
 
@@ -558,4 +591,11 @@ async def test_a_stream_elements_outage_leaves_no_count(deps, monkeypatch):
         OpenContext(GUILD_ID, "555", "pt-br"),
     )
 
-    assert found == {"twitch": {"user_id": "37402112"}}
+    assert found == {
+        "twitch": {
+            "user_id": "37402112",
+            "profile_image": (
+                "https://static-cdn.jtvnw.net/user-default-pictures/shroud.jpg"
+            ),
+        }
+    }

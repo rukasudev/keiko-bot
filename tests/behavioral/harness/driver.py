@@ -33,6 +33,8 @@ _LOCALES = {
 }
 
 _CONTENT_KINDS = ("send", "edit", "followup_send", "followup_edit", "edit_original")
+# A deferred interaction answers with a followup: same message, other HTTP call.
+_ANSWERED_AS = {"followup_send": "send", "followup_edit": "edit"}
 
 
 class FormScenario:
@@ -214,7 +216,7 @@ class FormScenario:
                        components_v2: Optional[bool] = None) -> Dict[str, Any]:
         event = self._last_content_event()
         embed = event.get("embed") or {}
-        if kind is not None and event["kind"] != kind:
+        if kind is not None and _ANSWERED_AS.get(event["kind"], event["kind"]) != kind:
             self._fail(f"expected kind {kind!r}, last message event is {event['kind']!r}")
         if title_contains is not None and title_contains not in (embed.get("title") or ""):
             self._fail(f"title {embed.get('title')!r} does not contain {title_contains!r}")

@@ -237,8 +237,8 @@ steps:
             en-us: "🎂 Happy Birthday {user}!"
             pt-br: "🎂 Feliz Aniversário {user}!"
           content:
-            en-us: "May your day be full of joy and treats! 🎉🐾"
-            pt-br: "Que seu dia seja cheio de alegria e mimos! 🎉🐾"
+            en-us: "May your day be full of joy and treats! 🎉✨"
+            pt-br: "Que seu dia seja cheio de alegria e mimos! 🎉✨"
         customize-label:
           en-us: Customize message
           pt-br: Personalizar mensagem
@@ -478,8 +478,8 @@ steps:
                 en-us: "🎂 Happy Birthday {user}!"
                 pt-br: "🎂 Feliz Aniversário {user}!"
               content:
-                en-us: "May your day be full of joy and treats! 🎉🐾"
-                pt-br: "Que seu dia seja cheio de alegria e mimos! 🎉🐾"
+                en-us: "May your day be full of joy and treats! 🎉✨"
+                pt-br: "Que seu dia seja cheio de alegria e mimos! 🎉✨"
             customize-label:
               en-us: Customize message
               pt-br: Personalizar mensagem

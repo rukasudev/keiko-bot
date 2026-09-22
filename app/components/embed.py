@@ -7,6 +7,21 @@ from app.constants import Style as constants
 from app.services.utils import ml
 
 
+def with_footer(embed: discord.Embed, footer: str) -> discord.Embed:
+    """Close the embed with the report line, as the last subtext line.
+
+    An embed footer renders no markdown, so `/report` came out with its
+    backticks showing; the body renders it as the code it is.
+    """
+    if not footer:
+        return embed
+
+    line = footer if footer.lstrip().startswith("•") else f"• {footer}"
+    line = f"-# {line}"
+    embed.description = f"{embed.description}\n\n{line}" if embed.description else line
+    return embed
+
+
 def parse_form_dict_to_embed(data: Dict[str, str], locale: str, manager: bool = False) -> discord.Embed:
     """Parse dictionary to discord Embed object"""
     embed = discord.Embed(
@@ -30,7 +45,7 @@ def parse_form_dict_to_embed(data: Dict[str, str], locale: str, manager: bool = 
         embed.set_image(url=data["image"])
 
     if data.get("footer"):
-        embed.set_footer(text=data["footer"][locale])
+        with_footer(embed, data["footer"][locale])
 
     return embed
 
@@ -44,8 +59,7 @@ def base_embed(title: str, description: str, thumbnail: str = icons.IMAGE_02,
         color=int(constants.BACKGROUND_COLOR, base=16),
     )
     embed.set_thumbnail(url=thumbnail)
-    if footer:
-        embed.set_footer(text=f"• {footer}")
+    with_footer(embed, footer)
     return embed
 
 
@@ -59,7 +73,7 @@ def response_embed(multilang_key: str, locale: str, color: str = None, footer: b
     )
 
     if footer:
-        embed.set_footer(text=f"• {ml(f'{multilang_key}.footer', locale)}")
+        with_footer(embed, ml(f'{multilang_key}.footer', locale))
 
     if image:
         embed.set_thumbnail(url=icons.IMAGE_01)
@@ -84,7 +98,7 @@ def translate_embed(multilang_key: str, interaction: discord.Interaction, respon
     )
 
     embed.set_thumbnail(url=icons.IMAGE_01)
-    embed.set_footer(text=f"• {ml(f'{multilang_key}.footer', interaction.locale)}")
+    with_footer(embed, ml(f'{multilang_key}.footer', interaction.locale))
 
     return embed
 
@@ -113,7 +127,7 @@ def response_error_embed(error_key: str, locale: str, footer: bool = True) -> di
         description=ml(f"errors.{error_key}.message", locale=locale),
     )
     if footer:
-        embed.set_footer(text=f"• {ml('commands.commands.commons.embed.footer', locale)}")
+        with_footer(embed, ml('commands.commands.commons.embed.footer', locale))
 
     return embed
 
@@ -145,6 +159,6 @@ def report_embed(
     embed.add_field(name=ml(f"{multilang_key}.dm-message.fields.description", locale), value=description)
 
     embed.set_thumbnail(url=icons.IMAGE_01)
-    embed.set_footer(text=f"• {ml(f'{multilang_key}.dm-message.footer', locale)}")
+    with_footer(embed, ml(f'{multilang_key}.dm-message.footer', locale))
 
     return embed

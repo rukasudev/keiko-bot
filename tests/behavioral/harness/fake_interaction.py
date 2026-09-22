@@ -11,7 +11,12 @@ from typing import Any, Dict, Optional
 import discord
 
 from tests.behavioral.harness.errors import HarnessProtocolError
-from tests.behavioral.harness.message_store import MISSING, FakeMessage, MessageStore
+from tests.behavioral.harness.message_store import (
+    MISSING,
+    FakeMessage,
+    MessageStore,
+    is_missing,
+)
 from tests.behavioral.harness.transcript import format_transcript
 
 BOT_USER = SimpleNamespace(id=1, mention="<@1>", name="Keiko")
@@ -88,7 +93,7 @@ class FakeFollowup:
                 "followup.send(view=None): discord.py raises TypeError, omit the view",
                 self._interaction._transcript(),
             )
-        view = None if view is MISSING else view
+        view = None if is_missing(view) else view
         all_embeds = list(embeds) if embeds else ([embed] if embed else [])
         store = self._interaction.store
         message = store.create(all_embeds, view, ephemeral)

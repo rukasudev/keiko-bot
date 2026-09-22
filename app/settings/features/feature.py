@@ -78,7 +78,7 @@ class CommitResult:
 AsideHandler = Callable[[Any, Sequence[Mapping[str, Any]]], Awaitable[None]]
 
 
-ConfirmValues = Callable[[Mapping[str, Any], str], Mapping[str, str]]
+ConfirmValues = Callable[[Mapping[str, Any], str, Any], Mapping[str, str]]
 
 
 @dataclass(frozen=True)
@@ -105,6 +105,11 @@ class FeatureModule(Protocol):
         self, lookup: Lookup, context: OpenContext
     ) -> Mapping[str, Mapping[str, Any]]:
         """The external data the `lookup` of a submitted modal asks for."""
+
+    async def previews_for(
+        self, values: Mapping[str, Any], context: OpenContext
+    ) -> Mapping[str, str]:
+        """The design previews drawn again for the answers on the screen."""
 
     def to_document(self, answers: Mapping[str, Answer], locale: str) -> dict[str, Any]:
         """The document the answers persist as."""
@@ -226,6 +231,12 @@ class GenericCogFeature:
         """Nothing to look up by default."""
         return {}
 
+    async def previews_for(
+        self, values: Mapping[str, Any], context: OpenContext
+    ) -> Mapping[str, str]:
+        """Nothing to draw again by default."""
+        return {}
+
     def to_document(self, answers: Mapping[str, Answer], locale: str) -> dict[str, Any]:
         """The document the answers persist as."""
         return to_document(self.definition.steps, answers, locale)
@@ -237,9 +248,13 @@ class GenericCogFeature:
     def responses_for_preview(
         self, answers: Mapping[str, Answer], locale: str
     ) -> list[dict[str, Any]]:
-        """The answers as the legacy preview functions read them, from the item's
-        own steps when the answers belong to one item of a composition."""
-        views = responses(self.definition.steps, answers, locale)
+        """The answers as the legacy preview functions read them.
+
+        A card that is still open holds everything as one draft under its own
+        key, so the draft is expanded first; an item of a composition is read
+        against the item's own steps.
+        """
+        views = responses(self.definition.steps, _unpacked(answers), locale)
         composition = self.definition.composition
         if not views and composition is not None:
             views = responses(composition.steps, _unpacked(answers), locale)

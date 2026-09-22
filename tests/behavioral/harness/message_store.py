@@ -21,12 +21,17 @@ FIXED_MESSAGE_TIME = datetime.datetime(2026, 1, 1, 12, 0, 0,
 MISSING = object()
 
 
+def is_missing(value) -> bool:
+    """Not passed, whether the caller used our sentinel or discord's own."""
+    return value is MISSING or value is discord.utils.MISSING
+
+
 def reject_embed_on_layout_message(message: "FakeMessage", embed, content) -> None:
     """Discord refuses content and embeds on a Components V2 message, and the
     flag is fixed at send time: the edit fails with 50035 and nothing changes."""
     if not message.flags.components_v2:
         return
-    if content is None and (embed is MISSING or embed is None):
+    if content is None and (is_missing(embed) or embed is None):
         return
     raise discord.HTTPException(
         SimpleNamespace(status=400, reason="Bad Request"),

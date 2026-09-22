@@ -2,7 +2,7 @@ import asyncio
 import datetime
 import random
 import time
-from typing import Any, Dict, List, Union
+from typing import Any, Dict, List, Optional, Union
 
 import discord
 from dateutil import parser
@@ -22,7 +22,7 @@ from app.data.notifications_twitch import (
 from app.settings import open_feature
 from app.services import analytics, cache
 from app.views.message_preview import MessagePreviewView
-from app.services.utils import format_datetime_output
+from app.services.utils import format_datetime_output, ml
 
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:
@@ -196,7 +196,7 @@ def create_stream_notification_embed(streamer: str, stream_info: Dict[str, Any],
     stream_link = f"https://www.twitch.tv/{streamer}"
     stream_title = stream_info.get("title")
     stream_game = stream_info.get("game_name")
-    stream_thumbnail = stream_info.get("thumbnail_url") + f"?{stream_info.get('id')}"
+    stream_thumbnail = stream_info.get("thumbnail_url")
     streamer_profile_image = user_info.get("profile_image_url")
     description = user_info.get("description")
 
@@ -209,8 +209,10 @@ def create_stream_notification_embed(streamer: str, stream_info: Dict[str, Any],
 
     embed.set_thumbnail(url=streamer_profile_image)
 
-    streame_thumbnail = stream_thumbnail.format(width=1280, height=720)
-    embed.set_image(url=streame_thumbnail)
+    if stream_thumbnail:
+        cache_key = f"?{stream_info['id']}" if stream_info.get("id") else ""
+        live_thumbnail = f"{stream_thumbnail}{cache_key}"
+        embed.set_image(url=live_thumbnail.format(width=1280, height=720))
     embed.add_field(name="Game", value=stream_game, inline=True)
     embed.add_field(name="Streamer", value=streamer, inline=True)
     embed.set_footer(text=parse_stream_status(constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE))
@@ -316,7 +318,43 @@ async def send_notification_preview(
         for message in str(values.get("notification_messages") or "").split(";")
         if message.strip()
     ]
-    await MessagePreviewView(texts, interaction.locale).send(interaction)
+    embed = await build_preview_embed(streamer, interaction.locale)
+    await MessagePreviewView(texts, interaction.locale, embed).send(interaction)
+
+async def build_preview_embed(streamer: str, locale: str) -> Optional[discord.Embed]:
+    """The very embed a live announcement carries, drawn for this streamer.
+
+    The live's own title and category when there is one, an example of both
+    when nobody is streaming right now.
+    """
+    try:
+        user_info = await asyncio.to_thread(bot.twitch.get_user_info, streamer) or {}
+        stream_info = await asyncio.to_thread(bot.twitch.get_stream_info, streamer)
+    except Exception as error:
+        logger.warn(
+            f"Could not draw the twitch preview of {streamer}: {error}",
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+        return None
+
+    if not stream_info:
+        namespace = "commands.commands.commons.notifications-preview.twitch"
+        stream_info = {
+            "title": ml(f"{namespace}.title", locale=locale),
+            "game_name": ml(f"{namespace}.game", locale=locale),
+            "thumbnail_url": await last_stream_thumbnail(user_info),
+        }
+    return create_stream_notification_embed(streamer, stream_info, user_info)
+
+async def last_stream_thumbnail(user_info: Dict[str, Any]) -> str:
+    """The last stream's picture, so a preview shows the space one fills."""
+    try:
+        found = await asyncio.to_thread(
+            bot.twitch.get_last_video_thumbnail, user_info.get("id")
+        )
+    except Exception:
+        found = None
+    return str(found or user_info.get("offline_image_url") or "")
 
 def compose_notification_message(notification: Dict[str, Any], streamer: str) -> str:
     messages = notification.get("notification_messages").get("value")

@@ -71,6 +71,97 @@ async def test_a_preview_with_nothing_written_still_says_something():
     assert interaction.followup.send.await_args.kwargs["content"].strip()
 
 
+async def test_the_twitch_preview_carries_the_embed_the_notification_sends(deps):
+    """Lucas: the preview should be the very embed the server gets, not the
+    text alone. The live's own title and category fill it when there is one."""
+    from app.services.notifications_twitch import send_notification_preview
+
+    deps.twitch.add_user("gaules", user_id="111")
+    deps.twitch.set_stream_online("gaules", game="CS2", title="Bom dia!")
+    interaction = _interaction()
+
+    await send_notification_preview(
+        interaction,
+        [
+            {"key": "streamer", "value": "gaules"},
+            {"key": "notification_messages", "value": "está ao vivo!"},
+        ],
+    )
+
+    embed = interaction.followup.send.await_args.kwargs["embed"]
+    assert embed.title == "Bom dia!"
+    assert [field.value for field in embed.fields] == ["CS2", "gaules"]
+    assert embed.thumbnail.url, "the streamer picture belongs on the embed"
+
+
+async def test_the_twitch_preview_shows_an_example_when_nobody_is_live(deps):
+    """Lucas: show something where the live picture goes, so the space it takes
+    is visible. A streamer who is offline has no title, category or picture of
+    the moment, so the example lines and the last stream's picture stand in."""
+    from app.services.notifications_twitch import send_notification_preview
+    from app.services.utils import ml
+
+    deps.twitch.add_user("gaules", user_id="111")
+    deps.twitch.set_last_video(
+        "gaules", "https://static-cdn.jtvnw.net/vod/%{width}x%{height}.jpg"
+    )
+    interaction = _interaction()
+
+    await send_notification_preview(
+        interaction,
+        [
+            {"key": "streamer", "value": "gaules"},
+            {"key": "notification_messages", "value": "está ao vivo!"},
+        ],
+    )
+
+    embed = interaction.followup.send.await_args.kwargs["embed"]
+    example = ml(
+        "commands.commands.commons.notifications-preview.twitch.title", locale="pt-br"
+    )
+    assert embed.title == example
+    assert embed.image.url == "https://static-cdn.jtvnw.net/vod/1280x720.jpg"
+
+
+async def test_the_youtube_preview_carries_the_embed_the_notification_sends(
+    deps, monkeypatch
+):
+    """The channel is the real one; the video lines show an example, since the
+    next video does not exist yet.
+
+    The channel answer is written here in the shape the real client returns
+    (the snippet itself); the YouTube mock wraps it in one more level.
+    """
+    from app.services import notifications_youtube_video as youtube
+    from app.services.utils import ml
+
+    snippet = {
+        "title": "Canal de Teste",
+        "description": "O canal de testes\nsegunda linha",
+        "customUrl": "@pewdiepie",
+        "thumbnails": {"high": {"url": "https://yt3.ggpht.com/avatar.jpg"}},
+    }
+    monkeypatch.setattr(deps.youtube, "get_channel_id_from_username", lambda _n: "UC1")
+    monkeypatch.setattr(deps.youtube, "get_channel_info", lambda _id: snippet)
+    interaction = _interaction()
+
+    await youtube.send_notification_preview(
+        interaction,
+        [
+            {"key": "youtuber", "value": "pewdiepie"},
+            {"key": "notification_messages", "value": "postou vídeo novo!"},
+        ],
+    )
+
+    embed = interaction.followup.send.await_args.kwargs["embed"]
+    example = ml(
+        "commands.commands.commons.notifications-preview.youtube.title", locale="pt-br"
+    )
+    assert embed.title == example
+    assert embed.thumbnail.url == "https://yt3.ggpht.com/avatar.jpg"
+    assert embed.description == "O canal de testes"
+
+
 async def test_a_preview_with_several_messages_carries_the_next_button():
     interaction = _interaction()
 
