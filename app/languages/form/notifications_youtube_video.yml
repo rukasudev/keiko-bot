@@ -18,6 +18,7 @@ steps:
     key: notifications
     parent_key: notifications_youtube_video
     max: 2
+    edit_by_item: true
     emoji: ":busts_in_silhouette:"
     style: composition
     title:
@@ -30,100 +31,129 @@ steps:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
     steps:
-      - action: channels
-        key: channel
-        emoji: ":tv:"
-        select: true
-        unique: true
-        required: true
-        style: channel
+      - action: configuration_card
+        key: notification
+        required:
+          - channel
+          - youtuber
+        defaults:
+          notification_messages:
+            en-us: "@everyone! {youtuber} just posted a new video!"
+            pt-br: "@everyone! {youtuber} acabou de postar um novo vídeo!"
         title:
-          en-us: Text Channel
-          pt-br: Canal de Texto
+          en-us: "YouTube Channel"
+          pt-br: "Canal do YouTube"
         description:
-          en-us: Choose which text channel you want to be notified
-          pt-br: Escolha em qual canal de texto você deseja ser notificado
+          en-us: "Choose the channel and the youtuber, and I'll let the server know when they post a new video! The message already comes set, change it if you want.\n\nOne of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link"
+          pt-br: "Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo"
         footer:
-          en-us: "• Use the command /report to tell me a bug"
-          pt-br: "• Utilize o comando /reportar para me contar um bug"
-
-      - action: modal
-        key: youtuber
-        emoji: "🎬"
-        max_length: 30
-        validation: validate_youtube_channel
-        lowercase: true
-        normalize: handle
-        title:
-          en-us: Youtuber
-          pt-br: Youtuber
-        label:
-          en-us: Youtuber
-          pt-br: Youtuber
-        description:
-          en-us: "The youtuber's channel name, with or without @. Example: @pewdiepie"
-          pt-br: "O nome do canal no YouTube, com ou sem @. Exemplo: @pewdiepie"
-        placeholder:
-          en-us: "your channel (e.g. @pewdiepie)"
-          pt-br: "seu canal (ex: @pewdiepie)"
-
-      - action: button
-        key: continue_to_messages
-        emoji: "📩"
-        title:
-          en-us: "Notification Messages"
-          pt-br: "Mensagens de Notificação"
-        description:
-          en-us: "Now let's configure the notification messages! Read the following notes carefully:"
-          pt-br: "Agora vamos configurar as mensagens de notificação! Leia com atenção as seguintes observações:"
+          en-us: "• Use the `/report` command to tell me a bug"
+          pt-br: "• Use o comando `/reportar` para me contar um bug"
+        header:
+          title:
+            en-us: "YouTube Channel"
+            pt-br: "Canal do YouTube"
+          title-emoji: "▶️"
         fields:
-          en-us:
-            - title: "1. Random message"
-              message: "Each time the youtuber posts a new video, one of the configured messages will be randomly chosen"
-            - title: "2. Up to 3 messages"
-              message: "You can configure up to 3 notification messages. If you want to use less than 3, leave the other fields blank"
-            - title: "3. Variables"
-              message: "You can use the following variables in your message:\n- `{youtuber}`: Youtuber's username\n- `{video_link}`: Video link"
-          pt-br:
-            - title: "1. Mensagem aleatória"
-              message: "Sempre que o youtuber postar um novo vídeo, uma das mensagens configuradas será aleatoriamente escolhida"
-            - title: "2. Até 3 mensagens"
-              message: "Você poderá configurar até 3 mensagens de notificação. Caso queira configurar menos de 3, deixe os outros campos em branco"
-            - title: "3. Variáveis"
-              message: "Você pode utilizar as seguintes variáveis em sua mensagem:\n- `{youtuber}`: Username do youtuber\n- `{video_link}`: Link do vídeo"
-        footer:
-          en-us: "• Use the command /report to tell me a bug"
-          pt-br: "• Utilize o comando /reportar para me contar um bug"
-
-      - action: modal
-        key: notification_messages
-        emoji: "💬"
-        style: bullet
-        max_length: 100
-        multiline: true
-        enumerate: true
-        title:
-          en-us: Notification Messages
-          pt-br: Mensagens de Notificação
-        description:
-          en-us: "Use {youtuber} and {video_link}. One message will be randomly picked."
-          pt-br: "Use {youtuber} e {video_link}. Uma mensagem será escolhida aleatoriamente."
-        fields:
-          - label:
-              en-us: "Random Message"
-              pt-br: "Mensagem Aleatória"
-            required: true
-            default:
-              en-us: "@everyone! {youtuber} just posted a new video!"
-              pt-br: "@everyone! {youtuber} acabou de postar um novo vídeo!"
-          - label:
-              en-us: "Random Message"
-              pt-br: "Mensagem Aleatória"
-            required: false
-          - label:
-              en-us: "Random Message"
-              pt-br: "Mensagem Aleatória"
-            required: false
+          - key: channel
+            style: channel
+            label:
+              en-us: Text Channel
+              pt-br: Canal de Texto
+            description:
+              en-us: Where I'll announce the new video.
+              pt-br: Onde vou avisar do vídeo novo.
+          - key: youtuber
+            label:
+              en-us: Youtuber
+              pt-br: Youtuber
+            description:
+              en-us: The channel's name on YouTube, with or without the @.
+              pt-br: O nome do canal no YouTube, com ou sem o @.
+          - key: notification_messages
+            style: bullet
+            label:
+              en-us: Notification Messages
+              pt-br: Mensagens de Notificação
+            description:
+              en-us: Up to three messages, I pick one at random each video.
+              pt-br: Até três mensagens, eu sorteio uma a cada vídeo.
+        sections:
+          - key: channel
+            icon: "📺"
+            type: channel-select
+            style: channel
+            label:
+              en-us: "Text Channel"
+              pt-br: "Canal de Texto"
+            state:
+              value: channel
+            customize-label:
+              en-us: "Choose channel"
+              pt-br: "Escolher canal"
+            picker-title:
+              en-us: "Where should I send the notifications?"
+              pt-br: "Onde devo enviar as notificações?"
+          - key: youtuber
+            icon: "🎬"
+            type: modal-input
+            label:
+              en-us: "Youtuber"
+              pt-br: "Youtuber"
+            state:
+              value: youtuber
+            customize-label:
+              en-us: "Choose youtuber"
+              pt-br: "Escolher youtuber"
+            modal:
+              title:
+                en-us: "Youtuber"
+                pt-br: "Youtuber"
+              validation: validate_youtube_channel
+              fields:
+                - key: youtuber
+                  max_length: 30
+                  normalize: handle
+                  label:
+                    en-us: "The channel's @ on YouTube"
+                    pt-br: "O @ do canal no YouTube"
+                  placeholder:
+                    en-us: "your channel (e.g. @pewdiepie)"
+                    pt-br: "seu canal (ex: @pewdiepie)"
+          - key: messages
+            icon: "💬"
+            type: modal-input
+            style: bullet
+            label:
+              en-us: "Notification Messages"
+              pt-br: "Mensagens de Notificação"
+            state:
+              value: notification_messages
+            customize-label:
+              en-us: "Edit messages"
+              pt-br: "Editar mensagens"
+            modal:
+              title:
+                en-us: "Notification Messages"
+                pt-br: "Mensagens de Notificação"
+              fields:
+                - max_length: 100
+                  multiline: true
+                  label:
+                    en-us: "Random Message #1"
+                    pt-br: "Mensagem Aleatória #1"
+                - max_length: 100
+                  multiline: true
+                  required: false
+                  label:
+                    en-us: "Random Message #2"
+                    pt-br: "Mensagem Aleatória #2"
+                - max_length: 100
+                  multiline: true
+                  required: false
+                  label:
+                    en-us: "Random Message #3"
+                    pt-br: "Mensagem Aleatória #3"
 
   - action: resume
     key: confirm

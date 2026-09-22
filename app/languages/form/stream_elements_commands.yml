@@ -27,6 +27,8 @@ steps:
     lowercase: true
     normalize: handle
     validation: validate_streamer_name
+    lookup_answers:
+      stream_elements_commands_count: stream_elements.enabled_commands
     title:
       en-us: "Streamer"
       pt-br: "Streamer"
@@ -46,8 +48,20 @@ steps:
       en-us: ":white_check_mark: All set?"
       pt-br: ":white_check_mark: Tudo certo?"
     description:
-      en-us: "Whenever someone uses a command, I'll fetch the response from StreamElements and send it in chat!"
-      pt-br: "Sempre que alguém usar um comando, eu buscarei a resposta no StreamElements e enviarei no chat!"
+      en-us: "I found **{response:stream_elements_commands_count|0}** active commands in `{response:streamer}`'s StreamElements! Whenever someone uses one with the **ks!** prefix, I'll send the response in chat."
+      pt-br: "Encontrei **{response:stream_elements_commands_count|0}** comandos ativos no StreamElements de `{response:streamer}`! Sempre que alguém usar um deles com o prefixo **ks!**, eu envio a resposta no chat."
+    description-when:
+      - when:
+          key: stream_elements_commands_count
+          present: false
+        en-us: "I couldn't reach StreamElements to count `{response:streamer}`'s commands right now, but I'll fetch each response when someone uses a command with the **ks!** prefix."
+        pt-br: "Não consegui falar com o StreamElements para contar os comandos de `{response:streamer}` agora, mas vou buscar cada resposta quando alguém usar um comando com o prefixo **ks!**."
+      - when:
+          key: stream_elements_commands_count
+          count:
+            max: 0
+        en-us: "`{response:streamer}` has no active commands on StreamElements yet. Create one there and I'll send its response in chat whenever someone uses it with the **ks!** prefix."
+        pt-br: "`{response:streamer}` ainda não tem comandos ativos no StreamElements. Crie um por lá e eu envio a resposta no chat sempre que alguém usar ele com o prefixo **ks!**."
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"

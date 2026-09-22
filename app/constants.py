@@ -96,6 +96,7 @@ class Commands:
     ANALYTICS_JOURNEY_HISTORY_LIMIT: Final[int] = 4
     ANALYTICS_JOURNEY_DEBOUNCE_SECONDS: Final[float] = 1.0
     ANALYTICS_RECOVERY_WINDOW_SECONDS: Final[int] = 60 * 60
+    STREAM_ELEMENTS_TIMEOUT_SECONDS: Final[float] = 5.0
     REDIS_ANALYTICS_DAILY: Final[str] = "guild:{guild_id}:analytics:{date}:{metric}"
     REDIS_ANALYTICS_ATTEMPTS: Final[str] = "guild:{guild_id}:analytics:attempts:{feature}"
 
@@ -285,6 +286,8 @@ class DiscordLimits:
     which only shows up at runtime, so the renderers guard against them."""
     EMBED_TOTAL: Final[int] = 6000
     MODAL_INPUTS: Final[int] = 5
+    MODAL_TITLE: Final[int] = 45
+    MODAL_INPUT_LABEL: Final[int] = 45
     EMBED_DESCRIPTION: Final[int] = 4096
     EMBED_FIELDS: Final[int] = 25
     EMBED_FIELD_NAME: Final[int] = 256

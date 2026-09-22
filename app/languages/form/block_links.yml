@@ -45,15 +45,24 @@ steps:
         label:
           en-us: "Blocking mode"
           pt-br: "Modo de bloqueio"
+        description:
+          en-us: Whether I block every link or only the ones you pick.
+          pt-br: Se eu bloqueio todos os links ou só os que você escolher.
       - key: allowed_links
         style: bullet
         label:
           en-us: "Allowed popular websites"
           pt-br: "Sites populares permitidos"
+        description:
+          en-us: Popular websites I always let through.
+          pt-br: Sites populares que eu sempre libero.
       - key: answer
         label:
           en-us: "My response when blocking"
           pt-br: "Minha resposta ao bloquear"
+        description:
+          en-us: What I say when I delete a link.
+          pt-br: O que eu digo quando apago um link.
     sections:
       - key: mode
         icon: "🚦"

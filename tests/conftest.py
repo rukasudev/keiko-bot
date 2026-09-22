@@ -193,6 +193,16 @@ def auto_inject_dependencies(deps):
         patch('app.data.logs.mongo_client', deps.mongo_client),
         patch('app.services.cache.redis_client', deps.redis_client),
         patch('app.services.cache.cogs_data.mongo_client', deps.mongo_client),
+        patch(
+            'app.integrations.stream_elements.StreamElementsClient.get_channel_info',
+            staticmethod(lambda name: {"_id": f"se-{name}"}),
+        ),
+        patch(
+            'app.integrations.stream_elements.StreamElementsClient.get_chat_commands',
+            staticmethod(lambda channel_id: [
+                {"enabled": True}, {"enabled": True}, {"enabled": False},
+            ]),
+        ),
     ]
 
     started_patches = []
