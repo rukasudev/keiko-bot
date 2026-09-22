@@ -75,7 +75,7 @@ from app.settings.form.form_yaml import (
     owned_keys,
     produced_keys,
 )
-from app.settings.form.responses.responses import unwrap
+from app.settings.form.responses.responses import listed, unwrap
 from app.settings.form.responses.styles import empty_value, format_value
 
 SILENT = ("intro", "info", "review")
@@ -834,7 +834,7 @@ def _group_blocks(
     icon = row.icon or Emojis.FRISBEE_EMOJI
     options = options_for(definition.steps, row.key)
     if options:
-        chosen = [str(found) for found in _listed(unwrap(row.value))]
+        chosen = [str(found) for found in listed(unwrap(row.value))]
         choices = tuple(
             ChoiceOption(
                 option.label.get(locale),
@@ -891,12 +891,6 @@ def _item_blocks(row: PanelRow, locale: str) -> list[PanelGroup]:
         )
         blocks.append(PanelGroup(None, "", (more,)))
     return blocks
-
-
-def _listed(value: Any) -> list[Any]:
-    if isinstance(value, (list, tuple)):
-        return list(value)
-    return [value] if value not in (None, "") else []
 
 
 def _group_buttons(
@@ -1289,7 +1283,7 @@ def on_option_toggled(engine: Engine) -> None:
     event = engine.event
     assert isinstance(event, ev.OptionToggled)
     stored = unwrap(engine.context.document.get(event.target))
-    chosen = [str(value) for value in _listed(stored)]
+    chosen = [str(value) for value in listed(stored)]
 
     if event.value in chosen:
         chosen = [value for value in chosen if value != event.value]

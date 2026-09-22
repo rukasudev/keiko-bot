@@ -13,9 +13,10 @@ pytestmark = [
 async def test_manager_form_keeps_rendering_existing_config_for_all_consumers(
         scenario_factory):
     """What broke: while developing the birthday-reminder flow, shared
-    summary rendering (`parse_settings_with_database_values` in
-    app/services/utils.py) was changed and stopped resolving titles for
-    keys nested inside `multi_select.selects[]`. The birthday flow kept
+    summary rendering (then `parse_settings_with_database_values` in
+    app/services/utils.py, today `panel_rows` in app/settings/form/actions/manage.py)
+    was changed and stopped resolving titles for keys nested inside
+    `multi_select.selects[]`. The birthday flow kept
     working; commands like /moderations default roles silently lost their
     saved configuration in the manager panel and the break was only found
     by manually running those commands in Discord.

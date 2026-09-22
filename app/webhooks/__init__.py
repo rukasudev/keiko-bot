@@ -10,6 +10,8 @@ webhooks = Blueprint('webhooks', __name__)
 
 from . import reminder, twitch, youtube
 
+__all__ = ["webhooks", "reminder", "twitch", "youtube"]
+
 
 @webhooks.before_request
 def open_webhook_trace():

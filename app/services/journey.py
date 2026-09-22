@@ -11,7 +11,7 @@ Reference: docs/analytics.md
 """
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, Optional
 
 from app.constants import Commands as constants
 from app.services.trace import Trace

@@ -83,10 +83,10 @@ async def test_failed_validation_in_first_composition_step_does_not_skip_it(
 @pytest.mark.shared_contract("manager_form")
 async def test_edit_dropdown_names_a_composition_entry_by_its_configuration_title():
     """What broke (reported from a live Discord test): the Editar dropdown of
-    block_links listed a saved link as the option label, formatted through
-    format_values_by_style(..., "code"). Discord never renders markdown inside
-    a select, so the user saw literal backticks (`` `twitch.tv/jway` ``) where
-    a configuration name belonged.
+    block_links listed a saved link as the option label, formatted through the
+    `code` style. Discord never renders markdown inside a select, so the user
+    saw literal backticks (`` `twitch.tv/jway` ``) where a configuration name
+    belonged.
 
     Shared behavior affected: the edit picker options
     (app/settings/form/actions/manage.py, edit_options), consumed by every command with
