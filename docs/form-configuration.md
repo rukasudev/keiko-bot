@@ -328,7 +328,8 @@ sees (`docs/form-scenario-testing.md`).
 - `tests/forms/test_boundary.py`: `discord` only under the adapter; the
   platform imports nothing internal but itself and `app/constants.py`; no
   command key, no blocking call, no reflection outside the adapter, no
-  comment longer than one line.
+  comment longer than one line; and the services layer never redefines a
+  public name the `responses` package owns (names only, not bodies).
 - `tests/forms/test_invariants.py`: I1 to I9 of the review (one session one
   id and a strictly increasing revision; only `decide` changes a session; a
   closed session rejects change; the same event id applies once; an older
@@ -339,7 +340,9 @@ sees (`docs/form-scenario-testing.md`).
   `tests/forms/discord`: the compiler, `decide`, the rules, the session, the
   feature modules and the adapter choreography.
 - `make lint`: `ruff` and `mypy --strict` over `app/settings/` and
-  `tests/forms/`; the style rules are `.claude/rules/code-style.md`, rules
+  `tests/forms/`, plus `ruff check --select F401` over the whole of `app/`,
+  which is the only static check that reaches `app/cogs`, `app/webhooks`
+  and `app/api`; the style rules are `.claude/rules/code-style.md`, rules
   13 onwards.
 - `pytest tests/behavioral/golden -q`: the goldens are the UX contract; a
   diff needs an entry in `docs/ux-changes.md` before re-recording.
