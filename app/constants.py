@@ -264,10 +264,13 @@ class ViewConstants:
     ACTION_NOTICE_SECONDS: Final[int] = 5
     COMPOSITION_PREVIEW_LIMIT: Final[int] = 10
     COMMANDS_PREVIEW_LIMIT: Final[int] = 5
+    DEFER_AFTER_SECONDS: Final[float] = 1.5
+    GROUP_ITEMS_SHOWN: Final[int] = 3
     COMMANDS_PAGE_SIZE: Final[int] = 5
     EDIT_BY_ITEM_MAX: Final[int] = 3
     FORM_SWEEP_SECONDS: Final[int] = 60
-    PREVIEW_WAIT_SECONDS: Final[int] = 8  # a click waits this long for a gallery's pictures
+    PREVIEW_WAIT_SECONDS: Final[int] = 2  # a click waits this long for a card's picture
+    GALLERY_WAIT_SECONDS: Final[int] = 8  # a gallery is the picture, so it waits longer
 
 
 class WelcomeDesign:

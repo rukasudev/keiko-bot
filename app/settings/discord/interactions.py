@@ -73,7 +73,10 @@ def to_event(
     event_id = event_id_of(interaction)
     revision = component.revision
     action, arg = component.action, component.arg
+    on_one = _on_one_item(action, arg, event_id, revision)
 
+    if on_one is not None:
+        return on_one
     if action in SIMPLE:
         return SIMPLE[action](event_id, revision)
     if action in ("confirm", "modal"):
@@ -89,6 +92,20 @@ def to_event(
     if action in CHOSEN:
         return CHOSEN[action](event_id, revision, _first(payload))
     return _named(action, arg, payload, event_id, revision)
+
+
+def _on_one_item(
+    action: str, arg: str | None, event_id: str, revision: int | None
+) -> ev.Event | None:
+    """What a button beside one item of a screen means, None for anything else."""
+    if action == "remove_one":
+        return ev.RemoveRequested(event_id, revision, arg or "")
+    if action == "remove_item":
+        return ev.RemoveItemConfirmed(event_id, revision, arg or "")
+    if action == "toggle":
+        key, _, chosen = (arg or "").rpartition("=")
+        return ev.OptionToggled(event_id, revision, key, chosen)
+    return None
 
 
 def _named(

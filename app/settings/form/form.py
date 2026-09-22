@@ -84,6 +84,7 @@ class Context:
     items: Sequence[Mapping[str, Any]] = ()
     external: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     server_name: str = ""
+    prefix: str = ""
     previews: Mapping[str, str] = field(default_factory=dict)
     panel_rows: Sequence[PanelRow] | None = None
     panel_info: str = ""
@@ -191,6 +192,7 @@ class Engine:
             items=self.context.items,
             external=self.context.external,
             server_name=self.context.server_name,
+            prefix=self.context.prefix,
             previews=self.context.previews,
             panel_rows=self.context.panel_rows,
             panel_info=self.context.panel_info,
@@ -375,6 +377,9 @@ class Engine:
         """Draw the current cursor again, without counting a step view."""
         key = self.session.cursor
         if isinstance(self.session.mode, Manage):
+            if key and key.startswith("group:"):
+                self.effects.append(Render(self.group(key.split(":", 1)[1])))
+                return
             self.effects.append(Render(self.panel()))
             return
         step = self.step(key)
@@ -392,6 +397,12 @@ class Engine:
         """The manager panel over the saved document."""
         return manager.panel_screen(
             self.definition, self.context.document, self.render_context()
+        )
+
+    def group(self, key: str) -> Screen:
+        """The screen of one heading of the panel, over the saved document."""
+        return manager.group_screen(
+            self.definition, self.context.document, self.render_context(), key
         )
 
     def ensure_composition_answer(self) -> None:
@@ -669,6 +680,10 @@ def _on_picker_closed(engine: Engine) -> None:
         engine.session = engine.session.with_status(Status.CANCELLED)
         engine.effects.append(ResumeParent(parent_id, "edit", {}, cancelled=True))
         return
+    if manager.in_group_screen(engine):
+        engine.session = engine.session.at(None).with_status(Status.ACTIVE)
+        engine.effects.append(Render(engine.panel()))
+        return
     engine.session = engine.session.with_status(Status.ACTIVE)
     engine.rerender()
 
@@ -718,6 +733,10 @@ def _on_review_confirmed(engine: Engine) -> None:
 def _on_commit_succeeded(engine: Engine) -> None:
     event = engine.event
     assert isinstance(event, ev.CommitSucceeded)
+    if engine.session.awaiting == "quiet":
+        engine.session = engine.session.with_status(Status.ACTIVE)
+        engine.rerender()
+        return
     engine.session = engine.session.with_status(Status.COMPLETED)
     engine.effects.append(Finalize(FINAL_KIND.get(event.kind, event.kind)))
     if event.kind == "setup":
@@ -739,9 +758,17 @@ def _item_count(engine: Engine) -> dict[str, int]:
 def _on_commit_failed(engine: Engine) -> None:
     event = engine.event
     assert isinstance(event, ev.CommitFailed)
-    engine.session = engine.session.with_status(Status.FAILED)
-    kind = "duplicate" if event.error == "duplicate" else "error"
-    engine.effects.append(Finalize(kind))
+    quiet = engine.session.awaiting == "quiet"
+    engine.session = engine.session.with_status(
+        Status.ACTIVE if quiet else Status.FAILED
+    )
+
+    if quiet:
+        engine.effects.append(ShowError(event.error or "error"))
+        engine.rerender()
+    else:
+        kind = "duplicate" if event.error == "duplicate" else "error"
+        engine.effects.append(Finalize(kind))
     engine.emit(
         "feature.commit_failed",
         commit_kind=event.kind,
@@ -780,6 +807,8 @@ HANDLERS: dict[type[ev.Event], Handler] = {
     ev.TargetChosen: manager.on_target_chosen,
     ev.MemberChosen: manager.on_member_chosen,
     ev.ItemRemoved: manager.on_item_removed,
+    ev.RemoveItemConfirmed: manager.on_remove_item_confirmed,
+    ev.OptionToggled: manager.on_option_toggled,
     ev.ChildFinished: manager.on_child_finished,
     ev.ScreenRequested: _on_screen_requested,
     ev.Lifecycle: manager.on_lifecycle,
@@ -837,6 +866,28 @@ def _rejection(session: FormSession, event: ev.Event) -> str | None:
     if session.status is Status.COMMITTING and not isinstance(event, ALWAYS_ALLOWED):
         return "busy"
     return None
+
+
+def shown_answers(
+    definition: FormDefinition,
+    session: FormSession,
+    context: Context | None = None,
+) -> Mapping[str, Answer]:
+    """The answers as the screen shows them right now.
+
+    While a card is open its answers live as one draft under the card's key,
+    and until the first change there is no draft at all: what the admin reads
+    on the screen is the card's initial state, defaults included.
+    """
+    shown = ev.ScreenRequested("shown")
+    engine = Engine(definition, session, shown, context or Context())
+    answers = dict(session.answers)
+    steps = engine.steps or definition.steps
+    for step in steps:
+        if isinstance(step, CardStep):
+            state = configuration_card.state_of(step, session, engine.render_context())
+            answers[step.key] = Answer(None, state)
+    return answers
 
 
 def decide(

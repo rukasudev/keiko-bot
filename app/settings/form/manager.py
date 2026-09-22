@@ -34,6 +34,8 @@ from app.settings.form.conditions import EMPTY, Scope, evaluate
 from app.settings.form.copy import text
 from app.settings.form.effects import (
     Ack,
+    Commit,
+    Confirm,
     Finalize,
     Notice,
     OpenModal,
@@ -69,6 +71,7 @@ from app.settings.form.form_yaml import (
     UserPickStep,
     ValueSelectSection,
     When,
+    options_for,
     owned_keys,
     produced_keys,
 )
@@ -155,9 +158,9 @@ def _declared_icons(step: Step) -> list[tuple[str | None, str | None]]:
 
 def groups(
     steps: Sequence[Step], locale: str, scope: Scope | None = None
-) -> dict[str, dict[str, str | None]]:
+) -> dict[str, dict[str, Any]]:
     """Row key to the step that owns it, or to the group its YAML declares."""
-    found: dict[str, dict[str, str | None]] = {}
+    found: dict[str, dict[str, Any]] = {}
     headings = _declared_headings(steps, locale, scope)
     for step in steps:
         if step.hidden or step.kind in SILENT:
@@ -213,7 +216,7 @@ def _declared_group(
     step: Step,
     key: str,
     headings: Mapping[str, tuple[str | None, str | None]],
-) -> dict[str, str | None] | None:
+) -> dict[str, Any] | None:
     ref = step.panel_group
     if isinstance(step, CardStep):
         field = next((one for one in step.fields if one.key == key), None)
@@ -226,6 +229,8 @@ def _declared_group(
         "group_title": title,
         "group_icon": emoji,
         "declared": "1",
+        "order": ref.order,
+        "own_screen": ref.own_screen,
     }
 
 
@@ -309,15 +314,34 @@ def _composition_items(
     return rows
 
 
+def _named_items(composition: CompositionStep, items: Sequence[Any]) -> str:
+    """The items named by what makes each unique, for a one line summary."""
+    unique = composition.items.unique_by or ""
+    names = []
+    for item in items:
+        entry = dict(item).get(unique)
+        value = entry.get("value") if isinstance(entry, Mapping) else entry
+        if value:
+            names.append(f"`{value}`")
+    return ", ".join(names)
+
+
 def _has_value(value: Any) -> bool:
     """A setting with something saved in it, envelope or not."""
     return unwrap(value) not in EMPTY
 
 
 def panel_rows(
-    definition: FormDefinition, document: Mapping[str, Any], locale: str
+    definition: FormDefinition,
+    document: Mapping[str, Any],
+    locale: str,
+    expanded: bool = False,
 ) -> tuple[PanelRow, ...]:
-    """The saved settings as panel rows, in document order."""
+    """The saved settings as panel rows, in document order.
+
+    A list under a heading that opens a screen of its own reads as its items'
+    names on the panel, and in full on that screen.
+    """
     steps = definition.steps
     titles = step_titles(steps, locale)
     nested = _nested(steps, locale)
@@ -353,15 +377,21 @@ def panel_rows(
             value = labels[key].get(value, value)
         style = nested[key][1] if key in nested else None
         per_item = False
+        group = group_by_key.get(key, {})
         if isinstance(value, Mapping) and value.get("style") == "composition":
             composition = definition.composition
             items = value.get("values") or []
-            value = (
-                _composition_items(composition, items, locale) if composition else items
-            )
-            style = "composition"
-            per_item = bool(composition and composition.edit_by_item)
-        group = group_by_key.get(key, {})
+            if composition is not None and group.get("own_screen") and not expanded:
+                value = _named_items(composition, items)
+                style = None
+            else:
+                value = (
+                    _composition_items(composition, items, locale)
+                    if composition
+                    else items
+                )
+                style = "composition"
+                per_item = bool(composition and composition.edit_by_item)
         rows.append(
             PanelRow(
                 key=key,
@@ -377,6 +407,8 @@ def panel_rows(
                 per_item=per_item,
                 group_declared=bool(group.get("declared")),
                 edit_label=edit_labels.get(key),
+                group_order=int(group.get("order") or 0),
+                group_screen=bool(group.get("own_screen")),
             )
         )
     return tuple(rows)
@@ -400,6 +432,8 @@ def placed(
                 group=group.get("group"),
                 group_title=group.get("group_title"),
                 group_icon=group.get("group_icon"),
+                group_order=int(group.get("order") or 0),
+                group_screen=bool(group.get("own_screen")),
             )
         )
     return tuple(result)
@@ -439,7 +473,7 @@ def _empty_list(members: Sequence[PanelRow]) -> bool:
     return len(members) == 1 and _empty_composition(members[0])
 
 
-def _item_groups(row: PanelRow, icon: str, locale: str) -> list[PanelGroup]:
+def _item_groups(row: PanelRow, locale: str) -> list[PanelGroup]:
     items = list(row.value or [])
     if not items:
         empty = empty_value(locale)
@@ -448,7 +482,7 @@ def _item_groups(row: PanelRow, icon: str, locale: str) -> list[PanelGroup]:
     groups_of_items = []
 
     for index, item in enumerate(items):
-        heading = f"### {icon} {row.title} #{index + 1}".replace("###  ", "### ")
+        heading = f"### {row.title} #{index + 1}"
         lines = (heading, *_item_lines(item, locale))
         groups_of_items.append(PanelGroup(f"{row.key}${index}", heading, lines))
     return groups_of_items
@@ -480,7 +514,9 @@ def row_value(row: PanelRow, locale: str) -> tuple[str, bool]:
         return empty, False
     if style == "composition":
         lines = _composition_lines(values or [], locale)
-        return "\n".join(lines) or empty, True
+        if not lines:
+            return empty, False
+        return "\n".join(lines), True
     if isinstance(values, (list, tuple)) and style in ("bullet", "numbered", "code"):
         return format_value(list(values), "bullet", locale).lstrip("\n"), True
     formatted = str(format_value(values, style, locale) or empty)
@@ -496,7 +532,7 @@ def _same_text(first: str, second: str) -> bool:
     return bool(normalize(first)) and normalize(first) == normalize(second)
 
 
-Bucket = tuple[str | None, str | None, str, list[PanelRow]]
+Bucket = tuple[str | None, str | None, list[PanelRow]]
 
 
 def _buckets(rows: Sequence[PanelRow]) -> list[Bucket]:
@@ -509,10 +545,35 @@ def _buckets(rows: Sequence[PanelRow]) -> list[Bucket]:
             (candidate for candidate in buckets if candidate[0] == row.group), None
         )
         if bucket is None:
-            bucket = (row.group, row.group_title, row.group_icon or "", [])
+            bucket = (row.group, row.group_title, [])
             buckets.append(bucket)
-        bucket[3].append(row)
+        bucket[2].append(row)
+    buckets.sort(key=lambda bucket: bucket[2][0].group_order)
     return buckets
+
+
+def _placed_alone(row: PanelRow) -> bool:
+    """True when the row is a plain line, with no button of its own beside it."""
+    if not row.target:
+        return True
+    return _empty_composition(row) and not row.group_declared
+
+
+def _add_part(parts: dict[str, PanelPart], row: PanelRow, line: str) -> None:
+    """Put the line under the row's own button; an empty list offers Add."""
+    target = row.target or ""
+    found = parts.get(target)
+    if found is not None:
+        parts[target] = replace(found, lines=(*found.lines, line))
+        return
+    adds = _empty_composition(row)
+    parts[target] = PanelPart(
+        target,
+        (line,),
+        row.edit_label,
+        f"add:{target}" if adds else "",
+        "➕" if adds else "✏️",
+    )
 
 
 def panel_groups(
@@ -520,9 +581,9 @@ def panel_groups(
 ) -> tuple[PanelGroup, ...]:
     """Rows bucketed by the step that owns them, each rendered as its lines."""
     result = []
-    for key, title, icon, members in _buckets(rows):
+    for key, title, members in _buckets(rows):
         if len(members) == 1 and members[0].per_item:
-            result.extend(_item_groups(members[0], icon, locale))
+            result.extend(_item_groups(members[0], locale))
             continue
         values = [(row, *row_value(row, locale)) for row in members]
         if _empty_list(members) or members[0].group_declared:
@@ -530,32 +591,26 @@ def panel_groups(
         several = len(members) > 1 or any(is_block for _, _, is_block in values)
         heading = ""
         if several and title and not _same_text(title, panel_title):
-            heading = f"### {icon} {title}".replace("###  ", "### ")
+            heading = f"### {title}"
         lines = [heading] if heading else []
-        parts: dict[str, list[str]] = {}
-        part_labels: dict[str, str | None] = {}
+        parts: dict[str, PanelPart] = {}
+        apart = bool(members[0].group_screen)
         for row, value, is_block in values:
             if heading and len(members) == 1 and row.title == title:
                 lines.append(value)
                 continue
             line = labelled(row.title, value, "\n" if is_block else " ")
             line = f"{row.icon or Emojis.FRISBEE_EMOJI} {line}"
-            if row.target and not _empty_composition(row):
-                parts.setdefault(row.target, []).append(line)
-                part_labels.setdefault(row.target, row.edit_label)
-            else:
+            if apart or _placed_alone(row):
                 lines.append(line)
-        result.append(
-            PanelGroup(
-                key,
-                heading,
-                tuple(lines),
-                tuple(
-                    PanelPart(target, tuple(part), part_labels.get(target))
-                    for target, part in parts.items()
-                ),
+                continue
+            _add_part(parts, row, line)
+        if apart:
+            result.append(
+                PanelGroup(f"group:{members[0].group}", heading, tuple(lines))
             )
-        )
+            continue
+        result.append(PanelGroup(key, heading, tuple(lines), tuple(parts.values())))
     return tuple(result)
 
 
@@ -618,15 +673,36 @@ def _reaches(target: str, buttons: set[str]) -> bool:
     return any(one.startswith(f"{target}/") for one in buttons)
 
 
+def _all_shown(key: str, document: Mapping[str, Any]) -> bool:
+    """True when a heading's own screen buttons every item saved under `key`.
+
+    The screen draws only the first `GROUP_ITEMS_SHOWN` items, so a longer
+    list still needs the panel's Edit to reach the rest.
+    """
+    stored = document.get(key)
+    if not isinstance(stored, Mapping) or stored.get("style") != "composition":
+        return True
+    return len(stored.get("values") or []) <= view_constants.GROUP_ITEMS_SHOWN
+
+
 def every_setting_has_a_button(
     definition: FormDefinition,
     document: Mapping[str, Any],
     groups: Sequence[PanelGroup],
     locale: str,
+    rows: Sequence[PanelRow] = (),
 ) -> bool:
     """True when nothing the edit picker would list is left without a button."""
     buttons = {group.key for group in groups if group.key}
     buttons |= {part.target for group in groups for part in group.parts}
+    apart = {
+        str(group.key).split(":", 1)[1]
+        for group in groups
+        if group.key and str(group.key).startswith("group:")
+    }
+    buttons |= {
+        row.key for row in rows if row.group in apart and _all_shown(row.key, document)
+    }
     return (
         bool(groups)
         and all(covers_its_rows(group) for group in groups)
@@ -653,7 +729,9 @@ def panel_screen(
         else panel_rows(definition, document, locale)
     )
     grouped = panel_groups(rows, title, locale)
-    sections_cover = every_setting_has_a_button(definition, document, grouped, locale)
+    sections_cover = every_setting_has_a_button(
+        definition, document, grouped, locale, rows
+    )
     described = (
         first.manager_description
         if isinstance(first, IntroStep) and first.manager_description
@@ -667,6 +745,7 @@ def panel_screen(
         info_title=context.panel_info_title,
         thumbnail=KeikoIcons.IMAGE_01,
         edit_label=label("edit", locale),
+        remove_label=label("remove-item", locale),
     )
 
     return Screen(
@@ -674,6 +753,181 @@ def panel_screen(
         buttons=panel_buttons(definition, document, context, sections_cover),
         flavour="components_v2",
         layout_footer=first.footer.get(locale) if first.footer else "",
+    )
+
+
+def group_screen(
+    definition: FormDefinition,
+    document: Mapping[str, Any],
+    context: RenderContext,
+    key: str,
+) -> Screen:
+    """One heading's settings on a screen of their own, with their own buttons.
+
+    A list becomes one block per item, each with Edit and Remove; a setting
+    with declared options becomes the options themselves, as buttons that turn
+    on and off where they are read.
+    """
+    locale = context.locale
+    rows = [
+        replace(row, group_screen=False)
+        for row in panel_rows(definition, document, locale, expanded=True)
+        if row.group == key
+    ]
+    title = next((row.group_title for row in rows if row.group_title), key)
+    icon = next((row.group_icon for row in rows if row.group_icon), "")
+    values = {name: unwrap(value) for name, value in document.items()}
+    blocks: list[PanelGroup] = []
+    for row in rows:
+        blocks += _group_blocks(definition, row, locale)
+    first = intro_step(definition)
+    panel = Panel(
+        title=f"{icon} {title}".strip(),
+        intro=_group_intro(definition, key, locale, Scope(values)),
+        groups=tuple(blocks),
+        thumbnail=KeikoIcons.IMAGE_01,
+        edit_label=label("edit", locale),
+        remove_label=label("remove-item", locale),
+    )
+    return Screen(
+        components=(panel,),
+        buttons=_group_buttons(definition, document, rows, locale),
+        flavour="components_v2",
+        layout_footer=first.footer.get(locale) if first.footer else "",
+    )
+
+
+def _group_ref(definition: FormDefinition, key: str) -> PanelGroupRef | None:
+    found: PanelGroupRef | None = None
+    for step in definition.steps:
+        refs = [step.panel_group]
+        if isinstance(step, CardStep):
+            refs += [field.panel_group for field in step.fields]
+        for ref in refs:
+            if ref is None or ref.key != key:
+                continue
+            if ref.description is not None:
+                return ref
+            found = found or ref
+    return found
+
+
+def _group_intro(
+    definition: FormDefinition, key: str, locale: str, scope: Scope
+) -> str:
+    """What this heading is for, in the words the mode in force asks for."""
+    ref = _group_ref(definition, key)
+    if ref is None or ref.description is None:
+        return ""
+    described = ref.description
+    for variant in ref.description_when:
+        if evaluate(variant.when, scope):
+            described = variant.text
+    return described.get(locale)
+
+
+def _group_blocks(
+    definition: FormDefinition, row: PanelRow, locale: str
+) -> list[PanelGroup]:
+    if row.style == "composition":
+        return _item_blocks(row, locale)
+    icon = row.icon or Emojis.FRISBEE_EMOJI
+    options = options_for(definition.steps, row.key)
+    if options:
+        chosen = [str(found) for found in _listed(unwrap(row.value))]
+        choices = tuple(
+            ChoiceOption(
+                option.label.get(locale),
+                str(option.value),
+                selected=str(option.value) in chosen,
+            )
+            for option in options
+        )
+        heading = f"{icon} **{row.title}:**"
+        return [
+            PanelGroup(None, "", (heading,), choices=choices, choice_target=row.key)
+        ]
+    value, is_block = row_value(row, locale)
+    line = f"{icon} {labelled(row.title, value, chr(10) if is_block else ' ')}"
+    part = PanelPart(row.target or row.key, (line,), row.edit_label)
+    return [PanelGroup(None, "", (), (part,))]
+
+
+def _item_blocks(row: PanelRow, locale: str) -> list[PanelGroup]:
+    """One block per item, with its own Edit and Remove under its lines.
+
+    Discord refuses a message over forty components, so the screen shows the
+    first few and says how many are left; the panel's own Edit and Remove
+    still reach every one of them.
+    """
+    items = list(row.value or [])
+    if not items:
+        empty = text("commands.resume.empty", locale) or "-"
+        line = f"{row.icon or Emojis.FRISBEE_EMOJI} {labelled(row.title, empty)}"
+        return [PanelGroup(None, "", (line,))]
+    shown = items[: view_constants.GROUP_ITEMS_SHOWN]
+    blocks = []
+    for index, item in enumerate(shown):
+        target = f"{row.key}${index}"
+        blocks.append(
+            PanelGroup(
+                None,
+                "",
+                tuple(_item_lines(item, locale)),
+                actions=(
+                    Button(label("edit", locale), f"edit:{target}", "secondary", "✏️"),
+                    Button(
+                        label("remove-item", locale),
+                        f"remove_one:{target}",
+                        "danger",
+                        "🗑️",
+                    ),
+                ),
+            )
+        )
+    if len(items) > len(shown):
+        more = text("commands.resume.more", locale).replace(
+            "$count", str(len(items) - len(shown))
+        )
+        blocks.append(PanelGroup(None, "", (more,)))
+    return blocks
+
+
+def _listed(value: Any) -> list[Any]:
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    return [value] if value not in (None, "") else []
+
+
+def _group_buttons(
+    definition: FormDefinition,
+    document: Mapping[str, Any],
+    rows: Sequence[PanelRow],
+    locale: str,
+) -> tuple[Button, ...]:
+    """One way to add to the list under this heading, and the way back."""
+    buttons: list[Button] = []
+    composition = definition.composition
+    listed = composition is not None and any(row.key == composition.key for row in rows)
+    if composition is not None and listed:
+        stored = document.get(composition.key)
+        count = len(stored.get("values") or []) if isinstance(stored, Mapping) else 0
+        if count < composition.items.max:
+            buttons.append(_button("add", f"add:{composition.key}", "➕", locale))
+    buttons.append(Button(label("back", locale), "picker_back"))
+    return tuple(buttons)
+
+
+def remove_item_screen(locale: str, target: str) -> Screen:
+    """Keep or remove one item of a list, on a message of its own."""
+    return Screen(
+        title=text("buttons.remove.confirm.title", locale),
+        description=text("buttons.remove.confirm.message", locale),
+        color=Style.RED_COLOR,
+        buttons=(
+            Button(text("buttons.cancel.keep", locale), "keep", "success"),
+            Button(label("remove", locale), f"remove_item:{target}", "danger"),
+        ),
     )
 
 
@@ -876,6 +1130,10 @@ def on_edit_requested(engine: Engine) -> None:
     event = engine.event
     assert isinstance(event, ev.EditRequested)
 
+    if event.target and event.target.startswith("group:"):
+        _open_group(engine, event.target.split(":", 1)[1])
+        return
+
     if event.target and "/" in event.target:
         _open_part_edit(engine, event.target)
         return
@@ -930,6 +1188,15 @@ def on_add_requested(engine: Engine) -> None:
 
 def on_remove_requested(engine: Engine) -> None:
     """Remove: ask which item goes, or take the only one."""
+    event = engine.event
+    assert isinstance(event, ev.RemoveRequested)
+
+    if event.target:
+        engine.session = engine.session.with_status(
+            Status.AWAITING, awaiting="remove_item"
+        )
+        engine.effects.append(Confirm(remove_item_screen(engine.locale, event.target)))
+        return
     base = panel_embed(engine.definition, engine.locale)
     document = (
         engine.context.document
@@ -976,6 +1243,64 @@ def on_target_chosen(engine: Engine) -> None:
     engine.open_child(Edit(tuple(value.split(","))), _seed_for_edit(engine))
 
 
+def _open_group(engine: Engine, key: str) -> None:
+    """The screen a heading opens, with the rows it holds.
+
+    Only the manager offers it: the screen saves as it goes, which a setup has
+    no business doing before the admin confirms.
+    """
+    if not isinstance(engine.session.mode, Manage):
+        engine.effects.append(Notice("stale"))
+        engine.rerender()
+        return
+    screen = group_screen(
+        engine.definition, engine.context.document, engine.render_context(), key
+    )
+    engine.session = engine.session.at(f"group:{key}")
+    engine.effects.append(Render(screen))
+
+
+def in_group_screen(engine: Engine) -> bool:
+    """True while the admin is working inside one heading's own screen."""
+    return bool((engine.session.cursor or "").startswith("group:"))
+
+
+def _commit_quietly(engine: Engine, kind: str, payload: Mapping[str, Any]) -> None:
+    """Write, then draw the same screen again instead of closing the session."""
+    engine.session = engine.session.with_status(Status.COMMITTING, awaiting="quiet")
+    engine.effects.append(Commit(kind, payload, quiet=True))
+
+
+def on_remove_item_confirmed(engine: Engine) -> None:
+    """The admin confirmed which item goes."""
+    event = engine.event
+    assert isinstance(event, ev.RemoveItemConfirmed)
+    engine.session = engine.session.with_status(Status.ACTIVE)
+    _, _, number = event.target.partition("$")
+
+    if not number.isdigit():
+        engine.rerender()
+        return
+    _remove_item(engine, int(number))
+
+
+def on_option_toggled(engine: Engine) -> None:
+    """A choice on the screen goes on or off, saves, and the screen stays."""
+    event = engine.event
+    assert isinstance(event, ev.OptionToggled)
+    stored = unwrap(engine.context.document.get(event.target))
+    chosen = [str(value) for value in _listed(stored)]
+
+    if event.value in chosen:
+        chosen = [value for value in chosen if value != event.value]
+    else:
+        chosen.append(event.value)
+    engine.session = engine.session.with_status(Status.COMMITTING, awaiting="quiet")
+    engine.effects.append(
+        Commit("edit", {"answers": {event.target: Answer(chosen)}}, quiet=True)
+    )
+
+
 def _open_part_edit(engine: Engine, target: str) -> None:
     step_key, part = target.split("/", 1)
     step = next(
@@ -986,7 +1311,8 @@ def _open_part_edit(engine: Engine, target: str) -> None:
         ),
         None,
     )
-    if isinstance(step, (CardStep, MultiPickStep)) and step.edit_by_field:
+    declared = set(part_targets(engine.definition.steps).values())
+    if isinstance(step, (CardStep, MultiPickStep)) and target in declared:
         engine.open_child(Edit((step_key,), part=part), _seed_for_edit(engine))
         return
     engine.effects.append(Notice("stale"))
@@ -1150,8 +1476,12 @@ def _remove_item(engine: Engine, index: int) -> None:
         assert composition is not None
         items = items_of(engine.context.document, composition.key)
         removed = items[index] if 0 <= index < len(items) else {}
-        engine.commit("remove_item", {"index": index, "item": removed})
+        payload = {"index": index, "item": removed}
 
+        if in_group_screen(engine):
+            _commit_quietly(engine, "remove_item", payload)
+            return
+        engine.commit("remove_item", payload)
         return
     remaining = list(engine.composition_items())
     if 0 <= index < len(remaining):
@@ -1190,4 +1520,9 @@ def _manager_item_finished(
 
             return
     kind = "add_item" if event.child_mode == "add_item" else "edit_item"
-    engine.commit(kind, {"answers": item, "index": event.index})
+    payload = {"answers": item, "index": event.index}
+
+    if in_group_screen(engine):
+        _commit_quietly(engine, kind, payload)
+        return
+    engine.commit(kind, payload)

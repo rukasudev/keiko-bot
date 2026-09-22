@@ -10,6 +10,7 @@ from app.settings.form.actions.action import (
     RenderContext,
     cancel_button,
     confirm_button,
+    description_of,
     step_screen,
 )
 from app.settings.form.components import Screen
@@ -52,7 +53,7 @@ def settings_text(steps: Sequence[Step], locale: str) -> str:
 
 def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
     """The intro embed with the settings list and Confirm / Cancel."""
-    description = step.description.get(context.locale) + settings_text(
+    description = description_of(step, session, context) + settings_text(
         context.definition.steps, context.locale
     )
     return step_screen(

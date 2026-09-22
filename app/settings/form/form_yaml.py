@@ -157,7 +157,11 @@ class PanelGroupRef(Node):
     key: str
     title: Text | None = None
     title_when: tuple[DescriptionVariant, ...] = ()
+    description: Text | None = None
+    description_when: tuple[DescriptionVariant, ...] = ()
     emoji: str | None = None
+    own_screen: bool = False
+    order: int = 0
 
 
 class Option(Node):
@@ -364,6 +368,7 @@ class DesignSection(SectionBase):
 
     type: Literal["design-select"]
     designs: tuple[Design, ...]
+    draws_from: str = ""
 
 
 Section = Annotated[
@@ -546,6 +551,8 @@ class ReviewStep(StepBase):
 
     kind: Literal["review"]
     preview: bool = False
+    thumbnail_key: str = ""
+    lines: tuple[HeaderLine, ...] = ()
 
 
 class CompositionStep(StepBase):
@@ -596,6 +603,16 @@ class FormDefinition(Node):
     key: str
     version: int = 1
     steps: tuple[Step, ...]
+
+    def draws_from(self) -> str:
+        """The answer the design previews are drawn over, when one is declared."""
+        for step in self.steps:
+            if not isinstance(step, CardStep):
+                continue
+            for section in step.sections:
+                if isinstance(section, DesignSection) and section.draws_from:
+                    return section.draws_from
+        return ""
 
     def designs(self) -> tuple[Design, ...]:
         """Every design a gallery of this form offers, in declaration order."""
@@ -799,6 +816,8 @@ def _translate_step(
         out["available"] = True
     if action in ("channels", "roles", "available_roles"):
         _translate_pick(form, raw, out)
+    if action == "resume" and "lines" in out:
+        out["lines"] = _translate_lines(out.get("lines"))
     if action == "configuration_card":
         _translate_card(form, out, warnings)
     if action == "composition":
@@ -842,19 +861,23 @@ def _translate_template_var(
     raise CompileError(form, step_key, "template-vars", f"unsupported source {spec}")
 
 
-def _translate_header(header: Mapping[str, Any]) -> dict[str, Any]:
-    out = {
-        key.replace("-", "_"): value for key, value in header.items() if key != "lines"
-    }
-    out["lines"] = [
+def _translate_lines(lines: Any) -> list[dict[str, Any]]:
+    return [
         {
             "emoji": line.get("emoji", ""),
             "label": line.get("label"),
             "value_key": line.get("value-key"),
             "value_format": line.get("value-format"),
         }
-        for line in header.get("lines", []) or []
+        for line in lines or []
     ]
+
+
+def _translate_header(header: Mapping[str, Any]) -> dict[str, Any]:
+    out = {
+        key.replace("-", "_"): value for key, value in header.items() if key != "lines"
+    }
+    out["lines"] = _translate_lines(header.get("lines"))
     return out
 
 

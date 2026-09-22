@@ -159,11 +159,18 @@ class Card:
 
 @dataclass(frozen=True)
 class PanelPart:
-    """Lines of one field of a group, with an Edit that opens only that field."""
+    """Lines of one field of a group, with the button that opens only it."""
 
     target: str
     lines: tuple[str, ...]
     label: str | None = None
+    action: str = ""
+    emoji: str = "✏️"
+
+    @property
+    def button(self) -> str:
+        """The action its button reports: its own, or the Edit of its target."""
+        return self.action or f"edit:{self.target}"
 
 
 @dataclass(frozen=True)
@@ -174,6 +181,9 @@ class PanelGroup:
     heading: str
     lines: tuple[str, ...]
     parts: tuple[PanelPart, ...] = ()
+    actions: tuple[Button, ...] = ()
+    choices: tuple[ChoiceOption, ...] = ()
+    choice_target: str = ""
 
 
 @dataclass(frozen=True)
@@ -187,6 +197,7 @@ class Panel:
     info_title: str = ""
     thumbnail: str = ""
     edit_label: str = ""
+    remove_label: str = ""
 
 
 Component = Union[

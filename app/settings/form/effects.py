@@ -89,6 +89,7 @@ class Commit(Effect):
 
     kind: str
     payload: Mapping[str, Any] = field(default_factory=dict)
+    quiet: bool = False
 
 
 @dataclass(frozen=True)
