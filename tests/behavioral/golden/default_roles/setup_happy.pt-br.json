@@ -164,9 +164,28 @@
             "type": "section"
           },
           {
+            "content": "### Cargos Padrão",
+            "type": "text"
+          },
+          {
             "children": [
               {
-                "content": "### Cargos Padrão\n🤖 **Cargos para Bots:** <@&201>\n👥 **Cargos para Membros:** <@&202>",
+                "content": "🤖 **Cargos para Bots:** <@&201>",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "👥 **Cargos para Membros:** <@&202>",
                 "type": "text"
               },
               {

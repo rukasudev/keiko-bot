@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Enabling this feature allows me to notify when your favorite youtuber posts a new video!\n\n:pencil: **Settings**\n\n:flying_disc: **Text Channel**: Choose which text channel you want to be notified\n:flying_disc: **Youtuber**: The youtuber's channel name, with or without @. Example: @pewdiepie\n:flying_disc: **Notification Messages**: Use {youtuber} and {video_link}. One message will be randomly picked.",
+      "description": "Enabling this feature allows me to notify when your favorite youtuber posts a new video!\n\n:pencil: **Settings**\n\n:flying_disc: **Text Channel**: Where I'll announce the new video.\n:flying_disc: **Youtuber**: The channel's name on YouTube, with or without the @.\n:flying_disc: **Notification Messages**: Up to three messages, I pick one at random each video.",
       "fields": [],
       "footer": "• Use the `/report` command to tell me a bug",
       "image": null,
@@ -47,47 +47,177 @@
   },
   {
     "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 4,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
     "components": [
       {
-        "disabled": false,
-        "max": 1,
-        "min": 0,
-        "placeholder": "Select a channel...",
-        "type": "channel_select"
+        "children": [
+          {
+            "content": "## ▶️ YouTube Channel",
+            "type": "text"
+          },
+          {
+            "content": "Choose the channel and the youtuber, and I'll let the server know when they post a new video! The message already comes set, change it if you want.\n\nOne of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link",
+            "type": "text"
+          },
+          {
+            "content": "📺 **Text Channel**",
+            "type": "text"
+          },
+          {
+            "content": "> None",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose channel",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎬 **Youtuber**",
+            "type": "text"
+          },
+          {
+            "content": "> None",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose youtuber",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Notification Messages**",
+            "type": "text"
+          },
+          {
+            "content": "```• @everyone! {youtuber} just posted a new video!```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Edit messages",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
       },
       {
-        "disabled": false,
-        "label": "Confirm",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancel",
-        "style": "danger",
-        "type": "button"
+        "children": [
+          {
+            "disabled": false,
+            "label": "Next",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Choose which text channel you want to be notified",
-      "fields": [],
-      "footer": "• Use the command /report to tell me a bug",
-      "image": null,
-      "thumbnail": "KEIKO_DEFAULT.png",
-      "title": ":tv: Text Channel"
-    },
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 5
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 6
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 7,
+    "target": "customize:0"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## 📺 Where should I send the notifications?",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "placeholder": "Select a channel...",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Back",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
     "ephemeral": true,
     "kind": "edit",
-    "message": "M1",
-    "seq": 4
+    "message": "M2",
+    "seq": 8
   },
   {
     "actor": "user",
     "kind": "select",
-    "message": "M1",
-    "seq": 5,
+    "message": "M2",
+    "seq": 9,
     "target": "Select a channel...",
     "values": [
       "general"
@@ -95,18 +225,111 @@
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 6,
-    "thinking": false
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## ▶️ YouTube Channel",
+            "type": "text"
+          },
+          {
+            "content": "Choose the channel and the youtuber, and I'll let the server know when they post a new video! The message already comes set, change it if you want.\n\nOne of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link",
+            "type": "text"
+          },
+          {
+            "content": "📺 **Text Channel**",
+            "type": "text"
+          },
+          {
+            "content": "> <#100>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose channel",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎬 **Youtuber**",
+            "type": "text"
+          },
+          {
+            "content": "> None",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose youtuber",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Notification Messages**",
+            "type": "text"
+          },
+          {
+            "content": "```• @everyone! {youtuber} just posted a new video!```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Edit messages",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Next",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 10
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M1",
-    "seq": 7,
-    "target": "continue"
+    "message": "M2",
+    "seq": 11,
+    "target": "customize:1"
   },
   {
     "actor": "bot",
@@ -116,92 +339,140 @@
       "fields": [
         {
           "default": "",
-          "label": "Youtuber",
+          "label": "The channel's @ on YouTube",
           "max_length": 30,
           "required": true,
           "style": "short"
         }
       ],
-      "title": "Youtuber"
+      "title": "🎬 Youtuber"
     },
-    "seq": 8
+    "seq": 12
   },
   {
     "actor": "user",
     "fields": {
-      "Youtuber": "pewdiepie"
+      "The channel's @ on YouTube": "pewdiepie"
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 9
+    "seq": 13
   },
   {
     "actor": "bot",
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 10,
+    "seq": 14,
     "thinking": false
   },
   {
     "actor": "bot",
     "components": [
       {
-        "disabled": false,
-        "label": "Confirm",
-        "style": "success",
-        "type": "button"
+        "children": [
+          {
+            "content": "## ▶️ YouTube Channel",
+            "type": "text"
+          },
+          {
+            "content": "Choose the channel and the youtuber, and I'll let the server know when they post a new video! The message already comes set, change it if you want.\n\nOne of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link",
+            "type": "text"
+          },
+          {
+            "content": "📺 **Text Channel**",
+            "type": "text"
+          },
+          {
+            "content": "> <#100>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose channel",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎬 **Youtuber**",
+            "type": "text"
+          },
+          {
+            "content": "> pewdiepie",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose youtuber",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Notification Messages**",
+            "type": "text"
+          },
+          {
+            "content": "```• @everyone! {youtuber} just posted a new video!```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Edit messages",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
       },
       {
-        "disabled": false,
-        "label": "Back",
-        "style": "secondary",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancel",
-        "style": "danger",
-        "type": "button"
+        "children": [
+          {
+            "disabled": false,
+            "label": "Next",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Now let's configure the notification messages! Read the following notes carefully:",
-      "fields": [
-        {
-          "inline": false,
-          "name": "1. Random message",
-          "value": "Each time the youtuber posts a new video, one of the configured messages will be randomly chosen"
-        },
-        {
-          "inline": false,
-          "name": "2. Up to 3 messages",
-          "value": "You can configure up to 3 notification messages. If you want to use less than 3, leave the other fields blank"
-        },
-        {
-          "inline": false,
-          "name": "3. Variables",
-          "value": "You can use the following variables in your message:\n- `{youtuber}`: Youtuber's username\n- `{video_link}`: Video link"
-        }
-      ],
-      "footer": "• Use the command /report to tell me a bug",
-      "image": null,
-      "thumbnail": "KEIKO_NERD.png",
-      "title": "📩 Notification Messages"
-    },
+    "components_v2": true,
     "ephemeral": true,
     "kind": "followup_edit",
-    "message": "M1",
-    "seq": 11
+    "message": "M2",
+    "seq": 15
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M1",
-    "seq": 12,
-    "target": "continue"
+    "message": "M2",
+    "seq": 16,
+    "target": "customize:2"
   },
   {
     "actor": "bot",
@@ -231,9 +502,9 @@
           "style": "paragraph"
         }
       ],
-      "title": "Notification Messages"
+      "title": "💬 Notification Messages"
     },
-    "seq": 13
+    "seq": 17
   },
   {
     "actor": "user",
@@ -242,15 +513,115 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 14
+    "seq": 18
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 15,
-    "thinking": false
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## ▶️ YouTube Channel",
+            "type": "text"
+          },
+          {
+            "content": "Choose the channel and the youtuber, and I'll let the server know when they post a new video! The message already comes set, change it if you want.\n\nOne of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link",
+            "type": "text"
+          },
+          {
+            "content": "📺 **Text Channel**",
+            "type": "text"
+          },
+          {
+            "content": "> <#100>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose channel",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎬 **Youtuber**",
+            "type": "text"
+          },
+          {
+            "content": "> pewdiepie",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose youtuber",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Notification Messages**",
+            "type": "text"
+          },
+          {
+            "content": "```• {youtuber} postou: {video_link}```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Edit messages",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Next",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 19
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 20,
+    "target": "done"
   },
   {
     "actor": "bot",
@@ -277,7 +648,7 @@
           {
             "children": [
               {
-                "content": "### :busts_in_silhouette: Notifications\n**#1**\n:tv: **Text Channel:** <#100>\n🎬 **Youtuber:** pewdiepie\n💬 **Notification Messages:** ```• {youtuber} postou: {video_link}```",
+                "content": "### :busts_in_silhouette: Notifications #1\n📺 **Text Channel:** <#100>\n🎬 **Youtuber:** pewdiepie\n💬 **Notification Messages:** ```• {youtuber} postou: {video_link}```",
                 "type": "text"
               },
               {
@@ -322,21 +693,15 @@
     ],
     "components_v2": true,
     "ephemeral": true,
-    "kind": "followup_send",
+    "kind": "edit",
     "message": "M2",
-    "seq": 16
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M1",
-    "seq": 17
+    "seq": 21
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 18,
+    "seq": 22,
     "target": "continue"
   },
   {
@@ -344,7 +709,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 19,
+    "seq": 23,
     "thinking": false
   },
   {
@@ -363,12 +728,12 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 20
+    "seq": 24
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M2",
-    "seq": 21
+    "seq": 25
   }
 ]

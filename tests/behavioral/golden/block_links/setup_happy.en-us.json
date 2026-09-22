@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Enabling this feature allows me to watch every message and delete the links you don't want here! You choose how I do it: block all links with your exceptions, or allow links and block only the ones you pick.\n\n:pencil: **Settings**\n\n:flying_disc: **Permissions**: Choose the channels and roles I should never block. Links from them are always allowed!",
+      "description": "Enabling this feature allows me to watch every message and delete the links you don't want here! You choose how I do it: block all links with your exceptions, or allow links and block only the ones you pick.\n\n:pencil: **Settings**\n\n:flying_disc: **Blocking mode**: Whether I block every link or only the ones you pick.\n:flying_disc: **Allowed popular websites**: Popular websites I always let through.\n:flying_disc: **My response when blocking**: What I say when I delete a link.\n:flying_disc: **Permissions**: Choose the channels and roles I should never block. Links from them are always allowed!",
       "fields": [],
       "footer": "• Use the `/report` command to tell me a bug",
       "image": null,

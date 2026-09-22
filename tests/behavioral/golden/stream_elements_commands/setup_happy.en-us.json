@@ -92,7 +92,7 @@
                 "type": "text"
               },
               {
-                "content": "Whenever someone uses a command, I'll fetch the response from StreamElements and send it in chat!",
+                "content": "I found **2** active commands in `shroud`'s StreamElements! Whenever someone uses one with the **ks!** prefix, I'll send the response in chat.",
                 "type": "text"
               },
               {

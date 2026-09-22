@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Mensagens de Boas-Vindas**: Escolha em qual canal devo enviar as mensagens de boas-vindas\n:flying_disc: **Design do Banner**: Escolha o estilo do banner de boas-vindas\n:flying_disc: **Imagem Personalizada**: Envie sua imagem personalizada para o banner\n:flying_disc: **Mensagens de Boas-Vindas**: Configure suas mensagens de boas-vindas. Use {user}, {server}, {member_count}.",
+      "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal**: Onde vou enviar a mensagem de boas-vindas.\n:flying_disc: **Design do banner**: O visual do banner que eu desenho para cada novo membro.\n:flying_disc: **Imagem personalizada**: A imagem que eu coloco no banner quando você escolhe um design personalizado.\n:flying_disc: **Título**: O título da mensagem de boas-vindas.\n:flying_disc: **Mensagens**: Até três saudações, eu sorteio uma a cada vez.\n:flying_disc: **Rodapé**: A linha pequena que fecha a mensagem.",
       "fields": [],
       "footer": "• Use o comando `/reportar` para me contar um bug",
       "image": null,
@@ -47,47 +47,133 @@
   },
   {
     "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 4,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
     "components": [
       {
-        "disabled": false,
-        "max": 1,
-        "min": 0,
-        "placeholder": "Selecione um canal...",
-        "type": "channel_select"
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎉 Mensagens de Boas-Vindas",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e eu já fico pronta para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal**",
+            "type": "text"
+          },
+          {
+            "content": "> Nada ainda",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher canal",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎨 **Design do banner**",
+            "type": "text"
+          },
+          {
+            "content": "> Imagem do Servidor",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher design",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagens**",
+            "type": "text"
+          },
+          {
+            "content": "> **Título:** Um novo membro chegou! 🎉\n> **Rodapé:** Divirta-se!\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar mensagens",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
       },
       {
-        "disabled": false,
-        "label": "Confirmar",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancelar",
-        "style": "danger",
-        "type": "button"
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Escolha em qual canal devo enviar as mensagens de boas-vindas",
-      "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
-      "image": null,
-      "thumbnail": "KEIKO_DEFAULT.png",
-      "title": "Canal de Mensagens de Boas-Vindas"
-    },
+    "components_v2": true,
     "ephemeral": true,
-    "kind": "edit",
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 5
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
     "message": "M1",
-    "seq": 4
+    "seq": 6
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M1",
-    "seq": 5,
+    "message": "M2",
+    "seq": 7,
     "target": "cancel"
   },
   {
@@ -95,7 +181,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 6,
+    "seq": 8,
     "thinking": false
   },
   {
@@ -126,14 +212,14 @@
     },
     "ephemeral": true,
     "kind": "followup_send",
-    "message": "M2",
-    "seq": 7
+    "message": "M3",
+    "seq": 9
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M2",
-    "seq": 8,
+    "message": "M3",
+    "seq": 10,
     "target": "Continuar configurando"
   },
   {
@@ -141,13 +227,13 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 9,
+    "seq": 11,
     "thinking": false
   },
   {
     "actor": "bot",
     "kind": "delete_original",
-    "message": "M2",
-    "seq": 10
+    "message": "M3",
+    "seq": 12
   }
 ]

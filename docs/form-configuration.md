@@ -103,7 +103,7 @@ below names the YAML spelling first and the model second.
 | `configuration_card` | `card` | `CardStep` | a Components V2 card whose sections each edit part of the answer (3.3) |
 | `composition` | `composition` | `CompositionStep` | a list of items, each built by a child session over `steps` (3.4) |
 | `button` | `info` | `InfoStep` | a read-only screen with titled paragraphs (`fields`, per locale) and Confirm |
-| `resume` | `review` | `ReviewStep` | the last screen: every answer as a card of the manager panel's blocks, each with its own Edit, and the actions below the card; a list shows its first `COMPOSITION_PREVIEW_LIMIT` items and a "+N more" line; `preview: true` adds the Preview aside |
+| `resume` | `review` | `ReviewStep` | the last screen: a card with the manager panel's blocks, each with its Edit (returning to the review), and Add, Remove, Preview, Confirm and Cancel below; a list shows its first `COMPOSITION_PREVIEW_LIMIT` items and a "+N more" line; `preview: true` adds the Preview aside |
 
 The alias table is `KIND_BY_ACTION` in the compiler. `condition:` still
 compiles into `when` with a deprecation warning; new forms write `when`.
@@ -123,17 +123,25 @@ for `{name}` in previews, and `transform` names a registered transform.
 | `type` | Section model | What the admin does |
 |---|---|---|
 | `title-content` | `TitleContentSection` | keeps the `default` title and body or types both in the `modal` |
-| `file-upload` | `FileUploadSection` | keeps the default image or uploads one |
+| `file-upload` | `FileUploadSection` | keeps the default image or uploads one; without a `mode` in its `state` it only holds the uploaded image, and counts as set once it has one |
 | `channel-select` | `ChannelSelectSection` | picks one channel on a native select |
 | `value-select` | `ValueSelectSection` | picks one of the declared `options`; `reset_on_change` clears a dependent key when the named validator rejects the new pair |
 | `button-options` | `ButtonOptionsSection` | picks one of the declared `options` on a row of buttons |
 | `boolean-toggle` | `BooleanToggleSection` | flips a yes or no |
-| `modal-input` | `ModalInputSection` | types one value in the `modal` (`validation` runs on submit) |
+| `modal-input` | `ModalInputSection` | types in the `modal`: a field with a `key` writes that key, fields without one are joined with `;` into the section's `value` (the shape services split); each field may `normalize`; the modal reopens with the saved values; `validation` runs on submit with the other items and any lookup its validator needs |
+| `design-select` | `DesignSection` | picks one of the declared `designs` on the design gallery, with the feature's previews |
 | `multi-select` | `MultiSelectSection` | picks several of the declared `options` |
 
 A hidden section (`visible-when` false) does not count as required. Card
 selections are drafts until Done: the card keeps its values on Back and on
-a failed validation.
+a failed validation. A modal holds at most five inputs.
+
+`edit_by_field: true` on a card or a multi-select gives each of its lines its
+own Edit on the panel and the review: the click opens only that section or
+select (`Edit.part`), saves the edit as soon as a value is chosen (from the
+manager) or returns to the review (in the setup), cancels on Back, and shows
+the whole card when the choice leaves it incomplete. It is refused inside a
+composition.
 
 ### 3.4 Compositions
 
@@ -143,7 +151,9 @@ share) and `steps`, the sub-form each item runs as a child session. A child
 session sees its parent's answers through the `parent.` scope (section 4).
 The manager panel offers Add while the list is under `items.max`, Edit and
 Remove per item; a duplicate by `unique_by` finalizes with the `duplicate`
-copy instead of writing.
+copy instead of writing. `edit_by_item: true` draws one block per item with
+an Edit that opens that item directly; the compiler refuses it on a list that
+may hold more than `ViewConstants.EDIT_BY_ITEM_MAX` items.
 
 On the manager panel every visible step is a block with an Edit beside what it
 opens (`manage.groups`, `panel_groups`): a card lists its fields, a
