@@ -5,6 +5,7 @@ the fake attachment is read for real, re-uploaded to the (recorded) dump
 channel, and the returned permanent URL must land in card state and in the
 persisted birthday item.
 """
+
 from types import SimpleNamespace
 
 import pytest
@@ -34,7 +35,8 @@ def dump_channel(deps):
 
 
 async def test_custom_image_upload_persists_permanent_url(
-        scenario_factory, dump_channel):
+    scenario_factory, dump_channel
+):
     scenario = await scenario_factory(locale="pt-br").start("reminders_birthday")
     await scenario.confirm()
     await _complete_global_card(scenario)
@@ -42,12 +44,12 @@ async def test_custom_image_upload_persists_permanent_url(
     await scenario.select_option("Tester")
     await scenario.confirm()
 
-    await scenario.click("customize:0")               # month
+    await scenario.click("customize:0")  # month
     await scenario.select_option("05")
-    await scenario.click("customize:1")               # day
+    await scenario.click("customize:1")  # day
     await scenario.submit_modal({"Dia": "12"})
 
-    await scenario.click("customize:3")               # image -> FileUploadModal
+    await scenario.click("customize:3")  # image -> FileUploadModal
     await scenario.submit_file_upload(filename="dog.png", content=b"\x89PNG-fake")
 
     assert dump_channel.sent, "attachment must be re-uploaded to the dump channel"
@@ -60,9 +62,33 @@ async def test_custom_image_upload_persists_permanent_url(
     await scenario.confirm()
 
     item = scenario.get_persisted(
-        "reminders", "birthdays",
+        "reminders",
+        "birthdays",
         {"guild_id": str(scenario.guild.id), "user_id": "555"},
     )
     assert item["image"]["mode"] == "custom"
     assert item["image"]["url"] == FAKE_CDN_URL
+    await scenario.finish()
+
+
+async def test_a_welcome_custom_image_is_required_only_for_custom_designs(
+    scenario_factory, dump_channel
+):
+    """The image section only shows for a custom design, and Done asks for it."""
+    from app.services.utils import ml
+
+    scenario = await scenario_factory(locale="pt-br").start("welcome_messages")
+    await scenario.confirm()
+    await scenario.click("customize:0")
+    await scenario.select_option("welcome")
+    await scenario.click("customize:1")
+    await scenario.click("design:custom_only")
+
+    await scenario.click("done")
+    scenario.expect_error(ml("buttons.summary-card.required", "pt-br").split(":")[0])
+
+    await scenario.click("customize:2")
+    await scenario.submit_file_upload(filename="banner.png", content=b"\x89PNG-fake")
+    await scenario.click("done")
+    scenario.expect_step("confirm")
     await scenario.finish()

@@ -178,6 +178,7 @@ class TextField(Node):
     placeholder: Text | None = None
     description: Text | None = None
     normalize: str | None = None
+    multiline: bool = False
 
 
 class Select(Node):

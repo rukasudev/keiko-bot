@@ -32,7 +32,22 @@
           {
             "children": [
               {
-                "content": "### :busts_in_silhouette: Notificações\n**#1**\n:tv: **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```\n**#2**\n:tv: **Canal de Texto:** <#102>\n🎮 **Streamer:** cellbit\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+                "content": "### :busts_in_silhouette: Notificações #1\n📺 **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### :busts_in_silhouette: Notificações #2\n📺 **Canal de Texto:** <#102>\n🎮 **Streamer:** cellbit\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
                 "type": "text"
               },
               {

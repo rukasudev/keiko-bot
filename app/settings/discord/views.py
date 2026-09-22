@@ -461,7 +461,8 @@ class FormModal(discord.ui.Modal):
         arg: str | None,
     ) -> None:
         super().__init__(
-            title=screen.modal_title[:45], timeout=view_constants.SHORT_TIMEOUT_SECONDS
+            title=screen.modal_title[: DiscordLimits.MODAL_TITLE],
+            timeout=view_constants.SHORT_TIMEOUT_SECONDS,
         )
         self.dispatcher = dispatcher
         self.custom_id = ids(action, arg)
@@ -472,7 +473,7 @@ class FormModal(discord.ui.Modal):
             if isinstance(component, TextInputs):
                 for spec in component.inputs:
                     item: discord.ui.TextInput[Any] = discord.ui.TextInput(
-                        label=spec.label[:45],
+                        label=spec.label[: DiscordLimits.MODAL_INPUT_LABEL],
                         style=discord.TextStyle.long
                         if spec.multiline
                         else discord.TextStyle.short,

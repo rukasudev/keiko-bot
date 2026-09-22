@@ -121,3 +121,58 @@ def test_every_setup_review_is_within_discord_limits(form):
         decision.effects[0].screen, lambda action, arg=None: "k:s:1:x", None
     )
     _assert_within_limits(view, f"{form} review")
+
+
+async def test_the_welcome_card_and_its_gallery_are_within_discord_limits(
+    scenario_factory,
+):
+    scenario = await scenario_factory(locale="pt-br").start("welcome_messages")
+    await scenario.confirm()
+    await scenario.click("customize:1")
+    _assert_within_limits(scenario.current_message.view, "welcome gallery")
+    await scenario.click("design:custom_only")
+    _assert_within_limits(scenario.current_message.view, "welcome card, custom design")
+    await scenario.finish()
+
+
+async def test_a_twitch_notification_card_is_within_discord_limits(scenario_factory):
+    scenario = await scenario_factory(locale="pt-br").start("notifications_twitch")
+    await scenario.confirm()
+    _assert_within_limits(scenario.current_message.view, "twitch item card")
+    await scenario.finish()
+
+
+@pytest.mark.parametrize("locale", ["pt-br", "en-us"])
+def test_every_modal_input_label_fits_discord(locale):
+    """A label over the limit is truncated by the renderer, silently."""
+    from app.constants import DiscordLimits
+    from app.settings.form.form_yaml import (
+        CardStep,
+        CompositionStep,
+        DefinitionRegistry,
+        ModalInputSection,
+        TextStep,
+    )
+
+    def every_step(steps):
+        for step in steps:
+            yield step
+            if isinstance(step, CompositionStep):
+                yield from every_step(step.steps)
+
+    def labels(definition):
+        for step in every_step(definition.steps):
+            if isinstance(step, TextStep):
+                yield from (field.label.get(locale) for field in step.fields)
+            if isinstance(step, CardStep):
+                for section in step.sections:
+                    if isinstance(section, ModalInputSection):
+                        yield from (
+                            field.label.get(locale) for field in section.modal.fields
+                        )
+
+    for definition in DefinitionRegistry().load_all():
+        for label in labels(definition):
+            assert len(label) <= DiscordLimits.MODAL_INPUT_LABEL, (
+                f"{definition.key} [{locale}]: {label!r} is {len(label)} characters"
+            )

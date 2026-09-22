@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n:pencil: **Settings**\n\n:flying_disc: **Welcome Messages Channel**: Choose which channel I should send the welcome messages\n:flying_disc: **Banner Design**: Choose your welcome banner style\n:flying_disc: **Custom Image**: Upload your custom banner image\n:flying_disc: **Welcome Messages**: Configure your welcome messages. Use {user}, {server}, {member_count}.",
+      "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n:pencil: **Settings**\n\n:flying_disc: **Channel**: Where I'll send the welcome message.\n:flying_disc: **Banner design**: The look of the banner I draw for each new member.\n:flying_disc: **Custom image**: The picture I put on the banner when you pick a custom design.\n:flying_disc: **Title**: The title of the welcome message.\n:flying_disc: **Messages**: Up to three greetings, I pick one at random each time.\n:flying_disc: **Footer**: The small line that closes the message.",
       "fields": [],
       "footer": "• Use the `/report` command to tell me a bug",
       "image": null,
@@ -47,73 +47,10 @@
   },
   {
     "actor": "bot",
-    "components": [
-      {
-        "disabled": false,
-        "max": 1,
-        "min": 0,
-        "placeholder": "Select a channel...",
-        "type": "channel_select"
-      },
-      {
-        "disabled": false,
-        "label": "Confirm",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancel",
-        "style": "danger",
-        "type": "button"
-      }
-    ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Choose which channel I should send the welcome messages",
-      "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
-      "image": null,
-      "thumbnail": "KEIKO_DEFAULT.png",
-      "title": "Welcome Messages Channel"
-    },
-    "ephemeral": true,
-    "kind": "edit",
-    "message": "M1",
-    "seq": 4
-  },
-  {
-    "actor": "user",
-    "kind": "select",
-    "message": "M1",
-    "seq": 5,
-    "target": "Select a channel...",
-    "values": [
-      "welcome"
-    ]
-  },
-  {
-    "actor": "bot",
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 6,
-    "thinking": false
-  },
-  {
-    "actor": "user",
-    "kind": "click",
-    "message": "M1",
-    "seq": 7,
-    "target": "continue"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 8,
+    "seq": 4,
     "thinking": false
   },
   {
@@ -122,68 +59,81 @@
       {
         "children": [
           {
-            "content": "⬇️ Select one of the designs below:",
+            "children": [
+              {
+                "content": "## 🎉 Welcome Messages",
+                "type": "text"
+              },
+              {
+                "content": "Choose the channel and I'm ready to welcome new members! The design and the messages already come set, change them if you want.\n\nYou can use these variables in the messages:\n- `{user}`: the new member's mention\n- `{server}`: the server name\n- `{member_count}`: how many members the server has",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Channel**",
             "type": "text"
           },
           {
-            "content": "**Server Image**\nServer icon as background with blur effect and your avatar centered",
+            "content": "> None",
             "type": "text"
-          },
-          {
-            "count": 1,
-            "type": "media"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Select",
-                "style": "primary",
+                "label": "Choose channel",
+                "style": "secondary",
                 "type": "button"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "**Custom with Blur**\nYour custom image as background with blur effect and avatar centered",
+            "content": "🎨 **Banner design**",
             "type": "text"
           },
           {
-            "count": 1,
-            "type": "media"
+            "content": "> Server Image",
+            "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Select",
-                "style": "primary",
+                "label": "Choose design",
+                "style": "secondary",
                 "type": "button"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "**Custom Image Only**\nYour custom image/gif as banner, avatar shown as thumbnail. Like the example below :)",
+            "content": "💬 **Messages**",
             "type": "text"
           },
           {
-            "count": 1,
-            "type": "media"
+            "content": "> **Title:** A new member has joined! 🎉\n> **Footer:** Have fun!\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```",
+            "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Select",
-                "style": "primary",
+                "label": "Edit messages",
+                "style": "secondary",
                 "type": "button"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "⬆️ Scroll up to see all options",
+            "content": "-# • Use the `/report` command to tell me a bug",
             "type": "text"
           }
         ],
@@ -193,8 +143,8 @@
         "children": [
           {
             "disabled": false,
-            "label": "Back",
-            "style": "secondary",
+            "label": "Next",
+            "style": "success",
             "type": "button"
           },
           {
@@ -211,12 +161,185 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 9
+    "seq": 5
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M1",
+    "seq": 6
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 7,
+    "target": "customize:0"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## 📺 Where should I welcome new members?",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "placeholder": "Select a channel...",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Back",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 8
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M2",
+    "seq": 9,
+    "target": "Select a channel...",
+    "values": [
+      "welcome"
+    ]
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎉 Welcome Messages",
+                "type": "text"
+              },
+              {
+                "content": "Choose the channel and I'm ready to welcome new members! The design and the messages already come set, change them if you want.\n\nYou can use these variables in the messages:\n- `{user}`: the new member's mention\n- `{server}`: the server name\n- `{member_count}`: how many members the server has",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Channel**",
+            "type": "text"
+          },
+          {
+            "content": "> <#101>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose channel",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎨 **Banner design**",
+            "type": "text"
+          },
+          {
+            "content": "> Server Image",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose design",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Messages**",
+            "type": "text"
+          },
+          {
+            "content": "> **Title:** A new member has joined! 🎉\n> **Footer:** Have fun!\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Edit messages",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Next",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
     "seq": 10
   },
   {
@@ -224,86 +347,7 @@
     "kind": "click",
     "message": "M2",
     "seq": 11,
-    "target": "design:server_blur"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 12,
-    "thinking": false
-  },
-  {
-    "actor": "bot",
-    "components": [
-      {
-        "disabled": false,
-        "label": "Confirm",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Back",
-        "style": "secondary",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancel",
-        "style": "danger",
-        "type": "button"
-      }
-    ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "In the next step, you can customize the welcome messages that I will send to new members. Read the following notes carefully:",
-      "fields": [
-        {
-          "inline": false,
-          "name": "1. Title",
-          "value": "The title appears at the top of the welcome message embed"
-        },
-        {
-          "inline": false,
-          "name": "2. Random messages",
-          "value": "Whenever a member joins the server, one of the configured messages will be randomly chosen. You can configure up to 3 welcome messages. If you want less than 3, leave the other fields blank"
-        },
-        {
-          "inline": false,
-          "name": "3. Footer",
-          "value": "The footer appears at the bottom of the welcome message embed"
-        },
-        {
-          "inline": false,
-          "name": "4. Variables",
-          "value": "You can use the following variables in your message:\n- `{user}`: User mention\n- `{server}`: Server name\n- `{member_count}`: Number of server members"
-        }
-      ],
-      "footer": "• Use the `/report` command to tell me a bug",
-      "image": null,
-      "thumbnail": "KEIKO_NERD.png",
-      "title": "🎉 Welcome Messages"
-    },
-    "ephemeral": true,
-    "kind": "followup_send",
-    "message": "M3",
-    "seq": 13
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M2",
-    "seq": 14
-  },
-  {
-    "actor": "user",
-    "kind": "click",
-    "message": "M3",
-    "seq": 15,
-    "target": "continue"
+    "target": "customize:3"
   },
   {
     "actor": "bot",
@@ -347,9 +391,9 @@
           "style": "paragraph"
         }
       ],
-      "title": "Welcome Messages"
+      "title": "💬 Welcome Messages"
     },
-    "seq": 16
+    "seq": 12
   },
   {
     "actor": "user",
@@ -359,15 +403,124 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 17
+    "seq": 13
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 18,
-    "thinking": false
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎉 Welcome Messages",
+                "type": "text"
+              },
+              {
+                "content": "Choose the channel and I'm ready to welcome new members! The design and the messages already come set, change them if you want.\n\nYou can use these variables in the messages:\n- `{user}`: the new member's mention\n- `{server}`: the server name\n- `{member_count}`: how many members the server has",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Channel**",
+            "type": "text"
+          },
+          {
+            "content": "> <#101>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose channel",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎨 **Banner design**",
+            "type": "text"
+          },
+          {
+            "content": "> Server Image",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose design",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Messages**",
+            "type": "text"
+          },
+          {
+            "content": "> **Title:** Bem-vindo, {user}!\n> **Footer:** Leia as regras :)\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Edit messages",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Next",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 14
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 15,
+    "target": "done"
   },
   {
     "actor": "bot",
@@ -381,7 +534,7 @@
                 "type": "text"
               },
               {
-                "content": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server",
+                "content": "This is how I'll welcome new members. Use **Preview** to see the message before saving!",
                 "type": "text"
               },
               {
@@ -392,9 +545,13 @@
             "type": "section"
           },
           {
+            "content": "### 🎉 Welcome Messages",
+            "type": "text"
+          },
+          {
             "children": [
               {
-                "content": ":flying_disc: **Welcome Messages Channel:** <#101>",
+                "content": "📺 **Channel:** <#101>",
                 "type": "text"
               },
               {
@@ -409,7 +566,7 @@
           {
             "children": [
               {
-                "content": ":flying_disc: **Banner Design:** Server Image",
+                "content": "🎨 **Banner design:** Server Image",
                 "type": "text"
               },
               {
@@ -424,7 +581,7 @@
           {
             "children": [
               {
-                "content": "### Welcome Messages\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```",
+                "content": "💬 **Messages:**\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```\n💬 **Title:** Bem-vindo, {user}!\n💬 **Footer:** Leia as regras :)",
                 "type": "text"
               },
               {
@@ -469,21 +626,15 @@
     ],
     "components_v2": true,
     "ephemeral": true,
-    "kind": "followup_send",
-    "message": "M4",
-    "seq": 19
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M3",
-    "seq": 20
+    "kind": "edit",
+    "message": "M2",
+    "seq": 16
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M4",
-    "seq": 21,
+    "message": "M2",
+    "seq": 17,
     "target": "continue"
   },
   {
@@ -491,7 +642,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 22,
+    "seq": 18,
     "thinking": false
   },
   {
@@ -509,13 +660,13 @@
     },
     "ephemeral": true,
     "kind": "followup_send",
-    "message": "M5",
-    "seq": 23
+    "message": "M3",
+    "seq": 19
   },
   {
     "actor": "bot",
     "kind": "delete",
-    "message": "M4",
-    "seq": 24
+    "message": "M2",
+    "seq": 20
   }
 ]

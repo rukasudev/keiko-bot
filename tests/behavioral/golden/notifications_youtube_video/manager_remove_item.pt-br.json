@@ -32,7 +32,22 @@
           {
             "children": [
               {
-                "content": "### :busts_in_silhouette: Notificações\n**#1**\n:tv: **Canal de Texto:** <#100>\n🎬 **Youtuber:** pewdiepie\n💬 **Mensagens de Notificação:** ```• @everyone! {youtuber} acabou de postar um novo vídeo!```\n**#2**\n:tv: **Canal de Texto:** <#102>\n🎬 **Youtuber:** mrbeast\n💬 **Mensagens de Notificação:** ```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+                "content": "### :busts_in_silhouette: Notificações #1\n📺 **Canal de Texto:** <#100>\n🎬 **Youtuber:** pewdiepie\n💬 **Mensagens de Notificação:** ```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### :busts_in_silhouette: Notificações #2\n📺 **Canal de Texto:** <#102>\n🎬 **Youtuber:** mrbeast\n💬 **Mensagens de Notificação:** ```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
                 "type": "text"
               },
               {

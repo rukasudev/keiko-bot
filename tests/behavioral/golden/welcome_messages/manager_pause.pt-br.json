@@ -32,7 +32,7 @@
           {
             "children": [
               {
-                "content": ":flying_disc: **Canal de Mensagens de Boas-Vindas:** <#101>",
+                "content": "📺 **Canal:** <#101>",
                 "type": "text"
               },
               {
@@ -47,7 +47,7 @@
           {
             "children": [
               {
-                "content": ":flying_disc: **Design do Banner:** Imagem do Servidor",
+                "content": "🎨 **Design do banner:** Imagem do Servidor",
                 "type": "text"
               },
               {
@@ -62,7 +62,7 @@
           {
             "children": [
               {
-                "content": ":flying_disc: **Mensagens de Boas-Vindas:**\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}```",
+                "content": "💬 **Título:** Um novo membro chegou! 🎉\n💬 **Mensagens:**\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}```\n💬 **Rodapé:** Divirta-se!",
                 "type": "text"
               },
               {

@@ -4,6 +4,7 @@ Pause, unpause and disable go through the real ConfirmationModal (the user
 must type the action word). Add/remove item run the real composition
 sub-form and the real Select-based remove view.
 """
+
 import pytest
 
 from app.services.utils import ml
@@ -13,7 +14,8 @@ pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form"
 GUILD_ID = "123456789"
 
 BLOCK_LINKS_COG = {
-    "guild_id": GUILD_ID, "enabled": True,
+    "guild_id": GUILD_ID,
+    "enabled": True,
     "allowed_chats": {"style": "channel", "values": "100"},
     "allowed_links": ["Youtube"],
     "answer": "Nada de links!",
@@ -22,13 +24,16 @@ BLOCK_LINKS_COG = {
 
 def _twitch_cog(*streamers: str) -> dict:
     return {
-        "guild_id": GUILD_ID, "enabled": True,
+        "guild_id": GUILD_ID,
+        "enabled": True,
         "notifications": {
             "style": "composition",
             "values": [
-                {"channel": {"value": "100", "style": "channel"},
-                 "streamer": {"value": name},
-                 "notification_messages": {"value": f"{name} on!"}}
+                {
+                    "channel": {"value": "100", "style": "channel"},
+                    "streamer": {"value": name},
+                    "notification_messages": {"value": f"{name} on!"},
+                }
                 for name in streamers
             ],
         },
@@ -43,9 +48,9 @@ async def test_pause_requires_typed_confirmation_and_pauses(scenario_factory, de
 
     pause_label = ml("buttons.pause.label", locale="pt-br")
     await scenario.click(pause_label)
-    scenario.expect_modal()                      # ConfirmationModal pending
+    scenario.expect_modal()  # ConfirmationModal pending
 
-    await scenario.submit_confirmation()         # types the action word
+    await scenario.submit_confirmation()  # types the action word
     scenario.expect_message(
         title_contains=ml("commands.command-events.paused.title", locale="pt-br"),
     )
@@ -114,15 +119,16 @@ async def test_add_item_runs_real_subform_and_appends(scenario_factory, deps):
     )
 
     await scenario.click(ml("buttons.add.label", locale="pt-br"))
-    await scenario.select_option("general")          # composition: channel
-    await scenario.confirm()
-    await scenario.submit_modal(                      # streamer (real validator
-        {scenario.pending_modal_fields()[0]: "cellbit"}   # -> MockTwitchAPI)
+    await scenario.click("customize:0")  # item card: channel
+    await scenario.select_option("general")
+    await scenario.click("customize:1")  # streamer (real validator
+    await scenario.submit_modal(  # -> MockTwitchAPI)
+        {scenario.pending_modal_fields()[0]: "cellbit"}
     )
-    await scenario.confirm()                          # button info step
-    fields = {label: "@everyone {streamer} on! {stream_link}"
-              for label in scenario.pending_modal_fields()}
-    await scenario.submit_modal(fields)               # notification messages
+    await scenario.click("customize:2")  # notification messages
+    first = scenario.pending_modal_fields()[0]
+    await scenario.submit_modal({first: "@everyone {streamer} on! {stream_link}"})
+    await scenario.click("done")
 
     scenario.expect_message(title_contains="Item adicionado")
     document = scenario.get_persisted(
@@ -144,7 +150,7 @@ async def test_remove_item_unsubscribes_and_updates_document(scenario_factory, d
     )
 
     await scenario.click(ml("buttons.remove.label", locale="pt-br"))
-    await scenario.select_option("notifications$0")   # remove "gaules"
+    await scenario.select_option("notifications$0")  # remove "gaules"
 
     scenario.expect_message(title_contains="Item removido")
     document = scenario.get_persisted(

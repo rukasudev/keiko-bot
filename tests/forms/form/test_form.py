@@ -5,7 +5,14 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.settings.form import events as ev
-from app.settings.form.components import Card, Choice, Gallery, Panel, Picker
+from app.settings.form.components import (
+    Card,
+    Choice,
+    Gallery,
+    OptionSelect,
+    Panel,
+    Picker,
+)
 from app.settings.form.effects import (
     Commit,
     OpenModal,
@@ -275,37 +282,73 @@ def test_back_forgets_the_answers_of_the_steps_it_walks_over():
 
 
 def test_back_never_lands_on_a_modal_step():
-    definition = REGISTRY.get("notifications_twitch")
-    child = new_session(
-        (definition.key, 1),
-        AddItem(),
-        ORIGIN,
-        ttl_seconds=60,
-        now=NOW,
-        parent_id="parent",
+    from app.settings.form.form_yaml import compile_form
+    from tests.forms.form.card_fixtures import text
+
+    options = [
+        {"label": text("A"), "value": "a"},
+        {"label": text("B"), "value": "b"},
+    ]
+    definition = compile_form(
+        "back_over_modal",
+        {
+            "steps": [
+                {
+                    "action": "form",
+                    "key": "form",
+                    "title": text("🧪"),
+                    "description": text("i"),
+                },
+                {
+                    "action": "options",
+                    "key": "first",
+                    "title": text("First"),
+                    "description": text("f"),
+                    "options": options,
+                },
+                {
+                    "action": "modal",
+                    "key": "name",
+                    "title": text("Name"),
+                    "description": text("n"),
+                    "label": text("Name"),
+                },
+                {
+                    "action": "options",
+                    "key": "second",
+                    "title": text("Second"),
+                    "description": text("s"),
+                    "options": options,
+                },
+                {
+                    "action": "resume",
+                    "key": "confirm",
+                    "title": text("ok?"),
+                    "description": text("r"),
+                },
+            ]
+        },
     )
-    started = decide(definition, child, evt(ev.Started))
-    assert started.session.cursor == "channel"
-    drafted = decide(
+    session = new_session(
+        (definition.key, definition.version), Setup(), ORIGIN, ttl_seconds=60, now=NOW
+    )
+    at_first = decide(definition, session, evt(ev.Started))
+    at_first = decide(definition, at_first.session, evt(ev.Answered, step_key="form"))
+    at_name = decide(
+        definition, at_first.session, evt(ev.Answered, step_key="first", payload="a")
+    )
+    assert kinds(at_name) == ["OpenModal"]
+    at_second = decide(
         definition,
-        started.session,
-        evt(ev.Drafted, step_key="channel", changes={"channel": ["100"]}),
+        at_name.session,
+        evt(ev.Answered, step_key="name", payload={"inputs": ["x"]}),
     )
-    at_streamer = decide(
-        definition, drafted.session, evt(ev.Answered, step_key="channel")
-    )
-    assert kinds(at_streamer) == ["OpenModal"]
-    context = Context(external={"twitch": {"user_id": "1"}})
-    at_info = decide(
-        definition,
-        at_streamer.session,
-        evt(ev.Answered, step_key="streamer", payload={"inputs": ["gaules"]}),
-        context,
-    )
-    assert at_info.session.cursor == "continue_to_messages"
-    back = decide(definition, at_info.session, evt(ev.Back))
-    assert back.session.cursor == "channel"
-    assert "streamer" not in back.session.answers
+    assert at_second.session.cursor == "second"
+
+    back = decide(definition, at_second.session, evt(ev.Back))
+
+    assert back.session.cursor == "first"
+    assert "name" not in back.session.answers
 
 
 def test_back_at_the_first_step_only_acknowledges():
@@ -719,36 +762,28 @@ def test_asides_never_touch_the_session():
 
 def test_the_gallery_and_the_file_upload_follow_the_design():
     definition, decision = start("welcome_messages")
-    at_channel = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
-    drafted = decide(
-        definition,
-        at_channel.session,
-        evt(
-            ev.Drafted,
-            step_key="welcome_messages_channel",
-            changes={"welcome_messages_channel": ["101"]},
-        ),
-    )
+    at_card = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
+    assert isinstance(screen(at_card).components[0], Card)
     gallery = decide(
         definition,
-        drafted.session,
-        evt(ev.Answered, step_key="welcome_messages_channel"),
+        at_card.session,
+        evt(ev.SectionOpened, step_key="welcome_config", index=1),
     )
     assert isinstance(screen(gallery).components[0], Gallery)
+
     custom = decide(
         definition,
         gallery.session,
-        evt(ev.Answered, step_key="welcome_design", payload="custom_only"),
+        evt(ev.Answered, step_key="section:1", payload="custom_only"),
     )
-    assert custom.session.cursor == "welcome_custom_image" and kinds(custom) == [
-        "OpenModal"
-    ]
+    assert "image" in [section.key for section in screen(custom).components[0].sections]
     server = decide(
         definition,
         gallery.session,
-        evt(ev.Answered, step_key="welcome_design", payload="server_blur"),
+        evt(ev.Answered, step_key="section:1", payload="server_blur"),
     )
-    assert server.session.cursor == "question_welcome_messages"
+    shown = [section.key for section in screen(server).components[0].sections]
+    assert "image" not in shown
 
 
 def test_choice_steps_type_their_values():
@@ -866,6 +901,28 @@ BIRTHDAY_DOC = {
         "values": [{"user": {"value": "777", "title": "Membro", "style": "user"}}],
     },
 }
+
+
+def test_edit_beside_a_list_kept_past_its_gate_opens_that_list():
+    """Broke as: a list whose gate said "later" was kept on the panel once it
+    held something, but the Edit beside it opened nothing, because the picker
+    still dropped the step its gate refused."""
+    document = {**BLOCK_LINKS_DOC, "add_custom": "false"}
+    definition, decision = start(
+        "block_links", Manage(), context=Context(document=document)
+    )
+    opened = decide(
+        definition,
+        decision.session,
+        evt(ev.EditRequested, target="custom_links"),
+        Context(document=document),
+    )
+    picker = screen(opened).components[0]
+    assert isinstance(picker, OptionSelect)
+    assert [option.value for option in picker.options] == [
+        "custom_links$0",
+        "custom_links$1",
+    ]
 
 
 def test_edit_beside_a_member_keyed_list_opens_the_member_picker():
@@ -1032,6 +1089,36 @@ def test_a_dependent_key_is_cleared_when_its_own_value_stops_being_valid():
     assert changed.session.answers["site_card"].parts["link"] is None
 
 
+def test_a_card_modal_asks_for_the_long_box_its_fields_declare():
+    """Broke as: moving the message steps into card sections dropped their
+    `multiline`, so a hundred character message typed in a one line box."""
+    from app.settings.form.form_yaml import DiskSource, compile_form
+
+    definition = compile_form("welcome_messages", DiskSource().load("welcome_messages"))
+    session = new_session(
+        (definition.key, definition.version),
+        Setup(),
+        ORIGIN,
+        ttl_seconds=60,
+        now=NOW,
+    ).at("welcome_config")
+    card = definition.step("welcome_config")
+    index = next(
+        position
+        for position, section in enumerate(card.sections)
+        if section.key == "messages"
+    )
+
+    opened = decide(
+        definition,
+        session,
+        evt(ev.SectionOpened, step_key="welcome_config", index=index),
+    )
+
+    inputs = screen(opened).components[0].inputs
+    assert [one.multiline for one in inputs] == [True] * len(inputs)
+
+
 def test_a_multi_field_modal_opens_with_the_saved_values():
     definition, session = _welcome_card_session(
         {"title": Answer("Oi!"), "messages": Answer("A;B"), "footer": Answer("F")}
@@ -1116,10 +1203,9 @@ def test_every_visible_step_is_a_panel_group_with_its_own_edit():
     assert "edit" not in [b.action for b in drawn.buttons]
 
     drawn, panel = _panel("welcome_messages", ENABLED)
-    keys = [g.key for g in panel.groups]
-    assert {"welcome_messages_channel", "welcome_design", "welcome_messages"} <= set(
-        keys
-    )
+    [group] = panel.groups
+    assert group.key == "welcome_config"
+    assert [part.target for part in group.parts] == ["channel", "design", "messages"]
     assert "edit" not in [b.action for b in drawn.buttons]
 
 
@@ -1402,6 +1488,7 @@ def test_the_review_description_resolves_response_tokens():
     from app.settings.form.form_yaml import DiskSource, compile_form
 
     raw = copy.deepcopy(DiskSource().load("stream_elements_commands"))
+    raw["steps"][-1].pop("description-when", None)
     raw["steps"][-1]["description"] = {
         "en-us": "Commands of {response:streamer|nobody}",
         "pt-br": "Comandos de {response:streamer|ninguém}",
@@ -1502,3 +1589,44 @@ def test_a_lookup_answer_belongs_to_the_step_that_looked_it_up():
     assert "stream_elements_commands_count" in produced_keys(
         definition.step("streamer")
     )
+
+
+EMPTY_LINKS_DOC = {
+    **BLOCK_LINKS_DOC,
+    "custom_links": {"style": "composition", "values": []},
+}
+
+
+def test_a_list_with_no_items_has_no_edit_of_its_own():
+    """Broke as: the Edit of an empty list built a dropdown with no option and
+    Discord refused the message (50035 Invalid Form Body)."""
+    drawn, panel = _panel("block_links", EMPTY_LINKS_DOC)
+
+    empty = next(
+        group
+        for group in panel.groups
+        if any("Seus Links" in line for line in group.lines)
+    )
+    assert empty.key is None
+    assert "edit" in [b.action for b in drawn.buttons], "the global Edit comes back"
+
+
+def test_an_edit_with_nothing_to_pick_redraws_the_panel():
+    definition, decision = start(
+        "block_links", Manage(), context=Context(document=EMPTY_LINKS_DOC)
+    )
+
+    asked = decide(
+        definition,
+        decision.session,
+        evt(ev.EditRequested, target="custom_links"),
+        Context(document=EMPTY_LINKS_DOC),
+    )
+
+    drawn = screen(asked)
+    assert isinstance(drawn.components[0], Panel), "no picker without options"
+    assert not [
+        component
+        for component in drawn.components
+        if isinstance(component, OptionSelect) and not component.options
+    ]

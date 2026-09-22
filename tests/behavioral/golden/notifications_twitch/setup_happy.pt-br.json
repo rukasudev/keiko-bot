@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Texto**: Escolha em qual canal de texto você deseja ser notificado\n:flying_disc: **Streamer**: O nick do streamer na Twitch, com ou sem @. Exemplo: @ninja\n:flying_disc: **Mensagens de Notificação**: Use {streamer} e {stream_link}. Uma mensagem será escolhida aleatoriamente.",
+      "description": "Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Texto**: Onde vou avisar da live.\n:flying_disc: **Streamer**: O nick do streamer na Twitch, com ou sem @.\n:flying_disc: **Mensagens de Notificação**: Até três mensagens, eu sorteio uma a cada live.",
       "fields": [],
       "footer": "• Use o comando `/reportar` para me contar um bug",
       "image": null,
@@ -47,47 +47,177 @@
   },
   {
     "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 4,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
     "components": [
       {
-        "disabled": false,
-        "max": 1,
-        "min": 0,
-        "placeholder": "Selecione um canal...",
-        "type": "channel_select"
+        "children": [
+          {
+            "content": "## 📡 Streamer da Twitch",
+            "type": "text"
+          },
+          {
+            "content": "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live",
+            "type": "text"
+          },
+          {
+            "content": "📺 **Canal de Texto**",
+            "type": "text"
+          },
+          {
+            "content": "> Nada ainda",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher canal",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎮 **Streamer**",
+            "type": "text"
+          },
+          {
+            "content": "> Nada ainda",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher streamer",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagens de Notificação**",
+            "type": "text"
+          },
+          {
+            "content": "```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar mensagens",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
       },
       {
-        "disabled": false,
-        "label": "Confirmar",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancelar",
-        "style": "danger",
-        "type": "button"
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Escolha em qual canal de texto você deseja ser notificado",
-      "fields": [],
-      "footer": "• Utilize o comando /reportar para me contar um bug",
-      "image": null,
-      "thumbnail": "KEIKO_DEFAULT.png",
-      "title": ":tv: Canal de Texto"
-    },
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 5
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 6
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 7,
+    "target": "customize:0"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## 📺 Onde devo enviar as notificações?",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Voltar",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
     "ephemeral": true,
     "kind": "edit",
-    "message": "M1",
-    "seq": 4
+    "message": "M2",
+    "seq": 8
   },
   {
     "actor": "user",
     "kind": "select",
-    "message": "M1",
-    "seq": 5,
+    "message": "M2",
+    "seq": 9,
     "target": "Selecione um canal...",
     "values": [
       "general"
@@ -95,18 +225,111 @@
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 6,
-    "thinking": false
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## 📡 Streamer da Twitch",
+            "type": "text"
+          },
+          {
+            "content": "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live",
+            "type": "text"
+          },
+          {
+            "content": "📺 **Canal de Texto**",
+            "type": "text"
+          },
+          {
+            "content": "> <#100>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher canal",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎮 **Streamer**",
+            "type": "text"
+          },
+          {
+            "content": "> Nada ainda",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher streamer",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagens de Notificação**",
+            "type": "text"
+          },
+          {
+            "content": "```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar mensagens",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 10
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M1",
-    "seq": 7,
-    "target": "continue"
+    "message": "M2",
+    "seq": 11,
+    "target": "customize:1"
   },
   {
     "actor": "bot",
@@ -116,92 +339,140 @@
       "fields": [
         {
           "default": "",
-          "label": "Streamer",
+          "label": "O nick do streamer na Twitch, com ou sem @",
           "max_length": 30,
           "required": true,
           "style": "short"
         }
       ],
-      "title": "Streamer"
+      "title": "🎮 Streamer"
     },
-    "seq": 8
+    "seq": 12
   },
   {
     "actor": "user",
     "fields": {
-      "Streamer": "gaules"
+      "O nick do streamer na Twitch, com ou sem @": "gaules"
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 9
+    "seq": 13
   },
   {
     "actor": "bot",
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 10,
+    "seq": 14,
     "thinking": false
   },
   {
     "actor": "bot",
     "components": [
       {
-        "disabled": false,
-        "label": "Confirmar",
-        "style": "success",
-        "type": "button"
+        "children": [
+          {
+            "content": "## 📡 Streamer da Twitch",
+            "type": "text"
+          },
+          {
+            "content": "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live",
+            "type": "text"
+          },
+          {
+            "content": "📺 **Canal de Texto**",
+            "type": "text"
+          },
+          {
+            "content": "> <#100>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher canal",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎮 **Streamer**",
+            "type": "text"
+          },
+          {
+            "content": "> gaules",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher streamer",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagens de Notificação**",
+            "type": "text"
+          },
+          {
+            "content": "```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar mensagens",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
       },
       {
-        "disabled": false,
-        "label": "Voltar",
-        "style": "secondary",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancelar",
-        "style": "danger",
-        "type": "button"
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
       }
     ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Agora vamos configurar as mensagens de notificação! Leia com atenção as seguintes observações:",
-      "fields": [
-        {
-          "inline": false,
-          "name": "1. Mensagem aleatória",
-          "value": "Sempre que o streamer ficar online, uma das mensagens configuradas será aleatoriamente escolhida"
-        },
-        {
-          "inline": false,
-          "name": "2. Até 3 mensagens",
-          "value": "Você poderá configurar até 3 mensagens de notificação. Caso queira configurar menos de 3, deixe os outros campos em branco"
-        },
-        {
-          "inline": false,
-          "name": "3. Variáveis",
-          "value": "Você pode utilizar as seguintes variáveis em sua mensagem:\n- `{streamer}`: Username do streamer\n- `{stream_link}`: Link da live"
-        }
-      ],
-      "footer": "• Utilize o comando /reportar para me contar um bug",
-      "image": null,
-      "thumbnail": "KEIKO_NERD.png",
-      "title": "📩 Mensagens de Notificação"
-    },
+    "components_v2": true,
     "ephemeral": true,
     "kind": "followup_edit",
-    "message": "M1",
-    "seq": 11
+    "message": "M2",
+    "seq": 15
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M1",
-    "seq": 12,
-    "target": "continue"
+    "message": "M2",
+    "seq": 16,
+    "target": "customize:2"
   },
   {
     "actor": "bot",
@@ -231,9 +502,9 @@
           "style": "paragraph"
         }
       ],
-      "title": "Mensagens de Notificação"
+      "title": "💬 Mensagens de Notificação"
     },
-    "seq": 13
+    "seq": 17
   },
   {
     "actor": "user",
@@ -242,15 +513,115 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 14
+    "seq": 18
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 15,
-    "thinking": false
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## 📡 Streamer da Twitch",
+            "type": "text"
+          },
+          {
+            "content": "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live",
+            "type": "text"
+          },
+          {
+            "content": "📺 **Canal de Texto**",
+            "type": "text"
+          },
+          {
+            "content": "> <#100>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher canal",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎮 **Streamer**",
+            "type": "text"
+          },
+          {
+            "content": "> gaules",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher streamer",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagens de Notificação**",
+            "type": "text"
+          },
+          {
+            "content": "```• {streamer} entrou ao vivo: {stream_link}```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar mensagens",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 19
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 20,
+    "target": "done"
   },
   {
     "actor": "bot",
@@ -277,7 +648,7 @@
           {
             "children": [
               {
-                "content": "### :busts_in_silhouette: Notificações\n**#1**\n:tv: **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• {streamer} entrou ao vivo: {stream_link}```",
+                "content": "### :busts_in_silhouette: Notificações #1\n📺 **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• {streamer} entrou ao vivo: {stream_link}```",
                 "type": "text"
               },
               {
@@ -322,21 +693,15 @@
     ],
     "components_v2": true,
     "ephemeral": true,
-    "kind": "followup_send",
+    "kind": "edit",
     "message": "M2",
-    "seq": 16
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M1",
-    "seq": 17
+    "seq": 21
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 18,
+    "seq": 22,
     "target": "continue"
   },
   {
@@ -344,7 +709,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 19,
+    "seq": 23,
     "thinking": false
   },
   {
@@ -363,12 +728,12 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 20
+    "seq": 24
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M2",
-    "seq": 21
+    "seq": 25
   }
 ]

@@ -18,6 +18,7 @@ steps:
     key: notifications
     parent_key: notifications_twitch
     max: 3
+    edit_by_item: true
     emoji: ":busts_in_silhouette:"
     style: composition
     title:
@@ -30,100 +31,129 @@ steps:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
     steps:
-      - action: channels
-        key: channel
-        emoji: ":tv:"
-        select: true
-        unique: true
-        required: true
-        style: channel
+      - action: configuration_card
+        key: notification
+        required:
+          - channel
+          - streamer
+        defaults:
+          notification_messages:
+            en-us: "@everyone {streamer} is live! {stream_link}"
+            pt-br: "@everyone {streamer} está ao vivo! {stream_link}"
         title:
-          en-us: Text Channel
-          pt-br: Canal de Texto
+          en-us: "Twitch Streamer"
+          pt-br: "Streamer da Twitch"
         description:
-          en-us: Choose which text channel you want to be notified
-          pt-br: Escolha em qual canal de texto você deseja ser notificado
+          en-us: "Choose the channel and the streamer, and I'll let the server know when they go live! The message already comes set, change it if you want.\n\nOne of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link"
+          pt-br: "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live"
         footer:
-          en-us: "• Use the command /report to tell me a bug"
-          pt-br: "• Utilize o comando /reportar para me contar um bug"
-
-      - action: modal
-        key: streamer
-        emoji: "🎮"
-        max_length: 30
-        lowercase: true
-        normalize: handle
-        validation: validate_streamer_name
-        title:
-          en-us: Streamer
-          pt-br: Streamer
-        label:
-          en-us: Streamer
-          pt-br: Streamer
-        description:
-          en-us: "The streamer's Twitch nick, with or without @. Example: @ninja"
-          pt-br: "O nick do streamer na Twitch, com ou sem @. Exemplo: @ninja"
-        placeholder:
-          en-us: "your nick (e.g. @shroud)"
-          pt-br: "seu nick (ex: @shroud)"
-
-      - action: button
-        key: continue_to_messages
-        emoji: "📩"
-        title:
-          en-us: "Notification Messages"
-          pt-br: "Mensagens de Notificação"
-        description:
-          en-us: "Now let's configure the notification messages! Read the following notes carefully:"
-          pt-br: "Agora vamos configurar as mensagens de notificação! Leia com atenção as seguintes observações:"
+          en-us: "• Use the `/report` command to tell me a bug"
+          pt-br: "• Use o comando `/reportar` para me contar um bug"
+        header:
+          title:
+            en-us: "Twitch Streamer"
+            pt-br: "Streamer da Twitch"
+          title-emoji: "📡"
         fields:
-          en-us:
-            - title: "1. Random message"
-              message: "Each time the streamer goes online, one of the configured messages will be randomly chosen"
-            - title: "2. Up to 3 messages"
-              message: "You can configure up to 3 notification messages. If you want to use less than 3, leave the other fields blank"
-            - title: "3. Variables"
-              message: "You can use the following variables in your message:\n- `{streamer}`: Streamer's username\n- `{stream_link}`: Stream link"
-          pt-br:
-            - title: "1. Mensagem aleatória"
-              message: "Sempre que o streamer ficar online, uma das mensagens configuradas será aleatoriamente escolhida"
-            - title: "2. Até 3 mensagens"
-              message: "Você poderá configurar até 3 mensagens de notificação. Caso queira configurar menos de 3, deixe os outros campos em branco"
-            - title: "3. Variáveis"
-              message: "Você pode utilizar as seguintes variáveis em sua mensagem:\n- `{streamer}`: Username do streamer\n- `{stream_link}`: Link da live"
-        footer:
-          en-us: "• Use the command /report to tell me a bug"
-          pt-br: "• Utilize o comando /reportar para me contar um bug"
-
-      - action: modal
-        key: notification_messages
-        emoji: "💬"
-        style: bullet
-        max_length: 100
-        enumerate: true
-        multiline: true
-        title:
-          en-us: Notification Messages
-          pt-br: Mensagens de Notificação
-        description:
-          en-us: "Use {streamer} and {stream_link}. One message will be randomly picked."
-          pt-br: "Use {streamer} e {stream_link}. Uma mensagem será escolhida aleatoriamente."
-        fields:
-          - label:
-              en-us: "Random Message"
-              pt-br: "Mensagem Aleatória"
-            required: true
-            default:
-              en-us: "@everyone {streamer} is live! {stream_link}"
-              pt-br: "@everyone {streamer} está ao vivo! {stream_link}"
-          - label:
-              en-us: "Random Message"
-              pt-br: "Mensagem Aleatória"
-            required: false
-          - label:
-              en-us: "Random Message"
-              pt-br: "Mensagem Aleatória"
-            required: false
+          - key: channel
+            style: channel
+            label:
+              en-us: Text Channel
+              pt-br: Canal de Texto
+            description:
+              en-us: Where I'll announce the live.
+              pt-br: Onde vou avisar da live.
+          - key: streamer
+            label:
+              en-us: Streamer
+              pt-br: Streamer
+            description:
+              en-us: The streamer's Twitch nick, with or without @.
+              pt-br: O nick do streamer na Twitch, com ou sem @.
+          - key: notification_messages
+            style: bullet
+            label:
+              en-us: Notification Messages
+              pt-br: Mensagens de Notificação
+            description:
+              en-us: Up to three messages, I pick one at random each live.
+              pt-br: Até três mensagens, eu sorteio uma a cada live.
+        sections:
+          - key: channel
+            icon: "📺"
+            type: channel-select
+            style: channel
+            label:
+              en-us: "Text Channel"
+              pt-br: "Canal de Texto"
+            state:
+              value: channel
+            customize-label:
+              en-us: "Choose channel"
+              pt-br: "Escolher canal"
+            picker-title:
+              en-us: "Where should I send the notifications?"
+              pt-br: "Onde devo enviar as notificações?"
+          - key: streamer
+            icon: "🎮"
+            type: modal-input
+            label:
+              en-us: "Streamer"
+              pt-br: "Streamer"
+            state:
+              value: streamer
+            customize-label:
+              en-us: "Choose streamer"
+              pt-br: "Escolher streamer"
+            modal:
+              title:
+                en-us: "Streamer"
+                pt-br: "Streamer"
+              validation: validate_streamer_name
+              fields:
+                - key: streamer
+                  max_length: 30
+                  normalize: handle
+                  label:
+                    en-us: "The streamer's Twitch nick, with or without @"
+                    pt-br: "O nick do streamer na Twitch, com ou sem @"
+                  placeholder:
+                    en-us: "your nick (e.g. @shroud)"
+                    pt-br: "seu nick (ex: @shroud)"
+          - key: messages
+            icon: "💬"
+            type: modal-input
+            style: bullet
+            label:
+              en-us: "Notification Messages"
+              pt-br: "Mensagens de Notificação"
+            state:
+              value: notification_messages
+            customize-label:
+              en-us: "Edit messages"
+              pt-br: "Editar mensagens"
+            modal:
+              title:
+                en-us: "Notification Messages"
+                pt-br: "Mensagens de Notificação"
+              fields:
+                - max_length: 100
+                  multiline: true
+                  label:
+                    en-us: "Random Message #1"
+                    pt-br: "Mensagem Aleatória #1"
+                - max_length: 100
+                  multiline: true
+                  required: false
+                  label:
+                    en-us: "Random Message #2"
+                    pt-br: "Mensagem Aleatória #2"
+                - max_length: 100
+                  multiline: true
+                  required: false
+                  label:
+                    en-us: "Random Message #3"
+                    pt-br: "Mensagem Aleatória #3"
 
   - action: resume
     key: confirm

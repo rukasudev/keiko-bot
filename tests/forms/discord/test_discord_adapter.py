@@ -453,10 +453,9 @@ async def test_a_click_that_opens_the_gallery_is_answered_before_the_previews_wa
     drawn = _slow_previews(monkeypatch)
     scenario = await v2().start_command("welcome_messages")
     await asyncio.wait_for(scenario.confirm(), timeout=2)
-    await asyncio.wait_for(scenario.select_option("welcome"), timeout=2)
     before = len(scenario.outputs)
 
-    click = asyncio.create_task(scenario.confirm())
+    click = asyncio.create_task(scenario.click("customize:1"))
     for _ in range(50):
         if click.done() or any(e["kind"] == "defer" for e in scenario.outputs[before:]):
             break
@@ -487,8 +486,9 @@ async def test_a_click_that_does_not_show_the_gallery_never_waits_for_previews(
     scenario = await v2().start_command("welcome_messages")
 
     await asyncio.wait_for(scenario.confirm(), timeout=1)
+    await asyncio.wait_for(scenario.click("customize:0"), timeout=1)
 
-    assert _session_of(scenario).cursor == "welcome_messages_channel"
+    assert _session_of(scenario).cursor == "welcome_config"
 
 
 # ------------------------------------------------------------------ lifecycle
@@ -589,8 +589,9 @@ async def test_a_modal_that_needs_a_lookup_is_answered_before_the_lookup_runs(
     deps.twitch.add_user("gaules", user_id="111")
     scenario = await v2().start_command("notifications_twitch")
     await scenario.confirm()
+    await scenario.click("customize:0")
     await scenario.select_option("general")
-    await scenario.confirm()
+    await scenario.click("customize:1")
     before = len(scenario.outputs)
     field = scenario.pending_modal_fields()[0]
     submit = asyncio.ensure_future(scenario.submit_modal({field: "gaules"}))
@@ -655,3 +656,22 @@ async def test_confirming_a_card_review_replaces_it_with_the_enabled_message(v2,
 
     assert not scenario.current_message.flags.components_v2
     assert scenario.current_message.embeds
+
+
+async def test_the_design_picker_opened_from_the_welcome_panel_shows_previews(
+    v2, deps, monkeypatch
+):
+    """Broke as: previews were drawn only for a setup, so the gallery an edit
+    opened from the panel had no pictures."""
+    _slow_previews(monkeypatch).set()
+    seed_document(deps, "welcome_messages", WELCOME_ENABLED)
+    scenario = await v2().start_command("welcome_messages")
+
+    await scenario.click("section:welcome_config/design")
+
+    galleries = [
+        item
+        for item in locators.walk_items(scenario.current_message.view)
+        if isinstance(item, discord.ui.MediaGallery)
+    ]
+    assert len(galleries) == 3

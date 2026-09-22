@@ -14,166 +14,198 @@ steps:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
 
-  - action: channels
-    key: welcome_messages_channel
-    select: true
-    required: true
-    unique: true
-    style: channel
+  - action: configuration_card
+    key: welcome_config
+    edit_by_field: true
+    required:
+      - welcome_messages_channel
+      - welcome_custom_image
+    defaults:
+      welcome_design: server_blur
+      welcome_messages_title:
+        en-us: "A new member has joined! 🎉"
+        pt-br: "Um novo membro chegou! 🎉"
+      welcome_messages:
+        en-us: "Welcome {user} to {server}!;Look who just arrived! {user};{user} just arrived!"
+        pt-br: "{user} bem-vindo ao {server}!;Olha quem chegou! {user};{user} acabou de chegar!"
+      welcome_messages_footer:
+        en-us: "Have fun!"
+        pt-br: "Divirta-se!"
     title:
-      en-us: Welcome Messages Channel
-      pt-br: Canal de Mensagens de Boas-Vindas
+      en-us: "🎉 Welcome Messages"
+      pt-br: "🎉 Mensagens de Boas-Vindas"
     description:
-      en-us: Choose which channel I should send the welcome messages
-      pt-br: Escolha em qual canal devo enviar as mensagens de boas-vindas
+      en-us: "Choose the channel and I'm ready to welcome new members! The design and the messages already come set, change them if you want.\n\nYou can use these variables in the messages:\n- `{user}`: the new member's mention\n- `{server}`: the server name\n- `{member_count}`: how many members the server has"
+      pt-br: "Escolha o canal e eu já fico pronta para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem"
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
-
-  - action: design_select
-    key: welcome_design
-    required: true
-    title:
-      en-us: "Banner Design"
-      pt-br: "Design do Banner"
-    description:
-      en-us: "Choose your welcome banner style"
-      pt-br: "Escolha o estilo do banner de boas-vindas"
-    footer:
-      en-us: "• Use the `/report` command to tell me a bug"
-      pt-br: "• Use o comando `/reportar` para me contar um bug"
-    designs:
-      - key: server_blur
-        label:
-          en-us: "Server Image"
-          pt-br: "Imagem do Servidor"
-        description:
-          en-us: "Server icon as background with blur effect and your avatar centered"
-          pt-br: "Ícone do servidor de fundo com efeito blur e seu avatar centralizado"
-      - key: custom_blur
-        label:
-          en-us: "Custom with Blur"
-          pt-br: "Personalizada com Blur"
-        description:
-          en-us: "Your custom image as background with blur effect and avatar centered"
-          pt-br: "Sua imagem personalizada de fundo com efeito blur e avatar centralizado"
-      - key: custom_only
-        label:
-          en-us: "Custom Image Only"
-          pt-br: "Apenas Imagem Personalizada"
-        description:
-          en-us: "Your custom image/gif as banner, avatar shown as thumbnail. Like the example below :)"
-          pt-br: "Sua imagem/gif personalizada como banner, avatar como thumbnail. Veja o exemplo abaixo :)"
-
-  - action: file_upload
-    key: welcome_custom_image
-    required: true
-    condition:
-      key: welcome_design
-      not_in:
-        - server_blur
-    modal_title:
-      en-us: "📷 Upload Custom Image"
-      pt-br: "📷 Enviar Imagem Personalizada"
-    title:
-      en-us: "Custom Image"
-      pt-br: "Imagem Personalizada"
-    description:
-      en-us: "Upload your custom banner image"
-      pt-br: "Envie sua imagem personalizada para o banner"
-    footer:
-      en-us: "• Use the `/report` command to tell me a bug"
-      pt-br: "• Use o comando `/reportar` para me contar um bug"
-
-  - action: button
-    key: question_welcome_messages
-    emoji: "🎉"
-    title:
-      en-us: Welcome Messages
-      pt-br: Mensagens de Boas-Vindas
-    description:
-      en-us: "In the next step, you can customize the welcome messages that I will send to new members. Read the following notes carefully:"
-      pt-br: "No próximo passo, você poderá personalizar as mensagens de boas-vindas que enviarei aos novos membros. Leia com atenção as seguintes observações:"
-    footer:
-      en-us: "• Use the `/report` command to tell me a bug"
-      pt-br: "• Use o comando `/reportar` para me contar um bug"
+    header:
+      title:
+        en-us: "Welcome Messages"
+        pt-br: "Mensagens de Boas-Vindas"
+      title-emoji: "🎉"
+      thumbnail: IMAGE_01
     fields:
-      en-us:
-        - title: "1. Title"
-          message: "The title appears at the top of the welcome message embed"
-        - title: "2. Random messages"
-          message: "Whenever a member joins the server, one of the configured messages will be randomly chosen. You can configure up to 3 welcome messages. If you want less than 3, leave the other fields blank"
-        - title: "3. Footer"
-          message: "The footer appears at the bottom of the welcome message embed"
-        - title: "4. Variables"
-          message: "You can use the following variables in your message:\n- `{user}`: User mention\n- `{server}`: Server name\n- `{member_count}`: Number of server members"
-      pt-br:
-        - title: "1. Título"
-          message: "O título aparece no topo do embed da mensagem de boas-vindas"
-        - title: "2. Mensagens aleatórias"
-          message: "Sempre que um membro entrar no servidor, uma das mensagens configuradas será aleatoriamente escolhida. Você poderá configurar até 3 mensagens de boas-vindas. Caso queira menos de 3, deixe os outros campos em branco"
-        - title: "3. Rodapé"
-          message: "O rodapé aparece na parte inferior do embed da mensagem de boas-vindas"
-        - title: "4. Variáveis"
-          message: "Você pode utilizar as seguintes variáveis em sua mensagem:\n- `{user}`: Menção do usuário\n- `{server}`: Nome do servidor\n- `{member_count}`: Quantidade de membros do servidor"
-
-  - action: modal
-    key: welcome_messages
-    style: bullet
-    multiline: true
-    enumerate: true
-    title:
-      en-us: Welcome Messages
-      pt-br: Mensagens de Boas-Vindas
-    description:
-      en-us: "Configure your welcome messages. Use {user}, {server}, {member_count}."
-      pt-br: "Configure suas mensagens de boas-vindas. Use {user}, {server}, {member_count}."
-    footer:
-      en-us: "• Use the `/report` command to tell me a bug"
-      pt-br: "• Use o comando `/reportar` para me contar um bug"
-    fields:
+      - key: welcome_messages_channel
+        style: channel
+        label:
+          en-us: Channel
+          pt-br: Canal
+        description:
+          en-us: Where I'll send the welcome message.
+          pt-br: Onde vou enviar a mensagem de boas-vindas.
+      - key: welcome_design
+        label:
+          en-us: Banner design
+          pt-br: Design do banner
+        description:
+          en-us: The look of the banner I draw for each new member.
+          pt-br: O visual do banner que eu desenho para cada novo membro.
+      - key: welcome_custom_image
+        label:
+          en-us: Custom image
+          pt-br: Imagem personalizada
+        description:
+          en-us: The picture I put on the banner when you pick a custom design.
+          pt-br: A imagem que eu coloco no banner quando você escolhe um design personalizado.
       - key: welcome_messages_title
         label:
           en-us: Title
           pt-br: Título
-        max_length: 50
-        required: true
-        default:
-          en-us: "A new member has joined! 🎉"
-          pt-br: "Um novo membro chegou! 🎉"
-      - label:
-          en-us: "Random Message"
-          pt-br: "Mensagem Aleatória"
-        max_length: 100
-        required: true
-        default:
-          en-us: "Welcome {user} to {server}!"
-          pt-br: "{user} bem-vindo ao {server}!"
-      - label:
-          en-us: "Random Message"
-          pt-br: "Mensagem Aleatória"
-        max_length: 100
-        required: false
-        default:
-          en-us: "Look who just arrived! {user}"
-          pt-br: "Olha quem chegou! {user}"
-      - label:
-          en-us: "Random Message"
-          pt-br: "Mensagem Aleatória"
-        max_length: 100
-        required: false
-        default:
-          en-us: "{user} just arrived!"
-          pt-br: "{user} acabou de chegar!"
+        description:
+          en-us: The title of the welcome message.
+          pt-br: O título da mensagem de boas-vindas.
+      - key: welcome_messages
+        style: bullet
+        label:
+          en-us: Messages
+          pt-br: Mensagens
+        description:
+          en-us: Up to three greetings, I pick one at random each time.
+          pt-br: Até três saudações, eu sorteio uma a cada vez.
       - key: welcome_messages_footer
         label:
           en-us: Footer
           pt-br: Rodapé
-        max_length: 50
-        required: false
-        default:
-          en-us: "Have fun!"
-          pt-br: "Divirta-se!"
+        description:
+          en-us: The small line that closes the message.
+          pt-br: A linha pequena que fecha a mensagem.
+    sections:
+      - key: channel
+        icon: "📺"
+        type: channel-select
+        style: channel
+        label:
+          en-us: "Channel"
+          pt-br: "Canal"
+        state:
+          value: welcome_messages_channel
+        customize-label:
+          en-us: "Choose channel"
+          pt-br: "Escolher canal"
+        picker-title:
+          en-us: "Where should I welcome new members?"
+          pt-br: "Onde devo dar boas-vindas aos novos membros?"
+      - key: design
+        icon: "🎨"
+        type: design-select
+        label:
+          en-us: "Banner design"
+          pt-br: "Design do banner"
+        state:
+          value: welcome_design
+        customize-label:
+          en-us: "Choose design"
+          pt-br: "Escolher design"
+        designs:
+          - key: server_blur
+            label:
+              en-us: "Server Image"
+              pt-br: "Imagem do Servidor"
+            description:
+              en-us: "Server icon as background with blur effect and your avatar centered"
+              pt-br: "Ícone do servidor de fundo com efeito blur e seu avatar centralizado"
+          - key: custom_blur
+            label:
+              en-us: "Custom with Blur"
+              pt-br: "Personalizada com Blur"
+            description:
+              en-us: "Your custom image as background with blur effect and avatar centered"
+              pt-br: "Sua imagem personalizada de fundo com efeito blur e avatar centralizado"
+          - key: custom_only
+            label:
+              en-us: "Custom Image Only"
+              pt-br: "Apenas Imagem Personalizada"
+            description:
+              en-us: "Your custom image/gif as banner, avatar shown as thumbnail. Like the example below :)"
+              pt-br: "Sua imagem/gif personalizada como banner, avatar como thumbnail. Veja o exemplo abaixo :)"
+      - key: image
+        icon: "🖼️"
+        type: file-upload
+        label:
+          en-us: "Custom image"
+          pt-br: "Imagem personalizada"
+        state:
+          url: welcome_custom_image
+        visible-when:
+          key: welcome_design
+          not_in:
+            - server_blur
+        customize-label:
+          en-us: "Upload image"
+          pt-br: "Enviar imagem"
+        modal:
+          title:
+            en-us: "📷 Upload Custom Image"
+            pt-br: "📷 Enviar Imagem Personalizada"
+      - key: messages
+        icon: "💬"
+        type: modal-input
+        style: bullet
+        label:
+          en-us: "Messages"
+          pt-br: "Mensagens"
+        state:
+          value: welcome_messages
+        customize-label:
+          en-us: "Edit messages"
+          pt-br: "Editar mensagens"
+        modal:
+          title:
+            en-us: "Welcome Messages"
+            pt-br: "Mensagens de Boas-Vindas"
+          fields:
+            - key: welcome_messages_title
+              multiline: true
+              max_length: 50
+              label:
+                en-us: Title
+                pt-br: Título
+            - max_length: 100
+              multiline: true
+              label:
+                en-us: "Random Message #1"
+                pt-br: "Mensagem Aleatória #1"
+            - max_length: 100
+              multiline: true
+              required: false
+              label:
+                en-us: "Random Message #2"
+                pt-br: "Mensagem Aleatória #2"
+            - max_length: 100
+              multiline: true
+              required: false
+              label:
+                en-us: "Random Message #3"
+                pt-br: "Mensagem Aleatória #3"
+            - key: welcome_messages_footer
+              multiline: true
+              max_length: 50
+              required: false
+              label:
+                en-us: Footer
+                pt-br: Rodapé
 
   - action: resume
     key: confirm
@@ -182,8 +214,8 @@ steps:
       en-us: ":white_check_mark: Alright?"
       pt-br: ":white_check_mark: Tudo certo?"
     description:
-      en-us: Enabling this feature allows me to send a personalized welcome message to new members when they join your server
-      pt-br: Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor
+      en-us: "This is how I'll welcome new members. Use **Preview** to see the message before saving!"
+      pt-br: "É assim que vou dar boas-vindas aos novos membros. Use **Pré-visualizar** para ver a mensagem antes de salvar!"
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"

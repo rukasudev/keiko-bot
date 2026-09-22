@@ -32,7 +32,22 @@
           {
             "children": [
               {
-                "content": "👥 **Cargos para Membros:** <@&202>\n🤖 **Cargos para Bots:** <@&201>",
+                "content": "👥 **Cargos para Membros:** <@&202>",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "🤖 **Cargos para Bots:** <@&201>",
                 "type": "text"
               },
               {
@@ -98,7 +113,7 @@
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "target": "section:default_roles_config"
+    "target": "section:default_roles_config/default_roles"
   },
   {
     "actor": "bot",
@@ -115,26 +130,13 @@
         "disabled": false,
         "max": 25,
         "min": 1,
-        "placeholder": "Cargos para Bots...",
-        "type": "role_select"
-      },
-      {
-        "disabled": false,
-        "max": 25,
-        "min": 1,
         "placeholder": "Cargos para Membros...",
         "type": "role_select"
       },
       {
         "disabled": false,
-        "label": "Confirmar",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancelar",
-        "style": "danger",
+        "label": "Voltar",
+        "style": "secondary",
         "type": "button"
       }
     ],
@@ -171,25 +173,10 @@
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 8,
-    "thinking": false
-  },
-  {
-    "actor": "user",
-    "kind": "click",
-    "message": "M2",
-    "seq": 9,
-    "target": "continue"
-  },
-  {
-    "actor": "bot",
     "ephemeral": true,
     "kind": "defer",
     "message": null,
-    "seq": 10,
+    "seq": 8,
     "thinking": true
   },
   {
@@ -208,12 +195,12 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 11
+    "seq": 9
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M2",
-    "seq": 12
+    "seq": 10
   }
 ]

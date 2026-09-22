@@ -1,10 +1,9 @@
-"""Welcome messages: channel pick, design gallery (Components V2), optional
-custom image upload, an info screen, a five-field modal and a review with
-Preview.
+"""Welcome messages: one card (channel, banner design, custom image, messages)
+and a review with Preview.
 
 The banner renderer is the one boundary faked here: previews come from an
-async stub returning a fixed URL, so the gallery renders as in production.
-Every step has its own Edit beside its settings on the panel.
+async stub returning a fixed URL, so the design gallery opened from the card
+renders as in production. Every card line has its own Edit on the panel.
 """
 
 from types import SimpleNamespace
@@ -56,16 +55,16 @@ def _dump_channel(deps):
     deps.bot.get_channel = lambda _channel_id: SimpleNamespace(send=send)
 
 
-async def _to_design_gallery(scenario_factory, locale):
+async def _to_card(scenario_factory, locale):
     scenario = await scenario_factory(locale=locale).start_command(FORM)
     await scenario.confirm()
+    await scenario.click("customize:0")
     await scenario.select_option("welcome")
-    await scenario.confirm()
     return scenario
 
 
-async def _messages_to_review(scenario, locale):
-    await scenario.confirm()
+async def _messages(scenario, locale):
+    await scenario.click("customize:3")
     await scenario.submit_modal(
         {
             TITLE_FIELD[locale]: "Bem-vindo, {user}!",
@@ -77,9 +76,9 @@ async def _messages_to_review(scenario, locale):
 @golden_path(FORM, "setup_happy", locales=("pt-br", "en-us"))
 async def setup_happy(scenario_factory, deps, locale):
     with _banner_stub():
-        scenario = await _to_design_gallery(scenario_factory, locale)
-        await scenario.click("design:server_blur")
-        await _messages_to_review(scenario, locale)
+        scenario = await _to_card(scenario_factory, locale)
+        await _messages(scenario, locale)
+        await scenario.click("done")
         await scenario.confirm()
         return scenario
 
@@ -88,12 +87,15 @@ async def setup_happy(scenario_factory, deps, locale):
 async def setup_custom_image(scenario_factory, deps, locale):
     _dump_channel(deps)
     with _banner_stub():
-        scenario = await _to_design_gallery(scenario_factory, locale)
+        scenario = await _to_card(scenario_factory, locale)
+        await scenario.click("customize:1")
         await scenario.click("design:custom_only")
+        await scenario.click("customize:2")
         await scenario.submit_file_upload(
             filename="custom-banner.png", content=b"\x89PNG-fake"
         )
-        await _messages_to_review(scenario, locale)
+        await _messages(scenario, locale)
+        await scenario.click("done")
         await scenario.confirm()
         return scenario
 
@@ -101,10 +103,12 @@ async def setup_custom_image(scenario_factory, deps, locale):
 @golden_path(FORM, "setup_back")
 async def setup_back(scenario_factory, deps, locale):
     with _banner_stub():
-        scenario = await _to_design_gallery(scenario_factory, locale)
+        scenario = await _to_card(scenario_factory, locale)
+        await scenario.click("customize:1")
         await scenario.go_back()
+        await scenario.click("customize:0")
         await scenario.select_option("announcements")
-        await scenario.confirm()
+        await scenario.click("done")
         return scenario
 
 
@@ -136,9 +140,8 @@ async def manager_edit_one_step(scenario_factory, deps, locale):
             FORM,
             lambda d: seed_document(d, FORM, ENABLED),
         )
-        await scenario.click("section:welcome_messages_channel")
+        await scenario.click("section:welcome_config/channel")
         await scenario.select_option("announcements")
-        await scenario.confirm()
         return scenario
 
 

@@ -559,6 +559,7 @@ def _modal_screen(
                 default,
                 field.required,
                 field.max_length or 40,
+                field.multiline,
             )
         )
     return Screen(

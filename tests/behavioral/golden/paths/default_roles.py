@@ -58,9 +58,8 @@ async def manager_edit_one_step(scenario_factory, deps, locale):
     scenario = await open_manager(
         scenario_factory, deps, locale, FORM, lambda d: seed_document(d, FORM, ENABLED)
     )
-    await scenario.click("section:default_roles_config")
+    await scenario.click("section:default_roles_config/default_roles")
     await scenario.select_option("Admin", target="default_roles")
-    await scenario.confirm()
     return scenario
 
 

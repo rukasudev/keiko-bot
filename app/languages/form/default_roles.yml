@@ -16,6 +16,7 @@ steps:
 
   - action: multi_select
     key: default_roles_config
+    edit_by_field: true
     required: true
     title:
       en-us: Default Roles
