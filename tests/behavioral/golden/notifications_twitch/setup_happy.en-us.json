@@ -140,6 +140,12 @@
           },
           {
             "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Cancel",
             "style": "danger",
             "type": "button"
@@ -310,6 +316,12 @@
           },
           {
             "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Cancel",
             "style": "danger",
             "type": "button"
@@ -372,12 +384,21 @@
       {
         "children": [
           {
-            "content": "## 📡 Twitch Streamer",
-            "type": "text"
-          },
-          {
-            "content": "Choose the channel and the streamer, and I'll let the server know when they go live! The message already comes set, change it if you want.\n\nOne of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link",
-            "type": "text"
+            "children": [
+              {
+                "content": "## 📡 Twitch Streamer",
+                "type": "text"
+              },
+              {
+                "content": "Choose the channel and the streamer, and I'll let the server know when they go live! The message already comes set, change it if you want.\n\nOne of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link",
+                "type": "text"
+              },
+              {
+                "media": "gaules.jpg",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
           },
           {
             "content": "📺 **Text Channel**",
@@ -453,6 +474,12 @@
           },
           {
             "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Cancel",
             "style": "danger",
             "type": "button"
@@ -521,12 +548,21 @@
       {
         "children": [
           {
-            "content": "## 📡 Twitch Streamer",
-            "type": "text"
-          },
-          {
-            "content": "Choose the channel and the streamer, and I'll let the server know when they go live! The message already comes set, change it if you want.\n\nOne of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link",
-            "type": "text"
+            "children": [
+              {
+                "content": "## 📡 Twitch Streamer",
+                "type": "text"
+              },
+              {
+                "content": "Choose the channel and the streamer, and I'll let the server know when they go live! The message already comes set, change it if you want.\n\nOne of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link",
+                "type": "text"
+              },
+              {
+                "media": "gaules.jpg",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
           },
           {
             "content": "📺 **Text Channel**",
@@ -602,6 +638,12 @@
           },
           {
             "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Cancel",
             "style": "danger",
             "type": "button"
@@ -672,6 +714,12 @@
           {
             "disabled": false,
             "label": "Add",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Preview",
             "style": "secondary",
             "type": "button"
           },

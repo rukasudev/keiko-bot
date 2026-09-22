@@ -140,6 +140,12 @@
           },
           {
             "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Cancelar",
             "style": "danger",
             "type": "button"
@@ -310,6 +316,12 @@
           },
           {
             "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Cancelar",
             "style": "danger",
             "type": "button"
@@ -433,12 +445,21 @@
       {
         "children": [
           {
-            "content": "## 📡 Streamer da Twitch",
-            "type": "text"
-          },
-          {
-            "content": "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live",
-            "type": "text"
+            "children": [
+              {
+                "content": "## 📡 Streamer da Twitch",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live",
+                "type": "text"
+              },
+              {
+                "media": "gaules.jpg",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
           },
           {
             "content": "📺 **Canal de Texto**",
@@ -510,6 +531,12 @@
             "disabled": false,
             "label": "Avançar",
             "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {

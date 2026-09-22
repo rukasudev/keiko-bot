@@ -64,7 +64,7 @@ async def _to_card(scenario_factory, locale):
 
 
 async def _messages(scenario, locale):
-    await scenario.click("customize:3")
+    await scenario.click("customize:1")
     await scenario.submit_modal(
         {
             TITLE_FIELD[locale]: "Bem-vindo, {user}!",
@@ -88,9 +88,9 @@ async def setup_custom_image(scenario_factory, deps, locale):
     _dump_channel(deps)
     with _banner_stub():
         scenario = await _to_card(scenario_factory, locale)
-        await scenario.click("customize:1")
-        await scenario.click("design:custom_only")
         await scenario.click("customize:2")
+        await scenario.click("design:custom_only")
+        await scenario.click("customize:3")
         await scenario.submit_file_upload(
             filename="custom-banner.png", content=b"\x89PNG-fake"
         )
@@ -104,7 +104,7 @@ async def setup_custom_image(scenario_factory, deps, locale):
 async def setup_back(scenario_factory, deps, locale):
     with _banner_stub():
         scenario = await _to_card(scenario_factory, locale)
-        await scenario.click("customize:1")
+        await scenario.click("customize:2")
         await scenario.go_back()
         await scenario.click("customize:0")
         await scenario.select_option("announcements")
