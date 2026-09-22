@@ -26,9 +26,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Configure how I'll celebrate birthdays in this server. You can add the first member now or leave the list for later.\n\n:pencil: **Settings**\n\n:flying_disc: **Channel**: Pick the channel where I'll send birthday reminders.\n:flying_disc: **Timezone**: Choose the timezone used to calculate the notification time.\n:flying_disc: **Notification time**: Choose when I'll send the birthday notification.\n:flying_disc: **Mention @everyone**: Decide whether birthday reminders should mention @everyone.\n:flying_disc: **Default member message**: Customize the default message used when a member has no custom message.",
+      "description": "Configure how I'll celebrate birthdays in this server. You can add the first member now or leave the list for later.\n\n:pencil: **Settings**\n\n:flying_disc: **Channel**: Pick the channel where I'll send birthday reminders.\n:flying_disc: **Timezone**: Choose the timezone used to calculate the notification time.\n:flying_disc: **Notification time**: Choose when I'll send the birthday notification.\n:flying_disc: **Mention @everyone**: Decide whether birthday reminders should mention @everyone.\n:flying_disc: **Default member message**: Customize the default message used when a member has no custom message.\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "🎂 Birthday Reminders"
@@ -156,7 +156,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Happy Birthday {user}!**\n> May your day be full of joy and treats! 🎉🐾",
+            "content": "> **🎂 Happy Birthday {user}!**\n> May your day be full of joy and treats! 🎉✨",
             "type": "text"
           },
           {
@@ -373,7 +373,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Happy Birthday {user}!**\n> May your day be full of joy and treats! 🎉🐾",
+            "content": "> **🎂 Happy Birthday {user}!**\n> May your day be full of joy and treats! 🎉✨",
             "type": "text"
           },
           {
@@ -631,7 +631,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Happy Birthday {user}!**\n> May your day be full of joy and treats! 🎉🐾",
+            "content": "> **🎂 Happy Birthday {user}!**\n> May your day be full of joy and treats! 🎉✨",
             "type": "text"
           },
           {
@@ -885,7 +885,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Happy Birthday {user}!**\n> May your day be full of joy and treats! 🎉🐾",
+            "content": "> **🎂 Happy Birthday {user}!**\n> May your day be full of joy and treats! 🎉✨",
             "type": "text"
           },
           {
@@ -976,9 +976,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Start the list now or leave it for later. Members can also save their own date with `/birthday`.",
+      "description": "Start the list now or leave it for later. Members can also save their own date with `/birthday`.\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "🎂 Add the first birthday?"
@@ -1027,9 +1027,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Pick the first member to add to the server birthday list",
+      "description": "Pick the first member to add to the server birthday list\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "👤 Member"
@@ -1141,7 +1141,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Happy Birthday <@777>!**\n> May your day be full of joy and treats! 🎉🐾",
+            "content": "> **🎂 Happy Birthday <@777>!**\n> May your day be full of joy and treats! 🎉✨",
             "type": "text"
           },
           {
@@ -1413,7 +1413,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Happy Birthday <@777>!**\n> May your day be full of joy and treats! 🎉🐾",
+            "content": "> **🎂 Happy Birthday <@777>!**\n> May your day be full of joy and treats! 🎉✨",
             "type": "text"
           },
           {
@@ -1588,7 +1588,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Happy Birthday <@777>!**\n> May your day be full of joy and treats! 🎉🐾",
+            "content": "> **🎂 Happy Birthday <@777>!**\n> May your day be full of joy and treats! 🎉✨",
             "type": "text"
           },
           {
@@ -1692,7 +1692,7 @@
           {
             "children": [
               {
-                "content": "### 🎂 Reminder Settings\n📺 **Channel:** <#100>\n🌎 **Timezone:** Brazil (UTC-3)\n🕒 **Notification time:** 08:00\n📣 **Mention @everyone:** No\n💬 **Default member message:** Default",
+                "content": "### Reminder Settings\n📺 **Channel:** <#100>\n🌎 **Timezone:** Brazil (UTC-3)\n🕒 **Notification time:** 08:00\n📣 **Mention @everyone:** No\n💬 **Default member message:** Default",
                 "type": "text"
               },
               {
@@ -1707,7 +1707,7 @@
           {
             "children": [
               {
-                "content": "### 🎉 Birthday List\n**#1**\n👤 **Member:** <@777>\n:flying_disc: **Birthday:** May 12",
+                "content": "### Birthday List\n**#1**\n👤 **Member:** <@777>\n:flying_disc: **Birthday:** May 12",
                 "type": "text"
               },
               {
@@ -1783,9 +1783,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Command **moderations birthdays reminders** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/moderations birthdays reminders` or `/setup` 🔄",
+      "description": "Command **moderations birthdays reminders** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/moderations birthdays reminders` or `/setup` 🔄\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
+      "footer": null,
       "image": null,
       "thumbnail": null,
       "title": "🎉 Command enabled successfully!"

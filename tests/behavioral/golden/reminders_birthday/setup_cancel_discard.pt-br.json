@@ -26,9 +26,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Configure como vou comemorar aniversários neste servidor. Você pode cadastrar o primeiro membro agora ou deixar a lista para depois.\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal**: Escolha o canal onde vou enviar os lembretes de aniversário.\n:flying_disc: **Fuso horário**: Escolha o fuso horário usado para calcular o horário da notificação.\n:flying_disc: **Horário da notificação**: Escolha em qual horário vou enviar a notificação de aniversário.\n:flying_disc: **Mencionar @everyone**: Escolha se os lembretes de aniversário devem mencionar @everyone.\n:flying_disc: **Mensagem padrão dos membros**: Personalize a mensagem padrão usada quando um membro não tiver mensagem própria.",
+      "description": "Configure como vou comemorar aniversários neste servidor. Você pode cadastrar o primeiro membro agora ou deixar a lista para depois.\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal**: Escolha o canal onde vou enviar os lembretes de aniversário.\n:flying_disc: **Fuso horário**: Escolha o fuso horário usado para calcular o horário da notificação.\n:flying_disc: **Horário da notificação**: Escolha em qual horário vou enviar a notificação de aniversário.\n:flying_disc: **Mencionar @everyone**: Escolha se os lembretes de aniversário devem mencionar @everyone.\n:flying_disc: **Mensagem padrão dos membros**: Personalize a mensagem padrão usada quando um membro não tiver mensagem própria.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "🎂 Lembretes de Aniversário"
@@ -156,7 +156,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
             "type": "text"
           },
           {
@@ -327,7 +327,7 @@
             "type": "text"
           },
           {
-            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉🐾",
+            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
             "type": "text"
           },
           {

@@ -145,9 +145,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Comando **integrações comandos streamelements** editado as 2026-01-01 12:00:00 UTC por <@555>",
+      "description": "Comando **integrações comandos streamelements** editado as 2026-01-01 12:00:00 UTC por <@555>\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_NERD.png",
       "title": "📝 Comando editado com sucesso!"

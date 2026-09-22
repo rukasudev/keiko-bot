@@ -26,9 +26,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n:pencil: **Settings**\n\n:flying_disc: **Channel**: Where I'll send the welcome message.\n:flying_disc: **Title**: The title of the welcome message.\n:flying_disc: **Messages**: Up to three greetings, I pick one at random each time.\n:flying_disc: **Footer**: The small line that closes the message.\n:flying_disc: **Banner design**: The look of the banner I draw for each new member.\n:flying_disc: **Custom image**: The picture I put on the banner when you pick a custom design.",
+      "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n:pencil: **Settings**\n\n:flying_disc: **Channel**: Where I'll send the welcome message.\n:flying_disc: **Title**: The title of the welcome message.\n:flying_disc: **Messages**: Up to three greetings, I pick one at random each time.\n:flying_disc: **Footer**: The small line that closes the message.\n:flying_disc: **Banner design**: The look of the banner I draw for each new member.\n:flying_disc: **Custom image**: The picture I put on the banner when you pick a custom design.\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "🎉 Welcome Messages"
@@ -120,6 +120,10 @@
           {
             "content": "> Server Image",
             "type": "text"
+          },
+          {
+            "count": 1,
+            "type": "media"
           },
           {
             "children": [
@@ -307,6 +311,10 @@
             "type": "text"
           },
           {
+            "count": 1,
+            "type": "media"
+          },
+          {
             "children": [
               {
                 "disabled": false,
@@ -486,6 +494,10 @@
             "type": "text"
           },
           {
+            "count": 1,
+            "type": "media"
+          },
+          {
             "children": [
               {
                 "disabled": false,
@@ -563,7 +575,7 @@
             "type": "section"
           },
           {
-            "content": "### 🎉 Welcome Messages",
+            "content": "### Welcome Messages",
             "type": "text"
           },
           {
@@ -669,9 +681,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Command **moderations welcome messages** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/moderations welcome messages` or `/setup` 🔄",
+      "description": "Command **moderations welcome messages** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/moderations welcome messages` or `/setup` 🔄\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
+      "footer": null,
       "image": null,
       "thumbnail": null,
       "title": "🎉 Command enabled successfully!"

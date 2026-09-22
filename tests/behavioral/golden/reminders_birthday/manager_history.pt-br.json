@@ -32,7 +32,7 @@
           {
             "children": [
               {
-                "content": "### 🎂 Configuração do Lembrete\n📺 **Canal de aniversário:** <#100>\n📣 **Mencionar @everyone:** Não\n🌎 **Fuso horário:** America/Sao_Paulo\n🕒 **Horário da notificação:** 08:00\n💬 **Mensagem padrão dos membros:** Padrão",
+                "content": "### Configuração do Lembrete\n📺 **Canal de aniversário:** <#100>\n📣 **Mencionar @everyone:** Não\n🌎 **Fuso horário:** America/Sao_Paulo\n🕒 **Horário da notificação:** 08:00\n💬 **Mensagem padrão dos membros:** Padrão",
                 "type": "text"
               },
               {
@@ -47,7 +47,7 @@
           {
             "children": [
               {
-                "content": "### 🎉 Lista de Aniversários\n🎉 **Total de aniversários:** 1\n🎉 **Próximos aniversários:** 1. <@555>: 12 de maio",
+                "content": "### Lista de Aniversários\n🎉 **Total de aniversários:** 1\n🎉 **Próximos aniversários:** 1. <@555>: 12 de maio",
                 "type": "text"
               },
               {

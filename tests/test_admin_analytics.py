@@ -74,7 +74,7 @@ def test_the_churn_screen_refuses_to_read_a_tiny_population_as_a_conclusion():
 
 def test_the_churn_screen_never_claims_a_cause():
     embed = admin_analytics.build_churn_embed()
-    assert "correlation, never cause" in embed.footer.text
+    assert "correlation, never cause" in embed.description
 
 
 def test_the_guild_screen_tells_the_story_in_order():
@@ -188,7 +188,7 @@ def test_the_timing_section_states_what_the_number_is_not():
     assert "My response when blocking" in embed.description, (
         "reports must name the step the user saw, not its YAML key"
     )
-    assert "not attention" in embed.footer.text
+    assert "not attention" in embed.description
 
 
 def test_the_pipeline_screen_reports_what_was_dropped():

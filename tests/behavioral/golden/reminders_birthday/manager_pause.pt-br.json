@@ -32,7 +32,7 @@
           {
             "children": [
               {
-                "content": "### 🎂 Configuração do Lembrete\n📺 **Canal de aniversário:** <#100>\n📣 **Mencionar @everyone:** Não\n🌎 **Fuso horário:** America/Sao_Paulo\n🕒 **Horário da notificação:** 08:00\n💬 **Mensagem padrão dos membros:** Padrão",
+                "content": "### Configuração do Lembrete\n📺 **Canal de aniversário:** <#100>\n📣 **Mencionar @everyone:** Não\n🌎 **Fuso horário:** America/Sao_Paulo\n🕒 **Horário da notificação:** 08:00\n💬 **Mensagem padrão dos membros:** Padrão",
                 "type": "text"
               },
               {
@@ -47,7 +47,7 @@
           {
             "children": [
               {
-                "content": "### 🎉 Lista de Aniversários\n🎉 **Total de aniversários:** 1\n🎉 **Próximos aniversários:** 1. <@555>: 12 de maio",
+                "content": "### Lista de Aniversários\n🎉 **Total de aniversários:** 1\n🎉 **Próximos aniversários:** 1. <@555>: 12 de maio",
                 "type": "text"
               },
               {
@@ -167,9 +167,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Comando **moderações aniversários lembretes** pausado as 2026-01-01 12:00:00 UTC por <@555>",
+      "description": "Comando **moderações aniversários lembretes** pausado as 2026-01-01 12:00:00 UTC por <@555>\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
-      "footer": "• Use o comando `/reportar` para me contar um bug",
+      "footer": null,
       "image": null,
       "thumbnail": null,
       "title": "⏸️ Comando pausado com sucesso!"

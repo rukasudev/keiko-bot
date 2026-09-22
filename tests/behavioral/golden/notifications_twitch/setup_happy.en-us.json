@@ -26,9 +26,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Enabling this feature allows me to notify when your favorite streamer is online on Twitch!\n\n:pencil: **Settings**\n\n:flying_disc: **Text Channel**: Where I'll announce the live.\n:flying_disc: **Streamer**: The streamer's Twitch nick, with or without @.\n:flying_disc: **Notification Messages**: Up to three messages, I pick one at random each live.",
+      "description": "Enabling this feature allows me to notify when your favorite streamer is online on Twitch!\n\n:pencil: **Settings**\n\n:flying_disc: **Text Channel**: Where I'll announce the live.\n:flying_disc: **Streamer**: The streamer's Twitch nick, with or without @.\n:flying_disc: **Notification Messages**: Up to three messages, I pick one at random each live.\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
+      "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
       "title": "🔔 Twitch Notifications"
@@ -690,7 +690,7 @@
           {
             "children": [
               {
-                "content": "### :busts_in_silhouette: Notifications #1\n📺 **Text Channel:** <#100>\n🎮 **Streamer:** gaules\n💬 **Notification Messages:** ```• {streamer} entrou ao vivo: {stream_link}```",
+                "content": "### Notifications #1\n📺 **Text Channel:** <#100>\n🎮 **Streamer:** gaules\n💬 **Notification Messages:** ```• {streamer} entrou ao vivo: {stream_link}```",
                 "type": "text"
               },
               {
@@ -766,9 +766,9 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Command **notifications twitch lives** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/notifications twitch lives` or `/setup` 🔄",
+      "description": "Command **notifications twitch lives** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/notifications twitch lives` or `/setup` 🔄\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
-      "footer": "• Use the `/report` command to tell me a bug",
+      "footer": null,
       "image": null,
       "thumbnail": null,
       "title": "🎉 Command enabled successfully!"
