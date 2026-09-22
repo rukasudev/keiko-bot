@@ -151,6 +151,15 @@ class DescriptionVariant(Node):
     text: Text
 
 
+class PanelGroupRef(Node):
+    """A heading several settings share on the panel and the review."""
+
+    key: str
+    title: Text | None = None
+    title_when: tuple[DescriptionVariant, ...] = ()
+    emoji: str | None = None
+
+
 class Option(Node):
     """One choice of a single-choice step or a card picker."""
 
@@ -207,6 +216,7 @@ class Header(Node):
     title: Text
     title_emoji: str = ""
     thumbnail: str = ""
+    thumbnail_key: str = ""
     lines: tuple[HeaderLine, ...] = ()
 
 
@@ -218,6 +228,8 @@ class CardField(Node):
     description: Text | None = None
     style: ValueStyle | None = None
     hidden: bool = False
+    edit_label: Text | None = None
+    panel_group: PanelGroupRef | None = None
 
 
 class TemplateVar(Node):
@@ -337,6 +349,7 @@ class ModalInputSection(SectionBase):
 
     type: Literal["modal-input"]
     modal: ModalSpec
+    lookup_answers: dict[str, str] = Field(default_factory=dict)
 
 
 class MultiSelectSection(SectionBase):
@@ -400,6 +413,8 @@ class StepBase(Node):
     when: When | None = None
     description_when: tuple[DescriptionVariant, ...] = ()
     style: ValueStyle | None = None
+    edit_label: Text | None = None
+    panel_group: PanelGroupRef | None = None
 
 
 class IntroStep(StepBase):
@@ -493,6 +508,7 @@ class CardStep(StepBase):
     kind: Literal["card"]
     editable: bool = False
     edit_by_field: bool = False
+    preview: bool = False
     required_keys: tuple[str, ...] = ()
     defaults: dict[str, Scalar | Text] = Field(default_factory=dict)
     header: Header | None = None
@@ -928,13 +944,27 @@ def _qualify_scopes(
     produced: list[str] = []
     for step in steps:
         scopes = [*outer, produced]
+        groups = [step.get("panel_group")] + [
+            field.get("panel_group") for field in step.get("fields", []) or []
+        ]
         rules = [step.get("when")] + [
             variant.get("when") for variant in step.get("description_when", [])
+        ]
+        titles = [
+            variant.get("when")
+            for ref in groups
+            if isinstance(ref, Mapping)
+            for variant in ref.get("title_when", []) or []
         ]
 
         for rule in rules:
             for leaf in _raw_leaves(rule):
                 _qualify_leaf(form, step.get("key"), leaf, scopes, warnings)
+        saved = [*outer, produced + _raw_produced_keys(step)]
+
+        for rule in titles:
+            for leaf in _raw_leaves(rule):
+                _qualify_leaf(form, step.get("key"), leaf, saved, warnings)
         if step.get("kind") == "composition":
             _qualify_scopes(form, step.get("steps", []), [*outer, produced], warnings)
         produced.extend(_raw_produced_keys(step))
@@ -1040,6 +1070,14 @@ def _check_leaf(
             )
 
 
+def _panel_group_refs(step: Step) -> list[PanelGroupRef]:
+    """Every panel group a step or one of its card fields declares."""
+    found = [step.panel_group] if step.panel_group else []
+    if isinstance(step, CardStep):
+        found += [field.panel_group for field in step.fields if field.panel_group]
+    return found
+
+
 def _check_scope(
     definition: FormDefinition,
     steps: Sequence[Step],
@@ -1053,6 +1091,11 @@ def _check_scope(
         for variant in step.description_when:
             for leaf in _leaves(variant.when):
                 _check_leaf(definition.key, step.key, leaf, scopes)
+        saved = list(outer) + [(tuple(produced) + produced_keys(step), steps)]
+        for ref in _panel_group_refs(step):
+            for variant in ref.title_when:
+                for leaf in _leaves(variant.when):
+                    _check_leaf(definition.key, step.key, leaf, saved)
         if isinstance(step, CardStep):
             _check_card(definition, step)
         if isinstance(step, CompositionStep):

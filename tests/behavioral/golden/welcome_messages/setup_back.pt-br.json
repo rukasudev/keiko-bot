@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal**: Onde vou enviar a mensagem de boas-vindas.\n:flying_disc: **Design do banner**: O visual do banner que eu desenho para cada novo membro.\n:flying_disc: **Imagem personalizada**: A imagem que eu coloco no banner quando você escolhe um design personalizado.\n:flying_disc: **Título**: O título da mensagem de boas-vindas.\n:flying_disc: **Mensagens**: Até três saudações, eu sorteio uma a cada vez.\n:flying_disc: **Rodapé**: A linha pequena que fecha a mensagem.",
+      "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal**: Onde vou enviar a mensagem de boas-vindas.\n:flying_disc: **Título**: O título da mensagem de boas-vindas.\n:flying_disc: **Mensagens**: Até três saudações, eu sorteio uma a cada vez.\n:flying_disc: **Rodapé**: A linha pequena que fecha a mensagem.\n:flying_disc: **Design do banner**: O visual do banner que eu desenho para cada novo membro.\n:flying_disc: **Imagem personalizada**: A imagem que eu coloco no banner quando você escolhe um design personalizado.",
       "fields": [],
       "footer": "• Use o comando `/reportar` para me contar um bug",
       "image": null,
@@ -95,25 +95,6 @@
             "type": "actionrow"
           },
           {
-            "content": "🎨 **Design do banner**",
-            "type": "text"
-          },
-          {
-            "content": "> Imagem do Servidor",
-            "type": "text"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Escolher design",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "💬 **Mensagens**",
             "type": "text"
           },
@@ -133,6 +114,25 @@
             "type": "actionrow"
           },
           {
+            "content": "🎨 **Design do banner**",
+            "type": "text"
+          },
+          {
+            "content": "> Imagem do Servidor",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher design",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
           }
@@ -145,6 +145,12 @@
             "disabled": false,
             "label": "Avançar",
             "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
@@ -274,25 +280,6 @@
             "type": "actionrow"
           },
           {
-            "content": "🎨 **Design do banner**",
-            "type": "text"
-          },
-          {
-            "content": "> Imagem do Servidor",
-            "type": "text"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Escolher design",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "💬 **Mensagens**",
             "type": "text"
           },
@@ -305,6 +292,25 @@
               {
                 "disabled": false,
                 "label": "Editar mensagens",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎨 **Design do banner**",
+            "type": "text"
+          },
+          {
+            "content": "> Imagem do Servidor",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher design",
                 "style": "secondary",
                 "type": "button"
               }
@@ -328,6 +334,12 @@
           },
           {
             "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Cancelar",
             "style": "danger",
             "type": "button"
@@ -347,7 +359,7 @@
     "kind": "click",
     "message": "M2",
     "seq": 11,
-    "target": "customize:1"
+    "target": "customize:2"
   },
   {
     "actor": "bot",
@@ -497,25 +509,6 @@
             "type": "actionrow"
           },
           {
-            "content": "🎨 **Design do banner**",
-            "type": "text"
-          },
-          {
-            "content": "> Imagem do Servidor",
-            "type": "text"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Escolher design",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "💬 **Mensagens**",
             "type": "text"
           },
@@ -535,6 +528,25 @@
             "type": "actionrow"
           },
           {
+            "content": "🎨 **Design do banner**",
+            "type": "text"
+          },
+          {
+            "content": "> Imagem do Servidor",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher design",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
           }
@@ -547,6 +559,12 @@
             "disabled": false,
             "label": "Avançar",
             "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
@@ -670,25 +688,6 @@
             "type": "actionrow"
           },
           {
-            "content": "🎨 **Design do banner**",
-            "type": "text"
-          },
-          {
-            "content": "> Imagem do Servidor",
-            "type": "text"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Escolher design",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "💬 **Mensagens**",
             "type": "text"
           },
@@ -708,6 +707,25 @@
             "type": "actionrow"
           },
           {
+            "content": "🎨 **Design do banner**",
+            "type": "text"
+          },
+          {
+            "content": "> Imagem do Servidor",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher design",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
           }
@@ -720,6 +738,12 @@
             "disabled": false,
             "label": "Avançar",
             "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
@@ -789,7 +813,7 @@
           {
             "children": [
               {
-                "content": "🎨 **Design do banner:** Imagem do Servidor",
+                "content": "💬 **Mensagens:**\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```\n💬 **Título:** Um novo membro chegou! 🎉\n💬 **Rodapé:** Divirta-se!",
                 "type": "text"
               },
               {
@@ -804,7 +828,7 @@
           {
             "children": [
               {
-                "content": "💬 **Mensagens:**\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```\n💬 **Título:** Um novo membro chegou! 🎉\n💬 **Rodapé:** Divirta-se!",
+                "content": "🎨 **Design do banner:** Imagem do Servidor",
                 "type": "text"
               },
               {

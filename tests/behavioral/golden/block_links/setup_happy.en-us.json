@@ -349,12 +349,27 @@
           {
             "children": [
               {
-                "content": "### 🚦 Link Settings\n🚦 **Blocking mode:** Block all\n🔗 **Allowed popular websites:** None\n💬 **My response when blocking:** No links here! :p",
+                "content": "### 🚦 Link Settings\n🚦 **Blocking mode:** Block all\n💬 **My response when blocking:** No links here! :p",
                 "type": "text"
               },
               {
                 "disabled": false,
                 "label": "Edit",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "🔗 **Allowed popular websites:** None",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Free a famous website",
                 "style": "secondary",
                 "type": "button"
               }

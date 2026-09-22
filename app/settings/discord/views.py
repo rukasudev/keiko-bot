@@ -377,7 +377,7 @@ def _panel_parts(
         layout.row(container, "\n".join(group.lines))
     for index, part in enumerate(group.parts):
         spec = Button(
-            panel.edit_label, f"edit:{group.key}/{part.target}", "secondary", "✏️"
+            part.label or panel.edit_label, f"edit:{part.target}", "secondary", "✏️"
         )
         layout.row(
             container,

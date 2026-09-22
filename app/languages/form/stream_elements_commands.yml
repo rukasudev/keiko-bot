@@ -29,6 +29,7 @@ steps:
     validation: validate_streamer_name
     lookup_answers:
       stream_elements_commands_count: stream_elements.enabled_commands
+      stream_elements_top_commands: stream_elements.top_commands
     title:
       en-us: "Streamer"
       pt-br: "Streamer"
@@ -39,8 +40,8 @@ steps:
       en-us: "Which streamer should I fetch commands from?"
       pt-br: "De qual streamer devo buscar os comandos?"
     placeholder:
-      en-us: "your nick (e.g. @shroud)"
-      pt-br: "seu nick (ex: @shroud)"
+      en-us: "e.g. @shroud"
+      pt-br: "ex: @shroud"
 
   - action: resume
     key: confirm
@@ -48,8 +49,8 @@ steps:
       en-us: ":white_check_mark: All set?"
       pt-br: ":white_check_mark: Tudo certo?"
     description:
-      en-us: "I found **{response:stream_elements_commands_count|0}** active commands in `{response:streamer}`'s StreamElements! Whenever someone uses one with the **ks!** prefix, I'll send the response in chat."
-      pt-br: "Encontrei **{response:stream_elements_commands_count|0}** comandos ativos no StreamElements de `{response:streamer}`! Sempre que alguém usar um deles com o prefixo **ks!**, eu envio a resposta no chat."
+      en-us: "I found **{response:stream_elements_commands_count|0}** active commands in `{response:streamer}`'s StreamElements! Whenever someone uses one with the **ks!** prefix, I'll send the response in chat.\n\nSome of them: {response:stream_elements_top_commands}"
+      pt-br: "Encontrei **{response:stream_elements_commands_count|0}** comandos ativos no StreamElements de `{response:streamer}`! Sempre que alguém usar um deles com o prefixo **ks!**, eu envio a resposta no chat.\n\nAlguns deles: {response:stream_elements_top_commands}"
     description-when:
       - when:
           key: stream_elements_commands_count
@@ -62,6 +63,11 @@ steps:
             max: 0
         en-us: "`{response:streamer}` has no active commands on StreamElements yet. Create one there and I'll send its response in chat whenever someone uses it with the **ks!** prefix."
         pt-br: "`{response:streamer}` ainda não tem comandos ativos no StreamElements. Crie um por lá e eu envio a resposta no chat sempre que alguém usar ele com o prefixo **ks!**."
+      - when:
+          key: stream_elements_top_commands
+          present: false
+        en-us: "I found **{response:stream_elements_commands_count|0}** active commands in `{response:streamer}`'s StreamElements! Whenever someone uses one with the **ks!** prefix, I'll send the response in chat."
+        pt-br: "Encontrei **{response:stream_elements_commands_count|0}** comandos ativos no StreamElements de `{response:streamer}`! Sempre que alguém usar um deles com o prefixo **ks!**, eu envio a resposta no chat."
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"

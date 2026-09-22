@@ -273,11 +273,11 @@ async def test_the_streamer_lookup_is_prefetched_for_the_validator(deps):
 
     feature = feature_for("notifications_twitch")
     context = OpenContext(GUILD_ID, "555", "pt-br")
-    assert await feature.prefetch(Lookup(("twitch",), "gaules"), context) == {
-        "twitch": {"user_id": "111"}
-    }
+    found = await feature.prefetch(Lookup(("twitch",), "gaules"), context)
+    assert found["twitch"]["user_id"] == "111"
+    assert "gaules" in found["twitch"]["profile_image"]
     assert await feature.prefetch(Lookup(("twitch",), "nobody"), context) == {
-        "twitch": {"user_id": None}
+        "twitch": {"user_id": None, "profile_image": ""}
     }
     assert await feature.prefetch(Lookup(("youtube",), "gaules"), context) == {}
 
@@ -329,6 +329,35 @@ async def test_the_birthday_panel_opens_with_its_own_rows(deps):
     assert opened.document["reminders_birthday"]["values"][0]["user"]["value"] == "555"
     assert [row.value for row in opened.rows][:2] == ["100", False]
     assert [b.action for b in opened.extra_buttons] == ["aside:stats"]
+
+
+def test_the_birthday_feature_previews_the_celebration():
+    """The setup and the member card both offer a preview, so the feature has
+    a preview side action like the welcome message does."""
+    assert "preview" in feature_for("reminders_birthday").asides()
+
+
+def test_the_preview_of_an_item_card_reads_the_fields_of_that_item():
+    """Broke as: previewing from a Twitch item card found no message at all and
+    Discord refused an empty message. The card lives inside the composition, so
+    its fields are not produced by any top level step."""
+    feature = feature_for("notifications_twitch")
+    answers = {
+        "notification": Answer(
+            None,
+            {
+                "channel": "100",
+                "streamer": "gaules",
+                "notification_messages": "{streamer} ao vivo!;bora?",
+            },
+        )
+    }
+
+    views = feature.responses_for_preview(answers, "pt-br")
+
+    values = {view["key"]: view.get("_raw_value", view.get("value")) for view in views}
+    assert values.get("streamer") == "gaules"
+    assert "bora?" in str(values.get("notification_messages"))
 
 
 async def test_an_unconfigured_feature_opens_empty(deps):
@@ -423,7 +452,7 @@ def test_the_welcome_card_saves_the_document_the_welcome_service_reads():
         ev.Answered(
             "e2",
             None,
-            "section:3",
+            "section:1",
             {"inputs": ["Oi {user}!", "Bem-vindo {user}", "", "Chegou!", "Divirta-se"]},
         ),
     )
@@ -456,9 +485,9 @@ async def test_the_stream_elements_lookup_counts_enabled_commands(deps, monkeypa
         "get_chat_commands",
         staticmethod(
             lambda channel_id: [
-                {"enabled": True},
-                {"enabled": False},
-                {"enabled": True},
+                {"enabled": True, "command": "mouse"},
+                {"enabled": False, "command": "chair"},
+                {"enabled": True, "command": "setup"},
             ]
         ),
     )
@@ -472,8 +501,42 @@ async def test_the_stream_elements_lookup_counts_enabled_commands(deps, monkeypa
 
     assert found == {
         "twitch": {"user_id": "37402112"},
-        "stream_elements": {"channel_id": "se1", "enabled_commands": 2},
+        "stream_elements": {
+            "channel_id": "se1",
+            "enabled_commands": 2,
+            "top_commands": "`!mouse`, `!setup`",
+        },
     }
+
+
+async def test_the_stream_elements_panel_says_how_many_commands_it_answers(
+    deps, monkeypatch
+):
+    """The panel says how many commands are loaded and offers to list them."""
+    from app.settings.features import stream_elements as stream_elements_feature
+
+    deps.mongo_client.guild["moderations"].insert_one(
+        {"guild_id": GUILD_ID, "stream_elements_commands": True}
+    )
+    deps.mongo_client.guild["stream_elements_commands"].insert_one(
+        {
+            "guild_id": GUILD_ID,
+            "enabled": True,
+            "streamer": "shroud",
+        }
+    )
+    monkeypatch.setattr(
+        stream_elements_feature,
+        "get_commands_in_cache_or_populate",
+        lambda channel_id, user: {"!mouse": "a", "!setup": "b"},
+    )
+
+    opened = await feature_for("stream_elements_commands").open(
+        OpenContext(GUILD_ID, "555", "pt-br")
+    )
+
+    assert "2" in opened.info and "shroud" in opened.info
+    assert [button.action for button in opened.extra_buttons] == ["aside:commands"]
 
 
 async def test_a_stream_elements_outage_leaves_no_count(deps, monkeypatch):

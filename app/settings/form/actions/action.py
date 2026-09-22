@@ -39,6 +39,8 @@ class PanelRow:
     hidden: bool = False
     target: str | None = None
     per_item: bool = False
+    group_declared: bool = False
+    edit_label: str | None = None
 
 
 @dataclass(frozen=True)

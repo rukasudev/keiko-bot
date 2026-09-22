@@ -140,6 +140,12 @@
           },
           {
             "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Cancel",
             "style": "danger",
             "type": "button"
@@ -310,6 +316,12 @@
           },
           {
             "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Cancel",
             "style": "danger",
             "type": "button"
@@ -449,6 +461,12 @@
             "disabled": false,
             "label": "Next",
             "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
             "type": "button"
           },
           {
@@ -602,6 +620,12 @@
           },
           {
             "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Cancel",
             "style": "danger",
             "type": "button"
@@ -672,6 +696,12 @@
           {
             "disabled": false,
             "label": "Add",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Preview",
             "style": "secondary",
             "type": "button"
           },

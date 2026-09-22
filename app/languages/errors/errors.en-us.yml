@@ -60,6 +60,10 @@ en-us:
     title: Selection Required
     message: "Oops! Please pick an option before confirming :)"
 
+  fill-one-field:
+    title: Field Required
+    message: "Oops! Please fill one of the fields before confirming :)"
+
   discard-settings-confirmation:
     title: Cancel Settings?
     message: If you cancel now, I'll close this message and everything we configured so far will be lost. To configure it again, you'll need to start over. Are you sure you want to discard everything?

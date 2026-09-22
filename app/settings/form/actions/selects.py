@@ -115,7 +115,7 @@ def parse(
             answers[select.key] = Answer(_stored(values))
         if step.required and not picked:
             return Refusal(
-                "selection-required",
+                "fill-one-field",
                 plain=True,
                 delete_after=view_constants.ACTION_NOTICE_SECONDS,
             )

@@ -62,6 +62,7 @@ from app.settings.form.form_yaml import (
     IntroStep,
     MultiPickStep,
     MultiSelectSection,
+    PanelGroupRef,
     SingleChoiceStep,
     Step,
     TextStep,
@@ -152,9 +153,12 @@ def _declared_icons(step: Step) -> list[tuple[str | None, str | None]]:
     return declared
 
 
-def groups(steps: Sequence[Step], locale: str) -> dict[str, dict[str, str | None]]:
-    """Row key to the step that owns it, localized."""
+def groups(
+    steps: Sequence[Step], locale: str, scope: Scope | None = None
+) -> dict[str, dict[str, str | None]]:
+    """Row key to the step that owns it, or to the group its YAML declares."""
     found: dict[str, dict[str, str | None]] = {}
+    headings = _declared_headings(steps, locale, scope)
     for step in steps:
         if step.hidden or step.kind in SILENT:
             continue
@@ -172,8 +176,57 @@ def groups(steps: Sequence[Step], locale: str) -> dict[str, dict[str, str | None
         keys += [key for key in produced_keys(step) if key not in keys]
 
         for key in keys:
-            found.setdefault(key, group)
+            found.setdefault(key, _declared_group(step, key, headings) or group)
     return found
+
+
+def _ref_title(ref: PanelGroupRef, locale: str, scope: Scope | None) -> str | None:
+    """The heading a group declares, with its active variant chosen."""
+    title = ref.title
+    for variant in ref.title_when:
+        if scope is not None and evaluate(variant.when, scope):
+            title = variant.text
+            break
+    return title.get(locale) if title else None
+
+
+def _declared_headings(
+    steps: Sequence[Step], locale: str, scope: Scope | None
+) -> dict[str, tuple[str | None, str | None]]:
+    """Group key to its heading and emoji, from every ref that names it."""
+    found: dict[str, tuple[str | None, str | None]] = {}
+    for step in steps:
+        refs = [step.panel_group] if step.panel_group else []
+        if isinstance(step, CardStep):
+            refs += [field.panel_group for field in step.fields if field.panel_group]
+
+        for ref in refs:
+            title, emoji = found.get(ref.key, (None, None))
+            found[ref.key] = (
+                title or _ref_title(ref, locale, scope),
+                emoji or ref.emoji,
+            )
+    return found
+
+
+def _declared_group(
+    step: Step,
+    key: str,
+    headings: Mapping[str, tuple[str | None, str | None]],
+) -> dict[str, str | None] | None:
+    ref = step.panel_group
+    if isinstance(step, CardStep):
+        field = next((one for one in step.fields if one.key == key), None)
+        ref = (field.panel_group if field else None) or ref
+    if ref is None:
+        return None
+    title, emoji = headings.get(ref.key, (None, None))
+    return {
+        "group": ref.key,
+        "group_title": title,
+        "group_icon": emoji,
+        "declared": "1",
+    }
 
 
 def section_gates(steps: Sequence[Step]) -> dict[str, When]:
@@ -191,16 +244,38 @@ def section_gates(steps: Sequence[Step]) -> dict[str, When]:
 
 
 def part_targets(steps: Sequence[Step]) -> dict[str, str]:
-    """Row key to the field an Edit beside it opens, for steps edited by field."""
+    """Row key to the `step/part` an Edit beside it opens, when it has its own."""
     found: dict[str, str] = {}
     for step in steps:
-        if isinstance(step, CardStep) and step.edit_by_field:
+        if isinstance(step, CardStep):
             for section in step.sections:
                 for key in owned_keys(section):
-                    found.setdefault(key, section.key)
+                    if step.edit_by_field or _own_group(step, key):
+                        found.setdefault(key, f"{step.key}/{section.key}")
         if isinstance(step, MultiPickStep) and step.edit_by_field:
             for select in step.selects:
-                found.setdefault(select.key, select.key)
+                found.setdefault(select.key, f"{step.key}/{select.key}")
+    return found
+
+
+def _own_group(step: Step, key: str) -> bool:
+    """True when a card field is listed under a group its card does not own."""
+    if not isinstance(step, CardStep):
+        return False
+    field = next((one for one in step.fields if one.key == key), None)
+    return field is not None and field.panel_group is not None
+
+
+def _edit_labels(steps: Sequence[Step], locale: str) -> dict[str, str]:
+    """Row key to the label of the button that edits it, when it declares one."""
+    found: dict[str, str] = {}
+    for step in steps:
+        if isinstance(step, CardStep):
+            for field in step.fields:
+                if field.edit_label is not None:
+                    found.setdefault(field.key, field.edit_label.get(locale))
+        if step.edit_label is not None:
+            found.setdefault(step.key, step.edit_label.get(locale))
     return found
 
 
@@ -247,8 +322,8 @@ def panel_rows(
     titles = step_titles(steps, locale)
     nested = _nested(steps, locale)
     labels = _labels(steps, locale)
-    icon_by_key, group_by_key = icons(steps), groups(steps, locale)
-    targets = part_targets(steps)
+    icon_by_key = icons(steps)
+    targets, edit_labels = part_targets(steps), _edit_labels(steps, locale)
     gates = section_gates(steps)
     hidden = {
         field.key
@@ -258,6 +333,7 @@ def panel_rows(
         if field.hidden
     }
     values = {key: unwrap(value) for key, value in document.items()}
+    group_by_key = groups(steps, locale, Scope(values))
     rows: list[PanelRow] = []
 
     for key, value in document.items():
@@ -297,8 +373,10 @@ def panel_rows(
                 group_title=group.get("group_title"),
                 group_icon=group.get("group_icon"),
                 hidden=key in hidden,
-                target=targets.get(key),
+                target=targets.get(key) or (key if group.get("declared") else None),
                 per_item=per_item,
+                group_declared=bool(group.get("declared")),
+                edit_label=edit_labels.get(key),
             )
         )
     return tuple(rows)
@@ -351,11 +429,14 @@ def _item_lines(item: Mapping[str, Any], locale: str) -> list[str]:
     return lines
 
 
+def _empty_composition(row: PanelRow) -> bool:
+    """A list with no item has nothing its Edit could open."""
+    return row.style == "composition" and not row.value
+
+
 def _empty_list(members: Sequence[PanelRow]) -> bool:
     """A list block with no item has nothing its Edit could open."""
-    if len(members) != 1 or members[0].style != "composition":
-        return False
-    return not members[0].value
+    return len(members) == 1 and _empty_composition(members[0])
 
 
 def _item_groups(row: PanelRow, icon: str, locale: str) -> list[PanelGroup]:
@@ -444,7 +525,7 @@ def panel_groups(
             result.extend(_item_groups(members[0], icon, locale))
             continue
         values = [(row, *row_value(row, locale)) for row in members]
-        if _empty_list(members):
+        if _empty_list(members) or members[0].group_declared:
             key = None
         several = len(members) > 1 or any(is_block for _, _, is_block in values)
         heading = ""
@@ -452,14 +533,16 @@ def panel_groups(
             heading = f"### {icon} {title}".replace("###  ", "### ")
         lines = [heading] if heading else []
         parts: dict[str, list[str]] = {}
+        part_labels: dict[str, str | None] = {}
         for row, value, is_block in values:
             if heading and len(members) == 1 and row.title == title:
                 lines.append(value)
                 continue
             line = labelled(row.title, value, "\n" if is_block else " ")
             line = f"{row.icon or Emojis.FRISBEE_EMOJI} {line}"
-            if row.target:
+            if row.target and not _empty_composition(row):
                 parts.setdefault(row.target, []).append(line)
+                part_labels.setdefault(row.target, row.edit_label)
             else:
                 lines.append(line)
         result.append(
@@ -467,7 +550,10 @@ def panel_groups(
                 key,
                 heading,
                 tuple(lines),
-                tuple(PanelPart(target, tuple(part)) for target, part in parts.items()),
+                tuple(
+                    PanelPart(target, tuple(part), part_labels.get(target))
+                    for target, part in parts.items()
+                ),
             )
         )
     return tuple(result)
@@ -518,6 +604,39 @@ def intro_step(definition: FormDefinition) -> Step:
     return definition.steps[0]
 
 
+def covers_its_rows(group: PanelGroup) -> bool:
+    """True when every line of the group has a button of its own beside it."""
+    if group.key:
+        return True
+    body = [line for line in group.lines if line != group.heading]
+    return bool(group.parts) and not body
+
+
+def _reaches(target: str, buttons: set[str]) -> bool:
+    if target in buttons or target.split("$", 1)[0] in buttons:
+        return True
+    return any(one.startswith(f"{target}/") for one in buttons)
+
+
+def every_setting_has_a_button(
+    definition: FormDefinition,
+    document: Mapping[str, Any],
+    groups: Sequence[PanelGroup],
+    locale: str,
+) -> bool:
+    """True when nothing the edit picker would list is left without a button."""
+    buttons = {group.key for group in groups if group.key}
+    buttons |= {part.target for group in groups for part in group.parts}
+    return (
+        bool(groups)
+        and all(covers_its_rows(group) for group in groups)
+        and all(
+            _reaches(option.value, buttons)
+            for option in edit_options(definition, document, locale)
+        )
+    )
+
+
 def panel_screen(
     definition: FormDefinition, document: Mapping[str, Any], context: RenderContext
 ) -> Screen:
@@ -534,7 +653,7 @@ def panel_screen(
         else panel_rows(definition, document, locale)
     )
     grouped = panel_groups(rows, title, locale)
-    sections_cover = bool(grouped) and all(group.key for group in grouped)
+    sections_cover = every_setting_has_a_button(definition, document, grouped, locale)
     described = (
         first.manager_description
         if isinstance(first, IntroStep) and first.manager_description

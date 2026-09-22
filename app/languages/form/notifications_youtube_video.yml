@@ -33,6 +33,7 @@ steps:
     steps:
       - action: configuration_card
         key: notification
+        preview: true
         required:
           - channel
           - youtuber
@@ -54,6 +55,7 @@ steps:
             en-us: "YouTube Channel"
             pt-br: "Canal do YouTube"
           title-emoji: "▶️"
+          thumbnail_key: youtuber_avatar
         fields:
           - key: channel
             style: channel
@@ -102,6 +104,8 @@ steps:
               pt-br: "Youtuber"
             state:
               value: youtuber
+            lookup_answers:
+              youtuber_avatar: youtube.profile_image
             customize-label:
               en-us: "Choose youtuber"
               pt-br: "Escolher youtuber"
@@ -118,8 +122,8 @@ steps:
                     en-us: "The channel's @ on YouTube"
                     pt-br: "O @ do canal no YouTube"
                   placeholder:
-                    en-us: "your channel (e.g. @pewdiepie)"
-                    pt-br: "seu canal (ex: @pewdiepie)"
+                    en-us: "e.g. @pewdiepie"
+                    pt-br: "ex: @pewdiepie"
           - key: messages
             icon: "💬"
             type: modal-input
@@ -157,6 +161,7 @@ steps:
 
   - action: resume
     key: confirm
+    preview: true
     title:
       en-us: ":white_check_mark: Alright?"
       pt-br: ":white_check_mark: Tudo certo?"

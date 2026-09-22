@@ -128,7 +128,7 @@ async def test_the_welcome_card_and_its_gallery_are_within_discord_limits(
 ):
     scenario = await scenario_factory(locale="pt-br").start("welcome_messages")
     await scenario.confirm()
-    await scenario.click("customize:1")
+    await scenario.click("customize:2")
     _assert_within_limits(scenario.current_message.view, "welcome gallery")
     await scenario.click("design:custom_only")
     _assert_within_limits(scenario.current_message.view, "welcome card, custom design")

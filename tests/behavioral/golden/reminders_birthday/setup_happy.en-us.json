@@ -1187,6 +1187,12 @@
           },
           {
             "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Back",
             "style": "secondary",
             "type": "button"
@@ -1453,6 +1459,12 @@
           },
           {
             "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Back",
             "style": "secondary",
             "type": "button"
@@ -1622,6 +1634,12 @@
           },
           {
             "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Back",
             "style": "secondary",
             "type": "button"
@@ -1713,6 +1731,12 @@
           {
             "disabled": false,
             "label": "Add",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Preview",
             "style": "secondary",
             "type": "button"
           },

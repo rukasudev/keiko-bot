@@ -1,0 +1,22 @@
+steps:
+  - action: form
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - action: options
+    key: mode
+    emoji: "🚦"
+    panel_group:
+      key: settings
+      title: {en-us: Settings, pt-br: Ajustes}
+      title_when:
+        - when: {key: nao_existe, not_in: [block_all]}
+          text: {en-us: Other, pt-br: Outro}
+    title: {en-us: Mode, pt-br: Modo}
+    description: {en-us: mode, pt-br: modo}
+    options:
+      - {label: {en-us: All, pt-br: Todos}, value: block_all}
+  - action: resume
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

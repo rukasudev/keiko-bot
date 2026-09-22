@@ -224,8 +224,13 @@ class MockMessage:
         self._delete = AsyncMock()
         self._edit = AsyncMock()
         self._reply = AsyncMock()
+        self.reactions = []
         if self.guild is None and self.channel:
             self.guild = self.channel.guild
+
+    async def add_reaction(self, emoji):
+        """Records the reaction the bot put on the message."""
+        self.reactions.append(str(emoji))
 
     async def delete(self, *, delay=None):
         await self._delete(delay=delay)

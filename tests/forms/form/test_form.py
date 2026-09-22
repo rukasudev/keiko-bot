@@ -530,7 +530,12 @@ def test_a_composition_opens_a_child_and_its_result_lands_on_the_review():
     assert back.session.cursor == "confirm"
     assert len(back.session.answers["notifications"].raw) == 1
     review = screen(back)
-    assert [b.action for b in review.buttons] == ["add", "confirm", "cancel"]
+    assert [b.action for b in review.buttons] == [
+        "add",
+        "aside:preview",
+        "confirm",
+        "cancel",
+    ]
     lines = [line for group in review.components[0].groups for line in group.lines]
     assert any("gaules" in line for line in lines)
 
@@ -556,6 +561,7 @@ def test_the_review_removes_items_by_index_and_offers_remove_only_with_two():
     assert [b.action for b in screen(two).buttons] == [
         "add",
         "remove",
+        "aside:preview",
         "confirm",
         "cancel",
     ]
@@ -609,7 +615,7 @@ def test_the_manager_renders_the_panel_with_grouped_settings():
     assert [g.key for g in panel.groups] == [
         "link_settings",
         "permissions",
-        "custom_links",
+        None,
     ]
     assert "**Modo de bloqueio:** Bloquear todos" in panel.groups[0].lines[1]
     assert [b.action for b in screen(decision).buttons] == [
@@ -619,6 +625,26 @@ def test_the_manager_renders_the_panel_with_grouped_settings():
         "remove",
         "aside:history",
         "aside:help",
+    ]
+
+
+def test_settings_of_different_steps_group_under_one_declared_heading():
+    """The popular websites live on the card and the custom links are a list of
+    their own: on the panel they read as one group, each with its own button."""
+    definition, decision = start(
+        "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
+    )
+    panel = screen(decision).components[0]
+    group = next(g for g in panel.groups if "Exceções" in g.heading)
+
+    assert group.key is None
+    assert [part.target for part in group.parts] == [
+        "link_settings/allowed_links",
+        "custom_links",
+    ]
+    assert [part.label for part in group.parts] == [
+        "Liberar site famoso",
+        "Liberar links específicos",
     ]
 
 
@@ -767,20 +793,20 @@ def test_the_gallery_and_the_file_upload_follow_the_design():
     gallery = decide(
         definition,
         at_card.session,
-        evt(ev.SectionOpened, step_key="welcome_config", index=1),
+        evt(ev.SectionOpened, step_key="welcome_config", index=2),
     )
     assert isinstance(screen(gallery).components[0], Gallery)
 
     custom = decide(
         definition,
         gallery.session,
-        evt(ev.Answered, step_key="section:1", payload="custom_only"),
+        evt(ev.Answered, step_key="section:2", payload="custom_only"),
     )
     assert "image" in [section.key for section in screen(custom).components[0].sections]
     server = decide(
         definition,
         gallery.session,
-        evt(ev.Answered, step_key="section:1", payload="server_blur"),
+        evt(ev.Answered, step_key="section:2", payload="server_blur"),
     )
     shown = [section.key for section in screen(server).components[0].sections]
     assert "image" not in shown
@@ -850,7 +876,7 @@ def test_a_required_multi_select_refuses_confirm_when_every_select_is_empty():
         definition, step.session, evt(ev.Answered, step_key="default_roles_config")
     )
     assert kinds(empty) == ["ShowError"]
-    assert empty.effects[0].key == "selection-required"
+    assert empty.effects[0].key == "fill-one-field"
     assert empty.session.cursor == "default_roles_config"
     drafted = decide(
         definition,
@@ -1205,7 +1231,11 @@ def test_every_visible_step_is_a_panel_group_with_its_own_edit():
     drawn, panel = _panel("welcome_messages", ENABLED)
     [group] = panel.groups
     assert group.key == "welcome_config"
-    assert [part.target for part in group.parts] == ["channel", "design", "messages"]
+    assert [part.target for part in group.parts] == [
+        "welcome_config/channel",
+        "welcome_config/design",
+        "welcome_config/messages",
+    ]
     assert "edit" not in [b.action for b in drawn.buttons]
 
 
@@ -1479,7 +1509,12 @@ def test_the_review_is_a_card_with_the_panel_groups_and_its_buttons_below():
     assert isinstance(panel, Panel)
     lines = [line for group in panel.groups for line in group.lines]
     assert any("gaules" in line for line in lines)
-    assert [b.action for b in review.buttons] == ["add", "confirm", "cancel"]
+    assert [b.action for b in review.buttons] == [
+        "add",
+        "aside:preview",
+        "confirm",
+        "cancel",
+    ]
 
 
 def test_the_review_description_resolves_response_tokens():
@@ -1543,12 +1578,14 @@ def _stream_elements_counting():
     raw = copy.deepcopy(DiskSource().load("stream_elements_commands"))
     modal = next(step for step in raw["steps"] if step.get("key") == "streamer")
     modal["lookup_answers"] = {
-        "stream_elements_commands_count": "stream_elements.enabled_commands"
+        "stream_elements_commands_count": "stream_elements.enabled_commands",
+        "stream_elements_top_commands": "stream_elements.top_commands",
     }
     raw["steps"][-1]["description"] = {
         "en-us": "{response:stream_elements_commands_count|0} commands",
         "pt-br": "{response:stream_elements_commands_count|0} comandos",
     }
+    raw["steps"][-1].pop("description-when", None)
     return compile_form("stream_elements_commands", raw)
 
 
@@ -1577,6 +1614,26 @@ def test_a_lookup_answer_is_kept_hidden_and_never_saved():
     assert "stream_elements_commands_count" not in saved
     groups = screen(reviewed).components[0].groups
     assert not any("12" in line for group in groups for line in group.lines)
+
+
+def test_the_review_names_the_first_commands_the_lookup_found():
+    """Besides the count, the review names some of the commands that will load."""
+    definition, decision = start("stream_elements_commands")
+    context = Context(
+        external={
+            "twitch": {"user_id": "1"},
+            "stream_elements": {
+                "enabled_commands": 12,
+                "top_commands": "`!mouse`, `!setup`",
+            },
+        }
+    )
+    typed = evt(ev.Answered, step_key="streamer", payload={"inputs": ["shroud"]})
+
+    reviewed = decide(definition, decision.session.at("streamer"), typed, context)
+
+    intro = screen(reviewed).components[0].intro
+    assert "12" in intro and "`!mouse`, `!setup`" in intro
 
 
 def test_a_lookup_answer_belongs_to_the_step_that_looked_it_up():

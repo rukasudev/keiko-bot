@@ -33,6 +33,7 @@ steps:
     steps:
       - action: configuration_card
         key: notification
+        preview: true
         required:
           - channel
           - streamer
@@ -54,6 +55,7 @@ steps:
             en-us: "Twitch Streamer"
             pt-br: "Streamer da Twitch"
           title-emoji: "📡"
+          thumbnail_key: streamer_avatar
         fields:
           - key: channel
             style: channel
@@ -102,6 +104,8 @@ steps:
               pt-br: "Streamer"
             state:
               value: streamer
+            lookup_answers:
+              streamer_avatar: twitch.profile_image
             customize-label:
               en-us: "Choose streamer"
               pt-br: "Escolher streamer"
@@ -118,8 +122,8 @@ steps:
                     en-us: "The streamer's Twitch nick, with or without @"
                     pt-br: "O nick do streamer na Twitch, com ou sem @"
                   placeholder:
-                    en-us: "your nick (e.g. @shroud)"
-                    pt-br: "seu nick (ex: @shroud)"
+                    en-us: "e.g. @shroud"
+                    pt-br: "ex: @shroud"
           - key: messages
             icon: "💬"
             type: modal-input
@@ -157,6 +161,7 @@ steps:
 
   - action: resume
     key: confirm
+    preview: true
     title:
       en-us: ":white_check_mark: Alright?"
       pt-br: ":white_check_mark: Tudo certo?"

@@ -22,8 +22,8 @@ steps:
       en-us: Default Roles
       pt-br: Cargos Padrão
     description:
-      en-us: "Choose the roles I'll give automatically:\n\n1. **Roles for bots**: when a bot joins the server\n2. **Roles for members**: when a person joins the server\n\nYou can leave one of them empty, just not both! 🐶"
-      pt-br: "Escolha os cargos que eu vou dar automaticamente:\n\n1. **Cargos para bots**: quando um bot entrar no servidor\n2. **Cargos para membros**: quando uma pessoa entrar no servidor\n\nPode deixar um dos dois vazio, só não os dois! 🐶"
+      en-us: "Choose the roles I'll give automatically:\n\n1. **Roles for bots**: when a bot joins the server\n2. **Roles for members**: when a person joins the server"
+      pt-br: "Escolha os cargos que eu vou dar automaticamente:\n\n1. **Cargos para bots**: quando um bot entrar no servidor\n2. **Cargos para membros**: quando uma pessoa entrar no servidor"
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"

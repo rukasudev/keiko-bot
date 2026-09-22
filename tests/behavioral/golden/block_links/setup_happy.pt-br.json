@@ -349,12 +349,27 @@
           {
             "children": [
               {
-                "content": "### 🚦 Configuração de Links\n🚦 **Modo de bloqueio:** Bloquear todos\n🔗 **Sites populares permitidos:** Nada ainda\n💬 **Minha resposta ao bloquear:** Nada de links por aqui! :p",
+                "content": "### 🚦 Configuração de Links\n🚦 **Modo de bloqueio:** Bloquear todos\n💬 **Minha resposta ao bloquear:** Nada de links por aqui! :p",
                 "type": "text"
               },
               {
                 "disabled": false,
                 "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "🔗 **Sites populares permitidos:** Nada ainda",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Liberar site famoso",
                 "style": "secondary",
                 "type": "button"
               }

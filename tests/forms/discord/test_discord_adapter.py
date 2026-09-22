@@ -432,7 +432,7 @@ async def test_a_parent_waiting_on_a_live_child_is_not_expired(v2):
 def _slow_previews(monkeypatch):
     drawn = asyncio.Event()
 
-    async def previews(member, designs):
+    async def previews(member, designs, title="WELCOME"):
         await drawn.wait()
         return {
             design[
@@ -455,7 +455,7 @@ async def test_a_click_that_opens_the_gallery_is_answered_before_the_previews_wa
     await asyncio.wait_for(scenario.confirm(), timeout=2)
     before = len(scenario.outputs)
 
-    click = asyncio.create_task(scenario.click("customize:1"))
+    click = asyncio.create_task(scenario.click("customize:2"))
     for _ in range(50):
         if click.done() or any(e["kind"] == "defer" for e in scenario.outputs[before:]):
             break
@@ -563,6 +563,8 @@ async def test_an_aside_that_asks_first_spends_its_cooldown_only_when_confirmed(
     await click(panel, "Sincronizar")
     ask = scenario.current_message
     assert ask is not panel and "Sincronizar cargos?" in ask.embeds[0].title
+    assert "<@&202>" in ask.embeds[0].description, ask.embeds[0].description
+    assert "<@&201>" in ask.embeds[0].description, ask.embeds[0].description
     await click(ask, "Cancelar")
     assert sync.await_count == 0 and not state.cooldowns
 
@@ -620,8 +622,8 @@ def test_a_panel_part_has_its_own_edit_beside_its_lines():
         "",
         (),
         parts=(
-            PanelPart("channel", ("📺 **Canal:** <#1>",)),
-            PanelPart("messages", ("💬 **Mensagens:** A",)),
+            PanelPart("card/channel", ("📺 **Canal:** <#1>",)),
+            PanelPart("card/messages", ("💬 **Mensagens:** A",)),
         ),
     )
     panel = Panel(title="T", intro="i", groups=(group,), edit_label="Editar")

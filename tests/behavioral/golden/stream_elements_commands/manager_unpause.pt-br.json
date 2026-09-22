@@ -45,6 +45,10 @@
             "type": "section"
           },
           {
+            "content": "### 💡 Comandos carregados\nNão consegui falar com o StreamElements agora, mas busco a resposta assim que alguém usar um comando.",
+            "type": "text"
+          },
+          {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
           }
@@ -68,6 +72,12 @@
           {
             "disabled": false,
             "label": "Histórico",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Comandos",
             "style": "secondary",
             "type": "button"
           },

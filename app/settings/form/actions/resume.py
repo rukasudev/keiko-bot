@@ -30,10 +30,6 @@ def _item_count(session: FormSession, context: RenderContext) -> int | None:
     return len(answer.raw or ()) if answer else 0
 
 
-def _has_edit(target: str, keyed: set[str]) -> bool:
-    return target in keyed or target.split("$", 1)[0] in keyed
-
-
 def _button(key: str, action: str, emoji: str, locale: str) -> Button:
     return Button(
         label(key, locale), action, "secondary", emoji, description=caption(key, locale)
@@ -65,9 +61,9 @@ def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
     rows = manager.panel_rows(context.definition, document, locale)
     title = title_of(step, locale)
     groups = manager.panel_groups(rows, title, locale)
-    keyed = {group.key for group in groups if group.key}
-    options = manager.edit_options(context.definition, document, locale)
-    covered = bool(groups) and all(_has_edit(option.value, keyed) for option in options)
+    covered = manager.every_setting_has_a_button(
+        context.definition, document, groups, locale
+    )
     panel = Panel(
         title=title,
         intro=description_of(step, session, context),

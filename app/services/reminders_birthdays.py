@@ -1,11 +1,12 @@
+import asyncio
 from collections import Counter
 from datetime import date, datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import discord
 
 from app import logger
-from app.components.embed import base_embed
+from app.components.embed import base_embed, default_welcome_embed
 from app.constants import Commands as commands_constants
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
@@ -381,6 +382,102 @@ def birthday_settings_rows(guild_id: str, locale: str) -> List[Dict[str, Any]]:
             "value": upcoming_text,
         },
     ]
+
+
+def render_birthday_message(
+    text: str, member_mention: str, guild_name: str, mm_dd: str, locale: str
+) -> str:
+    if not text:
+        return text
+    return (
+        text.replace("{user}", member_mention)
+        .replace("{server}", guild_name)
+        .replace("{date}", format_mm_dd_label(mm_dd, locale))
+    )
+
+
+def birthday_default_text(key: str, locale: str) -> str:
+    return ml(f"messages.birthday-defaults.{key}", locale=locale)
+
+
+def resolve_message(item: Dict[str, Any], config: Dict[str, Any], locale: str) -> Tuple[str, str]:
+    message = item.get("message") or {}
+    if message.get("mode") == "custom" and message.get("title") and message.get("content"):
+        return message["title"], message["content"]
+    default_message = (config or {}).get("default_message") or {}
+    if (
+        default_message.get("mode") == "custom"
+        and default_message.get("title")
+        and default_message.get("content")
+    ):
+        return default_message["title"], default_message["content"]
+    return birthday_default_text("title", locale), birthday_default_text("content", locale)
+
+
+def resolve_image(item: Dict[str, Any]) -> str:
+    image = item.get("image") or {}
+    if image.get("mode") == "custom" and image.get("url"):
+        return image["url"]
+    return KeikoIcons.BIRTHDAY_GIF
+
+
+def build_celebration_embed(
+    item: Dict[str, Any],
+    member: discord.Member,
+    guild: discord.Guild,
+    config: Dict[str, Any],
+    locale: str,
+) -> discord.Embed:
+    title, content = resolve_message(item, config, locale)
+    title = render_birthday_message(title, member.display_name, guild.name, item.get("date"), locale)
+    content = render_birthday_message(content, member.mention, guild.name, item.get("date"), locale)
+    embed = default_welcome_embed(title=title, message=content, image=resolve_image(item))
+    embed.set_thumbnail(url=member.display_avatar.url)
+    return embed
+
+
+async def send_birthday_preview(
+    interaction: discord.Interaction, responses: List[Dict[str, Any]]
+) -> None:
+    """The celebration as it will arrive: this member's message, or the default."""
+    values = {
+        item["key"]: item.get("_raw_value", item.get("value"))
+        for item in responses
+        if item.get("key")
+    }
+    guild = interaction.guild
+    member = interaction.user
+    user_id = values.get("user")
+    if user_id and guild:
+        member = guild.get_member(int(user_id)) or member
+
+    config = await asyncio.to_thread(
+        birthdays_data.find_birthday_config, str(guild.id)
+    ) or {}
+    if values.get("default_message_mode"):
+        config = {
+            "default_message": {
+                "mode": values.get("default_message_mode"),
+                "title": values.get("default_message_title"),
+                "content": values.get("default_message_content"),
+            }
+        }
+    item = {
+        "date": values.get("date") or date.today().strftime("%m-%d"),
+        "message": {
+            "mode": values.get("use_custom_message") or "default",
+            "title": values.get("custom_message_title"),
+            "content": values.get("custom_message_content"),
+        },
+        "image": {
+            "mode": values.get("use_custom_image") or "default",
+            "url": values.get("custom_image"),
+        },
+    }
+    embed = build_celebration_embed(
+        item, member, guild, config, parse_locale(interaction.locale)
+    )
+    await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 async def send_stats_message(interaction: discord.Interaction) -> None:

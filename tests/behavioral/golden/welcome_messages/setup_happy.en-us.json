@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n:pencil: **Settings**\n\n:flying_disc: **Channel**: Where I'll send the welcome message.\n:flying_disc: **Banner design**: The look of the banner I draw for each new member.\n:flying_disc: **Custom image**: The picture I put on the banner when you pick a custom design.\n:flying_disc: **Title**: The title of the welcome message.\n:flying_disc: **Messages**: Up to three greetings, I pick one at random each time.\n:flying_disc: **Footer**: The small line that closes the message.",
+      "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n:pencil: **Settings**\n\n:flying_disc: **Channel**: Where I'll send the welcome message.\n:flying_disc: **Title**: The title of the welcome message.\n:flying_disc: **Messages**: Up to three greetings, I pick one at random each time.\n:flying_disc: **Footer**: The small line that closes the message.\n:flying_disc: **Banner design**: The look of the banner I draw for each new member.\n:flying_disc: **Custom image**: The picture I put on the banner when you pick a custom design.",
       "fields": [],
       "footer": "• Use the `/report` command to tell me a bug",
       "image": null,
@@ -95,25 +95,6 @@
             "type": "actionrow"
           },
           {
-            "content": "🎨 **Banner design**",
-            "type": "text"
-          },
-          {
-            "content": "> Server Image",
-            "type": "text"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Choose design",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "💬 **Messages**",
             "type": "text"
           },
@@ -133,6 +114,25 @@
             "type": "actionrow"
           },
           {
+            "content": "🎨 **Banner design**",
+            "type": "text"
+          },
+          {
+            "content": "> Server Image",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose design",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
             "content": "-# • Use the `/report` command to tell me a bug",
             "type": "text"
           }
@@ -145,6 +145,12 @@
             "disabled": false,
             "label": "Next",
             "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
             "type": "button"
           },
           {
@@ -274,25 +280,6 @@
             "type": "actionrow"
           },
           {
-            "content": "🎨 **Banner design**",
-            "type": "text"
-          },
-          {
-            "content": "> Server Image",
-            "type": "text"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Choose design",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "💬 **Messages**",
             "type": "text"
           },
@@ -305,6 +292,25 @@
               {
                 "disabled": false,
                 "label": "Edit messages",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎨 **Banner design**",
+            "type": "text"
+          },
+          {
+            "content": "> Server Image",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose design",
                 "style": "secondary",
                 "type": "button"
               }
@@ -328,6 +334,12 @@
           },
           {
             "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Cancel",
             "style": "danger",
             "type": "button"
@@ -347,7 +359,7 @@
     "kind": "click",
     "message": "M2",
     "seq": 11,
-    "target": "customize:3"
+    "target": "customize:1"
   },
   {
     "actor": "bot",
@@ -447,25 +459,6 @@
             "type": "actionrow"
           },
           {
-            "content": "🎨 **Banner design**",
-            "type": "text"
-          },
-          {
-            "content": "> Server Image",
-            "type": "text"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Choose design",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
             "content": "💬 **Messages**",
             "type": "text"
           },
@@ -485,6 +478,25 @@
             "type": "actionrow"
           },
           {
+            "content": "🎨 **Banner design**",
+            "type": "text"
+          },
+          {
+            "content": "> Server Image",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Choose design",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
             "content": "-# • Use the `/report` command to tell me a bug",
             "type": "text"
           }
@@ -497,6 +509,12 @@
             "disabled": false,
             "label": "Next",
             "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
             "type": "button"
           },
           {
@@ -566,7 +584,7 @@
           {
             "children": [
               {
-                "content": "🎨 **Banner design:** Server Image",
+                "content": "💬 **Messages:**\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```\n💬 **Title:** Bem-vindo, {user}!\n💬 **Footer:** Leia as regras :)",
                 "type": "text"
               },
               {
@@ -581,7 +599,7 @@
           {
             "children": [
               {
-                "content": "💬 **Messages:**\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```\n💬 **Title:** Bem-vindo, {user}!\n💬 **Footer:** Leia as regras :)",
+                "content": "🎨 **Banner design:** Server Image",
                 "type": "text"
               },
               {

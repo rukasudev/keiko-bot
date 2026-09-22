@@ -1,69 +1,18 @@
 import asyncio
 from collections import defaultdict
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List
 
 import discord
 
 from app import bot, logger
-from app.components.embed import default_welcome_embed
 from app.constants import Commands
-from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
 from app.data import birthdays as birthdays_data
 from app.exceptions import ErrorContext
 from app.services import analytics
-from app.services.dates import format_mm_dd_label, is_valid_mm_dd
-from app.services.utils import ml, parse_locale
-
-
-def render_birthday_message(text: str, member_mention: str, guild_name: str, mm_dd: str, locale: str) -> str:
-    if not text:
-        return text
-    return (
-        text.replace("{user}", member_mention)
-        .replace("{server}", guild_name)
-        .replace("{date}", format_mm_dd_label(mm_dd, locale))
-    )
-
-
-def birthday_default_text(key: str, locale: str) -> str:
-    return ml(f"messages.birthday-defaults.{key}", locale=locale)
-
-
-def resolve_message(item: Dict[str, Any], config: Dict[str, Any], locale: str) -> Tuple[str, str]:
-    message = item.get("message") or {}
-    if message.get("mode") == "custom" and message.get("title") and message.get("content"):
-        return message["title"], message["content"]
-    default_message = (config or {}).get("default_message") or {}
-    if (
-        default_message.get("mode") == "custom"
-        and default_message.get("title")
-        and default_message.get("content")
-    ):
-        return default_message["title"], default_message["content"]
-    return birthday_default_text("title", locale), birthday_default_text("content", locale)
-
-
-def resolve_image(item: Dict[str, Any]) -> str:
-    image = item.get("image") or {}
-    if image.get("mode") == "custom" and image.get("url"):
-        return image["url"]
-    return KeikoIcons.BIRTHDAY_GIF
-
-
-def build_celebration_embed(
-    item: Dict[str, Any],
-    member: discord.Member,
-    guild: discord.Guild,
-    config: Dict[str, Any],
-    locale: str,
-) -> discord.Embed:
-    title, content = resolve_message(item, config, locale)
-    title = render_birthday_message(title, member.display_name, guild.name, item.get("date"), locale)
-    content = render_birthday_message(content, member.mention, guild.name, item.get("date"), locale)
-    embed = default_welcome_embed(title=title, message=content, image=resolve_image(item))
-    embed.set_thumbnail(url=member.display_avatar.url)
-    return embed
+from app.services.dates import is_valid_mm_dd
+from app.services.reminders_birthdays import build_celebration_embed
+from app.services.utils import parse_locale
 
 
 async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
@@ -114,7 +63,16 @@ async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
                 embed = build_celebration_embed(item, member, guild, config, locale)
                 content = "@everyone" if mention_everyone else None
                 allowed_mentions = discord.AllowedMentions(everyone=mention_everyone, users=False, roles=False)
-                await channel.send(content=content, embed=embed, allowed_mentions=allowed_mentions)
+                message = await channel.send(
+                    content=content, embed=embed, allowed_mentions=allowed_mentions
+                )
+                try:
+                    await message.add_reaction(Commands.REMINDERS_BIRTHDAY_REACTION)
+                except Exception as reaction_error:
+                    logger.warn(
+                        f"Could not react to the birthday message: {reaction_error}",
+                        log_type=logconstants.COMMAND_WARN_TYPE,
+                    )
                 analytics.record_value(guild.id, Commands.REMINDERS_BIRTHDAY_KEY)
 
     except Exception as e:

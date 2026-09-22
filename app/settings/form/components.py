@@ -163,6 +163,7 @@ class PanelPart:
 
     target: str
     lines: tuple[str, ...]
+    label: str | None = None
 
 
 @dataclass(frozen=True)

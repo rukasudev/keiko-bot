@@ -143,7 +143,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Escolha os cargos que eu vou dar automaticamente:\n\n1. **Cargos para bots**: quando um bot entrar no servidor\n2. **Cargos para membros**: quando uma pessoa entrar no servidor\n\nPode deixar um dos dois vazio, só não os dois! 🐶",
+      "description": "Escolha os cargos que eu vou dar automaticamente:\n\n1. **Cargos para bots**: quando um bot entrar no servidor\n2. **Cargos para membros**: quando uma pessoa entrar no servidor",
       "fields": [],
       "footer": "• Use o comando `/reportar` para me contar um bug",
       "image": null,

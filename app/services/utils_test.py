@@ -461,7 +461,7 @@ class TestBirthdayItemDefaults:
         )
 
     def test_birthday_message_uses_server_default_before_keiko_default(self):
-        from app.webhooks.birthday_handler import resolve_message
+        from app.services.reminders_birthdays import resolve_message
 
         title, content = resolve_message(
             {"message": {"mode": "default", "title": None, "content": None}},

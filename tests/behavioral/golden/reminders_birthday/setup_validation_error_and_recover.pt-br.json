@@ -1187,6 +1187,12 @@
           },
           {
             "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Voltar",
             "style": "secondary",
             "type": "button"
@@ -1453,6 +1459,12 @@
           },
           {
             "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Voltar",
             "style": "secondary",
             "type": "button"
@@ -1675,6 +1687,12 @@
           },
           {
             "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Voltar",
             "style": "secondary",
             "type": "button"
@@ -1766,6 +1784,12 @@
           {
             "disabled": false,
             "label": "Adicionar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Pré-visualizar",
             "style": "secondary",
             "type": "button"
           },

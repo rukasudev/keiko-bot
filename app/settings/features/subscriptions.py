@@ -7,7 +7,13 @@ from collections.abc import Callable, Mapping
 from typing import Any, cast
 
 import app as app_module
-from app.settings.features.feature import CommitContext, GenericCogFeature, OpenContext
+from app.constants import ViewConstants as view_constants
+from app.settings.features.feature import (
+    AsideAction,
+    CommitContext,
+    GenericCogFeature,
+    OpenContext,
+)
 from app.settings.form.form_state import Answer
 from app.settings.form.lookups import Lookup
 from app.settings.form.responses.responses import items_of
@@ -22,9 +28,24 @@ class SubscriptionFeature(GenericCogFeature):
     external: str = ""
     subscribe: Subscribe
     unsubscribe: Subscribe
+    preview_sender: Any = None
 
     def __init__(self, key: str) -> None:
         super().__init__(key)
+
+    def asides(self) -> Mapping[str, AsideAction]:
+        """The notification message, previewed one written example at a time."""
+        if self.preview_sender is None:
+            return {}
+
+        async def preview(interaction: Any, responses: Any) -> None:
+            await self.preview_sender(interaction, list(responses))
+
+        return {
+            "preview": AsideAction(
+                preview, defer=True, cooldown=view_constants.ACTION_COOLDOWN_SECONDS
+            )
+        }
 
     def _lookup(self, name: str) -> Any:
         bot = cast(Any, app_module).bot
@@ -39,11 +60,40 @@ class SubscriptionFeature(GenericCogFeature):
     async def prefetch(
         self, lookup: Lookup, context: OpenContext
     ) -> Mapping[str, Mapping[str, Any]]:
-        """The external account behind the typed name."""
+        """The external account behind the typed name, and its picture."""
         if self.external not in lookup.services:
             return {}
+        if self.external == "twitch":
+            info = await asyncio.to_thread(self._twitch_user, lookup.value)
+            return {
+                "twitch": {
+                    self.lookup_result: info.get("id"),
+                    "profile_image": str(info.get("profile_image_url") or ""),
+                }
+            }
         found = await asyncio.to_thread(self._lookup, lookup.value)
-        return {self.external: {self.lookup_result: found}}
+        image = (
+            await asyncio.to_thread(self._profile_image, lookup.value, found)
+            if found
+            else ""
+        )
+        return {self.external: {self.lookup_result: found, "profile_image": image}}
+
+    def _twitch_user(self, name: str) -> Mapping[str, Any]:
+        """The Twitch account behind a login, id and picture in one request."""
+        try:
+            return cast(Any, app_module).bot.twitch.get_user_info(name) or {}
+        except Exception:
+            return {}
+
+    def _profile_image(self, name: str, found: Any) -> str:
+        bot = cast(Any, app_module).bot
+        try:
+            snippet = bot.youtube.get_channel_info(str(found)) or {}
+            default = (snippet.get("thumbnails") or {}).get("default") or {}
+            return str(default.get("url") or "")
+        except Exception:
+            return ""
 
     lookup_result: str = "user_id"
 

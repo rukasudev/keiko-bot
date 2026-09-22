@@ -136,6 +136,7 @@ class Commands:
     INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: Final[str] = "stream_elements_commands"
 
     REMINDERS_BIRTHDAY_KEY: Final[str] = "reminders_birthday"
+    REMINDERS_BIRTHDAY_REACTION: Final[str] = "🎉"
     REMINDER_TYPE_BIRTHDAY: Final[str] = "reminders_birthday"
     REMINDER_API_TITLE_BIRTHDAY: Final[str] = "birthday_reminder"
 
@@ -262,6 +263,8 @@ class ViewConstants:
     ACTION_COOLDOWN_SECONDS: Final[int] = 10
     ACTION_NOTICE_SECONDS: Final[int] = 5
     COMPOSITION_PREVIEW_LIMIT: Final[int] = 10
+    COMMANDS_PREVIEW_LIMIT: Final[int] = 5
+    COMMANDS_PAGE_SIZE: Final[int] = 5
     EDIT_BY_ITEM_MAX: Final[int] = 3
     FORM_SWEEP_SECONDS: Final[int] = 60
     PREVIEW_WAIT_SECONDS: Final[int] = 8  # a click waits this long for a gallery's pictures

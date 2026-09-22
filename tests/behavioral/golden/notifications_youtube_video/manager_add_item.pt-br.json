@@ -195,6 +195,12 @@
           },
           {
             "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Cancelar",
             "style": "danger",
             "type": "button"
@@ -365,6 +371,12 @@
           },
           {
             "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Cancelar",
             "style": "danger",
             "type": "button"
@@ -504,6 +516,12 @@
             "disabled": false,
             "label": "Avançar",
             "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
@@ -653,6 +671,12 @@
             "disabled": false,
             "label": "Avançar",
             "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
