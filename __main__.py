@@ -4,7 +4,7 @@ from threading import Thread
 
 import i18n
 
-from app import create_app
+from app import create_app, lifecycle
 from app.api import create_api, run_api
 from app.config import AppConfig
 from app.logger import LoggerHooks
@@ -27,4 +27,4 @@ if __name__ == "__main__":
 
     handle_webhook_api(config)
 
-    app.run(config.BOT_TOKEN, reconnect=True)
+    lifecycle.run(app, config.BOT_TOKEN)

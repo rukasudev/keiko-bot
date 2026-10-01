@@ -1,4 +1,4 @@
-from typing import Any, Dict, Final, List, Tuple
+from typing import Any, Dict, Final, FrozenSet, List, Tuple
 
 import discord
 
@@ -34,6 +34,10 @@ class DBConfigs:
     ADMIN_DUMP_CHANNEL_ID: Final[str] = "admin_dump_channel_id"
 
     REDIS_SOCKET_TIMEOUT_SECONDS: Final[float] = 5.0
+    FATAL_START_BACKOFF_SECONDS: Final[int] = 300
+    FATAL_START_PHRASE: Final[str] = "Discord refused to start the bot"
+    FATAL_START_CLOSE_CODES: Final[FrozenSet[int]] = frozenset({4004, 4010, 4011, 4012, 4013})
+    READY_PHRASE: Final[str] = "Keiko is connected to Discord and ready"
     IMAGE_DOWNLOAD_TIMEOUT_SECONDS: Final[float] = 10.0
     IMAGE_CACHE_SIZE: Final[int] = 128
     IMAGE_MAX_SIZE: Final[Tuple[int, int]] = (1024, 1024)
