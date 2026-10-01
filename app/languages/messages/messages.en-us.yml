@@ -1,6 +1,9 @@
 en-us:
   admin-logs:
-    daily-export: ":card_index_dividers: Here is my structured log for: **{date}**! ({count} records)"
+    daily-export: ":card_index_dividers: Here is my structured log for **{date}**! ({count} records)"
+    daily-backup: ":floppy_disk: Here is my database backup for **{date}**! ({collections} collections, {documents} documents)"
+    daily-backup-parts: "I sent it in {files} files, one per message."
+    daily-backup-skipped: "I'm sorry, but these were too big for this channel even on their own, so I left them out: {collections}. A manual `mongodump` still copies them!"
 
   birthday-defaults:
     title: "🎂 It's {user}'s birthday!"

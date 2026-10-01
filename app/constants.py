@@ -1,4 +1,4 @@
-from typing import Any, Dict, Final, List, Tuple
+from typing import Any, Dict, Final, List, Optional, Tuple
 
 import discord
 
@@ -43,6 +43,18 @@ class DBConfigs:
     COG_CACHE_LAST_KNOWN_SIZE: Final[int] = 1024
     COG_CACHE_RETRY_SECONDS: Final[int] = 30
     COG_CACHE_WARN_SECONDS: Final[int] = 60 * 5
+
+    BACKUP_COLLECTIONS: Final[Dict[str, Optional[Tuple[str, ...]]]] = {
+        "audit": None,
+        "configs": ("admin", "data"),
+        "events": None,
+        "guild": None,
+        "notifications": None,
+        "reminders": None,
+    }
+    BACKUP_SKIPPED_COLLECTIONS: Final[Tuple[str, ...]] = (
+        "audit.errors", "configs.integrations", "guild.logs",
+    )
 
     ADMIN_CONFIGS_LIST: Final[List] = [
         ADMIN_GUILD_ID,
@@ -117,6 +129,8 @@ class Commands:
     DEBUG_LOGS_TRACEBACK_MAX_LENGTH: Final[int] = 16000
     DEBUG_LOGS_EXPORT_HOUR: Final[int] = 0
     DEBUG_LOGS_EXPORT_MINUTE: Final[int] = 30
+    BACKUP_HOUR: Final[int] = 1
+    BACKUP_MINUTE: Final[int] = 0
 
     # Reminders that failed to be created are retried on a slow loop: the
     # reason one fails is rarely fixed within a minute, and the birthday it

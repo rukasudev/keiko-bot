@@ -191,6 +191,7 @@ def auto_inject_dependencies(deps):
         patch('app.data.block_links.mongo_client', deps.mongo_client),
         patch('app.data.analytics.mongo_client', deps.mongo_client),
         patch('app.data.logs.mongo_client', deps.mongo_client),
+        patch('app.data.backup.mongo_client', deps.mongo_client),
         patch('app.services.cache.redis_client', deps.redis_client),
         patch('app.services.cache.cogs_data.mongo_client', deps.mongo_client),
         patch(

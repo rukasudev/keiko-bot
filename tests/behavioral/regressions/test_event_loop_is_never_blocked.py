@@ -165,6 +165,30 @@ async def test_a_birthday_reminder_never_freezes_the_bot(deps, monkeypatch):
     assert ticks >= MIN_TICKS
 
 
+async def test_the_daily_backup_never_freezes_the_bot(deps, monkeypatch):
+    """The backup reads every collection Keiko keeps, once a day, from a loop task."""
+    from app.cogs.backup import Backup
+
+    deps.mongo_client.guild.moderations.insert_one({"guild_id": "1"})
+    monkeypatch.setattr(
+        "app.data.backup.iter_documents", blocking([{"guild_id": "1"}])
+    )
+    channel = SimpleNamespace(
+        guild=SimpleNamespace(filesize_limit=10 * 1024 * 1024), send=AsyncMock()
+    )
+    bot = SimpleNamespace(
+        config=SimpleNamespace(ADMIN_LOGS_FILES_CHANNEL_ID=7),
+        get_channel=lambda _id: channel,
+    )
+
+    ticks = await ticks_while(
+        Backup.post_daily_backup.coro(SimpleNamespace(bot=bot))
+    )
+
+    assert ticks >= MIN_TICKS
+    channel.send.assert_awaited_once()
+
+
 async def test_waiting_for_a_stream_never_freezes_the_bot(deps, monkeypatch):
     """The retry loop sleeps 15 seconds at a time, twice, between Twitch calls."""
     monkeypatch.setattr(
