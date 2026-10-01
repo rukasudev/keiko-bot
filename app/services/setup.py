@@ -1,6 +1,6 @@
 """The /setup card: every feature Keiko offers, its status and what its buttons open."""
 import asyncio
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import discord
 
@@ -14,8 +14,8 @@ from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
 from app.data.cogs import find_cog_by_guild_id_async
 from app.settings.discord import layout
-from app.data.moderations import find_moderations_by_guild_async
 from app.services import analytics
+from app.services.cogs import is_feature_on
 from app.services.manager import parse_history_data
 from app.services.trace import as_utc
 from app.services.utils import fill, is_guild_admin, ml, parse_locale, stored_value
@@ -150,12 +150,7 @@ async def permission_report(
 
     base = "commands.commands.setup.permissions"
     title = ml(f"{base}.title", locale)
-    moderations = await find_moderations_by_guild_async(guild_id) or {}
-    configured = [
-        spec
-        for spec in commands_constants.SETUP_FEATURES
-        if moderations.get(spec["command_key"])
-    ]
+    configured = [spec for spec, state in await _states(guild_id) if state == "configured"]
     if not configured:
         return base_embed(title, ml(f"{base}.nothing", locale))
 
@@ -190,13 +185,18 @@ def _translated_command(command_key: str, locale: str) -> str:
     return f"/{group} {subgroup} {name}"
 
 
-async def _state(guild_id: str, command_key: str, moderations: dict) -> str:
-    if not moderations.get(command_key, False):
+async def _state(guild_id: str, command_key: str) -> str:
+    document = await find_cog_by_guild_id_async(guild_id, command_key)
+    if not document:
         return "pending"
-    cog_data = await find_cog_by_guild_id_async(guild_id, command_key)
-    if cog_data and not cog_data.get(commands_constants.ENABLED_KEY, True):
-        return "paused"
-    return "configured"
+    on = await asyncio.to_thread(is_feature_on, guild_id, command_key, document)
+    return "configured" if on else "paused"
+
+
+async def _states(guild_id: str) -> List[Tuple[Dict[str, Any], str]]:
+    features = commands_constants.SETUP_FEATURES
+    read = [_state(guild_id, feature["command_key"]) for feature in features]
+    return list(zip(features, await asyncio.gather(*read)))
 
 
 def _row_text(feature: dict, state: str, locale: str) -> str:
@@ -308,10 +308,7 @@ def setup_dashboard_button(locale: str, source: str) -> discord.ui.Button:
 async def setup_dashboard(guild_id: str, locale: str) -> discord.ui.LayoutView:
     """The /setup card for this guild, in the admin's language."""
     base = "commands.commands.setup.embed"
-    moderations = await find_moderations_by_guild_async(guild_id) or {}
-    features = commands_constants.SETUP_FEATURES
-    read = [_state(guild_id, feature["command_key"], moderations) for feature in features]
-    states = list(zip(features, await asyncio.gather(*read)))
+    states = await _states(guild_id)
     pending = [(feature, state) for feature, state in states if state == "pending"]
     configured = [(feature, state) for feature, state in states if state != "pending"]
     groups = (

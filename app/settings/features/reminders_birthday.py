@@ -9,6 +9,8 @@ from typing import Any
 from app.constants import Commands
 from app.constants import ViewConstants as view_constants
 from app.data import birthdays as birthdays_data
+from app.services.cogs import is_feature_on
+from app.services.moderations import set_feature_enabled
 from app.services.reminders_birthdays import (
     birthday_manager_cog_data,
     birthday_settings_rows,
@@ -27,7 +29,6 @@ from app.settings.features.feature import (
     GenericCogFeature,
     OpenContext,
     Opened,
-    set_moderation,
 )
 from app.settings.form.actions.action import PanelRow
 from app.settings.form.components import Button
@@ -45,13 +46,13 @@ class BirthdayFeature(GenericCogFeature):
         super().__init__(Commands.REMINDERS_BIRTHDAY_KEY)
 
     async def open(self, context: OpenContext) -> Opened:
-        """The synthetic document the panel reads, or nothing when unconfigured."""
+        """The synthetic document the panel reads, paused or not, or nothing saved."""
         guild_id = context.guild_id
         config = await asyncio.to_thread(birthdays_data.find_birthday_config, guild_id)
-        enabled = await asyncio.to_thread(birthdays_data.is_birthday_enabled, guild_id)
-
-        if not enabled or not config:
+        if not config:
             return Opened()
+
+        enabled = await asyncio.to_thread(is_feature_on, guild_id, self.key, config)
         document = await asyncio.to_thread(birthday_manager_cog_data, guild_id)
         rows = await asyncio.to_thread(birthday_settings_rows, guild_id, context.locale)
         return Opened(
@@ -65,7 +66,7 @@ class BirthdayFeature(GenericCogFeature):
                 )
                 for row in rows
             ),
-            enabled=bool(document.get(Commands.ENABLED_KEY)),
+            enabled=enabled,
             extra_buttons=self.extra_buttons(context),
         )
 
@@ -103,12 +104,13 @@ class BirthdayFeature(GenericCogFeature):
     async def commit_setup(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """The config document, the first birthday and its reminder."""
+        """The config, the first birthday and its reminder; the feature is on."""
         responses = self.responses_for_preview(payload["answers"], context.locale)
         await asyncio.to_thread(
             save_setup_form, context.guild_id, responses, context.locale
         )
-        return CommitResult(("reminders_birthday", "birthdays"))
+        await asyncio.to_thread(set_feature_enabled, context.guild_id, self.key, True)
+        return CommitResult(("reminders_birthday", "birthdays", "moderations"))
 
     async def commit_edit(
         self, payload: Mapping[str, Any], context: CommitContext
@@ -156,10 +158,9 @@ class BirthdayFeature(GenericCogFeature):
     async def commit_disable(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """Every birthday, reminder and the config go; the flag comes back on."""
+        """Every birthday, reminder and the config go; the feature is off."""
         await asyncio.to_thread(disable_birthdays, context.guild_id)
-        await set_moderation(context.guild_id, self.key, True)
-        await self.update_document(context.guild_id, {Commands.ENABLED_KEY: True})
+        await asyncio.to_thread(set_feature_enabled, context.guild_id, self.key, False)
         return CommitResult(("reminders_birthday", "birthdays", "moderations"))
 
 

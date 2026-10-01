@@ -66,8 +66,7 @@ async def cancel_discard(scenario, locale: str) -> None:
 
 
 def register_lifecycle(form: str, seed_enabled: Callable[[Any], None],
-                       seed_paused: Callable[[Any], None],
-                       with_unpause: bool = True) -> None:
+                       seed_paused: Callable[[Any], None]) -> None:
     """Pause, unpause, disable and history: the same four clicks on every panel."""
 
     @golden_path(form, "manager_pause")
@@ -77,13 +76,12 @@ def register_lifecycle(form: str, seed_enabled: Callable[[Any], None],
         await scenario.submit_confirmation()
         return scenario
 
-    if with_unpause:
-        @golden_path(form, "manager_unpause")
-        async def manager_unpause(scenario_factory, deps, locale):
-            scenario = await open_manager(scenario_factory, deps, locale, form, seed_paused)
-            await scenario.click("unpause")
-            await scenario.submit_confirmation()
-            return scenario
+    @golden_path(form, "manager_unpause")
+    async def manager_unpause(scenario_factory, deps, locale):
+        scenario = await open_manager(scenario_factory, deps, locale, form, seed_paused)
+        await scenario.click("unpause")
+        await scenario.submit_confirmation()
+        return scenario
 
     @golden_path(form, "manager_disable")
     async def manager_disable(scenario_factory, deps, locale):
