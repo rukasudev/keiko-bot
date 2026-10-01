@@ -10,9 +10,13 @@ from urllib.parse import urlparse
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
+from app.services import cdn, welcome_messages
 from app.services.welcome_messages import send_welcome_message
 from tests.mocks import create_member
 from tests.generators import moderations
+
+REAL_CREATE_BANNER = welcome_messages.create_banner
+REAL_UPLOAD_ASSET = cdn.upload_asset
 
 
 class TestWelcomeMessagesSend:
@@ -331,7 +335,7 @@ class TestGenerateDesignPreviews:
 
     @pytest.mark.asyncio
     async def test_generates_preview_for_each_design(
-        self, mock_banner, guild, bot
+        self, mock_banner, guild, bot, monkeypatch
     ):
         """
         Verifica que previews sao gerados para cada design.
@@ -340,9 +344,10 @@ class TestGenerateDesignPreviews:
         Output: Dict com preview URL para cada design
         """
         from app.services.welcome_messages import generate_design_previews
-        from app.constants import WelcomeDesign
 
         # Arrange
+        monkeypatch.setattr(welcome_messages, "create_banner", REAL_CREATE_BANNER)
+        monkeypatch.setattr(cdn, "upload_asset", REAL_UPLOAD_ASSET)
         member = create_member(guild, id=999, name="TestUser")
         designs = [
             {"key": "server_blur"},

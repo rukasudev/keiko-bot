@@ -8,6 +8,7 @@ from app import create_app, lifecycle
 from app.api import create_api, run_api
 from app.config import AppConfig
 from app.logger import LoggerHooks
+from app.services import images
 from app.webhooks import handle_webhook_api
 
 if __name__ == "__main__":
@@ -17,6 +18,7 @@ if __name__ == "__main__":
 
     logs = LoggerHooks(config, True)
     logs.start()
+    images.refuse_decompression_bombs()
 
     app = create_app(config)
     logs.set_bot(app)

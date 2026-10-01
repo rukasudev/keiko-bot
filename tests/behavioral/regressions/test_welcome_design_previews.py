@@ -10,13 +10,16 @@ What broke (found on the local bot and in production data, 2026-09-14):
 - a server without an icon took its background from i.sstatic.net, which
   answers 403 to every client, so the banner could not be drawn;
 - a custom background is saved as a Discord attachment link, which stops
-  downloading 24 hours after it was signed, so `custom_blur` banners failed.
+  downloading 24 hours after it was signed, so `custom_blur` banners failed;
+- every member's banner was posted to the dump channel first, to get a URL to
+  embed, so that one channel's rate limit capped the welcomes of every server
+  at once (roadmap #39).
 
-Shared behaviour: `create_banner`, `generate_design_previews`, image downloads
-and dump channel uploads. Consumers: the welcome setup gallery and every member
-joining a server with welcome messages. Guaranteed: the gallery shows every
-example without downloading from outside Discord, and a member always gets a
-banner.
+Shared behaviour: `draw_banner`, `create_banner`, `generate_design_previews`,
+image downloads and dump channel uploads. Consumers: the welcome setup gallery,
+the welcome preview and every member joining a server with welcome messages.
+Guaranteed: the gallery shows every example without downloading from outside
+Discord, and a member always gets a banner, attached to the welcome itself.
 """
 import asyncio
 import os
@@ -36,40 +39,18 @@ from PIL import Image
 from app.constants import WelcomeDesign
 from app.services import cdn, welcome_messages
 from tests.mocks import create_member
+from tests.mocks.web import DISCORD_HOSTS, FakeWeb
 
 pytestmark = [pytest.mark.behavioral]
 
 REAL_CREATE_BANNER = welcome_messages.create_banner
+REAL_DRAW_BANNER = welcome_messages.draw_banner
 REAL_UPLOAD_ASSET = cdn.upload_asset
 UPLOADED_URL = "https://cdn.discordapp.com/attachments/999/1/uploaded.png"
 DESIGNS = [{"key": "server_blur"}, {"key": "custom_blur"}, {"key": "custom_only"}]
-DISCORD_HOSTS = {"cdn.discordapp.com", "media.discordapp.net"}
 DISCORD_EMBED_LIMIT_BYTES = 8 * 1024 * 1024
 EXPIRED = "https://cdn.discordapp.com/attachments/1/2/background.png?ex=69d5b0af&is=69d45f2f&hm=abc&"
 REFRESHED = "https://cdn.discordapp.com/attachments/1/2/background.png?ex=7fffffff&is=7ffe0000&hm=def&"
-
-
-def _png() -> bytes:
-    buffer = BytesIO()
-    Image.new("RGB", (64, 64), "orange").save(buffer, format="PNG")
-    return buffer.getvalue()
-
-
-class FakeWeb:
-    """The internet as the bot sees it: Discord's CDN answers, other hosts refuse."""
-
-    def __init__(self):
-        self.requested = []
-        self.answers = {}
-
-    def get(self, url, *args, **kwargs):
-        self.requested.append(url)
-        default = 200 if urlparse(url).hostname in DISCORD_HOSTS else 403
-        response = requests.Response()
-        response.status_code = self.answers.get(url, default)
-        response._content = _png() if response.status_code == 200 else b"<html>no</html>"
-        response.url = url
-        return response
 
 
 @pytest.fixture
@@ -82,6 +63,7 @@ def web(monkeypatch):
 @pytest.fixture
 def real_banners(monkeypatch):
     monkeypatch.setattr(welcome_messages, "create_banner", REAL_CREATE_BANNER)
+    monkeypatch.setattr(welcome_messages, "draw_banner", REAL_DRAW_BANNER)
     monkeypatch.setattr(cdn, "upload_asset", REAL_UPLOAD_ASSET)
 
 
@@ -99,6 +81,27 @@ def _newcomer(guild, member_id):
     member._user = MagicMock()
     member._user.id = member_id
     return member
+
+
+def _attached_banner(channel):
+    """The banner file the last welcome carried, checked to be the one its embed shows."""
+    banner = channel._send.await_args.kwargs.get("file")
+    assert banner is not None, "the welcome carried no banner"
+    assert channel.get_last_embed().image.url == f"attachment://{banner.filename}"
+    assert Image.open(BytesIO(banner.fp.getvalue())).size == WelcomeDesign.BANNER_SIZE
+    return banner
+
+
+def _recorded_outcomes(monkeypatch):
+    """The outcome of every delivery `analytics.record_value` is told about."""
+    from app.services import analytics
+
+    recorded = []
+    monkeypatch.setattr(
+        analytics, "record_value",
+        lambda guild_id, feature, outcome="ok": recorded.append(outcome),
+    )
+    return recorded
 
 
 def _welcome(channel, design, custom_image=None):
@@ -198,7 +201,7 @@ async def test_a_server_without_an_icon_still_gets_a_banner(
     await welcome_messages.send_welcome_message(_newcomer(guild, 7004))
 
     channel.assert_message_sent()
-    assert channel.get_last_embed().image.url == UPLOADED_URL
+    assert _attached_banner(channel).filename == WelcomeDesign.BANNER_FILENAME
 
 
 async def test_an_expired_custom_background_is_refreshed_before_drawing(
@@ -224,7 +227,7 @@ async def test_a_background_that_cannot_be_downloaded_still_gets_a_banner(
     await welcome_messages.send_welcome_message(_newcomer(guild, 7006))
 
     channel.assert_message_sent()
-    assert channel.get_last_embed().image.url == UPLOADED_URL
+    assert _attached_banner(channel).filename == WelcomeDesign.BANNER_FILENAME
 
 
 async def test_a_banner_drawn_plain_says_so_where_it_can_be_counted(
@@ -248,6 +251,81 @@ async def test_a_banner_drawn_plain_says_so_where_it_can_be_counted(
 
     channel.assert_message_sent()
     assert recorded == ["plain_background"], "the delivery says it was degraded"
+
+
+async def test_a_welcome_carries_its_banner_as_an_attachment(
+    deps, guild, channel, dump_channel, real_banners, web, mock_cache
+):
+    mock_cache.return_value = _welcome(channel, "server_blur")
+
+    await welcome_messages.send_welcome_message(_newcomer(guild, 7008))
+
+    banner = channel._send.await_args.kwargs.get("file")
+    assert banner is not None, "the banner went through the dump channel"
+    assert _attached_banner(channel).filename == WelcomeDesign.BANNER_FILENAME
+    assert dump_channel.send.await_count == 0, "a member join posts nothing there"
+
+
+async def test_a_channel_that_refuses_files_still_gets_the_banner_by_link(
+    deps, guild, channel, dump_channel, real_banners, web, mock_cache, monkeypatch
+):
+    """Broke as: once the banner travelled as an attachment, a welcome channel that
+    denies Keiko Attach Files answered 403 on every join, where it used to show the
+    banner from the dump channel. That channel keeps the link, and the delivery
+    says so where it can be counted."""
+    recorded = _recorded_outcomes(monkeypatch)
+    channel.denied.add("attach_files")
+    mock_cache.return_value = _welcome(channel, "server_blur")
+
+    await welcome_messages.send_welcome_message(_newcomer(guild, 7009))
+
+    assert channel._send.await_args.kwargs.get("file") is None
+    assert channel.get_last_embed().image.url == UPLOADED_URL
+    assert recorded == ["no_attach_files"]
+
+
+async def test_a_custom_image_welcome_is_never_counted_as_a_linked_banner(
+    deps, guild, channel, dump_channel, real_banners, web, mock_cache, monkeypatch
+):
+    """Broke as: a "custom image only" welcome in a channel that refuses files was
+    counted as `no_attach_files`, though that design draws no banner and attaches
+    nothing: it shows the admin's own picture by its link either way."""
+    recorded = _recorded_outcomes(monkeypatch)
+    channel.denied.add("attach_files")
+    mock_cache.return_value = _welcome(channel, "custom_only", REFRESHED)
+
+    await welcome_messages.send_welcome_message(_newcomer(guild, 7010))
+
+    assert recorded == ["ok"]
+
+
+async def test_a_plain_background_is_counted_before_a_banner_sent_by_link(
+    deps, guild, channel, dump_channel, real_banners, web, mock_cache, monkeypatch
+):
+    """Broke as: a banner drawn plain in a channel that refuses files was counted
+    only as `no_attach_files`, hiding the design that stopped being drawn."""
+    recorded = _recorded_outcomes(monkeypatch)
+    channel.denied.add("attach_files")
+    mock_cache.return_value = _welcome(channel, "custom_blur", "https://example.com/gone.png")
+
+    await welcome_messages.send_welcome_message(_newcomer(guild, 7011))
+
+    assert recorded == ["plain_background"]
+
+
+async def test_a_refused_background_says_why_in_the_log(
+    deps, guild, channel, dump_channel, real_banners, web, mock_cache, caplog
+):
+    """Broke as: a background refused by the image bounds logged only
+    `ImageRefused`, so the log never said whether it was the type, the size or
+    the pixels."""
+    page = "https://cdn.discordapp.com/attachments/1/2/not-a-picture.png"
+    web.serve(page, b"<html>gone</html>", content_type="text/html")
+    mock_cache.return_value = _welcome(channel, "custom_blur", page)
+
+    await welcome_messages.send_welcome_message(_newcomer(guild, 7012))
+
+    assert "text/html is not a picture" in caplog.text
 
 
 def test_a_download_from_a_host_that_never_answers_gives_up(monkeypatch):

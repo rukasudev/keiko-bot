@@ -9,7 +9,8 @@ e fornecem helpers para assertions em testes.
 """
 
 from dataclasses import dataclass, field
-from typing import List, Optional, Any, Dict
+from types import SimpleNamespace
+from typing import List, Optional, Any, Dict, Set
 from unittest.mock import AsyncMock, MagicMock
 import discord
 
@@ -30,18 +31,38 @@ class MockRole:
 
 @dataclass
 class MockChannel:
-    """Mock de discord.TextChannel."""
+    """Mock de discord.TextChannel.
+
+    `denied` lista as permissoes que o bot nao tem neste canal: `permissions_for`
+    as nega e `send` recusa com 403, como o Discord, o que elas nao permitem.
+    """
     id: int
     name: str
     guild: "MockGuild" = None
+    denied: Set[str] = field(default_factory=set)
 
     def __post_init__(self):
         self._sent_messages: List["MockMessage"] = []
         self._send = AsyncMock(side_effect=self._handle_send)
         self._fetch_message = AsyncMock(side_effect=self._handle_fetch_message)
 
+    def permissions_for(self, member) -> discord.Permissions:
+        """Todas as permissoes, menos as de `denied`."""
+        permissions = discord.Permissions.all()
+        permissions.update(**{name: False for name in self.denied})
+        return permissions
+
     async def _handle_send(self, content=None, *, embed=None, view=None, delete_after=None, **kwargs):
         """Captura chamadas de send."""
+        refused = "send_messages" in self.denied or (
+            "attach_files" in self.denied and (kwargs.get("file") or kwargs.get("files"))
+        )
+        if refused:
+            raise discord.Forbidden(
+                SimpleNamespace(status=403, reason="Forbidden"),
+                {"code": 50013, "message": "Missing Permissions"},
+            )
+
         message = MockMessage(
             id=1000 + len(self._sent_messages),
             content=content or "",
@@ -130,10 +151,8 @@ class MockMember:
         return f"<@{self.id}>"
 
     @property
-    def display_avatar(self):
-        mock = MagicMock()
-        mock.url = self._avatar_url
-        return mock
+    def display_avatar(self) -> discord.Asset:
+        return discord.Asset(None, url=self._avatar_url, key=f"avatar-{self.id}")
 
     @property
     def top_role(self) -> MockRole:
