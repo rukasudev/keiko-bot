@@ -75,3 +75,7 @@ class KeikoError(Exception):
         self.context = context
         self.original = original
         super().__init__(message)
+
+
+class DestinationNotFound(Exception):
+    """The guild or channel Keiko was asked to post in is not there any more."""

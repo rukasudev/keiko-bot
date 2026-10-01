@@ -1,9 +1,13 @@
 import asyncio
 import random
+from dataclasses import dataclass
 from datetime import datetime, timedelta
+from enum import Enum
+from http import HTTPStatus
 from typing import Any, Dict, List, Optional, Union
 
 import discord
+from requests import RequestException
 
 from app import bot, logger
 from app.constants import Commands as constants
@@ -182,6 +186,63 @@ def parse_streamer_message(message: str, youtuber: str, video_link: str) -> str:
     message = message.format(youtuber=youtuber, video_link=video_link)
 
     return message
+
+
+class HubOutcome(Enum):
+    """How asking YouTube's hub about one youtuber went."""
+
+    DONE = "done"
+    NO_SECRET = "no hub secret"
+    NO_CHANNEL = "no channel"
+    REFUSED = "refused"
+    TRY_LATER = "try later"
+
+
+@dataclass(frozen=True)
+class HubAnswer:
+    """The outcome of one request to the hub, in words a log line can carry and nothing else."""
+
+    outcome: HubOutcome
+    detail: str
+    status: Optional[int] = None
+
+
+def ask_the_hub(youtuber: str, mode: str) -> HubAnswer:
+    """Find a youtuber's channel and send the hub one (un)subscribe; a failed request is an answer too."""
+    try:
+        channel_id = bot.youtube.get_channel_id_from_username(youtuber)
+    except RequestException as error:
+        return HubAnswer(HubOutcome.TRY_LATER, f"{type(error).__name__}: {error}")
+
+    if not channel_id:
+        return HubAnswer(HubOutcome.NO_CHANNEL, "YouTube has no channel by that name")
+    return send_to_hub(channel_id, mode)
+
+
+def send_to_hub(channel_id: str, mode: str) -> HubAnswer:
+    """Send the hub one subscribe or unsubscribe of a channel and read its answer, never raising."""
+    send = (
+        bot.youtube.subscribe_to_new_video_event
+        if mode == "subscribe"
+        else bot.youtube.unsubscribe_from_new_video_event
+    )
+
+    try:
+        response = send(channel_id)
+    except RequestException as error:
+        return HubAnswer(HubOutcome.TRY_LATER, f"{type(error).__name__}: {error}")
+
+    if response is None:
+        return HubAnswer(HubOutcome.NO_SECRET, "no hub secret is configured")
+
+    status = response.status_code
+    detail = f"the hub answered {status}"
+    if 200 <= status < 300:
+        return HubAnswer(HubOutcome.DONE, detail, status)
+    if status >= HTTPStatus.INTERNAL_SERVER_ERROR or status == HTTPStatus.TOO_MANY_REQUESTS:
+        return HubAnswer(HubOutcome.TRY_LATER, detail, status)
+    return HubAnswer(HubOutcome.REFUSED, detail, status)
+
 
 def handle_subscribe_youtubers_new_video(interaction: discord.Interaction, cogs: Union[List[Dict[str, Any]], Dict[str, Any]]):
     if isinstance(cogs, list):

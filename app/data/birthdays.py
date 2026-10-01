@@ -58,8 +58,30 @@ def find_birthday_item(guild_id: str, user_id: str) -> Optional[Dict[str, Any]]:
     })
 
 
-def find_birthday_items_by_date(date: str) -> List[Dict[str, Any]]:
-    return list(mongo_client.reminders.birthdays.find({"date": str(date)}))
+def has_birthday_reminder(reminder_id: Any) -> bool:
+    """Whether any birthday is scheduled by this reminder."""
+    return mongo_client.reminders.birthdays.find_one({"reminder_id": str(reminder_id)}) is not None
+
+
+def find_birthday_items_by_reminder_and_date(reminder_id: Any, date: str) -> List[Dict[str, Any]]:
+    """The birthdays one reminder schedules: its guild's, on its date."""
+    return list(mongo_client.reminders.birthdays.find({
+        "reminder_id": str(reminder_id),
+        "date": str(date),
+    }))
+
+
+def mark_birthday_celebrated(guild_id: str, user_id: str, year: int) -> bool:
+    """Record this year's celebration of a member; False when it was already recorded."""
+    result = mongo_client.reminders.birthdays.update_one(
+        {
+            "guild_id": str(guild_id),
+            "user_id": str(user_id),
+            "celebrated_year": {"$ne": int(year)},
+        },
+        {"$set": {"celebrated_year": int(year)}},
+    )
+    return result.modified_count == 1
 
 
 def find_birthday_items_by_guild(guild_id: str) -> List[Dict[str, Any]]:

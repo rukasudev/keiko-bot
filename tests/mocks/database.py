@@ -342,7 +342,7 @@ class MockMongoCollection:
 
     def find_one(self, filter_dict):
         for doc in self._data:
-            if all(doc.get(k) == v for k, v in filter_dict.items()):
+            if all(_matches_value(doc.get(k), v) for k, v in filter_dict.items()):
                 return doc.copy()
         return None
 
@@ -400,7 +400,7 @@ class MockMongoCollection:
 
     def update_one(self, filter_dict, update, upsert=False):
         for doc in self._data:
-            if all(doc.get(k) == v for k, v in filter_dict.items()):
+            if all(_matches_value(doc.get(k), v) for k, v in filter_dict.items()):
                 _apply_update(doc, update, inserted=False)
                 return MagicMock(modified_count=1)
         if upsert:
@@ -428,7 +428,7 @@ class MockMongoCollection:
 
     def delete_one(self, filter_dict):
         for i, doc in enumerate(self._data):
-            if all(doc.get(k) == v for k, v in filter_dict.items()):
+            if all(_matches_value(doc.get(k), v) for k, v in filter_dict.items()):
                 self._data.pop(i)
                 return MagicMock(deleted_count=1)
         return MagicMock(deleted_count=0)
@@ -441,7 +441,7 @@ class MockMongoCollection:
 
         to_delete = []
         for i, doc in enumerate(self._data):
-            if all(doc.get(k) == v for k, v in filter_dict.items()):
+            if all(_matches_value(doc.get(k), v) for k, v in filter_dict.items()):
                 to_delete.append(i)
 
         for i in reversed(to_delete):

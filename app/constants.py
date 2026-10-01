@@ -129,6 +129,12 @@ class Commands:
     BIRTHDAY_RECONCILE_MINUTES: Final[int] = 30
     BIRTHDAY_RECONCILE_BATCH: Final[int] = 50
 
+    # webhooks
+    YOUTUBE_RENEWAL_INTERVAL_SECONDS: Final[int] = 4 * 24 * 60 * 60
+    YOUTUBE_RENEWAL_RETRY_SECONDS: Final[int] = 60 * 60
+    YOUTUBE_HUB_LEASE_SECONDS: Final[int] = 5 * 24 * 60 * 60
+    YOUTUBE_HUB_LEASE_MARGIN_SECONDS: Final[int] = 12 * 60 * 60
+
     # moderations
     MODERATIONS_KEY: Final[str] = "moderations"
     WELCOME_MESSAGES_KEY: Final[str] = "welcome_messages"
