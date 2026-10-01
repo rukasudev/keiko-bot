@@ -232,7 +232,7 @@ write a command-specific test file.
 ## Extending the harness
 
 - New component type on screen → teach `normalizer.normalize_item` and, if
-  clickable, `locators` (keep both master-version-specific).
+  clickable, `locators` (keep both version-specific).
 - New semantic click target → add to `_ALIASES` and `_CODEC_TARGETS` in
   `locators.py`.
 - New Discord API call → add to `FakeResponse`/`FakeFollowup` with the same

@@ -23,10 +23,10 @@ for any change under `app/settings/`.
 
 ## Why a project-owned harness (research, accessed 2026-07-26)
 
-The repo installs `discord.py` from **git master** (`2.8.0a`) and uses
-Components V2 (`LayoutView`, `Container`, `TextDisplay`, `MediaGallery`)
-plus master-only APIs (`ui.Label`, `ui.FileUpload`). No external test
-framework covers that surface:
+The repo pins `discord.py` 2.7.1 and uses Components V2 (`LayoutView`,
+`Container`, `TextDisplay`, `MediaGallery`) and `ui.Label`, stable since
+2.6, plus `ui.FileUpload`, stable since 2.7. No external test framework
+covers that surface:
 
 `app/services/cdn.py` also reaches past that library's public surface: it calls
 `bot.http.request(Route("POST", "/attachments/refresh-urls"))`, an endpoint
@@ -130,6 +130,7 @@ done (manual map — extend it when a new shared surface appears):
 | `app/services/analytics.py`, `app/analytics/catalog.yml`, `app/services/analytics_sink.py` | `tests/behavioral/contracts/test_analytics_catalog.py` (the catalog and the code must agree in both directions) + `tests/test_analytics_storage.py` (what becomes a document and what stays a counter) |
 | `app/logger.py`, `app/services/trace.py`, anything opening a trace | `tests/behavioral/contracts/test_logger_trace.py` — one unit of work is one Discord message, ordered, and a broken sink never breaks the work — plus `tests/behavioral/contracts/test_debug_logs.py`, which runs both handlers on the same logger: adding a sink must not degrade the embed, and both must read one identity |
 | `app/services/debug_logs.py`, `app/services/logs_archive.py`, `app/data/logs.py`, `StoredLogsHandler` | `tests/behavioral/contracts/test_debug_logs.py` — recording never blocks or raises, persisting never logs (a `logger.*` call in this path is an unbounded write storm), the whole traceback survives, and the daily export stays inside its day |
+| `.github/workflows/ci.yml`, `.github/workflows/release.yml`, `Dockerfile`, `requirements.txt`, the Python targets in `pyproject.toml` | `tests/test_release_workflow.py` — the image, CI, the release check and the lint targets name one Python version, and the suite runs on the discord.py release the image installs |
 | `app/data/*_async.py`, any `asyncio.to_thread` seam, or any new `requests` / `pymongo` / `time.sleep` call reached from a coroutine | `tests/behavioral/regressions/test_event_loop_is_never_blocked.py` — the test counts how many times the loop got control back while the call ran, because a blocked loop stops the whole bot and spends Discord's three-second interaction budget — + `tests/forms/test_boundary.py` (nothing under `app/settings/` may block) |
 | `app/services/images.py`, `app/services/cdn.py`, `create_banner` or `generate_design_previews` in `app/services/welcome_messages.py`, `app/assets/welcome/` | `tests/behavioral/regressions/test_welcome_design_previews.py` (the gallery downloads nothing from outside Discord, the example stays light and is uploaded once, previews are drawn together, a server without an icon or with an unreachable or expired background still gets a banner, a hanging download gives up, the image cache stays bounded) + `test_drawing_a_welcome_banner_never_freezes_the_bot` in `test_event_loop_is_never_blocked.py` + `tests/test_welcome_messages.py` + the welcome_messages goldens |
 | `connect_redis` in `app/__init__.py` or `DBConfigs.REDIS_SOCKET_TIMEOUT_SECONDS` | `test_a_stalled_redis_gives_up_instead_of_holding_a_thread` in `test_event_loop_is_never_blocked.py` |
@@ -202,8 +203,8 @@ loses its buttons once), duplicate and stale clicks, two clicks racing on
 one session, and Discord's Components V2 hard limits (≤40 components,
 ≤4000 chars of text) checked against the real cards.
 
-Irreducibly manual / live-only: drift of the real Discord API and
-discord.py master (the fakes encode our model of Discord — a scheduled
+Irreducibly manual / live-only: drift of the real Discord API and of
+the discord.py releases (the fakes encode our model of Discord — a scheduled
 live smoke in a dedicated test guild is the only detector); real
 permission/intent enforcement and the 3-second acknowledge window; the
 actual CDN file hosting; the real Twitch/YouTube EventSub contract; and
