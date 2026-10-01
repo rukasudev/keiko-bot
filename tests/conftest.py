@@ -234,6 +234,16 @@ def observability_isolation():
     trace.clear_sinks()
 
 
+@pytest.fixture(autouse=True)
+def config_cache_isolation():
+    """AUTOUSE: o que o cache lembrou e as quedas que viu nao passam de um teste ao outro."""
+    from app.services import cache
+
+    cache.reset()
+    yield
+    cache.reset()
+
+
 @pytest.fixture
 def analytics_events():
     """Grava os eventos emitidos durante o teste, sem tocar o banco."""

@@ -317,16 +317,16 @@ class GenericCogFeature:
         return {}
 
     async def write_document(self, guild_id: str, document: Mapping[str, Any]) -> None:
-        """Replace the guild's document and drop its cache."""
+        """Replace the guild's document, then drop its cache."""
         data = {**document, "guild_id": str(guild_id)}
-        await asyncio.to_thread(remove_cog_cache_by_guild, guild_id, self.key)
         await cogs_data.insert_cog_by_guild_id_async(self.key, data)
+        await asyncio.to_thread(remove_cog_cache_by_guild, guild_id, self.key)
 
     async def update_document(self, guild_id: str, data: Mapping[str, Any]) -> None:
-        """Merge `data` into the guild's document and drop its cache."""
+        """Merge `data` into the guild's document, then drop its cache."""
         payload = {**data, "guild_id": str(guild_id)}
-        await asyncio.to_thread(remove_cog_cache_by_guild, guild_id, self.key)
         await cogs_data.update_cog_by_guild_async(guild_id, self.key, payload)
+        await asyncio.to_thread(remove_cog_cache_by_guild, guild_id, self.key)
 
     async def commit_setup(
         self, payload: Mapping[str, Any], context: CommitContext
@@ -447,9 +447,8 @@ class GenericCogFeature:
         """Undo the feature's side effects, flag it on again, drop the document."""
         await self.on_disable(context)
         await set_moderation(context.guild_id, self.key, True)
-        await self.update_document(context.guild_id, {Commands.ENABLED_KEY: True})
-        await asyncio.to_thread(remove_cog_cache_by_guild, context.guild_id, self.key)
         await cogs_data.delete_cog_by_guild_id_async(context.guild_id, self.key)
+        await asyncio.to_thread(remove_cog_cache_by_guild, context.guild_id, self.key)
         return CommitResult(("moderations", self.key))
 
     async def on_disable(self, context: CommitContext) -> None:
