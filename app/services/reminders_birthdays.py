@@ -20,8 +20,8 @@ from app.services.dates import (
     next_mm_dd_occurrence,
 )
 from app.settings import open_feature
-from app.services.moderations import update_moderations_by_guild
 from app.services import reminders as reminders_service
+from app.services.cogs import is_feature_on
 from app.services.utils import (
     ml,
     parse_locale,
@@ -186,7 +186,9 @@ def birthday_manager_cog_data(guild_id: str, apply_defaults: bool = True) -> Dic
     message = config.get("default_message") or {}
     return {
         "guild_id": str(guild_id),
-        commands_constants.ENABLED_KEY: birthdays_data.is_birthday_enabled(guild_id),
+        commands_constants.ENABLED_KEY: is_feature_on(
+            str(guild_id), commands_constants.REMINDERS_BIRTHDAY_KEY, config
+        ),
         commands_constants.BIRTHDAY_CONFIG_CHANNEL: {
             "style": "channel",
             "values": str(config.get("channel_id")) if config.get("channel_id") else None,
@@ -506,7 +508,6 @@ def setup_birthdays(
     default_message: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     previous_config = birthdays_data.find_birthday_config(guild_id) or {}
-    update_moderations_by_guild(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY, True)
     config = birthdays_data.upsert_birthday_config(
         guild_id,
         channel_id,
@@ -609,7 +610,7 @@ def _parse_form_birthday_item(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 
 def disable_birthdays(guild_id: str) -> None:
-    """Forget every birthday and reminder of the guild and flag the feature off."""
+    """Forget every birthday, reminder and the configuration of the guild."""
     items = birthdays_data.find_birthday_items_by_guild(guild_id)
     reminder_ids = {item.get("reminder_id") for item in items if item.get("reminder_id")}
 
@@ -618,5 +619,3 @@ def disable_birthdays(guild_id: str) -> None:
 
     for reminder_id in reminder_ids:
         reminders_service.delete_reminder(reminder_id)
-
-    update_moderations_by_guild(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY, False)

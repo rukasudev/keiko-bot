@@ -2,9 +2,8 @@
 birthday?" gate, the member sub-form (member picker and a card with month,
 day, message and image), and a manager with its own persistence.
 
-A paused birthday feature has no Unpause: the service reads the moderation
-flag and reopens the setup form instead of the manager, so the lifecycle
-here records that reopening in place of `manager_unpause`.
+A paused birthday feature opens its manager, like every other feature, so
+the lifecycle records its Unpause (ux-80).
 """
 
 from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
@@ -161,15 +160,8 @@ async def manager_remove_item(scenario_factory, deps, locale):
     return scenario
 
 
-@golden_path(FORM, "manager_paused_reopens_setup")
-async def manager_paused_reopens_setup(scenario_factory, deps, locale):
-    _seed_config(deps, enabled=False)
-    return await scenario_factory(locale=locale, guild=_guild()).start_command(FORM)
-
-
 register_lifecycle(
     FORM,
     seed_enabled=lambda deps: _seed_config(deps, enabled=True),
     seed_paused=lambda deps: _seed_config(deps, enabled=False),
-    with_unpause=False,
 )

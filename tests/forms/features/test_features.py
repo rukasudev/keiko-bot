@@ -303,7 +303,7 @@ async def test_the_birthday_setup_writes_the_config_and_the_first_member(deps):
         ),
     }
     result = await feature.commit("setup", {"answers": answers}, _context())
-    assert result.written == ("reminders_birthday", "birthdays")
+    assert result.written == ("reminders_birthday", "birthdays", "moderations")
     config = deps.mongo_client.guild["reminders_birthday"].find_one(
         {"guild_id": GUILD_ID}
     )

@@ -14,6 +14,7 @@ from app import logger, redis_client
 from app.constants import Commands, DBConfigs
 from app.constants import LogTypes as logconstants
 from app.data import cogs as cogs_data
+from app.services.cogs import is_feature_on
 
 _lock = threading.Lock()
 _last_known: "OrderedDict[str, str]" = OrderedDict()
@@ -83,7 +84,7 @@ def get_cog_data_or_populate(
     document = json_util.loads(raw) if raw else None
     if document is None:
         return None
-    return document if document.get("enabled") or manager else {}
+    return document if manager or is_feature_on(str(guild_id), key, document) else {}
 
 
 def remove_cog_cache_by_guild(guild_id: str, key: str) -> None:
