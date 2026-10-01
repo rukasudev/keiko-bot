@@ -94,3 +94,11 @@ is rebuilt: the deploy pulls the image that version published.
 The image carries no credential. The deploy hands the AWS keys to the
 container when it starts, and the bot reads every other secret from SSM with
 them (`AppConfig.get_ssm_configs`).
+
+- Rotating `/keiko/youtube/hub_secret` changes every YouTube callback token: restart the
+  bot right after, so its start subscribes every followed channel on its new callback; the
+  old callbacks answer 403 until their leases end, five days at most.
+- A leaked callback token is revoked only by rotating that secret.
+- The nginx access log on the VPS keeps query strings, so it holds those tokens; keep the log
+  private. On the way in they travel encrypted, because the callback is built from
+  `WEBHOOK_URL`, which is https: Twitch EventSub already refuses any other callback.

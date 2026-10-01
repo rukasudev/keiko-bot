@@ -1,5 +1,5 @@
 
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from app import mongo_client
 from app.constants import Commands as constants
@@ -26,3 +26,13 @@ def find_guilds_by_youtuber(youtuber: str) -> Dict[str, Any]:
             "enabled": True,
         }
     )
+
+def find_followed_youtubers() -> List[str]:
+    """Every youtuber an enabled guild follows, once each."""
+    documents = mongo_client.guild[constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY].find({"enabled": True})
+    return sorted({
+        str(notification["youtuber"]["value"])
+        for document in documents
+        for notification in (document.get("notifications") or {}).get("values") or []
+        if (notification.get("youtuber") or {}).get("value")
+    })

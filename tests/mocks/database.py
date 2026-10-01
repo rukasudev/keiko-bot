@@ -189,8 +189,14 @@ class MockRedisClient:
     def get(self, key):
         return self._data.get(key)
 
-    def set(self, key, value):
+    def set(self, key, value, ex=None, nx=False):
+        """redis-py's answer: True when the key was written, None when NX found it."""
+        if nx and key in self._data:
+            return None
         self._data[key] = value
+        if ex is not None:
+            self._expirations[key] = ex
+        return True
 
     def setex(self, key, expiration, value):
         self._data[key] = value

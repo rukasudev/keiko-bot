@@ -77,3 +77,13 @@ def remove_all_cache_by_guild(guild_id: str):
     keys_to_delete = redis_client.keys(f"guild:{guild_id}:*")
     if keys_to_delete:
         redis_client.delete(*keys_to_delete)
+
+
+def claim_redis_key(key: str, expiration: int) -> bool:
+    """Set `key` with its expiry in one command, only when it is absent; True when this call set it."""
+    return bool(redis_client.set(key, 1, nx=True, ex=expiration))
+
+
+def release_redis_key(key: str) -> None:
+    """Give back a claim, so the next attempt can take it."""
+    redis_client.delete(key)

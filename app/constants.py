@@ -130,10 +130,15 @@ class Commands:
     BIRTHDAY_RECONCILE_BATCH: Final[int] = 50
 
     # webhooks
+    WEBHOOK_MAX_BODY_BYTES: Final[int] = 1024 * 1024
+    YOUTUBE_NOTIFIED_VIDEO_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 7
+    YOUTUBE_TIMEOUT_SECONDS: Final[float] = 10.0
     YOUTUBE_RENEWAL_INTERVAL_SECONDS: Final[int] = 4 * 24 * 60 * 60
     YOUTUBE_RENEWAL_RETRY_SECONDS: Final[int] = 60 * 60
     YOUTUBE_HUB_LEASE_SECONDS: Final[int] = 5 * 24 * 60 * 60
     YOUTUBE_HUB_LEASE_MARGIN_SECONDS: Final[int] = 12 * 60 * 60
+    YOUTUBE_CALLBACK_TOKEN_LENGTH: Final[int] = 32
+    REDIS_YOUTUBE_NOTIFIED_VIDEO: Final[str] = "youtube:video:{video_id}:notified"
 
     # moderations
     MODERATIONS_KEY: Final[str] = "moderations"

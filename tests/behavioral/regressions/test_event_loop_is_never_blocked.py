@@ -242,6 +242,26 @@ async def test_a_birthday_reminder_never_freezes_the_bot(deps, monkeypatch):
     assert len(channel._sent_messages) == 1, "the job reached the claim and the message"
 
 
+async def test_renewing_the_youtube_subscriptions_at_start_never_freezes_the_bot(
+    deps, monkeypatch
+):
+    """The start renews every followed channel: one Mongo read and two calls to Google each."""
+    from app.cogs.notifications import Notifications
+
+    deps.bot.config.is_dev = lambda: False
+    deps.bot.config.YOUTUBE_HUB_SECRET = "hub-secret"
+    deps.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
+    monkeypatch.setattr(
+        "app.services.notifications_youtube_video.find_followed_youtubers",
+        blocking(["pewdiepie"]),
+    )
+
+    ticks = await ticks_while(Notifications(deps.bot).resubscribe_youtube())
+
+    assert ticks >= MIN_TICKS
+    assert deps.youtube.subscribe_calls == ["UC-pewdiepie"], "the renewal reached the hub"
+
+
 async def test_waiting_for_a_stream_never_freezes_the_bot(deps, monkeypatch):
     """The retry loop sleeps 15 seconds at a time, twice, between Twitch calls."""
     monkeypatch.setattr(

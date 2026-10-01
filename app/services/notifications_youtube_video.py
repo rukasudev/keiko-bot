@@ -1,7 +1,7 @@
 import asyncio
 import random
 from dataclasses import dataclass
-from datetime import datetime, timedelta
+from datetime import timedelta, timezone
 from enum import Enum
 from http import HTTPStatus
 from typing import Any, Dict, List, Optional, Union
@@ -12,16 +12,15 @@ from requests import RequestException
 from app import bot, logger
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
-from app.exceptions import ErrorContext
+from app.exceptions import DestinationNotFound, ErrorContext
 from app.data.notifications_youtube_video import (
+    count_servers_following,
     count_youtube_video_subscription_by_guilds,
+    find_followed_youtubers,
     find_guilds_by_youtuber,
 )
-from app.data.reminder import (
-    delete_reminder_by_id,
-    find_reminder_by_value,
-    insert_reminder,
-)
+from app.data.reminder import insert_reminder, stamp_hub_confirmation
+from app.integrations.reminder_webhook import REMINDER_TIMEZONE, reminder_time
 from app.settings import open_feature
 from app.services import analytics
 from app.services.utils import ml, values_of
@@ -33,65 +32,117 @@ async def manager(interaction: discord.Interaction, guild_id: str) -> None:
     await open_feature(interaction, constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY)
 
 
-def send_youtube_video_notification(video_id: str, channel_id: str) -> None:
-    context = ErrorContext(
-        flow="youtube_notification",
-        extra={
-            "video_id": video_id,
-            "youtube_channel_id": channel_id,
-        }
+@dataclass(frozen=True)
+class VideoAnnouncement:
+    """Everything a new video's announcement needs, read before anything is sent."""
+
+    video: Dict[str, Any]
+    channel: Dict[str, Any]
+    youtuber: str
+    followers: List[Dict[str, Any]]
+
+    @property
+    def video_id(self) -> str:
+        """The id of the video being announced."""
+        return str(self.video.get("id"))
+
+    @property
+    def owner(self) -> Optional[str]:
+        """The channel YouTube says the video belongs to."""
+        return (self.video.get("snippet") or {}).get("channelId")
+
+
+def prepare_video_announcement(video_id: str, channel_id: str) -> Optional[VideoAnnouncement]:
+    """Read the video, its channel and its followers; None while YouTube does not show the video."""
+    video = bot.youtube.get_video_info(video_id)
+    if not video:
+        return None
+
+    channel = bot.youtube.get_channel_info(channel_id)
+    youtuber = channel.get("customUrl").replace("@", "")
+    return VideoAnnouncement(
+        video=video,
+        channel=channel,
+        youtuber=youtuber,
+        followers=list(find_guilds_by_youtuber(youtuber)),
+    )
+
+
+async def announce_video(announcement: VideoAnnouncement) -> None:
+    """Post a new video in every server that follows its channel, each one on its own."""
+    await bot.wait_until_ready()
+
+    targets = [
+        (guild_data, notification)
+        for guild_data in announcement.followers
+        for notification in (guild_data.get("notifications") or {}).get("values") or []
+        if (notification.get("youtuber") or {}).get("value") == announcement.youtuber
+    ]
+    results = await asyncio.gather(
+        *(deliver_video(announcement, guild_data, notification) for guild_data, notification in targets),
+        return_exceptions=True,
+    )
+
+    failures = [
+        (str(guild_data.get("guild_id")), result)
+        for (guild_data, _), result in zip(targets, results, strict=True)
+        if isinstance(result, Exception)
+    ]
+
+    for guild_id, failure in failures:
+        if isinstance(failure, (discord.Forbidden, DestinationNotFound)):
+            logger.warn(
+                f"Youtube notification not sent in guild {guild_id}: {type(failure).__name__}: {failure}",
+                log_type=logconstants.COMMAND_WARN_TYPE,
+            )
+            continue
+
+        logger.error(
+            f"Failed to send youtube notification in guild {guild_id}: {type(failure).__name__}: {failure}",
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            context=ErrorContext(
+                flow="youtube_notification",
+                guild_id=guild_id,
+                extra={"video_id": announcement.video_id, "youtuber": announcement.youtuber},
+            ),
+            exc_info=failure,
+        )
+
+    logger.info(
+        f"Notifications sent for youtuber **{announcement.youtuber}** new video in "
+        f"{len(results) - len(failures)} guilds, {len(failures)} failed",
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )
+
+
+async def deliver_video(
+    announcement: VideoAnnouncement, guild_data: Dict[str, Any], notification: Dict[str, Any]
+) -> None:
+    """Post the announcement in the channel one server chose for it."""
+    channel_id = (notification.get("channel") or {}).get("value")
+    guild = bot.get_guild(int(guild_data.get("guild_id")))
+    channel = guild.get_channel(int(channel_id)) if guild else None
+
+    if channel is None:
+        raise DestinationNotFound(f"channel {channel_id} of guild {guild_data.get('guild_id')} not found")
+
+    message = compose_notification_message(notification, announcement.youtuber, announcement.video_id)
+    embed = create_video_notification_embed(
+        announcement.video_id, announcement.video.get("snippet") or {}, announcement.channel
     )
 
     try:
-        youtuber_info = bot.youtube.get_channel_info(channel_id)
-        video_info = bot.youtube.get_video_info(video_id)
-        youtuber_user = youtuber_info.get("customUrl").replace("@", "")
-
-        context.extra["youtuber"] = youtuber_user
-
-        guilds_data = find_guilds_by_youtuber(youtuber_user)
-
-        logger.info(
-            f"Starting to send notifications for youtube video: **{youtuber_user}**",
-            log_type=logconstants.COMMAND_INFO_TYPE,
-        )
-
-        count = 0
-        for guild_data in guilds_data:
-            guild = bot.get_guild(int(guild_data.get("guild_id")))
-
-            notifications = guild_data.get("notifications").get("values")
-            for notification in notifications:
-                youtuber = notification.get("youtuber").get("value")
-                if youtuber != youtuber_user:
-                    continue
-
-                message = compose_notification_message(notification, youtuber, video_id)
-                channel = guild.get_channel(int(notification.get("channel").get("value")))
-
-                embed = create_video_notification_embed(video_info, youtuber_info)
-
-                bot.loop.create_task(channel.send(content=message, embed=embed))
-                analytics.record_value(
-                    guild.id, constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY
-                )
-                count += 1
-
-        logger.info(
-            f"Notifications sent for youtuber **{youtuber_user}** new video in {count} guilds",
-            log_type=logconstants.COMMAND_INFO_TYPE,
-        )
-    except Exception as e:
-        logger.error(
-            f"Failed to send youtube notification: {type(e).__name__}: {e}",
-            log_type=logconstants.COMMAND_ERROR_TYPE,
-            context=context,
-            exc_info=True,
-        )
+        await channel.send(content=message, embed=embed)
+    except discord.Forbidden as error:
+        analytics.record_permission_failure(guild.id, constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY, error)
         raise
 
-def create_video_notification_embed(video_info: Dict[str, Any], youtuber_info: Dict[str, Any]) -> discord.Embed:
-    video_link = f"https://www.youtube.com/watch?v={video_info.get('id')}"
+    analytics.record_value(guild.id, constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY)
+
+def create_video_notification_embed(
+    video_id: str, video_info: Dict[str, Any], youtuber_info: Dict[str, Any]
+) -> discord.Embed:
+    video_link = f"https://www.youtube.com/watch?v={video_id}"
     video_thumbnails = video_info.get("thumbnails") or {}
     video_thumbnail = video_thumbnails.get("maxres") or video_thumbnails.get("high")
 
@@ -169,8 +220,8 @@ async def build_preview_embed(youtuber: str, locale: str) -> Optional[discord.Em
         return None
 
     namespace = "commands.commands.commons.notifications-preview.youtube"
-    video_info = {"id": "", "title": ml(f"{namespace}.title", locale=locale)}
-    return create_video_notification_embed(video_info, youtuber_info)
+    video_info = {"title": ml(f"{namespace}.title", locale=locale)}
+    return create_video_notification_embed("", video_info, youtuber_info)
 
 def compose_notification_message(notification: Dict[str, Any], youtuber: str, video_id: str) -> str:
     messages = notification.get("notification_messages").get("value")
@@ -252,27 +303,62 @@ def handle_subscribe_youtubers_new_video(interaction: discord.Interaction, cogs:
         subscribe_youtube_new_video(interaction, cogs)
 
 def subscribe_youtube_new_video(interaction: discord.Interaction, response: Dict[str, Any]):
+    """Subscribe a youtuber a server starts following; only a failed lookup keeps it unsaved."""
     youtuber = response.get("youtuber").get("value")
-    channel_id = bot.youtube.get_channel_id_from_username(youtuber)
-
     guilds_by_youtuber = count_youtube_video_subscription_by_guilds(youtuber)
+
     if guilds_by_youtuber > 0:
         logger.info(
-            f"Youtuber {youtuber} already subscribed",
+            f"Youtuber **{youtuber}** already subscribed",
             interaction=interaction,
             log_type=logconstants.COMMAND_INFO_TYPE,
         )
         return
 
-    bot.youtube.subscribe_to_new_video_event(channel_id)
-    renew_date = datetime.now() + timedelta(days=4)
+    channel_id = bot.youtube.get_channel_id_from_username(youtuber)
+    answer = (
+        send_to_hub(channel_id, "subscribe")
+        if channel_id
+        else HubAnswer(HubOutcome.NO_CHANNEL, "YouTube has no channel by that name")
+    )
+    wait = constants.YOUTUBE_RENEWAL_INTERVAL_SECONDS
+
+    if answer.outcome is HubOutcome.TRY_LATER:
+        wait = constants.YOUTUBE_RENEWAL_RETRY_SECONDS
+        logger.warn(
+            f"Youtuber **{youtuber}** not subscribed yet — {answer.detail}; "
+            "its renewal tries again within the hour",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+    elif answer.outcome in (HubOutcome.REFUSED, HubOutcome.NO_CHANNEL):
+        logger.error(
+            f"Youtuber **{youtuber}** not subscribed — {answer.detail}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            context=ErrorContext(
+                flow="youtube_subscribe",
+                extra={"youtuber": youtuber, "status": answer.status},
+            ),
+        )
+    elif answer.outcome is HubOutcome.DONE:
+        logger.info(
+            f"Youtuber **{youtuber}** subscribed — {answer.detail}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_INFO_TYPE,
+        )
+
+    renewal = reminder_time(timedelta(seconds=wait))
 
     # A refused reminder used to surface as KeyError on the line below, which
     # aborted the subscription that had already succeeded.
     try:
-        reminder = bot.reminder.create_reminder(
-            {"title": "youtube_notification", "notes": youtuber, "date_tz": renew_date.date()}
-        )
+        reminder = bot.reminder.create_reminder({
+            "title": "youtube_notification",
+            "notes": youtuber,
+            "date_tz": renewal.date(),
+            "time_tz": f"{renewal:%H:%M}",
+        })
         reminder_id = reminder.get("id") if isinstance(reminder, dict) else None
     except Exception as error:
         reminder_id = None
@@ -293,10 +379,45 @@ def subscribe_youtube_new_video(interaction: discord.Interaction, response: Dict
 
     insert_reminder(reminder_id, "youtube_notification", youtuber)
     logger.info(
-        f"Youtuber {youtuber} subscribed. Reminder created for youtuber {youtuber} to renew subscription. Date: {renew_date}",
+        f"renewal of **{youtuber}** scheduled for {renewal:%Y-%m-%d %H:%M} ({REMINDER_TIMEZONE})",
         interaction=interaction,
         log_type=logconstants.COMMAND_INFO_TYPE,
     )
+
+def resubscribe_followed_channels() -> int:
+    """Subscribe every followed channel again, signed with Keiko's secret; how many were."""
+    if bot.config.is_dev():
+        return 0
+    if not bot.config.YOUTUBE_HUB_SECRET:
+        logger.warn(
+            "youtube subscriptions not renewed — no hub secret is configured",
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+        return 0
+
+    youtubers = find_followed_youtubers()
+    renewed = 0
+
+    for youtuber in youtubers:
+        try:
+            answer = ask_the_hub(youtuber, "subscribe")
+        except Exception as error:
+            answer = HubAnswer(HubOutcome.TRY_LATER, f"{type(error).__name__}: {error}")
+
+        if answer.outcome is HubOutcome.DONE:
+            stamp_hub_confirmation(youtuber, reminder_time().astimezone(timezone.utc))
+            renewed += 1
+            continue
+        logger.warn(
+            f"youtuber **{youtuber}** not subscribed again — {answer.detail}",
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+
+    logger.info(
+        f"youtube subscriptions renewed — {renewed} of {len(youtubers)}",
+        log_type=logconstants.COMMAND_INFO_TYPE,
+    )
+    return renewed
 
 def handle_unsubscribe_youtube_new_video(interaction: discord.Interaction, cogs: Union[List[Dict[str, Any]], Dict[str, Any]]):
     if cogs.get("notifications"):
@@ -306,34 +427,40 @@ def handle_unsubscribe_youtube_new_video(interaction: discord.Interaction, cogs:
         unsubscribe_youtube_new_video(interaction, cogs)
 
 def unsubscribe_youtube_new_video(interaction: discord.Interaction, notification: Dict[str, Any]):
+    """Unsubscribe a youtuber no other server follows; the renewal ends itself, never here."""
     youtuber = notification.get("youtuber").get("value")
-    channel_id = bot.youtube.get_channel_id_from_username(youtuber)
+    followers = count_servers_following(youtuber)
 
-    guilds_by_youtuber = count_youtube_video_subscription_by_guilds(youtuber)
-    if guilds_by_youtuber > 1:
+    if followers > 1:
         logger.warn(
-            f"Youtuber {youtuber} has more than one subscription and will not be unsubscribed",
+            f"Youtuber **{youtuber}** is still followed by another server and stays subscribed",
             interaction=interaction,
             log_type=logconstants.COMMAND_WARN_TYPE,
         )
         return
 
-    bot.youtube.unsubscribe_from_new_video_event(channel_id)
-    logger.info(
-        f"Youtuber {youtuber} unsubscribed",
-        interaction=interaction,
-        log_type=logconstants.COMMAND_INFO_TYPE,
-    )
+    answer = ask_the_hub(youtuber, "unsubscribe")
 
-    reminder = find_reminder_by_value(youtuber)
-    if not reminder:
-        return
-
-    bot.reminder.delete_reminder(reminder.get("reminder_id"))
-    delete_reminder_by_id(reminder.get("id"))
-
-    logger.info(
-        f"renewal reminder {reminder.get('reminder_id')} deleted — {youtuber}",
-        interaction=interaction,
-        log_type=logconstants.COMMAND_INFO_TYPE,
-    )
+    if answer.outcome in (HubOutcome.REFUSED, HubOutcome.TRY_LATER):
+        logger.error(
+            f"Youtuber **{youtuber}** not unsubscribed from the hub — {answer.detail}; "
+            "the subscription ends with its lease once its renewal finds no server following",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            context=ErrorContext(
+                flow="youtube_unsubscribe",
+                extra={"youtuber": youtuber, "status": answer.status},
+            ),
+        )
+    elif answer.outcome is HubOutcome.DONE:
+        logger.info(
+            f"Youtuber **{youtuber}** unsubscribed — {answer.detail}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_INFO_TYPE,
+        )
+    else:
+        logger.info(
+            f"Youtuber **{youtuber}** had nothing to unsubscribe — {answer.detail}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_INFO_TYPE,
+        )
