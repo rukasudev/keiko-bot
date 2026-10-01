@@ -5,7 +5,7 @@ import hmac
 import os
 import random
 from pathlib import Path
-from re import finditer
+from re import escape, finditer, sub
 from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
 
 import discord
@@ -307,6 +307,19 @@ def fill(text: str, **values: Any) -> str:
     for name, value in values.items():
         text = text.replace(f"${name}", str(value))
     return text
+
+
+def fill_placeholders(
+    template: str, values: Dict[str, str], required: Optional[str] = None
+) -> str:
+    """Fill each `{name}` of a user's template in one pass, adding `{required}` if missing."""
+    if required and f"{{{required}}}" not in template:
+        template += f"\n{{{required}}}"
+    if not values:
+        return template
+
+    names = "|".join(escape(name) for name in values)
+    return sub(r"\{(" + names + r")\}", lambda match: values[match.group(1)], template)
 
 
 def parse_command_event_description(

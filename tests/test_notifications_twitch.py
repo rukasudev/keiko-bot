@@ -265,6 +265,14 @@ class TestTwitchMessageComposition:
         # Assert
         assert "twitch.tv/gaules" in result
 
+    def test_a_capitalised_stream_link_is_printed_as_typed_and_the_link_still_added(self):
+        """A placeholder in capitals is text: it used to stop the link from being added."""
+        stream_link = "https://www.twitch.tv/gaules"
+
+        result = parse_streamer_message("{STREAM_LINK}", "gaules", stream_link)
+
+        assert result == f"{{STREAM_LINK}}\n{stream_link}"
+
 
 class TestTwitchStreamEmbed:
     """Testes da criacao de embeds de notificacao."""

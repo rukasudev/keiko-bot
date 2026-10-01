@@ -23,7 +23,7 @@ from app.data.reminder import insert_reminder, stamp_hub_confirmation
 from app.integrations.reminder_webhook import REMINDER_TIMEZONE, reminder_time
 from app.settings import open_feature
 from app.services import analytics
-from app.services.utils import ml, values_of
+from app.services.utils import fill_placeholders, ml, values_of
 from app.views.message_preview import MessagePreviewView
 
 
@@ -183,14 +183,11 @@ async def send_notification_preview(
     values = values_of(responses)
     youtuber = str(values.get("youtuber") or "")
     video_link = f"https://www.youtube.com/@{youtuber}"
-    texts = []
-    for message in str(values.get("notification_messages") or "").split(";"):
-        if not message.strip():
-            continue
-        try:
-            texts.append(parse_streamer_message(message.lstrip(), youtuber, video_link))
-        except (KeyError, IndexError):
-            texts.append(message.lstrip())
+    texts = [
+        parse_streamer_message(message.lstrip(), youtuber, video_link)
+        for message in str(values.get("notification_messages") or "").split(";")
+        if message.strip()
+    ]
     embed = await build_preview_embed(youtuber, interaction.locale)
     await MessagePreviewView(texts, interaction.locale, embed).send(interaction)
 
@@ -231,12 +228,9 @@ def compose_notification_message(notification: Dict[str, Any], youtuber: str, vi
     return parse_streamer_message(random_message, youtuber, video_link)
 
 def parse_streamer_message(message: str, youtuber: str, video_link: str) -> str:
-    if "{video_link}" not in message.lower():
-        message += "\n{video_link}"
-
-    message = message.format(youtuber=youtuber, video_link=video_link)
-
-    return message
+    return fill_placeholders(
+        message, {"youtuber": youtuber, "video_link": video_link}, required="video_link"
+    )
 
 
 class HubOutcome(Enum):
