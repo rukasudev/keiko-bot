@@ -152,6 +152,14 @@ def test_a_trace_without_a_guild_or_user_omits_those_fields():
     assert "Duration" in named
 
 
+def test_the_header_names_the_release_that_wrote_the_message(monkeypatch):
+    """After a deploy, which version a message came from is the first question."""
+    monkeypatch.setenv("APP_VERSION", "v1.4.0")
+
+    assert fields(build("ping"))["Version"] == "`v1.4.0`"
+    assert fields(build("twitch", source="webhook"))["Version"] == "`v1.4.0`"
+
+
 # --------------------------------------------------------------------------
 # The title reads the action without the session paying for it
 # --------------------------------------------------------------------------

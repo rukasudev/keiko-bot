@@ -21,7 +21,7 @@ from app import logger
 from app.components.embed import response_error_embed
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
-from app.services import analytics
+from app.services import analytics, metrics
 from app.services.trace import trace_scope
 from app.services.utils import is_guild_admin
 from app.settings.discord import observability
@@ -165,6 +165,8 @@ class Runtime:
         finally:
             in_time.cancel()
 
+        metrics.record_interaction(*_answered(in_time))
+
     async def _open(
         self,
         interaction: discord.Interaction,
@@ -231,10 +233,16 @@ class Runtime:
         in_time = _answer_in_time(interaction)
         try:
             await self._handle_locked(interaction, component, session, payload, state)
-        except EffectFailed:
+        except EffectFailed as failed:
+            metrics.record_interaction("failed", failed.error)
             return
+        except Exception as error:
+            metrics.record_interaction("failed", error)
+            raise
         finally:
             in_time.cancel()
+
+        metrics.record_interaction(*_answered(in_time))
 
     async def _handle_locked(
         self,
@@ -277,11 +285,14 @@ class Runtime:
                         content=notice, ephemeral=True
                     )
         except discord.HTTPException as error:
+            metrics.record_interaction("failed", error)
             logger.warn(
                 f"Could not finalize an unknown session: "
                 f"{type(error).__name__}: {error}",
                 log_type=logconstants.COMMAND_WARN_TYPE,
             )
+        else:
+            metrics.record_interaction("in_time")
 
     async def _context(
         self, session: FormSession, lookup: Lookup | None = None
@@ -290,6 +301,7 @@ class Runtime:
         opened = state.opened
         document = opened.document or {}
         external: Mapping[str, Mapping[str, Any]] = {}
+        prefix = _prefix()
 
         if lookup is not None:
             external = await state.feature.prefetch(
@@ -300,6 +312,7 @@ class Runtime:
                     session.origin.locale,
                     state.guild,
                     state.member,
+                    prefix=prefix,
                 ),
             )
         parent_values: Mapping[str, Any] = {}
@@ -318,7 +331,7 @@ class Runtime:
             items=items,
             external=external,
             server_name=str(getattr(state.guild, "name", "")),
-            prefix=_prefix(),
+            prefix=prefix,
             previews=await state.ready_previews(False),
             panel_rows=opened.rows,
             panel_info=opened.info,
@@ -824,7 +837,10 @@ def _command_label(interaction: Any, key: str) -> str:
     return str(getattr(command, "qualified_name", None) or key)
 
 
-def _answer_in_time(interaction: discord.Interaction) -> asyncio.Task[None]:
+_Answer = tuple[metrics.InteractionOutcome, BaseException | None]
+
+
+def _answer_in_time(interaction: discord.Interaction) -> asyncio.Task[_Answer]:
     """Answer Discord before its three seconds run out, and only if we are late.
 
     A command answered on time needs no deferral, so nobody reads "thinking"
@@ -834,18 +850,27 @@ def _answer_in_time(interaction: discord.Interaction) -> asyncio.Task[None]:
     thinking state.
     """
 
-    async def defer_if_late() -> None:
+    async def defer_if_late() -> _Answer:
         await asyncio.sleep(view_constants.DEFER_AFTER_SECONDS)
         try:
-            if not interaction.response.is_done():
-                await interaction.response.defer(ephemeral=True)
+            if interaction.response.is_done():
+                return "in_time", None
+            await interaction.response.defer(ephemeral=True)
         except discord.HTTPException as error:
             logger.warn(
                 f"Could not answer in time: {type(error).__name__}: {error}",
                 log_type=logconstants.COMMAND_WARN_TYPE,
             )
+            return "failed", error
+        return "deferred", None
 
     return asyncio.ensure_future(defer_if_late())
+
+
+def _answered(clock: asyncio.Task[_Answer]) -> _Answer:
+    if clock.done() and not clock.cancelled() and clock.exception() is None:
+        return clock.result()
+    return "in_time", None
 
 
 async def _answer_with(interaction: discord.Interaction, embed: discord.Embed) -> None:
@@ -867,18 +892,14 @@ def _flat(answers: Mapping[str, Any]) -> dict[str, Any]:
     return values
 
 
-def _prefix() -> str:
-    """The prefix this bot answers to, for the copy that names a command."""
-    import app as app_module
-
-    try:
-        return str(app_module.bot.config.PREFIX)  # type: ignore[attr-defined]
-    except Exception:
-        return ""
-
-
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _prefix() -> str:
+    import app as app_module
+
+    return str(app_module.bot.config.PREFIX)
 
 
 RUNTIME = Runtime()

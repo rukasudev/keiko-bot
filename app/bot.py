@@ -12,6 +12,21 @@ from app.services.utils import cogs_manager, get_cogs_folder
 from app.translator import Translator
 
 
+def gateway_intents() -> discord.Intents:
+    """The gateway events Keiko reads: its guilds, their members, messages and their text.
+
+    No presences: nothing reads a member's status or activity, only the bot's own.
+    DMs stay, so a prefixed command sent there still gets the use-slashes hint.
+    """
+    return discord.Intents(
+        guilds=True,
+        members=True,
+        guild_messages=True,
+        dm_messages=True,
+        message_content=True,
+    )
+
+
 class DiscordBot(Bot):
     """
     Wraps some interactions with the discord bot API, handles running the
@@ -33,7 +48,7 @@ class DiscordBot(Bot):
             case_insensitive=True,
             help_command=None,
             owner_id=self.config.OWNER_ID,
-            intents=discord.Intents.all(),
+            intents=gateway_intents(),
             status=self.config.STATUS,
             activity=discord.Activity(
                 type=self.config.ACTIVITY, name=self.config.DESCRIPTION

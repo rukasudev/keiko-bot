@@ -340,9 +340,9 @@ sees (`docs/form-scenario-testing.md`).
   `tests/forms/discord`: the compiler, `decide`, the rules, the session, the
   feature modules and the adapter choreography.
 - `make lint`: `ruff` and `mypy --strict` over `app/settings/` and
-  `tests/forms/`, plus `ruff check --select F401` over the whole of `app/`,
-  which is the only static check that reaches `app/cogs`, `app/webhooks`
-  and `app/api`; the style rules are `.claude/rules/code-style.md`, rules
-  13 onwards.
+  `tests/forms/`, plus `ruff check --select F401,F821` over the whole of
+  `app/` (unused imports and undefined names), which is the only static check
+  that reaches `app/cogs`, `app/webhooks` and `app/api`; the style rules are
+  `.claude/rules/code-style.md`, rules 13 onwards.
 - `pytest tests/behavioral/golden -q`: the goldens are the UX contract; a
   diff needs an entry in `docs/ux-changes.md` before re-recording.

@@ -205,6 +205,16 @@ def test_record_metadata_points_at_the_code_that_logged():
     assert document["v"] == debug_logs.SCHEMA_VERSION
 
 
+def test_every_stored_line_names_the_release_that_wrote_it(monkeypatch):
+    """A line from before a deploy and one from after it read alike without this."""
+    monkeypatch.setenv("APP_VERSION", "v1.4.0")
+    handler = install_handler()
+    handler.emit(make_record("after the deploy"))
+    debug_logs.flush()
+
+    assert stored()[0]["app_version"] == "v1.4.0"
+
+
 def test_an_oversized_message_keeps_its_tail():
     document = debug_logs.build_document(
         level="ERROR", message="x" * (constants.DEBUG_LOGS_MESSAGE_MAX_LENGTH + 500)

@@ -583,6 +583,101 @@ async def test_a_command_that_runs_late_is_answered_before_the_clock_runs_out(
     assert scenario.current_message is not None, "the panel still arrives"
 
 
+def _interactions(outcome, code=""):
+    from prometheus_client import REGISTRY
+
+    labels = {"outcome": outcome, "code": code}
+    return REGISTRY.get_sample_value("keiko_interactions_total", labels) or 0.0
+
+
+async def test_a_command_answered_in_time_is_counted_in_time(v2):
+    before = _interactions("in_time")
+
+    await v2().start_command("default_roles")
+
+    assert _interactions("in_time") == before + 1
+
+
+async def test_a_command_the_clock_had_to_defer_is_counted_deferred(v2, monkeypatch):
+    from app.settings.features.feature import GenericCogFeature
+
+    monkeypatch.setattr("app.constants.ViewConstants.DEFER_AFTER_SECONDS", 0.01)
+    reading = GenericCogFeature.open
+
+    async def slow(self, context):
+        await asyncio.sleep(0.05)
+        return await reading(self, context)
+
+    monkeypatch.setattr(GenericCogFeature, "open", slow)
+    deferred, in_time = _interactions("deferred"), _interactions("in_time")
+
+    await v2().start_command("default_roles")
+
+    assert _interactions("deferred") == deferred + 1
+    assert _interactions("in_time") == in_time, "one interaction, one outcome"
+
+
+async def test_a_click_discord_refuses_is_counted_failed_with_its_code(v2, monkeypatch):
+    from tests.behavioral.harness.fake_interaction import FakeResponse
+
+    scenario = await v2().start_command("default_roles")
+    message = scenario.current_message
+    button = locators.find_button(message, "continue", scenario.locale)
+
+    async def expired(self, **kwargs):
+        raise discord.NotFound(
+            SimpleNamespace(status=404, reason="Not Found"),
+            {"code": 10062, "message": "Unknown interaction"},
+        )
+
+    monkeypatch.setattr(FakeResponse, "edit_message", expired)
+    failed, in_time = _interactions("failed", "10062"), _interactions("in_time")
+
+    await button.callback(scenario._mint(message=message, custom_id=button.custom_id))
+
+    assert _interactions("failed", "10062") == failed + 1
+    assert _interactions("in_time") == in_time, "one interaction, one outcome"
+
+
+async def test_a_click_that_raises_is_counted_failed_and_still_raises(v2, monkeypatch):
+    from app.settings.discord.callbacks import Runtime
+
+    scenario = await v2().start_command("default_roles")
+    message = scenario.current_message
+    button = locators.find_button(message, "continue", scenario.locale)
+
+    async def broken(self, *args, **kwargs):
+        raise RuntimeError("the session store is gone")
+
+    monkeypatch.setattr(Runtime, "_handle_locked", broken)
+    failed, in_time = _interactions("failed"), _interactions("in_time")
+
+    with pytest.raises(RuntimeError):
+        await button.callback(
+            scenario._mint(message=message, custom_id=button.custom_id)
+        )
+
+    assert _interactions("failed") == failed + 1
+    assert _interactions("in_time") == in_time, "one interaction, one outcome"
+
+
+async def test_a_feature_a_button_opens_that_raises_is_counted_failed(v2, monkeypatch):
+    """The /setup and greeting buttons open a feature with no command error handler."""
+    from app.components.buttons import run_feature_command
+
+    async def broken(*args, **kwargs):
+        raise RuntimeError("the saved document cannot be read")
+
+    monkeypatch.setattr("app.settings.open_feature", broken)
+    scenario = v2()
+    failed = _interactions("failed")
+
+    with pytest.raises(RuntimeError):
+        await run_feature_command(scenario._mint(), "default_roles", "setup_dashboard")
+
+    assert _interactions("failed") == failed + 1
+
+
 async def test_an_aside_that_asks_first_spends_its_cooldown_only_when_confirmed(
     v2, deps, monkeypatch
 ):

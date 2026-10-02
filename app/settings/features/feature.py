@@ -29,13 +29,14 @@ from app.settings.form.responses.summary import item_entries, responses
 
 @dataclass(frozen=True)
 class OpenContext:
-    """Who opens the feature, where, and the guild objects the bot holds."""
+    """Who opens the feature, where, the guild objects the bot holds and its prefix."""
 
     guild_id: str
     user_id: str
     locale: str
     guild: Any = None
     member: Any = None
+    prefix: str = ""
 
 
 @dataclass(frozen=True)

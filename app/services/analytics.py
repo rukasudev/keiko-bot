@@ -8,11 +8,13 @@ design; breaking a command never is. Reference: docs/analytics.md
 """
 import os
 import queue
+import uuid
 from datetime import datetime, timezone
 from typing import Any, Callable, Dict, List, Optional
 
 import yaml
 
+from app.config import app_version
 from app.constants import Commands as constants
 from app.services.trace import current_trace
 
@@ -131,6 +133,7 @@ def _build_envelope(
 
     return {
         "event": event,
+        "event_id": uuid.uuid4().hex,
         "v": declaration.get("version", 1),
         "ts": datetime.now(timezone.utc),
         "guild_id": str(guild_id) if guild_id else None,
@@ -142,6 +145,7 @@ def _build_envelope(
         "result": _valid_result(result),
         "props": sanitize_props(_declared_props(declaration, props)),
         "env": _ENVIRONMENT,
+        "app_version": app_version(),
     }
 
 

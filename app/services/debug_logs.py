@@ -32,6 +32,7 @@ import threading
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from app.config import app_version
 from app.constants import Commands as constants
 from app.services.trace import current_trace
 
@@ -117,6 +118,7 @@ def build_document(
         "line": line,
         "traceback": clip_tail(traceback_text, constants.DEBUG_LOGS_TRACEBACK_MAX_LENGTH),
         "env": _ENVIRONMENT,
+        "app_version": app_version(),
     }
 
 

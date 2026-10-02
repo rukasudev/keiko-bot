@@ -2,9 +2,15 @@ import os
 from os.path import dirname, join
 
 import boto3
+from botocore.exceptions import ClientError
 from dotenv import load_dotenv
 
 from app.constants import DBConfigs as constants
+
+
+def app_version() -> str:
+    """The release this process runs, as the deploy names it, or `dev`."""
+    return os.getenv("APP_VERSION") or "dev"
 
 
 class AppConfig:
@@ -17,6 +23,7 @@ class AppConfig:
         load_dotenv(dotenv_path, override=True)
 
         self.ENVIRONMENT = os.getenv("APPLICATION_ENVIRONMENT")
+        self.APP_VERSION = app_version()
         self.DEBUG = os.getenv("DEBUG")
         self.ANALYTICS_ENABLED = os.getenv("ANALYTICS_ENABLED", "true").lower() != "false"
         self.DEBUG_LOGS_ENABLED = os.getenv("DEBUG_LOGS_ENABLED", "true").lower() != "false"
@@ -31,7 +38,6 @@ class AppConfig:
         self.REDIS_URL = os.getenv("REDIS_URL")
         self.APPLICATION_ID = os.getenv("APPLICATION_ID")
         self.NOTION_TOKEN = os.getenv("NOTION_TOKEN")
-        self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
         self.DETECT_LANGUAGE_API_KEY = os.getenv("DETECT_LANGUAGE_API_KEY")
         self.RUN_LOCAL_WEBHOOK_API = os.getenv("RUN_LOCAL_WEBHOOK_API")
         self.WEBHOOK_URL = os.getenv("WEBHOOK_URL")
@@ -39,6 +45,7 @@ class AppConfig:
         self.REMINDER_APPLICATION_ID = os.getenv("REMINDER_APPLICATION_ID")
         self.REMINDER_AUTH_PASSWORD = os.getenv("REMINDER_AUTH_PASSWORD")
         self.REMINDER_API_KEY = os.getenv("REMINDER_API_KEY")
+        self.HEARTBEAT_URL = os.getenv("HEARTBEAT_URL", "")
 
 
     def get_ssm_configs(self):
@@ -63,7 +70,6 @@ class AppConfig:
         self.YOUTUBE_API_KEY = ssm.get_parameter(Name="/keiko/youtube/api_key", WithDecryption=True)["Parameter"]["Value"]
         self.REDIS_URL = ssm.get_parameter(Name="/keiko/redis/url", WithDecryption=True)["Parameter"]["Value"]
         self.NOTION_TOKEN = ssm.get_parameter(Name="/keiko/notion/token", WithDecryption=True)["Parameter"]["Value"]
-        self.OPENAI_API_KEY = ssm.get_parameter(Name="/keiko/openai/api_key", WithDecryption=True)["Parameter"]["Value"]
         self.DETECT_LANGUAGE_API_KEY = ssm.get_parameter(
             Name="/keiko/detect_language/api_key", WithDecryption=True)["Parameter"]["Value"]
         self.REMINDER_APPLICATION_ID = ssm.get_parameter(Name="/keiko/reminder/application_id", WithDecryption=True)[
@@ -72,6 +78,14 @@ class AppConfig:
             "Parameter"]["Value"]
         self.REMINDER_API_KEY = ssm.get_parameter(Name="/keiko/reminder/api_key", WithDecryption=True)["Parameter"][
             "Value"]
+        self.HEARTBEAT_URL = self.get_optional_parameter(ssm, "/keiko/heartbeat/url")
+
+    def get_optional_parameter(self, ssm, name: str) -> str:
+        """A parameter the bot runs without: empty when it is missing or cannot be read."""
+        try:
+            return ssm.get_parameter(Name=name, WithDecryption=True)["Parameter"]["Value"]
+        except ClientError:
+            return ""
 
     def get_admin_db_configs(self):
         return [{key: getattr(self, key) for key in constants.ADMIN_CONFIGS_LIST}]
@@ -92,9 +106,6 @@ class AppConfig:
         notion_configs = find_db_integration_configs(constants.INTEGRATION_NOTION)
         self.NOTION_ENABLED = notion_configs.get(constants.INTEGRATION_NOTION_ENABLED)
         self.NOTION_DATABASE_ID = notion_configs.get(constants.INTEGRATION_NOTION_DATABASE_ID)
-
-        openai_configs = find_db_integration_configs(constants.INTEGRATION_OPENAI)
-        self.OPENAI_ENABLED = openai_configs.get(constants.INTEGRATION_OPENAI_ENABLED)
 
         self.ADMIN_GUILD_ID = int(admin_configs[constants.ADMIN_GUILD_ID])
         self.ADMIN_REPORTS_CHANNEL_ID = int(admin_configs[constants.ADMIN_REPORTS_CHANNEL_ID])

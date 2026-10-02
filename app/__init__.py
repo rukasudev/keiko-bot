@@ -8,6 +8,8 @@ from app.bot import DiscordBot
 from app.config import AppConfig
 from app.constants import DBConfigs
 
+bot: DiscordBot
+
 
 def connect_redis(url: str) -> redis.Redis:
     """A Redis client that gives up on a connection or a read that hangs."""

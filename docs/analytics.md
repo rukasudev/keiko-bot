@@ -136,6 +136,21 @@ setup.validation_failed:
 Properties not listed under `required`/`optional` are dropped and counted in
 `analytics.stats()["undeclared_props"]`, visible in `/admin pipeline`.
 
+### The envelope
+
+`_build_envelope` wraps the properties the catalog allows in the same fields for
+every event: `event`, `event_id` (a random hex id of its own, so a copy written
+twice can be told apart), `v` (the event's catalog `version`), `ts`, `guild_id`,
+`user_id`, `actor`, `feature`, `source`, `session_id`, `result`, `props`, `env`
+and `app_version` (the release that emitted it, from `APP_VERSION`, `dev` when
+the deploy names none). An `event` class stores the envelope as it is.
+
+`version` versions an event's **properties**: it moves when a property is added,
+removed or changes meaning. A field added to the envelope is not a property of
+any event, so `event_id` and `app_version` left every `version` where it was.
+Neither carries anything about a person: one is random, the other is a release
+tag.
+
 ## 5. Storage
 
 Three collections, all in the `guild` database, all registered in
@@ -201,6 +216,112 @@ executable instead of documented.
 
 ---
 
+# Operational metrics: is it up, is it late, which release
+
+`PrometheusCog` (`app/cogs/prometheus.py`) serves the default Prometheus
+registry on port 8000 once the bot is ready, so a metric defined anywhere in the
+process is scraped. Keiko's own:
+
+| Metric | Labels | Recorded by |
+|---|---|---|
+| `keiko_event_loop_lag_seconds` (a histogram, buckets `Commands.HEARTBEAT_LAG_BUCKETS`) | `le` | every heartbeat tick, `metrics.record_loop_lag` |
+| `keiko_build_info` | `version` | the heartbeat cog when it loads, `metrics.record_build_info` |
+| `keiko_interactions_total` | `outcome` (`in_time`, `deferred`, `failed`), `code` (Discord's error code, such as `10062` or `40060`, or empty) | the form adapter (`open_feature`, `handle`, a click on a lost session), `run_feature_command` (a feature a button opens) and `Errors.on_app_command_error` |
+| `keiko_webhook_refusals_total` | `route` (the URL rule, never the path a request typed), `status` (the 4xx it was answered with) | the refusal hook of `app/webhooks/__init__.py` |
+| `keiko_form_*` | see `observability.py` | the form adapter |
+
+`PrometheusCog` adds the library's own, among them `discord_connected{shard}` (1
+while the gateway is up) and `discord_event_on_interaction_total{shard,
+interaction, command}`, every interaction the gateway delivered: slash commands,
+context menus, buttons, selects, modals and autocomplete.
+
+**No label is ever a guild or a user id.** A label takes one series per value, so
+an id is both a privacy leak and an unbounded number of series; every label above
+is a closed list (`tests/test_metrics.py`). `app/services/metrics.py` is the
+generic home for what every layer records, so a cog never imports the form
+adapter to record a number. The latency of each outside dependency (Mongo,
+Redis, Discord, Twitch, YouTube, reminders, Notion, translate) arrives with the
+shared HTTP client, together with its first caller.
+
+Each interaction is counted once: a form command when it opens (a command that
+raises is counted by the error handler instead), a feature a `/setup` or greeting
+button opens when it raises (`run_feature_command`, which has no error handler
+behind it), a click when it ends (`failed` when an effect raised, or anything
+else, with the code Discord answered). The 1.5 second clock that defers a late
+answer decides `deferred`, or `failed` when Discord refused the deferral itself.
+
+## Alerts to create in Grafana
+
+Nothing in the repository creates them; these are the expressions, with a first
+threshold to tune against real traffic:
+
+| Alert | Expression | For | What it means |
+|---|---|---|---|
+| Interactions failing | `sum(rate(keiko_interactions_total{outcome="failed"}[15m])) / sum(rate(discord_event_on_interaction_total{interaction!="autocomplete"}[15m])) > 0.05` | 15m | more than one interaction in twenty failed; the code label says why (`10062`: answered too late, `40060`: answered twice) |
+| Event loop late | `sum(increase(keiko_event_loop_lag_seconds_count[10m])) - sum(increase(keiko_event_loop_lag_seconds_bucket{le="5.0"}[10m])) > 0` | 0m | a heartbeat tick woke up more than five seconds after its time in the last ten minutes: something blocked the loop |
+| Gateway down | `max(discord_connected) == 0` | 5m | the process is up but not connected to Discord |
+| Webhook sender refused | `sum by (route) (increase(keiko_webhook_refusals_total{status=~"40[13]"}[1h])) > 0` | 0m | a request was refused for its signature or its credentials in the last hour: one forged request, or a secret that no longer matches, which stops every real notice of that route without a word |
+| Webhook refusal flood | `sum by (route, status) (increase(keiko_webhook_refusals_total[15m])) > 20` | 0m | a route refusing in bulk: someone is flooding it |
+
+`discord_event_on_interaction_total` without autocomplete is the denominator:
+it counts every interaction Discord delivered, whatever handled it, and an
+autocomplete is never answered by anything that counts a failure, so leaving it
+in would only dilute the ratio. `keiko_interactions_total` counts what the form
+adapter, the buttons that open a feature and the command error handler saw, so
+the ratio reads as "of everything people clicked or typed, how much failed". The
+two counters reset together when the process restarts, so `rate()` keeps the
+ratio honest across deploys. When the process itself is gone there is nothing
+left to scrape: that is the heartbeat monitor's job, not Grafana's.
+
+The two refusal alerts answer different questions. Twitch, YouTube and the
+reminders API send a handful of requests an hour, so a secret that stopped
+matching never reaches twenty refusals in fifteen minutes: the first alert fires
+on a single 401 or 403, because before this release each of those posted an
+error to the channel, and now nothing else would say the notices stopped. The
+flood alert is for the other case, a stranger sending garbage.
+
+The lag is a histogram because a gauge keeps only the last tick: after a freeze,
+discord.py runs the missed ticks back to back until it is on schedule again, so
+a second later the gauge reads an on-time tick and the freeze is gone. The
+histogram keeps every tick, and the alert asks whether any tick in the window
+was more than five seconds late (`le="5.0"` is how the client names that bucket).
+
+## The heartbeat
+
+`app/cogs/heartbeat.py` ticks every `Commands.HEARTBEAT_SECONDS`. Each tick is
+counted with how late it woke up against the time it was scheduled for, the loop
+lag a blocked event loop shows first, then pings `HEARTBEAT_URL` through
+`asyncio.to_thread`. A monitor that stops hearing the ping is how a stopped,
+frozen or disconnected bot gets noticed: a frozen loop never runs the tick, and
+while the gateway is down (`on_disconnect`, until `on_ready` or `on_resumed`) the
+tick records the lag and skips the ping.
+
+The lag is read against the schedule, not against the previous tick. discord.py
+anchors a relative loop to its schedule: during a tick, `next_iteration` is this
+tick's time plus the interval, and a late tick does not move the next one. So
+`now - (next_iteration - interval)` is how late this tick is, while the gap
+between two ticks minus the interval is only how much later it is than the last
+one, which reads zero for a loop that is always three seconds behind.
+
+`HEARTBEAT_URL` is optional: empty turns the ping off (the local default), and in
+production it is the SSM parameter `/keiko/heartbeat/url`, read without failing
+the boot when it was never created or the bot may not read it. A failed ping is a
+warning under a silent trace: stored in `guild.logs`, never posted, and it names
+the error type only, because the URL carries the monitor's token. For the same
+reason `urllib3` logs at INFO at most (`app/logger.py`): at DEBUG it writes every
+request line, path included, and `DEBUG=true` sends DEBUG records to the log file
+uploaded to Discord every day.
+
+## The release
+
+`app_version()` (`app/config.py`) reads `APP_VERSION`, which the deploy sets to
+the release tag, and is the one place that does; it reads `dev` anywhere else.
+The version is on every analytics envelope, every `guild.logs` document, the
+`Version` field of every trace and journey message, the startup message, and
+`keiko_build_info`.
+
+---
+
 # Debug logs: queryable, and older than the container
 
 The Discord channels render logs for a person to read, and rendering costs
@@ -216,6 +337,11 @@ Three pieces close that:
 | `StoredLogsHandler` | `app/logger.py` | every record, into a queue |
 | `guild.logs` | Mongo, 30-day TTL | the hot window, with the full traceback |
 | daily `.jsonl.gz` | the logs channel | the archive, one file per day |
+
+Every document names the release that wrote it (`app_version`), so a line from
+before a deploy and one from after it never read alike. `tools/keiko/logs`
+indexes the same column; its schema version moved to 3, so a local index built
+before is rebuilt from the channel on the next `sync`.
 
 ## Everything on the timeline travels through `logging`
 
@@ -352,15 +478,40 @@ Traces are opened at the boundaries:
 | Boundary | Where | Behavior |
 |---|---|---|
 | Slash commands | `keiko_command` (`app/decorators.py`) | one message per invocation, handed to the journey when it opens a form |
+| Command errors | `Errors.on_app_command_error` (`app/cogs/errors.py`) | quiet: the error keeps its own message in the error channel, and the warnings of a refused answer or a slow record stay in `guild.logs`; the handler adds that one message to the trace the failed command posts itself |
 | Form events | `Runtime._apply`, `Runtime.expire_stale` (`app/settings/discord/callbacks.py`) | quiet: never a message of their own, even on failure; the journey tells the story |
-| Webhooks | `app/webhooks/__init__.py` before/teardown request | one message per request, continued by its first job |
-| Deferred work | `schedule_webhook_job` → `Trace.handover` + `trace.run_traced` | the first job continues the request's message; a second job in the same request gets its own |
+| Webhooks | `webhook_trace`, opened and closed around each request in `app/webhooks/__init__.py` | silent unless the request failed, continued by its first job; `/healthcheck` opens none; a request refused with a 4xx never posts its trace, nor does a 503 without an error (the sender is asked to deliver again later) |
+| Deferred work | `schedule_webhook_job` → `Trace.handover` + `trace.run_traced` | the first job continues the request's message; a second job in the same request gets its own, under the same rule |
 | Confirmations | `ConfirmActionView(trace_name=)` (`app/views/confirm_action.py`) | one message for what the confirmation did |
 | Listeners | `with_error_context` (`app/decorators.py`) | silent unless it fails or reports an event |
+| Heartbeat | `Heartbeat.beat` (`app/cogs/heartbeat.py`) | silent unless it fails; a failed ping is a warning, so it stays in `guild.logs` and the monitor is what alerts |
 
 `silent_when_clean` is what keeps `on_message` from flooding the channel: a
 routine check that succeeds stays in the log file, and only surfaces in Discord
-if it errors.
+if it errors. A webhook request is silent the same way: a request that did its
+job, or only warned (an unknown reminder title), stays in `guild.logs`, and one
+that failed posts its trace. Before, every request posted, the `/healthcheck` an
+uptime monitor calls every few seconds included.
+
+A refusal is not a failure. A webhook request answered with a 4xx (a forged
+signature, bad credentials, an unknown id, a body that is too large or not JSON)
+is logged at warning by its route, and the refusal hook reads the status from the
+response, whoever wrote it, marks the trace `quiet`, logs one stored line
+(`<route> refused with <status>`) and counts
+`keiko_webhook_refusals_total{route,status}`. Only routes the blueprint matched
+are counted: a hook of the blueprint never runs for a path it does not know, which
+Flask answers with its own 404 and logs nowhere. Without this, anyone could flood
+the admin channels with forged requests, bury the real errors and push the bot
+towards Discord's limit of invalid requests. A refusal is still in `guild.logs`,
+and a route refusing everything shows up as that counter, which is where to
+alert. A route that raises answers 500, and its error and its trace both post; a
+route that answers a 5xx without raising is logged by the same hook as an error
+(`<route> answered <status>`), so it posts the same way. A 503 is the exception:
+it is how a route asks the sender to deliver again later (the YouTube route
+answers it while the Data API does not show a new video yet, so the hub tries
+again), so the hook leaves it alone, and a 503 posts only when its route logged
+an error itself. A route that is really down must raise, log an error or answer
+another 5xx.
 
 `quiet` is stronger: a quiet trace never posts, clean or not. Form events use it
 because the journey is the surface a person reads; before, every click posted a
@@ -418,8 +569,9 @@ source, ids and start time, receives its lines, and the request is marked
 `superseded`. `run_traced(..., trace=successor)` finishes it on the bot loop, so
 one event is one `🔔 Webhook Event` message that names the streamer, lists the
 fan-out and spans the whole event. A second job in the same request (several
-birthdays in one `/reminder` call) gets a `job` trace of its own, and a job that
-cannot be scheduled leaves the request's message intact.
+birthdays in one `/reminder` call) gets a `job` trace of its own, published under
+the request's rule (`Trace.publishing`), and a job that cannot be scheduled leaves
+the request's message intact.
 
 `trace_scope` is not what deferred work wants: it joins the surrounding trace so
 a fan-out does not fragment its timeline, which is right inside one unit of work

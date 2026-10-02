@@ -20,10 +20,6 @@ class DBConfigs:
     INTEGRATION_NOTION_TOKEN: Final[str] = "token"
     INTEGRATION_NOTION_DATABASE_ID: Final[str] = "database_id"
 
-    INTEGRATION_OPENAI: Final[str] = "openai"
-    INTEGRATION_OPENAI_ENABLED: Final[bool] = "enabled"
-    INTEGRATION_OPENAI_API_KEY: Final[str] = "openai_api_key"
-
     ADMIN_GUILD_ID: Final[str] = "admin_guild_id"
     ADMIN_REPORTS_CHANNEL_ID: Final[str] = "admin_reports_channel_id"
     ADMIN_LOGS_CHANNEL_ID: Final[str] = "admin_logs_channel_id"
@@ -65,6 +61,8 @@ class Commands:
     DISABLED_KEY: Final[str] = "disabled"
     ADDED_KEY: Final[str] = "added"
     REMOVED_KEY: Final[str] = "removed"
+
+    COMMAND_FAILURE_STORE_SECONDS: Final[float] = 1.0
 
     # block links
     BLOCK_LINKS_KEY: Final[str] = "block_links"
@@ -120,6 +118,10 @@ class Commands:
     DEBUG_LOGS_TRACEBACK_MAX_LENGTH: Final[int] = 16000
     DEBUG_LOGS_EXPORT_HOUR: Final[int] = 0
     DEBUG_LOGS_EXPORT_MINUTE: Final[int] = 30
+
+    HEARTBEAT_SECONDS: Final[int] = 60
+    HEARTBEAT_TIMEOUT_SECONDS: Final[float] = 10.0
+    HEARTBEAT_LAG_BUCKETS: Final[Tuple[float, ...]] = (0.25, 1.0, 5.0, 15.0, 60.0, 300.0)
 
     # Reminders that failed to be created are retried on a slow loop: the
     # reason one fails is rarely fixed within a minute, and the birthday it
@@ -183,7 +185,7 @@ class Commands:
         {"command_key": REMINDERS_BIRTHDAY_KEY, "button_key": "birthdays", "emoji": "🎂",
          "channel_permissions": ["view_channel", "send_messages", "embed_links"]},
         {"command_key": INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY, "button_key": "stream-elements",
-         "emoji": "🎮", "server_permissions": ["send_messages"]},
+         "emoji": "🎮", "server_permissions": ["send_messages"], "answers_prefix": True},
     ]
     SUPPORT_SERVER_URL: Final[str] = "https://discord.gg/Hdg239Cvbd"
 

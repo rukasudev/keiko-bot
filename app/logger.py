@@ -10,7 +10,7 @@ from logging.handlers import TimedRotatingFileHandler
 
 import discord
 
-from app.config import AppConfig
+from app.config import AppConfig, app_version
 from app.constants import Commands as constants_commands
 from app.constants import DiscordLimits as limits
 from app.constants import LogTypes as constants
@@ -28,6 +28,7 @@ logging.getLogger("discord.gateway").setLevel(logging.WARNING)
 logging.getLogger("discord.client").setLevel(logging.WARNING)
 logging.getLogger("httpx").disabled = True
 logging.getLogger('werkzeug').setLevel(logging.ERROR)
+logging.getLogger("urllib3").setLevel(logging.INFO)
 
 
 class CustomTimedRotatingFileHandler(TimedRotatingFileHandler):
@@ -367,6 +368,7 @@ def build_trace_embed(trace) -> discord.Embed:
     embed.add_field(name="Duration", value=format_duration(trace.duration_ms), inline=True)
     if trace.result:
         embed.add_field(name="Result", value=trace.result, inline=True)
+    embed.add_field(name="Version", value=f"`{app_version()}`", inline=True)
 
     timeline = build_trace_timeline(trace)
     if timeline:

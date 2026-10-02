@@ -95,6 +95,27 @@ async def test_checking_a_message_never_freezes_the_bot(
     )
 
 
+async def test_a_prefixed_message_no_command_matches_never_freezes_the_bot(
+    deps, mock_cache, guild, bot, channel, member
+):
+    """discord.py hands it to `on_command_error`, which reads the server's features."""
+    import discord
+    from discord.ext import commands
+
+    from app.cogs.errors import Errors
+
+    mock_cache.side_effect = blocking({})
+    guild.preferred_locale = discord.Locale.american_english
+    message = create_message(content="ks!mouse", author=member, channel=channel)
+    context = SimpleNamespace(guild=guild, message=message, send=channel.send)
+
+    ticks = await ticks_while(
+        Errors(bot).on_command_error(context, commands.CommandNotFound())
+    )
+
+    assert ticks >= MIN_TICKS
+
+
 async def test_a_stream_elements_command_never_freezes_the_bot(
     deps, mock_cache, guild, bot, channel, member, monkeypatch
 ):
@@ -144,6 +165,53 @@ async def test_listing_stream_elements_commands_never_freezes_the_bot(
     ticks = await ticks_while(
         stream_elements.check_message(str(guild.id), message, "ks!")
     )
+
+    assert ticks >= MIN_TICKS
+
+
+async def test_storing_a_failed_command_never_freezes_the_bot(deps, monkeypatch):
+    """The record of a failed command counts it in Redis, a synchronous client."""
+    import discord
+    from discord import app_commands
+
+    from app.cogs.errors import Errors
+    from tests.behavioral.harness.fake_interaction import FakeInteraction
+    from tests.behavioral.harness.message_store import MessageStore
+    from tests.mocks import create_guild
+
+    monkeypatch.setattr("app.cogs.errors.increment_redis_key", blocking())
+    guild = create_guild()
+    interaction = FakeInteraction(
+        MessageStore(),
+        guild=guild,
+        user=create_member(guild),
+        locale=discord.Locale.american_english,
+    )
+    interaction.command = SimpleNamespace(
+        qualified_name="moderations block links", _attr="block_links"
+    )
+    error = app_commands.CommandInvokeError(
+        SimpleNamespace(name="links"), KeyError("allowed_links")
+    )
+    handler = Errors(SimpleNamespace(config=SimpleNamespace(is_prod=lambda: False)))
+
+    ticks = await ticks_while(handler.on_app_command_error(interaction, error))
+
+    assert ticks >= MIN_TICKS
+
+
+async def test_the_heartbeat_ping_never_freezes_the_bot(monkeypatch):
+    """The ping says the bot is alive; waiting for it on the loop would make it a lie."""
+    from app.cogs import heartbeat
+
+    monkeypatch.setattr(
+        requests, "get", blocking(SimpleNamespace(raise_for_status=lambda: None))
+    )
+    beating = heartbeat.Heartbeat(SimpleNamespace(config=SimpleNamespace(
+        HEARTBEAT_URL="https://hc-ping.example/token", APP_VERSION="dev"
+    )))
+
+    ticks = await ticks_while(heartbeat.Heartbeat.beat.coro(beating))
 
     assert ticks >= MIN_TICKS
 

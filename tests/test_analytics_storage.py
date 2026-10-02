@@ -142,3 +142,18 @@ def test_the_trace_supplies_context_the_call_site_does_not_repeat():
     assert event["source"] == "slash"
     assert event["feature"] == "block_links"
     assert event["session_id"] == "sess"
+
+
+def test_every_stored_event_names_its_release_and_an_id_of_its_own(monkeypatch):
+    """The release says which code produced a number; the id lets a copy be told apart."""
+    monkeypatch.setenv("APP_VERSION", "v1.4.0")
+    _flush(
+        ("command.failed", {"guild_id": "90", "command": "ping", "error_type": "KeyError"}),
+        ("command.failed", {"guild_id": "90", "command": "ping", "error_type": "KeyError"}),
+    )
+
+    events = analytics_data.find_events_by_guild("90")
+    assert [event["app_version"] for event in events] == ["v1.4.0", "v1.4.0"]
+    identifiers = {event["event_id"] for event in events}
+    assert len(identifiers) == 2
+    assert all(len(identifier) == 32 for identifier in identifiers)

@@ -87,6 +87,7 @@ class Events(Cog, name="events"):
             f"🏠 Total Guilds: {len(self.bot.guilds)}\n"
             f"👥 Total Users: {len(self.bot.users)}\n"
             f"📌 Prefix: {self.bot.command_prefix}\n"
+            f"🏷️ Version: {self.bot.config.APP_VERSION}\n"
             f"🎮 Current Activity: {self.bot.activity.name}\n"
             f"🐶 Current Status: {self.bot.status.name}️\n"
             f"---------------------------------------------------"
@@ -105,13 +106,14 @@ class Events(Cog, name="events"):
     @commands.Cog.listener()
     @with_error_context("on_message")
     async def on_message(self, message: discord.Message):
-        if message.author.bot:
+        if message.guild is None or message.author.bot:
             return
 
         guild_id = str(message.guild.id)
+        prefix = self.bot.config.PREFIX
 
-        if message.content.startswith("ks!"):
-            await stream_elements_service.check_message(guild_id, message, "ks!")
+        if message.content.startswith(prefix):
+            await stream_elements_service.check_message(guild_id, message, prefix)
 
         await block_links_service.check_message(guild_id, message)
 

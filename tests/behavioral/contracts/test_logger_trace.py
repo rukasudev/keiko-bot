@@ -351,3 +351,13 @@ def test_a_quiet_trace_that_fails_posts_only_the_error_record(discord_logs):
         ))
 
     assert discord_logs.routed == ["errors"]
+
+
+def test_the_work_a_trace_hands_over_keeps_its_publishing_rule():
+    """A job that carries a request on posts under the request's rule."""
+    request = Trace("twitch", source="webhook", silent_when_clean=True, quiet=True)
+
+    successor = request.handover()
+
+    assert request.publishing() == {"silent_when_clean": True, "quiet": True}
+    assert successor.silent_when_clean and successor.quiet

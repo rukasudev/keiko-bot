@@ -81,7 +81,7 @@ async def run_feature_command(
     Opens the trace the whole invocation is logged under, records where the
     user came from, and hands over to the form platform.
     """
-    from app.services import analytics
+    from app.services import analytics, metrics
     from app.services.trace import trace_scope
     from app.services.utils import is_guild_admin
 
@@ -106,7 +106,11 @@ async def run_feature_command(
 
         from app.settings import open_feature
 
-        await open_feature(interaction, command_key, source)
+        try:
+            await open_feature(interaction, command_key, source)
+        except Exception as error:
+            metrics.record_interaction("failed", error)
+            raise
 
 
 class ExecuteCommandButton(discord.ui.Button):

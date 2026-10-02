@@ -159,6 +159,10 @@ class Trace:
             self.result == constants.TRACE_RESULT_FAILURE
         )
 
+    def publishing(self) -> Dict[str, Any]:
+        """When this trace reaches Discord, for the work that carries it on."""
+        return {"silent_when_clean": self.silent_when_clean, "quiet": self.quiet}
+
     def supersede(self, journey: "Trace") -> None:
         """Hand this interaction's lines to the session that outlives it.
 
@@ -181,9 +185,8 @@ class Trace:
             user_id=self.user_id,
             feature=self.feature,
             session_id=self.session_id,
-            silent_when_clean=self.silent_when_clean,
             is_admin=self.is_admin,
-            quiet=self.quiet,
+            **self.publishing(),
         )
         successor.started_at = self.started_at
         successor.footnote = self.footnote

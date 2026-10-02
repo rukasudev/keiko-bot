@@ -14,7 +14,7 @@ from app.exceptions import ErrorContext
 from app.integrations.stream_elements import StreamElementsClient
 from app.settings import open_feature
 from app.services import analytics, cache
-from app.services.utils import ml
+from app.services.utils import fill, ml
 from app.views.pagination import PaginationView
 from app.views.pagination_without_interaction import PaginationWithoutInteractionView
 
@@ -61,7 +61,12 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
         if not reply:
             return
 
-        await message.reply(embed=create_response_embed(command, reply, message.author, streamer))
+        locale = message.guild.preferred_locale if message.guild else None
+        await message.reply(
+            embed=create_response_embed(
+                command, reply, message.author, streamer, prefix, locale
+            )
+        )
         analytics.record_value(
             guild_id, constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY
         )
@@ -135,13 +140,26 @@ async def send_commands_view(interaction: discord.Interaction) -> None:
     await view.send(ephemeral=True)
 
 
-def create_response_embed(command: str, reply: str, user: discord.User, streamer: str) -> discord.Embed:
+def create_response_embed(
+    command: str,
+    reply: str,
+    user: discord.User,
+    streamer: str,
+    prefix: str,
+    locale: Optional[discord.Locale],
+) -> discord.Embed:
+    """A StreamElements reply, signed by whoever asked, pointing at the command list."""
     embed = discord.Embed(
         description=reply,
         color=(int(style_constants.BACKGROUND_COLOR, base=16)),
     )
-    embed.set_author(name=f"!{command}", icon_url=user.avatar.url)
-    embed.set_footer(text=f"• See all {streamer}'s StreamElements commands with {bot.config.PREFIX}commands")
+    embed.set_author(name=f"!{command}", icon_url=user.display_avatar.url)
+    footer = fill(
+        ml("commands.commands.commons.stream-elements-manager.commands.reply-footer", locale),
+        command=f"{prefix}commands",
+        streamer=streamer,
+    )
+    embed.set_footer(text=f"• {footer}")
 
     return embed
 
