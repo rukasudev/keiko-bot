@@ -193,7 +193,8 @@ executable instead of documented.
 | Queue full | the newest event is dropped and counted |
 | Event not in the catalog | dropped and counted |
 | Exception inside `emit` | swallowed at the boundary, never propagates |
-| Bot restarts | up to a few seconds of queued events are lost, by design |
+| Bot stops: a deploy's SIGTERM, `/admin shutdown`, a run that fails | both queues are written before the process ends (`app/lifecycle.py`); a start Discord refused writes them again after its five-minute wait, unless a SIGTERM ends the wait first |
+| SIGKILL, an OOM kill or a hard crash of the interpreter | up to a few seconds of queued events are lost, by design |
 
 `ANALYTICS_ENABLED=false` turns `emit` into a no-op without a deploy.
 `/admin pipeline` shows emitted, flushed, dropped, unknown and queue depth.

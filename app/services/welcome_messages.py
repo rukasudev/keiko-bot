@@ -1,7 +1,7 @@
 import asyncio
 import os
 from io import BytesIO
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Tuple
 from urllib.parse import urlparse
 
 import discord
@@ -73,17 +73,21 @@ async def send_welcome_message(member: discord.Member):
         nonlocal drew_plain
         drew_plain = True
 
+    attaches = channel.permissions_for(member.guild.me).attach_files
+    linked = not attaches and not _shows_custom_image(design, custom_image)
     try:
-        embed_message = await create_welcome_message(
+        embed_message, banner = await create_welcome_message(
             member, welcome_message_title, welcome_message, welcome_message_footer,
             design=design, custom_image=custom_image,
-            on_plain_background=plain_background,
+            on_plain_background=plain_background, attach=attaches,
         )
-        await channel.send(embed=embed_message)
+        await channel.send(embed=embed_message, file=banner)
+        if drew_plain:
+            outcome = "plain_background"
+        else:
+            outcome = "no_attach_files" if linked else "ok"
         analytics.record_value(
-            member.guild.id,
-            constants.WELCOME_MESSAGES_KEY,
-            outcome="plain_background" if drew_plain else "ok",
+            member.guild.id, constants.WELCOME_MESSAGES_KEY, outcome=outcome
         )
     except discord.Forbidden as e:
         analytics.record_permission_failure(
@@ -111,9 +115,7 @@ async def generate_design_previews(
     server_icon = str(member.guild.icon.url) if member.guild.icon else None
 
     def banner(background_url: Optional[str]):
-        return create_banner(
-            background_url, title.upper(), member.name, member.display_avatar.url, member.guild.name
-        )
+        return create_banner(background_url, title, member)
 
     async def as_sent():
         return background
@@ -147,38 +149,63 @@ async def create_welcome_message(
     design: str = "server_blur",
     custom_image: str = None,
     on_plain_background: Optional[Callable[[], None]] = None,
-):
-    if design == "custom_only" and custom_image:
-        embed = default_welcome_embed(title, message, footer, custom_image)
-        embed.set_thumbnail(url=member.display_avatar.url)
-        return embed
+    attach: bool = True,
+) -> Tuple[discord.Embed, Optional[discord.File]]:
+    """The embed a member receives, with its banner attached, or linked where `attach`
+    is false because the channel refuses files."""
+    if _shows_custom_image(design, custom_image):
+        return _custom_image_embed(member, title, message, footer, custom_image), None
 
-    if design == "custom_blur" and custom_image:
-        background_url = custom_image
-    else:
-        background_url = str(member.guild.icon.url) if member.guild.icon else None
+    background = _banner_background(member, design, custom_image)
+    if not attach:
+        link = await create_banner(background, title, member, on_plain_background)
+        return default_welcome_embed(title, message, footer, link), None
 
-    banner = await create_banner(
-        background_url, title.upper(), member.name,
-        member.display_avatar.url, member.guild.name, on_plain_background
+    banner = await draw_banner(background, title, member, on_plain_background)
+    attachment = f"attachment://{WelcomeDesign.BANNER_FILENAME}"
+    return (
+        default_welcome_embed(title, message, footer, attachment),
+        discord.File(banner, filename=WelcomeDesign.BANNER_FILENAME),
     )
-    return default_welcome_embed(title, message, footer, banner)
+
 
 async def welcome_preview_pages(
     member: discord.Member, messages: List[str], settings: Dict[str, str]
 ) -> List[discord.Embed]:
-    """One finished embed per written message, drawn before any click."""
-    return [
-        await create_welcome_message(
-            member,
-            settings["title"],
-            render_welcome_message(message, member),
-            settings["footer"],
-            design=settings["design"],
-            custom_image=settings["custom_image"],
-        )
-        for message in (messages or [""])
-    ]
+    """One embed per written message, all over one banner drawn before any click."""
+    title, footer = settings["title"], settings["footer"]
+    design, custom_image = settings["design"], settings["custom_image"]
+    texts = [render_welcome_message(message, member) for message in (messages or [""])]
+
+    if _shows_custom_image(design, custom_image):
+        return [
+            _custom_image_embed(member, title, text, footer, custom_image)
+            for text in texts
+        ]
+
+    background = _banner_background(member, design, custom_image)
+    banner = await create_banner(background, title, member)
+    return [default_welcome_embed(title, text, footer, banner) for text in texts]
+
+
+def _shows_custom_image(design: str, custom_image: Optional[str]) -> bool:
+    return design == "custom_only" and bool(custom_image)
+
+
+def _custom_image_embed(
+    member: discord.Member, title: str, message: str, footer: str, custom_image: str
+) -> discord.Embed:
+    embed = default_welcome_embed(title, message, footer, custom_image)
+    embed.set_thumbnail(url=member.display_avatar.url)
+    return embed
+
+
+def _banner_background(
+    member: discord.Member, design: str, custom_image: Optional[str]
+) -> Optional[str]:
+    if design == "custom_blur" and custom_image:
+        return custom_image
+    return str(member.guild.icon.url) if member.guild.icon else None
 
 
 async def send_welcome_message_preview(interaction: discord.Interaction, response: List[Dict[str, str]]):
@@ -257,14 +284,15 @@ async def _background(
         return await asyncio.to_thread(_open_asset, _asset_path(source))
     except Exception as e:
         logger.warn(
-            f"Welcome banner background unavailable, drawing a plain one: {type(e).__name__}"
+            "Welcome banner background unavailable, drawing a plain one: "
+            f"{type(e).__name__}: {e}"
         )
         if on_plain is not None:
             on_plain()
         return _plain_background()
 
 
-def _draw_banner(
+def _paint_banner(
     background_img: Image.Image,
     overlay_image: Image.Image,
     welcome_message: str,
@@ -354,19 +382,36 @@ def _draw_banner(
     return img_bytes
 
 
-async def create_banner(
+async def draw_banner(
     background_url: Optional[str],
-    welcome_message: str,
-    username: str,
-    user_image_url: str,
-    server_name: str,
+    title: str,
+    member: discord.Member,
     on_plain_background: Optional[Callable[[], None]] = None,
-):
+) -> BytesIO:
+    """`title` over `background_url`, around the picture and name of `member`."""
     background_img, overlay_image = await asyncio.gather(
         _background(background_url, on_plain_background),
-        images.fetch_image(user_image_url),
+        images.fetch_image(
+            member.display_avatar.with_size(WelcomeDesign.AVATAR_SIZE).url
+        ),
     )
-    banner = await asyncio.to_thread(
-        _draw_banner, background_img, overlay_image, welcome_message, username, server_name
+
+    return await asyncio.to_thread(
+        _paint_banner,
+        background_img,
+        overlay_image,
+        title.upper(),
+        member.name,
+        member.guild.name,
     )
-    return await cdn.upload(banner, "banner.png")
+
+
+async def create_banner(
+    background_url: Optional[str],
+    title: str,
+    member: discord.Member,
+    on_plain_background: Optional[Callable[[], None]] = None,
+) -> str:
+    """The banner uploaded to the dump channel, for a screen that shows it by url."""
+    banner = await draw_banner(background_url, title, member, on_plain_background)
+    return await cdn.upload(banner, WelcomeDesign.BANNER_FILENAME)

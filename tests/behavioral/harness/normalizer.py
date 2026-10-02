@@ -128,7 +128,7 @@ def normalize_modal(modal: discord.ui.Modal) -> Dict[str, Any]:
     fields = []
     for child in modal.children:
         inner = child
-        # master-only discord.ui.Label wraps the actual input component
+        # discord.ui.Label wraps the actual input component
         if hasattr(child, "component"):
             inner = child.component
         if isinstance(inner, discord.ui.TextInput):

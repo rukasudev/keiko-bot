@@ -31,21 +31,6 @@ def _repo_root_cwd(monkeypatch):
 
 
 @pytest.fixture(autouse=True)
-def _no_banner_rendering():
-    """Banners and examples go through the network; the offline suite gets fixed URLs."""
-    from unittest.mock import AsyncMock, patch
-
-    with patch(
-        "app.services.welcome_messages.create_banner",
-        new=AsyncMock(return_value="https://cdn.example.com/previews/welcome-preview.png"),
-    ), patch(
-        "app.services.cdn.upload_asset",
-        new=AsyncMock(return_value="https://cdn.example.com/previews/welcome-example.gif"),
-    ):
-        yield
-
-
-@pytest.fixture(autouse=True)
 def _fresh_runtime():
     """Every test starts with no open form session, like a freshly started bot."""
     from app.settings.discord.callbacks import RUNTIME

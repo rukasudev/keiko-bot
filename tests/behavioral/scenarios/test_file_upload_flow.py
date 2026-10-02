@@ -1,6 +1,6 @@
 """Behavioral scenario: custom image upload on the birthday member card.
 
-Drives the real FileUploadModal (master-only ui.Label + ui.FileUpload):
+Drives the real FileUploadModal (ui.Label + ui.FileUpload):
 the fake attachment is read for real, re-uploaded to the (recorded) dump
 channel, and the returned permanent URL must land in card state and in the
 persisted birthday item.

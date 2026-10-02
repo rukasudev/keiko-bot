@@ -2,7 +2,7 @@ from datetime import datetime, time
 
 from discord.ext import commands, tasks
 
-from app import logger
+from app import lifecycle, logger
 from app.bot import DiscordBot
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
@@ -27,9 +27,7 @@ class Analytics(commands.Cog):
         self.flush_events.cancel()
         self.send_weekly_digest.cancel()
         self.export_daily_logs.cancel()
-        analytics.flush()
-        debug_logs.stop_writer()
-        debug_logs.flush()
+        lifecycle.write_queues()
 
     @tasks.loop(seconds=constants.ANALYTICS_FLUSH_SECONDS)
     async def flush_events(self) -> None:

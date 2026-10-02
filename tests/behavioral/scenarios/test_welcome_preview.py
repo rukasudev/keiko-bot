@@ -170,3 +170,26 @@ async def test_the_next_button_never_redraws_the_banner(monkeypatch):
 
     assert drawn == []
     assert view.page is pages[1]
+
+
+async def test_a_drawn_design_previews_every_message_over_one_banner():
+    """The preview keeps the dump channel: its Next button edits the message,
+    and an attached banner would have to travel again on every edit. Every
+    page is the same banner, so it is drawn and uploaded once."""
+    guild = create_guild()
+    member = create_member(guild, id=555, name="Tester")
+    member._user = MagicMock(id=555)
+
+    with patch(
+        "app.services.welcome_messages.create_banner",
+        new=AsyncMock(return_value=PREVIEW_URL),
+    ) as banner:
+        pages = await welcome_preview_pages(
+            member,
+            ["Oi {user}!", "Olha quem chegou", "Chegou mais alguém!"],
+            {**SETTINGS, "design": "server_blur"},
+        )
+
+    assert [page.image.url for page in pages] == [PREVIEW_URL] * 3
+    assert banner.await_count == 1
+    assert pages[0].title == SETTINGS["title"]

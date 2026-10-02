@@ -19,7 +19,7 @@ env:
 
 jobs:
   check:
-    if: github.event_name == 'release'
+    if: github.event_name == 'release' && !github.event.release.prerelease
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -28,7 +28,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |
@@ -39,7 +39,6 @@ jobs:
         run: make test
 
   build:
-    if: github.event_name == 'release'
     needs: check
     runs-on: ubuntu-latest
     steps:
@@ -66,8 +65,11 @@ jobs:
 
   deploy:
     needs: build
-    if: ${{ !failure() && !cancelled() }}
+    if: ${{ !cancelled() && (needs.build.result == 'success' || github.event_name == 'workflow_dispatch') }}
     runs-on: self-hosted
+    env:
+      MEMORY_LIMIT: 1536m
+      STOP_GRACE_SECONDS: 30
     steps:
       - name: Login to Docker Hub
         uses: docker/login-action@v3
@@ -84,16 +86,53 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
-          docker rm -f keiko-bot || true
-          docker run -d -p 5000:5000 -p 8000:8000 --name keiko-bot --restart unless-stopped \
+          docker stop -t "$STOP_GRACE_SECONDS" keiko-bot || true
+          docker rm keiko-bot || true
+          docker run -d --name keiko-bot --restart unless-stopped \
+            -p 127.0.0.1:5000:5000 -p 127.0.0.1:8000:8000 \
+            --memory "$MEMORY_LIMIT" --memory-swap "$MEMORY_LIMIT" \
+            --stop-timeout "$STOP_GRACE_SECONDS" \
             -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_REGION \
+            -e APP_VERSION="$VERSION" \
             ${{ env.REGISTRY }}:${{ env.VERSION }}
 
       - name: Check the bot stayed up
+        env:
+          READY: Keiko is connected to Discord and ready
+          REFUSED_START: Discord refused to start the bot
+          READY_DEADLINE_SECONDS: 120
+          SETTLE_SECONDS: 30
+          POLL_SECONDS: 5
         run: |
-          sleep 30
+          for ((poll = 0; ; poll++)); do
+            if ! logs=$(docker logs keiko-bot 2>&1); then
+              echo "docker logs keiko-bot failed: $logs"
+              exit 1
+            fi
+            refused=$(printf '%s\n' "$logs" | grep -F -m 1 "$REFUSED_START" || true)
+            if [ -n "$refused" ]; then
+              echo "$refused"
+              echo "It retries every few minutes until stopped: docker stop keiko-bot, or run the previous version again."
+              exit 1
+            fi
+            restarts=$(docker inspect -f '{{.RestartCount}}' keiko-bot)
+            if [ "$restarts" -gt 0 ]; then
+              echo "keiko-bot restarted $restarts time(s); its last lines:"
+              printf '%s\n' "$logs" | tail -n 30
+              exit 1
+            fi
+            if [[ "$logs" == *"$READY"* ]] && (( poll * POLL_SECONDS >= SETTLE_SECONDS )); then
+              break
+            fi
+            if (( poll * POLL_SECONDS >= READY_DEADLINE_SECONDS )); then
+              echo "keiko-bot was not ready after $READY_DEADLINE_SECONDS s; its last lines:"
+              printf '%s\n' "$logs" | tail -n 30
+              exit 1
+            fi
+            sleep "$POLL_SECONDS"
+          done
           state=$(docker inspect -f '{{.State.Status}} {{.RestartCount}}' keiko-bot)
-          echo "keiko-bot after 30 s: $state"
+          echo "keiko-bot ready, and up for $((poll * POLL_SECONDS)) s: $state"
           test "$state" = "running 0"
 
       - name: Remove images no container uses

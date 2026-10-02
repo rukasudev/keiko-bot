@@ -22,14 +22,11 @@ import asyncio
 import socket
 import threading
 import time
-from io import BytesIO
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
 
 import pytest
 import redis
 import requests
-from PIL import Image
 
 from app.constants import Commands as commands_constants
 from app.services import (
@@ -41,10 +38,11 @@ from app.services import (
 )
 from app.constants import DBConfigs
 from tests.mocks import create_member, create_message
+from tests.mocks.web import png, respond
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("event_loop")]
 
-REAL_CREATE_BANNER = welcome_messages.create_banner
+REAL_DRAW_BANNER = welcome_messages.draw_banner
 
 BLOCKING_SECONDS = 0.25
 TICK_SECONDS = 0.005
@@ -271,25 +269,15 @@ async def test_checking_why_a_link_passed_never_freezes_the_bot(
 async def test_drawing_a_welcome_banner_never_freezes_the_bot(
     deps, mock_cache, guild, bot, channel, monkeypatch
 ):
-    """A member join draws a banner: two image downloads and an upload."""
-    buffer = BytesIO()
-    Image.new("RGB", (64, 64), "orange").save(buffer, format="PNG")
+    """A member join draws a banner: two image downloads, then the drawing."""
 
     def slow_download(url, *args, **kwargs):
         if "/avatars/" in url:
             time.sleep(BLOCKING_SECONDS)
-        response = requests.Response()
-        response.status_code = 200
-        response._content = buffer.getvalue()
-        return response
+        return respond(url, png())
 
-    monkeypatch.setattr(welcome_messages, "create_banner", REAL_CREATE_BANNER)
+    monkeypatch.setattr(welcome_messages, "draw_banner", REAL_DRAW_BANNER)
     monkeypatch.setattr(requests, "get", slow_download)
-    bot.get_channel.return_value.send = AsyncMock(
-        return_value=SimpleNamespace(
-            attachments=[SimpleNamespace(url="https://cdn.discordapp.com/attachments/9/9/b.png")]
-        )
-    )
     mock_cache.return_value = {
         "welcome_messages_channel": {"values": str(channel.id)},
         "welcome_messages": {"values": "Welcome {user}!"},
@@ -301,6 +289,7 @@ async def test_drawing_a_welcome_banner_never_freezes_the_bot(
 
     ticks = await ticks_while(welcome_messages.send_welcome_message(member))
 
+    channel.assert_message_sent()
     assert ticks >= MIN_TICKS, (
         f"the loop only came back {ticks} times: the avatar download ran on the "
         f"loop, freezing the bot on every member join"

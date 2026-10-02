@@ -24,6 +24,9 @@ from unittest.mock import patch, MagicMock
 
 import i18n
 
+# Os clientes boto3 nunca perguntam ao endereco de metadados da AWS nos testes.
+os.environ.setdefault("AWS_EC2_METADATA_DISABLED", "true")
+
 _LANGUAGES_ROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "languages")
 if os.path.isdir(_LANGUAGES_ROOT):
     for folder in os.listdir(_LANGUAGES_ROOT):
@@ -221,6 +224,28 @@ def auto_inject_dependencies(deps):
 
 
 @pytest.fixture(autouse=True)
+def _no_banner_rendering():
+    """AUTOUSE: banners e exemplos passam pela rede; os testes recebem URLs fixas
+    e um PNG pronto. Quem precisa do desenho real restaura as funcoes."""
+    from io import BytesIO
+    from unittest.mock import AsyncMock
+
+    from tests.mocks.web import png
+
+    with patch(
+        "app.services.welcome_messages.create_banner",
+        new=AsyncMock(return_value="https://cdn.example.com/previews/welcome-preview.png"),
+    ), patch(
+        "app.services.welcome_messages.draw_banner",
+        new=AsyncMock(side_effect=lambda *args, **kwargs: BytesIO(png())),
+    ), patch(
+        "app.services.cdn.upload_asset",
+        new=AsyncMock(return_value="https://cdn.example.com/previews/welcome-example.gif"),
+    ):
+        yield
+
+
+@pytest.fixture(autouse=True)
 def observability_isolation():
     """AUTOUSE: nenhum evento nem log vaza de um teste para o proximo."""
     from app.services import analytics, debug_logs, trace
@@ -337,9 +362,13 @@ def mock_cache():
 
 @pytest.fixture
 def mock_banner():
-    """Mock do create_banner em welcome_messages."""
-    with patch('app.services.welcome_messages.create_banner') as mock:
-        mock.return_value = "https://example.com/banner.png"
+    """Mock do draw_banner em welcome_messages: um PNG pronto, sem baixar nada."""
+    from io import BytesIO
+
+    from tests.mocks.web import png
+
+    with patch('app.services.welcome_messages.draw_banner') as mock:
+        mock.side_effect = lambda *args, **kwargs: BytesIO(png())
         yield mock
 
 

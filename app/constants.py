@@ -1,4 +1,4 @@
-from typing import Any, Dict, Final, List, Tuple
+from typing import Any, Dict, Final, FrozenSet, List, Tuple
 
 import discord
 
@@ -34,9 +34,18 @@ class DBConfigs:
     ADMIN_DUMP_CHANNEL_ID: Final[str] = "admin_dump_channel_id"
 
     REDIS_SOCKET_TIMEOUT_SECONDS: Final[float] = 5.0
+    FATAL_START_BACKOFF_SECONDS: Final[int] = 300
+    FATAL_START_PHRASE: Final[str] = "Discord refused to start the bot"
+    FATAL_START_CLOSE_CODES: Final[FrozenSet[int]] = frozenset({4004, 4010, 4011, 4012, 4013})
+    READY_PHRASE: Final[str] = "Keiko is connected to Discord and ready"
     IMAGE_DOWNLOAD_TIMEOUT_SECONDS: Final[float] = 10.0
-    IMAGE_CACHE_SIZE: Final[int] = 128
+    IMAGE_DOWNLOAD_CHUNK_BYTES: Final[int] = 64 * 1024
+    IMAGE_MAX_BYTES: Final[int] = 10 * 1024 * 1024
+    IMAGE_MAX_PIXELS: Final[int] = 4096 * 4096
+    IMAGE_MAX_OPEN_PIXELS: Final[int] = 8192 * 8192
+    IMAGE_CACHE_SIZE: Final[int] = 32
     IMAGE_MAX_SIZE: Final[Tuple[int, int]] = (1024, 1024)
+    IMAGE_FORMATS: Final[Tuple[str, ...]] = ("PNG", "JPEG", "GIF", "WEBP")
 
     ADMIN_CONFIGS_LIST: Final[List] = [
         ADMIN_GUILD_ID,
@@ -275,6 +284,8 @@ class ViewConstants:
 
 class WelcomeDesign:
     BANNER_SIZE: Final[Tuple[int, int]] = (800, 400)
+    BANNER_FILENAME: Final[str] = "banner.png"
+    AVATAR_SIZE: Final[int] = 256
     CUSTOM_BLUR_PREVIEW: Final[str] = "app/assets/welcome/custom_blur_preview.jpg"
     CUSTOM_ONLY_PREVIEW: Final[str] = "app/assets/welcome/custom_only_preview.gif"
 
