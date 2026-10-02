@@ -111,7 +111,8 @@ def is_filled(value: Any) -> bool:
     return value not in (None, "", [], {})
 
 
-def stored_value(value: Any) -> Any:
+def field_value(value: Any) -> Any:
+    """A saved field's value, whether or not it kept an envelope around it."""
     if isinstance(value, dict):
         return value.get("_raw_value", value.get("value", value.get("values")))
     return value
@@ -147,7 +148,7 @@ def config_usage(feature: str) -> Dict[str, Any]:
         if field["closed_vocabulary"]:
             counts: Dict[str, int] = {}
             for document in filled:
-                for value in ensure_list(stored_value(document.get(field["key"]))):
+                for value in ensure_list(field_value(document.get(field["key"]))):
                     label = str(value)[:constants.ANALYTICS_MAX_VALUE_LENGTH]
                     counts[label] = counts.get(label, 0) + 1
             row["values"] = dict(

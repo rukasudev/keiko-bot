@@ -19,8 +19,8 @@ from app.data.reminder import (
     insert_reminder,
 )
 from app.settings import open_feature
-from app.services import analytics, cache
-from app.services.utils import ml
+from app.services import analytics
+from app.services.utils import ml, values_of
 from app.views.message_preview import MessagePreviewView
 
 
@@ -125,11 +125,7 @@ async def send_notification_preview(
 ) -> None:
     """The video announcement as it will arrive, one written message per click."""
 
-    values = {
-        item["key"]: item.get("_raw_value", item.get("value"))
-        for item in responses
-        if item.get("key")
-    }
+    values = values_of(responses)
     youtuber = str(values.get("youtuber") or "")
     video_link = f"https://www.youtube.com/@{youtuber}"
     texts = []

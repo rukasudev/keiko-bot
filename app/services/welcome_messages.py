@@ -12,16 +12,15 @@ from app.components.embed import default_welcome_embed
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.constants import Style, WelcomeDesign
-from app.constants import ViewConstants as view_constants
 from app.exceptions import ErrorContext
 from app.settings import open_feature
 from app.services import analytics, cache, cdn, images
 from app.views.message_preview import MessagePreviewView
 from app.services.utils import (
-    ml,
     parse_welcome_messages,
     render_welcome_message,
     split_welcome_messages,
+    values_of,
 )
 
 
@@ -183,11 +182,7 @@ async def welcome_preview_pages(
 
 
 async def send_welcome_message_preview(interaction: discord.Interaction, response: List[Dict[str, str]]):
-    welcome_data = {
-        item["key"]: item.get("_raw_value", item.get("value"))
-        for item in response
-        if item.get("key") in WelcomeDesign.PREVIEW_DATA_KEYS
-    }
+    welcome_data = values_of(response, WelcomeDesign.PREVIEW_DATA_KEYS)
 
     if not welcome_data:
         cogs = await asyncio.to_thread(

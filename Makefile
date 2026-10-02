@@ -25,7 +25,7 @@ test:
 	$(ACTIVATE_VENV) && python -m pytest tests/ app/ -x -q
 
 lint:
-	$(ACTIVATE_VENV) && ruff check app/settings tests/forms && ruff format --check app/settings tests/forms && mypy
+	$(ACTIVATE_VENV) && ruff check app/settings tests/forms && ruff check --select F401 app && ruff format --check app/settings tests/forms && mypy
 
 clean:
 	rm -rf __pycache__

@@ -4,7 +4,6 @@ import discord
 
 from app.components.buttons import BackButton, ExecuteCommandButton
 from app.settings.features import feature_keys
-from app.constants import Commands as commands_constants
 from app.constants import DiscordLimits as limits
 from app.constants import ViewConstants as view_constants
 from app.services.utils import ml

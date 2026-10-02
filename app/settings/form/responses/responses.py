@@ -34,6 +34,13 @@ def unwrap(value: Any) -> Any:
     return value
 
 
+def listed(value: Any) -> list[Any]:
+    """A stored value as a list, empty when nothing was ever chosen."""
+    if isinstance(value, (list, tuple)):
+        return list(value)
+    return [value] if value not in (None, "") else []
+
+
 def item_answers(item: Mapping[str, Any]) -> dict[str, Answer]:
     """A stored composition item as the answers of its child session."""
     answers: dict[str, Answer] = {}

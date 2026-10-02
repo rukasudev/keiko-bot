@@ -27,6 +27,7 @@ BLOCKING = re.compile(
 COMMAND_KEY = re.compile(r"\bcommand_key\b")
 REFLECTION = re.compile(r"\b(?:hasattr|getattr)\(")
 COMMENT_BLOCK = re.compile(r"^[ \t]*#(?!!).*\n(?:[ \t]*#.*\n)+", re.MULTILINE)
+DEFINITION = re.compile(r"^(?:def|class) ([A-Za-z_][\w]*)", re.MULTILINE)
 SECTION_MARKER = re.compile(r"^[ \t]*#\s*(?:-{3,}|={3,})", re.MULTILINE)
 WORDS = {"id"}
 
@@ -120,3 +121,47 @@ def test_a_name_says_what_it_holds():
 
 def test_no_section_markers():
     assert _offenders(SECTION_MARKER, list(python_files(SETTINGS))) == []
+
+
+def _response_helper_files():
+    return python_files(os.path.join(ROOT, "app", "settings", "form", "responses"))
+
+
+def _service_files():
+    paths = []
+    for part in ("services", "views", "components", "cogs", "webhooks", "api"):
+        paths += [
+            path
+            for path in python_files(os.path.join(ROOT, "app", part))
+            if not path.endswith("_test.py")
+        ]
+    return paths
+
+
+def _public_names(paths):
+    found = set()
+    for path in paths:
+        tree = ast.parse(_source(path))
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                found.add(node.name)
+            elif isinstance(node, ast.Assign):
+                found.update(
+                    target.id for target in node.targets if isinstance(target, ast.Name)
+                )
+    return {name for name in found if not name.startswith("_")}
+
+
+def test_the_services_never_redefine_a_name_the_responses_package_owns():
+    """Broke as: the services layer kept its own parse_link and its own
+    calendar beside the platform's, and the two had already drifted while both
+    were live.
+
+    This compares names, not bodies: a copy under a different name still
+    passes. It is the cheap half of "one owner per helper"; the expensive
+    half is reading the diff.
+    """
+    duplicated = _public_names(_response_helper_files()) & _public_names(
+        _service_files()
+    )
+    assert sorted(duplicated) == []

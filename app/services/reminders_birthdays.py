@@ -10,7 +10,6 @@ from app.components.embed import base_embed, default_welcome_embed
 from app.constants import Commands as commands_constants
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
-from app.constants import ViewConstants as view_constants
 from app.data import birthdays as birthdays_data
 from app.data.birthdays import to_summary_composition
 from app.services.dates import (
@@ -26,6 +25,7 @@ from app.services import reminders as reminders_service
 from app.services.utils import (
     ml,
     parse_locale,
+    values_of,
 )
 
 
@@ -299,10 +299,11 @@ def _default_message_from_values(mode: Any, title: Any, content: Any) -> Dict[st
 
 
 def _default_message_from_responses(responses: List[Dict[str, Any]]) -> Dict[str, Any]:
+    values = values_of(responses)
     return _default_message_from_values(
-        _response_value(responses, commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_MODE),
-        _response_value(responses, commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_TITLE),
-        _response_value(responses, commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_CONTENT),
+        values.get(commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_MODE),
+        values.get(commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_TITLE),
+        values.get(commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_CONTENT),
     )
 
 
@@ -440,11 +441,7 @@ async def send_birthday_preview(
     interaction: discord.Interaction, responses: List[Dict[str, Any]]
 ) -> None:
     """The celebration as it will arrive: this member's message, or the default."""
-    values = {
-        item["key"]: item.get("_raw_value", item.get("value"))
-        for item in responses
-        if item.get("key")
-    }
+    values = values_of(responses)
     guild = interaction.guild
     member = interaction.user
     user_id = values.get("user")
@@ -525,12 +522,13 @@ def setup_birthdays(
 
 
 def save_setup_form(guild_id: str, responses: List[Dict[str, Any]], locale: str = None) -> List[Dict[str, Any]]:
-    channel_id = _response_value(responses, commands_constants.BIRTHDAY_CONFIG_CHANNEL)
-    mention_everyone = _parse_bool(_response_value(responses, commands_constants.BIRTHDAY_CONFIG_MENTION_EVERYONE))
-    timezone_value = _response_value(responses, commands_constants.BIRTHDAY_CONFIG_TIMEZONE)
-    notification_time = _response_value(responses, commands_constants.BIRTHDAY_CONFIG_NOTIFICATION_TIME)
+    values = values_of(responses)
+    channel_id = values.get(commands_constants.BIRTHDAY_CONFIG_CHANNEL)
+    mention_everyone = _parse_bool(values.get(commands_constants.BIRTHDAY_CONFIG_MENTION_EVERYONE))
+    timezone_value = values.get(commands_constants.BIRTHDAY_CONFIG_TIMEZONE)
+    notification_time = values.get(commands_constants.BIRTHDAY_CONFIG_NOTIFICATION_TIME)
     default_message = _default_message_from_responses(responses)
-    items = _response_value(responses, commands_constants.REMINDERS_BIRTHDAY_KEY) or []
+    items = values.get(commands_constants.REMINDERS_BIRTHDAY_KEY) or []
     if isinstance(items, dict):
         items = [items]
 
@@ -564,13 +562,6 @@ def save_form_birthday_item(guild_id: str, item: Dict[str, Any]) -> Optional[Dic
         message=birthday["message"],
         image=birthday["image"],
     )
-
-
-def _response_value(responses: List[Dict[str, Any]], key: str) -> Any:
-    response = next((item for item in responses if item.get("key") == key), None)
-    if not response:
-        return None
-    return response.get("_raw_value", response.get("value"))
 
 
 def _nested_value(item: Dict[str, Any], key: str) -> Any:

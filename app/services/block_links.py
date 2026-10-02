@@ -15,14 +15,13 @@ from app.constants import Commands as constants
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
 from app.constants import Style
-from app.constants import ViewConstants as view_constants
 from app.data import block_links as blocked_links_data
 from app.exceptions import ErrorContext
 from app.settings import open_feature
+from app.settings.form.responses.links import ParsedLink, parse_link
 from app.services import analytics, cache
 
 from .utils import (
-    ParsedLink,
     check_two_lists_intersection,
     ensure_list,
     format_discord_timestamp,
@@ -30,7 +29,6 @@ from .utils import (
     list_roles_id,
     ml,
     parse_form_yaml_to_dict,
-    parse_link,
     parse_locale,
 )
 

@@ -1,7 +1,6 @@
 import discord
 from discord import app_commands
 
-from app import bot
 from app.bot import DiscordBot
 from app.services.log_inspection import parse_log_message_to_embed
 from app.types.cogs import Cog
