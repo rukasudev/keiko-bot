@@ -38,7 +38,6 @@ class AppConfig:
         self.REDIS_URL = os.getenv("REDIS_URL")
         self.APPLICATION_ID = os.getenv("APPLICATION_ID")
         self.NOTION_TOKEN = os.getenv("NOTION_TOKEN")
-        self.OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
         self.DETECT_LANGUAGE_API_KEY = os.getenv("DETECT_LANGUAGE_API_KEY")
         self.RUN_LOCAL_WEBHOOK_API = os.getenv("RUN_LOCAL_WEBHOOK_API")
         self.WEBHOOK_URL = os.getenv("WEBHOOK_URL")
@@ -71,7 +70,6 @@ class AppConfig:
         self.YOUTUBE_API_KEY = ssm.get_parameter(Name="/keiko/youtube/api_key", WithDecryption=True)["Parameter"]["Value"]
         self.REDIS_URL = ssm.get_parameter(Name="/keiko/redis/url", WithDecryption=True)["Parameter"]["Value"]
         self.NOTION_TOKEN = ssm.get_parameter(Name="/keiko/notion/token", WithDecryption=True)["Parameter"]["Value"]
-        self.OPENAI_API_KEY = ssm.get_parameter(Name="/keiko/openai/api_key", WithDecryption=True)["Parameter"]["Value"]
         self.DETECT_LANGUAGE_API_KEY = ssm.get_parameter(
             Name="/keiko/detect_language/api_key", WithDecryption=True)["Parameter"]["Value"]
         self.REMINDER_APPLICATION_ID = ssm.get_parameter(Name="/keiko/reminder/application_id", WithDecryption=True)[
@@ -108,9 +106,6 @@ class AppConfig:
         notion_configs = find_db_integration_configs(constants.INTEGRATION_NOTION)
         self.NOTION_ENABLED = notion_configs.get(constants.INTEGRATION_NOTION_ENABLED)
         self.NOTION_DATABASE_ID = notion_configs.get(constants.INTEGRATION_NOTION_DATABASE_ID)
-
-        openai_configs = find_db_integration_configs(constants.INTEGRATION_OPENAI)
-        self.OPENAI_ENABLED = openai_configs.get(constants.INTEGRATION_OPENAI_ENABLED)
 
         self.ADMIN_GUILD_ID = int(admin_configs[constants.ADMIN_GUILD_ID])
         self.ADMIN_REPORTS_CHANNEL_ID = int(admin_configs[constants.ADMIN_REPORTS_CHANNEL_ID])

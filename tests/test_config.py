@@ -91,3 +91,10 @@ def test_the_version_reads_dev_when_the_deploy_names_none(monkeypatch):
 
     assert app_version() == "dev"
 
+
+def test_the_boot_never_asks_ssm_for_an_openai_key(monkeypatch):
+    """The integration that read it was imported by nothing, and is gone."""
+    config, ssm = production_config(monkeypatch)
+
+    assert "/keiko/openai/api_key" not in ssm.asked
+    assert not hasattr(config, "OPENAI_API_KEY")

@@ -106,7 +106,7 @@ class Events(Cog, name="events"):
     @commands.Cog.listener()
     @with_error_context("on_message")
     async def on_message(self, message: discord.Message):
-        if message.author.bot:
+        if message.guild is None or message.author.bot:
             return
 
         guild_id = str(message.guild.id)

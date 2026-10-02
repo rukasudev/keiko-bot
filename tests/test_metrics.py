@@ -78,11 +78,24 @@ def test_the_build_info_names_the_running_version():
     assert sample("keiko_build_info", version="v1.2.3") == 1.0
 
 
+def test_a_refused_webhook_request_is_counted_by_route_and_status():
+    before = sample(
+        "keiko_webhook_refusals_total", route="/v1/webhooks/reminder", status="401"
+    )
+
+    metrics.record_webhook_refusal("/v1/webhooks/reminder", 401)
+
+    assert sample(
+        "keiko_webhook_refusals_total", route="/v1/webhooks/reminder", status="401"
+    ) == before + 1
+
+
 def test_no_metric_is_labelled_by_a_guild_or_a_user():
     every_metric = (
         metrics.INTERACTIONS,
         metrics.LOOP_LAG,
         metrics.BUILD_INFO,
+        metrics.WEBHOOK_REFUSALS,
     )
     for metric in every_metric:
         assert not {"guild_id", "user_id", "guild", "user"} & set(metric._labelnames)

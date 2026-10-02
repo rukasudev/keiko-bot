@@ -11,7 +11,7 @@ def twitch_webhook():
     from app import bot
 
     if not bot.twitch.verify_twitch_signature(request):
-        logger.error('Invalid Twitch signature', log_type=logconstants.COMMAND_INFO_TYPE)
+        logger.warn('Invalid Twitch signature', log_type=logconstants.COMMAND_WARN_TYPE)
         return 'Invalid signature', 403
 
     data = request.json

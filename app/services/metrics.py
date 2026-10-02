@@ -1,4 +1,4 @@
-"""Operational metrics any layer records: interactions, loop lag, the build.
+"""Operational metrics any layer records: interactions, loop lag, the build, refusals.
 
 Prometheus, never product analytics (docs/analytics.md). Every label is a closed
 vocabulary, and no label is ever a guild or a user id.
@@ -23,6 +23,11 @@ LOOP_LAG = Histogram(
     buckets=constants.HEARTBEAT_LAG_BUCKETS,
 )
 BUILD_INFO = Gauge("keiko_build_info", "The release this process runs", ["version"])
+WEBHOOK_REFUSALS = Counter(
+    "keiko_webhook_refusals_total",
+    "Webhook requests answered with a 4xx, by route and status",
+    ["route", "status"],
+)
 
 
 def record_interaction(
@@ -48,3 +53,7 @@ def record_build_info(version: str) -> None:
     """Expose the running release as `keiko_build_info{version}`."""
     BUILD_INFO.labels(version=version).set(1)
 
+
+def record_webhook_refusal(route: str, status: int) -> None:
+    """Count one webhook request refused with `status`; `route` is the rule, never a path."""
+    WEBHOOK_REFUSALS.labels(route=route, status=str(status)).inc()
