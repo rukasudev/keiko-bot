@@ -1,3 +1,4 @@
+import logging
 import os
 from os.path import dirname, join
 
@@ -42,6 +43,7 @@ class AppConfig:
         self.RUN_LOCAL_WEBHOOK_API = os.getenv("RUN_LOCAL_WEBHOOK_API")
         self.WEBHOOK_URL = os.getenv("WEBHOOK_URL")
         self.YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+        self.YOUTUBE_HUB_SECRET = os.getenv("YOUTUBE_HUB_SECRET")
         self.REMINDER_APPLICATION_ID = os.getenv("REMINDER_APPLICATION_ID")
         self.REMINDER_AUTH_PASSWORD = os.getenv("REMINDER_AUTH_PASSWORD")
         self.REMINDER_API_KEY = os.getenv("REMINDER_API_KEY")
@@ -68,6 +70,15 @@ class AppConfig:
             "Value"
         ]
         self.YOUTUBE_API_KEY = ssm.get_parameter(Name="/keiko/youtube/api_key", WithDecryption=True)["Parameter"]["Value"]
+        try:
+            self.YOUTUBE_HUB_SECRET = ssm.get_parameter(Name="/keiko/youtube/hub_secret", WithDecryption=True)[
+                "Parameter"]["Value"]
+        except ClientError as error:
+            logging.getLogger(__name__).warning(
+                f"/keiko/youtube/hub_secret could not be read ({error.response['Error']['Code']}): "
+                "YouTube notices are refused and nothing is subscribed until it can"
+            )
+            self.YOUTUBE_HUB_SECRET = None
         self.REDIS_URL = ssm.get_parameter(Name="/keiko/redis/url", WithDecryption=True)["Parameter"]["Value"]
         self.NOTION_TOKEN = ssm.get_parameter(Name="/keiko/notion/token", WithDecryption=True)["Parameter"]["Value"]
         self.DETECT_LANGUAGE_API_KEY = ssm.get_parameter(

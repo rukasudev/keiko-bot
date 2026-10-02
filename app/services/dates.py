@@ -1,8 +1,11 @@
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timezone, tzinfo
 from typing import List, Optional, Tuple
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from discord import app_commands
 
+from app import logger
+from app.constants import LogTypes as logconstants
 from app.settings.form.responses.dates import MONTH_KEYS, is_valid_mm_dd, parse_date_parts
 from app.services.utils import ml
 from app.translator import locale_str
@@ -15,9 +18,11 @@ __all__ = [
     "get_month_choices",
     "parse_mm_dd",
     "next_mm_dd_occurrence",
+    "nearest_mm_dd_occurrence",
     "format_mm_dd_label",
     "format_month_count",
     "format_mm_dd_count",
+    "zone_or_utc",
 ]
 
 
@@ -51,11 +56,29 @@ def next_mm_dd_occurrence(mm_dd: str, today: Optional[date] = None) -> datetime:
     return datetime(candidate.year, candidate.month, candidate.day, 12, 0, 0, tzinfo=timezone.utc)
 
 
+def nearest_mm_dd_occurrence(mm_dd: str, today: date) -> date:
+    """The `mm_dd` nearest to `today`, half a year either side at most, 02-29 being 02-28 in common years."""
+    month, day = parse_mm_dd(mm_dd)
+    candidates = [_safe_date(today.year + offset, month, day) for offset in (-1, 0, 1)]
+    return min(candidates, key=lambda candidate: abs((candidate - today).days))
+
+
 def _safe_date(year: int, month: int, day: int) -> date:
     try:
         return date(year, month, day)
     except ValueError:
         return date(year, month, day - 1)
+
+
+def zone_or_utc(name: Optional[str]) -> tzinfo:
+    """The IANA time zone `name`, or UTC when it is missing or unknown."""
+    if not name:
+        return timezone.utc
+    try:
+        return ZoneInfo(name)
+    except (ZoneInfoNotFoundError, ValueError):
+        logger.warn(f"Unknown time zone {name}, using UTC", log_type=logconstants.COMMAND_WARN_TYPE)
+        return timezone.utc
 
 
 def format_mm_dd_label(value: str, locale: str = None) -> str:

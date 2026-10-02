@@ -217,18 +217,49 @@ async def test_the_heartbeat_ping_never_freezes_the_bot(monkeypatch):
 
 
 async def test_a_birthday_reminder_never_freezes_the_bot(deps, monkeypatch):
-    """The webhook job runs on the loop, and reads Mongo once per guild."""
+    """The webhook job runs on the loop: reading the birthdays and claiming each one block."""
+    from app.data.birthdays import upsert_birthday_config
+    from app.services.moderations import update_moderations_by_guild
     from app.webhooks import birthday_handler
 
+    guild_id = str(deps.guild.id)
+    channel = deps.guild.text_channels[0]
+    create_member(deps.guild, id=555, name="Tester")
+    upsert_birthday_config(guild_id, str(channel.id), False)
+    update_moderations_by_guild(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY, True)
+    monkeypatch.setattr(birthday_handler, "bot", deps.bot)
+    birthday = {"guild_id": guild_id, "user_id": "555", "date": "03-15", "reminder_id": "reminder-1"}
     monkeypatch.setattr(
-        "app.data.birthdays.find_birthday_items_by_date", blocking([])
+        "app.data.birthdays.find_birthday_items_by_reminder_and_date", blocking([birthday])
     )
+    monkeypatch.setattr("app.data.birthdays.mark_birthday_celebrated", blocking(True))
 
     ticks = await ticks_while(
         birthday_handler.process_birthday_webhook("reminder-1", "03-15")
     )
 
     assert ticks >= MIN_TICKS
+    assert len(channel._sent_messages) == 1, "the job reached the claim and the message"
+
+
+async def test_renewing_the_youtube_subscriptions_at_start_never_freezes_the_bot(
+    deps, monkeypatch
+):
+    """The start renews every followed channel: one Mongo read and two calls to Google each."""
+    from app.cogs.notifications import Notifications
+
+    deps.bot.config.is_dev = lambda: False
+    deps.bot.config.YOUTUBE_HUB_SECRET = "hub-secret"
+    deps.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
+    monkeypatch.setattr(
+        "app.services.notifications_youtube_video.find_followed_youtubers",
+        blocking(["pewdiepie"]),
+    )
+
+    ticks = await ticks_while(Notifications(deps.bot).resubscribe_youtube())
+
+    assert ticks >= MIN_TICKS
+    assert deps.youtube.subscribe_calls == ["UC-pewdiepie"], "the renewal reached the hub"
 
 
 async def test_waiting_for_a_stream_never_freezes_the_bot(deps, monkeypatch):

@@ -4,6 +4,8 @@ from os.path import dirname, join
 import boto3
 from dotenv import load_dotenv
 
+from app.constants import Commands
+
 basedir = os.path.abspath(os.path.dirname(__file__))
 dotenv_path = join(dirname(__file__), "..", ".env")
 load_dotenv(dotenv_path, override=True)
@@ -12,6 +14,8 @@ ssm = boto3.client("ssm", region_name="sa-east-1")
 
 
 class DevelopmentConfig:
+    MAX_CONTENT_LENGTH = Commands.WEBHOOK_MAX_BODY_BYTES
+
     def __init__(self):
         self.DEBUG = True
         self.INVITE_URL = os.getenv("INVITE_URL")
@@ -19,6 +23,8 @@ class DevelopmentConfig:
 
 
 class ProductionConfig:
+    MAX_CONTENT_LENGTH = Commands.WEBHOOK_MAX_BODY_BYTES
+
     def __init__(self):
         self.DEBUG = False
         self.INVITE_URL = ssm.get_parameter(Name="/keiko/api/invite_url")["Parameter"][

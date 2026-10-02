@@ -22,7 +22,7 @@ from app.data.notifications_twitch import (
 from app.settings import open_feature
 from app.services import analytics
 from app.views.message_preview import MessagePreviewView
-from app.services.utils import format_datetime_output, ml, values_of
+from app.services.utils import fill_placeholders, format_datetime_output, ml, values_of
 
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:
@@ -360,9 +360,6 @@ def compose_notification_message(notification: Dict[str, Any], streamer: str) ->
     return parse_streamer_message(random_message, streamer, stream_link)
 
 def parse_streamer_message(message: str, streamer: str, stream_link: str) -> str:
-    if "{stream_link}" not in message.lower():
-        message += "\n{stream_link}"
-
-    message = message.replace("{streamer}", streamer).replace("{stream_link}", stream_link)
-
-    return message
+    return fill_placeholders(
+        message, {"streamer": streamer, "stream_link": stream_link}, required="stream_link"
+    )

@@ -1,10 +1,9 @@
 from datetime import datetime, time
 from typing import Any, Callable, Optional
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from app import bot, logger
 from app.constants import LogTypes as logconstants
-from app.services.dates import next_mm_dd_occurrence, parse_mm_dd
+from app.services.dates import next_mm_dd_occurrence, parse_mm_dd, zone_or_utc
 
 REFUSAL_PREVIEW = 300
 
@@ -28,20 +27,10 @@ def next_mm_dd_occurrence_for_timezone(
     timezone_name: str = None,
     notification_time: str = None,
 ) -> datetime:
-    if not timezone_name:
-        return next_mm_dd_occurrence(mm_dd)
-    try:
-        tz = ZoneInfo(timezone_name)
-    except ZoneInfoNotFoundError:
-        logger.warn(
-            f"Invalid reminder timezone: {timezone_name}",
-            log_type=logconstants.COMMAND_WARN_TYPE,
-        )
-        return next_mm_dd_occurrence(mm_dd)
-
-    today = datetime.now(tz).date()
+    zone = zone_or_utc(timezone_name)
+    today = datetime.now(zone).date()
     occurrence = next_mm_dd_occurrence(mm_dd, today).date()
-    return datetime.combine(occurrence, _parse_notification_time(notification_time), tzinfo=tz)
+    return datetime.combine(occurrence, _parse_notification_time(notification_time), tzinfo=zone)
 
 
 def clock(notification_time: Optional[str]) -> Optional[str]:

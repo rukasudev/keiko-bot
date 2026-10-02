@@ -20,7 +20,7 @@ import pytest
 import pytest_asyncio
 import asyncio
 from types import SimpleNamespace
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, AsyncMock, MagicMock
 
 import i18n
 
@@ -155,6 +155,7 @@ def deps(mongodb, redis_client):
     ns.bot.twitch = ns.twitch
     ns.bot.youtube = ns.youtube
     ns.bot.get_guild = MagicMock(return_value=ns.guild)
+    ns.bot.wait_until_ready = AsyncMock()
     ns.bot.config = MagicMock()
     ns.bot.config.ADMIN_DUMP_CHANNEL_ID = 999999
     ns.bot.config.PREFIX = "ks!"

@@ -22,7 +22,7 @@ async def _celebrate(deps, monkeypatch, mm_dd="05-12"):
         timezone="America/Sao_Paulo",
         notification_time="08:00",
     )
-    upsert_birthday_item(guild_id, "555", mm_dd)
+    upsert_birthday_item(guild_id, "555", mm_dd, reminder_id="reminder-1")
     update_moderations_by_guild(guild_id, "reminders_birthday", True)
 
     await birthday_handler.process_birthday_webhook("reminder-1", mm_dd)

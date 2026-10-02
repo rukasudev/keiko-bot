@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 from app.services.utils import (
     get_message_links,
     check_two_lists_intersection,
+    fill_placeholders,
     list_roles_id,
     parse_welcome_messages,
     format_datetime_output,
@@ -713,9 +714,31 @@ class TestGetMessageLinksSchemeless:
         ]
 
 
+class TestFillPlaceholders:
+    """The one filler behind the notification templates an admin writes."""
 
+    def test_each_placeholder_is_filled(self):
+        assert fill_placeholders("{a} and {b}", {"a": "1", "b": "2"}) == "1 and 2"
 
+    def test_a_value_is_never_read_as_a_template(self):
+        assert fill_placeholders("{a} {b}", {"a": "{b}", "b": "x"}) == "{b} x"
 
+    def test_anything_else_in_braces_stays_as_typed(self):
+        template = "{a:>99} {A} {a.real} {a[0]} {other}"
 
+        assert fill_placeholders(template, {"a": "1"}) == template
 
+    def test_the_required_placeholder_is_added_on_its_own_line_when_missing(self):
+        assert fill_placeholders("Live!", {"link": "https://x"}, required="link") == (
+            "Live!\nhttps://x"
+        )
 
+    def test_the_required_placeholder_is_not_added_when_present(self):
+        assert fill_placeholders("Go {link} now", {"link": "https://x"}, required="link") == (
+            "Go https://x now"
+        )
+
+    def test_a_placeholder_in_other_capitals_is_text(self):
+        assert fill_placeholders("{LINK}", {"link": "https://x"}, required="link") == (
+            "{LINK}\nhttps://x"
+        )

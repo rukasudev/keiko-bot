@@ -1,6 +1,10 @@
+import hmac
+from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
+from zoneinfo import ZoneInfo
 
 import requests
+from werkzeug.datastructures import Authorization
 
 REMINDER_API_URL = "https://reminders-api.com/api"
 REMINDER_TIMEZONE = "America/Sao_Paulo"
@@ -22,6 +26,11 @@ class ReminderAPIError(RuntimeError):
         super().__init__(f"reminders-api returned {status}: {body}")
 
 
+def reminder_time(wait: timedelta = timedelta(0)) -> datetime:
+    """The moment `wait` from now, in the zone reminders-api reads dates and hours in."""
+    return datetime.now(ZoneInfo(REMINDER_TIMEZONE)) + wait
+
+
 def _parse(response: requests.Response) -> Any:
     if not response.ok:
         raise ReminderAPIError(response.status_code, response.text[:RESPONSE_PREVIEW])
@@ -37,6 +46,22 @@ class ReminderWebhook:
         self.headers = {
             "Authorization": f"Bearer {self.bot.config.REMINDER_API_KEY}",
         }
+
+    def verify_basic_auth(self, authorization: Optional[Authorization]) -> bool:
+        """Whether a callback carries the credentials registered on every reminder."""
+        password = self.bot.config.REMINDER_AUTH_PASSWORD
+        if not password or authorization is None or authorization.type != "basic":
+            return False
+
+        user_matches = hmac.compare_digest(
+            str(authorization.username or "").encode("utf-8"),
+            REMINDER_AUTH_USER.encode("utf-8"),
+        )
+        password_matches = hmac.compare_digest(
+            str(authorization.password or "").encode("utf-8"),
+            str(password).encode("utf-8"),
+        )
+        return user_matches and password_matches
 
     def get_reminders(self) -> List[Dict[str, Any]]:
         return _parse(requests.get(
