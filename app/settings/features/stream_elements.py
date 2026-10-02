@@ -83,7 +83,7 @@ class StreamElementsFeature(GenericCogFeature):
         if "stream_elements" in lookup.services:
             try:
                 found["stream_elements"] = await asyncio.to_thread(
-                    _enabled_commands, lookup.value
+                    _enabled_commands, lookup.value, context.prefix
                 )
             except Exception:
                 pass
@@ -142,14 +142,13 @@ async def _loaded(document: Mapping[str, Any], context: OpenContext) -> str:
     )
 
 
-def _enabled_commands(streamer: str) -> dict[str, Any]:
+def _enabled_commands(streamer: str, prefix: str) -> dict[str, Any]:
     info = StreamElementsClient.get_channel_info(streamer)
     channel_id = info["_id"]
     commands: Any = StreamElementsClient.get_chat_commands(channel_id) or []
     enabled = [command for command in commands if command.get("enabled")]
     named = [command.get("command") for command in enabled if command.get("command")]
     sample = named[: view_constants.COMMANDS_PREVIEW_LIMIT]
-    prefix = str(cast(Any, app_module).bot.config.PREFIX)
     return {
         "channel_id": channel_id,
         "enabled_commands": len(enabled),

@@ -74,6 +74,7 @@ en-us:
             title: "💡 StreamElements Commands"
             desc: "Commands from `$streamer` I answer here on Discord"
           empty: "I found no active commands in `$streamer`'s StreamElements! 🐶"
+          reply-footer: "Type $command to see every command from $streamer I answer here!"
         loaded:
           title: "💡 Commands loaded"
           message: "I answer **$count** commands from `$streamer`."

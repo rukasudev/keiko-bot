@@ -18,3 +18,8 @@ pt-br:
       Você também pode usar os botões abaixo para configurar rapidamente uma funcionalidade, ou use `/configurar` a qualquer momento para ver e gerenciar todas elas! :rocket:\n\n
       Tudo isso e muito mais você pode gerenciar de forma fácil através dos botões do Discord, editando, pausando ou desabilitando funcionalidades quando quiser :pencil:\n\n
       Se precisar de *aujuda*, é só chamar utilizando `/suporte` :heart:"
+
+  prefix-hint:
+    guild: "🐾 Au au! Procurando um dos meus comandos com **$prefix**? Eles ainda não estão ativados neste servidor.\n\nPeça para um moderador configurar um deles no `/configurar` ou pelo próprio comando:\n$commands\n\nOs meus outros comandos começam com `/`! Experimente `/ajuda` para ver tudo o que eu sei fazer :heart:"
+    feature: "- `/$command`"
+    direct: "🇧🇷 Au au! Aqui no privado eu não respondo comandos com prefixo. Os meus comandos começam com `/`! Experimente `/ajuda` para ver tudo o que eu sei fazer."

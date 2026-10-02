@@ -290,6 +290,7 @@ class Runtime:
         opened = state.opened
         document = opened.document or {}
         external: Mapping[str, Mapping[str, Any]] = {}
+        prefix = _prefix()
 
         if lookup is not None:
             external = await state.feature.prefetch(
@@ -300,6 +301,7 @@ class Runtime:
                     session.origin.locale,
                     state.guild,
                     state.member,
+                    prefix=prefix,
                 ),
             )
         parent_values: Mapping[str, Any] = {}
@@ -318,7 +320,7 @@ class Runtime:
             items=items,
             external=external,
             server_name=str(getattr(state.guild, "name", "")),
-            prefix=_prefix(),
+            prefix=prefix,
             previews=await state.ready_previews(False),
             panel_rows=opened.rows,
             panel_info=opened.info,
@@ -867,18 +869,14 @@ def _flat(answers: Mapping[str, Any]) -> dict[str, Any]:
     return values
 
 
-def _prefix() -> str:
-    """The prefix this bot answers to, for the copy that names a command."""
-    import app as app_module
-
-    try:
-        return str(app_module.bot.config.PREFIX)  # type: ignore[attr-defined]
-    except Exception:
-        return ""
-
-
 def _now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _prefix() -> str:
+    import app as app_module
+
+    return str(app_module.bot.config.PREFIX)
 
 
 RUNTIME = Runtime()

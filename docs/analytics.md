@@ -352,6 +352,7 @@ Traces are opened at the boundaries:
 | Boundary | Where | Behavior |
 |---|---|---|
 | Slash commands | `keiko_command` (`app/decorators.py`) | one message per invocation, handed to the journey when it opens a form |
+| Command errors | `Errors.on_app_command_error` (`app/cogs/errors.py`) | quiet: the error keeps its own message in the error channel, and the warnings of a refused answer or a slow record stay in `guild.logs`; the handler adds that one message to the trace the failed command posts itself |
 | Form events | `Runtime._apply`, `Runtime.expire_stale` (`app/settings/discord/callbacks.py`) | quiet: never a message of their own, even on failure; the journey tells the story |
 | Webhooks | `app/webhooks/__init__.py` before/teardown request | one message per request, continued by its first job |
 | Deferred work | `schedule_webhook_job` → `Trace.handover` + `trace.run_traced` | the first job continues the request's message; a second job in the same request gets its own |

@@ -18,3 +18,8 @@ en-us:
       You can also use the buttons below to quickly set up a feature, or use `/setup` at any time to see and manage all of them! :rocket:\n\n
       All of this and much more you can manage easily through Discord buttons, editing, pausing, or disabling features whenever you want :pencil:\n\n
       If you need *help*, just call me using `/support` :heart:"
+
+  prefix-hint:
+    guild: "🐾 Woof! Looking for one of my **$prefix** commands? They're not turned on in this server yet.\n\nAsk a moderator to set one up in `/setup` or with its own command:\n$commands\n\nMy other commands start with `/`! Try `/help` to see everything I can do :heart:"
+    feature: "- `/$command`"
+    direct: "🇺🇸 Woof! I don't answer prefix commands here in DMs. My commands start with `/`! Try `/help` to see everything I can do."

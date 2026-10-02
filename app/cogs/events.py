@@ -109,9 +109,10 @@ class Events(Cog, name="events"):
             return
 
         guild_id = str(message.guild.id)
+        prefix = self.bot.config.PREFIX
 
-        if message.content.startswith("ks!"):
-            await stream_elements_service.check_message(guild_id, message, "ks!")
+        if message.content.startswith(prefix):
+            await stream_elements_service.check_message(guild_id, message, prefix)
 
         await block_links_service.check_message(guild_id, message)
 

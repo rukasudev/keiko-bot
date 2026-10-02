@@ -523,7 +523,7 @@ async def test_the_stream_elements_lookup_counts_enabled_commands(deps, monkeypa
 
     found = await feature.prefetch(
         Lookup(("twitch", "stream_elements"), "shroud"),
-        OpenContext(GUILD_ID, "555", "pt-br"),
+        OpenContext(GUILD_ID, "555", "pt-br", prefix="ks!"),
     )
 
     assert found == {

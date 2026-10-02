@@ -66,6 +66,8 @@ class Commands:
     ADDED_KEY: Final[str] = "added"
     REMOVED_KEY: Final[str] = "removed"
 
+    COMMAND_FAILURE_STORE_SECONDS: Final[float] = 1.0
+
     # block links
     BLOCK_LINKS_KEY: Final[str] = "block_links"
     BLOCK_LINKS_ALLOWED_CHATS_KEY: Final[str] = "allowed_chats"
@@ -183,7 +185,7 @@ class Commands:
         {"command_key": REMINDERS_BIRTHDAY_KEY, "button_key": "birthdays", "emoji": "🎂",
          "channel_permissions": ["view_channel", "send_messages", "embed_links"]},
         {"command_key": INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY, "button_key": "stream-elements",
-         "emoji": "🎮", "server_permissions": ["send_messages"]},
+         "emoji": "🎮", "server_permissions": ["send_messages"], "answers_prefix": True},
     ]
     SUPPORT_SERVER_URL: Final[str] = "https://discord.gg/Hdg239Cvbd"
 
