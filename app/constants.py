@@ -123,6 +123,10 @@ class Commands:
     DEBUG_LOGS_EXPORT_HOUR: Final[int] = 0
     DEBUG_LOGS_EXPORT_MINUTE: Final[int] = 30
 
+    HEARTBEAT_SECONDS: Final[int] = 60
+    HEARTBEAT_TIMEOUT_SECONDS: Final[float] = 10.0
+    HEARTBEAT_LAG_BUCKETS: Final[Tuple[float, ...]] = (0.25, 1.0, 5.0, 15.0, 60.0, 300.0)
+
     # Reminders that failed to be created are retried on a slow loop: the
     # reason one fails is rarely fixed within a minute, and the birthday it
     # belongs to is usually months away.

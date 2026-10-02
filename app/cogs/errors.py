@@ -11,7 +11,7 @@ from app.constants import Commands as commandsconstants
 from app.constants import LogTypes as logconstants
 from app.data.cogs import insert_error_by_command_async
 from app.exceptions import ErrorContext
-from app.services import analytics, utils
+from app.services import analytics, metrics, utils
 from app.services.cache import increment_redis_key
 from app.services.prefix_features import prefix_hint
 from app.services.trace import trace_scope
@@ -83,6 +83,7 @@ class Errors(Cog, name="errors"):
             feature=feature,
             error_type=type(failure).__name__,
         )
+        metrics.record_interaction("failed", failure)
 
         return asyncio.ensure_future(_store_failure(feature or command_name, error_message))
 

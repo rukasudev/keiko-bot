@@ -87,6 +87,7 @@ class Events(Cog, name="events"):
             f"🏠 Total Guilds: {len(self.bot.guilds)}\n"
             f"👥 Total Users: {len(self.bot.users)}\n"
             f"📌 Prefix: {self.bot.command_prefix}\n"
+            f"🏷️ Version: {self.bot.config.APP_VERSION}\n"
             f"🎮 Current Activity: {self.bot.activity.name}\n"
             f"🐶 Current Status: {self.bot.status.name}️\n"
             f"---------------------------------------------------"

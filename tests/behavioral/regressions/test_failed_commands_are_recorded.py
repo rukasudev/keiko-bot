@@ -302,3 +302,17 @@ async def test_an_error_without_an_original_is_recorded_under_its_own_type(
     assert len(log_channels.errors.embeds) == 1
     assert len(stored_failures(deps)) == 1
 
+
+async def test_a_failed_command_is_counted_with_the_code_discord_answered(
+    deps, log_channels
+):
+    from prometheus_client import REGISTRY
+
+    labels = {"outcome": "failed", "code": "10062"}
+    before = REGISTRY.get_sample_value("keiko_interactions_total", labels) or 0.0
+    interaction, _ = failing_command()
+    error = app_commands.CommandInvokeError(SimpleNamespace(name="links"), expired())
+
+    await errors_cog().on_app_command_error(interaction, error)
+
+    assert REGISTRY.get_sample_value("keiko_interactions_total", labels) == before + 1

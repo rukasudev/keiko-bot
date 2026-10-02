@@ -18,7 +18,7 @@ DEFAULT_PATH = os.path.expanduser("~/.keiko/logs.db")
 
 # Bumped when the shape changes. The index is rebuilt from Discord, never a
 # source of truth, so an old one is discarded instead of migrated.
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS entries (
@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS entries (
     line          INTEGER,
     traceback     TEXT,
     env           TEXT,
+    app_version   TEXT,
     origin        TEXT NOT NULL,
     origin_ref    TEXT NOT NULL,
     UNIQUE(origin, origin_ref)
@@ -68,7 +69,7 @@ CREATE TABLE IF NOT EXISTS synced_files (
 COLUMNS = (
     "ts", "level", "message", "log_type", "guild_id", "user_id", "interaction_id",
     "channel_id", "feature", "source", "session_id", "trace_id", "module",
-    "function", "line", "traceback", "env",
+    "function", "line", "traceback", "env", "app_version",
 )
 
 

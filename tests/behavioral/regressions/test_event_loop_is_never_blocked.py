@@ -200,6 +200,22 @@ async def test_storing_a_failed_command_never_freezes_the_bot(deps, monkeypatch)
     assert ticks >= MIN_TICKS
 
 
+async def test_the_heartbeat_ping_never_freezes_the_bot(monkeypatch):
+    """The ping says the bot is alive; waiting for it on the loop would make it a lie."""
+    from app.cogs import heartbeat
+
+    monkeypatch.setattr(
+        requests, "get", blocking(SimpleNamespace(raise_for_status=lambda: None))
+    )
+    beating = heartbeat.Heartbeat(SimpleNamespace(config=SimpleNamespace(
+        HEARTBEAT_URL="https://hc-ping.example/token", APP_VERSION="dev"
+    )))
+
+    ticks = await ticks_while(heartbeat.Heartbeat.beat.coro(beating))
+
+    assert ticks >= MIN_TICKS
+
+
 async def test_a_birthday_reminder_never_freezes_the_bot(deps, monkeypatch):
     """The webhook job runs on the loop, and reads Mongo once per guild."""
     from app.webhooks import birthday_handler

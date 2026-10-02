@@ -7,7 +7,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from prometheus_client import Counter, Gauge
+from prometheus_client import Counter
 
 from app import logger
 from app.constants import LogTypes as logconstants
@@ -29,7 +29,6 @@ SESSIONS = Counter(
     "Sessions by feature and final status",
     ["feature", "status"],
 )
-LOOP_LAG = Gauge("keiko_event_loop_lag_seconds", "How late the event loop wakes up")
 
 OPENED = ("feature.setup_opened", "feature.manager_opened")
 
@@ -216,8 +215,3 @@ def error_context(session: FormSession, **extra: Any) -> ErrorContext:
 def close_journey(session: FormSession, outcome: str) -> None:
     """Close the session's story with `outcome`."""
     journey.finalize(story_id(session), outcome)
-
-
-def record_loop_lag(expected_interval: float, measured: float) -> None:
-    """Store how late the loop woke up compared to the interval it asked for."""
-    LOOP_LAG.set(max(0.0, measured - expected_interval))
