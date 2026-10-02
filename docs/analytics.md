@@ -393,7 +393,12 @@ could not otherwise say which guild left.
 The flood protection is untouched: `on_message`, `on_member_join` and
 `on_raw_message_edit` log nothing at all on a successful run, which is why only
 the two guild events ever went missing. A warning inside a listener is still
-swallowed — no path logs one today, and lifting that is a separate decision.
+swallowed with its clean trace, except one: a Redis or Mongo outage met by the
+settings cache (`app/services/cache.py`) is news about the process, not about
+the message that ran into it, so the cache logs it outside any trace. It is a
+message of its own on the log channel, once per store per
+`DBConfigs.COG_CACHE_WARN_SECONDS`, and its `guild.logs` record carries no trace
+id.
 
 ### Work that outlives the request needs a trace of its own
 

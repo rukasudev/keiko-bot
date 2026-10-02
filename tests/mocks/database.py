@@ -191,13 +191,16 @@ class MockRedisClient:
 
     def set(self, key, value):
         self._data[key] = value
+        self._expirations.pop(key, None)
 
     def setex(self, key, expiration, value):
         self._data[key] = value
+        self._expirations[key] = expiration
 
     def delete(self, *keys):
         for key in keys:
             self._data.pop(key, None)
+            self._expirations.pop(key, None)
 
     def keys(self, pattern):
         import fnmatch
@@ -464,7 +467,7 @@ class MockMongoDatabase:
     def __getattr__(self, name):
         return self[name]
 
-    async def list_collection_names(self):
+    def list_collection_names(self):
         return list(self._collections.keys())
 
 
@@ -481,3 +484,6 @@ class MockMongoClient:
 
     def __getattr__(self, name):
         return self[name]
+
+    def list_database_names(self):
+        return list(self._databases.keys())

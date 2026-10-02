@@ -10,10 +10,9 @@ from typing import Any, Protocol
 
 from app.constants import Commands
 from app.data import cogs as cogs_data
-from app.data import moderations as moderations_data
 from app.services.cache import get_cog_data_or_populate, remove_cog_cache_by_guild
-from app.services.cogs import LIFECYCLE_ANALYTICS_EVENTS
-from app.services.moderations import parse_default_moderations
+from app.services.cogs import LIFECYCLE_ANALYTICS_EVENTS, is_feature_on
+from app.services.moderations import set_feature_enabled
 from app.settings.form.actions.action import PanelRow
 from app.settings.form.components import Button
 from app.settings.form.form_state import Answer
@@ -148,17 +147,6 @@ EVENT_KEY = {
 }
 
 
-async def set_moderation(guild_id: str, key: str, value: bool) -> None:
-    """Flip the feature flag of a guild, creating the moderations document."""
-    existing = await moderations_data.find_moderations_by_guild_async(guild_id)
-    if not existing:
-        data = parse_default_moderations(guild_id)
-        data[key] = value
-        await moderations_data.insert_moderations_by_guild_async(data)
-        return
-    await moderations_data.update_moderations_by_guild_async(guild_id, key, value)
-
-
 async def record_event(
     key: str, event: str, context: CommitContext, **props: Any
 ) -> None:
@@ -205,9 +193,12 @@ class GenericCogFeature:
         )
         if not document:
             return Opened()
+        enabled = await asyncio.to_thread(
+            is_feature_on, context.guild_id, self.key, document
+        )
         return Opened(
             document=document,
-            enabled=bool(document.get(Commands.ENABLED_KEY)),
+            enabled=enabled,
             info=self.panel_info(context),
             info_title=self.panel_info_title(context),
             extra_buttons=self.extra_buttons(context),
@@ -317,25 +308,25 @@ class GenericCogFeature:
         return {}
 
     async def write_document(self, guild_id: str, document: Mapping[str, Any]) -> None:
-        """Replace the guild's document and drop its cache."""
+        """Replace the guild's document, then drop its cache."""
         data = {**document, "guild_id": str(guild_id)}
-        await asyncio.to_thread(remove_cog_cache_by_guild, guild_id, self.key)
         await cogs_data.insert_cog_by_guild_id_async(self.key, data)
+        await asyncio.to_thread(remove_cog_cache_by_guild, guild_id, self.key)
 
     async def update_document(self, guild_id: str, data: Mapping[str, Any]) -> None:
-        """Merge `data` into the guild's document and drop its cache."""
+        """Merge `data` into the guild's document, then drop its cache."""
         payload = {**data, "guild_id": str(guild_id)}
-        await asyncio.to_thread(remove_cog_cache_by_guild, guild_id, self.key)
         await cogs_data.update_cog_by_guild_async(guild_id, self.key, payload)
+        await asyncio.to_thread(remove_cog_cache_by_guild, guild_id, self.key)
 
     async def commit_setup(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """Enable the feature and store the whole document."""
+        """Store the whole document and record the feature as on."""
         document = self.to_document(payload["answers"], context.locale)
         document = await self.before_setup(document, payload["answers"], context)
-        await set_moderation(context.guild_id, self.key, True)
         await self.write_document(context.guild_id, document)
+        await asyncio.to_thread(set_feature_enabled, context.guild_id, self.key, True)
         return CommitResult(("moderations", self.key), document=document)
 
     async def before_setup(
@@ -428,28 +419,24 @@ class GenericCogFeature:
     async def commit_pause(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """Flag the feature off and mark the document paused."""
-        await set_moderation(context.guild_id, self.key, False)
-        await self.update_document(context.guild_id, {Commands.ENABLED_KEY: False})
+        """Record the feature as off, keeping its document."""
+        await asyncio.to_thread(set_feature_enabled, context.guild_id, self.key, False)
         return CommitResult(("moderations", self.key))
 
     async def commit_unpause(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """Flag the feature on and mark the document enabled."""
-        await set_moderation(context.guild_id, self.key, True)
-        await self.update_document(context.guild_id, {Commands.ENABLED_KEY: True})
+        """Record the feature as on again."""
+        await asyncio.to_thread(set_feature_enabled, context.guild_id, self.key, True)
         return CommitResult(("moderations", self.key))
 
     async def commit_disable(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """Undo the feature's side effects, flag it on again, drop the document."""
+        """Undo the feature's side effects, drop its document, record it as off."""
         await self.on_disable(context)
-        await set_moderation(context.guild_id, self.key, True)
-        await self.update_document(context.guild_id, {Commands.ENABLED_KEY: True})
-        await asyncio.to_thread(remove_cog_cache_by_guild, context.guild_id, self.key)
         await cogs_data.delete_cog_by_guild_id_async(context.guild_id, self.key)
+        await asyncio.to_thread(set_feature_enabled, context.guild_id, self.key, False)
         return CommitResult(("moderations", self.key))
 
     async def on_disable(self, context: CommitContext) -> None:

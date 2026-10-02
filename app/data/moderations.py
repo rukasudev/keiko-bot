@@ -1,6 +1,6 @@
 from typing import Any, Dict
 
-from app import mongo_client, motor_client
+from app import mongo_client
 from app.data.util import parse_insert_timestamp, parse_update_timestamp
 
 
@@ -38,15 +38,16 @@ def update_moderations_by_guild(guild_id: str, data: str, value: bool):
     )
 
 
-async def find_moderations_by_guild_async(guild_id: str) -> dict:
-    return await motor_client.guild.moderations.find_one({"guild_id": str(guild_id)})
-
-
-async def insert_moderations_by_guild_async(data: Dict[str, Any]) -> Any:
-    return await motor_client.guild.moderations.insert_one(parse_insert_timestamp(data))
-
-
-async def update_moderations_by_guild_async(guild_id: str, data: str, value: bool) -> Any:
-    return await motor_client.guild.moderations.update_one(
-        {"guild_id": str(guild_id)}, {"$set": parse_update_timestamp({data: value})}
+def upsert_moderations_by_guild(
+    guild_id: str, data: str, value: Any, defaults: Dict[str, Any]
+) -> Any:
+    update = parse_update_timestamp({data: value})
+    on_insert = {
+        key: default for key, default in defaults.items() if key not in (data, "guild_id")
+    }
+    on_insert["created_at"] = update["updated_at"]
+    return mongo_client.guild.moderations.update_one(
+        {"guild_id": str(guild_id)},
+        {"$set": update, "$setOnInsert": on_insert},
+        upsert=True,
     )

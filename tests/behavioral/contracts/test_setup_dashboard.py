@@ -35,12 +35,13 @@ BASE = "commands.commands.setup.embed"
 
 
 def seed(deps, enabled, paused=()):
+    """What a setup and a pause leave: each feature's document, and the old flags."""
     deps.mongo_client.guild.moderations.insert_one(
-        {"guild_id": GUILD_ID, **{key: True for key in enabled}}
+        {"guild_id": GUILD_ID, **{key: key not in paused for key in enabled}}
     )
-    for key in paused:
+    for key in enabled:
         deps.mongo_client.guild[key].insert_one(
-            {"guild_id": GUILD_ID, Commands.ENABLED_KEY: False}
+            {"guild_id": GUILD_ID, Commands.ENABLED_KEY: key not in paused}
         )
 
 
