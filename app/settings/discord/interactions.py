@@ -102,9 +102,9 @@ def _on_one_item(
         return ev.RemoveRequested(event_id, revision, arg or "")
     if action == "remove_item":
         return ev.RemoveItemConfirmed(event_id, revision, arg or "")
-    if action == "toggle":
+    if action in ("turn_on", "turn_off"):
         key, _, chosen = (arg or "").rpartition("=")
-        return ev.OptionToggled(event_id, revision, key, chosen)
+        return ev.OptionToggled(event_id, revision, key, chosen, action == "turn_on")
     return None
 
 

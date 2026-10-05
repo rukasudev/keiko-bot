@@ -89,7 +89,7 @@ async def test_disable_is_seen_by_the_next_message(deps, monkeypatch):
     collection = deps.mongo_client.guild["block_links"]
     collection.insert_one(dict(BLOCK_LINKS))
     cache.get_cog_data_or_populate(GUILD_ID, "block_links")
-    a_reader_arrives_during(collection, "delete_one", monkeypatch, "block_links")
+    a_reader_arrives_during(collection, "find_one_and_delete", monkeypatch, "block_links")
 
     await feature_for("block_links").commit("disable", {}, context(BLOCK_LINKS))
 
@@ -104,7 +104,7 @@ async def test_a_paused_feature_is_never_on_while_it_is_being_disabled(
     paused = {**BLOCK_LINKS, "enabled": False}
     collection = deps.mongo_client.guild["block_links"]
     collection.insert_one(dict(paused))
-    seen = a_reader_arrives_during(collection, "delete_one", monkeypatch, "block_links")
+    seen = a_reader_arrives_during(collection, "find_one_and_delete", monkeypatch, "block_links")
 
     await feature_for("block_links").commit("disable", {}, context(paused))
 

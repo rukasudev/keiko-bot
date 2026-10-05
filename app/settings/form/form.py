@@ -439,11 +439,11 @@ class Engine:
             wanted = raw_value(item.get(unique))
             same = next(
                 (
-                    index
-                    for index, existing in enumerate(items)
+                    position
+                    for position, existing in enumerate(items)
                     if wanted is not None
                     and raw_value(existing.get(unique)) == wanted
-                    and index != index
+                    and position != index
                 ),
                 None,
             )
@@ -758,23 +758,31 @@ def _item_count(engine: Engine) -> dict[str, int]:
 def _on_commit_failed(engine: Engine) -> None:
     event = engine.event
     assert isinstance(event, ev.CommitFailed)
-    quiet = engine.session.awaiting == "quiet"
-    engine.session = engine.session.with_status(
-        Status.ACTIVE if quiet else Status.FAILED
-    )
+    refused = event.error in ("stale", "duplicate")
+    managed = isinstance(engine.session.mode, Manage)
 
-    if quiet:
-        engine.effects.append(ShowError(event.error or "error"))
+    if managed and refused and not engine.context.document:
+        engine.session = engine.session.with_status(Status.CANCELLED)
+        engine.effects.append(Finalize("closed"))
+    elif managed and event.error == "stale":
+        engine.session = engine.session.with_status(Status.ACTIVE)
+        engine.effects.append(Notice("stale"))
+        engine.rerender()
+    elif engine.session.awaiting == "quiet":
+        copy = "item-already-registered" if refused else "command-generic-error"
+        engine.session = engine.session.with_status(Status.ACTIVE)
+        engine.effects.append(ShowError(copy))
         engine.rerender()
     else:
+        engine.session = engine.session.with_status(Status.FAILED)
         kind = "duplicate" if event.error == "duplicate" else "error"
         engine.effects.append(Finalize(kind))
-    engine.emit(
-        "feature.commit_failed",
-        commit_kind=event.kind,
-        error_type=event.error,
-        step_key=engine.session.cursor,
-    )
+        engine.emit(
+            "feature.commit_failed",
+            commit_kind=event.kind,
+            error_type=event.error,
+            step_key=engine.session.cursor,
+        )
 
 
 def _on_aside(engine: Engine) -> None:

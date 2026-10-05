@@ -37,7 +37,9 @@ from app.settings.features import feature_for
 from app.settings.features.feature import (
     AsideAction,
     CommitContext,
+    DuplicateItem,
     FeatureModule,
+    ListChanged,
     OpenContext,
     Opened,
 )
@@ -552,16 +554,9 @@ class Runtime:
         try:
             result = await state.feature.commit(kind, payload, context)
         except Exception as error:
-            reason = type(error).__name__
-            if reason == "DuplicateItem":
-                reason = "duplicate"
-            else:
-                logger.error(
-                    f"form {session.key} commit {kind} failed: {error!r}",
-                    log_type=logconstants.COMMAND_ERROR_TYPE,
-                    context=observability.error_context(session, commit=kind),
-                    exc_info=True,
-                )
+            reason = _failure_reason(error, session, kind)
+            if reason in ("stale", "duplicate"):
+                await self._reopen(session)
             await self._apply(
                 interaction,
                 session,
@@ -581,6 +576,26 @@ class Runtime:
             interaction,
             session,
             ev.CommitSucceeded(outcome_id, None, kind, result.written),
+        )
+
+    async def _reopen(self, session: FormSession) -> None:
+        """Read the feature again, so the next screen shows what is saved now."""
+        state = self.sessions[session.id]
+        try:
+            reopened = await state.feature.open(self._open_context(session))
+        except Exception as error:
+            logger.error(
+                f"form {session.key} could not read the feature again: {error!r}",
+                log_type=logconstants.COMMAND_ERROR_TYPE,
+                context=observability.error_context(session),
+                exc_info=True,
+            )
+            return
+        if asyncio.iscoroutine(reopened.pending_previews):
+            reopened.pending_previews.close()
+
+        state.opened = replace(
+            reopened, previews=state.opened.previews, pending_previews=None
         )
 
     async def _aside(
@@ -776,6 +791,21 @@ class Runtime:
             state = self.sessions.pop(session_id, None)
             if state is not None:
                 state.forget()
+
+
+def _failure_reason(error: Exception, session: FormSession, kind: str) -> str:
+    if isinstance(error, DuplicateItem):
+        return "duplicate"
+    if isinstance(error, ListChanged):
+        return "stale"
+
+    logger.error(
+        f"form {session.key} commit {kind} failed: {error!r}",
+        log_type=logconstants.COMMAND_ERROR_TYPE,
+        context=observability.error_context(session, commit=kind),
+        exc_info=True,
+    )
+    return type(error).__name__
 
 
 def _cooling(state: Session, name: str, seconds: int) -> bool:

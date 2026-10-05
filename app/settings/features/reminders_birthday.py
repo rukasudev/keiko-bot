@@ -26,6 +26,7 @@ from app.settings.features.feature import (
     AsideAction,
     CommitContext,
     CommitResult,
+    DuplicateItem,
     GenericCogFeature,
     OpenContext,
     Opened,
@@ -162,10 +163,6 @@ class BirthdayFeature(GenericCogFeature):
         await asyncio.to_thread(disable_birthdays, context.guild_id)
         await asyncio.to_thread(set_feature_enabled, context.guild_id, self.key, False)
         return CommitResult(("reminders_birthday", "birthdays", "moderations"))
-
-
-class DuplicateItem(Exception):
-    """The item to add is already on the list."""
 
 
 def _value(entry: Any) -> Any:

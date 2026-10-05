@@ -15,6 +15,8 @@ from app.settings.form.components import (
 )
 from app.settings.form.effects import (
     Commit,
+    Finalize,
+    Notice,
     OpenModal,
     Render,
     ResumeParent,
@@ -572,6 +574,27 @@ def test_the_review_removes_items_by_index_and_offers_remove_only_with_two():
     assert [
         i["streamer"].raw for i in removed.session.answers["notifications"].raw
     ] == ["cellbit"]
+
+
+def test_an_item_edited_onto_another_items_key_leaves_one_item():
+    """The merge looked for another item with the same `unique_by` value but
+    compared the loop index with itself, so it never found one."""
+    links = tuple(
+        {"link": Answer(link)} for link in ("meusite.com.br", "docs.example.org")
+    )
+    definition, decision = start("block_links", answers={"custom_links": Answer(links)})
+    edited = decide(
+        definition,
+        decision.session,
+        evt(
+            ev.ChildFinished,
+            child_mode="edit_item",
+            answers={"link": Answer("meusite.com.br")},
+            index=1,
+        ),
+    )
+    listed = edited.session.answers["custom_links"].raw
+    assert [item["link"].raw for item in listed] == ["meusite.com.br"]
 
 
 # ------------------------------------------------------------------- manager
@@ -1367,35 +1390,27 @@ def test_a_popular_website_turns_on_where_it_is_read():
     turned = decide(
         definition,
         opened.session,
-        evt(ev.OptionToggled, target="allowed_links", value="spotify.com"),
+        evt(
+            ev.OptionToggled,
+            target="allowed_links",
+            value="spotify.com",
+            turned_on=True,
+        ),
         context,
     )
 
     written = next(e for e in turned.effects if isinstance(e, Commit))
-    assert written.kind == "edit" and written.quiet
-    assert written.payload["answers"]["allowed_links"].raw == [
-        "youtube.com",
-        "spotify.com",
-    ]
+    assert written.kind == "toggle" and written.quiet
+    assert written.payload == {
+        "key": "allowed_links",
+        "value": "spotify.com",
+        "turned_on": True,
+    }, "the commit carries the state the screen asked for"
     saved = decide(
-        definition, turned.session, evt(ev.CommitSucceeded, kind="edit"), context
+        definition, turned.session, evt(ev.CommitSucceeded, kind="toggle"), context
     )
     assert kinds(saved) == ["Render"], "no success message, the screen stays"
     assert "Exceções" in screen(saved).components[0].title
-
-
-def test_a_website_that_is_on_turns_off_on_the_same_click():
-    definition, opened, context = _exceptions_screen(EXCEPTIONS_DOC)
-
-    turned = decide(
-        definition,
-        opened.session,
-        evt(ev.OptionToggled, target="allowed_links", value="youtube.com"),
-        context,
-    )
-
-    written = next(e for e in turned.effects if isinstance(e, Commit))
-    assert written.payload["answers"]["allowed_links"].raw == []
 
 
 def test_removing_one_link_asks_first_and_stays_on_the_screen():
@@ -1427,6 +1442,87 @@ def test_removing_one_link_asks_first_and_stays_on_the_screen():
         context,
     )
     assert "Exceções" in screen(saved).components[0].title, "the screen stays"
+
+
+def _refused_on_the_exceptions_screen(error, document=BLOCK_LINKS_DOC):
+    definition, opened, context = _exceptions_screen(BLOCK_LINKS_DOC)
+    asked = decide(
+        definition,
+        opened.session,
+        evt(ev.RemoveRequested, target="custom_links$0"),
+        context,
+    )
+    removed = decide(
+        definition,
+        asked.session,
+        evt(ev.RemoveItemConfirmed, target="custom_links$0"),
+        context,
+    )
+    return decide(
+        definition,
+        removed.session,
+        evt(ev.CommitFailed, kind="remove_item", error=error),
+        Context(document=document),
+    )
+
+
+@pytest.mark.parametrize(
+    "error, answer",
+    [
+        ("stale", Notice("stale")),
+        ("duplicate", ShowError("item-already-registered")),
+        ("RuntimeError", ShowError("command-generic-error")),
+    ],
+)
+def test_a_refused_change_on_a_heading_screen_answers_in_copy_and_redraws_it(
+    error, answer
+):
+    """Broke as: the exceptions screen answered a refused change with
+    `ShowError(<reason>)`, whose copy keys do not exist, so the admin read
+    `errors.stale.title` over the old list."""
+    refused = _refused_on_the_exceptions_screen(error)
+
+    assert refused.effects[0] == answer
+    assert kinds(refused)[1:] == ["Render"]
+    assert "Exceções" in screen(refused).components[0].title
+    assert refused.session.status is Status.ACTIVE
+    assert refused.analytics == (), "the session goes on, so no failed commit ends it"
+
+
+def test_a_change_refused_once_the_feature_is_gone_closes_the_form_in_place():
+    refused = _refused_on_the_exceptions_screen("stale", document={})
+
+    assert refused.effects == (Finalize("closed"),)
+    assert refused.session.status is Status.CANCELLED
+    assert refused.analytics == (), "a refusal is not a failed commit"
+
+
+def test_a_stale_change_from_the_panel_redraws_the_panel_and_keeps_it_open():
+    definition, panel = start(
+        "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
+    )
+    picker = decide(
+        definition,
+        panel.session,
+        evt(ev.RemoveRequested),
+        Context(document=BLOCK_LINKS_DOC),
+    )
+    removed = decide(
+        definition,
+        picker.session,
+        evt(ev.TargetChosen, value="custom_links$0"),
+        Context(document=BLOCK_LINKS_DOC),
+    )
+    refused = decide(
+        definition,
+        removed.session,
+        evt(ev.CommitFailed, kind="remove_item", error="stale"),
+        Context(document=BLOCK_LINKS_DOC),
+    )
+
+    assert kinds(refused) == ["Notice", "Render"]
+    assert isinstance(screen(refused).components[0], Panel)
+    assert refused.session.status is Status.ACTIVE
 
 
 def test_back_from_the_exceptions_screen_returns_to_the_panel():
