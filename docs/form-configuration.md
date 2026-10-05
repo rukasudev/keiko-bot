@@ -216,7 +216,7 @@ nothing is looked up by reflection.
 | Copy tokens | `TOKEN_FORMATTERS` in `app/settings/form/actions/action.py` | `host` |
 | Copy resolution | `text(key, locale)` and `normalize_locale` in `app/settings/form/copy.py` | reads the language files through `ml` |
 | Definitions | `DefinitionSource` (`load`, `list`) in `app/settings/form/form_yaml.py` | `DiskSource` over `app/languages/form/` |
-| Features | `feature_for(key)` in `app/settings/features/__init__.py` | the seven feature modules; any other compiled form gets `GenericCogFeature` |
+| Features | `Feature` in `app/constants.py`, one `FeatureSpec` each, whose `module` names the feature's module under `app/settings/features/` or is None; `feature_for(key)` in `app/settings/features/__init__.py` imports the module the spec names | the seven feature modules; a spec whose `module` is None gets `GenericCogFeature`, and a key no spec declares is refused |
 
 An extension may: register a step kind, a pure validator with its `needs`,
 a transform, a formatter, a card section type; provide a `FeatureModule`.
@@ -301,24 +301,39 @@ labels in `value`, because v0.9.0 shows and matches them.
 
 ## 8. Adding a form
 
-A new form is three files, all under existing conventions:
+A new feature is one declaration and three files, all under existing
+conventions:
 
+0. **The declaration**, one member of `Feature` in `app/constants.py`, the
+   one table every feature list derives from, except `COMMANDS_LIST`, which
+   wave 3 derives: a `FeatureSpec` with the key, the slash command's group
+   and namespace, the /setup button and emoji, the permissions it needs,
+   whether it assigns roles, whether it answers the chat prefix, and the
+   module that saves it (or None for the generic one). The key constant,
+   `Commands.SETUP_FEATURES`, `Commands.FEATURE_COMMANDS`, the moderation
+   defaults, `feature_keys` and the module `feature_for` imports come from
+   it. It is one table because those lists had drifted apart: the
+   moderation defaults had forgotten StreamElements, and group and
+   namespace were written twice for every command.
+   `tests/forms/features/test_feature_specs.py` refuses a declaration whose
+   form, module, command or copy disagrees with it.
 1. **The definition**, `app/languages/form/<key>.yml`: `steps:` composed
    from 3.2, opening with `action: form` and closing with `action: resume`,
    every string in both locales. `pytest tests/forms/form -q`
    compiles every file on disk; a bad rule or a missing locale fails there.
 2. **The cog**, in `app/cogs/`: the slash command's body calls
    `open_feature(interaction, key)` (through the feature service's
-   `manager`, the convention every feature follows). Register the key in
-   `Commands` (`app/constants.py`).
+   `manager`, the convention every feature follows), in a subgroup with the
+   namespace and under the group the declaration names.
 3. **The copy**, in `app/languages/commands/commands.<locale>.yml` (the
    command's name and description) and in `errors.<locale>.yml` for any new
    validator key. Reuse `buttons.*` labels and
    `commands.command-events.*` state messages before adding keys.
 
-Persistence is generic (`GenericCogFeature`) unless the feature needs more;
-then a module in `app/settings/features/` fulfils section 6 and `feature_for`
-maps the key to it. A behavioral scenario in `tests/behavioral/scenarios/`
+Persistence is generic (`GenericCogFeature`, the spec's `module=None`) unless
+the feature needs more; then a module under `app/settings/features/`, named
+after the key like the form's file, fulfils section 6 with a `FEATURE`, and
+the spec names it. A behavioral scenario in `tests/behavioral/scenarios/`
 and a golden path in `tests/behavioral/golden/paths/` pin what the admin
 sees (`docs/form-scenario-testing.md`).
 

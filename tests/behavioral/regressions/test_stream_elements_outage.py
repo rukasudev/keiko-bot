@@ -42,7 +42,7 @@ async def _review_after_naming(scenario_factory, deps):
 async def test_an_unreachable_stream_elements_leaves_no_count_on_the_review(
     scenario_factory, deps, monkeypatch
 ):
-    from app.settings.features import stream_elements as feature
+    from app.settings.features import stream_elements_commands as feature
 
     def unreachable(name):
         raise ConnectionError("StreamElements is down")
