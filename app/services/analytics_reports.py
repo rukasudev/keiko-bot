@@ -269,63 +269,65 @@ SETUP_SESSION_EVENTS = (
 )
 
 
-def setup_sessions(feature: Optional[str] = None) -> List[Dict[str, Any]]:
+def setup_sessions(
+    feature: Optional[str] = None,
+    guild_id: Optional[str] = None,
+    since: Optional[datetime] = None,
+) -> List[Dict[str, Any]]:
     """Every configuration attempt, rebuilt from its events by session id.
 
     A session whose last event is older than the view timeout can never finish:
     the view it lived in is gone. That turns "did they abandon it" from a guess
-    into a fact, and the last step it reached is where they stopped.
+    into a fact, and the last step it reached is where they stopped. Given a
+    guild and a moment, only that guild's events since then are read.
     """
     sessions: Dict[str, Dict[str, Any]] = {}
 
-    for name in SETUP_SESSION_EVENTS:
-        query = {"event": name}
-        if feature:
-            query["feature"] = feature
-        for event in analytics_data.find_events(query):
-            session_id = event.get("session_id")
-            if not session_id:
-                continue
+    for event in _setup_events(feature, guild_id, since):
+        session_id = event.get("session_id")
+        if not session_id:
+            continue
 
-            session = sessions.setdefault(session_id, {
-                "session_id": session_id,
-                "guild_id": event.get("guild_id"),
-                "user_id": event.get("user_id"),
-                "feature": event.get("feature"),
-                "source": event.get("source"),
-                "last_step": None,
-                "last_step_index": -1,
-                "last_seen": None,
-                "validation_failures": 0,
-                "required_misses": 0,
-                "back_count": 0,
-                "outcome": None,
-                "failed_keys": [],
-            })
+        session = sessions.setdefault(session_id, {
+            "session_id": session_id,
+            "guild_id": event.get("guild_id"),
+            "user_id": event.get("user_id"),
+            "feature": event.get("feature"),
+            "source": event.get("source"),
+            "last_step": None,
+            "last_step_index": -1,
+            "last_seen": None,
+            "validation_failures": 0,
+            "required_misses": 0,
+            "back_count": 0,
+            "outcome": None,
+            "failed_keys": [],
+        })
 
-            timestamp = event.get("ts")
-            if timestamp and (not session["last_seen"] or timestamp > session["last_seen"]):
-                session["last_seen"] = timestamp
+        timestamp = event.get("ts")
+        if timestamp and (not session["last_seen"] or timestamp > session["last_seen"]):
+            session["last_seen"] = timestamp
 
-            props = event.get("props") or {}
-            if name == "setup.step_viewed":
-                index = props.get("step_index", 0)
-                if index >= session["last_step_index"]:
-                    session["last_step_index"] = index
-                    session["last_step"] = props.get("step_key")
-            elif name == "setup.validation_failed":
-                session["validation_failures"] += 1
-                if props.get("error_key"):
-                    session["failed_keys"].append(props["error_key"])
-            elif name == "setup.required_missing":
-                session["required_misses"] += 1
-            elif name == "setup.step_back":
-                session["back_count"] += 1
-            elif name == "setup.completed":
-                session["outcome"] = "completed"
-            elif name == "setup.discarded":
-                session["outcome"] = "discarded"
-                session["last_step"] = props.get("step_key") or session["last_step"]
+        name = event["event"]
+        props = event.get("props") or {}
+        if name == "setup.step_viewed":
+            index = props.get("step_index", 0)
+            if index >= session["last_step_index"]:
+                session["last_step_index"] = index
+                session["last_step"] = props.get("step_key")
+        elif name == "setup.validation_failed":
+            session["validation_failures"] += 1
+            if props.get("error_key"):
+                session["failed_keys"].append(props["error_key"])
+        elif name == "setup.required_missing":
+            session["required_misses"] += 1
+        elif name == "setup.step_back":
+            session["back_count"] += 1
+        elif name == "setup.completed":
+            session["outcome"] = "completed"
+        elif name == "setup.discarded":
+            session["outcome"] = "discarded"
+            session["last_step"] = props.get("step_key") or session["last_step"]
 
     for session in sessions.values():
         session["outcome"] = session["outcome"] or _expired_or_open(session["last_seen"])
@@ -336,6 +338,22 @@ def setup_sessions(feature: Optional[str] = None) -> List[Dict[str, Any]]:
         key=lambda session: session["last_seen"] or datetime.min.replace(tzinfo=timezone.utc),
         reverse=True,
     )
+
+
+def _setup_events(
+    feature: Optional[str], guild_id: Optional[str], since: Optional[datetime]
+) -> List[Dict[str, Any]]:
+    """One read of the events sessions are rebuilt from, in the order they are read."""
+    query: Dict[str, Any] = {"event": {"$in": list(SETUP_SESSION_EVENTS)}}
+    if feature:
+        query["feature"] = feature
+    if guild_id:
+        query["guild_id"] = str(guild_id)
+    if since:
+        query["ts"] = {"$gte": since}
+
+    events = analytics_data.find_events(query)
+    return sorted(events, key=lambda event: SETUP_SESSION_EVENTS.index(event["event"]))
 
 
 def _expired_or_open(last_seen: Optional[datetime]) -> str:

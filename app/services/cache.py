@@ -21,16 +21,9 @@ _last_known: "OrderedDict[str, str]" = OrderedDict()
 _generations: "OrderedDict[str, int]" = OrderedDict()
 _sequence = count(1)
 _unsent_keys: Dict[str, int] = {}
-_unsent_prefixes: Dict[str, int] = {}
 _failed_at: Dict[str, float] = {}
 _errors: Dict[str, Exception] = {}
 _warned_at: Dict[str, float] = {}
-
-
-def clear_cache_commands_by_guild(guild_id: str, command_key: str) -> int:
-    for key in redis_client.scan_iter(f"{guild_id}@{command_key}:*"):
-        redis_client.delete(key)
-    return
 
 
 def set_data_in_redis(key: str, data: Dict[str, Any]):
@@ -56,21 +49,33 @@ def increment_redis_key_with_expiration(key: str, increment_by: int, expiration:
     return value
 
 
-def get_redis_counter(key: str) -> int:
-    try:
-        return int(redis_client.get(key) or 0)
-    except (TypeError, ValueError):
-        return 0
+def increment_redis_hash(key: str, increments: Dict[str, int], expiration: int) -> None:
+    """Add to several counters of one hash and keep it `expiration` seconds from now,
+    in a single round trip."""
+    pipeline = redis_client.pipeline(transaction=False)
+
+    for field, amount in increments.items():
+        pipeline.hincrby(key, field, amount)
+
+    pipeline.expire(key, expiration)
+    pipeline.execute()
 
 
-def get_redis_counters_by_prefix(prefix: str) -> Dict[str, int]:
-    """Every counter under a prefix, keyed by its last segment. Mirrors the
-    scan-and-sum aggregation the admin dashboard already does over the
-    command-call counters."""
-    counters = {}
-    for key in redis_client.scan_iter(f"{prefix}*"):
-        counters[str(key).rsplit(":", 1)[-1]] = get_redis_counter(key)
-    return counters
+def get_redis_hash_counters(key: str) -> Dict[str, int]:
+    """Every counter of one hash, by field."""
+    return {field: _count(value) for field, value in redis_client.hgetall(key).items()}
+
+
+def get_redis_counters(keys: List[str]) -> Dict[str, int]:
+    """Several counters in one round trip; a key that does not exist counts zero."""
+    if not keys:
+        return {}
+    return {key: _count(value) for key, value in zip(keys, redis_client.mget(keys))}
+
+
+def delete_redis_keys(keys: List[str]) -> None:
+    """Delete keys by name, and again as soon as Redis answers when it does not now."""
+    _delete_cached(keys)
 
 
 def get_cog_data_or_populate(
@@ -93,19 +98,20 @@ def remove_cog_cache_by_guild(guild_id: str, key: str) -> None:
     with _lock:
         _forget(redis_key)
 
-    _delete_cached([redis_key], [])
+    _delete_cached([redis_key])
 
 
 def remove_all_cache_by_guild(guild_id: str) -> None:
-    """Forget everything cached for a guild, in this process and in Redis."""
+    """Forget every feature's cached settings for a guild, in this process and in Redis."""
     prefix = f"guild:{guild_id}:"
     with _lock:
         features = [_cog_key(guild_id, spec["command_key"]) for spec in Commands.SETUP_FEATURES]
         remembered = [known for known in _last_known if known.startswith(prefix)]
-        for redis_key in {*features, *remembered}:
+        keys = sorted({*features, *remembered})
+        for redis_key in keys:
             _forget(redis_key)
 
-    _delete_cached([], [prefix])
+    _delete_cached(keys)
 
 
 def claim_redis_key(key: str, expiration: int) -> bool:
@@ -124,7 +130,6 @@ def reset() -> None:
         _last_known.clear()
         _generations.clear()
         _unsent_keys.clear()
-        _unsent_prefixes.clear()
         _failed_at.clear()
         _errors.clear()
         _warned_at.clear()
@@ -132,6 +137,13 @@ def reset() -> None:
 
 def _cog_key(guild_id: Any, key: str) -> str:
     return f"guild:{guild_id}:cog.{key}"
+
+
+def _count(value: Any) -> int:
+    try:
+        return int(value or 0)
+    except (TypeError, ValueError):
+        return 0
 
 
 def _cached(redis_key: str) -> Optional[str]:
@@ -198,11 +210,11 @@ def _store(redis_key: str, raw: str, generation: int) -> None:
         redis_client.setex(redis_key, seconds, raw)
     except RedisError as error:
         _fail("redis", error)
-        _delete_cached([redis_key], [])
+        _delete_cached([redis_key])
         return
 
     if not _is_current(redis_key, generation):
-        _delete_cached([redis_key], [])
+        _delete_cached([redis_key])
 
 
 def _is_current(redis_key: str, generation: int) -> bool:
@@ -210,10 +222,9 @@ def _is_current(redis_key: str, generation: int) -> bool:
         return _generations.get(redis_key, 0) == generation
 
 
-def _delete_cached(keys: List[str], prefixes: List[str]) -> None:
+def _delete_cached(keys: List[str]) -> None:
     with _lock:
         _unsent_keys.update((key, next(_sequence)) for key in keys)
-        _unsent_prefixes.update((prefix, next(_sequence)) for prefix in prefixes)
 
     _send_deletes()
 
@@ -223,24 +234,18 @@ def _send_deletes() -> bool:
         return False
 
     with _lock:
-        keys, prefixes = dict(_unsent_keys), dict(_unsent_prefixes)
-    if not keys and not prefixes:
+        keys = dict(_unsent_keys)
+    if not keys:
         return True
 
     try:
-        if keys:
-            redis_client.delete(*keys)
-        for prefix in prefixes:
-            found = redis_client.keys(f"{prefix}*")
-            if found:
-                redis_client.delete(*found)
+        redis_client.delete(*keys)
     except RedisError as error:
         _fail("redis", error)
         return False
 
     with _lock:
         _drop_sent(_unsent_keys, keys)
-        _drop_sent(_unsent_prefixes, prefixes)
 
     _recover("redis")
     return True
