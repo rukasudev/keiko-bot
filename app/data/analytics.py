@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterator, List, Optional
 
 from pymongo import UpdateOne
 
@@ -48,6 +48,7 @@ def build_profile_operation(
     min_fields: Optional[Dict[str, Any]] = None,
     max_fields: Optional[Dict[str, Any]] = None,
     add_to_set: Optional[Dict[str, Any]] = None,
+    upsert: bool = True,
 ) -> UpdateOne:
     update: Dict[str, Any] = {}
     if inc:
@@ -64,7 +65,7 @@ def build_profile_operation(
         update["$addToSet"] = {
             key: value for key, value in add_to_set.items() if value is not None
         }
-    return UpdateOne({"_id": str(guild_id)}, update, upsert=True)
+    return UpdateOne({"_id": str(guild_id)}, update, upsert=upsert)
 
 
 def find_profile(guild_id: str) -> Optional[Dict[str, Any]]:
@@ -91,6 +92,15 @@ def count_events(query: Dict[str, Any]) -> int:
 
 def find_events(query: Dict[str, Any]) -> List[Dict[str, Any]]:
     return list(mongo_client.guild.analytics_events.find(query, {"_id": False}))
+
+
+def iter_events_between(start: datetime, end: datetime) -> Iterator[Dict[str, Any]]:
+    """Every event from `start` up to `end`, oldest first, streamed rather than held."""
+    yield from (
+        mongo_client.guild.analytics_events
+        .find({"ts": {"$gte": start, "$lt": end}})
+        .sort("ts", 1)
+    )
 
 
 def find_month_buckets(guild_id: str) -> List[Dict[str, Any]]:

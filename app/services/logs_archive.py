@@ -14,7 +14,7 @@ import gzip
 import io
 import json
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import discord
 
@@ -40,12 +40,17 @@ def serialize(document: Dict[str, Any]) -> str:
 
 def build_archive(day: datetime) -> Tuple[Optional[bytes], int]:
     """Stream one day into a gzip buffer. Returns (payload, record count)."""
+    return gzip_lines(serialize(document) for document in logs_data.iter_logs_for_day(day))
+
+
+def gzip_lines(lines: Iterable[str]) -> Tuple[Optional[bytes], int]:
+    """Stream lines into one gzip buffer. Returns (payload, line count), (None, 0) for none."""
     buffer = io.BytesIO()
     written = 0
 
     with gzip.GzipFile(fileobj=buffer, mode="wb", mtime=0) as stream:
-        for document in logs_data.iter_logs_for_day(day):
-            stream.write((serialize(document) + "\n").encode("utf-8"))
+        for line in lines:
+            stream.write((line + "\n").encode("utf-8"))
             written += 1
 
     if not written:
@@ -54,13 +59,34 @@ def build_archive(day: datetime) -> Tuple[Optional[bytes], int]:
     return buffer.getvalue(), written
 
 
+def part_names(stem: str, extension: str, total: int) -> List[str]:
+    """The names of a file sent in `total` parts: `stem.ext`, or `stem_1-of-3.ext` and on."""
+    if total == 1:
+        return [f"{stem}{extension}"]
+    return [f"{stem}_{index}-of-{total}{extension}" for index in range(1, total + 1)]
+
+
+def build_file(filename: str, payload: bytes) -> discord.File:
+    """A payload as the attachment a channel receives."""
+    return discord.File(io.BytesIO(payload), filename=filename)
+
+
+async def send_files(channel: Any, content: str, files: List[Tuple[str, bytes]]) -> None:
+    """`content` with the first file, then every other file in a message of its own."""
+    attachments = [build_file(filename, payload) for filename, payload in files]
+    await channel.send(content, file=attachments[0] if attachments else None)
+
+    for attachment in attachments[1:]:
+        await channel.send(file=attachment)
+
+
 def build_daily_file(day: datetime) -> Tuple[Optional[discord.File], int]:
     payload, written = build_archive(day)
     if not payload:
         return None, 0
 
     filename = FILENAME.format(date=day.strftime("%Y-%m-%d"))
-    return discord.File(io.BytesIO(payload), filename=filename), written
+    return build_file(filename, payload), written
 
 
 def build_message(day: datetime, written: int, locale: str = ADMIN_LOCALE) -> str:

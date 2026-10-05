@@ -23,7 +23,7 @@ from app.data.notifications_youtube_video import (
 from app.data.reminder import (
     delete_reminder_by_id,
     find_reminder_by_value,
-    insert_reminder,
+    insert_renewal_reminder,
     stamp_hub_confirmation,
 )
 from app.integrations.reminder_webhook import REMINDER_TIMEZONE, reminder_time
@@ -382,7 +382,7 @@ def ensure_renewal(
             )
             return
 
-        insert_reminder(reminder_id, "youtube_notification", youtuber)
+        insert_renewal_reminder(reminder_id, youtuber)
 
     logger.info(
         f"renewal of **{youtuber}** scheduled for {renewal:%Y-%m-%d %H:%M} ({REMINDER_TIMEZONE})",

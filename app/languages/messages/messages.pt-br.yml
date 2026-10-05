@@ -1,6 +1,8 @@
 pt-br:
   admin-logs:
     daily-export: ":card_index_dividers: Aqui está o meu log estruturado de: **{date}**! ({count} registros)"
+    monthly-events: ":card_file_box: Aqui está o meu arquivo de eventos de **{month}**! ({count} eventos)"
+    files-parts: "Enviei em {files} arquivos, um por mensagem."
 
   birthday-defaults:
     title: "🎂 É aniversário do {user}!"
