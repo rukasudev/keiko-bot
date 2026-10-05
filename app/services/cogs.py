@@ -1,9 +1,9 @@
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Mapping, Optional
 
 from app.constants import Commands as constants
 from app.data import cogs as cogs_data
+from app.data import moderations as moderations_data
 from app.services import analytics
-from app.services.cache import remove_cog_cache_by_guild
 
 LIFECYCLE_ANALYTICS_EVENTS = {
     constants.ENABLED_KEY: "feature.enabled",
@@ -33,13 +33,14 @@ def config_states_provider(feature: str) -> Optional[Callable[[], List[Dict[str,
     return config_states
 
 
-def insert_cog_by_guild(guild_id: str, cog: str, data: Dict[str, Any]):
-    if not data.get("guild_id"):
-        data["guild_id"] = str(guild_id)
-
-    remove_cog_cache_by_guild(guild_id, cog)
-
-    return cogs_data.insert_cog_by_guild_id(cog, data)
+def is_feature_on(guild_id: str, key: str, document: Optional[Mapping[str, Any]]) -> bool:
+    """Whether a feature is on: its saved document says so, or for a document saved
+    before `enabled` existed, its old moderations flag."""
+    if not document:
+        return False
+    if constants.ENABLED_KEY in document:
+        return bool(document[constants.ENABLED_KEY])
+    return bool(moderations_data.find_moderation_by_guild(guild_id, key))
 
 
 def insert_cog_event(
@@ -82,21 +83,3 @@ def insert_cog_event(
 
 def find_cog_events_by_guild(guild_id: str, cog_key: str):
     return cogs_data.find_cog_events_by_guild_id(guild_id, cog_key)
-
-
-def update_cog_by_guild(guild_id: str, cog_key: str, data: Dict[str, Any]):
-    if not data.get("guild_id"):
-        data["guild_id"] = str(guild_id)
-
-    remove_cog_cache_by_guild(guild_id, cog_key)
-
-    return cogs_data.update_cog_by_guild(guild_id, cog_key, data)
-
-
-def delete_cog_by_guild(guild_id: str, cog_key: str):
-    if guild_id == "":
-        return
-
-    remove_cog_cache_by_guild(guild_id, cog_key)
-
-    return cogs_data.delete_cog_by_guild_id(guild_id, cog_key)

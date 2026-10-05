@@ -43,6 +43,12 @@ class DBConfigs:
     IMAGE_MAX_SIZE: Final[Tuple[int, int]] = (1024, 1024)
     IMAGE_FORMATS: Final[Tuple[str, ...]] = ("PNG", "JPEG", "GIF", "WEBP")
 
+    COG_CACHE_TTL_SECONDS: Final[int] = 60 * 5
+    COG_CACHE_MISSING_TTL_SECONDS: Final[int] = 60
+    COG_CACHE_LAST_KNOWN_SIZE: Final[int] = 1024
+    COG_CACHE_RETRY_SECONDS: Final[int] = 30
+    COG_CACHE_WARN_SECONDS: Final[int] = 60 * 5
+
     ADMIN_CONFIGS_LIST: Final[List] = [
         ADMIN_GUILD_ID,
         ADMIN_LOGS_CHANNEL_ID,

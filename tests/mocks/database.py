@@ -196,14 +196,18 @@ class MockRedisClient:
         self._data[key] = value
         if ex is not None:
             self._expirations[key] = ex
+        else:
+            self._expirations.pop(key, None)
         return True
 
     def setex(self, key, expiration, value):
         self._data[key] = value
+        self._expirations[key] = expiration
 
     def delete(self, *keys):
         for key in keys:
             self._data.pop(key, None)
+            self._expirations.pop(key, None)
 
     def keys(self, pattern):
         import fnmatch

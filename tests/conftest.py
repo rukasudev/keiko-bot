@@ -187,7 +187,6 @@ def auto_inject_dependencies(deps):
         patch('app.services.subscriptions.bot', deps.bot),
         patch('app.data.cogs.mongo_client', deps.mongo_client),
         patch('app.data.cogs.motor_client', deps.motor_client),
-        patch('app.data.moderations.motor_client', deps.motor_client),
         patch('app.data.notifications_twitch.mongo_client', deps.mongo_client),
         patch('app.data.notifications_youtube_video.mongo_client', deps.mongo_client),
         patch('app.data.moderations.mongo_client', deps.mongo_client),
@@ -258,6 +257,16 @@ def observability_isolation():
     analytics.reset()
     debug_logs.reset()
     trace.clear_sinks()
+
+
+@pytest.fixture(autouse=True)
+def config_cache_isolation():
+    """AUTOUSE: o que o cache lembrou e as quedas que viu nao passam de um teste ao outro."""
+    from app.services import cache
+
+    cache.reset()
+    yield
+    cache.reset()
 
 
 @pytest.fixture

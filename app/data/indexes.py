@@ -1,6 +1,8 @@
 """Mongo indexes this bot depends on, created once at startup."""
 from typing import Any, Dict, List, Tuple
 
+from pymongo.errors import PyMongoError
+
 from app import mongo_client
 from app.constants import Commands as constants
 
@@ -45,9 +47,26 @@ INDEXES: List[Tuple[str, List[Tuple[str, int]], Dict[str, Any]]] = [
     ("logs", [("level", 1), ("ts", -1)], {}),
     ("logs", [("guild_id", 1), ("ts", -1)], {}),
     ("logs", [("session_id", 1), ("ts", 1)], {}),
+] + [
+    (
+        collection,
+        [("guild_id", 1)],
+        {"unique": True, "partialFilterExpression": {"guild_id": {"$type": "string"}}},
+    )
+    for collection in ["moderations"]
+    + [spec["command_key"] for spec in constants.SETUP_FEATURES]
 ]
 
 
 def ensure_indexes() -> None:
+    """Create every index; one that cannot be created never stops the others."""
+    failed = []
+
     for collection, keys, options in INDEXES:
-        mongo_client.guild[collection].create_index(keys, **options)
+        try:
+            mongo_client.guild[collection].create_index(keys, **options)
+        except PyMongoError as error:
+            failed.append(f"guild.{collection} {keys}: {type(error).__name__}: {error}")
+
+    if failed:
+        raise RuntimeError("; ".join(failed))
