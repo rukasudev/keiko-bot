@@ -19,7 +19,7 @@ from app.data.notifications_youtube_video import (
     find_followed_youtubers,
     find_guilds_by_youtuber,
 )
-from app.data.reminder import insert_reminder, stamp_hub_confirmation
+from app.data.reminder import insert_renewal_reminder, stamp_hub_confirmation
 from app.integrations.reminder_webhook import REMINDER_TIMEZONE, reminder_time
 from app.settings import open_feature
 from app.services import analytics
@@ -371,7 +371,7 @@ def subscribe_youtube_new_video(interaction: discord.Interaction, response: Dict
         )
         return
 
-    insert_reminder(reminder_id, "youtube_notification", youtuber)
+    insert_renewal_reminder(reminder_id, youtuber)
     logger.info(
         f"renewal of **{youtuber}** scheduled for {renewal:%Y-%m-%d %H:%M} ({REMINDER_TIMEZONE})",
         interaction=interaction,

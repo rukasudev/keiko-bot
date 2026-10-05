@@ -16,6 +16,7 @@ motor==3.3.2
 pillow==12.1.1
 pydantic>=2.9,<3
 pymongo==4.8.0
+pyrage==1.4.0
 python-dateutil==2.9.0.post0
 python-dotenv==1.0.1
 python-i18n==0.3.9
