@@ -1,6 +1,8 @@
 pt-br:
   admin-logs:
-    daily-export: ":card_index_dividers: Aqui está o meu log estruturado de: **{date}**! ({count} registros)"
+    daily-export: ":card_index_dividers: Aqui está o meu log estruturado de **{date}**! ({count} registros)"
+    daily-backup: ":floppy_disk: Aqui está o meu backup criptografado do banco de dados de **{date}**! ({collections} coleções, {documents} documentos)"
+    daily-backup-skipped: "Desculpe, mas estas ficaram grandes demais para este canal, mesmo sozinhas, então deixei de fora: {collections}. Um `mongodump` manual ainda copia essas coleções!"
     monthly-events: ":card_file_box: Aqui está o meu arquivo de eventos de **{month}**! ({count} eventos)"
     files-parts: "Enviei em {files} arquivos, um por mensagem."
 

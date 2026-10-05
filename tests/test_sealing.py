@@ -1,9 +1,10 @@
 """Files only the holder of Keiko's age private key can open.
 
-The monthly events archive leaves the database for a Discord channel. Lucas
-decided it may not be readable there: it is encrypted to an age public key (SSM
-`/keiko/backup/age_public_key`, `BACKUP_AGE_PUBLIC_KEY` locally), and only the
-matching private key, which the bot never holds, opens it (`age -d -i key.txt`).
+The monthly events archive and the daily backup leave the database for a Discord
+channel. Lucas decided neither may be readable there: both are encrypted to one
+age public key (SSM `/keiko/backup/age_public_key`, `BACKUP_AGE_PUBLIC_KEY`
+locally), and only the matching private key, which the bot never holds, opens
+them (`age -d -i key.txt`).
 
 Guaranteed: a sealed payload round-trips with the private key and with no other;
 a missing, blank or malformed public key reads as no key, so a caller posts

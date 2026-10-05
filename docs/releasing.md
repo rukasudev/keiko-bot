@@ -102,3 +102,111 @@ them (`AppConfig.get_ssm_configs`).
 - The nginx access log on the VPS keeps query strings, so it holds those tokens; keep the log
   private. On the way in they travel encrypted, because the callback is built from
   `WEBHOOK_URL`, which is https: Twitch EventSub already refuses any other callback.
+
+## Backup and restore
+
+Every day at 01:00 UTC the bot posts a backup of its own databases on the logs
+files channel, and once a month, at 01:30 UTC, the analytics events of the month
+just ended (a month a pass missed goes out on the next pass that can, while its
+events last). Both are sealed to one age public key, so nobody who can read the
+channel can read them; only the private key opens them, and the bot never holds
+it.
+
+The backup leaves out three collections on purpose: `configs.integrations`
+(third-party credentials), `audit.errors` (raw exception text, which can quote a
+URL with a key in it) and `guild.logs` (the debug logs, see below). A full
+restore needs them from elsewhere: re-create each `configs.integrations`
+document by hand, with its credentials from wherever they were issued (the bot
+reads its Notion document at start and does not boot without it); `audit.errors`
+and `guild.logs` start empty, and the last 90 days of logs stay readable in the
+daily log files.
+
+1. Make the key pair once, on your own machine, and keep `key.txt` offline (it is
+   the only way to open any backup or archive, so keep a second copy):
+
+   ```bash
+   age-keygen -o key.txt        # prints "Public key: age1..."
+   ```
+
+2. Store the public key where the bot reads it, then restart the bot (the
+   configuration is read at start). Locally, set `BACKUP_AGE_PUBLIC_KEY` instead.
+
+   ```bash
+   aws ssm put-parameter --name /keiko/backup/age_public_key --type String --value age1...
+   ```
+
+   Without it nothing is posted, and the log channel says so every day.
+
+3. Restore a backup: download `keiko_backup_<date>.zip.age` (or each
+   `_<n>-of-<total>` part, each a zip of its own), open it, and import each
+   collection, one canonical Extended JSON Lines file per collection, with its
+   `_id` and types:
+
+   ```bash
+   age -d -i key.txt keiko_backup_2026-10-05.zip.age > backup.zip
+   unzip backup.zip -d backup                        # manifest.json counts each collection
+   mongoimport --uri "$MONGO_URL" --db guild --collection moderations \
+     --file backup/guild/moderations.jsonl --mode upsert
+   ```
+
+   Import into a scratch database first (`--db restore_guild`) when you only need
+   to look something up.
+
+4. Read a month of events the same way:
+
+   ```bash
+   age -d -i key.txt keiko_events_2026-09.jsonl.gz.age | gunzip \
+     | mongoimport --uri "$MONGO_URL" --db keiko_archive --collection analytics_events
+   ```
+
+A new key pair only seals what is posted after the restart: keep every old
+private key for as long as you keep the files it opens.
+
+### What the logs files channel keeps
+
+Right after the backup, the same daily pass deletes the bot's own files on that
+channel once they are past their kind's age (`app/services/logs_files.py`):
+
+| Kind | File names | Kept |
+| --- | --- | --- |
+| Backup | `keiko_backup_<YYYY-MM-DD>.zip.age`, or `_<n>-of-<total>` parts | 30 days (`Commands.BACKUP_RETENTION_DAYS`), and deleted only on a day a new backup went out, so failing backups never take the last copies |
+| Daily log | `keiko_logs_<YYYY-MM-DD>.jsonl.gz` (the export, since 2026-08) and `keiko_log.log` (the text file, since 2024-03, still posted daily and at each start) | 90 days (`Commands.DAILY_LOGS_RETENTION_DAYS`): they carry guild, user and session ids |
+| Monthly events archive | `keiko_events_<YYYY-MM>.jsonl.gz.age`, or its parts | for good: it names no server and no member |
+
+A file counts only when the bot posted it and every file of its message fully
+matches one kind's names; anything else (another author's file, any other name,
+a message mixing kinds) is never deleted. A pass makes at most 100 delete
+attempts (`Commands.LOGS_FILES_DELETES_PER_PASS`), failed ones included, oldest
+first, so the first passes after this release, which meet years of daily logs,
+clear them over days without holding Discord's rate limits, and the log channel
+says how many are left. Once a pass that included the backups leaves nothing
+behind, it records in `guild.logs_files` how far back the channel is clear (the
+longest age before that pass), and the next passes read the channel's history
+only from there, never the whole channel.
+
+The log channel gets one line per pass, and only when there is something to
+say: how many files the pass deleted and how many it left (the ones it failed to
+delete included), each delete error once with how many files it hit, or, when
+reading the history or writing the mark fails, that the pass stopped and after
+how many deletes. A file already gone (deleted by hand, or by the other instance
+during a deploy's overlap) counts as deleted. What a pass left is tried again
+the next day. Download a backup or a daily log you want to keep longer.
+
+When a kind or a file name changes (a new kind, a renamed file, a longer age),
+delete the mark in the same deploy, so the next pass reads the whole channel
+again; a pass never reads what is older than the mark:
+
+```js
+db.getSiblingDB("guild").logs_files.deleteOne({_id: "retention"})
+```
+
+**On the deploy that brings this retention**, before the first 01:00 UTC pass
+after it: from that pass on, the daily logs older than 90 days go, 100 a day,
+and nothing else holds them. Keep a copy first, with a full sync of the logs
+tool (no `--incremental`, so every daily file still on the channel is indexed),
+then copy the index somewhere safe; or download the attachments themselves:
+
+```bash
+python -m tools.keiko logs sync
+cp ~/.keiko/logs.db /somewhere/safe/keiko-logs-$(date +%F).db
+```

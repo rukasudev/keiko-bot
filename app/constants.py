@@ -1,4 +1,4 @@
-from typing import Any, Dict, Final, FrozenSet, List, Tuple
+from typing import Any, Dict, Final, FrozenSet, List, Optional, Tuple
 
 import discord
 
@@ -52,6 +52,18 @@ class DBConfigs:
     AGE_HEADER_BYTES: Final[int] = 1024
     AGE_CHUNK_BYTES: Final[int] = 64 * 1024
     AGE_TAG_BYTES: Final[int] = 16
+
+    BACKUP_COLLECTIONS: Final[Dict[str, Optional[Tuple[str, ...]]]] = {
+        "audit": None,
+        "configs": ("admin", "data"),
+        "events": None,
+        "guild": None,
+        "notifications": None,
+        "reminders": None,
+    }
+    BACKUP_SKIPPED_COLLECTIONS: Final[Tuple[str, ...]] = (
+        "audit.errors", "configs.integrations", "guild.logs",
+    )
 
     ADMIN_CONFIGS_LIST: Final[List] = [
         ADMIN_GUILD_ID,
@@ -136,6 +148,11 @@ class Commands:
     DEBUG_LOGS_TRACEBACK_MAX_LENGTH: Final[int] = 16000
     DEBUG_LOGS_EXPORT_HOUR: Final[int] = 0
     DEBUG_LOGS_EXPORT_MINUTE: Final[int] = 30
+    BACKUP_HOUR: Final[int] = 1
+    BACKUP_MINUTE: Final[int] = 0
+    BACKUP_RETENTION_DAYS: Final[int] = 30
+    DAILY_LOGS_RETENTION_DAYS: Final[int] = 90
+    LOGS_FILES_DELETES_PER_PASS: Final[int] = 100
 
     HEARTBEAT_SECONDS: Final[int] = 60
     HEARTBEAT_TIMEOUT_SECONDS: Final[float] = 10.0

@@ -9,7 +9,7 @@ how to add a metric to a new feature (usually: you do not have to).
 | **Operational** | Is the system healthy? | Prometheus → Grafana (`app/cogs/prometheus.py`) | Grafana's | yes |
 | **Product analytics** | How do people use Keiko? | `guild.analytics_*` (this document) | 90d raw, counters 13mo | **yes, by design** |
 | **Audit** | Who changed what, when? | `events.<cog_key>` (`insert_cog_event`) | permanent | **no** |
-| **Debug** | Why did it break? | `guild.logs` + the daily file on the logs channel | 30d hot, file permanent | yes |
+| **Debug** | Why did it break? | `guild.logs` + the daily file on the logs channel | 30d hot, file 90d | yes |
 
 Boundary rules:
 
@@ -232,10 +232,13 @@ writes `blake2b(session_id, key, digest_size=8)` instead, under a key drawn for
 each monthly pass (`secrets.token_bytes`) and never stored. A session still
 groups its events inside a month's file, but no line matches a stored session id
 or another pass's hash. The time stays exact, so a line can still be matched by
-`ts` to the log export of its day while that export is kept.
+`ts` to the log export of its day while that export is kept; the logs files
+channel keeps an export 90 days (see the debug logs below), so that join closes
+too, and every month the archive keeps past that window has nothing left to be
+joined to.
 
-Though it names no one, the file is sealed to an age public key
-(`app/services/sealing.py`, SSM `/keiko/backup/age_public_key`,
+Though it names no one, the file is sealed to the age public key the daily
+backup uses too (`app/services/sealing.py`, SSM `/keiko/backup/age_public_key`,
 `BACKUP_AGE_PUBLIC_KEY` locally), and only the private key, which the bot never
 holds, opens it. Without a valid public key nothing is read or posted, the log
 channel says why, and every month still inside the 90 days is posted by the
@@ -295,7 +298,8 @@ executable instead of documented.
 
 `/admin forget <guild_id>` erases every analytics record of a guild. The monthly
 events archive holds nothing to erase, since it names no guild; the daily log
-export does, and a file already posted is out of its reach.
+export does, and a file already posted is out of its reach until the logs files
+channel deletes it, 90 days after it was posted.
 
 ## 7. Failure and kill switch
 
@@ -434,7 +438,14 @@ Three pieces close that:
 |---|---|---|
 | `StoredLogsHandler` | `app/logger.py` | every record, into a queue |
 | `guild.logs` | Mongo, 30-day TTL | the hot window, with the full traceback |
-| daily `.jsonl.gz` | the logs channel | the archive, one file per day |
+| daily `.jsonl.gz` | the logs files channel, 90 days | the archive, one file per day |
+
+The daily files carry guild, user and session ids, so the channel keeps them 90
+days (`Commands.DAILY_LOGS_RETENTION_DAYS`), and the `keiko_log.log` text
+files the rotating handler posts beside them as well: once a day, right after the
+backup, the `Backup` cog deletes the bot's own files there past their kind's age
+(`app/services/logs_files.py`; the kinds, the names and the cap per pass are in
+"What the logs files channel keeps", `docs/releasing.md`).
 
 Every document names the release that wrote it (`app_version`), so a line from
 before a deploy and one from after it never read alike. `tools/keiko/logs`
@@ -541,9 +552,10 @@ tree, where it cannot feed itself. `test_debug_logs.py` pins this.
 ## Reading them
 
 Inside 30 days, query `guild.logs` directly; `session_id` returns every line of
-one interaction. Older than that, the daily files are the source, and
-`python -m tools.keiko logs sync` indexes them into a local SQLite with
-full-text search:
+one interaction. Older than that, up to 90 days, the daily files are the source,
+and `python -m tools.keiko logs sync` indexes them into a local SQLite with
+full-text search (the channel holds nothing older, so `sync` finds nothing older;
+what a local index already read stays on that machine):
 
 ```bash
 python -m tools.keiko logs sync --incremental   # index new daily files
