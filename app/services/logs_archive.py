@@ -1,9 +1,10 @@
 """The daily consolidation that turns the hot window into the archive.
 
 Mongo keeps 30 days (`DEBUG_LOGS_TTL_SECONDS`); everything older lives as a
-file on the Discord logs channel, which is already free, already permanent, and
-already holds years of history. Once a day this reads the previous day out of
-Mongo and posts it there as gzipped JSON Lines, one record per line.
+file on the Discord logs channel, which is already free, for 90 days
+(`DAILY_LOGS_RETENTION_DAYS`, deleted by `logs_files`). Once a day this
+reads the previous day out of Mongo and posts it there as gzipped JSON Lines,
+one record per line.
 
 It reads Mongo rather than the rotated `.log`, and that is the point: the text
 file lives inside the container with no volume, so a deploy takes that day's
