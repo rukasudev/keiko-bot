@@ -76,6 +76,8 @@ class Dependencies:
     LANGUAGE_DETECTION_TIMEOUT_SECONDS: Final[float] = 5.0
     HTTP_CONNECT_TIMEOUT_SECONDS: Final[float] = 5.0
     HTTP_READ_TIMEOUT_SECONDS: Final[float] = 15.0
+    BLOCKING_IO_THREADS: Final[int] = 32
+    BLOCKING_IO_STOP_WAIT_SECONDS: Final[float] = 5.0
 
 
 class Commands:

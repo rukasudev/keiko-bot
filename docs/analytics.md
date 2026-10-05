@@ -442,6 +442,35 @@ traceback ending in a `find_one` reached from `on_message`, and a `10062 Unknown
 interaction` on a guild whose youtuber had just been saved by two blocking
 `requests.post` calls.
 
+The rest of `app/` is held to the same line call by call:
+`tests/test_event_loop_boundary.py` reads every coroutine and fails on a direct
+call to a blocking function — `requests`, the Mongo and Redis clients,
+`time.sleep`, the language detection, and every synchronous function of `app/`
+that reaches one of them, through its imports, `self`, a nested def, a client the
+bot holds, or a name that holds one (a local, a module alias, a `functools.partial`,
+a function that only returns a collection). It cannot see `open`, `subprocess`, an
+inherited method or a blocking function handed to a synchronous helper; its docstring
+keeps that list. The calls that have to stay for now are listed in its `ALLOWED`,
+each with its reason (today: the operator commands of the admin guild, the block
+links counters and stats the counters PR moves off the loop, the no-loop fallback of
+the journey's history read when a form opens, and the operator inspection views); an
+entry that no longer matches anything fails too, so the list only shrinks.
+
+The calls a thread takes run on Keiko's own pool, not asyncio's: `DiscordBot.setup_hook`
+installs `lifecycle.BlockingIO` as the loop's default executor before any cog loads,
+`Dependencies.BLOCKING_IO_THREADS` threads named `keiko-io` (asyncio's own has five on
+the 1 vCPU the bot runs on, and the Twitch waits sleep in them). Closing the loop drops
+the calls still queued and waits for none under way: `asyncio.run` would otherwise join
+the pool for up to five minutes, and a stop has thirty seconds before Docker kills the
+process and the queues `lifecycle.run` writes after the loop are lost
+(`tests/behavioral/contracts/test_blocking_io.py`). `lifecycle.run` then gives the
+calls still running up to `Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS` to end before it
+writes the queues and exits, so a flush writing its batch is never cut in the middle
+(`tests/behavioral/contracts/test_graceful_stop.py`). What a thread is handed never walks
+Discord's cache, which the loop changes as servers and channels come and go: `/admin
+overview` counts servers, members and channels on the loop and hands over only its Mongo,
+Redis and Twitch reads.
+
 ## Why not `analytics.emit`
 
 Because the catalog drops undeclared events and `sanitize_props` strips free
@@ -852,7 +881,10 @@ deletes data: `/admin guild <id>` and `/admin forget <id>`.
 
 A repeated attempt adds a footnote to the log message of the run itself
 (`analytics.count_attempt` + `Trace.footnote`), so "why did they run it again"
-is answered in place instead of by correlating two messages by hand.
+is answered in place instead of by correlating two messages by hand. The count
+runs in a thread while the command runs (`analytics.counting_attempt`), and the
+footnote is written however the command ends, so the run that raised, the one
+whose message is read for it, keeps it.
 
 ### Two reading rules the surfaces enforce for you
 

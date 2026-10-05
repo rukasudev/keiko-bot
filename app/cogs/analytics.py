@@ -1,3 +1,4 @@
+import asyncio
 from datetime import datetime, time
 
 from discord.ext import commands, tasks
@@ -10,7 +11,7 @@ from app.services import admin_digest, analytics, debug_logs, logs_archive
 
 
 class Analytics(commands.Cog):
-    """Drains the buffered writes into storage on the bot's own loop.
+    """Drains the buffered writes into storage: timed by the bot's loop, written in a thread.
 
     Both queues ride the same loop on purpose: they have the same shape — a
     bounded buffer that must never make a command wait on a database — and a
@@ -27,19 +28,19 @@ class Analytics(commands.Cog):
         self.flush_events.cancel()
         self.send_weekly_digest.cancel()
         self.export_daily_logs.cancel()
-        lifecycle.write_queues()
+        await asyncio.to_thread(lifecycle.write_queues)
 
     @tasks.loop(seconds=constants.ANALYTICS_FLUSH_SECONDS)
     async def flush_events(self) -> None:
         try:
-            analytics.flush()
+            await asyncio.to_thread(analytics.flush)
         except Exception as error:
             logger.warn(
                 f"Analytics flush failed: {type(error).__name__}: {error}",
                 log_type=logconstants.COMMAND_WARN_TYPE,
             )
 
-        debug_logs.flush()
+        await asyncio.to_thread(debug_logs.flush)
 
     @flush_events.before_loop
     async def before_flush(self) -> None:
@@ -58,9 +59,10 @@ class Analytics(commands.Cog):
         try:
             # The bot is the only one that knows how many guilds it is in:
             # analytics only ever sees the guilds that did something.
-            await channel.send(
-                embed=admin_digest.build_weekly_digest(guild_count=len(self.bot.guilds))
+            digest = await asyncio.to_thread(
+                admin_digest.build_weekly_digest, guild_count=len(self.bot.guilds)
             )
+            await channel.send(embed=digest)
         except Exception as error:
             logger.warn(
                 f"Weekly digest failed: {type(error).__name__}: {error}",
@@ -91,7 +93,7 @@ class Analytics(commands.Cog):
         day = logs_archive.previous_day()
 
         try:
-            daily_file, written = logs_archive.build_daily_file(day)
+            daily_file, written = await asyncio.to_thread(logs_archive.build_daily_file, day)
             if not daily_file:
                 return
             await channel.send(logs_archive.build_message(day, written), file=daily_file)

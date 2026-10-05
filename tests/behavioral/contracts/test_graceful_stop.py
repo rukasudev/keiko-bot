@@ -7,7 +7,10 @@ SIGTERM at its default and a container's PID 1 ignores a signal left at its
 default, so Docker waited and killed it the same way.
 
 `app/lifecycle.py` turns SIGTERM into `close()` on the bot's own loop, writes
-both queues once the loop is gone, and ends the process: the webhook API runs
+both queues once the loop is gone, and ends the process; a flush still writing its batch
+on Keiko's pool of threads when the loop closed gets up to
+`Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS` to finish first, so the exit never cuts a
+batch in the middle and never waits past that either. The webhook API runs
 on a non-daemon thread that would otherwise keep a stopped bot alive until
 Docker's SIGKILL. A bot that closes itself (`/admin shutdown`) still writes
 its queues but keeps the process, because an exit would make Docker's restart
@@ -36,6 +39,7 @@ import os
 import signal
 import sys
 import threading
+import time
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
@@ -43,7 +47,7 @@ import discord
 import pytest
 
 from app import lifecycle
-from app.constants import DBConfigs, LogTypes
+from app.constants import DBConfigs, Dependencies, LogTypes
 from app.data import logs as logs_data
 from app.services import analytics, analytics_sink, debug_logs
 from tests.behavioral.contracts.test_logger_trace import discord_logs  # noqa: F401
@@ -163,6 +167,31 @@ class FailsWhileStoppingBot(RunningBot):
 
         await asyncio.wait_for(self._closed.wait(), timeout=2)
         raise RuntimeError("the gateway closed badly")
+
+
+class FlushingBot(RunningBot):
+    """A bot whose analytics flush is still writing its batch on Keiko's pool of threads
+    when a SIGTERM closes it, as the analytics cog's loop can be every five seconds. Its
+    loop runs and closes the way `asyncio.run` does inside discord.py's `Bot.run`."""
+
+    def __init__(self, batch):
+        super().__init__()
+        self.batch = batch
+
+    def run(self, token, *, reconnect):
+        with asyncio.Runner(loop_factory=asyncio.new_event_loop) as runner:
+            runner.run(self._serve())
+
+    async def _serve(self):
+        lifecycle.install_blocking_io()
+        self.loop = self.served_on = asyncio.get_running_loop()
+        self._closed = asyncio.Event()
+        asyncio.ensure_future(asyncio.to_thread(analytics.flush))
+        await asyncio.to_thread(self.batch.writing.wait, 2)
+
+        _send_sigterm()
+
+        await asyncio.wait_for(self._closed.wait(), timeout=2)
 
 
 class StartingBot(FakeBot):
@@ -306,6 +335,21 @@ def console(capfd):
     root.setLevel(level)
 
 
+@pytest.fixture
+def slow_batch(stored, monkeypatch):
+    """An analytics batch whose write takes `seconds` once it has begun."""
+    batch = SimpleNamespace(writing=threading.Event(), done=threading.Event(), seconds=0.3)
+
+    def persist(events):
+        batch.writing.set()
+        batch.done.wait(batch.seconds)
+        stored.events.extend(events)
+
+    monkeypatch.setattr(analytics_sink, "persist", persist)
+    monkeypatch.setattr(lifecycle, "_POOL", None, raising=False)
+    return batch
+
+
 def _queue_one_of_each():
     analytics.emit("guild.joined", guild_id=1, returning=False)
     debug_logs.record(debug_logs.build_document(level="INFO", message="closing"))
@@ -329,6 +373,36 @@ def test_a_sigterm_closes_the_bot_and_writes_both_queues_before_the_process_ends
     assert [event["event"] for event in stored.events] == ["guild.joined"]
     assert [log["message"] for log in stored.logs] == ["closing"]
     assert stored.exits == [(0, 1, 1)], "the process ends with 0, after both writes"
+
+
+def test_a_sigterm_lets_a_batch_being_written_finish_before_the_process_ends(
+    sigterm, stored, slow_batch
+):
+    analytics.emit("guild.joined", guild_id=1, returning=False)
+
+    with pytest.raises(ProcessEnded):
+        lifecycle.run(FlushingBot(slow_batch), "token")
+
+    assert stored.exits == [(0, 1, 0)], "the batch under way is written, then the process ends"
+
+
+def test_a_batch_that_outlasts_the_wait_never_holds_the_stop_past_it(
+    sigterm, stored, slow_batch, monkeypatch
+):
+    monkeypatch.setattr(Dependencies, "BLOCKING_IO_STOP_WAIT_SECONDS", 0.05)
+    slow_batch.seconds = 5
+    analytics.emit("guild.joined", guild_id=1, returning=False)
+    started = time.monotonic()
+
+    try:
+        with pytest.raises(ProcessEnded):
+            lifecycle.run(FlushingBot(slow_batch), "token")
+        waited = time.monotonic() - started
+    finally:
+        slow_batch.done.set()
+
+    assert stored.exits == [(0, 0, 0)]
+    assert waited < 2, f"the stop waited {waited:.1f}s for a write past its deadline"
 
 
 def test_a_sigterm_while_the_bot_is_starting_still_writes_both_queues(sigterm, stored):

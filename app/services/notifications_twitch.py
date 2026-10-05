@@ -49,11 +49,11 @@ async def handle_send_streamer_notification(streamer_name: str) -> None:
             return
 
         stream_started_at = stream_info.get("started_at")
-        last_stream_date = find_last_stream_date(streamer_name)
+        last_stream_date = await asyncio.to_thread(find_last_stream_date, streamer_name)
 
         if not last_stream_date or is_more_than_one_hour(stream_started_at, last_stream_date):
             await send_streamer_notifications(stream_info, user_info)
-            update_last_stream_date(streamer_name, stream_started_at)
+            await asyncio.to_thread(update_last_stream_date, streamer_name, stream_started_at)
         else:
             await edit_streamer_notifications(user_info, status=constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE)
     except Exception as e:
@@ -67,7 +67,7 @@ async def handle_send_streamer_notification(streamer_name: str) -> None:
 
 async def send_streamer_notifications(stream_info: Dict[str, Any], user_info: Dict[str, Any]) -> None:
     streamer_name = user_info.get("login")
-    guilds_data = find_guilds_by_streamer_name(streamer_name)
+    guilds_data = await asyncio.to_thread(following_guilds, streamer_name)
     logger.info(f"Sending notifications for **{streamer_name}**", log_type=logconstants.COMMAND_INFO_TYPE)
 
     count = await process_notifications(guilds_data, streamer_name, stream_info, user_info)
@@ -75,7 +75,7 @@ async def send_streamer_notifications(stream_info: Dict[str, Any], user_info: Di
 
 async def edit_streamer_notifications(user_info: Dict[str, Any], status: str) -> None:
     streamer_name = user_info.get("login")
-    guilds_data = find_guilds_by_streamer_name(streamer_name)
+    guilds_data = await asyncio.to_thread(following_guilds, streamer_name)
     logger.info(f"Editing notifications to {status} for **{streamer_name}**", log_type=logconstants.COMMAND_INFO_TYPE)
 
     count = await update_notification_status(guilds_data, streamer_name, status)
@@ -91,8 +91,8 @@ async def handle_send_streamer_offline_notification(streamer_name: str) -> None:
     )
 
     try:
-        guilds_data = find_guilds_by_streamer_name(streamer_name)
-        last_stream_date = find_last_stream_date(streamer_name)
+        guilds_data = await asyncio.to_thread(following_guilds, streamer_name)
+        last_stream_date = await asyncio.to_thread(find_last_stream_date, streamer_name)
         stream_duration = None
 
         if last_stream_date:
@@ -125,7 +125,9 @@ async def process_notifications(guilds_data, streamer_name, stream_info, user_in
                 content=compose_notification_message(notification, streamer_name),
                 embed=create_stream_notification_embed(streamer_name, stream_info, user_info)
             )
-            save_stream_notification(guild.id, channel.id, streamer_name, message.id)
+            await asyncio.to_thread(
+                save_stream_notification, guild.id, channel.id, streamer_name, message.id
+            )
             analytics.record_value(guild.id, constants.NOTIFICATIONS_TWITCH_KEY)
             count += 1
     return count
@@ -154,7 +156,9 @@ def parse_stream_status(status: str) -> str:
     return f"🟢 {status.capitalize()}" if status == constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE else f"🔴 {status.capitalize()}"
 
 async def fetch_notification_message(guild_id: str, channel_id: str, streamer_name: str) -> discord.Message:
-    stream_notification = find_stream_notification(guild_id, channel_id, streamer_name)
+    stream_notification = await asyncio.to_thread(
+        find_stream_notification, guild_id, channel_id, streamer_name
+    )
     if not stream_notification:
         return None
 
@@ -170,6 +174,11 @@ async def fetch_notification_message(guild_id: str, channel_id: str, streamer_na
         return await channel.fetch_message(stream_notification["message_id"])
     except (discord.NotFound, discord.Forbidden):
         return None
+
+def following_guilds(streamer_name: str) -> List[Dict[str, Any]]:
+    """Every guild document that follows the streamer, read to the end."""
+    return list(find_guilds_by_streamer_name(streamer_name))
+
 
 def is_more_than_one_hour(start_time: str, last_time: str) -> bool:
     return (parser.parse(start_time) - parser.parse(last_time)).total_seconds() > 3600

@@ -78,7 +78,10 @@ class DiscordBot(Bot):
         )
 
     async def setup_hook(self) -> None:
+        from app import lifecycle
         from app.components.buttons import JourneyRefreshButton
+
+        lifecycle.install_blocking_io()
 
         # Registered as a class, not per message: a session's refresh button
         # keeps working across restarts because its id carries the session.

@@ -1,3 +1,4 @@
+import asyncio
 import resource
 from datetime import datetime, timezone
 from typing import Any, Dict
@@ -39,26 +40,42 @@ def get_admin_configs():
     return configs_data.find_admin_configs()
 
 
-def get_overview_data(bot: DiscordBot) -> dict:
+async def get_overview_data(bot: DiscordBot) -> dict:
+    """The overview's numbers: Discord's cache read on the loop that owns it, and Mongo,
+    Redis and Twitch read in a thread."""
+    shown = _what_discord_shows(bot)
+    stored = await asyncio.to_thread(_what_keiko_stored, bot.twitch)
+    newest_guild_id = stored.pop("newest_guild_id")
+    newest_guild = bot.get_guild(int(newest_guild_id)) if newest_guild_id else None
+    stored["newest_guild_name"] = newest_guild.name if newest_guild else newest_guild_id
+    return {**shown, **stored}
+
+
+def _what_discord_shows(bot: DiscordBot) -> Dict[str, Any]:
     uptime = datetime.now() - bot.ready_time
-    formatted_uptime = format_datetime_output(uptime)
     ready_time_utc = bot.ready_time.replace(tzinfo=timezone.utc)
     last_restart = ready_time_utc.strftime("%Y-%m-%d %H:%M") + f" ({format_relative_time(ready_time_utc)})"
 
-    latency_ms = round(bot.latency * 1000)
-
-    status_name = bot.status.name if bot.status else "unknown"
-    activity_name = bot.activity.name if bot.activity else "N/A"
-
-    guilds_with_members = [g for g in bot.guilds if g.member_count]
-    total_users = sum(g.member_count for g in guilds_with_members)
-    total_channels = sum(len(g.text_channels) + len(g.voice_channels) for g in bot.guilds)
-
+    guilds = list(bot.guilds)
+    guilds_with_members = [g for g in guilds if g.member_count]
     largest_guild = max(guilds_with_members, key=lambda g: g.member_count) if guilds_with_members else None
-    loaded_cogs = len(bot.extensions)
 
-    memory_mb = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 1)
+    return {
+        "uptime": format_datetime_output(uptime),
+        "last_restart": last_restart,
+        "latency_ms": round(bot.latency * 1000),
+        "status": bot.status.name if bot.status else "unknown",
+        "activity": bot.activity.name if bot.activity else "N/A",
+        "total_users": sum(g.member_count for g in guilds_with_members),
+        "total_channels": sum(len(g.text_channels) + len(g.voice_channels) for g in guilds),
+        "largest_guild_name": largest_guild.name if largest_guild else "N/A",
+        "largest_guild_members": largest_guild.member_count if largest_guild else 0,
+        "loaded_cogs": len(bot.extensions),
+        "memory_mb": round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 1),
+    }
 
+
+def _what_keiko_stored(twitch: Any) -> Dict[str, Any]:
     first_day_of_month = datetime.now(tz=timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     feature_group = {
@@ -137,12 +154,6 @@ def get_overview_data(bot: DiscordBot) -> dict:
     monthly_growth_data = facet.get("monthly_growth", [])
     monthly_growth = monthly_growth_data[0]["total"] if monthly_growth_data else 0
 
-    # Resolve newest guild name
-    newest_guild_name = None
-    if newest_guild_id:
-        guild_obj = bot.get_guild(int(newest_guild_id))
-        newest_guild_name = guild_obj.name if guild_obj else newest_guild_id
-
     command_calls = {}
     total_calls = 0
     for key in redis_client.scan_iter(f"{LogTypes.COMMAND_CALL_TYPE}:*"):
@@ -167,7 +178,7 @@ def get_overview_data(bot: DiscordBot) -> dict:
     twitch_unique_streamers = 0
     twitch_available = True
     try:
-        subs_response = bot.twitch.get_subscriptions()
+        subs_response = twitch.get_subscriptions()
         subs_data = subs_response.get("data", [])
         twitch_subs = len(subs_data)
         twitch_unique_streamers = len({s.get("condition", {}).get("broadcaster_user_id") for s in subs_data})
@@ -175,23 +186,12 @@ def get_overview_data(bot: DiscordBot) -> dict:
         twitch_available = False
 
     return {
-        "uptime": formatted_uptime,
-        "last_restart": last_restart,
-        "latency_ms": latency_ms,
-        "status": status_name,
-        "activity": activity_name,
-        "total_users": total_users,
-        "total_channels": total_channels,
-        "largest_guild_name": largest_guild.name if largest_guild else "N/A",
-        "largest_guild_members": largest_guild.member_count if largest_guild else 0,
-        "loaded_cogs": loaded_cogs,
-        "memory_mb": memory_mb,
         "active_guilds": active_guilds,
         "inactive_guilds": inactive_guilds,
         "top_owner_id": top_owner_id,
         "top_owner_count": top_owner_count,
         "feature_adoption": feature_adoption,
-        "newest_guild_name": newest_guild_name,
+        "newest_guild_id": newest_guild_id,
         "newest_guild_created": newest_guild_created,
         "monthly_growth": monthly_growth,
         "command_calls": command_calls,

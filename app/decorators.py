@@ -40,11 +40,9 @@ def keiko_command(
                 feature = getattr(interaction.command, "_attr", None)
                 if feature:
                     trace.feature = feature
-                    trace.footnote = analytics.describe_attempt(
-                        analytics.count_attempt(interaction.guild_id, feature), feature
-                    )
 
-                await func(self, interaction, *args, **kwargs)
+                async with analytics.counting_attempt(trace, interaction.guild_id, feature):
+                    await func(self, interaction, *args, **kwargs)
 
         return Command(
             name=name if name != "" else func.__name__,
