@@ -1,4 +1,6 @@
-from typing import Any, Dict, Final, FrozenSet, List, Tuple
+from dataclasses import dataclass
+from enum import Enum
+from typing import Any, Dict, Final, FrozenSet, List, Optional, Tuple
 
 import discord
 
@@ -59,6 +61,116 @@ class DBConfigs:
     ]
 
 
+class FeaturePermissions:
+    SENDS_TO_A_CHANNEL: Final[Tuple[str, ...]] = ("view_channel", "send_messages", "embed_links")
+
+
+@dataclass(frozen=True)
+class FeatureSpec:
+    """One feature, declared once: its key, its command, its row on /setup, what it needs."""
+
+    key: str
+    group: str
+    namespace: str
+    button_key: str
+    emoji: str
+    module: Optional[str]
+    channel_permissions: Tuple[str, ...] = ()
+    server_permissions: Tuple[str, ...] = ()
+    assigns_roles: bool = False
+    answers_prefix: bool = False
+
+    def setup_entry(self) -> Dict[str, Any]:
+        """The feature as `Commands.SETUP_FEATURES` lists it."""
+        entry: Dict[str, Any] = {
+            "command_key": self.key,
+            "button_key": self.button_key,
+            "emoji": self.emoji,
+        }
+        if self.channel_permissions:
+            entry["channel_permissions"] = list(self.channel_permissions)
+        if self.server_permissions:
+            entry["server_permissions"] = list(self.server_permissions)
+        if self.assigns_roles:
+            entry["assigns_roles"] = True
+        if self.answers_prefix:
+            entry["answers_prefix"] = True
+        return entry
+
+
+class Feature(Enum):
+    """Every feature Keiko offers, in the order /setup lists them: the one table every
+    feature list derives from, except `COMMANDS_LIST`, which wave 3 derives.
+    `module` names the feature's module under `app/settings/features/`, or is
+    None when the generic feature saves it."""
+
+    WELCOME_MESSAGES = FeatureSpec(
+        key="welcome_messages",
+        group="moderations",
+        namespace="welcome-messages",
+        button_key="welcome-messages",
+        emoji="🎉",
+        module="welcome_messages",
+        channel_permissions=(*FeaturePermissions.SENDS_TO_A_CHANNEL, "attach_files"),
+    )
+    DEFAULT_ROLES = FeatureSpec(
+        key="default_roles",
+        group="moderations",
+        namespace="default-roles",
+        button_key="default-roles",
+        emoji="👩‍🎓",
+        module="default_roles",
+        server_permissions=("manage_roles",),
+        assigns_roles=True,
+    )
+    BLOCK_LINKS = FeatureSpec(
+        key="block_links",
+        group="moderations",
+        namespace="block-links",
+        button_key="block-links",
+        emoji="🚫",
+        module="block_links",
+        server_permissions=("manage_messages",),
+    )
+    NOTIFICATIONS_TWITCH = FeatureSpec(
+        key="notifications_twitch",
+        group="notifications",
+        namespace="notifications-twitch",
+        button_key="twitch",
+        emoji="📡",
+        module="notifications_twitch",
+        channel_permissions=FeaturePermissions.SENDS_TO_A_CHANNEL,
+    )
+    NOTIFICATIONS_YOUTUBE_VIDEO = FeatureSpec(
+        key="notifications_youtube_video",
+        group="notifications",
+        namespace="notifications-youtube",
+        button_key="youtube",
+        emoji="▶️",
+        module="notifications_youtube_video",
+        channel_permissions=FeaturePermissions.SENDS_TO_A_CHANNEL,
+    )
+    REMINDERS_BIRTHDAY = FeatureSpec(
+        key="reminders_birthday",
+        group="moderations",
+        namespace="moderations-birthdays",
+        button_key="birthdays",
+        emoji="🎂",
+        module="reminders_birthday",
+        channel_permissions=FeaturePermissions.SENDS_TO_A_CHANNEL,
+    )
+    INTEGRATIONS_STREAM_ELEMENTS_COMMANDS = FeatureSpec(
+        key="stream_elements_commands",
+        group="integrations",
+        namespace="stream-elements",
+        button_key="stream-elements",
+        emoji="🎮",
+        module="stream_elements_commands",
+        server_permissions=("send_messages",),
+        answers_prefix=True,
+    )
+
+
 class Commands:
     ENABLED_KEY: Final[str] = "enabled"
     EDITED_KEY: Final[str] = "edited"
@@ -71,7 +183,7 @@ class Commands:
     COMMAND_FAILURE_STORE_SECONDS: Final[float] = 1.0
 
     # block links
-    BLOCK_LINKS_KEY: Final[str] = "block_links"
+    BLOCK_LINKS_KEY: Final[str] = Feature.BLOCK_LINKS.value.key
     BLOCK_LINKS_ALLOWED_CHATS_KEY: Final[str] = "allowed_chats"
     BLOCK_LINKS_ALLOWED_ROLES_KEY: Final[str] = "allowed_roles"
     BLOCK_LINKS_ALLOWED_LINKS_KEY: Final[str] = "allowed_links"
@@ -148,22 +260,24 @@ class Commands:
 
     # moderations
     MODERATIONS_KEY: Final[str] = "moderations"
-    WELCOME_MESSAGES_KEY: Final[str] = "welcome_messages"
-    DEFAULT_ROLES_KEY: Final[str] = "default_roles"
+    WELCOME_MESSAGES_KEY: Final[str] = Feature.WELCOME_MESSAGES.value.key
+    DEFAULT_ROLES_KEY: Final[str] = Feature.DEFAULT_ROLES.value.key
     DEFAULT_ROLES_BOT_KEY: Final[str] = "default_roles_bot"
 
     # notifications
     NOTIFICATIONS_KEY: Final[str] = "notifications"
-    NOTIFICATIONS_TWITCH_KEY: Final[str] = "notifications_twitch"
+    NOTIFICATIONS_TWITCH_KEY: Final[str] = Feature.NOTIFICATIONS_TWITCH.value.key
 
     NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE: Final[str] = "online"
     NOTIFICATIONS_TWITCH_STREAM_STATUS_OFFLINE: Final[str] = "offline"
 
-    NOTIFICATIONS_YOUTUBE_VIDEO_KEY: Final[str] = "notifications_youtube_video"
+    NOTIFICATIONS_YOUTUBE_VIDEO_KEY: Final[str] = Feature.NOTIFICATIONS_YOUTUBE_VIDEO.value.key
 
-    INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: Final[str] = "stream_elements_commands"
+    INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: Final[str] = (
+        Feature.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS.value.key
+    )
 
-    REMINDERS_BIRTHDAY_KEY: Final[str] = "reminders_birthday"
+    REMINDERS_BIRTHDAY_KEY: Final[str] = Feature.REMINDERS_BIRTHDAY.value.key
     REMINDERS_BIRTHDAY_REACTION: Final[str] = "🎉"
     REMINDER_TYPE_BIRTHDAY: Final[str] = "reminders_birthday"
     REMINDER_API_TITLE_BIRTHDAY: Final[str] = "birthday_reminder"
@@ -189,31 +303,13 @@ class Commands:
     ]
 
     SETUP_FEATURES: Final[List[Dict[str, Any]]] = [
-        {"command_key": WELCOME_MESSAGES_KEY, "button_key": "welcome-messages", "emoji": "🎉",
-         "channel_permissions": ["view_channel", "send_messages", "embed_links", "attach_files"]},
-        {"command_key": DEFAULT_ROLES_KEY, "button_key": "default-roles", "emoji": "👩‍🎓",
-         "server_permissions": ["manage_roles"], "assigns_roles": True},
-        {"command_key": BLOCK_LINKS_KEY, "button_key": "block-links", "emoji": "🚫",
-         "server_permissions": ["manage_messages"]},
-        {"command_key": NOTIFICATIONS_TWITCH_KEY, "button_key": "twitch", "emoji": "📡",
-         "channel_permissions": ["view_channel", "send_messages", "embed_links"]},
-        {"command_key": NOTIFICATIONS_YOUTUBE_VIDEO_KEY, "button_key": "youtube", "emoji": "▶️",
-         "channel_permissions": ["view_channel", "send_messages", "embed_links"]},
-        {"command_key": REMINDERS_BIRTHDAY_KEY, "button_key": "birthdays", "emoji": "🎂",
-         "channel_permissions": ["view_channel", "send_messages", "embed_links"]},
-        {"command_key": INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY, "button_key": "stream-elements",
-         "emoji": "🎮", "server_permissions": ["send_messages"], "answers_prefix": True},
+        feature.value.setup_entry() for feature in Feature
     ]
     SUPPORT_SERVER_URL: Final[str] = "https://discord.gg/Hdg239Cvbd"
 
     FEATURE_COMMANDS: Final[Dict[str, Dict[str, str]]] = {
-        WELCOME_MESSAGES_KEY: {"group": "moderations", "namespace": "welcome-messages"},
-        DEFAULT_ROLES_KEY: {"group": "moderations", "namespace": "default-roles"},
-        BLOCK_LINKS_KEY: {"group": "moderations", "namespace": "block-links"},
-        NOTIFICATIONS_TWITCH_KEY: {"group": "notifications", "namespace": "notifications-twitch"},
-        NOTIFICATIONS_YOUTUBE_VIDEO_KEY: {"group": "notifications", "namespace": "notifications-youtube"},
-        REMINDERS_BIRTHDAY_KEY: {"group": "moderations", "namespace": "moderations-birthdays"},
-        INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: {"group": "integrations", "namespace": "stream-elements"},
+        feature.value.key: {"group": feature.value.group, "namespace": feature.value.namespace}
+        for feature in Feature
     }
 
 
@@ -249,12 +345,7 @@ class GuildConstants:
     IS_BOT_ONLINE: Final[str] = "is_bot_online"
     COGS_MODERATIONS_COMMANDS_DEFAULT: Final[Dict] = {
         IS_BOT_ONLINE: True,
-        Commands.NOTIFICATIONS_TWITCH_KEY: False,
-        Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY: False,
-        Commands.WELCOME_MESSAGES_KEY: False,
-        Commands.DEFAULT_ROLES_KEY: False,
-        Commands.BLOCK_LINKS_KEY: False,
-        Commands.REMINDERS_BIRTHDAY_KEY: False,
+        **{feature.value.key: False for feature in Feature},
     }
 
 

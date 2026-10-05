@@ -115,20 +115,42 @@ def test_a_document_survives_the_round_trip_through_answers(form):
     assert "schema_version" not in document and document["enabled"] is True
 
 
-def test_a_form_without_a_module_gets_the_generic_feature(tmp_path):
+def test_a_feature_declared_without_a_module_gets_the_generic_feature(
+    tmp_path, monkeypatch
+):
+    from enum import Enum
+
+    from app.constants import FeatureSpec
+    from app.settings import features
     from app.settings.form.form_yaml import registry
+
+    class Declared(Enum):
+        PLAIN_FORM = FeatureSpec(
+            key="plain_form",
+            group="moderations",
+            namespace="plain-form",
+            button_key="plain-form",
+            emoji="🧪",
+            module=None,
+        )
 
     source = registry.source
     (tmp_path / "plain_form.yml").write_text(
         (source.root / "default_roles.yml").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
+    monkeypatch.setattr(features, "Feature", Declared)
     registry.source = type(source)(tmp_path)
     try:
         feature = feature_for("plain_form")
     finally:
         registry.source = source
     assert isinstance(feature, GenericCogFeature) and feature.key == "plain_form"
+
+
+def test_a_key_no_feature_declares_is_refused_instead_of_guessed():
+    with pytest.raises(KeyError):
+        feature_for("plain_form")
 
 
 def test_the_seven_features_are_registered_with_their_definitions():
@@ -432,7 +454,9 @@ async def test_editing_the_streamer_refreshes_the_stream_elements_channel(
 ):
     """Broke as: an edited streamer kept the old streamer's StreamElements channel,
     so the chat went on answering with the old streamer's commands."""
-    from app.settings.features import stream_elements as stream_elements_feature
+    from app.settings.features import (
+        stream_elements_commands as stream_elements_feature,
+    )
 
     deps.bot.config.is_dev = lambda: False
     monkeypatch.setattr(
@@ -534,7 +558,9 @@ def test_the_welcome_card_saves_the_document_the_welcome_service_reads():
 async def test_the_stream_elements_lookup_counts_enabled_commands(deps, monkeypatch):
     """The review shows how many commands will load, so the streamer lookup also
     asks StreamElements for the channel and counts its enabled commands."""
-    from app.settings.features import stream_elements as stream_elements_feature
+    from app.settings.features import (
+        stream_elements_commands as stream_elements_feature,
+    )
     from app.settings.form.lookups import Lookup
 
     client = stream_elements_feature.StreamElementsClient
@@ -580,7 +606,9 @@ async def test_the_stream_elements_panel_says_how_many_commands_it_answers(
     deps, monkeypatch
 ):
     """The panel says how many commands are loaded and offers to list them."""
-    from app.settings.features import stream_elements as stream_elements_feature
+    from app.settings.features import (
+        stream_elements_commands as stream_elements_feature,
+    )
 
     deps.mongo_client.guild["moderations"].insert_one(
         {"guild_id": GUILD_ID, "stream_elements_commands": True}
@@ -608,7 +636,9 @@ async def test_the_stream_elements_panel_says_how_many_commands_it_answers(
 
 
 async def test_a_stream_elements_outage_leaves_no_count(deps, monkeypatch):
-    from app.settings.features import stream_elements as stream_elements_feature
+    from app.settings.features import (
+        stream_elements_commands as stream_elements_feature,
+    )
     from app.settings.form.lookups import Lookup
 
     def unreachable(name):
