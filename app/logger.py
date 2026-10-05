@@ -44,7 +44,7 @@ class CustomTimedRotatingFileHandler(TimedRotatingFileHandler):
         strftime_yesterday_date = yesterday_date.strftime("%Y-%m-%d")
 
         coroutine = channel.send(
-            f":package: Here is my log file for: **{strftime_yesterday_date}**!",
+            f":package: Here is my log file for **{strftime_yesterday_date}**!",
             file=discord.File(self.baseFilename),
         )
         asyncio.run_coroutine_threadsafe(coroutine, self.bot.loop)
@@ -101,11 +101,11 @@ CONTEXT_IDENTITY_KEYS = ("guild_id", "user_id", "channel_id")
 def record_identity(record: logging.LogRecord) -> dict:
     """The ids a log record carries, from whichever source supplied them.
 
-    A record gets them three ways — an `interaction`, an `ErrorContext` from
-    `with_error_context`, or a bare `guild_id` — and both handlers need the same
-    answer. Keeping the knowledge here means a new field on `ErrorContext`
-    reaches the embed and the stored document together, instead of one of them
-    quietly falling behind.
+    A record gets them three ways — an `interaction`, an `ErrorContext` (a
+    listener's or a fan-out's, `app/services/work.py`), or a bare `guild_id` — and
+    both handlers need the same answer. Keeping the knowledge here means a new
+    field on `ErrorContext` reaches the embed and the stored document together,
+    instead of one of them quietly falling behind.
     """
     identity = {key: None for key in ("guild_id", "user_id", "channel_id", "interaction_id")}
 

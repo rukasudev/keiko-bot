@@ -289,6 +289,7 @@ class MockInteraction:
         self.guild = guild
         self.guild_id = guild.id
         self.channel = channel or (guild.text_channels[0] if guild.text_channels else None)
+        self.channel_id = self.channel.id if self.channel else None
         self.locale = discord.Locale(locale)
         self.message = None
 

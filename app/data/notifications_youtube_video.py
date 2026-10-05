@@ -14,10 +14,17 @@ def count_youtube_video_subscription_by_guilds(youtuber: str) -> Dict[str, Any]:
     )
 
 def count_servers_following(youtuber: str) -> int:
-    """How many servers follow the youtuber, paused or not."""
-    return mongo_client.guild[constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY].count_documents(
-        {"notifications.values.youtuber.value": youtuber}
+    """How many servers Keiko is still in follow the youtuber, paused or not."""
+    following = [
+        str(document.get("guild_id"))
+        for document in mongo_client.guild[constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY].find(
+            {"notifications.values.youtuber.value": youtuber}
+        )
+    ]
+    left = mongo_client.guild.moderations.count_documents(
+        {"guild_id": {"$in": following}, "is_bot_online": False}
     )
+    return len(following) - left
 
 def find_guilds_by_youtuber(youtuber: str) -> Dict[str, Any]:
     return mongo_client.guild[constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY].find(

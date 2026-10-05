@@ -526,9 +526,10 @@ Traces are opened at the boundaries:
 | Command errors | `Errors.on_app_command_error` (`app/cogs/errors.py`) | quiet: the error keeps its own message in the error channel, and the warnings of a refused answer or a slow record stay in `guild.logs`; the handler adds that one message to the trace the failed command posts itself |
 | Form events | `Runtime._apply`, `Runtime.expire_stale` (`app/settings/discord/callbacks.py`) | quiet: never a message of their own, even on failure; the journey tells the story |
 | Webhooks | `webhook_trace`, opened and closed around each request in `app/webhooks/__init__.py` | silent unless the request failed, continued by its first job; `/healthcheck` opens none; a request refused with a 4xx never posts its trace, nor does a 503 without an error (the sender is asked to deliver again later) |
-| Deferred work | `schedule_webhook_job` → `Trace.handover` + `trace.run_traced` | the first job continues the request's message; a second job in the same request gets its own, under the same rule |
+| Deferred work | `schedule_webhook_job` → `Trace.handover` + `trace.run_traced` | the first job continues the request's message, which takes every line the request logs after the hand-over and is posted once both are done; a second job in the same request gets its own, under the same rule |
 | Confirmations | `ConfirmActionView(trace_name=)` (`app/views/confirm_action.py`) | one message for what the confirmation did |
-| Listeners | `with_error_context` (`app/decorators.py`) | silent unless it fails or reports an event |
+| Listeners | `work.listener` (`app/services/work.py`) for every listener of `app/cogs/events.py` | silent unless it fails or reports an event; each part runs on its own (a feature of `on_message` or `on_member_join`; the report, the snapshot and the pause of a server leaving; the record and the greeting of a server joining), so one that fails is an error with the listener's context, nothing is raised to discord.py, and the next one still runs |
+| Fan-outs | `work.fan_out` (`app/services/work.py`), behind the Twitch and YouTube notices and the birthday job | inside the trace of the job that runs it; each server is served on its own: one Keiko cannot reach (`DestinationNotFound`, a 403) is a warning, any other failure an error with the server's context, and neither stops the next; `work.destination` finds the server and its channel, `work.guild_locale` its language |
 | Heartbeat | `Heartbeat.beat` (`app/cogs/heartbeat.py`) | silent unless it fails; a failed ping is a warning, so it stays in `guild.logs` and the monitor is what alerts |
 
 `silent_when_clean` is what keeps `on_message` from flooding the channel: a
@@ -592,8 +593,9 @@ The flood protection is untouched: `on_message`, `on_member_join` and
 the two guild events ever went missing. A warning inside a listener is still
 swallowed with its clean trace, except one: a Redis or Mongo outage met by the
 settings cache (`app/services/cache.py`) is news about the process, not about
-the message that ran into it, so the cache logs it outside any trace. It is a
-message of its own on the log channel, once per store per
+the message that ran into it, so the cache logs it outside any trace
+(`with trace.outside_any_trace():`). It is a message of its own on the log
+channel, once per store per
 `DBConfigs.COG_CACHE_WARN_SECONDS`, and its `guild.logs` record carries no trace
 id.
 
@@ -622,6 +624,14 @@ fan-out and spans the whole event. A second job in the same request (several
 birthdays in one `/reminder` call) gets a `job` trace of its own, published under
 the request's rule (`Trace.publishing`), and a job that cannot be scheduled leaves
 the request's message intact.
+
+The request keeps running after the hand-over, on the Flask thread: the next
+reminder of the same callback, the line its status hook writes. Those lines used
+to land on the superseded request, which is never posted. Now a trace that handed
+over forwards every later line to its successor, and the successor has two owners,
+the request and the job: whichever ends last finishes and publishes it
+(`trace.close`), so a job that ends before Flask returns still carries the
+request's last lines, and the duration spans both.
 
 `trace_scope` is not what deferred work wants: it joins the surrounding trace so
 a fan-out does not fragment its timeline, which is right inside one unit of work

@@ -32,6 +32,16 @@ def gateway_intents() -> discord.Intents:
     )
 
 
+def default_mentions() -> discord.AllowedMentions:
+    """What a message of Keiko's may ping unless its send says otherwise.
+
+    No @everyone, @here or role: a send whose text an admin wrote to ping them
+    (a notice, the birthday) passes its own. A user mention and the author of a
+    message Keiko replies to still ping.
+    """
+    return discord.AllowedMentions(everyone=False, roles=False, users=True, replied_user=True)
+
+
 def discord_latency() -> aiohttp.TraceConfig:
     """Times every request discord.py sends to Discord, as the `discord` dependency."""
     trace = aiohttp.TraceConfig()
@@ -74,6 +84,7 @@ class DiscordBot(Bot):
             activity=discord.Activity(
                 type=self.config.ACTIVITY, name=self.config.DESCRIPTION
             ),
+            allowed_mentions=default_mentions(),
             http_trace=discord_latency(),
         )
 

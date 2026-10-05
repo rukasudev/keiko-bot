@@ -3,8 +3,8 @@
 Reported: the "Left Guild" message stopped appearing. Nothing was broken in the
 listener — `guild.logs` in production holds every one of those records, and the
 matching `guild.removed` analytics events are all there. What was broken is the
-trip to Discord: every listener runs under `with_error_context`, which opens a
-trace with `silent_when_clean=True` so `on_message` cannot flood the channel,
+trip to Discord: every listener runs in a trace with `silent_when_clean=True`
+(`with_error_context` then, `work.listener` now) so `on_message` cannot flood the channel,
 and `on_guild_remove` never fails. The line was folded into a trace that was
 then thrown away.
 
@@ -22,8 +22,7 @@ import pytest
 from app import logger as logger_module
 from app.constants import LogTypes as logconstants
 from app.data import analytics as analytics_data
-from app.decorators import with_error_context
-from app.services import analytics, trace as trace_service
+from app.services import analytics, trace as trace_service, work
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("logging")]
 
@@ -164,24 +163,23 @@ async def test_a_routine_listener_line_still_stays_out_of_the_channel(log_channe
     `on_message` runs on every message in every guild; whatever it decides to
     log on a successful check belongs in the file, not in Discord.
     """
-    @with_error_context("on_message")
     async def routine():
         logger_module.info(
             "checked a message", log_type=logconstants.COMMAND_INFO_TYPE
         )
 
-    await routine()
+    async with work.listener("on_message", 4242) as checked:
+        await checked.run("block_links", routine())
 
     assert embeds(log_channel) == []
 
 
 async def test_a_failing_listener_still_reports_as_a_failure(log_channel):
-    @with_error_context("on_member_join")
     async def broken():
         raise RuntimeError("Discord said no")
 
-    with pytest.raises(RuntimeError):
-        await broken()
+    async with work.listener("on_member_join", 4242) as joined:
+        await joined.run("welcome_messages", broken())
 
     posted = embeds(log_channel)
     assert posted, "an error was always published, and still is"

@@ -1,7 +1,7 @@
 import asyncio
 import resource
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Set
 
 import discord
 
@@ -9,6 +9,8 @@ from app import mongo_client, redis_client
 from app.bot import DiscordBot
 from app.constants import Commands, KeikoIcons, LogTypes, Style
 from app.data import admin as configs_data
+from app.data import cogs as cogs_data
+from app.services.cogs import is_feature_on
 from app.services.utils import format_datetime_output, format_relative_time
 
 
@@ -24,7 +26,7 @@ async def send_log_file_from_channel_by_date(
 
         attachment = message.attachments[0].url
         return await interaction.followup.send(
-            f":page_facing_up: Here is my log file for: **{date}**! {attachment}",
+            f":page_facing_up: Here is my log file for **{date}**! {attachment}",
         )
 
     await interaction.followup.send(f":pensive: Log file not found for **{date}**")
@@ -44,7 +46,7 @@ async def get_overview_data(bot: DiscordBot) -> dict:
     """The overview's numbers: Discord's cache read on the loop that owns it, and Mongo,
     Redis and Twitch read in a thread."""
     shown = _what_discord_shows(bot)
-    stored = await asyncio.to_thread(_what_keiko_stored, bot.twitch)
+    stored = await asyncio.to_thread(_what_keiko_stored, bot.twitch, shown.pop("guild_ids"))
     newest_guild_id = stored.pop("newest_guild_id")
     newest_guild = bot.get_guild(int(newest_guild_id)) if newest_guild_id else None
     stored["newest_guild_name"] = newest_guild.name if newest_guild else newest_guild_id
@@ -72,17 +74,12 @@ def _what_discord_shows(bot: DiscordBot) -> Dict[str, Any]:
         "largest_guild_members": largest_guild.member_count if largest_guild else 0,
         "loaded_cogs": len(bot.extensions),
         "memory_mb": round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 1),
+        "guild_ids": {str(guild.id) for guild in guilds},
     }
 
 
-def _what_keiko_stored(twitch: Any) -> Dict[str, Any]:
+def _what_keiko_stored(twitch: Any, guild_ids: Set[str]) -> Dict[str, Any]:
     first_day_of_month = datetime.now(tz=timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    feature_group = {
-        "_id": None,
-    }
-    for cmd in Commands.COMMANDS_LIST:
-        feature_group[cmd] = {"$sum": {"$cond": [{"$eq": [f"${cmd}", True]}, 1, 0]}}
 
     pipeline = [{"$facet": {
         "guild_status": [
@@ -93,10 +90,6 @@ def _what_keiko_stored(twitch: Any) -> Dict[str, Any]:
             {"$group": {"_id": "$owner_id", "count": {"$sum": 1}}},
             {"$sort": {"count": -1}},
             {"$limit": 1}
-        ],
-        "feature_adoption": [
-            {"$match": {"is_bot_online": True}},
-            {"$group": feature_group}
         ],
         "newest_guild": [
             {"$match": {"is_bot_online": True}},
@@ -131,15 +124,7 @@ def _what_keiko_stored(twitch: Any) -> Dict[str, Any]:
         top_owner_id = None
         top_owner_count = 0
 
-    # Parse feature adoption
-    feature_adoption = {}
-    feature_data = facet.get("feature_adoption", [])
-    if feature_data:
-        for cmd in Commands.COMMANDS_LIST:
-            feature_adoption[cmd] = feature_data[0].get(cmd, 0)
-    else:
-        for cmd in Commands.COMMANDS_LIST:
-            feature_adoption[cmd] = 0
+    feature_adoption = count_feature_adoption(guild_ids)
 
     # Parse newest guild
     newest_guild_data = facet.get("newest_guild", [])
@@ -203,6 +188,19 @@ def _what_keiko_stored(twitch: Any) -> Dict[str, Any]:
         "twitch_subs": twitch_subs,
         "twitch_unique_streamers": twitch_unique_streamers,
         "twitch_available": twitch_available,
+    }
+
+
+def count_feature_adoption(guild_ids: Set[str]) -> Dict[str, int]:
+    """How many of these servers have each feature on, by the record the bot runs on."""
+    return {
+        key: sum(
+            1
+            for document in cogs_data.find_all_cogs(key, fields=("guild_id", "enabled"))
+            if str(document.get("guild_id")) in guild_ids
+            and is_feature_on(str(document.get("guild_id")), key, document)
+        )
+        for key in Commands.COMMANDS_LIST
     }
 
 

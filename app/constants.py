@@ -179,6 +179,8 @@ class Commands:
 
     NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE: Final[str] = "online"
     NOTIFICATIONS_TWITCH_STREAM_STATUS_OFFLINE: Final[str] = "offline"
+    TWITCH_NOTIFIED_STREAM_TTL_SECONDS: Final[int] = 60 * 60 * 24
+    REDIS_TWITCH_NOTIFIED_STREAM: Final[str] = "twitch:stream:{streamer}:{started_at}:notified"
 
     NOTIFICATIONS_YOUTUBE_VIDEO_KEY: Final[str] = "notifications_youtube_video"
 

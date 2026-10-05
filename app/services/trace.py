@@ -6,16 +6,19 @@ which trace it belongs to without receiving a new parameter. Sinks registered
 here are called once, when the trace closes. Reference: docs/analytics.md
 """
 import logging
+import threading
 import uuid
+from contextlib import contextmanager
 from contextvars import ContextVar
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, Iterator, List, Optional
 
 from app.constants import LogTypes as constants
 
 _logger = logging.getLogger(__name__)
 _current_trace: ContextVar[Optional["Trace"]] = ContextVar("keiko_trace", default=None)
 _sinks: List[Callable[["Trace"], None]] = []
+_owners_lock = threading.Lock()
 
 
 def register_sink(sink: Callable[["Trace"], None]) -> None:
@@ -29,6 +32,16 @@ def clear_sinks() -> None:
 
 def current_trace() -> Optional["Trace"]:
     return _current_trace.get()
+
+
+@contextmanager
+def outside_any_trace() -> Iterator[None]:
+    """Log the block as news of its own: a message apart from whatever trace is open."""
+    token = _current_trace.set(None)
+    try:
+        yield
+    finally:
+        _current_trace.reset(token)
 
 
 def new_trace_id() -> str:
@@ -85,6 +98,8 @@ class Trace:
         self.last_action: Optional[str] = None
         self.is_journey = False
         self.superseded = False
+        self.successor: Optional["Trace"] = None
+        self.owners = 1
         self.message_id: Optional[int] = None
         # The lifecycle event this trace reported, if any. It decides both
         # whether a silent trace is published and what the message is called.
@@ -98,6 +113,10 @@ class Trace:
         log_type: Optional[str] = None,
         kind: Optional[str] = None,
     ) -> None:
+        if self.successor is not None:
+            self.successor.add(message, levelno, timestamp, log_type, kind)
+            return
+
         self.max_level = max(self.max_level, levelno)
 
         if log_type in constants.REPORTED_EVENT_TYPES:
@@ -177,7 +196,11 @@ class Trace:
         self.superseded = True
 
     def handover(self) -> "Trace":
-        """The trace that carries this unit of work on after its first owner returns."""
+        """The trace that carries this unit of work on after its first owner returns.
+
+        Both keep it: what this one logs from now on lands there, and it is
+        published once the last of the two lets go of it.
+        """
         successor = Trace(
             self.name,
             source=self.source,
@@ -190,8 +213,21 @@ class Trace:
         )
         successor.started_at = self.started_at
         successor.footnote = self.footnote
+        successor.owners = 2
         self.supersede(successor)
+        self.successor = successor
         return successor
+
+    def take_back(self) -> None:
+        """Undo a hand-over whose successor will never run."""
+        self.superseded = False
+        self.successor = None
+
+    def release(self) -> bool:
+        """Let go of this trace for one of its owners; True for the last one."""
+        with _owners_lock:
+            self.owners -= 1
+            return self.owners == 0
 
     def _implicit_result(self) -> str:
         if self.has_error:
@@ -240,9 +276,8 @@ class trace_scope:
 
         if exc is not None:
             self.trace.add(f"{type(exc).__name__}: {exc}", logging.ERROR)
-        self.trace.finish()
         _current_trace.reset(self._token)
-        emit_to_sinks(self.trace)
+        close(self.trace)
 
     def __enter__(self) -> Trace:
         return self._enter()
@@ -290,9 +325,19 @@ async def run_traced(
         # from that same call.
         _logger.exception(f"{name} failed")
     finally:
-        trace.finish()
         _current_trace.reset(token)
+        close(trace)
+
+
+def close(trace: Trace) -> None:
+    """Finish and publish a trace once its last owner lets go, then the one it handed to."""
+    successor = trace.successor
+
+    if trace.release():
+        trace.finish()
         emit_to_sinks(trace)
+    if successor is not None:
+        close(successor)
 
 
 def emit_to_sinks(trace: Trace) -> None:

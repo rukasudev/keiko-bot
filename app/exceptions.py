@@ -38,7 +38,7 @@ class ErrorContext:
 
     @classmethod
     def from_message(cls, flow: str, message, **extra) -> "ErrorContext":
-        """Cria contexto a partir de um discord.Message."""
+        """Cria contexto a partir de um discord.Message, sem o texto que o membro escreveu."""
         return cls(
             flow=flow,
             guild_id=str(message.guild.id),
@@ -46,7 +46,7 @@ class ErrorContext:
             channel_id=str(message.channel.id),
             extra={
                 "user_name": message.author.name,
-                "message_preview": message.content[:200] if message.content else None,
+                "message_length": len(message.content or ""),
                 **extra,
             },
         )

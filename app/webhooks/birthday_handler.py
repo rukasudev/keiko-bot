@@ -1,7 +1,7 @@
 import asyncio
 from collections import Counter, defaultdict
 from datetime import datetime
-from typing import Any, AsyncIterator, Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 import discord
 
@@ -9,15 +9,15 @@ from app import bot, logger
 from app.constants import Commands
 from app.constants import LogTypes as logconstants
 from app.data import birthdays as birthdays_data
-from app.exceptions import DestinationNotFound, ErrorContext
+from app.exceptions import ErrorContext
 from app.services import analytics
 from app.services.dates import is_valid_mm_dd, nearest_mm_dd_occurrence, zone_or_utc
 from app.services.reminders_birthdays import build_celebration_embed
-from app.services.utils import parse_locale
+from app.services.work import Outcome, destination, fan_out, guild_locale
 
 
 async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
-    """Celebrate the birthdays one reminder schedules, once a year, one guild at a time."""
+    """Celebrate the birthdays one reminder schedules, once a year, each guild on its own."""
     await bot.wait_until_ready()
     logger.info(f"Processing birthday webhook: {reminder_id}", log_type=logconstants.COMMAND_INFO_TYPE)
 
@@ -34,28 +34,16 @@ async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
         grouped[str(item.get("guild_id"))].append(item)
 
     tally: Counter = Counter()
-    for guild_id, guild_items in grouped.items():
-        try:
-            async for outcome in celebrate_in_guild(guild_id, guild_items, mm_dd):
-                tally[outcome] += 1
-        except (discord.Forbidden, DestinationNotFound) as error:
-            tally["guilds_failed"] += 1
-            logger.warn(
-                f"Birthdays not celebrated in guild {guild_id}: {type(error).__name__}: {error}",
-                log_type=logconstants.COMMAND_WARN_TYPE,
-            )
-        except Exception as error:
-            tally["guilds_failed"] += 1
-            logger.error(
-                f"Failed to celebrate birthdays in guild {guild_id}: {type(error).__name__}: {error}",
-                log_type=logconstants.COMMAND_ERROR_TYPE,
-                context=ErrorContext(
-                    flow="birthday_webhook",
-                    guild_id=guild_id,
-                    extra={"reminder_id": reminder_id, "notes": notes},
-                ),
-                exc_info=True,
-            )
+    served = await fan_out(
+        "birthday_webhook",
+        (
+            (guild_id, celebrate_in_guild(guild_id, guild_items, mm_dd, tally))
+            for guild_id, guild_items in grouped.items()
+        ),
+        reminder_id=reminder_id,
+        notes=notes,
+    )
+    tally["guilds_failed"] = sum(1 for share in served if share.outcome is not Outcome.DELIVERED)
 
     logger.info(
         f"Birthday reminder date={mm_dd} guilds={len(grouped)} "
@@ -66,22 +54,15 @@ async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
 
 
 async def celebrate_in_guild(
-    guild_id: str, items: List[Dict[str, Any]], mm_dd: str
-) -> AsyncIterator[str]:
-    """Post each birthday this guild has not celebrated this year, yielding how each one went."""
+    guild_id: str, items: List[Dict[str, Any]], mm_dd: str, tally: Counter
+) -> None:
+    """Post each birthday this guild has not celebrated this year, counting how each one went."""
     if not await asyncio.to_thread(birthdays_data.is_birthday_enabled, guild_id):
         return
 
     config = await asyncio.to_thread(birthdays_data.find_birthday_config, guild_id) or {}
-    guild = bot.get_guild(int(guild_id))
-    if not guild:
-        raise DestinationNotFound(f"guild {guild_id} not found")
-
-    channel = guild.get_channel(int(config.get("channel_id") or 0))
-    if not channel:
-        raise DestinationNotFound(f"channel {config.get('channel_id')} not found")
-
-    locale = parse_locale(config.get("locale") or getattr(guild, "preferred_locale", "en-US"))
+    guild, channel = destination(guild_id, config.get("channel_id"))
+    locale = guild_locale(guild, config.get("locale"))
     mention_everyone = bool(config.get("mention_everyone"))
     allowed_mentions = discord.AllowedMentions(everyone=mention_everyone, users=False, roles=False)
     year = celebration_year(mm_dd, config.get("timezone"))
@@ -102,7 +83,7 @@ async def celebrate_in_guild(
                 ),
                 exc_info=True,
             )
-            yield "members_failed"
+            tally["members_failed"] += 1
             continue
 
         if not member:
@@ -140,7 +121,7 @@ async def celebrate_in_guild(
                 ),
                 exc_info=True,
             )
-            yield "members_failed"
+            tally["members_failed"] += 1
             continue
 
         try:
@@ -151,7 +132,7 @@ async def celebrate_in_guild(
                 log_type=logconstants.COMMAND_WARN_TYPE,
             )
         analytics.record_value(guild.id, Commands.REMINDERS_BIRTHDAY_KEY)
-        yield "celebrated"
+        tally["celebrated"] += 1
 
 
 def celebration_year(mm_dd: str, timezone_name: Optional[str]) -> int:

@@ -59,6 +59,18 @@ pt-br:
             top-member: Membro com mais bloqueios
             not-deleted: Mensagens que eu não consegui apagar
           empty: "Ainda não bloqueei nenhum link por aqui! 🐶"
+      notifications-status:
+        twitch:
+          online: "🟢 Ao vivo"
+          offline: "🔴 Live encerrada"
+          duration: "⌛️ Duração: $duration"
+      notifications-fields:
+        twitch:
+          game: "Categoria"
+          streamer: "Streamer"
+        youtube:
+          description: "Descrição"
+          tags: "Tags"
       notifications-preview:
         twitch:
           title: "O título da live aparece aqui"

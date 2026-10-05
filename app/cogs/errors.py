@@ -110,9 +110,10 @@ class Errors(Cog, name="errors"):
                 await context.send(hint)
             return
 
-        error_message = f"Ignoring exception at **{context.message.content}**:\n{error}"
         logger.warn(
-            error_message,
+            f"Ignoring exception at **{context.invoked_with}** "
+            f"(a message of {len(context.message.content or '')} characters): "
+            f"{type(error).__name__}",
             log_type=logconstants.COMMAND_WARN_TYPE,
         )
 

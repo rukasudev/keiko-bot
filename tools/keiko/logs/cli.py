@@ -172,7 +172,7 @@ def build_parser() -> argparse.ArgumentParser:
     query.set_defaults(handler=command_query)
 
     errors = subparsers.add_parser("errors", help="repeated failures, grouped", parents=[common])
-    errors.add_argument("--level", default="ERROR")
+    errors.add_argument("--level", default="ERROR", help="this level and above (default ERROR)")
     errors.add_argument("--since", help="24h, 7d, or an ISO date")
     errors.add_argument("--limit", type=int, default=20)
     errors.add_argument("--json", action="store_true")

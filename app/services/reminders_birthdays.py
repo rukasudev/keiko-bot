@@ -23,6 +23,7 @@ from app.settings import open_feature
 from app.services import reminders as reminders_service
 from app.services.cogs import is_feature_on
 from app.services.utils import (
+    fill_placeholders,
     ml,
     parse_locale,
     values_of,
@@ -400,11 +401,11 @@ def render_birthday_message(
 ) -> str:
     if not text:
         return text
-    return (
-        text.replace("{user}", member_mention)
-        .replace("{server}", guild_name)
-        .replace("{date}", format_mm_dd_label(mm_dd, locale))
-    )
+    return fill_placeholders(text, {
+        "user": member_mention,
+        "server": guild_name,
+        "date": format_mm_dd_label(mm_dd, locale),
+    })
 
 
 def birthday_default_text(key: str, locale: str) -> str:
