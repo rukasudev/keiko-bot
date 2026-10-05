@@ -22,7 +22,6 @@ from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
 from app.services.utils import parse_command_event_description
 from app.settings.discord import views
-from app.settings.form import manager
 from app.settings.form.components import Screen
 from app.settings.form.copy import text
 from app.settings.form.effects import (
@@ -41,6 +40,7 @@ from app.settings.form.effects import (
     RunAside,
     ShowError,
 )
+from app.settings.form.form import panel_embed
 from app.settings.form.form_state import FormSession
 
 EDITS = ("edit", "edit_item")
@@ -360,7 +360,7 @@ class Executor:
 
             return self._closed(embed), self.surface.is_layout
         if kind == "edited":
-            base = manager.panel_embed(self.session_definition(), self.locale)
+            base = panel_embed(self.session_definition(), self.locale)
             embed = views.embed_of(base)
             embed.title, embed.description = title, description
             embed.set_thumbnail(url=KeikoIcons.IMAGE_02)

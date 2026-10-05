@@ -17,7 +17,7 @@ from app.settings.features.feature import (
 )
 from app.settings.form.form_state import Answer
 from app.settings.form.lookups import Lookup
-from app.settings.form.responses.responses import items_of, unwrap
+from app.settings.form.responses.responses import item_values, items_of
 
 Subscribe = Callable[..., Any]
 
@@ -169,7 +169,7 @@ class SubscriptionFeature(GenericCogFeature):
 
     async def release(self, item: Mapping[str, Any]) -> None:
         """Unsubscribe the item's name once no server follows it anymore."""
-        name = unwrap(item.get(self.item_key))
+        name = item_values(item).get(self.item_key)
         if not name:
             return
 
@@ -179,6 +179,4 @@ class SubscriptionFeature(GenericCogFeature):
 
 
 def _name(item: Mapping[str, Any], key: str) -> str:
-    entry = item.get(key)
-    value = entry.get("value") if isinstance(entry, Mapping) else entry
-    return str(value or "").lower()
+    return str(item_values(item).get(key) or "").lower()

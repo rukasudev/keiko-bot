@@ -31,9 +31,10 @@ from app.settings.features.feature import (
     OpenContext,
     Opened,
 )
-from app.settings.form.actions.action import PanelRow
 from app.settings.form.components import Button
 from app.settings.form.copy import text
+from app.settings.form.manager import PanelExtras
+from app.settings.form.responses.summary import PanelRow
 
 
 def _copy(key: str, locale: str) -> str:
@@ -58,17 +59,19 @@ class BirthdayFeature(GenericCogFeature):
         rows = await asyncio.to_thread(birthday_settings_rows, guild_id, context.locale)
         return Opened(
             document=document,
-            rows=tuple(
-                PanelRow(
-                    key=row.get("key", ""),
-                    title=row["title"],
-                    value=row.get("value"),
-                    style=row.get("style"),
-                )
-                for row in rows
+            panel=PanelExtras(
+                rows=tuple(
+                    PanelRow(
+                        key=row.get("key", ""),
+                        title=row["title"],
+                        value=row.get("value"),
+                        style=row.get("style"),
+                    )
+                    for row in rows
+                ),
+                extra_buttons=self.extra_buttons(context),
+                enabled=enabled,
             ),
-            enabled=enabled,
-            extra_buttons=self.extra_buttons(context),
         )
 
     def extra_buttons(self, context: OpenContext) -> tuple[Button, ...]:

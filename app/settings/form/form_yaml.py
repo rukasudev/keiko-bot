@@ -305,6 +305,31 @@ class SectionBase(Node):
     picker_title: Text | None = None
     picker_description: Text | None = None
 
+    def choices(self) -> tuple[Option, ...]:
+        """The values the admin picks among, none for a section without a list."""
+        return ()
+
+    def opened_modal(self) -> ModalSpec | None:
+        """The modal the section opens, None for one that opens none."""
+        return None
+
+    def validators(self) -> tuple[str, ...]:
+        """Every validator the section names."""
+        modal = self.opened_modal()
+        return (modal.validation,) if modal and modal.validation else ()
+
+    def offered_designs(self) -> tuple[Design, ...]:
+        """The designs a gallery offers, none for any other section."""
+        return ()
+
+    def drawn_over(self) -> str:
+        """The answer the design previews are drawn over, when the section says."""
+        return ""
+
+    def looked_up(self) -> Mapping[str, str]:
+        """The values of the section's lookup it keeps as answers."""
+        return {}
+
 
 class TitleContentSection(SectionBase):
     """A title plus a body, default or custom."""
@@ -313,12 +338,20 @@ class TitleContentSection(SectionBase):
     modal: ModalSpec
     default: SectionDefault
 
+    def opened_modal(self) -> ModalSpec:
+        """The modal that types the title and the body."""
+        return self.modal
+
 
 class FileUploadSection(SectionBase):
     """An image, default or uploaded."""
 
     type: Literal["file-upload"]
     modal: ModalSpec
+
+    def opened_modal(self) -> ModalSpec:
+        """The modal that uploads the image."""
+        return self.modal
 
 
 class ChannelSelectSection(SectionBase):
@@ -334,12 +367,24 @@ class ValueSelectSection(SectionBase):
     options: tuple[Option, ...]
     reset_on_change: tuple[ResetRule, ...] = ()
 
+    def choices(self) -> tuple[Option, ...]:
+        """The declared options."""
+        return self.options
+
+    def validators(self) -> tuple[str, ...]:
+        """The validators that decide which dependent keys a change clears."""
+        return tuple(rule.validation for rule in self.reset_on_change)
+
 
 class ButtonOptionsSection(SectionBase):
     """One value chosen on a row of buttons."""
 
     type: Literal["button-options"]
     options: tuple[Option, ...]
+
+    def choices(self) -> tuple[Option, ...]:
+        """The declared options."""
+        return self.options
 
 
 class BooleanToggleSection(SectionBase):
@@ -355,12 +400,24 @@ class ModalInputSection(SectionBase):
     modal: ModalSpec
     lookup_answers: dict[str, str] = Field(default_factory=dict)
 
+    def opened_modal(self) -> ModalSpec:
+        """The modal its fields are typed in."""
+        return self.modal
+
+    def looked_up(self) -> Mapping[str, str]:
+        """The lookup values kept as answers, by answer key."""
+        return self.lookup_answers
+
 
 class MultiSelectSection(SectionBase):
     """Several values chosen on a select of declared options."""
 
     type: Literal["multi-select"]
     options: tuple[Option, ...]
+
+    def choices(self) -> tuple[Option, ...]:
+        """The declared options."""
+        return self.options
 
 
 class DesignSection(SectionBase):
@@ -369,6 +426,20 @@ class DesignSection(SectionBase):
     type: Literal["design-select"]
     designs: tuple[Design, ...]
     draws_from: str = ""
+
+    def choices(self) -> tuple[Option, ...]:
+        """The designs as options, labelled by their names."""
+        return tuple(
+            Option(label=design.label, value=design.key) for design in self.designs
+        )
+
+    def offered_designs(self) -> tuple[Design, ...]:
+        """The declared designs."""
+        return self.designs
+
+    def drawn_over(self) -> str:
+        """The answer the previews are drawn over."""
+        return self.draws_from
 
 
 Section = Annotated[
@@ -498,11 +569,10 @@ class MultiPickStep(StepBase):
 def owned_keys(section: Section) -> tuple[str, ...]:
     """The state keys a section writes, with the keyed fields of its modal."""
     keys = list(section.state.keys())
-    if isinstance(section, ModalInputSection):
+    modal = section.opened_modal()
+    if modal is not None:
         keys += [
-            field.key
-            for field in section.modal.fields
-            if field.key and field.key not in keys
+            field.key for field in modal.fields if field.key and field.key not in keys
         ]
     return tuple(keys)
 
@@ -610,8 +680,8 @@ class FormDefinition(Node):
             if not isinstance(step, CardStep):
                 continue
             for section in step.sections:
-                if isinstance(section, DesignSection) and section.draws_from:
-                    return section.draws_from
+                if section.drawn_over():
+                    return section.drawn_over()
         return ""
 
     def designs(self) -> tuple[Design, ...]:
@@ -622,8 +692,7 @@ class FormDefinition(Node):
                 found += step.designs
             if isinstance(step, CardStep):
                 for section in step.sections:
-                    if isinstance(section, DesignSection):
-                        found += section.designs
+                    found += section.offered_designs()
         return tuple(found)
 
     def step(self, key: str) -> Step:
@@ -1031,18 +1100,9 @@ def options_for(steps: Sequence[Step], key: str) -> tuple[Option, ...] | None:
             return step.options
         if isinstance(step, CardStep):
             for section in step.sections:
-                with_options = (
-                    ValueSelectSection,
-                    ButtonOptionsSection,
-                    MultiSelectSection,
-                )
-                if isinstance(section, with_options) and section.state.value == key:
-                    return tuple(section.options)
-                if isinstance(section, DesignSection) and section.state.value == key:
-                    return tuple(
-                        Option(label=design.label, value=design.key)
-                        for design in section.designs
-                    )
+                choices = section.choices()
+                if choices and section.state.value == key:
+                    return choices
     return None
 
 
@@ -1128,10 +1188,10 @@ def _check_scope(
         produced.extend(produced_keys(step))
 
 
-def _check_modal_section(
-    definition: FormDefinition, card: CardStep, section: ModalInputSection
+def _check_modal(
+    definition: FormDefinition, card: CardStep, section: Section, modal: ModalSpec
 ) -> None:
-    fields = section.modal.fields
+    fields = modal.fields
     if len(fields) > DiscordLimits.MODAL_INPUTS:
         raise CompileError(
             definition.key,
@@ -1160,8 +1220,9 @@ def _check_modal_section(
 def _check_card(definition: FormDefinition, card: CardStep) -> None:
     state_keys = set(card.state_keys())
     for section in card.sections:
-        if isinstance(section, ModalInputSection):
-            _check_modal_section(definition, card, section)
+        modal = section.opened_modal()
+        if modal is not None:
+            _check_modal(definition, card, section, modal)
     for section in card.sections:
         for leaf in _leaves(section.visible_when):
             if leaf.key not in state_keys:
@@ -1253,8 +1314,8 @@ def _normalizers(step: Step) -> list[str]:
             names.append(step.normalize)
     if isinstance(step, CardStep):
         for section in step.sections:
-            if isinstance(section, ModalInputSection):
-                fields += list(section.modal.fields)
+            modal = section.opened_modal()
+            fields += list(modal.fields) if modal is not None else []
     return names + [field.normalize for field in fields if field.normalize]
 
 
@@ -1263,11 +1324,7 @@ def _card_validations(step: Step) -> list[str]:
         return []
     names: list[str] = []
     for section in step.sections:
-        with_modal = (TitleContentSection, FileUploadSection, ModalInputSection)
-        if isinstance(section, with_modal) and section.modal.validation:
-            names.append(section.modal.validation)
-        if isinstance(section, ValueSelectSection):
-            names += [rule.validation for rule in section.reset_on_change]
+        names += section.validators()
     return names
 
 

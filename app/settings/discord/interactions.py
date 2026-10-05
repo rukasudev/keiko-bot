@@ -6,6 +6,12 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.settings.form import events as ev
+from app.settings.form.manager import (
+    Lifecycle,
+    LifecycleConfirmed,
+    OptionToggled,
+    RemoveItemConfirmed,
+)
 
 PREFIX = "k"
 
@@ -101,10 +107,10 @@ def _on_one_item(
     if action == "remove_one":
         return ev.RemoveRequested(event_id, revision, arg or "")
     if action == "remove_item":
-        return ev.RemoveItemConfirmed(event_id, revision, arg or "")
+        return RemoveItemConfirmed(event_id, revision, arg or "")
     if action in ("turn_on", "turn_off"):
         key, _, chosen = (arg or "").rpartition("=")
-        return ev.OptionToggled(event_id, revision, key, chosen, action == "turn_on")
+        return OptionToggled(event_id, revision, key, chosen, action == "turn_on")
     return None
 
 
@@ -114,9 +120,9 @@ def _named(
     if action == "edit":
         return ev.EditRequested(event_id, revision, arg)
     if action == "lifecycle":
-        return ev.Lifecycle(event_id, revision, arg or "")
+        return Lifecycle(event_id, revision, arg or "")
     if action == "word":
-        return ev.LifecycleConfirmed(event_id, revision, arg or "", _typed(payload))
+        return LifecycleConfirmed(event_id, revision, arg or "", _typed(payload))
     return ev.Aside(event_id, revision, arg or action)
 
 

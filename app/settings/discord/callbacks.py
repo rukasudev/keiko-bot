@@ -44,6 +44,8 @@ from app.settings.features.feature import (
     Opened,
 )
 from app.settings.form import events as ev
+from app.settings.form import manager
+from app.settings.form.actions.action import Context
 from app.settings.form.components import Card, Gallery
 from app.settings.form.copy import normalize_locale, text
 from app.settings.form.effects import (
@@ -53,7 +55,7 @@ from app.settings.form.effects import (
     ResumeChild,
     ResumeParent,
 )
-from app.settings.form.form import Context, Decision, decide, shown_answers
+from app.settings.form.form import Decision, decide, shown_answers
 from app.settings.form.form_state import (
     FormSession,
     InMemorySessionStore,
@@ -335,11 +337,6 @@ class Runtime:
             server_name=str(getattr(state.guild, "name", "")),
             prefix=prefix,
             previews=await state.ready_previews(False),
-            panel_rows=opened.rows,
-            panel_info=opened.info,
-            panel_info_title=opened.info_title,
-            extra_buttons=opened.extra_buttons,
-            enabled=opened.enabled,
         )
 
     async def _apply(
@@ -362,7 +359,7 @@ class Runtime:
             if lookup is not None and not interaction.response.is_done():
                 await interaction.response.defer()
             context = await self._context(session, lookup)
-            decision = decide(definition, session, event, context)
+            decision = self._decide(definition, session, event, context)
             if state.previews_pending() and _draws_previews(decision, definition):
                 if not interaction.response.is_done():
                     await interaction.response.defer()
@@ -373,7 +370,7 @@ class Runtime:
                 )
                 previews = await state.ready_previews(True, budget)
                 context = replace(context, previews=previews, now=_now())
-                decision = decide(definition, session, event, context)
+                decision = self._decide(definition, session, event, context)
             decision = await self._redrawn(
                 interaction, definition, session, event, context, decision
             )
@@ -414,7 +411,22 @@ class Runtime:
             state.feature.previews_for(values, self._open_context(session))
         )
         previews = await state.ready_previews(True, view_constants.PREVIEW_WAIT_SECONDS)
-        return decide(definition, session, event, replace(context, previews=previews))
+        return self._decide(
+            definition, session, event, replace(context, previews=previews)
+        )
+
+    def _decide(
+        self,
+        definition: Any,
+        session: FormSession,
+        event: ev.Event,
+        context: Context,
+    ) -> Decision:
+        """The manager decides a manage session, the form engine every other one."""
+        if isinstance(session.mode, Manage):
+            panel = self.sessions[session.id].opened.panel
+            return manager.decide(definition, session, event, context, panel)
+        return decide(definition, session, event, context)
 
     def _open_context(self, session: FormSession) -> OpenContext:
         """Who is on the other side of this session, for the feature."""
@@ -564,14 +576,7 @@ class Runtime:
             )
             return
         if result.document is not None:
-            state.opened = Opened(
-                document=result.document,
-                rows=state.opened.rows,
-                info=state.opened.info,
-                info_title=state.opened.info_title,
-                extra_buttons=state.opened.extra_buttons,
-                enabled=state.opened.enabled,
-            )
+            state.opened = Opened(document=result.document, panel=state.opened.panel)
         await self._apply(
             interaction,
             session,
@@ -758,7 +763,7 @@ class Runtime:
                 event = ev.Expired(f"expire:{session.id}")
                 definition = registry.get(*session.definition)
                 context = await self._context(session)
-                decision = decide(definition, session, event, context)
+                decision = self._decide(definition, session, event, context)
                 observability.log_decision(decision, event, session)
                 self.store.put(decision.session)
                 observability.emit(
@@ -844,7 +849,7 @@ def _items(
     session: FormSession, parent: FormSession | None, document: Mapping[str, Any]
 ) -> tuple[Mapping[str, Any], ...]:
     """The composition's items: saved ones on the manager, answered ones in a setup."""
-    from app.settings.form.responses.responses import items_of
+    from app.settings.form.responses.responses import list_values
 
     definition = registry.get(*session.definition)
     composition = definition.composition
@@ -853,7 +858,7 @@ def _items(
         return ()
     root = parent or session
     if isinstance(root.mode, Manage):
-        return tuple(items_of(document, composition.key))
+        return tuple(list_values(document, composition.key))
     answered = root.answers.get(composition.key)
     if answered is None or not answered.raw:
         return ()

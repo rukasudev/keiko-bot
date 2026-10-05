@@ -6,7 +6,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from app.settings.form.actions import Refusal
-from app.settings.form.actions.action import RenderContext, other_items
+from app.settings.form.actions.action import Context, other_items
 from app.settings.form.components import FileInput, Input, Screen, TextInputs
 from app.settings.form.copy import text
 from app.settings.form.form_state import Answer, FormSession
@@ -68,7 +68,7 @@ def _input(
     )
 
 
-def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
+def render(step: Any, session: FormSession, context: Context) -> Screen:
     """The modal: one input per field, or one file input."""
     locale = context.locale
     if step.input == "file":
@@ -109,7 +109,7 @@ def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
 
 
 def _validate(
-    step: TextStep, value: Any, session: FormSession, context: RenderContext
+    step: TextStep, value: Any, session: FormSession, context: Context
 ) -> Refusal | None:
     check = validator(step.validation)
     if check is None:
@@ -125,7 +125,7 @@ def _validate(
     return Refusal(error) if error else None
 
 
-def _looked_up(step: TextStep, context: RenderContext) -> dict[str, Answer]:
+def _looked_up(step: TextStep, context: Context) -> dict[str, Answer]:
     found: dict[str, Answer] = {}
     for key, path in step.lookup_answers.items():
         service, _, field = path.partition(".")
@@ -143,7 +143,7 @@ def _scalar(step: TextStep, values: Sequence[str]) -> Any:
 
 
 def parse(
-    step: Any, payload: Any, session: FormSession, context: RenderContext
+    step: Any, payload: Any, session: FormSession, context: Context
 ) -> Mapping[str, Answer] | Refusal:
     """Text inputs in order, or a file url, into answers."""
     if step.input == "file":
@@ -169,7 +169,7 @@ def parse(
 
 
 def _fields_answers(
-    step: TextStep, values: list[str], session: FormSession, context: RenderContext
+    step: TextStep, values: list[str], session: FormSession, context: Context
 ) -> Mapping[str, Answer] | Refusal:
     keyed: dict[str, Answer] = {}
     concat: list[str] = []

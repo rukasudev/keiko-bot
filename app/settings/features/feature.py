@@ -16,19 +16,22 @@ from app.exceptions import ErrorContext
 from app.services.cache import get_cog_data_or_populate, remove_cog_cache_by_guild
 from app.services.cogs import LIFECYCLE_ANALYTICS_EVENTS, is_feature_on
 from app.services.moderations import set_feature_enabled
-from app.settings.form.actions.action import PanelRow
-from app.settings.form.components import Button
 from app.settings.form.form_state import Answer
 from app.settings.form.form_yaml import CompositionStep, FormDefinition, registry
 from app.settings.form.lookups import Lookup
+from app.settings.form.manager import PanelExtras
 from app.settings.form.responses.responses import (
     document_answers,
+    item_values,
     items_of,
-    listed,
     to_document,
+)
+from app.settings.form.responses.summary import (
+    item_entries,
+    listed,
+    responses,
     unwrap,
 )
-from app.settings.form.responses.summary import item_entries, responses
 
 
 @dataclass(frozen=True)
@@ -48,11 +51,7 @@ class Opened:
     """What the feature found when opened: a document to manage, or nothing."""
 
     document: Mapping[str, Any] | None = None
-    rows: Sequence[PanelRow] | None = None
-    info: str = ""
-    info_title: str = ""
-    extra_buttons: tuple[Button, ...] = ()
-    enabled: bool = True
+    panel: PanelExtras = field(default_factory=PanelExtras)
     previews: Mapping[str, str] = field(default_factory=dict)
     pending_previews: Awaitable[Mapping[str, str]] | None = None
     refusal: str | None = None
@@ -205,10 +204,12 @@ class GenericCogFeature:
         )
         return Opened(
             document=document,
-            enabled=enabled,
-            info=self.panel_info(context),
-            info_title=self.panel_info_title(context),
-            extra_buttons=self.extra_buttons(context),
+            panel=PanelExtras(
+                info=self.panel_info(context),
+                info_title=self.panel_info_title(context),
+                extra_buttons=self.extra_buttons(context),
+                enabled=enabled,
+            ),
         )
 
     def panel_info(self, context: OpenContext) -> str:
@@ -483,8 +484,8 @@ class GenericCogFeature:
         if not unique:
             return
 
-        wanted = str(unwrap(item.get(unique)))
-        if any(str(unwrap(other.get(unique))) == wanted for other in items):
+        wanted = str(item_values(item).get(unique))
+        if any(str(item_values(other).get(unique)) == wanted for other in items):
             raise DuplicateItem(wanted)
 
     async def save_or_let_go(

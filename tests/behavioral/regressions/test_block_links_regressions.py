@@ -97,7 +97,7 @@ async def test_edit_dropdown_names_a_composition_entry_by_its_configuration_titl
     position, the stored value identifies the entry in the option description,
     and no markdown leaks into either."""
     from app.settings.form.form_yaml import registry
-    from app.settings.form.manager import edit_options
+    from app.settings.form.responses.summary import edit_options
 
     cogs = {
         "enabled": True,

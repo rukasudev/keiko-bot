@@ -23,6 +23,7 @@ from app.settings.features.feature import (
 )
 from app.settings.form.components import Button
 from app.settings.form.copy import text
+from app.settings.form.manager import PanelExtras
 
 
 def _copy(key: str, locale: str) -> str:
@@ -42,10 +43,12 @@ class BlockLinksFeature(GenericCogFeature):
             return opened
         return Opened(
             document=self.normalized(opened.document),
-            enabled=opened.enabled,
-            info=_copy("info", context.locale),
-            info_title=_copy("info-title", context.locale),
-            extra_buttons=self.extra_buttons(context),
+            panel=PanelExtras(
+                info=_copy("info", context.locale),
+                info_title=_copy("info-title", context.locale),
+                extra_buttons=self.extra_buttons(context),
+                enabled=opened.panel.enabled,
+            ),
         )
 
     def extra_buttons(self, context: OpenContext) -> tuple[Button, ...]:

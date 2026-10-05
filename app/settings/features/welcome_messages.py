@@ -19,6 +19,7 @@ from app.settings.features.feature import (
 )
 from app.settings.form.components import Button
 from app.settings.form.copy import text
+from app.settings.form.manager import PanelExtras
 
 
 class WelcomeMessagesFeature(GenericCogFeature):
@@ -34,8 +35,10 @@ class WelcomeMessagesFeature(GenericCogFeature):
             title = str(opened.document.get("welcome_messages_title") or "")
             return Opened(
                 document=opened.document,
-                enabled=opened.enabled,
-                extra_buttons=self.extra_buttons(context),
+                panel=PanelExtras(
+                    extra_buttons=self.extra_buttons(context),
+                    enabled=opened.panel.enabled,
+                ),
                 pending_previews=self.previews(context, title),
             )
         return Opened(pending_previews=self.previews(context))
