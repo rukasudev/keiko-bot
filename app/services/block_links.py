@@ -1,6 +1,7 @@
 import asyncio
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from datetime import datetime, timezone
+from typing import Any, Dict, List, Optional, Set, Tuple
 import discord
 
 from collections import Counter
@@ -24,6 +25,7 @@ from app.services import analytics, cache
 from .utils import (
     check_two_lists_intersection,
     ensure_list,
+    fill_placeholders,
     format_discord_timestamp,
     get_message_links,
     list_roles_id,
@@ -333,22 +335,24 @@ async def check_message(guild_id: str, message: discord.Message) -> None:
     if not evaluation.would_block:
         return
 
-    blocked_links = list(evaluation.blocked_links)
-
+    blocked = [verdict for verdict in evaluation.links if verdict.blocked]
     context = ErrorContext.from_message(
         flow="block_links",
         message=message,
-        blocked_links=blocked_links[:3],
+        blocked_hosts=sorted({verdict.host for verdict in blocked})[:3],
+        blocked_count=len(blocked),
     )
 
-    answer = evaluation.answer.replace("{user}", message.author.mention)
+    answer = fill_placeholders(evaluation.answer, {"user": message.author.mention})
 
     deleted = False
     try:
         await message.delete()
         deleted = True
         if answer:
-            await message.channel.send(answer, delete_after=5)
+            await message.channel.send(
+                answer, delete_after=5, allowed_mentions=discord.AllowedMentions.all()
+            )
     except Exception as e:
         logger.error(
             f"Failed to block link: {type(e).__name__}: {e}",
@@ -358,7 +362,9 @@ async def check_message(guild_id: str, message: discord.Message) -> None:
         )
         raise
     finally:
-        record_blocked_links(guild_id, message, evaluation, deleted=deleted)
+        await asyncio.to_thread(
+            record_blocked_links, guild_id, message, evaluation, deleted=deleted
+        )
 
 
 def record_blocked_links(
@@ -368,16 +374,18 @@ def record_blocked_links(
     *,
     deleted: bool,
 ) -> None:
-    """Store what was blocked (including failed deletes). Never raises."""
+    """Store what was blocked (including failed deletes) and count it. Never raises."""
     try:
         author = getattr(message, "author", None)
         channel = getattr(message, "channel", None)
+        user_id = str(getattr(author, "id", ""))
         blocked = [verdict for verdict in evaluation.links if verdict.blocked]
+        recorded = blocked[:constants.BLOCK_LINKS_EVENTS_MAX_PER_MESSAGE]
 
-        for verdict in blocked[:constants.BLOCK_LINKS_EVENTS_MAX_PER_MESSAGE]:
+        for verdict in recorded:
             blocked_links_data.insert_blocked_link({
                 "guild_id": str(guild_id),
-                "user_id": str(getattr(author, "id", "")),
+                "user_id": user_id,
                 "channel_id": str(getattr(channel, "id", "")),
                 "message_id": str(getattr(message, "id", "")),
                 "link": verdict.raw[:100],
@@ -388,18 +396,18 @@ def record_blocked_links(
                 "match": verdict.match,
                 "deleted": deleted,
             })
-            cache.increment_redis_key(
-                constants.REDIS_BLOCK_LINKS_COUNTER_TOTAL.format(guild_id=guild_id)
+
+        if recorded:
+            hosts = Counter(verdict.host for verdict in recorded)
+            blocked_links_data.count_blocked_links(
+                len(recorded), hosts, datetime.now(timezone.utc)
             )
-            cache.increment_redis_key(
-                constants.REDIS_BLOCK_LINKS_COUNTER_HOST.format(
-                    guild_id=guild_id, value=verdict.host
-                )
-            )
-            cache.increment_redis_key(
-                constants.REDIS_BLOCK_LINKS_COUNTER_USER.format(
-                    guild_id=guild_id, value=getattr(author, "id", "")
-                )
+            increments = Counter({f"host:{host}": count for host, count in hosts.items()})
+            increments.update({"total": len(recorded), f"user:{user_id}": len(recorded)})
+            cache.increment_redis_hash(
+                constants.REDIS_BLOCK_LINKS_COUNTERS.format(guild_id=guild_id),
+                increments,
+                constants.BLOCK_LINKS_COUNTERS_TTL_SECONDS,
             )
 
         for verdict in blocked:
@@ -606,25 +614,22 @@ def parse_blocked_link_records(
 
 
 def get_blocked_links_stats(guild_id: str) -> Dict[str, Any]:
-    """All-time numbers from the Redis counters, recent ones from the records."""
+    """All-time numbers from the counters, recent ones from the records."""
     records = blocked_links_data.find_blocked_links_by_guild(guild_id)
+    counters = _counters(guild_id, records)
 
-    host_counters = cache.get_redis_counters_by_prefix(
-        constants.REDIS_BLOCK_LINKS_COUNTER_HOST.format(guild_id=guild_id, value="")
-    ) or Counter(record.get("host") for record in records if record.get("host"))
-    user_counters = cache.get_redis_counters_by_prefix(
-        constants.REDIS_BLOCK_LINKS_COUNTER_USER.format(guild_id=guild_id, value="")
-    ) or Counter(record.get("user_id") for record in records if record.get("user_id"))
-
-    top_hosts = Counter(host_counters).most_common(3)
-    top_users = Counter(user_counters).most_common(1)
+    hosts = _counted(counters, "host") or Counter(
+        record.get("host") for record in records if record.get("host")
+    )
+    users = _counted(counters, "user") or Counter(
+        record.get("user_id") for record in records if record.get("user_id")
+    )
+    top_users = users.most_common(1)
 
     return {
-        "total": cache.get_redis_counter(
-            constants.REDIS_BLOCK_LINKS_COUNTER_TOTAL.format(guild_id=guild_id)
-        ) or len(records),
+        "total": counters["total"] or len(records),
         "recent": len(records),
-        "top_hosts": top_hosts,
+        "top_hosts": hosts.most_common(3),
         "top_user": top_users[0] if top_users else None,
         "not_deleted": sum(
             1 for record in records if record.get("deleted") is False
@@ -632,9 +637,67 @@ def get_blocked_links_stats(guild_id: str) -> Dict[str, Any]:
     }
 
 
+def forget_counters(guild_id: str) -> None:
+    """Delete a guild's own counts by name: its hash and its total first, then the loose
+    keys of v0.9.0 the hash and the records name, so a failed read never keeps them all."""
+    hash_key = constants.REDIS_BLOCK_LINKS_COUNTERS.format(guild_id=guild_id)
+
+    try:
+        counted = cache.get_redis_hash_counters(hash_key)
+    finally:
+        cache.delete_redis_keys([hash_key, _loose_key(guild_id, "total")])
+
+    records = blocked_links_data.find_blocked_links_by_guild(guild_id)
+    names = _counter_names(counted, records)
+    cache.delete_redis_keys([_loose_key(guild_id, name) for name in names])
+
+
+def _counters(guild_id: str, records: List[Dict[str, Any]]) -> Dict[str, int]:
+    """Every counter of a guild by name: its hash plus the loose keys of v0.9.0."""
+    counted = cache.get_redis_hash_counters(
+        constants.REDIS_BLOCK_LINKS_COUNTERS.format(guild_id=guild_id)
+    )
+    loose_keys = {
+        name: _loose_key(guild_id, name) for name in _counter_names(counted, records)
+    }
+    loose = cache.get_redis_counters(list(loose_keys.values()))
+    return {name: counted.get(name, 0) + loose[key] for name, key in loose_keys.items()}
+
+
+def _counter_names(counted: Dict[str, int], records: List[Dict[str, Any]]) -> Set[str]:
+    """The names a guild's counters go by: its hash's fields, and every site and
+    member its records know, so the loose keys are found without a walk."""
+    names = {"total", *counted}
+    names.update(f"host:{record['host']}" for record in records if record.get("host"))
+    names.update(
+        f"user:{record['user_id']}" for record in records if record.get("user_id")
+    )
+    return names
+
+
+def _loose_key(guild_id: str, name: str) -> str:
+    kind, _, value = name.partition(":")
+    template = {
+        "total": constants.REDIS_BLOCK_LINKS_COUNTER_TOTAL,
+        "host": constants.REDIS_BLOCK_LINKS_COUNTER_HOST,
+        "user": constants.REDIS_BLOCK_LINKS_COUNTER_USER,
+    }[kind]
+    return template.format(guild_id=guild_id, value=value)
+
+
+def _counted(counters: Dict[str, int], kind: str) -> Counter:
+    """The counters of one kind, by what they count, leaving out the ones at zero."""
+    prefix = f"{kind}:"
+    return Counter({
+        name[len(prefix):]: count
+        for name, count in counters.items()
+        if name.startswith(prefix) and count
+    })
+
+
 async def send_blocked_links_stats_message(interaction: discord.Interaction) -> None:
     locale = parse_locale(interaction.locale)
-    stats = get_blocked_links_stats(str(interaction.guild_id))
+    stats = await asyncio.to_thread(get_blocked_links_stats, str(interaction.guild_id))
 
     if not stats["total"]:
         description = _bm("stats.empty", locale)

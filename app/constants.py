@@ -84,11 +84,13 @@ class Commands:
 
     BLOCK_LINKS_DIAGNOSTIC_MAX_LINKS: Final[int] = 5
     BLOCK_LINKS_EVENTS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 90
+    BLOCK_LINKS_COUNTERS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 400
     BLOCK_LINKS_EVENTS_MAX_PER_MESSAGE: Final[int] = 3
     BLOCK_LINKS_EVENTS_READ_LIMIT: Final[int] = 200
     REDIS_BLOCK_LINKS_COUNTER_TOTAL: Final[str] = "guild:{guild_id}:block_links:total"
     REDIS_BLOCK_LINKS_COUNTER_HOST: Final[str] = "guild:{guild_id}:block_links:host:{value}"
     REDIS_BLOCK_LINKS_COUNTER_USER: Final[str] = "guild:{guild_id}:block_links:user:{value}"
+    REDIS_BLOCK_LINKS_COUNTERS: Final[str] = "guild:{guild_id}:block_links:counters"
 
     # analytics
     ANALYTICS_EVENTS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 90

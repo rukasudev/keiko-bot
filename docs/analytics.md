@@ -181,6 +181,21 @@ Only the hot window, under `guild:{guild_id}:analytics:*`, and **every key has
 an `EXPIRE`** (`increment_redis_key_with_expiration`). A counter without a TTL
 in a shared keyspace is how a free tier dies.
 
+### Keiko's own block links record
+
+Not an event, but kept beside them: every blocked link is also counted in
+`guild.block_links_totals` (`count_blocked_links`, `app/data/block_links.py`),
+in the worker thread that writes the record and the server's counters. It
+names no server and no member, so it is kept for good: `{_id: "total",
+blocked}` and one `{_id: "site:<host>", host, blocked}` per site, added with
+`$inc`. A site is the full host as it was blocked (`www.` dropped, subdomains
+kept: `cdn.spam-site.com` and `spam-site.com` are two sites), never a path or a
+link, and it is a value, never a field name, since a host has dots. "Which links
+Keiko blocks most" is `find({"host": {"$exists": true}}).sort("blocked", -1)`.
+The server's own counters, a Redis hash with per-site and per-member counts,
+expire 400 days after its last block and go when Keiko leaves; this record
+stays.
+
 ## 6. Privacy
 
 Never collected, as a hard rule: message content, full URLs, any value typed
@@ -658,7 +673,14 @@ or after. The values already live in `guild.<cog_key>`; the log has no reason to
 hold a second copy.
 
 The 24h history is read **once, when the journey opens**
-(`analytics_reports.setup_sessions`), not on every render.
+(`analytics_reports.setup_sessions(feature, guild_id=, since=)`), not on every
+render. It is one query for that guild's setup events of the feature, bounded
+by the 24-hour window it reports; it used to be seven queries that brought every
+guild's setup events of the feature for the whole 90 days and filtered them in
+Python. The read runs in a worker thread whenever a loop runs, so the form never
+waits on it: the footnote is set when it lands, which is before the debounced
+first render unless the read is slower than that, and then the next render
+carries it.
 
 ### The message is not rewritten on every step
 

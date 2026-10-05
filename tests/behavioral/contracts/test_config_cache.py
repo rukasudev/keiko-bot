@@ -542,7 +542,8 @@ def test_leaving_a_guild_while_redis_is_down_still_forgets_its_settings(
 
     cache.remove_all_cache_by_guild(GUILD_ID)
 
-    assert len(calls["keys"]) == 1
+    assert len(calls["delete"]) == 1, "one Redis call, the delete of the known keys"
+    assert calls["keys"] == [], "leaving a guild never walks the keyspace"
     mongo_is_down(monkeypatch, deps)
     with pytest.raises(ServerSelectionTimeoutError):
         read()
