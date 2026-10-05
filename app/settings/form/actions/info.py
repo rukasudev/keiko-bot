@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from app.settings.form.actions.action import (
-    RenderContext,
+    Context,
     confirm_button,
     step_buttons,
     step_screen,
@@ -15,7 +15,7 @@ from app.settings.form.components import Field, Screen
 from app.settings.form.form_state import Answer, FormSession
 
 
-def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
+def render(step: Any, session: FormSession, context: Context) -> Screen:
     """The embed with its paragraphs as fields, then Confirm, Back, Cancel."""
     locale = context.locale
     fields = tuple(
@@ -32,7 +32,7 @@ def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
 
 
 def parse(
-    step: Any, payload: Any, session: FormSession, context: RenderContext
+    step: Any, payload: Any, session: FormSession, context: Context
 ) -> Mapping[str, Answer]:
     """Reading a screen answers nothing."""
     return {}

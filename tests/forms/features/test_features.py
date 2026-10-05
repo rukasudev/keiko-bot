@@ -8,7 +8,7 @@ from app.settings.features import feature_for, feature_keys
 from app.settings.features.feature import CommitContext, GenericCogFeature, OpenContext
 from app.settings.form.form_state import Answer
 from app.settings.form.form_yaml import DefinitionRegistry
-from app.settings.form.responses.responses import unwrap
+from app.settings.form.responses.summary import unwrap
 
 pytestmark = pytest.mark.unit
 
@@ -360,8 +360,8 @@ async def test_the_birthday_panel_opens_with_its_own_rows(deps):
         OpenContext(GUILD_ID, "555", "pt-br")
     )
     assert opened.document["reminders_birthday"]["values"][0]["user"]["value"] == "555"
-    assert [row.value for row in opened.rows][:2] == ["100", False]
-    assert [b.action for b in opened.extra_buttons] == ["aside:stats"]
+    assert [row.value for row in opened.panel.rows][:2] == ["100", False]
+    assert [b.action for b in opened.panel.extra_buttons] == ["aside:stats"]
 
 
 def test_the_birthday_feature_previews_the_celebration():
@@ -488,7 +488,8 @@ def test_the_welcome_card_saves_the_document_the_welcome_service_reads():
     the channel as {style, values}, the design key, the title and footer, and the
     messages as one ;-joined text the service splits."""
     from app.settings.form import events as ev
-    from app.settings.form.form import Context, decide
+    from app.settings.form.actions.action import Context
+    from app.settings.form.form import decide
     from app.settings.form.form_state import Origin, Setup, new_session
     from app.settings.form.responses.responses import to_document
 
@@ -601,8 +602,9 @@ async def test_the_stream_elements_panel_says_how_many_commands_it_answers(
         OpenContext(GUILD_ID, "555", "pt-br")
     )
 
-    assert "2" in opened.info and "shroud" in opened.info
-    assert [button.action for button in opened.extra_buttons] == ["aside:commands"]
+    assert "2" in opened.panel.info and "shroud" in opened.panel.info
+    actions = [button.action for button in opened.panel.extra_buttons]
+    assert actions == ["aside:commands"]
 
 
 async def test_a_stream_elements_outage_leaves_no_count(deps, monkeypatch):

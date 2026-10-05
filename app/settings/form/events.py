@@ -104,22 +104,6 @@ class RemoveRequested(Event):
 
 
 @dataclass(frozen=True)
-class RemoveItemConfirmed(Event):
-    """The admin confirmed removing the item the Remove beside it named."""
-
-    target: str = ""
-
-
-@dataclass(frozen=True)
-class OptionToggled(Event):
-    """One option of a multiple choice was turned on or off, on the screen."""
-
-    target: str = ""
-    value: str = ""
-    turned_on: bool = False
-
-
-@dataclass(frozen=True)
 class TargetChosen(Event):
     """An option of the edit or remove picker was chosen."""
 
@@ -153,21 +137,6 @@ class ChildFinished(Event):
     answers: Mapping[str, Any] = field(default_factory=dict)
     index: int | None = None
     cancelled: bool = False
-
-
-@dataclass(frozen=True)
-class Lifecycle(Event):
-    """Pause, unpause or disable was pressed on the panel."""
-
-    action: str = ""
-
-
-@dataclass(frozen=True)
-class LifecycleConfirmed(Event):
-    """The confirmation modal of a lifecycle action was submitted."""
-
-    action: str = ""
-    word: str = ""
 
 
 @dataclass(frozen=True)

@@ -68,7 +68,7 @@ async def test_edit_conditional_step_is_hidden_when_condition_unmet(
     """The edit picker leaves out steps whose `when` the saved document does
     not satisfy (register_now=false hides the composition for birthday)."""
     from app.settings.form.form_yaml import registry
-    from app.settings.form.manager import edit_options
+    from app.settings.form.responses.summary import edit_options
 
     options = edit_options(
         registry.get("reminders_birthday"),

@@ -25,7 +25,8 @@ from app.settings.form.components import Button
 from app.settings.form.copy import text
 from app.settings.form.form_state import Answer
 from app.settings.form.lookups import Lookup
-from app.settings.form.responses.responses import unwrap
+from app.settings.form.manager import PanelExtras
+from app.settings.form.responses.summary import unwrap
 
 
 class StreamElementsFeature(GenericCogFeature):
@@ -41,10 +42,12 @@ class StreamElementsFeature(GenericCogFeature):
             return opened
         return Opened(
             document=opened.document,
-            enabled=opened.enabled,
-            info=await _loaded(opened.document, context),
-            info_title=_copy("loaded.title", context.locale),
-            extra_buttons=self.extra_buttons(context),
+            panel=PanelExtras(
+                info=await _loaded(opened.document, context),
+                info_title=_copy("loaded.title", context.locale),
+                extra_buttons=self.extra_buttons(context),
+                enabled=opened.panel.enabled,
+            ),
         )
 
     def extra_buttons(self, context: OpenContext) -> tuple[Button, ...]:

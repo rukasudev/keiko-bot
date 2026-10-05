@@ -8,7 +8,7 @@ from typing import Any
 from app.constants import ViewConstants as view_constants
 from app.settings.form.actions import Refusal
 from app.settings.form.actions.action import (
-    RenderContext,
+    Context,
     confirm_button,
     label,
     step_buttons,
@@ -31,7 +31,7 @@ def _ids(value: Any) -> tuple[str, ...]:
     return (str(value),)
 
 
-def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
+def render(step: Any, session: FormSession, context: Context) -> Screen:
     """The select or selects with the current picks, Confirm, Back and Cancel."""
     locale = context.locale
     if isinstance(step, MultiPickStep):
@@ -71,7 +71,7 @@ def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
 
 
 def part_screen(
-    step: MultiPickStep, part: str, session: FormSession, context: RenderContext
+    step: MultiPickStep, part: str, session: FormSession, context: Context
 ) -> Screen:
     """One select of a multi-select, with a way back and nothing else."""
     locale = context.locale
@@ -102,7 +102,7 @@ def _stored(values: tuple[str, ...]) -> Any:
 
 
 def parse(
-    step: Any, payload: Any, session: FormSession, context: RenderContext
+    step: Any, payload: Any, session: FormSession, context: Context
 ) -> Mapping[str, Answer] | Refusal:
     """The ids picked: one scalar, several as a list, none when nothing."""
     if isinstance(step, MultiPickStep):

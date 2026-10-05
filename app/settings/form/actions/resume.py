@@ -7,9 +7,8 @@ from dataclasses import replace
 from typing import Any
 
 from app.constants import KeikoIcons
-from app.settings.form import manager
 from app.settings.form.actions.action import (
-    RenderContext,
+    Context,
     cancel_button,
     caption,
     confirm_button,
@@ -20,12 +19,17 @@ from app.settings.form.actions.action import (
 )
 from app.settings.form.components import Button, Panel, PanelGroup, Screen
 from app.settings.form.form_state import Answer, FormSession
-from app.settings.form.manager import labelled
 from app.settings.form.responses.responses import to_document
 from app.settings.form.responses.styles import format_value
+from app.settings.form.responses.summary import (
+    every_setting_has_a_button,
+    labelled,
+    panel_groups,
+    panel_rows,
+)
 
 
-def _item_count(session: FormSession, context: RenderContext) -> int | None:
+def _item_count(session: FormSession, context: Context) -> int | None:
     composition = context.definition.composition
     if composition is None:
         return None
@@ -40,7 +44,7 @@ def _button(key: str, action: str, emoji: str, locale: str) -> Button:
 
 
 def _buttons(
-    step: Any, session: FormSession, context: RenderContext, covered: bool
+    step: Any, session: FormSession, context: Context, covered: bool
 ) -> tuple[Button, ...]:
     locale = context.locale
     buttons: list[Button] = [] if covered else [_button("edit", "edit", "📝", locale)]
@@ -78,19 +82,17 @@ def _thumbnail(step: Any, session: FormSession) -> str:
     return str(found or KeikoIcons.IMAGE_03)
 
 
-def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
+def render(step: Any, session: FormSession, context: Context) -> Screen:
     """The review card: every answer in blocks with their Edit, actions below."""
     locale = context.locale
     document = to_document(context.steps, session.answers, locale)
     rows = [
         replace(row, group_screen=False)
-        for row in manager.panel_rows(
-            context.definition, document, locale, expanded=True
-        )
+        for row in panel_rows(context.definition, document, locale, expanded=True)
     ]
     title = title_of(step, locale)
-    groups = manager.panel_groups(rows, title, locale)
-    covered = manager.every_setting_has_a_button(
+    groups = panel_groups(rows, title, locale)
+    covered = every_setting_has_a_button(
         context.definition, document, groups, locale, rows
     )
     looked_up = _looked_up(step, session, locale)
@@ -113,7 +115,7 @@ def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
 
 
 def parse(
-    step: Any, payload: Any, session: FormSession, context: RenderContext
+    step: Any, payload: Any, session: FormSession, context: Context
 ) -> Mapping[str, Answer]:
     """Confirming the review answers nothing; it commits."""
     return {}
