@@ -1,5 +1,9 @@
 import threading
+import time
+from types import SimpleNamespace
+from typing import Any
 
+import aiohttp
 import discord
 from discord.ext.commands import Bot
 
@@ -8,6 +12,7 @@ from app.integrations.notion import NotionIntegration
 from app.integrations.reminder_webhook import ReminderWebhook
 from app.integrations.twitch import TwitchClient
 from app.integrations.youtube import YoutubeClient
+from app.services import metrics
 from app.services.utils import cogs_manager, get_cogs_folder
 from app.translator import Translator
 
@@ -25,6 +30,22 @@ def gateway_intents() -> discord.Intents:
         dm_messages=True,
         message_content=True,
     )
+
+
+def discord_latency() -> aiohttp.TraceConfig:
+    """Times every request discord.py sends to Discord, as the `discord` dependency."""
+    trace = aiohttp.TraceConfig()
+
+    async def started(_session: Any, request: SimpleNamespace, _params: Any) -> None:
+        request.started = time.perf_counter()
+
+    async def ended(_session: Any, request: SimpleNamespace, _params: Any) -> None:
+        metrics.record_dependency_latency("discord", time.perf_counter() - request.started)
+
+    trace.on_request_start.append(started)
+    trace.on_request_end.append(ended)
+    trace.on_request_exception.append(ended)
+    return trace
 
 
 class DiscordBot(Bot):
@@ -53,6 +74,7 @@ class DiscordBot(Bot):
             activity=discord.Activity(
                 type=self.config.ACTIVITY, name=self.config.DESCRIPTION
             ),
+            http_trace=discord_latency(),
         )
 
     async def setup_hook(self) -> None:

@@ -228,6 +228,7 @@ process is scraped. Keiko's own:
 | `keiko_build_info` | `version` | the heartbeat cog when it loads, `metrics.record_build_info` |
 | `keiko_interactions_total` | `outcome` (`in_time`, `deferred`, `failed`), `code` (Discord's error code, such as `10062` or `40060`, or empty) | the form adapter (`open_feature`, `handle`, a click on a lost session), `run_feature_command` (a feature a button opens) and `Errors.on_app_command_error` |
 | `keiko_webhook_refusals_total` | `route` (the URL rule, never the path a request typed), `status` (the 4xx it was answered with) | the refusal hook of `app/webhooks/__init__.py` |
+| `keiko_dependency_latency_seconds` (a histogram, buckets `Dependencies.LATENCY_BUCKETS`) | `dependency` (one of `Dependencies.NAMES`: `mongo`, `redis`, `discord`, `twitch`, `youtube`, `reminders`, `notion`, `translate`, `stream_elements`) | every call, answered or not: the shared HTTP client (`app/integrations/http_client.py`) for the HTTP services, `MongoLatency` (a pymongo command listener on both Mongo clients) and `TimedRedis` with its `TimedPipeline`, one call per round trip (`app/__init__.py`), `discord_latency` (the aiohttp trace discord.py sends its requests through, `app/bot.py`), and `metrics.timed("translate")` around the language detection, which brings its own HTTP client |
 | `keiko_form_*` | see `observability.py` | the form adapter |
 
 `PrometheusCog` adds the library's own, among them `discord_connected{shard}` (1
@@ -237,11 +238,25 @@ context menus, buttons, selects, modals and autocomplete.
 
 **No label is ever a guild or a user id.** A label takes one series per value, so
 an id is both a privacy leak and an unbounded number of series; every label above
-is a closed list (`tests/test_metrics.py`). `app/services/metrics.py` is the
+is a closed list (`tests/test_metrics.py`, `tests/test_outside_calls.py`).
+`app/services/metrics.py` is the
 generic home for what every layer records, so a cog never imports the form
-adapter to record a number. The latency of each outside dependency (Mongo,
-Redis, Discord, Twitch, YouTube, reminders, Notion, translate) arrives with the
-shared HTTP client, together with its first caller.
+adapter to record a number. A dependency outside `Dependencies.NAMES` is refused
+before the call is sent, so a typo cannot open a new series.
+
+Every call an integration makes waits at most `Dependencies.HTTP_CONNECT_TIMEOUT_SECONDS`
+to connect and `Dependencies.HTTP_READ_TIMEOUT_SECONDS` between two reads, unless the
+call names its own (YouTube's and StreamElements' shorter ones); the language detection
+brings its own client and keeps its 5 s (`Dependencies.LANGUAGE_DETECTION_TIMEOUT_SECONDS`).
+Two `requests` calls stay outside the shared client on purpose, with their own bounds:
+the heartbeat's ping and the welcome's picture downloads (`OWN_REQUESTS` in
+`tests/test_outside_calls.py` names them and why). The Mongo clients give up after
+`DBConfigs.MONGO_SERVER_SELECTION_TIMEOUT_SECONDS` without a server, and a read after
+`DBConfigs.MONGO_SOCKET_TIMEOUT_SECONDS`; only the boot's first ping asks again, for up
+to `DBConfigs.MONGO_BOOT_WAIT_SECONDS`, so a deploy that starts during a primary
+election waits for it as it did before. A secret never travels in a URL: Twitch's
+client secret goes in the body of the token request and the YouTube key in the
+`X-Goog-Api-Key` header (`tests/behavioral/regressions/test_secrets_never_travel_in_a_url.py`).
 
 Each interaction is counted once: a form command when it opens (a command that
 raises is counted by the error handler instead), a feature a `/setup` or greeting
@@ -262,6 +277,7 @@ threshold to tune against real traffic:
 | Gateway down | `max(discord_connected) == 0` | 5m | the process is up but not connected to Discord |
 | Webhook sender refused | `sum by (route) (increase(keiko_webhook_refusals_total{status=~"40[13]"}[1h])) > 0` | 0m | a request was refused for its signature or its credentials in the last hour: one forged request, or a secret that no longer matches, which stops every real notice of that route without a word |
 | Webhook refusal flood | `sum by (route, status) (increase(keiko_webhook_refusals_total[15m])) > 20` | 0m | a route refusing in bulk: someone is flooding it |
+| Dependency slow | `histogram_quantile(0.95, sum by (le, dependency) (rate(keiko_dependency_latency_seconds_bucket[10m]))) > 5 and sum by (dependency) (rate(keiko_dependency_latency_seconds_count[10m])) > 0.02` | 10m | one call in twenty to one dependency took more than five seconds for ten minutes: it is on its way to its timeout, and every feature behind it with it; the `dependency` label names which, and the second half keeps a dependency called a few times an hour from paging on one slow call |
 
 `discord_event_on_interaction_total` without autocomplete is the denominator:
 it counts every interaction Discord delivered, whatever handled it, and an

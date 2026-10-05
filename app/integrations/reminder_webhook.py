@@ -1,10 +1,13 @@
 import hmac
 from datetime import datetime, timedelta
+from http import HTTPStatus
 from typing import Any, Dict, List, Optional
 from zoneinfo import ZoneInfo
 
 import requests
 from werkzeug.datastructures import Authorization
+
+from app.integrations import http_client
 
 REMINDER_API_URL = "https://reminders-api.com/api"
 REMINDER_TIMEZONE = "America/Sao_Paulo"
@@ -64,7 +67,8 @@ class ReminderWebhook:
         return user_matches and password_matches
 
     def get_reminders(self) -> List[Dict[str, Any]]:
-        return _parse(requests.get(
+        return _parse(http_client.get(
+            "reminders",
             f"{REMINDER_API_URL}/reminders/",
             headers=self.headers,
         ))
@@ -86,7 +90,8 @@ class ReminderWebhook:
         if reminder_data.get("rrule"):
             body["rrule"] = reminder_data["rrule"]
 
-        return _parse(requests.post(
+        return _parse(http_client.post(
+            "reminders",
             f"{REMINDER_API_URL}/applications/{self.reminder_application_id}/reminders/",
             headers=self.headers,
             data=body,
@@ -112,14 +117,20 @@ class ReminderWebhook:
         if rrule:
             body["rrule"] = rrule
 
-        return _parse(requests.put(
+        return _parse(http_client.put(
+            "reminders",
             f"{REMINDER_API_URL}/reminders/{reminder_id}",
             headers=self.headers,
             data=body,
         ))
 
     def delete_reminder(self, reminder_id: str) -> None:
-        return _parse(requests.delete(
+        """Delete a reminder; one reminders-api does not have is already deleted."""
+        response = http_client.delete(
+            "reminders",
             f"{REMINDER_API_URL}/reminders/{reminder_id}",
             headers=self.headers,
-        ))
+        )
+        if response.status_code == HTTPStatus.NOT_FOUND:
+            return None
+        return _parse(response)

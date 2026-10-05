@@ -6,11 +6,14 @@ import urllib.parse
 
 import detectlanguage
 import discord
-import requests
+from requests import RequestException
 
 import app
 from app import logger
+from app.constants import Dependencies
 from app.constants import LogTypes as logconstants
+from app.integrations import http_client
+from app.services import metrics
 from app.services.utils import ml
 
 languages_with_flags = {
@@ -73,6 +76,7 @@ languages_with_flags = {
 
 detectlanguage.configuration.api_key = app.bot.config.DETECT_LANGUAGE_API_KEY
 detectlanguage.configuration.secure = True
+detectlanguage.configuration.timeout = Dependencies.LANGUAGE_DETECTION_TIMEOUT_SECONDS
 
 class GoogleTranslate:
     pattern = r'(?s)class="(?:t0|result-container)">(.*?)<'
@@ -86,7 +90,7 @@ class GoogleTranslate:
         try:
             src = GoogleTranslate.detect(content)
             full_src = languages_with_flags.get(src, "🌐")
-        except Exception as error:
+        except (Exception, detectlanguage.DetectLanguageError) as error:
             logger.error(f"Error while detecting language: {error}", log_type=logconstants.COMMAND_ERROR_TYPE,)
             full_src = ml("errors.translate-message.unknown-language", dest_locale)
 
@@ -104,7 +108,14 @@ class GoogleTranslate:
             "auto",
             escaped_text,
         )
-        response = requests.get(url)
+        try:
+            response = http_client.get("translate", url)
+        except RequestException as error:
+            logger.warn(
+                f"Google Translate did not answer: {type(error).__name__}",
+                log_type=logconstants.COMMAND_WARN_TYPE,
+            )
+            return None
         result = response.text.encode("utf8").decode("utf8")
         result = re.findall(GoogleTranslate.pattern, response.content.decode("utf-8"))
 
@@ -131,4 +142,5 @@ class GoogleTranslate:
 
     @staticmethod
     def detect(content: str) -> str:
-        return detectlanguage.simple_detect(content)
+        with metrics.timed("translate"):
+            return detectlanguage.simple_detect(content)
