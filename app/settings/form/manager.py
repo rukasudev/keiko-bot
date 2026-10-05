@@ -1279,19 +1279,13 @@ def on_remove_item_confirmed(engine: Engine) -> None:
 
 
 def on_option_toggled(engine: Engine) -> None:
-    """A choice on the screen goes on or off, saves, and the screen stays."""
+    """A choice on the screen goes on or off where it is saved, and the screen stays."""
     event = engine.event
     assert isinstance(event, ev.OptionToggled)
-    stored = unwrap(engine.context.document.get(event.target))
-    chosen = [str(value) for value in listed(stored)]
-
-    if event.value in chosen:
-        chosen = [value for value in chosen if value != event.value]
-    else:
-        chosen.append(event.value)
-    engine.session = engine.session.with_status(Status.COMMITTING, awaiting="quiet")
-    engine.effects.append(
-        Commit("edit", {"answers": {event.target: Answer(chosen)}}, quiet=True)
+    _commit_quietly(
+        engine,
+        "toggle",
+        {"key": event.target, "value": event.value, "turned_on": event.turned_on},
     )
 
 

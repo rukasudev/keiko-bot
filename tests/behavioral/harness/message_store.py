@@ -93,6 +93,23 @@ class FakeMessage:
                           ephemeral=self.ephemeral)
         return self
 
+    async def delete(self, *, delay=None):
+        """What `WebhookMessage.delete` does: now, or after `delay` seconds.
+
+        The clock never moves offline, so a later deletion is recorded on the
+        event that sent the message, as `delete_after` is for an answer.
+        """
+        if delay is None:
+            self.deleted = True
+            self.store.record("delete", message=self.id)
+            return
+        alias = self.store.alias(self.id)
+        sent = next(
+            event for event in reversed(self.store.events)
+            if event.get("message") == alias and event["kind"] in ("send", "followup_send")
+        )
+        sent["delete_after"] = delay
+
     async def _channel_send(self, *args, **kwargs):
         self.store.record(
             "channel_send",

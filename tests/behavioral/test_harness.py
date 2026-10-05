@@ -67,6 +67,20 @@ async def test_followup_send_returns_message_handle():
     assert message.ephemeral
 
 
+async def test_followup_send_refuses_delete_after_like_discord_py():
+    """`Webhook.send` takes no `delete_after`: a message that must vanish after
+    the first answer is deleted with `delete(delay=...)` instead."""
+    interaction = _interaction()
+    await interaction.response.defer()
+    with pytest.raises(TypeError):
+        await interaction.followup.send(content="x", ephemeral=True, delete_after=10)
+
+    message = await interaction.followup.send(content="x", ephemeral=True)
+    await message.delete(delay=10)
+    assert interaction.store.events[-1]["delete_after"] == 10
+    assert not message.deleted, "the clock never moves offline"
+
+
 async def test_editing_deleted_message_raises():
     interaction = _interaction()
     await interaction.response.defer()

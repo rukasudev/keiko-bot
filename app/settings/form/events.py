@@ -116,6 +116,7 @@ class OptionToggled(Event):
 
     target: str = ""
     value: str = ""
+    turned_on: bool = False
 
 
 @dataclass(frozen=True)

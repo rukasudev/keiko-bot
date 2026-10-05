@@ -86,7 +86,9 @@ class FakeFollowup:
             )
 
     async def send(self, content=None, *, embed=None, embeds=None, view=MISSING,
-                   ephemeral=False, delete_after=None, **kwargs) -> FakeMessage:
+                   ephemeral=False, **kwargs) -> FakeMessage:
+        if "delete_after" in kwargs:
+            raise TypeError("Webhook.send() got an unexpected keyword argument 'delete_after'")
         self._require_done("followup.send")
         if view is None:
             raise HarnessProtocolError(
@@ -98,8 +100,7 @@ class FakeFollowup:
         store = self._interaction.store
         message = store.create(all_embeds, view, ephemeral)
         store.record("followup_send", message=message.id, content=content,
-                     embeds=all_embeds, view=view, ephemeral=ephemeral,
-                     delete_after=delete_after)
+                     embeds=all_embeds, view=view, ephemeral=ephemeral)
         return message
 
     async def edit_message(self, message_id: int, *, content=None, embed=MISSING,

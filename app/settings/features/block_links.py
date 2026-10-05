@@ -23,7 +23,6 @@ from app.settings.features.feature import (
 )
 from app.settings.form.components import Button
 from app.settings.form.copy import text
-from app.settings.form.form_state import Answer
 
 
 def _copy(key: str, locale: str) -> str:
@@ -41,9 +40,8 @@ class BlockLinksFeature(GenericCogFeature):
         opened = await super().open(context)
         if opened.document is None:
             return opened
-        document = normalize_block_links_config(dict(opened.document))
         return Opened(
-            document=document,
+            document=self.normalized(opened.document),
             enabled=opened.enabled,
             info=_copy("info", context.locale),
             info_title=_copy("info-title", context.locale),
@@ -70,9 +68,9 @@ class BlockLinksFeature(GenericCogFeature):
             ),
         )
 
-    def from_document(self, document: Mapping[str, Any]) -> dict[str, Answer]:
-        """Legacy labels and missing envelopes are upgraded before seeding."""
-        return super().from_document(normalize_block_links_config(dict(document)))
+    def normalized(self, document: Mapping[str, Any]) -> dict[str, Any]:
+        """Legacy labels and missing envelopes, upgraded as the bot reads them."""
+        return normalize_block_links_config(dict(document))
 
     def asides(self) -> Mapping[str, AsideAction]:
         """The records browser answers on its own; the stats defer first."""
@@ -94,7 +92,9 @@ class BlockLinksFeature(GenericCogFeature):
             ),
         }
 
-    async def on_disable(self, context: CommitContext) -> None:
+    async def after_disable(
+        self, document: Mapping[str, Any], context: CommitContext
+    ) -> None:
         """The blocked-links records go with the feature."""
         await asyncio.to_thread(delete_blocked_links_by_guild, context.guild_id)
 

@@ -267,6 +267,39 @@ async def test_removing_an_item_unsubscribes_it(deps):
     assert deps.twitch.unsubscribe_calls
 
 
+@pytest.mark.parametrize(
+    "website, turned_on, saved",
+    [
+        ("spotify.com", True, ["youtube.com", "twitch.tv", "spotify.com"]),
+        ("youtube.com", False, ["twitch.tv"]),
+        ("youtube.com", True, ["youtube.com", "twitch.tv"]),
+        ("spotify.com", False, ["youtube.com", "twitch.tv"]),
+    ],
+    ids=["turned-on", "turned-off", "already-on", "already-off"],
+)
+async def test_a_website_turns_on_or_off_in_the_choice_as_it_is_saved(
+    deps, website, turned_on, saved
+):
+    document = {
+        "guild_id": GUILD_ID,
+        "enabled": True,
+        "mode": "block_all",
+        "allowed_links": {"style": "bullet", "values": ["youtube.com", "twitch.tv"]},
+    }
+    deps.mongo_client.guild["block_links"].insert_one(dict(document))
+
+    await feature_for("block_links").commit(
+        "toggle",
+        {"key": "allowed_links", "value": website, "turned_on": turned_on},
+        _context(document),
+    )
+
+    stored = deps.mongo_client.guild["block_links"].find_one({"guild_id": GUILD_ID})
+    assert stored["allowed_links"] == {"style": "bullet", "values": saved}
+    event = deps.mongo_client.events["block_links"].find_one({"guild_id": GUILD_ID})
+    assert event["event"] == "edited", "a toggle is audited as the edit it was"
+
+
 async def test_the_streamer_lookup_is_prefetched_for_the_validator(deps):
     deps.twitch.add_user("gaules", user_id="111")
     from app.settings.form.lookups import Lookup

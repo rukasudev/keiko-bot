@@ -183,7 +183,12 @@ class Executor:
         if not self.response.is_done():
             await self.response.send_message(ephemeral=True, **payload)
             return await self.interaction.original_response()
-        return await self.followup.send(ephemeral=True, **payload)
+
+        delete_after = payload.pop("delete_after", None)
+        message = await self.followup.send(ephemeral=True, **payload)
+        if delete_after is not None:
+            await message.delete(delay=delete_after)
+        return message
 
     async def _edit(self, **payload: Any) -> None:
         if self._on_own_message() and not self.response.is_done():
@@ -327,8 +332,8 @@ class Executor:
             if self.surface.confirmation_id is not None:
                 await self.interaction.delete_original_response()
             return
-        if kind == "expired":
-            await self._expire()
+        if kind in ("expired", "closed"):
+            await self._close_with(kind)
             return
         if kind == "preview":
             await self._strip_controls()
@@ -387,14 +392,14 @@ class Executor:
         self.surface.is_layout = False
         self.surface.view, self.surface.embed = None, embed
 
-    async def _expire(self) -> None:
-        await self._edit(**expired_payload(self.surface, self.locale))
+    async def _close_with(self, key: str) -> None:
+        await self._edit(**closed_payload(self.surface, key, self.locale))
         self.surface.view = None
 
 
-def expired_payload(surface: Surface, locale: str) -> dict[str, Any]:
-    """The message as it looks once its session expired: no controls, a notice."""
-    notice = text("commands.form-notices.expired", locale)
+def closed_payload(surface: Surface, key: str, locale: str) -> dict[str, Any]:
+    """The message as it looks once its session closed: no controls, its notice."""
+    notice = text(f"commands.form-notices.{key}", locale)
     if surface.is_layout and surface.view is not None:
         view = views.finalized_layout(surface.view)
         container = cast(Any, view.children[0]) if view.children else None
@@ -416,7 +421,7 @@ async def expire_surface(surface: Surface, locale: str) -> None:
         surface.view = None
         return
     try:
-        payload = expired_payload(surface, locale)
+        payload = closed_payload(surface, "expired", locale)
         await surface.webhook.edit_message(surface.message_id, **payload)
     except discord.HTTPException as error:
         logger.warn(
