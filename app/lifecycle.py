@@ -1,20 +1,66 @@
-"""How the process stops: SIGTERM closes the bot and writes what it still queues."""
+"""How the process runs and stops: the threads blocking calls run on, SIGTERM closing
+the bot, and the queues written however it stops."""
 
 import asyncio
+import concurrent.futures
 import contextlib
 import os
 import signal
+import threading
 import time
+from concurrent.futures import Future, ThreadPoolExecutor
 from types import FrameType
-from typing import Optional
+from typing import Any, Callable, Optional, Set
 
 import discord
 from discord.ext import commands
 
 from app import logger
-from app.constants import DBConfigs, LogTypes
+from app.constants import DBConfigs, Dependencies, LogTypes
 from app.services import analytics, debug_logs
 from app.services.trace import trace_scope
+
+
+class BlockingIO(ThreadPoolExecutor):
+    """The threads every blocking call runs on; stopping them waits for none, and the
+    process gives the calls under way a short while before it ends."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            max_workers=Dependencies.BLOCKING_IO_THREADS, thread_name_prefix="keiko-io"
+        )
+        self._under_way: Set["Future[Any]"] = set()
+        self._tracking = threading.Lock()
+
+    def submit(self, fn: Callable[..., Any], /, *args: Any, **kwargs: Any) -> "Future[Any]":
+        future = super().submit(fn, *args, **kwargs)
+        with self._tracking:
+            self._under_way.add(future)
+        future.add_done_callback(self._settled)
+        return future
+
+    def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
+        super().shutdown(wait=False, cancel_futures=True)
+
+    def wait_under_way(self, timeout: float) -> None:
+        """Wait up to `timeout` seconds for the calls already running to end."""
+        with self._tracking:
+            under_way = list(self._under_way)
+        concurrent.futures.wait(under_way, timeout=timeout)
+
+    def _settled(self, future: "Future[Any]") -> None:
+        with self._tracking:
+            self._under_way.discard(future)
+
+
+_POOL: Optional[BlockingIO] = None
+
+
+def install_blocking_io() -> None:
+    """Make Keiko's pool the running loop's default executor, behind `asyncio.to_thread`."""
+    global _POOL
+    _POOL = BlockingIO()
+    asyncio.get_running_loop().set_default_executor(_POOL)
 
 
 def run(bot: commands.Bot, token: str) -> None:
@@ -45,6 +91,7 @@ def run(bot: commands.Bot, token: str) -> None:
 
     if failure is not None:
         _report(failure, stop_asked)
+    _let_writes_under_way_end()
     write_queues()
 
     signal.signal(signal.SIGTERM, lambda _signal, _frame: os._exit(0))
@@ -74,6 +121,13 @@ def write_queues() -> None:
     analytics.flush()
     debug_logs.stop_writer()
     debug_logs.flush()
+
+
+def _let_writes_under_way_end() -> None:
+    """A flush still writing its batch in a thread when the loop closed is given
+    `Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS` to finish, so the exit never cuts it."""
+    if _POOL is not None:
+        _POOL.wait_under_way(Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS)
 
 
 def _announce_ready(bot: commands.Bot) -> None:

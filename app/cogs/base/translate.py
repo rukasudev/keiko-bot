@@ -1,3 +1,5 @@
+import asyncio
+
 import discord
 from discord import app_commands
 
@@ -25,14 +27,18 @@ class Translate(Cog):
             embed = response_error_embed("translate-message.translation-only-link", interaction.locale)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
-        response = GoogleTranslate.translate(message.content, interaction.locale)
+        await interaction.response.defer(ephemeral=True, thinking=True)
+
+        response = await asyncio.to_thread(
+            GoogleTranslate.translate, message.content, interaction.locale
+        )
         if not response:
             embed = response_error_embed("translate-message.translation-generic-error", interaction.locale)
-            return await interaction.response.send_message(embed=embed, ephemeral=True)
+            return await interaction.followup.send(embed=embed, ephemeral=True)
 
         embed = translate_embed("commands.commands.translate-message.response", interaction, response, message.jump_url)
 
-        await interaction.response.send_message(embed=embed, ephemeral=True)
+        await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 async def setup(bot: DiscordBot) -> None:

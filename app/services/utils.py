@@ -436,13 +436,16 @@ def split_welcome_messages(welcome_messages: str) -> List[str]:
     return welcome_messages.split(";")
 
 def render_welcome_message(welcome_message: str, member: discord.Member) -> str:
-    welcome_message = welcome_message.replace("{server}", member.guild.name)
-    welcome_message = welcome_message.replace("{member_count}", str(member.guild.member_count))
-
-    if "{user}" not in welcome_message.lower():
-        return welcome_message + f"\n<@!{member._user.id}>"
-
-    return welcome_message.replace("{user}", f"<@!{member._user.id}>")
+    """A welcome template filled for a member, the mention added when `{user}` is missing."""
+    return fill_placeholders(
+        welcome_message,
+        {
+            "server": member.guild.name,
+            "member_count": str(member.guild.member_count),
+            "user": f"<@!{member._user.id}>",
+        },
+        required="user",
+    )
 
 def parse_welcome_messages(welcome_messages: str, member: discord.Member) -> str:
     splited_messages = split_welcome_messages(welcome_messages)

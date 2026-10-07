@@ -23,6 +23,7 @@ from app.settings import open_feature
 from app.services import reminders as reminders_service
 from app.services.cogs import is_feature_on
 from app.services.utils import (
+    fill_placeholders,
     ml,
     parse_locale,
     values_of,
@@ -36,6 +37,14 @@ async def manager(interaction: discord.Interaction, guild_id: str) -> None:
 
 def _mb(key: str, locale: str) -> str:
     return ml(f"commands.commands.commons.reminders-birthdays-manager.{key}", locale=locale)
+
+
+def accepts_birthdays(guild_id: str) -> bool:
+    """Whether a guild takes birthdays: its feature is on and it is configured."""
+    return bool(
+        birthdays_data.is_birthday_enabled(guild_id)
+        and birthdays_data.find_birthday_config(guild_id)
+    )
 
 
 def get_self_edit_count(item: Optional[Dict[str, Any]]) -> int:
@@ -392,11 +401,11 @@ def render_birthday_message(
 ) -> str:
     if not text:
         return text
-    return (
-        text.replace("{user}", member_mention)
-        .replace("{server}", guild_name)
-        .replace("{date}", format_mm_dd_label(mm_dd, locale))
-    )
+    return fill_placeholders(text, {
+        "user": member_mention,
+        "server": guild_name,
+        "date": format_mm_dd_label(mm_dd, locale),
+    })
 
 
 def birthday_default_text(key: str, locale: str) -> str:
@@ -481,7 +490,7 @@ async def send_birthday_preview(
 
 async def send_stats_message(interaction: discord.Interaction) -> None:
     locale = parse_locale(interaction.locale)
-    stats = get_birthday_stats(str(interaction.guild_id))
+    stats = await asyncio.to_thread(get_birthday_stats, str(interaction.guild_id))
     lines = [
         f"🎂 **{_mb('stats.fields.total', locale)}:** {stats['total']}",
         f"📅 **{_mb('stats.fields.this-month', locale)}:** {stats['current_month']}",

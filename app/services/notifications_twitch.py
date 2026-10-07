@@ -2,10 +2,11 @@ import asyncio
 import datetime
 import random
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import discord
 from dateutil import parser
+from redis.exceptions import RedisError
 
 from app import bot, logger
 from app.constants import Commands as constants
@@ -21,8 +22,10 @@ from app.data.notifications_twitch import (
 )
 from app.settings import open_feature
 from app.services import analytics
+from app.services.cache import claim_redis_key
+from app.services.work import Outcome, destination, fan_out, guild_locale
 from app.views.message_preview import MessagePreviewView
-from app.services.utils import fill_placeholders, format_datetime_output, ml, values_of
+from app.services.utils import fill, fill_placeholders, format_datetime_output, ml, values_of
 
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:
@@ -49,11 +52,18 @@ async def handle_send_streamer_notification(streamer_name: str) -> None:
             return
 
         stream_started_at = stream_info.get("started_at")
-        last_stream_date = find_last_stream_date(streamer_name)
+        last_stream_date = await asyncio.to_thread(find_last_stream_date, streamer_name)
 
         if not last_stream_date or is_more_than_one_hour(stream_started_at, last_stream_date):
-            await send_streamer_notifications(stream_info, user_info)
-            update_last_stream_date(streamer_name, stream_started_at)
+            guilds_data = await asyncio.to_thread(following_guilds, streamer_name)
+            if not await asyncio.to_thread(claim_the_live, streamer_name, stream_started_at):
+                logger.info(
+                    f"The live of **{streamer_name}** started at {stream_started_at} was already announced",
+                    log_type=logconstants.COMMAND_INFO_TYPE,
+                )
+                return
+            await send_streamer_notifications(stream_info, user_info, guilds_data)
+            await asyncio.to_thread(update_last_stream_date, streamer_name, stream_started_at)
         else:
             await edit_streamer_notifications(user_info, status=constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE)
     except Exception as e:
@@ -65,17 +75,41 @@ async def handle_send_streamer_notification(streamer_name: str) -> None:
         )
         raise
 
-async def send_streamer_notifications(stream_info: Dict[str, Any], user_info: Dict[str, Any]) -> None:
+def claim_the_live(streamer_name: str, started_at: Any) -> bool:
+    """Whether this delivery of a live is the one that announces it; True when Redis cannot say."""
+    claim = constants.REDIS_TWITCH_NOTIFIED_STREAM.format(
+        streamer=streamer_name, started_at=started_at
+    )
+    try:
+        return claim_redis_key(claim, constants.TWITCH_NOTIFIED_STREAM_TTL_SECONDS)
+    except RedisError as error:
+        logger.warn(
+            f"The live of **{streamer_name}** is announced without its claim — Redis: "
+            f"{type(error).__name__}",
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+        return True
+
+async def send_streamer_notifications(
+    stream_info: Dict[str, Any], user_info: Dict[str, Any], guilds_data: List[Dict[str, Any]]
+) -> None:
     streamer_name = user_info.get("login")
-    guilds_data = find_guilds_by_streamer_name(streamer_name)
     logger.info(f"Sending notifications for **{streamer_name}**", log_type=logconstants.COMMAND_INFO_TYPE)
 
-    count = await process_notifications(guilds_data, streamer_name, stream_info, user_info)
+    served = await fan_out(
+        "twitch_notification",
+        (
+            (guild_data.get("guild_id"), announce_live(guild_data, notification, stream_info, user_info))
+            for guild_data, notification in notices_of(guilds_data, streamer_name)
+        ),
+        streamer_name=streamer_name,
+    )
+    count = sum(1 for share in served if share.outcome is Outcome.DELIVERED)
     logger.info(f"Notifications sent for **{streamer_name}** in {count} guilds", log_type=logconstants.COMMAND_INFO_TYPE)
 
 async def edit_streamer_notifications(user_info: Dict[str, Any], status: str) -> None:
     streamer_name = user_info.get("login")
-    guilds_data = find_guilds_by_streamer_name(streamer_name)
+    guilds_data = await asyncio.to_thread(following_guilds, streamer_name)
     logger.info(f"Editing notifications to {status} for **{streamer_name}**", log_type=logconstants.COMMAND_INFO_TYPE)
 
     count = await update_notification_status(guilds_data, streamer_name, status)
@@ -91,8 +125,8 @@ async def handle_send_streamer_offline_notification(streamer_name: str) -> None:
     )
 
     try:
-        guilds_data = find_guilds_by_streamer_name(streamer_name)
-        last_stream_date = find_last_stream_date(streamer_name)
+        guilds_data = await asyncio.to_thread(following_guilds, streamer_name)
+        last_stream_date = await asyncio.to_thread(find_last_stream_date, streamer_name)
         stream_duration = None
 
         if last_stream_date:
@@ -111,65 +145,113 @@ async def handle_send_streamer_offline_notification(streamer_name: str) -> None:
         )
         raise
 
-async def process_notifications(guilds_data, streamer_name, stream_info, user_info):
-    count = 0
-    for guild_data in guilds_data:
-        guild = bot.get_guild(int(guild_data["guild_id"]))
+async def announce_live(
+    guild_data: Dict[str, Any],
+    notification: Dict[str, Any],
+    stream_info: Dict[str, Any],
+    user_info: Dict[str, Any],
+) -> None:
+    """Post a live in the channel one server chose for it, in that server's language."""
+    streamer_name = user_info.get("login")
+    guild, channel = destination(
+        guild_data.get("guild_id"), (notification.get("channel") or {}).get("value")
+    )
+    embed = create_stream_notification_embed(
+        streamer_name, stream_info, user_info, guild_locale(guild)
+    )
 
-        for notification in guild_data["notifications"]["values"]:
-            if notification["streamer"]["value"].lower() != streamer_name:
-                continue
+    try:
+        message = await channel.send(
+            content=compose_notification_message(notification, streamer_name),
+            embed=embed,
+            allowed_mentions=discord.AllowedMentions.all(),
+        )
+    except discord.Forbidden as error:
+        analytics.record_permission_failure(guild.id, constants.NOTIFICATIONS_TWITCH_KEY, error)
+        raise
 
-            channel = guild.get_channel(int(notification["channel"]["value"]))
-            message = await channel.send(
-                content=compose_notification_message(notification, streamer_name),
-                embed=create_stream_notification_embed(streamer_name, stream_info, user_info)
-            )
-            save_stream_notification(guild.id, channel.id, streamer_name, message.id)
-            analytics.record_value(guild.id, constants.NOTIFICATIONS_TWITCH_KEY)
-            count += 1
-    return count
+    await asyncio.to_thread(
+        save_stream_notification, guild.id, channel.id, streamer_name, message.id
+    )
+    analytics.record_value(guild.id, constants.NOTIFICATIONS_TWITCH_KEY)
 
-async def update_notification_status(guilds_data: List[Dict[str, Any]], streamer_name: str, status: str, duration: str = None) -> int:
-    count = 0
-    for guild_data in guilds_data:
-        guild = bot.get_guild(int(guild_data["guild_id"]))
 
-        for notification in guild_data["notifications"]["values"]:
-            if notification["streamer"]["value"].lower() != streamer_name:
-                continue
+async def update_notification_status(
+    guilds_data: List[Dict[str, Any]], streamer_name: str, status: str, duration: str = None
+) -> int:
+    """Write the stream's status on every notice it has, each server on its own."""
+    served = await fan_out(
+        "twitch_notification",
+        (
+            (guild_data.get("guild_id"), show_status(guild_data, notification, streamer_name, status, duration))
+            for guild_data, notification in notices_of(guilds_data, streamer_name)
+        ),
+        streamer_name=streamer_name,
+    )
+    return sum(1 for share in served if share.value)
 
-            channel = guild.get_channel(int(notification["channel"]["value"]))
-            message = await fetch_notification_message(guild.id, channel.id, streamer_name)
-            status = parse_stream_status(status)
-            status = f"{status} | ⌛️ Duration: {duration}" if duration else status
 
-            if message:
-                message.embeds[0].set_footer(text=status)
-                await message.edit(embed=message.embeds[0])
-                count += 1
-    return count
+async def show_status(
+    guild_data: Dict[str, Any],
+    notification: Dict[str, Any],
+    streamer_name: str,
+    status: str,
+    duration: Optional[str],
+) -> bool:
+    """Write the status on the notice one server got; False when that notice is gone."""
+    guild, channel = destination(
+        guild_data.get("guild_id"), (notification.get("channel") or {}).get("value")
+    )
+    message = await fetch_notification_message(guild, channel, streamer_name)
+    if not message:
+        return False
 
-def parse_stream_status(status: str) -> str:
-    return f"🟢 {status.capitalize()}" if status == constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE else f"🔴 {status.capitalize()}"
+    message.embeds[0].set_footer(text=stream_status(status, guild_locale(guild), duration))
+    await message.edit(embed=message.embeds[0])
+    return True
 
-async def fetch_notification_message(guild_id: str, channel_id: str, streamer_name: str) -> discord.Message:
-    stream_notification = find_stream_notification(guild_id, channel_id, streamer_name)
+
+def notices_of(
+    guilds_data: List[Dict[str, Any]], streamer_name: str
+) -> List[Tuple[Dict[str, Any], Dict[str, Any]]]:
+    """Every notice a server set for the streamer, with the server's document."""
+    return [
+        (guild_data, notification)
+        for guild_data in guilds_data
+        for notification in (guild_data.get("notifications") or {}).get("values") or []
+        if str((notification.get("streamer") or {}).get("value") or "").lower() == streamer_name
+    ]
+
+
+def stream_status(status: str, locale: str, duration: Optional[str] = None) -> str:
+    """The footer of a live notice: whether the stream is on and, once over, how long it ran."""
+    namespace = "commands.commands.commons.notifications-status.twitch"
+    parts = [ml(f"{namespace}.{status}", locale)]
+
+    if duration:
+        parts.append(fill(ml(f"{namespace}.duration", locale), duration=duration))
+    return "• " + " | ".join(parts)
+
+
+async def fetch_notification_message(
+    guild: Any, channel: Any, streamer_name: str
+) -> Optional[discord.Message]:
+    stream_notification = await asyncio.to_thread(
+        find_stream_notification, guild.id, channel.id, streamer_name
+    )
     if not stream_notification:
-        return None
-
-    # A guild Keiko was removed from, or a channel that was deleted, both read
-    # back as None here. Chaining through them raised AttributeError inside a
-    # listener, which is how it reached the error channel 213 times.
-    guild = bot.get_guild(guild_id)
-    channel = guild.get_channel(channel_id) if guild else None
-    if not channel:
         return None
 
     try:
         return await channel.fetch_message(stream_notification["message_id"])
     except (discord.NotFound, discord.Forbidden):
         return None
+
+
+def following_guilds(streamer_name: str) -> List[Dict[str, Any]]:
+    """Every guild document that follows the streamer, read to the end."""
+    return list(find_guilds_by_streamer_name(streamer_name))
+
 
 def is_more_than_one_hour(start_time: str, last_time: str) -> bool:
     return (parser.parse(start_time) - parser.parse(last_time)).total_seconds() > 3600
@@ -192,7 +274,9 @@ def wait_for_stream_info(streamer: str) -> Dict[str, Any]:
         if attempts < 3:
             time.sleep(15)
 
-def create_stream_notification_embed(streamer: str, stream_info: Dict[str, Any], user_info: Dict[str, Any]) -> discord.Embed:
+def create_stream_notification_embed(
+    streamer: str, stream_info: Dict[str, Any], user_info: Dict[str, Any], locale: str = "en-us"
+) -> discord.Embed:
     stream_link = f"https://www.twitch.tv/{streamer}"
     stream_title = stream_info.get("title")
     stream_game = stream_info.get("game_name")
@@ -213,9 +297,10 @@ def create_stream_notification_embed(streamer: str, stream_info: Dict[str, Any],
         cache_key = f"?{stream_info['id']}" if stream_info.get("id") else ""
         live_thumbnail = f"{stream_thumbnail}{cache_key}"
         embed.set_image(url=live_thumbnail.format(width=1280, height=720))
-    embed.add_field(name="Game", value=stream_game, inline=True)
-    embed.add_field(name="Streamer", value=streamer, inline=True)
-    embed.set_footer(text=parse_stream_status(constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE))
+    fields = "commands.commands.commons.notifications-fields.twitch"
+    embed.add_field(name=ml(f"{fields}.game", locale), value=stream_game, inline=True)
+    embed.add_field(name=ml(f"{fields}.streamer", locale), value=streamer, inline=True)
+    embed.set_footer(text=stream_status(constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE, locale))
 
     return embed
 
@@ -340,7 +425,7 @@ async def build_preview_embed(streamer: str, locale: str) -> Optional[discord.Em
             "game_name": ml(f"{namespace}.game", locale=locale),
             "thumbnail_url": await last_stream_thumbnail(user_info),
         }
-    return create_stream_notification_embed(streamer, stream_info, user_info)
+    return create_stream_notification_embed(streamer, stream_info, user_info, locale)
 
 async def last_stream_thumbnail(user_info: Dict[str, Any]) -> str:
     """The last stream's picture, so a preview shows the space one fills."""

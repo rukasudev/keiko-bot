@@ -1,8 +1,10 @@
+import asyncio
 import random
 from typing import List
 
 import discord
 from discord import app_commands
+from requests import RequestException
 
 from app import logger
 from app.bot import DiscordBot
@@ -55,7 +57,9 @@ class Report(Cog, name="report"):
             command=command,
         )
 
-        notion_response = self._create_notion_report(interaction, title, description, command, attachment)
+        notion_response = await asyncio.to_thread(
+            self._create_notion_report, interaction, title, description, command, attachment
+        )
         ticket_id = self._get_ticket_unique_id(notion_response)
 
         embed = self._create_report_embed(interaction, title, description, command, attachment, ticket_id)
@@ -87,16 +91,24 @@ class Report(Cog, name="report"):
         return embed
 
     def _create_notion_report(self, interaction, title, description, command, attachment):
-        return self.bot.notion.create_report(
-            title=title,
-            description=description,
-            command=command,
-            author=str(interaction.user.id),
-            attachment_url=attachment.url if attachment else None,
-        )
+        try:
+            return self.bot.notion.create_report(
+                title=title,
+                description=description,
+                command=command,
+                author=str(interaction.user.id),
+                attachment_url=attachment.url if attachment else None,
+            )
+        except RequestException as error:
+            logger.error(
+                f"Error creating report in Notion: {type(error).__name__}",
+                interaction=interaction,
+                log_type=logconstants.COMMAND_ERROR_TYPE,
+            )
+            return None
 
     def _handle_notion_response(self, notion_response, embed, interaction):
-        if not notion_response:
+        if notion_response is None:
             return
 
         if notion_response.status_code == 200:
@@ -105,7 +117,7 @@ class Report(Cog, name="report"):
             )
         else:
             logger.error(
-                f"Error creating report in Notion (status_code: {notion_response.status_code}): {notion_response.json()}",
+                f"Error creating report in Notion (status_code: {notion_response.status_code}): {notion_response.text[:200]}",
                 interaction=interaction,
                 log_type=logconstants.COMMAND_ERROR_TYPE,
             )

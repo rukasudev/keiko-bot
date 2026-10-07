@@ -12,6 +12,7 @@ from requests import RequestException
 from app import logger
 from app.constants import Commands
 from app.constants import LogTypes as logconstants
+from app.integrations import http_client
 
 VIDEO_FEED_TOPIC = "https://www.youtube.com/xml/feeds/videos.xml?channel_id={channel_id}"
 DATA_API_URL = "https://www.googleapis.com/youtube/v3/{resource}"
@@ -109,9 +110,11 @@ class YoutubeClient:
 
     def _read_data_api(self, resource: str, params: Dict[str, str]) -> Dict[str, Any]:
         try:
-            response = requests.get(
+            response = http_client.get(
+                "youtube",
                 DATA_API_URL.format(resource=resource),
-                params={**params, "key": self.youtube_api_key},
+                params=params,
+                headers={"X-Goog-Api-Key": self.youtube_api_key},
                 timeout=Commands.YOUTUBE_TIMEOUT_SECONDS,
             )
             answer = response.json()
@@ -164,7 +167,9 @@ class YoutubeClient:
         return f"{self.webhook_url}?{urlencode({CALLBACK_TOKEN_PARAMETER: token})}"
 
     def _post_to_hub(self, body: Dict[str, str]) -> requests.Response:
-        return requests.post(HUB_URL, data=body, timeout=Commands.YOUTUBE_TIMEOUT_SECONDS)
+        return http_client.post(
+            "youtube", HUB_URL, data=body, timeout=Commands.YOUTUBE_TIMEOUT_SECONDS
+        )
 
     def subscribe_to_new_video_event(self, channel_id: str) -> Optional[requests.Response]:
         secret = self.bot.config.YOUTUBE_HUB_SECRET

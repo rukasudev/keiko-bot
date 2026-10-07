@@ -48,8 +48,7 @@ from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from app import logger as logger_module
 from app.constants import DBConfigs
-from app.decorators import with_error_context
-from app.services import cache
+from app.services import cache, work
 from app.services import trace as trace_service
 from app.settings.features import feature_for
 from app.settings.features.feature import CommitContext
@@ -227,9 +226,9 @@ async def test_an_outage_inside_a_listener_posts_one_warning_per_window(
     redis_is_down(monkeypatch, deps)
     clock = frozen_clock(monkeypatch)
 
-    @with_error_context("on_message")
     async def on_message():
-        await asyncio.to_thread(read)
+        async with work.listener("on_message", GUILD_ID) as checked:
+            await checked.run("block_links", asyncio.to_thread(read))
 
     for _message in range(5):
         await on_message()

@@ -87,9 +87,12 @@ def process_birthday_reminder(reminder_id: str, notes: str) -> None:
 
 def renew_youtube_subscription(reminder_id: str) -> None:
     from app import bot
-    from app.data.notifications_youtube_video import count_servers_following
-    from app.data.reminder import delete_reminder_by_id, find_reminder_by_id, stamp_hub_confirmation
-    from app.services.notifications_youtube_video import HubOutcome, ask_the_hub
+    from app.data.reminder import find_reminder_by_id, stamp_hub_confirmation
+    from app.services.notifications_youtube_video import (
+        HubOutcome,
+        ask_the_hub,
+        drop_unfollowed_renewal,
+    )
 
     renewal = find_reminder_by_id(reminder_id)
 
@@ -102,9 +105,7 @@ def renew_youtube_subscription(reminder_id: str) -> None:
 
     youtuber = renewal.get('value')
 
-    if not count_servers_following(youtuber):
-        bot.reminder.delete_reminder(renewal.get('reminder_id'))
-        delete_reminder_by_id(renewal.get('reminder_id'))
+    if drop_unfollowed_renewal(renewal):
         logger.info(
             f'renewal of **{youtuber}** dropped — no server follows them any more',
             log_type=logconstants.COMMAND_INFO_TYPE,

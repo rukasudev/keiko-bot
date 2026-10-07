@@ -30,6 +30,10 @@ class DBConfigs:
     ADMIN_DUMP_CHANNEL_ID: Final[str] = "admin_dump_channel_id"
 
     REDIS_SOCKET_TIMEOUT_SECONDS: Final[float] = 5.0
+    MONGO_SERVER_SELECTION_TIMEOUT_SECONDS: Final[float] = 5.0
+    MONGO_CONNECT_TIMEOUT_SECONDS: Final[float] = 5.0
+    MONGO_SOCKET_TIMEOUT_SECONDS: Final[float] = 20.0
+    MONGO_BOOT_WAIT_SECONDS: Final[float] = 30.0
     FATAL_START_BACKOFF_SECONDS: Final[int] = 300
     FATAL_START_PHRASE: Final[str] = "Discord refused to start the bot"
     FATAL_START_CLOSE_CODES: Final[FrozenSet[int]] = frozenset({4004, 4010, 4011, 4012, 4013})
@@ -57,6 +61,23 @@ class DBConfigs:
         ADMIN_LOGS_BOT_ACTIONS_CHANNEL_ID,
         ADMIN_DUMP_CHANNEL_ID
     ]
+
+
+class Dependencies:
+    """What Keiko waits on without running it: its names, how long it waits, who waits."""
+
+    NAMES: Final[Tuple[str, ...]] = (
+        "mongo", "redis", "discord", "twitch", "youtube", "reminders", "notion",
+        "translate", "stream_elements",
+    )
+    LATENCY_BUCKETS: Final[Tuple[float, ...]] = (
+        0.001, 0.005, 0.025, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 20.0,
+    )
+    LANGUAGE_DETECTION_TIMEOUT_SECONDS: Final[float] = 5.0
+    HTTP_CONNECT_TIMEOUT_SECONDS: Final[float] = 5.0
+    HTTP_READ_TIMEOUT_SECONDS: Final[float] = 15.0
+    BLOCKING_IO_THREADS: Final[int] = 32
+    BLOCKING_IO_STOP_WAIT_SECONDS: Final[float] = 5.0
 
 
 class Commands:
@@ -158,6 +179,8 @@ class Commands:
 
     NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE: Final[str] = "online"
     NOTIFICATIONS_TWITCH_STREAM_STATUS_OFFLINE: Final[str] = "offline"
+    TWITCH_NOTIFIED_STREAM_TTL_SECONDS: Final[int] = 60 * 60 * 24
+    REDIS_TWITCH_NOTIFIED_STREAM: Final[str] = "twitch:stream:{streamer}:{started_at}:notified"
 
     NOTIFICATIONS_YOUTUBE_VIDEO_KEY: Final[str] = "notifications_youtube_video"
 

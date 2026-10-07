@@ -228,6 +228,7 @@ process is scraped. Keiko's own:
 | `keiko_build_info` | `version` | the heartbeat cog when it loads, `metrics.record_build_info` |
 | `keiko_interactions_total` | `outcome` (`in_time`, `deferred`, `failed`), `code` (Discord's error code, such as `10062` or `40060`, or empty) | the form adapter (`open_feature`, `handle`, a click on a lost session), `run_feature_command` (a feature a button opens) and `Errors.on_app_command_error` |
 | `keiko_webhook_refusals_total` | `route` (the URL rule, never the path a request typed), `status` (the 4xx it was answered with) | the refusal hook of `app/webhooks/__init__.py` |
+| `keiko_dependency_latency_seconds` (a histogram, buckets `Dependencies.LATENCY_BUCKETS`) | `dependency` (one of `Dependencies.NAMES`: `mongo`, `redis`, `discord`, `twitch`, `youtube`, `reminders`, `notion`, `translate`, `stream_elements`) | every call, answered or not: the shared HTTP client (`app/integrations/http_client.py`) for the HTTP services, `MongoLatency` (a pymongo command listener on both Mongo clients) and `TimedRedis` with its `TimedPipeline`, one call per round trip (`app/__init__.py`), `discord_latency` (the aiohttp trace discord.py sends its requests through, `app/bot.py`), and `metrics.timed("translate")` around the language detection, which brings its own HTTP client |
 | `keiko_form_*` | see `observability.py` | the form adapter |
 
 `PrometheusCog` adds the library's own, among them `discord_connected{shard}` (1
@@ -237,11 +238,25 @@ context menus, buttons, selects, modals and autocomplete.
 
 **No label is ever a guild or a user id.** A label takes one series per value, so
 an id is both a privacy leak and an unbounded number of series; every label above
-is a closed list (`tests/test_metrics.py`). `app/services/metrics.py` is the
+is a closed list (`tests/test_metrics.py`, `tests/test_outside_calls.py`).
+`app/services/metrics.py` is the
 generic home for what every layer records, so a cog never imports the form
-adapter to record a number. The latency of each outside dependency (Mongo,
-Redis, Discord, Twitch, YouTube, reminders, Notion, translate) arrives with the
-shared HTTP client, together with its first caller.
+adapter to record a number. A dependency outside `Dependencies.NAMES` is refused
+before the call is sent, so a typo cannot open a new series.
+
+Every call an integration makes waits at most `Dependencies.HTTP_CONNECT_TIMEOUT_SECONDS`
+to connect and `Dependencies.HTTP_READ_TIMEOUT_SECONDS` between two reads, unless the
+call names its own (YouTube's and StreamElements' shorter ones); the language detection
+brings its own client and keeps its 5 s (`Dependencies.LANGUAGE_DETECTION_TIMEOUT_SECONDS`).
+Two `requests` calls stay outside the shared client on purpose, with their own bounds:
+the heartbeat's ping and the welcome's picture downloads (`OWN_REQUESTS` in
+`tests/test_outside_calls.py` names them and why). The Mongo clients give up after
+`DBConfigs.MONGO_SERVER_SELECTION_TIMEOUT_SECONDS` without a server, and a read after
+`DBConfigs.MONGO_SOCKET_TIMEOUT_SECONDS`; only the boot's first ping asks again, for up
+to `DBConfigs.MONGO_BOOT_WAIT_SECONDS`, so a deploy that starts during a primary
+election waits for it as it did before. A secret never travels in a URL: Twitch's
+client secret goes in the body of the token request and the YouTube key in the
+`X-Goog-Api-Key` header (`tests/behavioral/regressions/test_secrets_never_travel_in_a_url.py`).
 
 Each interaction is counted once: a form command when it opens (a command that
 raises is counted by the error handler instead), a feature a `/setup` or greeting
@@ -262,6 +277,7 @@ threshold to tune against real traffic:
 | Gateway down | `max(discord_connected) == 0` | 5m | the process is up but not connected to Discord |
 | Webhook sender refused | `sum by (route) (increase(keiko_webhook_refusals_total{status=~"40[13]"}[1h])) > 0` | 0m | a request was refused for its signature or its credentials in the last hour: one forged request, or a secret that no longer matches, which stops every real notice of that route without a word |
 | Webhook refusal flood | `sum by (route, status) (increase(keiko_webhook_refusals_total[15m])) > 20` | 0m | a route refusing in bulk: someone is flooding it |
+| Dependency slow | `histogram_quantile(0.95, sum by (le, dependency) (rate(keiko_dependency_latency_seconds_bucket[10m]))) > 5 and sum by (dependency) (rate(keiko_dependency_latency_seconds_count[10m])) > 0.02` | 10m | one call in twenty to one dependency took more than five seconds for ten minutes: it is on its way to its timeout, and every feature behind it with it; the `dependency` label names which, and the second half keeps a dependency called a few times an hour from paging on one slow call |
 
 `discord_event_on_interaction_total` without autocomplete is the denominator:
 it counts every interaction Discord delivered, whatever handled it, and an
@@ -426,6 +442,35 @@ traceback ending in a `find_one` reached from `on_message`, and a `10062 Unknown
 interaction` on a guild whose youtuber had just been saved by two blocking
 `requests.post` calls.
 
+The rest of `app/` is held to the same line call by call:
+`tests/test_event_loop_boundary.py` reads every coroutine and fails on a direct
+call to a blocking function — `requests`, the Mongo and Redis clients,
+`time.sleep`, the language detection, and every synchronous function of `app/`
+that reaches one of them, through its imports, `self`, a nested def, a client the
+bot holds, or a name that holds one (a local, a module alias, a `functools.partial`,
+a function that only returns a collection). It cannot see `open`, `subprocess`, an
+inherited method or a blocking function handed to a synchronous helper; its docstring
+keeps that list. The calls that have to stay for now are listed in its `ALLOWED`,
+each with its reason (today: the operator commands of the admin guild, the block
+links counters and stats the counters PR moves off the loop, the no-loop fallback of
+the journey's history read when a form opens, and the operator inspection views); an
+entry that no longer matches anything fails too, so the list only shrinks.
+
+The calls a thread takes run on Keiko's own pool, not asyncio's: `DiscordBot.setup_hook`
+installs `lifecycle.BlockingIO` as the loop's default executor before any cog loads,
+`Dependencies.BLOCKING_IO_THREADS` threads named `keiko-io` (asyncio's own has five on
+the 1 vCPU the bot runs on, and the Twitch waits sleep in them). Closing the loop drops
+the calls still queued and waits for none under way: `asyncio.run` would otherwise join
+the pool for up to five minutes, and a stop has thirty seconds before Docker kills the
+process and the queues `lifecycle.run` writes after the loop are lost
+(`tests/behavioral/contracts/test_blocking_io.py`). `lifecycle.run` then gives the
+calls still running up to `Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS` to end before it
+writes the queues and exits, so a flush writing its batch is never cut in the middle
+(`tests/behavioral/contracts/test_graceful_stop.py`). What a thread is handed never walks
+Discord's cache, which the loop changes as servers and channels come and go: `/admin
+overview` counts servers, members and channels on the loop and hands over only its Mongo,
+Redis and Twitch reads.
+
 ## Why not `analytics.emit`
 
 Because the catalog drops undeclared events and `sanitize_props` strips free
@@ -481,9 +526,10 @@ Traces are opened at the boundaries:
 | Command errors | `Errors.on_app_command_error` (`app/cogs/errors.py`) | quiet: the error keeps its own message in the error channel, and the warnings of a refused answer or a slow record stay in `guild.logs`; the handler adds that one message to the trace the failed command posts itself |
 | Form events | `Runtime._apply`, `Runtime.expire_stale` (`app/settings/discord/callbacks.py`) | quiet: never a message of their own, even on failure; the journey tells the story |
 | Webhooks | `webhook_trace`, opened and closed around each request in `app/webhooks/__init__.py` | silent unless the request failed, continued by its first job; `/healthcheck` opens none; a request refused with a 4xx never posts its trace, nor does a 503 without an error (the sender is asked to deliver again later) |
-| Deferred work | `schedule_webhook_job` → `Trace.handover` + `trace.run_traced` | the first job continues the request's message; a second job in the same request gets its own, under the same rule |
+| Deferred work | `schedule_webhook_job` → `Trace.handover` + `trace.run_traced` | the first job continues the request's message, which takes every line the request logs after the hand-over and is posted once both are done; a second job in the same request gets its own, under the same rule |
 | Confirmations | `ConfirmActionView(trace_name=)` (`app/views/confirm_action.py`) | one message for what the confirmation did |
-| Listeners | `with_error_context` (`app/decorators.py`) | silent unless it fails or reports an event |
+| Listeners | `work.listener` (`app/services/work.py`) for every listener of `app/cogs/events.py` | silent unless it fails or reports an event; each part runs on its own (a feature of `on_message` or `on_member_join`; the report, the snapshot and the pause of a server leaving; the record and the greeting of a server joining), so one that fails is an error with the listener's context, nothing is raised to discord.py, and the next one still runs |
+| Fan-outs | `work.fan_out` (`app/services/work.py`), behind the Twitch and YouTube notices and the birthday job | inside the trace of the job that runs it; each server is served on its own: one Keiko cannot reach (`DestinationNotFound`, a 403) is a warning, any other failure an error with the server's context, and neither stops the next; `work.destination` finds the server and its channel, `work.guild_locale` its language |
 | Heartbeat | `Heartbeat.beat` (`app/cogs/heartbeat.py`) | silent unless it fails; a failed ping is a warning, so it stays in `guild.logs` and the monitor is what alerts |
 
 `silent_when_clean` is what keeps `on_message` from flooding the channel: a
@@ -547,8 +593,9 @@ The flood protection is untouched: `on_message`, `on_member_join` and
 the two guild events ever went missing. A warning inside a listener is still
 swallowed with its clean trace, except one: a Redis or Mongo outage met by the
 settings cache (`app/services/cache.py`) is news about the process, not about
-the message that ran into it, so the cache logs it outside any trace. It is a
-message of its own on the log channel, once per store per
+the message that ran into it, so the cache logs it outside any trace
+(`with trace.outside_any_trace():`). It is a message of its own on the log
+channel, once per store per
 `DBConfigs.COG_CACHE_WARN_SECONDS`, and its `guild.logs` record carries no trace
 id.
 
@@ -577,6 +624,14 @@ fan-out and spans the whole event. A second job in the same request (several
 birthdays in one `/reminder` call) gets a `job` trace of its own, published under
 the request's rule (`Trace.publishing`), and a job that cannot be scheduled leaves
 the request's message intact.
+
+The request keeps running after the hand-over, on the Flask thread: the next
+reminder of the same callback, the line its status hook writes. Those lines used
+to land on the superseded request, which is never posted. Now a trace that handed
+over forwards every later line to its successor, and the successor has two owners,
+the request and the job: whichever ends last finishes and publishes it
+(`trace.close`), so a job that ends before Flask returns still carries the
+request's last lines, and the duration spans both.
 
 `trace_scope` is not what deferred work wants: it joins the surrounding trace so
 a fan-out does not fragment its timeline, which is right inside one unit of work
@@ -836,7 +891,10 @@ deletes data: `/admin guild <id>` and `/admin forget <id>`.
 
 A repeated attempt adds a footnote to the log message of the run itself
 (`analytics.count_attempt` + `Trace.footnote`), so "why did they run it again"
-is answered in place instead of by correlating two messages by hand.
+is answered in place instead of by correlating two messages by hand. The count
+runs in a thread while the command runs (`analytics.counting_attempt`), and the
+footnote is written however the command ends, so the run that raised, the one
+whose message is read for it, keeps it.
 
 ### Two reading rules the surfaces enforce for you
 

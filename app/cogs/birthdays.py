@@ -1,3 +1,5 @@
+import asyncio
+
 import discord
 from discord import app_commands
 from discord.ext import tasks
@@ -38,8 +40,9 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
         pass that closes that, including for the records already saved that way.
         """
         try:
-            repaired = birthdays_service.reconcile_missing_reminders(
-                commands_constants.BIRTHDAY_RECONCILE_BATCH
+            repaired = await asyncio.to_thread(
+                birthdays_service.reconcile_missing_reminders,
+                commands_constants.BIRTHDAY_RECONCILE_BATCH,
             )
         except Exception as error:
             logger.warn(
@@ -80,14 +83,16 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         guild_id = str(interaction.guild.id)
-        if not birthdays_data.is_birthday_enabled(guild_id) or not birthdays_data.find_birthday_config(guild_id):
+        if not await asyncio.to_thread(birthdays_service.accepts_birthdays, guild_id):
             _refused("reminders-birthdays-disabled")
             embed = response_error_embed("reminders-birthdays-disabled", interaction.locale, footer=True)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        existing = birthdays_data.find_birthday_item(guild_id, str(interaction.user.id))
+        existing = await asyncio.to_thread(
+            birthdays_data.find_birthday_item, guild_id, str(interaction.user.id)
+        )
         if existing:
             if not birthdays_service.can_self_edit_birthday(existing):
                 _refused("reminders-birthdays-self-edit-limit")
@@ -108,7 +113,8 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
                 .replace("{new_date}", format_mm_dd_label(date, interaction.locale))
             )
             async def confirm_overwrite(confirm_interaction: discord.Interaction) -> None:
-                birthdays_service.upsert_birthday(
+                await asyncio.to_thread(
+                    birthdays_service.upsert_birthday,
                     guild_id=guild_id,
                     user_id=str(interaction.user.id),
                     mm_dd=date,
@@ -142,7 +148,8 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
             await interaction.followup.send(embed=embed, view=view, ephemeral=True)
             return
 
-        birthdays_service.upsert_birthday(
+        await asyncio.to_thread(
+            birthdays_service.upsert_birthday,
             guild_id=guild_id,
             user_id=str(interaction.user.id),
             mm_dd=date,
