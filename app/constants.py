@@ -1,4 +1,4 @@
-from typing import Any, Dict, Final, FrozenSet, List, Tuple
+from typing import Any, Dict, Final, FrozenSet, List, Optional, Tuple
 
 import discord
 
@@ -49,6 +49,22 @@ class DBConfigs:
     COG_CACHE_RETRY_SECONDS: Final[int] = 30
     COG_CACHE_WARN_SECONDS: Final[int] = 60 * 5
 
+    AGE_HEADER_BYTES: Final[int] = 1024
+    AGE_CHUNK_BYTES: Final[int] = 64 * 1024
+    AGE_TAG_BYTES: Final[int] = 16
+
+    BACKUP_COLLECTIONS: Final[Dict[str, Optional[Tuple[str, ...]]]] = {
+        "audit": None,
+        "configs": ("admin", "data"),
+        "events": None,
+        "guild": None,
+        "notifications": None,
+        "reminders": None,
+    }
+    BACKUP_SKIPPED_COLLECTIONS: Final[Tuple[str, ...]] = (
+        "audit.errors", "configs.integrations", "guild.logs",
+    )
+
     ADMIN_CONFIGS_LIST: Final[List] = [
         ADMIN_GUILD_ID,
         ADMIN_LOGS_CHANNEL_ID,
@@ -84,11 +100,13 @@ class Commands:
 
     BLOCK_LINKS_DIAGNOSTIC_MAX_LINKS: Final[int] = 5
     BLOCK_LINKS_EVENTS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 90
+    BLOCK_LINKS_COUNTERS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 400
     BLOCK_LINKS_EVENTS_MAX_PER_MESSAGE: Final[int] = 3
     BLOCK_LINKS_EVENTS_READ_LIMIT: Final[int] = 200
     REDIS_BLOCK_LINKS_COUNTER_TOTAL: Final[str] = "guild:{guild_id}:block_links:total"
     REDIS_BLOCK_LINKS_COUNTER_HOST: Final[str] = "guild:{guild_id}:block_links:host:{value}"
     REDIS_BLOCK_LINKS_COUNTER_USER: Final[str] = "guild:{guild_id}:block_links:user:{value}"
+    REDIS_BLOCK_LINKS_COUNTERS: Final[str] = "guild:{guild_id}:block_links:counters"
 
     # analytics
     ANALYTICS_EVENTS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 90
@@ -106,6 +124,12 @@ class Commands:
     ANALYTICS_DIGEST_HOUR: Final[int] = 9
     ANALYTICS_DIGEST_WEEKDAY: Final[int] = 0
     ANALYTICS_DIGEST_WINDOW_DAYS: Final[int] = 7
+    ANALYTICS_ARCHIVE_HOUR: Final[int] = 1
+    ANALYTICS_ARCHIVE_MINUTE: Final[int] = 30
+    ANALYTICS_ARCHIVE_FIELDS: Final[Tuple[str, ...]] = (
+        "_id", "event", "event_id", "v", "ts", "actor", "feature", "source",
+        "session_id", "result", "props", "env", "app_version",
+    )
     ANALYTICS_JOURNEY_HISTORY_LIMIT: Final[int] = 4
     ANALYTICS_JOURNEY_DEBOUNCE_SECONDS: Final[float] = 1.0
     ANALYTICS_RECOVERY_WINDOW_SECONDS: Final[int] = 60 * 60
@@ -124,6 +148,11 @@ class Commands:
     DEBUG_LOGS_TRACEBACK_MAX_LENGTH: Final[int] = 16000
     DEBUG_LOGS_EXPORT_HOUR: Final[int] = 0
     DEBUG_LOGS_EXPORT_MINUTE: Final[int] = 30
+    BACKUP_HOUR: Final[int] = 1
+    BACKUP_MINUTE: Final[int] = 0
+    BACKUP_RETENTION_DAYS: Final[int] = 30
+    DAILY_LOGS_RETENTION_DAYS: Final[int] = 90
+    LOGS_FILES_DELETES_PER_PASS: Final[int] = 100
 
     HEARTBEAT_SECONDS: Final[int] = 60
     HEARTBEAT_TIMEOUT_SECONDS: Final[float] = 10.0
@@ -141,6 +170,7 @@ class Commands:
     YOUTUBE_TIMEOUT_SECONDS: Final[float] = 10.0
     YOUTUBE_RENEWAL_INTERVAL_SECONDS: Final[int] = 4 * 24 * 60 * 60
     YOUTUBE_RENEWAL_RETRY_SECONDS: Final[int] = 60 * 60
+    YOUTUBE_RENEWAL_ROW_SECONDS: Final[int] = 60 * 24 * 60 * 60
     YOUTUBE_HUB_LEASE_SECONDS: Final[int] = 5 * 24 * 60 * 60
     YOUTUBE_HUB_LEASE_MARGIN_SECONDS: Final[int] = 12 * 60 * 60
     YOUTUBE_CALLBACK_TOKEN_LENGTH: Final[int] = 32
@@ -162,6 +192,9 @@ class Commands:
     NOTIFICATIONS_YOUTUBE_VIDEO_KEY: Final[str] = "notifications_youtube_video"
 
     INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: Final[str] = "stream_elements_commands"
+    REDIS_STREAM_ELEMENTS_COMMANDS: Final[str] = "stream_elements:channel:{channel_id}:commands"
+    STREAM_ELEMENTS_COMMANDS_CACHE_SECONDS: Final[int] = 60 * 60 * 24
+    STREAM_ELEMENTS_NO_COMMANDS_CACHE_SECONDS: Final[int] = 60 * 5
 
     REMINDERS_BIRTHDAY_KEY: Final[str] = "reminders_birthday"
     REMINDERS_BIRTHDAY_REACTION: Final[str] = "🎉"

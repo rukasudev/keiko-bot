@@ -1,7 +1,7 @@
 import asyncio
 import random
 import re
-from typing import Any, Dict, List, Optional
+from typing import Dict, Optional
 
 import discord
 
@@ -44,7 +44,7 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
     context = ErrorContext.from_message(
         flow="stream_elements",
         message=message,
-        command=command,
+        command_length=len(command),
         streamer=streamer,
     )
 
@@ -211,55 +211,43 @@ def parse_placeholders(reply: str, user: discord.User) -> str:
     return reply
 
 
-def get_commands_in_cache_or_populate(channel_id: str, user: discord.User) -> List[Dict[str, Any]]:
-    cache_key = f"streamelements:commands:{channel_id}"
+def get_commands_in_cache_or_populate(channel_id: str, user: discord.User) -> Dict[str, str]:
+    """The streamer's enabled commands as `!name`, each reply in the asker's words."""
+    return {
+        f"!{command}": parse_placeholders(reply, user)
+        for command, reply in _channel_commands(channel_id).items()
+    }
 
-    data = cache.get_data_from_redis(cache_key)
-    if data:
-        return data
 
-    channel_commands = StreamElementsClient.get_chat_commands(channel_id)
-    if not channel_commands:
-        return
+def get_reply_in_cache_or_populate(
+    channel_id: str, command: str, user: discord.User
+) -> Optional[str]:
+    """The reply to one command in the asker's words, None when the streamer has no such command."""
+    reply = _channel_commands(channel_id).get(command)
+    return parse_placeholders(reply, user) if reply else None
 
-    cache_batch = {}
-    for channel_command in channel_commands:
-        if not channel_command.get("enabled"):
-            continue
 
-        cache_batch[f"!{channel_command.get('command')}"] = parse_placeholders(channel_command.get("reply"), user)
+def _channel_commands(channel_id: str) -> Dict[str, str]:
+    """The streamer's enabled commands by name, with their replies as written: cached a
+    day, a streamer with none for a few minutes, a failure never."""
+    cache_key = constants.REDIS_STREAM_ELEMENTS_COMMANDS.format(channel_id=channel_id)
+    cached = cache.get_data_from_redis(cache_key)
+    if cached:
+        return cached["commands"]
 
-    day_in_seconds = 60 * 60 * 24
-    cache.set_data_in_redis_with_expiration(cache_key, cache_batch, day_in_seconds)
+    fetched = StreamElementsClient.get_chat_commands(channel_id)
+    if not isinstance(fetched, list):
+        return {}
 
-    return cache_batch
-
-def get_reply_in_cache_or_populate(channel_id: str, command: str, user: discord.User) -> str:
-    cache_key = f"streamelements:commands:{channel_id}"
-
-    data = cache.get_data_from_redis(cache_key)
-    if data.get(command):
-        return data.get(command)
-
-    message = None
-    cache_batch = {}
-
-    channel_commands = StreamElementsClient.get_chat_commands(channel_id)
-    if not channel_commands:
-        return
-
-    for channel_command in channel_commands:
-        if not channel_command.get("enabled"):
-            continue
-
-        reply = parse_placeholders(channel_command.get("reply"), user)
-
-        if channel_command.get("command") == command and channel_command.get("enabled"):
-            message = reply
-
-        cache_batch[f"!{channel_command.get('command')}"] = reply
-
-    day_in_seconds = 60 * 60 * 24
-    cache.set_data_in_redis_with_expiration(cache_key, cache_batch, day_in_seconds)
-
-    return message
+    commands = {
+        command.get("command"): command.get("reply")
+        for command in fetched
+        if command.get("enabled")
+    }
+    seconds = (
+        constants.STREAM_ELEMENTS_COMMANDS_CACHE_SECONDS
+        if commands
+        else constants.STREAM_ELEMENTS_NO_COMMANDS_CACHE_SECONDS
+    )
+    cache.set_data_in_redis_with_expiration(cache_key, {"commands": commands}, seconds)
+    return commands

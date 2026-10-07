@@ -899,11 +899,11 @@ async def test_a_channel_or_video_youtube_does_not_have_is_not_an_error(hub):
 async def test_a_renewal_youtube_answers_with_an_error_is_tried_again_in_an_hour(hub, deps):
     """Read as a missing channel, a quota error moved the renewal four days on without
     subscribing; Keiko now tries again itself an hour later."""
-    from app.data.reminder import insert_reminder
+    from app.data.reminder import insert_renewal_reminder
     from app.integrations.reminder_webhook import REMINDER_TIMEZONE
     from app.webhooks.reminder import renew_youtube_subscription
 
-    insert_reminder(7001, "youtube_notification", "pewdiepie")
+    insert_renewal_reminder(7001, "pewdiepie")
     hub.google.errors["channels"] = QUOTA_EXCEEDED
 
     renew_youtube_subscription(7001)
@@ -982,7 +982,7 @@ async def test_the_start_counts_only_the_channels_the_hub_accepted(hub, deps, ca
 
 
 async def test_the_start_stamps_every_youtuber_the_hub_took_again(hub, deps, monkeypatch):
-    from app.data.reminder import find_reminder_by_value, insert_reminder
+    from app.data.reminder import find_reminder_by_value, insert_renewal_reminder
     from app.integrations import reminder_webhook
 
     moment = datetime(2026, 10, 1, 15, 0, tzinfo=timezone(timedelta(hours=-3)))
@@ -994,8 +994,8 @@ async def test_the_start_stamps_every_youtuber_the_hub_took_again(hub, deps, mon
 
     monkeypatch.setattr(reminder_webhook, "datetime", Clock, raising=False)
     follow(deps, 2002, "mrbeast")
-    insert_reminder(7001, "youtube_notification", "pewdiepie")
-    insert_reminder(7002, "youtube_notification", "mrbeast")
+    insert_renewal_reminder(7001, "pewdiepie")
+    insert_renewal_reminder(7002, "mrbeast")
     hub.google.hub_statuses[TOPIC.format(MRBEAST)] = 503
 
     notifications_youtube_video.resubscribe_followed_channels()

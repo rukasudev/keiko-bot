@@ -9,7 +9,7 @@ how to add a metric to a new feature (usually: you do not have to).
 | **Operational** | Is the system healthy? | Prometheus → Grafana (`app/cogs/prometheus.py`) | Grafana's | yes |
 | **Product analytics** | How do people use Keiko? | `guild.analytics_*` (this document) | 90d raw, counters 13mo | **yes, by design** |
 | **Audit** | Who changed what, when? | `events.<cog_key>` (`insert_cog_event`) | permanent | **no** |
-| **Debug** | Why did it break? | `guild.logs` + the daily file on the logs channel | 30d hot, file permanent | yes |
+| **Debug** | Why did it break? | `guild.logs` + the daily file on the logs channel | 30d hot, file 90d | yes |
 
 Boundary rules:
 
@@ -153,14 +153,15 @@ tag.
 
 ## 5. Storage
 
-Three collections, all in the `guild` database, all registered in
-`app/data/indexes.py`:
+Four collections, all in the `guild` database; the indexes of the first three
+are registered in `app/data/indexes.py`:
 
 | Collection | Shape | Retention |
 |---|---|---|
-| `analytics_events` | one document per low-volume event | TTL 90 days on `ts` |
+| `analytics_events` | one document per low-volume event | TTL 90 days on `ts`; each month also goes out as a file (below) |
 | `analytics_guild_month` | bucket per guild per month: `days.<dd>.<metric>` counters | TTL 400 days on `updated_at` |
-| `analytics_guild_profile` | one document per guild, the derived state | TTL 365 days **after** `removed_at` |
+| `analytics_guild_profile` | one document per guild, the derived state, plus its current size | TTL 365 days **after** `removed_at` |
+| `analytics_archives` | one document per month already posted as a file: `_id` the month (`2026-09`), `posted_at`, `events`, `files` | kept, twelve a year |
 
 The reason for the split is the free tier. A delivery event per welcome message
 at a thousand guilds is hundreds of thousands of documents a month; as a
@@ -175,11 +176,109 @@ instead of a collection scan. It is also the frozen snapshot `guild.removed`
 reports — which is why that event is emitted **before**
 `remove_all_cache_by_guild` runs in `on_guild_remove`.
 
+### The current size of a guild
+
+`guild.joined` carries the size bucket of the day Keiko joined, and the profile
+kept none, so no report could compare large servers with small ones. Once a day
+(`Archive.measure_guild_sizes`, `app/cogs/archive.py`, at
+`ANALYTICS_ARCHIVE_HOUR:ANALYTICS_ARCHIVE_MINUTE` UTC) every guild Keiko is in
+that has a profile gets `size_bucket` (the same `bucket_size` vocabulary as
+`guild.joined`: `<50`, `50-500`, `500-5k`, `5k+`) and `size_measured_at` on it,
+in one bulk write off the loop. It is a measurement, not an event: nothing goes
+to `analytics_events` or the queue, and the profile is written through the same
+`build_profile_operation` the sink uses, with `upsert=False`. It never creates a
+profile: a profile is still born from a guild's first event, so the reports keep
+counting the guilds they counted, and a guild `/admin forget` erased stays
+erased. A guild whose member count Discord does not report is left as it was.
+
+### The monthly archive
+
+Raw events live 90 days; after that only the daily counters remain, so a funnel
+could not be rebuilt once its month was gone. The `Archive` cog
+(`app/cogs/archive.py`, `app/services/archive.py`) runs a pass every day at the
+same hour and posts, oldest first, every complete month no pass has posted whose
+first day the raw events still reach (`archive.months_to_archive`: a month that
+started less than `ANALYTICS_EVENTS_TTL_SECONDS` ago), on the logs files
+channel, where the daily log export goes: one message in Keiko's voice
+(`messages.admin-logs.monthly-events`) with the file attached, then marks the
+month in `analytics_archives`. A day the bot was down, a pass that failed, or a
+month that failed alone (it never holds the months after it) is caught up by the
+next pass while the month's first day is inside the 90 days; a month that
+started earlier has already lost its first events and is left. A month without
+events posts nothing.
+
+A month goes out at least once, not exactly once: when a pass fails after a file
+went out (a later part refused, or the month's mark not written), the next pass
+posts the whole month again. Both copies hold the same events, but each hashes
+the sessions under its own key (below), so read one copy, never the two together.
+
+Keiko keeps for good only what names no server and no member; anything that
+does keeps a TTL. So the archive leaves without identity
+(`archive.without_identity`): of each event it keeps `_id`, `event`, `event_id`
+(random), `v`, `ts`, `actor`, `feature`, `source`, `session_id` (hashed, see
+below), `result`, `props`, `env` and `app_version`
+(`Commands.ANALYTICS_ARCHIVE_FIELDS`), and drops `guild_id`, `user_id` and any
+other field, so a Discord id added to the envelope later (a channel, a message,
+an interaction, an owner) never reaches the file; it also drops every property
+whose name ends in `_id`. The catalog declares no property that names a person
+or a server: they are closed vocabularies (step keys, error keys, sources,
+commands, a chosen option), buckets (size, duration), counts, booleans and YAML
+keys. The step, the buckets and the counts stay, so a funnel is rebuilt from the
+file as it was from the collection, only without telling servers apart.
+
+The session id leaves only as a keyed hash: the daily log exports on the same
+channel carry the stored one next to the guild and user ids, so the archive
+writes `blake2b(session_id, key, digest_size=8)` instead, under a key drawn for
+each monthly pass (`secrets.token_bytes`) and never stored. A session still
+groups its events inside a month's file, but no line matches a stored session id
+or another pass's hash. The time stays exact, so a line can still be matched by
+`ts` to the log export of its day while that export is kept; the logs files
+channel keeps an export 90 days (see the debug logs below), so that join closes
+too, and every month the archive keeps past that window has nothing left to be
+joined to.
+
+Though it names no one, the file is sealed to the age public key the daily
+backup uses too (`app/services/sealing.py`, SSM `/keiko/backup/age_public_key`,
+`BACKUP_AGE_PUBLIC_KEY` locally), and only the private key, which the bot never
+holds, opens it. Without a valid public key nothing is read or posted, the log
+channel says why, and every month still inside the 90 days is posted by the
+first pass after the key exists.
+
+The file is `keiko_events_<YYYY-MM>.jsonl.gz.age`: gzipped relaxed Extended
+JSON Lines, one event per line, oldest first, with its `_id`, its `ts` as a date
+and its catalog version `v`, so each line is read by the version it was emitted
+with. The logs tool ingests only `.log` and `.jsonl.gz` from that channel, so it
+never takes the archive for log records. A month over the channel's upload limit
+once sealed (`sealing.plaintext_limit`) is split in halves of the month, as many
+times as it takes, into `keiko_events_<YYYY-MM>_<n>-of-<total>.jsonl.gz.age`.
+
+To work on a month again, open it and restore it next to the live data, then
+point the reports at the copy:
+
+```bash
+age -d -i key.txt keiko_events_2026-09.jsonl.gz.age | gunzip | mongoimport --db keiko_archive --collection analytics_events
+```
+
 ### Redis
 
 Only the hot window, under `guild:{guild_id}:analytics:*`, and **every key has
 an `EXPIRE`** (`increment_redis_key_with_expiration`). A counter without a TTL
 in a shared keyspace is how a free tier dies.
+
+### Keiko's own block links record
+
+Not an event, but kept beside them: every blocked link is also counted in
+`guild.block_links_totals` (`count_blocked_links`, `app/data/block_links.py`),
+in the worker thread that writes the record and the server's counters. It
+names no server and no member, so it is kept for good: `{_id: "total",
+blocked}` and one `{_id: "site:<host>", host, blocked}` per site, added with
+`$inc`. A site is the full host as it was blocked (`www.` dropped, subdomains
+kept: `cdn.spam-site.com` and `spam-site.com` are two sites), never a path or a
+link, and it is a value, never a field name, since a host has dots. "Which links
+Keiko blocks most" is `find({"host": {"$exists": true}}).sort("blocked", -1)`.
+The server's own counters, a Redis hash with per-site and per-member counts,
+expire 400 days after its last block and go when Keiko leaves; this record
+stays.
 
 ## 6. Privacy
 
@@ -197,7 +296,10 @@ whose options are written in the YAML.
 a real flow and asserts it appears in no event. That makes the privacy rule
 executable instead of documented.
 
-`/admin forget <guild_id>` erases every analytics record of a guild.
+`/admin forget <guild_id>` erases every analytics record of a guild. The monthly
+events archive holds nothing to erase, since it names no guild; the daily log
+export does, and a file already posted is out of its reach until the logs files
+channel deletes it, 90 days after it was posted.
 
 ## 7. Failure and kill switch
 
@@ -336,7 +438,14 @@ Three pieces close that:
 |---|---|---|
 | `StoredLogsHandler` | `app/logger.py` | every record, into a queue |
 | `guild.logs` | Mongo, 30-day TTL | the hot window, with the full traceback |
-| daily `.jsonl.gz` | the logs channel | the archive, one file per day |
+| daily `.jsonl.gz` | the logs files channel, 90 days | the archive, one file per day |
+
+The daily files carry guild, user and session ids, so the channel keeps them 90
+days (`Commands.DAILY_LOGS_RETENTION_DAYS`), and the `keiko_log.log` text
+files the rotating handler posts beside them as well: once a day, right after the
+backup, the `Backup` cog deletes the bot's own files there past their kind's age
+(`app/services/logs_files.py`; the kinds, the names and the cap per pass are in
+"What the logs files channel keeps", `docs/releasing.md`).
 
 Every document names the release that wrote it (`app_version`), so a line from
 before a deploy and one from after it never read alike. `tools/keiko/logs`
@@ -443,9 +552,10 @@ tree, where it cannot feed itself. `test_debug_logs.py` pins this.
 ## Reading them
 
 Inside 30 days, query `guild.logs` directly; `session_id` returns every line of
-one interaction. Older than that, the daily files are the source, and
-`python -m tools.keiko logs sync` indexes them into a local SQLite with
-full-text search:
+one interaction. Older than that, up to 90 days, the daily files are the source,
+and `python -m tools.keiko logs sync` indexes them into a local SQLite with
+full-text search (the channel holds nothing older, so `sync` finds nothing older;
+what a local index already read stays on that machine):
 
 ```bash
 python -m tools.keiko logs sync --incremental   # index new daily files
@@ -658,7 +768,14 @@ or after. The values already live in `guild.<cog_key>`; the log has no reason to
 hold a second copy.
 
 The 24h history is read **once, when the journey opens**
-(`analytics_reports.setup_sessions`), not on every render.
+(`analytics_reports.setup_sessions(feature, guild_id=, since=)`), not on every
+render. It is one query for that guild's setup events of the feature, bounded
+by the 24-hour window it reports; it used to be seven queries that brought every
+guild's setup events of the feature for the whole 90 days and filtered them in
+Python. The read runs in a worker thread whenever a loop runs, so the form never
+waits on it: the footnote is set when it lands, which is before the debounced
+first render unless the read is slower than that, and then the next render
+carries it.
 
 ### The message is not rewritten on every step
 
