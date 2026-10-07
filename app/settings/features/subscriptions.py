@@ -11,12 +11,13 @@ from app.constants import ViewConstants as view_constants
 from app.settings.features.feature import (
     AsideAction,
     CommitContext,
+    CommitResult,
     GenericCogFeature,
     OpenContext,
 )
 from app.settings.form.form_state import Answer
 from app.settings.form.lookups import Lookup
-from app.settings.form.responses.responses import items_of
+from app.settings.form.responses.responses import item_values, items_of
 
 Subscribe = Callable[..., Any]
 
@@ -28,6 +29,7 @@ class SubscriptionFeature(GenericCogFeature):
     external: str = ""
     subscribe: Subscribe
     unsubscribe: Subscribe
+    followers: Callable[[str], int]
     preview_sender: Any = None
 
     def __init__(self, key: str) -> None:
@@ -100,9 +102,6 @@ class SubscriptionFeature(GenericCogFeature):
     def _gated(self) -> bool:
         return bool(cast(Any, app_module).bot.config.is_dev())
 
-    def _entry(self, item: Mapping[str, Answer], locale: str) -> dict[str, Any]:
-        return self.item_document(item, locale)
-
     async def before_setup(
         self,
         document: dict[str, Any],
@@ -117,48 +116,67 @@ class SubscriptionFeature(GenericCogFeature):
             await asyncio.to_thread(self.subscribe, None, item)
         return document
 
-    async def on_item_added(
-        self, item: Mapping[str, Answer], context: CommitContext
-    ) -> None:
-        """A new item subscribes, outside dev."""
-        if self._gated():
-            return
-        await asyncio.to_thread(self.subscribe, None, self._entry(item, context.locale))
+    async def commit_unpause(
+        self, payload: Mapping[str, Any], context: CommitContext
+    ) -> CommitResult:
+        """Every saved item subscribes again before the feature is on, outside dev."""
+        if not self._gated():
+            _saved, items = await self.saved_list(context)
+            for item in items:
+                await asyncio.to_thread(self.subscribe, None, item)
 
-    async def on_item_edited(
-        self, item: Mapping[str, Answer], index: int | None, context: CommitContext
-    ) -> None:
-        """A changed name moves the subscription, outside dev."""
-        if self._gated() or index is None:
-            return
-        composition = self.definition.composition
-        assert composition is not None
-        items = items_of(context.document, composition.key)
-        old = items[index] if 0 <= index < len(items) else None
-        new = self._entry(item, context.locale)
+        return await super().commit_unpause(payload, context)
 
-        if old is None or _name(old, self.item_key) == _name(new, self.item_key):
-            return
-        await asyncio.to_thread(self.unsubscribe, None, old)
-        await asyncio.to_thread(self.subscribe, None, new)
-
-    async def on_item_removed(
+    async def before_item_added(
         self, item: Mapping[str, Any], context: CommitContext
     ) -> None:
-        """A removed item unsubscribes."""
-        if item:
-            await asyncio.to_thread(self.unsubscribe, None, item)
+        """A new item subscribes before it is saved, outside dev."""
+        if self._gated():
+            return
+        await asyncio.to_thread(self.subscribe, None, item)
 
-    async def on_disable(self, context: CommitContext) -> None:
-        """Every item unsubscribes."""
+    async def before_item_replaced(
+        self, old: Mapping[str, Any], new: Mapping[str, Any], context: CommitContext
+    ) -> None:
+        """A new name is subscribed before the edit is saved, outside dev."""
+        if self._gated() or _name(old, self.item_key) == _name(new, self.item_key):
+            return
+        await asyncio.to_thread(self.subscribe, None, new)
+
+    async def after_item_replaced(
+        self, old: Mapping[str, Any], new: Mapping[str, Any], context: CommitContext
+    ) -> None:
+        """The old name is let go once the edit is saved, outside dev."""
+        if self._gated() or _name(old, self.item_key) == _name(new, self.item_key):
+            return
+        await self.release(old)
+
+    async def after_item_removed(
+        self, item: Mapping[str, Any], context: CommitContext
+    ) -> None:
+        """A removed item lets its subscription go once the removal is saved."""
+        await self.release(item)
+
+    async def after_disable(
+        self, document: Mapping[str, Any], context: CommitContext
+    ) -> None:
+        """Every item of the dropped document lets its subscription go."""
         composition = self.definition.composition
         if composition is None:
             return
-        for item in items_of(context.document, composition.key):
+        for item in items_of(document, composition.key):
+            await self.release(item)
+
+    async def release(self, item: Mapping[str, Any]) -> None:
+        """Unsubscribe the item's name once no server follows it anymore."""
+        name = item_values(item).get(self.item_key)
+        if not name:
+            return
+
+        followers = await asyncio.to_thread(self.followers, str(name))
+        if followers == 0:
             await asyncio.to_thread(self.unsubscribe, None, item)
 
 
 def _name(item: Mapping[str, Any], key: str) -> str:
-    entry = item.get(key)
-    value = entry.get("value") if isinstance(entry, Mapping) else entry
-    return str(value or "").lower()
+    return str(item_values(item).get(key) or "").lower()

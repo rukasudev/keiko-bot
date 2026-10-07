@@ -12,7 +12,7 @@ from typing import Any
 
 from app.settings.form.form_state import Answer
 from app.settings.form.form_yaml import Step
-from app.settings.form.responses.summary import ResponseView, responses
+from app.settings.form.responses.summary import ResponseView, responses, unwrap
 
 BOOKKEEPING = (
     "_id",
@@ -22,23 +22,6 @@ BOOKKEEPING = (
     "updated_at",
     "schema_version",
 )
-
-
-def unwrap(value: Any) -> Any:
-    """The machine value inside a `{style, values}` or `{value}` envelope."""
-    if isinstance(value, Mapping):
-        if "values" in value:
-            return value["values"]
-        if "value" in value:
-            return value.get("_raw_value", value["value"])
-    return value
-
-
-def listed(value: Any) -> list[Any]:
-    """A stored value as a list, empty when nothing was ever chosen."""
-    if isinstance(value, (list, tuple)):
-        return list(value)
-    return [value] if value not in (None, "") else []
 
 
 def item_answers(item: Mapping[str, Any]) -> dict[str, Answer]:
@@ -96,3 +79,13 @@ def items_of(document: Mapping[str, Any], key: str) -> list[dict[str, Any]]:
     if isinstance(value, Mapping):
         return [dict(item) for item in (value.get("values") or [])]
     return []
+
+
+def list_values(document: Mapping[str, Any], key: str) -> list[dict[str, Any]]:
+    """The items saved under the list `key`, each as its machine values."""
+    return [item_values(item) for item in items_of(document, key)]
+
+
+def item_values(item: Mapping[str, Any]) -> dict[str, Any]:
+    """A saved list item as its machine values: the labels a summary shows left out."""
+    return {key: answer.raw for key, answer in item_answers(item).items()}

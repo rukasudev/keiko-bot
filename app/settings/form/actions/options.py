@@ -8,7 +8,7 @@ from typing import Any
 from app.constants import Style
 from app.settings.form.actions import Refusal
 from app.settings.form.actions.action import (
-    RenderContext,
+    Context,
     back_button,
     cancel_button,
     confirm_button,
@@ -36,7 +36,7 @@ def _selected(step: SingleChoiceStep, session: FormSession) -> list[str]:
     return [str(value) for value in (raw if isinstance(raw, (list, tuple)) else [raw])]
 
 
-def _gallery(step: SingleChoiceStep, context: RenderContext) -> Screen:
+def _gallery(step: SingleChoiceStep, context: Context) -> Screen:
     locale = context.locale
     gallery = design_gallery(step.key, step.designs, context)
     buttons: list[Button] = []
@@ -49,7 +49,7 @@ def _gallery(step: SingleChoiceStep, context: RenderContext) -> Screen:
     )
 
 
-def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
+def render(step: Any, session: FormSession, context: Context) -> Screen:
     """The options as buttons under the step embed, or the design gallery."""
     if step.designs:
         return _gallery(step, context)
@@ -90,7 +90,7 @@ def _option_value(step: SingleChoiceStep, value: Any) -> Any:
 
 
 def parse(
-    step: Any, payload: Any, session: FormSession, context: RenderContext
+    step: Any, payload: Any, session: FormSession, context: Context
 ) -> Mapping[str, Answer] | Refusal:
     """The chosen option value, typed as the definition declares it."""
     if step.designs:

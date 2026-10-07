@@ -320,10 +320,29 @@ def _apply_update(doc, update, inserted):
             existing.append(value)
 
 
+def _same_document(actual, expected):
+    """BSON equality: an embedded document matches field by field and in order."""
+    if isinstance(expected, dict):
+        return (
+            isinstance(actual, dict)
+            and list(actual) == list(expected)
+            and all(_same_document(actual[key], value) for key, value in expected.items())
+        )
+    if isinstance(expected, list):
+        return (
+            isinstance(actual, list)
+            and len(actual) == len(expected)
+            and all(_same_document(one, other) for one, other in zip(actual, expected))
+        )
+    return actual == expected
+
+
 def _matches_value(actual, expected):
     """Equality, plus the comparison operators a range query needs."""
     if not isinstance(expected, dict):
         return actual == expected
+    if not expected or not all(str(key).startswith("$") for key in expected):
+        return _same_document(actual, expected)
 
     operators = {
         "$gte": lambda a, b: a is not None and a >= b,
@@ -412,13 +431,13 @@ class MockMongoCollection:
         for doc in self._data:
             if all(_matches_value(doc.get(k), v) for k, v in filter_dict.items()):
                 _apply_update(doc, update, inserted=False)
-                return MagicMock(modified_count=1)
+                return MagicMock(matched_count=1, modified_count=1)
         if upsert:
             new_doc = filter_dict.copy()
             _apply_update(new_doc, update, inserted=True)
             self._data.append(new_doc)
-            return MagicMock(modified_count=0, upserted_id="mock_id")
-        return MagicMock(modified_count=0)
+            return MagicMock(matched_count=0, modified_count=0, upserted_id="mock_id")
+        return MagicMock(matched_count=0, modified_count=0)
 
     def update_many(self, filter_dict, update):
         """Every match, not just the first: the real driver's semantics."""
@@ -435,6 +454,12 @@ class MockMongoCollection:
                 operation._filter, operation._doc, upsert=operation._upsert
             )
         return MagicMock(modified_count=len(operations))
+
+    def find_one_and_delete(self, filter_dict):
+        for index, doc in enumerate(self._data):
+            if all(_matches_value(doc.get(k), v) for k, v in filter_dict.items()):
+                return self._data.pop(index)
+        return None
 
     def delete_one(self, filter_dict):
         for i, doc in enumerate(self._data):

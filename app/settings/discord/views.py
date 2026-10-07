@@ -378,14 +378,15 @@ def _toggles(
     ids: Ids,
     dispatcher: Dispatcher,
 ) -> None:
-    """One button per choice, lit when it is on, four to a row."""
+    """One button per choice, lit when it is on and asking for the other state."""
     items = [
         _button(
             dispatcher,
             ids,
             Button(
                 option.label,
-                f"toggle:{group.choice_target}={option.value}",
+                f"{'turn_off' if option.selected else 'turn_on'}:"
+                f"{group.choice_target}={option.value}",
                 "success" if option.selected else "secondary",
             ),
         )

@@ -72,8 +72,18 @@ async def update_cog_by_guild_async(guild_id: str, cog: str, data: Dict[str, Any
     )
 
 
+async def update_cog_if_unchanged_async(
+    guild_id: str, cog: str, key: str, saved: Any, value: Any
+) -> bool:
+    data = parse_update_timestamp({key: value})
+    result = await motor_client.guild[cog].update_one(
+        {"guild_id": str(guild_id), key: saved}, {"$set": data}
+    )
+    return result.matched_count == 1
+
+
 async def delete_cog_by_guild_id_async(guild_id: str, cog: str) -> Any:
-    return await motor_client.guild[cog].delete_one({"guild_id": str(guild_id)})
+    return await motor_client.guild[cog].find_one_and_delete({"guild_id": str(guild_id)})
 
 
 async def insert_cog_event_async(cog_key: str, data: Dict[str, Any]) -> Any:

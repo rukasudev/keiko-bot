@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from app.constants import Commands
+from app.data.notifications_youtube_video import count_servers_following
 from app.services.notifications_youtube_video import (
     send_notification_preview,
     subscribe_youtube_new_video,
@@ -22,6 +23,7 @@ class YouTubeFeature(SubscriptionFeature):
         super().__init__(Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY)
         self.subscribe = subscribe_youtube_new_video
         self.unsubscribe = unsubscribe_youtube_new_video
+        self.followers = count_servers_following
         self.preview_sender = send_notification_preview
 
 

@@ -8,7 +8,7 @@ from app.settings.features import feature_for, feature_keys
 from app.settings.features.feature import CommitContext, GenericCogFeature, OpenContext
 from app.settings.form.form_state import Answer
 from app.settings.form.form_yaml import DefinitionRegistry
-from app.settings.form.responses.responses import unwrap
+from app.settings.form.responses.summary import unwrap
 
 pytestmark = pytest.mark.unit
 
@@ -115,20 +115,42 @@ def test_a_document_survives_the_round_trip_through_answers(form):
     assert "schema_version" not in document and document["enabled"] is True
 
 
-def test_a_form_without_a_module_gets_the_generic_feature(tmp_path):
+def test_a_feature_declared_without_a_module_gets_the_generic_feature(
+    tmp_path, monkeypatch
+):
+    from enum import Enum
+
+    from app.constants import FeatureSpec
+    from app.settings import features
     from app.settings.form.form_yaml import registry
+
+    class Declared(Enum):
+        PLAIN_FORM = FeatureSpec(
+            key="plain_form",
+            group="moderations",
+            namespace="plain-form",
+            button_key="plain-form",
+            emoji="🧪",
+            module=None,
+        )
 
     source = registry.source
     (tmp_path / "plain_form.yml").write_text(
         (source.root / "default_roles.yml").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
+    monkeypatch.setattr(features, "Feature", Declared)
     registry.source = type(source)(tmp_path)
     try:
         feature = feature_for("plain_form")
     finally:
         registry.source = source
     assert isinstance(feature, GenericCogFeature) and feature.key == "plain_form"
+
+
+def test_a_key_no_feature_declares_is_refused_instead_of_guessed():
+    with pytest.raises(KeyError):
+        feature_for("plain_form")
 
 
 def test_the_seven_features_are_registered_with_their_definitions():
@@ -267,6 +289,39 @@ async def test_removing_an_item_unsubscribes_it(deps):
     assert deps.twitch.unsubscribe_calls
 
 
+@pytest.mark.parametrize(
+    "website, turned_on, saved",
+    [
+        ("spotify.com", True, ["youtube.com", "twitch.tv", "spotify.com"]),
+        ("youtube.com", False, ["twitch.tv"]),
+        ("youtube.com", True, ["youtube.com", "twitch.tv"]),
+        ("spotify.com", False, ["youtube.com", "twitch.tv"]),
+    ],
+    ids=["turned-on", "turned-off", "already-on", "already-off"],
+)
+async def test_a_website_turns_on_or_off_in_the_choice_as_it_is_saved(
+    deps, website, turned_on, saved
+):
+    document = {
+        "guild_id": GUILD_ID,
+        "enabled": True,
+        "mode": "block_all",
+        "allowed_links": {"style": "bullet", "values": ["youtube.com", "twitch.tv"]},
+    }
+    deps.mongo_client.guild["block_links"].insert_one(dict(document))
+
+    await feature_for("block_links").commit(
+        "toggle",
+        {"key": "allowed_links", "value": website, "turned_on": turned_on},
+        _context(document),
+    )
+
+    stored = deps.mongo_client.guild["block_links"].find_one({"guild_id": GUILD_ID})
+    assert stored["allowed_links"] == {"style": "bullet", "values": saved}
+    event = deps.mongo_client.events["block_links"].find_one({"guild_id": GUILD_ID})
+    assert event["event"] == "edited", "a toggle is audited as the edit it was"
+
+
 async def test_the_streamer_lookup_is_prefetched_for_the_validator(deps):
     deps.twitch.add_user("gaules", user_id="111")
     from app.settings.form.lookups import Lookup
@@ -327,8 +382,8 @@ async def test_the_birthday_panel_opens_with_its_own_rows(deps):
         OpenContext(GUILD_ID, "555", "pt-br")
     )
     assert opened.document["reminders_birthday"]["values"][0]["user"]["value"] == "555"
-    assert [row.value for row in opened.rows][:2] == ["100", False]
-    assert [b.action for b in opened.extra_buttons] == ["aside:stats"]
+    assert [row.value for row in opened.panel.rows][:2] == ["100", False]
+    assert [b.action for b in opened.panel.extra_buttons] == ["aside:stats"]
 
 
 def test_the_birthday_feature_previews_the_celebration():
@@ -399,7 +454,9 @@ async def test_editing_the_streamer_refreshes_the_stream_elements_channel(
 ):
     """Broke as: an edited streamer kept the old streamer's StreamElements channel,
     so the chat went on answering with the old streamer's commands."""
-    from app.settings.features import stream_elements as stream_elements_feature
+    from app.settings.features import (
+        stream_elements_commands as stream_elements_feature,
+    )
 
     deps.bot.config.is_dev = lambda: False
     monkeypatch.setattr(
@@ -455,7 +512,8 @@ def test_the_welcome_card_saves_the_document_the_welcome_service_reads():
     the channel as {style, values}, the design key, the title and footer, and the
     messages as one ;-joined text the service splits."""
     from app.settings.form import events as ev
-    from app.settings.form.form import Context, decide
+    from app.settings.form.actions.action import Context
+    from app.settings.form.form import decide
     from app.settings.form.form_state import Origin, Setup, new_session
     from app.settings.form.responses.responses import to_document
 
@@ -500,7 +558,9 @@ def test_the_welcome_card_saves_the_document_the_welcome_service_reads():
 async def test_the_stream_elements_lookup_counts_enabled_commands(deps, monkeypatch):
     """The review shows how many commands will load, so the streamer lookup also
     asks StreamElements for the channel and counts its enabled commands."""
-    from app.settings.features import stream_elements as stream_elements_feature
+    from app.settings.features import (
+        stream_elements_commands as stream_elements_feature,
+    )
     from app.settings.form.lookups import Lookup
 
     client = stream_elements_feature.StreamElementsClient
@@ -546,7 +606,9 @@ async def test_the_stream_elements_panel_says_how_many_commands_it_answers(
     deps, monkeypatch
 ):
     """The panel says how many commands are loaded and offers to list them."""
-    from app.settings.features import stream_elements as stream_elements_feature
+    from app.settings.features import (
+        stream_elements_commands as stream_elements_feature,
+    )
 
     deps.mongo_client.guild["moderations"].insert_one(
         {"guild_id": GUILD_ID, "stream_elements_commands": True}
@@ -568,12 +630,15 @@ async def test_the_stream_elements_panel_says_how_many_commands_it_answers(
         OpenContext(GUILD_ID, "555", "pt-br")
     )
 
-    assert "2" in opened.info and "shroud" in opened.info
-    assert [button.action for button in opened.extra_buttons] == ["aside:commands"]
+    assert "2" in opened.panel.info and "shroud" in opened.panel.info
+    actions = [button.action for button in opened.panel.extra_buttons]
+    assert actions == ["aside:commands"]
 
 
 async def test_a_stream_elements_outage_leaves_no_count(deps, monkeypatch):
-    from app.settings.features import stream_elements as stream_elements_feature
+    from app.settings.features import (
+        stream_elements_commands as stream_elements_feature,
+    )
     from app.settings.form.lookups import Lookup
 
     def unreachable(name):

@@ -97,7 +97,7 @@ async def test_edit_dropdown_names_a_composition_entry_by_its_configuration_titl
     position, the stored value identifies the entry in the option description,
     and no markdown leaks into either."""
     from app.settings.form.form_yaml import registry
-    from app.settings.form.manager import edit_options
+    from app.settings.form.responses.summary import edit_options
 
     cogs = {
         "enabled": True,
@@ -164,8 +164,8 @@ async def test_two_changes_in_a_row_on_the_same_screen_both_save(
     scenario = await scenario_factory(locale="pt-br").start_command("block_links")
     await scenario.click("edit:group:exceptions")
 
-    await scenario.click("toggle:allowed_links=spotify.com")
-    await scenario.click("toggle:allowed_links=twitter.com")
+    await scenario.click("turn_on:allowed_links=spotify.com")
+    await scenario.click("turn_on:allowed_links=twitter.com")
 
     saved = scenario.get_persisted("guild", "block_links", {"guild_id": GUILD_ID})
     assert saved["allowed_links"]["values"] == [
@@ -180,7 +180,10 @@ async def test_two_changes_in_a_row_on_the_same_screen_both_save(
     ]
     assert not said_busy, "a screen that saved must not answer the next click busy"
     targets = [codec_target(item) for item in clickable_items(scenario.current_message)]
-    assert not [target for target in targets if (target or "").startswith("toggle:")], (
+    assert not [
+        target for target in targets
+        if (target or "").startswith(("turn_on:", "turn_off:"))
+    ], (
         "Voltar must leave the screen and draw the panel"
     )
     await scenario.finish()
@@ -209,7 +212,7 @@ async def test_a_change_that_keeps_its_screen_never_says_it_is_thinking(
     scenario = await scenario_factory(locale="pt-br").start_command("block_links")
     await scenario.click("edit:group:exceptions")
 
-    await scenario.click("toggle:allowed_links=spotify.com")
+    await scenario.click("turn_on:allowed_links=spotify.com")
 
     thinking = [
         event for event in scenario.outputs

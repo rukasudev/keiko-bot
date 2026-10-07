@@ -292,6 +292,10 @@ async def test_subscribing_a_youtuber_never_freezes_the_bot(deps, monkeypatch):
     from app.settings.features.feature import CommitContext
 
     deps.bot.config.is_dev = lambda: False
+    deps.mongo_client.guild[commands_constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY].insert_one(
+        {"guild_id": "123456789", "enabled": True,
+         "notifications": {"style": "composition", "values": []}}
+    )
     feature = feature_for(commands_constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY)
     monkeypatch.setattr(feature, "subscribe", blocking())
     context = CommitContext(

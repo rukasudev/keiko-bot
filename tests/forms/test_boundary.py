@@ -29,6 +29,8 @@ REFLECTION = re.compile(r"\b(?:hasattr|getattr)\(")
 COMMENT_BLOCK = re.compile(r"^[ \t]*#(?!!).*\n(?:[ \t]*#.*\n)+", re.MULTILINE)
 DEFINITION = re.compile(r"^(?:def|class) ([A-Za-z_][\w]*)", re.MULTILINE)
 SECTION_MARKER = re.compile(r"^[ \t]*#\s*(?:-{3,}|={3,})", re.MULTILINE)
+MANAGER = "app.settings.form.manager"
+FORM_YAML = os.path.join(SETTINGS, "form", "form_yaml.py")
 WORDS = {"id"}
 
 
@@ -121,6 +123,135 @@ def test_a_name_says_what_it_holds():
 
 def test_no_section_markers():
     assert _offenders(SECTION_MARKER, list(python_files(SETTINGS))) == []
+
+
+def _module_of(path):
+    return ".".join(os.path.splitext(_relative(path))[0].split(os.sep))
+
+
+def _imported_modules(path):
+    """Every module a file imports, `from package import name` as `package.name`."""
+    package = _module_of(path).rsplit(".", 1)[0].split(".")
+    found = set()
+    for node in ast.walk(ast.parse(_source(path))):
+        if isinstance(node, ast.Import):
+            found.update(alias.name for alias in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            base = package[: len(package) - node.level + 1] if node.level else []
+            module = ".".join([*base, node.module] if node.module else base)
+            found.add(module)
+            found.update(f"{module}.{alias.name}" for alias in node.names)
+    return found
+
+
+def test_the_form_never_imports_the_manager():
+    """The manager decides on its own and opens the form as a child session;
+    the form, its actions and its responses know nothing about it."""
+    form_files = [
+        path
+        for path in python_files(os.path.join(SETTINGS, "form"))
+        if _module_of(path) != MANAGER
+    ]
+    offenders = [
+        _relative(path)
+        for path in form_files
+        if any(
+            module == MANAGER or module.startswith(f"{MANAGER}.")
+            for module in _imported_modules(path)
+        )
+    ]
+    assert offenders == []
+
+
+def _section_classes():
+    """Every card section model of the schema, the union and its base included."""
+    tree = ast.parse(_source(FORM_YAML))
+    found = {"Section", "SectionBase"}
+    classes = [node for node in tree.body if isinstance(node, ast.ClassDef)]
+    while True:
+        more = {
+            node.name
+            for node in classes
+            if any(
+                isinstance(base, ast.Name) and base.id in found for base in node.bases
+            )
+        }
+        if more <= found:
+            return found
+        found |= more
+
+
+def _names(node):
+    """The class names an expression mentions: a name, a tuple, a sum of them."""
+    if isinstance(node, ast.Name):
+        return {node.id}
+    if isinstance(node, ast.Attribute):
+        return {node.attr}
+    if isinstance(node, (ast.Tuple, ast.List, ast.Set)):
+        return set().union(*(_names(element) for element in node.elts))
+    if isinstance(node, ast.BinOp):
+        return _names(node.left) | _names(node.right)
+    return set()
+
+
+def _is_call_of(node, name):
+    return (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id == name
+    )
+
+
+def _section_dispatches(path, sections):
+    """The lines that pick behaviour by a section's class: isinstance, type(), match."""
+    tree = ast.parse(_source(path))
+    named = set(sections)
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and _names(node.value) & sections:
+            named |= {
+                target.id for target in node.targets if isinstance(target, ast.Name)
+            }
+
+    found = []
+    for node in ast.walk(tree):
+        if _is_call_of(node, "isinstance") and len(node.args) == 2:
+            if _names(node.args[1]) & named:
+                found.append(node.lineno)
+        elif isinstance(node, ast.Compare):
+            sides = [node.left, *node.comparators]
+            typed = any(_is_call_of(side, "type") for side in sides)
+            if typed and set().union(*(_names(side) for side in sides)) & named:
+                found.append(node.lineno)
+        elif isinstance(node, ast.MatchClass) and _names(node.cls) & named:
+            found.append(node.lineno)
+    return found
+
+
+def test_no_card_section_is_dispatched_by_its_class():
+    """A section type contributes through its `SectionKind` and the accessors
+    of its model; 45 `isinstance` checks on section classes used to pick it."""
+    sections = _section_classes()
+    offenders = {
+        _relative(path): _section_dispatches(path, sections)
+        for path in python_files(SETTINGS)
+        if _section_dispatches(path, sections)
+    }
+    assert offenders == {}
+
+
+def test_the_checks_see_what_a_regular_expression_would_miss(tmp_path):
+    """Parenthesized imports, a manager among other names, `type(x) is`, aliases."""
+    sample = tmp_path / "sample.py"
+    sample.write_text(
+        "from app.settings.form import (\n    conditions,\n    manager,\n)\n"
+        "WITH_MODE = (TitleContentSection, FileUploadSection)\n"
+        "def pick(section):\n"
+        "    if type(section) is ValueSelectSection:\n"
+        "        return 1\n"
+        "    return isinstance(section, WITH_MODE + (ModalInputSection,))\n"
+    )
+    assert MANAGER in _imported_modules(str(sample))
+    assert _section_dispatches(str(sample), _section_classes()) == [7, 9]
 
 
 def _response_helper_files():

@@ -383,10 +383,9 @@ class FormScenario:
         from app.settings.form.form_yaml import registry
         from app.settings.form.form_yaml import CardStep
         from app.settings.form.form import steps_for
-        from app.settings.form.responses.responses import document_values
         from app.settings.form.conditions import Scope
         from app.settings.form.actions.configuration_card import state_of
-        from app.settings.form.actions.action import RenderContext
+        from app.settings.form.actions.action import Context
 
         session = self.session
         if session is None:
@@ -398,12 +397,12 @@ class FormScenario:
             return {}
         state = RUNTIME.sessions.get(session.id)
         document = state.opened.document if state and state.opened.document else {}
-        context = RenderContext(
+        context = Context(
             definition=definition,
             steps=steps,
             locale=self.locale_str,
             scope=Scope(session.values()),
-            document=document_values(document),
+            document=document,
         )
         return state_of(step, session, context)
 

@@ -211,7 +211,7 @@ async def test_a_change_that_needs_the_channel_fails_as_a_timeout_does(
 async def test_a_failed_edit_leaves_the_youtuber_still_followed_with_its_renewal(
     scenario_factory, deps, trouble,
 ):
-    """The engine unsubscribes the old youtuber before it subscribes the new one."""
+    """The new youtuber is subscribed before the edit is saved; its lookup fails here."""
     deps.bot.config.is_dev = lambda: False
     insert_reminder(7001, "youtube_notification", "pewdiepie")
     scenario, commit = await _edit(scenario_factory, deps)
@@ -228,8 +228,8 @@ async def test_a_failed_edit_leaves_the_youtuber_still_followed_with_its_renewal
 async def test_an_edit_that_fails_after_the_old_name_was_unsubscribed_keeps_its_renewal(
     scenario_factory, deps,
 ):
-    """The engine unsubscribes the old name before it subscribes the new one; here the hub
-    took the first and the lookup of the second failed."""
+    """The new name is subscribed before the edit is saved and the old one is let go only
+    after it; here the lookup of the new name failed, so neither happened."""
     deps.bot.config.is_dev = lambda: False
     insert_reminder(7001, "youtube_notification", "pewdiepie")
     scenario, commit = await _edit(scenario_factory, deps)

@@ -6,7 +6,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any
 
-from app.settings.form.actions.action import RenderContext
+from app.settings.form.actions.action import Context
 from app.settings.form.components import Screen
 from app.settings.form.form_state import Answer, FormSession
 
@@ -21,10 +21,8 @@ class Refusal:
     delete_after: int | None = 10
 
 
-Render = Callable[["Any", FormSession, RenderContext], Screen]
-Parse = Callable[
-    ["Any", Any, FormSession, RenderContext], "Mapping[str, Answer] | Refusal"
-]
+Render = Callable[["Any", FormSession, Context], Screen]
+Parse = Callable[["Any", Any, FormSession, Context], "Mapping[str, Answer] | Refusal"]
 
 
 @dataclass(frozen=True)

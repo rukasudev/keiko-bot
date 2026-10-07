@@ -196,7 +196,7 @@ async def test_the_panel_reads_a_document_saved_before_enabled_through_the_old_f
         OpenContext(GUILD_ID, "555", "pt-br")
     )
 
-    assert opened.enabled is True, "the panel offered Unpause for a feature that is on"
+    assert opened.panel.enabled is True, "the panel offered Unpause for a feature that is on"
 
 
 async def test_setup_reads_a_document_saved_before_enabled_through_the_old_flag(

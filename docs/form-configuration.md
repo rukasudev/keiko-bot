@@ -23,7 +23,7 @@ platform depends on nothing internal but itself and `app/constants.py`):
 | Layer | Package | Owns |
 |---|---|---|
 | What a form declares | `app/settings/form/form_yaml.py` | the typed schema, the YAML compiler with its legacy aliases, the registry and the source of definitions |
-| The engine | `app/settings/form/` | the frozen session and its store (`form_state.py`), events (`events.py`), effects (`effects.py`), the `when` evaluator (`conditions.py`), the screen model (`components.py`), what each click does (`form.py`), the manager (`manager.py`) |
+| The engine | `app/settings/form/` | the frozen session and its store (`form_state.py`), events (`events.py`), effects (`effects.py`), the `when` evaluator (`conditions.py`), the screen model (`components.py`), the form: navigation and what each click does in a form, decided by `decide` (`form.py`), and the manager: the panel over a saved document, decided by its own `decide` (`manager.py`), which opens the form as a child session and which the form never imports |
 | Actions and responses | `app/settings/form/actions/`, `app/settings/form/responses/` | one render and parse pair per YAML action; a response saved, validated, transformed, styled and summarised |
 | Features | `app/settings/features/` | one module per feature: answers to document and back, the commit, side actions |
 | Discord | `app/settings/discord/` | where sessions open and every click lands (`callbacks.py`), the description turned into Discord (`views.py`), the message replaced (`transitions.py`), click to event and the `custom_id` codec (`interactions.py`), observability (`observability.py`) |
@@ -41,8 +41,10 @@ lines are enforced by `tests/forms/test_boundary.py`.
    (`app/components/buttons.py`).
 2. `Runtime.open_feature` asks the feature module (`feature_for(key)`,
    `app/settings/features/__init__.py`) to `open` the guild: it answers with the
-   saved document, or nothing. Nothing saved opens a `Setup` session; a
-   document opens a `Manage` session over the manager panel.
+   saved document, or nothing. Nothing saved opens a `Setup` session, which
+   the form engine decides; a document opens a `Manage` session over the
+   manager panel, which the manager decides (`Runtime._decide` routes a
+   session by its mode, and nothing else does).
 3. The definition comes from the registry (`registry.get(key)`), which
    compiles `app/languages/form/<key>.yml` once per process through
    `compile_form` (`app/settings/form/form_yaml.py`). A definition that
@@ -54,7 +56,11 @@ lines are enforced by `tests/forms/test_boundary.py`.
    event (`interactions.to_event`), and when a submitted modal's validator
    declares an `external:<service>` need (`lookups.lookup_for`, for a text step
    or a card section) defers the interaction and runs the feature's `prefetch`,
-   then calls `decide(definition, session, event, context)`.
+   then calls `decide(definition, session, event, context)`, or
+   `manager.decide(definition, session, event, context, panel)` for a manage
+   session. `Context` (`app/settings/form/actions/action.py`) is the one
+   context of both: the adapter fills what it prefetched, the engine fills the
+   definition, the steps in play, the locale and the scope.
 5. `decide` is pure: it returns a `Decision` with the next session, the
    effects to run in order, the rules it evaluated and the analytics events
    to emit. The adapter stores the session (`put` bumps the revision;
@@ -156,10 +162,11 @@ an Edit that opens that item directly; the compiler refuses it on a list that
 may hold more than `ViewConstants.EDIT_BY_ITEM_MAX` items.
 
 On the manager panel every visible step is a block with an Edit beside what it
-opens (`manage.groups`, `panel_groups`): a card lists its fields, a
+opens (`panel_rows` and `panel_groups` in `app/settings/form/responses/summary.py`,
+which the review draws too): a card lists its fields, a
 multi-select its selects, a list its items, and any other step its own answer.
 A block of one line shows no heading, and a block titled like the panel shows
-none either. A feature that builds its own rows (`Opened.rows`) names each
+none either. A feature that builds its own rows (`PanelExtras.rows`) names each
 row's `key`; a keyed row joins the block of the step that produces that key,
 and the global Edit only stays while some row names no step. The panel's
 intro is the intro step's `manager_description`.
@@ -202,13 +209,14 @@ nothing is looked up by reflection.
 | Capability | Registry | Entries today |
 |---|---|---|
 | Step kinds | `registry()` in `app/settings/form/actions/__init__.py`, one `Kind(render, parse)` per name | the eleven kinds of 3.2 |
+| Card section types | `SECTION_KINDS` in `app/settings/form/actions/configuration_card.py`, one `SectionKind(press, change, preview, reset, custom)` per YAML `type`; what a section declares (`choices`, `opened_modal`, `validators`, `offered_designs`, `drawn_over`, `looked_up`) is asked of the section model, never by `isinstance` | the nine types of 3.3 |
 | Validators | `VALIDATORS` in `app/settings/form/responses/validations.py`; each declares `needs` (`answers`, `items`, `external:<service>`) so the adapter prefetches before `decide` | `validate_streamer_name`, `validate_youtube_channel`, `validate_link_or_domain`, `validate_date` |
 | Transforms | `TRANSFORMS` in `app/settings/form/responses/transforms.py`; a `Transform` names its `part_keys`, `value_key`, `style`, `serialize` and `hydrate` | `mm_dd_date_parts`, `normalize_link` |
 | Formatters | `STYLES` and `format_value` in `app/settings/form/responses/styles.py` | the styles of 3.1 |
 | Copy tokens | `TOKEN_FORMATTERS` in `app/settings/form/actions/action.py` | `host` |
 | Copy resolution | `text(key, locale)` and `normalize_locale` in `app/settings/form/copy.py` | reads the language files through `ml` |
 | Definitions | `DefinitionSource` (`load`, `list`) in `app/settings/form/form_yaml.py` | `DiskSource` over `app/languages/form/` |
-| Features | `feature_for(key)` in `app/settings/features/__init__.py` | the seven feature modules; any other compiled form gets `GenericCogFeature` |
+| Features | `Feature` in `app/constants.py`, one `FeatureSpec` each, whose `module` names the feature's module under `app/settings/features/` or is None; `feature_for(key)` in `app/settings/features/__init__.py` imports the module the spec names | the seven feature modules; a spec whose `module` is None gets `GenericCogFeature`, and a key no spec declares is refused |
 
 An extension may: register a step kind, a pure validator with its `needs`,
 a transform, a formatter, a card section type; provide a `FeatureModule`.
@@ -219,21 +227,21 @@ admin's locale.
 
 ## 6. Feature modules
 
-`FeatureModule` (`app/settings/features/protocol.py`) is what a feature
+`FeatureModule` (`app/settings/features/feature.py`) is what a feature
 contributes, and nothing more:
 
 | Member | Role |
 |---|---|
 | `key` | the form key |
-| `open(context) -> Opened` | the saved document and panel extras (`rows`, `info`, `extra_buttons`, `enabled`, `previews` or `pending_previews`), or an empty `Opened` for setup; `refusal` names an error key when the feature cannot open |
+| `open(context) -> Opened` | the saved document and its `PanelExtras` (`rows`, `info`, `info_title`, `extra_buttons`, `enabled`), `previews` or `pending_previews`, or an empty `Opened` for setup; `refusal` names an error key when the feature cannot open |
 | `prefetch(lookup, context)` | the external data a submitted modal asks for: `lookup.services` are the `external:<service>` needs of its validator (a text step's or a card section's modal) and `lookup.value` is the typed value after `lowercase` and `normalize`; the adapter defers the interaction before running it |
 | `to_document(answers, locale)` / `from_document(document)` | answers to the persisted document and back, any schema version |
-| `commit(kind, payload, context) -> CommitResult` | writes what `kind` asks (`setup`, `edit`, `edit_item`, `add_item`, `remove_item`, `pause`, `unpause`, `disable`), records the audit event, and reports `written` and `external` so a failure midway can say what happened |
+| `commit(kind, payload, context) -> CommitResult` | writes what `kind` asks (`setup`, `edit`, `toggle`, `edit_item`, `add_item`, `remove_item`, `pause`, `unpause`, `disable`), records the audit event, and reports `written` and `external` so a failure midway can say what happened. The list and choice commits apply each change to the settings as they are saved when the admin confirms (`saved_document`, `saved_list`, read through the feature's `normalized`): `toggle` sets one option to the state its button asked for (`turned_on`), so the same click from two screens gives the same choice, and the item commits find the edited or removed item by the content the panel showed, refuse a `unique_by` value already listed (`DuplicateItem`), and write only while nobody changed the value meanwhile (`update_cog_if_unchanged_async`); otherwise `ListChanged` saves nothing. `pause`, `unpause` and `edit` first check that the document is still saved (`saved_document`). A refusal drops the cached document, the adapter reads the feature again (`Runtime._reopen`, which keeps the document it had and logs the error when that read fails) and the manager answers: the out-of-date notice and the screen redrawn from the saved list, the duplicate copy, or, once the feature is gone, `Finalize("closed")`, which takes the rows of buttons off the message and writes the closed notice inside it. A refusal that keeps the session open, or closes it after another panel's Disable, emits no event: only a commit that fails the session emits `feature.commit_failed`, including a duplicate refused on a commit that ends the session (the panel's Add), which ends it with the duplicate copy as before. What a change needs outside runs before the write (`before_item_added`, `before_item_replaced`) and is let go when the write fails (`save_or_let_go`); what it leaves outside runs after it (`after_item_replaced`, `after_item_removed`, `after_disable`), best-effort and logged when it fails (`best_effort`). Disable deletes the document and lets go of what it listed before it records the flag |
 | `asides()` | read-only side actions by button action name (`AsideAction(handler, defer, own_response, cooldown, confirm)`) |
 | `responses_for_preview(answers, locale)` | the answers in the shape the preview functions read |
 
 A feature never sees the session, never renders, and never reaches another
-feature's document. `GenericCogFeature` (`app/settings/features/generic.py`)
+feature's document. `GenericCogFeature` (`app/settings/features/feature.py`)
 covers the common case: one document per guild in the feature's collection,
 lifecycle through `insert_cog_event`. Write a module only when persistence
 is not that (birthdays write members, twitch and youtube subscribe, welcome
@@ -241,7 +249,11 @@ messages render banners).
 
 Documents keep the persisted shape `{style, values}` per key that every
 reader outside the forms depends on; `app/settings/form/responses/responses.py` is the
-one place that shape is built and read.
+one place that shape is built and read. A runtime reader reads it through
+the read model there: `document_values` for the settings and `list_values`
+(each item through `item_values`) for a list give machine values, the
+`_raw_value` beside a label and never the label; saved items keep their
+labels in `value`, because v0.9.0 shows and matches them.
 
 ## 7. The Discord adapter
 
@@ -289,24 +301,39 @@ one place that shape is built and read.
 
 ## 8. Adding a form
 
-A new form is three files, all under existing conventions:
+A new feature is one declaration and three files, all under existing
+conventions:
 
+0. **The declaration**, one member of `Feature` in `app/constants.py`, the
+   one table every feature list derives from, except `COMMANDS_LIST`, which
+   wave 3 derives: a `FeatureSpec` with the key, the slash command's group
+   and namespace, the /setup button and emoji, the permissions it needs,
+   whether it assigns roles, whether it answers the chat prefix, and the
+   module that saves it (or None for the generic one). The key constant,
+   `Commands.SETUP_FEATURES`, `Commands.FEATURE_COMMANDS`, the moderation
+   defaults, `feature_keys` and the module `feature_for` imports come from
+   it. It is one table because those lists had drifted apart: the
+   moderation defaults had forgotten StreamElements, and group and
+   namespace were written twice for every command.
+   `tests/forms/features/test_feature_specs.py` refuses a declaration whose
+   form, module, command or copy disagrees with it.
 1. **The definition**, `app/languages/form/<key>.yml`: `steps:` composed
    from 3.2, opening with `action: form` and closing with `action: resume`,
    every string in both locales. `pytest tests/forms/form -q`
    compiles every file on disk; a bad rule or a missing locale fails there.
 2. **The cog**, in `app/cogs/`: the slash command's body calls
    `open_feature(interaction, key)` (through the feature service's
-   `manager`, the convention every feature follows). Register the key in
-   `Commands` (`app/constants.py`).
+   `manager`, the convention every feature follows), in a subgroup with the
+   namespace and under the group the declaration names.
 3. **The copy**, in `app/languages/commands/commands.<locale>.yml` (the
    command's name and description) and in `errors.<locale>.yml` for any new
    validator key. Reuse `buttons.*` labels and
    `commands.command-events.*` state messages before adding keys.
 
-Persistence is generic (`GenericCogFeature`) unless the feature needs more;
-then a module in `app/settings/features/` fulfils section 6 and `feature_for`
-maps the key to it. A behavioral scenario in `tests/behavioral/scenarios/`
+Persistence is generic (`GenericCogFeature`, the spec's `module=None`) unless
+the feature needs more; then a module under `app/settings/features/`, named
+after the key like the form's file, fulfils section 6 with a `FEATURE`, and
+the spec names it. A behavioral scenario in `tests/behavioral/scenarios/`
 and a golden path in `tests/behavioral/golden/paths/` pin what the admin
 sees (`docs/form-scenario-testing.md`).
 

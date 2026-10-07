@@ -140,8 +140,8 @@ events:
   feature.commit_failed:
     version: 1
     class: [event, counter]
-    description: A feature's commit raised before finishing; the session closed as a failure.
-    emitted_at: app/settings/form/form.py — engine.emit, from Decision.analytics (_on_commit_failed)
+    description: A feature's commit raised before finishing and the session closed as a failure (the error, or the duplicate copy when the commit ended the session). A refused change that keeps the session open, or that closes it after another panel's Disable, is not one and emits nothing.
+    emitted_at: app/settings/form/form.py — engine.emit, from Decision.analytics (on_commit_failed)
     actor: user
     required: [feature, session_id, commit_kind, error_type]
     optional: [step_key]

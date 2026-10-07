@@ -8,12 +8,7 @@ from dataclasses import dataclass
 from app.settings.form import events as ev
 from app.settings.form.form import steps_for
 from app.settings.form.form_state import FormSession
-from app.settings.form.form_yaml import (
-    CardStep,
-    FormDefinition,
-    ModalInputSection,
-    TextStep,
-)
+from app.settings.form.form_yaml import CardStep, FormDefinition, TextStep
 from app.settings.form.responses.transforms import normalizer
 from app.settings.form.responses.validations import validator
 
@@ -57,18 +52,20 @@ def _card_lookup(
     if not 0 <= index < len(card.sections):
         return None
     section = card.sections[index]
-    if not isinstance(section, ModalInputSection):
+    modal = section.opened_modal()
+    if modal is None:
         return None
+
     key = section.state.value
-    fields = section.modal.fields
+    fields = modal.fields
     position = next(
         (index for index, field in enumerate(fields) if field.key == key), 0
     )
     value = str(inputs[position]) if position < len(inputs) else ""
     field = fields[position] if position < len(fields) else None
-    named = tuple(path.split(".", 1)[0] for path in section.lookup_answers.values())
+    named = tuple(path.split(".", 1)[0] for path in section.looked_up().values())
     return _lookup(
-        section.modal.validation,
+        modal.validation,
         _normalized(field.normalize if field else None, value),
         named,
     )

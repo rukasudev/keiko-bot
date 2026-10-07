@@ -2,18 +2,20 @@
 
 The card's draft lives in the session as the parts of the card's own key;
 every section change is a `Drafted` event, Done turns the draft into the
-answers the card's fields declare.
+answers the card's fields declare. Each section `type` the YAML may declare
+is one `SectionKind` in `SECTION_KINDS`, the way each step kind is one `Kind`.
 """
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any
 
 from app.constants import KeikoIcons
 from app.settings.form.actions import Refusal
 from app.settings.form.actions.action import (
-    RenderContext,
+    Context,
     back_button,
     cancel_button,
     design_gallery,
@@ -52,6 +54,7 @@ from app.settings.form.form_yaml import (
     ValueSelectSection,
     owned_keys,
 )
+from app.settings.form.responses.responses import document_values
 from app.settings.form.responses.styles import empty_value, format_boolean, format_value
 from app.settings.form.responses.summary import option_label
 from app.settings.form.responses.transforms import normalizer, transform
@@ -64,8 +67,19 @@ ICONS: dict[str, str] = {
     "BIRTHDAY_GIF": KeikoIcons.BIRTHDAY_GIF,
 }
 EMPTY: tuple[Any, ...] = (None, "", [])
-WITH_OPTIONS = (ValueSelectSection, ButtonOptionsSection, MultiSelectSection)
-WITH_MODE = (TitleContentSection, FileUploadSection)
+
+Lines = tuple[tuple[str, ...], str | None]
+Changes = Mapping[str, Any]
+Preview = Callable[[Any, Mapping[str, Any], CardStep, FormSession, Context], Lines]
+Press = Callable[
+    [Any, CardStep, int, Mapping[str, Any], Context],
+    tuple[Screen | None, Changes | None],
+]
+Change = Callable[
+    [Any, Any, Mapping[str, Any], FormSession, Context], "Changes | Refusal"
+]
+Reset = Callable[[Any], Changes]
+Custom = Callable[[Any, Mapping[str, Any]], bool]
 
 
 def _localized(value: Any, locale: str) -> Any:
@@ -73,23 +87,24 @@ def _localized(value: Any, locale: str) -> Any:
 
 
 def _seed_state(
-    card: CardStep, session: FormSession, context: RenderContext
+    card: CardStep, session: FormSession, context: Context
 ) -> dict[str, Any]:
     keys = card.state_keys()
+    saved = document_values(context.document)
     state: dict[str, Any] = {}
 
     for key in keys:
         value = session.raw(key)
         if isinstance(value, Mapping):
             value = value.get("value")
-        if value is None and key in context.document:
-            value = context.document.get(key)
+        if value is None and key in saved:
+            value = saved.get(key)
         state[key] = value
     rule = transform(card.transform)
     if rule:
         stored = session.raw(rule.value_key)
         if stored is None:
-            stored = context.document.get(rule.value_key)
+            stored = saved.get(rule.value_key)
         for part, part_value in rule.hydrate(stored).items():
             if part in keys and not state.get(part):
                 state[part] = part_value
@@ -97,7 +112,7 @@ def _seed_state(
 
 
 def initial_state(
-    card: CardStep, session: FormSession, context: RenderContext
+    card: CardStep, session: FormSession, context: Context
 ) -> dict[str, Any]:
     """The card state before any change: prior answers, the document, defaults."""
     state = _seed_state(card, session, context)
@@ -117,9 +132,7 @@ def initial_state(
     return state
 
 
-def state_of(
-    card: CardStep, session: FormSession, context: RenderContext
-) -> dict[str, Any]:
+def state_of(card: CardStep, session: FormSession, context: Context) -> dict[str, Any]:
     """The current draft, or the initial state when nothing was changed yet."""
     draft = session.answers.get(card.key)
     if draft is not None and draft.parts:
@@ -143,38 +156,19 @@ def hidden_keys(card: CardStep, state: Mapping[str, Any]) -> set[str]:
 
 def is_custom(section: Section, state: Mapping[str, Any]) -> bool:
     """True when a default-or-custom section holds a custom value."""
-    if isinstance(section, TitleContentSection):
-        return state.get(section.state.mode or "") == "custom"
-    if isinstance(section, FileUploadSection):
-        mode, url = section.state.mode, section.state.url or ""
-        if not mode:
-            return bool(state.get(url))
-        return state.get(mode) == "custom" and bool(state.get(url))
-    return True
+    custom = SECTION_KINDS[section.type].custom
+    return custom(section, state) if custom is not None else True
 
 
-def _template_vars(
-    card: CardStep, session: FormSession, context: RenderContext
-) -> dict[str, str]:
-    resolved: dict[str, str] = {}
-    for name, var in card.context.items():
-        if var.context == "server_name":
-            resolved[name] = context.server_name
-            continue
-        value = session.raw(var.answer or "")
-        if value is None:
-            resolved[name] = ""
-        elif var.format:
-            resolved[name] = str(format_value(value, var.format, context.locale))
-        else:
-            resolved[name] = str(value)
-    return resolved
-
-
-def _fill(body: str, variables: Mapping[str, str]) -> str:
-    for name, value in variables.items():
-        body = body.replace("{" + name + "}", value)
-    return body
+def preview(
+    section: Section,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+) -> Lines:
+    """The lines under a section heading, and a media url when it shows one."""
+    return SECTION_KINDS[section.type].preview(section, state, card, session, context)
 
 
 def _formatted(value: Any, style: str | None, locale: str) -> str:
@@ -183,123 +177,28 @@ def _formatted(value: Any, style: str | None, locale: str) -> str:
     return format_value(value, style, locale) if style else str(value)
 
 
-def preview(
-    section: Section,
-    state: Mapping[str, Any],
-    card: CardStep,
-    session: FormSession,
-    context: RenderContext,
-) -> tuple[tuple[str, ...], str | None]:
-    """The lines under a section heading, and a media url when it shows one."""
-    locale = context.locale
-    value = state.get(section.state.value or "")
-
-    if isinstance(section, (ValueSelectSection, ButtonOptionsSection)):
-        label = option_label(section.options, value, locale)
-        return ((f"> {label or _formatted(value, section.style, locale)}",), None)
-    if isinstance(section, MultiSelectSection):
-        chosen = [
-            str(value)
-            for value in (
-                value if isinstance(value, (list, tuple)) else [value] if value else []
-            )
-        ]
-        labels = [
-            option.label.get(locale)
-            for option in section.options
-            if str(option.value) in chosen
-        ]
-        return ((f"> {', '.join(labels) if labels else '—'}",), None)
-    if isinstance(section, BooleanToggleSection):
-        return ((f"> {format_boolean(bool(value), locale)}",), None)
-    if isinstance(section, DesignSection):
-        return _design_preview(section, value, card, state, context)
-    if isinstance(section, ModalInputSection) and len(section.modal.fields) > 1:
-        return _fields_preview(section, state, locale)
-    if isinstance(section, TitleContentSection):
-        return _title_content_preview(section, state, card, session, context)
-    if isinstance(section, FileUploadSection):
-        url = state.get(section.state.url or "") if is_custom(section, state) else None
-        return ((), str(url) if url else None)
-    return ((f"> {_formatted(value, section.style, locale)}",), None)
-
-
-def _title_content_preview(
-    section: TitleContentSection,
-    state: Mapping[str, Any],
-    card: CardStep,
-    session: FormSession,
-    context: RenderContext,
-) -> tuple[tuple[str, ...], str | None]:
-    locale = context.locale
-    if is_custom(section, state):
-        title = state.get(section.state.title or "") or ""
-        content = state.get(section.state.content or "") or ""
-    else:
-        title = section.default.title.get(locale)
-        content = section.default.content.get(locale)
-    variables = _template_vars(card, session, context)
-    lines = []
-
-    if title:
-        lines.append(f"> **{_fill(title, variables)}**")
-    if content:
-        lines.append(f"> {_fill(content, variables)}")
-    return (tuple(lines), None)
-
-
-def _design_preview(
-    section: DesignSection,
-    value: Any,
-    card: CardStep,
-    state: Mapping[str, Any],
-    context: RenderContext,
-) -> tuple[tuple[str, ...], str | None]:
-    locale = context.locale
-    chosen = next(
-        (design.label.get(locale) for design in section.designs if design.key == value),
-        None,
-    )
-    drawn = context.previews.get(str(value)) if value else None
-    return ((f"> {chosen or _formatted(value, None, locale)}",), drawn)
-
-
-def _fields_preview(
-    section: ModalInputSection, state: Mapping[str, Any], locale: str
-) -> tuple[tuple[str, ...], str | None]:
-    lines = [
-        f"> **{field.label.get(locale)}:** {state.get(field.key)}"
-        for field in section.modal.fields
-        if field.key
-        and field.key != section.state.value
-        and state.get(field.key) not in EMPTY
-    ]
-    value = state.get(section.state.value or "")
-    lines.append(_formatted(value, section.style, locale).strip())
-    return (tuple(lines), None)
-
-
 def _section_view(
     index: int,
     section: Section,
     state: Mapping[str, Any],
     card: CardStep,
     session: FormSession,
-    context: RenderContext,
+    context: Context,
 ) -> SectionView:
     locale = context.locale
     label = section.label.get(locale)
     customize = section.customize_label.get(locale) if section.customize_label else ""
     lines, media = preview(section, state, card, session, context)
+    custom = SECTION_KINDS[section.type].custom
 
-    if isinstance(section, WITH_MODE) and section.state.mode:
-        custom = is_custom(section, state)
-        badge_key = "badge-custom" if custom else "badge-default"
+    if custom is not None and section.state.mode:
+        customized = custom(section, state)
+        badge_key = "badge-custom" if customized else "badge-default"
         badge = text(f"buttons.summary-card.{badge_key}", locale)
         heading = f"{section.icon} **{label}:** {badge}"
         buttons: tuple[Button, ...]
 
-        if custom:
+        if customized:
             buttons = (
                 Button(text("buttons.summary-card.edit", locale), f"section:{index}"),
                 Button(text("buttons.summary-card.reset", locale), f"reset:{index}"),
@@ -318,7 +217,7 @@ def _section_view(
     )
 
 
-def _header(card: CardStep, session: FormSession, context: RenderContext) -> CardHeader:
+def _header(card: CardStep, session: FormSession, context: Context) -> CardHeader:
     locale = context.locale
     header = card.header
 
@@ -348,7 +247,7 @@ def _header(card: CardStep, session: FormSession, context: RenderContext) -> Car
     )
 
 
-def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
+def render(step: Any, session: FormSession, context: Context) -> Screen:
     """The card with its visible sections, Done, Back and Cancel."""
     card: CardStep = step
     locale = context.locale
@@ -381,6 +280,147 @@ def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
         flavour="components_v2",
         layout_footer=footer_of(card, locale),
     )
+
+
+def open_section(
+    card: CardStep, index: int, session: FormSession, context: Context
+) -> tuple[Screen | None, Changes | None]:
+    """What pressing a section does: a screen to show, or a change to apply."""
+    section = card.sections[index]
+    state = state_of(card, session, context)
+    return SECTION_KINDS[section.type].press(section, card, index, state, context)
+
+
+def apply_change(
+    card: CardStep,
+    index: int,
+    payload: Any,
+    session: FormSession,
+    context: Context,
+) -> Changes | Refusal:
+    """The state changes a section's payload produces, or a refusal."""
+    section = card.sections[index]
+    state = state_of(card, session, context)
+    return SECTION_KINDS[section.type].change(section, payload, state, session, context)
+
+
+def apply_drafts(
+    card: CardStep,
+    changes: Mapping[str, Any],
+    session: FormSession,
+    context: Context,
+) -> Changes | Refusal:
+    """What a section's select reported, through the section's own rules."""
+    applied: dict[str, Any] = {}
+    for slot, payload in changes.items():
+        index = next(
+            (
+                index
+                for index, section in enumerate(card.sections)
+                if section.state.value == slot
+            ),
+            None,
+        )
+        if index is None:
+            applied[slot] = payload
+            continue
+        change = apply_change(card, index, payload, session, context)
+        if isinstance(change, Refusal):
+            return change
+        applied.update(change)
+    return applied
+
+
+def reset_section(card: CardStep, index: int) -> Changes:
+    """The state a section goes back to on Reset."""
+    section = card.sections[index]
+    return SECTION_KINDS[section.type].reset(section)
+
+
+def draft(
+    card: CardStep,
+    changes: Mapping[str, Any],
+    session: FormSession,
+    context: Context,
+) -> Answer:
+    """The card draft with `changes` applied."""
+    state = state_of(card, session, context)
+    state.update(changes)
+    return Answer(None, state)
+
+
+def required_labels(card: CardStep, locale: str) -> dict[str, str]:
+    """State key to the label named when it is missing."""
+    labels: dict[str, str] = {}
+    for field in card.fields:
+        labels[field.key] = field.label.get(locale)
+    for section in card.sections:
+        for key in owned_keys(section):
+            labels[key] = section.label.get(locale)
+    return labels
+
+
+def _join_labels(labels: Sequence[str], locale: str) -> str:
+    emphasized = [f"**{label}**" for label in labels]
+    if len(emphasized) <= 1:
+        return emphasized[0] if emphasized else ""
+    conjunction = text("buttons.summary-card.required-separator", locale)
+    if len(emphasized) == 2:
+        return conjunction.join(emphasized)
+    return f"{', '.join(emphasized[:-1])}{conjunction}{emphasized[-1]}"
+
+
+def parse(
+    step: Any, payload: Any, session: FormSession, context: Context
+) -> Mapping[str, Answer] | Refusal:
+    """Done: the draft becomes the answers the card's fields declare."""
+    card: CardStep = step
+    state = dict(state_of(card, session, context))
+    hidden = hidden_keys(card, state)
+    missing = [
+        key
+        for key in card.required_keys
+        if key not in hidden and state.get(key) in EMPTY
+    ]
+
+    if missing:
+        labels = required_labels(card, context.locale)
+        joined = _join_labels([labels.get(key, key) for key in missing], context.locale)
+        return Refusal("buttons.summary-card.required", {"fields": joined}, plain=True)
+    rule = transform(card.transform)
+    if rule:
+        state[rule.value_key] = rule.serialize(state)
+    answers: dict[str, Answer] = {card.key: Answer(None, state)}
+    for field in card.fields:
+        if field.key in state:
+            answers[field.key] = Answer(state[field.key])
+    return answers
+
+
+def _cleared(section: Section) -> Changes:
+    return {section.state.value or "": None}
+
+
+def _value_preview(
+    section: Section,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+) -> Lines:
+    value = state.get(section.state.value or "")
+    return ((f"> {_formatted(value, section.style, context.locale)}",), None)
+
+
+@dataclass(frozen=True)
+class SectionKind:
+    """What a card section type contributes: its lines, its press, change, reset."""
+
+    press: Press
+    change: Change
+    preview: Preview = _value_preview
+    reset: Reset = _cleared
+    custom: Custom | None = None
 
 
 def _picker_title(section: Section, locale: str) -> str:
@@ -427,137 +467,433 @@ def _options(
 
 
 def _modal_title(section: Section, locale: str) -> str:
-    modal = getattr_modal(section)
+    modal = section.opened_modal()
     title = modal.title.get(locale) if modal else section.label.get(locale)
     if not section.icon or title.lstrip().startswith(section.icon):
         return title
     return f"{section.icon} {title}".strip()
 
 
-def getattr_modal(section: Section) -> Any:
-    """The modal spec of a section that opens one, None otherwise."""
-    if isinstance(section, (TitleContentSection, FileUploadSection, ModalInputSection)):
-        return section.modal
-    return None
-
-
-def open_section(
-    card: CardStep, index: int, session: FormSession, context: RenderContext
-) -> tuple[Screen | None, Mapping[str, Any] | None]:
-    """What pressing a section does: a screen to show, or a change to apply."""
-    section = card.sections[index]
+def _title_content_preview(
+    section: TitleContentSection,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+) -> Lines:
     locale = context.locale
-    state = state_of(card, session, context)
+    if is_custom(section, state):
+        title = state.get(section.state.title or "") or ""
+        content = state.get(section.state.content or "") or ""
+    else:
+        title = section.default.title.get(locale)
+        content = section.default.content.get(locale)
+    variables = _template_vars(card, session, context)
+    lines = []
+
+    if title:
+        lines.append(f"> **{_fill(title, variables)}**")
+    if content:
+        lines.append(f"> {_fill(content, variables)}")
+    return (tuple(lines), None)
+
+
+def _template_vars(
+    card: CardStep, session: FormSession, context: Context
+) -> dict[str, str]:
+    resolved: dict[str, str] = {}
+    for name, var in card.context.items():
+        if var.context == "server_name":
+            resolved[name] = context.server_name
+            continue
+        value = session.raw(var.answer or "")
+        if value is None:
+            resolved[name] = ""
+        elif var.format:
+            resolved[name] = str(format_value(value, var.format, context.locale))
+        else:
+            resolved[name] = str(value)
+    return resolved
+
+
+def _fill(body: str, variables: Mapping[str, str]) -> str:
+    for name, value in variables.items():
+        body = body.replace("{" + name + "}", value)
+    return body
+
+
+def _title_content_modal(
+    section: TitleContentSection,
+    card: CardStep,
+    index: int,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Screen | None, Changes | None]:
+    locale = context.locale
+    modal = section.modal
+    title_key, content_key = section.state.title or "", section.state.content or ""
+    pair = (
+        Input(
+            _localized(modal.title_label, locale) or "",
+            "title",
+            default=state.get(title_key) or section.default.title.get(locale),
+            max_length=50,
+        ),
+        Input(
+            _localized(modal.content_label, locale) or "",
+            "content",
+            default=state.get(content_key) or section.default.content.get(locale),
+            max_length=200,
+            multiline=True,
+        ),
+    )
+
+    return Screen(
+        modal_title=_modal_title(section, locale),
+        components=(TextInputs(card.key, pair, slot=section.key),),
+        flavour="modal",
+    ), None
+
+
+def _title_content_change(
+    section: TitleContentSection,
+    payload: Any,
+    state: Mapping[str, Any],
+    session: FormSession,
+    context: Context,
+) -> Changes:
+    values = payload.get("inputs") if isinstance(payload, Mapping) else payload
+    title, content = (list(values or []) + ["", ""])[:2]
+    return {
+        section.state.mode or "": "custom",
+        section.state.title or "": title,
+        section.state.content or "": content,
+    }
+
+
+def _title_content_reset(section: TitleContentSection) -> Changes:
+    return {
+        section.state.mode or "": "default",
+        section.state.title or "": None,
+        section.state.content or "": None,
+    }
+
+
+def _title_content_custom(
+    section: TitleContentSection, state: Mapping[str, Any]
+) -> bool:
+    return state.get(section.state.mode or "") == "custom"
+
+
+def _image_preview(
+    section: FileUploadSection,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+) -> Lines:
+    url = state.get(section.state.url or "") if is_custom(section, state) else None
+    return ((), str(url) if url else None)
+
+
+def _image_modal(
+    section: FileUploadSection,
+    card: CardStep,
+    index: int,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Screen | None, Changes | None]:
+    locale = context.locale
+    component = FileInput(
+        card.key,
+        text("buttons.file-upload.label", locale) or "Image",
+        slot=section.key,
+    )
+    return Screen(
+        modal_title=_modal_title(section, locale),
+        components=(component,),
+        flavour="modal",
+    ), None
+
+
+def _image_change(
+    section: FileUploadSection,
+    payload: Any,
+    state: Mapping[str, Any],
+    session: FormSession,
+    context: Context,
+) -> Changes:
+    url = payload.get("url") if isinstance(payload, Mapping) else payload
+    if not url:
+        return {}
+    uploaded: dict[str, Any] = {section.state.url or "": url}
+
+    if section.state.mode:
+        uploaded[section.state.mode] = "custom"
+    return uploaded
+
+
+def _image_reset(section: FileUploadSection) -> Changes:
+    cleared: dict[str, Any] = {section.state.url or "": None}
+    if section.state.mode:
+        cleared[section.state.mode] = "default"
+    return cleared
+
+
+def _image_custom(section: FileUploadSection, state: Mapping[str, Any]) -> bool:
+    mode, url = section.state.mode, section.state.url or ""
+    if not mode:
+        return bool(state.get(url))
+    return state.get(mode) == "custom" and bool(state.get(url))
+
+
+def _channel_picker(
+    section: ChannelSelectSection,
+    card: CardStep,
+    index: int,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Screen | None, Changes | None]:
+    locale = context.locale
+    picker = Picker(
+        card.key,
+        "channel",
+        text("buttons.components.select.channel-placeholder", locale),
+        unique=True,
+        slot=section.state.value or "",
+        required=True,
+    )
+    return _picker_screen(card, section, locale, picker), None
+
+
+def _picked(
+    section: Section,
+    payload: Any,
+    state: Mapping[str, Any],
+    session: FormSession,
+    context: Context,
+) -> Changes:
+    value = payload[0] if isinstance(payload, (list, tuple)) else payload
+    return {section.state.value or "": str(value)}
+
+
+def _option_preview(
+    section: ValueSelectSection | ButtonOptionsSection,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+) -> Lines:
+    locale = context.locale
+    value = state.get(section.state.value or "")
+    label = option_label(section.options, value, locale)
+    return ((f"> {label or _formatted(value, section.style, locale)}",), None)
+
+
+def _value_picker(
+    section: ValueSelectSection,
+    card: CardStep,
+    index: int,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Screen | None, Changes | None]:
+    locale = context.locale
+    single = OptionSelect(
+        card.key,
+        _picker_title(section, locale),
+        _options(section.options, (), locale),
+        1,
+        1,
+        slot=section.state.value or "",
+    )
+    description = _localized(section.picker_description, locale) or ""
+    return _picker_screen(card, section, locale, single, description), None
+
+
+def _value_change(
+    section: ValueSelectSection,
+    payload: Any,
+    state: Mapping[str, Any],
+    session: FormSession,
+    context: Context,
+) -> Changes:
     key = section.state.value or ""
+    value = payload[0] if isinstance(payload, (list, tuple)) else payload
+    changes: dict[str, Any] = {key: value}
 
-    if isinstance(section, ChannelSelectSection):
-        picker = Picker(
-            card.key,
-            "channel",
-            text("buttons.components.select.channel-placeholder", locale),
-            unique=True,
-            slot=key,
-            required=True,
-        )
-        return _picker_screen(card, section, locale, picker), None
-    if isinstance(section, ValueSelectSection):
-        single = OptionSelect(
-            card.key,
-            _picker_title(section, locale),
-            _options(section.options, (), locale),
-            1,
-            1,
-            slot=key,
-        )
-        return _picker_screen(
-            card,
-            section,
-            locale,
-            single,
-            _localized(section.picker_description, locale) or "",
-        ), None
-    if isinstance(section, MultiSelectSection):
-        chosen = [str(value) for value in (state.get(key) or [])]
-        multiple = OptionSelect(
-            card.key,
-            _picker_title(section, locale),
-            _options(section.options, chosen, locale),
-            0,
-            max(len(section.options), 1),
-            slot=key,
-        )
-        return _picker_screen(
-            card,
-            section,
-            locale,
-            multiple,
-            _localized(section.picker_description, locale) or "",
-        ), None
-    if isinstance(section, ButtonOptionsSection):
-        buttons = tuple(
-            Button(
-                option.label.get(locale), f"pick:{index}", option.style or "secondary"
-            )
-            for index, option in enumerate(section.options)
-        )
-        return _picker_screen(
-            card,
-            section,
-            locale,
-            None,
-            _localized(section.picker_description, locale) or "",
-            buttons,
-        ), None
-    if isinstance(section, BooleanToggleSection):
-        return None, {key: not bool(state.get(key))}
-    if isinstance(section, DesignSection):
-        gallery = design_gallery(card.key, section.designs, context)
-        back = Button(text("buttons.back.label", locale), "picker_back")
-        return Screen(
-            components=(gallery,), buttons=(back,), flavour="components_v2"
-        ), None
-    return _modal_screen(card, section, state, locale), None
+    if str(state.get(key)) != str(value):
+        _reset_dependents(section, state, value, changes)
+    return changes
 
 
-def _modal_screen(
-    card: CardStep, section: Section, state: Mapping[str, Any], locale: str
-) -> Screen:
-    if isinstance(section, TitleContentSection):
-        modal = section.modal
-        title_key, content_key = section.state.title or "", section.state.content or ""
-        pair = (
-            Input(
-                _localized(modal.title_label, locale) or "",
-                "title",
-                default=state.get(title_key) or section.default.title.get(locale),
-                max_length=50,
-            ),
-            Input(
-                _localized(modal.content_label, locale) or "",
-                "content",
-                default=state.get(content_key) or section.default.content.get(locale),
-                max_length=200,
-                multiline=True,
-            ),
-        )
+def _reset_dependents(
+    section: ValueSelectSection,
+    state: Mapping[str, Any],
+    value: Any,
+    changes: dict[str, Any],
+) -> None:
+    candidate = {**state, section.state.value or "": value}
+    for rule in section.reset_on_change:
+        check = validator(rule.validation)
+        if check is None or not candidate.get(rule.key):
+            continue
+        if check.check(candidate.get(rule.key), ValidationContext(answers=candidate)):
+            changes[rule.key] = None
 
-        return Screen(
-            modal_title=_modal_title(section, locale),
-            components=(TextInputs(card.key, pair, slot=section.key),),
-            flavour="modal",
+
+def _option_buttons(
+    section: ButtonOptionsSection,
+    card: CardStep,
+    index: int,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Screen | None, Changes | None]:
+    locale = context.locale
+    buttons = tuple(
+        Button(
+            option.label.get(locale), f"pick:{position}", option.style or "secondary"
         )
-    if isinstance(section, FileUploadSection):
-        component = FileInput(
-            card.key,
-            text("buttons.file-upload.label", locale) or "Image",
-            slot=section.key,
+        for position, option in enumerate(section.options)
+    )
+    description = _localized(section.picker_description, locale) or ""
+    return _picker_screen(card, section, locale, None, description, buttons), None
+
+
+def _option_pressed(
+    section: ButtonOptionsSection,
+    payload: Any,
+    state: Mapping[str, Any],
+    session: FormSession,
+    context: Context,
+) -> Changes:
+    key = section.state.value or ""
+    position = int(payload) if str(payload).isdigit() else -1
+    if 0 <= position < len(section.options):
+        return {key: str(section.options[position].value)}
+    return {key: str(payload)}
+
+
+def _values_preview(
+    section: MultiSelectSection,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+) -> Lines:
+    value = state.get(section.state.value or "")
+    chosen = [
+        str(value)
+        for value in (
+            value if isinstance(value, (list, tuple)) else [value] if value else []
         )
-        return Screen(
-            modal_title=_modal_title(section, locale),
-            components=(component,),
-            flavour="modal",
-        )
-    assert isinstance(section, ModalInputSection)
+    ]
+    labels = [
+        option.label.get(context.locale)
+        for option in section.options
+        if str(option.value) in chosen
+    ]
+    return ((f"> {', '.join(labels) if labels else '—'}",), None)
+
+
+def _values_picker(
+    section: MultiSelectSection,
+    card: CardStep,
+    index: int,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Screen | None, Changes | None]:
+    locale = context.locale
+    key = section.state.value or ""
+    chosen = [str(value) for value in (state.get(key) or [])]
+    multiple = OptionSelect(
+        card.key,
+        _picker_title(section, locale),
+        _options(section.options, chosen, locale),
+        0,
+        max(len(section.options), 1),
+        slot=key,
+    )
+    description = _localized(section.picker_description, locale) or ""
+    return _picker_screen(card, section, locale, multiple, description), None
+
+
+def _values_change(
+    section: MultiSelectSection,
+    payload: Any,
+    state: Mapping[str, Any],
+    session: FormSession,
+    context: Context,
+) -> Changes:
+    chosen = payload if isinstance(payload, (list, tuple)) else [payload]
+    return {section.state.value or "": [str(value) for value in chosen]}
+
+
+def _boolean_preview(
+    section: BooleanToggleSection,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+) -> Lines:
+    value = state.get(section.state.value or "")
+    return ((f"> {format_boolean(bool(value), context.locale)}",), None)
+
+
+def _toggle(
+    section: BooleanToggleSection,
+    card: CardStep,
+    index: int,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Screen | None, Changes | None]:
+    key = section.state.value or ""
+    return None, {key: not bool(state.get(key))}
+
+
+def _toggled(
+    section: BooleanToggleSection,
+    payload: Any,
+    state: Mapping[str, Any],
+    session: FormSession,
+    context: Context,
+) -> Changes:
+    key = section.state.value or ""
+    return {key: not bool(state.get(key))}
+
+
+def _switched_off(section: BooleanToggleSection) -> Changes:
+    return {section.state.value or "": False}
+
+
+def _fields_preview(
+    section: ModalInputSection,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+) -> Lines:
+    if len(section.modal.fields) <= 1:
+        return _value_preview(section, state, card, session, context)
+    lines = [
+        f"> **{field.label.get(context.locale)}:** {state.get(field.key)}"
+        for field in section.modal.fields
+        if field.key
+        and field.key != section.state.value
+        and state.get(field.key) not in EMPTY
+    ]
+    value = state.get(section.state.value or "")
+    lines.append(_formatted(value, section.style, context.locale).strip())
+    return (tuple(lines), None)
+
+
+def _fields_modal(
+    section: ModalInputSection,
+    card: CardStep,
+    index: int,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Screen | None, Changes | None]:
+    locale = context.locale
     key = section.state.value or ""
     unkeyed = _parts(state.get(key))
     position = 0
@@ -587,7 +923,7 @@ def _modal_screen(
         modal_title=_modal_title(section, locale),
         components=(TextInputs(card.key, tuple(inputs), slot=section.key),),
         flavour="modal",
-    )
+    ), None
 
 
 def _parts(value: Any) -> list[str]:
@@ -598,56 +934,13 @@ def _parts(value: Any) -> list[str]:
     return []
 
 
-def _reset_dependents(
-    section: ValueSelectSection,
-    state: Mapping[str, Any],
-    value: Any,
-    changes: dict[str, Any],
-) -> None:
-    candidate = {**state, section.state.value or "": value}
-    for rule in section.reset_on_change:
-        check = validator(rule.validation)
-        if check is None or not candidate.get(rule.key):
-            continue
-        if check.check(candidate.get(rule.key), ValidationContext(answers=candidate)):
-            changes[rule.key] = None
-
-
-def _modal_change(
-    section: Section,
-    payload: Any,
-    state: Mapping[str, Any],
-    session: FormSession,
-    context: RenderContext,
-) -> Mapping[str, Any] | Refusal:
-    if isinstance(section, TitleContentSection):
-        values = payload.get("inputs") if isinstance(payload, Mapping) else payload
-        title, content = (list(values or []) + ["", ""])[:2]
-        return {
-            section.state.mode or "": "custom",
-            section.state.title or "": title,
-            section.state.content or "": content,
-        }
-    if isinstance(section, FileUploadSection):
-        url = payload.get("url") if isinstance(payload, Mapping) else payload
-        if not url:
-            return {}
-        uploaded: dict[str, Any] = {section.state.url or "": url}
-
-        if section.state.mode:
-            uploaded[section.state.mode] = "custom"
-        return uploaded
-    assert isinstance(section, ModalInputSection)
-    return _fields_change(section, payload, state, session, context)
-
-
 def _fields_change(
     section: ModalInputSection,
     payload: Any,
     state: Mapping[str, Any],
     session: FormSession,
-    context: RenderContext,
-) -> Mapping[str, Any] | Refusal:
+    context: Context,
+) -> Changes | Refusal:
     key = section.state.value or ""
     values = payload.get("inputs") if isinstance(payload, Mapping) else [payload]
     typed = list(values or [""])
@@ -687,152 +980,63 @@ def _fields_change(
     return changes
 
 
-def _choice_change(
-    section: Section, payload: Any, state: Mapping[str, Any]
-) -> Mapping[str, Any]:
-    key = section.state.value or ""
-
-    if isinstance(section, DesignSection):
-        design = str(payload[0] if isinstance(payload, (list, tuple)) else payload)
-        known = {candidate.key for candidate in section.designs}
-        return {key: design} if design in known else {}
-    if isinstance(section, ButtonOptionsSection):
-        index = int(payload) if str(payload).isdigit() else -1
-        if 0 <= index < len(section.options):
-            return {key: str(section.options[index].value)}
-        return {key: str(payload)}
-    if isinstance(section, MultiSelectSection):
-        chosen = payload if isinstance(payload, (list, tuple)) else [payload]
-        return {key: [str(value) for value in chosen]}
-    value = payload[0] if isinstance(payload, (list, tuple)) else payload
-    if isinstance(section, ValueSelectSection):
-        changes: dict[str, Any] = {key: value}
-        if str(state.get(key)) != str(value):
-            _reset_dependents(section, state, value, changes)
-        return changes
-    return {key: str(value)}
+def _design_preview(
+    section: DesignSection,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+) -> Lines:
+    locale = context.locale
+    value = state.get(section.state.value or "")
+    chosen = next(
+        (design.label.get(locale) for design in section.designs if design.key == value),
+        None,
+    )
+    drawn = context.previews.get(str(value)) if value else None
+    return ((f"> {chosen or _formatted(value, None, locale)}",), drawn)
 
 
-def apply_change(
+def _gallery(
+    section: DesignSection,
     card: CardStep,
     index: int,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Screen | None, Changes | None]:
+    gallery = design_gallery(card.key, section.designs, context)
+    back = Button(text("buttons.back.label", context.locale), "picker_back")
+    return Screen(components=(gallery,), buttons=(back,), flavour="components_v2"), None
+
+
+def _design_change(
+    section: DesignSection,
     payload: Any,
+    state: Mapping[str, Any],
     session: FormSession,
-    context: RenderContext,
-) -> Mapping[str, Any] | Refusal:
-    """The state changes a section's payload produces, or a refusal."""
-    section = card.sections[index]
-    state = state_of(card, session, context)
-
-    if isinstance(section, WITH_MODE + (ModalInputSection,)):
-        return _modal_change(section, payload, state, session, context)
-    if isinstance(section, BooleanToggleSection):
-        key = section.state.value or ""
-        return {key: not bool(state.get(key))}
-    return _choice_change(section, payload, state)
+    context: Context,
+) -> Changes:
+    design = str(payload[0] if isinstance(payload, (list, tuple)) else payload)
+    known = {candidate.key for candidate in section.designs}
+    return {section.state.value or "": design} if design in known else {}
 
 
-def apply_drafts(
-    card: CardStep,
-    changes: Mapping[str, Any],
-    session: FormSession,
-    context: RenderContext,
-) -> Mapping[str, Any] | Refusal:
-    """What a section's select reported, through the section's own rules."""
-    applied: dict[str, Any] = {}
-    for slot, payload in changes.items():
-        index = next(
-            (
-                index
-                for index, section in enumerate(card.sections)
-                if section.state.value == slot
-            ),
-            None,
-        )
-        if index is None:
-            applied[slot] = payload
-            continue
-        change = apply_change(card, index, payload, session, context)
-        if isinstance(change, Refusal):
-            return change
-        applied.update(change)
-    return applied
-
-
-def reset_section(card: CardStep, index: int) -> Mapping[str, Any]:
-    """The state a section goes back to on Reset."""
-    section = card.sections[index]
-    if isinstance(section, TitleContentSection):
-        return {
-            section.state.mode or "": "default",
-            section.state.title or "": None,
-            section.state.content or "": None,
-        }
-    if isinstance(section, FileUploadSection):
-        cleared: dict[str, Any] = {section.state.url or "": None}
-        if section.state.mode:
-            cleared[section.state.mode] = "default"
-        return cleared
-    if isinstance(section, BooleanToggleSection):
-        return {section.state.value or "": False}
-    return {section.state.value or "": None}
-
-
-def draft(
-    card: CardStep,
-    changes: Mapping[str, Any],
-    session: FormSession,
-    context: RenderContext,
-) -> Answer:
-    """The card draft with `changes` applied."""
-    state = state_of(card, session, context)
-    state.update(changes)
-    return Answer(None, state)
-
-
-def required_labels(card: CardStep, locale: str) -> dict[str, str]:
-    """State key to the label named when it is missing."""
-    labels: dict[str, str] = {}
-    for field in card.fields:
-        labels[field.key] = field.label.get(locale)
-    for section in card.sections:
-        for key in owned_keys(section):
-            labels[key] = section.label.get(locale)
-    return labels
-
-
-def _join_labels(labels: Sequence[str], locale: str) -> str:
-    emphasized = [f"**{label}**" for label in labels]
-    if len(emphasized) <= 1:
-        return emphasized[0] if emphasized else ""
-    conjunction = text("buttons.summary-card.required-separator", locale)
-    if len(emphasized) == 2:
-        return conjunction.join(emphasized)
-    return f"{', '.join(emphasized[:-1])}{conjunction}{emphasized[-1]}"
-
-
-def parse(
-    step: Any, payload: Any, session: FormSession, context: RenderContext
-) -> Mapping[str, Answer] | Refusal:
-    """Done: the draft becomes the answers the card's fields declare."""
-    card: CardStep = step
-    state = dict(state_of(card, session, context))
-    hidden = hidden_keys(card, state)
-    missing = [
-        key
-        for key in card.required_keys
-        if key not in hidden and state.get(key) in EMPTY
-    ]
-
-    if missing:
-        labels = required_labels(card, context.locale)
-        joined = _join_labels([labels.get(key, key) for key in missing], context.locale)
-        return Refusal("buttons.summary-card.required", {"fields": joined}, plain=True)
-    rule = transform(card.transform)
-    if rule:
-        state[rule.value_key] = rule.serialize(state)
-    answers: dict[str, Answer] = {card.key: Answer(None, state)}
-    for field in card.fields:
-        if field.key in state:
-            answers[field.key] = Answer(state[field.key])
-    return answers
+SECTION_KINDS: dict[str, SectionKind] = {
+    "title-content": SectionKind(
+        _title_content_modal,
+        _title_content_change,
+        _title_content_preview,
+        _title_content_reset,
+        _title_content_custom,
+    ),
+    "file-upload": SectionKind(
+        _image_modal, _image_change, _image_preview, _image_reset, _image_custom
+    ),
+    "channel-select": SectionKind(_channel_picker, _picked),
+    "value-select": SectionKind(_value_picker, _value_change, _option_preview),
+    "button-options": SectionKind(_option_buttons, _option_pressed, _option_preview),
+    "boolean-toggle": SectionKind(_toggle, _toggled, _boolean_preview, _switched_off),
+    "modal-input": SectionKind(_fields_modal, _fields_change, _fields_preview),
+    "multi-select": SectionKind(_values_picker, _values_change, _values_preview),
+    "design-select": SectionKind(_gallery, _design_change, _design_preview),
+}

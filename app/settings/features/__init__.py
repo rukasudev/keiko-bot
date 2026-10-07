@@ -3,54 +3,36 @@
 from __future__ import annotations
 
 import asyncio
+from importlib import import_module
 from typing import Any
 
-from app.constants import Commands
+from app.constants import Feature
 from app.settings.features.feature import FeatureModule, OpenContext
 from app.settings.form.responses.summary import ResponseView
 
 
 def feature_for(key: str) -> FeatureModule:
-    """The feature module behind `key`; a compiled form without one is generic."""
-    from app.settings.features import (
-        block_links,
-        default_roles,
-        notifications_twitch,
-        notifications_youtube,
-        reminders_birthday,
-        stream_elements,
-        welcome_messages,
+    """The feature module `Feature` names for `key`, or the generic one it asks for."""
+    spec = next(
+        (feature.value for feature in Feature if feature.value.key == key), None
     )
+    if spec is None:
+        raise KeyError(f"{key!r} is not a feature `Feature` declares")
 
-    modules: dict[str, FeatureModule] = {
-        Commands.BLOCK_LINKS_KEY: block_links.FEATURE,
-        Commands.DEFAULT_ROLES_KEY: default_roles.FEATURE,
-        Commands.NOTIFICATIONS_TWITCH_KEY: notifications_twitch.FEATURE,
-        Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY: notifications_youtube.FEATURE,
-        Commands.REMINDERS_BIRTHDAY_KEY: reminders_birthday.FEATURE,
-        Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: stream_elements.FEATURE,
-        Commands.WELCOME_MESSAGES_KEY: welcome_messages.FEATURE,
-    }
-    if key in modules:
-        return modules[key]
-    from app.settings.features.feature import GenericCogFeature
-    from app.settings.form.form_yaml import registry
+    if spec.module is None:
+        from app.settings.features.feature import GenericCogFeature
+        from app.settings.form.form_yaml import registry
 
-    registry.get(key)
-    return GenericCogFeature(key)
+        registry.get(key)
+        return GenericCogFeature(key)
+
+    module: FeatureModule = import_module(f"{__name__}.{spec.module}").FEATURE
+    return module
 
 
 def feature_keys() -> tuple[str, ...]:
-    """Every form key with a feature module."""
-    return (
-        Commands.BLOCK_LINKS_KEY,
-        Commands.DEFAULT_ROLES_KEY,
-        Commands.NOTIFICATIONS_TWITCH_KEY,
-        Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
-        Commands.REMINDERS_BIRTHDAY_KEY,
-        Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
-        Commands.WELCOME_MESSAGES_KEY,
-    )
+    """Every feature Keiko offers, as `Feature` declares them."""
+    return tuple(feature.value.key for feature in Feature)
 
 
 async def saved_settings(

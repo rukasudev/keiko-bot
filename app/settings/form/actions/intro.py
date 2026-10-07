@@ -7,7 +7,7 @@ from typing import Any
 
 from app.constants import Emojis
 from app.settings.form.actions.action import (
-    RenderContext,
+    Context,
     cancel_button,
     confirm_button,
     description_of,
@@ -51,7 +51,7 @@ def settings_text(steps: Sequence[Step], locale: str) -> str:
     return body
 
 
-def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
+def render(step: Any, session: FormSession, context: Context) -> Screen:
     """The intro embed with the settings list and Confirm / Cancel."""
     description = description_of(step, session, context) + settings_text(
         context.definition.steps, context.locale
@@ -66,7 +66,7 @@ def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
 
 
 def parse(
-    step: Any, payload: Any, session: FormSession, context: RenderContext
+    step: Any, payload: Any, session: FormSession, context: Context
 ) -> Mapping[str, Answer]:
     """Confirming the intro answers nothing."""
     return {}
