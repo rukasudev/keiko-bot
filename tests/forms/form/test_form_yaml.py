@@ -1,14 +1,17 @@
 """The compiler accepts the seven forms and refuses what the models cannot hold."""
 
+import typing
 from pathlib import Path
 
 import pytest
 import yaml
 
+from app.settings.form.actions.configuration_card import SECTION_KINDS
 from app.settings.form.form_yaml import (
     CompileError,
     DefinitionRegistry,
     DiskSource,
+    Section,
     compile_form,
     compile_with_warnings,
 )
@@ -91,3 +94,20 @@ def test_invalid_definitions_are_refused_with_the_reason(fixture, message):
     with pytest.raises(CompileError) as failure:
         compile_form(fixture.removesuffix(".yml"), raw)
     assert message in str(failure.value)
+
+
+def _declared_types():
+    members = typing.get_args(typing.get_args(Section)[0])
+    return {member.model_fields["type"].annotation.__args__[0] for member in members}
+
+
+def test_every_declared_section_type_has_a_kind_and_no_kind_is_left_over():
+    """Every card section type the YAML may declare is one `SectionKind`."""
+    assert set(SECTION_KINDS) == _declared_types()
+
+
+def test_only_sections_that_keep_a_default_tell_whether_they_were_customized():
+    keeping_a_default = {
+        name for name, kind in SECTION_KINDS.items() if kind.custom is not None
+    }
+    assert keeping_a_default == {"title-content", "file-upload"}

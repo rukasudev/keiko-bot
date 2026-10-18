@@ -315,7 +315,7 @@ conventions:
    it. It is one table because those lists had drifted apart: the
    moderation defaults had forgotten StreamElements, and group and
    namespace were written twice for every command.
-   `tests/forms/features/test_feature_specs.py` refuses a declaration whose
+   `tests/forms/features/test_features.py` refuses a declaration whose
    form, module, command or copy disagrees with it.
 1. **The definition**, `app/languages/form/<key>.yml`: `steps:` composed
    from 3.2, opening with `action: form` and closing with `action: resume`,
