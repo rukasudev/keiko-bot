@@ -29,8 +29,8 @@ from app.data.reminder import (
 from app.integrations.reminder_webhook import REMINDER_TIMEZONE, reminder_time
 from app.settings import open_feature
 from app.services import analytics
-from app.services.utils import fill_placeholders, ml, values_of
-from app.services.work import Outcome, destination, fan_out, guild_locale
+from app.services.trace import Outcome, fan_out
+from app.services.utils import destination, fill_placeholders, guild_locale, ml, values_of
 from app.views.message_preview import MessagePreviewView
 
 

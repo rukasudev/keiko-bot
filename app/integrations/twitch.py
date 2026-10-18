@@ -4,7 +4,7 @@ import time
 
 import requests
 
-from app.integrations import http_client
+from app.integrations import http_delete, http_get, http_post
 
 TWITCH_MESSAGE_ID = 'Twitch-Eventsub-Message-Id'.lower()
 TWITCH_MESSAGE_TIMESTAMP = 'Twitch-Eventsub-Message-Timestamp'.lower()
@@ -53,7 +53,7 @@ class TwitchClient:
         return wrapper
 
     def authenticate(self):
-        response = http_client.post("twitch", TWITCH_TOKEN_URL, data={
+        response = http_post("twitch", TWITCH_TOKEN_URL, data={
             "client_id": self.bot.config.TWITCH_CLIENT_ID,
             "client_secret": self.bot.config.TWITCH_SECRET,
             "grant_type": "client_credentials",
@@ -71,7 +71,7 @@ class TwitchClient:
             'Client-ID': self.bot.config.TWITCH_CLIENT_ID,
             'Authorization': f'Bearer {self.token}'
         }
-        response = http_client.get("twitch", request_url, headers=headers)
+        response = http_get("twitch", request_url, headers=headers)
         data = response.json().get('data')
         if not data:
             return None
@@ -84,7 +84,7 @@ class TwitchClient:
             'Client-ID': self.bot.config.TWITCH_CLIENT_ID,
             'Authorization': f'Bearer {self.token}'
         }
-        response = http_client.get("twitch", request_url, headers=headers)
+        response = http_get("twitch", request_url, headers=headers)
         data = response.json().get("data")
         return data[0] if data else None
 
@@ -95,7 +95,7 @@ class TwitchClient:
             'Client-ID': self.bot.config.TWITCH_CLIENT_ID,
             'Authorization': f'Bearer {self.token}'
         }
-        response = http_client.get("twitch", request_url, headers=headers)
+        response = http_get("twitch", request_url, headers=headers)
         data = response.json().get("data")
         return data[0] if data else None
 
@@ -107,7 +107,7 @@ class TwitchClient:
             'Client-ID': self.bot.config.TWITCH_CLIENT_ID,
             'Authorization': f'Bearer {self.token}'
         }
-        response = http_client.get("twitch", request_url, headers=headers)
+        response = http_get("twitch", request_url, headers=headers)
         data = response.json().get("data")
         if not data:
             return None
@@ -122,7 +122,7 @@ class TwitchClient:
             'Client-ID': self.bot.config.TWITCH_CLIENT_ID,
             'Authorization': f'Bearer {self.token}'
         }
-        response = http_client.get("twitch", request_url, headers=headers)
+        response = http_get("twitch", request_url, headers=headers)
         data = response.json().get("data")
         return data[0] if data else None
 
@@ -146,7 +146,7 @@ class TwitchClient:
                 "secret": self.bot.config.TWITCH_HMAC_SECRET
             }
         }
-        response = http_client.post("twitch", request_url, headers=headers, json=data)
+        response = http_post("twitch", request_url, headers=headers, json=data)
         return response
 
     @check_auth_token
@@ -169,7 +169,7 @@ class TwitchClient:
                 "secret": self.bot.config.TWITCH_HMAC_SECRET
             }
         }
-        response = http_client.post("twitch", request_url, headers=headers, json=data)
+        response = http_post("twitch", request_url, headers=headers, json=data)
         return response
 
     @check_auth_token
@@ -179,7 +179,7 @@ class TwitchClient:
             'Client-ID': self.bot.config.TWITCH_CLIENT_ID,
             'Authorization': f'Bearer {self.token}'
         }
-        response = http_client.delete("twitch", request_url, headers=headers)
+        response = http_delete("twitch", request_url, headers=headers)
         return response
 
     @check_auth_token
@@ -189,7 +189,7 @@ class TwitchClient:
             'Client-ID': self.bot.config.TWITCH_CLIENT_ID,
             'Authorization': f'Bearer {self.token}'
         }
-        response = http_client.get("twitch", request_url, headers=headers)
+        response = http_get("twitch", request_url, headers=headers)
         return response.json()
 
     @check_auth_token
@@ -199,5 +199,5 @@ class TwitchClient:
             'Client-ID': self.bot.config.TWITCH_CLIENT_ID,
             'Authorization': f'Bearer {self.token}'
         }
-        response = http_client.get("twitch", request_url, headers=headers)
+        response = http_get("twitch", request_url, headers=headers)
         return response.json()

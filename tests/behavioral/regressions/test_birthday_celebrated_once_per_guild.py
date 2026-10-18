@@ -47,6 +47,7 @@ from app.data.birthdays import (
 from app.services.moderations import update_moderations_by_guild
 from app.webhooks import birthday_handler
 from tests.mocks.discord import create_guild, create_member
+from app.services.reminders_birthdays import build_celebration_embed
 
 pytestmark = [
     pytest.mark.behavioral,
@@ -343,3 +344,32 @@ async def test_a_member_who_moves_their_birthday_after_the_celebration_waits_for
     await fire("4009", "11-20")
 
     assert len(celebrations(guilds.first)) == 1
+
+
+def test_a_member_named_with_braces_is_celebrated_as_they_are_named():
+    """A server or member name with braces in it is printed as typed, not filled in.
+
+    Reported in the v1 review, after wave 1 moved the notices to `fill_placeholders`: the
+    birthday message and the welcome message still chained `.replace`, so a value filled in
+    first was read as a template by the next one. A member named "{server}" was celebrated
+    as the server's name, and a server named "{member_count} fans" welcomed people to "100
+    fans". The welcome looked for `{user}` in any capitals but filled only the lowercase one,
+    so "Hi {USER}!" mentioned nobody at all.
+
+    Shared behaviour: `fill_placeholders` (`app/services/utils.py`), now behind every
+    template an admin writes: the notices, the welcome and the birthday celebration.
+    Exposed by: the wave 1 review of the notices' placeholders.
+
+    Guaranteed: every placeholder is filled in one pass, a value is never read as a
+    template, and the welcome's mention is added on its own line whenever `{user}` is not
+    written in lowercase, like a notice's link.
+    """
+    guild = create_guild(name="Test Server")
+    member = create_member(guild, id=555, name="tester")
+    member.display_name = "{server}"
+    item = {"date": "05-12", "message": {"mode": "custom", "title": "🎂 {user}!", "content": "Party for {user} at {server}"}}
+
+    embed = build_celebration_embed(item, member, guild, {}, "en-us")
+
+    assert embed.title == "🎂 {server}!"
+    assert embed.description == "Party for <@555> at Test Server"

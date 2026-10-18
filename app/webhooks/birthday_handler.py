@@ -13,7 +13,8 @@ from app.exceptions import ErrorContext
 from app.services import analytics
 from app.services.dates import is_valid_mm_dd, nearest_mm_dd_occurrence, zone_or_utc
 from app.services.reminders_birthdays import build_celebration_embed
-from app.services.work import Outcome, destination, fan_out, guild_locale
+from app.services.trace import Outcome, fan_out
+from app.services.utils import destination, guild_locale
 
 
 async def process_birthday_webhook(reminder_id: str, notes: str) -> None:

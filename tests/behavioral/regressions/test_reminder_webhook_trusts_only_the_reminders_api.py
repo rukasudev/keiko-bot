@@ -64,18 +64,22 @@ from app import logger as logger_module
 from app.api import create_api
 from app.constants import Commands
 from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
-from app.data.reminder import insert_reminder
+from app.data.reminder import find_reminder_by_id, insert_reminder
 from app.integrations import reminder_webhook
 from app.integrations.reminder_webhook import (
+    REMINDER_API_URL,
     REMINDER_AUTH_USER,
     REMINDER_TIMEZONE,
     ReminderAPIError,
     ReminderWebhook,
 )
-from app.services import trace as trace_service
+from app.services import notifications_youtube_video, trace as trace_service
 from app.services.moderations import update_moderations_by_guild
 from app.webhooks import birthday_handler
 from tests.mocks.discord import create_member
+import threading
+from time import sleep
+from app.services.notifications_youtube_video import unsubscribe_youtube_new_video
 
 pytestmark = [
     pytest.mark.behavioral,
@@ -579,3 +583,337 @@ def test_the_webhooks_import_before_the_databases_connect():
     )
 
     assert result.returncode == 0, result.stderr[-2000:]
+
+
+RENEWAL = "youtube_notification"
+
+
+class Reminders:
+    """reminders-api, slow enough that two callers at once overlap, counting what it made."""
+
+    def __init__(self):
+        self.created = []
+        self.deleted = []
+        self.deleting = threading.Event()
+        self.release = threading.Event()
+        self.release.set()
+        self._lock = threading.Lock()
+
+    def create_reminder(self, data):
+        sleep(0.05)
+        with self._lock:
+            self.created.append(data["notes"])
+            return {"id": 8000 + len(self.created)}
+
+    def delete_reminder(self, reminder_id):
+        self.deleting.set()
+        self.release.wait(5)
+        self.deleted.append(reminder_id)
+        return {}
+
+
+@pytest.fixture
+def youtube(deps):
+    deps.bot.reminder = Reminders()
+    deps.bot.config.is_dev = lambda: False
+    deps.bot.config.YOUTUBE_HUB_SECRET = "hub-secret"
+    deps.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
+    deps.youtube.add_channel("UC-mrbeast", "MrBeast", custom_url="@mrbeast")
+    return deps
+
+
+def a_renewal(deps, reminder_id, youtuber):
+    """The row a renewal reminder Keiko created keeps in `audit.reminders`."""
+    deps.mongo_client.audit.reminders.insert_one(
+        {"reminder_id": reminder_id, "title": RENEWAL, "value": youtuber}
+    )
+
+
+def renewals_of(deps, youtuber):
+    return deps.mongo_client.audit.reminders.count_documents(
+        {"title": RENEWAL, "value": youtuber}
+    )
+
+
+def a_server_adds(youtuber):
+    notifications_youtube_video.subscribe_youtube_new_video(
+        None, {"youtuber": {"value": youtuber}}
+    )
+
+
+async def test_a_followed_youtuber_without_a_renewal_gets_one_when_a_server_adds_it(youtube):
+    """A youtuber a server follows always has its renewal, and never two.
+
+    Reported in the v1 review of the loop and runtime PR: a youtuber followed only by a server
+    that removed Keiko loses its renewal, which drops itself once no server Keiko is in
+    follows it. When that server adds Keiko back and unpauses, nothing renewed it again: the
+    subscribe answered "already subscribed" by counting the servers that follow it, the
+    unpaused one among them, and the start's resubscribe created no renewal. A renewal row the
+    60-day expiry removed after renewals kept failing was lost the same way.
+
+    Shared behaviour: `subscribe_youtube_new_video` and `resubscribe_followed_channels`
+    (`app/services/notifications_youtube_video.py`), through `ensure_renewal`. Exposed by:
+    the review of the renewal that lets a youtuber go.
+
+    The next review found the renewal that ends itself counting the followers and deleting
+    its row outside the lock the subscribe takes, so a server adding the youtuber while that
+    renewal was deleting itself was told "already subscribed" and kept no renewal.
+
+    Guaranteed: "already subscribed" means a server follows the youtuber and its renewal row
+    exists; a followed youtuber without one gets one, from a server adding it or from the
+    start; however many ask at once, a youtuber has one renewal; and a renewal that ends
+    itself counts and deletes under the same lock, so a server adding the youtuber meanwhile
+    makes its own.
+    """
+    follow_youtuber(youtube, "4343", "pewdiepie")
+
+    a_server_adds("pewdiepie")
+
+    assert renewals_of(youtube, "pewdiepie") == 1
+    assert youtube.bot.reminder.created == ["pewdiepie"]
+    assert youtube.youtube.subscribe_calls == ["UC-pewdiepie"], "its lease may have lapsed"
+
+
+async def test_a_followed_youtuber_with_its_renewal_is_already_subscribed(youtube):
+    follow_youtuber(youtube, "4343", "pewdiepie")
+    a_renewal(youtube, 7001, "pewdiepie")
+
+    a_server_adds("pewdiepie")
+
+    assert renewals_of(youtube, "pewdiepie") == 1
+    assert youtube.bot.reminder.created == []
+    assert youtube.youtube.subscribe_calls == []
+
+
+async def test_a_youtuber_nobody_follows_keeps_the_renewal_it_still_has(youtube):
+    a_renewal(youtube, 7001, "pewdiepie")
+
+    a_server_adds("pewdiepie")
+
+    assert renewals_of(youtube, "pewdiepie") == 1, "the renewal still running is the one"
+    assert youtube.youtube.subscribe_calls == ["UC-pewdiepie"]
+
+
+async def test_the_start_gives_every_followed_youtuber_without_a_renewal_its_renewal(youtube):
+    follow_youtuber(youtube, "4343", "pewdiepie")
+    follow_youtuber(youtube, "4444", "mrbeast")
+    a_renewal(youtube, 7001, "mrbeast")
+
+    notifications_youtube_video.resubscribe_followed_channels()
+
+    assert renewals_of(youtube, "pewdiepie") == 1
+    assert renewals_of(youtube, "mrbeast") == 1
+    assert youtube.bot.reminder.created == ["pewdiepie"]
+
+
+async def test_a_youtuber_asked_for_from_everywhere_at_once_gets_one_renewal(youtube):
+    callers = [threading.Thread(target=a_server_adds, args=("pewdiepie",)) for _ in range(3)]
+    follow_youtuber(youtube, "4343", "mrbeast")
+    callers += [threading.Thread(target=a_server_adds, args=("mrbeast",)) for _ in range(2)]
+    callers.append(threading.Thread(
+        target=notifications_youtube_video.resubscribe_followed_channels
+    ))
+
+    for caller in callers:
+        caller.start()
+    for caller in callers:
+        caller.join(timeout=10)
+
+    assert renewals_of(youtube, "pewdiepie") == 1
+    assert renewals_of(youtube, "mrbeast") == 1
+    assert sorted(youtube.bot.reminder.created) == ["mrbeast", "pewdiepie"]
+
+
+async def test_a_server_adding_a_youtuber_while_its_renewal_ends_gets_one(youtube):
+    from app.webhooks.reminder import renew_youtube_subscription
+
+    youtube.mongo_client.guild.moderations.insert_one({"guild_id": "4242", "is_bot_online": False})
+    follow_youtuber(youtube, "4242", "pewdiepie")
+    a_renewal(youtube, 7001, "pewdiepie")
+    reminders = youtube.bot.reminder
+    reminders.release.clear()
+
+    ending = threading.Thread(target=renew_youtube_subscription, args=(7001,))
+    ending.start()
+    assert reminders.deleting.wait(5), "the renewal found nobody following and is deleting itself"
+    adding = threading.Thread(target=a_server_adds, args=("pewdiepie",))
+    adding.start()
+    adding.join(timeout=0.3)
+    reminders.release.set()
+    ending.join(timeout=5)
+    adding.join(timeout=5)
+    follow_youtuber(youtube, "4343", "pewdiepie")
+
+    assert reminders.deleted == [7001]
+    assert renewals_of(youtube, "pewdiepie") == 1, "the adding server made its own"
+    assert reminders.created == ["pewdiepie"]
+
+
+LEFT = 4242
+
+
+STAYED = 4343
+
+
+@pytest.fixture
+def renewal_api(deps):
+    deps.bot.reminder = RecordingReminders()
+    deps.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
+    deps.mongo_client.audit.reminders.insert_one(
+        {"reminder_id": RENEWAL_REMINDER, "title": "youtube_notification", "value": "pewdiepie"}
+    )
+    return create_api("dev").test_client()
+
+
+async def in_a_server_keiko_left(deps, guild_id=LEFT):
+    """A server that followed the youtuber, then removed Keiko."""
+    from app.cogs.events import Events
+
+    deps.mongo_client.guild.moderations.insert_one({
+        "guild_id": str(guild_id),
+        "is_bot_online": True,
+        Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY: True,
+    })
+    follow_youtuber(deps, str(guild_id), "pewdiepie")
+    await Events(SimpleNamespace(user=SimpleNamespace(id=99), guilds=[])).on_guild_remove(
+        SimpleNamespace(id=guild_id, owner=SimpleNamespace(id=313, mention="<@313>"))
+    )
+
+
+def notify_renewal(renewal_api):
+    return renewal_api.post(
+        URL,
+        json={"reminders_notified": [renewal()]},
+        headers=basic(REMINDER_AUTH_USER, PASSWORD),
+    )
+
+
+async def test_the_renewal_of_a_youtuber_only_servers_keiko_left_follow_ends(renewal_api, deps):
+    """A youtuber only servers Keiko left still follow is let go: no more renewals.
+
+    Reported in the v1 review: leaving a server pauses its documents (`leave_guild`), and a
+    paused document counted as following in `count_servers_following`, on purpose, so an
+    unpaused server finds its youtuber still subscribed. A server Keiko left never unpauses,
+    so the renewal of a youtuber only such servers followed went on forever, every four
+    days, and the hub kept sending notices nobody would receive.
+
+    Shared behaviour: `count_servers_following` (`app/data/notifications_youtube_video.py`),
+    read by the renewal (`app/webhooks/reminder.py`) and by the unsubscribe of a youtuber a
+    server stops following. Exposed by: renewals of servers Keiko left in production.
+
+    Guaranteed: a server counts as following only while Keiko is in it (its moderations
+    record does not say it went offline); a youtuber nobody else follows drops its renewal
+    and is unsubscribed from the hub; a paused server Keiko is still in keeps its youtuber
+    renewed, as before.
+    """
+    await in_a_server_keiko_left(deps)
+
+    response = notify_renewal(renewal_api)
+
+    assert response.status_code == 200
+    assert deps.bot.reminder.deleted == [RENEWAL_REMINDER]
+    assert find_reminder_by_id(RENEWAL_REMINDER) is None
+    assert deps.youtube.subscribe_calls == [], "nobody Keiko serves follows it any more"
+
+
+async def test_a_server_keiko_is_still_in_keeps_the_youtuber_renewed(renewal_api, deps):
+    await in_a_server_keiko_left(deps)
+    follow_youtuber(deps, str(STAYED), "pewdiepie", enabled=False)
+
+    response = notify_renewal(renewal_api)
+
+    assert response.status_code == 200
+    assert deps.bot.reminder.deleted == []
+    assert deps.youtube.subscribe_calls == ["UC-pewdiepie"]
+
+
+async def test_a_server_keiko_left_does_not_keep_a_youtuber_subscribed_for_another(
+    renewal_api, deps
+):
+    await in_a_server_keiko_left(deps)
+    follow_youtuber(deps, str(STAYED), "pewdiepie")
+
+    unsubscribe_youtube_new_video(None, {"youtuber": {"value": "pewdiepie"}})
+
+    assert deps.youtube.unsubscribe_calls == ["UC-pewdiepie"], (
+        "the last server Keiko is in let it go, so the hub stops sending it"
+    )
+
+
+def answer(status, body):
+    response = requests.Response()
+    response.status_code = status
+    response._content = body.encode("utf-8")
+    return response
+
+
+@pytest.fixture
+def reminders_api(monkeypatch):
+    """reminders-api's DELETE, answering what each test says; every call recorded."""
+    api = SimpleNamespace(deleted=[], status=404, body='{"detail": "Not found."}')
+
+    def delete(url, **options):
+        api.deleted.append(url)
+        return answer(api.status, api.body)
+
+    monkeypatch.setattr(requests, "delete", delete)
+    return api
+
+
+def reminders_client():
+    return ReminderWebhook(SimpleNamespace(config=SimpleNamespace(
+        WEBHOOK_URL="https://keiko.test/v1/webhooks",
+        REMINDER_APPLICATION_ID="1",
+        REMINDER_API_KEY="api-key",
+        REMINDER_AUTH_PASSWORD=PASSWORD,
+    )))
+
+
+@pytest.fixture
+def client(deps):
+    deps.bot.reminder = reminders_client()
+    return create_api("dev").test_client()
+
+
+def test_a_renewal_reminders_api_already_deleted_is_forgotten_here_too(
+    client, deps, reminders_api
+):
+    """A reminder reminders-api no longer has is already deleted, so Keiko forgets it too.
+
+    Reported in the v1 review: `audit.reminders` holds renewals whose reminder is gone from
+    reminders-api. When one of their youtubers has no server left, the renewal deletes
+    itself: Keiko asks reminders-api to delete the reminder, then deletes its own record.
+    reminders-api answers 404 for a reminder it does not have, `ReminderWebhook` raised that
+    404 as a refusal, and the record was never deleted, so the callback failed every time.
+
+    Shared behaviour: `ReminderWebhook.delete_reminder`, behind every delete Keiko asks of
+    reminders-api (the renewal that ends itself, the birthday cleanups, the admin sync
+    buttons). Exposed by: stale rows in `audit.reminders` in production.
+
+    Guaranteed: a 404 to a delete is a reminder already deleted; the local record goes too
+    and the callback succeeds. Any other refusal still raises with its status and body.
+    """
+    deps.mongo_client.guild.notifications_youtube_video.delete_many({})
+    insert_reminder(RENEWAL_REMINDER, "youtube_notification", "pewdiepie")
+
+    response = client.post(
+        URL,
+        json={"reminders_notified": [renewal()]},
+        headers=basic(REMINDER_AUTH_USER, PASSWORD),
+    )
+
+    assert reminders_api.deleted == [f"{REMINDER_API_URL}/reminders/{RENEWAL_REMINDER}"]
+    assert response.status_code == 200, "a reminder already deleted is not a failure"
+    assert find_reminder_by_id(RENEWAL_REMINDER) is None, "Keiko forgets it too"
+
+
+def test_any_other_refusal_to_delete_still_raises_with_what_reminders_api_said(
+    reminders_api,
+):
+    reminders_api.status, reminders_api.body = 503, "reminders-api is down"
+
+    with pytest.raises(ReminderAPIError) as refused:
+        reminders_client().delete_reminder("7001")
+
+    assert refused.value.status == 503
+    assert refused.value.body == "reminders-api is down"

@@ -3,7 +3,7 @@
 17 of the 24 `requests` calls waited for an answer for as long as the server kept the
 socket open, and the Mongo clients waited 30 seconds to find a server and forever for
 a read. A call that never returns holds its thread, or the whole bot when it runs on
-the loop. Guaranteed: every HTTP call goes through `app/integrations/http_client.py`,
+the loop. Guaranteed: every HTTP call goes through `app/integrations/__init__.py`,
 waits at most the default connect and read timeouts unless it gives its own, and is
 counted in `keiko_dependency_latency_seconds` under one of the dependencies Keiko
 names, whether it answered or raised; the Mongo clients give up on a server they
@@ -27,9 +27,9 @@ from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError
 
 import app as app_module
-from app.bot import DiscordBot, discord_latency
+from app.bot import discord_latency, DiscordBot
 from app.constants import DBConfigs, Dependencies
-from app.integrations import http_client
+from app import integrations
 from app.integrations.notion import NotionIntegration
 from app.integrations.reminder_webhook import ReminderWebhook
 from app.integrations.stream_elements import StreamElementsClient
@@ -42,7 +42,7 @@ pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("outside_calls")]
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 APP = os.path.join(ROOT, "app")
 OWN_REQUESTS = {
-    "app/integrations/http_client.py": "the shared client itself",
+    "app/integrations/__init__.py": "the shared client itself",
     "app/cogs/heartbeat.py": (
         "the ping to the uptime monitor: not a dependency a feature waits on, its URL "
         "carries the monitor's token, and it keeps HEARTBEAT_TIMEOUT_SECONDS"
@@ -115,34 +115,34 @@ def config():
 
 
 def test_a_call_waits_at_most_the_default_timeouts(web):
-    http_client.get("twitch", "https://api.twitch.tv/helix/users")
+    integrations.http_get("twitch", "https://api.twitch.tv/helix/users")
 
     assert web[0].options["timeout"] == DEFAULT_TIMEOUT
 
 
 def test_a_call_that_names_its_own_timeout_keeps_it(web):
-    http_client.post("youtube", "https://pubsubhubbub.appspot.com/subscribe", timeout=3.0)
+    integrations.http_post("youtube", "https://pubsubhubbub.appspot.com/subscribe", timeout=3.0)
 
     assert web[0].options["timeout"] == 3.0
 
 
 def test_every_call_is_timed_under_its_dependency_answered_or_not(web, monkeypatch):
     before = calls("notion")
-    http_client.post("notion", "https://api.notion.com/v1/pages")
+    integrations.http_post("notion", "https://api.notion.com/v1/pages")
 
     def unreachable(url, **options):
         raise requests.ConnectTimeout("api.notion.com did not answer")
 
     monkeypatch.setattr(requests, "post", unreachable)
     with pytest.raises(requests.ConnectTimeout):
-        http_client.post("notion", "https://api.notion.com/v1/pages")
+        integrations.http_post("notion", "https://api.notion.com/v1/pages")
 
     assert calls("notion") == before + 2
 
 
 def test_a_dependency_keiko_does_not_name_is_refused_before_anything_is_sent(web):
     with pytest.raises(ValueError):
-        http_client.get("google", "https://www.google.com")
+        integrations.http_get("google", "https://www.google.com")
 
     assert web == []
 
@@ -358,3 +358,148 @@ def test_the_latency_label_is_the_dependency_from_a_closed_list():
     }
     with pytest.raises(ValueError):
         metrics.record_dependency_latency("guild:1234", 0.1)
+
+
+TWITCH_SECRET = "twitch-client-secret-0042"
+
+
+YOUTUBE_KEY = "AIza-youtube-key-0042"
+
+
+HUB_SECRET = "youtube-hub-secret-0042"
+
+
+REMINDERS_KEY = "reminders-api-key-0042"
+
+
+REMINDERS_PASSWORD = "reminders-password-0042"
+
+
+NOTION_TOKEN = "notion-token-0042"
+
+
+SECRETS = (
+    TWITCH_SECRET, YOUTUBE_KEY, HUB_SECRET, REMINDERS_KEY, REMINDERS_PASSWORD, NOTION_TOKEN,
+)
+
+
+class Web:
+    """Every request an integration sends, answered from the URL it asks for."""
+
+    def __init__(self):
+        self.sent = []
+
+    def answer(self, method, url, **options):
+        self.sent.append(SimpleNamespace(method=method, url=url, options=options))
+        if "oauth2/token" in url:
+            return Answer({"access_token": "token", "expires_in": 3600})
+        if "googleapis" in url:
+            return Answer({"items": [{"id": "UC-channel", "snippet": {}}]})
+        if "notion" in url:
+            return Answer({"url": "https://notion.so/ticket"})
+        if "reminders-api" in url:
+            return Answer({"id": 7001})
+        return Answer({"data": []}, status=202)
+
+    def requested_urls(self):
+        """Each URL as `requests` builds it, query parameters included."""
+        built = []
+        for request in self.sent:
+            prepared = requests.Request(
+                request.method, request.url, params=request.options.get("params")
+            ).prepare()
+            built.append(prepared.url)
+        return built
+
+
+@pytest.fixture
+def recording_web(monkeypatch):
+    sent = Web()
+    for method in ("get", "post", "put", "delete"):
+        monkeypatch.setattr(
+            requests,
+            method,
+            lambda url, _method=method.upper(), **options: sent.answer(_method, url, **options),
+        )
+    return sent
+
+
+@pytest.fixture
+def secrets_config():
+    return SimpleNamespace(
+        WEBHOOK_URL="https://keiko.test/v1/webhooks",
+        TWITCH_CLIENT_ID="twitch-client-id",
+        TWITCH_SECRET=TWITCH_SECRET,
+        TWITCH_HMAC_SECRET="twitch-hmac",
+        YOUTUBE_API_KEY=YOUTUBE_KEY,
+        YOUTUBE_HUB_SECRET=HUB_SECRET,
+        REMINDER_APPLICATION_ID="1",
+        REMINDER_API_KEY=REMINDERS_KEY,
+        REMINDER_AUTH_PASSWORD=REMINDERS_PASSWORD,
+        NOTION_TOKEN=NOTION_TOKEN,
+        NOTION_DATABASE_ID="notion-database",
+        NOTION_ENABLED=True,
+    )
+
+
+@pytest.mark.behavioral
+@pytest.mark.regression
+def test_the_twitch_secret_travels_in_the_body_of_the_token_request(recording_web, secrets_config):
+    """A secret Keiko holds never travels in the URL of a request it sends.
+
+    Reported in the v1 review: the Twitch client asked for its token with the client
+    secret in the query string (`/oauth2/token?client_id=...&client_secret=...`), and
+    the YouTube Data API key travelled as `?key=...` on every lookup. A URL is what
+    `requests` names in every exception it raises, what `urllib3` writes at DEBUG and
+    what a proxy keeps in its access log, so either secret could reach the logs, the
+    error channel or someone else's disk.
+
+    Shared behaviour: every integration under `app/integrations/`, which now send
+    through `app/integrations/__init__.py`. Exposed by: reading the clients.
+
+    Guaranteed: the Twitch secret is sent in the body of the token request, the YouTube
+    key in the `X-Goog-Api-Key` header, and no secret the configuration holds (the
+    Twitch secret, the YouTube key and hub secret, the reminders-api key and password,
+    the Notion token) appears in any URL an integration requests.
+    """
+    TwitchClient(SimpleNamespace(config=secrets_config)).authenticate()
+
+    token_request = recording_web.sent[0]
+    assert TWITCH_SECRET not in recording_web.requested_urls()[0]
+    assert token_request.method == "POST"
+    assert token_request.options["data"]["client_secret"] == TWITCH_SECRET
+
+
+@pytest.mark.behavioral
+@pytest.mark.regression
+def test_the_youtube_key_travels_in_a_header(recording_web, secrets_config):
+    YoutubeClient(SimpleNamespace(config=secrets_config)).get_channel_info("UC-channel")
+
+    lookup = recording_web.sent[0]
+    assert YOUTUBE_KEY not in recording_web.requested_urls()[0]
+    assert lookup.options["headers"]["X-Goog-Api-Key"] == YOUTUBE_KEY
+
+
+@pytest.mark.behavioral
+@pytest.mark.regression
+def test_no_secret_reaches_a_url_any_integration_requests(recording_web, secrets_config):
+    bot = SimpleNamespace(config=secrets_config)
+    twitch = TwitchClient(bot)
+    youtube = YoutubeClient(bot)
+    reminders = ReminderWebhook(bot)
+
+    twitch.get_user_info("gaules")
+    twitch.subscribe_to_stream_online_event("123")
+    twitch.unsubscribe_from_stream_event("sub-1")
+    youtube.get_channel_id_from_username("pewdiepie")
+    youtube.get_video_info("video-1")
+    youtube.subscribe_to_new_video_event("UC-channel")
+    reminders.create_reminder({"title": "birthday_reminder", "date_tz": "2026-05-12"})
+    reminders.update_reminder("7001", "2026-05-12", time_tz="08:00")
+    reminders.delete_reminder("7001")
+    NotionIntegration(secrets_config).create_report("title", "description", "command", "1", None)
+
+    urls = recording_web.requested_urls()
+    assert len(urls) == 11, "the token request comes first, then every call above"
+    leaked = [(secret, url) for url in urls for secret in SECRETS if secret in url]
+    assert leaked == []

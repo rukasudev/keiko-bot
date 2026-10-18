@@ -1,19 +1,39 @@
-"""One unit of work — an interaction, a webhook request, a scheduled job.
+"""One unit of work — an interaction, a webhook request, a scheduled job, a listener.
 
 A context variable carries the active trace down through every call below it,
 including across `await`, so a log line written deep in an integration knows
 which trace it belongs to without receiving a new parameter. Sinks registered
-here are called once, when the trace closes. Reference: docs/analytics.md
+here are called once, when the trace closes. A unit that serves several servers
+serves each on its own: a server Keiko cannot reach (it left, the channel is
+gone, Discord refuses) is a warning, any other failure an error with its
+context, and neither stops the next server. Reference: docs/analytics.md
 """
+import asyncio
 import logging
 import threading
 import uuid
-from contextlib import contextmanager
+from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, Iterator, List, Optional
+from enum import Enum
+from typing import (
+    Any,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+)
+
+import discord
 
 from app.constants import LogTypes as constants
+from app.exceptions import DestinationNotFound, ErrorContext
 
 _logger = logging.getLogger(__name__)
 _current_trace: ContextVar[Optional["Trace"]] = ContextVar("keiko_trace", default=None)
@@ -386,3 +406,99 @@ def settle(result: str) -> None:
     trace = _current_trace.get()
     if trace is not None:
         trace.result = result
+
+
+class Outcome(Enum):
+    """How one server's share of a unit of work went."""
+
+    DELIVERED = "delivered"
+    UNREACHABLE = "unreachable"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True)
+class Served:
+    """One server's share of a unit of work: which server, how it went, what it gave back."""
+
+    guild_id: str
+    outcome: Outcome
+    value: Any = None
+
+
+async def serve(
+    share: Awaitable[Any], context: ErrorContext, subject: Optional[str] = None
+) -> Served:
+    """Await one server's share on its own: a failure is logged with `context`, never raised."""
+    from app import logger
+
+    subject = subject or context.flow
+
+    try:
+        value = await share
+    except (discord.Forbidden, DestinationNotFound) as error:
+        logger.warn(
+            f"{subject} could not reach guild {context.guild_id}: "
+            f"{type(error).__name__}: {error}",
+            log_type=constants.COMMAND_WARN_TYPE,
+        )
+        return Served(str(context.guild_id), Outcome.UNREACHABLE)
+    except Exception as error:
+        logger.error(
+            f"{subject} failed in guild {context.guild_id}: {type(error).__name__}: {error}",
+            log_type=constants.COMMAND_ERROR_TYPE,
+            context=context,
+            exc_info=error,
+        )
+        return Served(str(context.guild_id), Outcome.FAILED)
+    return Served(str(context.guild_id), Outcome.DELIVERED, value)
+
+
+async def fan_out(
+    flow: str, shares: Iterable[Tuple[Any, Awaitable[Any]]], **extra: Any
+) -> List[Served]:
+    """Serve every server at once, each on its own, and say how each one went."""
+    return list(await asyncio.gather(*(
+        serve(share, ErrorContext(flow=flow, guild_id=str(guild_id), extra=dict(extra)))
+        for guild_id, share in shares
+    )))
+
+
+class GuildWork:
+    """A listener's unit of work for one server, its parts each on its own."""
+
+    def __init__(self, context: ErrorContext) -> None:
+        self.context = context
+
+    async def run(self, part: str, coroutine: Awaitable[Any]) -> Served:
+        """Run one part; its failure is logged with the listener's context and the next
+        part still runs."""
+        context = replace(self.context, extra={**self.context.extra, "part": part})
+        return await serve(coroutine, context, subject=f"{self.context.flow} ({part})")
+
+
+@asynccontextmanager
+async def listener(
+    flow: str,
+    guild_id: Any,
+    *,
+    user_id: Any = None,
+    channel_id: Any = None,
+    **extra: Any,
+) -> AsyncIterator[GuildWork]:
+    """The unit of work a listener runs for one server, posted only when a part failed or
+    it reported an event."""
+    context = ErrorContext(
+        flow=flow,
+        guild_id=str(guild_id) if guild_id else None,
+        user_id=str(user_id) if user_id else None,
+        channel_id=str(channel_id) if channel_id else None,
+        extra=extra,
+    )
+    async with trace_scope(
+        flow,
+        guild_id=guild_id,
+        user_id=user_id,
+        source="internal",
+        silent_when_clean=True,
+    ):
+        yield GuildWork(context)

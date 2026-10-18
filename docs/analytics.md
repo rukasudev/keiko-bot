@@ -228,7 +228,7 @@ process is scraped. Keiko's own:
 | `keiko_build_info` | `version` | the heartbeat cog when it loads, `metrics.record_build_info` |
 | `keiko_interactions_total` | `outcome` (`in_time`, `deferred`, `failed`), `code` (Discord's error code, such as `10062` or `40060`, or empty) | the form adapter (`open_feature`, `handle`, a click on a lost session), `run_feature_command` (a feature a button opens) and `Errors.on_app_command_error` |
 | `keiko_webhook_refusals_total` | `route` (the URL rule, never the path a request typed), `status` (the 4xx it was answered with) | the refusal hook of `app/webhooks/__init__.py` |
-| `keiko_dependency_latency_seconds` (a histogram, buckets `Dependencies.LATENCY_BUCKETS`) | `dependency` (one of `Dependencies.NAMES`: `mongo`, `redis`, `discord`, `twitch`, `youtube`, `reminders`, `notion`, `translate`, `stream_elements`) | every call, answered or not: the shared HTTP client (`app/integrations/http_client.py`) for the HTTP services, `MongoLatency` (a pymongo command listener on both Mongo clients) and `TimedRedis` with its `TimedPipeline`, one call per round trip (`app/__init__.py`), `discord_latency` (the aiohttp trace discord.py sends its requests through, `app/bot.py`), and `metrics.timed("translate")` around the language detection, which brings its own HTTP client |
+| `keiko_dependency_latency_seconds` (a histogram, buckets `Dependencies.LATENCY_BUCKETS`) | `dependency` (one of `Dependencies.NAMES`: `mongo`, `redis`, `discord`, `twitch`, `youtube`, `reminders`, `notion`, `translate`, `stream_elements`) | every call, answered or not: the shared HTTP client (`app/integrations/__init__.py`) for the HTTP services, `MongoLatency` (a pymongo command listener on both Mongo clients) and `TimedRedis` with its `TimedPipeline`, one call per round trip (`app/__init__.py`), `discord_latency` (the aiohttp trace discord.py sends its requests through, `app/bot.py`), and `metrics.timed("translate")` around the language detection, which brings its own HTTP client |
 | `keiko_form_*` | see `observability.py` | the form adapter |
 
 `PrometheusCog` adds the library's own, among them `discord_connected{shard}` (1
@@ -256,7 +256,7 @@ the heartbeat's ping and the welcome's picture downloads (`OWN_REQUESTS` in
 to `DBConfigs.MONGO_BOOT_WAIT_SECONDS`, so a deploy that starts during a primary
 election waits for it as it did before. A secret never travels in a URL: Twitch's
 client secret goes in the body of the token request and the YouTube key in the
-`X-Goog-Api-Key` header (`tests/behavioral/regressions/test_secrets_never_travel_in_a_url.py`).
+`X-Goog-Api-Key` header (`tests/test_outside_calls.py`).
 
 Each interaction is counted once: a form command when it opens (a command that
 raises is counted by the error handler instead), a feature a `/setup` or greeting
@@ -443,7 +443,7 @@ interaction` on a guild whose youtuber had just been saved by two blocking
 `requests.post` calls.
 
 The rest of `app/` is held to the same line call by call:
-`tests/test_event_loop_boundary.py` reads every coroutine and fails on a direct
+`tests/behavioral/regressions/test_event_loop_is_never_blocked.py` reads every coroutine and fails on a direct
 call to a blocking function — `requests`, the Mongo and Redis clients,
 `time.sleep`, the language detection, and every synchronous function of `app/`
 that reaches one of them, through its imports, `self`, a nested def, a client the
@@ -463,7 +463,7 @@ the 1 vCPU the bot runs on, and the Twitch waits sleep in them). Closing the loo
 the calls still queued and waits for none under way: `asyncio.run` would otherwise join
 the pool for up to five minutes, and a stop has thirty seconds before Docker kills the
 process and the queues `lifecycle.run` writes after the loop are lost
-(`tests/behavioral/contracts/test_blocking_io.py`). `lifecycle.run` then gives the
+(`tests/behavioral/contracts/test_graceful_stop.py`). `lifecycle.run` then gives the
 calls still running up to `Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS` to end before it
 writes the queues and exits, so a flush writing its batch is never cut in the middle
 (`tests/behavioral/contracts/test_graceful_stop.py`). What a thread is handed never walks
@@ -528,8 +528,8 @@ Traces are opened at the boundaries:
 | Webhooks | `webhook_trace`, opened and closed around each request in `app/webhooks/__init__.py` | silent unless the request failed, continued by its first job; `/healthcheck` opens none; a request refused with a 4xx never posts its trace, nor does a 503 without an error (the sender is asked to deliver again later) |
 | Deferred work | `schedule_webhook_job` → `Trace.handover` + `trace.run_traced` | the first job continues the request's message, which takes every line the request logs after the hand-over and is posted once both are done; a second job in the same request gets its own, under the same rule |
 | Confirmations | `ConfirmActionView(trace_name=)` (`app/views/confirm_action.py`) | one message for what the confirmation did |
-| Listeners | `work.listener` (`app/services/work.py`) for every listener of `app/cogs/events.py` | silent unless it fails or reports an event; each part runs on its own (a feature of `on_message` or `on_member_join`; the report, the snapshot and the pause of a server leaving; the record and the greeting of a server joining), so one that fails is an error with the listener's context, nothing is raised to discord.py, and the next one still runs |
-| Fan-outs | `work.fan_out` (`app/services/work.py`), behind the Twitch and YouTube notices and the birthday job | inside the trace of the job that runs it; each server is served on its own: one Keiko cannot reach (`DestinationNotFound`, a 403) is a warning, any other failure an error with the server's context, and neither stops the next; `work.destination` finds the server and its channel, `work.guild_locale` its language |
+| Listeners | `trace.listener` (`app/services/trace.py`) for every listener of `app/cogs/events.py` | silent unless it fails or reports an event; each part runs on its own (a feature of `on_message` or `on_member_join`; the report, the snapshot and the pause of a server leaving; the record and the greeting of a server joining), so one that fails is an error with the listener's context, nothing is raised to discord.py, and the next one still runs |
+| Fan-outs | `trace.fan_out` (`app/services/trace.py`), behind the Twitch and YouTube notices and the birthday job | inside the trace of the job that runs it; each server is served on its own: one Keiko cannot reach (`DestinationNotFound`, a 403) is a warning, any other failure an error with the server's context, and neither stops the next; `destination` (`app/services/utils.py`) finds the server and its channel, `guild_locale` its language |
 | Heartbeat | `Heartbeat.beat` (`app/cogs/heartbeat.py`) | silent unless it fails; a failed ping is a warning, so it stays in `guild.logs` and the monitor is what alerts |
 
 `silent_when_clean` is what keeps `on_message` from flooding the channel: a

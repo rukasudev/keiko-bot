@@ -102,7 +102,7 @@ def record_identity(record: logging.LogRecord) -> dict:
     """The ids a log record carries, from whichever source supplied them.
 
     A record gets them three ways — an `interaction`, an `ErrorContext` (a
-    listener's or a fan-out's, `app/services/work.py`), or a bare `guild_id` — and
+    listener's or a fan-out's, `app/services/trace.py`), or a bare `guild_id` — and
     both handlers need the same answer. Keeping the knowledge here means a new
     field on `ErrorContext` reaches the embed and the stored document together,
     instead of one of them quietly falling behind.

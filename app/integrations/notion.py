@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from app.config import AppConfig
-from app.integrations import check_integration_enabled, http_client
+from app.integrations import check_integration_enabled, http_post
 from app.types.integration import IntegrationBase
 
 
@@ -35,6 +35,6 @@ class NotionIntegration(IntegrationBase):
             },
         }
 
-        response = http_client.post("notion", url, headers=headers, json=data)
+        response = http_post("notion", url, headers=headers, json=data)
 
         return response

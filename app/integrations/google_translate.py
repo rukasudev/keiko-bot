@@ -12,7 +12,7 @@ import app
 from app import logger
 from app.constants import Dependencies
 from app.constants import LogTypes as logconstants
-from app.integrations import http_client
+from app.integrations import http_get
 from app.services import metrics
 from app.services.utils import ml
 
@@ -109,7 +109,7 @@ class GoogleTranslate:
             escaped_text,
         )
         try:
-            response = http_client.get("translate", url)
+            response = http_get("translate", url)
         except RequestException as error:
             logger.warn(
                 f"Google Translate did not answer: {type(error).__name__}",

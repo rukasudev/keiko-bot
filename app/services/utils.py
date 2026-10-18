@@ -17,6 +17,7 @@ from app.constants import Commands as commandconstants
 from app.constants import FormConstants as formconstants
 from app.constants import LogTypes as logconstants
 from app.constants import supported_locales
+from app.exceptions import DestinationNotFound
 
 T = TypeVar("T")
 
@@ -245,6 +246,25 @@ def parse_locale(locale: str) -> str:
         if supported.startswith(lang_prefix):
             return supported
     return "en-us"
+
+
+def guild_locale(guild: Any, saved: Optional[str] = None) -> str:
+    """The language Keiko speaks in a server: the one its settings saved, else the server's."""
+    return parse_locale(saved or getattr(guild, "preferred_locale", None) or "en-us")
+
+
+def destination(guild_id: Any, channel_id: Any) -> Tuple[Any, Any]:
+    """The server and the channel a delivery goes to, or DestinationNotFound for either."""
+    from app import bot
+
+    guild = bot.get_guild(int(guild_id))
+    if guild is None:
+        raise DestinationNotFound(f"guild {guild_id} not found")
+
+    channel = guild.get_channel(int(channel_id or 0))
+    if channel is None:
+        raise DestinationNotFound(f"channel {channel_id} of guild {guild_id} not found")
+    return guild, channel
 
 
 def is_guild_admin(user: Any) -> bool:

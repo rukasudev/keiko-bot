@@ -1,5 +1,5 @@
 from app.constants import Commands
-from app.integrations import http_client
+from app.integrations import http_get, http_post
 
 STREAMELEMENTS_API_URL = "https://api.streamelements.com/kappa/v2"
 
@@ -7,7 +7,7 @@ STREAMELEMENTS_API_URL = "https://api.streamelements.com/kappa/v2"
 class StreamElementsClient:
     def get_channel_info(channel_name: str) -> dict:
         url = f"{STREAMELEMENTS_API_URL}/channels/{channel_name}"
-        response = http_client.get(
+        response = http_get(
             "stream_elements", url, timeout=Commands.STREAM_ELEMENTS_TIMEOUT_SECONDS
         )
         return response.json()
@@ -18,7 +18,7 @@ class StreamElementsClient:
             "Content-Type": "application/json",
         }
         data = {"message": command}
-        response = http_client.post(
+        response = http_post(
             "stream_elements",
             url,
             headers=headers,
@@ -29,7 +29,7 @@ class StreamElementsClient:
 
     def get_chat_commands(channel_id: str) -> dict:
         url = f"{STREAMELEMENTS_API_URL}/bot/commands/{channel_id}/public"
-        response = http_client.get(
+        response = http_get(
             "stream_elements", url, timeout=Commands.STREAM_ELEMENTS_TIMEOUT_SECONDS
         )
         return response.json()

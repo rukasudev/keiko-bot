@@ -23,9 +23,17 @@ from app.data.notifications_twitch import (
 from app.settings import open_feature
 from app.services import analytics
 from app.services.cache import claim_redis_key
-from app.services.work import Outcome, destination, fan_out, guild_locale
+from app.services.trace import Outcome, fan_out
 from app.views.message_preview import MessagePreviewView
-from app.services.utils import fill, fill_placeholders, format_datetime_output, ml, values_of
+from app.services.utils import (
+    destination,
+    fill,
+    fill_placeholders,
+    format_datetime_output,
+    guild_locale,
+    ml,
+    values_of,
+)
 
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:

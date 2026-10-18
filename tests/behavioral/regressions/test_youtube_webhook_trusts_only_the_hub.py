@@ -86,7 +86,7 @@ from app import logger as logger_module
 from app.api import config as api_config
 from app.api import create_api
 from app.constants import Commands
-from app.integrations import http_client
+from app import integrations
 from app.integrations import youtube as youtube_integration
 from app.integrations.youtube import YoutubeClient
 from app.services import notifications_youtube_video
@@ -210,7 +210,7 @@ def traces():
 async def hub(deps, monkeypatch, traces):
     """The real API app, YouTube client and fan-out, with Google answered from memory."""
     google = FakeGoogle()
-    monkeypatch.setattr(http_client, "requests", google)
+    monkeypatch.setattr(integrations, "requests", google)
     deps.bot.config.WEBHOOK_URL = WEBHOOK_URL
     deps.bot.config.YOUTUBE_API_KEY = API_KEY
     deps.bot.config.YOUTUBE_HUB_SECRET = SECRET

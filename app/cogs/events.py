@@ -14,11 +14,10 @@ from app.data.moderations import find_moderations_by_guild
 from app.services import block_links as block_links_service
 from app.services import default_roles as default_roles_service
 from app.services import stream_elements as stream_elements_service
-from app.services import analytics, analytics_reports, work
+from app.services import analytics, analytics_reports, trace
 from app.services.cache import increment_redis_key
 from app.services.cogs import features_on
-from app.services.guilds import join_guild
-from app.services.moderations import leave_guild
+from app.services.moderations import join_guild, leave_guild
 from app.services.utils import (
     cogs_manager,
     format_relative_time,
@@ -93,7 +92,7 @@ class Events(Cog, name="events"):
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
-        async with work.listener(
+        async with trace.listener(
             "on_member_join", member.guild.id, user_id=member.id
         ) as joined:
             if get_available_roles_by_guild(member.guild):
@@ -114,7 +113,7 @@ class Events(Cog, name="events"):
         guild_id = str(message.guild.id)
         prefix = self.bot.config.PREFIX
 
-        async with work.listener(
+        async with trace.listener(
             "on_message",
             message.guild.id,
             user_id=message.author.id,
@@ -134,7 +133,7 @@ class Events(Cog, name="events"):
 
     @commands.Cog.listener()
     async def on_raw_message_edit(self, payload: discord.RawMessageUpdateEvent):
-        async with work.listener(
+        async with trace.listener(
             "on_raw_message_edit", payload.guild_id, channel_id=payload.channel_id
         ) as checked:
             await checked.run(
@@ -150,7 +149,7 @@ class Events(Cog, name="events"):
         if not interaction.command:
             return None
 
-        async with work.listener(
+        async with trace.listener(
             "on_interaction",
             interaction.guild_id,
             user_id=interaction.user.id,
@@ -179,7 +178,7 @@ class Events(Cog, name="events"):
 
     @commands.Cog.listener()
     async def on_guild_join(self, guild: discord.Guild):
-        async with work.listener("on_guild_join", guild.id) as joined:
+        async with trace.listener("on_guild_join", guild.id) as joined:
             await joined.run("record", self._record_join(guild))
             await joined.run("greeting", GreetingsView().send(guild))
 
@@ -207,7 +206,7 @@ class Events(Cog, name="events"):
 
     @commands.Cog.listener()
     async def on_guild_remove(self, guild: discord.Guild):
-        async with work.listener("on_guild_remove", guild.id) as left:
+        async with trace.listener("on_guild_remove", guild.id) as left:
             await left.run("report", self._report_leaving(guild))
             await left.run("snapshot", self._snapshot_leaving(guild))
             await left.run(
