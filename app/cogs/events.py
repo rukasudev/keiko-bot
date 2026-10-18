@@ -212,6 +212,10 @@ class Events(Cog, name="events"):
             await left.run(
                 "leave", asyncio.to_thread(leave_guild, guild.id, str(self.bot.user.id))
             )
+            await left.run(
+                "block_links",
+                asyncio.to_thread(block_links_service.forget_counters, str(guild.id)),
+            )
 
     async def _report_leaving(self, guild: discord.Guild) -> None:
         moderations = await asyncio.to_thread(find_moderations_by_guild, guild.id)

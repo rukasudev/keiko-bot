@@ -11,6 +11,7 @@ whose old messages never change, so re-reading a file must add nothing.
 import gzip
 import json
 import os
+import sqlite3
 import sys
 
 import pytest
@@ -343,3 +344,24 @@ def test_the_errors_command_asks_for_error_and_above_by_default(tmp_path, capsys
     assert cli.main(["logs", "--db", path, "errors"]) == 0
 
     assert DBConfigs.FATAL_START_PHRASE in capsys.readouterr().out
+
+
+def test_a_schema_bump_keeps_the_old_index_aside(tmp_path):
+    """Broke as: a new `SCHEMA_VERSION` dropped the whole index, and once the channel keeps
+    the daily files 90 days the index is the only copy of the older logs.
+
+    Guaranteed: an index of an older shape is copied to `<path>.v<old version>` before
+    the new shape replaces it, with every entry it held.
+    """
+    path = tmp_path / "logs.db"
+    old = sqlite3.connect(str(path))
+    old.execute("CREATE TABLE entries (id INTEGER PRIMARY KEY, message TEXT)")
+    old.execute("INSERT INTO entries (message) VALUES ('a line from 2024')")
+    old.execute(f"PRAGMA user_version = {store.SCHEMA_VERSION - 1}")
+    old.commit()
+    old.close()
+
+    store.connect(str(path))
+
+    kept = sqlite3.connect(str(tmp_path / f"logs.db.v{store.SCHEMA_VERSION - 1}"))
+    assert kept.execute("SELECT message FROM entries").fetchall() == [("a line from 2024",)]

@@ -718,6 +718,9 @@ async def test_unloading_the_analytics_cog_writes_both_queues(stored):
         flush_events=MagicMock(),
         send_weekly_digest=MagicMock(),
         export_daily_logs=MagicMock(),
+        archive_months=MagicMock(),
+        measure_guild_sizes=MagicMock(),
+        post_daily_backup=MagicMock(),
     )
 
     await Analytics.cog_unload(loops)

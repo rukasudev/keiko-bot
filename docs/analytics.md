@@ -180,11 +180,11 @@ reports — which is why that event is emitted **before**
 
 `guild.joined` carries the size bucket of the day Keiko joined, and the profile
 kept none, so no report could compare large servers with small ones. Once a day
-(`Archive.measure_guild_sizes`, `app/cogs/archive.py`, at
+(`Analytics.measure_guild_sizes`, `app/cogs/analytics.py`, at
 `ANALYTICS_ARCHIVE_HOUR:ANALYTICS_ARCHIVE_MINUTE` UTC) every guild Keiko is in
 that has a profile gets `size_bucket` (the same `bucket_size` vocabulary as
 `guild.joined`: `<50`, `50-500`, `500-5k`, `5k+`) and `size_measured_at` on it,
-in one bulk write off the loop. It is a measurement, not an event: nothing goes
+in one bulk write off the loop (`analytics_sink.record_guild_sizes`). It is a measurement, not an event: nothing goes
 to `analytics_events` or the queue, and the profile is written through the same
 `build_profile_operation` the sink uses, with `upsert=False`. It never creates a
 profile: a profile is still born from a guild's first event, so the reports keep
@@ -194,10 +194,10 @@ erased. A guild whose member count Discord does not report is left as it was.
 ### The monthly archive
 
 Raw events live 90 days; after that only the daily counters remain, so a funnel
-could not be rebuilt once its month was gone. The `Archive` cog
-(`app/cogs/archive.py`, `app/services/archive.py`) runs a pass every day at the
+could not be rebuilt once its month was gone. The `Analytics` cog
+(`Analytics.archive_months`, `app/services/logs_archive.py`) runs a pass every day at the
 same hour and posts, oldest first, every complete month no pass has posted whose
-first day the raw events still reach (`archive.months_to_archive`: a month that
+first day the raw events still reach (`logs_archive.months_to_archive`: a month that
 started less than `ANALYTICS_EVENTS_TTL_SECONDS` ago), on the logs files
 channel, where the daily log export goes: one message in Keiko's voice
 (`messages.admin-logs.monthly-events`) with the file attached, then marks the
@@ -238,7 +238,7 @@ too, and every month the archive keeps past that window has nothing left to be
 joined to.
 
 Though it names no one, the file is sealed to the age public key the daily
-backup uses too (`app/services/sealing.py`, SSM `/keiko/backup/age_public_key`,
+backup uses too (`logs_archive.seal`, SSM `/keiko/backup/age_public_key`,
 `BACKUP_AGE_PUBLIC_KEY` locally), and only the private key, which the bot never
 holds, opens it. Without a valid public key nothing is read or posted, the log
 channel says why, and every month still inside the 90 days is posted by the
@@ -249,7 +249,7 @@ JSON Lines, one event per line, oldest first, with its `_id`, its `ts` as a date
 and its catalog version `v`, so each line is read by the version it was emitted
 with. The logs tool ingests only `.log` and `.jsonl.gz` from that channel, so it
 never takes the archive for log records. A month over the channel's upload limit
-once sealed (`sealing.plaintext_limit`) is split in halves of the month, as many
+once sealed (`logs_archive.plaintext_limit`) is split in halves of the month, as many
 times as it takes, into `keiko_events_<YYYY-MM>_<n>-of-<total>.jsonl.gz.age`.
 
 To work on a month again, open it and restore it next to the live data, then
@@ -459,8 +459,8 @@ Three pieces close that:
 The daily files carry guild, user and session ids, so the channel keeps them 90
 days (`Commands.DAILY_LOGS_RETENTION_DAYS`), and the `keiko_log.log` text
 files the rotating handler posts beside them as well: once a day, right after the
-backup, the `Backup` cog deletes the bot's own files there past their kind's age
-(`app/services/logs_files.py`; the kinds, the names and the cap per pass are in
+backup, `Analytics.post_daily_backup` deletes the bot's own files there past their kind's age
+(`logs_archive.delete_old_files`; the kinds, the names and the cap per pass are in
 "What the logs files channel keeps", `docs/releasing.md`).
 
 Every document names the release that wrote it (`app_version`), so a line from

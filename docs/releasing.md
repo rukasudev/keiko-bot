@@ -165,7 +165,7 @@ private key for as long as you keep the files it opens.
 ### What the logs files channel keeps
 
 Right after the backup, the same daily pass deletes the bot's own files on that
-channel once they are past their kind's age (`app/services/logs_files.py`):
+channel once they are past their kind's age (`logs_archive.delete_old_files`, `app/services/logs_archive.py`):
 
 | Kind | File names | Kept |
 | --- | --- | --- |
