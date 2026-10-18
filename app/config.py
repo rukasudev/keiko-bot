@@ -48,6 +48,7 @@ class AppConfig:
         self.REMINDER_AUTH_PASSWORD = os.getenv("REMINDER_AUTH_PASSWORD")
         self.REMINDER_API_KEY = os.getenv("REMINDER_API_KEY")
         self.HEARTBEAT_URL = os.getenv("HEARTBEAT_URL", "")
+        self.BACKUP_AGE_PUBLIC_KEY = os.getenv("BACKUP_AGE_PUBLIC_KEY", "")
 
 
     def get_ssm_configs(self):
@@ -90,6 +91,9 @@ class AppConfig:
         self.REMINDER_API_KEY = ssm.get_parameter(Name="/keiko/reminder/api_key", WithDecryption=True)["Parameter"][
             "Value"]
         self.HEARTBEAT_URL = self.get_optional_parameter(ssm, "/keiko/heartbeat/url")
+        self.BACKUP_AGE_PUBLIC_KEY = self.get_optional_parameter(
+            ssm, "/keiko/backup/age_public_key"
+        )
 
     def get_optional_parameter(self, ssm, name: str) -> str:
         """A parameter the bot runs without: empty when it is missing or cannot be read."""

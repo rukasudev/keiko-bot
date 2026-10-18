@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 from app.constants import Commands as constants
 from app.data import analytics as analytics_data
 from app.services import cache
+from app.services.analytics import bucket_size
 
 TIMESTAMP = "__ts__"
 
@@ -87,6 +88,21 @@ def persist(batch: List[Dict[str, Any]]) -> None:
     _safely(analytics_data.update_profiles, profile_operations)
     _safely(_increment_hot_window, counters)
 
+
+
+def record_guild_sizes(member_counts: Dict[str, Optional[int]], now: datetime) -> int:
+    """The current size bucket of every guild that has a profile; never creates one."""
+    operations = [
+        analytics_data.build_profile_operation(
+            guild_id,
+            set_fields={"size_bucket": bucket_size(count), "size_measured_at": now},
+            upsert=False,
+        )
+        for guild_id, count in member_counts.items()
+        if count is not None
+    ]
+    analytics_data.update_profiles(operations)
+    return len(operations)
 
 def _partition(batch: List[Dict[str, Any]]):
     documents: List[Dict[str, Any]] = []

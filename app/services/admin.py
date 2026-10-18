@@ -10,6 +10,7 @@ from app.bot import DiscordBot
 from app.constants import Commands, KeikoIcons, LogTypes, Style
 from app.data import admin as configs_data
 from app.data import cogs as cogs_data
+from app.services import logs_archive
 from app.services.cogs import is_feature_on
 from app.services.utils import format_datetime_output, format_relative_time
 
@@ -24,9 +25,15 @@ async def send_log_file_from_channel_by_date(
         if date not in message.content:
             continue
 
-        attachment = message.attachments[0].url
+        daily_log = next(
+            (file for file in message.attachments if logs_archive.is_daily_log(file.filename)),
+            None,
+        )
+        if daily_log is None:
+            continue
+
         return await interaction.followup.send(
-            f":page_facing_up: Here is my log file for **{date}**! {attachment}",
+            f":page_facing_up: Here is my log file for **{date}**! {daily_log.url}",
         )
 
     await interaction.followup.send(f":pensive: Log file not found for **{date}**")

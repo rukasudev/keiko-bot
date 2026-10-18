@@ -6,7 +6,7 @@ from pymongo.errors import PyMongoError
 from app import mongo_client
 from app.constants import Commands as constants
 
-# (collection, keys, options) — every collection lives in the `guild` database.
+# (collection, keys, options) — a collection of the `guild` database, or `database.collection`.
 INDEXES: List[Tuple[str, List[Tuple[str, int]], Dict[str, Any]]] = [
     (
         "blocked_links",
@@ -47,6 +47,7 @@ INDEXES: List[Tuple[str, List[Tuple[str, int]], Dict[str, Any]]] = [
     ("logs", [("level", 1), ("ts", -1)], {}),
     ("logs", [("guild_id", 1), ("ts", -1)], {}),
     ("logs", [("session_id", 1), ("ts", 1)], {}),
+    ("audit.reminders", [("expires_at", 1)], {"expireAfterSeconds": 0}),
 ] + [
     (
         collection,
@@ -58,15 +59,22 @@ INDEXES: List[Tuple[str, List[Tuple[str, int]], Dict[str, Any]]] = [
 ]
 
 
+def located(collection: str) -> Tuple[str, str]:
+    """The database and the collection an entry of INDEXES names."""
+    database, dot, name = collection.partition(".")
+    return (database, name) if dot else ("guild", database)
+
+
 def ensure_indexes() -> None:
     """Create every index; one that cannot be created never stops the others."""
     failed = []
 
     for collection, keys, options in INDEXES:
+        database, name = located(collection)
         try:
-            mongo_client.guild[collection].create_index(keys, **options)
+            mongo_client[database][name].create_index(keys, **options)
         except PyMongoError as error:
-            failed.append(f"guild.{collection} {keys}: {type(error).__name__}: {error}")
+            failed.append(f"{database}.{name} {keys}: {type(error).__name__}: {error}")
 
     if failed:
         raise RuntimeError("; ".join(failed))

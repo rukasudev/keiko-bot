@@ -9,9 +9,10 @@ Lines come from the product events that are already emitted, through
 line in the log can never disagree with a number in a dashboard.
 Reference: docs/analytics.md
 """
+import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
-from typing import Any, Callable, Dict, Optional
+from typing import Any, Callable, Dict, Optional, Set
 
 from app.constants import Commands as constants
 from app.services.trace import Trace
@@ -19,6 +20,7 @@ from app.services.trace import Trace
 _JOURNEYS: Dict[str, Trace] = {}
 _PUBLISHER: Optional[Callable[[Trace], None]] = None
 _RECOVERY_LISTENER: Optional[Callable[[str], None]] = None
+_READS: Set["asyncio.Task[Optional[str]]"] = set()
 
 OUTCOME_ICONS = {
     # The one vocabulary for "what happened". The log embed titles read from
@@ -216,10 +218,29 @@ def open_journey(
     if inherit:
         inherit.supersede(journey)
 
-    journey.footnote = recent_attempts(guild_id, feature, session_id)
     _JOURNEYS[session_id] = journey
+    _read_recent_attempts(journey)
     _publish(journey)
     return journey
+
+
+def _read_recent_attempts(journey: Trace) -> None:
+    """Read the footnote in a worker thread whenever a loop runs, so opening never waits."""
+    arguments = (journey.guild_id, journey.feature, journey.session_id)
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        journey.footnote = recent_attempts(*arguments)
+        return
+
+    def noted(reading: "asyncio.Task[Optional[str]]") -> None:
+        _READS.discard(reading)
+        if not reading.cancelled() and reading.exception() is None:
+            journey.footnote = reading.result()
+
+    reading = loop.create_task(asyncio.to_thread(recent_attempts, *arguments))
+    _READS.add(reading)
+    reading.add_done_callback(noted)
 
 
 def record(envelope: Dict[str, Any]) -> None:
@@ -354,7 +375,7 @@ def _open_or_expired(last_seen: Any) -> str:
 
 
 def recent_attempts(guild_id: Any, feature: str, session_id: str) -> Optional[str]:
-    """What this guild already tried on this feature, read once at open time."""
+    """What this guild already tried on this feature, from its own events of the window."""
     if not guild_id or not feature:
         return None
 
@@ -365,10 +386,11 @@ def recent_attempts(guild_id: Any, feature: str, session_id: str) -> Optional[st
             seconds=constants.ANALYTICS_ATTEMPTS_WINDOW_SECONDS
         )
         previous = [
-            session for session in analytics_reports.setup_sessions(feature)
-            if session["guild_id"] == str(guild_id)
-            and session["session_id"] != session_id
-            and _after(session.get("last_seen"), since)
+            session
+            for session in analytics_reports.setup_sessions(
+                feature, guild_id=str(guild_id), since=since
+            )
+            if session["session_id"] != session_id
         ]
     except Exception:
         return None
@@ -389,13 +411,6 @@ def recent_attempts(guild_id: Any, feature: str, session_id: str) -> Optional[st
         lines.append(f"`{stamp}` {icon} {session['outcome']} {detail}".rstrip())
 
     return "\n".join(lines)
-
-
-def _after(moment: Any, since: datetime) -> bool:
-    if not isinstance(moment, datetime):
-        return False
-    reference = moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
-    return reference >= since
 
 
 def _publish(journey: Trace) -> None:

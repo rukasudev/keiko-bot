@@ -461,18 +461,28 @@ class _Collection:
 
 
 class _Database:
+    def __init__(self, name, created):
+        self.name = name
+        self.created = created
+
+    def __getitem__(self, name):
+        named = name if self.name == "guild" else f"{self.name}.{name}"
+        return _Collection(named, self.created)
+
+
+class _Client:
     def __init__(self, created):
         self.created = created
 
     def __getitem__(self, name):
-        return _Collection(name, self.created)
+        return _Database(name, self.created)
 
 
 def test_a_collection_with_duplicate_guilds_never_stops_the_other_indexes(
     monkeypatch,
 ):
     created = []
-    monkeypatch.setattr(indexes, "mongo_client", SimpleNamespace(guild=_Database(created)))
+    monkeypatch.setattr(indexes, "mongo_client", _Client(created))
 
     with pytest.raises(Exception, match="guild.moderations"):
         indexes.ensure_indexes()

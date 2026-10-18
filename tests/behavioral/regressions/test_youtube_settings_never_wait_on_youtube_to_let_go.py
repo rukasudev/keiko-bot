@@ -34,7 +34,7 @@ from zoneinfo import ZoneInfo
 import pytest
 import requests
 
-from app.data.reminder import find_reminder_by_value, insert_reminder
+from app.data.reminder import find_reminder_by_value, insert_renewal_reminder
 from app.integrations import reminder_webhook
 from app.integrations import youtube as youtube_integration
 from app.services.utils import ml
@@ -110,7 +110,7 @@ async def test_removing_a_youtuber_completes_whatever_youtube_answers(
     scenario_factory, deps, caplog, trouble,
 ):
     scenario = await open_manager(scenario_factory, deps, "en-us", FORM, _seed_two_entries)
-    insert_reminder(7001, "youtube_notification", "pewdiepie")
+    insert_renewal_reminder(7001, "pewdiepie")
     youtube_answers(deps, trouble)
 
     with caplog.at_level("INFO"):
@@ -131,7 +131,7 @@ async def test_the_renewal_an_unsubscribe_leaves_behind_drops_itself(
     from app.webhooks.reminder import renew_youtube_subscription
 
     scenario = await open_manager(scenario_factory, deps, "en-us", FORM, _seed_two_entries)
-    insert_reminder(7001, "youtube_notification", "pewdiepie")
+    insert_renewal_reminder(7001, "pewdiepie")
     if trouble:
         youtube_answers(deps, trouble)
     await scenario.click("remove")
@@ -213,7 +213,7 @@ async def test_a_failed_edit_leaves_the_youtuber_still_followed_with_its_renewal
 ):
     """The engine unsubscribes the old youtuber before it subscribes the new one."""
     deps.bot.config.is_dev = lambda: False
-    insert_reminder(7001, "youtube_notification", "pewdiepie")
+    insert_renewal_reminder(7001, "pewdiepie")
     scenario, commit = await _edit(scenario_factory, deps)
     youtube_answers(deps, trouble)
 
@@ -231,7 +231,7 @@ async def test_an_edit_that_fails_after_the_old_name_was_unsubscribed_keeps_its_
     """The engine unsubscribes the old name before it subscribes the new one; here the hub
     took the first and the lookup of the second failed."""
     deps.bot.config.is_dev = lambda: False
-    insert_reminder(7001, "youtube_notification", "pewdiepie")
+    insert_renewal_reminder(7001, "pewdiepie")
     scenario, commit = await _edit(scenario_factory, deps)
     look_up = deps.youtube.get_channel_id_from_username
 
@@ -259,7 +259,7 @@ async def test_removing_a_youtuber_a_paused_server_still_follows_keeps_the_hub_s
         "enabled": False,
         "notifications": {"values": [{"youtuber": {"value": "pewdiepie"}}]},
     })
-    insert_reminder(7001, "youtube_notification", "pewdiepie")
+    insert_renewal_reminder(7001, "pewdiepie")
 
     await scenario.click("remove")
     await scenario.select_option("notifications$0")

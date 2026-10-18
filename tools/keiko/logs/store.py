@@ -1,8 +1,9 @@
 """The local index the agent actually queries.
 
 SQLite with FTS5 over message and traceback. It holds the cold tail — anything
-older than the 30 days Mongo keeps — rebuilt from the daily files on the
-Discord logs channel. Losing this file costs nothing: re-run the backfill.
+older than the 30 days Mongo keeps — built from the daily files on the
+Discord logs channel. The channel keeps those files 90 days, so past that this
+index is the only copy of the logs: keep it backed up.
 
 Idempotence keys on the Discord message id, never on the filename. Every nightly
 attachment is literally `logs/keiko_log.log` — `doRollover` posts `baseFilename`
@@ -16,8 +17,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 DEFAULT_PATH = os.path.expanduser("~/.keiko/logs.db")
 
-# Bumped when the shape changes. The index is rebuilt from Discord, never a
-# source of truth, so an old one is discarded instead of migrated.
+# Bumped when the shape changes; the old index is kept aside before the new shape replaces it.
 SCHEMA_VERSION = 3
 
 SCHEMA = """
@@ -81,17 +81,16 @@ def connect(path: str = DEFAULT_PATH) -> sqlite3.Connection:
         os.makedirs(directory, exist_ok=True)
     connection = sqlite3.connect(path)
     connection.row_factory = sqlite3.Row
-    _reset_if_stale(connection)
+    _reset_if_stale(connection, path)
     connection.executescript(SCHEMA)
     connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
     return connection
 
 
-def _reset_if_stale(connection: sqlite3.Connection) -> None:
-    """An index built by an older shape is dropped, not migrated.
+def _reset_if_stale(connection: sqlite3.Connection, path: str) -> None:
+    """An index built by an older shape is copied to `<path>.v<version>`, then dropped.
 
-    Everything here is rebuilt from the Discord channel by re-running `sync`, so
-    discarding is cheaper and safer than a migration path nobody will test.
+    `sync` rebuilds what the channel still holds; the copy keeps what it no longer does.
     """
     version = connection.execute("PRAGMA user_version").fetchone()[0]
     if version == SCHEMA_VERSION:
@@ -105,6 +104,12 @@ def _reset_if_stale(connection: sqlite3.Connection) -> None:
     ]
     if not existing:
         return
+
+    kept = sqlite3.connect(f"{path}.v{version}")
+    try:
+        connection.backup(kept)
+    finally:
+        kept.close()
 
     connection.executescript(
         "DROP TRIGGER IF EXISTS entries_ai;"

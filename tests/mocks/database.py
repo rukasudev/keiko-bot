@@ -230,12 +230,50 @@ class MockRedisClient:
         self._data[key] = str(current + amount)
         return current + amount
 
+    def mget(self, keys, *more):
+        """redis-py's answer: one value per key, None for a key that does not exist."""
+        names = [keys] if isinstance(keys, str) else list(keys)
+        return [self._data.get(key) for key in [*names, *more]]
+
+    def hincrby(self, name, key, amount=1):
+        fields = self._data.setdefault(name, {})
+        current = int(fields.get(key, 0))
+        fields[key] = str(current + amount)
+        return current + amount
+
+    def hgetall(self, name):
+        return dict(self._data.get(name) or {})
+
+    def pipeline(self, transaction=True):
+        return MockRedisPipeline(self)
+
     def expire(self, key, seconds):
         self._expirations[key] = seconds
         return True
 
     def ttl(self, key):
         return self._expirations.get(key, -1)
+
+
+class MockRedisPipeline:
+    """Queues the commands it is given and runs them, in order, on `execute`."""
+
+    def __init__(self, client):
+        self._client = client
+        self._queued = []
+
+    def __getattr__(self, name):
+        method = getattr(self._client, name)
+
+        def queue(*args, **kwargs):
+            self._queued.append((method, args, kwargs))
+            return self
+
+        return queue
+
+    def execute(self):
+        queued, self._queued = self._queued, []
+        return [method(*args, **kwargs) for method, args, kwargs in queued]
 
 
 class MockCursor:
@@ -474,7 +512,7 @@ class MockMongoDatabase:
     def __getattr__(self, name):
         return self[name]
 
-    async def list_collection_names(self):
+    def list_collection_names(self):
         return list(self._collections.keys())
 
 
@@ -491,3 +529,6 @@ class MockMongoClient:
 
     def __getattr__(self, name):
         return self[name]
+
+    def list_database_names(self):
+        return list(self._databases.keys())
