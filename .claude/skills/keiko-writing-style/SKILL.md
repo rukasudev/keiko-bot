@@ -258,20 +258,3 @@ Reuse `command-events.{enabled|paused|unpaused|disabled|edited|added|removed}`. 
   description: {same as form intro description}
   footer: {same standard footer}
 ```
-
-### Variable instructions (YAML, button step)
-```yaml
-- action: button
-  key: {key}
-  emoji: "📩"
-  title:
-    en-us: "{Step Name}"
-  description:
-    en-us: "Now let's configure {what}! Read the following notes carefully:"
-  fields:
-    en-us:
-      - title: "1. {Concept}"
-        message: "{1-sentence explanation}"
-      - title: "2. Variables"
-        message: "You can use the following variables in your message:\n• `{var}`: {meaning}"
-```
