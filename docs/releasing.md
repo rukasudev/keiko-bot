@@ -27,7 +27,7 @@ new version instead.
 
 1. `docker stop -t 30` sends SIGTERM. Keiko closes its Discord connection,
    writes the analytics events and log records still queued, and exits
-   (`app/lifecycle.py`). Docker kills it only if it is still running after
+   (`run` in `app/bot.py`). Docker kills it only if it is still running after
    `STOP_GRACE_SECONDS` (30). The first release with this behaviour still
    stops a container of the version before it, which has no SIGTERM handler:
    that stop waits the full 30 seconds, ends in a kill and loses its queues

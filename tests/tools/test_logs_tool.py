@@ -318,7 +318,7 @@ def test_the_default_report_holds_a_refused_start(every_level_connection):
 
     Reported in the v1 review: `logs errors` grouped only the records whose level was
     exactly ERROR, so the CRITICAL a refused start logs ("Discord refused to start the
-    bot", `lifecycle._report`) never appeared in the default report, the one record that
+    bot", `app/bot.py`'s `_report`) never appeared in the default report, the one record that
     says the bot is not running at all.
 
     Shared behaviour: `store.signatures` and the `errors` subcommand of `tools/keiko/logs`.

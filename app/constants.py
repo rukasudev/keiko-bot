@@ -412,7 +412,6 @@ class FormConstants:
     AVAILABLE_ROLES_ACTION_KEY: Final[str] = "available_roles"
     CHANNELS_ACTION_KEY: Final[str] = "channels"
     RESUME_ACTION_KEY: Final[str] = "resume"
-    BUTTON_ACTION_KEY: Final[str] = "button"
     FORM_ACTION_KEY: Final[str] = "form"
     COMPOSITION_ACTION_KEY: Final[str] = "composition"
     MULTI_SELECT_ACTION_KEY: Final[str] = "multi_select"
@@ -425,7 +424,6 @@ class FormConstants:
 
     NO_ACTION_LIST: Final[List[str]] = [
         FORM_ACTION_KEY,
-        BUTTON_ACTION_KEY,
         RESUME_ACTION_KEY,
         SUMMARY_CARD_ACTION_KEY,
     ]
@@ -539,7 +537,6 @@ class KeikoIcons:
     ICONS_LIST: List[str] = [IMAGE_01, IMAGE_02, IMAGE_03]
     ACTION_IMAGE: Dict[str, str] = {
         FormConstants.RESUME_ACTION_KEY: IMAGE_03,
-        FormConstants.BUTTON_ACTION_KEY: IMAGE_02,
     }
 
 

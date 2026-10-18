@@ -10,14 +10,14 @@ from urllib.parse import urlparse
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from app.services import cdn, welcome_messages
+from app.services import images, welcome_messages
 from app.services.welcome_messages import send_welcome_message
 from tests.mocks import create_guild, create_member
 from tests.generators import moderations
 from app.services.utils import parse_welcome_messages
 
 REAL_CREATE_BANNER = welcome_messages.create_banner
-REAL_UPLOAD_ASSET = cdn.upload_asset
+REAL_UPLOAD_ASSET = images.upload_asset
 
 
 class TestWelcomeMessagesSend:
@@ -348,7 +348,7 @@ class TestGenerateDesignPreviews:
 
         # Arrange
         monkeypatch.setattr(welcome_messages, "create_banner", REAL_CREATE_BANNER)
-        monkeypatch.setattr(cdn, "upload_asset", REAL_UPLOAD_ASSET)
+        monkeypatch.setattr(images, "upload_asset", REAL_UPLOAD_ASSET)
         member = create_member(guild, id=999, name="TestUser")
         designs = [
             {"key": "server_blur"},

@@ -14,7 +14,7 @@ from app.constants import LogTypes as logconstants
 from app.constants import Style, WelcomeDesign
 from app.exceptions import ErrorContext
 from app.settings import open_feature
-from app.services import analytics, cache, cdn, images
+from app.services import analytics, cache, images
 from app.views.message_preview import MessagePreviewView
 from app.services.utils import (
     parse_welcome_messages,
@@ -129,7 +129,7 @@ async def generate_design_previews(
         "custom_blur": lambda: banner(background or WelcomeDesign.CUSTOM_BLUR_PREVIEW),
         "custom_only": (
             as_sent if background
-            else lambda: cdn.upload_asset(_asset_path(WelcomeDesign.CUSTOM_ONLY_PREVIEW))
+            else lambda: images.upload_asset(_asset_path(WelcomeDesign.CUSTOM_ONLY_PREVIEW))
         ),
     }
 
@@ -418,4 +418,4 @@ async def create_banner(
 ) -> str:
     """The banner uploaded to the dump channel, for a screen that shows it by url."""
     banner = await draw_banner(background_url, title, member, on_plain_background)
-    return await cdn.upload(banner, WelcomeDesign.BANNER_FILENAME)
+    return await images.upload(banner, WelcomeDesign.BANNER_FILENAME)

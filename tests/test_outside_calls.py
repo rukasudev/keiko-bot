@@ -43,7 +43,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 APP = os.path.join(ROOT, "app")
 OWN_REQUESTS = {
     "app/integrations/__init__.py": "the shared client itself",
-    "app/cogs/heartbeat.py": (
+    "app/cogs/prometheus.py": (
         "the ping to the uptime monitor: not a dependency a feature waits on, its URL "
         "carries the monitor's token, and it keeps HEARTBEAT_TIMEOUT_SECONDS"
     ),

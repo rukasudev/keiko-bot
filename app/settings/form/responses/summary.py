@@ -35,7 +35,7 @@ from app.settings.form.form_yaml import (
 from app.settings.form.responses.styles import empty_value, format_value
 from app.settings.form.responses.transforms import transform
 
-SILENT = ("intro", "info", "review")
+SILENT = ("intro", "review")
 EMOJI_PREFIX = re.compile(r"^(?:[\U0001F000-\U0001FAFF☀-➿⬀-⯿️‍])+\s*")
 
 
@@ -224,7 +224,7 @@ def _views_for(
         return _single_choice_views(step, answer, locale)
     if isinstance(step, CompositionStep):
         return _composition_views(step, answer, locale)
-    if step.kind in ("intro", "info", "review"):
+    if step.kind in ("intro", "review"):
         return []
     return [
         ResponseView(
@@ -259,7 +259,7 @@ def configured_steps(
     """The steps a save configured, in declaration order, named by key only."""
     configured: list[str] = []
     for step in steps:
-        if step.kind in ("intro", "info", "review") or step.hidden:
+        if step.kind in ("intro", "review") or step.hidden:
             continue
         if any(_filled(answers.get(key)) for key in produced_keys(step)):
             configured.append(step.key)

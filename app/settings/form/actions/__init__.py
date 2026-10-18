@@ -38,7 +38,6 @@ def registry() -> dict[str, Kind]:
     from app.settings.form.actions import (
         composition,
         configuration_card,
-        info,
         intro,
         modal,
         options,
@@ -56,6 +55,5 @@ def registry() -> dict[str, Kind]:
         "multi_pick": Kind(selects.render, selects.parse),
         "card": Kind(configuration_card.render, configuration_card.parse),
         "composition": Kind(composition.render, composition.parse),
-        "info": Kind(info.render, info.parse),
         "review": Kind(resume.render, resume.parse),
     }

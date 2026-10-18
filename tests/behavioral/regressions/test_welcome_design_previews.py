@@ -37,7 +37,7 @@ import requests
 from PIL import Image
 
 from app.constants import WelcomeDesign
-from app.services import cdn, welcome_messages
+from app.services import images, welcome_messages
 from tests.mocks import create_member
 from tests.mocks.web import DISCORD_HOSTS, FakeWeb
 
@@ -45,7 +45,7 @@ pytestmark = [pytest.mark.behavioral]
 
 REAL_CREATE_BANNER = welcome_messages.create_banner
 REAL_DRAW_BANNER = welcome_messages.draw_banner
-REAL_UPLOAD_ASSET = cdn.upload_asset
+REAL_UPLOAD_ASSET = images.upload_asset
 UPLOADED_URL = "https://cdn.discordapp.com/attachments/999/1/uploaded.png"
 DESIGNS = [{"key": "server_blur"}, {"key": "custom_blur"}, {"key": "custom_only"}]
 DISCORD_EMBED_LIMIT_BYTES = 8 * 1024 * 1024
@@ -64,7 +64,7 @@ def web(monkeypatch):
 def real_banners(monkeypatch):
     monkeypatch.setattr(welcome_messages, "create_banner", REAL_CREATE_BANNER)
     monkeypatch.setattr(welcome_messages, "draw_banner", REAL_DRAW_BANNER)
-    monkeypatch.setattr(cdn, "upload_asset", REAL_UPLOAD_ASSET)
+    monkeypatch.setattr(images, "upload_asset", REAL_UPLOAD_ASSET)
 
 
 @pytest.fixture

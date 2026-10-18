@@ -27,6 +27,11 @@ from app.constants import Commands, KeikoIcons
 from app.services.utils import fill, ml
 from tests.behavioral.contracts.test_components_v2_limits import _assert_within_limits
 from tests.behavioral.harness.locators import walk_items
+from tests.behavioral.golden.paths.common import seed_document, seed_history
+from tests.behavioral.golden.paths.block_links import ENABLED as BLOCK_LINKS
+from tests.behavioral.golden.paths.default_roles import ENABLED as DEFAULT_ROLES
+from tests.behavioral.golden.paths.notifications_twitch import ENABLED as TWITCH
+from tests.behavioral.golden.paths.welcome_messages import ENABLED as WELCOME
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("setup_dashboard")]
 
@@ -284,7 +289,6 @@ async def test_each_card_button_opens_its_screen(
     assert opened.await_args.args[0] is interaction
 
 
-
 async def test_stream_elements_commands_is_listed_on_setup(deps):
     """Broke as: the StreamElements integration was a command nobody found."""
     view = await dashboard()
@@ -364,3 +368,238 @@ async def test_the_help_setup_button_tells_a_member_it_needs_an_admin(
     sent = clicker.response.send_message.await_args.kwargs
     assert ml("buttons.setup.admin-only.title", "pt-br") in sent["embed"].title
     assert "view" not in sent
+
+
+async def test_the_history_lists_every_feature_newest_first_and_names_each(deps):
+    """The /setup History button: the server's recent changes across features.
+
+    Each feature kept its own history behind its own panel, so an admin who wanted
+    to know what changed in the server had to open six panels. Guaranteed: the
+    history merges every feature's audit records, newest first, and every line
+    names the feature it happened in.
+    """
+    from app.services.setup import guild_history, history_fields
+
+    seed_history(deps, "welcome_messages", "enabled")
+    seed_history(deps, "block_links", "enabled", "paused")
+
+    records = await guild_history(GUILD_ID)
+
+    assert (records[0]["cog_key"], records[0]["event"]) == ("block_links", "paused")
+    assert {record["cog_key"] for record in records} == {"welcome_messages", "block_links"}
+
+    interaction = SimpleNamespace(
+        locale="pt-br", guild=None, client=SimpleNamespace(user=SimpleNamespace(id=999))
+    )
+    rendered = "\n".join(history_fields(records, interaction).values())
+    assert ml("buttons.setup.block-links.label", "pt-br") in rendered
+    assert ml("buttons.setup.welcome-messages.label", "pt-br") in rendered
+
+
+PERMISSIONS_BASE = "commands.commands.setup.permissions"
+
+
+EVERYTHING = {
+    "view_channel", "send_messages", "embed_links", "attach_files",
+    "manage_roles", "manage_messages",
+}
+
+
+class Granted(SimpleNamespace):
+    def __getattr__(self, name):
+        return False
+
+
+def guild(channels, roles=None, top_role=10, server=EVERYTHING):
+    me = SimpleNamespace(
+        top_role=SimpleNamespace(position=top_role),
+        guild_permissions=Granted(**{name: True for name in server}),
+    )
+
+    def get_channel(channel_id):
+        if channel_id not in channels:
+            return None
+        granted = channels[channel_id]
+        return SimpleNamespace(
+            id=channel_id,
+            permissions_for=lambda member: Granted(**{name: True for name in granted}),
+        )
+
+    role_objects = [
+        SimpleNamespace(id=role_id, name=f"role-{role_id}", position=position, managed=False)
+        for role_id, position in (roles or {}).items()
+    ]
+
+    def get_role(role_id):
+        return next((role for role in role_objects if role.id == role_id), None)
+
+    return SimpleNamespace(
+        id=int(GUILD_ID),
+        me=me,
+        roles=role_objects,
+        get_channel=get_channel,
+        get_role=get_role,
+    )
+
+
+def configure(deps, *documents):
+    deps.mongo_client.guild.moderations.insert_one(
+        {"guild_id": GUILD_ID, **{form: True for form, _ in documents}}
+    )
+    for form, document in documents:
+        seed_document(deps, form, document)
+
+
+async def report(server, locale="pt-br"):
+    from app.services.setup import permission_report
+
+    return await permission_report(server, GUILD_ID, "555", locale)
+
+
+def field_of(embed, command_key, locale="pt-br"):
+    spec = next(f for f in Commands.SETUP_FEATURES if f["command_key"] == command_key)
+    label = ml(f"buttons.setup.{spec['button_key']}.label", locale)
+    name = f"{spec['emoji']} {label}"
+    return next(field.value for field in embed.fields if field.name == name)
+
+
+def names(permission, locale="pt-br"):
+    return ml(f"{PERMISSIONS_BASE}.names.{permission}", locale)
+
+
+@pytest.fixture
+def everything_configured(deps):
+    configure(
+        deps,
+        (Commands.WELCOME_MESSAGES_KEY, WELCOME),
+        (Commands.DEFAULT_ROLES_KEY, DEFAULT_ROLES),
+        (Commands.BLOCK_LINKS_KEY, BLOCK_LINKS),
+        (Commands.NOTIFICATIONS_TWITCH_KEY, TWITCH),
+    )
+
+
+FULL_CHANNELS = {100: EVERYTHING, 101: EVERYTHING, 102: EVERYTHING}
+
+
+LOW_ROLES = {201: 1, 202: 2}
+
+
+async def test_a_server_where_keiko_has_everything_reads_as_fine(everything_configured):
+    """The /setup Permissions button: what Keiko is missing, feature by feature.
+
+    A missing permission used to show up only when a feature failed: a welcome that
+    never arrived, a role that was never given. The report reads each configured
+    feature's saved answers through the platform (the channels and roles it names),
+    checks what that feature needs there, and says it in the admin's language.
+
+    Guaranteed: a server where Keiko has everything reads as fine for every
+    configured feature, in declared order; a missing channel permission names the
+    channel and the permission; a deleted channel is reported; a role above Keiko's
+    own is reported for auto roles, and a missing server permission is reported;
+    the exempt channels and roles of block links need nothing; and a server with
+    nothing set up is told there is nothing to check yet.
+    """
+    embed = await report(guild(FULL_CHANNELS, LOW_ROLES))
+
+    ok = ml(f"{PERMISSIONS_BASE}.ok", "pt-br")
+    assert [field.value for field in embed.fields] == [ok, ok, ok, ok]
+    assert len(embed.fields) == 4, "only configured features are checked"
+
+
+async def test_a_missing_channel_permission_names_the_channel_and_the_permission(
+    everything_configured,
+):
+    channels = {**FULL_CHANNELS, 101: EVERYTHING - {"embed_links"}}
+
+    value = field_of(await report(guild(channels, LOW_ROLES)), Commands.WELCOME_MESSAGES_KEY)
+
+    assert "<#101>" in value and names("embed_links") in value
+
+
+async def test_a_deleted_channel_is_reported(everything_configured):
+    channels = {100: EVERYTHING, 101: EVERYTHING}
+
+    value = field_of(await report(guild(channels, LOW_ROLES)), Commands.NOTIFICATIONS_TWITCH_KEY)
+
+    assert ml(f"{PERMISSIONS_BASE}.channel-gone", "pt-br") in value
+
+
+async def test_a_role_above_keiko_and_a_missing_server_permission_are_reported(
+    everything_configured,
+):
+    server = guild(FULL_CHANNELS, {201: 1, 202: 20}, server=EVERYTHING - {"manage_roles"})
+
+    value = field_of(await report(server), Commands.DEFAULT_ROLES_KEY)
+
+    assert "<@&202>" in value, "a role above mine is one I cannot give"
+    assert "<@&201>" not in value
+    assert names("manage_roles") in value
+
+
+async def test_the_exempt_channels_and_roles_of_block_links_need_nothing(deps):
+    configure(deps, (Commands.BLOCK_LINKS_KEY, BLOCK_LINKS))
+
+    embed = await report(guild({100: set()}, {201: 99}))
+
+    assert field_of(embed, Commands.BLOCK_LINKS_KEY) == ml(f"{PERMISSIONS_BASE}.ok", "pt-br")
+
+
+async def test_block_links_without_manage_messages_is_reported(deps):
+    configure(deps, (Commands.BLOCK_LINKS_KEY, BLOCK_LINKS))
+
+    embed = await report(guild({100: set()}, server=EVERYTHING - {"manage_messages"}))
+
+    assert names("manage_messages") in field_of(embed, Commands.BLOCK_LINKS_KEY)
+
+
+async def test_a_server_with_nothing_set_up_has_nothing_to_check(deps):
+    embed = await report(guild({}))
+
+    assert embed.fields == []
+    assert embed.description == ml(f"{PERMISSIONS_BASE}.nothing", "pt-br")
+
+
+def _greeting(locale):
+    from app.views.greetings import GreetingsView
+
+    return GreetingsView(locale)
+
+
+@pytest.mark.shared_contract("setup_features")
+@pytest.mark.parametrize("locale", ["pt-br", "en-us"])
+def test_the_greeting_offers_every_setup_feature(locale):
+    """The greeting a new server gets offers every feature /setup offers.
+
+    The card kept a list of its own while `/setup` read `Commands.SETUP_FEATURES`,
+    so a new server was told about four features and the dashboard about seven.
+    Reading the one registry is the fix, and the view has to survive it: Discord
+    fits five components to a row, so a hardcoded row breaks the moment the
+    registry grows past it.
+
+    Shared behaviour: `Commands.SETUP_FEATURES`, read by the greeting and by the
+    setup dashboard. Consumer that exposed it: the onboarding greeting, which
+    raised on construction and left a new server with no greeting at all and
+    `on_ready` half finished. Guaranteed: the greeting is buildable, in both
+    locales, with one button per feature.
+    """
+    view = _greeting(locale)
+    buttons = [item for item in view.children if isinstance(item, discord.ui.Button)]
+
+    assert len(buttons) == len(Commands.SETUP_FEATURES) + 1, (
+        "one button per feature, plus the dashboard"
+    )
+    labels = {button.label for button in buttons}
+    for feature in Commands.SETUP_FEATURES:
+        expected = ml(f"buttons.setup.{feature['button_key']}.label", locale=locale)
+        assert expected in labels, (feature["button_key"], sorted(labels))
+
+
+@pytest.mark.shared_contract("setup_features")
+@pytest.mark.parametrize("locale", ["pt-br", "en-us"])
+def test_the_greeting_fits_discord_rows(locale):
+    """Broke as: every button was pinned to row 0, which fits five."""
+    view = _greeting(locale)
+
+    rows = [item.row for item in view.children]
+    assert len(view.children) <= 25, "Discord fits five rows of five"
+    assert max(row for row in rows if row is not None) <= 4, rows
