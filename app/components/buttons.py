@@ -1,3 +1,4 @@
+import asyncio
 from typing import Any, Callable
 
 import discord
@@ -57,7 +58,7 @@ class JourneyRefreshButton(
         from app.logger import build_trace_embed
         from app.services import journey
 
-        story = journey.rebuild(self.session_id)
+        story = await asyncio.to_thread(journey.rebuild, self.session_id)
         if not story:
             return await interaction.response.defer()
 
@@ -97,12 +98,11 @@ async def run_feature_command(
         source=source,
         feature=command_key,
         is_admin=is_guild_admin(interaction.user),
-    ) as trace:
-        trace.footnote = analytics.describe_attempt(
-            analytics.count_attempt(interaction.guild_id, command_key), command_key
-        )
+    ) as trace, analytics.counting_attempt(trace, interaction.guild_id, command_key):
         analytics.emit("command.invoked", command=command_name)
-        increment_redis_key(f"{logconstants.COMMAND_CALL_TYPE}:{command_key}:button")
+        await asyncio.to_thread(
+            increment_redis_key, f"{logconstants.COMMAND_CALL_TYPE}:{command_key}:button"
+        )
 
         from app.settings import open_feature
 
@@ -167,7 +167,7 @@ class SyncronizeRemindersButton(discord.ui.Button):
             if count > 0:
                 continue
 
-            bot.reminder.delete_reminder(reminder)
+            await asyncio.to_thread(bot.reminder.delete_reminder, reminder)
             reminders_deleted.append(self.view.streamers_by_reminder[reminder])
 
         return await interaction.followup.send(
@@ -197,7 +197,7 @@ class RemoveDuplicatedReminderButton(discord.ui.Button):
                 if streamer_name != streamer:
                     continue
 
-                bot.reminder.delete_reminder(reminder)
+                await asyncio.to_thread(bot.reminder.delete_reminder, reminder)
 
                 removed_by_streamers[streamer] = removed_by_streamers.get(streamer, 0) + 1
                 removed_reminders += 1
@@ -230,7 +230,9 @@ class SyncronizeSubscriptionsButton(discord.ui.Button):
             if count > 0:
                 continue
 
-            handle_unsubscribe_streamer(interaction, {"streamer": {"value": streamer}})
+            await asyncio.to_thread(
+                handle_unsubscribe_streamer, interaction, {"streamer": {"value": streamer}}
+            )
             unsubscribed_streamers.append(streamer)
 
         return await interaction.followup.send(

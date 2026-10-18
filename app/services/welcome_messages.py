@@ -81,7 +81,11 @@ async def send_welcome_message(member: discord.Member):
             design=design, custom_image=custom_image,
             on_plain_background=plain_background, attach=attaches,
         )
-        await channel.send(embed=embed_message, file=banner)
+        await channel.send(
+            embed=embed_message,
+            file=banner,
+            allowed_mentions=discord.AllowedMentions(everyone=False, roles=False, users=[member]),
+        )
         if drew_plain:
             outcome = "plain_background"
         else:

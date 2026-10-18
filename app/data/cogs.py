@@ -1,4 +1,4 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Sequence
 
 from app import mongo_client, motor_client
 from app.data.util import parse_insert_timestamp, parse_update_timestamp
@@ -8,8 +8,9 @@ def find_cog_by_guild_id(guild_id: str, cog: str) -> Dict[str, Any]:
     return mongo_client.guild[cog].find_one({"guild_id": str(guild_id)})
 
 
-def find_all_cogs(cog: str) -> List[Dict[str, Any]]:
-    return list(mongo_client.guild[cog].find({}, {"_id": False}))
+def find_all_cogs(cog: str, fields: Sequence[str] = ()) -> List[Dict[str, Any]]:
+    projection = {"_id": False, **{field: True for field in fields}}
+    return list(mongo_client.guild[cog].find({}, projection))
 
 
 def insert_cog_by_guild_id(cog: str, data: Dict[str, Any]) -> str:

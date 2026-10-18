@@ -1,4 +1,3 @@
-import contextvars
 import copy
 import threading
 from collections import OrderedDict
@@ -15,6 +14,7 @@ from app.constants import Commands, DBConfigs
 from app.constants import LogTypes as logconstants
 from app.data import cogs as cogs_data
 from app.services.cogs import is_feature_on
+from app.services.trace import outside_any_trace
 
 _lock = threading.Lock()
 _last_known: "OrderedDict[str, str]" = OrderedDict()
@@ -300,5 +300,5 @@ def _fail(store: str, error: Exception, warn: bool = True) -> None:
         "mongo": "Settings database (Mongo) unreachable, serving what this process last read",
     }
     message = f"{fallback[store]}: {type(error).__name__}: {error}"
-    # An empty context has no trace, so the warning is a message of its own.
-    contextvars.Context().run(logger.warn, message, log_type=logconstants.COMMAND_WARN_TYPE)
+    with outside_any_trace():
+        logger.warn(message, log_type=logconstants.COMMAND_WARN_TYPE)

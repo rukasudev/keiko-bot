@@ -3,8 +3,8 @@
 Reported: the "Left Guild" message stopped appearing. Nothing was broken in the
 listener — `guild.logs` in production holds every one of those records, and the
 matching `guild.removed` analytics events are all there. What was broken is the
-trip to Discord: every listener runs under `with_error_context`, which opens a
-trace with `silent_when_clean=True` so `on_message` cannot flood the channel,
+trip to Discord: every listener runs in a trace with `silent_when_clean=True`
+(`with_error_context` then, `trace.listener` now) so `on_message` cannot flood the channel,
 and `on_guild_remove` never fails. The line was folded into a trace that was
 then thrown away.
 
@@ -20,9 +20,8 @@ from unittest.mock import MagicMock
 import pytest
 
 from app import logger as logger_module
-from app.constants import LogTypes as logconstants
+from app.constants import Commands, LogTypes as logconstants
 from app.data import analytics as analytics_data
-from app.decorators import with_error_context
 from app.services import analytics, trace as trace_service
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("logging")]
@@ -164,24 +163,23 @@ async def test_a_routine_listener_line_still_stays_out_of_the_channel(log_channe
     `on_message` runs on every message in every guild; whatever it decides to
     log on a successful check belongs in the file, not in Discord.
     """
-    @with_error_context("on_message")
     async def routine():
         logger_module.info(
             "checked a message", log_type=logconstants.COMMAND_INFO_TYPE
         )
 
-    await routine()
+    async with trace_service.listener("on_message", 4242) as checked:
+        await checked.run("block_links", routine())
 
     assert embeds(log_channel) == []
 
 
 async def test_a_failing_listener_still_reports_as_a_failure(log_channel):
-    @with_error_context("on_member_join")
     async def broken():
         raise RuntimeError("Discord said no")
 
-    with pytest.raises(RuntimeError):
-        await broken()
+    async with trace_service.listener("on_member_join", 4242) as joined:
+        await joined.run("welcome_messages", broken())
 
     posted = embeds(log_channel)
     assert posted, "an error was always published, and still is"
@@ -204,3 +202,70 @@ def test_a_silent_trace_with_no_event_line_is_not_noteworthy():
     trace.finish()
 
     assert trace.is_noteworthy is False
+
+
+GUILD_ID = "4242"
+
+
+def left_line(log_channel):
+    left = [
+        embed for embed in embeds(log_channel)
+        if embed.title == logconstants.EVENT_LEFT_GUILD_TITLE
+    ]
+    assert len(left) == 1
+    return next(
+        line for line in rendered(left[0]).splitlines() if "Active commands" in line
+    )
+
+
+@pytest.mark.regression
+async def test_the_left_guild_line_names_what_was_on_by_its_saved_settings(
+    deps, events, log_channel
+):
+    """The "Left Guild" message names the features that were on, by the record the bot runs on.
+
+    Reported in the v1 review: `on_guild_remove` listed "Active commands" from the old
+    moderations flags, which wave 1 stopped trusting (`is_feature_on` is the one source of
+    "on"). A feature saved without the flag (StreamElements) was missing from the line, and a
+    feature disabled while its flag stayed on was listed. The line is what whoever is on call
+    reads to know what a server lost.
+
+    Shared behaviour: `Events.on_guild_remove`, the listener every server removal runs.
+    Exposed by: the wave 1 review of every reader of the old flags.
+
+    Guaranteed: the line lists exactly the features `is_feature_on` calls on before Keiko
+    pauses them, and says "none" when nothing was.
+    """
+    deps.mongo_client.guild.moderations.insert_one({
+        "guild_id": GUILD_ID,
+        "is_bot_online": True,
+        Commands.BLOCK_LINKS_KEY: True,
+        Commands.WELCOME_MESSAGES_KEY: False,
+    })
+    deps.mongo_client.guild[Commands.BLOCK_LINKS_KEY].insert_one(
+        {"guild_id": GUILD_ID, "enabled": False}
+    )
+    deps.mongo_client.guild[Commands.WELCOME_MESSAGES_KEY].insert_one(
+        {"guild_id": GUILD_ID, "enabled": True}
+    )
+    deps.mongo_client.guild[Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY].insert_one(
+        {"guild_id": GUILD_ID, "enabled": True}
+    )
+
+    await events.on_guild_remove(guild_double(guild_id=int(GUILD_ID)))
+
+    line = left_line(log_channel)
+    assert Commands.WELCOME_MESSAGES_KEY in line, "on without the old flag"
+    assert Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY in line
+    assert Commands.BLOCK_LINKS_KEY not in line, "disabled while its old flag stayed on"
+
+
+@pytest.mark.regression
+async def test_a_guild_with_nothing_on_says_none(deps, events, log_channel):
+    deps.mongo_client.guild.moderations.insert_one(
+        {"guild_id": GUILD_ID, "is_bot_online": True, Commands.BLOCK_LINKS_KEY: True}
+    )
+
+    await events.on_guild_remove(guild_double(guild_id=int(GUILD_ID)))
+
+    assert "Active commands: none" in left_line(log_channel)

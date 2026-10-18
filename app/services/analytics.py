@@ -6,11 +6,13 @@ strips free text, and hands a small envelope to a thread-safe queue. A loop in
 AnalyticsCog drains that queue into Mongo. Losing an event is acceptable by
 design; breaking a command never is. Reference: docs/analytics.md
 """
+import asyncio
+import contextlib
 import os
 import queue
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, AsyncIterator, Callable, Dict, List, Optional
 
 import yaml
 
@@ -222,6 +224,27 @@ def describe_attempt(attempt: int, feature: str) -> Optional[str]:
     if attempt < 2:
         return None
     return f"⚠️ {attempt}º run of `{feature}` by this guild in the last 24h"
+
+
+@contextlib.asynccontextmanager
+async def counting_attempt(trace: Any, guild_id: Any, feature: Optional[str]) -> AsyncIterator[None]:
+    """Counts this attempt in a thread while the command runs, and writes its footnote
+    on the trace once the command is done, whether it finished or raised."""
+    if not feature:
+        yield
+        return
+    attempts = asyncio.ensure_future(asyncio.to_thread(count_attempt, guild_id, feature))
+    try:
+        yield
+    finally:
+        trace.footnote = describe_attempt(await _counted(attempts), feature)
+
+
+async def _counted(attempts: "asyncio.Future[int]") -> int:
+    try:
+        return await attempts
+    except Exception:
+        return 0
 
 
 def resolve_source(interaction: Any) -> str:

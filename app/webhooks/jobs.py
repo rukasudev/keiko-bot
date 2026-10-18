@@ -20,9 +20,10 @@ def schedule_webhook_job(coroutine: Any, name: str):
       logging afterwards would write into a message that is already gone.
 
     The first job takes the request's trace over before Flask returns, so one
-    event is one message; a second job in the same request gets its own, posted
-    under the same rule as the request. When the job cannot be scheduled, the
-    request keeps its message.
+    event is one message: what the request logs afterwards lands there too, and
+    it is posted once both are done. A second job in the same request gets its
+    own, posted under the same rule as the request. When the job cannot be
+    scheduled, the request keeps its message.
     """
     import asyncio
 
@@ -38,5 +39,5 @@ def schedule_webhook_job(coroutine: Any, name: str):
         job.close()
         coroutine.close()
         if handed is not None:
-            request.superseded = False
+            request.take_back()
         raise

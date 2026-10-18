@@ -25,6 +25,7 @@ import pytest
 
 from app.services.notifications_youtube_video import (
     compose_notification_message,
+    create_video_notification_embed,
     parse_streamer_message,
     send_notification_preview,
 )
@@ -90,3 +91,31 @@ async def test_the_preview_of_a_width_specifier_stays_small(deps, monkeypatch):
 
     content = interaction.followup.send.await_args.kwargs["content"]
     assert content == f"{WIDTH}\nhttps://www.youtube.com/@pewdiepie"
+
+
+VIDEO = {"title": "New video", "description": "What happened today", "tags": ["vlog", "dog"]}
+
+
+CHANNEL = {"description": "A channel", "thumbnails": {}}
+
+
+def field_names(embed):
+    return [field.name for field in embed.fields]
+
+
+@pytest.mark.parametrize(
+    "locale,names", [("en-us", ["Description", "Tags"]), ("pt-br", ["Descrição", "Tags"])]
+)
+def test_a_video_notice_names_its_fields_in_the_servers_language(locale, names):
+    """A live or video notice names its fields in the language of the server it reaches.
+
+    Reported in the v1 review of the loop and runtime PR: once the Twitch status footer came
+    from the language files, four field names were still English written in Python: the
+    Twitch notice's "Game" and "Streamer", the YouTube notice's "Description" and "Tags".
+
+    Guaranteed: the field names come from `commands.commons.notifications-fields` in the
+    locale the notice is written in, both locales carry them, and English reads as before.
+    """
+    embed = create_video_notification_embed("video-1", VIDEO, CHANNEL, locale)
+
+    assert field_names(embed) == names

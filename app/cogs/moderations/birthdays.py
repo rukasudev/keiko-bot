@@ -1,10 +1,11 @@
+import asyncio
+
 import discord
 from discord import app_commands
 
 from app.bot import DiscordBot
 from app.components.embed import response_embed, response_error_embed
 from app.constants import KeikoIcons
-from app.data import birthdays as birthdays_data
 from app.decorators import keiko_admin_only, keiko_command
 from app.services import reminders_birthdays as birthdays_service
 from app.services.dates import format_mm_dd_label, get_month_choices, parse_date_parts
@@ -52,13 +53,14 @@ class Birthdays(
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         guild_id = str(interaction.guild.id)
-        if not birthdays_data.is_birthday_enabled(guild_id) or not birthdays_data.find_birthday_config(guild_id):
+        if not await asyncio.to_thread(birthdays_service.accepts_birthdays, guild_id):
             embed = response_error_embed("reminders-birthdays-disabled", interaction.locale, footer=True)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        birthdays_service.upsert_birthday(
+        await asyncio.to_thread(
+            birthdays_service.upsert_birthday,
             guild_id=guild_id,
             user_id=str(member.id),
             mm_dd=date,

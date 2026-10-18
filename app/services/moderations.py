@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from app.constants import Commands as commands_constants
 from app.constants import GuildConstants as guild_constants
@@ -23,6 +23,19 @@ def set_feature_enabled(guild_id: str, key: str, enabled: bool) -> None:
     cogs_data.update_cog_by_guild(guild_id, key, {commands_constants.ENABLED_KEY: enabled})
     remove_cog_cache_by_guild(guild_id, key)
     update_moderations_by_guild(guild_id, key, enabled)
+
+
+def join_guild(guild_id: int, owner_id: str) -> Tuple[Optional[Dict[str, Any]], int]:
+    """Mark Keiko online in a server it joined: the server's earlier record, if any, and its owner's server count."""
+    exist = moderations_data.find_moderations_by_guild(guild_id)
+
+    if not exist:
+        insert_moderations_by_guild(guild_id, owner_id=owner_id)
+    else:
+        update_moderations_by_guild(guild_id, guild_constants.IS_BOT_ONLINE, True)
+        update_moderations_by_guild(guild_id, "owner_id", owner_id)
+
+    return exist, moderations_data.count_moderations_by_owner(owner_id)
 
 
 def leave_guild(guild_id: str, bot_user_id: str) -> Optional[Dict[str, Any]]:

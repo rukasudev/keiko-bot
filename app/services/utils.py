@@ -17,6 +17,7 @@ from app.constants import Commands as commandconstants
 from app.constants import FormConstants as formconstants
 from app.constants import LogTypes as logconstants
 from app.constants import supported_locales
+from app.exceptions import DestinationNotFound
 
 T = TypeVar("T")
 
@@ -247,6 +248,25 @@ def parse_locale(locale: str) -> str:
     return "en-us"
 
 
+def guild_locale(guild: Any, saved: Optional[str] = None) -> str:
+    """The language Keiko speaks in a server: the one its settings saved, else the server's."""
+    return parse_locale(saved or getattr(guild, "preferred_locale", None) or "en-us")
+
+
+def destination(guild_id: Any, channel_id: Any) -> Tuple[Any, Any]:
+    """The server and the channel a delivery goes to, or DestinationNotFound for either."""
+    from app import bot
+
+    guild = bot.get_guild(int(guild_id))
+    if guild is None:
+        raise DestinationNotFound(f"guild {guild_id} not found")
+
+    channel = guild.get_channel(int(channel_id or 0))
+    if channel is None:
+        raise DestinationNotFound(f"channel {channel_id} of guild {guild_id} not found")
+    return guild, channel
+
+
 def is_guild_admin(user: Any) -> bool:
     """Whether the member holds the administrator permission in their guild."""
     permissions = getattr(user, "guild_permissions", None)
@@ -436,13 +456,16 @@ def split_welcome_messages(welcome_messages: str) -> List[str]:
     return welcome_messages.split(";")
 
 def render_welcome_message(welcome_message: str, member: discord.Member) -> str:
-    welcome_message = welcome_message.replace("{server}", member.guild.name)
-    welcome_message = welcome_message.replace("{member_count}", str(member.guild.member_count))
-
-    if "{user}" not in welcome_message.lower():
-        return welcome_message + f"\n<@!{member._user.id}>"
-
-    return welcome_message.replace("{user}", f"<@!{member._user.id}>")
+    """A welcome template filled for a member, the mention added when `{user}` is missing."""
+    return fill_placeholders(
+        welcome_message,
+        {
+            "server": member.guild.name,
+            "member_count": str(member.guild.member_count),
+            "user": f"<@!{member._user.id}>",
+        },
+        required="user",
+    )
 
 def parse_welcome_messages(welcome_messages: str, member: discord.Member) -> str:
     splited_messages = split_welcome_messages(welcome_messages)

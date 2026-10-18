@@ -72,6 +72,8 @@ COLUMNS = (
     "function", "line", "traceback", "env", "app_version",
 )
 
+LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
+
 
 def connect(path: str = DEFAULT_PATH) -> sqlite3.Connection:
     directory = os.path.dirname(os.path.abspath(path))
@@ -203,12 +205,15 @@ def signatures(
     since: Optional[str] = None,
     limit: int = 20,
 ) -> List[sqlite3.Row]:
-    """Group repeated failures instead of printing the same line 300 times.
+    """Group repeated failures at `level` and above instead of printing the same line
+    300 times.
 
     An agent reading this has a context budget; 300 copies of one stack trace
     spends it without adding information.
     """
-    clauses, params = ["level = ?"], [level.upper()]
+    levels = at_and_above(level)
+    clauses = [f"level IN ({', '.join('?' * len(levels))})"]
+    params: List[Any] = list(levels)
     if since:
         clauses.append("ts >= ?")
         params.append(since)
@@ -230,6 +235,15 @@ def signatures(
         """,
         params + [limit],
     ).fetchall()
+
+
+def at_and_above(level: str) -> List[str]:
+    """`level` and every level more severe than it; an unknown name stands alone."""
+    name = level.upper()
+
+    if name not in LEVELS:
+        return [name]
+    return list(LEVELS[LEVELS.index(name):])
 
 
 def summary(connection: sqlite3.Connection) -> Dict[str, Any]:

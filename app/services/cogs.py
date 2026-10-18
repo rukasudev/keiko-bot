@@ -43,6 +43,19 @@ def is_feature_on(guild_id: str, key: str, document: Optional[Mapping[str, Any]]
     return bool(moderations_data.find_moderation_by_guild(guild_id, key))
 
 
+def features_on(guild_id: str) -> List[str]:
+    """The setup features that are on in a server, by `is_feature_on`."""
+    return [
+        spec["command_key"]
+        for spec in constants.SETUP_FEATURES
+        if is_feature_on(
+            guild_id,
+            spec["command_key"],
+            cogs_data.find_cog_by_guild_id(guild_id, spec["command_key"]),
+        )
+    ]
+
+
 def insert_cog_event(
     guild_id: str,
     cog_key: str,

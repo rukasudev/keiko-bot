@@ -1,6 +1,7 @@
+import asyncio
 import resource
 from datetime import datetime, timezone
-from typing import Any, Dict
+from typing import Any, Dict, Set
 
 import discord
 
@@ -8,6 +9,8 @@ from app import mongo_client, redis_client
 from app.bot import DiscordBot
 from app.constants import Commands, KeikoIcons, LogTypes, Style
 from app.data import admin as configs_data
+from app.data import cogs as cogs_data
+from app.services.cogs import is_feature_on
 from app.services.utils import format_datetime_output, format_relative_time
 
 
@@ -23,7 +26,7 @@ async def send_log_file_from_channel_by_date(
 
         attachment = message.attachments[0].url
         return await interaction.followup.send(
-            f":page_facing_up: Here is my log file for: **{date}**! {attachment}",
+            f":page_facing_up: Here is my log file for **{date}**! {attachment}",
         )
 
     await interaction.followup.send(f":pensive: Log file not found for **{date}**")
@@ -39,33 +42,44 @@ def get_admin_configs():
     return configs_data.find_admin_configs()
 
 
-def get_overview_data(bot: DiscordBot) -> dict:
+async def get_overview_data(bot: DiscordBot) -> dict:
+    """The overview's numbers: Discord's cache read on the loop that owns it, and Mongo,
+    Redis and Twitch read in a thread."""
+    shown = _what_discord_shows(bot)
+    stored = await asyncio.to_thread(_what_keiko_stored, bot.twitch, shown.pop("guild_ids"))
+    newest_guild_id = stored.pop("newest_guild_id")
+    newest_guild = bot.get_guild(int(newest_guild_id)) if newest_guild_id else None
+    stored["newest_guild_name"] = newest_guild.name if newest_guild else newest_guild_id
+    return {**shown, **stored}
+
+
+def _what_discord_shows(bot: DiscordBot) -> Dict[str, Any]:
     uptime = datetime.now() - bot.ready_time
-    formatted_uptime = format_datetime_output(uptime)
     ready_time_utc = bot.ready_time.replace(tzinfo=timezone.utc)
     last_restart = ready_time_utc.strftime("%Y-%m-%d %H:%M") + f" ({format_relative_time(ready_time_utc)})"
 
-    latency_ms = round(bot.latency * 1000)
-
-    status_name = bot.status.name if bot.status else "unknown"
-    activity_name = bot.activity.name if bot.activity else "N/A"
-
-    guilds_with_members = [g for g in bot.guilds if g.member_count]
-    total_users = sum(g.member_count for g in guilds_with_members)
-    total_channels = sum(len(g.text_channels) + len(g.voice_channels) for g in bot.guilds)
-
+    guilds = list(bot.guilds)
+    guilds_with_members = [g for g in guilds if g.member_count]
     largest_guild = max(guilds_with_members, key=lambda g: g.member_count) if guilds_with_members else None
-    loaded_cogs = len(bot.extensions)
 
-    memory_mb = round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 1)
-
-    first_day_of_month = datetime.now(tz=timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    feature_group = {
-        "_id": None,
+    return {
+        "uptime": format_datetime_output(uptime),
+        "last_restart": last_restart,
+        "latency_ms": round(bot.latency * 1000),
+        "status": bot.status.name if bot.status else "unknown",
+        "activity": bot.activity.name if bot.activity else "N/A",
+        "total_users": sum(g.member_count for g in guilds_with_members),
+        "total_channels": sum(len(g.text_channels) + len(g.voice_channels) for g in guilds),
+        "largest_guild_name": largest_guild.name if largest_guild else "N/A",
+        "largest_guild_members": largest_guild.member_count if largest_guild else 0,
+        "loaded_cogs": len(bot.extensions),
+        "memory_mb": round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024, 1),
+        "guild_ids": {str(guild.id) for guild in guilds},
     }
-    for cmd in Commands.COMMANDS_LIST:
-        feature_group[cmd] = {"$sum": {"$cond": [{"$eq": [f"${cmd}", True]}, 1, 0]}}
+
+
+def _what_keiko_stored(twitch: Any, guild_ids: Set[str]) -> Dict[str, Any]:
+    first_day_of_month = datetime.now(tz=timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
     pipeline = [{"$facet": {
         "guild_status": [
@@ -76,10 +90,6 @@ def get_overview_data(bot: DiscordBot) -> dict:
             {"$group": {"_id": "$owner_id", "count": {"$sum": 1}}},
             {"$sort": {"count": -1}},
             {"$limit": 1}
-        ],
-        "feature_adoption": [
-            {"$match": {"is_bot_online": True}},
-            {"$group": feature_group}
         ],
         "newest_guild": [
             {"$match": {"is_bot_online": True}},
@@ -114,15 +124,7 @@ def get_overview_data(bot: DiscordBot) -> dict:
         top_owner_id = None
         top_owner_count = 0
 
-    # Parse feature adoption
-    feature_adoption = {}
-    feature_data = facet.get("feature_adoption", [])
-    if feature_data:
-        for cmd in Commands.COMMANDS_LIST:
-            feature_adoption[cmd] = feature_data[0].get(cmd, 0)
-    else:
-        for cmd in Commands.COMMANDS_LIST:
-            feature_adoption[cmd] = 0
+    feature_adoption = count_feature_adoption(guild_ids)
 
     # Parse newest guild
     newest_guild_data = facet.get("newest_guild", [])
@@ -136,12 +138,6 @@ def get_overview_data(bot: DiscordBot) -> dict:
     # Parse monthly growth
     monthly_growth_data = facet.get("monthly_growth", [])
     monthly_growth = monthly_growth_data[0]["total"] if monthly_growth_data else 0
-
-    # Resolve newest guild name
-    newest_guild_name = None
-    if newest_guild_id:
-        guild_obj = bot.get_guild(int(newest_guild_id))
-        newest_guild_name = guild_obj.name if guild_obj else newest_guild_id
 
     command_calls = {}
     total_calls = 0
@@ -167,7 +163,7 @@ def get_overview_data(bot: DiscordBot) -> dict:
     twitch_unique_streamers = 0
     twitch_available = True
     try:
-        subs_response = bot.twitch.get_subscriptions()
+        subs_response = twitch.get_subscriptions()
         subs_data = subs_response.get("data", [])
         twitch_subs = len(subs_data)
         twitch_unique_streamers = len({s.get("condition", {}).get("broadcaster_user_id") for s in subs_data})
@@ -175,23 +171,12 @@ def get_overview_data(bot: DiscordBot) -> dict:
         twitch_available = False
 
     return {
-        "uptime": formatted_uptime,
-        "last_restart": last_restart,
-        "latency_ms": latency_ms,
-        "status": status_name,
-        "activity": activity_name,
-        "total_users": total_users,
-        "total_channels": total_channels,
-        "largest_guild_name": largest_guild.name if largest_guild else "N/A",
-        "largest_guild_members": largest_guild.member_count if largest_guild else 0,
-        "loaded_cogs": loaded_cogs,
-        "memory_mb": memory_mb,
         "active_guilds": active_guilds,
         "inactive_guilds": inactive_guilds,
         "top_owner_id": top_owner_id,
         "top_owner_count": top_owner_count,
         "feature_adoption": feature_adoption,
-        "newest_guild_name": newest_guild_name,
+        "newest_guild_id": newest_guild_id,
         "newest_guild_created": newest_guild_created,
         "monthly_growth": monthly_growth,
         "command_calls": command_calls,
@@ -203,6 +188,19 @@ def get_overview_data(bot: DiscordBot) -> dict:
         "twitch_subs": twitch_subs,
         "twitch_unique_streamers": twitch_unique_streamers,
         "twitch_available": twitch_available,
+    }
+
+
+def count_feature_adoption(guild_ids: Set[str]) -> Dict[str, int]:
+    """How many of these servers have each feature on, by the record the bot runs on."""
+    return {
+        key: sum(
+            1
+            for document in cogs_data.find_all_cogs(key, fields=("guild_id", "enabled"))
+            if str(document.get("guild_id")) in guild_ids
+            and is_feature_on(str(document.get("guild_id")), key, document)
+        )
+        for key in Commands.COMMANDS_LIST
     }
 
 

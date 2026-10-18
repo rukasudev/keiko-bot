@@ -1,21 +1,44 @@
-"""One unit of work — an interaction, a webhook request, a scheduled job.
+"""One unit of work — an interaction, a webhook request, a scheduled job, a listener.
 
 A context variable carries the active trace down through every call below it,
 including across `await`, so a log line written deep in an integration knows
 which trace it belongs to without receiving a new parameter. Sinks registered
-here are called once, when the trace closes. Reference: docs/analytics.md
+here are called once, when the trace closes. A unit that serves several servers
+serves each on its own: a server Keiko cannot reach (it left, the channel is
+gone, Discord refuses) is a warning, any other failure an error with its
+context, and neither stops the next server. Reference: docs/analytics.md
 """
+import asyncio
 import logging
+import threading
 import uuid
+from contextlib import asynccontextmanager, contextmanager
 from contextvars import ContextVar
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
-from typing import Any, Callable, Dict, List, Optional
+from enum import Enum
+from typing import (
+    Any,
+    AsyncIterator,
+    Awaitable,
+    Callable,
+    Dict,
+    Iterable,
+    Iterator,
+    List,
+    Optional,
+    Tuple,
+)
+
+import discord
 
 from app.constants import LogTypes as constants
+from app.exceptions import DestinationNotFound, ErrorContext
 
 _logger = logging.getLogger(__name__)
 _current_trace: ContextVar[Optional["Trace"]] = ContextVar("keiko_trace", default=None)
 _sinks: List[Callable[["Trace"], None]] = []
+_owners_lock = threading.Lock()
 
 
 def register_sink(sink: Callable[["Trace"], None]) -> None:
@@ -29,6 +52,16 @@ def clear_sinks() -> None:
 
 def current_trace() -> Optional["Trace"]:
     return _current_trace.get()
+
+
+@contextmanager
+def outside_any_trace() -> Iterator[None]:
+    """Log the block as news of its own: a message apart from whatever trace is open."""
+    token = _current_trace.set(None)
+    try:
+        yield
+    finally:
+        _current_trace.reset(token)
 
 
 def new_trace_id() -> str:
@@ -85,6 +118,8 @@ class Trace:
         self.last_action: Optional[str] = None
         self.is_journey = False
         self.superseded = False
+        self.successor: Optional["Trace"] = None
+        self.owners = 1
         self.message_id: Optional[int] = None
         # The lifecycle event this trace reported, if any. It decides both
         # whether a silent trace is published and what the message is called.
@@ -98,6 +133,10 @@ class Trace:
         log_type: Optional[str] = None,
         kind: Optional[str] = None,
     ) -> None:
+        if self.successor is not None:
+            self.successor.add(message, levelno, timestamp, log_type, kind)
+            return
+
         self.max_level = max(self.max_level, levelno)
 
         if log_type in constants.REPORTED_EVENT_TYPES:
@@ -177,7 +216,11 @@ class Trace:
         self.superseded = True
 
     def handover(self) -> "Trace":
-        """The trace that carries this unit of work on after its first owner returns."""
+        """The trace that carries this unit of work on after its first owner returns.
+
+        Both keep it: what this one logs from now on lands there, and it is
+        published once the last of the two lets go of it.
+        """
         successor = Trace(
             self.name,
             source=self.source,
@@ -190,8 +233,21 @@ class Trace:
         )
         successor.started_at = self.started_at
         successor.footnote = self.footnote
+        successor.owners = 2
         self.supersede(successor)
+        self.successor = successor
         return successor
+
+    def take_back(self) -> None:
+        """Undo a hand-over whose successor will never run."""
+        self.superseded = False
+        self.successor = None
+
+    def release(self) -> bool:
+        """Let go of this trace for one of its owners; True for the last one."""
+        with _owners_lock:
+            self.owners -= 1
+            return self.owners == 0
 
     def _implicit_result(self) -> str:
         if self.has_error:
@@ -240,9 +296,8 @@ class trace_scope:
 
         if exc is not None:
             self.trace.add(f"{type(exc).__name__}: {exc}", logging.ERROR)
-        self.trace.finish()
         _current_trace.reset(self._token)
-        emit_to_sinks(self.trace)
+        close(self.trace)
 
     def __enter__(self) -> Trace:
         return self._enter()
@@ -290,9 +345,19 @@ async def run_traced(
         # from that same call.
         _logger.exception(f"{name} failed")
     finally:
-        trace.finish()
         _current_trace.reset(token)
+        close(trace)
+
+
+def close(trace: Trace) -> None:
+    """Finish and publish a trace once its last owner lets go, then the one it handed to."""
+    successor = trace.successor
+
+    if trace.release():
+        trace.finish()
         emit_to_sinks(trace)
+    if successor is not None:
+        close(successor)
 
 
 def emit_to_sinks(trace: Trace) -> None:
@@ -341,3 +406,99 @@ def settle(result: str) -> None:
     trace = _current_trace.get()
     if trace is not None:
         trace.result = result
+
+
+class Outcome(Enum):
+    """How one server's share of a unit of work went."""
+
+    DELIVERED = "delivered"
+    UNREACHABLE = "unreachable"
+    FAILED = "failed"
+
+
+@dataclass(frozen=True)
+class Served:
+    """One server's share of a unit of work: which server, how it went, what it gave back."""
+
+    guild_id: str
+    outcome: Outcome
+    value: Any = None
+
+
+async def serve(
+    share: Awaitable[Any], context: ErrorContext, subject: Optional[str] = None
+) -> Served:
+    """Await one server's share on its own: a failure is logged with `context`, never raised."""
+    from app import logger
+
+    subject = subject or context.flow
+
+    try:
+        value = await share
+    except (discord.Forbidden, DestinationNotFound) as error:
+        logger.warn(
+            f"{subject} could not reach guild {context.guild_id}: "
+            f"{type(error).__name__}: {error}",
+            log_type=constants.COMMAND_WARN_TYPE,
+        )
+        return Served(str(context.guild_id), Outcome.UNREACHABLE)
+    except Exception as error:
+        logger.error(
+            f"{subject} failed in guild {context.guild_id}: {type(error).__name__}: {error}",
+            log_type=constants.COMMAND_ERROR_TYPE,
+            context=context,
+            exc_info=error,
+        )
+        return Served(str(context.guild_id), Outcome.FAILED)
+    return Served(str(context.guild_id), Outcome.DELIVERED, value)
+
+
+async def fan_out(
+    flow: str, shares: Iterable[Tuple[Any, Awaitable[Any]]], **extra: Any
+) -> List[Served]:
+    """Serve every server at once, each on its own, and say how each one went."""
+    return list(await asyncio.gather(*(
+        serve(share, ErrorContext(flow=flow, guild_id=str(guild_id), extra=dict(extra)))
+        for guild_id, share in shares
+    )))
+
+
+class GuildWork:
+    """A listener's unit of work for one server, its parts each on its own."""
+
+    def __init__(self, context: ErrorContext) -> None:
+        self.context = context
+
+    async def run(self, part: str, coroutine: Awaitable[Any]) -> Served:
+        """Run one part; its failure is logged with the listener's context and the next
+        part still runs."""
+        context = replace(self.context, extra={**self.context.extra, "part": part})
+        return await serve(coroutine, context, subject=f"{self.context.flow} ({part})")
+
+
+@asynccontextmanager
+async def listener(
+    flow: str,
+    guild_id: Any,
+    *,
+    user_id: Any = None,
+    channel_id: Any = None,
+    **extra: Any,
+) -> AsyncIterator[GuildWork]:
+    """The unit of work a listener runs for one server, posted only when a part failed or
+    it reported an event."""
+    context = ErrorContext(
+        flow=flow,
+        guild_id=str(guild_id) if guild_id else None,
+        user_id=str(user_id) if user_id else None,
+        channel_id=str(channel_id) if channel_id else None,
+        extra=extra,
+    )
+    async with trace_scope(
+        flow,
+        guild_id=guild_id,
+        user_id=user_id,
+        source="internal",
+        silent_when_clean=True,
+    ):
+        yield GuildWork(context)
