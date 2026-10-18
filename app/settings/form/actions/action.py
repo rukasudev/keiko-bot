@@ -5,9 +5,10 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 from typing import Any
 
-from app.constants import KeikoIcons, Style
+from app.constants import KeikoIcons, Style, ViewConstants
 from app.settings.form.components import (
     Button,
     Component,
@@ -23,48 +24,26 @@ from app.settings.form.form_yaml import Design, FormDefinition, Step
 from app.settings.form.responses.links import link_host
 from app.settings.form.responses.summary import ResponseView, responses
 
-
-@dataclass(frozen=True)
-class PanelRow:
-    """One line of the manager panel, already localized."""
-
-    key: str
-    title: str
-    value: Any
-    style: str | None = None
-    icon: str | None = None
-    group: str | None = None
-    group_title: str | None = None
-    group_icon: str | None = None
-    hidden: bool = False
-    target: str | None = None
-    per_item: bool = False
-    group_declared: bool = False
-    edit_label: str | None = None
-    group_order: int = 0
-    group_screen: bool = False
+NO_FORM = FormDefinition(key="", steps=())
 
 
 @dataclass(frozen=True)
-class RenderContext:
-    """The definition, the steps in play, the scope chain and prefetched data."""
+class Context:
+    """What a decision reads besides its session: the form, what was fetched for it."""
 
-    definition: FormDefinition
-    steps: Sequence[Step]
-    locale: str
-    scope: Scope
-    parent_values: Mapping[str, Any] = field(default_factory=dict)
+    definition: FormDefinition = NO_FORM
+    steps: Sequence[Step] = ()
+    locale: str = "en-us"
+    scope: Scope = field(default_factory=lambda: Scope({}))
+    now: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    ttl_seconds: int = ViewConstants.LONG_TIMEOUT_SECONDS
     document: Mapping[str, Any] = field(default_factory=dict)
+    parent_values: Mapping[str, Any] = field(default_factory=dict)
     items: Sequence[Mapping[str, Any]] = ()
     external: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     server_name: str = ""
     prefix: str = ""
     previews: Mapping[str, str] = field(default_factory=dict)
-    panel_rows: Sequence[PanelRow] | None = None
-    panel_info: str = ""
-    panel_info_title: str = ""
-    extra_buttons: Sequence[Button] = ()
-    enabled: bool = True
     can_go_back: bool = False
     item_index: int | None = None
 
@@ -116,9 +95,7 @@ def back_button(locale: str) -> Button:
     )
 
 
-def step_buttons(
-    locale: str, context: RenderContext, *extra: Button
-) -> tuple[Button, ...]:
+def step_buttons(locale: str, context: Context, *extra: Button) -> tuple[Button, ...]:
     """The step's own buttons, then Back when possible, then Cancel."""
     buttons: list[Button] = list(extra)
     if context.can_go_back:
@@ -127,12 +104,12 @@ def step_buttons(
     return tuple(buttons)
 
 
-def views(session: FormSession, context: RenderContext) -> tuple[ResponseView, ...]:
+def views(session: FormSession, context: Context) -> tuple[ResponseView, ...]:
     """The session's answers as the summary lists them."""
     return responses(context.steps, session.answers, context.locale)
 
 
-def apply_tokens(body: str, session: FormSession, context: RenderContext) -> str:
+def apply_tokens(body: str, session: FormSession, context: Context) -> str:
     """`{response:...}` tokens from earlier answers, `{context:...}` from here."""
     by_key = {view.key: view for view in views(session, context)}
     around = {"server_name": context.server_name, "prefix": context.prefix}
@@ -156,7 +133,7 @@ def apply_tokens(body: str, session: FormSession, context: RenderContext) -> str
     return CONTEXT_TOKEN.sub(surroundings, TOKEN.sub(replace, body))
 
 
-def description_of(step: Step, session: FormSession, context: RenderContext) -> str:
+def description_of(step: Step, session: FormSession, context: Context) -> str:
     """The step description, its active variant chosen and tokens resolved."""
     body = step.description.get(context.locale)
     for variant in step.description_when:
@@ -180,7 +157,7 @@ def footer_of(step: Step, locale: str) -> str:
 def step_screen(
     step: Step,
     session: FormSession,
-    context: RenderContext,
+    context: Context,
     *,
     buttons: Sequence[Button],
     components: Sequence[Component] = (),
@@ -216,7 +193,7 @@ def other_items(
 
 
 def design_gallery(
-    step_key: str, designs: Sequence[Design], context: RenderContext
+    step_key: str, designs: Sequence[Design], context: Context
 ) -> Gallery:
     """A gallery of `designs` with their previews, header, footer and Select."""
     locale = context.locale

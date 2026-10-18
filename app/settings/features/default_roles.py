@@ -20,6 +20,7 @@ from app.settings.features.feature import (
 )
 from app.settings.form.components import Button
 from app.settings.form.copy import text
+from app.settings.form.manager import PanelExtras
 
 SYNC_COOLDOWN_SECONDS = 60
 
@@ -42,9 +43,11 @@ class DefaultRolesFeature(GenericCogFeature):
         roles = _values(opened.document.get(Commands.DEFAULT_ROLES_KEY))
         return Opened(
             document=opened.document,
-            enabled=opened.enabled,
-            info=get_not_available_roles(roles, available, context.locale),
-            extra_buttons=self.extra_buttons(context),
+            panel=PanelExtras(
+                info=get_not_available_roles(roles, available, context.locale),
+                extra_buttons=self.extra_buttons(context),
+                enabled=opened.panel.enabled,
+            ),
         )
 
     def extra_buttons(self, context: OpenContext) -> tuple[Button, ...]:

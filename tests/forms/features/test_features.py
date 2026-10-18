@@ -1,14 +1,25 @@
 """Every feature module: documents round-trip, commits write what they report."""
 
+import os
 from datetime import datetime, timezone
+from importlib import import_module
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+import yaml
 
+from app.constants import Commands, Feature, GuildConstants
 from app.settings.features import feature_for, feature_keys
 from app.settings.features.feature import CommitContext, GenericCogFeature, OpenContext
 from app.settings.form.form_state import Answer
-from app.settings.form.form_yaml import DefinitionRegistry
-from app.settings.form.responses.responses import unwrap
+from app.settings.form.form_yaml import DefinitionRegistry, DiskSource
+from app.settings.form.responses.responses import (
+    document_values,
+    item_values,
+    items_of,
+    list_values,
+)
+from app.settings.form.responses.summary import unwrap
 
 pytestmark = pytest.mark.unit
 
@@ -115,20 +126,42 @@ def test_a_document_survives_the_round_trip_through_answers(form):
     assert "schema_version" not in document and document["enabled"] is True
 
 
-def test_a_form_without_a_module_gets_the_generic_feature(tmp_path):
+def test_a_feature_declared_without_a_module_gets_the_generic_feature(
+    tmp_path, monkeypatch
+):
+    from enum import Enum
+
+    from app.constants import FeatureSpec
+    from app.settings import features
     from app.settings.form.form_yaml import registry
+
+    class Declared(Enum):
+        PLAIN_FORM = FeatureSpec(
+            key="plain_form",
+            group="moderations",
+            namespace="plain-form",
+            button_key="plain-form",
+            emoji="🧪",
+            module=None,
+        )
 
     source = registry.source
     (tmp_path / "plain_form.yml").write_text(
         (source.root / "default_roles.yml").read_text(encoding="utf-8"),
         encoding="utf-8",
     )
+    monkeypatch.setattr(features, "Feature", Declared)
     registry.source = type(source)(tmp_path)
     try:
         feature = feature_for("plain_form")
     finally:
         registry.source = source
     assert isinstance(feature, GenericCogFeature) and feature.key == "plain_form"
+
+
+def test_a_key_no_feature_declares_is_refused_instead_of_guessed():
+    with pytest.raises(KeyError):
+        feature_for("plain_form")
 
 
 def test_the_seven_features_are_registered_with_their_definitions():
@@ -267,6 +300,39 @@ async def test_removing_an_item_unsubscribes_it(deps):
     assert deps.twitch.unsubscribe_calls
 
 
+@pytest.mark.parametrize(
+    "website, turned_on, saved",
+    [
+        ("spotify.com", True, ["youtube.com", "twitch.tv", "spotify.com"]),
+        ("youtube.com", False, ["twitch.tv"]),
+        ("youtube.com", True, ["youtube.com", "twitch.tv"]),
+        ("spotify.com", False, ["youtube.com", "twitch.tv"]),
+    ],
+    ids=["turned-on", "turned-off", "already-on", "already-off"],
+)
+async def test_a_website_turns_on_or_off_in_the_choice_as_it_is_saved(
+    deps, website, turned_on, saved
+):
+    document = {
+        "guild_id": GUILD_ID,
+        "enabled": True,
+        "mode": "block_all",
+        "allowed_links": {"style": "bullet", "values": ["youtube.com", "twitch.tv"]},
+    }
+    deps.mongo_client.guild["block_links"].insert_one(dict(document))
+
+    await feature_for("block_links").commit(
+        "toggle",
+        {"key": "allowed_links", "value": website, "turned_on": turned_on},
+        _context(document),
+    )
+
+    stored = deps.mongo_client.guild["block_links"].find_one({"guild_id": GUILD_ID})
+    assert stored["allowed_links"] == {"style": "bullet", "values": saved}
+    event = deps.mongo_client.events["block_links"].find_one({"guild_id": GUILD_ID})
+    assert event["event"] == "edited", "a toggle is audited as the edit it was"
+
+
 async def test_the_streamer_lookup_is_prefetched_for_the_validator(deps):
     deps.twitch.add_user("gaules", user_id="111")
     from app.settings.form.lookups import Lookup
@@ -327,8 +393,8 @@ async def test_the_birthday_panel_opens_with_its_own_rows(deps):
         OpenContext(GUILD_ID, "555", "pt-br")
     )
     assert opened.document["reminders_birthday"]["values"][0]["user"]["value"] == "555"
-    assert [row.value for row in opened.rows][:2] == ["100", False]
-    assert [b.action for b in opened.extra_buttons] == ["aside:stats"]
+    assert [row.value for row in opened.panel.rows][:2] == ["100", False]
+    assert [b.action for b in opened.panel.extra_buttons] == ["aside:stats"]
 
 
 def test_the_birthday_feature_previews_the_celebration():
@@ -399,7 +465,9 @@ async def test_editing_the_streamer_refreshes_the_stream_elements_channel(
 ):
     """Broke as: an edited streamer kept the old streamer's StreamElements channel,
     so the chat went on answering with the old streamer's commands."""
-    from app.settings.features import stream_elements as stream_elements_feature
+    from app.settings.features import (
+        stream_elements_commands as stream_elements_feature,
+    )
 
     deps.bot.config.is_dev = lambda: False
     monkeypatch.setattr(
@@ -455,7 +523,8 @@ def test_the_welcome_card_saves_the_document_the_welcome_service_reads():
     the channel as {style, values}, the design key, the title and footer, and the
     messages as one ;-joined text the service splits."""
     from app.settings.form import events as ev
-    from app.settings.form.form import Context, decide
+    from app.settings.form.actions.action import Context
+    from app.settings.form.form import decide
     from app.settings.form.form_state import Origin, Setup, new_session
     from app.settings.form.responses.responses import to_document
 
@@ -500,7 +569,9 @@ def test_the_welcome_card_saves_the_document_the_welcome_service_reads():
 async def test_the_stream_elements_lookup_counts_enabled_commands(deps, monkeypatch):
     """The review shows how many commands will load, so the streamer lookup also
     asks StreamElements for the channel and counts its enabled commands."""
-    from app.settings.features import stream_elements as stream_elements_feature
+    from app.settings.features import (
+        stream_elements_commands as stream_elements_feature,
+    )
     from app.settings.form.lookups import Lookup
 
     client = stream_elements_feature.StreamElementsClient
@@ -546,7 +617,9 @@ async def test_the_stream_elements_panel_says_how_many_commands_it_answers(
     deps, monkeypatch
 ):
     """The panel says how many commands are loaded and offers to list them."""
-    from app.settings.features import stream_elements as stream_elements_feature
+    from app.settings.features import (
+        stream_elements_commands as stream_elements_feature,
+    )
 
     deps.mongo_client.guild["moderations"].insert_one(
         {"guild_id": GUILD_ID, "stream_elements_commands": True}
@@ -568,12 +641,15 @@ async def test_the_stream_elements_panel_says_how_many_commands_it_answers(
         OpenContext(GUILD_ID, "555", "pt-br")
     )
 
-    assert "2" in opened.info and "shroud" in opened.info
-    assert [button.action for button in opened.extra_buttons] == ["aside:commands"]
+    assert "2" in opened.panel.info and "shroud" in opened.panel.info
+    actions = [button.action for button in opened.panel.extra_buttons]
+    assert actions == ["aside:commands"]
 
 
 async def test_a_stream_elements_outage_leaves_no_count(deps, monkeypatch):
-    from app.settings.features import stream_elements as stream_elements_feature
+    from app.settings.features import (
+        stream_elements_commands as stream_elements_feature,
+    )
     from app.settings.form.lookups import Lookup
 
     def unreachable(name):
@@ -599,3 +675,147 @@ async def test_a_stream_elements_outage_leaves_no_count(deps, monkeypatch):
             ),
         }
     }
+
+
+FEATURES_FOLDER = os.path.join("app", "settings", "features")
+
+
+SHARED_MODULES = {"__init__", "feature", "subscriptions"}
+
+
+LOCALES = ("en-us", "pt-br")
+
+
+def _specs():
+    return [feature.value for feature in Feature]
+
+
+async def _registered_subgroups():
+    from app.cogs import integrations, moderations, notifications
+
+    bot = MagicMock()
+    cogs = []
+    bot.add_cog = AsyncMock(side_effect=cogs.append)
+    for package in (moderations, notifications, integrations):
+        await package.setup(bot)
+
+    return {
+        (cog.app_command.name, subgroup._locale_name.extras["namespace"])
+        for cog in cogs
+        for subgroup in cog.app_command.commands
+    }
+
+
+def test_every_form_on_disk_is_a_declared_feature_and_back():
+    """Each feature is declared once, and its form, its module and its command agree.
+
+    `Feature` in `app/constants.py` is the one table every feature list derives
+    from, except `COMMANDS_LIST`, which wave 3 derives: the key, the slash
+    command's group and namespace, the /setup row, what the feature needs and the
+    module that saves it. `SETUP_FEATURES`, `FEATURE_COMMANDS`, the moderation
+    defaults, `feature_keys` and the module `feature_for` imports come from it;
+    what cannot be derived must agree with it: the form YAML named after the key,
+    the module the spec names, the subgroup the cogs register under the group with
+    the namespace, and the copy.
+    """
+    assert set(DiskSource().list()) == set(feature_keys())
+
+
+def test_every_module_a_feature_names_exists_and_saves_that_feature():
+    for spec in _specs():
+        if spec.module is None:
+            continue
+        module = import_module(f"app.settings.features.{spec.module}")
+        assert module.FEATURE.key == spec.key
+        assert feature_for(spec.key) is module.FEATURE
+
+
+def test_every_feature_module_is_named_by_a_declared_feature():
+    modules = {
+        filename.removesuffix(".py")
+        for filename in os.listdir(FEATURES_FOLDER)
+        if filename.endswith(".py")
+    }
+    named = {spec.module for spec in _specs() if spec.module is not None}
+    assert modules - SHARED_MODULES == named
+
+
+async def test_every_feature_command_is_registered_where_its_spec_says(deps):
+    declared = {(spec.group, spec.namespace) for spec in _specs()}
+    assert await _registered_subgroups() == declared
+
+
+def test_the_lists_the_bot_reads_are_derived_from_the_declaration():
+    keys = [spec.key for spec in _specs()]
+    assert [entry["command_key"] for entry in Commands.SETUP_FEATURES] == keys
+    assert list(Commands.FEATURE_COMMANDS) == keys
+    defaults = GuildConstants.COGS_MODERATIONS_COMMANDS_DEFAULT
+    assert {key for key in defaults if key != GuildConstants.IS_BOT_ONLINE} == set(keys)
+    assert [
+        entry["command_key"]
+        for entry in Commands.SETUP_FEATURES
+        if entry.get("answers_prefix")
+    ] == [spec.key for spec in _specs() if spec.answers_prefix]
+
+
+@pytest.mark.parametrize("locale", LOCALES)
+def test_every_feature_has_its_command_and_setup_copy(locale):
+    def copy(folder):
+        path = os.path.join("app", "languages", folder, f"{folder}.{locale}.yml")
+        with open(path, encoding="utf-8") as handle:
+            return yaml.safe_load(handle)[locale]
+
+    commands, buttons = copy("commands"), copy("buttons")
+    for spec in _specs():
+        assert commands["groups"][spec.group]
+        assert commands["commands"][spec.namespace]["name"]
+        assert commands["commands"][spec.namespace]["subgroup"]
+        assert buttons["setup"][spec.button_key]["label"]
+        assert commands["commands"]["setup"]["embed"]["features"][spec.button_key]
+
+
+DOCUMENT = {
+    "guild_id": "1",
+    "enabled": True,
+    "mode": "block_all",
+    "allowed_chats": {"style": "channel", "values": ["100"]},
+    "custom_links": {
+        "style": "composition",
+        "values": [
+            {
+                "link": {"value": "meusite.com.br", "title": "Link", "style": "code"},
+                "match_type": {
+                    "value": "🌐 Todos os links desse site",
+                    "_raw_value": "domain",
+                    "title": "Como Devo Considerar?",
+                },
+            },
+            {"link": {"value": "docs.example.org", "title": "Link"}},
+        ],
+    },
+}
+
+
+def test_a_saved_list_reads_as_its_machine_values_never_its_labels():
+    """What a saved document reads as, for the readers that act on it."""
+    assert list_values(DOCUMENT, "custom_links") == [
+        {"link": "meusite.com.br", "match_type": "domain"},
+        {"link": "docs.example.org"},
+    ]
+
+
+def test_one_saved_item_reads_as_its_machine_values():
+    first = items_of(DOCUMENT, "custom_links")[0]
+    assert item_values(first) == {"link": "meusite.com.br", "match_type": "domain"}
+
+
+def test_a_list_nothing_was_saved_under_reads_empty():
+    assert list_values(DOCUMENT, "notifications") == []
+    assert list_values({"custom_links": None}, "custom_links") == []
+
+
+def test_the_settings_read_as_their_machine_values():
+    values = document_values(DOCUMENT)
+    assert values["mode"] == "block_all"
+    assert values["allowed_chats"] == ["100"]
+    assert "guild_id" not in values and "enabled" not in values

@@ -5,18 +5,18 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from app.settings.form.actions.action import RenderContext
+from app.settings.form.actions.action import Context
 from app.settings.form.components import Screen
 from app.settings.form.form_state import Answer, FormSession
 
 
-def render(step: Any, session: FormSession, context: RenderContext) -> Screen:
+def render(step: Any, session: FormSession, context: Context) -> Screen:
     """A composition renders through its child session, never directly."""
     raise NotImplementedError("a composition opens a child session")
 
 
 def parse(
-    step: Any, payload: Any, session: FormSession, context: RenderContext
+    step: Any, payload: Any, session: FormSession, context: Context
 ) -> Mapping[str, Answer]:
     """A composition is answered by its child sessions, never by a payload."""
     return {}

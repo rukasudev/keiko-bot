@@ -13,7 +13,7 @@ from hypothesis import strategies as st
 
 from app.settings.form import events as ev
 from app.settings.form.actions import registry as kinds
-from app.settings.form.actions.action import RenderContext
+from app.settings.form.actions.action import Context
 from app.settings.form.conditions import Scope
 from app.settings.form.form import decide
 from app.settings.form.form_state import (
@@ -103,7 +103,9 @@ def test_i6_render_is_a_pure_function_of_definition_and_session():
     definition, session = fresh()
     started = decide(definition, session, ev.Started("s")).session
     step = definition.steps[0]
-    context = RenderContext(definition, definition.steps, "pt-br", Scope({}))
+    context = Context(
+        definition=definition, steps=definition.steps, locale="pt-br", scope=Scope({})
+    )
     assert kinds()["intro"].render(step, started, context) == kinds()["intro"].render(
         step, started, context
     )
