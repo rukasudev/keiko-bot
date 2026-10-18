@@ -54,8 +54,8 @@ from app.services.utils import ml
 from app.settings.features import feature_for
 from app.settings.features.feature import CommitContext, OpenContext
 from app.settings.form.form_state import Answer
-from tests.behavioral.contracts.test_setup_permissions import EVERYTHING
-from tests.behavioral.contracts.test_setup_permissions import guild as server
+from tests.behavioral.contracts.test_setup_dashboard import EVERYTHING
+from tests.behavioral.contracts.test_setup_dashboard import guild as server
 from tests.behavioral.harness.locators import walk_items
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]

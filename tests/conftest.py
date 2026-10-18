@@ -240,7 +240,7 @@ def _no_banner_rendering():
         "app.services.welcome_messages.draw_banner",
         new=AsyncMock(side_effect=lambda *args, **kwargs: BytesIO(png())),
     ), patch(
-        "app.services.cdn.upload_asset",
+        "app.services.images.upload_asset",
         new=AsyncMock(return_value="https://cdn.example.com/previews/welcome-example.gif"),
     ):
         yield

@@ -31,7 +31,7 @@ import requests
 from prometheus_client import REGISTRY
 
 from app import logger as logger_module
-from app.cogs import heartbeat as heartbeat_module
+from app.cogs import prometheus as prometheus_cog
 from app.constants import Commands
 from app.services import debug_logs, metrics
 
@@ -43,11 +43,11 @@ START = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)
 
 def heartbeat(url="", version="v1.2.3", **bot):
     config = SimpleNamespace(HEARTBEAT_URL=url, APP_VERSION=version)
-    return heartbeat_module.Heartbeat(SimpleNamespace(config=config, **bot))
+    return prometheus_cog.Heartbeat(SimpleNamespace(config=config, **bot))
 
 
 async def tick(cog):
-    await heartbeat_module.Heartbeat.beat.coro(cog)
+    await prometheus_cog.Heartbeat.beat.coro(cog)
 
 
 def scheduled_at(cog, scheduled):
@@ -73,7 +73,7 @@ def answered(url, timeout):
 
 
 def test_the_heartbeat_ticks_every_minute():
-    assert heartbeat_module.Heartbeat.beat.seconds == Commands.HEARTBEAT_SECONDS == 60
+    assert prometheus_cog.Heartbeat.beat.seconds == Commands.HEARTBEAT_SECONDS == 60
 
 
 async def test_two_ticks_late_in_a_row_both_read_late(monkeypatch):
@@ -193,7 +193,7 @@ async def test_a_disconnected_gateway_is_never_reported_alive(monkeypatch):
 
 
 def test_the_connection_follows_the_gateway_events():
-    listeners = sorted(name for name, _ in heartbeat_module.Heartbeat.__cog_listeners__)
+    listeners = sorted(name for name, _ in prometheus_cog.Heartbeat.__cog_listeners__)
 
     assert listeners == ["on_disconnect", "on_ready", "on_resumed"]
 

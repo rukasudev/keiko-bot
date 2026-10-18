@@ -310,7 +310,7 @@ channel deletes it, 90 days after it was posted.
 | Queue full | the newest event is dropped and counted |
 | Event not in the catalog | dropped and counted |
 | Exception inside `emit` | swallowed at the boundary, never propagates |
-| Bot stops: a deploy's SIGTERM, `/admin shutdown`, a run that fails | both queues are written before the process ends (`app/lifecycle.py`); a start Discord refused writes them again after its five-minute wait, unless a SIGTERM ends the wait first |
+| Bot stops: a deploy's SIGTERM, `/admin shutdown`, a run that fails | both queues are written before the process ends (`run` in `app/bot.py`); a start Discord refused writes them again after its five-minute wait, unless a SIGTERM ends the wait first |
 | SIGKILL, an OOM kill or a hard crash of the interpreter | up to a few seconds of queued events are lost, by design |
 
 `ANALYTICS_ENABLED=false` turns `emit` into a no-op without a deploy.
@@ -406,7 +406,7 @@ was more than five seconds late (`le="5.0"` is how the client names that bucket)
 
 ## The heartbeat
 
-`app/cogs/heartbeat.py` ticks every `Commands.HEARTBEAT_SECONDS`. Each tick is
+The `Heartbeat` cog (`app/cogs/prometheus.py`) ticks every `Commands.HEARTBEAT_SECONDS`. Each tick is
 counted with how late it woke up against the time it was scheduled for, the loop
 lag a blocked event loop shows first, then pings `HEARTBEAT_URL` through
 `asyncio.to_thread`. A monitor that stops hearing the ping is how a stopped,
@@ -566,13 +566,13 @@ the journey's history read when a form opens, and the operator inspection views)
 entry that no longer matches anything fails too, so the list only shrinks.
 
 The calls a thread takes run on Keiko's own pool, not asyncio's: `DiscordBot.setup_hook`
-installs `lifecycle.BlockingIO` as the loop's default executor before any cog loads,
+installs `BlockingIO` (`app/bot.py`) as the loop's default executor before any cog loads,
 `Dependencies.BLOCKING_IO_THREADS` threads named `keiko-io` (asyncio's own has five on
 the 1 vCPU the bot runs on, and the Twitch waits sleep in them). Closing the loop drops
 the calls still queued and waits for none under way: `asyncio.run` would otherwise join
 the pool for up to five minutes, and a stop has thirty seconds before Docker kills the
-process and the queues `lifecycle.run` writes after the loop are lost
-(`tests/behavioral/contracts/test_graceful_stop.py`). `lifecycle.run` then gives the
+process and the queues `run` writes after the loop are lost
+(`tests/behavioral/contracts/test_graceful_stop.py`). `run` then gives the
 calls still running up to `Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS` to end before it
 writes the queues and exits, so a flush writing its batch is never cut in the middle
 (`tests/behavioral/contracts/test_graceful_stop.py`). What a thread is handed never walks
@@ -640,7 +640,7 @@ Traces are opened at the boundaries:
 | Confirmations | `ConfirmActionView(trace_name=)` (`app/views/confirm_action.py`) | one message for what the confirmation did |
 | Listeners | `trace.listener` (`app/services/trace.py`) for every listener of `app/cogs/events.py` | silent unless it fails or reports an event; each part runs on its own (a feature of `on_message` or `on_member_join`; the report, the snapshot and the pause of a server leaving; the record and the greeting of a server joining), so one that fails is an error with the listener's context, nothing is raised to discord.py, and the next one still runs |
 | Fan-outs | `trace.fan_out` (`app/services/trace.py`), behind the Twitch and YouTube notices and the birthday job | inside the trace of the job that runs it; each server is served on its own: one Keiko cannot reach (`DestinationNotFound`, a 403) is a warning, any other failure an error with the server's context, and neither stops the next; `destination` (`app/services/utils.py`) finds the server and its channel, `guild_locale` its language |
-| Heartbeat | `Heartbeat.beat` (`app/cogs/heartbeat.py`) | silent unless it fails; a failed ping is a warning, so it stays in `guild.logs` and the monitor is what alerts |
+| Heartbeat | `Heartbeat.beat` (`app/cogs/prometheus.py`) | silent unless it fails; a failed ping is a warning, so it stays in `guild.logs` and the monitor is what alerts |
 
 `silent_when_clean` is what keeps `on_message` from flooding the channel: a
 routine check that succeeds stays in the log file, and only surfaces in Discord

@@ -55,7 +55,9 @@ lines are enforced by `tests/forms/test_boundary.py`.
    it, takes the session's `asyncio.Lock`, turns the interaction into an
    event (`interactions.to_event`), and when a submitted modal's validator
    declares an `external:<service>` need (`lookups.lookup_for`, for a text step
-   or a card section) defers the interaction and runs the feature's `prefetch`,
+   or a card section; `lookups.py` stands apart from `validations.py` because it
+   reads the steps from `form.py` and `form_yaml.py`, and both import
+   `validations`) defers the interaction and runs the feature's `prefetch`,
    then calls `decide(definition, session, event, context)`, or
    `manager.decide(definition, session, event, context, panel)` for a manage
    session. `Context` (`app/settings/form/actions/action.py`) is the one
@@ -108,7 +110,6 @@ below names the YAML spelling first and the model second.
 | `multi_select` | `multi_pick` | `MultiPickStep` | several native selects on one screen (`selects`: `type` in `channels`/`roles`/`available_roles`, `key`, `style`, `icon`, `label`, `placeholder`) |
 | `configuration_card` | `card` | `CardStep` | a Components V2 card whose sections each edit part of the answer (3.3) |
 | `composition` | `composition` | `CompositionStep` | a list of items, each built by a child session over `steps` (3.4) |
-| `button` | `info` | `InfoStep` | a read-only screen with titled paragraphs (`fields`, per locale) and Confirm |
 | `resume` | `review` | `ReviewStep` | the last screen: a card with the manager panel's blocks, each with its Edit (returning to the review), and Add, Remove, Preview, Confirm and Cancel below; a list shows its first `COMPOSITION_PREVIEW_LIMIT` items and a "+N more" line; `preview: true` adds the Preview aside |
 
 The alias table is `KIND_BY_ACTION` in the compiler. `condition:` still

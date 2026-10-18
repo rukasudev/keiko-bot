@@ -6,7 +6,7 @@ lost. A plain `docker stop` would not have helped, because Python leaves
 SIGTERM at its default and a container's PID 1 ignores a signal left at its
 default, so Docker waited and killed it the same way.
 
-`app/lifecycle.py` turns SIGTERM into `close()` on the bot's own loop, writes
+`run` and `stop` (`app/bot.py`) turn SIGTERM into `close()` on the bot's own loop, writes
 both queues once the loop is gone, and ends the process; a flush still writing its batch
 on Keiko's pool of threads when the loop closed gets up to
 `Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS` to finish first, so the exit never cuts a
@@ -33,6 +33,7 @@ real one never returns. The tests send a real SIGTERM to the test process
 while a fake bot runs.
 """
 
+import importlib
 import asyncio
 import logging
 import os
@@ -46,13 +47,13 @@ from unittest.mock import MagicMock
 import discord
 import pytest
 
-from app import lifecycle
 from app.constants import DBConfigs, Dependencies, LogTypes
 from app.data import logs as logs_data
 from app.services import analytics, analytics_sink, debug_logs
 from tests.behavioral.contracts.test_logger_trace import discord_logs  # noqa: F401
-import importlib
 from app.bot import DiscordBot
+
+bot_module = importlib.import_module("app.bot")
 
 pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("lifecycle")]
 
@@ -86,10 +87,10 @@ def _sigterm_without_interrupting(moment):
 
 def _sigterm_at_first_line(when):
     """A tracer that runs the installed SIGTERM handler at the first line of
-    `lifecycle.run` where `when()` holds, as a signal arriving there would."""
+    `run` where `when()` holds, as a signal arriving there would."""
 
     def tracer(frame, event, arg):
-        if frame.f_code is not lifecycle.run.__code__:
+        if frame.f_code is not bot_module.run.__code__:
             return None
 
         def line(frame, event, arg):
@@ -185,7 +186,7 @@ class FlushingBot(RunningBot):
             runner.run(self._serve())
 
     async def _serve(self):
-        lifecycle.install_blocking_io()
+        bot_module.install_blocking_io()
         self.loop = self.served_on = asyncio.get_running_loop()
         self._closed = asyncio.Event()
         asyncio.ensure_future(asyncio.to_thread(analytics.flush))
@@ -310,7 +311,7 @@ def backoff(monkeypatch):
         wait.seconds.append(seconds)
         wait.during()
 
-    monkeypatch.setattr(lifecycle.time, "sleep", sleep)
+    monkeypatch.setattr(bot_module.time, "sleep", sleep)
     return wait
 
 
@@ -348,7 +349,7 @@ def slow_batch(stored, monkeypatch):
         stored.events.extend(events)
 
     monkeypatch.setattr(analytics_sink, "persist", persist)
-    monkeypatch.setattr(lifecycle, "_POOL", None, raising=False)
+    monkeypatch.setattr(bot_module, "_POOL", None, raising=False)
     return batch
 
 
@@ -368,7 +369,7 @@ def test_a_sigterm_closes_the_bot_and_writes_both_queues_before_the_process_ends
     bot = RunningBot()
 
     with pytest.raises(ProcessEnded):
-        lifecycle.run(bot, "token")
+        bot_module.run(bot, "token")
 
     assert bot.closed_on is bot.served_on, "the bot closes on its own loop"
     assert bot.closes == 1, "a second SIGTERM does not close it twice"
@@ -383,7 +384,7 @@ def test_a_sigterm_lets_a_batch_being_written_finish_before_the_process_ends(
     analytics.emit("guild.joined", guild_id=1, returning=False)
 
     with pytest.raises(ProcessEnded):
-        lifecycle.run(FlushingBot(slow_batch), "token")
+        bot_module.run(FlushingBot(slow_batch), "token")
 
     assert stored.exits == [(0, 1, 0)], "the batch under way is written, then the process ends"
 
@@ -398,7 +399,7 @@ def test_a_batch_that_outlasts_the_wait_never_holds_the_stop_past_it(
 
     try:
         with pytest.raises(ProcessEnded):
-            lifecycle.run(FlushingBot(slow_batch), "token")
+            bot_module.run(FlushingBot(slow_batch), "token")
         waited = time.monotonic() - started
     finally:
         slow_batch.done.set()
@@ -411,7 +412,7 @@ def test_a_sigterm_while_the_bot_is_starting_still_writes_both_queues(sigterm, s
     _queue_one_of_each()
 
     with pytest.raises(ProcessEnded):
-        lifecycle.run(StartingBot(), "token")
+        bot_module.run(StartingBot(), "token")
 
     assert stored.exits == [(0, 1, 1)]
 
@@ -421,7 +422,7 @@ def test_a_bot_that_closes_itself_writes_its_queues_and_keeps_the_process(
 ):
     _queue_one_of_each()
 
-    lifecycle.run(SelfClosingBot(), "token")
+    bot_module.run(SelfClosingBot(), "token")
 
     assert len(stored.events) == 1 and len(stored.logs) == 1
     assert stored.exits == [], "only a SIGTERM or a failure ends the process"
@@ -429,7 +430,7 @@ def test_a_bot_that_closes_itself_writes_its_queues_and_keeps_the_process(
 
 def test_a_sigterm_after_a_self_close_ends_the_process_at_once(sigterm, stored):
     _queue_one_of_each()
-    lifecycle.run(SelfClosingBot(), "token")
+    bot_module.run(SelfClosingBot(), "token")
 
     with pytest.raises(ProcessEnded):
         _sigterm_without_interrupting("after the bot closed itself")
@@ -447,7 +448,7 @@ def test_a_sigterm_during_the_final_writes_waits_for_them(sigterm, stored, monke
     monkeypatch.setattr(analytics_sink, "persist", persist)
 
     with pytest.raises(ProcessEnded):
-        lifecycle.run(SelfClosingBot(), "token")
+        bot_module.run(SelfClosingBot(), "token")
 
     assert stored.exits == [(0, 1, 1)], "the writes finish, then the process ends"
 
@@ -458,7 +459,7 @@ def test_a_bot_that_fails_to_run_writes_its_queues_and_exits_with_1_at_once(
     _queue_one_of_each()
 
     with pytest.raises(ProcessEnded):
-        lifecycle.run(FailingBot(RuntimeError("setup_hook broke")), "token")
+        bot_module.run(FailingBot(RuntimeError("setup_hook broke")), "token")
 
     assert stored.exits == [(1, 1, 1)], "a failed bot ends the process for a restart"
     assert backoff.seconds == [], "only a start Discord refused waits"
@@ -482,7 +483,7 @@ def test_a_sigterm_while_a_failure_is_logged_never_interrupts_the_writes(
     logging.getLogger().addHandler(handler)
     try:
         with pytest.raises(ProcessEnded):
-            lifecycle.run(FailingBot(RuntimeError("setup_hook broke")), "token")
+            bot_module.run(FailingBot(RuntimeError("setup_hook broke")), "token")
     finally:
         logging.getLogger().removeHandler(handler)
 
@@ -496,7 +497,7 @@ def test_a_failure_after_a_stop_was_asked_exits_with_0_and_only_warns(
     _queue_one_of_each()
 
     with pytest.raises(ProcessEnded):
-        lifecycle.run(FailsWhileStoppingBot(), "token")
+        bot_module.run(FailsWhileStoppingBot(), "token")
 
     assert stored.exits == [(0, 1, 1)], "a stop that was asked ends with 0"
     assert _failures_logged(caplog, "RuntimeError") == [logging.WARNING]
@@ -513,7 +514,7 @@ def test_a_start_discord_refuses_waits_the_backoff_before_exiting_with_1(
     backoff.during = lambda: exits_during_the_wait.append(list(stored.exits))
 
     with pytest.raises(ProcessEnded):
-        lifecycle.run(FailingBot(refusal), "token")
+        bot_module.run(FailingBot(refusal), "token")
 
     assert backoff.seconds == [DBConfigs.FATAL_START_BACKOFF_SECONDS]
     assert exits_during_the_wait == [[]], "the process waits before it exits"
@@ -531,7 +532,7 @@ def test_a_refused_start_is_one_critical_console_line_the_deploy_check_finds(
     captured = console()
 
     with pytest.raises(ProcessEnded):
-        lifecycle.run(FailingBot(refusal), "token")
+        bot_module.run(FailingBot(refusal), "token")
 
     out, err = captured.readouterr()
     assert "Logging error" not in err, err
@@ -554,7 +555,7 @@ def test_a_sigterm_during_the_fatal_start_backoff_exits_with_0_at_once(
     backoff.during = stop_during_the_wait
 
     with pytest.raises(ProcessEnded):
-        lifecycle.run(FailingBot(discord.PrivilegedIntentsRequired(None)), "token")
+        bot_module.run(FailingBot(discord.PrivilegedIntentsRequired(None)), "token")
 
     assert stored.exits == [(0, 1, 1)], "0 at once, and nothing written after the wait"
 
@@ -577,7 +578,7 @@ def test_a_sigterm_during_the_write_after_the_backoff_lets_it_finish_and_exits_w
     monkeypatch.setattr(analytics_sink, "persist", persist)
 
     with pytest.raises(ProcessEnded):
-        lifecycle.run(FailingBot(discord.PrivilegedIntentsRequired(None)), "token")
+        bot_module.run(FailingBot(discord.PrivilegedIntentsRequired(None)), "token")
 
     assert stored.exits == [(0, 2, 2)], "the write finishes, then the asked stop wins"
 
@@ -587,7 +588,7 @@ def test_a_bot_that_becomes_ready_says_so_once_on_the_console(sigterm, stored, c
     received READY, which no amount of `running 0` does."""
     captured = console()
 
-    lifecycle.run(ReadyBot(), "token")
+    bot_module.run(ReadyBot(), "token")
 
     out, err = captured.readouterr()
     phrase = DBConfigs.READY_PHRASE
@@ -604,7 +605,7 @@ def test_what_is_logged_during_the_fatal_start_backoff_is_written_before_the_exi
     backoff.during = lambda: analytics.emit("guild.joined", guild_id=3, returning=False)
 
     with pytest.raises(ProcessEnded):
-        lifecycle.run(FailingBot(discord.PrivilegedIntentsRequired(None)), "token")
+        bot_module.run(FailingBot(discord.PrivilegedIntentsRequired(None)), "token")
 
     assert stored.exits == [(1, 2, 1)], "the event logged during the wait is written"
 
@@ -623,7 +624,7 @@ def test_the_ready_line_is_stored_once_and_never_posted_to_discord(
         SimpleNamespace(DEBUG_LOGS_ENABLED=True, is_prod=lambda: False)
     )
     try:
-        lifecycle.run(ReadyBot(), "token")
+        bot_module.run(ReadyBot(), "token")
     finally:
         root.removeHandler(discord_logs.handler)
         root.removeHandler(stored_logs)
@@ -642,9 +643,9 @@ def _run_with_a_sigterm_at(bot, when):
     sys.settrace(_sigterm_at_first_line(when))
     try:
         with pytest.raises(ProcessEnded):
-            lifecycle.run(bot, "token")
+            bot_module.run(bot, "token")
     except KeyboardInterrupt:
-        pytest.fail("the SIGTERM escaped lifecycle.run as KeyboardInterrupt")
+        pytest.fail("the SIGTERM escaped run as KeyboardInterrupt")
     finally:
         sys.settrace(previous)
 
@@ -664,7 +665,7 @@ def test_a_second_sigterm_inside_the_first_one_never_blocks_its_handler(
         bot = ReenteredBot(at)
 
         try:
-            lifecycle.run(bot, "token")
+            bot_module.run(bot, "token")
         except ProcessEnded:
             pass
 
@@ -733,13 +734,13 @@ def test_a_sigterm_before_the_loop_exists_stops_the_way_ctrl_c_does():
     starting = discord.Client(intents=discord.Intents.none())
 
     with pytest.raises(KeyboardInterrupt):
-        lifecycle.stop(starting)
+        bot_module.stop(starting)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def forget_the_pool(monkeypatch):
     """Each test installs its own pool; none is left for the stop of a later test."""
-    monkeypatch.setattr(lifecycle, "_POOL", None)
+    monkeypatch.setattr(bot_module, "_POOL", None)
 
 
 def thread_name():
@@ -752,6 +753,7 @@ def run(coroutine):
         return runner.run(coroutine)
 
 
+@pytest.mark.usefixtures("forget_the_pool")
 def test_a_blocking_call_runs_on_keikos_own_pool():
     """Blocking calls run on Keiko's own pool of threads, and a stop never waits for one.
 
@@ -760,7 +762,7 @@ def test_a_blocking_call_runs_on_keikos_own_pool():
     Twitch waits sleep in them for up to 30 seconds: two lives at once left three threads for
     every Mongo read, Redis call and DNS lookup of the whole bot. And when the loop closes,
     `asyncio.run` joins that pool for up to five minutes, so one call stuck in a thread held a
-    SIGTERM past Docker's 30 second grace, and the queues `lifecycle.run` writes after the
+    SIGTERM past Docker's 30 second grace, and the queues `run` writes after the
     loop never reached Mongo.
 
     Guaranteed: from the moment the bot sets itself up, before any cog loads, every blocking
@@ -769,12 +771,13 @@ def test_a_blocking_call_runs_on_keikos_own_pool():
     runs its own loop and closes it the way `asyncio.run` does inside discord.py's `Bot.run`.
     """
     async def main():
-        lifecycle.install_blocking_io()
+        bot_module.install_blocking_io()
         return await asyncio.to_thread(thread_name)
 
     assert run(main()).startswith("keiko-io")
 
 
+@pytest.mark.usefixtures("forget_the_pool")
 def test_the_pool_runs_as_many_calls_at_once_as_it_has_threads():
     started = []
     release = threading.Event()
@@ -784,7 +787,7 @@ def test_the_pool_runs_as_many_calls_at_once_as_it_has_threads():
         release.wait(5)
 
     async def main():
-        lifecycle.install_blocking_io()
+        bot_module.install_blocking_io()
         loop = asyncio.get_running_loop()
         calls = [
             loop.run_in_executor(None, call)
@@ -799,11 +802,12 @@ def test_the_pool_runs_as_many_calls_at_once_as_it_has_threads():
     assert run(main()) == Dependencies.BLOCKING_IO_THREADS
 
 
+@pytest.mark.usefixtures("forget_the_pool")
 def test_closing_the_loop_never_waits_for_a_call_under_way():
     released = threading.Event()
 
     async def main():
-        lifecycle.install_blocking_io()
+        bot_module.install_blocking_io()
         asyncio.get_running_loop().run_in_executor(None, released.wait, 30)
         await asyncio.sleep(0.05)
 
@@ -817,12 +821,13 @@ def test_closing_the_loop_never_waits_for_a_call_under_way():
     assert elapsed < 2, f"closing the loop waited {elapsed:.1f}s for a stuck call"
 
 
+@pytest.mark.usefixtures("forget_the_pool")
 def test_closing_the_loop_drops_the_calls_still_queued():
     released = threading.Event()
     ran = []
 
     async def main():
-        lifecycle.install_blocking_io()
+        bot_module.install_blocking_io()
         loop = asyncio.get_running_loop()
         for _ in range(Dependencies.BLOCKING_IO_THREADS):
             loop.run_in_executor(None, released.wait, 30)
@@ -838,6 +843,7 @@ def test_closing_the_loop_drops_the_calls_still_queued():
     assert ran == [], "a call that never started is not started after the stop"
 
 
+@pytest.mark.usefixtures("forget_the_pool")
 def test_the_bot_installs_the_pool_before_any_cog_loads(monkeypatch):
     seen = []
 

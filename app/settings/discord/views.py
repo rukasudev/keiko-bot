@@ -13,10 +13,15 @@ from typing import Any, cast
 
 import discord
 
-from app.components.embed import with_footer
+from app.components.embed import (
+    card_footer,
+    card_frame,
+    card_header,
+    card_row,
+    with_footer,
+)
 from app.constants import DiscordLimits, Style
 from app.constants import ViewConstants as view_constants
-from app.settings.discord import layout
 from app.settings.discord.interactions import encode
 from app.settings.form.components import (
     Button,
@@ -348,7 +353,7 @@ def _card(
 def _panel(
     container: discord.ui.Container[Any], panel: Panel, ids: Ids, dispatcher: Dispatcher
 ) -> None:
-    layout.header(container, panel.title, panel.intro, panel.thumbnail)
+    card_header(container, panel.title, panel.intro, panel.thumbnail)
 
     for group in panel.groups:
         if group.parts:
@@ -360,7 +365,7 @@ def _panel(
             if group.key:
                 spec = Button(panel.edit_label, f"edit:{group.key}", "secondary", "✏️")
                 accessory = _button(dispatcher, ids, spec)
-            layout.row(container, "\n".join(group.lines), accessory)
+            card_row(container, "\n".join(group.lines), accessory)
         if group.actions:
             row = [_button(dispatcher, ids, spec) for spec in group.actions]
             container.add_item(discord.ui.ActionRow(*row))
@@ -368,7 +373,7 @@ def _panel(
 
     if panel.info:
         heading = f"### {panel.info_title}\n" if panel.info_title else ""
-        layout.row(container, f"{heading}{panel.info}")
+        card_row(container, f"{heading}{panel.info}")
     container.add_item(discord.ui.Separator())
 
 
@@ -404,12 +409,12 @@ def _panel_parts(
     dispatcher: Dispatcher,
 ) -> None:
     if group.lines:
-        layout.row(container, "\n".join(group.lines))
+        card_row(container, "\n".join(group.lines))
     for index, part in enumerate(group.parts):
         spec = Button(
             part.label or panel.edit_label, part.button, "secondary", part.emoji
         )
-        layout.row(
+        card_row(
             container,
             "\n".join(part.lines),
             _button(dispatcher, ids, spec),
@@ -451,7 +456,7 @@ def layout_of(
         if any(isinstance(component, Gallery) for component in screen.components)
         else None
     )
-    container = layout.container(accent)
+    container = card_frame(accent)
     is_picker = not screen.components or not isinstance(
         screen.components[0], (Card, Panel, Gallery)
     )
@@ -466,7 +471,7 @@ def layout_of(
     if is_picker:
         _picker_screen(container, screen, ids, dispatcher)
     if screen.layout_footer:
-        layout.footer(container, screen.layout_footer)
+        card_footer(container, screen.layout_footer)
     view.add_item(container)
     action_buttons = [
         _button(dispatcher, ids, spec)

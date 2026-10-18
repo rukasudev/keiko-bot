@@ -458,24 +458,6 @@ Section = Annotated[
 ]
 
 
-class InfoField(Node):
-    """One titled paragraph of an info screen."""
-
-    title: str
-    message: str
-
-
-class InfoFields(Node):
-    """The paragraphs of an info screen, per locale."""
-
-    en_us: tuple[InfoField, ...] = Field(alias="en-us")
-    pt_br: tuple[InfoField, ...] = Field(alias="pt-br")
-
-    def get(self, locale: str) -> tuple[InfoField, ...]:
-        """The paragraphs for `locale`."""
-        return self.pt_br if locale == "pt-br" else self.en_us
-
-
 class StepBase(Node):
     """What every step declares."""
 
@@ -609,13 +591,6 @@ class ItemsSpec(Node):
     unique_by: str | None = None
 
 
-class InfoStep(StepBase):
-    """A read-only screen with titled paragraphs and Confirm."""
-
-    kind: Literal["info"]
-    fields: InfoFields | None = None
-
-
 class ReviewStep(StepBase):
     """The last screen: the summary and the final Confirm."""
 
@@ -646,7 +621,6 @@ Step = Annotated[
         MultiPickStep,
         CardStep,
         CompositionStep,
-        InfoStep,
         ReviewStep,
     ],
     Field(discriminator="kind"),
@@ -662,7 +636,6 @@ STEP_KINDS: tuple[str, ...] = (
     "multi_pick",
     "card",
     "composition",
-    "info",
     "review",
 )
 
@@ -742,7 +715,6 @@ KIND_BY_ACTION: dict[str, str] = {
     "multi_select": "multi_pick",
     "configuration_card": "card",
     "composition": "composition",
-    "button": "info",
     "resume": "review",
 }
 

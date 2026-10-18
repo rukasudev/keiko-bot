@@ -4,6 +4,7 @@ Testes unitarios para utils.py.
 Estes testes NAO fazem I/O - apenas testam logica pura.
 """
 
+import discord
 import pytest
 from unittest.mock import MagicMock, patch
 from app.services.utils import (
@@ -742,3 +743,33 @@ class TestFillPlaceholders:
         assert fill_placeholders("{LINK}", {"link": "https://x"}, required="link") == (
             "{LINK}\nhttps://x"
         )
+
+
+class TestLocaleCopyAgreesWithThePlatform:
+    """`ml` and `parse_locale` here, and `text` and `normalize_locale` in the form platform,
+    are two copies of one rule: the platform imports only itself and `app.constants`, and
+    this module, which the logger imports at boot, cannot import the platform, whose
+    package pulls in the data layer before the Mongo client exists. Guaranteed: both
+    copies give the same answer, so they never drift apart."""
+
+    @pytest.mark.parametrize("locale", [
+        "en-us", "en-US", "pt-br", "pt-BR", "pt", "en", "fr", "es-ES", "", "xx-yy",
+        discord.Locale.brazil_portuguese, discord.Locale.american_english,
+    ])
+    def test_parse_locale_maps_a_locale_the_way_the_platform_does(self, locale):
+        from app.services.utils import parse_locale
+        from app.settings.form.copy import normalize_locale
+
+        assert parse_locale(locale) == normalize_locale(locale)
+
+    @pytest.mark.parametrize("key", [
+        "commands.form-notices.closed",
+        "messages.admin-logs.daily-export",
+        "messages.no-such-key",
+    ])
+    @pytest.mark.parametrize("locale", ["en-us", "pt-br", "pt", "fr"])
+    def test_ml_reads_a_key_the_way_the_platform_does(self, key, locale):
+        from app.services.utils import ml
+        from app.settings.form.copy import text
+
+        assert ml(key, locale) == text(key, locale)

@@ -54,7 +54,6 @@ TOKEN_FORMATTERS = {"host": link_host}
 
 THUMBNAILS: dict[str, str] = {
     "review": KeikoIcons.IMAGE_03,
-    "info": KeikoIcons.IMAGE_02,
 }
 
 

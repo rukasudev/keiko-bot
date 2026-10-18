@@ -3,8 +3,8 @@ from datetime import datetime, time, timezone
 
 from discord.ext import commands, tasks
 
-from app import lifecycle, logger
-from app.bot import DiscordBot
+from app import logger
+from app.bot import DiscordBot, write_queues
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.services import admin_digest, analytics, analytics_sink, debug_logs, logs_archive
@@ -36,7 +36,7 @@ class Analytics(commands.Cog):
         self.archive_months.cancel()
         self.measure_guild_sizes.cancel()
         self.post_daily_backup.cancel()
-        await asyncio.to_thread(lifecycle.write_queues)
+        await asyncio.to_thread(write_queues)
 
     @tasks.loop(seconds=constants.ANALYTICS_FLUSH_SECONDS)
     async def flush_events(self) -> None:

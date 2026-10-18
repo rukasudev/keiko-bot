@@ -13,7 +13,7 @@ from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
 from app.data.cogs import find_cog_by_guild_id_async
-from app.settings.discord import layout
+from app.components.embed import card_footer, card_frame, card_header, card_row
 from app.services import analytics
 from app.services.cogs import is_feature_on
 from app.services.manager import parse_history_data
@@ -316,9 +316,9 @@ async def setup_dashboard(guild_id: str, locale: str) -> discord.ui.LayoutView:
         ("configured", configured, "buttons.setup.manage.label"),
     )
 
-    card = layout.container()
+    card = card_frame()
     intro = ml(f"{base}.desc" if pending else f"{base}.all-configured", locale)
-    layout.header(
+    card_header(
         card,
         ml(f"{base}.title", locale),
         intro,
@@ -329,13 +329,13 @@ async def setup_dashboard(guild_id: str, locale: str) -> discord.ui.LayoutView:
         if not members:
             continue
         title = fill(ml(f"{base}.{group_key}", locale), count=len(members))
-        layout.row(card, f"### {title}")
+        card_row(card, f"### {title}")
         for feature, state in members:
             button = SetupFeatureButton(
                 feature["command_key"], ml(label_key, locale), group_key == "configured"
             )
-            layout.row(card, _row_text(feature, state, locale), button, separated=False)
-    layout.footer(card, f"• {ml(f'{base}.footer', locale)}")
+            card_row(card, _row_text(feature, state, locale), button, separated=False)
+    card_footer(card, f"• {ml(f'{base}.footer', locale)}")
 
     view = SetupView()
     view.add_item(card)

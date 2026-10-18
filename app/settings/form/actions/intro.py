@@ -18,7 +18,7 @@ from app.settings.form.copy import text
 from app.settings.form.form_state import Answer, FormSession
 from app.settings.form.form_yaml import CardStep, CompositionStep, Step
 
-SILENT_KINDS = ("intro", "info", "review")
+SILENT_KINDS = ("intro", "review")
 
 
 def settings_list(steps: Sequence[Step], locale: str) -> dict[str, str]:

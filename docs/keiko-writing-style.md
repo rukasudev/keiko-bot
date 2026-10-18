@@ -253,24 +253,7 @@ Use existing `command-events.{enabled,paused,unpaused,disabled,edited,added,remo
   footer: {same standard footer}
 ```
 
-### 3.7 Variable-instructions block (button step inside a form)
-```yaml
-- action: button
-  key: {key}
-  emoji: "📩"
-  title:
-    en-us: "{Step Name}"
-  description:
-    en-us: "Now let's configure {what}! Read the following notes carefully:"
-  fields:
-    en-us:
-      - title: "1. {Concept}"
-        message: "{1-sentence explanation}"
-      - title: "2. {Variables}"
-        message: "You can use the following variables in your message:\n• `{var}`: {description}"
-```
-
-### 3.8 Greeting / branded response
+### 3.7 Greeting / branded response
 - Use 1st person, open with `"Hello, I'm Keiko, ..."` or analogous.
 - Include `:dog:` once, `✨` for sparkle, `🐾` once.
 - End with one CTA (`/help`, `/setup`, `/support`).
