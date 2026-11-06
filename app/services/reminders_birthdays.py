@@ -1,6 +1,6 @@
 import asyncio
 from collections import Counter
-from datetime import date, datetime, timezone
+from datetime import date
 from typing import Any, Dict, List, Optional, Tuple
 
 import discord
@@ -18,8 +18,11 @@ from app.services.dates import (
     format_month_count,
     is_valid_mm_dd,
     next_mm_dd_occurrence,
+    parse_mm_dd,
+    utc_today,
 )
 from app.settings import open_feature
+from app.settings.form.responses.styles import format_value
 from app.services import reminders as reminders_service
 from app.services.cogs import is_feature_on
 from app.services.utils import (
@@ -162,13 +165,13 @@ def remove_birthday(guild_id: str, user_id: str) -> Optional[Dict[str, Any]]:
 
 
 def get_upcoming_birthdays(guild_id: str, limit: int = 3, today: Optional[date] = None) -> List[Dict[str, Any]]:
-    today = today or datetime.now(timezone.utc).date()
+    today = today or utc_today()
     items = birthdays_data.find_birthday_items_by_guild(guild_id)
     return sorted(items, key=lambda item: next_mm_dd_occurrence(item["date"], today))[:limit]
 
 
 def get_birthday_stats(guild_id: str, today: Optional[date] = None) -> Dict[str, Any]:
-    today = today or datetime.now(timezone.utc).date()
+    today = today or utc_today()
     items = birthdays_data.find_birthday_items_by_guild(guild_id)
     month_counts = Counter(item.get("month") for item in items)
     date_counts = Counter(item.get("date") for item in items)
@@ -345,15 +348,17 @@ def reschedule_birthdays(guild_id: str, timezone_value: str, notification_time: 
         )
 
 
-def birthday_settings_rows(guild_id: str, locale: str) -> List[Dict[str, Any]]:
-    """The panel rows of the birthday feature, from its own collections."""
+def birthday_settings_rows(
+    guild_id: str, locale: str, today: Optional[date] = None
+) -> List[Dict[str, Any]]:
+    """The panel rows of the birthday feature, from its own collections, counted from `today`."""
     config = birthdays_data.find_birthday_config(guild_id) or {}
-    stats = get_birthday_stats(guild_id)
-    upcoming = get_upcoming_birthdays(guild_id, limit=3)
-    upcoming_text = "\n".join(
-        f"{index}. <@{item['user_id']}>: {format_mm_dd_label(item['date'], locale)}"
-        for index, item in enumerate(upcoming, start=1)
-    ) or "-"
+    stats = get_birthday_stats(guild_id, today=today)
+    upcoming = get_upcoming_birthdays(guild_id, limit=3, today=today)
+    upcoming_lines = [
+        f"<@{item['user_id']}>: {format_mm_dd_label(item['date'], locale)}"
+        for item in upcoming
+    ]
 
     return [
         {
@@ -391,9 +396,49 @@ def birthday_settings_rows(guild_id: str, locale: str) -> List[Dict[str, Any]]:
         {
             "key": "reminders_birthday",
             "title": _mb("settings.next", locale),
-            "value": upcoming_text,
+            "value": upcoming_lines,
+            "style": "bullet",
         },
     ]
+
+
+def birthday_month_pages(
+    guild_id: str, locale: str, today: Optional[date] = None
+) -> List[Tuple[str, str, List[str]]]:
+    """The birthdays in date order, a month per page from this one, or one empty page."""
+    today = today or utc_today()
+    title = _mb("pages.title", locale)
+    by_month: Dict[int, List[Dict[str, Any]]] = {}
+    for item in birthdays_data.find_birthday_items_by_guild(guild_id):
+        try:
+            month, _day = parse_mm_dd(str(item.get("date")))
+        except (TypeError, ValueError):
+            continue
+        by_month.setdefault(month, []).append(item)
+
+    pages = []
+    for offset in range(12):
+        month = (today.month - 1 + offset) % 12 + 1
+        if month not in by_month:
+            continue
+        lines = [
+            f"- <@{item['user_id']}>: {format_mm_dd_label(item['date'], locale)}"
+            for item in sorted(by_month[month], key=lambda item: str(item["date"]))
+        ]
+        pages.append((title, _mb("pages.order", locale), lines))
+    return pages or [(title, _mb("pages.empty", locale), [])]
+
+
+def birthday_found_members(guild_id: str, locale: str) -> Dict[str, List[str]]:
+    """Each listed member's birthday messages, for the screen a search opens."""
+    config = birthdays_data.find_birthday_config(guild_id) or {}
+    found: Dict[str, List[str]] = {}
+    for item in birthdays_data.find_birthday_items_by_guild(guild_id):
+        source, title, content = message_source(item, config, locale)
+        label = _mb(f"found.messages.{source}", locale)
+        block = format_value([title, content], "code-block", locale)
+        found[str(item.get("user_id"))] = [f"💬 **{label}**{block}"]
+    return found
 
 
 def render_birthday_message(
@@ -412,18 +457,26 @@ def birthday_default_text(key: str, locale: str) -> str:
     return ml(f"messages.birthday-defaults.{key}", locale=locale)
 
 
-def resolve_message(item: Dict[str, Any], config: Dict[str, Any], locale: str) -> Tuple[str, str]:
+def message_source(
+    item: Dict[str, Any], config: Dict[str, Any], locale: str
+) -> Tuple[str, str, str]:
+    """Whose message celebrates the member (`member`, `server` or `keiko`), and its text."""
     message = item.get("message") or {}
     if message.get("mode") == "custom" and message.get("title") and message.get("content"):
-        return message["title"], message["content"]
+        return "member", message["title"], message["content"]
     default_message = (config or {}).get("default_message") or {}
     if (
         default_message.get("mode") == "custom"
         and default_message.get("title")
         and default_message.get("content")
     ):
-        return default_message["title"], default_message["content"]
-    return birthday_default_text("title", locale), birthday_default_text("content", locale)
+        return "server", default_message["title"], default_message["content"]
+    return "keiko", birthday_default_text("title", locale), birthday_default_text("content", locale)
+
+
+def resolve_message(item: Dict[str, Any], config: Dict[str, Any], locale: str) -> Tuple[str, str]:
+    _source, title, content = message_source(item, config, locale)
+    return title, content
 
 
 def resolve_image(item: Dict[str, Any]) -> str:
@@ -488,9 +541,11 @@ async def send_birthday_preview(
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
-async def send_stats_message(interaction: discord.Interaction) -> None:
+async def send_stats_message(
+    interaction: discord.Interaction, today: Optional[date] = None
+) -> None:
     locale = parse_locale(interaction.locale)
-    stats = await asyncio.to_thread(get_birthday_stats, str(interaction.guild_id))
+    stats = await asyncio.to_thread(get_birthday_stats, str(interaction.guild_id), today)
     lines = [
         f"🎂 **{_mb('stats.fields.total', locale)}:** {stats['total']}",
         f"📅 **{_mb('stats.fields.this-month', locale)}:** {stats['current_month']}",

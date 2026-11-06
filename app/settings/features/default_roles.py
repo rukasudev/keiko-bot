@@ -3,24 +3,30 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any
 
 from app.constants import Commands
 from app.services.default_roles import (
     count_roles_receivers,
     get_not_available_roles,
+    set_default_roles,
     set_on_default_roles_sync,
 )
 from app.services.utils import get_available_roles_by_guild
 from app.settings.features.feature import (
     AsideAction,
+    CommitContext,
+    CommitResult,
     GenericCogFeature,
     OpenContext,
     Opened,
 )
 from app.settings.form.components import Button
 from app.settings.form.copy import text
+from app.settings.form.form_state import Answer
 from app.settings.form.manager import PanelExtras
+from app.settings.form.responses.styles import empty_value
 
 SYNC_COOLDOWN_SECONDS = 60
 
@@ -39,7 +45,7 @@ class DefaultRolesFeature(GenericCogFeature):
         if opened.document is None:
             if not available:
                 return Opened(refusal="command-default-roles-low-permissions")
-            return opened
+            return replace(opened, values=_server_totals(context.guild))
         roles = _values(opened.document.get(Commands.DEFAULT_ROLES_KEY))
         return Opened(
             document=opened.document,
@@ -49,6 +55,27 @@ class DefaultRolesFeature(GenericCogFeature):
                 enabled=opened.panel.enabled,
             ),
         )
+
+    def to_document(self, answers: Mapping[str, Answer], locale: str) -> dict[str, Any]:
+        """The roles to save; whether to give them out now is never stored."""
+        document = super().to_document(answers, locale)
+        document.pop("sync_existing", None)
+        return document
+
+    async def commit_setup(
+        self, payload: Mapping[str, Any], context: CommitContext
+    ) -> CommitResult:
+        """Save the roles, then give them to who is already there when asked."""
+        result = await super().commit_setup(payload, context)
+        wanted = payload["answers"].get("sync_existing")
+
+        if wanted is not None and wanted.raw and context.guild is not None:
+            guild = context.guild
+            self.in_background(
+                set_default_roles(dict(result.document or {}), guild, guild.members),
+                context,
+            )
+        return result
 
     def extra_buttons(self, context: OpenContext) -> tuple[Button, ...]:
         """The sync button."""
@@ -78,6 +105,12 @@ class DefaultRolesFeature(GenericCogFeature):
                 confirm_values=_roles_of,
             )
         }
+
+
+def _server_totals(guild: Any) -> dict[str, str]:
+    members = list(guild.members) if guild is not None else []
+    bots = sum(1 for member in members if member.bot)
+    return {"members_count": str(len(members) - bots), "bots_count": str(bots)}
 
 
 def _values(entry: Any) -> Any:
@@ -111,7 +144,7 @@ def _mentions(entry: Any, locale: str) -> str:
     else:
         roles = [str(values)] if values else []
     joined = ", ".join(f"<@&{role}>" for role in roles)
-    return joined or text("commands.resume.empty", locale)
+    return joined or empty_value(locale)
 
 
 FEATURE = DefaultRolesFeature()

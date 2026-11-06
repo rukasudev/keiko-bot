@@ -10,14 +10,16 @@ from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.constants import Style as style_constants
 from app.constants import ViewConstants as view_constants
-from app.exceptions import ErrorContext
+from app.components.embed import base_embed, response_error_embed
+from app.data import cogs as cogs_data
+from app.exceptions import ErrorContext, StreamElementsUnavailable
 from app.integrations.stream_elements import StreamElementsClient
 from app.settings import open_feature
 from app.services import analytics, cache
+from app.services.trace import outside_any_trace
 from app.services.utils import fill, ml
 from app.views.pagination import PaginationView
 from app.views.pagination_without_interaction import PaginationWithoutInteractionView
-
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:
     """The slash command: the setup form, or the manager of what is saved."""
@@ -39,7 +41,6 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
         return
 
     command = message.content.split(" ")[0].replace(prefix, "")
-    channel_id = cogs.get("channel_id")
 
     context = ErrorContext.from_message(
         flow="stream_elements",
@@ -49,6 +50,8 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
     )
 
     try:
+        channel_id = await channel_of(guild_id, streamer, cogs.get("channel_id"))
+
         if command == "commands":
             view = await parse_command_list_view(channel_id, message, streamer)
             if not view:
@@ -61,15 +64,22 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
         if not reply:
             return
 
-        locale = message.guild.preferred_locale if message.guild else None
         await message.reply(
             embed=create_response_embed(
-                command, reply, message.author, streamer, prefix, locale
+                command, reply, message.author, streamer, prefix, _locale_of(message)
             )
         )
         analytics.record_value(
             guild_id, constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY
         )
+    except StreamElementsUnavailable as unavailable:
+        await asyncio.to_thread(warn_unavailable, streamer, unavailable)
+        if command == "commands":
+            await message.reply(
+                embed=response_error_embed(
+                    "stream-elements-unavailable", _locale_of(message)
+                )
+            )
     except Exception as e:
         logger.error(
             f"Failed in stream_elements: {type(e).__name__}: {e}",
@@ -78,6 +88,77 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
             exc_info=True,
         )
         raise
+
+
+async def channel_of(guild_id: str, streamer: str, channel_id: Optional[str]) -> str:
+    """The streamer's StreamElements channel id; one saved without it is found and kept."""
+    if channel_id:
+        return str(channel_id)
+
+    found = await asyncio.to_thread(_channel_or_recent_failure, streamer)
+    key = constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY
+    await cogs_data.update_cog_by_guild_async(guild_id, key, {"channel_id": found})
+    await asyncio.to_thread(cache.remove_cog_cache_by_guild, guild_id, key)
+    return found
+
+
+def _channel_or_recent_failure(streamer: str) -> str:
+    failed_key = constants.REDIS_STREAM_ELEMENTS_CHANNEL_FAILED.format(streamer=streamer)
+    failed = cache.get_data_from_redis(failed_key)
+    if failed:
+        raise StreamElementsUnavailable(str(failed.get("error")))
+
+    try:
+        return find_channel(streamer)
+    except StreamElementsUnavailable as unavailable:
+        cache.set_data_in_redis_with_expiration(
+            failed_key,
+            {"error": str(unavailable)},
+            constants.STREAM_ELEMENTS_CHANNEL_FAILED_SECONDS,
+        )
+        raise
+
+
+def find_channel(streamer: str) -> str:
+    """The StreamElements channel id of a streamer's username."""
+    try:
+        info = StreamElementsClient.get_channel_info(streamer)
+    except Exception as error:
+        raise StreamElementsUnavailable(
+            f"channel of {streamer}: {type(error).__name__}: {error}"
+        ) from error
+
+    channel_id = info.get("_id") if isinstance(info, dict) else None
+    if not channel_id:
+        raise StreamElementsUnavailable(f"no channel for {streamer}: {_status(info)}")
+    return str(channel_id)
+
+
+def warn_unavailable(streamer: str, error: StreamElementsUnavailable) -> None:
+    """Tell the log channel StreamElements failed, once per streamer while its Redis mark lives."""
+    claimed = cache.claim_redis_key(
+        constants.REDIS_STREAM_ELEMENTS_WARNED.format(streamer=streamer),
+        constants.STREAM_ELEMENTS_FAILURE_SECONDS,
+    )
+    if not claimed:
+        return
+
+    with outside_any_trace():
+        logger.warn(
+            f"StreamElements unavailable for {streamer}: {error}",
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+
+
+def _locale_of(message: discord.Message) -> Optional[discord.Locale]:
+    return message.guild.preferred_locale if message.guild else None
+
+
+def _status(answer: object) -> str:
+    if isinstance(answer, dict):
+        return f"answered {answer.get('statusCode')} {answer.get('error') or ''}".strip()
+    return f"answered {type(answer).__name__}"
+
 
 async def parse_command_list_view(
     channel_id: str, message: discord.Message, streamer: str
@@ -92,7 +173,7 @@ async def parse_command_list_view(
     if not commands_list:
         return None
 
-    locale = message.guild.preferred_locale if message.guild else None
+    locale = _locale_of(message)
     namespace = "commands.commands.commons.stream-elements-manager.commands"
     title = ml(f"{namespace}.embed.title", locale=locale)
     description = ml(f"{namespace}.embed.desc", locale=locale).replace(
@@ -113,26 +194,38 @@ async def parse_command_list_view(
 
 async def send_commands_view(interaction: discord.Interaction) -> None:
     """The paginated command list, opened from the manager panel."""
+    guild_id = str(interaction.guild.id)
     cogs = await asyncio.to_thread(
         cache.get_cog_data_or_populate,
-        interaction.guild.id,
+        guild_id,
         constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
+        manager=True,
     )
     streamer = str((cogs or {}).get("streamer", ""))
-    commands_list = await asyncio.to_thread(
-        get_commands_in_cache_or_populate,
-        str((cogs or {}).get("channel_id", "")),
-        interaction.user,
-    )
     locale = interaction.locale
+    try:
+        channel_id = await channel_of(guild_id, streamer, (cogs or {}).get("channel_id"))
+        commands_list = await asyncio.to_thread(
+            get_commands_in_cache_or_populate, channel_id, interaction.user
+        )
+    except StreamElementsUnavailable as unavailable:
+        await asyncio.to_thread(warn_unavailable, streamer, unavailable)
+        return await interaction.response.send_message(
+            embed=response_error_embed("stream-elements-unavailable", locale),
+            ephemeral=True,
+        )
+
     namespace = "commands.commands.commons.stream-elements-manager.commands"
+    title = ml(f"{namespace}.embed.title", locale=locale)
     if not commands_list:
         empty = ml(f"{namespace}.empty", locale=locale).replace("$streamer", streamer)
-        return await interaction.response.send_message(empty, ephemeral=True)
+        return await interaction.response.send_message(
+            embed=base_embed(title, empty), ephemeral=True
+        )
 
     view = PaginationView(
         interaction,
-        ml(f"{namespace}.embed.title", locale=locale),
+        title,
         ml(f"{namespace}.embed.desc", locale=locale).replace("$streamer", streamer),
         commands_list,
         sep=view_constants.COMMANDS_PAGE_SIZE,
@@ -229,15 +322,20 @@ def get_reply_in_cache_or_populate(
 
 def _channel_commands(channel_id: str) -> Dict[str, str]:
     """The streamer's enabled commands by name, with their replies as written: cached a
-    day, a streamer with none for a few minutes, a failure never."""
+    day, a streamer with none for a few minutes, a failure never (it raises)."""
     cache_key = constants.REDIS_STREAM_ELEMENTS_COMMANDS.format(channel_id=channel_id)
     cached = cache.get_data_from_redis(cache_key)
     if cached:
         return cached["commands"]
 
-    fetched = StreamElementsClient.get_chat_commands(channel_id)
+    try:
+        fetched = StreamElementsClient.get_chat_commands(channel_id)
+    except Exception as error:
+        raise StreamElementsUnavailable(
+            f"commands of {channel_id}: {type(error).__name__}: {error}"
+        ) from error
     if not isinstance(fetched, list):
-        return {}
+        raise StreamElementsUnavailable(f"commands of {channel_id}: {_status(fetched)}")
 
     commands = {
         command.get("command"): command.get("reply")

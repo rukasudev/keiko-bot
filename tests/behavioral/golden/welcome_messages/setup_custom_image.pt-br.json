@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal**: Onde vou enviar a mensagem de boas-vindas.\n:flying_disc: **Título**: O título da mensagem de boas-vindas.\n:flying_disc: **Mensagens**: Até três saudações, eu sorteio uma a cada vez.\n:flying_disc: **Rodapé**: A linha pequena que fecha a mensagem.\n:flying_disc: **Design do banner**: O visual do banner que eu desenho para cada novo membro.\n:flying_disc: **Imagem personalizada**: A imagem que eu coloco no banner quando você escolhe um design personalizado.\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal:** Onde vou enviar a mensagem de boas-vindas.\n:flying_disc: **Título:** O título da mensagem de boas-vindas.\n:flying_disc: **Mensagens:** Até três saudações, eu sorteio uma a cada vez.\n:flying_disc: **Rodapé:** A linha pequena que fecha a mensagem.\n:flying_disc: **Design do banner:** O visual do banner que eu desenho para cada novo membro.\n:flying_disc: **Imagem personalizada:** A imagem que eu coloco no banner quando você escolhe um design personalizado.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
       "footer": null,
       "image": null,
@@ -47,11 +47,34 @@
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 4,
-    "thinking": false
+    "components": [
+      {
+        "disabled": true,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": true,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal:** Onde vou enviar a mensagem de boas-vindas.\n:flying_disc: **Título:** O título da mensagem de boas-vindas.\n:flying_disc: **Mensagens:** Até três saudações, eu sorteio uma a cada vez.\n:flying_disc: **Rodapé:** A linha pequena que fecha a mensagem.\n:flying_disc: **Design do banner:** O visual do banner que eu desenho para cada novo membro.\n:flying_disc: **Imagem personalizada:** A imagem que eu coloco no banner quando você escolhe um design personalizado.\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "fields": [],
+      "footer": null,
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "🎉 Mensagens de Boas-Vindas"
+    },
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M1",
+    "seq": 4
   },
   {
     "actor": "bot",
@@ -65,7 +88,7 @@
                 "type": "text"
               },
               {
-                "content": "Escolha o canal e eu já fico pronta para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem",
+                "content": "Escolha o canal e eu já fico pronto para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem",
                 "type": "text"
               },
               {
@@ -76,30 +99,23 @@
             "type": "section"
           },
           {
-            "content": "📺 **Canal**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada ainda",
+            "content": "📺 **Canal**\n> Em branco",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher canal",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens**",
-            "type": "text"
-          },
-          {
-            "content": "> **Título:** Um novo membro chegou! 🎉\n> **Rodapé:** Divirta-se!\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```",
+            "content": "💬 **Mensagens**\n> **Título:** Um novo membro chegou! 🎉\n> **Rodapé:** Divirta-se!\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```",
             "type": "text"
           },
           {
@@ -114,11 +130,7 @@
             "type": "actionrow"
           },
           {
-            "content": "🎨 **Design do banner**",
-            "type": "text"
-          },
-          {
-            "content": "> Imagem do Servidor",
+            "content": "🎨 **Design do banner**\n> Imagem do Servidor de fundo",
             "type": "text"
           },
           {
@@ -129,9 +141,27 @@
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher design",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": true,
+                    "label": "Imagem do Servidor de fundo",
+                    "value": "server_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Imagem personalizada de fundo",
+                    "value": "custom_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Somente banner personalizado",
+                    "value": "custom_only"
+                  }
+                ],
+                "placeholder": "Escolher design",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -147,14 +177,14 @@
         "children": [
           {
             "disabled": false,
-            "label": "Avançar",
-            "style": "success",
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
             "disabled": false,
-            "label": "Pré-visualizar",
-            "style": "secondary",
+            "label": "Avançar",
+            "style": "success",
             "type": "button"
           },
           {
@@ -181,10 +211,13 @@
   },
   {
     "actor": "user",
-    "kind": "click",
+    "kind": "select",
     "message": "M2",
     "seq": 7,
-    "target": "customize:0"
+    "target": "welcome_messages_channel",
+    "values": [
+      "welcome"
+    ]
   },
   {
     "actor": "bot",
@@ -192,7 +225,24 @@
       {
         "children": [
           {
-            "content": "## 📺 Onde devo dar boas-vindas aos novos membros?",
+            "children": [
+              {
+                "content": "## 🎉 Mensagens de Boas-Vindas",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e eu já fico pronto para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal**\n> <#101>",
             "type": "text"
           },
           {
@@ -208,6 +258,58 @@
             "type": "actionrow"
           },
           {
+            "content": "💬 **Mensagens**\n> **Título:** Um novo membro chegou! 🎉\n> **Rodapé:** Divirta-se!\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar mensagens",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎨 **Design do banner**\n> Imagem do Servidor de fundo",
+            "type": "text"
+          },
+          {
+            "count": 1,
+            "type": "media"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": true,
+                    "label": "Imagem do Servidor de fundo",
+                    "value": "server_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Imagem personalizada de fundo",
+                    "value": "custom_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Somente banner personalizado",
+                    "value": "custom_only"
+                  }
+                ],
+                "placeholder": "Escolher design",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
           }
@@ -218,8 +320,20 @@
         "children": [
           {
             "disabled": false,
-            "label": "Voltar",
+            "label": "Pré-visualizar",
             "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
             "type": "button"
           }
         ],
@@ -237,9 +351,9 @@
     "kind": "select",
     "message": "M2",
     "seq": 9,
-    "target": "Selecione um canal...",
+    "target": "welcome_design",
     "values": [
-      "welcome"
+      "custom_only"
     ]
   },
   {
@@ -254,7 +368,7 @@
                 "type": "text"
               },
               {
-                "content": "Escolha o canal e eu já fico pronta para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem",
+                "content": "Escolha o canal e eu já fico pronto para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem",
                 "type": "text"
               },
               {
@@ -265,30 +379,23 @@
             "type": "section"
           },
           {
-            "content": "📺 **Canal**",
-            "type": "text"
-          },
-          {
-            "content": "> <#101>",
+            "content": "📺 **Canal**\n> <#101>",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher canal",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens**",
-            "type": "text"
-          },
-          {
-            "content": "> **Título:** Um novo membro chegou! 🎉\n> **Rodapé:** Divirta-se!\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```",
+            "content": "💬 **Mensagens**\n> **Título:** Um novo membro chegou! 🎉\n> **Rodapé:** Divirta-se!\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```",
             "type": "text"
           },
           {
@@ -303,11 +410,7 @@
             "type": "actionrow"
           },
           {
-            "content": "🎨 **Design do banner**",
-            "type": "text"
-          },
-          {
-            "content": "> Imagem do Servidor",
+            "content": "🎨 **Design do banner**\n> Somente banner personalizado",
             "type": "text"
           },
           {
@@ -318,7 +421,40 @@
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher design",
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Imagem do Servidor de fundo",
+                    "value": "server_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Imagem personalizada de fundo",
+                    "value": "custom_blur"
+                  },
+                  {
+                    "default": true,
+                    "label": "Somente banner personalizado",
+                    "value": "custom_only"
+                  }
+                ],
+                "placeholder": "Escolher design",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🖼️ **Imagem personalizada**",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Enviar imagem",
                 "style": "secondary",
                 "type": "button"
               }
@@ -336,14 +472,14 @@
         "children": [
           {
             "disabled": false,
-            "label": "Avançar",
-            "style": "success",
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
             "disabled": false,
-            "label": "Pré-visualizar",
-            "style": "secondary",
+            "label": "Avançar",
+            "style": "success",
             "type": "button"
           },
           {
@@ -367,105 +503,30 @@
     "kind": "click",
     "message": "M2",
     "seq": 11,
-    "target": "customize:2"
+    "target": "customize:3"
   },
   {
     "actor": "bot",
-    "components": [
-      {
-        "children": [
-          {
-            "content": "⬇️ Selecione um dos designs abaixo:",
-            "type": "text"
-          },
-          {
-            "content": "**Imagem do Servidor**\nÍcone do servidor de fundo com efeito blur e seu avatar centralizado",
-            "type": "text"
-          },
-          {
-            "count": 1,
-            "type": "media"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Selecionar",
-                "style": "primary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
-            "content": "**Personalizada com Blur**\nSua imagem personalizada de fundo com efeito blur e avatar centralizado",
-            "type": "text"
-          },
-          {
-            "count": 1,
-            "type": "media"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Selecionar",
-                "style": "primary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
-            "content": "**Apenas Imagem Personalizada**\nSua imagem/gif personalizada como banner, avatar como thumbnail. Veja o exemplo abaixo :)",
-            "type": "text"
-          },
-          {
-            "count": 1,
-            "type": "media"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Selecionar",
-                "style": "primary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
-            "content": "⬆️ Role para cima para ver todas as opções",
-            "type": "text"
-          }
-        ],
-        "type": "container"
-      },
-      {
-        "children": [
-          {
-            "disabled": false,
-            "label": "Voltar",
-            "style": "secondary",
-            "type": "button"
-          }
-        ],
-        "type": "actionrow"
-      }
-    ],
-    "components_v2": true,
-    "ephemeral": true,
-    "kind": "edit",
-    "message": "M2",
+    "kind": "modal",
+    "message": null,
+    "modal": {
+      "fields": [
+        {
+          "type": "fileupload"
+        }
+      ],
+      "title": "🖼️ 📷 Enviar Imagem Personalizada"
+    },
     "seq": 12
   },
   {
     "actor": "user",
-    "kind": "click",
-    "message": "M2",
-    "seq": 13,
-    "target": "design:custom_only"
+    "fields": {
+      "file": "custom-banner.png"
+    },
+    "kind": "modal_submit",
+    "message": null,
+    "seq": 13
   },
   {
     "actor": "bot",
@@ -479,7 +540,7 @@
                 "type": "text"
               },
               {
-                "content": "Escolha o canal e eu já fico pronta para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem",
+                "content": "Escolha o canal e eu já fico pronto para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem",
                 "type": "text"
               },
               {
@@ -490,36 +551,29 @@
             "type": "section"
           },
           {
-            "content": "📺 **Canal**",
-            "type": "text"
-          },
-          {
-            "content": "> <#101>",
+            "content": "📺 **Canal**\n> <#101>",
             "type": "text"
           },
           {
             "children": [
               {
-                "disabled": false,
-                "label": "Escolher canal",
-                "style": "secondary",
-                "type": "button"
+                "disabled": true,
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens**",
-            "type": "text"
-          },
-          {
-            "content": "> **Título:** Um novo membro chegou! 🎉\n> **Rodapé:** Divirta-se!\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```",
+            "content": "💬 **Mensagens**\n> **Título:** Um novo membro chegou! 🎉\n> **Rodapé:** Divirta-se!\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```",
             "type": "text"
           },
           {
             "children": [
               {
-                "disabled": false,
+                "disabled": true,
                 "label": "Editar mensagens",
                 "style": "secondary",
                 "type": "button"
@@ -528,11 +582,7 @@
             "type": "actionrow"
           },
           {
-            "content": "🎨 **Design do banner**",
-            "type": "text"
-          },
-          {
-            "content": "> Apenas Imagem Personalizada",
+            "content": "🎨 **Design do banner**\n> Somente banner personalizado",
             "type": "text"
           },
           {
@@ -542,10 +592,28 @@
           {
             "children": [
               {
-                "disabled": false,
-                "label": "Escolher design",
-                "style": "secondary",
-                "type": "button"
+                "disabled": true,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Imagem do Servidor de fundo",
+                    "value": "server_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Imagem personalizada de fundo",
+                    "value": "custom_blur"
+                  },
+                  {
+                    "default": true,
+                    "label": "Somente banner personalizado",
+                    "value": "custom_only"
+                  }
+                ],
+                "placeholder": "Escolher design",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -557,7 +625,7 @@
           {
             "children": [
               {
-                "disabled": false,
+                "disabled": true,
                 "label": "Enviar imagem",
                 "style": "secondary",
                 "type": "button"
@@ -575,19 +643,19 @@
       {
         "children": [
           {
-            "disabled": false,
-            "label": "Avançar",
-            "style": "success",
-            "type": "button"
-          },
-          {
-            "disabled": false,
+            "disabled": true,
             "label": "Pré-visualizar",
             "style": "secondary",
             "type": "button"
           },
           {
-            "disabled": false,
+            "disabled": true,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": true,
             "label": "Cancelar",
             "style": "danger",
             "type": "button"
@@ -603,44 +671,6 @@
     "seq": 14
   },
   {
-    "actor": "user",
-    "kind": "click",
-    "message": "M2",
-    "seq": 15,
-    "target": "customize:3"
-  },
-  {
-    "actor": "bot",
-    "kind": "modal",
-    "message": null,
-    "modal": {
-      "fields": [
-        {
-          "type": "fileupload"
-        }
-      ],
-      "title": "🖼️ 📷 Enviar Imagem Personalizada"
-    },
-    "seq": 16
-  },
-  {
-    "actor": "user",
-    "fields": {
-      "file": "custom-banner.png"
-    },
-    "kind": "modal_submit",
-    "message": null,
-    "seq": 17
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 18,
-    "thinking": false
-  },
-  {
     "actor": "bot",
     "components": [
       {
@@ -652,7 +682,7 @@
                 "type": "text"
               },
               {
-                "content": "Escolha o canal e eu já fico pronta para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem",
+                "content": "Escolha o canal e eu já fico pronto para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem",
                 "type": "text"
               },
               {
@@ -663,30 +693,23 @@
             "type": "section"
           },
           {
-            "content": "📺 **Canal**",
-            "type": "text"
-          },
-          {
-            "content": "> <#101>",
+            "content": "📺 **Canal**\n> <#101>",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher canal",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens**",
-            "type": "text"
-          },
-          {
-            "content": "> **Título:** Um novo membro chegou! 🎉\n> **Rodapé:** Divirta-se!\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```",
+            "content": "💬 **Mensagens**\n> **Título:** Um novo membro chegou! 🎉\n> **Rodapé:** Divirta-se!\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```",
             "type": "text"
           },
           {
@@ -701,11 +724,7 @@
             "type": "actionrow"
           },
           {
-            "content": "🎨 **Design do banner**",
-            "type": "text"
-          },
-          {
-            "content": "> Apenas Imagem Personalizada",
+            "content": "🎨 **Design do banner**\n> Somente banner personalizado",
             "type": "text"
           },
           {
@@ -716,9 +735,27 @@
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher design",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Imagem do Servidor de fundo",
+                    "value": "server_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Imagem personalizada de fundo",
+                    "value": "custom_blur"
+                  },
+                  {
+                    "default": true,
+                    "label": "Somente banner personalizado",
+                    "value": "custom_only"
+                  }
+                ],
+                "placeholder": "Escolher design",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -753,14 +790,14 @@
         "children": [
           {
             "disabled": false,
-            "label": "Avançar",
-            "style": "success",
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
             "disabled": false,
-            "label": "Pré-visualizar",
-            "style": "secondary",
+            "label": "Avançar",
+            "style": "success",
             "type": "button"
           },
           {
@@ -777,13 +814,13 @@
     "ephemeral": true,
     "kind": "followup_edit",
     "message": "M2",
-    "seq": 19
+    "seq": 15
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 20,
+    "seq": 16,
     "target": "customize:1"
   },
   {
@@ -830,7 +867,7 @@
       ],
       "title": "💬 Mensagens de Boas-Vindas"
     },
-    "seq": 21
+    "seq": 17
   },
   {
     "actor": "user",
@@ -840,7 +877,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 22
+    "seq": 18
   },
   {
     "actor": "bot",
@@ -854,7 +891,7 @@
                 "type": "text"
               },
               {
-                "content": "Escolha o canal e eu já fico pronta para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem",
+                "content": "Escolha o canal e eu já fico pronto para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem",
                 "type": "text"
               },
               {
@@ -865,30 +902,23 @@
             "type": "section"
           },
           {
-            "content": "📺 **Canal**",
-            "type": "text"
-          },
-          {
-            "content": "> <#101>",
+            "content": "📺 **Canal**\n> <#101>",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher canal",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens**",
-            "type": "text"
-          },
-          {
-            "content": "> **Título:** Bem-vindo, {user}!\n> **Rodapé:** Leia as regras :)\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```",
+            "content": "💬 **Mensagens**\n> **Título:** Bem-vindo, {user}!\n> **Rodapé:** Leia as regras :)\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```",
             "type": "text"
           },
           {
@@ -903,11 +933,7 @@
             "type": "actionrow"
           },
           {
-            "content": "🎨 **Design do banner**",
-            "type": "text"
-          },
-          {
-            "content": "> Apenas Imagem Personalizada",
+            "content": "🎨 **Design do banner**\n> Somente banner personalizado",
             "type": "text"
           },
           {
@@ -918,9 +944,27 @@
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher design",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Imagem do Servidor de fundo",
+                    "value": "server_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Imagem personalizada de fundo",
+                    "value": "custom_blur"
+                  },
+                  {
+                    "default": true,
+                    "label": "Somente banner personalizado",
+                    "value": "custom_only"
+                  }
+                ],
+                "placeholder": "Escolher design",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -955,14 +999,14 @@
         "children": [
           {
             "disabled": false,
-            "label": "Avançar",
-            "style": "success",
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
             "disabled": false,
-            "label": "Pré-visualizar",
-            "style": "secondary",
+            "label": "Avançar",
+            "style": "success",
             "type": "button"
           },
           {
@@ -979,13 +1023,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 23
+    "seq": 19
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 24,
+    "seq": 20,
     "target": "done"
   },
   {
@@ -996,11 +1040,11 @@
           {
             "children": [
               {
-                "content": "## :white_check_mark: Tudo certo?",
+                "content": "## 🎉 Mensagens de Boas-Vindas",
                 "type": "text"
               },
               {
-                "content": "É assim que vou dar boas-vindas aos novos membros. Use **Pré-visualizar** para ver a mensagem antes de salvar!",
+                "content": "Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/moderações mensagens boas-vindas` com as configurações abaixo? ✅",
                 "type": "text"
               },
               {
@@ -1009,10 +1053,6 @@
               }
             ],
             "type": "section"
-          },
-          {
-            "content": "### Mensagens de Boas-Vindas",
-            "type": "text"
           },
           {
             "children": [
@@ -1047,7 +1087,7 @@
           {
             "children": [
               {
-                "content": "🎨 **Design do banner:** Apenas Imagem Personalizada",
+                "content": "🎨 **Design do banner:** Somente banner personalizado",
                 "type": "text"
               },
               {
@@ -1109,13 +1149,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 25
+    "seq": 21
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 26,
+    "seq": 22,
     "target": "continue"
   },
   {
@@ -1123,7 +1163,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 27,
+    "seq": 23,
     "thinking": false
   },
   {
@@ -1142,12 +1182,143 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 28
+    "seq": 24
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M2",
-    "seq": 29
+    "seq": 25
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎉 Mensagens de Boas-Vindas",
+                "type": "text"
+              },
+              {
+                "content": "Dou boas-vindas a quem entra no servidor com a mensagem abaixo.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "📺 **Canal:** <#101>",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "💬 **Mensagens:**\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```\n💬 **Título:** Bem-vindo, {user}!\n💬 **Rodapé:** Leia as regras :)",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "🎨 **Design do banner:** Somente banner personalizado",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "🖼️ **Imagem personalizada:** https://cdn.discordapp.com/attachments/999/1/custom-banner.png",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Pausar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Desativar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Histórico",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Ajuda",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M4",
+    "seq": 26
   }
 ]

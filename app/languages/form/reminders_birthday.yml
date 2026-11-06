@@ -5,8 +5,8 @@ steps:
       en-us: "🎂 Birthday Reminders"
       pt-br: "🎂 Lembretes de Aniversário"
     description:
-      en-us: Configure how I'll celebrate birthdays in this server. You can add the first member now or leave the list for later.
-      pt-br: Configure como vou comemorar aniversários neste servidor. Você pode cadastrar o primeiro membro agora ou deixar a lista para depois.
+      en-us: "Set up how I'll celebrate birthdays in this server!\n\nAfter saving, you add the birthdays with the **➕ Add** button of `/{context:command}`, or each member adds their own with `/birthday`."
+      pt-br: "Configure como eu vou comemorar os aniversários deste servidor!\n\nDepois de salvar, você cadastra os aniversários com o botão **➕ Adicionar** do `/{context:command}`, ou cada membro cadastra o seu com `/aniversário`."
     manager_description:
       en-us: "I celebrate the members' birthdays with the settings below."
       pt-br: "Comemoro o aniversário dos membros com as configurações abaixo."
@@ -16,6 +16,17 @@ steps:
 
   - action: configuration_card
     key: birthday_config
+    panel_group:
+      key: settings
+      own_screen: true
+      entry: footer
+      emoji: "⚙️"
+      label:
+        en-us: Configure
+        pt-br: Configurar
+      title:
+        en-us: Reminder Settings
+        pt-br: Configuração do Lembrete
     required:
       - channel
       - timezone
@@ -243,42 +254,24 @@ steps:
           en-us: Customize message
           pt-br: Personalizar mensagem
 
-  - action: options
-    key: register_now
-    hidden: true
-    emoji: "🎂"
-    required: true
-    unique: true
-    styled_values: true
-    auto_confirm: true
-    style: boolean
-    title:
-      en-us: Add the first birthday?
-      pt-br: Adicionar o primeiro aniversário?
-    description:
-      en-us: Start the list now or leave it for later. Members can also save their own date with `/birthday`.
-      pt-br: Comece a lista agora ou deixe para depois. Os membros também podem cadastrar a própria data com `/aniversário`.
-    footer:
-      en-us: "• Use the `/report` command to tell me a bug"
-      pt-br: "• Use o comando `/reportar` para me contar um bug"
-    options:
-      - label:
-          en-us: "Yes"
-          pt-br: "Sim"
-        value: true
-        style: success
-      - label:
-          en-us: "Later"
-          pt-br: "Depois"
-        value: false
-
   - action: composition
     key: reminders_birthday
     parent_key: reminders_birthday
     max: 25
     unique_by: user
+    unique_locked: true
+    search: true
+    found_title:
+      en-us: "🎉 Birthday settings for $item"
+      pt-br: "🎉 Configurações de aniversário de $item"
+    in_setup: false
     emoji: "🎉"
     style: composition
+    panel_group:
+      key: summary
+      title:
+        en-us: Reminders Summary
+        pt-br: Resumo dos Lembretes
     title:
       en-us: Birthday List
       pt-br: Lista de Aniversários
@@ -288,40 +281,24 @@ steps:
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
-    condition:
-      key: register_now
-      not_in:
-        - false
-        - "false"
-        - "False"
     steps:
-      - action: user_select
-        key: user
-        emoji: "👤"
-        style: user
-        required: true
-        unique: true
-        title:
-          en-us: Member
-          pt-br: Membro
-        description:
-          en-us: Pick the first member to add to the server birthday list
-          pt-br: Escolha o primeiro membro para adicionar à lista de aniversários do servidor
-        footer:
-          en-us: "• Use the `/report` command to tell me a bug"
-          pt-br: "• Use o comando `/reportar` para me contar um bug"
-
       - action: configuration_card
         key: birthday_member_config
         preview: true
         response_transform: mm_dd_date_parts
         required:
+          - user
           - month
           - day
         defaults:
           use_custom_message: default
           use_custom_image: default
         fields:
+          - key: user
+            style: user
+            label:
+              en-us: Member
+              pt-br: Membro
           - key: month
             hidden: true
             label:
@@ -334,9 +311,10 @@ steps:
               pt-br: Dia do aniversário
           - key: date
             style: mm_dd
+            icon: "📅"
             label:
               en-us: Birthday
-              pt-br: Dia do Aniversário
+              pt-br: Dia do aniversário
           - key: use_custom_message
             style: boolean-mode
             label:
@@ -368,20 +346,12 @@ steps:
             pt-br: "Lembrete do Membro"
           title-emoji: "🎂"
           thumbnail: BIRTHDAY_GIF
-          lines:
-            - emoji: "👤"
-              label:
-                en-us: Member
-                pt-br: Membro
-              value-from: response
-              value-key: user
-              value-format: user
         title:
           en-us: Member reminder settings
           pt-br: Configuração do lembrete do membro
         description:
-          en-us: Configure the birthday date, message and image for this member.
-          pt-br: Configure a data, mensagem e imagem de aniversário deste membro.
+          en-us: Pick the member, then set up the date, the message and the image of their birthday.
+          pt-br: Escolha o membro e configure a data, a mensagem e a imagem do aniversário.
         footer:
           en-us: "• Use the `/report` command to tell me a bug"
           pt-br: "• Use o comando `/reportar` para me contar um bug"
@@ -398,6 +368,19 @@ steps:
             key: date
             format: mm_dd
         sections:
+          - key: member
+            icon: "👤"
+            type: user-select
+            style: user
+            picture: true
+            state:
+              value: user
+            label:
+              en-us: Member
+              pt-br: Membro
+            picker-title:
+              en-us: Choose the member
+              pt-br: Escolha o membro
           - key: month
             icon: "📅"
             type: value-select
@@ -503,11 +486,14 @@ steps:
     key: confirm
     preview: true
     title:
-      en-us: ":white_check_mark: Alright?"
-      pt-br: ":white_check_mark: Tudo certo?"
+      en-us: "🎂 Birthday Reminders"
+      pt-br: "🎂 Lembretes de Aniversário"
     description:
-      en-us: Review the server birthday notification setup. Use **Add** or **Remove** to manage the list.
-      pt-br: Revise a configuração de notificações de aniversário do servidor. Use **Adicionar** ou **Remover** para gerenciar a lista.
+      en-us: "Here's a summary of your choices so far. All set for me to turn on the `/{context:command}` command with the settings below? ✅"
+      pt-br: "Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/{context:command}` com as configurações abaixo? ✅"
+    info:
+      en-us: "Once you confirm below, you can create the members' birthday reminders on the next screen. Or, if you prefer, each member can add their own birthday with `/birthday`!"
+      pt-br: "Ao confirmar no botão abaixo, você poderá criar os lembretes de aniversário dos membros do servidor na tela seguinte. Se preferir, cada membro também pode cadastrar o próprio aniversário com `/aniversário`!"
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"

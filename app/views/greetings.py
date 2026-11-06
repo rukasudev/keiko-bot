@@ -8,12 +8,13 @@ from app.constants import LogTypes as logconstants
 from app.constants import supported_locales
 from app.integrations.google_translate import GoogleTranslate
 from app.services import analytics
-from app.services.utils import ml, parse_locale
+from app.services.utils import guild_locale, ml, parse_locale
 
 class SetupButton(discord.ui.Button):
-    def __init__(self, command_key: str, label: str, emoji: str, locale: str, custom_id: str):
+    """One feature's button of the greetings sent before beta.2, still answered."""
+
+    def __init__(self, command_key: str, label: str, emoji: str, custom_id: str):
         self.command_key = command_key
-        self.locale = locale
         super().__init__(
             label=label,
             emoji=emoji,
@@ -23,7 +24,8 @@ class SetupButton(discord.ui.Button):
 
     async def callback(self, interaction: discord.Interaction):
         if not interaction.user.guild_permissions.administrator:
-            embed = response_embed("buttons.setup.admin-only", self.locale)
+            locale = parse_locale(interaction.locale)
+            embed = response_embed("buttons.setup.admin-only", locale)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         from app.components.buttons import run_feature_command
@@ -39,6 +41,7 @@ class DashboardButton(discord.ui.Button):
             emoji="🔧",
             style=discord.ButtonStyle.primary,
             custom_id="greetings:setup:dashboard",
+            row=1,
         )
 
     async def callback(self, interaction: discord.Interaction):
@@ -47,11 +50,22 @@ class DashboardButton(discord.ui.Button):
         await open_setup_dashboard(interaction, "greeting_button")
 
 
-def _resolve_locale(guild: discord.Guild) -> str:
-    locale = parse_locale(guild.preferred_locale)
-    if locale not in supported_locales:
-        return "en-us"
-    return locale
+class CommandsButton(discord.ui.Button):
+    """Opens the command list, like the Commands button of /setup."""
+
+    def __init__(self, label: str):
+        super().__init__(
+            label=label,
+            emoji="📚",
+            style=discord.ButtonStyle.secondary,
+            custom_id="greetings:commands",
+            row=1,
+        )
+
+    async def callback(self, interaction: discord.Interaction):
+        from app.services.help import send_help
+
+        await send_help(interaction, "greeting_button", ephemeral=True)
 
 
 def _build_setup_buttons(locale: str):
@@ -64,7 +78,6 @@ def _build_setup_buttons(locale: str):
                 command_key=feature["command_key"],
                 label=label,
                 emoji=feature["emoji"],
-                locale=locale,
                 custom_id=custom_id,
             )
         )
@@ -82,27 +95,35 @@ def _build_language_select(locale: str, callback):
         options,
         custom_callback=callback,
         custom_id="greetings:language_select",
-        row=4,
+        row=0,
     )
 
 
-class GreetingsView(discord.ui.View):
+class _PersistentGreeting(discord.ui.View):
+    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
+        logger.error(
+            f"GreetingsView error: {type(error).__name__}: {error}",
+            interaction=interaction,
+            log_type=logconstants.COMMAND_ERROR_TYPE,
+            exc_info=True,
+        )
+
+
+class GreetingsView(_PersistentGreeting):
     def __init__(self, locale: str = "en-us"):
         super().__init__(timeout=None)
         self.locale = locale
         self._build(locale)
 
     def _build(self, locale: str):
-        for button in _build_setup_buttons(locale):
-            self.add_item(button)
+        self.add_item(_build_language_select(locale, self.language_callback))
 
         dashboard_label = ml("buttons.setup.dashboard.label", locale)
         self.add_item(DashboardButton(label=dashboard_label, locale=locale))
-
-        self.add_item(_build_language_select(locale, self.language_callback))
+        self.add_item(CommandsButton(ml("buttons.setup.commands.label", locale)))
 
     async def send(self, guild: discord.Guild):
-        locale = _resolve_locale(guild)
+        locale = guild_locale(guild)
         self.locale = locale
 
         self.clear_items()
@@ -132,7 +153,7 @@ class GreetingsView(discord.ui.View):
         )
 
     async def language_callback(self, interaction: discord.Interaction):
-        selected = self.selected_options[0]
+        selected = parse_locale(self.selected_options[0])
         self.locale = selected
 
         new_embed = response_embed(
@@ -146,10 +167,16 @@ class GreetingsView(discord.ui.View):
 
         await interaction.response.edit_message(embed=new_embed, view=self)
 
-    async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
-        logger.error(
-            f"GreetingsView error: {type(error).__name__}: {error}",
-            interaction=interaction,
-            log_type=logconstants.COMMAND_ERROR_TYPE,
-            exc_info=True,
-        )
+
+class LegacyGreetingButtons(_PersistentGreeting):
+    """The feature buttons of the greetings sent before beta.2: registered, never sent."""
+
+    def __init__(self):
+        super().__init__(timeout=None)
+        for button in _build_setup_buttons("en-us"):
+            self.add_item(button)
+
+
+def greeting_views() -> list:
+    """Every persistent view a greeting message may still carry a button of."""
+    return [GreetingsView(), LegacyGreetingButtons()]

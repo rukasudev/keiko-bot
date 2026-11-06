@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Annotated, Any, Literal, Protocol, Union
@@ -60,6 +60,7 @@ ValueStyle = Literal[
     "role",
     "user",
     "bullet",
+    "code-block",
     "numbered",
     "code",
     "boolean",
@@ -161,6 +162,8 @@ class PanelGroupRef(Node):
     description_when: tuple[DescriptionVariant, ...] = ()
     emoji: str | None = None
     own_screen: bool = False
+    entry: Literal["inline", "footer"] = "inline"
+    label: Text | None = None
     order: int = 0
 
 
@@ -170,6 +173,7 @@ class Option(Node):
     label: Text
     value: Scalar
     style: ButtonStyle | None = None
+    description: Text | None = None
 
 
 class Design(Node):
@@ -220,7 +224,6 @@ class Header(Node):
     title: Text
     title_emoji: str = ""
     thumbnail: str = ""
-    thumbnail_key: str = ""
     lines: tuple[HeaderLine, ...] = ()
 
 
@@ -229,6 +232,7 @@ class CardField(Node):
 
     key: str
     label: Text
+    icon: str | None = None
     description: Text | None = None
     style: ValueStyle | None = None
     hidden: bool = False
@@ -292,15 +296,25 @@ class SectionDefault(Node):
     content: Text
 
 
+class Fills(Node):
+    """Copy a typed value writes into another key of its card."""
+
+    into: str
+    tokens: dict[str, str]
+
+
 class SectionBase(Node):
     """What every card section declares."""
 
     key: str
     icon: str
     label: Text
-    state: SectionState
+    state: SectionState = Field(default_factory=SectionState)
     customize_label: Text | None = None
+    description: Text | None = None
+    media_key: str = ""
     visible_when: When | None = None
+    setup_only: bool = False
     style: ValueStyle | None = None
     picker_title: Text | None = None
     picker_description: Text | None = None
@@ -308,6 +322,14 @@ class SectionBase(Node):
     def choices(self) -> tuple[Option, ...]:
         """The values the admin picks among, none for a section without a list."""
         return ()
+
+    def holds_several(self) -> bool:
+        """True when the section keeps several of its choices at once."""
+        return False
+
+    def adds_to(self) -> str:
+        """The list the section adds an item to, none for most sections."""
+        return ""
 
     def opened_modal(self) -> ModalSpec | None:
         """The modal the section opens, None for one that opens none."""
@@ -329,6 +351,30 @@ class SectionBase(Node):
     def looked_up(self) -> Mapping[str, str]:
         """The values of the section's lookup it keeps as answers."""
         return {}
+
+    def filled(self) -> Fills | None:
+        """The copy the section writes into another key, None for most sections."""
+        return None
+
+    def picks(self) -> tuple[Select, ...]:
+        """The native selects the section's picker holds, none for most sections."""
+        return ()
+
+    def controls_drawn(self) -> int:
+        """How many components the section's controls take on its card."""
+        return 1 + (2 if self.state.mode else 1)
+
+    def pictured(self) -> bool:
+        """True when the section can draw a picture under its value."""
+        return bool(self.media_key or self.state.url or self.offered_designs())
+
+    def picks_members(self) -> bool:
+        """True when the section's value is a member picked on a member select."""
+        return False
+
+    def holds(self) -> tuple[str, ...]:
+        """The keys of the card's sections it draws on its own screen, none mostly."""
+        return ()
 
 
 class TitleContentSection(SectionBase):
@@ -359,6 +405,29 @@ class ChannelSelectSection(SectionBase):
 
     type: Literal["channel-select"]
 
+    def controls_drawn(self) -> int:
+        """The channel select and its row."""
+        return 2
+
+
+class UserSelectSection(SectionBase):
+    """One member chosen on a native member select, the member's picture under it."""
+
+    type: Literal["user-select"]
+    picture: bool = False
+
+    def controls_drawn(self) -> int:
+        """The member select and its row."""
+        return 2
+
+    def pictured(self) -> bool:
+        """True when the section draws the chosen member's picture."""
+        return self.picture or bool(self.media_key)
+
+    def picks_members(self) -> bool:
+        """The value is a member."""
+        return True
+
 
 class ValueSelectSection(SectionBase):
     """One value chosen on a select of declared options."""
@@ -375,6 +444,10 @@ class ValueSelectSection(SectionBase):
         """The validators that decide which dependent keys a change clears."""
         return tuple(rule.validation for rule in self.reset_on_change)
 
+    def controls_drawn(self) -> int:
+        """The options select and its row."""
+        return 2
+
 
 class ButtonOptionsSection(SectionBase):
     """One value chosen on a row of buttons."""
@@ -386,11 +459,19 @@ class ButtonOptionsSection(SectionBase):
         """The declared options."""
         return self.options
 
+    def controls_drawn(self) -> int:
+        """The options select and its row."""
+        return 2
+
 
 class BooleanToggleSection(SectionBase):
-    """A yes or no flipped by its button."""
+    """A yes or no chosen on two buttons."""
 
     type: Literal["boolean-toggle"]
+
+    def controls_drawn(self) -> int:
+        """The yes and no buttons and their row."""
+        return 3
 
 
 class ModalInputSection(SectionBase):
@@ -399,6 +480,7 @@ class ModalInputSection(SectionBase):
     type: Literal["modal-input"]
     modal: ModalSpec
     lookup_answers: dict[str, str] = Field(default_factory=dict)
+    fills: Fills | None = None
 
     def opened_modal(self) -> ModalSpec:
         """The modal its fields are typed in."""
@@ -407,6 +489,10 @@ class ModalInputSection(SectionBase):
     def looked_up(self) -> Mapping[str, str]:
         """The lookup values kept as answers, by answer key."""
         return self.lookup_answers
+
+    def filled(self) -> Fills | None:
+        """The copy the typed value writes into another key of the card."""
+        return self.fills
 
 
 class MultiSelectSection(SectionBase):
@@ -419,6 +505,55 @@ class MultiSelectSection(SectionBase):
         """The declared options."""
         return self.options
 
+    def holds_several(self) -> bool:
+        """A multi-select keeps several options."""
+        return True
+
+    def controls_drawn(self) -> int:
+        """The options select and its row."""
+        return 2
+
+
+class SelectsSection(SectionBase):
+    """Channels or roles picked on native selects, every select on one screen."""
+
+    type: Literal["selects"]
+    selects: tuple[Select, ...] = Field(min_length=1)
+
+    def picks(self) -> tuple[Select, ...]:
+        """The declared selects, each writing its own key."""
+        return self.selects
+
+    def controls_drawn(self) -> int:
+        """Each select and its row."""
+        return 2 * len(self.selects)
+
+
+class ListSection(SectionBase):
+    """A list of the form drawn on the card: its items, Add and Remove."""
+
+    type: Literal["list"]
+    list: str
+
+    def adds_to(self) -> str:
+        """The composition the section's Add opens an item of."""
+        return self.list
+
+    def controls_drawn(self) -> int:
+        """Add and Remove and their row."""
+        return 3
+
+
+class GroupSection(SectionBase):
+    """Other sections of the card, drawn on a screen of their own behind a button."""
+
+    type: Literal["group"]
+    sections: tuple[str, ...] = Field(min_length=1)
+
+    def holds(self) -> tuple[str, ...]:
+        """The keys of the sections its screen draws."""
+        return self.sections
+
 
 class DesignSection(SectionBase):
     """One design chosen on a gallery of previews."""
@@ -430,8 +565,13 @@ class DesignSection(SectionBase):
     def choices(self) -> tuple[Option, ...]:
         """The designs as options, labelled by their names."""
         return tuple(
-            Option(label=design.label, value=design.key) for design in self.designs
+            Option(label=design.label, value=design.key, description=design.description)
+            for design in self.designs
         )
+
+    def controls_drawn(self) -> int:
+        """The designs select and its row."""
+        return 2
 
     def offered_designs(self) -> tuple[Design, ...]:
         """The declared designs."""
@@ -447,11 +587,15 @@ Section = Annotated[
         TitleContentSection,
         FileUploadSection,
         ChannelSelectSection,
+        UserSelectSection,
         ValueSelectSection,
         ButtonOptionsSection,
         BooleanToggleSection,
         ModalInputSection,
         MultiSelectSection,
+        SelectsSection,
+        ListSection,
+        GroupSection,
         DesignSection,
     ],
     Field(discriminator="type"),
@@ -468,8 +612,10 @@ class StepBase(Node):
     emoji: str | None = None
     hidden: bool = False
     required: bool = False
+    in_setup: bool = True
     when: When | None = None
     description_when: tuple[DescriptionVariant, ...] = ()
+    title_when: tuple[DescriptionVariant, ...] = ()
     style: ValueStyle | None = None
     edit_label: Text | None = None
     panel_group: PanelGroupRef | None = None
@@ -498,6 +644,7 @@ class TextStep(StepBase):
     transform: str | None = None
     fields: tuple[TextField, ...] = ()
     lookup_answers: dict[str, str] = Field(default_factory=dict)
+    media_key: str = ""
     modal_title: Text | None = None
 
 
@@ -549,14 +696,22 @@ class MultiPickStep(StepBase):
 
 
 def owned_keys(section: Section) -> tuple[str, ...]:
-    """The state keys a section writes, with the keyed fields of its modal."""
+    """The state keys a section writes, its modal's keyed fields and its selects."""
     keys = list(section.state.keys())
+    keys += [select.key for select in section.picks() if select.key not in keys]
     modal = section.opened_modal()
     if modal is not None:
         keys += [
             field.key for field in modal.fields if field.key and field.key not in keys
         ]
     return tuple(keys)
+
+
+class PreviewNeeds(Node):
+    """The keys a card's preview is drawn from, and the error while one is empty."""
+
+    keys: tuple[str, ...]
+    error: str
 
 
 class CardStep(StepBase):
@@ -566,7 +721,9 @@ class CardStep(StepBase):
     editable: bool = False
     edit_by_field: bool = False
     preview: bool = False
+    preview_needs: PreviewNeeds | None = None
     required_keys: tuple[str, ...] = ()
+    required_any: tuple[str, ...] = ()
     defaults: dict[str, Scalar | Text] = Field(default_factory=dict)
     header: Header | None = None
     fields: tuple[CardField, ...] = ()
@@ -585,10 +742,12 @@ class CardStep(StepBase):
 
 
 class ItemsSpec(Node):
-    """How many items a composition holds and what makes one unique."""
+    """How many items a composition holds, what tells them apart, what each may do."""
 
     max: int
     unique_by: str | None = None
+    remove_each: bool = False
+    unique_locked: bool = False
 
 
 class ReviewStep(StepBase):
@@ -596,8 +755,8 @@ class ReviewStep(StepBase):
 
     kind: Literal["review"]
     preview: bool = False
-    thumbnail_key: str = ""
     lines: tuple[HeaderLine, ...] = ()
+    info: Text | None = None
 
 
 class CompositionStep(StepBase):
@@ -605,8 +764,12 @@ class CompositionStep(StepBase):
 
     kind: Literal["composition"]
     edit_by_item: bool = False
+    search: bool = False
     parent_key: str
     items: ItemsSpec
+    title_count: Text | None = None
+    only_item_warning: Text | None = None
+    found_title: Text | None = None
     steps: tuple[Step, ...]
 
 
@@ -638,6 +801,17 @@ STEP_KINDS: tuple[str, ...] = (
     "composition",
     "review",
 )
+
+
+def listed_on_cards(steps: Sequence[Step]) -> frozenset[str]:
+    """The lists a card among `steps` draws and adds to, which a setup never walks."""
+    return frozenset(
+        section.adds_to()
+        for step in steps
+        if isinstance(step, CardStep)
+        for section in step.sections
+        if section.adds_to()
+    )
 
 
 class FormDefinition(Node):
@@ -822,19 +996,23 @@ def _translate_common(
 
     if rule is not None:
         out["when"] = rule
-    variants = out.pop("description-when", None)
-    if variants:
-        out["description_when"] = [
-            {
-                "when": _rule(form, variant, "condition", warnings),
-                "text": {
-                    key: value
-                    for key, value in variant.items()
-                    if key in ("en-us", "pt-br")
-                },
-            }
-            for variant in variants
-        ]
+    for spelled, field in (
+        ("description-when", "description_when"),
+        ("title-when", "title_when"),
+    ):
+        variants = out.pop(spelled, None)
+        if variants:
+            out[field] = [
+                {
+                    "when": _rule(form, variant, "condition", warnings),
+                    "text": {
+                        key: value
+                        for key, value in variant.items()
+                        if key in ("en-us", "pt-br")
+                    },
+                }
+                for variant in variants
+            ]
     if "response_transform" in out:
         out["transform"] = out.pop("response_transform")
     return out
@@ -860,7 +1038,7 @@ def _translate_step(
     if action == "resume" and "lines" in out:
         out["lines"] = _translate_lines(out.get("lines"))
     if action == "configuration_card":
-        _translate_card(form, out, warnings)
+        _translate_card(form, out)
     if action == "composition":
         _translate_composition(form, out, warnings)
     return out
@@ -874,7 +1052,7 @@ def _translate_pick(form: str, raw: Mapping[str, Any], out: dict[str, Any]) -> N
     out.pop("select", None)
 
 
-def _translate_card(form: str, out: dict[str, Any], warnings: list[str]) -> None:
+def _translate_card(form: str, out: dict[str, Any]) -> None:
     if "required" in out:
         out["required_keys"] = list(out.pop("required") or [])
     if "template-vars" in out:
@@ -886,8 +1064,7 @@ def _translate_card(form: str, out: dict[str, Any], warnings: list[str]) -> None
     if isinstance(header, Mapping):
         out["header"] = _translate_header(header)
     out["sections"] = [
-        _translate_section(form, section, warnings)
-        for section in out.get("sections", [])
+        _translate_section(section) for section in out.get("sections", [])
     ]
 
 
@@ -922,17 +1099,8 @@ def _translate_header(header: Mapping[str, Any]) -> dict[str, Any]:
     return out
 
 
-def _translate_section(
-    form: str, section: Mapping[str, Any], warnings: list[str]
-) -> dict[str, Any]:
-    out = {
-        key.replace("-", "_"): value
-        for key, value in section.items()
-        if key != "visible-when"
-    }
-    rule = _rule(form, section, "visible-when", warnings)
-    if rule is not None:
-        out["visible_when"] = rule
+def _translate_section(section: Mapping[str, Any]) -> dict[str, Any]:
+    out = {key.replace("-", "_"): value for key, value in section.items()}
     modal = out.get("modal")
     if isinstance(modal, Mapping):
         out["modal"] = {key.replace("-", "_"): value for key, value in modal.items()}
@@ -942,7 +1110,12 @@ def _translate_section(
 def _translate_composition(form: str, out: dict[str, Any], warnings: list[str]) -> None:
     if "max" not in out:
         raise CompileError(form, out.get("key"), "max", "a composition declares max")
-    out["items"] = {"max": out.pop("max"), "unique_by": out.pop("unique_by", None)}
+    out["items"] = {
+        "max": out.pop("max"),
+        "unique_by": out.pop("unique_by", None),
+        "remove_each": out.pop("remove_each", False),
+        "unique_locked": out.pop("unique_locked", False),
+    }
     out["steps"] = [
         _translate_step(form, step, warnings) for step in out.get("steps", [])
     ]
@@ -953,6 +1126,7 @@ def _raw_produced_keys(step: Mapping[str, Any]) -> list[str]:
     keys += [str(select.get("key")) for select in step.get("selects", []) or []]
     for section in step.get("sections", []) or []:
         keys += [str(value) for value in (section.get("state") or {}).values() if value]
+        keys += [str(select.get("key")) for select in section.get("selects", []) or []]
         modal = section.get("modal") or {}
         keys += [
             str(field.get("key"))
@@ -1019,7 +1193,7 @@ def _qualify_scopes(
             for ref in groups
             if isinstance(ref, Mapping)
             for variant in ref.get("title_when", []) or []
-        ]
+        ] + [variant.get("when") for variant in step.get("title_when", []) or []]
 
         for rule in rules:
             for leaf in _raw_leaves(rule):
@@ -1147,8 +1321,9 @@ def _check_scope(
             for leaf in _leaves(variant.when):
                 _check_leaf(definition.key, step.key, leaf, scopes)
         saved = list(outer) + [(tuple(produced) + produced_keys(step), steps)]
-        for ref in _panel_group_refs(step):
-            for variant in ref.title_when:
+        titles = [ref.title_when for ref in _panel_group_refs(step)]
+        for variants in [step.title_when, *titles]:
+            for variant in variants:
                 for leaf in _leaves(variant.when):
                     _check_leaf(definition.key, step.key, leaf, saved)
         if isinstance(step, CardStep):
@@ -1189,7 +1364,20 @@ def _check_modal(
         )
 
 
+def _check_lists(definition: FormDefinition, card: CardStep) -> None:
+    lists = {step.key for step in definition.steps if isinstance(step, CompositionStep)}
+    for section in card.sections:
+        if section.adds_to() and section.adds_to() not in lists:
+            raise CompileError(
+                definition.key,
+                card.key,
+                "list",
+                f"{section.adds_to()!r} is no list of the form",
+            )
+
+
 def _check_card(definition: FormDefinition, card: CardStep) -> None:
+    _check_lists(definition, card)
     state_keys = set(card.state_keys())
     for section in card.sections:
         modal = section.opened_modal()
@@ -1201,9 +1389,62 @@ def _check_card(definition: FormDefinition, card: CardStep) -> None:
                 raise CompileError(
                     definition.key, card.key, "visible-when", f"{leaf.key!r} unknown"
                 )
-    for key in card.required_keys:
-        if key not in state_keys and key not in {field.key for field in card.fields}:
-            raise CompileError(definition.key, card.key, "required", f"{key!r} unknown")
+    _check_groups(definition, card)
+    known = state_keys | {field.key for field in card.fields}
+    needs = card.preview_needs
+    if needs is not None and not card.preview:
+        raise CompileError(
+            definition.key, card.key, "preview_needs", "the card draws no preview"
+        )
+    for name, keys in (
+        ("required", card.required_keys),
+        ("required_any", card.required_any),
+        ("preview_needs", needs.keys if needs is not None else ()),
+    ):
+        for key in keys:
+            if key not in known:
+                raise CompileError(definition.key, card.key, name, f"{key!r} unknown")
+    _check_section_keys(definition, card, state_keys)
+
+
+def _check_groups(definition: FormDefinition, card: CardStep) -> None:
+    sections = {section.key: section for section in card.sections}
+    for group in card.sections:
+        for key in group.holds():
+            held = sections.get(key)
+            if held is None:
+                raise CompileError(
+                    definition.key, card.key, "sections", f"{key!r} is no section"
+                )
+            if held.holds():
+                raise CompileError(
+                    definition.key,
+                    card.key,
+                    "sections",
+                    f"{key!r} is a group, and a group holds no group",
+                )
+
+
+def _check_section_keys(
+    definition: FormDefinition, card: CardStep, state_keys: set[str]
+) -> None:
+    looked_up = {key for section in card.sections for key in section.looked_up()}
+    for section in card.sections:
+        if section.media_key and section.media_key not in state_keys | looked_up:
+            raise CompileError(
+                definition.key,
+                card.key,
+                "media_key",
+                f"{section.media_key!r} is no state key or lookup answer of the card",
+            )
+        fills = section.filled()
+        if fills is not None and fills.into not in state_keys:
+            raise CompileError(
+                definition.key,
+                card.key,
+                "fills",
+                f"{fills.into!r} is no state key of the card",
+            )
 
 
 def _walk(steps: Sequence[Step]) -> list[Step]:
@@ -1242,11 +1483,66 @@ def _check_lookup_answers(definition: FormDefinition) -> None:
                     "lookup_answers",
                     "lookup_answers names service.field",
                 )
+        if step.media_key and step.media_key not in step.lookup_answers:
+            raise CompileError(
+                definition.key,
+                step.key,
+                "media_key",
+                f"{step.media_key!r} is no lookup answer of the step",
+            )
+
+
+def _check_item_keys(definition: FormDefinition) -> None:
+    for step in _walk(definition.steps):
+        if not isinstance(step, CompositionStep):
+            continue
+        produced = {key for inner in step.steps for key in produced_keys(inner)}
+        unique = step.items.unique_by or ""
+        if unique and unique not in produced:
+            raise CompileError(
+                definition.key, step.key, "unique_by", f"{unique!r} is no item key"
+            )
+        if step.search and not picks_a_member(step.steps, unique):
+            raise CompileError(
+                definition.key,
+                step.key,
+                "search",
+                "search finds an item by its member: unique_by is picked on a "
+                "member select",
+            )
+        if step.items.remove_each and not step.edit_by_item:
+            raise CompileError(
+                definition.key,
+                step.key,
+                "remove_each",
+                "a button beside each item needs edit_by_item",
+            )
+        if step.items.remove_each and step.required and not step.only_item_warning:
+            raise CompileError(
+                definition.key,
+                step.key,
+                "only_item_warning",
+                "removing the only item of a required list turns it off: say so",
+            )
+
+
+def _check_entries(definition: FormDefinition) -> None:
+    for step in definition.steps:
+        for ref in _panel_group_refs(step):
+            if ref.entry == "footer" and not (ref.own_screen and ref.label):
+                raise CompileError(
+                    definition.key,
+                    step.key,
+                    "panel_group.entry",
+                    "a footer entry opens a screen of its own and names its button",
+                )
 
 
 def _check_registries(definition: FormDefinition) -> None:
     _check_edit_by_field(definition)
     _check_lookup_answers(definition)
+    _check_item_keys(definition)
+    _check_entries(definition)
     for step in _walk(definition.steps):
         names = list(_card_validations(step))
         if isinstance(step, TextStep) and step.validation:
@@ -1300,6 +1596,65 @@ def _card_validations(step: Step) -> list[str]:
     return names
 
 
+def _section_components(section: Section) -> int:
+    return 2 + section.controls_drawn() + int(section.pictured())
+
+
+def _held_components(card: CardStep, group: Section) -> int:
+    return sum(
+        _section_components(section)
+        for section in card.sections
+        if section.key in group.holds()
+    )
+
+
+def card_components(card: CardStep, back: bool = True) -> int:
+    """How many components the card can take on Discord, each group at its most."""
+    header = 4 + (len(card.header.lines) if card.header else 0)
+    frame = 1 + header + 1 + 1
+    held = {key for group in card.sections for key in group.holds()}
+    sections = 0
+
+    for section in card.sections:
+        if section.key in held:
+            continue
+        drawn = _section_components(section)
+        if section.holds():
+            drawn = max(drawn, _held_components(card, section))
+        sections += drawn
+    buttons = 2 + int(back) + int(card.preview)
+    rows = -(-buttons // DiscordLimits.BUTTONS_PER_ROW)
+    return frame + sections + rows + buttons
+
+
+def group_components(card: CardStep, group: Section) -> int:
+    """How many components a group's own screen can take: its sections and Back."""
+    frame = 1 + 2 + 1 + 1
+    return frame + _held_components(card, group) + 2
+
+
+def cards_with_back(steps: Sequence[Step]) -> Iterator[tuple[CardStep, bool]]:
+    """Every card of `steps` and of their lists, and whether Back may show on it."""
+    for index, step in enumerate(steps):
+        if isinstance(step, CardStep):
+            yield step, any(before.kind != "intro" for before in steps[:index])
+        if isinstance(step, CompositionStep):
+            yield from cards_with_back(step.steps)
+
+
+def picks_a_member(steps: Sequence[Step], key: str) -> bool:
+    """True when the step that produces `key` picks it on a member select."""
+    for step in steps:
+        if isinstance(step, UserPickStep) and step.key == key:
+            return True
+        if isinstance(step, CardStep) and any(
+            section.picks_members() and key in owned_keys(section)
+            for section in step.sections
+        ):
+            return True
+    return False
+
+
 def _check_limits(definition: FormDefinition) -> None:
     for step in _walk(definition.steps):
         limit = ViewConstants.EDIT_BY_ITEM_MAX
@@ -1312,16 +1667,21 @@ def _check_limits(definition: FormDefinition) -> None:
                     f"{step.items.max} items, at most {limit} items "
                     "can each carry an Edit",
                 )
-        if not isinstance(step, CardStep):
-            continue
-        estimate = 1 + 3 + len(step.sections) * 5 + 1 + 2
-        if estimate > CV2_MAX_COMPONENTS:
-            raise CompileError(
-                definition.key,
-                step.key,
-                "sections",
-                f"about {estimate} components, Discord allows {CV2_MAX_COMPONENTS}",
-            )
+    for step, back in cards_with_back(definition.steps):
+        screens = [("sections", card_components(step, back))]
+        screens += [
+            (f"{group.key}.sections", group_components(step, group))
+            for group in step.sections
+            if group.holds()
+        ]
+        for field, estimate in screens:
+            if estimate > CV2_MAX_COMPONENTS:
+                raise CompileError(
+                    definition.key,
+                    step.key,
+                    field,
+                    f"about {estimate} components, Discord allows {CV2_MAX_COMPONENTS}",
+                )
 
 
 class DefinitionRegistry:

@@ -49,8 +49,7 @@ async def _card(scenario_factory, deps, locale):
 
 
 async def _channel(scenario, name="general"):
-    await scenario.click("customize:0")
-    await scenario.select_option(name)
+    await scenario.select_option(name, target="channel")
 
 
 async def _submit_streamer(scenario, name):
@@ -89,8 +88,6 @@ async def setup_back(scenario_factory, deps, locale):
     scenario = await _card(scenario_factory, deps, locale)
     await _channel(scenario)
     await _submit_streamer(scenario, "gaules")
-    await scenario.click("customize:0")
-    await scenario.go_back()
     await _channel(scenario, "announcements")
     await _submit_streamer(scenario, "cellbit")
     return scenario
@@ -147,8 +144,8 @@ async def manager_add_item(scenario_factory, deps, locale):
 @golden_path(FORM, "manager_remove_item")
 async def manager_remove_item(scenario_factory, deps, locale):
     scenario = await open_manager(scenario_factory, deps, locale, FORM, _seed)
-    await scenario.click("remove")
-    await scenario.select_option("notifications$0")
+    await scenario.click("remove_this:notifications$0")
+    await scenario.click("remove_items")
     return scenario
 
 

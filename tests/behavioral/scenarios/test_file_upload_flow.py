@@ -10,9 +10,10 @@ from types import SimpleNamespace
 
 import pytest
 
+from tests.behavioral.golden.paths.reminders_birthday import _type_day
 from tests.behavioral.scenarios.test_reminders_birthday_flow import (
-    YES_LABEL,
-    _complete_global_card,
+    _setup,
+    _to_member_card_from_the_panel,
 )
 
 pytestmark = pytest.mark.behavioral
@@ -37,19 +38,13 @@ def dump_channel(deps):
 async def test_custom_image_upload_persists_permanent_url(
     scenario_factory, dump_channel
 ):
-    scenario = await scenario_factory(locale="pt-br").start("reminders_birthday")
-    await scenario.confirm()
-    await _complete_global_card(scenario)
-    await scenario.click(YES_LABEL["pt-br"])
-    await scenario.select_option("Tester")
-    await scenario.confirm()
+    setup = await _setup(scenario_factory, "pt-br")
+    scenario = await _to_member_card_from_the_panel(scenario_factory, setup, "pt-br")
 
-    await scenario.click("customize:0")  # month
-    await scenario.select_option("05")
-    await scenario.click("customize:1")  # day
-    await scenario.submit_modal({"Dia": "12"})
+    await scenario.select_option("05", target="month")
+    await _type_day(scenario, "12")
 
-    await scenario.click("customize:3")  # image -> FileUploadModal
+    await scenario.click("customize:4")  # image -> FileUploadModal
     await scenario.submit_file_upload(filename="dog.png", content=b"\x89PNG-fake")
 
     assert dump_channel.sent, "attachment must be re-uploaded to the dump channel"
@@ -58,8 +53,6 @@ async def test_custom_image_upload_persists_permanent_url(
     )
 
     await scenario.click("done")
-    scenario.expect_step("confirm")
-    await scenario.confirm()
 
     item = scenario.get_persisted(
         "reminders",
@@ -79,10 +72,8 @@ async def test_a_welcome_custom_image_is_required_only_for_custom_designs(
 
     scenario = await scenario_factory(locale="pt-br").start("welcome_messages")
     await scenario.confirm()
-    await scenario.click("customize:0")
-    await scenario.select_option("welcome")
-    await scenario.click("customize:2")
-    await scenario.click("design:custom_only")
+    await scenario.select_option("welcome", target="welcome_messages_channel")
+    await scenario.select_option("custom_only", target="welcome_design")
 
     await scenario.click("done")
     scenario.expect_error(ml("buttons.summary-card.required", "pt-br").split(":")[0])

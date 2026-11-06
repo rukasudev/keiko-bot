@@ -50,6 +50,8 @@ _CODEC_TARGETS = {
     "help": ("aside:help",),
     "preview": ("aside:preview",),
     "history": ("aside:history",),
+    "remove_items": ("remove_items",),
+    "search": ("search",),
 }
 
 _SELECT_TYPES = (

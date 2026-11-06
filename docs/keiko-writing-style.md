@@ -77,7 +77,7 @@ Drawn by `app/settings/discord/views.py` from the step or section definition.
 Each step has: `action`, `key`, optional `emoji`, `title.{en-us,pt-br}`, `description.{en-us,pt-br}`, `footer.{en-us,pt-br}`. Step actions seen: `form`, `channels`, `modal`, `multi_select`, `options`, `button`, `design_select`, `file_upload`, `composition`, `resume`.
 
 - Every form **starts** with an `action: form` intro step (title + emoji + 1-sentence description).
-- Every form **ends** with `action: resume` confirmation: title `":white_check_mark: Alright?"` / `"Tudo certo?"`.
+- Every form **ends** with `action: resume`, the summary: titled like the intro (the feature's emoji and name), its description naming the command it turns on with `{context:command}`, closed by its green **Confirm** / **Confirmar** button.
 - Footer on every step is the **same line**: `"• Use the command /report to tell me a bug"` / `"• Utilize o comando /reportar para me contar um bug"`.
 
 ## 1.4 Messaging patterns
@@ -139,7 +139,7 @@ Each step has: `action`, `key`, optional `emoji`, `title.{en-us,pt-br}`, `descri
 
 ✅ `"🎉 Welcome Messages"`
 ✅ `"📚 Available commands"`
-✅ `":white_check_mark: Alright?"`
+✅ `"📡 Twitch Lives"`
 ❌ `"Welcome Messages 🎉"` — emoji must lead.
 ❌ `"📚 ✨ Available commands"` — only one emoji.
 ❌ `"Available commands"` — needs an emoji.
@@ -246,10 +246,10 @@ Use existing `command-events.{enabled,paused,unpaused,disabled,edited,added,remo
 
 - action: resume
   key: confirm
-  title:
-    en-us: ":white_check_mark: Alright?"
-    pt-br: ":white_check_mark: Tudo certo?"
-  description: {same as the form intro description}
+  title: {same as the form intro title}
+  description:
+    en-us: "Here's a summary of your choices so far. All set for me to turn on the `/{context:command}` command with the settings below? ✅"
+    pt-br: "Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/{context:command}` com as configurações abaixo? ✅"
   footer: {same standard footer}
 ```
 
@@ -313,7 +313,7 @@ Use existing `command-events.{enabled,paused,unpaused,disabled,edited,added,remo
 31. SET `placeholder` to a realistic example value (`"shroud"`, `"pewdiepie"`, `"No links here! :p"`).
 
 **Forms**
-32. ALWAYS open with `action: form` and close with `action: resume` (`":white_check_mark: Alright?"`).
+32. ALWAYS open with `action: form` and close with `action: resume`, titled like the intro.
 33. EVERY step has the standard report footer (`"• Use the command /report to tell me a bug"` / pt-br equivalent).
 34. EVERY step has both `en-us` and `pt-br` keys for `title`, `description`, and `footer`.
 
@@ -359,7 +359,7 @@ EMBEDS: default color 0x4F97F9 (Style.BACKGROUND_COLOR), error 0xff0000. Use `de
 
 BUTTONS: green=Confirm, red=Cancel, primary=Back/selected, gray=everything else. Reuse generic keys from buttons.{lang}.yml.
 
-FORMS: open with `action: form`, close with `action: resume` (":white_check_mark: Alright?"). Standard step footer: "• Use the command /report to tell me a bug".
+FORMS: open with `action: form`, close with `action: resume` (titled like the intro, closed by its green Confirm button). Standard step footer: "• Use the command /report to tell me a bug".
 ```
 
 ---

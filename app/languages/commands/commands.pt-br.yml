@@ -75,15 +75,17 @@ pt-br:
         twitch:
           title: "O título da live aparece aqui"
           game: "A categoria da live"
+          description: "Descrição da live aqui"
         youtube:
           title: "O título do vídeo aparece aqui"
+          description: "Descrição do vídeo aqui"
       stream-elements-manager:
         commands:
           button:
             label: Comandos
             desc: Ver a lista de comandos que eu respondo
           embed:
-            title: "💡 Comandos do StreamElements"
+            title: "🎮 Comandos do StreamElements"
             desc: "Comandos de `$streamer` que eu respondo aqui no Discord"
           empty: "Não encontrei nenhum comando ativo no StreamElements de `$streamer`! 🐶"
           reply-footer: "Digite $command para ver todos os comandos de $streamer que eu respondo aqui!"
@@ -104,6 +106,15 @@ pt-br:
             top: Mês com mais aniversários
             quietest: Mês com menos aniversários
             most-common: Data com mais aniversários
+        pages:
+          title: Aniversários
+          order: Listando abaixo todos os aniversários cadastrados, em ordem de data.
+          empty: "Ainda não tenho nenhum aniversário anotado. Use o botão **Adicionar** aqui ao lado para incluir o primeiro!"
+        found:
+          messages:
+            member: "Mensagens de parabéns:"
+            server: "Mensagens de parabéns (padrão do servidor):"
+            keiko: "Mensagens de parabéns (padrão do Keiko):"
         settings:
           channel: Canal de aniversário
           mention-everyone: "Mencionar @everyone"
@@ -191,9 +202,9 @@ pt-br:
       fields:
         feature:
           title: "1️⃣ A função está ativa?"
-          not-configured: "❌ Ainda não fui configurada aqui, então não bloqueio link nenhum. Use `/moderações bloquear links` para começar!"
-          paused: "⏸️ Estou pausada por aqui, então deixo todos os links passarem. Me reative com `/moderações bloquear links`!"
-          active: "✅ Estou ativa, no modo **$mode**."
+          not-configured: "❌ Ainda não fui configurado aqui, então não bloqueio link nenhum. Use `/moderações bloquear links` para começar!"
+          paused: "⏸️ Estou pausado por aqui, então deixo todos os links passarem. Me reative com `/moderações bloquear links`!"
+          active: "✅ Estou ativo, no modo **$mode**."
         exemptions:
           title: "2️⃣ O autor ou o canal estão liberados?"
           role-exempt: "🔓 O cargo $roles é liberado, então eu nunca bloqueio links desse membro."
@@ -274,7 +285,6 @@ pt-br:
       embed:
         title: "🐶 Configuração do Servidor"
         desc: "Escolha o que você quer ajustar e eu te guio passo a passo!"
-        note: "Aqui ficam minhas funcionalidades de moderação, notificações e integrações. Tem mais comandos e ajuda no `/ajuda`!"
         configured: "Configuradas · $count"
         pending: "Para configurar · $count"
         paused: Pausado
@@ -361,12 +371,18 @@ pt-br:
       title: 🗑️ Item removido de **$command_name** com sucesso!
       action: Remover
       description: Um item foi removido de **$command_name** as $date por $user
-      placeholder: Selecione o item que deseja remover
+      placeholder: Selecione os itens que deseja remover
       member-picker:
-        title: 👤 Selecione um membro para remover
-        description: Me diga qual membro você quer tirar desta lista.
+        title: 👤 Selecione os membros para remover
+        description: Me diga quais membros você quer tirar desta lista. Pode escolher mais de um!
         not-found: Hmm, eu ainda não tenho nada salvo para esse membro. Escolha alguém que já esteja na lista.
       short-description: 🗑️ Item removido por $user
+
+    searched:
+      member-picker:
+        title: 🔎 Pesquisar um membro
+        description: Me diga qual membro desta lista você quer ver.
+        not-found: Hmm, eu ainda não tenho nada salvo para esse membro. Escolha alguém que já esteja na lista.
 
     system:
       description: Essa é uma ação automática que eu faço ao sair do servidor
@@ -386,5 +402,5 @@ pt-br:
 
   resume:
     settings: Configurações
-    empty: "Nada ainda"
+    empty: "Em branco"
     more: "e mais $count"

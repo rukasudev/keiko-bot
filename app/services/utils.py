@@ -452,8 +452,11 @@ def parse_log_filename_with_date(
     return filename, date
 
 
-def split_welcome_messages(welcome_messages: str) -> List[str]:
-    return welcome_messages.split(";")
+def split_messages(stored: Any) -> List[str]:
+    """The messages a saved value holds, as a list or `;`-joined, blanks left out."""
+    entries = stored if isinstance(stored, (list, tuple)) else str(stored or "").split(";")
+    return [str(entry).lstrip() for entry in entries if str(entry).strip()]
+
 
 def render_welcome_message(welcome_message: str, member: discord.Member) -> str:
     """A welcome template filled for a member, the mention added when `{user}` is missing."""
@@ -467,10 +470,11 @@ def render_welcome_message(welcome_message: str, member: discord.Member) -> str:
         required="user",
     )
 
-def parse_welcome_messages(welcome_messages: str, member: discord.Member) -> str:
-    splited_messages = split_welcome_messages(welcome_messages)
+def parse_welcome_messages(welcome_messages: Any, member: discord.Member) -> str:
+    """One of the saved welcome messages, picked at random and filled for `member`."""
+    messages = split_messages(welcome_messages) or [""]
 
-    return render_welcome_message(random.choice(splited_messages), member)
+    return render_welcome_message(random.choice(messages), member)
 
 
 def values_of(

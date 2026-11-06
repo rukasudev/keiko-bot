@@ -101,10 +101,16 @@ class Finalize(Effect):
 
 
 @dataclass(frozen=True)
+class OpenPanel(Effect):
+    """Send the manager panel of what the setup just saved, below its activation."""
+
+
+@dataclass(frozen=True)
 class RunAside(Effect):
-    """Run a read-only side action: help, history, preview, a feature extra."""
+    """Run a read-only side action, over one item of a list when `target` names it."""
 
     name: str
+    target: str = ""
 
 
 @dataclass(frozen=True)

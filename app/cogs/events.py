@@ -26,7 +26,7 @@ from app.services.utils import (
 )
 from app.services.welcome_messages import send_welcome_message
 from app.types.cogs import Cog
-from app.views.greetings import GreetingsView
+from app.views.greetings import GreetingsView, greeting_views
 
 
 class Events(Cog, name="events"):
@@ -69,7 +69,8 @@ class Events(Cog, name="events"):
             )
             self.bot.synced = True
 
-        self.bot.add_view(GreetingsView())
+        for view in greeting_views():
+            self.bot.add_view(view)
 
         self.bot.ready_time = datetime.now()
 

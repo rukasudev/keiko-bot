@@ -56,6 +56,10 @@ pt-br:
     title: Youtuber Não Encontrado
     message: "Desculpe, mas não consegui encontrar o youtuber que você está procurando. Por favor, verifique o nome e tente novamente."
 
+  stream-elements-unavailable:
+    title: StreamElements Indisponível
+    message: "Desculpe, mas não consegui falar com o StreamElements agora para buscar os comandos. Por favor, tente de novo mais tarde."
+
   selection-required:
     title: Seleção Obrigatória
     message: "Ops! Selecione uma opção antes de confirmar :)"
@@ -63,6 +67,14 @@ pt-br:
   fill-one-field:
     title: Campo Obrigatório
     message: "Ops! Preencha um dos campos antes de confirmar :)"
+
+  preview-needs-streamer:
+    title: Streamer Obrigatório
+    message: "Ops! Você precisa escolher o streamer antes de eu mostrar a pré-visualização. Escolha um no card e tente de novo! 🐶"
+
+  preview-needs-youtuber:
+    title: YouTuber Obrigatório
+    message: "Ops! Você precisa escolher o youtuber antes de eu mostrar a pré-visualização. Escolha um no card e tente de novo! 🐶"
 
   discard-settings-confirmation:
     title: Cancelar Configuração?

@@ -75,15 +75,17 @@ en-us:
         twitch:
           title: "The stream title shows up here"
           game: "The stream category"
+          description: "Stream description here"
         youtube:
           title: "The video title shows up here"
+          description: "Video description here"
       stream-elements-manager:
         commands:
           button:
             label: Commands
             desc: See the list of commands I answer
           embed:
-            title: "💡 StreamElements Commands"
+            title: "🎮 StreamElements Commands"
             desc: "Commands from `$streamer` I answer here on Discord"
           empty: "I found no active commands in `$streamer`'s StreamElements! 🐶"
           reply-footer: "Type $command to see every command from $streamer I answer here!"
@@ -104,6 +106,15 @@ en-us:
             top: Top month
             quietest: Quietest month
             most-common: Most common date
+        pages:
+          title: Birthdays
+          order: Listing below all the saved birthdays, in date order.
+          empty: "I don't have any birthday written down yet. Use the **Add** button right next to this to include the first one!"
+        found:
+          messages:
+            member: "Birthday messages:"
+            server: "Birthday messages (server default):"
+            keiko: "Birthday messages (Keiko's default):"
         settings:
           channel: Birthday Channel
           mention-everyone: "Mention @everyone"
@@ -184,7 +195,7 @@ en-us:
 
     block-links-check:
       name: Check Link Blocking
-      desc: Keiko explains why she blocked or allowed the links of a message
+      desc: Keiko explains why he blocked or allowed the links of a message
       embed:
         title-blocked: "🚫 I would block this message"
         title-allowed: "✅ I would let this message through"
@@ -274,7 +285,6 @@ en-us:
       embed:
         title: "🐶 Server Setup"
         desc: "Pick what you want to set up and I'll guide you step by step!"
-        note: "These are my moderation, notification and integration features. More commands and help live in `/help`!"
         configured: "Configured · $count"
         pending: "Not set up yet · $count"
         paused: Paused
@@ -367,13 +377,19 @@ en-us:
       title: 🗑️ Item removed from **$command_name** successfully!
       action: Remove
       description: An item was removed from **$command_name** on $date by $user
-      placeholder: Select the item you want to remove
+      placeholder: Select the items you want to remove
       member-picker:
-        title: 👤 Select a member to remove
-        description: Tell me which member you want to remove from this list.
+        title: 👤 Select the members to remove
+        description: Tell me which members you want to remove from this list. You can pick more than one!
         not-found: Hmm, I don't have anything saved for that member yet. Pick someone already on the list.
       short-description: 🗑️ Item removed by $user
       short-description-with-cog: 🗑️ **$cog_name** removed by $user
+
+    searched:
+      member-picker:
+        title: 🔎 Search for a member
+        description: Tell me which member of this list you want to see.
+        not-found: Hmm, I don't have anything saved for that member yet. Pick someone already on the list.
 
     system:
       description: That's an automatic action I take when leaving the server
@@ -393,5 +409,5 @@ en-us:
 
   resume:
     settings: Settings
-    empty: "None"
+    empty: "Empty"
     more: "and $count more"

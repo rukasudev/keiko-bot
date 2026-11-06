@@ -87,7 +87,6 @@ BIRTHDAY_SETUP = {
     "notification_time": Answer("08:00"),
     "mention_everyone": Answer(False),
     "default_message_mode": Answer("default"),
-    "register_now": Answer(False),
 }
 
 

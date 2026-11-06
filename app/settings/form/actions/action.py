@@ -17,12 +17,13 @@ from app.settings.form.components import (
     Gallery,
     Screen,
 )
-from app.settings.form.conditions import Scope, evaluate
+from app.settings.form.conditions import Scope, chosen_text, count_of
 from app.settings.form.copy import text
 from app.settings.form.form_state import EditItem, FormSession
 from app.settings.form.form_yaml import Design, FormDefinition, Step
 from app.settings.form.responses.links import link_host
-from app.settings.form.responses.summary import ResponseView, responses
+from app.settings.form.responses.styles import STYLES, format_value
+from app.settings.form.responses.summary import ResponseView, responses, step_title
 
 NO_FORM = FormDefinition(key="", steps=())
 
@@ -43,13 +44,18 @@ class Context:
     external: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     server_name: str = ""
     prefix: str = ""
+    command: str = ""
+    values: Mapping[str, str] = field(default_factory=dict)
     previews: Mapping[str, str] = field(default_factory=dict)
+    member_pictures: Mapping[str, str] = field(default_factory=dict)
     can_go_back: bool = False
+    done_saves: bool = False
     item_index: int | None = None
 
 
 TOKEN = re.compile(r"\{response:([A-Za-z0-9_]+)(?::([a-z_]+))?(?:\|([^}]*))?\}")
 CONTEXT_TOKEN = re.compile(r"\{context:([a-z_]+)\}")
+PLURAL_TOKEN = re.compile(r"\{plural:([A-Za-z0-9_]+)\|([^|}]*)\|([^}]*)\}")
 TOKEN_FORMATTERS = {"host": link_host}
 
 THUMBNAILS: dict[str, str] = {
@@ -108,43 +114,60 @@ def views(session: FormSession, context: Context) -> tuple[ResponseView, ...]:
     return responses(context.steps, session.answers, context.locale)
 
 
-def apply_tokens(body: str, session: FormSession, context: Context) -> str:
-    """`{response:...}` tokens from earlier answers, `{context:...}` from here."""
+def apply_tokens(
+    body: str,
+    session: FormSession,
+    context: Context,
+    state: Mapping[str, Any] | None = None,
+) -> str:
+    """The `{response:...}`, `{plural:...}` and `{context:...}` tokens filled in."""
     by_key = {view.key: view for view in views(session, context)}
-    around = {"server_name": context.server_name, "prefix": context.prefix}
+    drafted = state or {}
+    around = {
+        **context.values,
+        "server_name": context.server_name,
+        "prefix": context.prefix,
+        "command": context.command,
+    }
 
     def replace(match: re.Match[str]) -> str:
         key, formatter, fallback = match.group(1), match.group(2), match.group(3) or ""
         view = by_key.get(key)
         value: Any = view.value if view else session.raw(key)
 
+        if key in drafted:
+            value = drafted[key]
+        if value in (None, "", [], ()):
+            return fallback
+        if formatter in STYLES:
+            return format_value(value, formatter, context.locale)
         if isinstance(value, (list, tuple)):
             value = ", ".join(str(item) for item in value)
-        if value in (None, ""):
-            return fallback
         if formatter in TOKEN_FORMATTERS:
             return TOKEN_FORMATTERS[formatter](str(value))
         return str(value)
 
+    def counted(match: re.Match[str]) -> str:
+        key, one, several = match.group(1), match.group(2), match.group(3)
+        value = drafted[key] if key in drafted else session.raw(key)
+        return several if count_of(value) > 1 else one
+
     def surroundings(match: re.Match[str]) -> str:
         return str(around.get(match.group(1), ""))
 
-    return CONTEXT_TOKEN.sub(surroundings, TOKEN.sub(replace, body))
+    resolved = TOKEN.sub(replace, PLURAL_TOKEN.sub(counted, body))
+    return CONTEXT_TOKEN.sub(surroundings, resolved)
 
 
 def description_of(step: Step, session: FormSession, context: Context) -> str:
     """The step description, its active variant chosen and tokens resolved."""
-    body = step.description.get(context.locale)
-    for variant in step.description_when:
-        if evaluate(variant.when, context.scope):
-            body = variant.text.get(context.locale)
-            break
-    return apply_tokens(body, session, context)
+    described = chosen_text(step.description, step.description_when, context.scope)
+    return apply_tokens(described.get(context.locale), session, context).rstrip()
 
 
-def title_of(step: Step, locale: str) -> str:
-    """The step title with its emoji in front."""
-    title = step.title.get(locale)
+def title_of(step: Step, locale: str, scope: Scope | None = None) -> str:
+    """The step title for the scope, with its emoji in front."""
+    title = step_title(step, locale, scope)
     return f"{step.emoji} {title}" if step.emoji else title
 
 
@@ -165,7 +188,7 @@ def step_screen(
 ) -> Screen:
     """The embed screen of a step: title, description, footer, thumbnail."""
     return Screen(
-        title=title_of(step, context.locale),
+        title=title_of(step, context.locale, context.scope),
         description=(
             description_of(step, session, context)
             if description is None

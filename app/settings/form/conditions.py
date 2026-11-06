@@ -3,13 +3,23 @@
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, TypeVar
 
-from app.settings.form.form_yaml import All, AnyOf, Leaf, When, same_value
+from app.settings.form.form_yaml import (
+    All,
+    AnyOf,
+    DescriptionVariant,
+    Leaf,
+    Text,
+    When,
+    same_value,
+)
 
 EMPTY: tuple[Any, ...] = (None, "", [], (), {})
+
+Default = TypeVar("Default", Text, Text | None)
 
 
 @dataclass(frozen=True)
@@ -32,7 +42,8 @@ class Scope:
         return self.values.get(key)
 
 
-def _count(value: Any) -> int:
+def count_of(value: Any) -> int:
+    """How many values an answer holds: none when empty, one for a single value."""
     if value in EMPTY:
         return 0
     if isinstance(value, int) and not isinstance(value, bool):
@@ -54,7 +65,7 @@ def _leaf(leaf: Leaf, value: Any) -> bool:
     if leaf.absent is not None:
         return (value in EMPTY) == leaf.absent
     if leaf.count is not None:
-        size = _count(value)
+        size = count_of(value)
         low = leaf.count.min if leaf.count.min is not None else size
         high = leaf.count.max if leaf.count.max is not None else size
 
@@ -73,6 +84,18 @@ def evaluate(rule: When | None, scope: Scope) -> bool:
     if isinstance(rule, AnyOf):
         return any(evaluate(child, scope) for child in rule.any)
     return not evaluate(rule.not_, scope)
+
+
+def chosen_text(
+    default: Default, variants: Sequence[DescriptionVariant], scope: Scope | None
+) -> Default | Text:
+    """The text of the first variant whose rule holds in `scope`, else `default`."""
+    if scope is None:
+        return default
+    for variant in variants:
+        if evaluate(variant.when, scope):
+            return variant.text
+    return default
 
 
 def _describe_leaf(leaf: Leaf) -> str:

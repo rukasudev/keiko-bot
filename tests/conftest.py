@@ -261,6 +261,19 @@ def observability_isolation():
 
 
 @pytest.fixture(autouse=True)
+def birthday_today(monkeypatch):
+    """AUTOUSE: the birthday panel counts from 2026-01-01, whatever the real date,
+    so its next birthdays and the month it opens on never move with the
+    calendar. A test that needs another day sets `FEATURE.today` itself."""
+    from datetime import date
+
+    from app.settings.features.reminders_birthday import FEATURE
+
+    monkeypatch.setattr(FEATURE, "today", lambda: date(2026, 1, 1))
+    yield
+
+
+@pytest.fixture(autouse=True)
 def config_cache_isolation():
     """AUTOUSE: o que o cache lembrou e as quedas que viu nao passam de um teste ao outro."""
     from app.services import cache

@@ -92,8 +92,9 @@ class SubscriptionFeature(GenericCogFeature):
         bot = cast(Any, app_module).bot
         try:
             snippet = bot.youtube.get_channel_info(str(found)) or {}
-            default = (snippet.get("thumbnails") or {}).get("default") or {}
-            return str(default.get("url") or "")
+            thumbnails = snippet.get("thumbnails") or {}
+            picture = thumbnails.get("medium") or thumbnails.get("default") or {}
+            return str(picture.get("url") or "")
         except Exception:
             return ""
 

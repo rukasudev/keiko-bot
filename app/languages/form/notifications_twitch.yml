@@ -2,8 +2,8 @@ steps:
   - action: form
     key: form
     title:
-      en-us: "🔔 Twitch Notifications"
-      pt-br: "🔔 Twitch Notificações"
+      en-us: "📡 Twitch Lives"
+      pt-br: "📡 Twitch Lives"
     description:
       en-us: Enabling this feature allows me to notify when your favorite streamer is online on Twitch!
       pt-br: Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!
@@ -19,11 +19,20 @@ steps:
     parent_key: notifications_twitch
     max: 3
     edit_by_item: true
+    remove_each: true
+    required: true
+    unique_by: streamer
     emoji: ":busts_in_silhouette:"
     style: composition
     title:
       en-us: Notifications
       pt-br: Notificações
+    only_item_warning:
+      en-us: "You only have **1** streamer set up.\n\n$item\n\nIf you remove it now, **$feature** will be **turned off** and you'll need to set it up again. Are you sure you want to continue?"
+      pt-br: "Você só tem **1** streamer configurado.\n\n$item\n\nSe você removê-lo agora, a função **$feature** será **desativada** e você vai precisar configurá-la de novo. Tem certeza de que quer continuar?"
+    title_count:
+      en-us: "$count of $max set up"
+      pt-br: "$count de $max configurados"
     description:
       en-us: "Do you want to add more streamers? Add more streamers to be notified when they are online on Twitch! (Max: 3)"
       pt-br: "Deseja adicionar mais streamers? Adicione mais streamers para ser notificado quando eles estiverem online na Twitch! (Max: 3)"
@@ -34,6 +43,10 @@ steps:
       - action: configuration_card
         key: notification
         preview: true
+        preview_needs:
+          keys:
+            - streamer
+          error: preview-needs-streamer
         required:
           - channel
           - streamer
@@ -45,8 +58,8 @@ steps:
           en-us: "Twitch Streamer"
           pt-br: "Streamer da Twitch"
         description:
-          en-us: "Choose the channel and the streamer, and I'll let the server know when they go live! The message already comes set, change it if you want.\n\nOne of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link"
-          pt-br: "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live"
+          en-us: "Choose the channel and the streamer, and I'll let the server know when they go live! The message already comes set, change it if you want."
+          pt-br: "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser."
         footer:
           en-us: "• Use the `/report` command to tell me a bug"
           pt-br: "• Use o comando `/reportar` para me contar um bug"
@@ -55,7 +68,7 @@ steps:
             en-us: "Twitch Streamer"
             pt-br: "Streamer da Twitch"
           title-emoji: "📡"
-          thumbnail_key: streamer_avatar
+          thumbnail: IMAGE_01
         fields:
           - key: channel
             style: channel
@@ -70,10 +83,10 @@ steps:
               en-us: Streamer
               pt-br: Streamer
             description:
-              en-us: The streamer's Twitch nick, with or without @.
-              pt-br: O nick do streamer na Twitch, com ou sem @.
+              en-us: The streamer's Twitch nick (with or without @).
+              pt-br: O nick do streamer na Twitch (com ou sem @).
           - key: notification_messages
-            style: bullet
+            style: code-block
             label:
               en-us: Notification Messages
               pt-br: Mensagens de Notificação
@@ -104,6 +117,12 @@ steps:
               pt-br: "Streamer"
             state:
               value: streamer
+            media_key: streamer_avatar
+            fills:
+              into: notification_messages
+              tokens:
+                streamer: "{value}"
+                stream_link: "https://twitch.tv/{value}"
             lookup_answers:
               streamer_avatar: twitch.profile_image
             customize-label:
@@ -119,18 +138,21 @@ steps:
                   max_length: 30
                   normalize: handle
                   label:
-                    en-us: "The streamer's Twitch nick, with or without @"
-                    pt-br: "O nick do streamer na Twitch, com ou sem @"
+                    en-us: "Streamer's Twitch nick (with or without @)"
+                    pt-br: "O nick do streamer na Twitch (com ou sem @)"
                   placeholder:
                     en-us: "e.g. @shroud"
                     pt-br: "ex: @shroud"
           - key: messages
             icon: "💬"
             type: modal-input
-            style: bullet
+            style: code-block
             label:
               en-us: "Notification Messages"
               pt-br: "Mensagens de Notificação"
+            description:
+              en-us: "One of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link"
+              pt-br: "Uma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live"
             state:
               value: notification_messages
             customize-label:
@@ -163,11 +185,11 @@ steps:
     key: confirm
     preview: true
     title:
-      en-us: ":white_check_mark: Alright?"
-      pt-br: ":white_check_mark: Tudo certo?"
+      en-us: "📡 Twitch Lives"
+      pt-br: "📡 Twitch Lives"
     description:
-      en-us: Enabling this feature allows me to notify when your favorite streamer is online on Twitch!
-      pt-br: Ativar esta função faz com que eu notifique quando seu streamer favorito estiver online na Twitch!
+      en-us: "Here's a summary of your choices so far. All set for me to turn on the `/{context:command}` command with the settings below? ✅"
+      pt-br: "Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/{context:command}` com as configurações abaixo? ✅"
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"

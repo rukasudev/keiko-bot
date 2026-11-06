@@ -14,7 +14,13 @@ from typing import Any, TypeVar
 
 from app.constants import KeikoIcons, Style
 from app.settings.form import events as ev
-from app.settings.form.actions import Refusal, configuration_card, registry, selects
+from app.settings.form.actions import (
+    Refusal,
+    configuration_card,
+    modal,
+    registry,
+    selects,
+)
 from app.settings.form.actions.action import Context, confirm_button, label
 from app.settings.form.components import (
     Button,
@@ -35,6 +41,7 @@ from app.settings.form.effects import (
     Notice,
     OpenChild,
     OpenModal,
+    OpenPanel,
     Render,
     ResumeChild,
     ResumeParent,
@@ -44,10 +51,13 @@ from app.settings.form.effects import (
 from app.settings.form.form_state import (
     AddItem,
     Answer,
+    DryRun,
     Edit,
     EditItem,
     FormSession,
     Mode,
+    Refused,
+    Setup,
     Status,
     new_session,
     raw_value,
@@ -58,12 +68,19 @@ from app.settings.form.form_yaml import (
     FormDefinition,
     MultiPickStep,
     Step,
+    listed_on_cards,
     produced_keys,
 )
-from app.settings.form.responses.responses import document_values, to_document
+from app.settings.form.responses.responses import (
+    document_values,
+    items_of,
+    to_document,
+)
 from app.settings.form.responses.summary import (
     configured_steps,
     edit_options,
+    item_name,
+    kept_items,
     part_targets,
     remove_options,
     uses_member_picker,
@@ -71,10 +88,6 @@ from app.settings.form.responses.summary import (
 
 FINAL_KIND = {
     "setup": "enabled",
-    "edit": "edited",
-    "edit_item": "edited",
-    "add_item": "added",
-    "remove_item": "removed",
     "pause": "paused",
     "unpause": "unpaused",
     "disable": "disabled",
@@ -201,6 +214,13 @@ class Engine(ABC):
     def rerender(self) -> None:
         """Draw what the session shows again, without counting a step view."""
 
+    def redraw(self) -> None:
+        """Answer a click on a screen that changed with the current screen only."""
+        drawn = len(self.effects)
+        self.rerender()
+        if len(self.effects) == drawn:
+            self.effects.append(Ack())
+
     @abstractmethod
     def listed(self) -> Mapping[str, Any]:
         """The document the edit and remove pickers list."""
@@ -218,8 +238,12 @@ class Engine(ABC):
         """Where the item of the member `user_id` sits in the list."""
 
     @abstractmethod
-    def remove_item(self, index: int) -> None:
-        """Take the item at `index` out of the list."""
+    def remove_items(self, indexes: Sequence[int]) -> None:
+        """Take the items at `indexes` out of the list."""
+
+    @abstractmethod
+    def open_found(self, index: int) -> None:
+        """Show the item a search found."""
 
     @abstractmethod
     def edit_finished(self, answers: Mapping[str, Answer]) -> None:
@@ -274,6 +298,14 @@ class Form(Engine):
             item_index=mode.index if isinstance(mode, EditItem) else None,
         )
 
+    def screen_context(self, key: str | None) -> Context:
+        """What the step at `key` reads while its screen is drawn."""
+        last = self.next_key(self.index(key)) is None
+        return replace(
+            self.step_context(self.can_go_back(key)),
+            done_saves=bool(self.context.document) and last,
+        )
+
     def step(self, key: str | None) -> Step | None:
         """The step called `key` among the steps in play."""
         if key is None:
@@ -288,6 +320,10 @@ class Form(Engine):
 
     def allowed(self, step: Step) -> bool:
         """True when the step's rule holds now, recording the evaluation."""
+        if not step.in_setup and isinstance(self.session.mode, (Setup, DryRun)):
+            return False
+        if step.key in listed_on_cards(self.definition.steps):
+            return False
         scope = self.scope()
         outcome = evaluate(step.when, scope)
         if step.when is not None:
@@ -336,7 +372,7 @@ class Form(Engine):
         if step.kind == "review":
             self.ensure_composition_answer()
         screen = registry()[step.kind].render(
-            step, self.session, self.step_context(self.can_go_back(key))
+            step, self.session, self.screen_context(key)
         )
         self.session = self.session.at(key)
 
@@ -351,8 +387,34 @@ class Form(Engine):
             step_index=self.index(key),
         )
 
-    def refuse(self, refusal: Refusal, step: Step) -> None:
-        """Answer a refused payload with its error and the matching event."""
+    def refuse(self, refusal: Refusal, step: Step, redraw: bool = False) -> None:
+        """Answer a refused payload: the screen again, then the error on its own."""
+        if refusal.missing:
+            self.emit(
+                "setup.required_missing",
+                card_key=step.key,
+                missing_count=len(refusal.missing),
+                missing_keys=list(refusal.missing),
+            )
+        else:
+            self.emit(
+                "setup.validation_failed",
+                step_key=step.key,
+                validation=refusal.error_key,
+                error_key=refusal.error_key,
+            )
+
+        if refusal.target:
+            refused = Refused(
+                refusal.target,
+                refusal.error_key,
+                refusal.args or {},
+                refusal.inputs,
+                refusal.missing,
+            )
+            self.session = self.session.with_refused(refused)
+        if refusal.target or redraw:
+            self.rerender()
         self.effects.append(
             ShowError(
                 refusal.error_key,
@@ -361,15 +423,6 @@ class Form(Engine):
                 refusal.delete_after,
             )
         )
-        if isinstance(step, CardStep):
-            self.emit("setup.required_missing", card_key=step.key)
-        else:
-            self.emit(
-                "setup.validation_failed",
-                step_key=step.key,
-                validation=refusal.error_key,
-                error_key=refusal.error_key,
-            )
 
     def complete(self) -> None:
         """The last step was answered: hand over to the parent, or commit."""
@@ -419,18 +472,22 @@ class Form(Engine):
         step = self.step(key)
         if step is None or isinstance(step, CompositionStep):
             return
-        screen = registry()[step.kind].render(
-            step, self.session, self.step_context(self.can_go_back(key))
-        )
+        context = self.screen_context(key)
+        screen = registry()[step.kind].render(step, self.session, context)
+
+        if screen.flavour == "modal" and self.session.refused_on(step.key):
+            screen = modal.refused_screen(step, self.session, context)
         if screen.flavour == "modal":
             self.effects.append(OpenModal(screen, "modal", step.key))
         else:
             self.effects.append(Render(screen))
 
     def ensure_composition_answer(self) -> None:
-        """A form with a composition always lists it, even with no item yet."""
+        """A setup that walks its list always lists it, even with no item yet."""
         composition = self.definition.composition
-        if composition is not None and composition.key not in self.session.answers:
+        if composition is None or not composition.in_setup:
+            return
+        if composition.key not in self.session.answers:
             self.session = self.session.with_answer(composition.key, Answer(()))
 
     def composition_items(self) -> tuple[Mapping[str, Answer], ...]:
@@ -505,15 +562,21 @@ class Form(Engine):
             None,
         )
 
-    def remove_item(self, index: int) -> None:
-        """Take the item out of the answers and show the same step again."""
-        remaining = list(self.composition_items())
-        if 0 <= index < len(remaining):
-            del remaining[index]
-
+    def remove_items(self, indexes: Sequence[int]) -> None:
+        """Take the items out of the answers and show the same step again."""
+        removed = set(indexes)
+        remaining = [
+            item
+            for position, item in enumerate(self.composition_items())
+            if position not in removed
+        ]
         self.set_items(remaining)
         self.session = self.session.with_status(Status.ACTIVE)
         self.show(self.session.cursor or "")
+
+    def open_found(self, _index: int) -> None:
+        """A search belongs to a saved list: a setup never offers it."""
+        self.redraw()
 
     def edit_finished(self, answers: Mapping[str, Answer]) -> None:
         """The edited answers replace the old ones, and the review shows again."""
@@ -523,7 +586,7 @@ class Form(Engine):
     def item_finished(
         self, event: ev.ChildFinished, item: Mapping[str, Answer]
     ) -> None:
-        """The item joins the list, then the form moves on or shows the review."""
+        """The item joins the list; the form moves on, or shows its card or review."""
         self.set_items(self.merge_item(item, event.index))
         cursor = self.session.cursor
         step = self.step(cursor)
@@ -531,12 +594,14 @@ class Form(Engine):
         if isinstance(step, CompositionStep) and event.child_mode == "add_item":
             self.advance(self.index(cursor))
             return
+        if isinstance(step, CardStep):
+            self.rerender()
+            return
         self.show(self.review_key() or cursor or "")
 
     def open_group(self, _key: str) -> None:
         """A heading's own screen saves as it goes: a setup never offers it."""
-        self.effects.append(Notice("stale"))
-        self.rerender()
+        self.redraw()
 
 
 def panel_embed(definition: FormDefinition, locale: str) -> Screen:
@@ -555,17 +620,18 @@ def picker_screen(
     base: Screen,
     placeholder: str,
     options: tuple[ChoiceOption, ...],
-    unique: bool,
+    most: int,
     locale: str,
+    action: str = "target",
 ) -> Screen:
-    """An embed with one select over `options` and a way back."""
+    """An embed with one select over `options`, up to `most` of them, and a way back."""
     select = OptionSelect(
         "",
         placeholder,
         options,
         1,
-        1 if unique else max(len(options), 1),
-        action="target",
+        min(max(most, 1), max(len(options), 1)),
+        action=action,
     )
     return Screen(
         title=base.title,
@@ -579,15 +645,19 @@ def picker_screen(
 
 
 def member_picker_screen(
-    definition: FormDefinition, action: str, locale: str
+    definition: FormDefinition,
+    action: str,
+    locale: str,
+    several: bool = False,
+    at_once: bool = False,
 ) -> Screen:
-    """The member select opened when a composition is keyed by member."""
+    """The member select of a list keyed by member; `at_once` answers on the pick."""
     composition = definition.composition
     assert composition is not None and composition.items.unique_by
-    step = composition.steps[
-        [step.key for step in composition.steps].index(composition.items.unique_by)
-    ]
+    unique = composition.items.unique_by
+    step = next(step for step in composition.steps if unique in produced_keys(step))
     namespace = f"commands.command-events.{action}.member-picker"
+    back = Button(label("back", locale), "picker_back")
     return Screen(
         title=text(f"{namespace}.title", locale),
         description=text(f"{namespace}.description", locale),
@@ -599,25 +669,35 @@ def member_picker_screen(
                 "",
                 "user",
                 text("buttons.components.select.user-placeholder", locale),
+                unique=not several,
                 slot="member",
+                action="member" if at_once else "draft",
+                required=at_once,
             ),
         ),
-        buttons=(
-            confirm_button(locale),
-            Button(label("back", locale), "picker_back"),
-        ),
+        buttons=(back,) if at_once else (confirm_button(locale), back),
     )
 
 
-def remove_item_screen(locale: str, target: str) -> Screen:
-    """Keep or remove one item of a list, on a message of its own."""
+def _removal_copy(names: Sequence[str], locale: str) -> tuple[str, str]:
+    namespace = "buttons.remove.confirm" if len(names) == 1 else "buttons.remove.many"
+    listed = "\n".join(f"- {name}" for name in names)
+    message = text(f"{namespace}.message", locale).replace("$items", listed)
+    return text(f"{namespace}.title", locale), message
+
+
+def removal_screen(locale: str, names: Sequence[str], warning: str = "") -> Screen:
+    """Remove the chosen items of a list, or go back; a `warning` asks to wait first."""
+    title, message = _removal_copy(names, locale)
+    if warning:
+        title, message = text("buttons.remove.last.title", locale), warning
     return Screen(
-        title=text("buttons.remove.confirm.title", locale),
-        description=text("buttons.remove.confirm.message", locale),
+        title=title,
+        description=message,
         color=Style.RED_COLOR,
         buttons=(
-            Button(text("buttons.cancel.keep", locale), "keep", "success"),
-            Button(label("remove", locale), f"remove_item:{target}", "danger"),
+            Button(label("remove", locale), "remove_items", "danger", "🗑️"),
+            Button(label("back", locale), "picker_back"),
         ),
     )
 
@@ -661,7 +741,7 @@ def on_edit_requested(engine: Engine) -> None:
         engine.open_child(Edit((target,)), engine.seed_for_edit())
         return
     if items_target and uses_member_picker(composition):
-        _open_member_picker(engine, "edit")
+        open_member_picker(engine, "edit")
         return
 
     options = edit_options(engine.definition, engine.listed(), engine.locale)
@@ -669,7 +749,7 @@ def on_edit_requested(engine: Engine) -> None:
         options = tuple(
             option for option in options if option.value.startswith(f"{target}$")
         )
-    _pick(engine, options, "edit", "edited", unique=composition is not None)
+    _pick(engine, options, "edit", "edited", 1 if composition is not None else 25)
 
 
 def _open_part_edit(engine: Engine, target: str) -> None:
@@ -686,27 +766,37 @@ def _open_part_edit(engine: Engine, target: str) -> None:
     if isinstance(step, (CardStep, MultiPickStep)) and target in declared:
         engine.open_child(Edit((step_key,), part=part), engine.seed_for_edit())
         return
-    engine.effects.append(Notice("stale"))
-    engine.rerender()
+    engine.redraw()
 
 
 def _open_item(engine: Engine, index: int) -> None:
     seed = engine.item_seed(index)
     if not seed:
-        engine.effects.append(Notice("stale"))
-        engine.rerender()
+        engine.redraw()
         return
     engine.open_child(EditItem(index), seed)
 
 
-def _open_member_picker(engine: Engine, awaiting: str) -> None:
-    action = "edited" if awaiting == "edit" else "removed"
+def _picker_event(awaiting: str) -> str:
+    return {"edit": "edited", "remove": "removed", "find": "searched"}.get(
+        awaiting, "edited"
+    )
+
+
+def open_member_picker(engine: Engine, awaiting: str) -> None:
+    """Ask for a member of the list: to edit, to remove (several) or to find."""
+    action = _picker_event(awaiting)
     engine.session = engine.session.with_status(
         Status.AWAITING, awaiting=f"member:{awaiting}"
     )
-    engine.effects.append(
-        Render(member_picker_screen(engine.definition, action, engine.locale))
+    screen = member_picker_screen(
+        engine.definition,
+        action,
+        engine.locale,
+        several=awaiting == "remove",
+        at_once=awaiting == "find",
     )
+    engine.effects.append(Render(screen))
 
 
 def _pick(
@@ -714,19 +804,38 @@ def _pick(
     options: tuple[ChoiceOption, ...],
     awaiting: str,
     action: str,
-    unique: bool,
+    most: int,
+    select: str = "target",
 ) -> None:
-    if not options:
-        engine.effects.append(Notice("stale"))
-        engine.rerender()
+    if not options or most < 1:
+        engine.redraw()
         return
 
     base = panel_embed(engine.definition, engine.locale)
     placeholder = text(f"commands.command-events.{action}.placeholder", engine.locale)
     engine.session = engine.session.with_status(Status.AWAITING, awaiting=awaiting)
     engine.effects.append(
-        Render(picker_screen(base, placeholder, options, unique, engine.locale))
+        Render(picker_screen(base, placeholder, options, most, engine.locale, select))
     )
+
+
+def _names(engine: Engine, indexes: Sequence[int]) -> list[str]:
+    composition = engine.definition.composition
+    assert composition is not None
+    items = items_of(engine.listed(), composition.key)
+    return [
+        item_name(composition, items[index], index, engine.locale, styled=True)
+        for index in indexes
+        if 0 <= index < len(items)
+    ]
+
+
+def confirm_removal(engine: Engine, indexes: Sequence[int], warning: str = "") -> None:
+    """Name the chosen items and ask before they go, or show the `warning` instead."""
+    chosen = tuple(dict.fromkeys(indexes))
+    names = _names(engine, chosen)
+    engine.session = engine.session.with_chosen(chosen)
+    engine.effects.append(Render(removal_screen(engine.locale, names, warning)))
 
 
 def on_add_requested(engine: Engine) -> None:
@@ -734,19 +843,26 @@ def on_add_requested(engine: Engine) -> None:
     engine.open_child(AddItem(), {})
 
 
-def on_remove_requested(engine: Engine) -> None:
-    """Remove: confirm the item named beside it, or ask which one goes."""
-    event = engine.event
-    assert isinstance(event, ev.RemoveRequested)
+def _removable(engine: Engine) -> int:
+    composition = engine.definition.composition
+    if composition is None:
+        return 0
+    count = len(items_of(engine.listed(), composition.key))
+    return count - kept_items(composition)
 
-    if event.target:
-        engine.session = engine.session.with_status(
-            Status.AWAITING, awaiting="remove_item"
-        )
-        engine.effects.append(Confirm(remove_item_screen(engine.locale, event.target)))
+
+def on_remove_requested(engine: Engine) -> None:
+    """Remove: ask which items of the list go."""
+    composition = engine.definition.composition
+
+    if _removable(engine) < 1:
+        engine.redraw()
+        return
+    if uses_member_picker(composition):
+        open_member_picker(engine, "remove")
         return
     options = remove_options(engine.definition, engine.listed(), engine.locale)
-    _pick(engine, options, "remove", "removed", unique=True)
+    _pick(engine, options, "remove", "removed", _removable(engine), "targets")
 
 
 def on_target_chosen(engine: Engine) -> None:
@@ -762,24 +878,52 @@ def on_target_chosen(engine: Engine) -> None:
         and value == composition.key
         and uses_member_picker(composition)
     ):
-        _open_member_picker(engine, awaiting)
+        open_member_picker(engine, awaiting)
         return
     if "$" in value:
         index = int(value.split("$", 1)[1])
         if awaiting == "remove":
-            engine.remove_item(index)
+            confirm_removal(engine, (index,))
         else:
             engine.open_child(EditItem(index), engine.item_seed(index))
         return
     engine.open_child(Edit(tuple(value.split(","))), engine.seed_for_edit())
 
 
+def on_targets_chosen(engine: Engine) -> None:
+    """The remove picker answered: name the chosen items and ask before they go."""
+    event = engine.event
+    assert isinstance(event, ev.TargetsChosen)
+    offered = {
+        option.value
+        for option in remove_options(engine.definition, engine.listed(), engine.locale)
+    }
+    chosen = tuple(dict.fromkeys(event.values))
+
+    if engine.session.awaiting != "remove" or not chosen:
+        engine.redraw()
+        return
+    if not set(chosen) <= offered or len(chosen) > _removable(engine):
+        engine.session = engine.session.with_status(Status.ACTIVE)
+        engine.effects.append(Notice("stale"))
+        engine.rerender()
+        return
+    confirm_removal(engine, [int(value.split("$", 1)[1]) for value in chosen])
+
+
+def on_removal_confirmed(engine: Engine) -> None:
+    """Remove on the confirmation: the chosen items go, all of them at once."""
+    if engine.session.awaiting != "remove_items" or not engine.session.chosen:
+        engine.redraw()
+        return
+    engine.remove_items(engine.session.chosen)
+
+
 def on_member_confirmed(engine: Engine) -> None:
     """Confirm on the member picker: act on the member drafted there."""
     awaiting = engine.session.awaiting or ""
     if not awaiting.startswith("member:"):
-        engine.effects.append(Notice("stale"))
-        engine.rerender()
+        engine.redraw()
         return
 
     drafted = engine.session.answers.get("member")
@@ -787,41 +931,66 @@ def on_member_confirmed(engine: Engine) -> None:
     if not chosen:
         engine.effects.append(ShowError("selection-required", {}, True, 5))
         return
+    if awaiting.endswith("remove"):
+        _choose_members(engine, [str(user_id) for user_id in chosen])
+        return
     _choose_member(engine, str(chosen[0]))
 
 
 def on_member_chosen(engine: Engine) -> None:
-    """A member picker answered: edit or remove that member's item."""
+    """A member picker answered: edit, remove or show that member's item."""
     event = engine.event
     assert isinstance(event, ev.MemberChosen)
+    if (engine.session.awaiting or "").endswith("remove"):
+        _choose_members(engine, [event.user_id])
+        return
     _choose_member(engine, event.user_id)
+
+
+def _not_found(engine: Engine) -> None:
+    awaiting = (engine.session.awaiting or "").rpartition(":")[2]
+    action = _picker_event(awaiting)
+    engine.effects.append(
+        ShowError(
+            f"commands.command-events.{action}.member-picker.not-found",
+            plain=True,
+            delete_after=None,
+        )
+    )
 
 
 def _choose_member(engine: Engine, user_id: str) -> None:
     awaiting = engine.session.awaiting or ""
-    action = "edited" if awaiting.endswith("edit") else "removed"
     index = engine.member_index(user_id)
 
     if index is None:
-        engine.effects.append(
-            ShowError(
-                f"commands.command-events.{action}.member-picker.not-found",
-                plain=True,
-                delete_after=None,
-            )
-        )
+        _not_found(engine)
         return
-    if action == "removed":
-        engine.remove_item(index)
+    if awaiting.endswith("find"):
+        engine.open_found(index)
         return
     engine.open_child(EditItem(index), engine.item_seed(index))
+
+
+def _choose_members(engine: Engine, user_ids: Sequence[str]) -> None:
+    found = [engine.member_index(user_id) for user_id in user_ids]
+    indexes = [index for index in found if index is not None]
+    if not indexes:
+        _not_found(engine)
+        return
+    if len(indexes) > _removable(engine):
+        engine.session = engine.session.with_status(Status.ACTIVE)
+        engine.effects.append(Notice("stale"))
+        engine.rerender()
+        return
+    confirm_removal(engine, indexes)
 
 
 def on_item_removed(engine: Engine) -> None:
     """An item was confirmed for removal: take it out."""
     event = engine.event
     assert isinstance(event, ev.ItemRemoved)
-    engine.remove_item(event.index)
+    engine.remove_items((event.index,))
 
 
 def on_child_finished(engine: Engine) -> None:
@@ -856,7 +1025,7 @@ def on_aside(engine: Engine) -> None:
     """A read-only button: help, history, preview or a feature's own."""
     event = engine.event
     assert isinstance(event, ev.Aside)
-    engine.effects.append(RunAside(event.name))
+    engine.effects.append(RunAside(event.name, event.target))
 
 
 def on_saved(engine: Engine, kind: str) -> None:
@@ -881,9 +1050,12 @@ def on_commit_failed(engine: Engine) -> None:
 
 
 def on_expired(engine: Engine) -> None:
-    """Nobody clicked before the deadline: the session closes as abandoned."""
-    engine.emit("setup.abandoned", step_key=engine.session.cursor)
-    engine.session = engine.session.with_status(Status.EXPIRED)
+    """Nobody clicked before the deadline: abandoned, or completed once it saved."""
+    if engine.session.changes_saved:
+        engine.session = engine.session.with_status(Status.COMPLETED)
+    else:
+        engine.emit("setup.abandoned", step_key=engine.session.cursor)
+        engine.session = engine.session.with_status(Status.EXPIRED)
     engine.effects.append(Finalize("expired"))
 
 
@@ -936,8 +1108,7 @@ def _finish_part(form: Form, step: Step) -> None:
     parsed = registry()[step.kind].parse(step, None, form.session, context)
     form.session = form.session.with_status(Status.ACTIVE)
     if isinstance(parsed, Refusal):
-        form.refuse(parsed, step)
-        form.rerender()
+        form.refuse(parsed, step, redraw=True)
         return
     form.session = form.session.with_answers(parsed)
     form.complete()
@@ -964,8 +1135,7 @@ def _on_answered(form: Form) -> None:
         form.rerender()
         return
     if step is None or step.key != event.step_key:
-        form.effects.append(Notice("stale"))
-        form.rerender()
+        form.redraw()
         return
     if step.kind == "review":
         _on_review_confirmed(form)
@@ -981,13 +1151,26 @@ def _on_answered(form: Form) -> None:
     form.advance(form.index(step.key))
 
 
+def _on_aside(form: Form) -> None:
+    event = form.event
+    assert isinstance(event, ev.Aside)
+    step = form.step(form.session.cursor)
+    if event.name == "preview" and not event.target and isinstance(step, CardStep):
+        refusal = configuration_card.preview_refusal(
+            step, form.session, form.step_context()
+        )
+        if refusal is not None:
+            form.effects.append(ShowError(refusal.error_key, plain=refusal.plain))
+            return
+    on_aside(form)
+
+
 def _on_drafted(form: Form) -> None:
     event = form.event
     assert isinstance(event, ev.Drafted)
     step = form.step(form.session.cursor)
     if step is None or step.key != event.step_key:
-        form.effects.append(Notice("stale"))
-        form.rerender()
+        form.redraw()
         return
     if isinstance(step, CardStep):
         context = form.step_context()
@@ -1000,8 +1183,12 @@ def _on_drafted(form: Form) -> None:
             return
         answer = configuration_card.draft(step, changes, form.session, context)
         form.session = form.session.with_answer(step.key, answer)
-        _redraw_or_finish(form, step)
+        picking = _picking_several(form, step)
 
+        if picking is not None:
+            _open_section(form, step, picking)
+            return
+        _redraw_or_finish(form, step)
         return
     answers = {key: Answer(value) for key, value in event.changes.items()}
     form.session = form.session.with_answers(answers)
@@ -1015,18 +1202,39 @@ def _on_drafted(form: Form) -> None:
     form.effects.append(Ack())
 
 
+def _picking_several(form: Form, step: CardStep) -> int | None:
+    awaiting = form.session.awaiting or ""
+    if _is_part_edit(form) or not awaiting.startswith("section:"):
+        return None
+    index = int(awaiting.split(":", 1)[1])
+    if 0 <= index < len(step.sections) and len(step.sections[index].picks()) > 1:
+        return index
+    return None
+
+
 def _on_section_opened(form: Form) -> None:
     event = form.event
     assert isinstance(event, ev.SectionOpened)
     step = form.step(form.session.cursor)
+    if step is not None and step.kind == "text" and step.key == event.step_key:
+        screen = registry()[step.kind].render(step, form.session, form.step_context())
+        form.effects.append(OpenModal(screen, "modal", step.key))
+        return
     if not isinstance(step, CardStep) or step.key != event.step_key:
-        form.effects.append(Notice("stale"))
-        form.rerender()
+        form.redraw()
         return
     _open_section(form, step, event.index)
 
 
 def _open_section(form: Form, step: CardStep, index: int) -> None:
+    section = step.sections[index]
+    if section.adds_to():
+        form.open_child(AddItem(), {})
+        return
+    if section.holds():
+        form.session = form.session.opening(section.key)
+        form.rerender()
+        return
     screen, changes = configuration_card.open_section(
         step, index, form.session, form.step_context()
     )
@@ -1054,7 +1262,7 @@ def _on_section_changed(form: Form) -> None:
     assert isinstance(event, ev.Answered)
     step = form.step(form.session.cursor)
     if not isinstance(step, CardStep):
-        form.effects.append(Notice("stale"))
+        form.redraw()
         return
     index = int(str(event.step_key).split(":", 1)[1])
     changes = configuration_card.apply_change(
@@ -1074,7 +1282,7 @@ def _on_section_reset(form: Form) -> None:
     assert isinstance(event, ev.SectionReset)
     step = form.step(form.session.cursor)
     if not isinstance(step, CardStep):
-        form.effects.append(Notice("stale"))
+        form.redraw()
         return
     changes = configuration_card.reset_section(step, event.index)
     answer = configuration_card.draft(step, changes, form.session, form.step_context())
@@ -1088,7 +1296,10 @@ def _on_picker_closed(form: Form) -> None:
         form.session = form.session.with_status(Status.CANCELLED)
         form.effects.append(ResumeParent(parent_id, "edit", {}, cancelled=True))
         return
-    form.session = form.session.with_status(Status.ACTIVE)
+    if form.session.awaiting is None and form.session.opened_group:
+        form.session = form.session.opening(None)
+    else:
+        form.session = form.session.with_status(Status.ACTIVE)
     form.rerender()
 
 
@@ -1101,9 +1312,11 @@ def _on_back(form: Form) -> None:
         return
     target = form.index(previous)
     forgotten: list[str] = []
+    kept = listed_on_cards(form.definition.steps)
 
     for step in form.steps[target + 1 : current + 1]:
-        forgotten.extend(produced_keys(step))
+        if step.key not in kept:
+            forgotten.extend(produced_keys(step))
     form.session = form.session.without(tuple(forgotten))
     form.emit("setup.step_back", step_key=form.session.cursor)
     form.show(previous)
@@ -1133,6 +1346,7 @@ def _on_commit_succeeded(form: Form) -> None:
     assert isinstance(event, ev.CommitSucceeded)
     on_saved(form, event.kind)
     if event.kind == "setup":
+        form.effects.append(OpenPanel())
         form.emit(
             "setup.completed",
             configured_steps=configured_steps(form.steps, form.session.answers),
@@ -1164,11 +1378,13 @@ HANDLERS: dict[type[ev.Event], Callable[[Form], None]] = {
     ev.AddRequested: on_add_requested,
     ev.RemoveRequested: on_remove_requested,
     ev.TargetChosen: on_target_chosen,
+    ev.TargetsChosen: on_targets_chosen,
+    ev.RemovalConfirmed: on_removal_confirmed,
     ev.MemberChosen: on_member_chosen,
     ev.ItemRemoved: on_item_removed,
     ev.ChildFinished: on_child_finished,
     ev.ScreenRequested: on_screen_requested,
-    ev.Aside: on_aside,
+    ev.Aside: _on_aside,
     ev.CommitSucceeded: _on_commit_succeeded,
     ev.CommitFailed: on_commit_failed,
     ev.Expired: on_expired,
@@ -1209,19 +1425,25 @@ def settle(
 
 
 def _rejected(engine: Engine, reason: str) -> Decision:
-    """A duplicate does nothing; a stale click gets a notice and the screen again."""
+    """A duplicate does nothing; a stale click gets the current screen again."""
     session = engine.session
     if reason == "duplicate":
         return Decision(session, (), rejected=reason)
-    if reason == "closed" and session.status is Status.EXPIRED:
+    if reason == "closed" and _ran_out(session):
         return Decision(session, (Finalize("expired"),), rejected=reason)
     if reason != "stale" or session.awaiting == "child":
         return Decision(session, (Notice(reason),), rejected=reason)
 
-    engine.rerender()
-    effects = (Notice(reason), *engine.effects)
-    after = session.rendered() if engine.effects else session
-    return Decision(after, effects, rejected=reason)
+    engine.redraw()
+    drew = any(not isinstance(effect, Ack) for effect in engine.effects)
+    after = session.rendered() if drew else session
+    return Decision(after, tuple(engine.effects), rejected=reason)
+
+
+def _ran_out(session: FormSession) -> bool:
+    if session.status is Status.EXPIRED:
+        return True
+    return session.status is Status.COMPLETED and session.changes_saved > 0
 
 
 def _rejection(session: FormSession, event: ev.Event) -> str | None:

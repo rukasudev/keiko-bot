@@ -16,11 +16,6 @@ async def test_block_links_happy_path(scenario_factory):
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()                                # intro -> the card
     await scenario.click("done")                            # accept the defaults
-    scenario.expect_step("add_custom")
-    await scenario.click("Depois")
-    scenario.expect_step("permissions")
-    await scenario.confirm()
-
     scenario.expect_step("confirm")
     await scenario.confirm()                                # review -> commit
     scenario.expect_persisted("guild", "block_links",
@@ -69,6 +64,7 @@ User actions (each mints a fresh interaction, like Discord):
 | `pending_modal_fields()` | labels of the pending modal's inputs (useful to build the dict for `submit_modal`) |
 | `confirm()` / `cancel()` / `go_back()` | aliases for the generic buttons |
 | `expire()` | the clock passes every open session's deadline with nobody clicking (`Runtime.expire_stale`) |
+| `scenario.latency = seconds` | every first answer minted afterwards takes that long to reach Discord, and `is_done()` turns true only when it arrives; a second first answer sent meanwhile gets 40060 (`discord.HTTPException`), as on Discord; pair it with a short `ViewConstants.DEFER_AFTER_SECONDS` to race the late-answer clock |
 | `finish()` | lets any task the flow scheduled settle; call at the end of card/design flows |
 
 Assertions (all raise with the transcript attached):
@@ -154,9 +150,11 @@ await scenario.submit_modal({"Dia": "12"}) # modal-input section
 await scenario.click("done")               # validates `required_keys` and advances
 ```
 
-A failed validation (e.g. `validate_date`) sends an ephemeral error and
-keeps the card as the actionable message; assert it with `expect_error(...)`
-and retry by clicking the section again. Selections on a card are drafts
+A failed validation (e.g. `validate_date`) answers with an error message of
+its own below the card; assert it with `expect_error(...)`, which reads the
+last error message sent, and retry by clicking the section again: its modal
+opens with what was typed. A refused modal step becomes a one-field card with
+what was typed; its Edit is `customize:0`. Selections on a card are drafts
 until Done, so `scenario.card_state` shows them right after the pick.
 
 ## Normalized output

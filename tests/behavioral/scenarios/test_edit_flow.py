@@ -44,21 +44,21 @@ async def test_edit_card_updates_answer_and_upgrades_legacy_shape(
     )
     assert scenario.card_state["answer"] == "Resposta antiga"
 
-    await scenario.click("customize:2")  # answer modal-input
+    await scenario.click("customize:1")  # answer modal-input
     await scenario.submit_modal({"resposta": "Resposta nova"})
     await scenario.click("done")
 
-    scenario.expect_message(
-        title_contains=ml("commands.command-events.edited.title", locale="pt-br"),
-    )
+    scenario.expect_component(label_or_action="pause")
+    assert "Resposta nova" in str(scenario.outputs[-1]), "the panel shows the edit"
     document = scenario.expect_persisted(
         "guild",
         "block_links",
         {"guild_id": GUILD_ID},
         {"answer": "Resposta nova", "mode": "block_all"},
     )
-    # Untouched keys survive the merge; quick-picks got upgraded to domains.
-    assert document["allowed_chats"]["values"] == "100"
+    # Untouched keys survive the merge; quick-picks got upgraded to domains, and
+    # the exempt channels, now a part of the card, are written back as a list.
+    assert document["allowed_chats"]["values"] == ["100"]
     assert document["allowed_links"]["values"] == ["youtube.com"]
 
 
@@ -66,18 +66,16 @@ async def test_edit_conditional_step_is_hidden_when_condition_unmet(
     scenario_factory, deps
 ):
     """The edit picker leaves out steps whose `when` the saved document does
-    not satisfy (register_now=false hides the composition for birthday)."""
-    from app.settings.form.form_yaml import registry
+    not satisfy (a "later" gate hides the list it gates)."""
     from app.settings.form.responses.summary import edit_options
+    from tests.forms.form.gate_fixtures import gated_list
 
     options = edit_options(
-        registry.get("reminders_birthday"),
-        {"register_now": False, "reminders_birthday": {"values": []}},
-        "pt-br",
+        gated_list(), {"add_now": False, "things": {"values": []}}, "pt-br"
     )
     option_values = [option.value for option in options]
-    assert "reminders_birthday" not in option_values, (
-        "composition step must be hidden when register_now condition is unmet"
+    assert "things" not in option_values, (
+        "composition step must be hidden when its gate condition is unmet"
     )
 
 
@@ -95,9 +93,8 @@ async def test_editing_one_default_roles_select_commits_it_from_its_own_edit(
     await scenario.click("section:default_roles_config/default_roles")
     await scenario.select_option("Admin", target="default_roles")
 
-    scenario.expect_message(
-        title_contains=ml("commands.command-events.edited.title", locale="pt-br"),
-    )
+    scenario.expect_component(label_or_action="pause")
+    assert "<@&200>" in str(scenario.outputs[-1]), "the panel shows the new role"
     document = deps.mongo_client.guild["default_roles"].find_one({"guild_id": GUILD_ID})
 
     def ids(entry):

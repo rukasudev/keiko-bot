@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.settings.form.actions.intro import settings_list
+from app.settings.form.actions.intro import settings_list, settings_text
 from app.settings.form.form_yaml import (
     CardStep,
     CompositionStep,
@@ -24,9 +24,9 @@ FORMS = (
 
 
 def _walked_cards(steps):
-    """The cards the intro reads: top level and unconditioned compositions."""
+    """The cards the intro reads: top level and unconditioned setup lists."""
     for step in steps:
-        if step.hidden:
+        if step.hidden or not step.in_setup:
             continue
         if isinstance(step, CompositionStep):
             if step.when is None:
@@ -50,3 +50,28 @@ def test_the_intro_lists_every_field_of_the_cards_it_reads(form, locale):
             if field.hidden:
                 continue
             assert field.label.get(locale) in listed, (form, card.key, field.key)
+
+
+@pytest.mark.parametrize("form", FORMS)
+@pytest.mark.parametrize("locale", ("pt-br", "en-us"))
+def test_the_intro_gives_each_setting_one_line(form, locale):
+    """Broke as: default roles listed its whole step description, numbered lines
+    included, under one setting of the first screen, because the intro read every
+    non-card step's full description."""
+    definition = compile_form(form, DiskSource().load(form))
+
+    for title, line in settings_list(definition.steps, locale).items():
+        assert "\n" not in line, (form, title, line)
+
+
+@pytest.mark.parametrize("form", FORMS)
+@pytest.mark.parametrize("locale", ("pt-br", "en-us"))
+def test_a_setting_titled_as_a_question_takes_no_colon_after_it(form, locale):
+    """Broke as: default roles' intro read "Dar os cargos para quem já está no
+    servidor?: Se você quiser…", the question mark followed by the colon every
+    setting got; the review's lines already drop it (`labelled`)."""
+    definition = compile_form(form, DiskSource().load(form))
+
+    text = settings_text(definition.steps, locale)
+
+    assert "?:" not in text and "?**:" not in text, (form, text)

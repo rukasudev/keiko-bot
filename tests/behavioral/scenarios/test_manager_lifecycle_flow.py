@@ -119,8 +119,7 @@ async def test_add_item_runs_real_subform_and_appends(scenario_factory, deps):
     )
 
     await scenario.click(ml("buttons.add.label", locale="pt-br"))
-    await scenario.click("customize:0")  # item card: channel
-    await scenario.select_option("general")
+    await scenario.select_option("general", target="channel")
     await scenario.click("customize:1")  # streamer (real validator
     await scenario.submit_modal(  # -> MockTwitchAPI)
         {scenario.pending_modal_fields()[0]: "cellbit"}
@@ -130,7 +129,8 @@ async def test_add_item_runs_real_subform_and_appends(scenario_factory, deps):
     await scenario.submit_modal({first: "@everyone {streamer} on! {stream_link}"})
     await scenario.click("done")
 
-    scenario.expect_message(title_contains="Item adicionado")
+    scenario.expect_component(label_or_action="pause")
+    assert "cellbit" in str(scenario.outputs[-1]), "the panel lists the new streamer"
     document = scenario.get_persisted(
         "guild", "notifications_twitch", {"guild_id": GUILD_ID}
     )
@@ -149,10 +149,12 @@ async def test_remove_item_unsubscribes_and_updates_document(scenario_factory, d
         "notifications_twitch", cog
     )
 
-    await scenario.click(ml("buttons.remove.label", locale="pt-br"))
-    await scenario.select_option("notifications$0")  # remove "gaules"
+    await scenario.click("remove_this:notifications$0")
+    await scenario.click("remove_items")
 
-    scenario.expect_message(title_contains="Item removido")
+    scenario.expect_component(label_or_action="pause")
+    panel = str(next(event for event in reversed(scenario.outputs) if event.get("components_v2")))
+    assert "cellbit" in panel and "gaules" not in panel, "the panel lists what is left"
     document = scenario.get_persisted(
         "guild", "notifications_twitch", {"guild_id": GUILD_ID}
     )

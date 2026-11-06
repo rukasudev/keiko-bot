@@ -1,0 +1,19 @@
+steps:
+  - action: form
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - action: configuration_card
+    key: card
+    title: {en-us: Card, pt-br: Card}
+    description: {en-us: card, pt-br: card}
+    sections:
+      - key: extras
+        icon: "🛡️"
+        type: group
+        sections: [places]
+        label: {en-us: Extras, pt-br: Extras}
+  - action: resume
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

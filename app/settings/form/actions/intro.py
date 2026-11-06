@@ -16,16 +16,26 @@ from app.settings.form.actions.action import (
 from app.settings.form.components import Screen
 from app.settings.form.copy import text
 from app.settings.form.form_state import Answer, FormSession
-from app.settings.form.form_yaml import CardStep, CompositionStep, Step
+from app.settings.form.form_yaml import (
+    CardStep,
+    CompositionStep,
+    Step,
+    listed_on_cards,
+)
+from app.settings.form.responses.summary import labelled
 
 SILENT_KINDS = ("intro", "review")
 
 
 def settings_list(steps: Sequence[Step], locale: str) -> dict[str, str]:
-    """Title to description of every setting the form asks, cards by field."""
+    """Title to one line of every setting the form asks, cards by field, a list once."""
     listed: dict[str, str] = {}
+    on_cards = listed_on_cards(steps)
     for step in steps:
-        if step.hidden:
+        if step.hidden or not step.in_setup:
+            continue
+        if isinstance(step, CompositionStep) and step.key in on_cards:
+            listed[step.title.get(locale)] = step.description.get(locale)
             continue
         if isinstance(step, CompositionStep):
             if step.when is None:
@@ -47,7 +57,7 @@ def settings_text(steps: Sequence[Step], locale: str) -> str:
     heading = text("commands.resume.settings", locale)
     body = f"\n\n:pencil: **{heading}**\n"
     for title, description in settings_list(steps, locale).items():
-        body += f"\n{Emojis.FRISBEE_EMOJI} **{title}**: {description}"
+        body += f"\n{Emojis.FRISBEE_EMOJI} {labelled(title, description)}"
     return body
 
 

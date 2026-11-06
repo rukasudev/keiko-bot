@@ -10,7 +10,6 @@ from app.services import analytics, journey
 pytestmark = pytest.mark.behavioral
 
 GUILD_ID = "123456789"
-LATER = "Depois"
 
 
 @pytest.fixture(autouse=True)
@@ -47,8 +46,6 @@ async def test_a_completed_setup_ends_as_saved(scenario_factory, story):
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
     await scenario.click("done")
-    await scenario.click(LATER)
-    await scenario.confirm()
     await scenario.confirm()
 
     session = only(story)
@@ -64,8 +61,6 @@ async def test_a_saved_setup_reads_as_a_summary_of_what_was_configured(
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
     await scenario.click("done")
-    await scenario.click(LATER)
-    await scenario.confirm()
     await scenario.confirm()
 
     lines = only(story)["lines"]
@@ -73,7 +68,7 @@ async def test_a_saved_setup_reads_as_a_summary_of_what_was_configured(
         "a save is read for what it configured, not step by step"
     )
     assert lines[-1].startswith("✅ saved: ")
-    assert "Link Settings" in lines[-1]
+    assert "General Settings" in lines[-1]
     await scenario.finish()
 
 
@@ -83,8 +78,6 @@ async def test_one_session_produces_one_message_not_one_per_click(
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
     await scenario.click("done")
-    await scenario.click(LATER)
-    await scenario.confirm()
     await scenario.confirm()
 
     assert len(story) == 1, "every click must edit the same message"
@@ -122,8 +115,6 @@ async def test_a_timeout_after_a_save_does_not_reopen_the_story(
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
     await scenario.click("done")
-    await scenario.click(LATER)
-    await scenario.confirm()
     await scenario.confirm()
 
     await scenario.expire()
@@ -139,11 +130,9 @@ async def test_a_validation_failure_shows_the_field_not_what_was_typed(
 
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
-    await scenario.click("customize:2")
+    await scenario.click("customize:1")
     await scenario.submit_modal({"resposta": secret})
     await scenario.click("done")
-    await scenario.click(LATER)
-    await scenario.confirm()
     await scenario.confirm()
 
     session = only(story)
@@ -166,7 +155,7 @@ async def test_editing_through_the_manager_lists_the_changed_fields(
         "block_links", normalize_block_links_config(legacy)
     )
     await scenario.click("section:link_settings")
-    await scenario.click("customize:2")
+    await scenario.click("customize:1")
     await scenario.submit_modal({"resposta": "Resposta nova"})
     await scenario.click("done")
 

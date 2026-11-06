@@ -28,6 +28,7 @@ from app.settings.form.responses.responses import (
 )
 from app.settings.form.responses.summary import (
     item_entries,
+    kept_items,
     listed,
     responses,
     unwrap,
@@ -55,6 +56,7 @@ class Opened:
     previews: Mapping[str, str] = field(default_factory=dict)
     pending_previews: Awaitable[Mapping[str, str]] | None = None
     refusal: str | None = None
+    values: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -68,6 +70,7 @@ class CommitContext:
     when: datetime
     source: str = "manager"
     session_id: str | None = None
+    guild: Any = None
 
 
 @dataclass(frozen=True)
@@ -135,7 +138,7 @@ class FeatureModule(Protocol):
         """The answers as the legacy preview functions read them."""
 
     def responses_for_aside(
-        self, answers: Mapping[str, Answer], locale: str
+        self, answers: Mapping[str, Answer], locale: str, index: int | None = None
     ) -> list[dict[str, Any]]:
         """The answers a side action reads, one item of a list at a time."""
 
@@ -186,6 +189,7 @@ class GenericCogFeature:
 
     def __init__(self, key: str) -> None:
         self.key = key
+        self.running: set[asyncio.Task[None]] = set()
 
     @property
     def definition(self) -> FormDefinition:
@@ -264,16 +268,12 @@ class GenericCogFeature:
         return [{"key": view.key, **view.as_item_entry()} for view in views]
 
     def responses_for_aside(
-        self, answers: Mapping[str, Answer], locale: str
+        self, answers: Mapping[str, Answer], locale: str, index: int | None = None
     ) -> list[dict[str, Any]]:
-        """The same rows, with a listed composition replaced by its first item.
-
-        A side action runs over the screen the admin is looking at, and from a
-        review that screen lists the items rather than holding one of them.
-        """
+        """The same rows, with a listed composition replaced by the item at `index`."""
         composition = self.definition.composition
-        first = _first_item(answers, composition.key) if composition else None
-        if composition is None or first is None:
+        item = _item_at(answers, composition.key, index or 0) if composition else None
+        if composition is None or item is None:
             return self.responses_for_preview(answers, locale)
 
         kept = [
@@ -281,7 +281,7 @@ class GenericCogFeature:
             for row in self.responses_for_preview(answers, locale)
             if row.get("key") != composition.key
         ]
-        return [*kept, *self.responses_for_preview(_unpacked(first), locale)]
+        return [*kept, *self.responses_for_preview(_unpacked(item), locale)]
 
     def asides(self) -> Mapping[str, AsideAction]:
         """No side actions by default."""
@@ -321,7 +321,9 @@ class GenericCogFeature:
         return result
 
     def event_props(self, kind: str, payload: Mapping[str, Any]) -> dict[str, Any]:
-        """Extra properties of the audit event, for edits the keys that changed."""
+        """Extra properties of the audit event: what an edit changed, what went."""
+        if kind == "remove_item":
+            return {"item_count": len(removed_indexes(payload))}
         if kind == "toggle":
             keys = [str(payload["key"])]
         elif kind == "edit":
@@ -442,13 +444,23 @@ class GenericCogFeature:
     async def commit_remove_item(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """Drop the item the admin chose, while it is saved as their panel showed it."""
-        removed = self.shown_item(context, payload.get("index"))
+        """Drop the items the admin chose, all of them while saved as shown, or none."""
+        removed = [
+            self.shown_item(context, index) for index in removed_indexes(payload)
+        ]
         saved, items = await self.saved_list(context)
-        del items[_position(items, removed)]
+        positions = {_position(items, item) for item in removed}
+        remaining = [
+            item for position, item in enumerate(items) if position not in positions
+        ]
+        if len(positions) != len(removed) or len(remaining) < kept_items(
+            self.composition
+        ):
+            raise ListChanged(self.key)
 
-        document = await self.save_items(context, saved, items)
-        await self.best_effort(self.after_item_removed(removed, context), context)
+        document = await self.save_items(context, saved, remaining)
+        for item in removed:
+            await self.best_effort(self.after_item_removed(item, context), context)
         return CommitResult((self.key,), document=document)
 
     def shown_item(self, context: CommitContext, index: Any) -> dict[str, Any]:
@@ -523,7 +535,7 @@ class GenericCogFeature:
         return {**context.document, key: value}
 
     async def best_effort(
-        self, effect: Awaitable[None], context: CommitContext
+        self, effect: Awaitable[object], context: CommitContext
     ) -> None:
         """Run an effect outside the document, logging a failure instead of raising."""
         try:
@@ -540,6 +552,12 @@ class GenericCogFeature:
                 ),
                 exc_info=True,
             )
+
+    def in_background(self, effect: Awaitable[object], context: CommitContext) -> None:
+        """Start an effect outside the document after a commit, without waiting."""
+        task = asyncio.ensure_future(self.best_effort(effect, context))
+        self.running.add(task)
+        task.add_done_callback(self.running.discard)
 
     async def commit_pause(
         self, payload: Mapping[str, Any], context: CommitContext
@@ -560,7 +578,13 @@ class GenericCogFeature:
     async def commit_disable(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """Drop the document, undo what it set up, then record the feature as off."""
+        """Drop the document while it lists the `items` named, then record it off."""
+        shown = payload.get("items")
+        if shown is not None:
+            _saved, items = await self.saved_list(context)
+            if items != list(shown):
+                raise ListChanged(self.key)
+
         dropped = await cogs_data.delete_cog_by_guild_id_async(
             context.guild_id, self.key
         )
@@ -596,6 +620,11 @@ class GenericCogFeature:
         """What the dropped document leaves outside; nothing by default."""
 
 
+def removed_indexes(payload: Mapping[str, Any]) -> list[int]:
+    """The positions a removal takes, in the list the admin's screen showed."""
+    return [int(index) for index in payload["indexes"]]
+
+
 class DuplicateItem(Exception):
     """The item to add is already on the list."""
 
@@ -621,13 +650,14 @@ def _unpacked(answers: Mapping[str, Answer]) -> dict[str, Answer]:
     return found
 
 
-def _first_item(answers: Mapping[str, Answer], key: str) -> dict[str, Answer] | None:
-    """The answers of the first item, when `answers` holds the whole list."""
+def _item_at(
+    answers: Mapping[str, Answer], key: str, index: int
+) -> dict[str, Answer] | None:
     answer = answers.get(key)
     items = list(answer.raw or ()) if answer else []
-    if not items or not isinstance(items[0], Mapping):
+    if not 0 <= index < len(items) or not isinstance(items[index], Mapping):
         return None
     return {
         name: value if isinstance(value, Answer) else Answer(value)
-        for name, value in items[0].items()
+        for name, value in items[index].items()
     }

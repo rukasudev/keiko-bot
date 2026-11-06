@@ -19,7 +19,7 @@ from app.views.message_preview import MessagePreviewView
 from app.services.utils import (
     parse_welcome_messages,
     render_welcome_message,
-    split_welcome_messages,
+    split_messages,
     values_of,
 )
 
@@ -249,7 +249,7 @@ async def send_welcome_message_preview(interaction: discord.Interaction, respons
 
     pages = await welcome_preview_pages(
         member,
-        split_welcome_messages(messages),
+        split_messages(messages),
         {
             "title": title,
             "footer": footer,

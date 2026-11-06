@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar esta função faz com que eu fique de olho em cada mensagem e exclua os links que você não quer por aqui! Você escolhe como eu faço isso: bloquear todos os links com as suas exceções, ou permitir links e bloquear só os que você escolher.\n\n:pencil: **Configurações**\n\n:flying_disc: **Modo de bloqueio**: Se eu bloqueio todos os links ou só os que você escolher.\n:flying_disc: **Sites populares permitidos**: Sites populares que eu sempre libero.\n:flying_disc: **Minha resposta ao bloquear**: O que eu digo quando apago um link.\n:flying_disc: **Permissões**: Escolha os canais e cargos que eu nunca devo bloquear. Links deles são sempre permitidos!\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "description": "Ativar esta função faz com que eu fique de olho em cada mensagem e exclua os links que você não quer por aqui! Você escolhe como eu faço isso: bloquear todos os links com as suas exceções, ou permitir links e bloquear só os que você escolher.\n\n:pencil: **Configurações**\n\n:flying_disc: **Modo de bloqueio:** Se eu bloqueio todos os links ou só os que você escolher.\n:flying_disc: **Minha resposta ao bloquear:** O que eu digo quando apago um link.\n:flying_disc: **Canais permitidos:** Os canais onde eu nunca apago links.\n:flying_disc: **Cargos permitidos:** Quem tem um desses cargos pode mandar links à vontade.\n:flying_disc: **Sites populares permitidos:** Sites populares que eu sempre libero.\n:flying_disc: **Links personalizados permitidos:** Seus próprios sites ou links que eu sempre libero, um de cada vez!\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
       "footer": null,
       "image": null,
@@ -61,7 +61,7 @@
           {
             "children": [
               {
-                "content": "## 🚦 Configuração de Links",
+                "content": "## 🚦 Configurações Gerais",
                 "type": "text"
               },
               {
@@ -76,49 +76,35 @@
             "type": "section"
           },
           {
-            "content": "🚦 **Modo de bloqueio**",
-            "type": "text"
-          },
-          {
-            "content": "> 🚫 Bloquear todos",
+            "content": "🚦 **Modo de bloqueio**\n> 🚫 Bloquear todos",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher modo",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "🔗 Bloquear alguns",
+                    "value": "allow_all"
+                  },
+                  {
+                    "default": true,
+                    "label": "🚫 Bloquear todos",
+                    "value": "block_all"
+                  }
+                ],
+                "placeholder": "Escolher modo",
+                "type": "select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "🔗 **Sites populares permitidos**",
-            "type": "text"
-          },
-          {
-            "content": "> —",
-            "type": "text"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Escolher sites",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
-            "content": "💬 **Minha resposta ao bloquear**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada de links por aqui! :p",
+            "content": "💬 **Minha resposta ao bloquear**\n> Nada de links por aqui! :p",
             "type": "text"
           },
           {
@@ -126,6 +112,21 @@
               {
                 "disabled": false,
                 "label": "Personalizar resposta",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🛡️ **Adicionar exceções?**\nCanais, cargos, sites e links que eu nunca apago.\n> #️⃣ **Canais permitidos:** Em branco\n> 🏷️ **Cargos permitidos:** Em branco\n> 🔗 **Sites populares permitidos:** Em branco\n> 📌 **Links personalizados permitidos:** Em branco",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Configurar",
                 "style": "secondary",
                 "type": "button"
               }
@@ -174,70 +175,6 @@
     "kind": "click",
     "message": "M2",
     "seq": 7,
-    "target": "done"
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 8,
-    "thinking": false
-  },
-  {
-    "actor": "bot",
-    "components": [
-      {
-        "disabled": false,
-        "label": "Sim",
-        "style": "success",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Depois",
-        "style": "secondary",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Voltar",
-        "style": "secondary",
-        "type": "button"
-      },
-      {
-        "disabled": false,
-        "label": "Cancelar",
-        "style": "danger",
-        "type": "button"
-      }
-    ],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Quer permitir outros sites ou links além dos populares? Você também pode adicionar mais depois!\n\n-# • Use o comando `/reportar` para me contar um bug",
-      "fields": [],
-      "footer": null,
-      "image": null,
-      "thumbnail": "KEIKO_DEFAULT.png",
-      "title": "🔗 Adicionar Seus Próprios Links?"
-    },
-    "ephemeral": true,
-    "kind": "followup_send",
-    "message": "M3",
-    "seq": 9
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M2",
-    "seq": 10
-  },
-  {
-    "actor": "user",
-    "kind": "click",
-    "message": "M3",
-    "seq": 11,
     "target": "cancel"
   },
   {
@@ -245,7 +182,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 12,
+    "seq": 8,
     "thinking": false
   },
   {
@@ -276,14 +213,14 @@
     },
     "ephemeral": true,
     "kind": "followup_send",
-    "message": "M4",
-    "seq": 13
+    "message": "M3",
+    "seq": 9
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M4",
-    "seq": 14,
+    "message": "M3",
+    "seq": 10,
     "target": "Continuar configurando"
   },
   {
@@ -291,13 +228,13 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 15,
+    "seq": 11,
     "thinking": false
   },
   {
     "actor": "bot",
     "kind": "delete_original",
-    "message": "M4",
-    "seq": 16
+    "message": "M3",
+    "seq": 12
   }
 ]

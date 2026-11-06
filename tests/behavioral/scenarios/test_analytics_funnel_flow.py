@@ -11,7 +11,6 @@ from app.services import analytics
 pytestmark = pytest.mark.behavioral
 
 GUILD_ID = "123456789"
-LATER = "Depois"
 
 
 def events_named(recorded, name):
@@ -28,8 +27,6 @@ async def test_a_completed_setup_reports_the_whole_funnel(
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
     await scenario.click("done")
-    await scenario.click(LATER)
-    await scenario.confirm()
     await scenario.confirm()
 
     assert events_named(analytics_events, "feature.setup_opened")
@@ -52,8 +49,6 @@ async def test_every_event_of_one_attempt_shares_a_session_id(
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
     await scenario.click("done")
-    await scenario.click(LATER)
-    await scenario.confirm()
     await scenario.confirm()
 
     sessions = {
@@ -70,8 +65,6 @@ async def test_the_origin_is_carried_from_the_entry_point_to_the_end(
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
     await scenario.click("done")
-    await scenario.click(LATER)
-    await scenario.confirm()
     await scenario.confirm()
 
     completed = events_named(analytics_events, "setup.completed")[0]
@@ -85,7 +78,6 @@ async def test_steps_are_reported_with_their_key_and_action_not_their_answer(
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
     await scenario.click("done")
-    await scenario.click(LATER)
     await scenario.confirm()
 
     steps = events_named(analytics_events, "setup.step_viewed")
@@ -104,11 +96,9 @@ async def test_no_typed_text_ever_reaches_an_event(scenario_factory, analytics_e
 
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
-    await scenario.click("customize:2")
+    await scenario.click("customize:1")
     await scenario.submit_modal({"resposta": secret})
     await scenario.click("done")
-    await scenario.click(LATER)
-    await scenario.confirm()
     await scenario.confirm()
 
     for event in analytics_events:
@@ -123,8 +113,6 @@ async def test_each_step_reports_how_long_it_was_on_screen(
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
     await scenario.click("done")
-    await scenario.click(LATER)
-    await scenario.confirm()
     await scenario.confirm()
 
     completed = events_named(analytics_events, "setup.step_completed")
@@ -150,11 +138,9 @@ async def test_a_declared_option_is_recorded_but_a_typed_answer_is_not(
     is typed. Only the first may ever be tabulated."""
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
-    await scenario.click("customize:2")
+    await scenario.click("customize:1")
     await scenario.submit_modal({"resposta": "texto que ninguem deve ver"})
     await scenario.click("done")
-    await scenario.click(LATER)
-    await scenario.confirm()
     await scenario.confirm()
 
     for event in events_named(analytics_events, "setup.step_completed"):
@@ -167,8 +153,9 @@ async def test_a_declared_option_is_recorded_but_a_typed_answer_is_not(
 async def test_going_back_is_reported_and_counted(scenario_factory, analytics_events):
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
-    await scenario.click("done")
-    await scenario.click(LATER)
+    await scenario.click("customize:2")
+    await scenario.click("customize:6")
+    await scenario.submit_modal({"link": "youtube.com/watch?v=abc123"})
     await scenario.click("back")
 
     assert events_named(analytics_events, "setup.step_back")
@@ -208,8 +195,6 @@ async def test_the_manager_reports_an_opening_not_a_setup(
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
     await scenario.click("done")
-    await scenario.click(LATER)
-    await scenario.confirm()
     await scenario.confirm()
     await scenario.finish()
 
@@ -235,8 +220,6 @@ async def test_analytics_failure_never_breaks_the_flow(
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
     await scenario.click("done")
-    await scenario.click(LATER)
-    await scenario.confirm()
     await scenario.confirm()
 
     scenario.expect_persisted(

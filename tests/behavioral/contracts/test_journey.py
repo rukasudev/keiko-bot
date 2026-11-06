@@ -85,12 +85,12 @@ def test_events_of_the_session_become_lines_in_order(published):
     start()
     journey.record(event("feature.setup_opened"))
     journey.record(event("setup.step_viewed", step_key="mode", step_action="options"))
-    journey.record(event("setup.step_viewed", step_key="permissions", step_action="roles"))
+    journey.record(event("setup.step_viewed", step_key="custom_links", step_action="roles"))
 
     assert lines_now() == [
         "setup opened",
         "step: Blocking mode (options)",
-        "step: Permissions (roles)",
+        "step: Allowed custom links (roles)",
     ], "step keys must render as the title the user actually saw"
 
 
@@ -212,7 +212,7 @@ def test_a_story_can_be_rebuilt_from_storage_for_the_refresh_button(deps):
     analytics.reset()
     journey.install()
     start()
-    for step in ("mode", "permissions"):
+    for step in ("mode", "custom_links"):
         analytics.emit(
             "setup.step_viewed", guild_id="1", user_id="9", feature="block_links",
             source="slash", session_id=SESSION, step_key=step,
@@ -226,7 +226,7 @@ def test_a_story_can_be_rebuilt_from_storage_for_the_refresh_button(deps):
     assert rebuilt is not None
     messages = [line["message"] for line in rebuilt.lines]
     assert "step: Blocking mode (options)" in messages
-    assert "step: Permissions (options)" in messages
+    assert "step: Allowed custom links (options)" in messages
 
 
 def test_refreshing_a_stored_session_renders_without_a_timezone_clash(deps):
@@ -447,7 +447,7 @@ def test_a_saved_session_condenses_to_its_milestones_and_a_summary(published):
     ))
     journey.record(event("feature.enabled"))
     journey.record(event(
-        "setup.completed", configured_steps=["link_settings", "permissions"],
+        "setup.completed", configured_steps=["link_settings", "custom_links"],
         item_count=2, steps_viewed=3, duration_bucket="1-5m",
     ))
 
@@ -455,7 +455,7 @@ def test_a_saved_session_condenses_to_its_milestones_and_a_summary(published):
     assert not any(line.startswith("step:") for line in lines)
     assert any(line.startswith("⚠️") for line in lines), "friction is a milestone"
     assert "🟢 feature enabled" in lines
-    assert lines[-1] == "✅ saved: Link Settings, Permissions · 2 items · 3 steps, 1-5m"
+    assert lines[-1] == "✅ saved: General Settings, Allowed custom links · 2 items · 3 steps, 1-5m"
 
 
 @pytest.mark.parametrize("ending", ["setup.discarded", "setup.abandoned"])
@@ -473,7 +473,7 @@ def test_the_summary_line_survives_a_session_longer_than_the_cap(published):
     start()
     _walk_steps(LogTypes.TRACE_MAX_LINES + 5)
     journey.record(event(
-        "setup.completed", configured_steps=["permissions"], steps_viewed=25,
+        "setup.completed", configured_steps=["custom_links"], steps_viewed=25,
         duration_bucket="1-5m",
     ))
 
@@ -490,12 +490,12 @@ def test_a_failed_commit_names_the_step_and_the_reason_and_closes_as_failure(
     _walk_steps(2)
     journey.record(event(
         "feature.commit_failed", commit_kind="setup", error_type="RuntimeError",
-        step_key="permissions",
+        step_key="custom_links",
     ))
 
     last = published[-1]
     assert last["result"] == "failure" and last["finished"] is True
-    assert last["lines"][-1] == "❌ setup failed at `Permissions`: RuntimeError"
+    assert last["lines"][-1] == "❌ setup failed at `Allowed custom links`: RuntimeError"
     assert sum(line.startswith("step:") for line in last["lines"]) == 2, (
         "a failure keeps the step by step"
     )
@@ -507,11 +507,11 @@ def test_a_rebuilt_saved_session_is_condensed_the_same_way(deps):
     start()
     identity = dict(guild_id="1", user_id="9", feature="block_links",
                     source="slash", session_id=SESSION)
-    for step in ("mode", "permissions"):
+    for step in ("mode", "custom_links"):
         analytics.emit("setup.step_viewed", step_key=step, step_action="options",
                        step_index=1, **identity)
     analytics.emit("setup.completed", duration_ms=1000, steps_viewed=2,
-                   duration_bucket="<1m", configured_steps=["permissions"],
+                   duration_bucket="<1m", configured_steps=["custom_links"],
                    **identity)
     analytics.flush()
     journey.clear()
@@ -520,7 +520,7 @@ def test_a_rebuilt_saved_session_is_condensed_the_same_way(deps):
 
     messages = [line["message"] for line in rebuilt.lines]
     assert not any(message.startswith("step:") for message in messages)
-    assert messages[-1] == "✅ saved: Permissions · 2 steps, <1m", (
+    assert messages[-1] == "✅ saved: Allowed custom links · 2 steps, <1m", (
         "refreshing must show the same message the session posted"
     )
     assert rebuilt.result == "saved"
@@ -621,7 +621,7 @@ def test_opening_a_panel_reads_only_this_servers_last_day(deps, monkeypatch):
     """
     attempt("s-recent", HERE)
     attempt("s-elsewhere", ELSEWHERE)
-    attempt("s-old", HERE, step="permissions")
+    attempt("s-old", HERE, step="custom_links")
     analytics.flush()
     age(deps, "s-old", hours=48)
     read = documents_read(deps, monkeypatch)

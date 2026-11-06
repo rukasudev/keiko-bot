@@ -15,7 +15,7 @@
           {
             "children": [
               {
-                "content": "## 🔔 Twitch Notificações",
+                "content": "## 📡 Twitch Lives",
                 "type": "text"
               },
               {
@@ -32,12 +32,12 @@
           {
             "children": [
               {
-                "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+                "content": ":busts_in_silhouette: **Notificações:** 2 de 3 configurados",
                 "type": "text"
               },
               {
                 "disabled": false,
-                "label": "Editar",
+                "label": "Adicionar",
                 "style": "secondary",
                 "type": "button"
               }
@@ -45,19 +45,58 @@
             "type": "section"
           },
           {
+            "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "type": "text"
+          },
+          {
             "children": [
-              {
-                "content": "### Notificações #2\n📺 **Canal de Texto:** <#102>\n🎮 **Streamer:** cellbit\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
-                "type": "text"
-              },
               {
                 "disabled": false,
                 "label": "Editar",
                 "style": "secondary",
                 "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Pré-visualizar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Remover",
+                "style": "danger",
+                "type": "button"
               }
             ],
-            "type": "section"
+            "type": "actionrow"
+          },
+          {
+            "content": "### Notificações #2\n📺 **Canal de Texto:** <#102>\n🎮 **Streamer:** cellbit\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Pré-visualizar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Remover",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
           },
           {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
@@ -82,27 +121,10 @@
           },
           {
             "disabled": false,
-            "label": "Adicionar",
-            "style": "secondary",
-            "type": "button"
-          },
-          {
-            "disabled": false,
-            "label": "Remover",
-            "style": "secondary",
-            "type": "button"
-          },
-          {
-            "disabled": false,
             "label": "Histórico",
             "style": "secondary",
             "type": "button"
-          }
-        ],
-        "type": "actionrow"
-      },
-      {
-        "children": [
+          },
           {
             "disabled": false,
             "label": "Ajuda",

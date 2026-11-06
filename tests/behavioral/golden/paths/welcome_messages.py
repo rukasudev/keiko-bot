@@ -2,8 +2,9 @@
 and a review with Preview.
 
 The banner renderer is the one boundary faked here: previews come from an
-async stub returning a fixed URL, so the design gallery opened from the card
-renders as in production. Every card line has its own Edit on the panel.
+async stub returning a fixed URL, so the banner under the card's design and the
+gallery opened from the panel's Edit render as in production. Every card line
+has its own Edit on the panel.
 """
 
 from types import SimpleNamespace
@@ -58,8 +59,7 @@ def _dump_channel(deps):
 async def _to_card(scenario_factory, locale):
     scenario = await scenario_factory(locale=locale).start_command(FORM)
     await scenario.confirm()
-    await scenario.click("customize:0")
-    await scenario.select_option("welcome")
+    await scenario.select_option("welcome", target="welcome_messages_channel")
     return scenario
 
 
@@ -88,8 +88,7 @@ async def setup_custom_image(scenario_factory, deps, locale):
     _dump_channel(deps)
     with _banner_stub():
         scenario = await _to_card(scenario_factory, locale)
-        await scenario.click("customize:2")
-        await scenario.click("design:custom_only")
+        await scenario.select_option("custom_only", target="welcome_design")
         await scenario.click("customize:3")
         await scenario.submit_file_upload(
             filename="custom-banner.png", content=b"\x89PNG-fake"
@@ -104,10 +103,11 @@ async def setup_custom_image(scenario_factory, deps, locale):
 async def setup_back(scenario_factory, deps, locale):
     with _banner_stub():
         scenario = await _to_card(scenario_factory, locale)
-        await scenario.click("customize:2")
-        await scenario.go_back()
-        await scenario.click("customize:0")
-        await scenario.select_option("announcements")
+        await scenario.select_option("custom_blur", target="welcome_design")
+        await scenario.select_option("server_blur", target="welcome_design")
+        await scenario.select_option(
+            "announcements", target="welcome_messages_channel"
+        )
         await scenario.click("done")
         return scenario
 
@@ -142,6 +142,21 @@ async def manager_edit_one_step(scenario_factory, deps, locale):
         )
         await scenario.click("section:welcome_config/channel")
         await scenario.select_option("announcements")
+        return scenario
+
+
+@golden_path(FORM, "manager_edit_design")
+async def manager_edit_design(scenario_factory, deps, locale):
+    with _banner_stub():
+        scenario = await open_manager(
+            scenario_factory,
+            deps,
+            locale,
+            FORM,
+            lambda d: seed_document(d, FORM, ENABLED),
+        )
+        await scenario.click("section:welcome_config/design")
+        await scenario.click("design:custom_blur")
         return scenario
 
 

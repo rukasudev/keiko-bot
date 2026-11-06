@@ -103,6 +103,21 @@ class YoutubeClient:
         items = self._read_data_api("channels", {"part": "snippet", "id": channel_id}).get("items")
         return items[0].get("snippet") if items else None
 
+    def get_channel_by_handle(self, username: str) -> Optional[dict]:
+        """The channel behind a handle with its snippet and uploads playlist, in one unit."""
+        items = self._read_data_api(
+            "channels", {"part": "snippet,contentDetails", "forHandle": username}
+        ).get("items")
+        return items[0] if items else None
+
+    def get_latest_upload(self, uploads_playlist_id: str) -> Optional[dict]:
+        """The snippet of the newest video of an uploads playlist, in one unit."""
+        items = self._read_data_api(
+            "playlistItems",
+            {"part": "snippet", "playlistId": uploads_playlist_id, "maxResults": "1"},
+        ).get("items")
+        return items[0].get("snippet") if items else None
+
     def get_video_info(self, video_id: str) -> Optional[dict]:
         """The video, with its `id` and `snippet`, or None when YouTube does not show it."""
         items = self._read_data_api("videos", {"part": "snippet", "id": video_id}).get("items")

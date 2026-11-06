@@ -147,6 +147,23 @@ class MockYouTubeAPI:
         channel = self._channels.get(channel_id)
         return channel.to_dict() if channel else None
 
+    def get_channel_by_handle(self, username: str) -> Optional[Dict[str, Any]]:
+        """The channel behind a handle, with its snippet and uploads playlist."""
+        channel_id = self.get_channel_id_from_username(username)
+        channel = self._channels.get(channel_id) if channel_id else None
+        if channel is None:
+            return None
+        return {
+            **channel.to_dict(),
+            "contentDetails": {"relatedPlaylists": {"uploads": f"UU{channel.id[2:]}"}},
+        }
+
+    def get_latest_upload(self, uploads_playlist_id: str) -> Optional[Dict[str, Any]]:
+        """The snippet of the newest video of the channel behind an uploads playlist."""
+        channel_id = f"UC{uploads_playlist_id[2:]}"
+        videos = [video for video in self._videos.values() if video.channel_id == channel_id]
+        return videos[-1].to_dict()["snippet"] if videos else None
+
     def get_video_info(self, video_id: str) -> Optional[Dict[str, Any]]:
         """Retorna informacoes do video."""
         self.get_video_info_calls.append(video_id)

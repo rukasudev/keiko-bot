@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any
@@ -23,16 +23,19 @@ from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
 from app.services import analytics, metrics
 from app.services.trace import trace_scope
-from app.services.utils import is_guild_admin
+from app.services.utils import get_command_display_name, is_guild_admin
 from app.settings.discord import observability
 from app.settings.discord.interactions import ComponentId, decode, to_event
 from app.settings.discord.transitions import (
+    Answering,
     EffectFailed,
     Executor,
     Surface,
     expire_surface,
+    hold,
+    release,
 )
-from app.settings.discord.views import Dispatcher
+from app.settings.discord.views import Dispatcher, walk
 from app.settings.features import feature_for
 from app.settings.features.feature import (
     AsideAction,
@@ -49,8 +52,8 @@ from app.settings.form.actions.action import Context
 from app.settings.form.components import Card, Gallery
 from app.settings.form.copy import normalize_locale, text
 from app.settings.form.effects import (
-    Finalize,
     OpenChild,
+    OpenPanel,
     Render,
     ResumeChild,
     ResumeParent,
@@ -81,11 +84,13 @@ class Session:
     guild: Any
     member: Any
     is_admin: bool = False
+    command_label: str = ""
     friction: observability.Friction = field(default_factory=observability.Friction)
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     cooldowns: dict[str, float] = field(default_factory=dict)
     previews: asyncio.Task[Mapping[str, str]] | None = None
     drawn_from: str = ""
+    journey_waits: bool = False
 
     async def ready_previews(
         self, wait: bool, budget: float = view_constants.PREVIEW_WAIT_SECONDS
@@ -139,12 +144,37 @@ def _draws_previews(decision: Decision, definition: Any) -> bool:
     )
 
 
+class MemberPictures(Mapping[str, str]):
+    """Each member's picture by id, read from the server's own cache when asked."""
+
+    def __init__(self, guild: Any) -> None:
+        self.guild = guild
+
+    def __getitem__(self, member_id: str) -> str:
+        member = (
+            self.guild.get_member(int(member_id))
+            if self.guild is not None and str(member_id).isdigit()
+            else None
+        )
+        if member is None:
+            raise KeyError(member_id)
+        return str(member.display_avatar.url)
+
+    def __iter__(self) -> Iterator[str]:
+        members = getattr(self.guild, "members", None) or ()
+        return (str(member.id) for member in members)
+
+    def __len__(self) -> int:
+        return len(getattr(self.guild, "members", None) or ())
+
+
 class Runtime:
     """The sessions of this process and what the adapter knows about each."""
 
     def __init__(self) -> None:
         self.store = InMemorySessionStore()
         self.sessions: dict[str, Session] = {}
+        self.answering: dict[int, Answering] = {}
         self.dispatcher = Dispatcher(self.handle)
 
     def reset(self) -> None:
@@ -162,14 +192,14 @@ class Runtime:
         guild = interaction.guild
         member = interaction.user
         guild_id = str(getattr(guild, "id", interaction.guild_id))
-        in_time = _answer_in_time(interaction)
+        answering = self._clocked(interaction)
 
         try:
             await self._open(interaction, key, source, locale, guild, member, guild_id)
         finally:
-            in_time.cancel()
+            self._unclocked(answering)
 
-        metrics.record_interaction(*_answered(in_time))
+        metrics.record_interaction(*answering.outcome())
 
     async def _open(
         self,
@@ -188,7 +218,7 @@ class Runtime:
 
         if opened.refusal:
             embed = response_error_embed(opened.refusal, locale)
-            await _answer_with(interaction, embed)
+            await _answer_with(self._answering(interaction), embed)
             return
         definition = registry.get(key)
         mode = Manage() if opened.document is not None else Setup()
@@ -209,6 +239,9 @@ class Runtime:
             guild=guild,
             member=member,
             is_admin=is_guild_admin(member),
+            command_label=get_command_display_name(
+                interaction.client, key, interaction.locale
+            ),
         )
         state = self.sessions[session.id]
 
@@ -234,7 +267,7 @@ class Runtime:
             await self._unknown(interaction)
             return
         state = self.sessions[session.id]
-        in_time = _answer_in_time(interaction)
+        answering = self._clocked(interaction)
         try:
             await self._handle_locked(interaction, component, session, payload, state)
         except EffectFailed as failed:
@@ -244,9 +277,22 @@ class Runtime:
             metrics.record_interaction("failed", error)
             raise
         finally:
-            in_time.cancel()
+            self._unclocked(answering)
 
-        metrics.record_interaction(*_answered(in_time))
+        metrics.record_interaction(*answering.outcome())
+
+    def _clocked(self, interaction: discord.Interaction) -> Answering:
+        answering = Answering(interaction)
+        answering.start_clock()
+        self.answering[interaction.id] = answering
+        return answering
+
+    def _unclocked(self, answering: Answering) -> None:
+        answering.stop()
+        self.answering.pop(answering.interaction.id, None)
+
+    def _answering(self, interaction: discord.Interaction) -> Answering:
+        return self.answering.get(interaction.id) or Answering(interaction)
 
     async def _handle_locked(
         self,
@@ -266,7 +312,10 @@ class Runtime:
             awaiting = current.awaiting or ""
             section = awaiting if awaiting.startswith("section:") else None
             event = to_event(interaction, component, payload, current.cursor, section)
-            await self._apply(interaction, current, event)
+            try:
+                await self._apply(interaction, current, event)
+            finally:
+                await release(state.surface, self._answering(interaction))
 
     async def _unknown(self, interaction: discord.Interaction) -> None:
         """A click on a message whose session this process no longer has."""
@@ -325,7 +374,10 @@ class Runtime:
         if parent is not None:
             from app.settings.form.responses.responses import document_values
 
-            parent_values = {**document_values(document), **parent.values()}
+            shown = shown_answers(
+                registry.get(*parent.definition), parent, Context(document=document)
+            )
+            parent_values = {**document_values(document), **_flat(shown)}
         items = _items(session, parent, document)
         return Context(
             now=_now(),
@@ -336,7 +388,10 @@ class Runtime:
             external=external,
             server_name=str(getattr(state.guild, "name", "")),
             prefix=prefix,
+            command=state.command_label,
+            values=opened.values,
             previews=await state.ready_previews(False),
+            member_pictures=MemberPictures(state.guild),
         )
 
     async def _apply(
@@ -356,13 +411,12 @@ class Runtime:
             is_admin=state.is_admin,
         ):
             lookup = lookup_for(definition, session, event)
-            if lookup is not None and not interaction.response.is_done():
-                await interaction.response.defer()
+            if lookup is not None:
+                await self._hold(interaction, state)
             context = await self._context(session, lookup)
             decision = self._decide(definition, session, event, context)
             if state.previews_pending() and _draws_previews(decision, definition):
-                if not interaction.response.is_done():
-                    await interaction.response.defer()
+                await self._hold(interaction, state)
                 budget = (
                     view_constants.GALLERY_WAIT_SECONDS
                     if _draws_a_gallery(decision)
@@ -404,8 +458,7 @@ class Runtime:
         background = str(values.get(key) or "")
         if not background or background == state.drawn_from:
             return decision
-        if not interaction.response.is_done():
-            await interaction.response.defer()
+        await self._hold(interaction, state)
         state.drawn_from = background
         state.previews = asyncio.ensure_future(
             state.feature.previews_for(values, self._open_context(session))
@@ -414,6 +467,10 @@ class Runtime:
         return self._decide(
             definition, session, event, replace(context, previews=previews)
         )
+
+    async def _hold(self, interaction: discord.Interaction, state: Session) -> None:
+        if not interaction.response.is_done():
+            await hold(state.surface, self._answering(interaction))
 
     def _decide(
         self,
@@ -452,6 +509,7 @@ class Runtime:
             commit=self._commit,
             aside=self._aside,
             continue_with=self._continue,
+            answering=self._answering(interaction),
         )
 
         try:
@@ -475,22 +533,21 @@ class Runtime:
 
         if session.status in outcomes:
             observability.close_journey(session, outcomes[session.status])
-        finalize = next(
-            (effect for effect in decision.effects if isinstance(effect, Finalize)),
-            None,
-        )
-        if (
-            session.status is Status.COMPLETED
-            and finalize
-            and finalize.kind == "enabled"
-        ):
-            observability.close_journey(session, "saved")
+        elif session.status is Status.COMPLETED:
+            ending = observability.completed_as(decision)
+            observability.close_journey(
+                session, observability.ended_as(session, ending)
+            )
 
     async def _continue(
         self, interaction: discord.Interaction, session: FormSession, effect: Any
     ) -> None:
-        """Open a child on the same message, or hand a child's result to its parent."""
+        """Open a child on the same message, hand a child's result to its parent, or
+        send the panel a setup saved."""
         state = self.sessions[session.id]
+        if isinstance(effect, OpenPanel):
+            await self._open_panel(interaction, session)
+            return
         if isinstance(effect, OpenChild):
             child = effect.session
             self.store.create(child)
@@ -502,6 +559,7 @@ class Runtime:
                 command_name=state.command_name,
                 guild=state.guild,
                 member=state.member,
+                command_label=state.command_label,
                 friction=state.friction,
                 lock=state.lock,
                 previews=state.previews,
@@ -549,6 +607,11 @@ class Runtime:
         """Run the feature's commit and feed its outcome back to the engine."""
         state = self.sessions[session.id]
         outcome_id = f"commit:{session.id}:{session.revision}"
+        if state.journey_waits:
+            state.journey_waits = False
+            observability.open_journey(
+                session, state.command_name, state.source, state.is_admin
+            )
         message = interaction.message
         when = (
             (message.edited_at or message.created_at) if message is not None else _now()
@@ -561,6 +624,7 @@ class Runtime:
             when=when,
             source=state.source,
             session_id=session.id if session.parent_id is None else session.parent_id,
+            guild=state.guild,
         )
 
         try:
@@ -577,6 +641,8 @@ class Runtime:
             return
         if result.document is not None:
             state.opened = Opened(document=result.document, panel=state.opened.panel)
+        if isinstance(session.mode, Manage):
+            await self._reopen(session)
         await self._apply(
             interaction,
             session,
@@ -585,6 +651,14 @@ class Runtime:
 
     async def _reopen(self, session: FormSession) -> None:
         """Read the feature again, so the next screen shows what is saved now."""
+        state = self.sessions[session.id]
+        reopened = await self._read_again(session)
+
+        if reopened is not None:
+            state.opened = reopened
+
+    async def _read_again(self, session: FormSession) -> Opened | None:
+        """What the feature has saved now, None when it cannot be read."""
         state = self.sessions[session.id]
         try:
             reopened = await state.feature.open(self._open_context(session))
@@ -595,56 +669,96 @@ class Runtime:
                 context=observability.error_context(session),
                 exc_info=True,
             )
-            return
+            return None
         if asyncio.iscoroutine(reopened.pending_previews):
             reopened.pending_previews.close()
 
-        state.opened = replace(
-            reopened, previews=state.opened.previews, pending_previews=None
+        return replace(reopened, previews=state.opened.previews, pending_previews=None)
+
+    async def _open_panel(
+        self, interaction: discord.Interaction, session: FormSession
+    ) -> None:
+        """Send the panel of what the setup saved as a new message, a new session."""
+        state = self.sessions[session.id]
+        opened = await self._read_again(session)
+
+        if opened is None or opened.document is None or opened.refusal:
+            return
+        panel = new_session(
+            session.definition,
+            Manage(),
+            session.origin,
+            ttl_seconds=view_constants.LONG_TIMEOUT_SECONDS,
         )
+        self.store.create(panel)
+        self.sessions[panel.id] = replace(
+            state,
+            opened=opened,
+            surface=Surface(),
+            friction=observability.Friction(),
+            lock=asyncio.Lock(),
+            cooldowns={},
+            journey_waits=True,
+        )
+        state.previews = None
+        await self._apply(interaction, panel, manager.FromSetup(f"panel:{panel.id}"))
 
     async def _aside(
-        self, interaction: discord.Interaction, name: str, session: FormSession
+        self,
+        interaction: discord.Interaction,
+        name: str,
+        session: FormSession,
+        target: str = "",
     ) -> None:
-        """Help, history, or a feature's own side action, with its cooldown."""
+        """Help, history, or a feature's own side action, over one item if named."""
         state = self.sessions[session.id]
         locale = session.origin.locale
+        answering = self._answering(interaction)
+        cooled = f"{name}:{target}" if target else name
 
         if name == "help":
             await self._help(interaction, session)
             return
         if name == "history":
+            await answering.hand_over()
             await self._history(interaction, session)
             return
         action = state.feature.asides().get(name)
         if action is None:
-            if not interaction.response.is_done():
-                await interaction.response.defer()
+            await answering.first(interaction.response.defer)
             return
-        if action.cooldown and _cooling(state, name, action.cooldown):
-            await _answer_with(interaction, _cooldown_embed(locale))
+        if action.cooldown and _cooling(state, cooled, action.cooldown):
+            await _answer_with(answering, _cooldown_embed(locale))
             return
         if action.confirm:
-            await self._ask_before(interaction, session, name, action, action.confirm)
+            await self._ask_before(
+                interaction, session, cooled, action, action.confirm, target
+            )
             return
         if action.cooldown:
-            _cool(state, name)
-        if (
-            action.defer
-            and not action.own_response
-            and not interaction.response.is_done()
-        ):
-            await interaction.response.defer()
-        responses = await self._shown(session, locale)
+            _cool(state, cooled)
+        if action.defer and not action.own_response:
+            await answering.first(interaction.response.defer)
+        else:
+            await answering.hand_over()
+        responses = await self._shown(session, locale, target)
         await action.handler(interaction, responses)
 
-    async def _shown(self, session: FormSession, locale: str) -> list[dict[str, Any]]:
-        """What the screen is showing, as the preview functions read it."""
+    async def _shown(
+        self, session: FormSession, locale: str, target: str = ""
+    ) -> list[dict[str, Any]]:
+        """What the screen shows, narrowed to the item a `key$index` target names."""
         state = self.sessions[session.id]
         definition = registry.get(*session.definition)
         context = await self._context(session)
-        answers = shown_answers(definition, session, context)
-        return state.feature.responses_for_aside(answers, locale)
+        answers: Mapping[str, Any]
+        if isinstance(session.mode, Manage) and target:
+            answers = state.feature.from_document(state.opened.document or {})
+        else:
+            answers = shown_answers(definition, session, context)
+        _, _, number = target.partition("$")
+        index = int(number) if number.isdigit() else None
+        return state.feature.responses_for_aside(answers, locale, index)
 
     async def _ask_before(
         self,
@@ -653,6 +767,7 @@ class Runtime:
         name: str,
         action: AsideAction,
         question: str,
+        target: str = "",
     ) -> None:
         """Run a side action only once the admin confirms what it will do."""
         from app.components.embed import response_embed
@@ -670,7 +785,7 @@ class Runtime:
             if action.cooldown:
                 _cool(state, name)
             await answer.response.edit_message(view=None)
-            await action.handler(answer, await self._shown(session, locale))
+            await action.handler(answer, await self._shown(session, locale, target))
 
         embed = response_embed(question, locale, footer=True, image=True)
         if action.confirm_values and embed.description:
@@ -683,10 +798,13 @@ class Runtime:
                 )
         view = ConfirmActionView(confirmed, locale)
 
-        if interaction.response.is_done():
-            await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+        if await self._answering(interaction).first(
+            lambda: interaction.response.send_message(
+                embed=embed, view=view, ephemeral=True
+            )
+        ):
             return
-        await interaction.response.send_message(embed=embed, view=view, ephemeral=True)
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
 
     async def _help(
         self, interaction: discord.Interaction, session: FormSession
@@ -702,7 +820,7 @@ class Runtime:
         )
         embed.set_thumbnail(url=KeikoIcons.IMAGE_02)
 
-        for item in _walk(view):
+        for item in walk(view):
             if not isinstance(item, discord.ui.Button) or not item.label:
                 continue
             desc = getattr(item, "desc", None)
@@ -715,7 +833,7 @@ class Runtime:
                 value=desc,
                 inline=False,
             )
-        await _answer_with(interaction, embed)
+        await _answer_with(self._answering(interaction), embed)
 
     async def _history(
         self, interaction: discord.Interaction, session: FormSession
@@ -775,7 +893,8 @@ class Runtime:
                 )
                 await expire_surface(state.surface, session.origin.locale)
             if session.parent_id is None:
-                observability.close_journey(session, "abandoned")
+                ended = observability.ended_as(decision.session, "abandoned")
+                observability.close_journey(decision.session, ended)
             expired.append(decision.session)
         return tuple(expired)
 
@@ -828,23 +947,6 @@ def _cooldown_embed(locale: str) -> discord.Embed:
     return response_embed("buttons.cooldown", locale)
 
 
-def _walk(view: Any) -> list[Any]:
-    found: list[Any] = []
-
-    def walk(node: Any) -> None:
-        for item in getattr(node, "children", None) or []:
-            found.append(item)
-            walk(item)
-            accessory = getattr(item, "accessory", None)
-
-            if accessory is not None:
-                found.append(accessory)
-
-    if view is not None:
-        walk(view)
-    return found
-
-
 def _items(
     session: FormSession, parent: FormSession | None, document: Mapping[str, Any]
 ) -> tuple[Mapping[str, Any], ...]:
@@ -872,48 +974,14 @@ def _command_label(interaction: Any, key: str) -> str:
     return str(getattr(command, "qualified_name", None) or key)
 
 
-_Answer = tuple[metrics.InteractionOutcome, BaseException | None]
-
-
-def _answer_in_time(interaction: discord.Interaction) -> asyncio.Task[_Answer]:
-    """Answer Discord before its three seconds run out, and only if we are late.
-
-    A command answered on time needs no deferral, so nobody reads "thinking"
-    for work that took no time; one that is still reading or drawing when the
-    clock is nearly out is deferred and arrives as a followup instead of being
-    lost. On a button the deferral is invisible, on a command it is the
-    thinking state.
-    """
-
-    async def defer_if_late() -> _Answer:
-        await asyncio.sleep(view_constants.DEFER_AFTER_SECONDS)
-        try:
-            if interaction.response.is_done():
-                return "in_time", None
-            await interaction.response.defer(ephemeral=True)
-        except discord.HTTPException as error:
-            logger.warn(
-                f"Could not answer in time: {type(error).__name__}: {error}",
-                log_type=logconstants.COMMAND_WARN_TYPE,
-            )
-            return "failed", error
-        return "deferred", None
-
-    return asyncio.ensure_future(defer_if_late())
-
-
-def _answered(clock: asyncio.Task[_Answer]) -> _Answer:
-    if clock.done() and not clock.cancelled() and clock.exception() is None:
-        return clock.result()
-    return "in_time", None
-
-
-async def _answer_with(interaction: discord.Interaction, embed: discord.Embed) -> None:
+async def _answer_with(answering: Answering, embed: discord.Embed) -> None:
     """Send `embed` as the answer, or as a followup when one was deferred."""
-    if interaction.response.is_done():
-        await interaction.followup.send(embed=embed, ephemeral=True)
+    interaction = answering.interaction
+    if await answering.first(
+        lambda: interaction.response.send_message(embed=embed, ephemeral=True)
+    ):
         return
-    await interaction.response.send_message(embed=embed, ephemeral=True)
+    await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 def _flat(answers: Mapping[str, Any]) -> dict[str, Any]:

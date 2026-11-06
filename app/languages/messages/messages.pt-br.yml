@@ -12,16 +12,7 @@ pt-br:
 
   greetings-message:
     title: "Olá, eu sou o Keiko, o seu leal companheiro do Discord! :dog:"
-    message:
-      "Estou super animado para fazer novos amigos e ajudar a tornar o seu servidor ainda mais incrível! :sparkles: Comece utilizando o comando `/ajuda` para descobrir tudo o que posso fazer e como me configurar! :gear:\n\n
-      Aqui estão alguns truques que eu sei fazer:
-      \n- **Moderação:** Configuração de bloqueio de links, autocargos e mensagens de boas-vindas.
-      \n- **Notificações:** Avisos de lives na Twitch e videos do Youtube.
-      \n- **Utilitário:** Tradução de mensagens para qualquer idioma.
-      \n- **Base:** Suporte, report e ajuda rápida.\n\n
-      Você também pode usar os botões abaixo para configurar rapidamente uma funcionalidade, ou use `/configurar` a qualquer momento para ver e gerenciar todas elas! :rocket:\n\n
-      Tudo isso e muito mais você pode gerenciar de forma fácil através dos botões do Discord, editando, pausando ou desabilitando funcionalidades quando quiser :pencil:\n\n
-      Se precisar de *aujuda*, é só chamar utilizando `/suporte` :heart:"
+    message: "Estou super animado para fazer novos amigos e ajudar a deixar o seu servidor ainda mais incrível! ✨\n\nAqui estão alguns truques que eu sei fazer:\n🛡️ **Moderação:** Bloquear Links, Cargos Padrão, Mensagens de Boas-Vindas e Lembretes de Aniversário.\n🔔 **Notificações:** Avisos de lives na Twitch e de vídeos novos no YouTube.\n🎮 **Integrações:** Respostas aos comandos do StreamElements aqui no chat.\n🌐 **Utilitário:** Tradução de mensagens para qualquer idioma.\n🧰 **Base:** Suporte, report e ajuda rápida.\n\nVocê pode usar o botão **Configurar** abaixo para começar 🚀 ou rodar `/configurar` a qualquer momento para ver e gerenciar todas as minhas funcionalidades!\n\nTudo isso você gerencia de um jeito fácil pelos botões do Discord, editando, pausando ou desativando o que quiser ✏️\n\nPara ver todos os meus comandos, toque em **Comandos**. E se precisar de *aujuda*, é só chamar com `/suporte` ❤️"
 
   prefix-hint:
     guild: "🐾 Au au! Procurando um dos meus comandos com **$prefix**? Eles ainda não estão ativados neste servidor.\n\nPeça para um moderador configurar um deles no `/configurar` ou pelo próprio comando:\n$commands\n\nOs meus outros comandos começam com `/`! Experimente `/ajuda` para ver tudo o que eu sei fazer :heart:"

@@ -8,24 +8,28 @@ is one `SectionKind` in `SECTION_KINDS`, the way each step kind is one `Kind`.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from app.constants import KeikoIcons
 from app.settings.form.actions import Refusal
 from app.settings.form.actions.action import (
     Context,
+    apply_tokens,
     back_button,
     cancel_button,
     design_gallery,
     footer_of,
     other_items,
 )
+from app.settings.form.actions.selects import picked_ids, select_picker, stored_ids
 from app.settings.form.components import (
     Button,
     Card,
     CardHeader,
+    Choice,
     ChoiceOption,
     FileInput,
     Input,
@@ -37,26 +41,37 @@ from app.settings.form.components import (
 )
 from app.settings.form.conditions import Scope, evaluate
 from app.settings.form.copy import text
-from app.settings.form.form_state import Answer, FormSession
+from app.settings.form.form_state import Answer, FormSession, Refused
 from app.settings.form.form_yaml import (
     BooleanToggleSection,
     ButtonOptionsSection,
     CardStep,
     ChannelSelectSection,
+    CompositionStep,
     DesignSection,
     FileUploadSection,
     ModalInputSection,
     MultiSelectSection,
     Option,
     Section,
+    SelectsSection,
     Text,
     TitleContentSection,
+    UserSelectSection,
     ValueSelectSection,
     owned_keys,
 )
 from app.settings.form.responses.responses import document_values
 from app.settings.form.responses.styles import empty_value, format_boolean, format_value
-from app.settings.form.responses.summary import option_label
+from app.settings.form.responses.summary import (
+    item_entries,
+    item_name,
+    list_adder,
+    list_bullets,
+    list_remover,
+    option_label,
+    step_title,
+)
 from app.settings.form.responses.transforms import normalizer, transform
 from app.settings.form.responses.validations import ValidationContext, validator
 
@@ -80,6 +95,9 @@ Change = Callable[
 ]
 Reset = Callable[[Any], Changes]
 Custom = Callable[[Any, Mapping[str, Any]], bool]
+Listed = tuple["CompositionStep | None", list[dict[str, Any]]]
+Control = Picker | OptionSelect | Choice
+Controls = Callable[[Any, CardStep, Mapping[str, Any], Context], tuple[Control, ...]]
 
 
 def _localized(value: Any, locale: str) -> Any:
@@ -120,6 +138,9 @@ def initial_state(
         if state.get(key) is None:
             state[key] = _localized(value, context.locale)
     for section in card.sections:
+        for select in section.picks():
+            if state.get(select.key) is None:
+                state[select.key] = stored_ids(())
         mode = section.state.mode
         if not mode or state.get(mode) in ("default", "custom"):
             continue
@@ -140,16 +161,44 @@ def state_of(card: CardStep, session: FormSession, context: Context) -> dict[str
     return initial_state(card, session, context)
 
 
-def visible(section: Section, state: Mapping[str, Any]) -> bool:
-    """True unless the section's rule hides it for this state."""
+def visible(section: Section, state: Mapping[str, Any], context: Context) -> bool:
+    """True unless the section's rule hides it, or it belongs to a setup only."""
+    if section.setup_only and context.document:
+        return False
     return evaluate(section.visible_when, Scope(state))
 
 
-def hidden_keys(card: CardStep, state: Mapping[str, Any]) -> set[str]:
+def held_keys(card: CardStep, state: Mapping[str, Any], context: Context) -> set[str]:
+    """The sections a visible group draws on its own screen, never on the card."""
+    return {
+        key
+        for group in card.sections
+        if group.holds() and visible(group, state, context)
+        for key in group.holds()
+    }
+
+
+def opened_group(
+    card: CardStep, state: Mapping[str, Any], session: FormSession, context: Context
+) -> Section | None:
+    """The visible group whose screen the session shows, None on the card."""
+    return next(
+        (
+            section
+            for section in card.sections
+            if section.key == session.opened_group
+            and section.holds()
+            and visible(section, state, context)
+        ),
+        None,
+    )
+
+
+def hidden_keys(card: CardStep, state: Mapping[str, Any], context: Context) -> set[str]:
     """State keys owned only by sections hidden for this state."""
     keys: set[str] = set()
     for section in card.sections:
-        if not visible(section, state):
+        if not visible(section, state, context):
             keys.update(owned_keys(section))
     return keys
 
@@ -190,7 +239,12 @@ def _section_view(
     customize = section.customize_label.get(locale) if section.customize_label else ""
     lines, media = preview(section, state, card, session, context)
     custom = SECTION_KINDS[section.type].custom
+    described = section.description.get(locale) if section.description else ""
+    description = apply_tokens(described, session, context, state).rstrip()
 
+    if section.media_key and not media:
+        found = state.get(section.media_key) or session.raw(section.media_key)
+        media = str(found) if found else None
     if custom is not None and section.state.mode:
         customized = custom(section, state)
         badge_key = "badge-custom" if customized else "badge-default"
@@ -205,7 +259,11 @@ def _section_view(
             )
         else:
             buttons = (Button(customize, f"section:{index}"),)
-        return SectionView(index, section.key, heading, lines, buttons, media)
+        return SectionView(
+            index, section.key, heading, lines, buttons, media, description
+        )
+    if section.adds_to():
+        return _list_view(index, section, state, session, context, lines, description)
     edit_label = customize or text("buttons.summary-card.edit", locale)
     return SectionView(
         index,
@@ -214,7 +272,124 @@ def _section_view(
         lines,
         (Button(edit_label, f"section:{index}"),),
         media,
+        description,
     )
+
+
+def _listed(section: Section, session: FormSession, context: Context) -> Listed:
+    composition = next(
+        (
+            step
+            for step in context.definition.steps
+            if isinstance(step, CompositionStep) and step.key == section.adds_to()
+        ),
+        None,
+    )
+    if composition is None:
+        return None, []
+    answer = session.answers.get(composition.key)
+    items = [
+        item_entries(composition.steps, item, context.locale)
+        for item in (answer.raw or () if answer else ())
+    ]
+    return composition, items
+
+
+def _list_view(
+    index: int,
+    section: Section,
+    state: Mapping[str, Any],
+    session: FormSession,
+    context: Context,
+    lines: tuple[str, ...],
+    description: str,
+) -> SectionView:
+    locale = context.locale
+    composition, items = _listed(section, session, context)
+    assert composition is not None
+    title = step_title(composition, locale, Scope(state))
+    add = list_adder(composition, len(items), f"section:{index}", locale)
+    buttons = (add, *list_remover(composition, len(items), locale))
+    heading = f"{section.icon} **{title}**"
+    return SectionView(index, section.key, heading, lines, buttons, None, description)
+
+
+def _list_preview(
+    section: Section,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+) -> Lines:
+    locale = context.locale
+    composition, items = _listed(section, session, context)
+    if composition is None or not items:
+        return ((f"> {empty_value(locale)}",), None)
+    return (list_bullets(composition, items, locale), None)
+
+
+def _opened_by_the_form(
+    section: Section,
+    card: CardStep,
+    index: int,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Screen | None, Changes | None]:
+    return None, {}
+
+
+def _unchanged(
+    section: Section,
+    payload: Any,
+    state: Mapping[str, Any],
+    session: FormSession,
+    context: Context,
+) -> Changes:
+    return {}
+
+
+def _group_preview(
+    section: Section,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+) -> Lines:
+    lines = [
+        line
+        for held in card.sections
+        if held.key in section.holds() and visible(held, state, context)
+        for line in _held_lines(held, state, card, session, context)
+    ]
+    return (tuple(lines), None)
+
+
+def _held_lines(
+    section: Section,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+) -> tuple[str, ...]:
+    locale = context.locale
+    if section.picks():
+        return tuple(
+            f"> {select.icon or section.icon} **{select.label.get(locale)}:** "
+            f"{_formatted(state.get(select.key), select.style, locale)}"
+            for select in section.picks()
+        )
+    if section.adds_to():
+        composition, items = _listed(section, session, context)
+        assert composition is not None
+        names = ", ".join(
+            item_name(composition, item, index, locale, styled=True)
+            for index, item in enumerate(items)
+        )
+        title = step_title(composition, locale, Scope(state))
+        return (f"> {section.icon} **{title}:** {names or empty_value(locale)}",)
+    lines, _ = preview(section, state, card, session, context)
+    value = " ".join(line.removeprefix("> ") for line in lines)
+    return (f"> {section.icon} **{section.label.get(locale)}:** {value}",)
 
 
 def _header(card: CardStep, session: FormSession, context: Context) -> CardHeader:
@@ -234,32 +409,97 @@ def _header(card: CardStep, session: FormSession, context: Context) -> CardHeade
             else ("" if value is None else str(value))
         )
         lines.append(f"{line.emoji} **{line.label.get(locale)}:** {shown}")
-    thumbnail = ICONS.get(header.thumbnail, "")
-    if header.thumbnail_key:
-        state = state_of(card, session, context)
-        found = state.get(header.thumbnail_key) or session.raw(header.thumbnail_key)
-        thumbnail = str(found or thumbnail)
     return CardHeader(
         title=title,
         description=card.description.get(locale),
         lines=tuple(lines),
-        thumbnail=thumbnail,
+        thumbnail=ICONS.get(header.thumbnail, ""),
+    )
+
+
+def _names_the_item(section: Section, context: Context) -> bool:
+    composition = context.definition.composition
+    if composition is None or not composition.items.unique_locked:
+        return False
+    unique = composition.items.unique_by
+    return context.item_index is not None and unique in owned_keys(section)
+
+
+def _with_controls(
+    view: SectionView,
+    section: Section,
+    card: CardStep,
+    state: Mapping[str, Any],
+    context: Context,
+) -> SectionView:
+    if _names_the_item(section, context):
+        value = _formatted(
+            state.get(section.state.value or ""), section.style, context.locale
+        )
+        shown = view.preview or (f"> {value}",)
+        return replace(view, preview=shown, buttons=(), controls=())
+    controls = SECTION_KINDS[section.type].controls
+    if controls is None:
+        return view
+    return replace(view, buttons=(), controls=controls(section, card, state, context))
+
+
+def _drawn(
+    card: CardStep,
+    keys: Sequence[str],
+    state: Mapping[str, Any],
+    session: FormSession,
+    context: Context,
+) -> tuple[SectionView, ...]:
+    return tuple(
+        _with_controls(
+            _section_view(index, section, state, card, session, context),
+            section,
+            card,
+            state,
+            context,
+        )
+        for index, section in enumerate(card.sections)
+        if section.key in keys and visible(section, state, context)
+    )
+
+
+def _group_screen(
+    card: CardStep,
+    group: Section,
+    state: Mapping[str, Any],
+    session: FormSession,
+    context: Context,
+) -> Screen:
+    locale = context.locale
+    described = group.picker_description or group.description
+    description = described.get(locale) if described else ""
+    header = CardHeader(
+        _picker_title(group, locale),
+        apply_tokens(description, session, context, state).rstrip(),
+    )
+    sections = _drawn(card, group.holds(), state, session, context)
+    return Screen(
+        components=(Card(card.key, header, sections),),
+        buttons=(Button(text("buttons.back.label", locale), "picker_back"),),
+        flavour="components_v2",
+        layout_footer=footer_of(card, locale),
     )
 
 
 def render(step: Any, session: FormSession, context: Context) -> Screen:
-    """The card with its visible sections, Done, Back and Cancel."""
+    """The card with its visible sections and buttons, or the group it opened."""
     card: CardStep = step
     locale = context.locale
     state = state_of(card, session, context)
-    sections = tuple(
-        _section_view(index, section, state, card, session, context)
-        for index, section in enumerate(card.sections)
-        if visible(section, state)
-    )
-    buttons: list[Button] = [
-        Button(text("buttons.summary-card.done", locale), "done", "success")
-    ]
+    group = opened_group(card, state, session, context)
+
+    if group is not None:
+        return _group_screen(card, group, state, session, context)
+    held = held_keys(card, state, context)
+    keys = [section.key for section in card.sections if section.key not in held]
+    sections = _drawn(card, keys, state, session, context)
+    buttons: list[Button] = []
 
     if card.preview:
         buttons.append(
@@ -271,6 +511,8 @@ def render(step: Any, session: FormSession, context: Context) -> Screen:
                 description=text("buttons.preview.desc", locale),
             )
         )
+    done = "confirm.label" if context.done_saves else "summary-card.done"
+    buttons.append(Button(text(f"buttons.{done}", locale), "done", "success"))
     if context.can_go_back:
         buttons.append(back_button(locale))
     buttons.append(cancel_button(locale))
@@ -288,7 +530,32 @@ def open_section(
     """What pressing a section does: a screen to show, or a change to apply."""
     section = card.sections[index]
     state = state_of(card, session, context)
-    return SECTION_KINDS[section.type].press(section, card, index, state, context)
+    screen, changes = SECTION_KINDS[section.type].press(
+        section, card, index, state, context
+    )
+    refused = session.refused_on(f"section:{index}")
+
+    if screen is not None and refused is not None and refused.inputs:
+        screen = _typed_again(screen, refused)
+    return screen, changes
+
+
+def _typed_again(screen: Screen, refused: Refused) -> Screen:
+    components = tuple(
+        replace(
+            component,
+            inputs=tuple(
+                field if typed is None else replace(field, default=typed)
+                for field, typed in zip(
+                    component.inputs, refused.typed_into(len(component.inputs))
+                )
+            ),
+        )
+        if isinstance(component, TextInputs)
+        else component
+        for component in screen.components
+    )
+    return replace(screen, components=components)
 
 
 def apply_change(
@@ -301,7 +568,16 @@ def apply_change(
     """The state changes a section's payload produces, or a refusal."""
     section = card.sections[index]
     state = state_of(card, session, context)
-    return SECTION_KINDS[section.type].change(section, payload, state, session, context)
+
+    if _names_the_item(section, context):
+        return {}
+    change = SECTION_KINDS[section.type].change(
+        section, payload, state, session, context
+    )
+
+    if isinstance(change, Refusal) and not change.target:
+        return replace(change, target=f"section:{index}")
+    return change
 
 
 def apply_drafts(
@@ -317,14 +593,16 @@ def apply_drafts(
             (
                 index
                 for index, section in enumerate(card.sections)
-                if section.state.value == slot
+                if slot in owned_keys(section)
             ),
             None,
         )
         if index is None:
             applied[slot] = payload
             continue
-        change = apply_change(card, index, payload, session, context)
+        own = card.sections[index].state.value == slot
+        drafted = payload if own else {slot: payload}
+        change = apply_change(card, index, drafted, session, context)
         if isinstance(change, Refusal):
             return change
         applied.update(change)
@@ -376,17 +654,28 @@ def parse(
     """Done: the draft becomes the answers the card's fields declare."""
     card: CardStep = step
     state = dict(state_of(card, session, context))
-    hidden = hidden_keys(card, state)
+    hidden = hidden_keys(card, state, context)
     missing = [
         key
         for key in card.required_keys
         if key not in hidden and state.get(key) in EMPTY
     ]
+    alternatives = [key for key in card.required_any if key not in hidden]
 
+    if alternatives and all(state.get(key) in EMPTY for key in alternatives):
+        return Refusal(
+            "fill-one-field", plain=True, target=card.key, missing=tuple(alternatives)
+        )
     if missing:
         labels = required_labels(card, context.locale)
         joined = _join_labels([labels.get(key, key) for key in missing], context.locale)
-        return Refusal("buttons.summary-card.required", {"fields": joined}, plain=True)
+        return Refusal(
+            "buttons.summary-card.required",
+            {"fields": joined},
+            plain=True,
+            target=card.key,
+            missing=tuple(missing),
+        )
     rule = transform(card.transform)
     if rule:
         state[rule.value_key] = rule.serialize(state)
@@ -395,6 +684,23 @@ def parse(
         if field.key in state:
             answers[field.key] = Answer(state[field.key])
     return answers
+
+
+def preview_refusal(
+    card: CardStep, session: FormSession, context: Context
+) -> Refusal | None:
+    """The declared error while a key the card's preview needs is empty."""
+    needs = card.preview_needs
+    if needs is None:
+        return None
+    state = state_of(card, session, context)
+    hidden = hidden_keys(card, state, context)
+    missing = tuple(
+        key for key in needs.keys if key not in hidden and state.get(key) in EMPTY
+    )
+    if not missing:
+        return None
+    return Refusal(needs.error, plain=True)
 
 
 def _cleared(section: Section) -> Changes:
@@ -414,13 +720,14 @@ def _value_preview(
 
 @dataclass(frozen=True)
 class SectionKind:
-    """What a card section type contributes: its lines, its press, change, reset."""
+    """What a section type contributes: lines, press, change, reset, card controls."""
 
     press: Press
     change: Change
     preview: Preview = _value_preview
     reset: Reset = _cleared
     custom: Custom | None = None
+    controls: Controls | None = None
 
 
 def _picker_title(section: Section, locale: str) -> str:
@@ -438,14 +745,14 @@ def _picker_screen(
     card: CardStep,
     section: Section,
     locale: str,
-    component: Any,
+    components: Sequence[Any],
     description: str = "",
     buttons: Sequence[Button] = (),
 ) -> Screen:
     return Screen(
         title=_picker_title(section, locale),
         description=description,
-        components=(component,) if component is not None else (),
+        components=tuple(components),
         buttons=(*buttons, Button(text("buttons.back.label", locale), "picker_back")),
         flavour="components_v2",
         layout_footer=footer_of(card, locale),
@@ -461,6 +768,7 @@ def _options(
             str(option.value),
             option.style or "secondary",
             str(option.value) in selected,
+            option.description.get(locale) if option.description else "",
         )
         for option in options
     )
@@ -488,7 +796,7 @@ def _title_content_preview(
     else:
         title = section.default.title.get(locale)
         content = section.default.content.get(locale)
-    variables = _template_vars(card, session, context)
+    variables = _template_vars(card, session, context, state)
     lines = []
 
     if title:
@@ -499,14 +807,18 @@ def _title_content_preview(
 
 
 def _template_vars(
-    card: CardStep, session: FormSession, context: Context
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+    state: Mapping[str, Any],
 ) -> dict[str, str]:
     resolved: dict[str, str] = {}
     for name, var in card.context.items():
         if var.context == "server_name":
             resolved[name] = context.server_name
             continue
-        value = session.raw(var.answer or "")
+        key = var.answer or ""
+        value = state.get(key) if key in state else session.raw(key)
         if value is None:
             resolved[name] = ""
         elif var.format:
@@ -654,16 +966,110 @@ def _channel_picker(
     state: Mapping[str, Any],
     context: Context,
 ) -> tuple[Screen | None, Changes | None]:
-    locale = context.locale
-    picker = Picker(
+    picker = _channel_select(section, card, context.locale)
+    return _picker_screen(card, section, context.locale, (picker,)), None
+
+
+def _channel_controls(
+    section: ChannelSelectSection,
+    card: CardStep,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Control, ...]:
+    selected = picked_ids(state.get(section.state.value or ""))
+    return (_channel_select(section, card, context.locale, selected),)
+
+
+def _channel_select(
+    section: ChannelSelectSection,
+    card: CardStep,
+    locale: str,
+    selected: tuple[str, ...] = (),
+) -> Picker:
+    return Picker(
         card.key,
         "channel",
         text("buttons.components.select.channel-placeholder", locale),
+        selected=selected,
         unique=True,
         slot=section.state.value or "",
         required=True,
     )
-    return _picker_screen(card, section, locale, picker), None
+
+
+def _member_picker(
+    section: UserSelectSection,
+    card: CardStep,
+    index: int,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Screen | None, Changes | None]:
+    picker = _member_select(section, card, context.locale)
+    return _picker_screen(card, section, context.locale, (picker,)), None
+
+
+def _member_controls(
+    section: UserSelectSection,
+    card: CardStep,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Control, ...]:
+    selected = picked_ids(state.get(section.state.value or ""))
+    return (_member_select(section, card, context.locale, selected),)
+
+
+def _member_select(
+    section: UserSelectSection,
+    card: CardStep,
+    locale: str,
+    selected: tuple[str, ...] = (),
+) -> Picker:
+    return Picker(
+        card.key,
+        "user",
+        text("buttons.components.select.user-placeholder", locale),
+        selected=selected,
+        unique=True,
+        slot=section.state.value or "",
+        required=True,
+    )
+
+
+def _member_preview(
+    section: UserSelectSection,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+) -> Lines:
+    member = state.get(section.state.value or "")
+    if not section.picture or member in EMPTY:
+        return ((), None)
+    return ((), context.member_pictures.get(str(member)) or None)
+
+
+def _placeholder(section: Section, locale: str) -> str:
+    if section.customize_label:
+        return section.customize_label.get(locale)
+    return _picker_title(section, locale)
+
+
+def _options_select(
+    section: ValueSelectSection | ButtonOptionsSection | DesignSection,
+    card: CardStep,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Control, ...]:
+    locale = context.locale
+    key = section.state.value or ""
+    current = [str(state.get(key))] if state.get(key) not in EMPTY else []
+    select = OptionSelect(
+        card.key,
+        _placeholder(section, locale),
+        _options(section.choices(), current, locale),
+        slot=key,
+    )
+    return (select,)
 
 
 def _picked(
@@ -707,7 +1113,7 @@ def _value_picker(
         slot=section.state.value or "",
     )
     description = _localized(section.picker_description, locale) or ""
-    return _picker_screen(card, section, locale, single, description), None
+    return _picker_screen(card, section, locale, (single,), description), None
 
 
 def _value_change(
@@ -749,14 +1155,24 @@ def _option_buttons(
     context: Context,
 ) -> tuple[Screen | None, Changes | None]:
     locale = context.locale
-    buttons = tuple(
-        Button(
-            option.label.get(locale), f"pick:{position}", option.style or "secondary"
-        )
-        for position, option in enumerate(section.options)
+    chosen = str(state.get(section.state.value or ""))
+    described = all(option.description for option in section.options)
+    choice = Choice(
+        card.key,
+        tuple(
+            ChoiceOption(
+                option.label.get(locale),
+                str(position),
+                option.style or "secondary",
+                str(option.value) == chosen,
+                option.description.get(locale) if option.description else "",
+            )
+            for position, option in enumerate(section.options)
+        ),
+        button_label=text("buttons.choose.label", locale) if described else "",
     )
     description = _localized(section.picker_description, locale) or ""
-    return _picker_screen(card, section, locale, None, description, buttons), None
+    return _picker_screen(card, section, locale, (choice,), description), None
 
 
 def _option_pressed(
@@ -767,6 +1183,8 @@ def _option_pressed(
     context: Context,
 ) -> Changes:
     key = section.state.value or ""
+    if isinstance(payload, (list, tuple)):
+        return {key: str(payload[0])} if payload else {}
     position = int(payload) if str(payload).isdigit() else -1
     if 0 <= position < len(section.options):
         return {key: str(section.options[position].value)}
@@ -792,7 +1210,8 @@ def _values_preview(
         for option in section.options
         if str(option.value) in chosen
     ]
-    return ((f"> {', '.join(labels) if labels else '—'}",), None)
+    shown = ", ".join(labels) if labels else empty_value(context.locale)
+    return ((f"> {shown}",), None)
 
 
 def _values_picker(
@@ -814,7 +1233,27 @@ def _values_picker(
         slot=key,
     )
     description = _localized(section.picker_description, locale) or ""
-    return _picker_screen(card, section, locale, multiple, description), None
+    return _picker_screen(card, section, locale, (multiple,), description), None
+
+
+def _values_select(
+    section: MultiSelectSection,
+    card: CardStep,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Control, ...]:
+    locale = context.locale
+    key = section.state.value or ""
+    chosen = [str(value) for value in (state.get(key) or [])]
+    multiple = OptionSelect(
+        card.key,
+        _placeholder(section, locale),
+        _options(section.options, chosen, locale),
+        0,
+        max(len(section.options), 1),
+        slot=key,
+    )
+    return (multiple,)
 
 
 def _values_change(
@@ -858,7 +1297,31 @@ def _toggled(
     context: Context,
 ) -> Changes:
     key = section.state.value or ""
+    chosen = str(payload).lower()
+
+    if chosen in ("true", "false"):
+        return {key: chosen == "true"}
     return {key: not bool(state.get(key))}
+
+
+def _yes_and_no(
+    section: BooleanToggleSection,
+    card: CardStep,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Control, ...]:
+    key = section.state.value or ""
+    current = bool(state.get(key))
+    options = tuple(
+        ChoiceOption(
+            format_boolean(value, context.locale),
+            str(value).lower(),
+            "primary" if value == current else "secondary",
+            value == current,
+        )
+        for value in (True, False)
+    )
+    return (Choice(card.key, options, slot=key),)
 
 
 def _switched_off(section: BooleanToggleSection) -> Changes:
@@ -971,13 +1434,124 @@ def _fields_change(
             ),
         )
         if error:
-            return Refusal(error)
+            return Refusal(error, inputs=tuple(str(value) for value in typed))
     for answer, path in section.lookup_answers.items():
         service, _, name = path.partition(".")
         found = context.external.get(service, {})
         if name in found:
             changes[answer] = found[name]
-    return changes
+    return {**changes, **_filled(section, state, changes)}
+
+
+def _filled(
+    section: ModalInputSection, state: Mapping[str, Any], changes: Changes
+) -> Changes:
+    fills = section.fills
+    key = section.state.value or ""
+    new = str(changes.get(key) or "")
+
+    if fills is None or not new:
+        return {}
+    target = changes.get(fills.into, state.get(fills.into))
+    if target in EMPTY:
+        return {}
+    old = str(state.get(key) or "")
+    return {fills.into: _rewritten(target, fills.tokens, old, new)}
+
+
+def _rewritten(body: Any, tokens: Mapping[str, str], old: str, new: str) -> Any:
+    if isinstance(body, (list, tuple)):
+        return [_rewritten(part, tokens, old, new) for part in body]
+    written = str(body)
+
+    if old and old.lower() != new.lower():
+        renderings = {
+            template.replace("{value}", old).lower(): template.replace("{value}", new)
+            for template in tokens.values()
+        }
+        longest = sorted(renderings, key=len, reverse=True)
+        bounded = re.compile(
+            r"(?<![\w.])(?:" + "|".join(map(re.escape, longest)) + r")(?!\w)",
+            flags=re.IGNORECASE,
+        )
+        written = bounded.sub(lambda match: renderings[match.group(0).lower()], written)
+    for name, template in tokens.items():
+        written = written.replace("{" + name + "}", template.replace("{value}", new))
+    return written
+
+
+def _selects_preview(
+    section: SelectsSection,
+    state: Mapping[str, Any],
+    card: CardStep,
+    session: FormSession,
+    context: Context,
+) -> Lines:
+    locale = context.locale
+    shown = {
+        select.key: _formatted(state.get(select.key), select.style, locale)
+        for select in section.selects
+    }
+
+    if len(section.selects) == 1:
+        return ((f"> {shown[section.selects[0].key]}",), None)
+    lines = tuple(
+        f"> {select.icon or section.icon} **{select.label.get(locale)}:** "
+        f"{shown[select.key]}"
+        for select in section.selects
+    )
+    return (lines, None)
+
+
+def _selects_picker(
+    section: SelectsSection,
+    card: CardStep,
+    index: int,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Screen | None, Changes | None]:
+    locale = context.locale
+    pickers = _selects_controls(section, card, state, context)
+    description = _localized(section.picker_description, locale) or ""
+    return _picker_screen(card, section, locale, pickers, description), None
+
+
+def _selects_controls(
+    section: SelectsSection,
+    card: CardStep,
+    state: Mapping[str, Any],
+    context: Context,
+) -> tuple[Control, ...]:
+    return tuple(
+        select_picker(
+            card.key,
+            select,
+            state.get(select.key),
+            context.locale,
+            required=select.key in card.required_keys,
+        )
+        for select in section.selects
+    )
+
+
+def _selects_change(
+    section: SelectsSection,
+    payload: Any,
+    state: Mapping[str, Any],
+    session: FormSession,
+    context: Context,
+) -> Changes:
+    picked = payload if isinstance(payload, Mapping) else {}
+    keys = {select.key for select in section.selects}
+    return {
+        slot: stored_ids(picked_ids(values))
+        for slot, values in picked.items()
+        if slot in keys
+    }
+
+
+def _selects_cleared(section: SelectsSection) -> Changes:
+    return {select.key: [] for select in section.selects}
 
 
 def _design_preview(
@@ -1032,11 +1606,33 @@ SECTION_KINDS: dict[str, SectionKind] = {
     "file-upload": SectionKind(
         _image_modal, _image_change, _image_preview, _image_reset, _image_custom
     ),
-    "channel-select": SectionKind(_channel_picker, _picked),
-    "value-select": SectionKind(_value_picker, _value_change, _option_preview),
-    "button-options": SectionKind(_option_buttons, _option_pressed, _option_preview),
-    "boolean-toggle": SectionKind(_toggle, _toggled, _boolean_preview, _switched_off),
+    "channel-select": SectionKind(_channel_picker, _picked, controls=_channel_controls),
+    "user-select": SectionKind(
+        _member_picker, _picked, _member_preview, controls=_member_controls
+    ),
+    "value-select": SectionKind(
+        _value_picker, _value_change, _option_preview, controls=_options_select
+    ),
+    "button-options": SectionKind(
+        _option_buttons, _option_pressed, _option_preview, controls=_options_select
+    ),
+    "boolean-toggle": SectionKind(
+        _toggle, _toggled, _boolean_preview, _switched_off, controls=_yes_and_no
+    ),
     "modal-input": SectionKind(_fields_modal, _fields_change, _fields_preview),
-    "multi-select": SectionKind(_values_picker, _values_change, _values_preview),
-    "design-select": SectionKind(_gallery, _design_change, _design_preview),
+    "multi-select": SectionKind(
+        _values_picker, _values_change, _values_preview, controls=_values_select
+    ),
+    "selects": SectionKind(
+        _selects_picker,
+        _selects_change,
+        _selects_preview,
+        _selects_cleared,
+        controls=_selects_controls,
+    ),
+    "list": SectionKind(_opened_by_the_form, _unchanged, _list_preview),
+    "group": SectionKind(_opened_by_the_form, _unchanged, _group_preview),
+    "design-select": SectionKind(
+        _gallery, _design_change, _design_preview, controls=_options_select
+    ),
 }

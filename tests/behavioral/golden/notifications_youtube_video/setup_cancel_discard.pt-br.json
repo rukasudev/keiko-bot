@@ -26,12 +26,12 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar esta função faz com que eu notifique quando seu youtuber favorito postar um novo vídeo!\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Texto**: Onde vou avisar do vídeo novo.\n:flying_disc: **Youtuber**: O nome do canal no YouTube, com ou sem o @.\n:flying_disc: **Mensagens de Notificação**: Até três mensagens, eu sorteio uma a cada vídeo.\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "description": "Ativar esta função faz com que eu notifique quando seu youtuber favorito postar um novo vídeo!\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Texto:** Onde vou avisar do vídeo novo.\n:flying_disc: **Youtuber:** O nome do canal no YouTube (com ou sem @).\n:flying_disc: **Mensagens de Notificação:** Até três mensagens, eu sorteio uma a cada vídeo.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
       "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
-      "title": "🔔 Youtube Notificações"
+      "title": "▶️ YouTube Vídeos"
     },
     "ephemeral": true,
     "kind": "send",
@@ -59,38 +59,40 @@
       {
         "children": [
           {
-            "content": "## ▶️ Canal do YouTube",
-            "type": "text"
+            "children": [
+              {
+                "content": "## ▶️ Canal do YouTube",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
           },
           {
-            "content": "Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo",
-            "type": "text"
-          },
-          {
-            "content": "📺 **Canal de Texto**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada ainda",
+            "content": "📺 **Canal de Texto**\n> Em branco",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher canal",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "🎬 **Youtuber**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada ainda",
+            "content": "🎬 **Youtuber**\n> Em branco",
             "type": "text"
           },
           {
@@ -105,11 +107,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens de Notificação**",
-            "type": "text"
-          },
-          {
-            "content": "```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
             "type": "text"
           },
           {
@@ -134,14 +132,14 @@
         "children": [
           {
             "disabled": false,
-            "label": "Avançar",
-            "style": "success",
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
             "disabled": false,
-            "label": "Pré-visualizar",
-            "style": "secondary",
+            "label": "Avançar",
+            "style": "success",
             "type": "button"
           },
           {
@@ -233,35 +231,32 @@
       {
         "children": [
           {
-            "content": "## ▶️ Canal do YouTube",
+            "children": [
+              {
+                "content": "## ▶️ Canal do YouTube",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal de Texto**\n> Em branco",
             "type": "text"
           },
           {
-            "content": "Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo",
+            "content": "🎬 **Youtuber**\n> Em branco",
             "type": "text"
           },
           {
-            "content": "📺 **Canal de Texto**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada ainda",
-            "type": "text"
-          },
-          {
-            "content": "🎬 **Youtuber**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada ainda",
-            "type": "text"
-          },
-          {
-            "content": "💬 **Mensagens de Notificação**",
-            "type": "text"
-          },
-          {
-            "content": "```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
             "type": "text"
           },
           {

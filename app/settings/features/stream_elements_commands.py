@@ -1,4 +1,4 @@
-"""StreamElements commands: the channel id is looked up when the setup commits."""
+"""StreamElements commands: the streamer's channel id is saved with the document."""
 
 from __future__ import annotations
 
@@ -9,10 +9,14 @@ from typing import Any, cast
 import app as app_module
 from app.constants import Commands
 from app.constants import ViewConstants as view_constants
+from app.exceptions import StreamElementsUnavailable
 from app.integrations.stream_elements import StreamElementsClient
 from app.services.stream_elements import (
+    channel_of,
+    find_channel,
     get_commands_in_cache_or_populate,
     send_commands_view,
+    warn_unavailable,
 )
 from app.settings.features.feature import (
     AsideAction,
@@ -45,21 +49,8 @@ class StreamElementsFeature(GenericCogFeature):
             panel=PanelExtras(
                 info=await _loaded(opened.document, context),
                 info_title=_copy("loaded.title", context.locale),
-                extra_buttons=self.extra_buttons(context),
+                info_action=_commands_button(context.locale),
                 enabled=opened.panel.enabled,
-            ),
-        )
-
-    def extra_buttons(self, context: OpenContext) -> tuple[Button, ...]:
-        """The command list button."""
-        locale = context.locale
-        return (
-            Button(
-                _copy("commands.button.label", locale),
-                "aside:commands",
-                "secondary",
-                "💡",
-                description=_copy("commands.button.desc", locale),
             ),
         )
 
@@ -98,8 +89,8 @@ class StreamElementsFeature(GenericCogFeature):
         answers: Mapping[str, Answer],
         context: CommitContext,
     ) -> dict[str, Any]:
-        """The StreamElements channel id of the streamer, outside dev."""
-        return await _with_channel(document)
+        """The StreamElements channel id the streamer lookup found."""
+        return await _with_channel(document, answers)
 
     async def before_edit(
         self,
@@ -107,10 +98,20 @@ class StreamElementsFeature(GenericCogFeature):
         answers: Mapping[str, Answer],
         context: CommitContext,
     ) -> dict[str, Any]:
-        """A new streamer brings its own StreamElements channel id, outside dev."""
+        """A new streamer brings its own StreamElements channel id."""
         if "streamer" not in changes:
             return changes
-        return await _with_channel(changes)
+        return await _with_channel(changes, answers)
+
+
+def _commands_button(locale: str) -> Button:
+    return Button(
+        _copy("commands.button.label", locale),
+        "aside:commands",
+        "secondary",
+        "💡",
+        description=_copy("commands.button.desc", locale),
+    )
 
 
 def _profile_image(streamer: str) -> str:
@@ -126,28 +127,32 @@ def _copy(key: str, locale: str) -> str:
 
 
 async def _loaded(document: Mapping[str, Any], context: OpenContext) -> str:
-    """How many commands the panel says it answers, or that it could not tell."""
+    """How many commands the panel says it answers, none, or that it could not tell."""
     locale = context.locale
+    streamer = str(unwrap(document.get("streamer")) or "")
     try:
-        commands = await asyncio.to_thread(
-            get_commands_in_cache_or_populate,
-            str(unwrap(document.get("channel_id")) or ""),
-            context.member,
+        channel_id = await channel_of(
+            context.guild_id, streamer, unwrap(document.get("channel_id"))
         )
-    except Exception:
-        commands = None
-    if not commands:
+        commands = await asyncio.to_thread(
+            get_commands_in_cache_or_populate, channel_id, context.member
+        )
+    except StreamElementsUnavailable as unavailable:
+        await asyncio.to_thread(warn_unavailable, streamer, unavailable)
         return _copy("loaded.unknown", locale)
+    except Exception:
+        return _copy("loaded.unknown", locale)
+    if not commands:
+        return _copy("commands.empty", locale).replace("$streamer", streamer)
     return (
         _copy("loaded.message", locale)
         .replace("$count", str(len(commands)))
-        .replace("$streamer", str(unwrap(document.get("streamer")) or ""))
+        .replace("$streamer", streamer)
     )
 
 
 def _enabled_commands(streamer: str, prefix: str) -> dict[str, Any]:
-    info = StreamElementsClient.get_channel_info(streamer)
-    channel_id = info["_id"]
+    channel_id = find_channel(streamer)
     commands: Any = StreamElementsClient.get_chat_commands(channel_id) or []
     enabled = [command for command in commands if command.get("enabled")]
     named = [command.get("command") for command in enabled if command.get("command")]
@@ -160,13 +165,16 @@ def _enabled_commands(streamer: str, prefix: str) -> dict[str, Any]:
     }
 
 
-async def _with_channel(document: dict[str, Any]) -> dict[str, Any]:
-    if cast(Any, app_module).bot.config.is_dev():
-        return document
-    info = await asyncio.to_thread(
-        StreamElementsClient.get_channel_info, str(document.get("streamer", ""))
-    )
-    return {**document, "channel_id": info["_id"]}
+async def _with_channel(
+    document: dict[str, Any], answers: Mapping[str, Answer]
+) -> dict[str, Any]:
+    looked_up = answers.get("stream_elements_channel_id")
+    channel_id = looked_up.raw if looked_up is not None else None
+    if not channel_id:
+        channel_id = await asyncio.to_thread(
+            find_channel, str(document.get("streamer", ""))
+        )
+    return {**document, "channel_id": str(channel_id)}
 
 
 FEATURE = StreamElementsFeature()

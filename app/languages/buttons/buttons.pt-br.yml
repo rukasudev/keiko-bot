@@ -27,11 +27,21 @@ pt-br:
     desc: Remove um dos itens
     confirm:
       title: "🗑️ Remover este item?"
-      message: "Se eu remover, ele sai da lista na hora. Você pode adicionar de novo depois, é só me pedir!"
+      message: "$items\n\nSe eu remover, ele sai da lista na hora. Você pode adicionar de novo depois, é só me pedir!"
+    many:
+      title: "🗑️ Remover estes itens?"
+      message: "$items\n\nSe eu remover, eles saem da lista na hora. Você pode adicionar de novo depois, é só me pedir!"
+    last:
+      title: "⚠️ Ei, espere! Leia abaixo primeiro"
+
+  search:
+    label: Pesquisar
+    desc: Encontra um membro da lista
 
   remove-item:
     label: Remover este
     desc: Remove este item da lista
+
 
   preview:
     label: Pré-visualizar
@@ -77,6 +87,10 @@ pt-br:
   select:
     label: Selecionar
     desc: Selecione uma opção
+
+  choose:
+    label: Escolher
+    desc: Escolha esta opção
 
   continue:
     label: Continuar
@@ -142,25 +156,25 @@ pt-br:
 
   setup:
     welcome-messages:
-      label: Mensagem de Entrada
+      label: Mensagens de Boas-Vindas
       desc: Configure uma mensagem de boas-vindas personalizada para novos membros
     default-roles:
-      label: Autocargos
+      label: Cargos Padrão
       desc: Atribui cargos automaticamente a novos membros
     block-links:
-      label: Bloqueio de Links
+      label: Bloquear Links
       desc: Bloqueie links de serem postados no seu servidor
     twitch:
-      label: Twitch
+      label: Twitch Lives
       desc: Seja notificado quando seus streamers favoritos entrarem ao vivo
     youtube:
-      label: YouTube
+      label: YouTube Vídeos
       desc: Seja notificado quando seus YouTubers favoritos enviarem um novo vídeo
     birthdays:
-      label: Aniversários
+      label: Lembretes de Aniversário
       desc: Comemore o aniversário dos seus membros com uma mensagem personalizada
     stream-elements:
-      label: StreamElements
+      label: Comandos do StreamElements
       desc: Responda aos comandos do StreamElements no chat do Discord
     start:
       label: Configurar

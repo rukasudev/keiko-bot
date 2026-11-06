@@ -26,12 +26,12 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Whenever someone uses a command with the **ks!** prefix, I'll fetch the response from StreamElements!\n\n**Example:** `ks!mouse` -> \"The streamer uses a Logitech G Pro!\"\n\n\n:pencil: **Settings**\n\n:flying_disc: **Streamer**: Which streamer should I fetch commands from?\n\n-# • Use the `/report` command to tell me a bug",
+      "description": "Whenever someone uses a command with the **ks!** prefix, I fetch the response from StreamElements!\n\n**Example:** `ks!mouse` -> \"The streamer uses a Logitech G Pro!\"\n\n:pencil: **Settings**\n\n:flying_disc: **Streamer:** Which streamer should I fetch commands from?\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
       "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
-      "title": ":bulb: StreamElements Commands"
+      "title": "🎮 StreamElements Commands"
     },
     "ephemeral": true,
     "kind": "send",
@@ -74,11 +74,34 @@
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 6,
-    "thinking": false
+    "components": [
+      {
+        "disabled": true,
+        "label": "Confirm",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": true,
+        "label": "Cancel",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Whenever someone uses a command with the **ks!** prefix, I fetch the response from StreamElements!\n\n**Example:** `ks!mouse` -> \"The streamer uses a Logitech G Pro!\"\n\n:pencil: **Settings**\n\n:flying_disc: **Streamer:** Which streamer should I fetch commands from?\n\n-# • Use the `/report` command to tell me a bug",
+      "fields": [],
+      "footer": null,
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "🎮 StreamElements Commands"
+    },
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M1",
+    "seq": 6
   },
   {
     "actor": "bot",
@@ -88,15 +111,15 @@
           {
             "children": [
               {
-                "content": "## :white_check_mark: All set?",
+                "content": "## 🎮 StreamElements Commands",
                 "type": "text"
               },
               {
-                "content": "Whenever someone uses a command with the **ks!** prefix, I'll fetch the response in `shroud`'s StreamElements and send it in chat!",
+                "content": "Whenever someone uses a command with the **ks!** prefix, I fetch the response in `shroud`'s StreamElements and send it in chat!",
                 "type": "text"
               },
               {
-                "media": "shroud.jpg",
+                "media": "KEIKO_BOLO.png",
                 "type": "thumbnail"
               }
             ],
@@ -116,6 +139,10 @@
               }
             ],
             "type": "section"
+          },
+          {
+            "count": 1,
+            "type": "media"
           },
           {
             "content": "💡 **Active commands:** 2",
@@ -196,5 +223,100 @@
     "kind": "delete",
     "message": "M2",
     "seq": 12
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎮 StreamElements Commands",
+                "type": "text"
+              },
+              {
+                "content": "I answer this streamer's StreamElements commands here on Discord.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "🎮 **Streamer:** shroud",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Edit",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 💡 Commands loaded\nI couldn't reach StreamElements right now, but I'll fetch each response as soon as someone uses a command.",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Commands",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Pause",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Disable",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "History",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Help",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M4",
+    "seq": 13
   }
 ]

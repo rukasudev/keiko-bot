@@ -98,9 +98,7 @@ class AddRequested(Event):
 
 @dataclass(frozen=True)
 class RemoveRequested(Event):
-    """Remove was pressed on a review or a panel, maybe beside one item."""
-
-    target: str = ""
+    """Remove was pressed under a list, on a review or a panel."""
 
 
 @dataclass(frozen=True)
@@ -108,6 +106,18 @@ class TargetChosen(Event):
     """An option of the edit or remove picker was chosen."""
 
     value: str = ""
+
+
+@dataclass(frozen=True)
+class TargetsChosen(Event):
+    """Several options of the remove picker were chosen at once."""
+
+    values: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class RemovalConfirmed(Event):
+    """The admin confirmed removing the items the picker chose."""
 
 
 @dataclass(frozen=True)
@@ -144,6 +154,7 @@ class Aside(Event):
     """A read-only button was pressed: help, history, preview, a feature extra."""
 
     name: str = ""
+    target: str = ""
 
 
 @dataclass(frozen=True)

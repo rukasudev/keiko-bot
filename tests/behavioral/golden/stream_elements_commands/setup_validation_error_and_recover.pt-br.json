@@ -26,12 +26,12 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Sempre que alguém usar um comando com o prefixo **ks!**, eu buscarei a resposta no StreamElements!\n\n**Exemplo:** `ks!mouse` -> \"O streamer usa um Logitech G Pro!\"\n\n\n:pencil: **Configurações**\n\n:flying_disc: **Streamer**: De qual streamer devo buscar os comandos?\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "description": "Sempre que alguém usar um comando com o prefixo **ks!**, eu busco a resposta no StreamElements!\n\n**Exemplo:** `ks!mouse` -> \"O streamer usa um Logitech G Pro!\"\n\n:pencil: **Configurações**\n\n:flying_disc: **Streamer:** De qual streamer devo buscar os comandos?\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
       "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
-      "title": ":bulb: Comandos do StreamElements"
+      "title": "🎮 Comandos do StreamElements"
     },
     "ephemeral": true,
     "kind": "send",
@@ -74,11 +74,98 @@
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 6,
-    "thinking": false
+    "components": [
+      {
+        "disabled": true,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": true,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Sempre que alguém usar um comando com o prefixo **ks!**, eu busco a resposta no StreamElements!\n\n**Exemplo:** `ks!mouse` -> \"O streamer usa um Logitech G Pro!\"\n\n:pencil: **Configurações**\n\n:flying_disc: **Streamer:** De qual streamer devo buscar os comandos?\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "fields": [],
+      "footer": null,
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "🎮 Comandos do StreamElements"
+    },
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M1",
+    "seq": 6
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## Streamer",
+                "type": "text"
+              },
+              {
+                "content": "De qual streamer devo buscar os comandos?",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "🎮 **Username do streamer**\n> naoexiste",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 7
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 8
   },
   {
     "actor": "bot",
@@ -96,15 +183,15 @@
     },
     "ephemeral": true,
     "kind": "followup_send",
-    "message": "M2",
-    "seq": 7
+    "message": "M3",
+    "seq": 9
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M1",
-    "seq": 8,
-    "target": "continue"
+    "message": "M2",
+    "seq": 10,
+    "target": "customize:0"
   },
   {
     "actor": "bot",
@@ -113,7 +200,7 @@
     "modal": {
       "fields": [
         {
-          "default": "",
+          "default": "naoexiste",
           "label": "Username do streamer",
           "max_length": 30,
           "required": true,
@@ -122,7 +209,7 @@
       ],
       "title": "Streamer"
     },
-    "seq": 9
+    "seq": 11
   },
   {
     "actor": "user",
@@ -131,15 +218,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 10
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 11,
-    "thinking": false
+    "seq": 12
   },
   {
     "actor": "bot",
@@ -149,7 +228,65 @@
           {
             "children": [
               {
-                "content": "## :white_check_mark: Tudo certo?",
+                "content": "## Streamer",
+                "type": "text"
+              },
+              {
+                "content": "De qual streamer devo buscar os comandos?",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "🎮 **Username do streamer**\n> naoexiste",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": true,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": true,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 13
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎮 Comandos do StreamElements",
                 "type": "text"
               },
               {
@@ -157,7 +294,7 @@
                 "type": "text"
               },
               {
-                "media": "shroud.jpg",
+                "media": "KEIKO_BOLO.png",
                 "type": "thumbnail"
               }
             ],
@@ -177,6 +314,10 @@
               }
             ],
             "type": "section"
+          },
+          {
+            "count": 1,
+            "type": "media"
           },
           {
             "content": "💡 **Comandos ativos:** 2",
@@ -209,14 +350,8 @@
     ],
     "components_v2": true,
     "ephemeral": true,
-    "kind": "followup_send",
-    "message": "M3",
-    "seq": 12
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M1",
-    "seq": 13
+    "kind": "followup_edit",
+    "message": "M2",
+    "seq": 14
   }
 ]

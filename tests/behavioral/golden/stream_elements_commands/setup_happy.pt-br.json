@@ -26,12 +26,12 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Sempre que alguém usar um comando com o prefixo **ks!**, eu buscarei a resposta no StreamElements!\n\n**Exemplo:** `ks!mouse` -> \"O streamer usa um Logitech G Pro!\"\n\n\n:pencil: **Configurações**\n\n:flying_disc: **Streamer**: De qual streamer devo buscar os comandos?\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "description": "Sempre que alguém usar um comando com o prefixo **ks!**, eu busco a resposta no StreamElements!\n\n**Exemplo:** `ks!mouse` -> \"O streamer usa um Logitech G Pro!\"\n\n:pencil: **Configurações**\n\n:flying_disc: **Streamer:** De qual streamer devo buscar os comandos?\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
       "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
-      "title": ":bulb: Comandos do StreamElements"
+      "title": "🎮 Comandos do StreamElements"
     },
     "ephemeral": true,
     "kind": "send",
@@ -74,11 +74,34 @@
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 6,
-    "thinking": false
+    "components": [
+      {
+        "disabled": true,
+        "label": "Confirmar",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": true,
+        "label": "Cancelar",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Sempre que alguém usar um comando com o prefixo **ks!**, eu busco a resposta no StreamElements!\n\n**Exemplo:** `ks!mouse` -> \"O streamer usa um Logitech G Pro!\"\n\n:pencil: **Configurações**\n\n:flying_disc: **Streamer:** De qual streamer devo buscar os comandos?\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "fields": [],
+      "footer": null,
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "🎮 Comandos do StreamElements"
+    },
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M1",
+    "seq": 6
   },
   {
     "actor": "bot",
@@ -88,7 +111,7 @@
           {
             "children": [
               {
-                "content": "## :white_check_mark: Tudo certo?",
+                "content": "## 🎮 Comandos do StreamElements",
                 "type": "text"
               },
               {
@@ -96,7 +119,7 @@
                 "type": "text"
               },
               {
-                "media": "shroud.jpg",
+                "media": "KEIKO_BOLO.png",
                 "type": "thumbnail"
               }
             ],
@@ -116,6 +139,10 @@
               }
             ],
             "type": "section"
+          },
+          {
+            "count": 1,
+            "type": "media"
           },
           {
             "content": "💡 **Comandos ativos:** 2",
@@ -196,5 +223,100 @@
     "kind": "delete",
     "message": "M2",
     "seq": 12
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎮 Comandos do StreamElements",
+                "type": "text"
+              },
+              {
+                "content": "Respondo aos comandos do StreamElements deste streamer aqui no Discord.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "🎮 **Streamer:** shroud",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 💡 Comandos carregados\nNão consegui falar com o StreamElements agora, mas busco a resposta assim que alguém usar um comando.",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Comandos",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Pausar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Desativar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Histórico",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Ajuda",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M4",
+    "seq": 13
   }
 ]

@@ -14,49 +14,129 @@ steps:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
 
-  - action: multi_select
+  - action: configuration_card
     key: default_roles_config
     edit_by_field: true
-    required: true
+    required_any:
+      - default_roles_bot
+      - default_roles
     title:
       en-us: Default Roles
       pt-br: Cargos Padrão
     description:
-      en-us: "Choose the roles I'll give automatically:\n\n1. **Roles for bots**: when a bot joins the server\n2. **Roles for members**: when a person joins the server"
-      pt-br: "Escolha os cargos que eu vou dar automaticamente:\n\n1. **Cargos para bots**: quando um bot entrar no servidor\n2. **Cargos para membros**: quando uma pessoa entrar no servidor"
+      en-us: "Choose the roles I'll give automatically to whoever joins the server."
+      pt-br: "Escolha os cargos que eu vou dar automaticamente para quem entrar no servidor."
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
-    selects:
-      - type: available_roles
-        key: default_roles_bot
+    header:
+      title:
+        en-us: "Default Roles"
+        pt-br: "Cargos Padrão"
+      title-emoji: "👩‍🎓"
+      thumbnail: IMAGE_01
+      lines: []
+    fields:
+      - key: default_roles_bot
         style: role
-        icon: "🤖"
         label:
           en-us: "Roles for Bots"
           pt-br: "Cargos para Bots"
-        placeholder:
-          en-us: "Roles for Bots..."
-          pt-br: "Cargos para Bots..."
-      - type: available_roles
-        key: default_roles
+        description:
+          en-us: The roles I give to every bot that joins.
+          pt-br: Os cargos que eu dou para cada bot que entrar.
+      - key: default_roles
         style: role
-        icon: "👥"
         label:
           en-us: "Roles for Members"
           pt-br: "Cargos para Membros"
-        placeholder:
-          en-us: "Roles for Members..."
-          pt-br: "Cargos para Membros..."
+        description:
+          en-us: The roles I give to every person that joins.
+          pt-br: Os cargos que eu dou para cada pessoa que entrar.
+    sections:
+      - key: default_roles_bot
+        icon: "🤖"
+        type: selects
+        label:
+          en-us: "Roles for Bots"
+          pt-br: "Cargos para Bots"
+        customize-label:
+          en-us: "Choose roles"
+          pt-br: "Escolher cargos"
+        picker-description:
+          en-us: "I give these roles to every bot that joins the server."
+          pt-br: "Eu dou estes cargos para cada bot que entrar no servidor."
+        selects:
+          - type: available_roles
+            key: default_roles_bot
+            style: role
+            icon: "🤖"
+            label:
+              en-us: "Roles for Bots"
+              pt-br: "Cargos para Bots"
+            placeholder:
+              en-us: "Roles for bots"
+              pt-br: "Cargos para bots"
+      - key: default_roles
+        icon: "👥"
+        type: selects
+        label:
+          en-us: "Roles for Members"
+          pt-br: "Cargos para Membros"
+        customize-label:
+          en-us: "Choose roles"
+          pt-br: "Escolher cargos"
+        picker-description:
+          en-us: "I give these roles to every person that joins the server."
+          pt-br: "Eu dou estes cargos para cada pessoa que entrar no servidor."
+        selects:
+          - type: available_roles
+            key: default_roles
+            style: role
+            icon: "👥"
+            label:
+              en-us: "Roles for Members"
+              pt-br: "Cargos para Membros"
+            placeholder:
+              en-us: "Roles for members"
+              pt-br: "Cargos para membros"
+
+  - action: options
+    key: sync_existing
+    emoji: "🔄"
+    hidden: true
+    required: true
+    unique: true
+    auto_confirm: true
+    title:
+      en-us: "Give the roles to everyone already in the server today?"
+      pt-br: "Dar os cargos para quem já está no servidor hoje?"
+    description:
+      en-us: "These current members will get the roles:\n\n👥 **Members**\n- How many: **{context:members_count}**\n- {plural:default_roles|Role to give these members|Roles to give these members}: {response:default_roles:role|Empty}\n\n🤖 **Bots**\n- How many: **{context:bots_count}**\n- {plural:default_roles_bot|Role to give these bots|Roles to give these bots}: {response:default_roles_bot:role|Empty}"
+      pt-br: "Os seguintes membros atuais irão receber os cargos:\n\n👥 **Membros**\n- Quantidade: **{context:members_count}**\n- {plural:default_roles|Cargo a ser atribuído a esses membros|Cargos a serem atribuídos a esses membros}: {response:default_roles:role|Em branco}\n\n🤖 **Bots**\n- Quantidade: **{context:bots_count}**\n- {plural:default_roles_bot|Cargo a ser atribuído a esses bots|Cargos a serem atribuídos a esses bots}: {response:default_roles_bot:role|Em branco}"
+    footer:
+      en-us: "• Use the `/report` command to tell me a bug"
+      pt-br: "• Use o comando `/reportar` para me contar um bug"
+    options:
+      - label:
+          en-us: "Yes"
+          pt-br: "Sim"
+        value: true
+        style: primary
+      - label:
+          en-us: "No"
+          pt-br: "Não"
+        value: false
+        style: secondary
 
   - action: resume
     key: confirm
     title:
-      en-us: ":white_check_mark: Alright?"
-      pt-br: ":white_check_mark: Tudo certo?"
+      en-us: "👩‍🎓 Default Roles"
+      pt-br: "👩‍🎓 Cargos Padrão"
     description:
-      en-us: Enabling this feature allows me to automatically assign roles to new members when they join your server
-      pt-br: Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor!
+      en-us: "Here's a summary of your choices so far. All set for me to turn on the `/{context:command}` command with the settings below? ✅"
+      pt-br: "Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/{context:command}` com as configurações abaixo? ✅"
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"

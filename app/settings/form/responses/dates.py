@@ -100,6 +100,11 @@ def parse_date_parts(day: Any, month: Any) -> str | None:
     return mm_dd if is_valid_mm_dd(mm_dd) else None
 
 
+def is_day(value: Any) -> bool:
+    """True for a day number some month has, whatever the month."""
+    return parse_date_parts(value, 1) is not None
+
+
 def split_mm_dd(value: Any) -> dict[str, str]:
     """`{"month", "day"}` from a stored `MM-DD`, empty when it is not one."""
     if not isinstance(value, str) or "-" not in value:

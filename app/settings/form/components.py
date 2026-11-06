@@ -39,11 +39,13 @@ class ChoiceOption:
 
 @dataclass(frozen=True)
 class Choice:
-    """A grid of option buttons."""
+    """A grid of option buttons, or one block per option beside its own button."""
 
     step_key: str
     options: tuple[ChoiceOption, ...]
     auto_confirm: bool = False
+    button_label: str = ""
+    slot: str | None = None
 
 
 @dataclass(frozen=True)
@@ -138,7 +140,7 @@ class CardHeader:
 
 @dataclass(frozen=True)
 class SectionView:
-    """One rendered card section: heading, preview, its buttons."""
+    """One rendered card section: heading, description, preview, its controls."""
 
     index: int
     key: str
@@ -146,6 +148,8 @@ class SectionView:
     preview: tuple[str, ...]
     buttons: tuple[Button, ...]
     media: str | None = None
+    description: str = ""
+    controls: tuple[Picker | OptionSelect | Choice, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -159,13 +163,17 @@ class Card:
 
 @dataclass(frozen=True)
 class PanelPart:
-    """Lines of one field of a group, with the button that opens only it."""
+    """A field or a list of a group: its lines, its button, a list's items below."""
 
     target: str
     lines: tuple[str, ...]
     label: str | None = None
     action: str = ""
     emoji: str = "✏️"
+    body: tuple[str, ...] = ()
+    actions: tuple[Button, ...] = ()
+    disabled: bool = False
+    description: str = ""
 
     @property
     def button(self) -> str:
@@ -184,6 +192,8 @@ class PanelGroup:
     actions: tuple[Button, ...] = ()
     choices: tuple[ChoiceOption, ...] = ()
     choice_target: str = ""
+    keys: tuple[str, ...] = ()
+    media: str = ""
 
 
 @dataclass(frozen=True)
@@ -195,6 +205,7 @@ class Panel:
     groups: tuple[PanelGroup, ...]
     info: str = ""
     info_title: str = ""
+    info_action: Button | None = None
     thumbnail: str = ""
     edit_label: str = ""
     remove_label: str = ""

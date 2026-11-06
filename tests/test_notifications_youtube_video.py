@@ -79,7 +79,7 @@ def test_the_announcement_of_a_width_specifier_stays_small():
 
 async def test_the_preview_of_a_width_specifier_stays_small(deps, monkeypatch):
     """The Preview button is the path that made it one click."""
-    monkeypatch.setattr(deps.youtube, "get_channel_id_from_username", lambda _name: None)
+    monkeypatch.setattr(deps.youtube, "get_channel_by_handle", lambda _name: None)
     interaction = MagicMock()
     interaction.locale = "en-US"
     interaction.followup.send = AsyncMock()
@@ -119,3 +119,40 @@ def test_a_video_notice_names_its_fields_in_the_servers_language(locale, names):
     embed = create_video_notification_embed("video-1", VIDEO, CHANNEL, locale)
 
     assert field_names(embed) == names
+
+
+@pytest.mark.behavioral
+@pytest.mark.shared_contract("fan_out")
+async def test_a_channel_saved_by_the_old_pause_still_gets_its_video_notice(deps):
+    """N1 (round 3) took the per-item pause off: an item a dev panel saved with
+    `enabled: false` gets the video notice like any other, the field ignored."""
+    from tests.mocks import create_guild
+
+    from app.services.notifications_youtube_video import VideoAnnouncement, announce_video
+
+    first = create_guild(id=5001, channels=["videos"])
+    second = create_guild(id=5002, channels=["videos"])
+    known = {first.id: first, second.id: second}
+    deps.bot.get_guild = lambda guild_id: known.get(int(guild_id))
+
+    def follower(guild, enabled):
+        item = {
+            "youtuber": {"value": "pewdiepie"},
+            "channel": {"value": str(guild.text_channels[0].id)},
+            "notification_messages": {"value": "{youtuber} posted {video_link}"},
+        }
+        if enabled is not None:
+            item["enabled"] = enabled
+        return {"guild_id": str(guild.id), "notifications": {"values": [item]}}
+
+    announcement = VideoAnnouncement(
+        video={"id": "video-1", "snippet": {"title": "A new video"}},
+        channel={"title": "PewDiePie"},
+        youtuber="pewdiepie",
+        followers=[follower(first, None), follower(second, False)],
+    )
+
+    await announce_video(announcement)
+
+    assert len(first.text_channels[0]._sent_messages) == 1
+    assert len(second.text_channels[0]._sent_messages) == 1

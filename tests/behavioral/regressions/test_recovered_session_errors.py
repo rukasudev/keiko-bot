@@ -102,19 +102,22 @@ async def _a_click_that_fails(deps, monkeypatch, guild=None, user=None):
     ).start_command("default_roles")
     message = scenario.current_message
     button = locators.find_button(message, "continue", scenario.locale)
-    original = FakeResponse.edit_message
     failed = []
 
-    async def fails_once(self, **kwargs):
-        if not failed:
-            failed.append(True)
-            raise discord.NotFound(
-                SimpleNamespace(status=404, reason="Not Found"),
-                {"code": 10062, "message": "Unknown interaction"},
-            )
-        return await original(self, **kwargs)
+    def fails_once(original):
+        async def answer(self, **kwargs):
+            if not failed:
+                failed.append(True)
+                raise discord.NotFound(
+                    SimpleNamespace(status=404, reason="Not Found"),
+                    {"code": 10062, "message": "Unknown interaction"},
+                )
+            return await original(self, **kwargs)
 
-    monkeypatch.setattr(FakeResponse, "edit_message", fails_once)
+        return answer
+
+    for name in ("edit_message", "defer"):
+        monkeypatch.setattr(FakeResponse, name, fails_once(getattr(FakeResponse, name)))
     await button.callback(scenario._mint(message=message, custom_id=button.custom_id))
     await _settle()
     return scenario, message, button
@@ -142,7 +145,7 @@ async def test_the_check_is_added_once(deps, log_channel, monkeypatch):
     scenario, message, button = await _a_click_that_fails(deps, monkeypatch)
     await button.callback(scenario._mint(message=message, custom_id=button.custom_id))
     await _settle()
-    await scenario.confirm()
+    await scenario.select_option("Member", target="default_roles")
     await _settle()
 
     [error] = _render_errors(log_channel)

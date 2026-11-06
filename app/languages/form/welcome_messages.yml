@@ -37,7 +37,7 @@ steps:
       pt-br: "🎉 Mensagens de Boas-Vindas"
     description:
       en-us: "Choose the channel and I'm ready to welcome new members! The design and the messages already come set, change them if you want.\n\nYou can use these variables in the messages:\n- `{user}`: the new member's mention\n- `{server}`: the server name\n- `{member_count}`: how many members the server has"
-      pt-br: "Escolha o canal e eu já fico pronta para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem"
+      pt-br: "Escolha o canal e eu já fico pronto para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem"
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
@@ -64,7 +64,7 @@ steps:
           en-us: The title of the welcome message.
           pt-br: O título da mensagem de boas-vindas.
       - key: welcome_messages
-        style: bullet
+        style: code-block
         label:
           en-us: Messages
           pt-br: Mensagens
@@ -111,7 +111,7 @@ steps:
       - key: messages
         icon: "💬"
         type: modal-input
-        style: bullet
+        style: code-block
         label:
           en-us: "Messages"
           pt-br: "Mensagens"
@@ -171,25 +171,25 @@ steps:
         designs:
           - key: server_blur
             label:
-              en-us: "Server Image"
-              pt-br: "Imagem do Servidor"
+              en-us: "Server Image Background"
+              pt-br: "Imagem do Servidor de fundo"
             description:
-              en-us: "Server icon as background with blur effect and your avatar centered"
-              pt-br: "Ícone do servidor de fundo com efeito blur e seu avatar centralizado"
+              en-us: "The server icon as the background with a blur effect and the new member's profile picture centered"
+              pt-br: "Ícone do servidor de fundo com efeito blur e foto de perfil do novo membro centralizada"
           - key: custom_blur
             label:
-              en-us: "Custom with Blur"
-              pt-br: "Personalizada com Blur"
+              en-us: "Custom Image Background"
+              pt-br: "Imagem personalizada de fundo"
             description:
-              en-us: "Your custom image as background with blur effect and avatar centered"
-              pt-br: "Sua imagem personalizada de fundo com efeito blur e avatar centralizado"
+              en-us: "A custom background (you choose it) with a blur effect and the new member's profile picture centered"
+              pt-br: "Fundo personalizado (você escolhe) com efeito blur e foto de perfil do novo membro centralizada"
           - key: custom_only
             label:
-              en-us: "Custom Image Only"
-              pt-br: "Apenas Imagem Personalizada"
+              en-us: "Custom Banner Only"
+              pt-br: "Somente banner personalizado"
             description:
-              en-us: "Your custom image/gif as banner, avatar shown as thumbnail. Like the example below :)"
-              pt-br: "Sua imagem/gif personalizada como banner, avatar como thumbnail. Veja o exemplo abaixo :)"
+              en-us: "Your own image (or GIF) as the banner, with no profile picture in the middle. See the example below :)"
+              pt-br: "Sua imagem (ou GIF) personalizada como banner, sem foto de perfil no centro. Veja o exemplo abaixo :)"
       - key: image
         icon: "🖼️"
         type: file-upload
@@ -213,11 +213,11 @@ steps:
     key: confirm
     preview: true
     title:
-      en-us: ":white_check_mark: Alright?"
-      pt-br: ":white_check_mark: Tudo certo?"
+      en-us: "🎉 Welcome Messages"
+      pt-br: "🎉 Mensagens de Boas-Vindas"
     description:
-      en-us: "This is how I'll welcome new members. Use **Preview** to see the message before saving!"
-      pt-br: "É assim que vou dar boas-vindas aos novos membros. Use **Pré-visualizar** para ver a mensagem antes de salvar!"
+      en-us: "Here's a summary of your choices so far. All set for me to turn on the `/{context:command}` command with the settings below? ✅"
+      pt-br: "Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/{context:command}` com as configurações abaixo? ✅"
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"

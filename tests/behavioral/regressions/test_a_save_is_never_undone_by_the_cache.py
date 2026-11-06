@@ -285,13 +285,14 @@ async def _add_streamer(scenario, streamer):
 
 
 async def _remove(scenario, target):
-    await scenario.click("remove")
-    await scenario.select_option(target)
+    await scenario.click(f"remove_this:{target}")
+    await scenario.click("remove_items")
 
 
 async def _remove_link(screen, target):
-    await screen.click(f"remove_one:{target}")
-    await screen.click(f"remove_item:{target}")
+    await screen.click("remove:custom_links")
+    await screen.select_option(target)
+    await screen.click("remove_items")
 
 
 async def _add_link(screen, link):
@@ -584,7 +585,7 @@ async def test_an_edit_after_another_panel_disabled_the_feature_changes_nothing(
     await first.click("disable")
     await first.submit_confirmation()
     await second.click("section:link_settings")
-    await second.click("customize:2")
+    await second.click("customize:1")
     await second.submit_modal({ANSWER_FIELD: "No links around here!"})
     await second.click("done")
 
@@ -746,3 +747,37 @@ async def test_an_item_change_keeps_the_shape_the_previous_release_reads(
         for entry in item.values()
     )
     assert _streamers(deps) == ["gaules", "shroud"]
+
+
+@pytest.mark.usefixtures("outside_dev")
+@pytest.mark.shared_contract("manager_form")
+async def test_removing_several_links_after_another_panel_removed_one_saves_none(
+    scenario_factory, deps,
+):
+    """Removing several items at once is all or nothing (P4, beta.2).
+
+    Broke as: nothing yet; the multi-select Remove of the list drawn inside the
+    card could have dropped whatever was still saved while one chosen item was
+    already gone, or found the rest by position in a list another panel had
+    shortened. Shared behaviour: `GenericCogFeature.commit_remove_item` and the
+    confirmation the engine asks before it (`on_targets_chosen`,
+    `on_removal_confirmed`). Exposed by block links, whose links any admin can
+    remove from the panel.
+
+    Guaranteed: the second panel's removal of both links saves nothing, says
+    the screen changed and draws the list as it is saved now.
+    """
+    seed_document(deps, block_links.FORM, block_links.ENABLED)
+    first, second = await _two_panels(scenario_factory, block_links.FORM)
+
+    await first.click("remove:custom_links")
+    await first.select_option("custom_links$0")
+    await first.click("remove_items")
+    await second.click("remove:custom_links")
+    await second.select_option(["custom_links$0", "custom_links$1"])
+    await second.click("remove_items")
+
+    assert _links(deps) == ["docs.example.org"]
+    assert _said(second, "commands.form-notices.stale")
+    assert "meusite.com.br" not in _last_screen(second)
+    assert "docs.example.org" in _last_screen(second)

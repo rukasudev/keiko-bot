@@ -26,11 +26,21 @@ en-us:
     desc: Remove one of the items
     confirm:
       title: "🗑️ Remove this item?"
-      message: "If I remove it, it leaves the list right away. You can add it again later, just ask me!"
+      message: "$items\n\nIf I remove it, it leaves the list right away. You can add it again later, just ask me!"
+    many:
+      title: "🗑️ Remove these items?"
+      message: "$items\n\nIf I remove them, they leave the list right away. You can add them again later, just ask me!"
+    last:
+      title: "⚠️ Hey, wait! Read this first"
+
+  search:
+    label: Search
+    desc: Find a member on the list
 
   remove-item:
     label: Remove this
     desc: Removes this item from the list
+
 
   preview:
     label: Preview
@@ -77,6 +87,10 @@ en-us:
   select:
     label: Select
     desc: Select an option
+
+  choose:
+    label: Choose
+    desc: Choose this option
 
   continue:
     label: Continue
@@ -146,22 +160,22 @@ en-us:
       label: Welcome Messages
       desc: Set up a personalized welcome message for new members
     default-roles:
-      label: Auto-Roles
+      label: Default Roles
       desc: Automatically assign roles to new members
     block-links:
       label: Block Links
       desc: Block links from being posted in your server
     twitch:
-      label: Twitch
+      label: Twitch Lives
       desc: Get notified when your favorite streamers go live
     youtube:
-      label: YouTube
+      label: YouTube Videos
       desc: Get notified when your favorite YouTubers upload a new video
     birthdays:
-      label: Birthdays
+      label: Birthday Reminders
       desc: Celebrate your members' birthdays with a personalized message
     stream-elements:
-      label: StreamElements
+      label: StreamElements Commands
       desc: Answer StreamElements commands in your Discord chat
     start:
       label: Set up

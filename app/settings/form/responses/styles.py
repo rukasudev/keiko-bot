@@ -13,6 +13,7 @@ STYLES: tuple[str, ...] = (
     "role",
     "user",
     "bullet",
+    "code-block",
     "numbered",
     "code",
     "boolean",
@@ -58,13 +59,13 @@ def format_mm_dd(value: Any, locale: str) -> str:
 def _lines(items: Sequence[str], style: str) -> str:
     if not items:
         return ""
-    if style == "bullet":
-        body = "\n".join(f"• {item}" for item in items)
-    elif style == "numbered":
-        body = "\n".join(f"{index}. {item}" for index, item in enumerate(items, 1))
-    else:
-        body = "\n".join(str(item) for item in items)
-    return f"\n```{body}```"
+    if style == "code-block":
+        return "\n```" + "\n".join(f"• {item}" for item in items) + "```"
+    if style == "numbered":
+        return "".join(f"\n{index}. {item}" for index, item in enumerate(items, 1))
+    if style == "code":
+        return "".join(f"\n- `{item}`" for item in items)
+    return "".join(f"\n- {item}" for item in items)
 
 
 def format_single(value: Any, style: str | None, locale: str) -> str:
@@ -87,7 +88,7 @@ def format_single(value: Any, style: str | None, locale: str) -> str:
     }
     if style in mentions:
         return mentions[style](value)
-    if style in ("bullet", "numbered"):
+    if style in ("bullet", "code-block", "numbered"):
         return _lines([part.lstrip() for part in str(value).split(";")], style)
     return str(value)
 
@@ -97,7 +98,7 @@ def format_list(values: Sequence[Any], style: str | None) -> str:
     mentions = {"channel": "<#{}>", "role": "<@&{}>", "user": "<@{}>"}
     if style in mentions:
         return ", ".join(mentions[style].format(value) for value in values)
-    if style in ("code", "bullet", "numbered"):
+    if style in ("code", "bullet", "code-block", "numbered"):
         return _lines([str(value) for value in values], style)
     return ", ".join(str(value) for value in values)
 

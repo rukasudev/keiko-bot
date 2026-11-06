@@ -3,14 +3,33 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from dataclasses import replace
 from typing import Any
 
+from app.constants import KeikoIcons
 from app.settings.form.actions import Refusal
-from app.settings.form.actions.action import Context, other_items
-from app.settings.form.components import FileInput, Input, Screen, TextInputs
+from app.settings.form.actions.action import (
+    Context,
+    back_button,
+    cancel_button,
+    description_of,
+    footer_of,
+    other_items,
+)
+from app.settings.form.components import (
+    Button,
+    Card,
+    CardHeader,
+    FileInput,
+    Input,
+    Screen,
+    SectionView,
+    TextInputs,
+)
 from app.settings.form.copy import text
 from app.settings.form.form_state import Answer, FormSession
 from app.settings.form.form_yaml import TextField, TextStep
+from app.settings.form.responses.summary import step_title
 from app.settings.form.responses.transforms import normalizer, transform
 from app.settings.form.responses.validations import ValidationContext, validator
 
@@ -36,7 +55,10 @@ def _labels(step: TextStep, locale: str) -> list[str]:
 
 
 def _defaults(step: TextStep, session: FormSession) -> list[str | None]:
-    """Per input: the value already answered, else nothing."""
+    """Per input: what was typed and refused, the value already answered, or nothing."""
+    refused = session.refused_on(step.key)
+    if refused is not None and refused.inputs:
+        return list(refused.typed_into(max(len(step.fields), 1)))
     answer = session.answers.get(step.key)
     if answer is None or answer.raw is None and not answer.parts:
         return [None] * max(len(step.fields), 1)
@@ -71,10 +93,9 @@ def _input(
 def render(step: Any, session: FormSession, context: Context) -> Screen:
     """The modal: one input per field, or one file input."""
     locale = context.locale
+    titled = step_title(step, locale, context.scope)
     if step.input == "file":
-        title = (
-            step.modal_title.get(locale) if step.modal_title else step.title.get(locale)
-        )
+        title = step.modal_title.get(locale) if step.modal_title else titled
         component = FileInput(
             step.key, text("buttons.file-upload.label", locale) or "Image"
         )
@@ -86,7 +107,7 @@ def render(step: Any, session: FormSession, context: Context) -> Screen:
         declared = step.placeholder.get(locale) if step.placeholder else None
         inputs = (
             Input(
-                label=step.label.get(locale) if step.label else step.title.get(locale),
+                label=step.label.get(locale) if step.label else titled,
                 placeholder=declared,
                 default=defaults[0],
                 required=step.required or True,
@@ -102,9 +123,47 @@ def render(step: Any, session: FormSession, context: Context) -> Screen:
             )
         )
     return Screen(
-        modal_title=step.title.get(locale),
+        modal_title=titled,
         components=(TextInputs(step.key, inputs),),
         flavour="modal",
+    )
+
+
+def refused_screen(step: Any, session: FormSession, context: Context) -> Screen:
+    """The refused step as a one-field card: what was typed and its Edit."""
+    locale = context.locale
+    refused = session.refused_on(step.key)
+    typed = refused.inputs if refused is not None else ()
+    titled = step_title(step, locale, context.scope)
+    name = step.label.get(locale) if step.label else titled
+    lines = (
+        [f"> {typed[0]}"]
+        if not step.fields and typed and typed[0]
+        else [
+            f"> **{label}:** {value}"
+            for label, value in zip(_labels(step, locale), typed)
+            if value
+        ]
+    )
+
+    section = SectionView(
+        0,
+        step.key,
+        f"{step.emoji} **{name}**".strip(),
+        tuple(lines),
+        (Button(text("buttons.summary-card.edit", locale), "section:0"),),
+    )
+    header = CardHeader(
+        titled,
+        description_of(step, session, context),
+        thumbnail=KeikoIcons.IMAGE_01,
+    )
+    buttons = (back_button(locale),) if context.can_go_back else ()
+    return Screen(
+        components=(Card(step.key, header, (section,)),),
+        buttons=(*buttons, cancel_button(locale)),
+        flavour="components_v2",
+        layout_footer=footer_of(step, locale),
     )
 
 
@@ -149,10 +208,11 @@ def parse(
     if step.input == "file":
         url = payload.get("url") if isinstance(payload, Mapping) else payload
         if not url:
-            return Refusal("selection-required")
+            return Refusal("selection-required", target=step.key)
         return {step.key: Answer(url)}
     raw_values = payload.get("inputs") if isinstance(payload, Mapping) else [payload]
     values = [str(value) for value in (raw_values or [])]
+    typed = tuple(values)
 
     if step.lowercase:
         values = [value.lower() for value in values]
@@ -163,9 +223,12 @@ def parse(
         refusal = _validate(step, values[0] if values else "", session, context)
 
         if refusal:
-            return refusal
+            return replace(refusal, inputs=typed, target=step.key)
         return {step.key: Answer(_scalar(step, values)), **_looked_up(step, context)}
-    return _fields_answers(step, values, session, context)
+    answers = _fields_answers(step, values, session, context)
+    if isinstance(answers, Refusal):
+        return replace(answers, inputs=typed, target=step.key)
+    return answers
 
 
 def _fields_answers(

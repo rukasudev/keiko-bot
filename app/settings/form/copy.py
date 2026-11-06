@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from enum import Enum
 from typing import Any, cast
 
@@ -21,6 +22,14 @@ def normalize_locale(locale: Any) -> str:
         if entry.startswith(prefix):
             return entry
     return "en-us"
+
+
+def error_message(key: str, args: Mapping[str, str], locale: str) -> str:
+    """The sentence of an error: a copy key, or the message of `errors.<key>`."""
+    message = text(key if "." in key else f"errors.{key}.message", locale)
+    for name, value in args.items():
+        message = message.replace("{" + name + "}", value)
+    return message
 
 
 def text(key: str, locale: str) -> str:

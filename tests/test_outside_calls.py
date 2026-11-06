@@ -503,3 +503,22 @@ def test_no_secret_reaches_a_url_any_integration_requests(recording_web, secrets
     assert len(urls) == 11, "the token request comes first, then every call above"
     leaked = [(secret, url) for url in urls for secret in SECRETS if secret in url]
     assert leaked == []
+
+
+def test_the_youtube_preview_asks_for_the_channel_and_its_latest_upload_only(
+    recording_web, secrets_config
+):
+    """yt-3: the preview shows the latest upload's picture for two quota units,
+    the channel with its uploads playlist and that playlist's newest item, and
+    never the hundred-unit search."""
+    youtube = YoutubeClient(SimpleNamespace(config=secrets_config))
+
+    youtube.get_channel_by_handle("pewdiepie")
+    youtube.get_latest_upload("UU-channel")
+
+    first, second = recording_web.requested_urls()
+    assert "/channels?" in first and "part=snippet%2CcontentDetails" in first
+    assert "forHandle=pewdiepie" in first
+    assert "/playlistItems?" in second and "playlistId=UU-channel" in second
+    assert "maxResults=1" in second
+    assert not any("/search" in url for url in recording_web.requested_urls())

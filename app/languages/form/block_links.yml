@@ -25,8 +25,8 @@ steps:
         en-us: "No links here! :p"
         pt-br: "Nada de links por aqui! :p"
     title:
-      en-us: "Link Settings"
-      pt-br: "Configuração de Links"
+      en-us: "General Settings"
+      pt-br: "Configurações Gerais"
     description:
       en-us: "Choose how I should treat links in your server"
       pt-br: "Escolha como eu devo tratar os links do seu servidor"
@@ -35,8 +35,8 @@ steps:
       pt-br: "• Use o comando `/reportar` para me contar um bug"
     header:
       title:
-        en-us: "Link Settings"
-        pt-br: "Configuração de Links"
+        en-us: "General Settings"
+        pt-br: "Configurações Gerais"
       title-emoji: "🚦"
       thumbnail: IMAGE_01
       lines: []
@@ -48,6 +48,29 @@ steps:
         description:
           en-us: Whether I block every link or only the ones you pick.
           pt-br: Se eu bloqueio todos os links ou só os que você escolher.
+      - key: answer
+        label:
+          en-us: "My response when blocking"
+          pt-br: "Minha resposta ao bloquear"
+        description:
+          en-us: What I say when I delete a link.
+          pt-br: O que eu digo quando apago um link.
+      - key: allowed_chats
+        style: channel
+        label:
+          en-us: "Allowed channels"
+          pt-br: "Canais permitidos"
+        description:
+          en-us: The channels where I never delete links.
+          pt-br: Os canais onde eu nunca apago links.
+      - key: allowed_roles
+        style: role
+        label:
+          en-us: "Allowed roles"
+          pt-br: "Cargos permitidos"
+        description:
+          en-us: Whoever has one of these roles can send links freely.
+          pt-br: Quem tem um desses cargos pode mandar links à vontade.
       - key: allowed_links
         style: bullet
         label:
@@ -57,8 +80,8 @@ steps:
           en-us: Popular websites I always let through.
           pt-br: Sites populares que eu sempre libero.
         edit_label:
-          en-us: "Free a famous website"
-          pt-br: "Liberar site famoso"
+          en-us: "Add"
+          pt-br: "Adicionar"
         panel_group:
           key: exceptions
           emoji: "✅"
@@ -75,22 +98,15 @@ steps:
                 key: mode
                 not_in: [block_all]
               text:
-                en-us: "These are the only websites and links I block, letting every other one through. Turn a popular website on or off right here, and add your own links below."
-                pt-br: "Estes são os únicos sites e links que eu bloqueio, deixando todos os outros passarem. Ligue ou desligue um site popular aqui mesmo, e adicione os seus próprios links abaixo."
+                en-us: "These are the only links I block, letting every other one through. Add your own links below."
+                pt-br: "Estes são os únicos links que eu bloqueio, deixando todos os outros passarem. Adicione os seus próprios links abaixo."
           title_when:
             - when:
                 key: mode
                 not_in: [block_all]
               text:
-                en-us: "Blocked websites and links"
-                pt-br: "Sites e links bloqueados"
-      - key: answer
-        label:
-          en-us: "My response when blocking"
-          pt-br: "Minha resposta ao bloquear"
-        description:
-          en-us: What I say when I delete a link.
-          pt-br: O que eu digo quando apago um link.
+                en-us: "Blocked links"
+                pt-br: "Links bloqueados"
     sections:
       - key: mode
         icon: "🚦"
@@ -103,9 +119,6 @@ steps:
         picker-title:
           en-us: "How should I block links?"
           pt-br: "Como devo bloquear os links?"
-        picker-description:
-          en-us: "🔗 **Block some**\nI let links through and block only the websites and links you pick.\n\n🚫 **Block all**\nI delete every link. If you want, you can free some websites and links afterwards.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
-          pt-br: "🔗 **Bloquear alguns**\nEu deixo os links passarem e bloqueio só os sites e links que você escolher.\n\n🚫 **Bloquear todos**\nEu apago todos os links. Se quiser, dá para liberar alguns sites e links depois.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
         customize-label:
           en-us: "Choose mode"
           pt-br: "Escolher modo"
@@ -113,13 +126,120 @@ steps:
           - label:
               en-us: "🔗 Block some"
               pt-br: "🔗 Bloquear alguns"
+            description:
+              en-us: "I let links through and block only the websites and links you pick."
+              pt-br: "Eu deixo os links passarem e bloqueio só os sites e links que você escolher."
             value: allow_all
-            style: success
+            style: primary
           - label:
               en-us: "🚫 Block all"
               pt-br: "🚫 Bloquear todos"
+            description:
+              en-us: "I delete every link, and you can still allow some websites and links afterwards."
+              pt-br: "Eu apago todos os links, mas você ainda pode liberar alguns sites e links depois."
             value: block_all
-            style: danger
+            style: primary
+      - key: answer
+        icon: "💬"
+        type: modal-input
+        label:
+          en-us: "My response when blocking"
+          pt-br: "Minha resposta ao bloquear"
+        state:
+          value: answer
+        customize-label:
+          en-us: "Customize response"
+          pt-br: "Personalizar resposta"
+        modal:
+          title:
+            en-us: "My Response When Blocking Links"
+            pt-br: "Minha Resposta ao Bloquear Links"
+          fields:
+            - key: answer
+              max_length: 100
+              label:
+                en-us: "Type my answer when blocking links"
+                pt-br: "Digite minha resposta ao bloquear links"
+              placeholder:
+                en-us: "No links here! :p (use {user} to mention)"
+                pt-br: "Nada de links por aqui! :p (use {user} para mencionar)"
+      - key: exceptions
+        icon: "🛡️"
+        type: group
+        sections: [exempt, allowed_links, own_links]
+        visible-when:
+          key: mode
+          not_in: [allow_all]
+        label:
+          en-us: "Add exceptions?"
+          pt-br: "Adicionar exceções?"
+        description:
+          en-us: "Channels, roles, sites and links I never delete."
+          pt-br: "Canais, cargos, sites e links que eu nunca apago."
+        customize-label:
+          en-us: "Configure"
+          pt-br: "Configurar"
+        picker-title:
+          en-us: "Exceptions"
+          pt-br: "Exceções"
+      - key: channel_exceptions
+        icon: "🛡️"
+        type: group
+        sections: [exempt]
+        visible-when:
+          key: mode
+          not_in: [block_all]
+        label:
+          en-us: "Add exceptions?"
+          pt-br: "Adicionar exceções?"
+        description:
+          en-us: "Channels and roles where I never delete links."
+          pt-br: "Canais e cargos onde eu nunca apago links."
+        customize-label:
+          en-us: "Configure"
+          pt-br: "Configurar"
+        picker-title:
+          en-us: "Exceptions"
+          pt-br: "Exceções"
+      - key: exempt
+        icon: "🔓"
+        type: selects
+        label:
+          en-us: "Allowed channels and roles"
+          pt-br: "Canais e cargos permitidos"
+        description:
+          en-us: "I **never** delete links sent in these channels or by anyone with these roles."
+          pt-br: "Eu **nunca** apago links enviados nesses canais ou por quem tem esses cargos."
+        customize-label:
+          en-us: "Choose channels and roles"
+          pt-br: "Escolher canais e cargos"
+        picker-title:
+          en-us: "Where should I never delete links?"
+          pt-br: "Onde eu nunca devo apagar links?"
+        picker-description:
+          en-us: "Pick the channels and the roles. I **never** delete links sent in those channels or by anyone with those roles."
+          pt-br: "Escolha os canais e os cargos. Eu **nunca** apago links enviados nesses canais ou por quem tem esses cargos."
+        selects:
+          - type: channels
+            key: allowed_chats
+            style: channel
+            icon: "#️⃣"
+            label:
+              en-us: "Allowed channels"
+              pt-br: "Canais permitidos"
+            placeholder:
+              en-us: "Channels where I never delete links"
+              pt-br: "Canais onde eu nunca apago links"
+          - type: roles
+            key: allowed_roles
+            style: role
+            icon: "🏷️"
+            label:
+              en-us: "Allowed roles"
+              pt-br: "Cargos permitidos"
+            placeholder:
+              en-us: "Roles whose links I never delete"
+              pt-br: "Cargos cujos links eu nunca apago"
       - key: allowed_links
         icon: "🔗"
         type: multi-select
@@ -156,58 +276,17 @@ steps:
             value: reddit.com
           - label: { en-us: "Discord", pt-br: "Discord" }
             value: discord.gg
-      - key: answer
-        icon: "💬"
-        type: modal-input
+      - key: own_links
+        icon: "📌"
+        type: list
+        list: custom_links
+        setup-only: true
         label:
-          en-us: "My response when blocking"
-          pt-br: "Minha resposta ao bloquear"
-        state:
-          value: answer
-        customize-label:
-          en-us: "Customize response"
-          pt-br: "Personalizar resposta"
-        modal:
-          title:
-            en-us: "My Response When Blocking Links"
-            pt-br: "Minha Resposta ao Bloquear Links"
-          fields:
-            - key: answer
-              max_length: 100
-              label:
-                en-us: "Type my answer when blocking links"
-                pt-br: "Digite minha resposta ao bloquear links"
-              placeholder:
-                en-us: "No links here! :p (use {user} to mention)"
-                pt-br: "Nada de links por aqui! :p (use {user} para mencionar)"
-
-  - action: options
-    key: add_custom
-    hidden: true
-    emoji: "🔗"
-    required: true
-    unique: true
-    styled_values: true
-    auto_confirm: true
-    style: boolean
-    condition:
-      key: mode
-      not_in: [allow_all]
-    title:
-      en-us: "Add Your Own Links?"
-      pt-br: "Adicionar Seus Próprios Links?"
-    description:
-      en-us: "Want to allow other websites or links besides the popular ones? You can also add more later!"
-      pt-br: "Quer permitir outros sites ou links além dos populares? Você também pode adicionar mais depois!"
-    footer:
-      en-us: "• Use the `/report` command to tell me a bug"
-      pt-br: "• Use o comando `/reportar` para me contar um bug"
-    options:
-      - label: { en-us: "Yes", pt-br: "Sim" }
-        value: true
-        style: success
-      - label: { en-us: "Later", pt-br: "Depois" }
-        value: false
+          en-us: "Allowed custom links"
+          pt-br: "Links personalizados permitidos"
+        description:
+          en-us: "Your own websites or links, one at a time. You can add them later too!"
+          pt-br: "Seus próprios sites ou links, um de cada vez. Você pode adicionar depois também!"
 
   - action: composition
     key: custom_links
@@ -216,22 +295,28 @@ steps:
     unique_by: link
     emoji: "📌"
     style: composition
-    edit_label:
-      en-us: "Free specific links"
-      pt-br: "Liberar links específicos"
     panel_group:
       key: exceptions
       own_screen: true
       order: 1
-    condition:
-      key: add_custom
-      not_in: [false, "false", "False"]
     title:
-      en-us: "Your Links"
-      pt-br: "Seus Links"
+      en-us: "Allowed custom links"
+      pt-br: "Links personalizados permitidos"
+    title-when:
+      - when:
+          key: mode
+          not_in: [block_all]
+        en-us: "Blocked custom links"
+        pt-br: "Links personalizados bloqueados"
     description:
-      en-us: "Your own links, one at a time! In block-all mode these are the exceptions I always allow, and in allow-all mode they are the only ones I block."
-      pt-br: "Seus próprios links, um de cada vez! No modo bloquear todos eles são as exceções que eu sempre libero, e no modo permitir todos são os únicos que eu bloqueio."
+      en-us: "Your own websites or links that I always let through, one at a time!"
+      pt-br: "Seus próprios sites ou links que eu sempre libero, um de cada vez!"
+    description-when:
+      - when:
+          key: mode
+          not_in: [block_all]
+        en-us: "Your own websites or links that I block, letting every other one through. One at a time!"
+        pt-br: "Seus próprios sites ou links que eu bloqueio, deixando todos os outros passarem. Um de cada vez!"
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"
@@ -294,48 +379,14 @@ steps:
               pt-br: "🔗 Só esse link específico"
             value: exact
 
-  - action: multi_select
-    key: permissions
-    emoji: "🔓"
-    title:
-      en-us: "Permissions"
-      pt-br: "Permissões"
-    description:
-      en-us: "Choose the channels and roles I should never block. Links from them are always allowed!"
-      pt-br: "Escolha os canais e cargos que eu nunca devo bloquear. Links deles são sempre permitidos!"
-    footer:
-      en-us: "• Use the `/report` command to tell me a bug"
-      pt-br: "• Use o comando `/reportar` para me contar um bug"
-    selects:
-      - type: channels
-        key: allowed_chats
-        style: channel
-        icon: "#️⃣"
-        label:
-          en-us: "Exempt Channels"
-          pt-br: "Canais Liberados"
-        placeholder:
-          en-us: "Channels I'll never block..."
-          pt-br: "Canais que nunca vou bloquear..."
-      - type: roles
-        key: allowed_roles
-        style: role
-        icon: "🏷️"
-        label:
-          en-us: "Exempt Roles"
-          pt-br: "Cargos Liberados"
-        placeholder:
-          en-us: "Roles I'll never block..."
-          pt-br: "Cargos que nunca vou bloquear..."
-
   - action: resume
     key: confirm
     title:
-      en-us: ":white_check_mark: Alright?"
-      pt-br: ":white_check_mark: Tudo certo?"
+      en-us: ":no_entry_sign: Block Links"
+      pt-br: ":no_entry_sign: Bloquear Links"
     description:
-      en-us: "Enabling this feature allows me to watch every message and delete the links you don't want here! You choose how I do it: block all links with your exceptions, or allow links and block only the ones you pick."
-      pt-br: "Ativar esta função faz com que eu fique de olho em cada mensagem e exclua os links que você não quer por aqui! Você escolhe como eu faço isso: bloquear todos os links com as suas exceções, ou permitir links e bloquear só os que você escolher."
+      en-us: "Here's a summary of your choices so far. All set for me to turn on the `/{context:command}` command with the settings below? ✅"
+      pt-br: "Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/{context:command}` com as configurações abaixo? ✅"
     footer:
       en-us: "• Use the `/report` command to tell me a bug"
       pt-br: "• Use o comando `/reportar` para me contar um bug"

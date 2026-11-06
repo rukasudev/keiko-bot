@@ -63,12 +63,24 @@ description:
   pt-br: "Essa regra vai **sempre liberar** `{response:link|youtube.com/watch?v=abc123}`. Me diga o alcance dela!\n\n🌐 **Todos os links desse site**: a regra vale para o site inteiro, qualquer página ou vídeo dele.\n🔗 **Só esse link específico**: a regra vale só para esse endereço exato, e o resto do site fica de fora dela.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
 ```
 
+**Exception: block options.** A card picker whose options each declare a `description`
+draws every option as its own block (the label in bold, the description under it, a
+**Choose** / **Escolher** button beside it, primary on the current choice and painted by the option's `style` otherwise) under a divider. The block links modes declare `style: primary` on both, so their two Choose buttons read the same blue and neither mode looks like the wrong one.
+There the title is the question and the blocks are the option lines: write each
+`description` as that option's one sentence, and add no option lines or closing invitation
+to `picker-description`. On the card itself every pick is a select drawn on the card, so the
+same `description` reads under its option's label in the dropdown (the block links modes,
+at most 100 characters); the blocks are the picker screen of a part edit. A yes or no on a
+card is two buttons, **Sim** / **Não** (**Yes** / **No**), the current one primary and the
+other secondary.
+
 When the same step means different things depending on an earlier answer, do not write one
 sentence covering both cases: give it `description-when:` variants (see
 `docs/form-configuration.md`), so each case reads as if it were the only one.
 
 Pinned by `test_mode_picker_explains_each_mode_in_its_own_line`
-(`tests/behavioral/scenarios/test_block_links_flow.py`) and by the golden transcripts: an
+(`tests/behavioral/scenarios/test_block_links_flow.py`, the mode options) and by the
+golden transcripts: an
 options step that names its own labels in prose, or that puts a bullet in front of an
 emoji, fails the suite.
 
@@ -91,9 +103,9 @@ of text is a bug, not a style choice.
 - `ButtonStyle.green` → Confirm / positive
 - `ButtonStyle.red` → Cancel / destructive
 - `ButtonStyle.primary` → Back / selected state / primary navigation
-- `ButtonStyle.gray` / `grey` → Edit, Pause, Unpause, Preview, Help, Disable, Add, Remove, History, Sync
+- `ButtonStyle.gray` / `grey` → Edit, Pause, Unpause, Preview, Help, Disable, Add (the **➕ Add** of every list too, beside its title, on the summary, the panel and a card), Remove, History, Sync
 - `ButtonStyle.secondary` → form back navigation
-- Reuse generic labels from `buttons.{lang}.yml` (`confirm`, `cancel`, `edit`, `add`, `remove`, `back`, `select`, `continue`, `pause`, `unpause`, `preview`, `history`). Only add a new key when the action is genuinely new.
+- Reuse generic labels from `buttons.{lang}.yml` (`confirm`, `cancel`, `edit`, `add`, `remove`, `back`, `select`, `choose`, `continue`, `pause`, `unpause`, `preview`, `history`). Only add a new key when the action is genuinely new.
 - **Cancel is ALWAYS the last button in the view.** Order: the step's own actions first
   (options, Confirm, Done, Add/Remove), then Back, then Cancel. Inside a form the engine's
   screen model builds the row in that order by construction
@@ -108,7 +120,9 @@ of text is a bug, not a style choice.
 
 ### Forms (`app/languages/form/*.yml`)
 - Open with `action: form` (intro).
-- Close with `action: resume` titled `":white_check_mark: Alright?"` / `":white_check_mark: Tudo certo?"`.
+- Close with `action: resume` titled like the intro (the feature's emoji and name) and described as `"Here's a summary of your choices so far. All set for me to turn on the `/{context:command}` command with the settings below? ✅"` / `"Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/{context:command}` com as configurações abaixo? ✅"`. Its green button is the plain **Confirm** / **Confirmar**. StreamElements is the one summary that keeps its own description: it explains the prefix with the chosen streamer (`{response:streamer}`), which says more than the generic sentence.
+- A setting the intro lists gets one line: a step whose description runs over several lines declares an `intro_line`.
+- A feature has one name everywhere an admin reads it, the one its slash command uses (`buttons.setup.<feature>.label`, the intro and summary titles, the greeting), with the `/setup` emoji.
 - Every step's footer: `"• Use the command /report to tell me a bug"` / `"• Utilize o comando /reportar para me contar um bug"`.
 - Every step has `title`, `description`, `footer` for both `en-us` and `pt-br`.
 - Step actions: `form`, `channels`, `modal`, `multi_select`, `options`, `button`, `design_select`, `file_upload`, `composition`, `resume`.
@@ -125,6 +139,7 @@ of text is a bug, not a style choice.
 - Never mix `{}` and `$` in the same string.
 - Footer prefix: `"• "` (bullet + space). Never use `•` as an inline bullet in body copy.
 - Lists: `\n- ` for unordered, `\n1. ` / `\n2. ` for sequential. `\n\n` between paragraphs.
+- A list of message texts the admin wrote (notification and welcome messages) reads inside one code block of `• ` lines, through the `code-block` value style, on cards, summaries and panels. Lists of names and links (streamers, websites, birthdays) stay `- ` bullets.
 - One leading emoji on titles. 0–2 emoji elsewhere per paragraph.
 
 ## Vocabulary
@@ -252,9 +267,9 @@ Reuse `command-events.{enabled|paused|unpaused|disabled|edited|added|removed}`. 
 
 - action: resume
   key: confirm
-  title:
-    en-us: ":white_check_mark: Alright?"
-    pt-br: ":white_check_mark: Tudo certo?"
-  description: {same as form intro description}
+  title: {same as form intro title}
+  description:
+    en-us: "Here's a summary of your choices so far. All set for me to turn on the `/{context:command}` command with the settings below? ✅"
+    pt-br: "Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/{context:command}` com as configurações abaixo? ✅"
   footer: {same standard footer}
 ```

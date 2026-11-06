@@ -14,7 +14,7 @@ from app.services.utils import (
     list_roles_id,
     parse_welcome_messages,
     format_datetime_output,
-    split_welcome_messages,
+    split_messages,
 )
 from app.services import reminders_birthdays
 from app.data.birthdays import build_default_item
@@ -428,8 +428,8 @@ class TestBirthdayItemDefaults:
         assert title == "Servidor feliz, {user}"
         assert content == "Hoje e dia de bolo em {server}."
 
-class TestSplitWelcomeMessages:
-    """Testes para divisao de mensagens de boas-vindas."""
+class TestSplitJoinedMessages:
+    """Testes para divisao de mensagens salvas como texto separado por ;."""
 
     def test_splits_by_semicolon(self):
         """
@@ -442,7 +442,7 @@ class TestSplitWelcomeMessages:
         messages = "Msg1;Msg2;Msg3"
 
         # Act
-        result = split_welcome_messages(messages)
+        result = split_messages(messages)
 
         # Assert
         assert len(result) == 3
@@ -461,11 +461,27 @@ class TestSplitWelcomeMessages:
         messages = "Single message"
 
         # Act
-        result = split_welcome_messages(messages)
+        result = split_messages(messages)
 
         # Assert
         assert len(result) == 1
         assert result[0] == "Single message"
+
+
+class TestSplitMessages:
+    """Testes para as mensagens de um valor salvo, lista ou separado por ;."""
+
+    @pytest.mark.parametrize(
+        "stored",
+        [["Msg1", " Msg2"], ("Msg1", "Msg2"), "Msg1; Msg2", "Msg1;;Msg2;"],
+        ids=["list", "tuple", "joined", "blanks"],
+    )
+    def test_every_stored_shape_reads_as_its_messages(self, stored):
+        assert split_messages(stored) == ["Msg1", "Msg2"]
+
+    @pytest.mark.parametrize("stored", [None, "", [], [" "]])
+    def test_nothing_saved_reads_as_no_message(self, stored):
+        assert split_messages(stored) == []
 
 
 class TestParseWelcomeMessages:

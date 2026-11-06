@@ -24,6 +24,7 @@ from types import SimpleNamespace
 import discord
 import pytest
 
+from app.exceptions import StreamElementsUnavailable
 from app.integrations.stream_elements import StreamElementsClient
 from app.services.utils import ml
 from tests.behavioral.harness.driver import FormScenario
@@ -328,10 +329,8 @@ def test_a_stream_elements_failure_is_never_cached(deps, monkeypatch, failure):
     monkeypatch.setattr(StreamElementsClient, "get_chat_commands", staticmethod(commands))
     member = create_member(english_guild(), id=111, name="First")
 
-    try:
+    with pytest.raises(StreamElementsUnavailable):
         stream_elements.get_reply_in_cache_or_populate("se-gaules", "mouse", member)
-    except ConnectionError:
-        pass
     reply = stream_elements.get_reply_in_cache_or_populate("se-gaules", "mouse", member)
 
     assert reply == "<@111> uses a Logitech G Pro!", "the failure was cached as no command"
@@ -344,11 +343,20 @@ async def test_an_error_names_the_commands_length_never_its_text(
     def configured(guild_id, key, *args, **kwargs):
         return {"streamer": "gaules", "channel_id": "se-gaules", "enabled": True}
 
-    def down(channel_id):
-        raise ConnectionError("StreamElements is down")
+    def unreadable(reply, user):
+        raise ValueError("the reply could not be read")
 
     mock_cache.side_effect = configured
-    monkeypatch.setattr(StreamElementsClient, "get_chat_commands", staticmethod(down))
+    monkeypatch.setattr(
+        StreamElementsClient,
+        "get_chat_commands",
+        staticmethod(
+            lambda channel_id: [
+                {"command": "my-token-s3cr3t", "reply": "a reply", "enabled": True}
+            ]
+        ),
+    )
+    monkeypatch.setattr(stream_elements, "parse_placeholders", unreadable)
     logged = []
     monkeypatch.setattr(
         stream_elements.logger, "error", lambda *args, **kwargs: logged.append(kwargs)
@@ -359,7 +367,7 @@ async def test_an_error_names_the_commands_length_never_its_text(
         channel=guild.text_channels[0],
     )
 
-    with pytest.raises(ConnectionError):
+    with pytest.raises(ValueError):
         await stream_elements.check_message(str(guild.id), message, "ks!")
 
     extra = logged[0]["context"].extra
@@ -587,3 +595,356 @@ async def test_a_direct_message_gets_the_slash_hint_from_the_language_files(
     assert hint == "\n\n".join(halves)
     assert "`/ajuda`" in hint and "`/help`" in hint
     assert mock_cache.call_count == 0, "a direct message has no server to read"
+
+
+async def test_a_setup_in_dev_saves_the_channel_the_streamer_lookup_found(
+    scenario_factory, deps, monkeypatch
+):
+    """A dev setup saves the StreamElements channel the streamer lookup found.
+
+    Broke as: `_with_channel` (`app/settings/features/stream_elements_commands.py`)
+    returned the document untouched when `is_dev()`, so a setup on the dev bot saved
+    no `channel_id`. The panel then asked StreamElements for `/bot/commands//public`
+    and found no command, and every `ke!` command got no answer. The streamer modal's
+    lookup had already found the channel and the commit threw it away.
+
+    Shared behaviour: `lookup_answers` of the streamer modal, which keeps the
+    channel the prefetch found as a hidden answer, and the feature's commit hooks.
+    Consumer that exposed it: stream_elements_commands on the dev bot.
+
+    Guaranteed: in every environment the saved document carries the channel id
+    the streamer lookup found, without asking StreamElements for it again.
+    """
+    deps.bot.config.is_dev = lambda: True
+    asked = []
+
+    def channel_info(name):
+        asked.append(name)
+        return {"_id": f"se-channel-of-{name}"}
+
+    monkeypatch.setattr(StreamElementsClient, "get_channel_info", staticmethod(channel_info))
+    scenario = await _review_after_naming(scenario_factory, deps)
+    await scenario.confirm()
+    await scenario.finish()
+
+    scenario.expect_persisted(
+        "guild",
+        "stream_elements_commands",
+        {"guild_id": str(scenario.guild.id)},
+        {"streamer": "shroud", "channel_id": "se-channel-of-shroud"},
+    )
+    assert asked == ["shroud"], "the commit asked StreamElements again for the channel"
+
+
+@pytest.fixture
+def an_old_document(deps, mock_cache, monkeypatch):
+    """A server whose document was saved by the dev bot: a streamer and no channel."""
+    guild = english_guild()
+    document = {"guild_id": str(guild.id), "streamer": "gaules", "enabled": True}
+    deps.mongo_client.guild["stream_elements_commands"].insert_one(dict(document))
+
+    def configured(guild_id, key, *args, **kwargs):
+        if key != "stream_elements_commands":
+            return {}
+        return deps.mongo_client.guild[key].find_one({"guild_id": str(guild_id)})
+
+    asked = []
+
+    def channel_info(name):
+        asked.append(name)
+        return {"_id": f"se-{name}"}
+
+    def commands(channel_id):
+        if channel_id != "se-gaules":
+            return {"statusCode": 404, "error": "Not Found"}
+        return [{"command": "mouse", "reply": REPLY, "enabled": True}]
+
+    mock_cache.side_effect = configured
+    monkeypatch.setattr(StreamElementsClient, "get_channel_info", staticmethod(channel_info))
+    monkeypatch.setattr(StreamElementsClient, "get_chat_commands", staticmethod(commands))
+    return SimpleNamespace(guild=guild, asked=asked)
+
+
+async def test_an_old_document_without_its_channel_still_answers_ke_commands(
+    deps, an_old_document
+):
+    """A document saved without its StreamElements channel finds it once and keeps it.
+
+    Broke as: the dev bot saved StreamElements documents without `channel_id`
+    (the `is_dev` skip of `_with_channel`), and the three read paths (a `ke!`
+    command in chat, the panel's command list and the panel's count) read
+    `channel_id` straight from the document: None, so StreamElements was asked for
+    `/bot/commands/None/public`, answered 404, and nobody got an answer.
+
+    Shared behaviour: `channel_of` (`app/services/stream_elements.py`), the one way
+    the read paths learn the channel. Consumer that exposed it: stream_elements_commands
+    on the dev bot.
+
+    Guaranteed: a document without its channel still answers, the channel is looked
+    up once from the streamer and written back to the document, and the next
+    command reads it from there.
+    """
+    guild = an_old_document.guild
+    member = member_without_a_picture(guild)
+
+    first = await ask(deps.bot, guild, member, "ks!mouse")
+    second = await ask(deps.bot, guild, member, "ks!mouse")
+
+    assert reply_of(first).description == REPLY
+    assert reply_of(second).description == REPLY
+    stored = deps.mongo_client.guild["stream_elements_commands"].find_one(
+        {"guild_id": str(guild.id)}
+    )
+    assert stored["channel_id"] == "se-gaules", "the channel was not written back"
+    assert an_old_document.asked == ["gaules"], "the channel was looked up on every message"
+
+
+@pytest.mark.parametrize(
+    "answer",
+    [
+        pytest.param(ConnectionError("StreamElements is down"), id="outage"),
+        pytest.param({"statusCode": 404, "error": "Not Found"}, id="unknown-streamer"),
+    ],
+)
+async def test_a_channel_lookup_that_failed_is_not_asked_again_on_every_message(
+    deps, an_old_document, monkeypatch, answer
+):
+    """A failed lookup of the streamer's channel waits before StreamElements is asked again.
+
+    Broke as: `channel_of` (`app/services/stream_elements.py`) looks the channel up
+    through `find_channel` for a document saved without it, and a lookup that failed
+    (StreamElements down, or a streamer it does not know) was never remembered, so
+    every message with the prefix asked StreamElements again for the same channel.
+
+    Shared behaviour: `channel_of`, read by the `ke!` listener, the panel's command
+    list and the panel's count; the channel's failure mark in Redis
+    (`REDIS_STREAM_ELEMENTS_CHANNEL_FAILED`, `STREAM_ELEMENTS_CHANNEL_FAILED_SECONDS`).
+    Consumer that exposed it: stream_elements_commands, the architecture review of
+    the beta.2 feedback.
+
+    Guaranteed: while a lookup failed a few minutes ago, the next messages get no
+    reply and StreamElements is asked for the channel once, not once per message.
+    """
+
+    def channel_info(name):
+        an_old_document.asked.append(name)
+        if isinstance(answer, Exception):
+            raise answer
+        return answer
+
+    monkeypatch.setattr(StreamElementsClient, "get_channel_info", staticmethod(channel_info))
+    guild = an_old_document.guild
+    member = member_without_a_picture(guild)
+
+    messages = [await ask(deps.bot, guild, member, "ks!mouse") for _message in range(3)]
+
+    assert all(message._reply.await_count == 0 for message in messages)
+    assert an_old_document.asked == ["gaules"], (
+        f"StreamElements was asked {len(an_old_document.asked)} times for one channel"
+    )
+
+
+def _down(channel_id):
+    raise ConnectionError("StreamElements is down")
+
+
+@pytest.fixture
+def stream_elements_down(stream_elements_on, monkeypatch):
+    """StreamElements does not answer the command list of `gaules`."""
+    monkeypatch.setattr(StreamElementsClient, "get_chat_commands", staticmethod(_down))
+
+
+@pytest.fixture
+def no_commands(stream_elements_on, monkeypatch):
+    """`gaules` has no active command on StreamElements."""
+    monkeypatch.setattr(
+        StreamElementsClient, "get_chat_commands", staticmethod(lambda channel_id: [])
+    )
+
+
+PANEL = {"streamer": "gaules", "channel_id": "se-gaules", "enabled": True}
+
+
+async def _open_the_command_list(scenario_factory, locale="pt-br"):
+    scenario = await scenario_factory(locale=locale).start_manager(
+        "stream_elements_commands", PANEL
+    )
+    await scenario.click(ml(
+        "commands.commands.commons.stream-elements-manager.commands.button.label", locale
+    ))
+    return [event for event in scenario.outputs if event.get("kind") == "send"][-1]
+
+
+async def test_the_commands_button_sits_beside_the_loaded_commands(
+    scenario_factory, no_commands
+):
+    """N1 (beta.2 round 2): the command list opens from a button beside the
+    "Comandos carregados" block, inside the card, not from the bottom row."""
+    import discord
+
+    from tests.behavioral.harness import locators
+
+    scenario = await scenario_factory(locale="pt-br").start_manager(
+        "stream_elements_commands", PANEL
+    )
+    label = ml(
+        "commands.commands.commons.stream-elements-manager.commands.button.label",
+        "pt-br",
+    )
+    title = ml("commands.commands.commons.stream-elements-manager.loaded.title", "pt-br")
+    card, *rows = scenario.current_message.view.children
+
+    beside = [
+        item for item in locators.walk_items(card)
+        if isinstance(item, discord.ui.Section)
+        and getattr(item.accessory, "label", None) == label
+    ]
+    assert beside, "the Commands button is not inside the card"
+    assert title in beside[0].children[0].content
+    bottom = [button.label for row in rows for button in row.children]
+    assert label not in bottom, bottom
+
+
+async def test_a_stream_elements_failure_answers_the_panel_in_the_error_format(
+    scenario_factory, stream_elements_down
+):
+    """The panel's command list tells a StreamElements failure from a streamer without commands.
+
+    Broke as: `_channel_commands` (`app/services/stream_elements.py`) answered `{}`
+    for a payload that was not a list (a 404) and let a connection error through,
+    so the panel's Commands button said "no active commands" while StreamElements
+    was down, or failed outright; and "no active commands" itself was raw plain
+    text, not one of Keiko's embeds.
+
+    Shared behaviour: `StreamElementsUnavailable` and `_channel_commands`, read by
+    the panel's list, the panel's count and the `ke!` listener; the error format of
+    `response_error_embed`. Consumer that exposed it: stream_elements_commands
+    (beta.2 feedback se-3).
+
+    Guaranteed: a failure answers with Keiko's error embed asking to try again
+    later, a streamer without commands with an embed, and neither is raw text.
+    """
+    sent = await _open_the_command_list(scenario_factory)
+
+    embed = sent.get("embed") or {}
+    assert sent["ephemeral"] is True
+    assert not sent.get("content"), f"the failure was raw text: {sent.get('content')!r}"
+    assert embed.get("color") == 0xFF0000
+    assert str(embed.get("title")).startswith("🚨 ")
+    assert "tente de novo mais tarde" in str(embed.get("description"))
+
+
+async def test_a_streamer_without_commands_gets_an_embed_not_raw_text(
+    scenario_factory, no_commands
+):
+    sent = await _open_the_command_list(scenario_factory)
+
+    embed = sent.get("embed") or {}
+    empty = ml("commands.commands.commons.stream-elements-manager.commands.empty", "pt-br")
+    assert not sent.get("content"), f"the empty list was raw text: {sent.get('content')!r}"
+    assert str(embed.get("description")).startswith(empty.replace("$streamer", "gaules"))
+    assert embed.get("color") != 0xFF0000
+
+
+async def test_ke_commands_tells_a_failure_from_an_empty_list(
+    deps, stream_elements_down, monkeypatch
+):
+    guild = english_guild()
+    member = member_without_a_picture(guild)
+
+    failed = await ask(deps.bot, guild, member, "ks!commands")
+
+    embed = reply_of(failed)
+    assert embed.title.startswith("🚨 ")
+    assert "try again later" in embed.description
+
+    monkeypatch.setattr(
+        StreamElementsClient, "get_chat_commands", staticmethod(lambda channel_id: [])
+    )
+    empty = await ask(deps.bot, guild, member, "ks!commands")
+
+    assert empty._reply.await_count == 0, "an empty list is not a failure"
+
+
+async def test_a_failure_leaves_one_warning_per_streamer(
+    deps, stream_elements_down, log_channels, monkeypatch
+):
+    """The admin hears of a StreamElements outage once, not once per message."""
+    guild = english_guild()
+    member = member_without_a_picture(guild)
+
+    for _message in range(3):
+        await ask(deps.bot, guild, member, "ks!commands")
+
+    warned = [
+        embed for embed in log_channels.logs.embeds
+        if "StreamElements" in str(embed.description) + str(embed.title)
+    ]
+    assert len(warned) == 1, f"{len(warned)} warnings for one outage"
+    assert "gaules" in str(warned[0].description) + str(warned[0].title)
+    assert log_channels.errors.embeds == [], "an outage is not an error of Keiko's"
+
+
+async def test_an_outage_warns_again_only_once_its_mark_in_redis_is_gone(
+    deps, stream_elements_down, log_channels
+):
+    """The warning of an outage follows a mark claimed in Redis, not a process.
+
+    Broke as: `warn_unavailable` (`app/services/stream_elements.py`) remembered
+    when it last warned in a module-level dict, so every process (and every
+    restart) warned again on its own clock, and the channel lookup's failure mark
+    borrowed its TTL from "no commands".
+
+    Shared behaviour: `warn_unavailable` with `Commands.REDIS_STREAM_ELEMENTS_WARNED`
+    and `Commands.STREAM_ELEMENTS_FAILURE_SECONDS`, and the channel lookup's own
+    `REDIS_STREAM_ELEMENTS_CHANNEL_FAILED` with `STREAM_ELEMENTS_CHANNEL_FAILED_SECONDS`,
+    met by the `ke!` listener, the panel's command list and the panel's count.
+    Consumer that exposed it: stream_elements_commands (review fixes K2, item 7).
+
+    Guaranteed: one warning while its mark lives (30 minutes), whatever process
+    meets the failure, a new one once the mark expired; a failed command fetch
+    never marks the channel lookup failed, whose own mark lasts 5 minutes.
+    """
+    from app.constants import Commands
+
+    guild = english_guild()
+    member = member_without_a_picture(guild)
+    mark = Commands.REDIS_STREAM_ELEMENTS_WARNED.format(streamer="gaules")
+    channel = Commands.REDIS_STREAM_ELEMENTS_CHANNEL_FAILED.format(streamer="gaules")
+
+    def warnings():
+        return [
+            embed for embed in log_channels.logs.embeds
+            if "StreamElements" in str(embed.description) + str(embed.title)
+        ]
+
+    await ask(deps.bot, guild, member, "ks!commands")
+    assert deps.redis_client.get(mark), "the warning left no mark in Redis"
+    assert deps.redis_client.ttl(mark) == 60 * 30
+    assert not deps.redis_client.get(channel), "a failed fetch blocked channel lookups"
+    await ask(deps.bot, guild, member, "ks!commands")
+    assert len(warnings()) == 1
+
+    deps.redis_client.delete(mark)
+    await ask(deps.bot, guild, member, "ks!commands")
+
+    assert len(warnings()) == 2, "the outage was not told again once its mark expired"
+
+
+async def test_a_failed_channel_lookup_is_marked_for_five_minutes(
+    deps, an_old_document, monkeypatch
+):
+    from app.constants import Commands
+
+    def channel_info(name):
+        raise ConnectionError("StreamElements is down")
+
+    monkeypatch.setattr(StreamElementsClient, "get_channel_info", staticmethod(channel_info))
+    guild = an_old_document.guild
+
+    await ask(deps.bot, guild, member_without_a_picture(guild), "ks!mouse")
+
+    channel = Commands.REDIS_STREAM_ELEMENTS_CHANNEL_FAILED.format(streamer="gaules")
+    warned = Commands.REDIS_STREAM_ELEMENTS_WARNED.format(streamer="gaules")
+    assert deps.redis_client.ttl(channel) == 60 * 5
+    assert deps.redis_client.ttl(warned) == 60 * 30

@@ -279,6 +279,38 @@ class TestTwitchMessageComposition:
         assert result == f"{{STREAM_LINK}}\n{stream_link}"
 
 
+    @pytest.mark.parametrize(
+        "written",
+        [
+            "https://twitch.tv/gaules",
+            "https://www.twitch.tv/Gaules",
+            "twitch.tv/gaules",
+        ],
+    )
+    def test_a_message_that_already_links_the_streamer_gets_no_second_link(
+        self, written
+    ):
+        """Broke as (tw-5, beta.2): the setup now writes the streamer's link into
+        the suggested message, and a message holding the link but not
+        `{stream_link}` got the link appended again on a line of its own."""
+        message = f"@everyone gaules está ao vivo! {written}"
+
+        result = parse_streamer_message(
+            message, "gaules", "https://www.twitch.tv/gaules"
+        )
+
+        assert result == message
+
+    def test_a_link_to_another_channel_still_gets_the_streamer_link(self):
+        """Only the streamer's own channel counts as the live link."""
+        stream_link = "https://www.twitch.tv/gaules"
+
+        result = parse_streamer_message(
+            "vem também https://twitch.tv/gaulesfan", "gaules", stream_link
+        )
+
+        assert result.endswith(f"\n{stream_link}")
+
 class TestTwitchStreamEmbed:
     """Testes da criacao de embeds de notificacao."""
 
@@ -689,3 +721,26 @@ def test_a_live_notice_names_its_fields_in_the_servers_language(twitch, locale, 
     )
 
     assert field_names(embed) == names
+
+
+@pytest.mark.behavioral
+@pytest.mark.shared_contract("fan_out")
+async def test_a_streamer_saved_by_the_old_pause_is_still_announced(deps, servers):
+    """N1 (round 3) took the per-item pause off: an item a dev panel saved with
+    `enabled: false` is announced like any other, the field ignored."""
+    follow(deps, servers.first.id, servers.first.text_channels[0].id)
+    follow(deps, servers.second.id, *(channel.id for channel in servers.second.text_channels))
+    collection = deps.mongo_client.guild.notifications_twitch
+    stored = collection.find_one({"guild_id": str(servers.second.id)})
+    stored["notifications"]["values"][0]["enabled"] = False
+    collection.update_one(
+        {"guild_id": str(servers.second.id)},
+        {"$set": {"notifications": stored["notifications"]}},
+    )
+
+    await handle_send_streamer_notification("gaules")
+
+    assert len(notices(servers.first)) == 1
+    assert all(
+        len(channel._sent_messages) == 1 for channel in servers.second.text_channels
+    )
