@@ -3,16 +3,20 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from datetime import date
 from typing import Any
 
 from app.constants import Commands
 from app.constants import ViewConstants as view_constants
 from app.data import birthdays as birthdays_data
 from app.services.cogs import is_feature_on
+from app.services.dates import utc_today
 from app.services.moderations import set_feature_enabled
 from app.services.reminders_birthdays import (
+    birthday_found_members,
     birthday_manager_cog_data,
+    birthday_month_pages,
     birthday_settings_rows,
     disable_birthdays,
     remove_birthday,
@@ -28,12 +32,13 @@ from app.settings.features.feature import (
     CommitResult,
     DuplicateItem,
     GenericCogFeature,
+    ListChanged,
     OpenContext,
     Opened,
 )
 from app.settings.form.components import Button
 from app.settings.form.copy import text
-from app.settings.form.manager import PanelExtras
+from app.settings.form.manager import FoundItem, PanelExtras, PanelPage
 from app.settings.form.responses.summary import PanelRow
 
 
@@ -44,8 +49,9 @@ def _copy(key: str, locale: str) -> str:
 class BirthdayFeature(GenericCogFeature):
     """Birthdays live in `reminders.birthdays`; the config in its own document."""
 
-    def __init__(self) -> None:
+    def __init__(self, today: Callable[[], date] = utc_today) -> None:
         super().__init__(Commands.REMINDERS_BIRTHDAY_KEY)
+        self.today = today
 
     async def open(self, context: OpenContext) -> Opened:
         """The synthetic document the panel reads, paused or not, or nothing saved."""
@@ -56,7 +62,16 @@ class BirthdayFeature(GenericCogFeature):
 
         enabled = await asyncio.to_thread(is_feature_on, guild_id, self.key, config)
         document = await asyncio.to_thread(birthday_manager_cog_data, guild_id)
-        rows = await asyncio.to_thread(birthday_settings_rows, guild_id, context.locale)
+        today = self.today()
+        rows = await asyncio.to_thread(
+            birthday_settings_rows, guild_id, context.locale, today
+        )
+        pages = await asyncio.to_thread(
+            birthday_month_pages, guild_id, context.locale, today
+        )
+        found = await asyncio.to_thread(
+            birthday_found_members, guild_id, context.locale
+        )
         return Opened(
             document=document,
             panel=PanelExtras(
@@ -71,6 +86,13 @@ class BirthdayFeature(GenericCogFeature):
                 ),
                 extra_buttons=self.extra_buttons(context),
                 enabled=enabled,
+                pages=tuple(
+                    PanelPage(title, tuple(lines), description)
+                    for title, description, lines in pages
+                ),
+                found={
+                    user_id: FoundItem(tuple(lines)) for user_id, lines in found.items()
+                },
             ),
         )
 
@@ -91,7 +113,7 @@ class BirthdayFeature(GenericCogFeature):
         """The stats screen and the preview of the celebration."""
 
         async def stats(interaction: Any, _responses: Any) -> None:
-            await send_stats_message(interaction)
+            await send_stats_message(interaction, self.today())
 
         async def preview(interaction: Any, responses: Any) -> None:
             await send_birthday_preview(interaction, list(responses))
@@ -152,11 +174,17 @@ class BirthdayFeature(GenericCogFeature):
     async def commit_remove_item(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """The member's birthday and, when unused, its reminder go."""
-        item = payload.get("item") or {}
-        user_id = _value(item.get("user"))
-        if user_id:
-            await asyncio.to_thread(remove_birthday, context.guild_id, str(user_id))
+        """Every chosen member's birthday goes while all are saved, or none does."""
+        user_ids = [str(_value(item.get("user")) or "") for item in payload["items"]]
+        for user_id in user_ids:
+            saved = await asyncio.to_thread(
+                birthdays_data.find_birthday_item, context.guild_id, user_id
+            )
+            if not user_id or saved is None:
+                raise ListChanged(self.key)
+
+        for user_id in user_ids:
+            await asyncio.to_thread(remove_birthday, context.guild_id, user_id)
         return CommitResult(("birthdays",))
 
     async def commit_disable(

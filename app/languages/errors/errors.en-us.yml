@@ -56,6 +56,10 @@ en-us:
     title: Youtuber Not Found
     message: "I'm sorry, but I couldn't find the youtuber you're looking for. Please check the name and try again."
 
+  stream-elements-unavailable:
+    title: StreamElements Unavailable
+    message: "I'm sorry, but I couldn't reach StreamElements right now to fetch the commands. Please try again later."
+
   selection-required:
     title: Selection Required
     message: "Oops! Please pick an option before confirming :)"
@@ -63,6 +67,14 @@ en-us:
   fill-one-field:
     title: Field Required
     message: "Oops! Please fill one of the fields before confirming :)"
+
+  preview-needs-streamer:
+    title: Streamer Required
+    message: "Oops! You need to pick the streamer before I can show the preview. Pick one on the card and try again! 🐶"
+
+  preview-needs-youtuber:
+    title: YouTuber Required
+    message: "Oops! You need to pick the YouTuber before I can show the preview. Pick one on the card and try again! 🐶"
 
   discard-settings-confirmation:
     title: Cancel Settings?

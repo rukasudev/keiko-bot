@@ -12,16 +12,7 @@ en-us:
 
   greetings-message:
     title: "Hello, I'm Keiko, your loyal Discord companion! :dog:"
-    message:
-      "I'm super excited to make new friends and help make your server even more awesome! :sparkles: Get started by using the `/help` command to find out everything I can do and how to set me up! :gear:\n\n
-      Here are some tricks I know how to do:
-      \n- **Moderation:** Setting up link blocking, auto-roles, and welcome messages.
-      \n- **Notifications:** Twitch live and Youtube alerts.
-      \n- **Utility:** Message translation to any language.
-      \n- **Base:** Support, report, and quick help.\n\n
-      You can also use the buttons below to quickly set up a feature, or use `/setup` at any time to see and manage all of them! :rocket:\n\n
-      All of this and much more you can manage easily through Discord buttons, editing, pausing, or disabling features whenever you want :pencil:\n\n
-      If you need *help*, just call me using `/support` :heart:"
+    message: "I'm super excited to make new friends and help make your server even more awesome! ✨\n\nHere are some tricks I know how to do:\n🛡️ **Moderation:** Block Links, Default Roles, Welcome Messages and Birthday Reminders.\n🔔 **Notifications:** Alerts for Twitch lives and new YouTube videos.\n🎮 **Integrations:** Answers to StreamElements commands right here in chat.\n🌐 **Utility:** Message translation to any language.\n🧰 **Base:** Support, report and quick help.\n\nYou can use the **Setup** button below to get started 🚀 or run `/setup` at any time to see and manage all my features!\n\nAll of this is easy to manage with Discord buttons, so you can edit, pause or turn off whatever you want ✏️\n\nTo see every command I have, just tap **Commands**. And if you need *help*, just call me with `/support` ❤️"
 
   prefix-hint:
     guild: "🐾 Woof! Looking for one of my **$prefix** commands? They're not turned on in this server yet.\n\nAsk a moderator to set one up in `/setup` or with its own command:\n$commands\n\nMy other commands start with `/`! Try `/help` to see everything I can do :heart:"

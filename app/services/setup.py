@@ -323,7 +323,6 @@ async def setup_dashboard(guild_id: str, locale: str) -> discord.ui.LayoutView:
         ml(f"{base}.title", locale),
         intro,
         KeikoIcons.IMAGE_01,
-        note=ml(f"{base}.note", locale),
     )
     for group_key, members, label_key in groups:
         if not members:

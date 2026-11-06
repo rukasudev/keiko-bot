@@ -30,7 +30,14 @@ from app.integrations.reminder_webhook import REMINDER_TIMEZONE, reminder_time
 from app.settings import open_feature
 from app.services import analytics
 from app.services.trace import Outcome, fan_out
-from app.services.utils import destination, fill_placeholders, guild_locale, ml, values_of
+from app.services.utils import (
+    destination,
+    fill_placeholders,
+    guild_locale,
+    ml,
+    split_messages,
+    values_of,
+)
 from app.views.message_preview import MessagePreviewView
 
 
@@ -175,9 +182,8 @@ async def send_notification_preview(
     youtuber = str(values.get("youtuber") or "")
     video_link = f"https://www.youtube.com/@{youtuber}"
     texts = [
-        parse_streamer_message(message.lstrip(), youtuber, video_link)
-        for message in str(values.get("notification_messages") or "").split(";")
-        if message.strip()
+        parse_streamer_message(message, youtuber, video_link)
+        for message in split_messages(values.get("notification_messages"))
     ]
     embed = await build_preview_embed(youtuber, interaction.locale)
     await MessagePreviewView(texts, interaction.locale, embed).send(interaction)
@@ -185,16 +191,17 @@ async def send_notification_preview(
 async def build_preview_embed(youtuber: str, locale: str) -> Optional[discord.Embed]:
     """The very embed a new video announcement carries, drawn for this channel.
 
-    The channel is the real one; the video lines show an example, since the
-    next video does not exist yet.
+    The channel is the real one, with the picture of its latest upload; the
+    title and description show an example, since the next video does not
+    exist yet. Two quota units: the channel with its uploads playlist, then
+    the newest item of that playlist.
     """
     try:
-        channel_id = await asyncio.to_thread(
-            bot.youtube.get_channel_id_from_username, youtuber
-        )
-        youtuber_info = (
-            await asyncio.to_thread(bot.youtube.get_channel_info, channel_id)
-            if channel_id
+        channel = await asyncio.to_thread(bot.youtube.get_channel_by_handle, youtuber)
+        uploads = ((channel or {}).get("contentDetails") or {}).get("relatedPlaylists") or {}
+        latest = (
+            await asyncio.to_thread(bot.youtube.get_latest_upload, uploads["uploads"])
+            if uploads.get("uploads")
             else None
         )
     except Exception as error:
@@ -204,17 +211,22 @@ async def build_preview_embed(youtuber: str, locale: str) -> Optional[discord.Em
         )
         return None
 
+    youtuber_info = (channel or {}).get("snippet")
     if not youtuber_info:
         return None
 
     namespace = "commands.commands.commons.notifications-preview.youtube"
-    video_info = {"title": ml(f"{namespace}.title", locale=locale)}
+    video_info = {
+        "title": ml(f"{namespace}.title", locale=locale),
+        "description": ml(f"{namespace}.description", locale=locale),
+        "thumbnails": (latest or {}).get("thumbnails") or {},
+    }
     return create_video_notification_embed("", video_info, youtuber_info, locale)
 
 def compose_notification_message(notification: Dict[str, Any], youtuber: str, video_id: str) -> str:
-    messages = notification.get("notification_messages").get("value")
+    messages = split_messages(notification.get("notification_messages").get("value"))
     video_link = f"https://www.youtube.com/watch?v={video_id}"
-    random_message = random.choice(messages.split(";")).lstrip()
+    random_message = random.choice(messages or [""])
 
     return parse_streamer_message(random_message, youtuber, video_link)
 

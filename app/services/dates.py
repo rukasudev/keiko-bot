@@ -23,7 +23,13 @@ __all__ = [
     "format_month_count",
     "format_mm_dd_count",
     "zone_or_utc",
+    "utc_today",
 ]
+
+
+def utc_today() -> date:
+    """Today's date in UTC, the day a birthday count starts from."""
+    return datetime.now(timezone.utc).date()
 
 
 def get_month_label(month: int, locale: str = None) -> Optional[str]:
@@ -48,7 +54,7 @@ def parse_mm_dd(value: str) -> Tuple[int, int]:
 
 
 def next_mm_dd_occurrence(mm_dd: str, today: Optional[date] = None) -> datetime:
-    today = today or datetime.now(timezone.utc).date()
+    today = today or utc_today()
     month, day = parse_mm_dd(mm_dd)
     candidate = _safe_date(today.year, month, day)
     if candidate <= today:

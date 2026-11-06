@@ -1,6 +1,7 @@
 import asyncio
 import datetime
 import random
+import re
 import time
 from typing import Any, Dict, List, Optional, Tuple, Union
 
@@ -32,6 +33,7 @@ from app.services.utils import (
     format_datetime_output,
     guild_locale,
     ml,
+    split_messages,
     values_of,
 )
 
@@ -403,9 +405,8 @@ async def send_notification_preview(
     streamer = str(values.get("streamer") or "")
     stream_link = f"https://www.twitch.tv/{streamer}"
     texts = [
-        parse_streamer_message(message.lstrip(), streamer, stream_link)
-        for message in str(values.get("notification_messages") or "").split(";")
-        if message.strip()
+        parse_streamer_message(message, streamer, stream_link)
+        for message in split_messages(values.get("notification_messages"))
     ]
     embed = await build_preview_embed(streamer, interaction.locale)
     await MessagePreviewView(texts, interaction.locale, embed).send(interaction)
@@ -414,7 +415,8 @@ async def build_preview_embed(streamer: str, locale: str) -> Optional[discord.Em
     """The very embed a live announcement carries, drawn for this streamer.
 
     The live's own title and category when there is one, an example of both
-    when nobody is streaming right now.
+    and the last live's picture when nobody is streaming right now; the
+    description always says where the live's own description goes.
     """
     try:
         user_info = await asyncio.to_thread(bot.twitch.get_user_info, streamer) or {}
@@ -426,14 +428,15 @@ async def build_preview_embed(streamer: str, locale: str) -> Optional[discord.Em
         )
         return None
 
+    namespace = "commands.commands.commons.notifications-preview.twitch"
     if not stream_info:
-        namespace = "commands.commands.commons.notifications-preview.twitch"
         stream_info = {
             "title": ml(f"{namespace}.title", locale=locale),
             "game_name": ml(f"{namespace}.game", locale=locale),
             "thumbnail_url": await last_stream_thumbnail(user_info),
         }
-    return create_stream_notification_embed(streamer, stream_info, user_info, locale)
+    described = {**user_info, "description": ml(f"{namespace}.description", locale=locale)}
+    return create_stream_notification_embed(streamer, stream_info, described, locale)
 
 async def last_stream_thumbnail(user_info: Dict[str, Any]) -> str:
     """The last stream's picture, so a preview shows the space one fills."""
@@ -446,13 +449,18 @@ async def last_stream_thumbnail(user_info: Dict[str, Any]) -> str:
     return str(found or user_info.get("offline_image_url") or "")
 
 def compose_notification_message(notification: Dict[str, Any], streamer: str) -> str:
-    messages = notification.get("notification_messages").get("value")
+    messages = split_messages(notification.get("notification_messages").get("value"))
     stream_link = f"https://www.twitch.tv/{streamer}"
-    random_message = random.choice(messages.split(";")).lstrip()
+    random_message = random.choice(messages or [""])
 
     return parse_streamer_message(random_message, streamer, stream_link)
 
 def parse_streamer_message(message: str, streamer: str, stream_link: str) -> str:
+    linked = bool(streamer) and re.search(
+        rf"twitch\.tv/{re.escape(streamer)}(?!\w)", message, flags=re.IGNORECASE
+    )
     return fill_placeholders(
-        message, {"streamer": streamer, "stream_link": stream_link}, required="stream_link"
+        message,
+        {"streamer": streamer, "stream_link": stream_link},
+        required=None if linked else "stream_link",
     )

@@ -2,15 +2,15 @@ steps:
   - action: form
     key: form
     title:
-      en-us: ":bulb: StreamElements Commands"
-      pt-br: ":bulb: Comandos do StreamElements"
+      en-us: "🎮 StreamElements Commands"
+      pt-br: "🎮 Comandos do StreamElements"
     description:
       en-us: |
-        Whenever someone uses a command with the **{context:prefix}** prefix, I'll fetch the response from StreamElements!
+        Whenever someone uses a command with the **{context:prefix}** prefix, I fetch the response from StreamElements!
 
         **Example:** `{context:prefix}mouse` -> "The streamer uses a Logitech G Pro!"
       pt-br: |
-        Sempre que alguém usar um comando com o prefixo **{context:prefix}**, eu buscarei a resposta no StreamElements!
+        Sempre que alguém usar um comando com o prefixo **{context:prefix}**, eu busco a resposta no StreamElements!
 
         **Exemplo:** `{context:prefix}mouse` -> "O streamer usa um Logitech G Pro!"
     manager_description:
@@ -28,10 +28,12 @@ steps:
     normalize: handle
     validation: validate_streamer_name
     lookup_answers:
+      stream_elements_channel_id: stream_elements.channel_id
       stream_elements_commands_count: stream_elements.enabled_commands
       stream_elements_top_commands: stream_elements.top_commands
       stream_elements_keiko_commands: stream_elements.keiko_commands
       streamer_image: twitch.profile_image
+    media_key: streamer_image
     title:
       en-us: "Streamer"
       pt-br: "Streamer"
@@ -47,12 +49,11 @@ steps:
 
   - action: resume
     key: confirm
-    thumbnail_key: streamer_image
     title:
-      en-us: ":white_check_mark: All set?"
-      pt-br: ":white_check_mark: Tudo certo?"
+      en-us: "🎮 StreamElements Commands"
+      pt-br: "🎮 Comandos do StreamElements"
     description:
-      en-us: "Whenever someone uses a command with the **{context:prefix}** prefix, I'll fetch the response in `{response:streamer}`'s StreamElements and send it in chat!"
+      en-us: "Whenever someone uses a command with the **{context:prefix}** prefix, I fetch the response in `{response:streamer}`'s StreamElements and send it in chat!"
       pt-br: "Sempre que alguém usar um comando com o prefixo **{context:prefix}**, eu busco a resposta no StreamElements de `{response:streamer}` e envio no chat!"
     lines:
       - emoji: "💡"

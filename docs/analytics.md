@@ -707,7 +707,19 @@ the message that ran into it, so the cache logs it outside any trace
 (`with trace.outside_any_trace():`). It is a message of its own on the log
 channel, once per store per
 `DBConfigs.COG_CACHE_WARN_SECONDS`, and its `guild.logs` record carries no trace
-id.
+id. A StreamElements outage follows the same rule for the same reason: it is news
+about a streamer, not about the member who typed `ke!commands`, so
+`warn_unavailable` (`app/services/stream_elements.py`) logs it outside any trace,
+only when it is the call that claims the streamer's warning mark in Redis
+(`Commands.REDIS_STREAM_ELEMENTS_WARNED`, set if absent for
+`Commands.STREAM_ELEMENTS_FAILURE_SECONDS`), whichever path met it (a command in
+chat, the panel's command list or its count) and whichever process. That mark only
+throttles the warning: a failed channel lookup keeps its own mark
+(`REDIS_STREAM_ELEMENTS_CHANNEL_FAILED`, `STREAM_ELEMENTS_CHANNEL_FAILED_SECONDS`),
+and a failed command fetch sets neither the channel mark nor any retry block. The member and the
+admin get Keiko's error embed; no event is added, and
+`keiko_dependency_latency_seconds{dependency="stream_elements"}` is still what
+alerts.
 
 ### Work that outlives the request needs a trace of its own
 
@@ -885,6 +897,33 @@ honours the interaction token, takes the controls off the message with the
 expired copy. It is guarded on the journey still being open, so a child session
 expiring after its parent finished cannot report a second abandonment, and an
 expiry after a save changes nothing.
+
+A manager panel stays open after a change it saved (an item added, edited or
+removed, a setting edited: the panel is drawn again), so it is not abandoned
+when it later expires or is closed by another panel's Disable: the manager
+counts each saved change on the session (`FormSession.changes_saved`), and such a
+session ends `completed` (`on_expired`, `_on_commit_failed`), emits no
+`setup.abandoned`, counts `completed` in `keiko_form_sessions_total`, and its
+story closes as its last change (`observability.ended_as`: `➕ added`,
+`➖ removed`, or `🔧 edited`, already closed by `config.changed`). A panel that
+saved nothing still ends abandoned.
+
+Every completed root session closes its own story in `Runtime._close`: a pause,
+resume or disable from the panel ends as `⏸️ paused`, `▶️ resumed` or
+`🛑 disabled` and an activation as `✅ saved` (`observability.completed_as`, read
+from the decision's `Finalize`), through `observability.ended_as`. The
+`feature.*` events usually close it first; the adapter's close is what keeps a
+story from staying `⏳ in progress` in memory when they never reach the journey
+(`ANALYTICS_ENABLED=false`).
+
+The panel every setup sends below its activation embed is a manage session
+of its own, on a message of its own, that adds nothing to the setup's records: it emits no
+`feature.manager_opened` (the admin opened no manager), it counts the setup's
+save as its first change, so leaving it untouched never reads as
+`setup.abandoned`, and its journey opens only with the first change it saves
+(`Session.journey_waits`, opened in `Runtime._commit`), so an activation still
+posts one message, and an add from that panel posts its own, which ends as
+that add.
 
 The same pass forgets closed sessions past their deadline, with their adapter
 state, so the store no longer grows for the life of the process. Before the
