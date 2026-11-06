@@ -50,7 +50,7 @@ async def setup_validation_error_and_recover(scenario_factory, deps, locale):
     scenario = await scenario_factory(locale=locale).start_command(FORM)
     await scenario.confirm()
     await _submit_streamer(scenario, "naoexiste")
-    await scenario.confirm()
+    await scenario.click("customize:0")
     await _submit_streamer(scenario, "shroud")
     return scenario
 

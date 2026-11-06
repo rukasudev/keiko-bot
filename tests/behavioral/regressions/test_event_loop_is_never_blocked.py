@@ -848,6 +848,11 @@ ALLOWED: Dict[str, str] = {
     "app/services/config.py::update_status -> app.data.config.update_db_configs": (
         ADMIN_COMMAND
     ),
+    "app/settings/discord/callbacks.py::Runtime._commit -> "
+    "app.settings.discord.observability.open_journey": (
+        "the journey reads its history in a worker thread whenever a loop runs; only "
+        "the no-loop fallback stays synchronous"
+    ),
     "app/settings/discord/callbacks.py::Runtime._open -> "
     "app.settings.discord.observability.open_journey": (
         "the journey reads its history in a worker thread whenever a loop runs; only "

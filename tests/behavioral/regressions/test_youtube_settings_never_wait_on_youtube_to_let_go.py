@@ -114,8 +114,8 @@ async def test_removing_a_youtuber_completes_whatever_youtube_answers(
     youtube_answers(deps, trouble)
 
     with caplog.at_level("INFO"):
-        await scenario.click("remove")
-        await scenario.select_option("notifications$0")
+        await scenario.click("remove_this:notifications$0")
+        await scenario.click("remove_items")
 
     assert followed(deps) == ["mrbeast"]
     assert unsubscribe_errors(caplog) == ["pewdiepie"]
@@ -134,8 +134,8 @@ async def test_the_renewal_an_unsubscribe_leaves_behind_drops_itself(
     insert_renewal_reminder(7001, "pewdiepie")
     if trouble:
         youtube_answers(deps, trouble)
-    await scenario.click("remove")
-    await scenario.select_option("notifications$0")
+    await scenario.click("remove_this:notifications$0")
+    await scenario.click("remove_items")
 
     assert find_reminder_by_value("pewdiepie") is not None, "the unsubscribe leaves it"
     renew_youtube_subscription(7001)
@@ -261,8 +261,8 @@ async def test_removing_a_youtuber_a_paused_server_still_follows_keeps_the_hub_s
     })
     insert_renewal_reminder(7001, "pewdiepie")
 
-    await scenario.click("remove")
-    await scenario.select_option("notifications$0")
+    await scenario.click("remove_this:notifications$0")
+    await scenario.click("remove_items")
 
     assert followed(deps) == ["mrbeast"]
     assert deps.youtube.unsubscribe_calls == [], "the paused server unpauses still subscribed"

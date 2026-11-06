@@ -15,7 +15,7 @@
           {
             "children": [
               {
-                "content": "## 🔔 Youtube Notificações",
+                "content": "## ▶️ YouTube Vídeos",
                 "type": "text"
               },
               {
@@ -32,17 +32,44 @@
           {
             "children": [
               {
-                "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎬 **Youtuber:** pewdiepie\n💬 **Mensagens de Notificação:** ```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+                "content": ":busts_in_silhouette: **Notificações:** 1 de 2 configurados",
                 "type": "text"
               },
               {
                 "disabled": false,
-                "label": "Editar",
+                "label": "Adicionar",
                 "style": "secondary",
                 "type": "button"
               }
             ],
             "type": "section"
+          },
+          {
+            "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎬 **Youtuber:** pewdiepie\n💬 **Mensagens de Notificação:** ```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Pré-visualizar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Remover",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
           },
           {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
@@ -62,12 +89,6 @@
           {
             "disabled": false,
             "label": "Desativar",
-            "style": "secondary",
-            "type": "button"
-          },
-          {
-            "disabled": false,
-            "label": "Adicionar",
             "style": "secondary",
             "type": "button"
           },

@@ -50,25 +50,40 @@ async def test_manager_add_works_on_documents_without_the_composition_envelope(
 
 
 @pytest.mark.shared_contract("form_engine")
-async def test_options_label_mapping_keeps_boolean_gates_untouched(scenario_factory):
+def test_options_label_mapping_keeps_boolean_gates_untouched():
     """What broke: nothing — this pins the boundary of the label<->raw
     mapping added for styled options steps. Gate steps with `style: boolean`
-    (birthday register_now, block_links add_custom) must keep persisting raw
-    True/False, or their conditions and boolean rendering would break.
+    (birthday register_now and block_links add_custom when it was written)
+    must keep persisting raw True/False, or their conditions and boolean
+    rendering would break.
 
-    Guaranteed behavior: a boolean-styled gate answer stays raw."""
-    from tests.behavioral.scenarios.test_reminders_birthday_flow import (
-        _complete_global_card,
+    Since beta.2 the birthday gate is gone (bd-3), so the contract runs on a
+    fixture form with the same hidden gate before a list.
+
+    Guaranteed behavior: a boolean-styled gate answer stays raw, the list it
+    gates is skipped, and the review never lists the gate."""
+    from app.settings.form import events as ev
+    from app.settings.form.form import decide
+    from app.settings.form.form_state import Origin, Setup, new_session
+    from app.settings.form.responses.responses import to_document
+    from tests.forms.form.gate_fixtures import gated_list
+
+    definition = gated_list()
+    session = new_session(
+        (definition.key, definition.version),
+        Setup(),
+        Origin(GUILD_ID, "555", "pt-br"),
+        ttl_seconds=60,
     )
+    opened = decide(definition, session, ev.Started("e1"))
+    gate = decide(definition, opened.session, ev.Answered("e2", None, "form"))
+    later = decide(definition, gate.session, ev.Answered("e3", None, "add_now", "False"))
 
-    scenario = await scenario_factory(locale="pt-br").start("reminders_birthday")
-    await scenario.confirm()
-    await _complete_global_card(scenario)
-    await scenario.click("Depois")                # register_now = False (raw)
-
-    gate = scenario.answers["register_now"]
-    assert gate in (False, "False"), f"boolean gate must persist raw, got {gate!r}"
-    await scenario.finish()
+    answer = later.session.raw("add_now")
+    assert answer in (False, "False"), f"boolean gate must persist raw, got {answer!r}"
+    assert later.session.cursor == "confirm", "the gated list is skipped"
+    document = to_document(definition.steps, later.session.answers, "pt-br")
+    assert document["add_now"] == {"style": "boolean", "values": False}
 
 
 @pytest.mark.shared_contract("form_engine")
@@ -80,16 +95,20 @@ async def test_failed_validation_in_first_composition_step_does_not_skip_it(
     composition and skipped ahead, abandoning the sub-form and the user's
     retry path. Shared fix in Form._handle_after_step (composition guard).
 
-    Guaranteed behavior: re-clicking the gate after a failed entry re-opens
-    the entry modal instead of skipping the composition."""
+    Guaranteed behavior: after a failed entry the retry re-opens the entry
+    modal, with what was typed, instead of skipping the composition. Since
+    beta.2 (tw-10) the retry is the Edit of the card that shows the refusal."""
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
-    await scenario.click("done")
-    await scenario.click("Sim")
+    await scenario.click("customize:2")           # Configurar the exceptions
+    await scenario.click("customize:6")           # the list's Add (bl-7)
     await scenario.submit_modal({"Digite o link ou site": "não é link"})
 
-    await scenario.click("Sim")                   # retry through the gate
+    scenario.expect_step("link")
+    await scenario.click("customize:0")           # retry from the refusal
     scenario.expect_modal(title_contains="Link ou Site")
+    defaults = [field.default for field in scenario.store.pending_modal.children]
+    assert defaults == ["não é link"], defaults
     await scenario.finish()
 
 
@@ -141,7 +160,7 @@ async def test_edit_dropdown_names_a_composition_entry_by_its_configuration_titl
     assert "`" not in entry.label, (
         f"markdown must never reach a select option label, got {entry.label!r}"
     )
-    assert entry.label == "Seus Links #1", (
+    assert entry.label == "Links personalizados permitidos #1", (
         f"the label must name the configuration, got {entry.label!r}"
     )
     assert entry.description == "twitch.tv/jway", (

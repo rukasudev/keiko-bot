@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: **Cargos Padrão**: Escolha os cargos que eu vou dar automaticamente:\n\n1. **Cargos para bots**: quando um bot entrar no servidor\n2. **Cargos para membros**: quando uma pessoa entrar no servidor\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "description": "Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor\n\n:pencil: **Configurações**\n\n:flying_disc: **Cargos para Bots:** Os cargos que eu dou para cada bot que entrar.\n:flying_disc: **Cargos para Membros:** Os cargos que eu dou para cada pessoa que entrar.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
       "footer": null,
       "image": null,
@@ -47,25 +47,327 @@
   },
   {
     "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 4,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 👩‍🎓 Cargos Padrão",
+                "type": "text"
+              },
+              {
+                "content": "Escolha os cargos que eu vou dar automaticamente para quem entrar no servidor.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "🤖 **Cargos para Bots**\n> Em branco",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Cargos para bots",
+                "type": "role_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "👥 **Cargos para Membros**\n> Em branco",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Cargos para membros",
+                "type": "role_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 5
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 6
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M2",
+    "seq": 7,
+    "target": "default_roles",
+    "values": [
+      "Member"
+    ]
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 👩‍🎓 Cargos Padrão",
+                "type": "text"
+              },
+              {
+                "content": "Escolha os cargos que eu vou dar automaticamente para quem entrar no servidor.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "🤖 **Cargos para Bots**\n> Em branco",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Cargos para bots",
+                "type": "role_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "👥 **Cargos para Membros**\n> <@&202>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Cargos para membros",
+                "type": "role_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 8
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M2",
+    "seq": 9,
+    "target": "default_roles_bot",
+    "values": [
+      "Moderator"
+    ]
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 👩‍🎓 Cargos Padrão",
+                "type": "text"
+              },
+              {
+                "content": "Escolha os cargos que eu vou dar automaticamente para quem entrar no servidor.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "🤖 **Cargos para Bots**\n> <@&201>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Cargos para bots",
+                "type": "role_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "👥 **Cargos para Membros**\n> <@&202>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Cargos para membros",
+                "type": "role_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 10
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 11,
+    "target": "done"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 12,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
     "components": [
       {
         "disabled": false,
-        "max": 25,
-        "min": 1,
-        "placeholder": "Cargos para Bots...",
-        "type": "role_select"
+        "label": "Sim",
+        "style": "primary",
+        "type": "button"
       },
       {
         "disabled": false,
-        "max": 25,
-        "min": 1,
-        "placeholder": "Cargos para Membros...",
-        "type": "role_select"
+        "label": "Não",
+        "style": "secondary",
+        "type": "button"
       },
       {
         "disabled": false,
-        "label": "Confirmar",
-        "style": "success",
+        "label": "Voltar",
+        "style": "secondary",
         "type": "button"
       },
       {
@@ -78,67 +380,37 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Escolha os cargos que eu vou dar automaticamente:\n\n1. **Cargos para bots**: quando um bot entrar no servidor\n2. **Cargos para membros**: quando uma pessoa entrar no servidor\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "description": "Os seguintes membros atuais irão receber os cargos:\n\n👥 **Membros**\n- Quantidade: **1**\n- Cargo a ser atribuído a esses membros: <@&202>\n\n🤖 **Bots**\n- Quantidade: **0**\n- Cargo a ser atribuído a esses bots: <@&201>\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
       "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
-      "title": "Cargos Padrão"
+      "title": "🔄 Dar os cargos para quem já está no servidor hoje?"
     },
     "ephemeral": true,
-    "kind": "edit",
-    "message": "M1",
-    "seq": 4
-  },
-  {
-    "actor": "user",
-    "kind": "select",
-    "message": "M1",
-    "seq": 5,
-    "target": "default_roles",
-    "values": [
-      "Member"
-    ]
+    "kind": "followup_send",
+    "message": "M3",
+    "seq": 13
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 6,
-    "thinking": false
-  },
-  {
-    "actor": "user",
-    "kind": "select",
-    "message": "M1",
-    "seq": 7,
-    "target": "default_roles_bot",
-    "values": [
-      "Moderator"
-    ]
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 8,
-    "thinking": false
+    "kind": "delete",
+    "message": "M2",
+    "seq": 14
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M1",
-    "seq": 9,
-    "target": "continue"
+    "message": "M3",
+    "seq": 15,
+    "target": "pick:False"
   },
   {
     "actor": "bot",
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 10,
+    "seq": 16,
     "thinking": false
   },
   {
@@ -149,11 +421,11 @@
           {
             "children": [
               {
-                "content": "## :white_check_mark: Tudo certo?",
+                "content": "## 👩‍🎓 Cargos Padrão",
                 "type": "text"
               },
               {
-                "content": "Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor!",
+                "content": "Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/moderações cargos padrão` com as configurações abaixo? ✅",
                 "type": "text"
               },
               {
@@ -162,10 +434,6 @@
               }
             ],
             "type": "section"
-          },
-          {
-            "content": "### Cargos Padrão",
-            "type": "text"
           },
           {
             "children": [
@@ -225,20 +493,20 @@
     "components_v2": true,
     "ephemeral": true,
     "kind": "followup_send",
-    "message": "M2",
-    "seq": 11
+    "message": "M4",
+    "seq": 17
   },
   {
     "actor": "bot",
     "kind": "delete",
-    "message": "M1",
-    "seq": 12
+    "message": "M3",
+    "seq": 18
   },
   {
     "actor": "user",
     "kind": "click",
-    "message": "M2",
-    "seq": 13,
+    "message": "M4",
+    "seq": 19,
     "target": "continue"
   },
   {
@@ -246,7 +514,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 14,
+    "seq": 20,
     "thinking": false
   },
   {
@@ -264,13 +532,114 @@
     },
     "ephemeral": true,
     "kind": "followup_send",
-    "message": "M3",
-    "seq": 15
+    "message": "M5",
+    "seq": 21
   },
   {
     "actor": "bot",
     "kind": "delete",
-    "message": "M2",
-    "seq": 16
+    "message": "M4",
+    "seq": 22
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 👩‍🎓 Cargos Padrão",
+                "type": "text"
+              },
+              {
+                "content": "Dou estes cargos automaticamente para quem entra no servidor.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "🤖 **Cargos para Bots:** <@&201>",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "👥 **Cargos para Membros:** <@&202>",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Pausar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Desativar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Histórico",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Sincronizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Ajuda",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M6",
+    "seq": 23
   }
 ]

@@ -1,0 +1,122 @@
+[
+  {
+    "actor": "user",
+    "kind": "start_command",
+    "message": null,
+    "seq": 1,
+    "target": "reminders_birthday",
+    "values": "en-us"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎂 Birthday Reminders",
+                "type": "text"
+              },
+              {
+                "content": "I celebrate the members' birthdays with the settings below.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "### Reminders Summary\n🎉 **Total birthdays:** 0\n🎉 **Next birthdays:** Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "content": "### Birthdays\nI don't have any birthday written down yet. Use the **Add** button right next to this to include the first one!",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Add",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Configure",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Edit",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Pause",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Disable",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "History",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Stats",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Help",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M1",
+    "seq": 2
+  }
+]

@@ -37,7 +37,7 @@ async def test_editing_a_never_edited_panel_still_records_a_timestamp(
     )
 
     await scenario.click("section:link_settings")
-    await scenario.click("customize:2")
+    await scenario.click("customize:1")
     await scenario.submit_modal({"resposta": "Resposta nova"})
     await scenario.click("done")
 

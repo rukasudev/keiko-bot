@@ -206,8 +206,9 @@ async def _mini_run(scenario_factory) -> FormScenario:
     scenario = scenario_factory(locale="pt-br")
     await scenario.start("default_roles")
     await scenario.confirm()
-    await scenario.select_option("Member", target="Cargos para Membros...")
-    await scenario.confirm()
+    await scenario.select_option("Member", target="Cargos para membros")
+    await scenario.click("done")
+    await scenario.click("pick:False")
     await scenario.confirm()
     return scenario
 
@@ -217,6 +218,7 @@ async def test_two_identical_runs_produce_identical_normalized_output(
     first = await _mini_run(scenario_factory)
     deps.mongo_client.guild["default_roles"]._data.clear()
     deps.mongo_client.guild["moderations"]._data.clear()
+    deps.redis_client.flushdb()
     second = await _mini_run(scenario_factory)
     assert first.outputs == second.outputs
 

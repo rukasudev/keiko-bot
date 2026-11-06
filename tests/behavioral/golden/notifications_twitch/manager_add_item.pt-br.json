@@ -15,7 +15,7 @@
           {
             "children": [
               {
-                "content": "## 🔔 Twitch Notificações",
+                "content": "## 📡 Twitch Lives",
                 "type": "text"
               },
               {
@@ -32,12 +32,12 @@
           {
             "children": [
               {
-                "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+                "content": ":busts_in_silhouette: **Notificações:** 2 de 3 configurados",
                 "type": "text"
               },
               {
                 "disabled": false,
-                "label": "Editar",
+                "label": "Adicionar",
                 "style": "secondary",
                 "type": "button"
               }
@@ -45,19 +45,58 @@
             "type": "section"
           },
           {
+            "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "type": "text"
+          },
+          {
             "children": [
-              {
-                "content": "### Notificações #2\n📺 **Canal de Texto:** <#102>\n🎮 **Streamer:** cellbit\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
-                "type": "text"
-              },
               {
                 "disabled": false,
                 "label": "Editar",
                 "style": "secondary",
                 "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Pré-visualizar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Remover",
+                "style": "danger",
+                "type": "button"
               }
             ],
-            "type": "section"
+            "type": "actionrow"
+          },
+          {
+            "content": "### Notificações #2\n📺 **Canal de Texto:** <#102>\n🎮 **Streamer:** cellbit\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Pré-visualizar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Remover",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
           },
           {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
@@ -82,27 +121,10 @@
           },
           {
             "disabled": false,
-            "label": "Adicionar",
-            "style": "secondary",
-            "type": "button"
-          },
-          {
-            "disabled": false,
-            "label": "Remover",
-            "style": "secondary",
-            "type": "button"
-          },
-          {
-            "disabled": false,
             "label": "Histórico",
             "style": "secondary",
             "type": "button"
-          }
-        ],
-        "type": "actionrow"
-      },
-      {
-        "children": [
+          },
           {
             "disabled": false,
             "label": "Ajuda",
@@ -140,38 +162,40 @@
       {
         "children": [
           {
-            "content": "## 📡 Streamer da Twitch",
-            "type": "text"
+            "children": [
+              {
+                "content": "## 📡 Streamer da Twitch",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
           },
           {
-            "content": "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live",
-            "type": "text"
-          },
-          {
-            "content": "📺 **Canal de Texto**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada ainda",
+            "content": "📺 **Canal de Texto**\n> Em branco",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher canal",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "🎮 **Streamer**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada ainda",
+            "content": "🎮 **Streamer**\n> Em branco",
             "type": "text"
           },
           {
@@ -186,11 +210,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens de Notificação**",
-            "type": "text"
-          },
-          {
-            "content": "```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live\n```• @everyone {streamer} está ao vivo! {stream_link}```",
             "type": "text"
           },
           {
@@ -215,14 +235,14 @@
         "children": [
           {
             "disabled": false,
-            "label": "Avançar",
-            "style": "success",
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
             "disabled": false,
-            "label": "Pré-visualizar",
-            "style": "secondary",
+            "label": "Confirmar",
+            "style": "success",
             "type": "button"
           },
           {
@@ -249,10 +269,13 @@
   },
   {
     "actor": "user",
-    "kind": "click",
+    "kind": "select",
     "message": "M2",
     "seq": 7,
-    "target": "customize:0"
+    "target": "channel",
+    "values": [
+      "general"
+    ]
   },
   {
     "actor": "bot",
@@ -260,7 +283,24 @@
       {
         "children": [
           {
-            "content": "## 📺 Onde devo enviar as notificações?",
+            "children": [
+              {
+                "content": "## 📡 Streamer da Twitch",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal de Texto**\n> <#100>",
             "type": "text"
           },
           {
@@ -276,78 +316,7 @@
             "type": "actionrow"
           },
           {
-            "content": "-# • Use o comando `/reportar` para me contar um bug",
-            "type": "text"
-          }
-        ],
-        "type": "container"
-      },
-      {
-        "children": [
-          {
-            "disabled": false,
-            "label": "Voltar",
-            "style": "secondary",
-            "type": "button"
-          }
-        ],
-        "type": "actionrow"
-      }
-    ],
-    "components_v2": true,
-    "ephemeral": true,
-    "kind": "edit",
-    "message": "M2",
-    "seq": 8
-  },
-  {
-    "actor": "user",
-    "kind": "select",
-    "message": "M2",
-    "seq": 9,
-    "target": "Selecione um canal...",
-    "values": [
-      "general"
-    ]
-  },
-  {
-    "actor": "bot",
-    "components": [
-      {
-        "children": [
-          {
-            "content": "## 📡 Streamer da Twitch",
-            "type": "text"
-          },
-          {
-            "content": "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live",
-            "type": "text"
-          },
-          {
-            "content": "📺 **Canal de Texto**",
-            "type": "text"
-          },
-          {
-            "content": "> <#100>",
-            "type": "text"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Escolher canal",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
-            "content": "🎮 **Streamer**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada ainda",
+            "content": "🎮 **Streamer**\n> Em branco",
             "type": "text"
           },
           {
@@ -362,11 +331,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens de Notificação**",
-            "type": "text"
-          },
-          {
-            "content": "```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live\n```• @everyone {streamer} está ao vivo! {stream_link}```",
             "type": "text"
           },
           {
@@ -391,14 +356,14 @@
         "children": [
           {
             "disabled": false,
-            "label": "Avançar",
-            "style": "success",
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
             "disabled": false,
-            "label": "Pré-visualizar",
-            "style": "secondary",
+            "label": "Confirmar",
+            "style": "success",
             "type": "button"
           },
           {
@@ -415,13 +380,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 10
+    "seq": 8
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 11,
+    "seq": 9,
     "target": "customize:1"
   },
   {
@@ -432,7 +397,7 @@
       "fields": [
         {
           "default": "",
-          "label": "O nick do streamer na Twitch, com ou sem @",
+          "label": "O nick do streamer na Twitch (com ou sem @)",
           "max_length": 30,
           "required": true,
           "style": "short"
@@ -440,24 +405,16 @@
       ],
       "title": "🎮 Streamer"
     },
-    "seq": 12
+    "seq": 10
   },
   {
     "actor": "user",
     "fields": {
-      "O nick do streamer na Twitch, com ou sem @": "shroud"
+      "O nick do streamer na Twitch (com ou sem @)": "shroud"
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 13
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 14,
-    "thinking": false
+    "seq": 11
   },
   {
     "actor": "bot",
@@ -471,29 +428,41 @@
                 "type": "text"
               },
               {
-                "content": "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live",
+                "content": "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.",
                 "type": "text"
               },
               {
-                "media": "shroud.jpg",
+                "media": "KEIKO_DEFAULT.png",
                 "type": "thumbnail"
               }
             ],
             "type": "section"
           },
           {
-            "content": "📺 **Canal de Texto**",
-            "type": "text"
-          },
-          {
-            "content": "> <#100>",
+            "content": "📺 **Canal de Texto**\n> <#100>",
             "type": "text"
           },
           {
             "children": [
               {
-                "disabled": false,
-                "label": "Escolher canal",
+                "disabled": true,
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎮 **Streamer**\n> Em branco",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": true,
+                "label": "Escolher streamer",
                 "style": "secondary",
                 "type": "button"
               }
@@ -501,12 +470,102 @@
             "type": "actionrow"
           },
           {
-            "content": "🎮 **Streamer**",
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live\n```• @everyone {streamer} está ao vivo! {stream_link}```",
             "type": "text"
           },
           {
-            "content": "> shroud",
+            "children": [
+              {
+                "disabled": true,
+                "label": "Editar mensagens",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
             "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": true,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": true,
+            "label": "Confirmar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": true,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 12
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 📡 Streamer da Twitch",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal de Texto**\n> <#100>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎮 **Streamer**\n> shroud",
+            "type": "text"
+          },
+          {
+            "count": 1,
+            "type": "media"
           },
           {
             "children": [
@@ -520,11 +579,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens de Notificação**",
-            "type": "text"
-          },
-          {
-            "content": "```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live\n```• @everyone shroud está ao vivo! https://twitch.tv/shroud```",
             "type": "text"
           },
           {
@@ -549,14 +604,14 @@
         "children": [
           {
             "disabled": false,
-            "label": "Avançar",
-            "style": "success",
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
             "disabled": false,
-            "label": "Pré-visualizar",
-            "style": "secondary",
+            "label": "Confirmar",
+            "style": "success",
             "type": "button"
           },
           {
@@ -573,13 +628,13 @@
     "ephemeral": true,
     "kind": "followup_edit",
     "message": "M2",
-    "seq": 15
+    "seq": 13
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 16,
+    "seq": 14,
     "target": "customize:2"
   },
   {
@@ -589,7 +644,7 @@
     "modal": {
       "fields": [
         {
-          "default": "@everyone {streamer} está ao vivo! {stream_link}",
+          "default": "@everyone shroud está ao vivo! https://twitch.tv/shroud",
           "label": "Mensagem Aleatória #1",
           "max_length": 100,
           "required": true,
@@ -612,7 +667,7 @@
       ],
       "title": "💬 Mensagens de Notificação"
     },
-    "seq": 17
+    "seq": 15
   },
   {
     "actor": "user",
@@ -621,7 +676,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 18
+    "seq": 16
   },
   {
     "actor": "bot",
@@ -635,42 +690,39 @@
                 "type": "text"
               },
               {
-                "content": "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live",
+                "content": "Escolha o canal e o streamer, e eu aviso no servidor quando ele entrar ao vivo! A mensagem já vem configurada, mude se quiser.",
                 "type": "text"
               },
               {
-                "media": "shroud.jpg",
+                "media": "KEIKO_DEFAULT.png",
                 "type": "thumbnail"
               }
             ],
             "type": "section"
           },
           {
-            "content": "📺 **Canal de Texto**",
-            "type": "text"
-          },
-          {
-            "content": "> <#100>",
+            "content": "📺 **Canal de Texto**\n> <#100>",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher canal",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "🎮 **Streamer**",
+            "content": "🎮 **Streamer**\n> shroud",
             "type": "text"
           },
           {
-            "content": "> shroud",
-            "type": "text"
+            "count": 1,
+            "type": "media"
           },
           {
             "children": [
@@ -684,11 +736,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens de Notificação**",
-            "type": "text"
-          },
-          {
-            "content": "```• {streamer} entrou ao vivo: {stream_link}```",
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live\n```• {streamer} entrou ao vivo: {stream_link}```",
             "type": "text"
           },
           {
@@ -713,14 +761,14 @@
         "children": [
           {
             "disabled": false,
-            "label": "Avançar",
-            "style": "success",
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
             "disabled": false,
-            "label": "Pré-visualizar",
-            "style": "secondary",
+            "label": "Confirmar",
+            "style": "success",
             "type": "button"
           },
           {
@@ -737,45 +785,174 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 19
+    "seq": 17
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 20,
+    "seq": 18,
     "target": "done"
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 21,
-    "thinking": false
-  },
-  {
-    "actor": "bot",
-    "components": [],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Um item foi adicionado a **notificações twitch lives** as 2026-01-01 12:00:00 UTC por <@555>\n\n-# • Use o comando `/reportar` para me contar um bug",
-      "fields": [],
-      "footer": null,
-      "image": null,
-      "thumbnail": "KEIKO_NERD.png",
-      "title": "➕ Item adicionado ao **notificações twitch lives** com sucesso!"
-    },
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 📡 Twitch Lives",
+                "type": "text"
+              },
+              {
+                "content": "Aviso no servidor quando estes streamers entram ao vivo.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": ":busts_in_silhouette: **Notificações:** 3 de 3 configurados",
+                "type": "text"
+              },
+              {
+                "disabled": true,
+                "label": "Adicionar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Pré-visualizar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Remover",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "### Notificações #2\n📺 **Canal de Texto:** <#102>\n🎮 **Streamer:** cellbit\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Pré-visualizar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Remover",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "### Notificações #3\n📺 **Canal de Texto:** <#100>\n🎮 **Streamer:** shroud\n💬 **Mensagens de Notificação:** ```• {streamer} entrou ao vivo: {stream_link}```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Pré-visualizar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Remover",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Pausar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Desativar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Histórico",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Ajuda",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
     "ephemeral": true,
-    "kind": "followup_send",
-    "message": "M3",
-    "seq": 22
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
+    "kind": "edit",
     "message": "M2",
-    "seq": 23
+    "seq": 19
   }
 ]

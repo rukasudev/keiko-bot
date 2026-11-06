@@ -92,6 +92,7 @@ async def test_the_twitch_preview_carries_the_embed_the_notification_sends(deps)
     assert embed.title == "Bom dia!"
     assert [field.value for field in embed.fields] == ["CS2", "gaules"]
     assert embed.thumbnail.url, "the streamer picture belongs on the embed"
+    assert embed.description == "Descrição da live aqui", "tw-7: never the channel bio"
 
 
 async def test_the_twitch_preview_shows_an_example_when_nobody_is_live(deps):
@@ -121,28 +122,40 @@ async def test_the_twitch_preview_shows_an_example_when_nobody_is_live(deps):
     )
     assert embed.title == example
     assert embed.image.url == "https://static-cdn.jtvnw.net/vod/1280x720.jpg"
+    assert embed.description == "Descrição da live aqui"
 
 
 async def test_the_youtube_preview_carries_the_embed_the_notification_sends(
     deps, monkeypatch
 ):
-    """The channel is the real one; the video lines show an example, since the
-    next video does not exist yet.
+    """The channel is the real one, with its latest upload's picture; the video
+    lines show an example, since the next video does not exist yet (yt-3).
 
-    The channel answer is written here in the shape the real client returns
-    (the snippet itself); the YouTube mock wraps it in one more level.
+    The answers are written here in the shape the real client returns: the
+    channel with its snippet and uploads playlist, then the newest playlist
+    item's snippet. Two calls, two quota units.
     """
     from app.services import notifications_youtube_video as youtube
     from app.services.utils import ml
 
-    snippet = {
-        "title": "Canal de Teste",
-        "description": "O canal de testes\nsegunda linha",
-        "customUrl": "@pewdiepie",
-        "thumbnails": {"high": {"url": "https://yt3.ggpht.com/avatar.jpg"}},
+    channel = {
+        "id": "UC1",
+        "snippet": {
+            "title": "Canal de Teste",
+            "description": "O canal de testes\nsegunda linha",
+            "customUrl": "@pewdiepie",
+            "thumbnails": {"high": {"url": "https://yt3.ggpht.com/avatar.jpg"}},
+        },
+        "contentDetails": {"relatedPlaylists": {"uploads": "UU1"}},
     }
-    monkeypatch.setattr(deps.youtube, "get_channel_id_from_username", lambda _n: "UC1")
-    monkeypatch.setattr(deps.youtube, "get_channel_info", lambda _id: snippet)
+    latest = {"thumbnails": {"high": {"url": "https://i.ytimg.com/vi/abc/hq.jpg"}}}
+    asked = []
+    monkeypatch.setattr(
+        deps.youtube, "get_channel_by_handle", lambda name: asked.append(name) or channel
+    )
+    monkeypatch.setattr(
+        deps.youtube, "get_latest_upload", lambda playlist: asked.append(playlist) or latest
+    )
     interaction = _interaction()
 
     await youtube.send_notification_preview(
@@ -160,6 +173,9 @@ async def test_the_youtube_preview_carries_the_embed_the_notification_sends(
     assert embed.title == example
     assert embed.thumbnail.url == "https://yt3.ggpht.com/avatar.jpg"
     assert embed.description == "O canal de testes"
+    assert embed.image.url == "https://i.ytimg.com/vi/abc/hq.jpg"
+    assert [field.value for field in embed.fields] == ["Descrição do vídeo aqui"]
+    assert asked == ["pewdiepie", "UU1"], "one channel call and one playlist call"
 
 
 async def test_a_preview_with_several_messages_carries_the_next_button():

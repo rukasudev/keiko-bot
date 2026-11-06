@@ -25,8 +25,7 @@ def production_like_bot(deps):
 
 async def _card_to_review(scenario, streamer, messages=None):
     """The item card: channel, streamer and, when given, the messages; then Done."""
-    await scenario.click("customize:0")
-    await scenario.select_option("general")
+    await scenario.select_option("general", target="channel")
     await scenario.click("customize:1")
     await scenario.submit_modal({scenario.pending_modal_fields()[0]: streamer})
     if messages:
@@ -41,8 +40,12 @@ async def test_the_card_shows_the_picture_of_the_streamer_just_typed(
 ):
     """Lucas: once the streamer is typed, show their picture on the card. The
     picture comes from the same lookup that validates the nick, and it is never
-    saved with the item."""
-    import json
+    saved with the item. Since beta.2 (P3) it sits under the streamer section,
+    like the welcome banner under its field, and the header keeps Keiko's."""
+    import discord
+
+    from app.constants import KeikoIcons
+    from tests.behavioral.harness import locators
 
     deps.twitch.add_user("gaules", user_id="111")
 
@@ -51,8 +54,19 @@ async def test_the_card_shows_the_picture_of_the_streamer_just_typed(
     await scenario.click("customize:1")
     await scenario.submit_modal({scenario.pending_modal_fields()[0]: "gaules"})
 
-    card = json.dumps(scenario.expect_message(components_v2=True), ensure_ascii=False)
-    assert "gaules.jpg" in card, "the streamer picture belongs on the card"
+    scenario.expect_message(components_v2=True)
+    items = list(locators.walk_items(scenario.current_message.view))
+    gallery = [
+        entry.media.url
+        for item in items
+        if isinstance(item, discord.ui.MediaGallery)
+        for entry in item.items
+    ]
+    thumbnails = [
+        item.media.url for item in items if isinstance(item, discord.ui.Thumbnail)
+    ]
+    assert any("gaules.jpg" in url for url in gallery), gallery
+    assert thumbnails == [KeikoIcons.IMAGE_01], thumbnails
     await scenario.finish()
 
 
@@ -234,4 +248,52 @@ async def test_editing_an_item_from_its_own_edit_moves_the_subscription(
 
     assert "37402112" in [call.get("user_id") for call in deps.twitch.subscribe_calls]
     assert deps.twitch.unsubscribe_calls, "the old streamer is unsubscribed"
+    await scenario.finish()
+
+
+async def test_editing_the_streamer_of_a_saved_item_rewrites_its_messages(
+    scenario_factory, deps
+):
+    """tw-5 (beta.2): when the streamer changes on a saved item, the old name and
+    link written in its messages become the new ones, like in the setup."""
+    from tests.behavioral.golden.paths.common import seed_document
+
+    deps.twitch.add_user("gaules", user_id="111")
+    deps.twitch.add_user("cellbit", user_id="222")
+    written = "gaules está ao vivo! https://twitch.tv/gaules"
+    seed_document(
+        deps,
+        "notifications_twitch",
+        {
+            "guild_id": GUILD_ID,
+            "enabled": True,
+            "notifications": {
+                "style": "composition",
+                "values": [
+                    {
+                        "channel": {"value": "100", "style": "channel"},
+                        "streamer": {"value": "gaules"},
+                        "notification_messages": {"value": written, "style": "bullet"},
+                    }
+                ],
+            },
+        },
+    )
+
+    scenario = await scenario_factory(locale="pt-br").start_command(
+        "notifications_twitch"
+    )
+    await scenario.click("section:notifications$0")
+    await scenario.click("customize:1")
+    await scenario.submit_modal({scenario.pending_modal_fields()[0]: "cellbit"})
+    await scenario.click("done")
+
+    stored = deps.mongo_client.guild["notifications_twitch"].find_one(
+        {"guild_id": GUILD_ID}
+    )
+    item = stored["notifications"]["values"][0]
+    assert item["streamer"]["value"] == "cellbit"
+    assert item["notification_messages"]["value"] == (
+        "cellbit está ao vivo! https://twitch.tv/cellbit"
+    )
     await scenario.finish()

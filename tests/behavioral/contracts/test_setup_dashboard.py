@@ -6,16 +6,16 @@ redesign still read as busy: every row said its status three times (a coloured
 circle, a word, the button) over three lines with three emoji.
 
 Guaranteed: a Components V2 card with Keiko's picture beside a dog-titled
-header of three lines (the title, a one-sentence intro, and a note on what these
-features are and where /help lives) so no blank space sits under the picture;
-features grouped under "to set up" first and "configured" second, with their
+header of two lines (the title and a one-sentence intro, beta.2 dropped the note
+under them); features grouped under "to set up" first and "configured" second, with their
 counts, in declared order inside each group; every row is its name plus one
 subtext line with what it does and its command, with no status circles; a
 paused feature says so in its subtext; the button reads Manage in the first
 group and Set up in the second; a server with everything set up sees no second
 group; the card stays inside Discord's limits in both locales; a row button
 opens the feature through the setup_dashboard source; and the greeting's
-dashboard button sends the same card.
+dashboard button sends the same card, beside its language select and its
+Commands button, while the feature buttons of older greetings keep answering.
 """
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -115,20 +115,15 @@ async def test_the_setup_screen_is_a_components_v2_card_with_keiko_on_the_right(
     assert header_of(view).accessory.media.url == KeikoIcons.IMAGE_01
 
 
-@pytest.mark.parametrize("locale,help_command", [("pt-br", "/ajuda"), ("en-us", "/help")])
-async def test_the_header_fills_the_space_beside_keikos_picture(
-    configured, locale, help_command
-):
-    """Reported: with a title and one sentence, the section was shorter than
-    the picture and left a blank band under the intro."""
+@pytest.mark.parametrize("locale", ["pt-br", "en-us"])
+async def test_the_header_is_the_title_and_the_intro(configured, locale):
+    """Lucas (beta.2 review): the note under the intro repeated what the card
+    and its Comandos button already say, so the header keeps two lines."""
     lines = [child.content for child in header_of(await dashboard(locale)).children]
 
-    assert len(lines) == 3, "title, intro and note fill the picture's height"
+    assert len(lines) == 2, "title and intro, no note"
     assert lines[0].startswith("## 🐶 "), "Keiko's own emoji leads the title"
     assert lines[1] == ml(f"{BASE}.desc", locale)
-    assert lines[2].startswith("-# ") and help_command in lines[2], (
-        "the note says where the rest of the commands and the help are"
-    )
 
 
 async def test_features_are_grouped_by_whether_they_are_set_up(configured):
@@ -296,7 +291,6 @@ async def test_stream_elements_commands_is_listed_on_setup(deps):
 
     row = by_key[Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY]
     assert "`/integrações " in text_of(row)
-    assert "integraç" in ml(f"{BASE}.note", "pt-br")
 
 
 class _StubSelect(discord.ui.Select):
@@ -565,33 +559,91 @@ def _greeting(locale):
     return GreetingsView(locale)
 
 
-@pytest.mark.shared_contract("setup_features")
 @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
-def test_the_greeting_offers_every_setup_feature(locale):
-    """The greeting a new server gets offers every feature /setup offers.
-
-    The card kept a list of its own while `/setup` read `Commands.SETUP_FEATURES`,
-    so a new server was told about four features and the dashboard about seven.
-    Reading the one registry is the fix, and the view has to survive it: Discord
-    fits five components to a row, so a hardcoded row breaks the moment the
-    registry grows past it.
-
-    Shared behaviour: `Commands.SETUP_FEATURES`, read by the greeting and by the
-    setup dashboard. Consumer that exposed it: the onboarding greeting, which
-    raised on construction and left a new server with no greeting at all and
-    `on_ready` half finished. Guaranteed: the greeting is buildable, in both
-    locales, with one button per feature.
-    """
+def test_the_greeting_offers_the_language_then_setup_and_commands(locale):
+    """Lucas (beta.2 review): seven feature buttons crowded the greeting, which
+    /setup already lists. The greeting offers the language select on top, then
+    Configurar and Comandos, both readable in the chosen language."""
     view = _greeting(locale)
-    buttons = [item for item in view.children if isinstance(item, discord.ui.Button)]
 
-    assert len(buttons) == len(Commands.SETUP_FEATURES) + 1, (
-        "one button per feature, plus the dashboard"
+    select, setup, commands = view.children
+    assert isinstance(select, discord.ui.Select) and select.row == 0
+    assert (setup.label, setup.emoji.name, setup.row) == (
+        ml("buttons.setup.dashboard.label", locale),
+        "🔧",
+        1,
     )
-    labels = {button.label for button in buttons}
+    assert (commands.label, commands.emoji.name, commands.row) == (
+        ml("buttons.setup.commands.label", locale),
+        "📚",
+        1,
+    )
+
+
+@pytest.mark.parametrize("locale", ["pt-br", "en-us"])
+def test_the_greeting_points_at_its_buttons_by_their_labels(locale):
+    message = ml("messages.greetings-message.message", locale)
+
+    assert f"**{ml('buttons.setup.dashboard.label', locale)}**" in message
+    assert f"**{ml('buttons.setup.commands.label', locale)}**" in message
+
+
+@pytest.mark.shared_contract("setup_features")
+def test_every_button_an_old_greeting_carries_still_answers():
+    """Greetings already posted keep one button per feature: Discord sends back
+    only the custom_id, so a button no registered view owns would fail with
+    "This interaction failed". Guaranteed: the views registered at start-up own
+    every id a greeting ever carried, and each feature id opens that feature."""
+    from app.views.greetings import greeting_views
+
+    owned = {
+        item.custom_id: item for view in greeting_views() for item in view.children
+    }
     for feature in Commands.SETUP_FEATURES:
-        expected = ml(f"buttons.setup.{feature['button_key']}.label", locale=locale)
-        assert expected in labels, (feature["button_key"], sorted(labels))
+        button = owned[f"greetings:setup:{feature['command_key']}"]
+        assert button.command_key == feature["command_key"]
+    for custom_id in (
+        "greetings:setup:dashboard",
+        "greetings:commands",
+        "greetings:language_select",
+    ):
+        assert custom_id in owned, custom_id
+    assert all(view.timeout is None for view in greeting_views()), "persistent"
+
+
+async def test_the_greeting_commands_button_opens_the_command_list(monkeypatch):
+    from app.services import help as help_service
+    from app.views.greetings import CommandsButton
+
+    opened = AsyncMock()
+    monkeypatch.setattr(help_service, "send_help", opened)
+    interaction = SimpleNamespace()
+
+    await CommandsButton("Comandos").callback(interaction)
+
+    opened.assert_awaited_once_with(interaction, "greeting_button", ephemeral=True)
+
+
+async def test_an_old_greeting_feature_button_opens_its_feature(monkeypatch):
+    from app.components import buttons
+    from app.views.greetings import LegacyGreetingButtons
+
+    opened = AsyncMock()
+    monkeypatch.setattr(buttons, "run_feature_command", opened)
+    button = next(
+        item
+        for item in LegacyGreetingButtons().children
+        if item.custom_id == f"greetings:setup:{Commands.DEFAULT_ROLES_KEY}"
+    )
+    interaction = SimpleNamespace(
+        user=SimpleNamespace(guild_permissions=SimpleNamespace(administrator=True))
+    )
+
+    await button.callback(interaction)
+
+    opened.assert_awaited_once_with(
+        interaction, Commands.DEFAULT_ROLES_KEY, "greeting_button"
+    )
 
 
 @pytest.mark.shared_contract("setup_features")

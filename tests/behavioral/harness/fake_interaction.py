@@ -4,7 +4,12 @@ One FakeInteraction is minted per user action, exactly like Discord. The
 response object is a state machine: violations of Discord's ordering rules
 (second initial response, followup before a response, editing a deleted
 message) raise HarnessProtocolError instead of passing silently.
+
+With a `latency`, a first answer takes that long to reach Discord, and
+`is_done()` turns true only once it arrived, as in discord.py 2.7. A second
+first answer sent while the first is still on the wire gets Discord's 40060.
 """
+import asyncio
 from types import SimpleNamespace
 from typing import Any, Dict, Optional
 
@@ -22,25 +27,41 @@ from tests.behavioral.harness.transcript import format_transcript
 BOT_USER = SimpleNamespace(id=1, mention="<@1>", name="Keiko")
 
 
+def already_acknowledged() -> discord.HTTPException:
+    return discord.HTTPException(
+        SimpleNamespace(status=400, reason="Bad Request"),
+        {"code": 40060, "message": "Interaction has already been acknowledged."},
+    )
+
+
 class FakeResponse:
     def __init__(self, interaction: "FakeInteraction"):
         self._interaction = interaction
         self._done = False
+        self._in_flight = False
 
     def is_done(self) -> bool:
         return self._done
 
-    def _mark(self, api: str) -> None:
+    async def _mark(self, api: str) -> None:
         if self._done:
             raise HarnessProtocolError(
                 f"{api}: interaction already responded to (Discord would 40060)",
                 self._interaction._transcript(),
             )
+        if self._in_flight:
+            raise already_acknowledged()
+        if self._interaction.latency:
+            self._in_flight = True
+            try:
+                await asyncio.sleep(self._interaction.latency)
+            finally:
+                self._in_flight = False
         self._done = True
 
     async def send_message(self, content=None, *, embed=None, embeds=None, view=None,
                            ephemeral=False, delete_after=None, **kwargs):
-        self._mark("response.send_message")
+        await self._mark("response.send_message")
         all_embeds = list(embeds) if embeds else ([embed] if embed else [])
         store = self._interaction.store
         message = store.create(all_embeds, view, ephemeral)
@@ -49,7 +70,7 @@ class FakeResponse:
                      view=view, ephemeral=ephemeral, delete_after=delete_after)
 
     async def defer(self, *, ephemeral=False, thinking=False):
-        self._mark("response.defer")
+        await self._mark("response.defer")
         self._interaction.store.record("defer", ephemeral=ephemeral, thinking=thinking)
 
     async def edit_message(self, *, content=None, embed=MISSING, view=MISSING, **kwargs):
@@ -59,17 +80,15 @@ class FakeResponse:
                 "response.edit_message on an interaction without a component message",
                 self._interaction._transcript(),
             )
-        if self._done:
-            self._mark("response.edit_message")
+        await self._mark("response.edit_message")
         message.apply_edit(embed=embed, view=view, content=content)
-        self._done = True
         self._interaction.store.record(
             "edit", message=message.id, embeds=message.embeds, view=message.view,
             ephemeral=message.ephemeral,
         )
 
     async def send_modal(self, modal: discord.ui.Modal):
-        self._mark("response.send_modal")
+        await self._mark("response.send_modal")
         self._interaction.store.pending_modal = modal
         self._interaction.store.record("modal", modal=modal)
 
@@ -136,7 +155,7 @@ class FakeInteraction:
 
     def __init__(self, store: MessageStore, *, guild, user, locale: discord.Locale,
                  message: Optional[FakeMessage] = None,
-                 data: Optional[Dict[str, Any]] = None):
+                 data: Optional[Dict[str, Any]] = None, latency: float = 0.0):
         FakeInteraction._next_id += 1
         self.id = FakeInteraction._next_id
         self.store = store
@@ -147,6 +166,7 @@ class FakeInteraction:
         self.locale = locale  # engine reassigns this; keep writable
         self.message = message
         self.data = data or {}
+        self.latency = latency
         self.client = SimpleNamespace(app_commands=[], user=BOT_USER)
         self.response = FakeResponse(self)
         self.followup = FakeFollowup(self)

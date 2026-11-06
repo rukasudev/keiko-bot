@@ -30,14 +30,18 @@
             "type": "section"
           },
           {
+            "content": "### Resumo dos Lembretes\n🎉 **Total de aniversários:** 2\n🎉 **Próximos aniversários:**\n- <@555>: 12 de maio\n- <@777>: 12 de junho",
+            "type": "text"
+          },
+          {
             "children": [
               {
-                "content": "### Configuração do Lembrete\n📺 **Canal de aniversário:** <#100>\n📣 **Mencionar @everyone:** Não\n🌎 **Fuso horário:** America/Sao_Paulo\n🕒 **Horário da notificação:** 08:00\n💬 **Mensagem padrão dos membros:** Padrão",
+                "content": "### Aniversários\nListando abaixo todos os aniversários cadastrados, em ordem de data.",
                 "type": "text"
               },
               {
                 "disabled": false,
-                "label": "Editar",
+                "label": "Adicionar",
                 "style": "secondary",
                 "type": "button"
               }
@@ -45,19 +49,42 @@
             "type": "section"
           },
           {
+            "content": "- <@555>: 12 de maio",
+            "type": "text"
+          },
+          {
             "children": [
               {
-                "content": "### Lista de Aniversários\n🎉 **Total de aniversários:** 2\n🎉 **Próximos aniversários:** 1. <@555>: 12 de maio\n2. <@777>: 12 de junho",
-                "type": "text"
+                "disabled": true,
+                "label": null,
+                "style": "secondary",
+                "type": "button"
               },
               {
                 "disabled": false,
-                "label": "Editar",
+                "label": null,
                 "style": "secondary",
                 "type": "button"
               }
             ],
-            "type": "section"
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Pesquisar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Configurar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
           },
           {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
@@ -82,27 +109,10 @@
           },
           {
             "disabled": false,
-            "label": "Adicionar",
-            "style": "secondary",
-            "type": "button"
-          },
-          {
-            "disabled": false,
-            "label": "Remover",
-            "style": "secondary",
-            "type": "button"
-          },
-          {
-            "disabled": false,
             "label": "Histórico",
             "style": "secondary",
             "type": "button"
-          }
-        ],
-        "type": "actionrow"
-      },
-      {
-        "children": [
+          },
           {
             "disabled": false,
             "label": "Estatísticas",
@@ -130,7 +140,7 @@
     "kind": "click",
     "message": "M1",
     "seq": 3,
-    "target": "remove"
+    "target": "search"
   },
   {
     "actor": "bot",
@@ -147,15 +157,8 @@
         "disabled": false,
         "max": 1,
         "min": 1,
-        "options": [
-          {
-            "default": false,
-            "label": "Lista de Aniversários",
-            "value": "reminders_birthday"
-          }
-        ],
-        "placeholder": "Selecione o item que deseja remover",
-        "type": "select"
+        "placeholder": "Selecione um membro...",
+        "type": "user_select"
       },
       {
         "disabled": false,
@@ -167,12 +170,12 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Configure como vou comemorar aniversários neste servidor. Você pode cadastrar o primeiro membro agora ou deixar a lista para depois.\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "description": "Me diga qual membro desta lista você quer ver.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
       "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
-      "title": "🎂 Lembretes de Aniversário"
+      "title": "🔎 Pesquisar um membro"
     },
     "ephemeral": true,
     "kind": "followup_send",
@@ -190,25 +193,106 @@
     "kind": "select",
     "message": "M2",
     "seq": 7,
-    "target": "Selecione o item que deseja remover",
+    "target": "Selecione um membro...",
     "values": [
-      "reminders_birthday"
+      "Tester"
     ]
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 8,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## 🎉 Configurações de aniversário de <@555>",
+            "type": "text"
+          },
+          {
+            "content": "📅 **Dia do aniversário:** 12 de maio\n💬 **Mensagens de parabéns (padrão do Keiko):**\n```• 🎂 É aniversário do {user}!\n• Feliz aniversário, {user}! 🎉 Que seu dia seja cheio de alegria e mimos! ✨```",
+            "type": "text"
+          },
+          {
+            "count": 1,
+            "type": "media"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Remover",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Voltar",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M3",
+    "seq": 9
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M2",
+    "seq": 10
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M3",
+    "seq": 11,
+    "target": "remove_this:reminders_birthday$0"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 12,
+    "thinking": false
   },
   {
     "actor": "bot",
     "components": [
       {
         "disabled": false,
-        "max": 1,
-        "min": 0,
-        "placeholder": "Selecione um membro...",
-        "type": "user_select"
-      },
-      {
-        "disabled": false,
-        "label": "Confirmar",
-        "style": "success",
+        "label": "Remover",
+        "style": "danger",
         "type": "button"
       },
       {
@@ -220,60 +304,155 @@
     ],
     "components_v2": false,
     "embed": {
-      "color": 5216249,
-      "description": "Me diga qual membro você quer tirar desta lista.\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "color": 16711680,
+      "description": "- <@555>\n\nSe eu remover, ele sai da lista na hora. Você pode adicionar de novo depois, é só me pedir!",
       "fields": [],
       "footer": null,
       "image": null,
-      "thumbnail": "KEIKO_DEFAULT.png",
-      "title": "👤 Selecione um membro para remover"
+      "thumbnail": null,
+      "title": "🗑️ Remover este item?"
     },
     "ephemeral": true,
-    "kind": "edit",
-    "message": "M2",
-    "seq": 8
+    "kind": "followup_send",
+    "message": "M4",
+    "seq": 13
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M3",
+    "seq": 14
   },
   {
     "actor": "user",
-    "kind": "select",
-    "message": "M2",
-    "seq": 9,
-    "target": "Selecione um membro...",
-    "values": [
-      "Tester"
-    ]
+    "kind": "click",
+    "message": "M4",
+    "seq": 15,
+    "target": "remove_items"
   },
   {
     "actor": "bot",
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 10,
+    "seq": 16,
     "thinking": false
   },
   {
-    "actor": "user",
-    "kind": "click",
-    "message": "M2",
-    "seq": 11,
-    "target": "continue"
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎂 Lembretes de Aniversário",
+                "type": "text"
+              },
+              {
+                "content": "Comemoro o aniversário dos membros com as configurações abaixo.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "### Resumo dos Lembretes\n🎉 **Total de aniversários:** 1\n🎉 **Próximos aniversários:**\n- <@777>: 12 de junho",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "content": "### Aniversários\nListando abaixo todos os aniversários cadastrados, em ordem de data.",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Adicionar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "- <@777>: 12 de junho",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Pesquisar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Configurar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Pausar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Desativar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Histórico",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Estatísticas",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Ajuda",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M5",
+    "seq": 17
   },
   {
     "actor": "bot",
-    "components": [],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Um item foi removido de **moderações aniversários lembretes** as 2026-01-01 12:00:00 UTC por <@555>\n\n-# • Use o comando `/reportar` para me contar um bug",
-      "fields": [],
-      "footer": null,
-      "image": null,
-      "thumbnail": "KEIKO_NERD.png",
-      "title": "🗑️ Item removido de **moderações aniversários lembretes** com sucesso!"
-    },
-    "ephemeral": true,
-    "kind": "edit",
-    "message": "M2",
-    "seq": 12
+    "kind": "delete",
+    "message": "M4",
+    "seq": 18
   }
 ]

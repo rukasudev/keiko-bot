@@ -4,8 +4,7 @@ manager infrastructure.
 import pytest
 import discord
 from tests.behavioral.harness.locators import walk_items
-from tests.mocks.discord import create_guild, create_member
-from tests.behavioral.golden.paths.common import GUILD_ID, label, seed_document
+from tests.behavioral.golden.paths.common import GUILD_ID, seed_document
 from tests.behavioral.harness import locators
 from types import SimpleNamespace
 
@@ -99,8 +98,7 @@ async def test_a_multi_line_value_is_never_wrapped_in_bold(scenario_factory, dep
     deps.twitch.add_user("gaules", user_id="111")
     scenario = await scenario_factory(locale="pt-br").start("notifications_twitch")
     await scenario.confirm()
-    await scenario.click("customize:0")
-    await scenario.select_option("general")
+    await scenario.select_option("general", target="channel")
     await scenario.click("customize:1")
     await scenario.submit_modal({scenario.pending_modal_fields()[0]: "gaules"})
     await scenario.click("customize:2")
@@ -117,34 +115,7 @@ async def test_a_multi_line_value_is_never_wrapped_in_bold(scenario_factory, dep
     await scenario.finish()
 
 
-DAY_FIELD = {"pt-br": "Dia", "en-us": "Day"}
-
-
-def _guild():
-    guild = create_guild()
-    create_member(guild, id=777, name="Amiga", roles=["Member"])
-    return guild
-
-
-async def _complete_settings_card(scenario):
-    await scenario.click("customize:0")
-    await scenario.select_option("general")
-    await scenario.click("customize:1")
-    await scenario.select_option("America/Sao_Paulo")
-    await scenario.click("customize:2")
-    await scenario.click("08:00")
-    await scenario.click("done")
-
-
-async def _complete_member_card(scenario, locale, month="05", day="12"):
-    await scenario.click("customize:0")
-    await scenario.select_option(month)
-    await scenario.click("customize:1")
-    await scenario.submit_modal({DAY_FIELD[locale]: day})
-    await scenario.click("done")
-
-
-async def test_a_member_added_from_the_review_is_listed_on_the_review(
+async def test_an_item_added_from_the_review_is_listed_on_the_review(
     scenario_factory,
 ):
     """An item added from the review shows up on the review.
@@ -153,54 +124,37 @@ async def test_a_member_added_from_the_review_is_listed_on_the_review(
     left the birthday list on the review unchanged: the member was saved, but the
     review still listed the first one only.
 
-    Shared behaviour: the review screen of every form with a composition.
-    Consumer that exposed it: reminders_birthday. Guaranteed: after a child
-    session adds an item, the review lists it.
+    Shared behaviour: the review screen of every form whose setup builds a list.
+    Consumer that exposed it: reminders_birthday, whose list has left the setup
+    since beta.2 (bd-3); block links keeps the contract. Guaranteed: after a
+    child session adds an item, the review lists it.
     """
-    locale = "pt-br"
-    scenario = await scenario_factory(locale=locale, guild=_guild()).start(
-        "reminders_birthday"
-    )
-    await scenario.confirm()
-    await _complete_settings_card(scenario)
-    await scenario.click("Sim")
-    await scenario.select_option("Tester")
-    await scenario.confirm()
-    await _complete_member_card(scenario, locale)
-    scenario.expect_step("confirm")
+    scenario = await _review_with_one_link(scenario_factory, "meusite.com.br")
 
     await scenario.click("add")
-    await scenario.select_option("Amiga")
-    await scenario.confirm()
-    await _complete_member_card(scenario, locale, month="11", day="03")
+    await scenario.submit_modal({LINK_FIELD: "docs.example.org"})
 
     scenario.expect_step("confirm")
-    joined = "\n".join(_texts(scenario.current_message))
-    assert "<@555>" in joined
-    assert "<@777>" in joined
+    joined = _review_text(scenario)
+    assert "meusite.com.br" in joined and "docs.example.org" in joined
+    await scenario.finish()
 
 
-async def test_the_first_member_added_from_the_review_is_listed_on_the_review(
+async def test_the_first_item_added_from_the_review_is_listed_on_the_review(
     scenario_factory,
 ):
     """The list was left for later, so the review has no list block yet."""
-    locale = "pt-br"
-    scenario = await scenario_factory(locale=locale, guild=_guild()).start(
-        "reminders_birthday"
-    )
+    scenario = await scenario_factory(locale=LOCALE).start_command(FORM)
     await scenario.confirm()
-    await _complete_settings_card(scenario)
-    await scenario.click("Depois")
+    await scenario.click("done")
     scenario.expect_step("confirm")
 
     await scenario.click("add")
-    await scenario.select_option("Amiga")
-    await scenario.confirm()
-    await _complete_member_card(scenario, locale, month="11", day="03")
+    await scenario.submit_modal({LINK_FIELD: "docs.example.org"})
 
     scenario.expect_step("confirm")
-    joined = "\n".join(_texts(scenario.current_message))
-    assert "<@777>" in joined
+    assert "docs.example.org" in _review_text(scenario)
+    await scenario.finish()
 
 
 FORM = "block_links"
@@ -215,11 +169,12 @@ LINK_FIELD = "Type the link or website"
 async def _review_with_one_link(scenario_factory, link):
     scenario = await scenario_factory(locale=LOCALE).start_command(FORM)
     await scenario.confirm()
-    await scenario.click("done")
-    await scenario.click(label("yes", LOCALE))
+    await scenario.click("customize:2")
+    await scenario.click("customize:6")
     await scenario.submit_modal({LINK_FIELD: link})
-    await scenario.select_option("general", target="allowed_chats")
-    await scenario.confirm()
+    scenario.expect_step("link_settings")
+    await scenario.click("back")
+    await scenario.click("done")
     scenario.expect_step("confirm")
     return scenario
 
@@ -296,8 +251,7 @@ async def _review_with_one_streamer(scenario_factory, deps):
     deps.twitch.add_user("gaules", user_id="111")
     scenario = await scenario_factory(locale="pt-br").start("notifications_twitch")
     await scenario.confirm()
-    await scenario.click("customize:0")
-    await scenario.select_option("general")
+    await scenario.select_option("general", target="channel")
     await scenario.click("customize:1")
     await scenario.submit_modal({scenario.pending_modal_fields()[0]: "gaules"})
     await scenario.click("customize:2")

@@ -46,6 +46,8 @@ class FormScenario:
         self.db = mongo
         self.store = MessageStore()
         self.command_key: Optional[str] = None
+        # How long each first answer takes to reach Discord (FakeResponse).
+        self.latency = 0.0
 
     # ------------------------------------------------------------------ setup
 
@@ -249,6 +251,7 @@ class FormScenario:
             self._fail(f"component {label_or_action!r} disabled={button.disabled}")
 
     def expect_error(self, message_contains: str) -> None:
+        """The admin reads the error in the last error message sent."""
         for event in reversed(self.store.events):
             embed = event.get("embed") or {}
             is_error_embed = embed.get("color") == 0xFF0000
@@ -418,7 +421,8 @@ class FormScenario:
               custom_id: Optional[str] = None) -> FakeInteraction:
         data = {"custom_id": custom_id} if custom_id else {}
         return FakeInteraction(self.store, guild=self.guild, user=self.user,
-                               locale=self.locale, message=message, data=data)
+                               locale=self.locale, message=message, data=data,
+                               latency=self.latency)
 
     def _require_message(self) -> FakeMessage:
         message = self.current_message

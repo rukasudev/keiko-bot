@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n:pencil: **Settings**\n\n:flying_disc: **Channel**: Where I'll send the welcome message.\n:flying_disc: **Title**: The title of the welcome message.\n:flying_disc: **Messages**: Up to three greetings, I pick one at random each time.\n:flying_disc: **Footer**: The small line that closes the message.\n:flying_disc: **Banner design**: The look of the banner I draw for each new member.\n:flying_disc: **Custom image**: The picture I put on the banner when you pick a custom design.\n\n-# • Use the `/report` command to tell me a bug",
+      "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n:pencil: **Settings**\n\n:flying_disc: **Channel:** Where I'll send the welcome message.\n:flying_disc: **Title:** The title of the welcome message.\n:flying_disc: **Messages:** Up to three greetings, I pick one at random each time.\n:flying_disc: **Footer:** The small line that closes the message.\n:flying_disc: **Banner design:** The look of the banner I draw for each new member.\n:flying_disc: **Custom image:** The picture I put on the banner when you pick a custom design.\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
       "footer": null,
       "image": null,
@@ -47,11 +47,34 @@
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 4,
-    "thinking": false
+    "components": [
+      {
+        "disabled": true,
+        "label": "Confirm",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": true,
+        "label": "Cancel",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Enabling this feature allows me to send a personalized welcome message to new members when they join your server\n\n:pencil: **Settings**\n\n:flying_disc: **Channel:** Where I'll send the welcome message.\n:flying_disc: **Title:** The title of the welcome message.\n:flying_disc: **Messages:** Up to three greetings, I pick one at random each time.\n:flying_disc: **Footer:** The small line that closes the message.\n:flying_disc: **Banner design:** The look of the banner I draw for each new member.\n:flying_disc: **Custom image:** The picture I put on the banner when you pick a custom design.\n\n-# • Use the `/report` command to tell me a bug",
+      "fields": [],
+      "footer": null,
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": "🎉 Welcome Messages"
+    },
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M1",
+    "seq": 4
   },
   {
     "actor": "bot",
@@ -76,30 +99,23 @@
             "type": "section"
           },
           {
-            "content": "📺 **Channel**",
-            "type": "text"
-          },
-          {
-            "content": "> None",
+            "content": "📺 **Channel**\n> Empty",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Choose channel",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "placeholder": "Select a channel...",
+                "type": "channel_select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "💬 **Messages**",
-            "type": "text"
-          },
-          {
-            "content": "> **Title:** A new member has joined! 🎉\n> **Footer:** Have fun!\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```",
+            "content": "💬 **Messages**\n> **Title:** A new member has joined! 🎉\n> **Footer:** Have fun!\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```",
             "type": "text"
           },
           {
@@ -114,11 +130,7 @@
             "type": "actionrow"
           },
           {
-            "content": "🎨 **Banner design**",
-            "type": "text"
-          },
-          {
-            "content": "> Server Image",
+            "content": "🎨 **Banner design**\n> Server Image Background",
             "type": "text"
           },
           {
@@ -129,9 +141,27 @@
             "children": [
               {
                 "disabled": false,
-                "label": "Choose design",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": true,
+                    "label": "Server Image Background",
+                    "value": "server_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Custom Image Background",
+                    "value": "custom_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Custom Banner Only",
+                    "value": "custom_only"
+                  }
+                ],
+                "placeholder": "Choose design",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -147,14 +177,14 @@
         "children": [
           {
             "disabled": false,
-            "label": "Next",
-            "style": "success",
+            "label": "Preview",
+            "style": "secondary",
             "type": "button"
           },
           {
             "disabled": false,
-            "label": "Preview",
-            "style": "secondary",
+            "label": "Next",
+            "style": "success",
             "type": "button"
           },
           {
@@ -181,63 +211,10 @@
   },
   {
     "actor": "user",
-    "kind": "click",
-    "message": "M2",
-    "seq": 7,
-    "target": "customize:0"
-  },
-  {
-    "actor": "bot",
-    "components": [
-      {
-        "children": [
-          {
-            "content": "## 📺 Where should I welcome new members?",
-            "type": "text"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "max": 1,
-                "min": 1,
-                "placeholder": "Select a channel...",
-                "type": "channel_select"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
-            "content": "-# • Use the `/report` command to tell me a bug",
-            "type": "text"
-          }
-        ],
-        "type": "container"
-      },
-      {
-        "children": [
-          {
-            "disabled": false,
-            "label": "Back",
-            "style": "secondary",
-            "type": "button"
-          }
-        ],
-        "type": "actionrow"
-      }
-    ],
-    "components_v2": true,
-    "ephemeral": true,
-    "kind": "edit",
-    "message": "M2",
-    "seq": 8
-  },
-  {
-    "actor": "user",
     "kind": "select",
     "message": "M2",
-    "seq": 9,
-    "target": "Select a channel...",
+    "seq": 7,
+    "target": "welcome_messages_channel",
     "values": [
       "welcome"
     ]
@@ -265,30 +242,23 @@
             "type": "section"
           },
           {
-            "content": "📺 **Channel**",
-            "type": "text"
-          },
-          {
-            "content": "> <#101>",
+            "content": "📺 **Channel**\n> <#101>",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Choose channel",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "placeholder": "Select a channel...",
+                "type": "channel_select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "💬 **Messages**",
-            "type": "text"
-          },
-          {
-            "content": "> **Title:** A new member has joined! 🎉\n> **Footer:** Have fun!\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```",
+            "content": "💬 **Messages**\n> **Title:** A new member has joined! 🎉\n> **Footer:** Have fun!\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```",
             "type": "text"
           },
           {
@@ -303,11 +273,7 @@
             "type": "actionrow"
           },
           {
-            "content": "🎨 **Banner design**",
-            "type": "text"
-          },
-          {
-            "content": "> Server Image",
+            "content": "🎨 **Banner design**\n> Server Image Background",
             "type": "text"
           },
           {
@@ -318,9 +284,27 @@
             "children": [
               {
                 "disabled": false,
-                "label": "Choose design",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": true,
+                    "label": "Server Image Background",
+                    "value": "server_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Custom Image Background",
+                    "value": "custom_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Custom Banner Only",
+                    "value": "custom_only"
+                  }
+                ],
+                "placeholder": "Choose design",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -336,14 +320,14 @@
         "children": [
           {
             "disabled": false,
-            "label": "Next",
-            "style": "success",
+            "label": "Preview",
+            "style": "secondary",
             "type": "button"
           },
           {
             "disabled": false,
-            "label": "Preview",
-            "style": "secondary",
+            "label": "Next",
+            "style": "success",
             "type": "button"
           },
           {
@@ -360,13 +344,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 10
+    "seq": 8
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 11,
+    "seq": 9,
     "target": "customize:1"
   },
   {
@@ -413,7 +397,7 @@
       ],
       "title": "💬 Welcome Messages"
     },
-    "seq": 12
+    "seq": 10
   },
   {
     "actor": "user",
@@ -423,7 +407,7 @@
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 13
+    "seq": 11
   },
   {
     "actor": "bot",
@@ -448,30 +432,23 @@
             "type": "section"
           },
           {
-            "content": "📺 **Channel**",
-            "type": "text"
-          },
-          {
-            "content": "> <#101>",
+            "content": "📺 **Channel**\n> <#101>",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Choose channel",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "placeholder": "Select a channel...",
+                "type": "channel_select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "💬 **Messages**",
-            "type": "text"
-          },
-          {
-            "content": "> **Title:** Bem-vindo, {user}!\n> **Footer:** Leia as regras :)\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```",
+            "content": "💬 **Messages**\n> **Title:** Bem-vindo, {user}!\n> **Footer:** Leia as regras :)\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```",
             "type": "text"
           },
           {
@@ -486,11 +463,7 @@
             "type": "actionrow"
           },
           {
-            "content": "🎨 **Banner design**",
-            "type": "text"
-          },
-          {
-            "content": "> Server Image",
+            "content": "🎨 **Banner design**\n> Server Image Background",
             "type": "text"
           },
           {
@@ -501,9 +474,27 @@
             "children": [
               {
                 "disabled": false,
-                "label": "Choose design",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": true,
+                    "label": "Server Image Background",
+                    "value": "server_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Custom Image Background",
+                    "value": "custom_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Custom Banner Only",
+                    "value": "custom_only"
+                  }
+                ],
+                "placeholder": "Choose design",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -519,14 +510,14 @@
         "children": [
           {
             "disabled": false,
-            "label": "Next",
-            "style": "success",
+            "label": "Preview",
+            "style": "secondary",
             "type": "button"
           },
           {
             "disabled": false,
-            "label": "Preview",
-            "style": "secondary",
+            "label": "Next",
+            "style": "success",
             "type": "button"
           },
           {
@@ -543,13 +534,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 14
+    "seq": 12
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 15,
+    "seq": 13,
     "target": "done"
   },
   {
@@ -560,11 +551,11 @@
           {
             "children": [
               {
-                "content": "## :white_check_mark: Alright?",
+                "content": "## 🎉 Welcome Messages",
                 "type": "text"
               },
               {
-                "content": "This is how I'll welcome new members. Use **Preview** to see the message before saving!",
+                "content": "Here's a summary of your choices so far. All set for me to turn on the `/moderations welcome messages` command with the settings below? ✅",
                 "type": "text"
               },
               {
@@ -573,10 +564,6 @@
               }
             ],
             "type": "section"
-          },
-          {
-            "content": "### Welcome Messages",
-            "type": "text"
           },
           {
             "children": [
@@ -611,7 +598,7 @@
           {
             "children": [
               {
-                "content": "🎨 **Banner design:** Server Image",
+                "content": "🎨 **Banner design:** Server Image Background",
                 "type": "text"
               },
               {
@@ -658,13 +645,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 16
+    "seq": 14
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 17,
+    "seq": 15,
     "target": "continue"
   },
   {
@@ -672,7 +659,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 18,
+    "seq": 16,
     "thinking": false
   },
   {
@@ -691,12 +678,128 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 19
+    "seq": 17
   },
   {
     "actor": "bot",
     "kind": "delete",
     "message": "M2",
-    "seq": 20
+    "seq": 18
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎉 Welcome Messages",
+                "type": "text"
+              },
+              {
+                "content": "I welcome everyone who joins the server with the message below.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "📺 **Channel:** <#101>",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Edit",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "💬 **Messages:**\n```• Welcome {user} to {server}!\n• Look who just arrived! {user}\n• {user} just arrived!```\n💬 **Title:** Bem-vindo, {user}!\n💬 **Footer:** Leia as regras :)",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Edit",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "🎨 **Banner design:** Server Image Background",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Edit",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Pause",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Disable",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "History",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Preview",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Help",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M4",
+    "seq": 19
   }
 ]

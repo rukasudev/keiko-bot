@@ -100,6 +100,8 @@ async def test_manager_form_renders_birthday_via_real_settings_provider(
         "reminders_birthday", cog_data
     )
     scenario.expect_message(kind="send", ephemeral=True)
+    scenario.expect_configuration_values("<@555>", "12 de maio")
+    await scenario.click("edit:group:settings")
     scenario.expect_configuration_values("<#100>", "08:00")
 
 

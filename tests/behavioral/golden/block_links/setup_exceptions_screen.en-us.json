@@ -1,0 +1,1182 @@
+[
+  {
+    "actor": "user",
+    "kind": "start_command",
+    "message": null,
+    "seq": 1,
+    "target": "block_links",
+    "values": "en-us"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Confirm",
+        "style": "success",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Cancel",
+        "style": "danger",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 5216249,
+      "description": "Enabling this feature allows me to watch every message and delete the links you don't want here! You choose how I do it: block all links with your exceptions, or allow links and block only the ones you pick.\n\n:pencil: **Settings**\n\n:flying_disc: **Blocking mode:** Whether I block every link or only the ones you pick.\n:flying_disc: **My response when blocking:** What I say when I delete a link.\n:flying_disc: **Allowed channels:** The channels where I never delete links.\n:flying_disc: **Allowed roles:** Whoever has one of these roles can send links freely.\n:flying_disc: **Allowed popular websites:** Popular websites I always let through.\n:flying_disc: **Allowed custom links:** Your own websites or links that I always let through, one at a time!\n\n-# • Use the `/report` command to tell me a bug",
+      "fields": [],
+      "footer": null,
+      "image": null,
+      "thumbnail": "KEIKO_DEFAULT.png",
+      "title": ":no_entry_sign: Block Links"
+    },
+    "ephemeral": true,
+    "kind": "send",
+    "message": "M1",
+    "seq": 2
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M1",
+    "seq": 3,
+    "target": "continue"
+  },
+  {
+    "actor": "bot",
+    "ephemeral": false,
+    "kind": "defer",
+    "message": null,
+    "seq": 4,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🚦 General Settings",
+                "type": "text"
+              },
+              {
+                "content": "Choose how I should treat links in your server",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "🚦 **Blocking mode**\n> 🚫 Block all",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "🔗 Block some",
+                    "value": "allow_all"
+                  },
+                  {
+                    "default": true,
+                    "label": "🚫 Block all",
+                    "value": "block_all"
+                  }
+                ],
+                "placeholder": "Choose mode",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **My response when blocking**\n> No links here! :p",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Customize response",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🛡️ **Add exceptions?**\nChannels, roles, sites and links I never delete.\n> #️⃣ **Allowed channels:** Empty\n> 🏷️ **Allowed roles:** Empty\n> 🔗 **Allowed popular websites:** Empty\n> 📌 **Allowed custom links:** Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Configure",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Next",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 5
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 6
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 7,
+    "target": "customize:2"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## 🛡️ Exceptions",
+            "type": "text"
+          },
+          {
+            "content": "Channels, roles, sites and links I never delete.",
+            "type": "text"
+          },
+          {
+            "content": "🔓 **Allowed channels and roles**\nI **never** delete links sent in these channels or by anyone with these roles.\n> #️⃣ **Allowed channels:** Empty\n> 🏷️ **Allowed roles:** Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Channels where I never delete links",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Roles whose links I never delete",
+                "type": "role_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🔗 **Allowed popular websites**\n> Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 9,
+                "min": 0,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Youtube",
+                    "value": "youtube.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Spotify",
+                    "value": "spotify.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Twitter",
+                    "value": "twitter.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Facebook",
+                    "value": "facebook.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Instagram",
+                    "value": "instagram.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Twitch",
+                    "value": "twitch.tv"
+                  },
+                  {
+                    "default": false,
+                    "label": "Tiktok",
+                    "value": "tiktok.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Reddit",
+                    "value": "reddit.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Discord",
+                    "value": "discord.gg"
+                  }
+                ],
+                "placeholder": "Choose websites",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "📌 **Allowed custom links**\nYour own websites or links, one at a time. You can add them later too!\n> Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Add",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Back",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 8
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M2",
+    "seq": 9,
+    "target": "allowed_chats",
+    "values": [
+      "general"
+    ]
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## 🛡️ Exceptions",
+            "type": "text"
+          },
+          {
+            "content": "Channels, roles, sites and links I never delete.",
+            "type": "text"
+          },
+          {
+            "content": "🔓 **Allowed channels and roles**\nI **never** delete links sent in these channels or by anyone with these roles.\n> #️⃣ **Allowed channels:** <#100>\n> 🏷️ **Allowed roles:** Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Channels where I never delete links",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Roles whose links I never delete",
+                "type": "role_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🔗 **Allowed popular websites**\n> Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 9,
+                "min": 0,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Youtube",
+                    "value": "youtube.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Spotify",
+                    "value": "spotify.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Twitter",
+                    "value": "twitter.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Facebook",
+                    "value": "facebook.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Instagram",
+                    "value": "instagram.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Twitch",
+                    "value": "twitch.tv"
+                  },
+                  {
+                    "default": false,
+                    "label": "Tiktok",
+                    "value": "tiktok.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Reddit",
+                    "value": "reddit.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Discord",
+                    "value": "discord.gg"
+                  }
+                ],
+                "placeholder": "Choose websites",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "📌 **Allowed custom links**\nYour own websites or links, one at a time. You can add them later too!\n> Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Add",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Back",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 10
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M2",
+    "seq": 11,
+    "target": "allowed_links",
+    "values": [
+      "youtube.com"
+    ]
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## 🛡️ Exceptions",
+            "type": "text"
+          },
+          {
+            "content": "Channels, roles, sites and links I never delete.",
+            "type": "text"
+          },
+          {
+            "content": "🔓 **Allowed channels and roles**\nI **never** delete links sent in these channels or by anyone with these roles.\n> #️⃣ **Allowed channels:** <#100>\n> 🏷️ **Allowed roles:** Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Channels where I never delete links",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Roles whose links I never delete",
+                "type": "role_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🔗 **Allowed popular websites**\n> Youtube",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 9,
+                "min": 0,
+                "options": [
+                  {
+                    "default": true,
+                    "label": "Youtube",
+                    "value": "youtube.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Spotify",
+                    "value": "spotify.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Twitter",
+                    "value": "twitter.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Facebook",
+                    "value": "facebook.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Instagram",
+                    "value": "instagram.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Twitch",
+                    "value": "twitch.tv"
+                  },
+                  {
+                    "default": false,
+                    "label": "Tiktok",
+                    "value": "tiktok.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Reddit",
+                    "value": "reddit.com"
+                  },
+                  {
+                    "default": false,
+                    "label": "Discord",
+                    "value": "discord.gg"
+                  }
+                ],
+                "placeholder": "Choose websites",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "📌 **Allowed custom links**\nYour own websites or links, one at a time. You can add them later too!\n> Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Add",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Back",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 12
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 13,
+    "target": "back"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🚦 General Settings",
+                "type": "text"
+              },
+              {
+                "content": "Choose how I should treat links in your server",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "🚦 **Blocking mode**\n> 🚫 Block all",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "🔗 Block some",
+                    "value": "allow_all"
+                  },
+                  {
+                    "default": true,
+                    "label": "🚫 Block all",
+                    "value": "block_all"
+                  }
+                ],
+                "placeholder": "Choose mode",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **My response when blocking**\n> No links here! :p",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Customize response",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🛡️ **Add exceptions?**\nChannels, roles, sites and links I never delete.\n> #️⃣ **Allowed channels:** <#100>\n> 🏷️ **Allowed roles:** Empty\n> 🔗 **Allowed popular websites:** Youtube\n> 📌 **Allowed custom links:** Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Configure",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Next",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 14
+  },
+  {
+    "actor": "user",
+    "kind": "select",
+    "message": "M2",
+    "seq": 15,
+    "target": "mode",
+    "values": [
+      "allow_all"
+    ]
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🚦 General Settings",
+                "type": "text"
+              },
+              {
+                "content": "Choose how I should treat links in your server",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "🚦 **Blocking mode**\n> 🔗 Block some",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": true,
+                    "label": "🔗 Block some",
+                    "value": "allow_all"
+                  },
+                  {
+                    "default": false,
+                    "label": "🚫 Block all",
+                    "value": "block_all"
+                  }
+                ],
+                "placeholder": "Choose mode",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **My response when blocking**\n> No links here! :p",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Customize response",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🛡️ **Add exceptions?**\nChannels and roles where I never delete links.\n> #️⃣ **Allowed channels:** <#100>\n> 🏷️ **Allowed roles:** Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Configure",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "📌 **Blocked custom links**\nYour own websites or links, one at a time. You can add them later too!\n> Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Add",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Next",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 16
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 17,
+    "target": "customize:3"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "content": "## 🛡️ Exceptions",
+            "type": "text"
+          },
+          {
+            "content": "Channels and roles where I never delete links.",
+            "type": "text"
+          },
+          {
+            "content": "🔓 **Allowed channels and roles**\nI **never** delete links sent in these channels or by anyone with these roles.\n> #️⃣ **Allowed channels:** <#100>\n> 🏷️ **Allowed roles:** Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Channels where I never delete links",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Roles whose links I never delete",
+                "type": "role_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Back",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 18
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 19,
+    "target": "back"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🚦 General Settings",
+                "type": "text"
+              },
+              {
+                "content": "Choose how I should treat links in your server",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "🚦 **Blocking mode**\n> 🔗 Block some",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": true,
+                    "label": "🔗 Block some",
+                    "value": "allow_all"
+                  },
+                  {
+                    "default": false,
+                    "label": "🚫 Block all",
+                    "value": "block_all"
+                  }
+                ],
+                "placeholder": "Choose mode",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **My response when blocking**\n> No links here! :p",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Customize response",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🛡️ **Add exceptions?**\nChannels and roles where I never delete links.\n> #️⃣ **Allowed channels:** <#100>\n> 🏷️ **Allowed roles:** Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Configure",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "📌 **Blocked custom links**\nYour own websites or links, one at a time. You can add them later too!\n> Empty",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Add",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Next",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 20
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 21,
+    "target": "done"
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## :no_entry_sign: Block Links",
+                "type": "text"
+              },
+              {
+                "content": "Here's a summary of your choices so far. All set for me to turn on the `/moderations block links` command with the settings below? ✅",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### General Settings\n🚦 **Blocking mode:** Block some\n💬 **My response when blocking:** No links here! :p\n#️⃣ **Allowed channels:** <#100>\n🏷️ **Allowed roles:** Empty",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Edit",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "📌 **Blocked custom links:** Empty",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Add",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use the `/report` command to tell me a bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Confirm",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancel",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 22
+  }
+]

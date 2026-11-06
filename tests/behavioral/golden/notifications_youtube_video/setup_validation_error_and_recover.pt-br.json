@@ -26,12 +26,12 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar esta função faz com que eu notifique quando seu youtuber favorito postar um novo vídeo!\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Texto**: Onde vou avisar do vídeo novo.\n:flying_disc: **Youtuber**: O nome do canal no YouTube, com ou sem o @.\n:flying_disc: **Mensagens de Notificação**: Até três mensagens, eu sorteio uma a cada vídeo.\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "description": "Ativar esta função faz com que eu notifique quando seu youtuber favorito postar um novo vídeo!\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Texto:** Onde vou avisar do vídeo novo.\n:flying_disc: **Youtuber:** O nome do canal no YouTube (com ou sem @).\n:flying_disc: **Mensagens de Notificação:** Até três mensagens, eu sorteio uma a cada vídeo.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
       "footer": null,
       "image": null,
       "thumbnail": "KEIKO_DEFAULT.png",
-      "title": "🔔 Youtube Notificações"
+      "title": "▶️ YouTube Vídeos"
     },
     "ephemeral": true,
     "kind": "send",
@@ -59,38 +59,40 @@
       {
         "children": [
           {
-            "content": "## ▶️ Canal do YouTube",
-            "type": "text"
+            "children": [
+              {
+                "content": "## ▶️ Canal do YouTube",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
           },
           {
-            "content": "Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo",
-            "type": "text"
-          },
-          {
-            "content": "📺 **Canal de Texto**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada ainda",
+            "content": "📺 **Canal de Texto**\n> Em branco",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher canal",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "🎬 **Youtuber**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada ainda",
+            "content": "🎬 **Youtuber**\n> Em branco",
             "type": "text"
           },
           {
@@ -105,11 +107,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens de Notificação**",
-            "type": "text"
-          },
-          {
-            "content": "```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
             "type": "text"
           },
           {
@@ -134,14 +132,14 @@
         "children": [
           {
             "disabled": false,
-            "label": "Avançar",
-            "style": "success",
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
             "disabled": false,
-            "label": "Pré-visualizar",
-            "style": "secondary",
+            "label": "Avançar",
+            "style": "success",
             "type": "button"
           },
           {
@@ -168,10 +166,13 @@
   },
   {
     "actor": "user",
-    "kind": "click",
+    "kind": "select",
     "message": "M2",
     "seq": 7,
-    "target": "customize:0"
+    "target": "channel",
+    "values": [
+      "general"
+    ]
   },
   {
     "actor": "bot",
@@ -179,7 +180,24 @@
       {
         "children": [
           {
-            "content": "## 📺 Onde devo enviar as notificações?",
+            "children": [
+              {
+                "content": "## ▶️ Canal do YouTube",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal de Texto**\n> <#100>",
             "type": "text"
           },
           {
@@ -195,78 +213,7 @@
             "type": "actionrow"
           },
           {
-            "content": "-# • Use o comando `/reportar` para me contar um bug",
-            "type": "text"
-          }
-        ],
-        "type": "container"
-      },
-      {
-        "children": [
-          {
-            "disabled": false,
-            "label": "Voltar",
-            "style": "secondary",
-            "type": "button"
-          }
-        ],
-        "type": "actionrow"
-      }
-    ],
-    "components_v2": true,
-    "ephemeral": true,
-    "kind": "edit",
-    "message": "M2",
-    "seq": 8
-  },
-  {
-    "actor": "user",
-    "kind": "select",
-    "message": "M2",
-    "seq": 9,
-    "target": "Selecione um canal...",
-    "values": [
-      "general"
-    ]
-  },
-  {
-    "actor": "bot",
-    "components": [
-      {
-        "children": [
-          {
-            "content": "## ▶️ Canal do YouTube",
-            "type": "text"
-          },
-          {
-            "content": "Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo",
-            "type": "text"
-          },
-          {
-            "content": "📺 **Canal de Texto**",
-            "type": "text"
-          },
-          {
-            "content": "> <#100>",
-            "type": "text"
-          },
-          {
-            "children": [
-              {
-                "disabled": false,
-                "label": "Escolher canal",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "actionrow"
-          },
-          {
-            "content": "🎬 **Youtuber**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada ainda",
+            "content": "🎬 **Youtuber**\n> Em branco",
             "type": "text"
           },
           {
@@ -281,11 +228,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens de Notificação**",
-            "type": "text"
-          },
-          {
-            "content": "```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
             "type": "text"
           },
           {
@@ -310,14 +253,14 @@
         "children": [
           {
             "disabled": false,
-            "label": "Avançar",
-            "style": "success",
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
             "disabled": false,
-            "label": "Pré-visualizar",
-            "style": "secondary",
+            "label": "Avançar",
+            "style": "success",
             "type": "button"
           },
           {
@@ -334,13 +277,13 @@
     "ephemeral": true,
     "kind": "edit",
     "message": "M2",
-    "seq": 10
+    "seq": 8
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 11,
+    "seq": 9,
     "target": "customize:1"
   },
   {
@@ -351,7 +294,7 @@
       "fields": [
         {
           "default": "",
-          "label": "O @ do canal no YouTube",
+          "label": "O nome do canal no YouTube (com ou sem @)",
           "max_length": 30,
           "required": true,
           "style": "short"
@@ -359,24 +302,226 @@
       ],
       "title": "🎬 Youtuber"
     },
-    "seq": 12
+    "seq": 10
   },
   {
     "actor": "user",
     "fields": {
-      "O @ do canal no YouTube": "naoexiste"
+      "O nome do canal no YouTube (com ou sem @)": "naoexiste"
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 13
+    "seq": 11
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 14,
-    "thinking": false
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## ▶️ Canal do YouTube",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal de Texto**\n> <#100>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": true,
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎬 **Youtuber**\n> Em branco",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": true,
+                "label": "Escolher youtuber",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": true,
+                "label": "Editar mensagens",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": true,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": true,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": true,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 12
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## ▶️ Canal do YouTube",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal de Texto**\n> <#100>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎬 **Youtuber**\n> Em branco",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher youtuber",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar mensagens",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "followup_edit",
+    "message": "M2",
+    "seq": 13
   },
   {
     "actor": "bot",
@@ -395,13 +540,13 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 15
+    "seq": 14
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M2",
-    "seq": 16,
+    "seq": 15,
     "target": "customize:1"
   },
   {
@@ -411,8 +556,8 @@
     "modal": {
       "fields": [
         {
-          "default": "",
-          "label": "O @ do canal no YouTube",
+          "default": "naoexiste",
+          "label": "O nome do canal no YouTube (com ou sem @)",
           "max_length": 30,
           "required": true,
           "style": "short"
@@ -420,24 +565,16 @@
       ],
       "title": "🎬 Youtuber"
     },
-    "seq": 17
+    "seq": 16
   },
   {
     "actor": "user",
     "fields": {
-      "O @ do canal no YouTube": "pewdiepie"
+      "O nome do canal no YouTube (com ou sem @)": "pewdiepie"
     },
     "kind": "modal_submit",
     "message": null,
-    "seq": 18
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 19,
-    "thinking": false
+    "seq": 17
   },
   {
     "actor": "bot",
@@ -445,26 +582,47 @@
       {
         "children": [
           {
-            "content": "## ▶️ Canal do YouTube",
-            "type": "text"
+            "children": [
+              {
+                "content": "## ▶️ Canal do YouTube",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
           },
           {
-            "content": "Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.\n\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo",
-            "type": "text"
-          },
-          {
-            "content": "📺 **Canal de Texto**",
-            "type": "text"
-          },
-          {
-            "content": "> <#100>",
+            "content": "📺 **Canal de Texto**\n> <#100>",
             "type": "text"
           },
           {
             "children": [
               {
-                "disabled": false,
-                "label": "Escolher canal",
+                "disabled": true,
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎬 **Youtuber**\n> Em branco",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": true,
+                "label": "Escolher youtuber",
                 "style": "secondary",
                 "type": "button"
               }
@@ -472,11 +630,97 @@
             "type": "actionrow"
           },
           {
-            "content": "🎬 **Youtuber**",
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
             "type": "text"
           },
           {
-            "content": "> pewdiepie",
+            "children": [
+              {
+                "disabled": true,
+                "label": "Editar mensagens",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": true,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": true,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": true,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 18
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## ▶️ Canal do YouTube",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal de Texto**\n> <#100>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎬 **Youtuber**\n> pewdiepie",
             "type": "text"
           },
           {
@@ -491,11 +735,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens de Notificação**",
-            "type": "text"
-          },
-          {
-            "content": "```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! pewdiepie acabou de postar um novo vídeo!```",
             "type": "text"
           },
           {
@@ -520,14 +760,14 @@
         "children": [
           {
             "disabled": false,
-            "label": "Avançar",
-            "style": "success",
+            "label": "Pré-visualizar",
+            "style": "secondary",
             "type": "button"
           },
           {
             "disabled": false,
-            "label": "Pré-visualizar",
-            "style": "secondary",
+            "label": "Avançar",
+            "style": "success",
             "type": "button"
           },
           {
@@ -544,6 +784,6 @@
     "ephemeral": true,
     "kind": "followup_edit",
     "message": "M2",
-    "seq": 20
+    "seq": 19
   }
 ]

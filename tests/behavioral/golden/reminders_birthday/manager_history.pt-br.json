@@ -30,14 +30,18 @@
             "type": "section"
           },
           {
+            "content": "### Resumo dos Lembretes\n🎉 **Total de aniversários:** 1\n🎉 **Próximos aniversários:**\n- <@555>: 12 de maio",
+            "type": "text"
+          },
+          {
             "children": [
               {
-                "content": "### Configuração do Lembrete\n📺 **Canal de aniversário:** <#100>\n📣 **Mencionar @everyone:** Não\n🌎 **Fuso horário:** America/Sao_Paulo\n🕒 **Horário da notificação:** 08:00\n💬 **Mensagem padrão dos membros:** Padrão",
+                "content": "### Aniversários\nListando abaixo todos os aniversários cadastrados, em ordem de data.",
                 "type": "text"
               },
               {
                 "disabled": false,
-                "label": "Editar",
+                "label": "Adicionar",
                 "style": "secondary",
                 "type": "button"
               }
@@ -45,19 +49,25 @@
             "type": "section"
           },
           {
+            "content": "- <@555>: 12 de maio",
+            "type": "text"
+          },
+          {
             "children": [
               {
-                "content": "### Lista de Aniversários\n🎉 **Total de aniversários:** 1\n🎉 **Próximos aniversários:** 1. <@555>: 12 de maio",
-                "type": "text"
+                "disabled": false,
+                "label": "Pesquisar",
+                "style": "secondary",
+                "type": "button"
               },
               {
                 "disabled": false,
-                "label": "Editar",
+                "label": "Configurar",
                 "style": "secondary",
                 "type": "button"
               }
             ],
-            "type": "section"
+            "type": "actionrow"
           },
           {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
@@ -82,12 +92,6 @@
           },
           {
             "disabled": false,
-            "label": "Adicionar",
-            "style": "secondary",
-            "type": "button"
-          },
-          {
-            "disabled": false,
             "label": "Histórico",
             "style": "secondary",
             "type": "button"
@@ -97,12 +101,7 @@
             "label": "Estatísticas",
             "style": "secondary",
             "type": "button"
-          }
-        ],
-        "type": "actionrow"
-      },
-      {
-        "children": [
+          },
           {
             "disabled": false,
             "label": "Ajuda",

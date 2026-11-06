@@ -1,7 +1,8 @@
-"""Default roles: one multi-select step (roles for bots, roles for members).
+"""Default roles: one card (roles for bots, roles for members, and, in the
+setup only, whether to give them to who is already in the server).
 
-No Back exists anywhere on this form (the multi-select is the first step and
-the review screen has none), so there is no `setup_back` path.
+No Back exists anywhere on this form (the card is the first step and the
+review screen has none), so there is no `setup_back` path.
 """
 from tests.behavioral.golden.paths import golden_path
 from tests.behavioral.golden.paths.common import (
@@ -34,7 +35,18 @@ async def setup_happy(scenario_factory, deps, locale):
     scenario = await _setup(scenario_factory, locale)
     await scenario.select_option("Member", target="default_roles")
     await scenario.select_option("Moderator", target="default_roles_bot")
+    await scenario.click("done")
+    await scenario.click("pick:False")
     await scenario.confirm()
+    return scenario
+
+
+@golden_path(FORM, "setup_gives_the_roles_now")
+async def setup_gives_the_roles_now(scenario_factory, deps, locale):
+    scenario = await _setup(scenario_factory, locale)
+    await scenario.select_option("Member", target="default_roles")
+    await scenario.click("done")
+    await scenario.click("pick:True")
     await scenario.confirm()
     return scenario
 

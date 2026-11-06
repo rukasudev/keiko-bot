@@ -15,7 +15,7 @@
           {
             "children": [
               {
-                "content": "## :bulb: Comandos do StreamElements",
+                "content": "## 🎮 Comandos do StreamElements",
                 "type": "text"
               },
               {
@@ -45,8 +45,19 @@
             "type": "section"
           },
           {
-            "content": "### 💡 Comandos carregados\nNão consegui falar com o StreamElements agora, mas busco a resposta assim que alguém usar um comando.",
-            "type": "text"
+            "children": [
+              {
+                "content": "### 💡 Comandos carregados\nNão consegui falar com o StreamElements agora, mas busco a resposta assim que alguém usar um comando.",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Comandos",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
           },
           {
             "content": "-# • Use o comando `/reportar` para me contar um bug",
@@ -72,12 +83,6 @@
           {
             "disabled": false,
             "label": "Histórico",
-            "style": "secondary",
-            "type": "button"
-          },
-          {
-            "disabled": false,
-            "label": "Comandos",
             "style": "secondary",
             "type": "button"
           },
@@ -133,25 +138,189 @@
   },
   {
     "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 6,
-    "thinking": false
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎮 Comandos do StreamElements",
+                "type": "text"
+              },
+              {
+                "content": "Respondo aos comandos do StreamElements deste streamer aqui no Discord.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "🎮 **Streamer:** shroud",
+                "type": "text"
+              },
+              {
+                "disabled": true,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 💡 Comandos carregados\nNão consegui falar com o StreamElements agora, mas busco a resposta assim que alguém usar um comando.",
+                "type": "text"
+              },
+              {
+                "disabled": true,
+                "label": "Comandos",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": true,
+            "label": "Pausar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": true,
+            "label": "Desativar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": true,
+            "label": "Histórico",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": true,
+            "label": "Ajuda",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M1",
+    "seq": 6
   },
   {
     "actor": "bot",
-    "components": [],
-    "components_v2": false,
-    "embed": {
-      "color": 5216249,
-      "description": "Comando **integrações comandos streamelements** editado as 2026-01-01 12:00:00 UTC por <@555>\n\n-# • Use o comando `/reportar` para me contar um bug",
-      "fields": [],
-      "footer": null,
-      "image": null,
-      "thumbnail": "KEIKO_NERD.png",
-      "title": "📝 Comando editado com sucesso!"
-    },
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎮 Comandos do StreamElements",
+                "type": "text"
+              },
+              {
+                "content": "Respondo aos comandos do StreamElements deste streamer aqui no Discord.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "🎮 **Streamer:** gaules",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 💡 Comandos carregados\nNão consegui falar com o StreamElements agora, mas busco a resposta assim que alguém usar um comando.",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Comandos",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Pausar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Desativar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Histórico",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Ajuda",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",

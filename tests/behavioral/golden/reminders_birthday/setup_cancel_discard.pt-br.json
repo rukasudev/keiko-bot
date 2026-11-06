@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Configure como vou comemorar aniversários neste servidor. Você pode cadastrar o primeiro membro agora ou deixar a lista para depois.\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal**: Escolha o canal onde vou enviar os lembretes de aniversário.\n:flying_disc: **Fuso horário**: Escolha o fuso horário usado para calcular o horário da notificação.\n:flying_disc: **Horário da notificação**: Escolha em qual horário vou enviar a notificação de aniversário.\n:flying_disc: **Mencionar @everyone**: Escolha se os lembretes de aniversário devem mencionar @everyone.\n:flying_disc: **Mensagem padrão dos membros**: Personalize a mensagem padrão usada quando um membro não tiver mensagem própria.\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "description": "Configure como eu vou comemorar os aniversários deste servidor!\n\nDepois de salvar, você cadastra os aniversários com o botão **➕ Adicionar** do `/moderações aniversários lembretes`, ou cada membro cadastra o seu com `/aniversário`.\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal:** Escolha o canal onde vou enviar os lembretes de aniversário.\n:flying_disc: **Fuso horário:** Escolha o fuso horário usado para calcular o horário da notificação.\n:flying_disc: **Horário da notificação:** Escolha em qual horário vou enviar a notificação de aniversário.\n:flying_disc: **Mencionar @everyone:** Escolha se os lembretes de aniversário devem mencionar @everyone.\n:flying_disc: **Mensagem padrão dos membros:** Personalize a mensagem padrão usada quando um membro não tiver mensagem própria.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
       "footer": null,
       "image": null,
@@ -76,87 +76,165 @@
             "type": "section"
           },
           {
-            "content": "📺 **Canal**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada ainda",
+            "content": "📺 **Canal**\n> Em branco",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher canal",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "🌎 **Fuso horário**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada ainda",
+            "content": "🌎 **Fuso horário**\n> Em branco",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher fuso horário",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "🇧🇷 Brasil (UTC-3)",
+                    "value": "America/Sao_Paulo"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇦🇷 Argentina (UTC-3)",
+                    "value": "America/Argentina/Buenos_Aires"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇺🇸 Estados Unidos (UTC-5/UTC-4)",
+                    "value": "America/New_York"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇵🇹 Portugal (UTC+0/UTC+1)",
+                    "value": "Europe/Lisbon"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇬🇧 Reino Unido (UTC+0/UTC+1)",
+                    "value": "Europe/London"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇪🇸 Espanha (UTC+1/UTC+2)",
+                    "value": "Europe/Madrid"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇩🇪 Alemanha (UTC+1/UTC+2)",
+                    "value": "Europe/Berlin"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇯🇵 Japão (UTC+9)",
+                    "value": "Asia/Tokyo"
+                  },
+                  {
+                    "default": false,
+                    "label": "🌐 UTC (UTC+0)",
+                    "value": "UTC"
+                  }
+                ],
+                "placeholder": "Escolher fuso horário",
+                "type": "select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "🕒 **Horário da notificação**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada ainda",
+            "content": "🕒 **Horário da notificação**\n> Em branco",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Escolher horário",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "08:00",
+                    "value": "08:00"
+                  },
+                  {
+                    "default": false,
+                    "label": "10:00",
+                    "value": "10:00"
+                  },
+                  {
+                    "default": false,
+                    "label": "12:00",
+                    "value": "12:00"
+                  },
+                  {
+                    "default": false,
+                    "label": "14:00",
+                    "value": "14:00"
+                  },
+                  {
+                    "default": false,
+                    "label": "16:00",
+                    "value": "16:00"
+                  },
+                  {
+                    "default": false,
+                    "label": "18:00",
+                    "value": "18:00"
+                  },
+                  {
+                    "default": false,
+                    "label": "20:00",
+                    "value": "20:00"
+                  },
+                  {
+                    "default": false,
+                    "label": "22:00",
+                    "value": "22:00"
+                  }
+                ],
+                "placeholder": "Escolher horário",
+                "type": "select"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "📣 **Mencionar @everyone**",
-            "type": "text"
-          },
-          {
-            "content": "> Não",
+            "content": "📣 **Mencionar @everyone**\n> Não",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Alternar menção",
+                "label": "Sim",
                 "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Não",
+                "style": "primary",
                 "type": "button"
               }
             ],
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagem padrão dos membros:** 📌 Padrão do Keiko",
-            "type": "text"
-          },
-          {
-            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
+            "content": "💬 **Mensagem padrão dos membros:** 📌 Padrão do Keiko\n> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
             "type": "text"
           },
           {
@@ -291,43 +369,23 @@
             "type": "section"
           },
           {
-            "content": "📺 **Canal**",
+            "content": "📺 **Canal**\n> Em branco",
             "type": "text"
           },
           {
-            "content": "> Nada ainda",
+            "content": "🌎 **Fuso horário**\n> Em branco",
             "type": "text"
           },
           {
-            "content": "🌎 **Fuso horário**",
+            "content": "🕒 **Horário da notificação**\n> Em branco",
             "type": "text"
           },
           {
-            "content": "> Nada ainda",
+            "content": "📣 **Mencionar @everyone**\n> Não",
             "type": "text"
           },
           {
-            "content": "🕒 **Horário da notificação**",
-            "type": "text"
-          },
-          {
-            "content": "> Nada ainda",
-            "type": "text"
-          },
-          {
-            "content": "📣 **Mencionar @everyone**",
-            "type": "text"
-          },
-          {
-            "content": "> Não",
-            "type": "text"
-          },
-          {
-            "content": "💬 **Mensagem padrão dos membros:** 📌 Padrão do Keiko",
-            "type": "text"
-          },
-          {
-            "content": "> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
+            "content": "💬 **Mensagem padrão dos membros:** 📌 Padrão do Keiko\n> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
             "type": "text"
           },
           {

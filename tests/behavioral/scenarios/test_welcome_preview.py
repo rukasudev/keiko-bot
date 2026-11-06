@@ -30,7 +30,7 @@ SETTINGS = {
 
 async def test_the_card_shows_the_banner_of_the_chosen_design(scenario_factory):
     """Lucas: the card named the design and showed nothing else. The design line
-    now carries the banner it draws, with the button to change it under it."""
+    now carries the banner it draws, with the select to change it under it."""
     with patch(
         "app.services.welcome_messages.create_banner",
         new=AsyncMock(return_value=PREVIEW_URL),
@@ -41,8 +41,10 @@ async def test_the_card_shows_the_banner_of_the_chosen_design(scenario_factory):
 
     drawn = card["components"][0]["children"]
     shown = next(i for i, part in enumerate(drawn) if part["type"] == "media")
-    assert drawn[shown - 1]["content"] == "> Imagem do Servidor"
-    assert drawn[shown + 1]["children"][0]["label"] == "Escolher design"
+    assert drawn[shown - 1]["content"] == (
+        "🎨 **Design do banner**\n> Imagem do Servidor de fundo"
+    )
+    assert drawn[shown + 1]["children"][0]["type"] == "select"
     await scenario.finish()
 
 
@@ -69,8 +71,7 @@ async def test_a_blurred_design_draws_the_banner_over_the_sent_picture(
     with patch("app.services.welcome_messages.create_banner", new=banner):
         scenario = await scenario_factory(locale="pt-br").start("welcome_messages")
         await scenario.confirm()
-        await scenario.click("customize:2")
-        await scenario.click("design:custom_blur")
+        await scenario.select_option("custom_blur", target="welcome_design")
         await scenario.click("customize:3")
         await scenario.submit_file_upload(
             filename="custom-banner.png", content=b"\x89PNG-fake"
@@ -107,8 +108,7 @@ async def test_the_card_shows_the_picture_that_was_just_sent(scenario_factory, d
     ):
         scenario = await scenario_factory(locale="pt-br").start("welcome_messages")
         await scenario.confirm()
-        await scenario.click("customize:2")
-        await scenario.click("design:custom_only")
+        await scenario.select_option("custom_only", target="welcome_design")
         await scenario.click("customize:3")
         await scenario.submit_file_upload(
             filename="custom-banner.png", content=b"\x89PNG-fake"
