@@ -79,3 +79,7 @@ class KeikoError(Exception):
 
 class DestinationNotFound(Exception):
     """The guild or channel Keiko was asked to post in is not there any more."""
+
+
+class StreamElementsUnavailable(Exception):
+    """StreamElements could not say which commands a streamer has."""

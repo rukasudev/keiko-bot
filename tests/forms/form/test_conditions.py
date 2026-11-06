@@ -4,17 +4,19 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from app.settings.form.conditions import Scope, evaluate, explain
+from app.settings.form.conditions import Scope, chosen_text, evaluate, explain
 from app.settings.form.form_yaml import (
     All,
     AnyOf,
     CardStep,
     CompositionStep,
     Count,
+    DescriptionVariant,
     DiskSource,
     Leaf,
     Not,
     SingleChoiceStep,
+    Text,
     compile_form,
     options_for,
     produced_keys,
@@ -119,9 +121,35 @@ def test_card_sections_hidden_by_visible_when_are_declared_on_state_keys():
 
 
 def test_single_choice_options_drive_the_typed_comparison():
-    definition = compile_form("block_links", DiskSource().load("block_links"))
+    """Block links' add_custom gate is gone (bl-7); the contract runs on the
+    fixture form with the same hidden gate before a list."""
+    from tests.forms.form.gate_fixtures import gated_list
+
+    definition = gated_list()
     gate = next(s for s in definition.steps if isinstance(s, SingleChoiceStep))
     assert [o.value for o in gate.options] == [True, False]
     composition = definition.composition
-    assert evaluate(composition.when, Scope({"add_custom": True}))
-    assert not evaluate(composition.when, Scope({"add_custom": "False"}))
+    assert evaluate(composition.when, Scope({"add_now": True}))
+    assert not evaluate(composition.when, Scope({"add_now": "False"}))
+
+
+def _text(word):
+    return Text(en_us=word, pt_br=word)
+
+
+def test_the_first_variant_whose_rule_holds_is_the_text_shown():
+    """Titles and descriptions picked their variant in four places, and the panel's
+    group description kept the last match while the others kept the first."""
+    variants = (
+        DescriptionVariant(when=Leaf(key="mode", is_="a"), text=_text("first")),
+        DescriptionVariant(when=Leaf(key="mode", in_=("a", "b")), text=_text("second")),
+    )
+
+    def shown(scope):
+        return chosen_text(_text("default"), variants, scope).en_us
+
+    assert shown(Scope({"mode": "a"})) == "first"
+    assert shown(Scope({"mode": "b"})) == "second"
+    assert shown(Scope({"mode": "c"})) == "default"
+    assert shown(None) == "default"
+    assert chosen_text(None, (), Scope({})) is None

@@ -17,13 +17,14 @@ from app.settings.form.actions.action import (
 from app.settings.form.components import Button, Picker, Screen
 from app.settings.form.copy import text
 from app.settings.form.form_state import Answer, FormSession
-from app.settings.form.form_yaml import MultiPickStep
+from app.settings.form.form_yaml import MultiPickStep, Select
 
 PICKER_KIND = {"channel_pick": "channel", "role_pick": "role", "user_pick": "user"}
 SELECT_KIND = {"channels": "channel", "roles": "role", "available_roles": "role"}
 
 
-def _ids(value: Any) -> tuple[str, ...]:
+def picked_ids(value: Any) -> tuple[str, ...]:
+    """The ids a stored pick holds: none, one or several."""
     if value in (None, "", []):
         return ()
     if isinstance(value, (list, tuple)):
@@ -31,20 +32,28 @@ def _ids(value: Any) -> tuple[str, ...]:
     return (str(value),)
 
 
+def select_picker(
+    step_key: str, select: Select, picked: Any, locale: str, required: bool = False
+) -> Picker:
+    """The native select a declared `Select` draws, with what it holds picked."""
+    return Picker(
+        step_key=step_key,
+        kind=SELECT_KIND[select.type],  # type: ignore[arg-type]
+        placeholder=select.placeholder.get(locale),
+        selected=picked_ids(picked),
+        unique=False,
+        slot=select.key,
+        available_only=select.type == "available_roles",
+        required=required,
+    )
+
+
 def render(step: Any, session: FormSession, context: Context) -> Screen:
     """The select or selects with the current picks, Confirm, Back and Cancel."""
     locale = context.locale
     if isinstance(step, MultiPickStep):
         pickers = tuple(
-            Picker(
-                step_key=step.key,
-                kind=SELECT_KIND[select.type],  # type: ignore[arg-type]
-                placeholder=select.placeholder.get(locale),
-                selected=_ids(session.raw(select.key)),
-                unique=False,
-                slot=select.key,
-                available_only=select.type == "available_roles",
-            )
+            select_picker(step.key, select, session.raw(select.key), locale)
             for select in step.selects
         )
     else:
@@ -56,7 +65,7 @@ def render(step: Any, session: FormSession, context: Context) -> Screen:
                 placeholder=text(
                     f"buttons.components.select.{kind}-placeholder", locale
                 ),
-                selected=_ids(session.raw(step.key)),
+                selected=picked_ids(session.raw(step.key)),
                 unique=step.unique,
                 available_only=step.kind == "role_pick" and step.available,
             ),
@@ -79,15 +88,7 @@ def part_screen(
         (candidate for candidate in step.selects if candidate.key == part),
         step.selects[0],
     )
-    picker = Picker(
-        step_key=step.key,
-        kind=SELECT_KIND[select.type],  # type: ignore[arg-type]
-        placeholder=select.placeholder.get(locale),
-        selected=_ids(session.raw(select.key)),
-        unique=False,
-        slot=select.key,
-        available_only=select.type == "available_roles",
-    )
+    picker = select_picker(step.key, select, session.raw(select.key), locale)
     return step_screen(
         step,
         session,
@@ -97,7 +98,8 @@ def part_screen(
     )
 
 
-def _stored(values: tuple[str, ...]) -> Any:
+def stored_ids(values: tuple[str, ...]) -> Any:
+    """The ids as a document keeps them: one as itself, several as a list."""
     return values[0] if len(values) == 1 else list(values)
 
 
@@ -110,9 +112,9 @@ def parse(
         picked = False
         for select in step.selects:
             draft = session.answers.get(select.key)
-            values = _ids(draft.raw) if draft else ()
+            values = picked_ids(draft.raw) if draft else ()
             picked = picked or bool(values)
-            answers[select.key] = Answer(_stored(values))
+            answers[select.key] = Answer(stored_ids(values))
         if step.required and not picked:
             return Refusal(
                 "fill-one-field",
@@ -122,7 +124,9 @@ def parse(
         return answers
     draft = session.answers.get(step.key)
     values = (
-        _ids(payload) if payload is not None else (_ids(draft.raw) if draft else ())
+        picked_ids(payload)
+        if payload is not None
+        else (picked_ids(draft.raw) if draft else ())
     )
 
     if step.required and not values:
@@ -131,4 +135,4 @@ def parse(
             plain=True,
             delete_after=view_constants.ACTION_NOTICE_SECONDS,
         )
-    return {step.key: Answer(_stored(values) if values else [])}
+    return {step.key: Answer(stored_ids(values) if values else [])}

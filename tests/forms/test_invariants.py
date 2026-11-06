@@ -46,8 +46,6 @@ def happy_path_events():
         ev.Started("s"),
         ev.Answered("a", None, "form"),
         ev.Answered("b", None, "link_settings"),
-        ev.Answered("c", None, "add_custom", False),
-        ev.Answered("d", None, "permissions"),
         ev.Answered("e", None, "confirm"),
         ev.CommitSucceeded("f", None, "setup"),
     ]

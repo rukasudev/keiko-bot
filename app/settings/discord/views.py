@@ -34,6 +34,7 @@ from app.settings.form.components import (
     PanelGroup,
     Picker,
     Screen,
+    SectionView,
     TextInputs,
     cancel_last,
 )
@@ -46,7 +47,6 @@ BUTTON_STYLES = {
     "success": discord.ButtonStyle.success,
     "danger": discord.ButtonStyle.danger,
 }
-BUTTONS_PER_ROW = 5
 
 
 class Dispatcher:
@@ -63,7 +63,7 @@ class ActionButton(discord.ui.Button[Any]):
         self, dispatcher: Dispatcher, custom_id: str, spec: Button, **kwargs: Any
     ):
         super().__init__(
-            label=spec.label,
+            label=spec.label or None,
             style=BUTTON_STYLES[spec.style],
             emoji=spec.emoji,
             disabled=spec.disabled,
@@ -206,7 +206,7 @@ def _select_item(
             dispatcher,
             custom_id,
             component,
-            min_values=1 if component.required or not component.unique else 0,
+            min_values=1 if component.required else 0,
             max_values=1 if component.unique else 25,
         )
     assert isinstance(component, OptionSelect)
@@ -278,8 +278,8 @@ def _action_rows(
     items: Sequence[discord.ui.Item[Any]],
 ) -> list[discord.ui.ActionRow[Any]]:
     return [
-        discord.ui.ActionRow(*items[index : index + BUTTONS_PER_ROW])
-        for index in range(0, len(items), BUTTONS_PER_ROW)
+        discord.ui.ActionRow(*items[index : index + DiscordLimits.BUTTONS_PER_ROW])
+        for index in range(0, len(items), DiscordLimits.BUTTONS_PER_ROW)
     ]
 
 
@@ -338,16 +338,36 @@ def _card(
             container.add_item(discord.ui.TextDisplay(line))
     container.add_item(discord.ui.Separator())
     for section in card.sections:
-        container.add_item(discord.ui.TextDisplay(section.heading))
-        if section.preview:
-            container.add_item(discord.ui.TextDisplay("\n".join(section.preview)))
-        if section.media:
-            container.add_item(
-                discord.ui.MediaGallery(discord.MediaGalleryItem(media=section.media))
-            )
+        _card_section(container, section, ids, dispatcher)
+        container.add_item(discord.ui.Separator())
+
+
+def _card_section(
+    container: discord.ui.Container[Any],
+    section: SectionView,
+    ids: Ids,
+    dispatcher: Dispatcher,
+) -> None:
+    texts = (section.heading, section.description, *section.preview)
+    shown = "\n".join(line for line in texts if line)
+    container.add_item(discord.ui.TextDisplay(shown))
+
+    if section.media and section.preview:
+        _picture(container, section.media)
+    for control in section.controls:
+        if isinstance(control, Choice):
+            _choice(container, control, ids, dispatcher)
+            continue
+        container.add_item(discord.ui.ActionRow(_select_item(dispatcher, ids, control)))
+    if section.media and not section.preview:
+        _picture(container, section.media)
+    if section.buttons:
         buttons = [_button(dispatcher, ids, spec) for spec in section.buttons]
         container.add_item(discord.ui.ActionRow(*buttons))
-        container.add_item(discord.ui.Separator())
+
+
+def _picture(container: discord.ui.Container[Any], media: str) -> None:
+    container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(media=media)))
 
 
 def _panel(
@@ -359,13 +379,19 @@ def _panel(
         if group.parts:
             _panel_parts(container, panel, group, ids, dispatcher)
         elif group.actions:
-            container.add_item(discord.ui.TextDisplay("\n".join(group.lines)))
-        else:
+            if group.lines:
+                body = "\n".join(group.lines)
+                card_row(container, body, separated=bool(group.heading))
+        elif group.lines:
             accessory = None
             if group.key:
                 spec = Button(panel.edit_label, f"edit:{group.key}", "secondary", "✏️")
                 accessory = _button(dispatcher, ids, spec)
             card_row(container, "\n".join(group.lines), accessory)
+        if group.media:
+            container.add_item(
+                discord.ui.MediaGallery(discord.MediaGalleryItem(media=group.media))
+            )
         if group.actions:
             row = [_button(dispatcher, ids, spec) for spec in group.actions]
             container.add_item(discord.ui.ActionRow(*row))
@@ -373,7 +399,9 @@ def _panel(
 
     if panel.info:
         heading = f"### {panel.info_title}\n" if panel.info_title else ""
-        card_row(container, f"{heading}{panel.info}")
+        action = panel.info_action
+        accessory = _button(dispatcher, ids, action) if action is not None else None
+        card_row(container, f"{heading}{panel.info}", accessory)
     container.add_item(discord.ui.Separator())
 
 
@@ -397,8 +425,9 @@ def _toggles(
         )
         for option in group.choices
     ]
-    for index in range(0, len(items), 4):
-        container.add_item(discord.ui.ActionRow(*items[index : index + 4]))
+    row = view_constants.CHOICE_BUTTONS_PER_ROW
+    for index in range(0, len(items), row):
+        container.add_item(discord.ui.ActionRow(*items[index : index + row]))
 
 
 def _panel_parts(
@@ -412,7 +441,12 @@ def _panel_parts(
         card_row(container, "\n".join(group.lines))
     for index, part in enumerate(group.parts):
         spec = Button(
-            part.label or panel.edit_label, part.button, "secondary", part.emoji
+            part.label or panel.edit_label,
+            part.button,
+            "secondary",
+            part.emoji,
+            part.disabled,
+            part.description,
         )
         card_row(
             container,
@@ -420,6 +454,11 @@ def _panel_parts(
             _button(dispatcher, ids, spec),
             separated=index == 0 and not group.lines,
         )
+        if part.body:
+            container.add_item(discord.ui.TextDisplay("\n".join(part.body)))
+        if part.actions:
+            row = [_button(dispatcher, ids, action) for action in part.actions]
+            container.add_item(discord.ui.ActionRow(*row))
 
 
 def _picker_screen(
@@ -436,14 +475,35 @@ def _picker_screen(
             container.add_item(
                 discord.ui.ActionRow(_select_item(dispatcher, ids, component))
             )
-    option_buttons = [
-        spec for spec in screen.buttons if spec.action.startswith("pick:")
+        elif isinstance(component, Choice):
+            _choice(container, component, ids, dispatcher)
+
+
+def _choice(
+    container: discord.ui.Container[Any],
+    choice: Choice,
+    ids: Ids,
+    dispatcher: Dispatcher,
+) -> None:
+    action = f"set:{choice.slot}=" if choice.slot else "pick:"
+    if choice.button_label:
+        for option in choice.options:
+            style = "primary" if option.selected else option.style
+            spec = Button(choice.button_label, f"{action}{option.value}", style)
+            body = f"**{option.label}**\n{option.description}"
+            card_row(container, body, _button(dispatcher, ids, spec))
+        return
+    buttons = [
+        _button(
+            dispatcher,
+            ids,
+            Button(option.label, f"{action}{option.value}", option.style),
+        )
+        for option in choice.options
     ]
-    for index in range(0, len(option_buttons), 4):
-        row = [
-            _button(dispatcher, ids, spec) for spec in option_buttons[index : index + 4]
-        ]
-        container.add_item(discord.ui.ActionRow(*row))
+    row = view_constants.CHOICE_BUTTONS_PER_ROW
+    for index in range(0, len(buttons), row):
+        container.add_item(discord.ui.ActionRow(*buttons[index : index + row]))
 
 
 def layout_of(
@@ -474,9 +534,7 @@ def layout_of(
         card_footer(container, screen.layout_footer)
     view.add_item(container)
     action_buttons = [
-        _button(dispatcher, ids, spec)
-        for spec in cancel_last(screen.buttons)
-        if not spec.action.startswith("pick:")
+        _button(dispatcher, ids, spec) for spec in cancel_last(screen.buttons)
     ]
 
     for row in _action_rows(action_buttons):
@@ -562,6 +620,48 @@ def modal_of(
 ) -> FormModal:
     """The modal of a modal-flavoured screen."""
     return FormModal(screen, ids, dispatcher, action, arg)
+
+
+def walk(view: Any) -> list[Any]:
+    """Every item of `view`, depth first, a section's accessory after the section."""
+    found: list[Any] = []
+
+    def visit(node: Any) -> None:
+        for item in getattr(node, "children", None) or []:
+            found.append(item)
+            visit(item)
+            accessory = getattr(item, "accessory", None)
+
+            if accessory is not None:
+                found.append(accessory)
+
+    if view is not None:
+        visit(view)
+    return found
+
+
+def disable(view: Any) -> tuple[Any, ...]:
+    """Disable every control of `view` that is enabled, and return those controls."""
+    kinds = (
+        discord.ui.Button,
+        discord.ui.Select,
+        discord.ui.ChannelSelect,
+        discord.ui.RoleSelect,
+        discord.ui.UserSelect,
+        discord.ui.MentionableSelect,
+    )
+    controls = tuple(
+        item for item in walk(view) if isinstance(item, kinds) and not item.disabled
+    )
+    for control in controls:
+        control.disabled = True
+    return controls
+
+
+def enable(controls: Sequence[Any]) -> None:
+    """Enable the controls `disable` returned."""
+    for control in controls:
+        control.disabled = False
 
 
 def finalized_layout(view: discord.ui.LayoutView) -> discord.ui.LayoutView:

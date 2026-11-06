@@ -8,6 +8,7 @@ visible, a replacement survives a failed delete, and payloads obey Discord.
 
 import asyncio
 import logging
+from dataclasses import replace
 from types import SimpleNamespace
 
 import discord
@@ -73,6 +74,11 @@ def _button(scenario, target):
     return message, locators.find_button(message, target, scenario.locale)
 
 
+def _first_answer(events):
+    """A defer, or the edit that disables the message clicked while it waits."""
+    return any(event["kind"] in ("defer", "edit") for event in events)
+
+
 def _notices(scenario, key):
     text = ml(f"commands.form-notices.{key}", locale=scenario.locale_str)
     return [e for e in scenario.outputs if e.get("content") == text]
@@ -94,6 +100,100 @@ def test_the_codec_round_trips_and_rejects_foreign_ids():
     assert is_ours(custom_id) and not is_ours("card_done") and decode("k:bad") is None
 
 
+def test_the_list_buttons_become_their_events():
+    """P4 and tw-8 (beta.2): a remove picker reports every value chosen, its
+    confirmation, the pages, the search and a preview naming one item."""
+    from app.settings.discord.interactions import to_event
+    from app.settings.form import events as ev
+    from app.settings.form.manager import PageTurned, SearchRequested
+
+    click = SimpleNamespace(id=42)
+
+    def event(action, arg=None, payload=None):
+        return to_event(click, decode(encode("s", 3, action, arg)), payload)
+
+    chosen = event("targets", None, ["links$0", "links$2"])
+    assert isinstance(chosen, ev.TargetsChosen)
+    assert chosen.values == ("links$0", "links$2")
+    assert isinstance(event("remove_items"), ev.RemovalConfirmed)
+    assert event("page", "2") == PageTurned("42", 3, 2)
+    assert isinstance(event("search"), SearchRequested)
+    preview = event("aside", "preview:notifications$1")
+    assert (preview.name, preview.target) == ("preview", "notifications$1")
+    assert (event("aside", "help").name, event("aside", "help").target) == ("help", "")
+
+
+def test_a_button_on_the_card_sets_its_value_as_a_select_drafts_one():
+    """N4 (beta.2 round 2): Sim and Não on a card report the value they set for
+    their key, the same draft a select of the card reports."""
+    from app.settings.discord.interactions import to_event
+    from app.settings.form import events as ev
+
+    click = SimpleNamespace(id=42)
+    pressed = to_event(
+        click, decode(encode("s", 3, "set", "mention_everyone=true")), None, "card"
+    )
+    picked = to_event(
+        click, decode(encode("s", 3, "draft", "timezone")), ["UTC"], "card"
+    )
+
+    assert pressed == ev.Drafted("42", 3, "card", {"mention_everyone": "true"})
+    assert picked == ev.Drafted("42", 3, "card", {"timezone": ["UTC"]})
+
+
+def test_a_member_picture_is_read_from_the_server_the_session_runs_in():
+    """B3 (beta.2 round 3): the card reads a picked member's picture by id, and
+    a member the server does not know has none."""
+    from app.settings.discord.callbacks import MemberPictures
+
+    guild = create_guild()
+    create_member(guild, id=777, name="Amiga")
+    pictures = MemberPictures(guild)
+
+    assert pictures.get("777") == "https://cdn.discordapp.com/avatars/777/fake.png"
+    assert pictures.get("888") is None
+    assert pictures.get("not-an-id") is None
+    assert MemberPictures(None).get("777") is None
+
+
+def test_the_yes_and_no_of_a_card_are_two_buttons_inside_it():
+    from app.settings.discord.views import layout_of
+    from app.settings.form.components import (
+        Card,
+        CardHeader,
+        Choice,
+        ChoiceOption,
+        SectionView,
+    )
+
+    yes_no = Choice(
+        "card",
+        (
+            ChoiceOption("Sim", "true", "primary", True),
+            ChoiceOption("Não", "false", "secondary"),
+        ),
+        slot="mention_everyone",
+    )
+    section = SectionView(0, "mention", "📣 **Mencionar**", ("> Sim",), (), None)
+    card = Card("card", CardHeader("T", ""), (replace(section, controls=(yes_no,)),))
+    view = layout_of(
+        Screen(components=(card,), flavour="components_v2"),
+        lambda action, arg=None: f"k:s:1:{action}:{arg}",
+        None,
+    )
+
+    container = view.children[0]
+    buttons = [
+        item
+        for item in locators.walk_items(container)
+        if isinstance(item, discord.ui.Button)
+    ]
+    assert [(button.label, button.style, button.custom_id) for button in buttons] == [
+        ("Sim", discord.ButtonStyle.primary, "k:s:1:set:mention_everyone=true"),
+        ("Não", discord.ButtonStyle.secondary, "k:s:1:set:mention_everyone=false"),
+    ]
+
+
 # ------------------------------------------------------------ hostile clicks
 
 
@@ -108,7 +208,9 @@ async def test_a_duplicate_click_changes_nothing(v2):
     assert _session_of(scenario).cursor == "default_roles_config"
 
 
-async def test_a_stale_click_gets_a_notice_and_the_current_screen(v2):
+async def test_a_stale_click_gets_only_the_current_screen(v2):
+    """A notice on top of the redraw raced the late-answer clock and lost with
+    40060, dropping the redraw (B5, beta.2)."""
     scenario = await v2().start_command("default_roles")
     message, old_button = _button(scenario, "continue")
     await scenario.confirm()
@@ -116,7 +218,7 @@ async def test_a_stale_click_gets_a_notice_and_the_current_screen(v2):
     await old_button.callback(
         scenario._mint(message=message, custom_id=old_button.custom_id)
     )
-    assert len(_notices(scenario, "stale")) == 1
+    assert _notices(scenario, "stale") == []
     assert _session_of(scenario).revision == revision_after
     assert scenario.outputs[-1]["kind"] in ("edit", "followup_edit")
 
@@ -128,7 +230,8 @@ async def test_two_concurrent_clicks_are_serialized(v2):
     second = scenario._mint(message=message, custom_id=button.custom_id)
     await asyncio.gather(button.callback(first), button.callback(second))
     assert _session_of(scenario).cursor == "default_roles_config"
-    assert len(_notices(scenario, "stale")) == 1
+    assert _notices(scenario, "stale") == []
+    assert scenario.outputs[-1]["kind"] in ("edit", "followup_edit")
 
 
 # --------------------------------------------------------------------- expiry
@@ -194,6 +297,49 @@ async def test_a_replacement_survives_a_failed_delete(v2, monkeypatch):
     assert _session_of(scenario).cursor == "link_settings"
 
 
+async def test_a_held_card_is_usable_again_when_its_screen_fails_to_draw(
+    v2, deps, monkeypatch
+):
+    """Broke as (beta.2 review, K2): a lookup disables the card while it runs,
+    and the controls came back only after every effect succeeded; a Render that
+    failed after the hold left every button of the card disabled for good.
+    Shared: the hold and release of `callbacks.py` and `Executor.render`, which
+    now records a screen only once Discord took it. Exposed by the StreamElements
+    setup. Guaranteed: a held card is usable again whatever its effects did."""
+    from tests.behavioral.golden.paths import stream_elements_commands
+
+    stream_elements_commands._known_streamers(deps)
+    scenario = await v2().start_command("stream_elements_commands")
+    await scenario.confirm()
+    card = scenario.current_message
+    field = scenario.pending_modal_fields()[0]
+    sending = FakeFollowup.send
+    failures = []
+
+    async def fails_once(self, *args, **kwargs):
+        if not failures:
+            failures.append(kwargs.get("view"))
+            raise discord.HTTPException(
+                SimpleNamespace(status=500, reason="boom"), "Internal Server Error"
+            )
+        return await sending(self, *args, **kwargs)
+
+    monkeypatch.setattr(FakeFollowup, "send", fails_once)
+    await scenario.submit_modal({field: "shroud"})
+
+    controls = [
+        item
+        for item in locators.walk_items(card.view)
+        if isinstance(item, (discord.ui.Button, discord.ui.Select))
+    ]
+    assert failures, "the screen after the lookup failed to draw"
+    assert controls and not [item for item in controls if item.disabled], (
+        "the card the lookup held stays disabled after its screen failed"
+    )
+    assert scenario.outputs[-1]["kind"] == "followup_edit"
+    assert scenario.current_message is card
+
+
 async def test_a_layout_payload_carries_only_layout_components(v2):
     scenario = await v2().start_command("block_links")
     await scenario.confirm()
@@ -210,7 +356,15 @@ async def test_a_panel_puts_its_buttons_below_the_card(v2, deps):
     assert isinstance(card, discord.ui.Container)
     assert rows and all(isinstance(row, discord.ui.ActionRow) for row in rows)
     inside = list(locators.walk_items(card))
-    assert not any(isinstance(item, discord.ui.ActionRow) for item in inside)
+    in_card = [
+        locators.codec_target(button)
+        for item in inside
+        if isinstance(item, discord.ui.ActionRow)
+        for button in item.children
+    ]
+    assert in_card == ["remove:custom_links"], "only the list's Remove sits in the card"
+    below = [locators.codec_target(button) for row in rows for button in row.children]
+    assert "lifecycle:pause" in below and "aside:help" in below
     assert inside[-1].content.startswith("-# "), "the footer still closes the card"
     kinds = [type(item) for item in card.children]
     assert (discord.ui.Separator, discord.ui.Separator) not in zip(kinds, kinds[1:])
@@ -228,14 +382,19 @@ async def test_a_card_keeps_section_buttons_inside_and_its_own_below(v2):
 
 
 async def test_the_birthday_cards_stay_within_discord_limits(v2, deps):
-    scenario = await v2(guild=_guild()).start_command("reminders_birthday")
+    guild = _guild()
+    scenario = await v2(guild=guild).start_command("reminders_birthday")
     await scenario.confirm()
     _assert_within_limits(scenario.current_message.view, "birthday_config card")
     await _complete_settings_card(scenario)
-    await scenario.click("Sim")
-    await scenario.select_option("Amiga")
     await scenario.confirm()
-    _assert_within_limits(scenario.current_message.view, "birthday_member_config card")
+
+    panel = await FormScenario(
+        guild=guild, user=scenario.user, locale="pt-br", mongo=deps.mongo_client
+    ).start_command("reminders_birthday")
+    await panel.click("add")
+    await panel.select_option("Amiga", target="user")
+    _assert_within_limits(panel.current_message.view, "birthday_member_config card")
 
 
 def test_a_file_input_modal_wraps_the_upload_in_a_label():
@@ -307,8 +466,6 @@ async def _save_block_links_with_a_failing_commit(v2, monkeypatch):
     scenario = await v2().start_command("block_links")
     await scenario.confirm()
     await scenario.click("done")
-    await scenario.click("Depois")
-    await scenario.confirm()
     await scenario.confirm()
     return scenario
 
@@ -407,8 +564,8 @@ async def test_a_parent_waiting_on_a_live_child_is_not_expired(v2):
 
     scenario = await v2().start_command("block_links")
     await scenario.confirm()
-    await scenario.click("done")
-    await scenario.click("Sim")
+    await scenario.click("customize:2")  # Configurar the exceptions
+    await scenario.click("customize:6")  # the list opens its child
     parent = next(
         session
         for session in RUNTIME.store._sessions.values()
@@ -448,22 +605,21 @@ def _slow_previews(monkeypatch):
 
 
 async def test_a_click_that_opens_the_gallery_is_answered_before_the_previews_wait(
-    v2, monkeypatch
+    v2, deps, monkeypatch
 ):
     drawn = _slow_previews(monkeypatch)
     monkeypatch.setattr("app.constants.ViewConstants.PREVIEW_WAIT_SECONDS", 0.05)
-    scenario = await v2().start_command("welcome_messages")
-    await asyncio.wait_for(scenario.confirm(), timeout=2)
+    seed_document(deps, "welcome_messages", WELCOME_ENABLED)
+    scenario = await asyncio.wait_for(v2().start_command("welcome_messages"), timeout=2)
     before = len(scenario.outputs)
 
-    click = asyncio.create_task(scenario.click("customize:2"))
+    click = asyncio.create_task(scenario.click("section:welcome_config/design"))
     for _ in range(50):
-        if click.done() or any(e["kind"] == "defer" for e in scenario.outputs[before:]):
+        if click.done() or _first_answer(scenario.outputs[before:]):
             break
         await asyncio.sleep(0.01)
     answered_while_drawing = (
-        any(e["kind"] == "defer" for e in scenario.outputs[before:])
-        and not drawn.is_set()
+        _first_answer(scenario.outputs[before:]) and not drawn.is_set()
     )
     drawn.set()
     await click
@@ -489,7 +645,10 @@ async def test_a_card_never_waits_longer_than_the_preview_budget(v2, monkeypatch
     scenario = await v2().start_command("welcome_messages")
 
     await asyncio.wait_for(scenario.confirm(), timeout=1)
-    await asyncio.wait_for(scenario.click("customize:0"), timeout=1)
+    await asyncio.wait_for(
+        scenario.select_option("general", target="welcome_messages_channel"),
+        timeout=1,
+    )
 
     assert _session_of(scenario).cursor == "welcome_config"
 
@@ -631,6 +790,7 @@ async def test_a_click_discord_refuses_is_counted_failed_with_its_code(v2, monke
         )
 
     monkeypatch.setattr(FakeResponse, "edit_message", expired)
+    monkeypatch.setattr(FakeResponse, "defer", expired)
     failed, in_time = _interactions("failed", "10062"), _interactions("in_time")
 
     await button.callback(scenario._mint(message=message, custom_id=button.custom_id))
@@ -740,21 +900,18 @@ async def test_a_modal_that_needs_a_lookup_is_answered_before_the_lookup_runs(
     deps.twitch.add_user("gaules", user_id="111")
     scenario = await v2().start_command("notifications_twitch")
     await scenario.confirm()
-    await scenario.click("customize:0")
-    await scenario.select_option("general")
+    await scenario.select_option("general", target="channel")
     await scenario.click("customize:1")
     before = len(scenario.outputs)
     field = scenario.pending_modal_fields()[0]
     submit = asyncio.ensure_future(scenario.submit_modal({field: "gaules"}))
 
     for _ in range(50):
-        deferred = any(e["kind"] == "defer" for e in scenario.outputs[before:])
-        if submit.done() or deferred:
+        if submit.done() or _first_answer(scenario.outputs[before:]):
             break
         await asyncio.sleep(0.01)
     answered_while_looking_up = (
-        any(e["kind"] == "defer" for e in scenario.outputs[before:])
-        and not released.is_set()
+        _first_answer(scenario.outputs[before:]) and not released.is_set()
     )
     released.set()
     await submit
@@ -794,19 +951,114 @@ def test_a_panel_part_has_its_own_edit_beside_its_lines():
     ]
 
 
+def test_a_section_description_joins_its_heading_and_adds_no_component():
+    """P2 (beta.2): a section explains itself under its heading, in the same text,
+    and its lines follow in that text too (round 4 C)."""
+    from app.settings.discord.views import layout_of
+    from app.settings.form.components import (
+        Button,
+        Card,
+        CardHeader,
+        SectionView,
+    )
+
+    def drawn(description):
+        section = SectionView(
+            0, "messages", "💬 **Mensagens**", ("> oi",), (Button("Editar", "x"),)
+        )
+        card = Card(
+            "card", CardHeader("T", "d"), (replace(section, description=description),)
+        )
+        return layout_of(
+            Screen(components=(card,), flavour="components_v2"),
+            lambda action, arg=None: f"k:s:1:{action}:{arg}",
+            None,
+        )
+
+    described, plain = drawn("Você pode usar `{user}`"), drawn("")
+
+    texts = [
+        item.content
+        for item in locators.walk_items(described)
+        if isinstance(item, discord.ui.TextDisplay)
+    ]
+    assert "💬 **Mensagens**\nVocê pode usar `{user}`\n> oi" in texts, texts
+    assert len(list(locators.walk_items(described))) == len(
+        list(locators.walk_items(plain))
+    )
+
+
+def test_options_with_descriptions_are_blocks_with_their_own_button():
+    """bl-5 (beta.2): a picker whose options explain themselves draws each one as
+    its name and explanation with the Choose button beside it; plain options
+    stay a grid of buttons."""
+    from app.settings.discord.views import layout_of
+    from app.settings.form.components import Choice, ChoiceOption
+
+    def drawn(choice):
+        return layout_of(
+            Screen(title="Como?", components=(choice,), flavour="components_v2"),
+            lambda action, arg=None: f"k:s:1:{action}:{arg}",
+            None,
+        )
+
+    options = (
+        ChoiceOption("🔗 Alguns", "0", "success", False, "Só os que você escolher."),
+        ChoiceOption("🚫 Todos", "1", "danger", True, "Todos os links."),
+    )
+    blocks = drawn(Choice("card", options, button_label="Escolher"))
+    grid = drawn(Choice("card", options))
+
+    container = blocks.children[0]
+    sections = [
+        item for item in container.children if isinstance(item, discord.ui.Section)
+    ]
+    assert isinstance(container.children[1], discord.ui.Separator)
+    assert [section.children[0].content for section in sections] == [
+        "**🔗 Alguns**\nSó os que você escolher.",
+        "**🚫 Todos**\nTodos os links.",
+    ]
+    assert [section.accessory.custom_id for section in sections] == [
+        "k:s:1:pick:0",
+        "k:s:1:pick:1",
+    ]
+    assert [section.accessory.style for section in sections] == [
+        discord.ButtonStyle.success,
+        discord.ButtonStyle.primary,
+    ]
+    rows = [
+        item
+        for item in grid.children[0].children
+        if isinstance(item, discord.ui.ActionRow)
+    ]
+    assert [button.label for row in rows for button in row.children] == [
+        "🔗 Alguns",
+        "🚫 Todos",
+    ]
+
+
 async def test_confirming_a_card_review_replaces_it_with_the_enabled_message(v2, deps):
     """Broke as: the enabled embed was edited onto the Components V2 review, which
-    Discord refuses."""
+    Discord refuses. The panel then follows it on a message of its own."""
     deps.twitch.add_user("gaules", user_id="111")
     scenario = await v2().start_command("stream_elements_commands")
     await scenario.confirm()
     await scenario.submit_modal({scenario.pending_modal_fields()[0]: "gaules"})
-    assert scenario.current_message.flags.components_v2
+    review = scenario.current_message
+    assert review.flags.components_v2
 
     await scenario.confirm()
 
-    assert not scenario.current_message.flags.components_v2
-    assert scenario.current_message.embeds
+    title = ml("commands.command-events.enabled.title", locale="pt-br")
+    [activation] = [
+        event
+        for event in scenario.outputs
+        if (event.get("embed") or {}).get("title") == title
+    ]
+    assert activation["kind"] == "followup_send"
+    assert not activation.get("components_v2")
+    assert scenario.current_message is not review
+    assert scenario.current_message.flags.components_v2, "the panel follows it"
 
 
 async def test_the_design_picker_opened_from_the_welcome_panel_shows_previews(
@@ -826,3 +1078,37 @@ async def test_the_design_picker_opened_from_the_welcome_panel_shows_previews(
         if isinstance(item, discord.ui.MediaGallery)
     ]
     assert len(galleries) == 3
+
+
+def test_a_card_section_with_controls_draws_them_inside_the_card():
+    """bd-1: a section drawn with its select on the card keeps it inside the
+    card's frame, in a row of its own, where its button would have been."""
+    from app.settings.discord.views import layout_of
+    from app.settings.form.components import (
+        Card,
+        CardHeader,
+        ChoiceOption,
+        OptionSelect,
+        SectionView,
+    )
+
+    times = OptionSelect(
+        "card",
+        "Escolher horário",
+        (ChoiceOption("08:00", "08:00", selected=True), ChoiceOption("10:00", "10:00")),
+        slot="notification_time",
+    )
+    section = SectionView(2, "notification_time", "🕒 **Horário**", ("> 08:00",), ())
+    card = Card("card", CardHeader("Card", ""), (replace(section, controls=(times,)),))
+    screen = Screen(components=(card,), flavour="components_v2")
+
+    view = layout_of(screen, lambda action, arg=None: f"k:s:1:{action}:{arg}", None)
+
+    container = view.children[0]
+    [row] = [
+        item for item in container.children if isinstance(item, discord.ui.ActionRow)
+    ]
+    [select] = row.children
+    assert isinstance(select, discord.ui.Select)
+    assert select.custom_id == "k:s:1:draft:notification_time"
+    assert [option.default for option in select.options] == [True, False]

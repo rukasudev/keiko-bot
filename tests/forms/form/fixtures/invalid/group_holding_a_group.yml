@@ -1,0 +1,30 @@
+steps:
+  - action: form
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - action: configuration_card
+    key: card
+    title: {en-us: Card, pt-br: Card}
+    description: {en-us: card, pt-br: card}
+    sections:
+      - key: outer
+        icon: "🛡️"
+        type: group
+        sections: [inner]
+        label: {en-us: Outer, pt-br: Fora}
+      - key: inner
+        icon: "🛡️"
+        type: group
+        sections: [places]
+        label: {en-us: Inner, pt-br: Dentro}
+      - key: places
+        icon: "📍"
+        type: channel-select
+        label: {en-us: Places, pt-br: Lugares}
+        state:
+          value: place
+  - action: resume
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

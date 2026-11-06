@@ -330,8 +330,14 @@ class Commands:
         Feature.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS.value.key
     )
     REDIS_STREAM_ELEMENTS_COMMANDS: Final[str] = "stream_elements:channel:{channel_id}:commands"
+    REDIS_STREAM_ELEMENTS_CHANNEL_FAILED: Final[str] = (
+        "stream_elements:streamer:{streamer}:channel_failed"
+    )
+    REDIS_STREAM_ELEMENTS_WARNED: Final[str] = "stream_elements:streamer:{streamer}:warned"
     STREAM_ELEMENTS_COMMANDS_CACHE_SECONDS: Final[int] = 60 * 60 * 24
     STREAM_ELEMENTS_NO_COMMANDS_CACHE_SECONDS: Final[int] = 60 * 5
+    STREAM_ELEMENTS_CHANNEL_FAILED_SECONDS: Final[int] = 60 * 5
+    STREAM_ELEMENTS_FAILURE_SECONDS: Final[int] = 60 * 30
 
     REMINDERS_BIRTHDAY_KEY: Final[str] = Feature.REMINDERS_BIRTHDAY.value.key
     REMINDERS_BIRTHDAY_REACTION: Final[str] = "🎉"
@@ -345,7 +351,6 @@ class Commands:
     BIRTHDAY_CONFIG_DEFAULT_MESSAGE_MODE: Final[str] = "default_message_mode"
     BIRTHDAY_CONFIG_DEFAULT_MESSAGE_TITLE: Final[str] = "default_message_title"
     BIRTHDAY_CONFIG_DEFAULT_MESSAGE_CONTENT: Final[str] = "default_message_content"
-    BIRTHDAY_CONFIG_REGISTER_NOW: Final[str] = "register_now"
 
     SELF_BIRTHDAY_EDIT_LIMIT: Final[int] = 1
 
@@ -441,6 +446,7 @@ class ViewConstants:
     GROUP_ITEMS_SHOWN: Final[int] = 3
     COMMANDS_PAGE_SIZE: Final[int] = 5
     EDIT_BY_ITEM_MAX: Final[int] = 3
+    CHOICE_BUTTONS_PER_ROW: Final[int] = 4
     FORM_SWEEP_SECONDS: Final[int] = 60
     PREVIEW_WAIT_SECONDS: Final[int] = 2  # a click waits this long for a card's picture
     GALLERY_WAIT_SECONDS: Final[int] = 8  # a gallery is the picture, so it waits longer
@@ -474,6 +480,7 @@ class DiscordLimits:
     EMBED_FIELD_NAME: Final[int] = 256
     EMBED_FIELD_VALUE: Final[int] = 1024
     SELECT_OPTION_TEXT: Final[int] = 100
+    BUTTONS_PER_ROW: Final[int] = 5
     INTERACTION_TOKEN_SECONDS: Final[int] = 900
     ATTACHMENT_URL_SECONDS: Final[int] = 86400
     ATTACHMENT_URL_REFRESH_SECONDS: Final[int] = 82800  # an hour before the link dies

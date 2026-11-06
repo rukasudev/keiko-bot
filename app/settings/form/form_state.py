@@ -116,6 +116,27 @@ Mode = Union[Setup, Edit, AddItem, EditItem, RemoveItem, Manage, DryRun]
 
 
 @dataclass(frozen=True)
+class Refused:
+    """What a step turned down, kept until the next change so its screen shows it."""
+
+    target: str
+    error_key: str
+    args: Mapping[str, str] = field(default_factory=lambda: _frozen({}))
+    inputs: tuple[str, ...] = ()
+    missing: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "args", _frozen(self.args))
+
+    def typed_into(self, count: int) -> tuple[str | None, ...]:
+        """What the admin typed in each of `count` inputs, None past what was typed."""
+        return tuple(
+            self.inputs[position] if position < len(self.inputs) else None
+            for position in range(count)
+        )
+
+
+@dataclass(frozen=True)
 class FormSession:
     """One run of one definition by one admin."""
 
@@ -132,6 +153,10 @@ class FormSession:
     expires_at: datetime
     awaiting: str | None = None
     screen_revision: int = 0
+    refused: Refused | None = None
+    chosen: tuple[int, ...] = ()
+    changes_saved: int = 0
+    opened_group: str | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "answers", _frozen(self.answers))
@@ -156,7 +181,17 @@ class FormSession:
         return {key: answer.raw for key, answer in self.answers.items()}
 
     def _next(self, **changes: Any) -> FormSession:
+        changes.setdefault("refused", None)
         return replace(self, revision=self.revision + 1, **changes)
+
+    def refused_on(self, target: str) -> Refused | None:
+        """What was refused on `target`, None when nothing was."""
+        refused = self.refused
+        return refused if refused is not None and refused.target == target else None
+
+    def with_refused(self, refused: Refused) -> FormSession:
+        """The session showing `refused` until its next change."""
+        return self._next(refused=refused)
 
     def with_answer(self, key: str, answer: Answer) -> FormSession:
         """The session with `key` answered, replacing any earlier answer."""
@@ -178,12 +213,29 @@ class FormSession:
         return self._next(answers=answers)
 
     def at(self, cursor: str | None) -> FormSession:
-        """The session moved to `cursor`, active again."""
-        return self._next(cursor=cursor, status=Status.ACTIVE, awaiting=None)
+        """The session moved to `cursor`, active again, its group open on that step."""
+        group = self.opened_group if cursor == self.cursor else None
+        return self._next(
+            cursor=cursor, status=Status.ACTIVE, awaiting=None, opened_group=group
+        )
+
+    def opening(self, group: str | None) -> FormSession:
+        """The session showing the card's `group` on its own screen, or the card."""
+        return self._next(status=Status.ACTIVE, awaiting=None, opened_group=group)
+
+    def with_chosen(self, indexes: tuple[int, ...]) -> FormSession:
+        """The session asking to confirm the removal of the items at `indexes`."""
+        return self._next(
+            chosen=indexes, status=Status.AWAITING, awaiting="remove_items"
+        )
 
     def with_status(self, status: Status, awaiting: str | None = None) -> FormSession:
         """The session in another lifecycle status."""
         return self._next(status=status, awaiting=awaiting)
+
+    def with_change_saved(self) -> FormSession:
+        """The session that saved one more change; bookkeeping, no revision."""
+        return replace(self, changes_saved=self.changes_saved + 1)
 
     def remember(self, event_id: str) -> FormSession:
         """The session that has applied `event_id`; bookkeeping, no revision."""

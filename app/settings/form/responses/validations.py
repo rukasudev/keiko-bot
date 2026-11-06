@@ -12,7 +12,7 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from app.settings.form.responses.dates import parse_date_parts
+from app.settings.form.responses.dates import is_day, parse_date_parts
 from app.settings.form.responses.links import parse_link
 
 
@@ -77,11 +77,9 @@ def _link_or_domain(value: Any, _context: ValidationContext) -> str | None:
 
 
 def _date(value: Any, context: ValidationContext) -> str | None:
-    return (
-        None
-        if parse_date_parts(value, context.answers.get("month"))
-        else "invalid-date"
-    )
+    month = context.answers.get("month")
+    fits = is_day(value) if month in (None, "") else parse_date_parts(value, month)
+    return None if fits else "invalid-date"
 
 
 VALIDATORS: dict[str, Validator] = {

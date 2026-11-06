@@ -13,8 +13,8 @@ from typing import Any
 
 from app.constants import Emojis
 from app.constants import ViewConstants as view_constants
-from app.settings.form.components import ChoiceOption, PanelGroup, PanelPart
-from app.settings.form.conditions import EMPTY, Scope, evaluate
+from app.settings.form.components import Button, ChoiceOption, PanelGroup, PanelPart
+from app.settings.form.conditions import EMPTY, Scope, chosen_text, evaluate
 from app.settings.form.copy import text
 from app.settings.form.form_state import Answer
 from app.settings.form.form_yaml import (
@@ -27,16 +27,27 @@ from app.settings.form.form_yaml import (
     SingleChoiceStep,
     Step,
     TextStep,
-    UserPickStep,
     When,
     owned_keys,
+    picks_a_member,
     produced_keys,
 )
 from app.settings.form.responses.styles import empty_value, format_value
 from app.settings.form.responses.transforms import transform
 
 SILENT = ("intro", "review")
-EMOJI_PREFIX = re.compile(r"^(?:[\U0001F000-\U0001FAFF☀-➿⬀-⯿️‍])+\s*")
+BOOKKEEPING = (
+    "_id",
+    "guild_id",
+    "enabled",
+    "created_at",
+    "updated_at",
+    "schema_version",
+)
+EMOJI_PREFIX = re.compile(
+    r"^(?:[\U0001F000-\U0001FAFF\u2190-\u21FF\u2300-\u23FF\u25A0-\u27BF"
+    r"\u2B00-\u2BFF\uFE0F\u200D])+\s*"
+)
 
 
 @dataclass(frozen=True)
@@ -295,12 +306,21 @@ class PanelRow:
     edit_label: str | None = None
     group_order: int = 0
     group_screen: bool = False
+    group_footer: str = ""
+    composition: CompositionStep | None = None
 
 
-def _step_titles(steps: Sequence[Step], locale: str) -> dict[str, str]:
+def step_title(step: Step, locale: str, scope: Scope | None = None) -> str:
+    """The step title, with its `title_when` variant chosen for the scope."""
+    return chosen_text(step.title, step.title_when, scope).get(locale)
+
+
+def _step_titles(
+    steps: Sequence[Step], locale: str, scope: Scope | None = None
+) -> dict[str, str]:
     """Step key to title for every step the edit picker lists."""
     return {
-        step.key: step.title.get(locale)
+        step.key: step_title(step, locale, scope)
         for step in steps
         if not step.hidden and step.kind not in SILENT
     }
@@ -352,7 +372,9 @@ def icons(steps: Sequence[Step]) -> dict[str, str]:
 def _declared_icons(step: Step) -> list[tuple[str | None, str | None]]:
     declared: list[tuple[str | None, str | None]] = []
     if isinstance(step, CardStep):
+        declared += [(field.key, field.icon) for field in step.fields]
         for section in step.sections:
+            declared += [(select.key, select.icon) for select in section.picks()]
             declared += [(key, section.icon) for key in owned_keys(section)]
             declared.append((section.key, section.icon))
     if isinstance(step, MultiPickStep):
@@ -373,7 +395,7 @@ def groups(
         if step.hidden or step.kind in SILENT:
             continue
         header = step.header if isinstance(step, CardStep) else None
-        title = header.title.get(locale) if header else step.title.get(locale)
+        title = header.title.get(locale) if header else step_title(step, locale, scope)
         group = {
             "group": step.key,
             "group_title": title,
@@ -391,30 +413,30 @@ def groups(
 
 
 def _ref_title(ref: PanelGroupRef, locale: str, scope: Scope | None) -> str | None:
-    """The heading a group declares, with its active variant chosen."""
-    title = ref.title
-    for variant in ref.title_when:
-        if scope is not None and evaluate(variant.when, scope):
-            title = variant.text
-            break
+    title = chosen_text(ref.title, ref.title_when, scope)
     return title.get(locale) if title else None
+
+
+Heading = tuple[str | None, str | None, str]
 
 
 def _declared_headings(
     steps: Sequence[Step], locale: str, scope: Scope | None
-) -> dict[str, tuple[str | None, str | None]]:
-    """Group key to its heading and emoji, from every ref that names it."""
-    found: dict[str, tuple[str | None, str | None]] = {}
+) -> dict[str, Heading]:
+    """Group key to its heading, emoji and footer label, from every ref naming it."""
+    found: dict[str, Heading] = {}
     for step in steps:
         refs = [step.panel_group] if step.panel_group else []
         if isinstance(step, CardStep):
             refs += [field.panel_group for field in step.fields if field.panel_group]
 
         for ref in refs:
-            title, emoji = found.get(ref.key, (None, None))
+            title, emoji, footer = found.get(ref.key, (None, None, ""))
+            entry = ref.label.get(locale) if ref.entry == "footer" and ref.label else ""
             found[ref.key] = (
                 title or _ref_title(ref, locale, scope),
                 emoji or ref.emoji,
+                footer or entry,
             )
     return found
 
@@ -422,7 +444,7 @@ def _declared_headings(
 def _declared_group(
     step: Step,
     key: str,
-    headings: Mapping[str, tuple[str | None, str | None]],
+    headings: Mapping[str, Heading],
 ) -> dict[str, Any] | None:
     ref = step.panel_group
     if isinstance(step, CardStep):
@@ -430,7 +452,7 @@ def _declared_group(
         ref = (field.panel_group if field else None) or ref
     if ref is None:
         return None
-    title, emoji = headings.get(ref.key, (None, None))
+    title, emoji, footer = headings.get(ref.key, (None, None, ""))
     return {
         "group": ref.key,
         "group_title": title,
@@ -438,6 +460,7 @@ def _declared_group(
         "declared": "1",
         "order": ref.order,
         "own_screen": ref.own_screen,
+        "footer": footer,
     }
 
 
@@ -491,25 +514,33 @@ def _edit_labels(steps: Sequence[Step], locale: str) -> dict[str, str]:
     return found
 
 
-def _composition_items(
+def titled_items(
     composition: CompositionStep, items: Sequence[Any], locale: str
 ) -> list[dict[str, Any]]:
+    """Stored items with each entry titled, iconed and styled as the form declares."""
     titles: dict[str, str] = {}
     item_icons = icons(composition.steps)
+    styles = {
+        key: style for key, (_, style) in _nested(composition.steps, locale).items()
+    }
     for step in composition.steps:
         if isinstance(step, CardStep):
             titles.update({field.key: field.label.get(locale) for field in step.fields})
         if step.kind not in SILENT:
             titles.setdefault(step.key, step.title.get(locale))
+            styles.setdefault(step.key, step.style)
     rows = []
     for item in items:
         row: dict[str, Any] = {}
         for key, entry in dict(item).items():
+            if key in BOOKKEEPING:
+                continue
             if isinstance(entry, Mapping):
                 row[key] = {
                     **entry,
                     "title": titles.get(key) or entry.get("title") or key,
                     "icon": item_icons.get(key),
+                    "style": styles.get(key) or entry.get("style"),
                 }
             else:
                 row[key] = {
@@ -521,16 +552,28 @@ def _composition_items(
     return rows
 
 
-def _named_items(composition: CompositionStep, items: Sequence[Any]) -> str:
-    """The items named by what makes each unique, for a one line summary."""
-    unique = composition.items.unique_by or ""
-    names = []
-    for item in items:
-        entry = dict(item).get(unique)
-        value = entry.get("value") if isinstance(entry, Mapping) else entry
-        if value:
-            names.append(f"`{value}`")
-    return ", ".join(names)
+def item_name(
+    composition: CompositionStep,
+    item: Mapping[str, Any],
+    index: int,
+    locale: str,
+    styled: bool = False,
+) -> str:
+    """What an admin knows a stored item by: its name, or its place in the list."""
+    key = composition.items.unique_by
+    entry = item.get(key) if key else None
+    value = entry.get("value") if isinstance(entry, Mapping) else entry
+    if value in (None, ""):
+        return f"{composition.title.get(locale)} #{index + 1}"
+    if not styled:
+        return str(value)
+    style = entry.get("style") if isinstance(entry, Mapping) else None
+    return str(format_value(value, style, locale)).strip()
+
+
+def kept_items(composition: CompositionStep) -> int:
+    """How many items a removal must leave: one when the feature needs a list."""
+    return 1 if composition.required else 0
 
 
 def _has_value(value: Any) -> bool:
@@ -542,15 +585,11 @@ def panel_rows(
     definition: FormDefinition,
     document: Mapping[str, Any],
     locale: str,
-    expanded: bool = False,
 ) -> tuple[PanelRow, ...]:
-    """The saved settings as panel rows, in document order.
-
-    A list under a heading that opens a screen of its own reads as its items'
-    names on the panel, and in full on that screen.
-    """
+    """The saved settings as panel rows, in document order."""
     steps = definition.steps
-    titles = _step_titles(steps, locale)
+    values = {key: unwrap(value) for key, value in document.items()}
+    titles = _step_titles(steps, locale, Scope(values))
     nested = _nested(steps, locale)
     labels = _labels(steps, locale)
     icon_by_key = icons(steps)
@@ -563,7 +602,6 @@ def panel_rows(
         for field in step.fields
         if field.hidden
     }
-    values = {key: unwrap(value) for key, value in document.items()}
     group_by_key = groups(steps, locale, Scope(values))
     rows: list[PanelRow] = []
 
@@ -584,21 +622,16 @@ def panel_rows(
             value = labels[key].get(value, value)
         style = nested[key][1] if key in nested else None
         per_item = False
+        listing = None
         group = group_by_key.get(key, {})
         if isinstance(value, Mapping) and value.get("style") == "composition":
-            composition = definition.composition
+            listing = definition.composition
             items = value.get("values") or []
-            if composition is not None and group.get("own_screen") and not expanded:
-                value = _named_items(composition, items)
-                style = None
-            else:
-                value = (
-                    _composition_items(composition, items, locale)
-                    if composition
-                    else items
-                )
-                style = "composition"
-                per_item = bool(composition and composition.edit_by_item)
+            value = titled_items(listing, items, locale) if listing else items
+            style = "composition"
+            per_item = bool(listing and listing.edit_by_item)
+        owner = _producer(steps, key)
+        declared = owner[0].key if owner and group.get("declared") else None
         rows.append(
             PanelRow(
                 key=key,
@@ -610,12 +643,14 @@ def panel_rows(
                 group_title=group.get("group_title"),
                 group_icon=group.get("group_icon"),
                 hidden=key in hidden,
-                target=targets.get(key) or (key if group.get("declared") else None),
+                target=targets.get(key) or declared,
                 per_item=per_item,
                 group_declared=bool(group.get("declared")),
                 edit_label=edit_labels.get(key),
                 group_order=int(group.get("order") or 0),
                 group_screen=bool(group.get("own_screen")),
+                group_footer=str(group.get("footer") or ""),
+                composition=listing,
             )
         )
     return tuple(rows)
@@ -641,6 +676,8 @@ def placed(
                 group_icon=group.get("group_icon"),
                 group_order=int(group.get("order") or 0),
                 group_screen=bool(group.get("own_screen")),
+                group_footer=str(group.get("footer") or ""),
+                group_declared=bool(group.get("declared")),
             )
         )
     return tuple(result)
@@ -657,16 +694,23 @@ def labelled(title: str, value: str, separator: str = " ") -> str:
     return f"**{title}{punctuation}**{separator}{value}"
 
 
+def _opens_a_list(value: str) -> bool:
+    """True for a list that starts on a line of its own: a code block never does."""
+    return value.startswith("\n") and not value.lstrip("\n").startswith("```")
+
+
 def item_lines(item: Mapping[str, Any], locale: str) -> list[str]:
     """One line per shown entry of a stored list item, led by its icon."""
     lines = []
     for entry in item.values():
         if not isinstance(entry, Mapping) or entry.get("hidden"):
             continue
-        value = format_value(
-            entry.get("value"), entry.get("style"), locale
-        ) or empty_value(locale)
-        line = labelled(entry.get("title") or "", str(value).strip())
+        value = str(
+            format_value(entry.get("value"), entry.get("style"), locale)
+            or empty_value(locale)
+        )
+        separator = "\n" if _opens_a_list(value) else " "
+        line = labelled(entry.get("title") or "", value.strip(), separator)
         lines.append(f"{entry.get('icon') or Emojis.FRISBEE_EMOJI} {line}")
     return lines
 
@@ -681,19 +725,156 @@ def _empty_list(members: Sequence[PanelRow]) -> bool:
     return len(members) == 1 and _empty_composition(members[0])
 
 
-def _item_groups(row: PanelRow, locale: str) -> list[PanelGroup]:
-    items = list(row.value or [])
-    if not items:
-        empty = empty_value(locale)
-        line = f"{row.icon or Emojis.FRISBEE_EMOJI} {labelled(row.title, empty)}"
-        return [PanelGroup(None, "", (line,))]
-    groups_of_items = []
+def _list_title(row: PanelRow, value: str = "") -> str:
+    return f"{row.icon or Emojis.FRISBEE_EMOJI} {labelled(row.title, value)}".rstrip()
 
-    for index, item in enumerate(items):
-        heading = f"### {row.title} #{index + 1}"
-        lines = (heading, *item_lines(item, locale))
-        groups_of_items.append(PanelGroup(f"{row.key}${index}", heading, lines))
-    return groups_of_items
+
+def _list_button(
+    key: str, action: str, emoji: str, locale: str, disabled: bool = False
+) -> Button:
+    return Button(
+        text(f"buttons.{key}.label", locale),
+        action,
+        "secondary",
+        emoji,
+        disabled,
+        text(f"buttons.{key}.desc", locale),
+    )
+
+
+def list_adder(
+    composition: CompositionStep, count: int, action: str, locale: str
+) -> Button:
+    """Add beside a list's title, off once the list holds its most items."""
+    full = count >= composition.items.max
+    return _list_button("add", action, "➕", locale, full)
+
+
+def list_bullets(
+    composition: CompositionStep, items: Sequence[Mapping[str, Any]], locale: str
+) -> tuple[str, ...]:
+    """The items of a list as bullets of their names."""
+    return tuple(
+        f"- {item_name(composition, item, index, locale, styled=True)}"
+        for index, item in enumerate(items)
+    )
+
+
+def list_remover(
+    composition: CompositionStep, count: int, locale: str
+) -> tuple[Button, ...]:
+    """Remove under a list, while it holds more items than it must keep."""
+    if count <= kept_items(composition):
+        return ()
+    return (_list_button("remove", f"remove:{composition.key}", "🗑️", locale),)
+
+
+def _title_value(composition: CompositionStep, count: int, locale: str) -> str:
+    if composition.title_count is None:
+        return "" if count else empty_value(locale)
+
+    shown = composition.title_count.get(locale).replace("$count", str(count))
+    return shown.replace("$max", str(composition.items.max))
+
+
+def list_head(row: PanelRow, composition: CompositionStep, locale: str) -> PanelPart:
+    """The title of a list with its count beside it and Add, off once full."""
+    count = len(row.value or [])
+    add = list_adder(composition, count, f"add:{row.key}", locale)
+    return PanelPart(
+        row.key,
+        (_list_title(row, _title_value(composition, count, locale)),),
+        add.label,
+        add.action,
+        add.emoji or "",
+        disabled=add.disabled,
+        description=add.description,
+    )
+
+
+def _list_part(row: PanelRow, composition: CompositionStep, locale: str) -> PanelPart:
+    items = list(row.value or [])
+    head = list_head(row, composition, locale)
+    return replace(
+        head,
+        body=list_bullets(composition, items, locale),
+        actions=list_remover(composition, len(items), locale),
+    )
+
+
+def _field_list(row: PanelRow, value: str, locale: str) -> PanelPart:
+    body = tuple(line for line in value.split("\n") if line)
+    emoji = _edit_emoji(row.edit_label, locale)
+    return PanelPart(
+        row.target or row.key, (_list_title(row),), row.edit_label, "", emoji, body
+    )
+
+
+def _edit_emoji(label: str | None, locale: str) -> str:
+    return "➕" if label == text("buttons.add.label", locale) else "✏️"
+
+
+def _previews_items(composition: CompositionStep) -> bool:
+    return any(
+        isinstance(step, CardStep) and step.preview for step in composition.steps
+    )
+
+
+def item_heading(title: str, index: int) -> str:
+    """The heading of one item's block: the list's title and the item's number."""
+    return f"### {title} #{index + 1}"
+
+
+def _item_actions(
+    composition: CompositionStep, target: str, locale: str, managed: bool
+) -> tuple[Button, ...]:
+    actions = [Button(text("buttons.edit.label", locale), f"edit:{target}", emoji="✏️")]
+    if _previews_items(composition):
+        preview = text("buttons.preview.label", locale)
+        actions.append(Button(preview, f"aside:preview:{target}", emoji="👁️"))
+    if managed and composition.items.remove_each:
+        remove = text("buttons.remove.label", locale)
+        actions.append(Button(remove, f"remove_this:{target}", "danger", "🗑️"))
+    return tuple(actions)
+
+
+def item_groups(
+    row: PanelRow,
+    locale: str,
+    managed: bool,
+    limit: int | None = None,
+    headed: bool = True,
+) -> list[PanelGroup]:
+    """A list's title, then one block per item (the first `limit`), then Remove."""
+    composition = row.composition
+    assert composition is not None
+    items = list(row.value or [])
+    shown = items[:limit]
+    blocks = [PanelGroup(None, "", (), (list_head(row, composition, locale),))]
+
+    for index, item in enumerate(shown):
+        target = f"{row.key}${index}"
+        heading = item_heading(row.title, index) if headed else ""
+        lines = item_lines(item, locale)
+        blocks.append(
+            PanelGroup(
+                None,
+                heading,
+                (heading, *lines) if headed else tuple(lines),
+                actions=_item_actions(composition, target, locale, managed),
+                keys=(target,),
+            )
+        )
+    if len(items) > len(shown):
+        hidden = str(len(items) - len(shown))
+        more = text("commands.resume.more", locale).replace("$count", hidden)
+        blocks.append(PanelGroup(None, "", (more,)))
+
+    each = managed and composition.items.remove_each
+    remover = () if each else list_remover(composition, len(items), locale)
+    if remover:
+        blocks.append(PanelGroup(None, "", (), actions=remover))
+    return blocks
 
 
 def _composition_lines(values: Sequence[Mapping[str, Any]], locale: str) -> list[str]:
@@ -715,7 +896,7 @@ def row_value(row: PanelRow, locale: str) -> tuple[str, bool]:
     """(text, is_block); a value is a block only when it is a list of items."""
     values, style = row.value, row.style
     if isinstance(values, Mapping):
-        style = values.get("style")
+        style = style or values.get("style")
         values = values.get("values", "-")
     empty = empty_value(locale)
     if isinstance(values, (list, tuple)) and not values and style != "composition":
@@ -727,6 +908,8 @@ def row_value(row: PanelRow, locale: str) -> tuple[str, bool]:
         return "\n".join(lines), True
     if isinstance(values, (list, tuple)) and style in ("bullet", "numbered", "code"):
         return format_value(list(values), "bullet", locale).lstrip("\n"), True
+    if isinstance(values, (list, tuple)) and style == "code-block":
+        return format_value(list(values), style, locale).lstrip("\n"), True
     formatted = str(format_value(values, style, locale) or empty)
     if formatted.startswith("\n"):
         return formatted.lstrip("\n"), True
@@ -762,72 +945,144 @@ def _buckets(rows: Sequence[PanelRow]) -> list[Bucket]:
 
 def _placed_alone(row: PanelRow) -> bool:
     """True when the row is a plain line, with no button of its own beside it."""
-    if not row.target:
-        return True
-    return _empty_composition(row) and not row.group_declared
+    return not row.target
 
 
-def _add_part(parts: dict[str, PanelPart], row: PanelRow, line: str) -> None:
-    """Put the line under the row's own button; an empty list offers Add."""
+def _add_part(
+    parts: dict[str, PanelPart], row: PanelRow, line: str, locale: str
+) -> None:
+    """Put the line under the row's own button, beside the rows sharing it."""
     target = row.target or ""
     found = parts.get(target)
     if found is not None:
         parts[target] = replace(found, lines=(*found.lines, line))
         return
-    adds = _empty_composition(row)
-    parts[target] = PanelPart(
-        target,
-        (line,),
-        row.edit_label,
-        f"add:{target}" if adds else "",
-        "➕" if adds else "✏️",
+    emoji = _edit_emoji(row.edit_label, locale)
+    parts[target] = PanelPart(target, (line,), row.edit_label, "", emoji)
+
+
+def _holds_values(row: PanelRow) -> bool:
+    value = unwrap(row.value)
+    return isinstance(value, (list, tuple)) and row.style in (
+        "bullet",
+        "numbered",
+        "code",
     )
 
 
+def _listed(row: PanelRow) -> bool:
+    return _holds_values(row) and bool(unwrap(row.value))
+
+
+Drawn = list[tuple[PanelRow, str, bool]]
+
+
+def _heading(title: str | None, drawn: Drawn, panel_title: str) -> str:
+    first = drawn[0][0]
+    alone = len(drawn) == 1 and first.composition is not None
+    alone = alone and _same_text(title or "", first.title)
+    several = len(drawn) > 1 or any(is_block for _, _, is_block in drawn)
+    if several and not alone and title and not _same_text(title, panel_title):
+        return f"### {title}"
+    return ""
+
+
+def _laid_out(
+    drawn: Drawn, title: str | None, heading: str, locale: str
+) -> tuple[list[str], dict[str, PanelPart]]:
+    lines = [heading] if heading else []
+    parts: dict[str, PanelPart] = {}
+    apart = bool(drawn[0][0].group_screen)
+    targets = [row.target for row, _, _ in drawn]
+    for row, value, is_block in drawn:
+        if row.composition is not None:
+            parts[f"list:{row.key}"] = _list_part(row, row.composition, locale)
+            continue
+        if heading and len(drawn) == 1 and row.title == title:
+            lines.append(value)
+            continue
+        line = labelled(row.title, value, "\n" if is_block else " ")
+        line = f"{row.icon or Emojis.FRISBEE_EMOJI} {line}"
+        if apart or _placed_alone(row):
+            lines.append(line)
+        elif is_block and _listed(row) and targets.count(row.target) == 1:
+            parts[row.target or row.key] = _field_list(row, value, locale)
+        else:
+            _add_part(parts, row, line, locale)
+    return lines, parts
+
+
+def _one_edit(
+    members: list[PanelRow],
+    lines: list[str],
+    heading: str,
+    parts: dict[str, PanelPart],
+) -> bool:
+    if not members[0].group_declared or members[0].group_screen or len(parts) != 1:
+        return False
+    part = next(iter(parts.values()))
+    plain = not part.label and not part.action and "/" not in part.target
+    return plain and all(line == heading for line in lines)
+
+
+def _bucket(
+    key: str | None,
+    title: str | None,
+    members: list[PanelRow],
+    panel_title: str,
+    locale: str,
+    empty_lists: frozenset[str],
+) -> PanelGroup:
+    keys = tuple(row.key for row in members)
+    drawn = [(row, *row_value(row, locale)) for row in members]
+    if _empty_list(members) or members[0].group_declared or set(keys) <= empty_lists:
+        key = None
+    heading = _heading(title, drawn, panel_title)
+    lines, parts = _laid_out(drawn, title, heading, locale)
+    lists = any(part.target in keys and part.action for part in parts.values())
+
+    if not lists and _one_edit(members, lines, heading, parts):
+        part = next(iter(parts.values()))
+        return PanelGroup(part.target, heading, (*lines, *part.lines), keys=keys)
+    if members[0].group_screen:
+        screen = f"group:{members[0].group}"
+        if not lists:
+            return PanelGroup(screen, heading, tuple(lines), keys=keys)
+        own = PanelPart(screen, tuple(lines))
+        return PanelGroup(None, heading, (), (own, *parts.values()), keys=keys)
+    if lists and key and any(line != heading for line in lines):
+        parts = {key: PanelPart(key, tuple(lines)), **parts}
+        lines = []
+    if lists:
+        key = None
+    return PanelGroup(key, heading, tuple(lines), tuple(parts.values()), keys=keys)
+
+
 def panel_groups(
-    rows: Sequence[PanelRow], panel_title: str, locale: str
+    rows: Sequence[PanelRow],
+    panel_title: str,
+    locale: str,
+    empty_lists: frozenset[str] = frozenset(),
+    managed: bool = False,
 ) -> tuple[PanelGroup, ...]:
-    """Rows bucketed by the step that owns them, each rendered as its lines."""
-    result = []
+    """Rows bucketed by the step that owns them, an empty list's rows with no Edit."""
+    result: list[PanelGroup] = []
     for key, title, members in _buckets(rows):
         if len(members) == 1 and members[0].per_item:
-            result.extend(_item_groups(members[0], locale))
+            result.extend(item_groups(members[0], locale, managed))
             continue
-        values = [(row, *row_value(row, locale)) for row in members]
-        if _empty_list(members) or members[0].group_declared:
-            key = None
-        several = len(members) > 1 or any(is_block for _, _, is_block in values)
-        heading = ""
-        if several and title and not _same_text(title, panel_title):
-            heading = f"### {title}"
-        lines = [heading] if heading else []
-        parts: dict[str, PanelPart] = {}
-        apart = bool(members[0].group_screen)
-        for row, value, is_block in values:
-            if heading and len(members) == 1 and row.title == title:
-                lines.append(value)
-                continue
-            line = labelled(row.title, value, "\n" if is_block else " ")
-            line = f"{row.icon or Emojis.FRISBEE_EMOJI} {line}"
-            if apart or _placed_alone(row):
-                lines.append(line)
-                continue
-            _add_part(parts, row, line)
-        if apart:
-            result.append(
-                PanelGroup(f"group:{members[0].group}", heading, tuple(lines))
-            )
-            continue
-        result.append(PanelGroup(key, heading, tuple(lines), tuple(parts.values())))
+        result.append(_bucket(key, title, members, panel_title, locale, empty_lists))
     return tuple(result)
 
 
-def covers_its_rows(group: PanelGroup) -> bool:
-    """True when every line of the group has a button of its own beside it."""
+def covers_its_rows(group: PanelGroup, buttons: frozenset[str] = frozenset()) -> bool:
+    """True when every line of the group has a button that reaches it."""
     if group.key:
         return True
     body = [line for line in group.lines if line != group.heading]
-    return bool(group.parts) and not body
+    if not body:
+        return bool(group.parts or group.actions or group.choices)
+    return bool(group.keys) and all(_reaches(key, set(buttons)) for key in group.keys)
 
 
 def _reaches(target: str, buttons: set[str]) -> bool:
@@ -848,27 +1103,48 @@ def _all_shown(key: str, document: Mapping[str, Any]) -> bool:
     return len(stored.get("values") or []) <= view_constants.GROUP_ITEMS_SHOWN
 
 
+def _opened_by(definition: FormDefinition, row: PanelRow) -> set[str]:
+    owner = _producer(definition.steps, row.key)
+    opened = {row.key, row.target or ""}
+    if row.target is None and owner is not None:
+        opened.add(owner[0].key)
+    return opened - {""}
+
+
+def _buttons(groups: Sequence[PanelGroup]) -> set[str]:
+    found = {group.key for group in groups if group.key}
+    found |= {
+        part.target for group in groups for part in group.parts if not part.action
+    }
+    found |= {
+        button.action.split(":", 1)[1]
+        for group in groups
+        for button in group.actions
+        if button.action.startswith("edit:")
+    }
+    return found
+
+
 def every_setting_has_a_button(
     definition: FormDefinition,
     document: Mapping[str, Any],
     groups: Sequence[PanelGroup],
     locale: str,
     rows: Sequence[PanelRow] = (),
+    reached: Sequence[str] = (),
 ) -> bool:
-    """True when nothing the edit picker would list is left without a button."""
-    buttons = {group.key for group in groups if group.key}
-    buttons |= {part.target for group in groups for part in group.parts}
+    """True when nothing the edit picker lists is left without a button to reach it."""
+    buttons = _buttons(groups) | set(reached)
     apart = {
-        str(group.key).split(":", 1)[1]
-        for group in groups
-        if group.key and str(group.key).startswith("group:")
+        target.split(":", 1)[1] for target in buttons if target.startswith("group:")
     }
-    buttons |= {
-        row.key for row in rows if row.group in apart and _all_shown(row.key, document)
-    }
+    for row in rows:
+        if row.group in apart and _all_shown(row.key, document):
+            buttons |= _opened_by(definition, row)
+    covered = frozenset(buttons)
     return (
         bool(groups)
-        and all(covers_its_rows(group) for group in groups)
+        and all(covers_its_rows(group, covered) for group in groups)
         and all(
             _reaches(option.value, buttons)
             for option in edit_options(definition, document, locale)
@@ -880,11 +1156,7 @@ def uses_member_picker(composition: CompositionStep | None) -> bool:
     """True when the composition is keyed by a member chosen on a select."""
     if composition is None or not composition.items.unique_by:
         return False
-    step = next(
-        (step for step in composition.steps if step.key == composition.items.unique_by),
-        None,
-    )
-    return isinstance(step, UserPickStep)
+    return picks_a_member(composition.steps, composition.items.unique_by)
 
 
 def edit_options(
@@ -895,9 +1167,11 @@ def edit_options(
     options: list[ChoiceOption] = []
     composition = definition.composition
 
-    for key, title in _step_titles(definition.steps, locale).items():
+    for key, title in _step_titles(definition.steps, locale, Scope(values)).items():
         step = definition.step(key)
         if not evaluate(step.when, Scope(values)) and not _has_value(document.get(key)):
+            continue
+        if not step.in_setup and key not in document:
             continue
         if composition is not None and key == composition.key:
             if uses_member_picker(composition):
@@ -907,11 +1181,10 @@ def edit_options(
             items = stored.get("values") or [] if isinstance(stored, Mapping) else []
 
             for index, item in enumerate(items):
-                unique = composition.items.unique_by
-                detail = str(unwrap(item.get(unique)) or "") if unique else ""
+                name = item_name(composition, item, index, locale)
                 options.append(
                     ChoiceOption(
-                        f"{title} #{index + 1}", f"{key}${index}", description=detail
+                        f"{title} #{index + 1}", f"{key}${index}", description=name
                     )
                 )
             continue
@@ -926,12 +1199,16 @@ def remove_options(
     composition = definition.composition
     if composition is None:
         return ()
-    title = _step_titles(definition.steps, locale).get(composition.key, composition.key)
+    values = {key: unwrap(value) for key, value in document.items()}
+    titles = _step_titles(definition.steps, locale, Scope(values))
+    title = titles.get(composition.key, composition.key)
     if uses_member_picker(composition):
         return (ChoiceOption(title, composition.key),)
     stored = document.get(composition.key)
     items = stored.get("values") or [] if isinstance(stored, Mapping) else []
     return tuple(
-        ChoiceOption(f"{title} #{index + 1}", f"{composition.key}${index}")
-        for index in range(len(items))
+        ChoiceOption(
+            item_name(composition, item, index, locale), f"{composition.key}${index}"
+        )
+        for index, item in enumerate(items)
     )

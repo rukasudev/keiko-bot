@@ -12,15 +12,11 @@ from typing import Any
 
 from app.settings.form.form_state import Answer
 from app.settings.form.form_yaml import Step
-from app.settings.form.responses.summary import ResponseView, responses, unwrap
-
-BOOKKEEPING = (
-    "_id",
-    "guild_id",
-    "enabled",
-    "created_at",
-    "updated_at",
-    "schema_version",
+from app.settings.form.responses.summary import (
+    BOOKKEEPING,
+    ResponseView,
+    responses,
+    unwrap,
 )
 
 
@@ -28,6 +24,8 @@ def item_answers(item: Mapping[str, Any]) -> dict[str, Answer]:
     """A stored composition item as the answers of its child session."""
     answers: dict[str, Answer] = {}
     for key, entry in item.items():
+        if key in BOOKKEEPING:
+            continue
         if isinstance(entry, Mapping) and "value" in entry:
             answers[key] = Answer(entry.get("_raw_value", entry["value"]))
         else:

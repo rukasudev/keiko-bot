@@ -8,22 +8,23 @@ and every final state takes the controls off the message.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import Awaitable, Callable, Mapping
 from dataclasses import dataclass, field
-from typing import Any, cast
+from typing import Any, Literal, cast
 
 import discord
 
 from app import logger
 from app.components.embed import base_embed, response_error_embed, with_footer
-from app.constants import DiscordLimits, KeikoIcons, Style
+from app.constants import DiscordLimits, Style
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
 from app.services.utils import parse_command_event_description
 from app.settings.discord import views
 from app.settings.form.components import Screen
-from app.settings.form.copy import text
+from app.settings.form.copy import error_message, text
 from app.settings.form.effects import (
     Ack,
     Commit,
@@ -34,16 +35,86 @@ from app.settings.form.effects import (
     Notice,
     OpenChild,
     OpenModal,
+    OpenPanel,
     Render,
     ResumeChild,
     ResumeParent,
     RunAside,
     ShowError,
 )
-from app.settings.form.form import panel_embed
 from app.settings.form.form_state import FormSession
 
 EDITS = ("edit", "edit_item")
+
+
+@dataclass(frozen=True)
+class Hold:
+    """The controls a click disabled on its own message while the adapter waits."""
+
+    view: Any = None
+    items: tuple[Any, ...] = ()
+
+
+Answered = tuple[Literal["in_time", "deferred", "failed"], BaseException | None]
+
+
+class Answering:
+    """The one first answer of an interaction, shared by its handler and its clock."""
+
+    def __init__(self, interaction: discord.Interaction) -> None:
+        self.interaction = interaction
+        self.clock: asyncio.Task[Answered] | None = None
+        self.held = Hold()
+        self._lock = asyncio.Lock()
+
+    async def first(self, answer: Callable[[], Awaitable[Any]]) -> bool:
+        """Give `answer` as the first answer unless one was given; True when it was."""
+        async with self._lock:
+            # discord.py sets is_done() only once the answer's round trip returns.
+            if self.interaction.response.is_done():
+                return False
+            await answer()
+            return True
+
+    def start_clock(self) -> None:
+        """Defer the interaction when nothing answered it before Discord's deadline."""
+        self.clock = asyncio.ensure_future(self._defer_if_late())
+
+    async def hand_over(self) -> None:
+        """Stop the clock, for a handler that gives the first answer itself."""
+        async with self._lock:
+            self.stop()
+
+    def stop(self) -> None:
+        """Stop the clock."""
+        if self.clock is not None:
+            self.clock.cancel()
+
+    def outcome(self) -> Answered:
+        """How the interaction was answered: in time, deferred by the clock, failed."""
+        clock = self.clock
+        if (
+            clock is not None
+            and clock.done()
+            and not clock.cancelled()
+            and clock.exception() is None
+        ):
+            return clock.result()
+        return "in_time", None
+
+    async def _defer_if_late(self) -> Answered:
+        await asyncio.sleep(view_constants.DEFER_AFTER_SECONDS)
+        try:
+            deferred = await self.first(
+                lambda: self.interaction.response.defer(ephemeral=True)
+            )
+        except discord.HTTPException as error:
+            logger.warn(
+                f"Could not answer in time: {type(error).__name__}: {error}",
+                log_type=logconstants.COMMAND_WARN_TYPE,
+            )
+            return "failed", error
+        return ("deferred", None) if deferred else ("in_time", None)
 
 
 @dataclass
@@ -80,7 +151,7 @@ class EffectFailed(Exception):
         self.error = error
 
 
-AsideRunner = Callable[[discord.Interaction, str, FormSession], Awaitable[None]]
+AsideRunner = Callable[[discord.Interaction, str, FormSession, str], Awaitable[None]]
 CommitRunner = Callable[
     [discord.Interaction, str, Mapping[str, Any], FormSession], Awaitable[None]
 ]
@@ -100,6 +171,7 @@ class Executor:
     commit: CommitRunner
     aside: AsideRunner
     continue_with: Continue
+    answering: Answering
     outcomes: list[Outcome] = field(default_factory=list)
 
     async def run(self, effects: tuple[Effect, ...]) -> None:
@@ -125,17 +197,18 @@ class Executor:
                 raise
 
     async def _execute(self, effect: Effect) -> None:
-        if isinstance(effect, (OpenChild, ResumeParent, ResumeChild)):
+        if isinstance(effect, (OpenChild, OpenPanel, ResumeParent, ResumeChild)):
             await self.continue_with(self.interaction, self.session, effect)
         elif isinstance(effect, Commit):
-            ends_in_a_message = effect.kind in EDITS and not effect.quiet
-            if ends_in_a_message and not self.response.is_done():
-                await self.response.defer(thinking=True, ephemeral=True)
+            if effect.kind in EDITS and not effect.quiet:
+                await self.answering.first(
+                    lambda: self.response.defer(thinking=True, ephemeral=True)
+                )
             await self.commit(
                 self.interaction, effect.kind, effect.payload, self.session
             )
         elif isinstance(effect, RunAside):
-            await self.aside(self.interaction, effect.name, self.session)
+            await self.aside(self.interaction, effect.name, self.session, effect.target)
         else:
             await self._draw(effect)
 
@@ -172,16 +245,16 @@ class Executor:
 
     async def ack(self) -> None:
         """Acknowledge without changing the screen."""
-        if not self.response.is_done():
-            await self.response.defer()
+        await self.answering.first(self.response.defer)
 
     def _on_own_message(self) -> bool:
         message = self.interaction.message
         return message is not None and message.id == self.surface.message_id
 
     async def _send(self, **payload: Any) -> Any:
-        if not self.response.is_done():
-            await self.response.send_message(ephemeral=True, **payload)
+        if await self.answering.first(
+            lambda: self.response.send_message(ephemeral=True, **payload)
+        ):
             return await self.interaction.original_response()
 
         delete_after = payload.pop("delete_after", None)
@@ -191,8 +264,9 @@ class Executor:
         return message
 
     async def _edit(self, **payload: Any) -> None:
-        if self._on_own_message() and not self.response.is_done():
-            await self.response.edit_message(**payload)
+        if self._on_own_message() and await self.answering.first(
+            lambda: self.response.edit_message(**payload)
+        ):
             return
         await self.ack()
         await self.followup.edit_message(self.surface.message_id, **payload)
@@ -223,13 +297,11 @@ class Executor:
 
     def _payload(self, screen: Screen) -> dict[str, Any]:
         if screen.is_layout:
-            layout = views.layout_of(screen, self._ids(), self.dispatcher)
-            self.surface.view, self.surface.embed = layout, None
-            return {"view": layout}
-        embed = views.embed_of(screen)
-        view = views.view_of(screen, self._ids(), self.dispatcher)
-        self.surface.view, self.surface.embed = view, embed
-        return {"embed": embed, "view": view}
+            return {"view": views.layout_of(screen, self._ids(), self.dispatcher)}
+        return {
+            "embed": views.embed_of(screen),
+            "view": views.view_of(screen, self._ids(), self.dispatcher),
+        }
 
     async def render(self, screen: Screen) -> None:
         """First send, then edit in place, and replace when the flavour changes."""
@@ -240,30 +312,26 @@ class Executor:
             await self._replace(**payload)
         else:
             await self._edit(**payload)
+
+        self.surface.view, self.surface.embed = payload["view"], payload.get("embed")
         self.surface.is_layout = screen.is_layout
         self.surface.replace_next = False
 
     async def open_modal(self, effect: OpenModal) -> None:
         """Open the modal as the interaction's first answer."""
-        if self.response.is_done():
-            raise EffectFailed(
-                RuntimeError("a modal cannot follow an answered interaction")
-            )
         modal = views.modal_of(
             effect.screen, self._ids(), self.dispatcher, effect.action, effect.arg
         )
-        await self.response.send_modal(modal)
+        if not await self.answering.first(lambda: self.response.send_modal(modal)):
+            raise EffectFailed(
+                RuntimeError("a modal cannot follow an answered interaction")
+            )
 
     async def show_error(self, effect: ShowError) -> None:
         """An ephemeral error, as an embed or a plain sentence."""
         payload: dict[str, Any]
         if effect.plain:
-            key = effect.key if "." in effect.key else f"errors.{effect.key}.message"
-            content = text(key, self.locale)
-
-            for name, value in effect.args.items():
-                content = content.replace("{" + name + "}", value)
-            payload = {"content": content}
+            payload = {"content": error_message(effect.key, effect.args, self.locale)}
         else:
             payload = {"embed": response_error_embed(effect.key, self.locale)}
         if effect.delete_after is not None:
@@ -359,30 +427,9 @@ class Executor:
             embed.title, embed.description = title, description
 
             return self._closed(embed), self.surface.is_layout
-        if kind == "edited":
-            base = panel_embed(self.session_definition(), self.locale)
-            embed = views.embed_of(base)
-            embed.title, embed.description = title, description
-            embed.set_thumbnail(url=KeikoIcons.IMAGE_02)
-
-            return self._closed(embed), True
-        if kind in ("added", "removed"):
-            embed = self.surface.embed or discord.Embed(
-                color=int(Style.BACKGROUND_COLOR, base=16)
-            )
-            embed.clear_fields()
-            embed.set_thumbnail(url=KeikoIcons.IMAGE_02)
-            embed.title, embed.description = title, description
-            return self._closed(embed), self.surface.is_layout
         embed = self._fresh_embed()
         embed.title, embed.description = title, description
         return self._closed(embed), True
-
-    def session_definition(self) -> Any:
-        """The definition the session runs, from the registry."""
-        from app.settings.form.form_yaml import registry
-
-        return registry.get(*self.session.definition)
 
     async def _final(self, embed: discord.Embed, replace: bool) -> None:
         if replace or self.surface.message_id is None:
@@ -395,6 +442,40 @@ class Executor:
     async def _close_with(self, key: str) -> None:
         await self._edit(**closed_payload(self.surface, key, self.locale))
         self.surface.view = None
+
+
+async def hold(surface: Surface, answering: Answering) -> None:
+    """Answer first by disabling the controls of the message clicked, else defer."""
+    interaction = answering.interaction
+    message = interaction.message
+    if message is None or message.id != surface.message_id or surface.view is None:
+        await answering.first(interaction.response.defer)
+        return
+    view = surface.view
+    items = views.disable(view)
+
+    if await answering.first(lambda: interaction.response.edit_message(view=view)):
+        answering.held = Hold(view, items)
+        return
+    views.enable(items)
+
+
+async def release(surface: Surface, answering: Answering) -> None:
+    """Give the controls back when nothing was drawn over the message they disabled."""
+    held = answering.held
+    answering.held = Hold()
+    if not held.items or surface.view is not held.view or surface.message_id is None:
+        return
+    views.enable(held.items)
+    try:
+        await answering.interaction.followup.edit_message(
+            surface.message_id, view=held.view
+        )
+    except discord.HTTPException as error:
+        logger.warn(
+            f"Could not enable a form message again: {type(error).__name__}: {error}",
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
 
 
 def closed_payload(surface: Surface, key: str, locale: str) -> dict[str, Any]:

@@ -1,7 +1,8 @@
 """Every feature module: documents round-trip, commits write what they report."""
 
+import copy
 import os
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from importlib import import_module
 from unittest.mock import AsyncMock, MagicMock
 
@@ -10,7 +11,12 @@ import yaml
 
 from app.constants import Commands, Feature, GuildConstants
 from app.settings.features import feature_for, feature_keys
-from app.settings.features.feature import CommitContext, GenericCogFeature, OpenContext
+from app.settings.features.feature import (
+    CommitContext,
+    GenericCogFeature,
+    ListChanged,
+    OpenContext,
+)
 from app.settings.form.form_state import Answer
 from app.settings.form.form_yaml import DefinitionRegistry, DiskSource
 from app.settings.form.responses.responses import (
@@ -218,6 +224,108 @@ async def test_a_generic_setup_enables_the_feature_and_stores_the_document(deps)
     assert event["event"] == "enabled" and event["user_id"] == "555"
 
 
+def _guild_with(members):
+    from types import SimpleNamespace
+
+    return SimpleNamespace(id=int(GUILD_ID), members=members)
+
+
+async def test_a_default_roles_setup_gives_the_roles_out_after_the_commit(
+    deps, monkeypatch
+):
+    """dr-2: "yes" on the setup's toggle gives the saved roles to who is already
+    in the server, after the commit and without the commit waiting for it."""
+    import asyncio
+    from types import SimpleNamespace
+
+    from app.settings.features import default_roles
+
+    released, given = asyncio.Event(), []
+
+    async def give(document, guild, members):
+        await released.wait()
+        given.append((document["default_roles"], guild, list(members)))
+
+    monkeypatch.setattr(default_roles, "set_default_roles", give)
+    members = [SimpleNamespace(bot=False), SimpleNamespace(bot=True)]
+    guild = _guild_with(members)
+    answers = {"default_roles": Answer("202"), "sync_existing": Answer(True)}
+    context = CommitContext(GUILD_ID, "555", "pt-br", {}, NOW, "slash", "s1", guild)
+
+    result = await feature_for("default_roles").commit(
+        "setup", {"answers": answers}, context
+    )
+
+    assert result.written == ("moderations", "default_roles")
+    assert given == [], "the commit never waits for the roles to be given"
+    stored = deps.mongo_client.guild["default_roles"].find_one({"guild_id": GUILD_ID})
+    assert "sync_existing" not in stored, "the choice is never saved as a setting"
+    released.set()
+    for _ in range(5):
+        await asyncio.sleep(0)
+    assert given == [({"style": "role", "values": "202"}, guild, members)]
+
+
+async def test_a_default_roles_setup_without_the_toggle_gives_nothing_out(
+    deps, monkeypatch
+):
+    from app.settings.features import default_roles
+
+    give = AsyncMock()
+    monkeypatch.setattr(default_roles, "set_default_roles", give)
+    answers = {"default_roles": Answer("202"), "sync_existing": Answer(False)}
+    context = CommitContext(
+        GUILD_ID, "555", "pt-br", {}, NOW, "slash", "s1", _guild_with([])
+    )
+
+    await feature_for("default_roles").commit("setup", {"answers": answers}, context)
+
+    give.assert_not_called()
+
+
+async def test_a_default_roles_sync_that_fails_is_logged_not_raised(deps, monkeypatch):
+    import asyncio
+
+    from app.settings.features import default_roles
+
+    async def refuse(document, guild, members):
+        raise RuntimeError("Missing Permissions")
+
+    errors = MagicMock()
+    monkeypatch.setattr(default_roles, "set_default_roles", refuse)
+    monkeypatch.setattr("app.settings.features.feature.logger.error", errors)
+    answers = {"default_roles": Answer("202"), "sync_existing": Answer(True)}
+    context = CommitContext(
+        GUILD_ID, "555", "pt-br", {}, NOW, "slash", "s1", _guild_with([])
+    )
+
+    await feature_for("default_roles").commit("setup", {"answers": answers}, context)
+    for _ in range(5):
+        await asyncio.sleep(0)
+
+    assert errors.call_count == 1
+    assert "Missing Permissions" in errors.call_args.args[0]
+
+
+async def test_a_default_roles_setup_opens_with_the_server_totals(deps, monkeypatch):
+    from types import SimpleNamespace
+
+    from app.settings.features import default_roles
+
+    monkeypatch.setattr(
+        default_roles, "get_available_roles_by_guild", lambda guild: {"Member": "202"}
+    )
+    people = [SimpleNamespace(bot=False) for _ in range(3)]
+    guild = _guild_with([*people, SimpleNamespace(bot=True)])
+
+    opened = await feature_for("default_roles").open(
+        OpenContext(GUILD_ID, "555", "pt-br", guild)
+    )
+
+    assert opened.document is None
+    assert opened.values == {"members_count": "3", "bots_count": "1"}
+
+
 async def test_pause_unpause_and_disable_move_the_flags_and_the_document(deps):
     feature = feature_for("default_roles")
     deps.mongo_client.guild["default_roles"].insert_one(
@@ -282,22 +390,80 @@ async def test_adding_an_item_appends_it_and_subscribes_outside_dev(deps):
     )
 
 
+def _two_streamers() -> dict:
+    document = copy.deepcopy(DOCUMENTS["notifications_twitch"])
+    first = document["notifications"]["values"][0]
+    second = copy.deepcopy(first)
+    second["streamer"]["value"] = "cellbit"
+    document["notifications"]["values"].append(second)
+    return document
+
+
 async def test_removing_an_item_unsubscribes_it(deps):
     deps.twitch.add_user("gaules", user_id="111")
     deps.twitch.subscribe_to_stream_online_event("111")
     feature = feature_for("notifications_twitch")
-    document = DOCUMENTS["notifications_twitch"]
-    deps.mongo_client.guild["notifications_twitch"].insert_one(dict(document))
-    await feature.commit(
-        "remove_item",
-        {"index": 0, "item": document["notifications"]["values"][0]},
-        _context(document),
-    )
+    document = _two_streamers()
+    deps.mongo_client.guild["notifications_twitch"].insert_one(copy.deepcopy(document))
+    await feature.commit("remove_item", {"indexes": [0]}, _context(document))
     stored = deps.mongo_client.guild["notifications_twitch"].find_one(
         {"guild_id": GUILD_ID}
     )
-    assert stored["notifications"]["values"] == []
+    assert [
+        item["streamer"]["value"] for item in stored["notifications"]["values"]
+    ] == ["cellbit"]
     assert deps.twitch.unsubscribe_calls
+
+
+async def test_several_items_go_in_one_save_and_each_lets_its_subscription_go(deps):
+    deps.twitch.add_user("gaules", user_id="111")
+    deps.twitch.add_user("cellbit", user_id="222")
+    deps.twitch.add_user("shroud", user_id="333")
+    for user_id in ("111", "222", "333"):
+        deps.twitch.subscribe_to_stream_online_event(user_id)
+    document = _two_streamers()
+    third = copy.deepcopy(document["notifications"]["values"][0])
+    third["streamer"]["value"] = "shroud"
+    document["notifications"]["values"].append(third)
+    deps.mongo_client.guild["notifications_twitch"].insert_one(copy.deepcopy(document))
+
+    await feature_for("notifications_twitch").commit(
+        "remove_item", {"indexes": [0, 2]}, _context(document)
+    )
+
+    stored = deps.mongo_client.guild["notifications_twitch"].find_one(
+        {"guild_id": GUILD_ID}
+    )
+    names = [item["streamer"]["value"] for item in stored["notifications"]["values"]]
+    assert names == ["cellbit"]
+    assert len(deps.twitch.unsubscribe_calls) >= 2
+
+
+async def test_a_removal_saves_nothing_when_one_chosen_item_changed_meanwhile(deps):
+    document = _two_streamers()
+    saved = copy.deepcopy(document)
+    saved["notifications"]["values"][1]["streamer"]["value"] = "shroud"
+    deps.mongo_client.guild["notifications_twitch"].insert_one(copy.deepcopy(saved))
+
+    with pytest.raises(ListChanged):
+        await feature_for("notifications_twitch").commit(
+            "remove_item", {"indexes": [0, 1]}, _context(document)
+        )
+
+    stored = deps.mongo_client.guild["notifications_twitch"].find_one(
+        {"guild_id": GUILD_ID}
+    )
+    assert len(stored["notifications"]["values"]) == 2
+
+
+async def test_a_list_the_feature_needs_never_loses_its_last_item(deps):
+    document = _two_streamers()
+    deps.mongo_client.guild["notifications_twitch"].insert_one(copy.deepcopy(document))
+
+    with pytest.raises(ListChanged):
+        await feature_for("notifications_twitch").commit(
+            "remove_item", {"indexes": [0, 1]}, _context(document)
+        )
 
 
 @pytest.mark.parametrize(
@@ -333,6 +499,23 @@ async def test_a_website_turns_on_or_off_in_the_choice_as_it_is_saved(
     assert event["event"] == "edited", "a toggle is audited as the edit it was"
 
 
+async def test_the_youtuber_picture_is_the_medium_thumbnail(deps, monkeypatch):
+    """P3 (beta.2): the 88 px default thumbnail blurs under the card section."""
+    from app.settings.form.lookups import Lookup
+
+    deps.youtube.add_channel("UC1", "Gaules", custom_url="@gaules")
+    thumbnails = {"default": {"url": "small.jpg"}, "medium": {"url": "medium.jpg"}}
+    monkeypatch.setattr(
+        deps.youtube, "get_channel_info", lambda channel: {"thumbnails": thumbnails}
+    )
+
+    found = await feature_for("notifications_youtube_video").prefetch(
+        Lookup(("youtube",), "gaules"), OpenContext(GUILD_ID, "555", "pt-br")
+    )
+
+    assert found["youtube"]["profile_image"] == "medium.jpg"
+
+
 async def test_the_streamer_lookup_is_prefetched_for_the_validator(deps):
     deps.twitch.add_user("gaules", user_id="111")
     from app.settings.form.lookups import Lookup
@@ -356,7 +539,6 @@ async def test_the_birthday_setup_writes_the_config_and_the_first_member(deps):
         "notification_time": Answer("08:00"),
         "mention_everyone": Answer(False),
         "default_message_mode": Answer("default"),
-        "register_now": Answer(True),
         "reminders_birthday": Answer(
             (
                 {
@@ -496,6 +678,52 @@ async def test_editing_the_streamer_refreshes_the_stream_elements_channel(
     assert result.document["channel_id"] == "channel-of-cellbit"
 
 
+async def test_a_setup_saves_the_stream_elements_channel_in_dev(deps, monkeypatch):
+    """Broke as: the setup skipped the StreamElements channel when `is_dev()`, so
+    the dev bot saved a streamer without a channel and answered no command."""
+    from app.settings.features import (
+        stream_elements_commands as stream_elements_feature,
+    )
+
+    deps.bot.config.is_dev = lambda: True
+    asked = []
+    monkeypatch.setattr(
+        stream_elements_feature.StreamElementsClient,
+        "get_channel_info",
+        staticmethod(lambda name: asked.append(name) or {"_id": f"channel-of-{name}"}),
+    )
+    feature = feature_for("stream_elements_commands")
+
+    looked_up = await feature.commit(
+        "setup",
+        {
+            "answers": {
+                "streamer": Answer("shroud"),
+                "stream_elements_channel_id": Answer("se-shroud"),
+            }
+        },
+        _context(),
+    )
+    stored = deps.mongo_client.guild["stream_elements_commands"].find_one(
+        {"guild_id": GUILD_ID}
+    )
+    assert stored["channel_id"] == "se-shroud"
+    assert looked_up.document["channel_id"] == "se-shroud"
+    assert asked == [], "the channel the streamer lookup found was looked up again"
+
+    deps.mongo_client.guild["stream_elements_commands"].delete_one(
+        {"guild_id": GUILD_ID}
+    )
+    await feature.commit(
+        "setup", {"answers": {"streamer": Answer("gaules")}}, _context()
+    )
+    stored = deps.mongo_client.guild["stream_elements_commands"].find_one(
+        {"guild_id": GUILD_ID}
+    )
+    assert stored["channel_id"] == "channel-of-gaules"
+    assert asked == ["gaules"]
+
+
 async def test_the_welcome_manager_draws_previews_in_the_background(deps):
     """The design gallery opened to edit a saved welcome message had no previews:
     they were only drawn for a setup."""
@@ -559,7 +787,7 @@ def test_the_welcome_card_saves_the_document_the_welcome_service_reads():
     assert document["welcome_design"] == "server_blur"
     assert document["welcome_messages_title"] == "Oi {user}!"
     assert document["welcome_messages"] == {
-        "style": "bullet",
+        "style": "code-block",
         "values": "Bem-vindo {user};Chegou!",
     }
     assert document["welcome_messages_footer"] == "Divirta-se"
@@ -642,8 +870,53 @@ async def test_the_stream_elements_panel_says_how_many_commands_it_answers(
     )
 
     assert "2" in opened.panel.info and "shroud" in opened.panel.info
-    actions = [button.action for button in opened.panel.extra_buttons]
-    assert actions == ["aside:commands"]
+    assert opened.panel.info_action is not None
+    assert opened.panel.info_action.action == "aside:commands"
+    assert not opened.panel.extra_buttons, "the list opens from inside the card (N1)"
+
+
+async def test_the_stream_elements_panel_tells_no_commands_from_a_failure(
+    deps, monkeypatch
+):
+    """Broke as: the panel's count read a streamer with no active command and a
+    StreamElements failure alike, as "I couldn't reach StreamElements"."""
+    from app.services import stream_elements as stream_elements_service
+    from app.services.utils import ml
+
+    deps.mongo_client.guild["moderations"].insert_one(
+        {"guild_id": GUILD_ID, "stream_elements_commands": True}
+    )
+    deps.mongo_client.guild["stream_elements_commands"].insert_one(
+        {
+            "guild_id": GUILD_ID,
+            "enabled": True,
+            "streamer": "shroud",
+            "channel_id": "c1",
+        }
+    )
+    client = stream_elements_service.StreamElementsClient
+    namespace = "commands.commands.commons.stream-elements-manager"
+
+    async def panel_line():
+        opened = await feature_for("stream_elements_commands").open(
+            OpenContext(GUILD_ID, "555", "pt-br")
+        )
+        return opened.panel.info
+
+    monkeypatch.setattr(client, "get_chat_commands", staticmethod(lambda channel: []))
+    empty = await panel_line()
+    deps.redis_client.delete("stream_elements:channel:c1:commands")
+
+    def down(channel):
+        raise ConnectionError("StreamElements is down")
+
+    monkeypatch.setattr(client, "get_chat_commands", staticmethod(down))
+    failed = await panel_line()
+
+    assert empty == ml(f"{namespace}.commands.empty", "pt-br").replace(
+        "$streamer", "shroud"
+    )
+    assert failed == ml(f"{namespace}.loaded.unknown", "pt-br")
 
 
 async def test_a_stream_elements_outage_leaves_no_count(deps, monkeypatch):
@@ -819,3 +1092,91 @@ def test_the_settings_read_as_their_machine_values():
     assert values["mode"] == "block_all"
     assert values["allowed_chats"] == ["100"]
     assert "guild_id" not in values and "enabled" not in values
+
+
+@pytest.mark.parametrize(
+    "today, first_page, next_one",
+    [
+        (date(2026, 6, 20), "- <@777>: 12 de junho", "<@555>"),
+        (date(2026, 5, 20), "- <@555>: 12 de maio", "<@777>"),
+    ],
+    ids=["june", "may"],
+)
+async def test_the_birthday_panel_counts_from_the_day_its_clock_gives(
+    deps, monkeypatch, today, first_page, next_one
+):
+    """The panel's next birthdays and the month it opens on follow the
+    feature's clock (`BirthdayFeature.today`), never the machine's date."""
+    from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
+    from app.settings.features.reminders_birthday import FEATURE
+
+    upsert_birthday_config(
+        GUILD_ID, "100", False, timezone="America/Sao_Paulo", notification_time="08:00"
+    )
+    upsert_birthday_item(GUILD_ID, "555", "05-12")
+    upsert_birthday_item(GUILD_ID, "777", "06-12")
+    monkeypatch.setattr(FEATURE, "today", lambda: today)
+
+    opened = await FEATURE.open(OpenContext(GUILD_ID, "555", "pt-br"))
+
+    pages = opened.panel.pages
+    assert (pages[0].title, pages[0].lines[0]) == ("Aniversários", first_page)
+    upcoming = next(row for row in opened.panel.rows if "Próximos" in row.title)
+    assert upcoming.value[0].startswith(next_one), upcoming.value
+
+
+async def test_the_birthday_panel_shows_its_list_even_with_no_birthday(deps):
+    """N2: with no birthday the panel kept no block for the list, so its Add
+    sat alone in the bottom row; the list keeps its title and says it is empty."""
+    from app.data.birthdays import upsert_birthday_config
+    from app.settings.features.reminders_birthday import FEATURE
+
+    upsert_birthday_config(GUILD_ID, "100", False, timezone="UTC")
+
+    opened = await FEATURE.open(OpenContext(GUILD_ID, "555", "pt-br"))
+
+    [page] = opened.panel.pages
+    assert (page.title, page.lines) == ("Aniversários", ())
+    assert page.description.startswith("Ainda não tenho nenhum aniversário")
+
+
+async def test_a_found_member_shows_whose_messages_greet_them(deps):
+    """N2: the member's screen shows the messages that will celebrate them,
+    labelled by whose they are: the member's own, the server's default, or
+    Keiko's default when nobody wrote one; the picture is the platform's, read
+    from the server's members (review fixes K2)."""
+    from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
+    from app.settings.features.reminders_birthday import FEATURE
+    from tests.mocks.discord import create_guild, create_member
+
+    guild = create_guild()
+    create_member(guild, id=777, name="Amiga")
+    upsert_birthday_config(GUILD_ID, "100", False, timezone="UTC")
+    upsert_birthday_item(GUILD_ID, "777", "06-12")
+    upsert_birthday_item(
+        GUILD_ID,
+        "888",
+        "07-01",
+        message={"mode": "custom", "title": "Oi {user}", "content": "Parabéns!"},
+    )
+
+    opened = await FEATURE.open(OpenContext(GUILD_ID, "555", "pt-br", guild))
+    found = opened.panel.found
+
+    keiko = "💬 **Mensagens de parabéns (padrão do Keiko):**\n```• 🎂 É aniversário"
+    assert found["777"].lines[0].startswith(keiko)
+    assert found["888"].lines == (
+        "💬 **Mensagens de parabéns:**\n```• Oi {user}\n• Parabéns!```",
+    )
+
+    upsert_birthday_config(
+        GUILD_ID,
+        "100",
+        False,
+        timezone="UTC",
+        default_message={"mode": "custom", "title": "Viva", "content": "Hoje!"},
+    )
+    reopened = await FEATURE.open(OpenContext(GUILD_ID, "555", "pt-br", guild))
+    assert reopened.panel.found["777"].lines == (
+        "💬 **Mensagens de parabéns (padrão do servidor):**\n```• Viva\n• Hoje!```",
+    )

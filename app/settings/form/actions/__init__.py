@@ -19,6 +19,9 @@ class Refusal:
     args: Mapping[str, str] | None = None
     plain: bool = False
     delete_after: int | None = 10
+    inputs: tuple[str, ...] = ()
+    target: str = ""
+    missing: tuple[str, ...] = ()
 
 
 Render = Callable[["Any", FormSession, Context], Screen]

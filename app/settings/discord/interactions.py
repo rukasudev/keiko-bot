@@ -7,10 +7,12 @@ from typing import Any
 
 from app.settings.form import events as ev
 from app.settings.form.manager import (
+    ItemRemovalRequested,
     Lifecycle,
     LifecycleConfirmed,
     OptionToggled,
-    RemoveItemConfirmed,
+    PageTurned,
+    SearchRequested,
 )
 
 PREFIX = "k"
@@ -91,26 +93,39 @@ def to_event(
         return ev.Answered(event_id, revision, arg or "", None)
     if action in ("pick", "design"):
         return ev.Answered(event_id, revision, section or cursor or "", arg)
-    if action == "draft":
-        return ev.Drafted(event_id, revision, cursor or "", {arg or "": payload})
+    if action in ("draft", "set"):
+        return ev.Drafted(
+            event_id, revision, cursor or "", _drafted(action, arg, payload)
+        )
     if action in SECTIONS:
         return SECTIONS[action](event_id, revision, cursor or "", int(arg or 0))
     if action in CHOSEN:
         return CHOSEN[action](event_id, revision, _first(payload))
+    if action == "targets":
+        return ev.TargetsChosen(event_id, revision, _every(payload))
     return _named(action, arg, payload, event_id, revision)
+
+
+def _drafted(action: str, arg: str | None, payload: Any) -> dict[str, Any]:
+    """What a select reported for its slot, or the one value a button sets."""
+    if action == "set":
+        slot, _, value = (arg or "").rpartition("=")
+        return {slot: value}
+    return {arg or "": payload}
 
 
 def _on_one_item(
     action: str, arg: str | None, event_id: str, revision: int | None
 ) -> ev.Event | None:
     """What a button beside one item of a screen means, None for anything else."""
-    if action == "remove_one":
-        return ev.RemoveRequested(event_id, revision, arg or "")
-    if action == "remove_item":
-        return RemoveItemConfirmed(event_id, revision, arg or "")
+    if action == "remove_this":
+        return ItemRemovalRequested(event_id, revision, arg or "")
     if action in ("turn_on", "turn_off"):
         key, _, chosen = (arg or "").rpartition("=")
         return OptionToggled(event_id, revision, key, chosen, action == "turn_on")
+    if action == "page":
+        number = arg or "0"
+        return PageTurned(event_id, revision, int(number) if number.isdigit() else 0)
     return None
 
 
@@ -123,7 +138,8 @@ def _named(
         return Lifecycle(event_id, revision, arg or "")
     if action == "word":
         return LifecycleConfirmed(event_id, revision, arg or "", _typed(payload))
-    return ev.Aside(event_id, revision, arg or action)
+    name, _, target = (arg or action).partition(":")
+    return ev.Aside(event_id, revision, name, target)
 
 
 def _first(payload: Any) -> str:
@@ -131,6 +147,12 @@ def _first(payload: Any) -> str:
     if isinstance(payload, (list, tuple)):
         return str(payload[0]) if payload else ""
     return str(payload or "")
+
+
+def _every(payload: Any) -> tuple[str, ...]:
+    if isinstance(payload, (list, tuple)):
+        return tuple(str(value) for value in payload)
+    return (str(payload),) if payload else ()
 
 
 def _typed(payload: Any) -> str:
@@ -148,6 +170,8 @@ SIMPLE: dict[str, type[ev.Event]] = {
     "add": ev.AddRequested,
     "remove": ev.RemoveRequested,
     "picker_back": ev.PickerClosed,
+    "remove_items": ev.RemovalConfirmed,
+    "search": SearchRequested,
 }
 SECTIONS = {"section": ev.SectionOpened, "reset": ev.SectionReset}
 CHOSEN = {"target": ev.TargetChosen, "member": ev.MemberChosen}
