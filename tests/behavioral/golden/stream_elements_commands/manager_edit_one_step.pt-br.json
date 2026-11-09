@@ -88,6 +88,12 @@
           },
           {
             "disabled": false,
+            "label": "Estatísticas",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Ajuda",
             "style": "secondary",
             "type": "button"
@@ -217,6 +223,12 @@
           },
           {
             "disabled": true,
+            "label": "Estatísticas",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": true,
             "label": "Ajuda",
             "style": "secondary",
             "type": "button"
@@ -307,6 +319,12 @@
           {
             "disabled": false,
             "label": "Histórico",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Estatísticas",
             "style": "secondary",
             "type": "button"
           },

@@ -57,14 +57,20 @@ async def setup_validation_error_and_recover(scenario_factory, deps, locale):
 
 @golden_path(FORM, "setup_cancel_keep")
 async def setup_cancel_keep(scenario_factory, deps, locale):
+    _known_streamers(deps)
     scenario = await scenario_factory(locale=locale).start_command(FORM)
+    await scenario.confirm()
+    await _submit_streamer(scenario, "shroud")
     await cancel_keep(scenario, locale)
     return scenario
 
 
 @golden_path(FORM, "setup_cancel_discard")
 async def setup_cancel_discard(scenario_factory, deps, locale):
+    _known_streamers(deps)
     scenario = await scenario_factory(locale=locale).start_command(FORM)
+    await scenario.confirm()
+    await _submit_streamer(scenario, "shroud")
     await cancel_discard(scenario, locale)
     return scenario
 

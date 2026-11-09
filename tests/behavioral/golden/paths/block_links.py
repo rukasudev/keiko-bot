@@ -126,6 +126,7 @@ async def setup_back(scenario_factory, deps, locale):
 @golden_path(FORM, "setup_cancel_keep")
 async def setup_cancel_keep(scenario_factory, deps, locale):
     scenario = await _on_card(scenario_factory, locale)
+    await scenario.select_option("allow_all", target="mode")
     await cancel_keep(scenario, locale)
     return scenario
 
@@ -133,6 +134,7 @@ async def setup_cancel_keep(scenario_factory, deps, locale):
 @golden_path(FORM, "setup_cancel_discard")
 async def setup_cancel_discard(scenario_factory, deps, locale):
     scenario = await _on_card(scenario_factory, locale)
+    await scenario.select_option("allow_all", target="mode")
     await cancel_discard(scenario, locale)
     return scenario
 

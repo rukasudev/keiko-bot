@@ -57,6 +57,14 @@ pt-br:
     label: Voltar
     desc: Volta para o menu anterior
 
+  previous:
+    label: Anterior
+    desc: Mostra a página anterior
+
+  next:
+    label: Próxima
+    desc: Mostra a próxima página
+
   pause:
     label: Pausar
     desc: Pausa a funcionalidade
@@ -182,9 +190,6 @@ pt-br:
     manage:
       label: Gerenciar
       desc: Gerenciar esta funcionalidade
-    commands:
-      label: Comandos
-      desc: Veja todos os meus comandos
     permissions:
       label: Permissões
       desc: Confira o que eu preciso para cada funcionalidade

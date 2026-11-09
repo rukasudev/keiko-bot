@@ -14,7 +14,6 @@ from app.components.embed import base_embed
 from app.constants import Commands as constants
 from app.data import analytics as analytics_data
 from app.services import analytics_reports
-from app.services.analytics_sink import metric_key
 from app.services.utils import describe_default, describe_step
 
 VALUE_LABELS = {
@@ -70,8 +69,8 @@ def _headline(since: datetime, guild_count: Optional[int] = None) -> str:
     profiles = analytics_data.find_profiles()
     live = [profile for profile in profiles if not profile.get("removed_at")]
 
-    joined = len(_events_since("guild.joined", since))
-    removed = len(_events_since("guild.removed", since))
+    joined = len(analytics_data.find_events_since("guild.joined", since))
+    removed = len(analytics_data.find_events_since("guild.removed", since))
 
     # Two different numbers, and never the same label: a caller that cannot
     # supply the real count must not publish the smaller one as if it were.
@@ -89,8 +88,8 @@ def _headline(since: datetime, guild_count: Optional[int] = None) -> str:
 
 def _delivering_guilds(since: datetime) -> Set[str]:
     """Guilds with at least one delivery inside the window."""
-    wanted = _value_metrics()
-    days = _window_days(since)
+    wanted = analytics_reports.value_metrics()
+    days = analytics_reports.window_days(since)
 
     guilds = set()
     for bucket in _all_month_buckets():
@@ -151,7 +150,7 @@ def _attention_lines(since: datetime) -> List[str]:
 def _guilds_with_permission_failures(since: datetime) -> List[str]:
     return list({
         event.get("guild_id")
-        for event in _events_since("value.blocked_by_permission", since)
+        for event in analytics_data.find_events_since("value.blocked_by_permission", since)
         if event.get("guild_id")
     })
 
@@ -196,38 +195,9 @@ def _delivered_lines(since: datetime) -> List[str]:
     return ["• " + " · ".join(parts)]
 
 
-def _value_metrics() -> Dict[str, str]:
-    """Every counter that means "the feature did its job", mapped to its feature."""
-    return {
-        metric_key(event, feature): feature
-        for feature in constants.COMMANDS_LIST
-        for event in ("value.delivered", "feature.action_performed")
-    }
-
-
-def _window_days(since: datetime) -> Set[str]:
-    return {
-        (since + timedelta(days=offset)).strftime("%Y-%m|%d")
-        for offset in range((datetime.now(timezone.utc) - since).days + 1)
-    }
-
-
 def _value_totals(since: datetime) -> Dict[str, int]:
     """Deliveries in the window, summed from the monthly buckets."""
-    wanted = _value_metrics()
-    days = _window_days(since)
-
-    totals: Dict[str, int] = {}
-    for bucket in _all_month_buckets():
-        month = bucket.get("month")
-        for day, metrics in (bucket.get("days") or {}).items():
-            if f"{month}|{day}" not in days:
-                continue
-            for metric, count in metrics.items():
-                feature = wanted.get(metric)
-                if feature:
-                    totals[feature] = totals.get(feature, 0) + count
-    return totals
+    return analytics_reports.value_counts(_all_month_buckets(), since)
 
 
 def _all_month_buckets() -> List[Dict[str, Any]]:
@@ -239,17 +209,3 @@ def _all_month_buckets() -> List[Dict[str, Any]]:
     for month in months:
         buckets += analytics_data.find_month_buckets_by_month(month)
     return buckets
-
-
-def _events_since(event: str, since: datetime) -> List[Dict[str, Any]]:
-    return [
-        record for record in analytics_data.find_events({"event": event})
-        if _at_or_after(record.get("ts"), since)
-    ]
-
-
-def _at_or_after(moment: Any, since: datetime) -> bool:
-    if not isinstance(moment, datetime):
-        return False
-    reference = moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
-    return reference >= since

@@ -3,19 +3,23 @@
 It was a dense embed: one bold line per feature, the command on the next line,
 and a row of buttons far from the lines they belonged to. Its first card
 redesign still read as busy: every row said its status three times (a coloured
-circle, a word, the button) over three lines with three emoji.
+circle, a word, the button) over three lines with three emoji. Then it listed
+every feature on one card, which no longer fit Discord's forty components
+once an eighth feature came (PR15).
 
 Guaranteed: a Components V2 card with Keiko's picture beside a dog-titled
-header of two lines (the title and a one-sentence intro, beta.2 dropped the note
-under them); features grouped under "to set up" first and "configured" second, with their
-counts, in declared order inside each group; every row is its name plus one
-subtext line with what it does and its command, with no status circles; a
-paused feature says so in its subtext; the button reads Manage in the first
-group and Set up in the second; a server with everything set up sees no second
-group; the card stays inside Discord's limits in both locales; a row button
-opens the feature through the setup_dashboard source; and the greeting's
-dashboard button sends the same card, beside its language select and its
-Commands button, while the feature buttons of older greetings keep answering.
+header of two lines (the title and a one-sentence intro); its first page has
+the server settings row, then one row per category in the order /configurar
+declares, each a one-line brief and some of its commands beside a primary
+Configurar; a category page lists only that category's features in declared
+order, every row its name plus one subtext line with what it does and its
+command, with no status circles; its status reads in its title; the button
+reads Manage once set up and Set up otherwise; a server with everything set
+up is congratulated in the intro; the card stays inside Discord's limits in both
+locales; a row button opens the feature through the setup_dashboard source
+with an ending of its own; and the greeting's dashboard button sends the same
+card, beside its language select and its Help button, while the feature
+buttons of older greetings keep answering.
 """
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -24,14 +28,15 @@ import discord
 import pytest
 
 from app.constants import Commands, KeikoIcons
-from app.services.utils import fill, ml
+from app.services.utils import ml
 from tests.behavioral.contracts.test_components_v2_limits import _assert_within_limits
-from tests.behavioral.harness.locators import walk_items
+from tests.behavioral.harness.locators import dispatch_click, walk_items
 from tests.behavioral.golden.paths.common import seed_document, seed_history
 from tests.behavioral.golden.paths.block_links import ENABLED as BLOCK_LINKS
 from tests.behavioral.golden.paths.default_roles import ENABLED as DEFAULT_ROLES
 from tests.behavioral.golden.paths.notifications_twitch import ENABLED as TWITCH
 from tests.behavioral.golden.paths.welcome_messages import ENABLED as WELCOME
+from tests.generators.moderations import recorded_server
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("setup_dashboard")]
 
@@ -60,10 +65,20 @@ def configured(deps):
     )
 
 
+def speaks(locale):
+    """The server's saved language, which every /configurar page is drawn in."""
+    from app.data import moderations as moderations_data
+    from app.services import cache
+
+    recorded_server(moderations_data.mongo_client, GUILD_ID, language=locale)
+    cache.reset()
+
+
 async def dashboard(locale="pt-br"):
     from app.services.setup import setup_dashboard
 
-    return await setup_dashboard(GUILD_ID, locale)
+    speaks(locale)
+    return await setup_dashboard(GUILD_ID)
 
 
 def rows(view):
@@ -89,12 +104,8 @@ def text_of(section):
     )
 
 
-def heading(key, count, locale="pt-br"):
-    return "### " + fill(ml(f"{BASE}.{key}", locale), count=count)
-
-
 def feature(command_key):
-    return next(f for f in Commands.SETUP_FEATURES if f["command_key"] == command_key)
+    return next(spec for spec in Commands.SETUP_FEATURES if spec["command_key"] == command_key)
 
 
 def header_of(view):
@@ -109,84 +120,307 @@ def header_of(view):
 async def test_the_setup_screen_is_a_components_v2_card_with_keiko_on_the_right(
     configured,
 ):
-    view = await dashboard()
+    header = header_of(await dashboard())
 
-    assert isinstance(view, discord.ui.LayoutView)
-    assert header_of(view).accessory.media.url == KeikoIcons.IMAGE_01
+    assert [child.content for child in header.children] == [
+        "## 🐶 Configuração do Servidor",
+        "Escolha o que você quer ajustar e eu te guio passo a passo!",
+    ]
+    assert header.accessory.media.url == KeikoIcons.IMAGE_01
 
 
-@pytest.mark.parametrize("locale", ["pt-br", "en-us"])
-async def test_the_header_is_the_title_and_the_intro(configured, locale):
+@pytest.mark.parametrize("locale,expected", [
+    (
+        "pt-br",
+        [
+            "## 🐶 Configuração do Servidor",
+            "Escolha o que você quer ajustar e eu te guio passo a passo!",
+        ],
+    ),
+    (
+        "en-us",
+        ["## 🐶 Server Setup", "Pick what you want to set up and I'll guide you step by step!"],
+    ),
+])
+async def test_the_header_is_the_title_and_the_intro(configured, locale, expected):
     """Lucas (beta.2 review): the note under the intro repeated what the card
     and its Comandos button already say, so the header keeps two lines."""
     lines = [child.content for child in header_of(await dashboard(locale)).children]
 
-    assert len(lines) == 2, "title and intro, no note"
-    assert lines[0].startswith("## 🐶 "), "Keiko's own emoji leads the title"
-    assert lines[1] == ml(f"{BASE}.desc", locale)
+    assert lines == expected, "title and intro, no note"
 
 
-async def test_features_are_grouped_by_whether_they_are_set_up(configured):
+async def page(category, locale="pt-br"):
+    from app.services.setup import category_page
+
+    speaks(locale)
+    return await category_page(GUILD_ID, category)
+
+
+async def test_the_first_page_lists_the_server_settings_then_each_category(configured):
+    """Lucas (PR15 rounds 2 to 4): the server settings come first, and each
+    category says what it does, then, after a blank line, names up to three of
+    its most used commands; a category with every command listed has no
+    closing line."""
     view = await dashboard()
 
-    headings = [text for text in texts(view) if text.startswith("### ")]
-    assert headings == [heading("pending", 5), heading("configured", 2)]
-    assert [row.accessory.command_key for row in rows(view)] == [
-        Commands.DEFAULT_ROLES_KEY,
-        Commands.NOTIFICATIONS_TWITCH_KEY,
-        Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
-        Commands.REMINDERS_BIRTHDAY_KEY,
-        Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
-        Commands.WELCOME_MESSAGES_KEY,
-        Commands.BLOCK_LINKS_KEY,
-    ], "what is left to set up comes first, each group in declared order"
+    lines = [text_of(row).split("\n") for row in rows(view)]
+    assert lines[0][0] == "⚙️ **Configurações do Servidor**"
+    assert [text_of(row) for row in rows(view)[1:]] == [
+        "🛡️ **Moderação**\n"
+        "Recebo novos membros, dou cargos a eles e cuido dos links do servidor\n"
+        "\n"
+        "Comandos mais usados:\n"
+        "- `/moderações mensagens boas-vindas`\n"
+        "- `/moderações cargos padrão`\n"
+        "- `/moderações bloquear links`",
+        "🔔 **Notificações**\n"
+        "Aviso o servidor quando seus criadores favoritos entram ao vivo ou postam, e quando é aniversário de algum membro\n"
+        "\n"
+        "Comandos mais usados:\n"
+        "- `/notificações twitch lives`\n"
+        "- `/notificações youtube vídeos`\n"
+        "- `/moderações aniversários lembretes`",
+        "🔌 **Integrações**\n"
+        "Conecto o servidor a outras plataformas, como o StreamElements\n"
+        "\n"
+        "Comandos mais usados:\n"
+        "- `/integrações comandos streamelements`",
+    ]
+    assert all(
+        row.accessory.label == "Configurar"
+        and row.accessory.style is discord.ButtonStyle.primary
+        for row in rows(view)
+    ), "every row opens through a primary Configurar"
+
+
+def _moderations(monkeypatch, count):
+    from app.services import setup
+
+    listed = [
+        ({**spec, "category": "moderations"}, "pending")
+        for spec in Commands.SETUP_FEATURES[:count]
+    ]
+
+    async def states(guild_id):
+        return listed
+
+    monkeypatch.setattr(setup, "_states", states)
+
+
+@pytest.mark.parametrize("locale,count,expected", [
+    (
+        "pt-br",
+        5,
+        "🛡️ **Moderação**\n"
+        "Recebo novos membros, dou cargos a eles e cuido dos links do servidor\n"
+        "\n"
+        "Comandos mais usados:\n"
+        "- `/moderações mensagens boas-vindas`\n"
+        "- `/moderações cargos padrão`\n"
+        "- `/moderações bloquear links`\n"
+        "- e mais 2",
+    ),
+    (
+        "en-us",
+        5,
+        "🛡️ **Moderation**\n"
+        "I welcome new members, give them roles and keep an eye on links in the server\n"
+        "\n"
+        "Most used commands:\n"
+        "- `/moderations welcome messages`\n"
+        "- `/moderations default roles`\n"
+        "- `/moderations block links`\n"
+        "- and 2 more",
+    ),
+])
+async def test_a_category_row_says_how_many_more_commands_it_has(
+    deps, monkeypatch, locale, count, expected
+):
+    """Lucas (PR15 round 4): "e mais" alone did not say how many commands
+    were left out, and it closed even a category whose commands were all listed;
+    since round 7 (ux-556) it reads as plain text with the words of
+    `commands.resume.more`."""
+    _moderations(monkeypatch, count)
+
+    assert text_of(rows(await dashboard(locale))[1]) == expected
+
+
+@pytest.mark.parametrize("locale,closing", [("pt-br", "- e mais 1"), ("en-us", "- and 1 more")])
+async def test_one_more_command_is_told_in_the_singular(deps, monkeypatch, locale, closing):
+    _moderations(monkeypatch, 4)
+
+    assert text_of(rows(await dashboard(locale))[1]).split("\n")[-1] == closing
+
+
+@pytest.mark.parametrize("locale,last", [
+    ("pt-br", "- `/moderações bloquear links`"),
+    ("en-us", "- `/moderations block links`"),
+])
+async def test_a_category_with_every_command_listed_has_no_closing_line(
+    deps, monkeypatch, locale, last
+):
+    _moderations(monkeypatch, 3)
+
+    assert text_of(rows(await dashboard(locale))[1]).split("\n")[-1] == last
+
+
+@pytest.mark.parametrize("locale,heading", [
+    ("pt-br", "Comandos mais usados:"),
+    ("en-us", "Most used commands:"),
+])
+async def test_every_category_names_one_to_three_of_its_commands(configured, locale, heading):
+    for row in rows(await dashboard(locale))[1:]:
+        _name, _brief, blank, title, *examples = text_of(row).split("\n")
+        assert (blank, title) == ("", heading)
+        listed = [line for line in examples if line.startswith("- `/")]
+        assert 1 <= len(listed) <= 3, examples
+        assert all(line.endswith("`") for line in listed)
+        assert len(examples) - len(listed) <= 1, "at most one closing line"
+
+
+@pytest.mark.parametrize("locale,expected", [
+    (
+        "pt-br",
+        "⚙️ **Configurações do Servidor**\n"
+        "Aqui você escolhe o idioma, o fuso horário e o prefixo que eu uso neste servidor",
+    ),
+    (
+        "en-us",
+        "⚙️ **Server Settings**\n"
+        "Here you pick the language, the time zone and the prefix I use in this server",
+    ),
+])
+async def test_the_settings_row_says_what_the_screen_is_not_its_values(
+    configured, locale, expected
+):
+    """Lucas (PR15 round 3, item 1): the row reads like the category briefs,
+    one line on what the screen is; the values live on the screen itself."""
+    assert text_of(rows(await dashboard(locale))[0]) == expected
+
+
+@pytest.mark.parametrize("category,keys", [
+    (
+        "moderations",
+        [Commands.WELCOME_MESSAGES_KEY, Commands.DEFAULT_ROLES_KEY, Commands.BLOCK_LINKS_KEY],
+    ),
+    (
+        "notifications",
+        [
+            Commands.NOTIFICATIONS_TWITCH_KEY,
+            Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
+            Commands.REMINDERS_BIRTHDAY_KEY,
+        ],
+    ),
+])
+async def test_a_category_page_lists_only_its_features_in_declared_order(
+    configured, category, keys
+):
+    """Lucas (PR15 round 4, item 2): birthdays belong to the notifications,
+    while their command stays under /moderações."""
+    assert [row.accessory.command_key for row in rows(await page(category))] == keys
 
 
 async def test_every_row_is_its_name_and_one_subtext_line_with_its_command(configured):
-    for section in rows(await dashboard()):
-        spec = feature(section.accessory.command_key)
-        name_line, subtext = text_of(section).split("\n")
-        assert ml(f"buttons.setup.{spec['button_key']}.label", "pt-br") in name_line
-        assert subtext.startswith("-# "), "what it does reads as quiet subtext"
-        assert ml(f"{BASE}.features.{spec['button_key']}", "pt-br") in subtext
-        assert "`/" in subtext, "the command still teaches the shortcut"
+    for category in Commands.SETUP_CATEGORIES:
+        for section in rows(await page(category)):
+            spec = feature(section.accessory.command_key)
+            name_line, subtext, *rest = text_of(section).split("\n")
+            assert ml(f"buttons.setup.{spec['button_key']}.label", "pt-br") in name_line
+            assert subtext.startswith("-# "), "what it does reads as quiet subtext"
+            assert ml(f"{BASE}.features.{spec['button_key']}", "pt-br") in subtext
+            assert "`/" in subtext, "the command still teaches the shortcut"
+            assert rest == [], "no health line on the row"
 
 
 async def test_no_row_repeats_its_status_as_a_coloured_circle(configured):
-    rendered = "\n".join(texts(await dashboard()))
+    rendered = "\n".join(texts(await page("moderations")))
 
-    assert "🔴" not in rendered and "🟢" not in rendered
-    assert ml(f"{BASE}.enabled", "pt-br") not in rendered
+    assert not [circle for circle in ("🔴", "🟢", "⚪", "🟡") if circle in rendered]
 
 
-async def test_a_paused_feature_says_so_in_its_subtext(configured):
-    by_key = {row.accessory.command_key: row for row in rows(await dashboard())}
+@pytest.mark.parametrize("locale,expected", [
+    ("pt-br", {
+        Commands.WELCOME_MESSAGES_KEY: (
+            "🎉 **Mensagens de Boas-Vindas ✅**\n"
+            "-# Boas-vindas para novos membros · `/moderações mensagens boas-vindas`"
+        ),
+        Commands.DEFAULT_ROLES_KEY: (
+            "👩‍🎓 **Cargos Padrão**\n"
+            "-# Cargos automáticos para novos membros · `/moderações cargos padrão`"
+        ),
+        Commands.BLOCK_LINKS_KEY: (
+            "🚫 **Bloquear Links ⏸️**\n"
+            "-# Bloqueia links indesejados no servidor · `/moderações bloquear links`"
+        ),
+    }),
+    ("en-us", {
+        Commands.WELCOME_MESSAGES_KEY: (
+            "🎉 **Welcome Messages ✅**\n"
+            "-# A warm welcome for new members · `/moderations welcome messages`"
+        ),
+        Commands.DEFAULT_ROLES_KEY: (
+            "👩‍🎓 **Default Roles**\n"
+            "-# Roles given to new members automatically · `/moderations default roles`"
+        ),
+        Commands.BLOCK_LINKS_KEY: (
+            "🚫 **Block Links ⏸️**\n"
+            "-# Keeps unwanted links out of your server · `/moderations block links`"
+        ),
+    }),
+])
+async def test_each_feature_says_its_status_in_its_title(configured, locale, expected):
+    """Lucas (PR15 round 3): the status reads in the title as an emoji, ✅ when
+    on and ⏸️ when paused; a feature not set up has none, and the subtext is
+    only what it does and its command."""
+    by_key = {row.accessory.command_key: row for row in rows(await page("moderations", locale))}
 
-    paused = ml(f"{BASE}.paused", "pt-br")
-    assert paused in text_of(by_key[Commands.BLOCK_LINKS_KEY]).split("\n")[1]
-    assert paused not in text_of(by_key[Commands.WELCOME_MESSAGES_KEY])
+    assert {key: text_of(by_key[key]) for key in expected} == expected
 
 
 async def test_the_button_reads_manage_when_set_up_and_set_up_otherwise(configured):
-    by_key = {row.accessory.command_key: row.accessory for row in rows(await dashboard())}
-    start = ml("buttons.setup.start.label", "pt-br")
-    manage = ml("buttons.setup.manage.label", "pt-br")
+    by_key = {
+        row.accessory.command_key: row.accessory
+        for row in rows(await page("moderations"))
+    }
+    start = "Configurar"
+    manage = "Gerenciar"
 
     assert by_key[Commands.DEFAULT_ROLES_KEY].label == start
-    assert by_key[Commands.DEFAULT_ROLES_KEY].style is discord.ButtonStyle.success
+    assert by_key[Commands.DEFAULT_ROLES_KEY].style is discord.ButtonStyle.primary
     assert by_key[Commands.WELCOME_MESSAGES_KEY].label == manage
     assert by_key[Commands.WELCOME_MESSAGES_KEY].style is discord.ButtonStyle.secondary
     assert by_key[Commands.BLOCK_LINKS_KEY].label == manage, "a paused feature is still set up"
 
 
-async def test_a_server_with_everything_set_up_sees_no_second_group(deps):
-    seed(deps, enabled=[spec["command_key"] for spec in Commands.SETUP_FEATURES])
+@pytest.mark.parametrize("locale,intro", [
+    ("pt-br", "Parabéns, tudo configurado por aqui! Use os botões para ajustar o que quiser ✨"),
+    (
+        "en-us",
+        "Congratulations, everything is set up around here! "
+        "Use the buttons to fine-tune whatever you like ✨",
+    ),
+])
+async def test_a_server_with_everything_set_up_is_congratulated(deps, locale, intro):
+    """Lucas (PR15 round 3): once every feature is set up, paused ones included,
+    the intro congratulates the admin instead of inviting a first setup."""
+    every_key = [spec["command_key"] for spec in Commands.SETUP_FEATURES]
+    seed(deps, enabled=every_key, paused=(Commands.BLOCK_LINKS_KEY,))
+
+    view = await dashboard(locale)
+
+    assert [child.content for child in header_of(view).children][1] == intro
+
+
+async def test_a_server_with_one_feature_left_keeps_the_first_setup_intro(deps):
+    every_key = [spec["command_key"] for spec in Commands.SETUP_FEATURES]
+    seed(deps, enabled=[key for key in every_key if key != Commands.DEFAULT_ROLES_KEY])
 
     view = await dashboard()
 
-    headings = [text for text in texts(view) if text.startswith("### ")]
-    assert headings == [heading("configured", len(Commands.SETUP_FEATURES))]
-    assert ml(f"{BASE}.all-configured", "pt-br") in texts(view)
+    assert [child.content for child in header_of(view).children][1] == (
+        "Escolha o que você quer ajustar e eu te guio passo a passo!"
+    )
 
 
 @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
@@ -203,13 +437,47 @@ async def test_a_row_button_opens_the_feature_through_the_setup_dashboard_source
 
     opened = AsyncMock()
     monkeypatch.setattr(buttons, "run_feature_command", opened)
-    by_key = {row.accessory.command_key: row.accessory for row in rows(await dashboard())}
-    interaction = SimpleNamespace()
+    by_key = {
+        row.accessory.command_key: row.accessory
+        for row in rows(await page("moderations"))
+    }
+    interaction = SimpleNamespace(
+        guild=SimpleNamespace(id=int(GUILD_ID)), locale="pt-br"
+    )
 
     await by_key[Commands.DEFAULT_ROLES_KEY].callback(interaction)
 
-    opened.assert_awaited_once_with(
-        interaction, Commands.DEFAULT_ROLES_KEY, "setup_dashboard"
+    opened.assert_awaited_once()
+    args, kwargs = opened.await_args
+    assert args == (interaction, Commands.DEFAULT_ROLES_KEY, "setup_dashboard")
+    ending = await kwargs["ending"]()
+    assert texts(ending)[0] == "## 🛡️ Moderação", "a setup from /configurar ends on its category"
+    by_key = {row.accessory.command_key: text_of(row) for row in rows(ending)}
+    assert by_key[Commands.DEFAULT_ROLES_KEY].split("\n")[0] == (
+        "👩‍🎓 **Cargos Padrão (Recentemente Ativado 🎉)**"
+    )
+
+
+async def test_a_birthdays_setup_from_configurar_ends_on_the_notifications(
+    configured, monkeypatch
+):
+    from app.components import buttons
+
+    opened = AsyncMock()
+    monkeypatch.setattr(buttons, "run_feature_command", opened)
+    by_key = {
+        row.accessory.command_key: row.accessory
+        for row in rows(await page("notifications"))
+    }
+    interaction = SimpleNamespace(guild=SimpleNamespace(id=int(GUILD_ID)), locale="pt-br")
+
+    await by_key[Commands.REMINDERS_BIRTHDAY_KEY].callback(interaction)
+
+    ending = await opened.await_args.kwargs["ending"]()
+    assert texts(ending)[0] == "## 🔔 Notificações"
+    by_key = {row.accessory.command_key: text_of(row) for row in rows(ending)}
+    assert by_key[Commands.REMINDERS_BIRTHDAY_KEY].split("\n")[0] == (
+        "🎂 **Lembretes de Aniversário (Recentemente Ativado 🎉)**"
     )
 
 
@@ -228,14 +496,18 @@ async def test_the_greeting_dashboard_button_sends_the_same_screen(configured):
     await DashboardButton(label="Configurar", locale="pt-br").callback(interaction)
 
     kwargs = sent.await_args.kwargs
-    assert isinstance(kwargs["view"], discord.ui.LayoutView)
+    assert texts(kwargs["view"])[:2] == [
+        "## 🐶 Configuração do Servidor",
+        "Escolha o que você quer ajustar e eu te guio passo a passo!",
+    ]
+    assert kwargs["ephemeral"] is True
     assert kwargs.get("embed") is None, "a Components V2 message carries no embed"
 
 
 def action_row_buttons(view):
-    rows = [item for item in walk_items(view) if isinstance(item, discord.ui.ActionRow)]
-    assert len(rows) == 1, "one row of buttons closes the card"
-    return list(rows[0].children)
+    action_rows = [item for item in walk_items(view) if isinstance(item, discord.ui.ActionRow)]
+    assert len(action_rows) == 1, "one row of buttons closes the card"
+    return list(action_rows[0].children)
 
 
 async def test_the_button_row_sits_below_the_card_not_inside_it(configured):
@@ -251,46 +523,33 @@ async def test_the_button_row_sits_below_the_card_not_inside_it(configured):
     assert inside[-1].content.startswith("-# • "), "the footer still closes the card"
 
 
-async def test_the_card_ends_with_commands_history_permissions_and_support(configured):
+async def test_the_card_ends_with_help_history_permissions_and_support(configured):
+    """Lucas (PR15 round 2, e09): the first button opens the same command list,
+    now named Ajuda."""
     buttons = action_row_buttons(await dashboard())
 
-    assert [button.label for button in buttons] == [
-        ml("buttons.setup.commands.label", "pt-br"),
-        ml("buttons.history.label", "pt-br"),
-        ml("buttons.setup.permissions.label", "pt-br"),
-        ml("buttons.setup.support.label", "pt-br"),
+    assert [(button.label, button.emoji.name) for button in buttons] == [
+        ("Ajuda", "📚"),
+        ("Histórico", "📜"),
+        ("Permissões", "🩺"),
+        ("Suporte", "💬"),
     ]
     support = buttons[-1]
     assert support.style is discord.ButtonStyle.link
     assert support.url == Commands.SUPPORT_SERVER_URL
 
 
-@pytest.mark.parametrize("position,module,function", [
-    (0, "app.services.help", "send_help"),
-    (1, "app.services.setup", "send_history"),
-    (2, "app.services.setup", "send_permissions"),
-])
-async def test_each_card_button_opens_its_screen(
-    configured, monkeypatch, position, module, function
-):
-    import importlib
-
-    opened = AsyncMock()
-    monkeypatch.setattr(importlib.import_module(module), function, opened)
-    interaction = SimpleNamespace()
-
-    await action_row_buttons(await dashboard())[position].callback(interaction)
-
-    assert opened.await_args.args[0] is interaction
-
-
 async def test_stream_elements_commands_is_listed_on_setup(deps):
     """Broke as: the StreamElements integration was a command nobody found."""
-    view = await dashboard()
+    view = await page("integrations")
     by_key = {row.accessory.command_key: row for row in rows(view)}
 
     row = by_key[Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY]
-    assert "`/integrações " in text_of(row)
+    assert text_of(row) == (
+        "🎮 **Comandos do StreamElements**\n"
+        "-# Responde aos comandos do StreamElements no chat"
+        " · `/integrações comandos streamelements`"
+    )
 
 
 class _StubSelect(discord.ui.Select):
@@ -347,7 +606,7 @@ async def test_help_mentions_setup_and_its_button_opens_the_dashboard_for_admins
     clicker = _help_interaction(admin=True)
     await buttons[0].callback(clicker)
     sent = clicker.response.send_message.await_args.kwargs
-    assert isinstance(sent["view"], discord.ui.LayoutView)
+    assert texts(sent["view"])[0] == "## 🐶 Configuração do Servidor"
     assert sent.get("ephemeral") is True
 
 
@@ -360,7 +619,7 @@ async def test_the_help_setup_button_tells_a_member_it_needs_an_admin(
     await buttons[0].callback(clicker)
 
     sent = clicker.response.send_message.await_args.kwargs
-    assert ml("buttons.setup.admin-only.title", "pt-br") in sent["embed"].title
+    assert sent["embed"].title == "⚠️ Apenas Admins"
     assert "view" not in sent
 
 
@@ -385,9 +644,9 @@ async def test_the_history_lists_every_feature_newest_first_and_names_each(deps)
     interaction = SimpleNamespace(
         locale="pt-br", guild=None, client=SimpleNamespace(user=SimpleNamespace(id=999))
     )
-    rendered = "\n".join(history_fields(records, interaction).values())
-    assert ml("buttons.setup.block-links.label", "pt-br") in rendered
-    assert ml("buttons.setup.welcome-messages.label", "pt-br") in rendered
+    rendered = "\n".join(history_fields(records, interaction, "pt-br").values())
+    assert "**🚫 Bloquear Links**" in rendered
+    assert "**🎉 Mensagens de Boas-Vindas**" in rendered
 
 
 PERMISSIONS_BASE = "commands.commands.setup.permissions"
@@ -495,9 +754,12 @@ async def test_a_server_where_keiko_has_everything_reads_as_fine(everything_conf
     """
     embed = await report(guild(FULL_CHANNELS, LOW_ROLES))
 
-    ok = ml(f"{PERMISSIONS_BASE}.ok", "pt-br")
-    assert [field.value for field in embed.fields] == [ok, ok, ok, ok]
-    assert len(embed.fields) == 4, "only configured features are checked"
+    assert [(field.name, field.value) for field in embed.fields] == [
+        ("🎉 Mensagens de Boas-Vindas", "✅ Tudo certo por aqui"),
+        ("👩‍🎓 Cargos Padrão", "✅ Tudo certo por aqui"),
+        ("🚫 Bloquear Links", "✅ Tudo certo por aqui"),
+        ("📡 Twitch Lives", "✅ Tudo certo por aqui"),
+    ], "only configured features are checked, in declared order"
 
 
 async def test_a_missing_channel_permission_names_the_channel_and_the_permission(
@@ -507,7 +769,7 @@ async def test_a_missing_channel_permission_names_the_channel_and_the_permission
 
     value = field_of(await report(guild(channels, LOW_ROLES)), Commands.WELCOME_MESSAGES_KEY)
 
-    assert "<#101>" in value and names("embed_links") in value
+    assert value == "⚠️ Preciso da permissão **Inserir links** em <#101>"
 
 
 async def test_a_deleted_channel_is_reported(everything_configured):
@@ -515,7 +777,7 @@ async def test_a_deleted_channel_is_reported(everything_configured):
 
     value = field_of(await report(guild(channels, LOW_ROLES)), Commands.NOTIFICATIONS_TWITCH_KEY)
 
-    assert ml(f"{PERMISSIONS_BASE}.channel-gone", "pt-br") in value
+    assert value == "⚠️ Um canal configurado não existe mais"
 
 
 async def test_a_role_above_keiko_and_a_missing_server_permission_are_reported(
@@ -525,9 +787,10 @@ async def test_a_role_above_keiko_and_a_missing_server_permission_are_reported(
 
     value = field_of(await report(server), Commands.DEFAULT_ROLES_KEY)
 
-    assert "<@&202>" in value, "a role above mine is one I cannot give"
-    assert "<@&201>" not in value
-    assert names("manage_roles") in value
+    assert value.split("\n") == [
+        "⚠️ Preciso da permissão **Gerenciar cargos** no servidor",
+        "⚠️ O cargo <@&202> está acima do meu, então não consigo atribuí-lo",
+    ], "a role above mine is one I cannot give; 201 sits below it"
 
 
 async def test_the_exempt_channels_and_roles_of_block_links_need_nothing(deps):
@@ -535,7 +798,7 @@ async def test_the_exempt_channels_and_roles_of_block_links_need_nothing(deps):
 
     embed = await report(guild({100: set()}, {201: 99}))
 
-    assert field_of(embed, Commands.BLOCK_LINKS_KEY) == ml(f"{PERMISSIONS_BASE}.ok", "pt-br")
+    assert field_of(embed, Commands.BLOCK_LINKS_KEY) == "✅ Tudo certo por aqui"
 
 
 async def test_block_links_without_manage_messages_is_reported(deps):
@@ -559,33 +822,84 @@ def _greeting(locale):
     return GreetingsView(locale)
 
 
-@pytest.mark.parametrize("locale", ["pt-br", "en-us"])
-def test_the_greeting_offers_the_language_then_setup_and_commands(locale):
-    """Lucas (beta.2 review): seven feature buttons crowded the greeting, which
-    /setup already lists. The greeting offers the language select on top, then
-    Configurar and Comandos, both readable in the chosen language."""
+def _greeting_text(locale):
+    from app.views.greetings import greeting_embed
+
+    return greeting_embed(locale).description
+
+
+@pytest.mark.parametrize("locale,labels", [
+    ("pt-br", ("Configurar", "Ajuda")),
+    ("en-us", ("Setup", "Help")),
+])
+def test_the_greeting_offers_the_language_then_setup_and_help(locale, labels):
+    """Lucas (beta.2 review, PR15 round 4): seven feature buttons crowded the
+    greeting, which /setup already lists. The greeting offers the language
+    select on top, then Configurar and Ajuda, the help button /configurar
+    carries, both readable in the chosen language."""
     view = _greeting(locale)
 
-    select, setup, commands = view.children
+    select, setup, help_button = view.children
     assert isinstance(select, discord.ui.Select) and select.row == 0
-    assert (setup.label, setup.emoji.name, setup.row) == (
-        ml("buttons.setup.dashboard.label", locale),
-        "🔧",
-        1,
-    )
-    assert (commands.label, commands.emoji.name, commands.row) == (
-        ml("buttons.setup.commands.label", locale),
-        "📚",
-        1,
-    )
+    assert [(button.label, button.emoji.name, button.row) for button in (setup, help_button)] == [
+        (labels[0], "🔧", 1),
+        (labels[1], "📚", 1),
+    ]
+
+
+@pytest.mark.parametrize("locale,sentence", [
+    ("pt-br", "Para ver todos os meus comandos, toque em **Ajuda**."),
+    ("en-us", "To see every command I have, just tap **Help**."),
+])
+def test_the_greeting_points_at_its_buttons_by_their_labels(locale, sentence):
+    message = _greeting_text(locale)
+
+    assert f"**{ml('buttons.setup.dashboard.label', locale)}**" in message
+    assert f"**{ml('buttons.help.label', locale)}**" in message
+    assert sentence in message
+
+
+@pytest.mark.parametrize("locale,tricks", [
+    (
+        "pt-br",
+        "Aqui estão alguns truques que eu sei fazer:\n"
+        "🛡️ **Moderação:** Mensagens de Boas-Vindas, Cargos Padrão e Bloquear Links.\n"
+        "🔔 **Notificações:** Twitch Lives, YouTube Vídeos e Lembretes de Aniversário.\n"
+        "🔌 **Integrações:** Comandos do StreamElements.\n"
+        "🌐 **Utilitário:** Tradução de mensagens para qualquer idioma.\n"
+        "\n",
+    ),
+    (
+        "en-us",
+        "Here are some tricks I know how to do:\n"
+        "🛡️ **Moderation:** Welcome Messages, Default Roles and Block Links.\n"
+        "🔔 **Notifications:** Twitch Lives, YouTube Videos and Birthday Reminders.\n"
+        "🔌 **Integrations:** StreamElements Commands.\n"
+        "🌐 **Utility:** Message translation to any language.\n"
+        "\n",
+    ),
+])
+def test_the_greeting_lists_each_category_with_its_configurar_features(locale, tricks):
+    """Lucas (PR15 round 3 and round 4): the greeting led Integrations with 🎮
+    while /configurar shows 🔌, listed birthdays under moderation and ended
+    with a Base line of no feature. Each category line is now drawn from the
+    features /configurar places in it, by their names, so the two cannot drift."""
+    message = _greeting_text(locale)
+
+    assert tricks in message
+    assert "🎮" not in message and "🧰" not in message
 
 
 @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
-def test_the_greeting_points_at_its_buttons_by_their_labels(locale):
-    message = ml("messages.greetings-message.message", locale)
+def test_a_refused_setting_has_a_message_for_each_server_setting_only(locale):
+    """The mention left the server settings, and its refusal stayed behind."""
+    import yaml
 
-    assert f"**{ml('buttons.setup.dashboard.label', locale)}**" in message
-    assert f"**{ml('buttons.setup.commands.label', locale)}**" in message
+    path = f"app/languages/errors/errors.{locale}.yml"
+    with open(path, encoding="utf-8") as errors:
+        refused = yaml.safe_load(errors)[locale]["server-setting-refused"]
+
+    assert sorted(refused) == ["language", "prefix", "timezone"]
 
 
 @pytest.mark.shared_contract("setup_features")
@@ -611,39 +925,44 @@ def test_every_button_an_old_greeting_carries_still_answers():
     assert all(view.timeout is None for view in greeting_views()), "persistent"
 
 
-async def test_the_greeting_commands_button_opens_the_command_list(monkeypatch):
-    from app.services import help as help_service
-    from app.views.greetings import CommandsButton
+def _admin(scenario_factory):
+    from tests.mocks.discord import create_guild, create_member
 
-    opened = AsyncMock()
-    monkeypatch.setattr(help_service, "send_help", opened)
-    interaction = SimpleNamespace()
-
-    await CommandsButton("Comandos").callback(interaction)
-
-    opened.assert_awaited_once_with(interaction, "greeting_button", ephemeral=True)
+    server = create_guild()
+    admin = create_member(server, id=555, name="Admin")
+    admin.guild_permissions = discord.Permissions.all()
+    return scenario_factory(locale="pt-br", guild=server, user=admin)
 
 
-async def test_an_old_greeting_feature_button_opens_its_feature(monkeypatch):
-    from app.components import buttons
+async def test_the_greeting_help_button_opens_the_command_list(scenario_factory, deps):
+    from app.views.greetings import GreetingsView
+
+    scenario = _admin(scenario_factory)
+    view = GreetingsView("pt-br")
+    commands = next(item for item in view.children if item.custom_id == "greetings:commands")
+
+    await dispatch_click(view, commands, scenario._mint())
+
+    answer = scenario.outputs[-1]
+    assert (answer["ephemeral"], answer["embed"]["title"]) == (True, "📚 Comandos disponíveis")
+
+
+async def test_an_old_greeting_feature_button_opens_its_feature(scenario_factory, deps):
     from app.views.greetings import LegacyGreetingButtons
 
-    opened = AsyncMock()
-    monkeypatch.setattr(buttons, "run_feature_command", opened)
+    scenario = _admin(scenario_factory)
+    legacy = LegacyGreetingButtons()
     button = next(
         item
-        for item in LegacyGreetingButtons().children
+        for item in legacy.children
         if item.custom_id == f"greetings:setup:{Commands.DEFAULT_ROLES_KEY}"
     )
-    interaction = SimpleNamespace(
-        user=SimpleNamespace(guild_permissions=SimpleNamespace(administrator=True))
-    )
 
-    await button.callback(interaction)
+    await dispatch_click(legacy, button, scenario._mint())
 
-    opened.assert_awaited_once_with(
-        interaction, Commands.DEFAULT_ROLES_KEY, "greeting_button"
-    )
+    answer = scenario.outputs[-1]
+    assert (answer["ephemeral"], answer["embed"]["title"]) == (True, "👩‍🎓 Cargos Padrão")
+    assert [button["label"] for button in answer["components"]] == ["Confirmar", "Cancelar"]
 
 
 @pytest.mark.shared_contract("setup_features")
@@ -655,3 +974,21 @@ def test_the_greeting_fits_discord_rows(locale):
     rows = [item.row for item in view.children]
     assert len(view.children) <= 25, "Discord fits five rows of five"
     assert max(row for row in rows if row is not None) <= 4, rows
+
+
+async def test_the_first_page_reads_each_feature_document_once(configured, monkeypatch):
+    """The congratulation needs every feature's state, so the first page reads
+    each feature document once, all of them together."""
+    from app.services import setup
+
+    read = []
+    original = setup.find_cog_by_guild_id_async
+
+    async def counted(guild_id, command_key):
+        read.append(command_key)
+        return await original(guild_id, command_key)
+
+    monkeypatch.setattr(setup, "find_cog_by_guild_id_async", counted)
+    await setup.setup_dashboard(GUILD_ID)
+
+    assert sorted(read) == sorted(spec["command_key"] for spec in Commands.SETUP_FEATURES)

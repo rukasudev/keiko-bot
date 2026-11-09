@@ -166,9 +166,124 @@
   },
   {
     "actor": "user",
-    "kind": "click",
+    "kind": "select",
     "message": "M2",
     "seq": 7,
+    "target": "channel",
+    "values": [
+      "general"
+    ]
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## ▶️ Canal do YouTube",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal de Texto**\n> <#100>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎬 **Youtuber**\n> Em branco",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Escolher youtuber",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar mensagens",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 8
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 9,
     "target": "cancel"
   },
   {
@@ -176,7 +291,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 8,
+    "seq": 10,
     "thinking": false
   },
   {
@@ -185,7 +300,7 @@
       {
         "disabled": false,
         "label": "Continuar configurando",
-        "style": "success",
+        "style": "secondary",
         "type": "button"
       },
       {
@@ -203,18 +318,18 @@
       "footer": null,
       "image": null,
       "thumbnail": null,
-      "title": "🚨 Cancelar Configuração?"
+      "title": "🚨 Descartar Configurações?"
     },
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 9
+    "seq": 11
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M3",
-    "seq": 10,
+    "seq": 12,
     "target": "Continuar configurando"
   },
   {
@@ -222,13 +337,13 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 11,
+    "seq": 13,
     "thinking": false
   },
   {
     "actor": "bot",
     "kind": "delete_original",
     "message": "M3",
-    "seq": 12
+    "seq": 14
   }
 ]

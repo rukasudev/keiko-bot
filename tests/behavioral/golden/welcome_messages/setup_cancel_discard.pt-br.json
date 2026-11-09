@@ -211,9 +211,146 @@
   },
   {
     "actor": "user",
-    "kind": "click",
+    "kind": "select",
     "message": "M2",
     "seq": 7,
+    "target": "welcome_messages_channel",
+    "values": [
+      "welcome"
+    ]
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎉 Mensagens de Boas-Vindas",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal e eu já fico pronto para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal**\n> <#101>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagens**\n> **Título:** Um novo membro chegou! 🎉\n> **Rodapé:** Divirta-se!\n```• {user} bem-vindo ao {server}!\n• Olha quem chegou! {user}\n• {user} acabou de chegar!```",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar mensagens",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🎨 **Design do banner**\n> Imagem do Servidor de fundo",
+            "type": "text"
+          },
+          {
+            "count": 1,
+            "type": "media"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": true,
+                    "label": "Imagem do Servidor de fundo",
+                    "value": "server_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Imagem personalizada de fundo",
+                    "value": "custom_blur"
+                  },
+                  {
+                    "default": false,
+                    "label": "Somente banner personalizado",
+                    "value": "custom_only"
+                  }
+                ],
+                "placeholder": "Escolher design",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Pré-visualizar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 8
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 9,
     "target": "cancel"
   },
   {
@@ -221,7 +358,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 8,
+    "seq": 10,
     "thinking": false
   },
   {
@@ -230,7 +367,7 @@
       {
         "disabled": false,
         "label": "Continuar configurando",
-        "style": "success",
+        "style": "secondary",
         "type": "button"
       },
       {
@@ -248,18 +385,18 @@
       "footer": null,
       "image": null,
       "thumbnail": null,
-      "title": "🚨 Cancelar Configuração?"
+      "title": "🚨 Descartar Configurações?"
     },
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 9
+    "seq": 11
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M3",
-    "seq": 10,
+    "seq": 12,
     "target": "Descartar tudo"
   },
   {
@@ -267,7 +404,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 11,
+    "seq": 13,
     "thinking": false
   },
   {
@@ -293,7 +430,7 @@
             "type": "section"
           },
           {
-            "content": "📺 **Canal**\n> Em branco",
+            "content": "📺 **Canal**\n> <#101>",
             "type": "text"
           },
           {
@@ -320,12 +457,12 @@
     "ephemeral": true,
     "kind": "followup_edit",
     "message": "M2",
-    "seq": 12
+    "seq": 14
   },
   {
     "actor": "bot",
     "kind": "delete_original",
     "message": "M3",
-    "seq": 13
+    "seq": 15
   }
 ]

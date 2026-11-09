@@ -8,7 +8,8 @@ from app.constants import LogTypes as logconstants
 from app.constants import supported_locales
 from app.integrations.google_translate import GoogleTranslate
 from app.services import analytics
-from app.services.utils import guild_locale, ml, parse_locale
+from app.services.moderations import interaction_language, server_language
+from app.services.utils import fill, join_names, ml, parse_locale
 
 class SetupButton(discord.ui.Button):
     """One feature's button of the greetings sent before beta.2, still answered."""
@@ -23,8 +24,8 @@ class SetupButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction):
+        locale = await interaction_language(interaction)
         if not interaction.user.guild_permissions.administrator:
-            locale = parse_locale(interaction.locale)
             embed = response_embed("buttons.setup.admin-only", locale)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
@@ -47,11 +48,12 @@ class DashboardButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         from app.services.setup import open_setup_dashboard
 
+        await interaction_language(interaction)
         await open_setup_dashboard(interaction, "greeting_button")
 
 
 class CommandsButton(discord.ui.Button):
-    """Opens the command list, like the Commands button of /setup."""
+    """Opens the command list, like the Help button of /setup."""
 
     def __init__(self, label: str):
         super().__init__(
@@ -65,6 +67,7 @@ class CommandsButton(discord.ui.Button):
     async def callback(self, interaction: discord.Interaction):
         from app.services.help import send_help
 
+        await interaction_language(interaction)
         await send_help(interaction, "greeting_button", ephemeral=True)
 
 
@@ -99,6 +102,28 @@ def _build_language_select(locale: str, callback):
     )
 
 
+def _category_lines(locale: str) -> str:
+    line = ml("messages.greetings-message.category", locale)
+    lines = []
+    for category, emoji in commands_constants.SETUP_CATEGORIES.items():
+        names = [
+            ml(f"buttons.setup.{feature['button_key']}.label", locale)
+            for feature in commands_constants.SETUP_FEATURES
+            if feature["category"] == category
+        ]
+        name = ml(f"commands.commands.setup.embed.categories.{category}", locale)
+        lines.append(fill(line, emoji=emoji, name=name, features=join_names(names, locale)))
+    return "\n".join(lines)
+
+
+def greeting_embed(locale: str) -> discord.Embed:
+    """The greeting a server gets when Keiko joins, in `locale`, each category
+    naming the features /setup places in it."""
+    embed = response_embed("messages.greetings-message", locale, image=True)
+    embed.description = fill(embed.description, categories=_category_lines(locale))
+    return embed
+
+
 class _PersistentGreeting(discord.ui.View):
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:
         logger.error(
@@ -120,20 +145,16 @@ class GreetingsView(_PersistentGreeting):
 
         dashboard_label = ml("buttons.setup.dashboard.label", locale)
         self.add_item(DashboardButton(label=dashboard_label, locale=locale))
-        self.add_item(CommandsButton(ml("buttons.setup.commands.label", locale)))
+        self.add_item(CommandsButton(ml("buttons.help.label", locale)))
 
     async def send(self, guild: discord.Guild):
-        locale = guild_locale(guild)
+        locale = await server_language(str(guild.id))
         self.locale = locale
 
         self.clear_items()
         self._build(locale)
 
-        embed = response_embed(
-            "messages.greetings-message",
-            locale,
-            image=True,
-        )
+        embed = greeting_embed(locale)
 
         for channel in guild.text_channels:
             if not channel.permissions_for(guild.me).send_messages:
@@ -156,11 +177,7 @@ class GreetingsView(_PersistentGreeting):
         selected = parse_locale(self.selected_options[0])
         self.locale = selected
 
-        new_embed = response_embed(
-            "messages.greetings-message",
-            selected,
-            image=True,
-        )
+        new_embed = greeting_embed(selected)
 
         self.clear_items()
         self._build(selected)

@@ -13,8 +13,8 @@ Two kinds of read, and only the first one is cheap by construction:
 
 Reference: docs/analytics.md
 """
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, Iterable, List, Optional, Set
 
 from app.constants import Commands as constants
 from app.constants import FormConstants as form_constants
@@ -185,6 +185,41 @@ def days_since(moment: Optional[datetime]) -> Optional[int]:
         return None
     reference = moment if moment.tzinfo else moment.replace(tzinfo=timezone.utc)
     return (datetime.now(timezone.utc) - reference).days
+
+
+def value_metrics() -> Dict[str, str]:
+    """Every counter that means "the feature did its job", mapped to its feature."""
+    return {
+        metric_key(event, feature): feature
+        for feature in constants.COMMANDS_LIST
+        for event in ("value.delivered", "feature.action_performed")
+    }
+
+
+def window_days(since: datetime) -> Set[str]:
+    """Every day from `since` to today, as `month|day` the month buckets key them."""
+    return {
+        (since + timedelta(days=offset)).strftime("%Y-%m|%d")
+        for offset in range((datetime.now(timezone.utc) - since).days + 1)
+    }
+
+
+def value_counts(buckets: Iterable[Dict[str, Any]], since: datetime) -> Dict[str, int]:
+    """Deliveries per feature since `since`, summed from the month buckets given."""
+    wanted = value_metrics()
+    days = window_days(since)
+
+    totals: Dict[str, int] = {}
+    for bucket in buckets:
+        month = bucket.get("month")
+        for day, metrics in (bucket.get("days") or {}).items():
+            if f"{month}|{day}" not in days:
+                continue
+            for metric, count in metrics.items():
+                feature = wanted.get(metric)
+                if feature:
+                    totals[feature] = totals.get(feature, 0) + count
+    return totals
 
 
 def feature_history(guild_id: str, feature: str) -> Dict[str, Any]:

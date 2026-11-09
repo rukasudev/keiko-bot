@@ -90,6 +90,7 @@ async def setup_validation_error_and_recover(scenario_factory, deps, locale):
 async def setup_cancel_keep(scenario_factory, deps, locale):
     scenario = await _open(scenario_factory, locale)
     await scenario.confirm()
+    await scenario.select_option("general", target="channel")
     await cancel_keep(scenario, locale)
     return scenario
 
@@ -98,6 +99,7 @@ async def setup_cancel_keep(scenario_factory, deps, locale):
 async def setup_cancel_discard(scenario_factory, deps, locale):
     scenario = await _open(scenario_factory, locale)
     await scenario.confirm()
+    await scenario.select_option("general", target="channel")
     await cancel_discard(scenario, locale)
     return scenario
 

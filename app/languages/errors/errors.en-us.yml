@@ -1,4 +1,15 @@
 en-us:
+  server-setting-refused:
+    prefix:
+      title: Prefix Not Saved
+      message: "I'm sorry, but I couldn't save that prefix. Please pick it again in the menu!"
+    language:
+      title: Language Not Saved
+      message: "I'm sorry, but I couldn't save that language. Please pick it again in the menu!"
+    timezone:
+      title: Time Zone Not Saved
+      message: "I'm sorry, but I couldn't save that time zone. Please pick it again in the menu!"
+
   command-generic-error:
     title: Command Processing Error
     message: "I'm sorry, but I couldn't process your command correctly. Please try again later.\n\nIf you'd like, send me a report using the `/report` command, or reach out on my official server with the `/support` command 💌"
@@ -77,7 +88,7 @@ en-us:
     message: "Oops! You need to pick the YouTuber before I can show the preview. Pick one on the card and try again! 🐶"
 
   discard-settings-confirmation:
-    title: Cancel Settings?
+    title: Discard Settings?
     message: If you cancel now, I'll close this message and everything we configured so far will be lost. To configure it again, you'll need to start over. Are you sure you want to discard everything?
 
   invalid-date:
@@ -95,3 +106,4 @@ en-us:
   reminders-birthdays-self-edit-limit:
     title: Birthday Edit Blocked
     message: "You've already used your birthday edit in this server. Ask a moderator if you need another correction."
+

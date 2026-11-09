@@ -26,6 +26,35 @@ en-us:
         month:
           name: month
           desc: "Birthday month"
+      stats:
+        title:
+          welcome-messages: "📊 Welcome Messages Statistics"
+          default-roles: "📊 Default Roles Statistics"
+          block-links: "📊 Block Links Statistics"
+          twitch: "📊 Twitch Lives Statistics"
+          youtube: "📊 YouTube Videos Statistics"
+          birthdays: "📊 Birthday Reminders Statistics"
+          stream-elements: "📊 StreamElements Commands Statistics"
+        recent:
+          quiet: "💤 Nothing new in the last $days days."
+          refused-one: "⚠️ In the last $days days, I couldn't do my job once because of a missing permission. Check **Permissions** on `/setup`!"
+          refused-many: "⚠️ In the last $days days, I couldn't do my job $count times because of a missing permission. Check **Permissions** on `/setup`!"
+          delivered-one:
+            welcome-messages: "✅ I sent 1 welcome message in the last $days days!"
+            default-roles: "✅ I gave roles to 1 member in the last $days days!"
+            block-links: "✅ I blocked 1 link in the last $days days!"
+            twitch: "✅ I sent 1 live notification in the last $days days!"
+            youtube: "✅ I sent 1 new video notification in the last $days days!"
+            birthdays: "✅ I celebrated 1 birthday in the last $days days!"
+            stream-elements: "✅ I answered 1 command in the last $days days!"
+          delivered-many:
+            welcome-messages: "✅ I sent $count welcome messages in the last $days days!"
+            default-roles: "✅ I gave roles to $count members in the last $days days!"
+            block-links: "✅ I blocked $count links in the last $days days!"
+            twitch: "✅ I sent $count live notifications in the last $days days!"
+            youtube: "✅ I sent $count new video notifications in the last $days days!"
+            birthdays: "✅ I celebrated $count birthdays in the last $days days!"
+            stream-elements: "✅ I answered $count commands in the last $days days!"
       block-links-manager:
         info-title: "🔎 Why did a link get through?"
         info: "Right click the message, pick **Apps** and then **Check Link Blocking**: I show you which rule allowed or blocked every link in it!"
@@ -48,10 +77,6 @@ en-us:
             rule: "Rule: $rule"
             not-deleted: "⚠️ I could not delete this message. Check if I have the manage messages permission!"
         stats:
-          button:
-            desc: See the numbers of the links I blocked
-          embed:
-            title: "📊 Link blocking stats"
           fields:
             total: Blocks of all time
             recent: Blocks in the last 90 days
@@ -95,11 +120,6 @@ en-us:
           unknown: "I couldn't reach StreamElements right now, but I'll fetch each response as soon as someone uses a command."
       reminders-birthdays-manager:
         stats:
-          button:
-            label: Stats
-            desc: View birthday statistics
-          embed:
-            title: "📊 Birthday stats"
           fields:
             total: Total birthdays
             this-month: Birthdays this month
@@ -285,10 +305,20 @@ en-us:
       embed:
         title: "🐶 Server Setup"
         desc: "Pick what you want to set up and I'll guide you step by step!"
-        configured: "Configured · $count"
-        pending: "Not set up yet · $count"
-        paused: Paused
-        all-configured: "Everything is set up! Use the buttons to fine-tune whatever you like ✨"
+        all-configured: "Congratulations, everything is set up around here! Use the buttons to fine-tune whatever you like ✨"
+        states:
+          activated: "(Just Turned On 🎉)"
+          configured: "✅"
+          paused: "⏸️"
+        categories:
+          moderations: Moderation
+          notifications: Notifications
+          integrations: Integrations
+        top-commands: "Most used commands:"
+        category-briefs:
+          moderations: I welcome new members, give them roles and keep an eye on links in the server
+          notifications: I let the server know when your favorite creators go live or post, and when it's a member's birthday
+          integrations: I connect the server to other platforms, like StreamElements
         footer: "Use the `/report` command to tell me a bug"
         features:
           welcome-messages: A warm welcome for new members
@@ -298,6 +328,30 @@ en-us:
           youtube: Notifies you when a new video is out
           birthdays: Birthday wishes for your members
           stream-elements: Answers StreamElements commands in chat
+      category:
+        intro: "Pick a feature to set up or manage!"
+        page: "Page $page of $pages"
+      settings:
+        title: "⚙️ Server Settings"
+        row: "⚙️ **Server Settings**"
+        brief: Here you pick the language, the time zone and the prefix I use in this server
+        desc: "These are the defaults I use in messages for the whole server. Change anything you like!"
+        language: "🌐 **Language**\n> $value\n-# The language I speak in this server"
+        language-placeholder: Change language
+        timezone: "🕒 **Time zone**\n> $value\n-# The time zone I follow in new reminders, like birthday ones"
+        timezone-placeholder: Change time zone
+        prefix: "⌨️ **Prefix**\n> $value\n-# With this prefix I answer commands like `$prefixping` in the chat. Everything else lives in the slash (/) commands."
+        prefix-placeholder: Change prefix
+        timezones:
+          brazil: "🇧🇷 Brazil (UTC-3)"
+          argentina: "🇦🇷 Argentina (UTC-3)"
+          united-states: "🇺🇸 United States (UTC-5/UTC-4)"
+          portugal: "🇵🇹 Portugal (UTC+0/UTC+1)"
+          united-kingdom: "🇬🇧 United Kingdom (UTC+0/UTC+1)"
+          spain: "🇪🇸 Spain (UTC+1/UTC+2)"
+          germany: "🇩🇪 Germany (UTC+1/UTC+2)"
+          japan: "🇯🇵 Japan (UTC+9)"
+          utc: "🌐 UTC (UTC+0)"
       history:
         desc: "The latest changes across all my features in this server:"
         empty: "No changes recorded here yet. Set up a feature and it shows up in this list!"
