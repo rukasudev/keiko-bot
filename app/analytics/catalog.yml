@@ -202,7 +202,7 @@ events:
   config.changed:
     version: 1
     class: [event, audit]
-    description: An existing configuration was edited through the manager.
+    description: An existing configuration was edited through the manager, or a server setting on the /setup settings screen (feature `settings`).
     emitted_at: app/settings/features/generic.py — record_event, from the feature commit (edited); app/services/cogs.py — insert_cog_event for state changes made outside a form
     actor: user
     required: [feature, source]

@@ -44,11 +44,14 @@ class Context:
     external: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     server_name: str = ""
     prefix: str = ""
+    server_language: str = ""
+    server_timezone: str = ""
     command: str = ""
     values: Mapping[str, str] = field(default_factory=dict)
     previews: Mapping[str, str] = field(default_factory=dict)
     member_pictures: Mapping[str, str] = field(default_factory=dict)
     can_go_back: bool = False
+    back_to_opener: bool = False
     done_saves: bool = False
     item_index: int | None = None
 
@@ -128,6 +131,8 @@ def apply_tokens(
         "server_name": context.server_name,
         "prefix": context.prefix,
         "command": context.command,
+        "server_language": context.server_language,
+        "server_timezone": context.server_timezone,
     }
 
     def replace(match: re.Match[str]) -> str:

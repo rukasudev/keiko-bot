@@ -7,7 +7,6 @@ import discord
 from collections import Counter
 
 from app import logger
-from app.components.embed import base_embed
 from app.constants import (
     BLOCK_LINKS_LEGACY_LABEL_TO_DOMAIN,
     BLOCK_LINKS_QUICK_PICK_DOMAINS,
@@ -695,38 +694,30 @@ def _counted(counters: Dict[str, int], kind: str) -> Counter:
     })
 
 
-async def send_blocked_links_stats_message(interaction: discord.Interaction) -> None:
-    locale = parse_locale(interaction.locale)
-    stats = await asyncio.to_thread(get_blocked_links_stats, str(interaction.guild_id))
-
+def blocked_links_stats_lines(guild_id: str, locale: str) -> List[str]:
+    """The link blocker's own figures for its statistics."""
+    stats = get_blocked_links_stats(guild_id)
     if not stats["total"]:
-        description = _bm("stats.empty", locale)
-    else:
-        top_hosts = ", ".join(
-            f"`{host}` ({count})" for host, count in stats["top_hosts"]
-        ) or "-"
-        top_user = (
-            f"<@{stats['top_user'][0]}> ({stats['top_user'][1]})"
-            if stats["top_user"] else "-"
-        )
-        lines = [
-            f"🚫 **{_bm('stats.fields.total', locale)}:** {stats['total']}",
-            f"📅 **{_bm('stats.fields.recent', locale)}:** {stats['recent']}",
-            f"🌐 **{_bm('stats.fields.top-websites', locale)}:** {top_hosts}",
-            f"🙋 **{_bm('stats.fields.top-member', locale)}:** {top_user}",
-        ]
-        if stats["not_deleted"]:
-            lines.append(
-                f"⚠️ **{_bm('stats.fields.not-deleted', locale)}:** {stats['not_deleted']}"
-            )
-        description = "\n".join(lines)
+        return [_bm("stats.empty", locale)]
 
-    embed = base_embed(
-        _bm("stats.embed.title", locale),
-        description,
-        footer=ml("commands.commands.commons.embed.footer", locale=locale),
+    top_hosts = ", ".join(
+        f"`{host}` ({count})" for host, count in stats["top_hosts"]
+    ) or "-"
+    top_user = (
+        f"<@{stats['top_user'][0]}> ({stats['top_user'][1]})"
+        if stats["top_user"] else "-"
     )
-    await interaction.followup.send(embed=embed, ephemeral=True)
+    lines = [
+        f"🚫 **{_bm('stats.fields.total', locale)}:** {stats['total']}",
+        f"📅 **{_bm('stats.fields.recent', locale)}:** {stats['recent']}",
+        f"🌐 **{_bm('stats.fields.top-websites', locale)}:** {top_hosts}",
+        f"🙋 **{_bm('stats.fields.top-member', locale)}:** {top_user}",
+    ]
+    if stats["not_deleted"]:
+        lines.append(
+            f"⚠️ **{_bm('stats.fields.not-deleted', locale)}:** {stats['not_deleted']}"
+        )
+    return lines
 
 
 async def send_blocked_links_message(

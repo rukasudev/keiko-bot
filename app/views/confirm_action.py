@@ -4,7 +4,7 @@ import discord
 
 from app.constants import ViewConstants as view_constants
 from app.services.trace import trace_scope
-from app.services.utils import is_guild_admin, ml
+from app.services.utils import is_guild_admin, ml, speak
 
 
 class ConfirmActionView(discord.ui.View):
@@ -27,6 +27,7 @@ class ConfirmActionView(discord.ui.View):
 
     @discord.ui.button(style=discord.ButtonStyle.green)
     async def confirm(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        speak(interaction, self.locale)
         if self._trace_name:
             async with trace_scope(
                 self._trace_name,
@@ -42,6 +43,7 @@ class ConfirmActionView(discord.ui.View):
 
     @discord.ui.button(style=discord.ButtonStyle.red)
     async def cancel(self, interaction: discord.Interaction, button: discord.ui.Button) -> None:
+        speak(interaction, self.locale)
         if self._on_cancel:
             await self._on_cancel(interaction)
         else:

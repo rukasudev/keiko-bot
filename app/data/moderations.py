@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Dict, List, Set
 
 from app import mongo_client
 from app.data.util import parse_insert_timestamp, parse_update_timestamp
@@ -51,3 +51,26 @@ def upsert_moderations_by_guild(
         {"$set": update, "$setOnInsert": on_insert},
         upsert=True,
     )
+
+
+def set_server_setting(guild_id: str, key: str, value: Any) -> Any:
+    update = parse_update_timestamp({f"settings.{key}": value})
+    return mongo_client.guild.moderations.update_one(
+        {"guild_id": str(guild_id)}, {"$set": update}
+    )
+
+
+def insert_server_settings(guild_id: str, settings: Dict[str, Any]) -> Any:
+    update = parse_update_timestamp({"settings": settings})
+    return mongo_client.guild.moderations.update_one(
+        {"guild_id": str(guild_id), "settings": {"$exists": False}}, {"$set": update}
+    )
+
+
+def find_guild_ids_with_settings(guild_ids: List[str]) -> Set[str]:
+    documents = mongo_client.guild.moderations.find(
+        {"guild_id": {"$in": [str(guild_id) for guild_id in guild_ids]},
+         "settings": {"$exists": True}},
+        {"guild_id": True, "_id": False},
+    )
+    return {str(document["guild_id"]) for document in documents}

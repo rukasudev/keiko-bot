@@ -21,6 +21,7 @@ import discord
 import pytest
 
 from app.bot import DiscordBot
+from tests.generators.moderations import recorded_server
 from tests.mocks.discord import create_guild, create_member
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
@@ -76,6 +77,7 @@ async def test_a_twitch_notice_still_pings_what_its_template_names(deps, default
 
     guild = create_guild(id=5001, channels=["lives"])
     deps.bot.get_guild = lambda guild_id: guild if int(guild_id) == guild.id else None
+    recorded_server(deps.mongo_client, guild.id)
     deps.twitch.add_user("gaules", user_id="123")
     deps.twitch.set_stream_online("gaules")
     deps.mongo_client.guild.notifications_twitch.insert_one({
@@ -99,6 +101,7 @@ async def test_a_youtube_notice_still_pings_what_its_template_names(deps, defaul
 
     guild = create_guild(id=5001, channels=["videos"])
     deps.bot.get_guild = lambda guild_id: guild if int(guild_id) == guild.id else None
+    recorded_server(deps.mongo_client, guild.id)
     announcement = VideoAnnouncement(
         video={"id": "video-1", "snippet": {"title": "A new video"}},
         channel={"title": "PewDiePie"},
@@ -130,6 +133,7 @@ async def test_the_birthday_pings_everyone_exactly_when_the_server_asked(
     create_member(guild, id=555, name="Tester")
     deps.bot.get_guild = lambda guild_id: guild if int(guild_id) == guild.id else None
     monkeypatch.setattr(birthday_handler, "bot", deps.bot)
+    recorded_server(deps.mongo_client, guild.id)
     upsert_birthday_config(str(guild.id), str(guild.text_channels[0].id), mention_everyone)
     upsert_birthday_item(str(guild.id), "555", "05-12", reminder_id="4001")
     update_moderations_by_guild(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)

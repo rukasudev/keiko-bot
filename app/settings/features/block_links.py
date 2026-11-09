@@ -3,16 +3,16 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from app.constants import Commands
 from app.constants import ViewConstants as view_constants
 from app.data.block_links import delete_blocked_links_by_guild
 from app.services.block_links import (
+    blocked_links_stats_lines,
     normalize_block_links_config,
     send_blocked_links_message,
-    send_blocked_links_stats_message,
 )
 from app.settings.features.feature import (
     AsideAction,
@@ -52,7 +52,7 @@ class BlockLinksFeature(GenericCogFeature):
         )
 
     def extra_buttons(self, context: OpenContext) -> tuple[Button, ...]:
-        """The blocked-links list and the stats."""
+        """The blocked-links list."""
         locale = context.locale
         return (
             Button(
@@ -62,13 +62,6 @@ class BlockLinksFeature(GenericCogFeature):
                 "🔎",
                 description=_copy("blocked-list.button.desc", locale),
             ),
-            Button(
-                text("buttons.stats.label", locale),
-                "aside:stats",
-                "secondary",
-                "📊",
-                description=_copy("stats.button.desc", locale),
-            ),
         )
 
     def normalized(self, document: Mapping[str, Any]) -> dict[str, Any]:
@@ -76,24 +69,23 @@ class BlockLinksFeature(GenericCogFeature):
         return normalize_block_links_config(dict(document))
 
     def asides(self) -> Mapping[str, AsideAction]:
-        """The records browser answers on its own; the stats defer first."""
+        """The records browser, which answers on its own, beside the statistics."""
 
         async def blocked_list(interaction: Any, _responses: Any) -> None:
             await send_blocked_links_message(interaction)
 
-        async def stats(interaction: Any, _responses: Any) -> None:
-            await send_blocked_links_stats_message(interaction)
-
         return {
+            **super().asides(),
             "blocked_list": AsideAction(
                 blocked_list,
                 own_response=True,
                 cooldown=view_constants.ACTION_COOLDOWN_SECONDS,
             ),
-            "stats": AsideAction(
-                stats, defer=True, cooldown=view_constants.ACTION_COOLDOWN_SECONDS
-            ),
         }
+
+    def stats_lines(self, guild_id: str, locale: str) -> Sequence[str]:
+        """The blocks of all time and of the last days, the sites and the member."""
+        return blocked_links_stats_lines(guild_id, locale)
 
     async def after_disable(
         self, document: Mapping[str, Any], context: CommitContext

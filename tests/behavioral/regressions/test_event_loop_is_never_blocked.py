@@ -43,7 +43,7 @@ from app.services import (
 from app.constants import DBConfigs
 from tests.mocks import create_member, create_message
 from tests.mocks.web import png, respond
-from tests.mocks.discord import MockInteraction
+from tests.mocks.discord import MockInteraction, the_tree_checks
 from unittest.mock import AsyncMock, MagicMock
 import discord
 from app.decorators import keiko_command
@@ -111,20 +111,16 @@ async def test_checking_a_message_never_freezes_the_bot(
 async def test_a_prefixed_message_no_command_matches_never_freezes_the_bot(
     deps, mock_cache, guild, bot, channel, member
 ):
-    """discord.py hands it to `on_command_error`, which reads the server's features."""
+    """`Events.on_message` reads the server's features before it hints."""
     import discord
-    from discord.ext import commands
 
-    from app.cogs.errors import Errors
+    from app.cogs.events import Events
 
     mock_cache.side_effect = blocking({})
     guild.preferred_locale = discord.Locale.american_english
     message = create_message(content="ks!mouse", author=member, channel=channel)
-    context = SimpleNamespace(guild=guild, message=message, send=channel.send)
 
-    ticks = await ticks_while(
-        Errors(bot).on_command_error(context, commands.CommandNotFound())
-    )
+    ticks = await ticks_while(Events(bot).on_message(message))
 
     assert ticks >= MIN_TICKS
 
@@ -461,6 +457,7 @@ def translate(deps, guild, monkeypatch):
         monkeypatch.setattr(GoogleTranslate, "translate", staticmethod(translate))
         message = create_message(guild.text_channels[0], create_member(guild), text)
         message.jump_url = "https://discord.com/channels/1/2/3"
+        await the_tree_checks(interaction)
         await Translate.translate_message(SimpleNamespace(), interaction, message)
 
     return SimpleNamespace(run=run, interaction=interaction, before_google=answered_before_google)
@@ -547,6 +544,7 @@ async def test_translating_a_message_never_freezes_the_bot(deps, guild, monkeypa
     monkeypatch.setattr(GoogleTranslate, "translate", staticmethod(blocking(None)))
     interaction = interaction_in(guild)
     message = create_message(guild.text_channels[0], create_member(guild), "bom dia")
+    await the_tree_checks(interaction)
 
     ticks = await ticks_while(Translate.translate_message(SimpleNamespace(), interaction, message))
 
@@ -743,6 +741,7 @@ def guild_double(guild_id=4242, owner_id=313):
         id=guild_id,
         member_count=120,
         owner=SimpleNamespace(id=owner_id, mention=f"<@{owner_id}>"),
+        preferred_locale="pt-BR",
     )
 
 

@@ -34,6 +34,7 @@ from tests.behavioral.golden.paths import notifications_twitch as twitch
 from tests.behavioral.golden.paths import notifications_youtube_video as youtube
 from tests.behavioral.golden.paths import welcome_messages as welcome
 from tests.behavioral.golden.paths.common import open_manager, seed_document
+from tests.generators.moderations import recorded_server
 from tests.mocks.discord import create_guild, create_member
 
 pytestmark = [
@@ -138,6 +139,7 @@ async def test_two_saved_messages_preview_as_two_pages(
 def _destination(deps, name):
     guild = create_guild(id=5001, channels=[name])
     deps.bot.get_guild = lambda guild_id: guild if int(guild_id) == guild.id else None
+    recorded_server(deps.mongo_client, guild.id)
     return guild, guild.text_channels[0]
 
 

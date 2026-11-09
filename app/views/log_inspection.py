@@ -107,6 +107,9 @@ class LogInspectionView(discord.ui.View):
             if key == "created_at":
                 key = "added_at"
 
+            if key == constants.SERVER_SETTINGS_KEY and isinstance(value, dict):
+                value = self.settings_line(value)
+
             embed.add_field(name=key, value=self.parse_if_time(value), inline=False)
 
     def _add_commands_status(self, embed: discord.Embed, moderations: dict):
@@ -159,6 +162,9 @@ class LogInspectionView(discord.ui.View):
             title=ml("buttons.changes-history.label", locale=interaction.locale),
         )
         await browser.send(interaction)
+
+    def settings_line(self, settings: dict) -> str:
+        return " · ".join(f"{name}: {value}" for name, value in settings.items())
 
     def parse_if_time(self, value):
         try:

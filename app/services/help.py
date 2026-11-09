@@ -1,5 +1,6 @@
-"""The /help command list, for the slash command and the buttons that open it, and the hint
-a prefixed message gets when no feature answers the prefix."""
+"""The /help command list, for the slash command and the buttons that open it, Keiko's
+own prefix commands, and the hint a prefixed message gets when no feature answers the
+prefix."""
 import asyncio
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -7,10 +8,12 @@ import discord
 from discord.app_commands.commands import Command
 
 from app.bot import DiscordBot
+from app.components.embed import response_embed
 from app.components.select import HelpSelect
 from app.constants import CogsConstants as cogs_constants
 from app.constants import Commands as commands_constants
 from app.services import analytics, cache
+from app.services.moderations import server_language, server_prefix
 from app.services.utils import (
     fill,
     get_command_display_name,
@@ -138,7 +141,7 @@ async def prefix_hint(bot: DiscordBot, guild: Optional[discord.Guild]) -> Option
     if await any_prefix_feature_on(str(guild.id)):
         return None
 
-    locale = guild.preferred_locale
+    locale = await server_language(str(guild.id))
     activations = "\n".join(
         fill(
             ml("messages.prefix-hint.feature", locale),
@@ -148,6 +151,27 @@ async def prefix_hint(bot: DiscordBot, guild: Optional[discord.Guild]) -> Option
     )
     return fill(
         ml("messages.prefix-hint.guild", locale),
-        prefix=bot.config.PREFIX,
+        prefix=await server_prefix(str(guild.id)),
         commands=activations,
     )
+
+
+def ping_embed(bot: DiscordBot, locale: str) -> discord.Embed:
+    """The /ping answer: Pong and Keiko's gateway latency in ms."""
+    embed = response_embed("commands.commands.ping.response", locale)
+    embed.description = fill(embed.description, ping=round(bot.latency * 1000))
+    return embed
+
+
+async def answer_prefix_command(
+    bot: DiscordBot, guild_id: str, message: discord.Message, prefix: str
+) -> bool:
+    """Answer one of Keiko's own prefix commands in the server's language, True when
+    the message was one."""
+    answers = {"ping": ping_embed}
+    name = message.content[len(prefix):].split(" ")[0]
+    if name not in answers:
+        return False
+    locale = await server_language(guild_id)
+    await message.reply(embed=answers[name](bot, locale))
+    return True

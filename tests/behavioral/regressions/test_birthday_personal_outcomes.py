@@ -21,6 +21,7 @@ from app.data import birthdays as birthdays_data
 from app.data import moderations as moderations_data
 from app.services import reminders_birthdays as birthdays_service
 from app.services import trace as trace_service
+from tests.generators.moderations import recorded_server
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
@@ -45,6 +46,7 @@ def enabled(deps, monkeypatch):
     moderations_data.mongo_client.guild.moderations.insert_one(
         {"guild_id": GUILD_ID, Commands.REMINDERS_BIRTHDAY_KEY: True}
     )
+    recorded_server(deps.mongo_client, GUILD_ID, timezone="UTC")
     birthdays_data.upsert_birthday_config(
         GUILD_ID, channel_id="99", timezone="UTC", notification_time="14:00"
     )

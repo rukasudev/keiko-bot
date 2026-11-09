@@ -36,17 +36,18 @@ class SubscriptionFeature(GenericCogFeature):
         super().__init__(key)
 
     def asides(self) -> Mapping[str, AsideAction]:
-        """The notification message, previewed one written example at a time."""
+        """The statistics, and the notification previewed one example at a time."""
         if self.preview_sender is None:
-            return {}
+            return super().asides()
 
         async def preview(interaction: Any, responses: Any) -> None:
             await self.preview_sender(interaction, list(responses))
 
         return {
+            **super().asides(),
             "preview": AsideAction(
                 preview, defer=True, cooldown=view_constants.ACTION_COOLDOWN_SECONDS
-            )
+            ),
         }
 
     def _lookup(self, name: str) -> Any:

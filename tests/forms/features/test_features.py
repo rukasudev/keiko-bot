@@ -576,7 +576,8 @@ async def test_the_birthday_panel_opens_with_its_own_rows(deps):
     )
     assert opened.document["reminders_birthday"]["values"][0]["user"]["value"] == "555"
     assert [row.value for row in opened.panel.rows][:2] == ["100", False]
-    assert [b.action for b in opened.panel.extra_buttons] == ["aside:stats"]
+    assert opened.panel.extra_buttons == (), "the statistics are every panel's"
+    assert "stats" in feature_for("reminders_birthday").asides()
 
 
 def test_the_birthday_feature_previews_the_celebration():
@@ -983,10 +984,10 @@ def test_every_form_on_disk_is_a_declared_feature_and_back():
     """Each feature is declared once, and its form, its module and its command agree.
 
     `Feature` in `app/constants.py` is the one table every feature list derives
-    from, except `COMMANDS_LIST`, which wave 3 derives: the key, the slash
-    command's group and namespace, the /setup row, what the feature needs and the
-    module that saves it. `SETUP_FEATURES`, `FEATURE_COMMANDS`, the moderation
-    defaults, `feature_keys` and the module `feature_for` imports come from it;
+    from: the key, the slash command's group and namespace, the /setup row, what
+    the feature needs and the module that saves it. `SETUP_FEATURES`,
+    `FEATURE_COMMANDS`, `COMMANDS_LIST`, the moderation defaults, `feature_keys`
+    and the module `feature_for` imports come from it;
     what cannot be derived must agree with it: the form YAML named after the key,
     the module the spec names, the subgroup the cogs register under the group with
     the namespace, and the copy.
@@ -1021,6 +1022,7 @@ async def test_every_feature_command_is_registered_where_its_spec_says(deps):
 def test_the_lists_the_bot_reads_are_derived_from_the_declaration():
     keys = [spec.key for spec in _specs()]
     assert [entry["command_key"] for entry in Commands.SETUP_FEATURES] == keys
+    assert Commands.COMMANDS_LIST == keys
     assert list(Commands.FEATURE_COMMANDS) == keys
     defaults = GuildConstants.COGS_MODERATIONS_COMMANDS_DEFAULT
     assert {key for key in defaults if key != GuildConstants.IS_BOT_ONLINE} == set(keys)

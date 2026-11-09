@@ -23,6 +23,7 @@ from app.data.notifications_twitch import (
 )
 from app.settings import open_feature
 from app.services import analytics
+from app.services.moderations import server_language
 from app.services.cache import claim_redis_key
 from app.services.trace import Outcome, fan_out
 from app.views.message_preview import MessagePreviewView
@@ -31,7 +32,6 @@ from app.services.utils import (
     fill,
     fill_placeholders,
     format_datetime_output,
-    guild_locale,
     ml,
     split_messages,
     values_of,
@@ -167,7 +167,7 @@ async def announce_live(
         guild_data.get("guild_id"), (notification.get("channel") or {}).get("value")
     )
     embed = create_stream_notification_embed(
-        streamer_name, stream_info, user_info, guild_locale(guild)
+        streamer_name, stream_info, user_info, await server_language(guild.id)
     )
 
     try:
@@ -216,7 +216,8 @@ async def show_status(
     if not message:
         return False
 
-    message.embeds[0].set_footer(text=stream_status(status, guild_locale(guild), duration))
+    locale = await server_language(guild.id)
+    message.embeds[0].set_footer(text=stream_status(status, locale, duration))
     await message.edit(embed=message.embeds[0])
     return True
 

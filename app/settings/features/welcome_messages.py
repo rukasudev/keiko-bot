@@ -86,15 +86,16 @@ class WelcomeMessagesFeature(GenericCogFeature):
         )
 
     def asides(self) -> Mapping[str, AsideAction]:
-        """The preview renders the welcome message for the admin themself."""
+        """The statistics, and the welcome message previewed for the admin themself."""
 
         async def preview(interaction: Any, responses: Any) -> None:
             await send_welcome_message_preview(interaction, list(responses))
 
         return {
+            **super().asides(),
             "preview": AsideAction(
                 preview, defer=True, cooldown=view_constants.ACTION_COOLDOWN_SECONDS
-            )
+            ),
         }
 
 

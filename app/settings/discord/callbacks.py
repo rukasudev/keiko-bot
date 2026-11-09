@@ -19,16 +19,19 @@ import discord
 
 from app import logger
 from app.components.embed import response_error_embed
+from app.constants import Commands as commands_constants
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
 from app.services import analytics, metrics
+from app.services.moderations import interaction_language, server_settings
 from app.services.trace import trace_scope
-from app.services.utils import get_command_display_name, is_guild_admin
+from app.services.utils import fill, get_command_display_name, is_guild_admin, speak
 from app.settings.discord import observability
 from app.settings.discord.interactions import ComponentId, decode, to_event
 from app.settings.discord.transitions import (
     Answering,
     EffectFailed,
+    Ending,
     Executor,
     Surface,
     expire_surface,
@@ -50,7 +53,7 @@ from app.settings.form import events as ev
 from app.settings.form import manager
 from app.settings.form.actions.action import Context
 from app.settings.form.components import Card, Gallery
-from app.settings.form.copy import normalize_locale, text
+from app.settings.form.copy import text
 from app.settings.form.effects import (
     OpenChild,
     OpenPanel,
@@ -91,6 +94,9 @@ class Session:
     previews: asyncio.Task[Mapping[str, str]] | None = None
     drawn_from: str = ""
     journey_waits: bool = False
+    settings: Mapping[str, Any] = field(default_factory=dict)
+    ending: Ending | None = None
+    back: Ending | None = None
 
     async def ready_previews(
         self, wait: bool, budget: float = view_constants.PREVIEW_WAIT_SECONDS
@@ -185,17 +191,23 @@ class Runtime:
         self.sessions.clear()
 
     async def open_feature(
-        self, interaction: discord.Interaction, key: str, source: str | None = None
+        self,
+        interaction: discord.Interaction,
+        key: str,
+        source: str | None = None,
+        ending: Ending | None = None,
+        back: Ending | None = None,
     ) -> None:
-        """Open the feature `key`: the setup form, or the manager of what is saved."""
-        locale = normalize_locale(interaction.locale)
+        """Open `key` as its setup or its manager."""
+        locale = await interaction_language(interaction)
         guild = interaction.guild
         member = interaction.user
         guild_id = str(getattr(guild, "id", interaction.guild_id))
         answering = self._clocked(interaction)
+        opening = Opening(key, source, ending, back)
 
         try:
-            await self._open(interaction, key, source, locale, guild, member, guild_id)
+            await self._open(interaction, opening, locale, guild, member, guild_id)
         finally:
             self._unclocked(answering)
 
@@ -204,14 +216,15 @@ class Runtime:
     async def _open(
         self,
         interaction: discord.Interaction,
-        key: str,
-        source: str | None,
+        opening: Opening,
         locale: str,
         guild: Any,
         member: Any,
         guild_id: str,
     ) -> None:
+        key = opening.key
         feature = feature_for(key)
+        settings = await asyncio.to_thread(server_settings, guild_id)
         opened = await feature.open(
             OpenContext(guild_id, str(interaction.user.id), locale, guild, member)
         )
@@ -222,6 +235,9 @@ class Runtime:
             return
         definition = registry.get(key)
         mode = Manage() if opened.document is not None else Setup()
+        ending = opening.ending if isinstance(mode, Setup) else None
+        back = opening.back if isinstance(mode, Setup) else None
+        launched = ending is not None or back is not None
         origin = Origin(guild_id, str(interaction.user.id), locale)
         session = new_session(
             (definition.key, definition.version),
@@ -233,8 +249,8 @@ class Runtime:
         self.sessions[session.id] = Session(
             feature=feature,
             opened=opened,
-            surface=Surface(),
-            source=source or analytics.resolve_source(interaction),
+            surface=_surface(interaction) if launched else Surface(),
+            source=opening.source or analytics.resolve_source(interaction),
             command_name=_command_label(interaction, key),
             guild=guild,
             member=member,
@@ -242,6 +258,9 @@ class Runtime:
             command_label=get_command_display_name(
                 interaction.client, key, interaction.locale
             ),
+            settings=settings,
+            ending=ending,
+            back=back,
         )
         state = self.sessions[session.id]
 
@@ -267,6 +286,7 @@ class Runtime:
             await self._unknown(interaction)
             return
         state = self.sessions[session.id]
+        speak(interaction, session.origin.locale)
         answering = self._clocked(interaction)
         try:
             await self._handle_locked(interaction, component, session, payload, state)
@@ -320,7 +340,7 @@ class Runtime:
     async def _unknown(self, interaction: discord.Interaction) -> None:
         """A click on a message whose session this process no longer has."""
         notice = text(
-            "commands.form-notices.expired", normalize_locale(interaction.locale)
+            "commands.form-notices.expired", await interaction_language(interaction)
         )
         message = interaction.message
 
@@ -354,7 +374,8 @@ class Runtime:
         opened = state.opened
         document = opened.document or {}
         external: Mapping[str, Mapping[str, Any]] = {}
-        prefix = _prefix()
+        settings = state.settings
+        prefix = str(settings[commands_constants.SERVER_PREFIX_KEY])
 
         if lookup is not None:
             external = await state.feature.prefetch(
@@ -388,10 +409,13 @@ class Runtime:
             external=external,
             server_name=str(getattr(state.guild, "name", "")),
             prefix=prefix,
+            server_language=str(settings[commands_constants.SERVER_LANGUAGE_KEY]),
+            server_timezone=str(settings[commands_constants.SERVER_TIMEZONE_KEY]),
             command=state.command_label,
             values=opened.values,
             previews=await state.ready_previews(False),
             member_pictures=MemberPictures(state.guild),
+            back_to_opener=state.back is not None,
         )
 
     async def _apply(
@@ -510,6 +534,8 @@ class Runtime:
             aside=self._aside,
             continue_with=self._continue,
             answering=self._answering(interaction),
+            ending=state.ending,
+            back=state.back,
         )
 
         try:
@@ -563,6 +589,7 @@ class Runtime:
                 friction=state.friction,
                 lock=state.lock,
                 previews=state.previews,
+                settings=state.settings,
             )
             state.surface.replace_next = (
                 isinstance(session.mode, Manage) and state.surface.is_layout
@@ -594,6 +621,7 @@ class Runtime:
             effect.answers,
             effect.index,
             effect.cancelled,
+            effect.discarded,
         )
         await self._apply(interaction, parent, event)
 
@@ -792,10 +820,7 @@ class Runtime:
             values = action.confirm_values(
                 state.opened.document or {}, locale, state.guild
             )
-            for token in sorted(values, key=len, reverse=True):
-                embed.description = embed.description.replace(
-                    f"${token}", values[token]
-                )
+            embed.description = fill(embed.description, **values)
         view = ConfirmActionView(confirmed, locale)
 
         if await self._answering(interaction).first(
@@ -969,6 +994,28 @@ def _items(
     )
 
 
+@dataclass(frozen=True)
+class Opening:
+    """What a caller asked of an open: the feature, its source, its ending, its back."""
+
+    key: str
+    source: str | None = None
+    ending: Ending | None = None
+    back: Ending | None = None
+
+
+def _surface(interaction: discord.Interaction) -> Surface:
+    """The message the click came from, as the surface a session draws over."""
+    message = interaction.message
+    if message is None:
+        return Surface()
+    return Surface(
+        message=message,
+        message_id=message.id,
+        is_layout=bool(message.flags.components_v2),
+    )
+
+
 def _command_label(interaction: Any, key: str) -> str:
     command = getattr(interaction, "command", None)
     return str(getattr(command, "qualified_name", None) or key)
@@ -999,17 +1046,15 @@ def _now() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _prefix() -> str:
-    import app as app_module
-
-    return str(app_module.bot.config.PREFIX)
-
-
 RUNTIME = Runtime()
 
 
 async def open_feature(
-    interaction: discord.Interaction, key: str, source: str | None = None
+    interaction: discord.Interaction,
+    key: str,
+    source: str | None = None,
+    ending: Ending | None = None,
+    back: Ending | None = None,
 ) -> None:
     """Open the feature `key` for the interaction, on the process runtime."""
-    await RUNTIME.open_feature(interaction, key, source)
+    await RUNTIME.open_feature(interaction, key, source, ending, back)

@@ -45,6 +45,8 @@ make clean        # clean cache and venv
 
 ## Before planning or writing code
 
+- An agent starting a change reads `docs/agent-guide.md` first: what to read for each kind
+  of change, where things live, the gate.
 - Investigate first. Trace the real execution path of the command you are touching and
   search for existing capabilities (actions, components, validators, transforms, formatters,
   services, localization keys) before proposing anything new. Never claim something doesn't

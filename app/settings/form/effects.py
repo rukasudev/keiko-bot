@@ -81,6 +81,7 @@ class ResumeParent(Effect):
     answers: Mapping[str, Any]
     index: int | None = None
     cancelled: bool = False
+    discarded: bool = False
 
 
 @dataclass(frozen=True)
@@ -103,6 +104,11 @@ class Finalize(Effect):
 @dataclass(frozen=True)
 class OpenPanel(Effect):
     """Send the manager panel of what the setup just saved, below its activation."""
+
+
+@dataclass(frozen=True)
+class ReturnToOpener(Effect):
+    """Give the message back to whoever opened the session, which closed."""
 
 
 @dataclass(frozen=True)

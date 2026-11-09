@@ -87,6 +87,7 @@ async def test_one_session_produces_one_message_not_one_per_click(
 async def test_discarding_with_the_button_ends_as_discarded(scenario_factory, story):
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
+    await scenario.select_option("allow_all", target="mode")
     await scenario.click("cancel")
     await scenario.click("Descartar tudo")
 

@@ -18,6 +18,7 @@ from app.services.notifications_twitch import (
 )
 from tests.mocks import create_guild, create_member
 from tests.generators import notifications
+from tests.generators.moderations import recorded_server
 from tests.helpers import assert_embed_contains, assert_embed_field
 import asyncio
 import logging
@@ -513,7 +514,7 @@ def servers(deps):
         "gaules", game="CS2", started_at=datetime.now(timezone.utc) - timedelta(hours=2)
     )
     for guild in known.values():
-        guild.preferred_locale = discord.Locale.american_english
+        recorded_server(deps.mongo_client, guild.id, language="en-us")
         for channel in guild.text_channels:
             remember_sent_messages(channel)
     return SimpleNamespace(first=first, second=second)
@@ -527,6 +528,7 @@ def remember_sent_messages(channel):
 
 
 def follow(deps, guild_id, *channels):
+    recorded_server(deps.mongo_client, guild_id)
     deps.mongo_client.guild.notifications_twitch.insert_one({
         "guild_id": str(guild_id),
         "enabled": True,
@@ -660,7 +662,7 @@ async def test_a_streamer_followed_in_several_channels_gets_its_status_once_per_
 @pytest.mark.regression
 @pytest.mark.shared_contract("fan_out")
 async def test_the_status_speaks_the_servers_language(deps, servers):
-    servers.second.preferred_locale = discord.Locale.brazil_portuguese
+    recorded_server(deps.mongo_client, servers.second.id, language="pt-br")
     follow(deps, servers.second.id, servers.second.text_channels[0].id)
 
     await handle_send_streamer_notification("gaules")

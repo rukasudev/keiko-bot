@@ -1,8 +1,8 @@
 import discord
 
 from app.bot import DiscordBot
-from app.components.embed import response_embed
 from app.decorators import keiko_command
+from app.services.help import ping_embed
 from app.translator import locale_str
 from app.types.cogs import Cog
 
@@ -17,11 +17,7 @@ class Ping(Cog, name="ping"):
         description=locale_str("ping", type="desc", namespace="ping"),
     )
     async def ping(self, interaction: discord.Interaction) -> None:
-        ping = round(self.bot.latency * 1000)
-
-        embed = response_embed("commands.commands.ping.response", interaction.locale)
-        embed.description = embed.description.replace("$ping", str(ping))
-
+        embed = ping_embed(self.bot, interaction.locale)
         await interaction.response.send_message(embed=embed)
 
 

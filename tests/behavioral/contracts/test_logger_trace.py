@@ -16,7 +16,8 @@ from app.services import trace as trace_service
 from app.services.trace import Outcome, Trace, trace_scope
 import discord
 from app.exceptions import DestinationNotFound
-from app.services.utils import destination, guild_locale
+from app.services.utils import destination
+from tests.generators.moderations import recorded_server
 from tests.mocks.discord import create_member, create_message
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("logging")]
@@ -432,16 +433,6 @@ def test_the_lookup_says_which_of_the_server_or_the_channel_is_missing(deps):
 
 
 @pytest.mark.shared_contract("fan_out")
-def test_a_server_is_spoken_to_in_the_language_its_settings_saved_else_its_own():
-    brazilian = SimpleNamespace(preferred_locale=discord.Locale.brazil_portuguese)
-    american = SimpleNamespace(preferred_locale=discord.Locale.american_english)
-
-    assert guild_locale(brazilian) == "pt-br"
-    assert guild_locale(american, saved="pt-br") == "pt-br"
-    assert guild_locale(SimpleNamespace()) == "en-us"
-
-
-@pytest.mark.shared_contract("fan_out")
 async def test_a_listeners_parts_run_each_on_its_own_under_one_trace(caplog):
     closed = []
     trace_service.register_sink(closed.append)
@@ -493,6 +484,7 @@ def events(deps, guild):
     guild.owner = create_member(guild, id=313, name="Owner")
     guild.preferred_locale = discord.Locale.american_english
     deps.bot.config.PREFIX = "ke!"
+    recorded_server(deps.mongo_client, guild.id, prefix="ke!")
     deps.bot.user = SimpleNamespace(id=99)
     deps.bot.owner_id = 1
     deps.bot.guilds = []

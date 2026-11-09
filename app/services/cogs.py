@@ -43,6 +43,14 @@ def is_feature_on(guild_id: str, key: str, document: Optional[Mapping[str, Any]]
     return bool(moderations_data.find_moderation_by_guild(guild_id, key))
 
 
+def feature_spec(command_key: str) -> Dict[str, Any]:
+    """A feature as `Commands.SETUP_FEATURES` lists it, or nothing for an unknown key."""
+    return next(
+        (spec for spec in constants.SETUP_FEATURES if spec["command_key"] == command_key),
+        {},
+    )
+
+
 def features_on(guild_id: str) -> List[str]:
     """The setup features that are on in a server, by `is_feature_on`."""
     return [

@@ -13,7 +13,6 @@ from app.data.cogs import insert_error_by_command_async
 from app.exceptions import ErrorContext
 from app.services import analytics, metrics, utils
 from app.services.cache import increment_redis_key
-from app.services.help import prefix_hint
 from app.services.trace import trace_scope
 from app.types.cogs import Cog
 
@@ -105,9 +104,6 @@ class Errors(Cog, name="errors"):
         error: commands.CommandError,
     ):
         if isinstance(error, commands.CommandNotFound):
-            hint = await prefix_hint(self.bot, context.guild)
-            if hint:
-                await context.send(hint)
             return
 
         logger.warn(

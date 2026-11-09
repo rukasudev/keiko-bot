@@ -46,6 +46,7 @@ from app.data.birthdays import (
 )
 from app.services.moderations import update_moderations_by_guild
 from app.webhooks import birthday_handler
+from tests.generators.moderations import recorded_server
 from tests.mocks.discord import create_guild, create_member
 from app.services.reminders_birthdays import build_celebration_embed
 
@@ -80,6 +81,8 @@ def guilds(deps, monkeypatch):
     first = create_guild(id=FIRST_GUILD, name="First", channels=["birthdays"])
     second = create_guild(id=SECOND_GUILD, name="Second", channels=["parties"])
     by_id = {FIRST_GUILD: first, SECOND_GUILD: second}
+    for guild_id in by_id:
+        recorded_server(deps.mongo_client, guild_id, timezone=TIMEZONE)
     deps.bot.get_guild = lambda guild_id: by_id.get(int(guild_id))
     monkeypatch.setattr(birthday_handler, "bot", deps.bot)
     return SimpleNamespace(first=first, second=second)

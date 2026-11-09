@@ -83,3 +83,18 @@ class DestinationNotFound(Exception):
 
 class StreamElementsUnavailable(Exception):
     """StreamElements could not say which commands a streamer has."""
+
+
+class ServerSettingsMissing(Exception):
+    """A server Keiko reads has no saved settings."""
+
+    def __init__(self, guild_id: Any) -> None:
+        super().__init__(f"guild {guild_id} has no server settings")
+
+
+class InvalidServerSetting(Exception):
+    """A server setting refused before it was saved: an unknown key or a value it cannot hold."""
+
+    def __init__(self, key: str) -> None:
+        self.key = key
+        super().__init__(f"invalid server setting {key}")

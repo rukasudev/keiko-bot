@@ -551,6 +551,7 @@ def panel_buttons(
             buttons.append(_button("remove", "remove", "🗑️", locale))
     buttons.append(_button("history", "aside:history", "📜", locale))
     buttons.extend(panel.extra_buttons)
+    buttons.append(_button("stats", "aside:stats", "📊", locale))
     buttons.append(_button("help", "aside:help", "🙋", locale))
 
     return tuple(buttons)

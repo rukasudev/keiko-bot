@@ -16,6 +16,7 @@ from app.exceptions import ErrorContext, StreamElementsUnavailable
 from app.integrations.stream_elements import StreamElementsClient
 from app.settings import open_feature
 from app.services import analytics, cache
+from app.services.moderations import server_language
 from app.services.trace import outside_any_trace
 from app.services.utils import fill, ml
 from app.views.pagination import PaginationView
@@ -50,10 +51,11 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
     )
 
     try:
+        locale = await server_language(guild_id)
         channel_id = await channel_of(guild_id, streamer, cogs.get("channel_id"))
 
         if command == "commands":
-            view = await parse_command_list_view(channel_id, message, streamer)
+            view = await parse_command_list_view(channel_id, message, streamer, locale)
             if not view:
                 return
             return await view.send(message)
@@ -66,7 +68,7 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
 
         await message.reply(
             embed=create_response_embed(
-                command, reply, message.author, streamer, prefix, _locale_of(message)
+                command, reply, message.author, streamer, prefix, locale
             )
         )
         analytics.record_value(
@@ -76,9 +78,7 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
         await asyncio.to_thread(warn_unavailable, streamer, unavailable)
         if command == "commands":
             await message.reply(
-                embed=response_error_embed(
-                    "stream-elements-unavailable", _locale_of(message)
-                )
+                embed=response_error_embed("stream-elements-unavailable", locale)
             )
     except Exception as e:
         logger.error(
@@ -150,10 +150,6 @@ def warn_unavailable(streamer: str, error: StreamElementsUnavailable) -> None:
         )
 
 
-def _locale_of(message: discord.Message) -> Optional[discord.Locale]:
-    return message.guild.preferred_locale if message.guild else None
-
-
 def _status(answer: object) -> str:
     if isinstance(answer, dict):
         return f"answered {answer.get('statusCode')} {answer.get('error') or ''}".strip()
@@ -161,9 +157,9 @@ def _status(answer: object) -> str:
 
 
 async def parse_command_list_view(
-    channel_id: str, message: discord.Message, streamer: str
+    channel_id: str, message: discord.Message, streamer: str, locale: str
 ) -> Optional[discord.ui.View]:
-    """The command list. The view is built here, on the loop; only the two
+    """The command list in `locale`. The view is built here, on the loop; only the two
     lookups go to a thread."""
     from app import bot
 
@@ -173,7 +169,6 @@ async def parse_command_list_view(
     if not commands_list:
         return None
 
-    locale = _locale_of(message)
     namespace = "commands.commands.commons.stream-elements-manager.commands"
     title = ml(f"{namespace}.embed.title", locale=locale)
     description = ml(f"{namespace}.embed.desc", locale=locale).replace(
@@ -188,6 +183,7 @@ async def parse_command_list_view(
         message,
         thumbnail=icon,
         sep=view_constants.COMMANDS_PAGE_SIZE,
+        locale=locale,
     )
     return view
 
@@ -239,7 +235,7 @@ def create_response_embed(
     user: discord.User,
     streamer: str,
     prefix: str,
-    locale: Optional[discord.Locale],
+    locale: str,
 ) -> discord.Embed:
     """A StreamElements reply, signed by whoever asked, pointing at the command list."""
     embed = discord.Embed(

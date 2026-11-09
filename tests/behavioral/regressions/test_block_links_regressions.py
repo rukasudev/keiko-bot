@@ -320,7 +320,7 @@ async def stats_description(scenario_factory):
         "block_links", dict(COG)
     )
     await scenario.click(ml("buttons.stats.label", locale="pt-br"))
-    stats = scenario.expect_message(title_contains=_bm("stats.embed.title"))
+    stats = scenario.expect_message(title_contains=ml("commands.commands.commons.stats.title.block-links", locale="pt-br"))
     await scenario.finish()
     return (stats.get("embed") or {}).get("description") or ""
 
@@ -605,13 +605,20 @@ async def test_the_stats_never_freeze_the_bot(deps, monkeypatch):
     async def send(**kwargs):
         sent.append(kwargs)
 
+    from app.settings.features import feature_for
+    from tests.mocks.discord import create_guild
+
+    guild = create_guild(id=int(GUILD_ID))
     interaction = SimpleNamespace(
+        guild=guild,
         guild_id=int(GUILD_ID),
+        user=SimpleNamespace(id=555),
         locale="pt-BR",
         followup=SimpleNamespace(send=send),
     )
+    stats = feature_for(Commands.BLOCK_LINKS_KEY).asides()["stats"]
 
-    ticks = await ticks_while(block_links.send_blocked_links_stats_message(interaction))
+    ticks = await ticks_while(stats.handler(interaction, []))
 
     assert ticks >= MIN_TICKS
     assert sent and _bm("stats.empty") in sent[0]["embed"].description

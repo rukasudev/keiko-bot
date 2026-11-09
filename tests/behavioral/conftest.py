@@ -152,3 +152,26 @@ def log_channels(monkeypatch):
 
     logger_module.logger.removeHandler(handler)
     logger_module.logger.removeHandler(folding)
+
+
+@pytest.fixture
+def stories():
+    """Every journey publication: whose, how it reads, and how it ended."""
+    from app.services import journey
+
+    published = []
+    journey.clear()
+    journey.set_publisher(
+        lambda story: published.append(
+            (
+                story.guild_id,
+                story.name,
+                story.result,
+                tuple(line["message"] for line in story.lines),
+            )
+        )
+    )
+    journey.install()
+    yield published
+    journey.clear()
+    journey.set_publisher(None)

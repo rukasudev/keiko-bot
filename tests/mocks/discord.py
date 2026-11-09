@@ -8,6 +8,7 @@ Estes mocks simulam o comportamento dos objetos Discord reais
 e fornecem helpers para assertions em testes.
 """
 
+import functools
 from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import List, Optional, Any, Dict, Set
@@ -292,6 +293,7 @@ class MockInteraction:
         self.channel_id = self.channel.id if self.channel else None
         self.locale = discord.Locale(locale)
         self.message = None
+        self.extras: dict = {}
 
         # Response tracking
         self._responses: List[dict] = []
@@ -447,6 +449,7 @@ def create_guild(
         guild=guild,
         roles=[MockRole(id=999, name="Bot", position=5)]
     )
+    guild.me.guild_permissions = discord.Permissions.all()
 
     return guild
 
@@ -500,3 +503,30 @@ def create_message(
         author=author,
         channel=channel
     )
+
+
+async def the_tree_checks(interaction: Any) -> None:
+    """What discord.py does before any app command runs: Keiko's own bot's tree checks
+    the interaction, which speaks the server's language from then on."""
+    assert await _keiko().tree.interaction_check(interaction)
+
+
+@functools.lru_cache(maxsize=None)
+def _keiko() -> Any:
+    from app.bot import DiscordBot
+
+    return DiscordBot(SimpleNamespace(
+        PREFIX="ke!",
+        APPLICATION_ID=1,
+        OWNER_ID=2,
+        STATUS=discord.Status.online,
+        ACTIVITY=discord.ActivityType.playing,
+        DESCRIPTION="Keiko",
+        WEBHOOK_URL="https://keiko.test/v1/webhooks",
+        NOTION_TOKEN="token",
+        NOTION_DATABASE_ID="database",
+        NOTION_ENABLED=False,
+        YOUTUBE_API_KEY="key",
+        REMINDER_APPLICATION_ID="1",
+        REMINDER_API_KEY="api-key",
+    ))

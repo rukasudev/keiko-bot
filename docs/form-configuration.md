@@ -88,6 +88,41 @@ lines are enforced by `tests/forms/test_boundary.py`.
    opening and counts the setup's save as the session's first change; when the
    feature cannot be read again the activation embed is all the admin gets
    (`tests/behavioral/contracts/test_a_setup_ends_with_the_activation_and_its_panel.py`).
+7. The caller of `open_feature(interaction, key, source=None, ending=None)`
+   (also `run_feature_command(interaction, command_key, source, ending=)`)
+   may hand an `ending` with the open, and the platform never learns who it
+   is: no source string, command or screen is named under `app/settings/`
+   (`test_the_platform_never_names_the_screen_that_opened_it`).
+   `ending: Ending` (`Callable[[], Awaitable[discord.ui.LayoutView]]`,
+   `app/settings/discord/transitions.py`) is kept on the adapter `Session`.
+   A setup opened with one starts on the message the click came from (its
+   `Surface` is that message, so the first screen edits it or replaces it
+   when the flavour changes), and once saved the `Executor` drops the
+   `Finalize` that comes with `OpenPanel` and draws the view the ending
+   returns on the setup's message instead (`Executor.hand_back`): no
+   activation embed, no panel below. Every event, the story and the audit
+   record are the ones a setup without an ending writes. A manager opened
+   with an ending ignores it. `/configurar` passes one from its feature
+   buttons, to end on the category page the feature was opened from
+   (`tests/behavioral/contracts/test_an_opener_can_end_a_setup.py`). Pause,
+   unpause and disable run only from the panel.
+8. The same caller may hand a `back` (`open_feature(..., back=None)`, also
+   `run_feature_command(..., back=)`), of the same `Ending` type, kept on the
+   adapter `Session` beside the ending and ignored by a manager. A setup
+   opened with one also starts on the message the click came from, and the
+   adapter tells the engine so (`Context.back_to_opener`); the engine then
+   draws the first screen of the setup (`Form.returns_to_opener`: the first
+   allowed step) with a grey Back where its Cancel was (`Form.framed`, on
+   every screen `show` and `rerender` draw for that step), and that Back,
+   which has no previous step to land on, closes the session as a discard:
+   `setup.discarded`, `Status.CANCELLED`, the discarded story, no keep or
+   discard question, and `ReturnToOpener` in place of `Finalize("discarded")`,
+   which the `Executor` runs by drawing the view `back` returns on the
+   setup's message (`Executor.return_to_opener`, through `hand_back`). Every
+   later screen keeps its own Back and Cancel, and so does a child session.
+   `/configurar` passes one from its feature buttons, back to the category
+   page and the page number the admin came from
+   (`tests/behavioral/contracts/test_an_opener_can_take_a_setup_back.py`).
 
 ## 3. The definition schema
 
@@ -103,7 +138,7 @@ below names the YAML spelling first and the model second.
 |---|---|---|
 | `key` | `key` | the answer key this step produces (a text step with named `fields` produces those keys instead) |
 | `action` | `kind` | the step kind, through the alias table in 3.2 |
-| `title`, `description`, `footer` | `Text` | copy in `en-us` and `pt-br`; `description` accepts `{response:key:formatter|fallback}` tokens resolved from earlier answers (inside a card section, from the card's own draft first), where the formatter is `host` or any value style of this table (`{response:default_roles:role|Empty}` reads `<@&1>, <@&2>`), `{plural:key\|one\|several}` tokens, which read the second text only while the answer holds more than one value and the first otherwise, none included, counted from the card's own draft first like `{response:...}` (`{plural:default_roles\|Role to give these members\|Roles to give these members}`), and `{context:name}` tokens filled by the adapter: `server_name`, `prefix` (the chat prefix), `command` (the feature's slash command in the admin's language, without the `/`) and every value the feature's `open` returned in `Opened.values` (`members_count`, `bots_count` for default roles); trailing whitespace is dropped, so a YAML block text adds no blank line |
+| `title`, `description`, `footer` | `Text` | copy in `en-us` and `pt-br`; `description` accepts `{response:key:formatter|fallback}` tokens resolved from earlier answers (inside a card section, from the card's own draft first), where the formatter is `host` or any value style of this table (`{response:default_roles:role|Empty}` reads `<@&1>, <@&2>`), `{plural:key\|one\|several}` tokens, which read the second text only while the answer holds more than one value and the first otherwise, none included, counted from the card's own draft first like `{response:...}` (`{plural:default_roles\|Role to give these members\|Roles to give these members}`), and `{context:name}` tokens filled by the adapter: `server_name`, `prefix` (the server's chat prefix), `server_language` (`pt-br` or `en-us`), `server_timezone` (an IANA zone), all three read once per opened feature from the server's `settings`, `command` (the feature's slash command in the server's language, without the `/`) and every value the feature's `open` returned in `Opened.values` (`members_count`, `bots_count` for default roles); trailing whitespace is dropped, so a YAML block text adds no blank line |
 | `emoji` | `emoji` | the step's icon on summaries; on the manager panel it leads each line the step owns (a card section's or a select's `icon` wins for its keys, the frisbee stands in when nothing is declared) |
 | `required` | `required` | the step must hold a value before Confirm; on a composition, the feature needs its list: Remove shows from two items and a removal never takes the last one (`kept_items`), except with `remove_each`, where each item keeps its own Remover and removing the last one turns the feature off after the `only_item_warning` (section 3.4) |
 | `hidden` | `hidden` | the answer is a gate: never listed on the review or the panel |
@@ -369,7 +404,7 @@ nothing is looked up by reflection.
 | Validators | `VALIDATORS` in `app/settings/form/responses/validations.py`; each declares `needs` (`answers`, `items`, `external:<service>`) so the adapter prefetches before `decide` | `validate_streamer_name`, `validate_youtube_channel`, `validate_link_or_domain`, `validate_date` |
 | Transforms | `TRANSFORMS` in `app/settings/form/responses/transforms.py`; a `Transform` names its `part_keys`, `value_key`, `style`, `serialize` and `hydrate` | `mm_dd_date_parts`, `normalize_link` |
 | Formatters | `STYLES` and `format_value` in `app/settings/form/responses/styles.py` | the styles of 3.1 |
-| Copy tokens | `TOKEN_FORMATTERS` in `app/settings/form/actions/action.py`, then every value style; `PLURAL_TOKEN` there picks one of its two texts by `count_of` (`conditions.py`, the count the `when` grammar's `count` leaf reads); the `{context:name}` values are fields of `Context` and its `values`, filled in `Runtime._context` (`callbacks.py`) from `Opened.values` | `host` and the styles, `plural`; context `server_name`, `prefix`, `command` and the feature's own values |
+| Copy tokens | `TOKEN_FORMATTERS` in `app/settings/form/actions/action.py`, then every value style; `PLURAL_TOKEN` there picks one of its two texts by `count_of` (`conditions.py`, the count the `when` grammar's `count` leaf reads); the `{context:name}` values are fields of `Context` and its `values`, filled in `Runtime._context` (`callbacks.py`) from `Opened.values` and from the server's settings `Runtime._open` read (`server_settings`, `app/services/moderations.py`) | `host` and the styles, `plural`; context `server_name`, `prefix`, `server_language`, `server_timezone`, `command` and the feature's own values |
 | Copy resolution | `text(key, locale)` and `normalize_locale` in `app/settings/form/copy.py` | reads the language files through `ml` |
 | Definitions | `DefinitionSource` (`load`, `list`) in `app/settings/form/form_yaml.py` | `DiskSource` over `app/languages/form/` |
 | Features | `Feature` in `app/constants.py`, one `FeatureSpec` each, whose `module` names the feature's module under `app/settings/features/` or is None; `feature_for(key)` in `app/settings/features/__init__.py` imports the module the spec names | the seven feature modules; a spec whose `module` is None gets `GenericCogFeature`, and a key no spec declares is refused |
@@ -403,7 +438,7 @@ contributes, and nothing more:
 | `prefetch(lookup, context)` | the external data a submitted modal asks for: `lookup.services` are the `external:<service>` needs of its validator (a text step's or a card section's modal) and `lookup.value` is the typed value after `lowercase` and `normalize`; the adapter defers the interaction before running it |
 | `to_document(answers, locale)` / `from_document(document)` | answers to the persisted document and back, any schema version |
 | `commit(kind, payload, context) -> CommitResult` | writes what `kind` asks (`setup`, `edit`, `toggle`, `edit_item`, `add_item`, `remove_item`, `pause`, `unpause`, `disable`), records the audit event, and reports `written` and `external` so a failure midway can say what happened. The list and choice commits apply each change to the settings as they are saved when the admin confirms (`saved_document`, `saved_list`, read through the feature's `normalized`): `toggle` sets one option to the state its button asked for (`turned_on`), so the same click from two screens gives the same choice, and the item commits find the edited or removed items by the content the panel showed (a removal names `indexes` and the `items` they held, and takes every one of them or none, never leaving a `required` list empty), refuse a `unique_by` value already listed (`DuplicateItem`), and write only while nobody changed the value meanwhile (`update_cog_if_unchanged_async`); otherwise `ListChanged` saves nothing. `pause`, `unpause` and `edit` first check that the document is still saved (`saved_document`). A refusal drops the cached document, the adapter reads the feature again (`Runtime._reopen`, which keeps the document it had and logs the error when that read fails) and the manager answers: the out-of-date notice and the screen redrawn from the saved list, the duplicate copy once over the screen drawn again, or, once the feature is gone, `Finalize("closed")`, which takes the rows of buttons off the message and writes the closed notice inside it. A refusal keeps the session open (a duplicate included), or closes it after another panel's Disable, and emits no event: only a commit that fails the session emits `feature.commit_failed`. What a change needs outside runs before the write (`before_item_added`, `before_item_replaced`) and is let go when the write fails (`save_or_let_go`); what it leaves outside runs after it (`after_item_replaced`, `after_item_removed`, `after_disable`), best-effort and logged when it fails (`best_effort`); what may take long (default roles giving the saved roles to every member already in the server) starts after the commit through `in_background`, best-effort too, and the commit never waits for it, so the answer to the click stays in time. `CommitContext.guild` is the guild the session runs in. Disable deletes the document and lets go of what it listed before it records the flag; a `disable` that names `items` (the removal of a list's only item) first checks the list is saved as them |
-| `asides()` | read-only side actions by button action name (`AsideAction(handler, defer, own_response, cooldown, confirm)`); a button may name one item of the list (`aside:<name>:<key>$<index>`), and that item cools down on its own |
+| `asides()` | read-only side actions by button action name (`AsideAction(handler, defer, own_response, cooldown, confirm)`); a button may name one item of the list (`aside:<name>:<key>$<index>`), and that item cools down on its own; `GenericCogFeature` gives every feature `stats`, the statistics the panel's "📊 Estatísticas" opens (`send_feature_stats`, `app/services/feature_health.py`: the feature's `stats_lines`, none by default, then its last 7 days), and a feature that adds its own merges `super().asides()` |
 | `responses_for_preview(answers, locale)` | the answers in the shape the preview functions read |
 | `responses_for_aside(answers, locale, index)` | the same rows with the list replaced by the item at `index` (the first when none is named), from the answers on a form and from the saved document on the panel |
 
@@ -430,6 +465,20 @@ labels in `value`, because v0.9.0 shows and matches them.
   notice (`Engine.redraw`); a click on an unknown or expired session takes
   the controls off that message and says the form expired, in the admin's
   locale.
+- **Language.** Every app command, slash or context menu, passes
+  `KeikoTree.interaction_check` (`app/bot.py`) before it runs, which makes
+  `interaction_language` (`app/services/moderations.py`) the interaction's
+  locale and keeps the reader's own in `reader_locale` (the translation reads
+  it); components that are not a session call `interaction_language` in their
+  own callback. A server with no saved settings (`ServerSettingsMissing`, the
+  seconds between Keiko joining and saving its guess) is answered in the
+  person's own language, the only fallback. A session opens in the language
+  its opening interaction was given: the server's
+  saved one, whatever the admin's Discord says, and `Origin.locale` keeps it.
+  Every click on the session speaks it (`speak`, before anything reads
+  `interaction.locale`), so a side action, an error and a confirmation answer
+  in the language the screen is drawn in; a click on an unknown session asks
+  `interaction_language` itself.
 - **One lock per session, one first answer per interaction.** Two clicks on
   the same session run one after the other. Every first answer of an
   interaction (a defer, an edit, a message, a modal) goes through its
@@ -450,11 +499,19 @@ labels in `value`, because v0.9.0 shows and matches them.
   manager panel. `OpenModal` opens the modal; `ShowError` (a picker
   confirmed empty, a commit that failed) and `Notice` are ephemeral
   follow-ups; `Confirm` and `Dismiss` handle the discard
-  confirmation on a message of its own; `OpenChild`, `ResumeChild` and
+  confirmation on a message of its own, which Cancel asks only when there is
+  something to lose: a session with no answer, no saved document and no
+  answered parent (`_holds_nothing` in `form.py`) is discarded at once, with
+  the same `setup.discarded` and the same `Finalize("discarded")`
+  (`test_cancel_with_nothing_answered_closes_without_asking`,
+  `tests/behavioral/scenarios/test_cancel_flow.py`); `OpenChild`, `ResumeChild` and
   `ResumeParent` move between a parent and its child session; `Commit`
   calls the feature; `Finalize(kind)` closes the message with
   `commands.command-events.<kind>`; `OpenPanel` sends the manager panel of a
-  saved setup as a new message below its activation embed; `RunAside` runs a help, history,
+  saved setup as a new message below its activation embed, or, for a setup
+  opened with an `ending`, takes the place of that `Finalize` and draws the
+  ending's view on the setup's message; `ReturnToOpener` closes a setup opened
+  with a `back` from its first screen, drawing the back's view on its message; `RunAside` runs a help, history,
   preview or feature aside; `Ack` acknowledges and changes nothing.
 - **Limits.** The compiler refuses a card that would exceed Discord's forty
   components (`CV2_MAX_COMPONENTS`), counted by `card_components`: the frame

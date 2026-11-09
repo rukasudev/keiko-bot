@@ -11,11 +11,14 @@ from typing import Any, Protocol
 from app import logger
 from app.constants import Commands
 from app.constants import LogTypes as logconstants
+from app.constants import ViewConstants as view_constants
 from app.data import cogs as cogs_data
 from app.exceptions import ErrorContext
 from app.services.cache import get_cog_data_or_populate, remove_cog_cache_by_guild
 from app.services.cogs import LIFECYCLE_ANALYTICS_EVENTS, is_feature_on
+from app.services.feature_health import send_feature_stats
 from app.services.moderations import set_feature_enabled
+from app.settings.form.copy import normalize_locale
 from app.settings.form.form_state import Answer
 from app.settings.form.form_yaml import CompositionStep, FormDefinition, registry
 from app.settings.form.lookups import Lookup
@@ -284,8 +287,25 @@ class GenericCogFeature:
         return [*kept, *self.responses_for_preview(_unpacked(item), locale)]
 
     def asides(self) -> Mapping[str, AsideAction]:
-        """No side actions by default."""
-        return {}
+        """The statistics every panel opens, with its last days."""
+
+        async def stats(interaction: Any, _responses: Any) -> None:
+            lines = await asyncio.to_thread(
+                self.stats_lines,
+                str(interaction.guild_id),
+                normalize_locale(interaction.locale),
+            )
+            await send_feature_stats(interaction, self.key, lines)
+
+        return {
+            "stats": AsideAction(
+                stats, defer=True, cooldown=view_constants.ACTION_COOLDOWN_SECONDS
+            )
+        }
+
+    def stats_lines(self, guild_id: str, locale: str) -> Sequence[str]:
+        """The feature's own figures on its statistics, none by default."""
+        return ()
 
     def item_document(self, item: Mapping[str, Answer], locale: str) -> dict[str, Any]:
         """One composition item as the document stores it."""

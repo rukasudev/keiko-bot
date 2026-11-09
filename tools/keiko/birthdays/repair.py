@@ -62,6 +62,22 @@ REMINDER_SECRETS = (
 )
 
 
+class NoRedis:
+    """The Redis the repair does not have: every call fails as an unreachable Redis,
+    which the settings cache answers from Mongo, and anything else sees fail loudly."""
+
+    def __getattr__(self, name):
+        from redis.exceptions import ConnectionError as RedisConnectionError
+
+        def refuse(*_args, **_kwargs):
+            raise RedisConnectionError(
+                f"The repair tool does not have Redis, and something called "
+                f"redis_client.{name}()."
+            )
+
+        return refuse
+
+
 def load_for_apply(environment: str):
     """The smallest wiring that can create a reminder and store its id.
 
@@ -101,21 +117,7 @@ def load_for_apply(environment: str):
 
     connect_readonly(url)
 
-    # `app.services.reminders_birthdays` imports `app.components.buttons`, which
-    # imports `app.services.cache`, which reads `app.redis_client` at import
-    # time. The repair never touches Redis, so it gets a stand-in that shouts if
-    # anything ever does rather than silently dropping a write.
-    class _NoRedis:
-        def __getattr__(self, name):
-            def refuse(*_args, **_kwargs):
-                raise RuntimeError(
-                    f"The repair tool does not have Redis, and something called "
-                    f"redis_client.{name}()."
-                )
-
-            return refuse
-
-    app.redis_client = _NoRedis()
+    app.redis_client = NoRedis()
 
     config = SimpleNamespace(
         WEBHOOK_URL=os.getenv("WEBHOOK_URL"),
@@ -134,6 +136,7 @@ def load_for_apply(environment: str):
 
 def plan() -> List[Dict[str, Any]]:
     from app.data import birthdays as birthdays_data
+    from app.data import moderations as moderations_data
 
     seen = set()
     entries = []
@@ -145,11 +148,12 @@ def plan() -> List[Dict[str, Any]]:
         seen.add((guild_id, mm_dd))
 
         config = birthdays_data.find_birthday_config(guild_id) or {}
+        server = moderations_data.find_moderations_by_guild(guild_id) or {}
         entries.append({
             "guild_id": guild_id,
             "date": mm_dd,
             "people": birthdays_data.count_birthday_items_by_guild_and_date(guild_id, mm_dd),
-            "timezone": config.get("timezone"),
+            "timezone": (server.get("settings") or {}).get("timezone"),
             "notification_time": config.get("notification_time"),
             "configured": bool(config),
         })

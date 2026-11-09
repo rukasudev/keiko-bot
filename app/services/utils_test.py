@@ -10,6 +10,7 @@ from unittest.mock import MagicMock, patch
 from app.services.utils import (
     get_message_links,
     check_two_lists_intersection,
+    fill,
     fill_placeholders,
     list_roles_id,
     parse_welcome_messages,
@@ -390,7 +391,7 @@ class TestBirthdayItemDefaults:
             with patch("app.services.reminders_birthdays.birthdays_data.find_birthday_item", return_value=None):
                 with patch(
                     "app.services.reminders_birthdays.birthdays_data.find_birthday_config",
-                    return_value={"timezone": "America/Sao_Paulo", "notification_time": "12:00"},
+                    return_value={"timezone": "UTC", "notification_time": "12:00"},
                 ):
                     with patch(
                         "app.services.reminders_birthdays.birthdays_data.upsert_birthday_item",
@@ -399,7 +400,10 @@ class TestBirthdayItemDefaults:
                         with patch(
                             "app.services.reminders_birthdays.reminders_service.create_reminder",
                             return_value="rem-1",
-                        ) as create:
+                        ) as create, patch(
+                            "app.services.reminders_birthdays.server_setting",
+                            return_value="America/Sao_Paulo",
+                        ):
                             assert reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15")["reminder_id"] == "rem-1"
 
         create.assert_called_once_with(
@@ -729,6 +733,20 @@ class TestGetMessageLinksSchemeless:
         assert get_message_links("veja https://youtube.com/watch?v=a") == [
             "https://youtube.com/watch?v=a"
         ]
+
+
+class TestFill:
+    """The `$name` filler of Keiko's own localized lines."""
+
+    def test_a_name_that_starts_another_fills_only_its_own_placeholder(self):
+        assert fill("Página $page de $pages", page=1, pages=1) == "Página 1 de 1"
+        assert fill("$pages pages, page $page", pages=3, page=2) == "3 pages, page 2"
+
+    def test_a_value_is_never_read_as_a_placeholder(self):
+        assert fill("$a and $b", a="$b", b="x") == "$b and x"
+
+    def test_a_name_not_given_stays_as_written(self):
+        assert fill("$count of $total", count=2) == "2 of $total"
 
 
 class TestFillPlaceholders:

@@ -868,6 +868,7 @@ async def run_backup(channel, public_key=PUBLIC_KEY):
 def stored_databases(deps):
     """A small Keiko database: settings, the audit trail, birthdays and configs."""
     client = deps.mongo_client
+    client.guild.moderations.delete_many({})
     moderation_id = ObjectId()
     client.guild.moderations.insert_one(
         {"_id": moderation_id, "guild_id": "1", "block_links": True, "created_at": JOINED}

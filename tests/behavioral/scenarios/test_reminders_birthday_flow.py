@@ -245,6 +245,7 @@ async def test_cancel_discards_and_persists_nothing(scenario_factory):
     scenario = await scenario_factory(locale="pt-br").start("reminders_birthday")
     await scenario.confirm()
     scenario.expect_message(components_v2=True)
+    await scenario.select_option("general", target="channel")
 
     await scenario.cancel()                        # card_cancel -> confirmation
     discard_title = ml("errors.discard-settings-confirmation.title", locale="pt-br")

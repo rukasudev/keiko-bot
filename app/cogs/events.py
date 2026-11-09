@@ -17,7 +17,15 @@ from app.services import stream_elements as stream_elements_service
 from app.services import analytics, analytics_reports, trace
 from app.services.cache import increment_redis_key
 from app.services.cogs import features_on
-from app.services.moderations import join_guild, leave_guild
+from app.services.help import answer_prefix_command, prefix_hint
+from app.services.moderations import (
+    default_prefix,
+    guess_server_settings,
+    guilds_without_settings,
+    join_guild,
+    leave_guild,
+    server_prefix,
+)
 from app.services.utils import (
     cogs_manager,
     format_relative_time,
@@ -83,13 +91,26 @@ class Events(Cog, name="events"):
             f"👤 Author: {self.bot.application.owner.name}\n"
             f"🏠 Total Guilds: {len(self.bot.guilds)}\n"
             f"👥 Total Users: {len(self.bot.users)}\n"
-            f"📌 Prefix: {self.bot.command_prefix}\n"
+            f"📌 Prefix: {default_prefix()}\n"
             f"🏷️ Version: {self.bot.config.APP_VERSION}\n"
             f"🎮 Current Activity: {self.bot.activity.name}\n"
             f"🐶 Current Status: {self.bot.status.name}️\n"
             f"---------------------------------------------------"
         )
         logger.info(ready_message, log_type=logconstants.APPLICATION_STARTUP_TYPE)
+
+        async with trace.listener("on_ready", None) as ready:
+            await ready.run("record", self._record_offline_joins())
+
+    async def _record_offline_joins(self) -> None:
+        guilds = {str(guild.id): guild for guild in self.bot.guilds}
+        missing = await asyncio.to_thread(guilds_without_settings, list(guilds))
+
+        for guild_id in missing:
+            guild = guilds[guild_id]
+            await asyncio.to_thread(
+                join_guild, guild.id, str(guild.owner_id), guess_server_settings(guild)
+            )
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -108,11 +129,12 @@ class Events(Cog, name="events"):
 
     @commands.Cog.listener()
     async def on_message(self, message: discord.Message):
-        if message.guild is None or message.author.bot:
+        if message.author.bot:
             return
 
-        guild_id = str(message.guild.id)
-        prefix = self.bot.config.PREFIX
+        if message.guild is None:
+            await self._answer_the_prefix(message)
+            return
 
         async with trace.listener(
             "on_message",
@@ -121,16 +143,28 @@ class Events(Cog, name="events"):
             channel_id=message.channel.id,
             message_length=len(message.content or ""),
         ) as checked:
-            if message.content.startswith(prefix):
-                await checked.run(
-                    commandsconstants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
-                    stream_elements_service.check_message(guild_id, message, prefix),
-                )
-
+            await checked.run("prefix", self._answer_the_prefix(message))
             await checked.run(
                 commandsconstants.BLOCK_LINKS_KEY,
-                block_links_service.check_message(guild_id, message),
+                block_links_service.check_message(str(message.guild.id), message),
             )
+
+    async def _answer_the_prefix(self, message: discord.Message) -> None:
+        """Keiko's own command on the server's prefix, else the feature that answers it,
+        and the hint for a message on the default prefix nothing answered."""
+        if message.guild is not None:
+            guild_id = str(message.guild.id)
+            prefix = await server_prefix(guild_id)
+
+            if message.content.startswith(prefix):
+                if await answer_prefix_command(self.bot, guild_id, message, prefix):
+                    return
+                await stream_elements_service.check_message(guild_id, message, prefix)
+
+        if message.content.startswith(default_prefix()):
+            hint = await prefix_hint(self.bot, message.guild)
+            if hint:
+                await message.channel.send(hint)
 
     @commands.Cog.listener()
     async def on_raw_message_edit(self, payload: discord.RawMessageUpdateEvent):
@@ -185,7 +219,9 @@ class Events(Cog, name="events"):
 
     async def _record_join(self, guild: discord.Guild) -> None:
         owner_id = str(guild.owner.id)
-        exist, total_servers = await asyncio.to_thread(join_guild, guild.id, owner_id)
+        exist, total_servers = await asyncio.to_thread(
+            join_guild, guild.id, owner_id, guess_server_settings(guild)
+        )
         action = "Joined new guild" if not exist else "Joined again"
 
         total_guilds = len(self.bot.guilds)
