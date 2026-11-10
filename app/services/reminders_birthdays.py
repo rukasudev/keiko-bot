@@ -23,6 +23,7 @@ from app.services.dates import (
 )
 from app.settings import open_feature
 from app.settings.form.responses.styles import format_value
+from app.services import members
 from app.services import reminders as reminders_service
 from app.services.cogs import is_feature_on
 from app.exceptions import ServerSettingsMissing
@@ -516,7 +517,7 @@ async def send_birthday_preview(
     member = interaction.user
     user_id = values.get("user")
     if user_id and guild:
-        member = guild.get_member(int(user_id)) or member
+        member = await members.find(guild, user_id) or member
 
     config = await asyncio.to_thread(
         birthdays_data.find_birthday_config, str(guild.id)

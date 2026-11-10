@@ -183,6 +183,11 @@ def clear() -> None:
     _JOURNEYS.clear()
 
 
+def open_count() -> int:
+    """How many journeys are still open."""
+    return len(_JOURNEYS)
+
+
 def open_journey(
     session_id: str,
     name: str,

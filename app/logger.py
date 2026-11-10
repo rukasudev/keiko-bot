@@ -4,6 +4,7 @@ import os
 import sys
 import time
 import traceback
+from dataclasses import dataclass, field
 from typing import Optional
 from datetime import datetime, timedelta
 from logging.handlers import TimedRotatingFileHandler
@@ -438,6 +439,15 @@ class LoggerHooks:
         return logging.INFO
 
 
+@dataclass
+class PendingErrors:
+    """The error messages of one person in one feature, waiting for them to carry on."""
+
+    seen: float
+    messages: list = field(default_factory=list)
+    recovered: bool = False
+
+
 class DiscordLogsHandler(logging.Handler):
     """Routes log records to Discord, one message per unit of work.
 
@@ -490,8 +500,12 @@ class DiscordLogsHandler(logging.Handler):
             return
 
         self._forget_stale_errors()
-        self._session_errors.setdefault(key, (time.monotonic(), []))
-        self.schedule_send(self._post_session_error(log_channel, embed, key))
+        waiting = self._session_errors
+        pending = waiting.setdefault(key, PendingErrors(time.monotonic()))
+        while len(waiting) > constants_commands.ANALYTICS_RECOVERY_MAX_PENDING:
+            waiting.pop(next(iter(waiting)))
+
+        self.schedule_send(self._post_session_error(log_channel, embed, pending))
 
     def recovery_of(self, record: logging.LogRecord):
         """Who hit a form error in which feature, when the error names a form session."""
@@ -508,24 +522,26 @@ class DiscordLogsHandler(logging.Handler):
     def _forget_stale_errors(self) -> None:
         window = constants_commands.ANALYTICS_RECOVERY_WINDOW_SECONDS
         now = time.monotonic()
-        for key, (seen, _messages) in list(self._session_errors.items()):
-            if now - seen >= window:
+        for key, pending in list(self._session_errors.items()):
+            if now - pending.seen >= window:
                 self._session_errors.pop(key, None)
 
-    async def _post_session_error(self, channel, embed, key) -> None:
+    async def _post_session_error(self, channel, embed, pending) -> None:
         message = await channel.send(embed=embed)
-        pending = self._session_errors.get(key)
-        if pending is None:
+        if pending.recovered:
             await self._react_recovered([message])
         else:
-            pending[1].append(message)
+            pending.messages.append(message)
 
     def mark_recovered(self, key: str) -> None:
         """React with a check, once, to the errors of someone who went on working."""
         self._forget_stale_errors()
         pending = self._session_errors.pop(key, None)
-        if pending and pending[1]:
-            self.schedule_send(self._react_recovered(pending[1]))
+        if pending is None:
+            return
+        pending.recovered = True
+        if pending.messages:
+            self.schedule_send(self._react_recovered(pending.messages))
 
     async def _react_recovered(self, messages) -> None:
         for message in messages:

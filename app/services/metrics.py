@@ -4,9 +4,10 @@ and how long each outside dependency takes.
 Prometheus, never product analytics (docs/analytics.md). Every label is a closed
 vocabulary, and no label is ever a guild or a user id.
 """
+import math
 import time
 from contextlib import contextmanager
-from typing import Iterator, Literal, Optional
+from typing import Callable, Iterator, Literal, Optional
 
 import discord
 from prometheus_client import Counter, Gauge, Histogram
@@ -39,6 +40,12 @@ DEPENDENCY_LATENCY = Histogram(
     buckets=Dependencies.LATENCY_BUCKETS,
 )
 
+HELD_ENTRIES = Gauge(
+    "keiko_held_entries",
+    "Entries each in-process structure that can grow holds, read at every scrape",
+    ["structure"],
+)
+
 
 def record_interaction(
     outcome: InteractionOutcome, error: Optional[BaseException] = None
@@ -67,6 +74,19 @@ def record_build_info(version: str) -> None:
 def record_webhook_refusal(route: str, status: int) -> None:
     """Count one webhook request refused with `status`; `route` is the rule, never a path."""
     WEBHOOK_REFUSALS.labels(route=route, status=str(status)).inc()
+
+
+def watch_held_entries(structure: str, count: Callable[[], int]) -> None:
+    """Expose `count()` as `keiko_held_entries{structure}`, read at every scrape;
+    a count that raises reads NaN, so it never fails the scrape of the others."""
+
+    def read() -> float:
+        try:
+            return float(count())
+        except Exception:
+            return math.nan
+
+    HELD_ENTRIES.labels(structure=structure).set_function(read)
 
 
 def record_dependency_latency(dependency: str, seconds: float) -> None:

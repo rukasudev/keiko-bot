@@ -339,6 +339,7 @@ process is scraped. Keiko's own:
 | `keiko_webhook_refusals_total` | `route` (the URL rule, never the path a request typed), `status` (the 4xx it was answered with) | the refusal hook of `app/webhooks/__init__.py` |
 | `keiko_dependency_latency_seconds` (a histogram, buckets `Dependencies.LATENCY_BUCKETS`) | `dependency` (one of `Dependencies.NAMES`: `mongo`, `redis`, `discord`, `twitch`, `youtube`, `reminders`, `notion`, `translate`, `stream_elements`) | every call, answered or not: the shared HTTP client (`app/integrations/__init__.py`) for the HTTP services, `MongoLatency` (a pymongo command listener on both Mongo clients) and `TimedRedis` with its `TimedPipeline`, one call per round trip (`app/__init__.py`), `discord_latency` (the aiohttp trace discord.py sends its requests through, `app/bot.py`), and `metrics.timed("translate")` around the language detection, which brings its own HTTP client |
 | `keiko_form_*` | see `observability.py` | the form adapter |
+| `keiko_held_entries` (a gauge read at every scrape) | `structure` (`form_sessions`, `journeys`, `settings_cache`, `images`, `analytics_queue`, `debug_logs_queue`, `discord_messages`, `discord_members`, `recent_members`) | `watch_held_entries` in `app/cogs/prometheus.py`, when the heartbeat cog loads; a count that cannot be read is NaN |
 
 `PrometheusCog` adds the library's own, among them `discord_connected{shard}` (1
 while the gateway is up) and `discord_event_on_interaction_total{shard,
@@ -386,6 +387,8 @@ threshold to tune against real traffic:
 | Gateway down | `max(discord_connected) == 0` | 5m | the process is up but not connected to Discord |
 | Webhook sender refused | `sum by (route) (increase(keiko_webhook_refusals_total{status=~"40[13]"}[1h])) > 0` | 0m | a request was refused for its signature or its credentials in the last hour: one forged request, or a secret that no longer matches, which stops every real notice of that route without a word |
 | Webhook refusal flood | `sum by (route, status) (increase(keiko_webhook_refusals_total[15m])) > 20` | 0m | a route refusing in bulk: someone is flooding it |
+| Memory near the limit | `max(process_resident_memory_bytes) > 1.29e9` | 15m | the process uses 80% of the container's 1536 MiB; the deploy's limit kills it at 100% |
+| Memory growing | `deriv(process_resident_memory_bytes[6h]) * 86400 > 10e6` | 6h | the process gained more than 10 MB a day for six hours; `keiko_held_entries` says which structure grows, or none does and the growth is outside Python's objects |
 | Dependency slow | `histogram_quantile(0.95, sum by (le, dependency) (rate(keiko_dependency_latency_seconds_bucket[10m]))) > 5 and sum by (dependency) (rate(keiko_dependency_latency_seconds_count[10m])) > 0.02` | 10m | one call in twenty to one dependency took more than five seconds for ten minutes: it is on its way to its timeout, and every feature behind it with it; the `dependency` label names which, and the second half keeps a dependency called a few times an hour from paging on one slow call |
 
 `discord_event_on_interaction_total` without autocomplete is the denominator:

@@ -1,5 +1,5 @@
 import asyncio
-from typing import Any, Dict, List, Mapping, Union
+from typing import Any, AsyncIterable, Dict, List, Mapping, Optional, Tuple, Union
 
 import discord
 
@@ -9,8 +9,9 @@ from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
 from app.settings import open_feature
-from app.services import analytics, cache
-from app.services.utils import fill, get_available_roles_by_guild, ml
+from app.services import analytics, cache, members
+from app.services.members import every_member
+from app.services.utils import at_least, fill, get_available_roles_by_guild, ml
 
 
 async def set_on_member_join(member: discord.Member):
@@ -27,7 +28,7 @@ async def set_on_member_join(member: discord.Member):
     )
 
     try:
-        await set_default_roles(cogs, member.guild, [member])
+        await set_default_roles(cogs, member.guild, members.one_by_one([member]))
     except Exception as e:
         logger.error(
             f"Failed to set default roles on member join: {type(e).__name__}: {e}",
@@ -60,12 +61,12 @@ async def set_on_default_roles_sync(interaction: discord.Interaction):
     context = ErrorContext.from_interaction(
         flow="default_roles_sync",
         interaction=interaction,
-        total_members=len(interaction.guild.members),
+        total_members=interaction.guild.member_count,
     )
 
     try:
         given = await set_default_roles(
-            cogs, interaction.guild, interaction.guild.members
+            cogs, interaction.guild, every_member(interaction.guild)
         )
 
         embed = response_embed(
@@ -102,24 +103,46 @@ def build_roles_mapping(cogs: Mapping[str, Any], guild: discord.Guild) -> dict:
     }
 
 
-def count_roles_receivers(cogs: Mapping[str, Any], guild: discord.Guild) -> tuple:
-    """How many members and how many bots a sync would hand a role to.
+async def server_totals(guild: Any) -> Tuple[Optional[int], Optional[int]]:
+    """How many members and how many bots the server has, counted one by one; None
+    for both past `DEFAULT_ROLES_COUNTED_MEMBERS_MAX` members, which are never read."""
+    if not guild:
+        return 0, 0
+    if not _countable(guild):
+        return None, None
 
-    Every member is looked at, so the roles are resolved once up front rather
-    than searched through the guild for each one.
-    """
+    members = bots = 0
+    async for member in every_member(guild):
+        if member.bot:
+            bots += 1
+        else:
+            members += 1
+    return members, bots
+
+
+async def count_roles_receivers(
+    cogs: Mapping[str, Any], guild: Any
+) -> Tuple[Optional[int], Optional[int]]:
+    """How many members and how many bots a sync would hand a role to: the ones
+    still missing one; None for a kind that gets a role on a server past
+    `DEFAULT_ROLES_COUNTED_MEMBERS_MAX` members, which are never read."""
     if not guild:
         return 0, 0
 
     roles_mapping = build_roles_mapping(cogs, guild)
+    if not _countable(guild):
+        return (
+            None if roles_mapping[constants.DEFAULT_ROLES_KEY] else 0,
+            None if roles_mapping[constants.DEFAULT_ROLES_BOT_KEY] else 0,
+        )
+
     by_id = {role.id: role for role in guild.roles}
     wanted = {
         kind: [by_id[int(role_id)] for role_id in ids if int(role_id) in by_id]
         for kind, ids in roles_mapping.items()
     }
     members = bots = 0
-
-    for member in guild.members:
+    async for member in every_member(guild):
         kind = (
             constants.DEFAULT_ROLES_BOT_KEY
             if member.bot
@@ -134,14 +157,27 @@ def count_roles_receivers(cogs: Mapping[str, Any], guild: discord.Guild) -> tupl
     return members, bots
 
 
+def count_label(count: Optional[int], locale: str) -> str:
+    """A count as a screen shows it; one never read is the bound, as a floor."""
+    if count is None:
+        return at_least(constants.DEFAULT_ROLES_COUNTED_MEMBERS_MAX, locale)
+    return str(count)
+
+
+def _countable(guild: Any) -> bool:
+    return (guild.member_count or 0) <= constants.DEFAULT_ROLES_COUNTED_MEMBERS_MAX
+
+
 async def set_default_roles(
-    cogs: Dict[str, str], guild: discord.Guild, members: List[discord.Member]
+    cogs: Dict[str, str],
+    guild: discord.Guild,
+    receivers: AsyncIterable[discord.Member],
 ) -> Dict[str, int]:
     """Give every member the roles their kind gets, and say how many got one."""
     roles_mapping = build_roles_mapping(cogs, guild)
     given = {"members": 0, "bots": 0}
 
-    for member in members:
+    async for member in receivers:
         roles_to_add = get_roles_to_add(member, guild, roles_mapping)
         try:
             await member.add_roles(*roles_to_add)

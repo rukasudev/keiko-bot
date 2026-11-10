@@ -1,4 +1,5 @@
 import re
+from typing import Optional
 
 import discord
 
@@ -10,8 +11,15 @@ def get_guild(guild_id: int) -> discord.Guild:
     return bot.get_guild(int(guild_id))
 
 
-def get_user(user_id: int) -> discord.User:
-    return bot.get_user(int(user_id))
+async def get_user(user_id: int) -> Optional[discord.User]:
+    """The user from discord.py's cache, else from the API; None when Discord has none."""
+    cached = bot.get_user(int(user_id))
+    if cached is not None:
+        return cached
+    try:
+        return await bot.fetch_user(int(user_id))
+    except discord.NotFound:
+        return None
 
 
 async def parse_log_message_to_embed(interaction: discord.Interaction, message: discord.Message) -> discord.Embed:
@@ -35,7 +43,7 @@ async def parse_log_message_to_embed(interaction: discord.Interaction, message: 
         )
 
     guild = get_guild(guild_id)
-    user = get_user(user_id) if user_id else None
+    user = await get_user(user_id) if user_id else None
 
     view = LogInspectionView(user, guild, guild_id)
     await view.send(interaction)

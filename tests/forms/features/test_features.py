@@ -225,9 +225,20 @@ async def test_a_generic_setup_enables_the_feature_and_stores_the_document(deps)
 
 
 def _guild_with(members):
+    """A server whose gateway cache holds nobody: its members come from the API."""
     from types import SimpleNamespace
 
-    return SimpleNamespace(id=int(GUILD_ID), members=members)
+    async def fetch_members(limit=None):
+        for member in members:
+            yield member
+
+    return SimpleNamespace(
+        id=int(GUILD_ID),
+        members=[],
+        member_count=len(members),
+        roles=[],
+        fetch_members=fetch_members,
+    )
 
 
 async def test_a_default_roles_setup_gives_the_roles_out_after_the_commit(
@@ -244,7 +255,7 @@ async def test_a_default_roles_setup_gives_the_roles_out_after_the_commit(
 
     async def give(document, guild, members):
         await released.wait()
-        given.append((document["default_roles"], guild, list(members)))
+        given.append((document["default_roles"], guild, [m async for m in members]))
 
     monkeypatch.setattr(default_roles, "set_default_roles", give)
     members = [SimpleNamespace(bot=False), SimpleNamespace(bot=True)]

@@ -369,7 +369,7 @@ def seed_left_guild(deps):
     return SimpleNamespace(
         id=int(LEFT_GUILD_ID),
         member_count=12,
-        owner=SimpleNamespace(id=313, mention="<@313>"),
+        owner=None, owner_id=313,
     )
 
 

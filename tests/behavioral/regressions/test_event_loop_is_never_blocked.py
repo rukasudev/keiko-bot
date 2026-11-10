@@ -740,7 +740,7 @@ def guild_double(guild_id=4242, owner_id=313):
     return SimpleNamespace(
         id=guild_id,
         member_count=120,
-        owner=SimpleNamespace(id=owner_id, mention=f"<@{owner_id}>"),
+        owner=None, owner_id=owner_id,
         preferred_locale="pt-BR",
     )
 

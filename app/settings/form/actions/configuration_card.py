@@ -161,6 +161,21 @@ def state_of(card: CardStep, session: FormSession, context: Context) -> dict[str
     return initial_state(card, session, context)
 
 
+def pictured_members(
+    card: CardStep, session: FormSession, context: Context
+) -> tuple[str, ...]:
+    """The members the card draws a picture of, by id."""
+    state = state_of(card, session, context)
+    return tuple(
+        str(state[section.state.value])
+        for section in card.sections
+        if section.picks_members()
+        and section.pictured()
+        and section.state.value
+        and state.get(section.state.value) not in EMPTY
+    )
+
+
 def visible(section: Section, state: Mapping[str, Any], context: Context) -> bool:
     """True unless the section's rule hides it, or it belongs to a setup only."""
     if section.setup_only and context.document:

@@ -339,6 +339,15 @@ def join_names(names: List[str], locale: str) -> str:
     return f"{', '.join(names[:-1])}{ml('messages.list-and', locale)}{names[-1]}"
 
 
+def at_least(count: int, locale: str) -> str:
+    """A count Keiko stopped at, read as a floor: "5,000+", "5 mil+"."""
+    return fill(
+        ml("messages.count-at-least", locale),
+        count=f"{count:,}",
+        thousands=f"{count // 1000:,}".replace(",", "."),
+    )
+
+
 def fill_placeholders(
     template: str, values: Dict[str, str], required: Optional[str] = None
 ) -> str:

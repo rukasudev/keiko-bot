@@ -88,7 +88,7 @@ class CommitResult:
 AsideHandler = Callable[[Any, Sequence[Mapping[str, Any]]], Awaitable[None]]
 
 
-ConfirmValues = Callable[[Mapping[str, Any], str, Any], Mapping[str, str]]
+ConfirmValues = Callable[[Mapping[str, Any], str, Any], Awaitable[Mapping[str, str]]]
 
 
 @dataclass(frozen=True)

@@ -781,7 +781,7 @@ async def in_a_server_keiko_left(deps, guild_id=LEFT):
     })
     follow_youtuber(deps, str(guild_id), "pewdiepie")
     await Events(SimpleNamespace(user=SimpleNamespace(id=99), guilds=[])).on_guild_remove(
-        SimpleNamespace(id=guild_id, owner=SimpleNamespace(id=313, mention="<@313>"))
+        SimpleNamespace(id=guild_id, owner=None, owner_id=313)
     )
 
 

@@ -228,6 +228,8 @@ class Commands:
     REMOVED_KEY: Final[str] = "removed"
 
     COMMAND_FAILURE_STORE_SECONDS: Final[float] = 1.0
+    MEMBERS_RECENT_SIZE: Final[int] = 5000
+    MEMBERS_RECENT_SECONDS: Final[float] = 10 * 60
 
     # block links
     BLOCK_LINKS_KEY: Final[str] = Feature.BLOCK_LINKS.value.key
@@ -276,6 +278,7 @@ class Commands:
     ANALYTICS_JOURNEY_HISTORY_LIMIT: Final[int] = 4
     ANALYTICS_JOURNEY_DEBOUNCE_SECONDS: Final[float] = 1.0
     ANALYTICS_RECOVERY_WINDOW_SECONDS: Final[int] = 60 * 60
+    ANALYTICS_RECOVERY_MAX_PENDING: Final[int] = 256
     STREAM_ELEMENTS_TIMEOUT_SECONDS: Final[float] = 5.0
     REDIS_ANALYTICS_DAILY: Final[str] = "guild:{guild_id}:analytics:{date}:{metric}"
     REDIS_ANALYTICS_ATTEMPTS: Final[str] = "guild:{guild_id}:analytics:attempts:{feature}"
@@ -324,6 +327,7 @@ class Commands:
     WELCOME_MESSAGES_KEY: Final[str] = Feature.WELCOME_MESSAGES.value.key
     DEFAULT_ROLES_KEY: Final[str] = Feature.DEFAULT_ROLES.value.key
     DEFAULT_ROLES_BOT_KEY: Final[str] = "default_roles_bot"
+    DEFAULT_ROLES_COUNTED_MEMBERS_MAX: Final[int] = 5000
 
     # notifications
     NOTIFICATIONS_KEY: Final[str] = "notifications"

@@ -266,11 +266,13 @@ def birthday_today(monkeypatch):
 @pytest.fixture(autouse=True)
 def config_cache_isolation():
     """AUTOUSE: o que o cache lembrou e as quedas que viu nao passam de um teste ao outro."""
-    from app.services import cache
+    from app.services import cache, members
 
     cache.reset()
+    members.reset()
     yield
     cache.reset()
+    members.reset()
 
 
 @pytest.fixture

@@ -155,9 +155,7 @@ class LogInspectionView(discord.ui.View):
 
         browser = RecordsBrowser(
             fetch=fetch,
-            to_fields=lambda raw, i: parse_history_data(
-                raw, i, guild=self.guild, with_cog=True
-            ),
+            to_fields=lambda raw, i: parse_history_data(raw, i, with_cog=True),
             title=ml("buttons.changes-history.label", locale=interaction.locale),
         )
         await browser.send(interaction)

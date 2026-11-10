@@ -159,6 +159,12 @@ def release_redis_key(key: str) -> None:
     redis_client.delete(key)
 
 
+def held_entries() -> int:
+    """How many entries this process keeps beside Redis: reads, memos, deletes."""
+    with _lock:
+        return len(_last_known) + len(_generations) + len(_remembered) + len(_unsent_keys)
+
+
 def reset() -> None:
     """Forget the settings read so far and every outage, as a fresh process would."""
     with _lock:

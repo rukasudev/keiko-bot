@@ -8,26 +8,19 @@ from app.services.utils import get_command_display_name, ml
 def parse_history_data(
     data: List[Dict[str, Any]],
     interaction: discord.Interaction,
-    guild: discord.Guild = None,
     with_cog: bool = None,
     label_for: Optional[Callable[[str], str]] = None,
 ) -> Dict[str, Any]:
+    """Each audit record as the line the history lists, the actor named by mention."""
     system_desc = ml(
         "commands.command-events.system.description", locale=interaction.locale
     )
 
     response = {}
-    guild = guild or interaction.guild
     for item in data:
         key = item["datetime"].strftime("%Y-%m-%d %H:%M:%S") + " UTC"
-        user = guild.get_member(int(item["user_id"])) if guild else None
-
-        if user:
-            user_mention = user.mention
-            is_bot_user = user.id == interaction.client.user.id
-        else:
-            user_mention = f"<@{item['user_id']}>"
-            is_bot_user = str(item["user_id"]) == str(interaction.client.user.id)
+        user_mention = f"<@{item['user_id']}>"
+        is_bot_user = str(item["user_id"]) == str(interaction.client.user.id)
 
         command = "short-description" if not with_cog else "short-description-with-cog"
         desc = ml(

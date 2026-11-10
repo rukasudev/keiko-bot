@@ -11,6 +11,7 @@ pt-br:
     content: "Feliz aniversário, {user}! 🎉 Que seu dia seja cheio de alegria e mimos! ✨"
 
   list-and: " e "
+  count-at-least: "$thousands mil+"
 
   greetings-message:
     title: "Olá, eu sou o Keiko, o seu leal companheiro do Discord! :dog:"
