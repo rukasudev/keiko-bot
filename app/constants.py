@@ -43,6 +43,17 @@ class DBConfigs:
     ]
 
 
+class MemoryMonitor:
+    """How often the memory monitor reads the process, and how much it reports."""
+
+    SAMPLE_MINUTES: Final[int] = 5
+    CENSUS_EVERY_SAMPLES: Final[int] = 6
+    TRACE_EVERY_SAMPLES: Final[int] = 24
+    TOP_TYPES: Final[int] = 15
+    TOP_LINES: Final[int] = 10
+    TRACEMALLOC_ENV: Final[str] = "KEIKO_TRACEMALLOC_FRAMES"
+
+
 class Commands:
     ENABLED_KEY: Final[str] = "enabled"
     EDITED_KEY: Final[str] = "edited"

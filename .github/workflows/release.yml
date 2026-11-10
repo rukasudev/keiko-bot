@@ -87,6 +87,7 @@ jobs:
           docker rm -f keiko-bot || true
           docker run -d -p 5000:5000 -p 8000:8000 --name keiko-bot --restart unless-stopped \
             -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_REGION \
+            -e KEIKO_TRACEMALLOC_FRAMES=1 \
             ${{ env.REGISTRY }}:${{ env.VERSION }}
 
       - name: Check the bot stayed up
