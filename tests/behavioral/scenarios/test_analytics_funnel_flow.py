@@ -167,6 +167,7 @@ async def test_a_discarded_setup_reports_no_completion(
 ):
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
+    await scenario.select_option("allow_all", target="mode")
     await scenario.click("cancel")
     await scenario.click("Descartar tudo")
 
@@ -181,6 +182,7 @@ async def test_keeping_a_setup_after_cancel_reports_the_recovery(
 ):
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
+    await scenario.select_option("allow_all", target="mode")
     await scenario.click("cancel")
     await scenario.click("Continuar configurando")
 

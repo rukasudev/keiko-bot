@@ -94,6 +94,17 @@
           },
           {
             "disabled": false,
+            "label": "Estatísticas",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
             "label": "Ajuda",
             "style": "secondary",
             "type": "button"
@@ -278,6 +289,17 @@
             "style": "secondary",
             "type": "button"
           },
+          {
+            "disabled": false,
+            "label": "Estatísticas",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      },
+      {
+        "children": [
           {
             "disabled": false,
             "label": "Ajuda",

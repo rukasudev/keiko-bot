@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional, Tuple
 import discord
 
 from app import logger
-from app.components.embed import base_embed, default_welcome_embed
+from app.components.embed import default_welcome_embed
 from app.constants import Commands as commands_constants
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
@@ -25,6 +25,8 @@ from app.settings import open_feature
 from app.settings.form.responses.styles import format_value
 from app.services import reminders as reminders_service
 from app.services.cogs import is_feature_on
+from app.exceptions import ServerSettingsMissing
+from app.services.moderations import save_server_setting, server_setting
 from app.services.utils import (
     fill_placeholders,
     ml,
@@ -83,7 +85,7 @@ def upsert_birthday(
             commands_constants.REMINDER_API_TITLE_BIRTHDAY,
             mm_dd,
             notes=mm_dd,
-            timezone_name=config.get("timezone"),
+            timezone_name=_server_zone(guild_id),
             notification_time=config.get("notification_time"),
         )
     item = birthdays_data.upsert_birthday_item(
@@ -133,7 +135,7 @@ def reconcile_missing_reminders(limit: int = 50) -> int:
                 commands_constants.REMINDER_API_TITLE_BIRTHDAY,
                 mm_dd,
                 notes=mm_dd,
-                timezone_name=config.get("timezone"),
+                timezone_name=_server_zone(guild_id),
                 notification_time=config.get("notification_time"),
             )
         except Exception as error:
@@ -212,7 +214,7 @@ def birthday_manager_cog_data(guild_id: str, apply_defaults: bool = True) -> Dic
                 else config.get("mention_everyone")
             ),
         },
-        commands_constants.BIRTHDAY_CONFIG_TIMEZONE: config.get("timezone"),
+        commands_constants.BIRTHDAY_CONFIG_TIMEZONE: _server_zone(guild_id, apply_defaults),
         commands_constants.BIRTHDAY_CONFIG_NOTIFICATION_TIME: config.get("notification_time"),
         commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_MODE: (
             message.get("mode", "default") if apply_defaults else message.get("mode")
@@ -264,7 +266,7 @@ def save_birthday_config_changes(guild_id: str, data: Dict[str, Any], locale: st
             if mention_entry is not None
             else bool(config.get("mention_everyone"))
         )
-        timezone_value = _extract_first(timezone_entry) or config.get("timezone")
+        timezone_value = _extract_first(timezone_entry) or _server_zone(guild_id)
         notification_time = _extract_first(notification_time_entry) or config.get("notification_time")
         default_message = _default_message_from_data(data, config)
         setup_birthdays(
@@ -290,11 +292,13 @@ def _extract_first(entry: Any) -> Any:
     return values
 
 
-def _schedule_changed(previous_config: Dict[str, Any], config: Dict[str, Any]) -> bool:
-    return (
-        previous_config.get("timezone") != config.get("timezone")
-        or previous_config.get("notification_time") != config.get("notification_time")
-    )
+def _server_zone(guild_id: str, required: bool = True) -> Optional[str]:
+    try:
+        return server_setting(guild_id, commands_constants.SERVER_TIMEZONE_KEY)
+    except ServerSettingsMissing:
+        if required:
+            raise
+        return None
 
 
 def _default_message_label(default_message: Optional[Dict[str, Any]], locale: str) -> str:
@@ -331,15 +335,17 @@ def _default_message_from_data(data: Dict[str, Any], config: Dict[str, Any]) -> 
 
 
 def reschedule_birthdays(guild_id: str, timezone_value: str, notification_time: str) -> None:
+    """Move every birthday reminder of a guild to `timezone_value` at `notification_time`,
+    once per reminder."""
     if not timezone_value or not notification_time:
         return
-    reminders_by_id: Dict[str, str] = {}
+
+    dates_by_reminder: Dict[str, str] = {}
     for item in birthdays_data.find_birthday_items_by_guild(guild_id):
-        reminder_id = item.get("reminder_id")
-        date_value = item.get("date")
-        if reminder_id and date_value:
-            reminders_by_id[str(reminder_id)] = str(date_value)
-    for reminder_id, date_value in reminders_by_id.items():
+        if item.get("reminder_id") and item.get("date"):
+            dates_by_reminder[str(item["reminder_id"])] = str(item["date"])
+
+    for reminder_id, date_value in dates_by_reminder.items():
         reminders_service.update_reminder(
             reminder_id,
             date_value,
@@ -376,7 +382,7 @@ def birthday_settings_rows(
         {
             "key": "timezone",
             "title": _mb("settings.timezone", locale),
-            "value": config.get("timezone") or "-",
+            "value": _server_zone(guild_id),
         },
         {
             "key": "notification_time",
@@ -541,25 +547,16 @@ async def send_birthday_preview(
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
-async def send_stats_message(
-    interaction: discord.Interaction, today: Optional[date] = None
-) -> None:
-    locale = parse_locale(interaction.locale)
-    stats = await asyncio.to_thread(get_birthday_stats, str(interaction.guild_id), today)
-    lines = [
+def birthday_stats_lines(guild_id: str, locale: str, today: Optional[date] = None) -> List[str]:
+    """The birthdays' own figures for their statistics, counted from `today`."""
+    stats = get_birthday_stats(guild_id, today)
+    return [
         f"🎂 **{_mb('stats.fields.total', locale)}:** {stats['total']}",
         f"📅 **{_mb('stats.fields.this-month', locale)}:** {stats['current_month']}",
         f"🏆 **{_mb('stats.fields.top', locale)}:** {format_month_count(stats['max_month'], locale)}",
         f"📉 **{_mb('stats.fields.quietest', locale)}:** {format_month_count(stats['min_month'], locale)}",
         f"⭐ **{_mb('stats.fields.most-common', locale)}:** {format_mm_dd_count(stats['max_date'], locale)}",
     ]
-    embed = base_embed(
-        _mb("stats.embed.title", locale),
-        "\n".join(lines),
-        thumbnail=KeikoIcons.IMAGE_03,
-        footer=ml("commands.commands.commons.embed.footer", locale=locale),
-    )
-    await interaction.followup.send(embed=embed, ephemeral=True)
 
 
 def setup_birthdays(
@@ -571,18 +568,24 @@ def setup_birthdays(
     notification_time: str = None,
     default_message: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
+    """Save the birthday configuration in the server's zone, a new zone chosen here
+    becoming the server's for new reminders; a new hour moves every reminder to it."""
     previous_config = birthdays_data.find_birthday_config(guild_id) or {}
+    previous_zone = str(_server_zone(guild_id))
+    zone = timezone_value or previous_zone
     config = birthdays_data.upsert_birthday_config(
         guild_id,
         channel_id,
         mention_everyone,
         locale,
-        timezone=timezone_value,
+        timezone=zone,
         notification_time=notification_time,
         default_message=default_message,
     )
-    if _schedule_changed(previous_config, config):
-        reschedule_birthdays(guild_id, config.get("timezone"), config.get("notification_time"))
+    if zone != previous_zone:
+        save_server_setting(guild_id, commands_constants.SERVER_TIMEZONE_KEY, zone)
+    if previous_config.get("notification_time") != config.get("notification_time"):
+        reschedule_birthdays(guild_id, zone, config.get("notification_time"))
     return config
 
 
@@ -683,3 +686,4 @@ def disable_birthdays(guild_id: str) -> None:
 
     for reminder_id in reminder_ids:
         reminders_service.delete_reminder(reminder_id)
+

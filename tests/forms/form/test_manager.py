@@ -316,6 +316,7 @@ def test_the_manager_renders_the_panel_with_grouped_settings():
         "lifecycle:pause",
         "lifecycle:disable",
         "aside:history",
+        "aside:stats",
         "aside:help",
     ], "the list carries its own Add and Remove inside the card"
 

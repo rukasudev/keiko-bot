@@ -18,6 +18,7 @@ from app.settings.discord.callbacks import RUNTIME
 from app.settings.discord.interactions import decode as decode_component_id
 from app.settings.form.manager import confirmation_word
 from tests.behavioral.harness import locators
+from tests.generators.moderations import recorded_server
 from tests.behavioral.harness.errors import (
     LocatorError,
     ScenarioAssertionError,
@@ -44,6 +45,8 @@ class FormScenario:
         self.guild = guild
         self.user = user
         self.db = mongo
+        if mongo is not None:
+            recorded_server(mongo, guild.id, language=locale)
         self.store = MessageStore()
         self.command_key: Optional[str] = None
         # How long each first answer takes to reach Discord (FakeResponse).
@@ -89,8 +92,8 @@ class FormScenario:
         collection = self.db.guild[command_key]
         if collection.find_one({"guild_id": str(self.guild.id)}) is None:
             collection.insert_one(document)
-        self.db.guild.moderations.insert_one(
-            {"guild_id": str(self.guild.id), command_key: True}
+        self.db.guild.moderations.update_one(
+            {"guild_id": str(self.guild.id)}, {"$set": {command_key: True}}, upsert=True
         )
 
     # ------------------------------------------------------------ user actions

@@ -1,12 +1,16 @@
 import asyncio
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import discord
 
 from app.components.embed import response_embed
 from app.constants import LogTypes as logconstants
 from app.services.cache import increment_redis_key
-from app.services.utils import get_command_by_key, ml, parse_locale
+from app.services.moderations import interaction_language
+from app.services.utils import get_command_by_key, ml
+
+if TYPE_CHECKING:
+    from app.settings import Ending
 
 
 class BackButton(discord.ui.Button):
@@ -18,7 +22,7 @@ class BackButton(discord.ui.Button):
         self.desc = ml("buttons.back.desc", locale=locale)
         super().__init__(
             label=ml("buttons.back.label", locale=locale),
-            style=discord.ButtonStyle.primary,
+            style=discord.ButtonStyle.secondary,
         )
 
     async def callback(self, interaction: discord.Interaction) -> Any:
@@ -75,12 +79,17 @@ def journey_message_view(session_id: str) -> discord.ui.View:
 
 
 async def run_feature_command(
-    interaction: discord.Interaction, command_key: str, source: str
+    interaction: discord.Interaction,
+    command_key: str,
+    source: str,
+    ending: Optional["Ending"] = None,
+    back: Optional["Ending"] = None,
 ) -> None:
     """The single entry point from any button into a feature's configuration.
 
     Opens the trace the whole invocation is logged under, records where the
-    user came from, and hands over to the form platform.
+    user came from, and hands over to the form platform, with the `ending` of
+    a setup and the `back` of its first screen (`app.settings.open_feature`).
     """
     from app.services import analytics, metrics
     from app.services.trace import trace_scope
@@ -107,7 +116,7 @@ async def run_feature_command(
         from app.settings import open_feature
 
         try:
-            await open_feature(interaction, command_key, source)
+            await open_feature(interaction, command_key, source, ending=ending, back=back)
         except Exception as error:
             metrics.record_interaction("failed", error)
             raise
@@ -119,13 +128,13 @@ class ExecuteCommandButton(discord.ui.Button):
         label = ml("buttons.execute.label", locale=locale)
         super().__init__(
             label=label,
-            emoji="▶️",
-            style=discord.ButtonStyle.green,
+            style=discord.ButtonStyle.primary,
         )
 
     async def callback(self, interaction: discord.Interaction) -> Any:
+        locale = await interaction_language(interaction)
         if not interaction.user.guild_permissions.administrator:
-            embed = response_embed("buttons.setup.admin-only", parse_locale(interaction.locale))
+            embed = response_embed("buttons.setup.admin-only", locale)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         await run_feature_command(interaction, self.command_key, "help_button")
@@ -147,6 +156,7 @@ class GenericButton(discord.ui.Button):
         super().__init__(label=label, style=style, **kwargs)
 
     async def callback(self, interaction: discord.Interaction) -> Any:
+        await interaction_language(interaction)
         await self.custom_callback(interaction)
 
 class SyncronizeRemindersButton(discord.ui.Button):

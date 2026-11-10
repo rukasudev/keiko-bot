@@ -83,6 +83,12 @@ def test_the_platform_never_names_a_command_key():
     assert _offenders(COMMAND_KEY, _platform_files()) == []
 
 
+def test_the_platform_never_names_the_screen_that_opened_it():
+    """A caller's ending or action travels with the open as a value of its own."""
+    launchers = re.compile(r"\b(?:setup_dashboard|greeting_button|help_button)\b")
+    assert _offenders(launchers, list(python_files(SETTINGS))) == []
+
+
 def test_nothing_in_the_platform_blocks_the_event_loop():
     assert _offenders(BLOCKING, list(python_files(SETTINGS))) == []
 

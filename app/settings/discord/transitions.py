@@ -39,6 +39,7 @@ from app.settings.form.effects import (
     Render,
     ResumeChild,
     ResumeParent,
+    ReturnToOpener,
     RunAside,
     ShowError,
 )
@@ -156,6 +157,7 @@ CommitRunner = Callable[
     [discord.Interaction, str, Mapping[str, Any], FormSession], Awaitable[None]
 ]
 Continue = Callable[[discord.Interaction, FormSession, Any], Awaitable[None]]
+Ending = Callable[[], Awaitable[discord.ui.LayoutView]]
 
 
 @dataclass
@@ -172,6 +174,8 @@ class Executor:
     aside: AsideRunner
     continue_with: Continue
     answering: Answering
+    ending: Ending | None = None
+    back: Ending | None = None
     outcomes: list[Outcome] = field(default_factory=list)
 
     async def run(self, effects: tuple[Effect, ...]) -> None:
@@ -179,6 +183,10 @@ class Executor:
         self.surface.webhook = self.interaction.followup
         self.surface.touched_at = time.monotonic()
         ordered = sorted(effects, key=lambda effect: not isinstance(effect, OpenModal))
+        if self.ending is not None and any(
+            isinstance(effect, OpenPanel) for effect in ordered
+        ):
+            ordered = [effect for effect in ordered if not isinstance(effect, Finalize)]
 
         for effect in ordered:
             name = type(effect).__name__
@@ -197,7 +205,11 @@ class Executor:
                 raise
 
     async def _execute(self, effect: Effect) -> None:
-        if isinstance(effect, (OpenChild, OpenPanel, ResumeParent, ResumeChild)):
+        if isinstance(effect, OpenPanel) and self.ending is not None:
+            await self.hand_back(await self.ending())
+        elif isinstance(effect, ReturnToOpener):
+            await self.return_to_opener()
+        elif isinstance(effect, (OpenChild, OpenPanel, ResumeParent, ResumeChild)):
             await self.continue_with(self.interaction, self.session, effect)
         elif isinstance(effect, Commit):
             if effect.kind in EDITS and not effect.quiet:
@@ -316,6 +328,20 @@ class Executor:
         self.surface.view, self.surface.embed = payload["view"], payload.get("embed")
         self.surface.is_layout = screen.is_layout
         self.surface.replace_next = False
+
+    async def hand_back(self, view: discord.ui.LayoutView) -> None:
+        """Give the message back to whoever opened the session, drawn with `view`."""
+        if self.surface.is_layout and self.surface.message_id is not None:
+            await self._edit(view=view)
+        else:
+            await self._replace(view=view)
+        self.surface.view, self.surface.embed = None, None
+        self.surface.is_layout = True
+
+    async def return_to_opener(self) -> None:
+        """Draw what the opener's `back` returns on the session's message."""
+        assert self.back is not None
+        await self.hand_back(await self.back())
 
     async def open_modal(self, effect: OpenModal) -> None:
         """Open the modal as the interaction's first answer."""

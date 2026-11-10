@@ -9,7 +9,6 @@ own, and when the feature cannot be read again only the activation embed stays.
 """
 import pytest
 
-from app.services import journey
 from app.services.utils import ml
 from app.settings.features import feature_for
 from app.settings.form.form_state import Manage
@@ -26,26 +25,6 @@ LOCALE = "pt-br"
 ACTIVATED = ml("commands.command-events.enabled.title", locale=LOCALE)
 PANEL_INTRO = "Comemoro o aniversário dos membros com as configurações abaixo."
 
-
-@pytest.fixture
-def stories():
-    """Every journey publication: whose, how it reads, and how it ended."""
-    published = []
-    journey.clear()
-    journey.set_publisher(
-        lambda story: published.append(
-            (
-                story.guild_id,
-                story.name,
-                story.result,
-                tuple(line["message"] for line in story.lines),
-            )
-        )
-    )
-    journey.install()
-    yield published
-    journey.clear()
-    journey.set_publisher(None)
 
 
 def _guild(guild_id=123456789):

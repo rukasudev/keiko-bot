@@ -37,6 +37,7 @@ if os.path.isdir(_LANGUAGES_ROOT):
 
 # Early patching happens as side-effect of this import
 from tests.mocks.database import MockMotorClient, MockRedisClient, MockMongoClient
+from tests.generators.moderations import recorded_server
 
 from tests.mocks import (
     create_guild,
@@ -149,6 +150,8 @@ def deps(mongodb, redis_client):
         channels=["general", "welcome", "announcements"],
         roles=["Admin", "Moderator", "Member"]
     )
+
+    recorded_server(mongodb, ns.guild.id)
 
     # Configura bot com dependencias
     ns.bot = MagicMock()

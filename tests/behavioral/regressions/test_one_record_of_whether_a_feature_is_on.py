@@ -49,7 +49,7 @@ from app.data import moderations as moderations_data
 from app.data.birthdays import upsert_birthday_config
 from app.services import cache
 from app.services.moderations import update_moderations_by_guild
-from app.services.setup import permission_report, setup_dashboard
+from app.services.setup import category_page, permission_report
 from app.services.utils import ml
 from app.settings.features import feature_for
 from app.settings.features.feature import CommitContext, OpenContext
@@ -61,6 +61,7 @@ from tests.behavioral.harness.locators import walk_items
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
 GUILD_ID = "123456789"
+UNRECORDED_GUILD_ID = "987654321"
 LEFT_GUILD_ID = "4242"
 NOW = datetime(2026, 1, 1, 12, tzinfo=timezone.utc)
 FEATURES = [spec["command_key"] for spec in Commands.SETUP_FEATURES]
@@ -99,6 +100,15 @@ def flag(deps, key, guild_id=GUILD_ID):
     return (moderations or {}).get(key)
 
 
+async def setup_row(command_key):
+    """The row of `command_key` on the /setup page that lists it, its category's."""
+    spec = next(
+        feature for feature in Commands.SETUP_FEATURES if feature["command_key"] == command_key
+    )
+    page = await category_page(GUILD_ID, spec["category"])
+    return row_of(page, command_key)
+
+
 def row_of(view, command_key):
     return next(
         item
@@ -127,7 +137,7 @@ def saved_before_enabled(deps, flag_value):
 
 SET_UP = ml("buttons.setup.start.label", "pt-br")
 MANAGE = ml("buttons.setup.manage.label", "pt-br")
-PAUSED = ml("commands.commands.setup.embed.paused", "pt-br")
+PAUSED = " ⏸️**"
 
 
 async def test_after_disable_setup_offers_the_feature_again(scenario_factory):
@@ -137,7 +147,7 @@ async def test_after_disable_setup_offers_the_feature_again(scenario_factory):
     await scenario.click(ml("buttons.disable.label", locale="pt-br"))
     await scenario.submit_confirmation()
 
-    row = row_of(await setup_dashboard(GUILD_ID, "pt-br"), Commands.BLOCK_LINKS_KEY)
+    row = await setup_row(Commands.BLOCK_LINKS_KEY)
 
     assert row.accessory.label == SET_UP, (
         "block links was disabled and /setup still said it was configured"
@@ -153,7 +163,7 @@ async def test_after_pause_setup_shows_the_feature_paused_not_to_set_up(
     await scenario.click(ml("buttons.pause.label", locale="pt-br"))
     await scenario.submit_confirmation()
 
-    row = row_of(await setup_dashboard(GUILD_ID, "pt-br"), Commands.BLOCK_LINKS_KEY)
+    row = await setup_row(Commands.BLOCK_LINKS_KEY)
 
     assert row.accessory.label == MANAGE, "a paused feature is still set up"
     assert PAUSED in subtext_of(row), "and the card says it is paused"
@@ -164,10 +174,7 @@ async def test_a_feature_saved_without_the_old_flag_is_set_up(deps):
         {"guild_id": GUILD_ID, "enabled": True, "streamer": "shroud"}
     )
 
-    row = row_of(
-        await setup_dashboard(GUILD_ID, "pt-br"),
-        Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
-    )
+    row = await setup_row(Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY)
 
     assert row.accessory.label == MANAGE, (
         "StreamElements answers `ks!` commands and /setup offered to set it up"
@@ -203,7 +210,7 @@ async def test_setup_reads_a_document_saved_before_enabled_through_the_old_flag(
 ):
     saved_before_enabled(deps, False)
 
-    row = row_of(await setup_dashboard(GUILD_ID, "pt-br"), Commands.BLOCK_LINKS_KEY)
+    row = await setup_row(Commands.BLOCK_LINKS_KEY)
 
     assert PAUSED in subtext_of(row), "the flag said paused and /setup said on"
 
@@ -254,7 +261,7 @@ async def test_disabling_birthdays_turns_both_records_off(deps):
     assert flag(deps, BIRTHDAYS) is False, (
         "the birthdays were deleted and the flag said they were still on"
     )
-    row = row_of(await setup_dashboard(GUILD_ID, "pt-br"), BIRTHDAYS)
+    row = await setup_row(BIRTHDAYS)
     assert row.accessory.label == SET_UP
 
 
@@ -265,7 +272,7 @@ async def test_a_paused_birthday_feature_opens_its_panel_with_unpause(
     await birthdays.commit("setup", {"answers": BIRTHDAY_SETUP}, context())
     await birthdays.commit("pause", {}, context())
 
-    row = row_of(await setup_dashboard(GUILD_ID, "pt-br"), BIRTHDAYS)
+    row = await setup_row(BIRTHDAYS)
     assert row.accessory.label == MANAGE and PAUSED in subtext_of(row)
 
     scenario = await scenario_factory(locale="pt-br").start_command(BIRTHDAYS)
@@ -297,7 +304,7 @@ async def test_a_setup_records_birthdays_as_on_over_a_paused_document(deps):
     config = deps.mongo_client.guild[BIRTHDAYS].find_one({"guild_id": GUILD_ID})
     assert config["enabled"] is True, "the document still said paused"
     assert flag(deps, BIRTHDAYS) is True
-    row = row_of(await setup_dashboard(GUILD_ID, "pt-br"), BIRTHDAYS)
+    row = await setup_row(BIRTHDAYS)
     assert PAUSED not in subtext_of(row)
 
 
@@ -495,9 +502,11 @@ def test_a_collection_with_duplicate_guilds_never_stops_the_other_indexes(
 
 
 def test_a_flag_for_a_guild_without_moderations_creates_them_with_the_defaults(deps):
-    update_moderations_by_guild(GUILD_ID, Commands.BLOCK_LINKS_KEY, True)
+    update_moderations_by_guild(UNRECORDED_GUILD_ID, Commands.BLOCK_LINKS_KEY, True)
 
-    moderations = deps.mongo_client.guild.moderations.find_one({"guild_id": GUILD_ID})
+    moderations = deps.mongo_client.guild.moderations.find_one(
+        {"guild_id": UNRECORDED_GUILD_ID}
+    )
     assert moderations[Commands.BLOCK_LINKS_KEY] is True
     assert moderations["is_bot_online"] is True
     assert moderations[Commands.WELCOME_MESSAGES_KEY] is False

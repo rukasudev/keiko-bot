@@ -91,19 +91,20 @@ class DefaultRolesFeature(GenericCogFeature):
         )
 
     def asides(self) -> Mapping[str, AsideAction]:
-        """Syncing writes roles to every member: one run per minute is plenty."""
+        """The statistics, and the sync, run once a minute at most."""
 
         async def sync(interaction: Any, _responses: Any) -> None:
             await set_on_default_roles_sync(interaction)
 
         return {
+            **super().asides(),
             "sync": AsideAction(
                 sync,
                 defer=True,
                 cooldown=SYNC_COOLDOWN_SECONDS,
                 confirm="buttons.roles-sync.confirm",
                 confirm_values=_roles_of,
-            )
+            ),
         }
 
 

@@ -1,9 +1,10 @@
+import asyncio
 import copy
 import threading
 from collections import OrderedDict
 from itertools import count
 from time import monotonic
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from bson import json_util
 from pymongo.errors import PyMongoError
@@ -24,6 +25,7 @@ _unsent_keys: Dict[str, int] = {}
 _failed_at: Dict[str, float] = {}
 _errors: Dict[str, Exception] = {}
 _warned_at: Dict[str, float] = {}
+_remembered: "OrderedDict[str, Tuple[float, Any]]" = OrderedDict()
 
 
 def set_data_in_redis(key: str, data: Dict[str, Any]):
@@ -110,8 +112,38 @@ def remove_all_cache_by_guild(guild_id: str) -> None:
         keys = sorted({*features, *remembered})
         for redis_key in keys:
             _forget(redis_key)
+        for memo_key in [known for known in _remembered if known.startswith(prefix)]:
+            _remembered.pop(memo_key)
+            _forget(memo_key)
 
     _delete_cached(keys)
+
+
+async def remembered(key: str, read: Callable[[], Any], seconds: float) -> Any:
+    """What `read` returns, read off the loop and kept in this process for `seconds`;
+    a read that raced a `forget_remembered(key)` is returned but not kept."""
+    with _lock:
+        held = _remembered.get(key)
+        generation = _generations.get(key, 0)
+    if held is not None and monotonic() < held[0]:
+        return held[1]
+
+    value = await asyncio.to_thread(read)
+
+    with _lock:
+        if _generations.get(key, 0) == generation:
+            _remembered[key] = (monotonic() + seconds, value)
+            _remembered.move_to_end(key)
+            while len(_remembered) > DBConfigs.COG_CACHE_LAST_KNOWN_SIZE:
+                _remembered.popitem(last=False)
+    return value
+
+
+def forget_remembered(key: str) -> None:
+    """Drop what `remembered` keeps under `key`, so the next call reads it again."""
+    with _lock:
+        _remembered.pop(key, None)
+        _forget(key)
 
 
 def claim_redis_key(key: str, expiration: int) -> bool:
@@ -133,6 +165,7 @@ def reset() -> None:
         _failed_at.clear()
         _errors.clear()
         _warned_at.clear()
+        _remembered.clear()
 
 
 def _cog_key(guild_id: Any, key: str) -> str:

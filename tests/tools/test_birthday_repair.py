@@ -85,7 +85,9 @@ def test_missing_reminder_secrets_are_named_before_anything_opens(monkeypatch):
 @pytest.fixture
 def orphans(monkeypatch):
     from app.data import birthdays as birthdays_data
+    from tests.generators.moderations import recorded_server
 
+    recorded_server(birthdays_data.mongo_client, "g1", timezone="Asia/Tokyo")
     birthdays_data.upsert_birthday_config("g1", channel_id="9", timezone="UTC",
                                           notification_time="14:00")
     for user, date in (("7", "10-28"), ("8", "10-28"), ("9", "03-23")):
@@ -105,9 +107,19 @@ def test_the_plan_groups_by_guild_and_date_not_by_person(orphans):
 def test_the_plan_carries_the_schedule_that_will_be_used(orphans):
     entry = next(e for e in repair.plan() if e["date"] == "10-28")
 
-    assert entry["timezone"] == "UTC"
+    assert entry["timezone"] == "Asia/Tokyo", "the server's zone, which the repair uses"
     assert entry["notification_time"] == "14:00"
     assert entry["configured"] is True
+
+
+def test_the_repair_without_redis_reads_the_servers_zone_from_mongo(orphans, monkeypatch):
+    """`--apply` has no Redis: the zone the reminders are created in still reads."""
+    from app.services import cache
+    from app.services.moderations import server_setting
+
+    monkeypatch.setattr(cache, "redis_client", repair.NoRedis())
+
+    assert server_setting("g1", "timezone") == "Asia/Tokyo"
 
 
 def test_a_guild_with_no_configuration_is_marked_not_repairable(orphans):

@@ -29,11 +29,11 @@ from app.data.reminder import (
 from app.integrations.reminder_webhook import REMINDER_TIMEZONE, reminder_time
 from app.settings import open_feature
 from app.services import analytics
+from app.services.moderations import server_language
 from app.services.trace import Outcome, fan_out
 from app.services.utils import (
     destination,
     fill_placeholders,
-    guild_locale,
     ml,
     split_messages,
     values_of,
@@ -118,7 +118,7 @@ async def deliver_video(
         announcement.video_id,
         announcement.video.get("snippet") or {},
         announcement.channel,
-        guild_locale(guild),
+        await server_language(guild.id),
     )
 
     try:

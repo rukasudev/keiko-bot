@@ -239,7 +239,10 @@ async def test_a_prefix_command_that_fails_never_shows_its_message(deps, caplog)
 def direct_message(content):
     author = MockMember(id=111, name="TestUser")
     return MockMessage(
-        id=1, content=content, author=author, channel=SimpleNamespace(id=55, guild=None)
+        id=1,
+        content=content,
+        author=author,
+        channel=SimpleNamespace(id=55, guild=None, send=AsyncMock()),
     )
 
 
@@ -258,8 +261,8 @@ async def test_a_direct_message_reaches_no_admin_channel(
     Shared behaviour: `Events.on_message`, the listener behind block links and the
     StreamElements commands. Consumer that exposed it: anyone writing to the bot.
 
-    Guaranteed: a DM is ignored before anything reads its guild: no error, no message
-    in any admin channel, and no feature looks at it.
+    Guaranteed: nothing reads the guild of a DM: no error, no message in any admin
+    channel, and no feature looks at it; a prefixed one gets only the slash hint.
     """
     from app.cogs import events as events_module
 

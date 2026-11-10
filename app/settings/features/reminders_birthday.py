@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Mapping, Sequence
 from datetime import date
 from typing import Any
 
@@ -18,13 +18,13 @@ from app.services.reminders_birthdays import (
     birthday_manager_cog_data,
     birthday_month_pages,
     birthday_settings_rows,
+    birthday_stats_lines,
     disable_birthdays,
     remove_birthday,
     save_birthday_config_changes,
     save_form_birthday_item,
     save_setup_form,
     send_birthday_preview,
-    send_stats_message,
 )
 from app.settings.features.feature import (
     AsideAction,
@@ -36,14 +36,8 @@ from app.settings.features.feature import (
     OpenContext,
     Opened,
 )
-from app.settings.form.components import Button
-from app.settings.form.copy import text
 from app.settings.form.manager import FoundItem, PanelExtras, PanelPage
 from app.settings.form.responses.summary import PanelRow
-
-
-def _copy(key: str, locale: str) -> str:
-    return text(f"commands.commands.commons.reminders-birthdays-manager.{key}", locale)
 
 
 class BirthdayFeature(GenericCogFeature):
@@ -84,7 +78,6 @@ class BirthdayFeature(GenericCogFeature):
                     )
                     for row in rows
                 ),
-                extra_buttons=self.extra_buttons(context),
                 enabled=enabled,
                 pages=tuple(
                     PanelPage(title, tuple(lines), description)
@@ -96,36 +89,22 @@ class BirthdayFeature(GenericCogFeature):
             ),
         )
 
-    def extra_buttons(self, context: OpenContext) -> tuple[Button, ...]:
-        """The stats button."""
-        locale = context.locale
-        return (
-            Button(
-                _copy("stats.button.label", locale),
-                "aside:stats",
-                "secondary",
-                "📊",
-                description=_copy("stats.button.desc", locale),
-            ),
-        )
-
     def asides(self) -> Mapping[str, AsideAction]:
-        """The stats screen and the preview of the celebration."""
-
-        async def stats(interaction: Any, _responses: Any) -> None:
-            await send_stats_message(interaction, self.today())
+        """The statistics and the preview of the celebration."""
 
         async def preview(interaction: Any, responses: Any) -> None:
             await send_birthday_preview(interaction, list(responses))
 
         return {
-            "stats": AsideAction(
-                stats, defer=True, cooldown=view_constants.ACTION_COOLDOWN_SECONDS
-            ),
+            **super().asides(),
             "preview": AsideAction(
                 preview, defer=True, cooldown=view_constants.ACTION_COOLDOWN_SECONDS
             ),
         }
+
+    def stats_lines(self, guild_id: str, locale: str) -> Sequence[str]:
+        """How many birthdays, this month's, and the busiest and quietest dates."""
+        return birthday_stats_lines(guild_id, locale, self.today())
 
     async def commit_setup(
         self, payload: Mapping[str, Any], context: CommitContext

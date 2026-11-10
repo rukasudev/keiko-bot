@@ -912,6 +912,12 @@
           },
           {
             "disabled": false,
+            "label": "Statistics",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Help",
             "style": "secondary",
             "type": "button"

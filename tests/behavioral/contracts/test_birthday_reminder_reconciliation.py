@@ -14,12 +14,14 @@ import pytest
 
 from app.data import birthdays as birthdays_data
 from app.services import reminders_birthdays as birthdays_service
+from tests.generators.moderations import recorded_server
 
 pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("birthday_reminders")]
 
 
 @pytest.fixture
-def guild_config():
+def guild_config(deps):
+    recorded_server(deps.mongo_client, "1532291713580925048", timezone="UTC")
     birthdays_data.upsert_birthday_config(
         "1532291713580925048",
         channel_id="99",
@@ -79,8 +81,8 @@ def test_the_pass_creates_the_missing_reminder_and_stores_it(guild_config, monke
 
 
 def test_the_repair_uses_the_schedule_the_guild_configured(guild_config, monkeypatch):
-    """The guild's timezone and hour are exactly what the original attempt got
-    wrong, so the repair must read them again rather than assume a default."""
+    """The server's timezone and the guild's hour are exactly what the original
+    attempt got wrong, so the repair must read them again rather than assume a default."""
     orphan(guild_config, "7", "10-28")
     seen = {}
 
@@ -128,7 +130,8 @@ def test_a_still_failing_reminder_leaves_the_birthday_alone(guild_config, monkey
     assert len(birthdays_data.find_birthdays_missing_reminder()) == 1
 
 
-def test_one_broken_guild_does_not_stop_the_others(guild_config, monkeypatch):
+def test_one_broken_guild_does_not_stop_the_others(deps, guild_config, monkeypatch):
+    recorded_server(deps.mongo_client, "other")
     birthdays_data.upsert_birthday_config("other", channel_id="1")
     orphan(guild_config, "7", "10-28")
     orphan("other", "9", "03-23")

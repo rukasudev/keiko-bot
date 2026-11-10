@@ -130,10 +130,14 @@ async def test_a_channel_saved_by_the_old_pause_still_gets_its_video_notice(deps
 
     from app.services.notifications_youtube_video import VideoAnnouncement, announce_video
 
+    from tests.generators.moderations import recorded_server
+
     first = create_guild(id=5001, channels=["videos"])
     second = create_guild(id=5002, channels=["videos"])
     known = {first.id: first, second.id: second}
     deps.bot.get_guild = lambda guild_id: known.get(int(guild_id))
+    for guild_id in known:
+        recorded_server(deps.mongo_client, guild_id)
 
     def follower(guild, enabled):
         item = {

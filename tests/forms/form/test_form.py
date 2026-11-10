@@ -403,6 +403,140 @@ def test_cancel_asks_then_keeps_or_discards():
     assert discarded.effects[0].kind == "discarded"
 
 
+@pytest.mark.parametrize("answered", [(), ("form",)], ids=["intro", "card"])
+def test_cancel_with_nothing_answered_closes_without_asking(answered):
+    """k03b (PR15 round 5): there is nothing to lose before the first answer, so
+    Cancel closes the setup at once, as a discard, with no keep-or-discard."""
+    definition, decision = start("block_links")
+    session = decision.session
+    for key in answered:
+        session = decide(definition, session, evt(ev.Answered, step_key=key)).session
+    assert not session.answers
+
+    cancelled = decide(definition, session, evt(ev.Cancel))
+
+    assert cancelled.session.status is Status.CANCELLED
+    assert kinds(cancelled) == ["Finalize"]
+    assert cancelled.effects[0].kind == "discarded"
+    assert [name for name, _ in cancelled.analytics] == ["setup.discarded"]
+
+
+def test_cancel_after_a_draft_on_the_card_still_asks():
+    definition, decision = start("block_links")
+    on_card = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
+    drafted = decide(
+        definition,
+        on_card.session,
+        evt(ev.Drafted, step_key="link_settings", changes={"allowed_chats": ["100"]}),
+    )
+
+    asked = decide(definition, drafted.session, evt(ev.Cancel))
+
+    assert asked.session.status is Status.AWAITING and kinds(asked) == ["Confirm"]
+
+
+def test_cancel_in_a_child_asks_while_its_parent_holds_something():
+    """A child belongs to a session that may hold answers of its own: the setup's
+    first streamer card hands its parent a discard at once, a card over answered
+    values asks."""
+    definition, child = _twitch_card()
+    assert not child.answers
+
+    closed = decide(definition, child, evt(ev.Cancel))
+    asked = decide(
+        definition,
+        child,
+        evt(ev.Cancel),
+        Context(parent_values={"notifications": [{"streamer": "gaules"}]}),
+    )
+
+    assert closed.session.status is Status.CANCELLED
+    assert kinds(closed) == ["ResumeParent"] and closed.effects[0].discarded
+    assert asked.session.status is Status.AWAITING and kinds(asked) == ["Confirm"]
+
+
+def test_a_discarded_child_discards_its_setup():
+    """A child's discard closes the setup above it, which tells it once."""
+    definition, decision = start("notifications_twitch")
+    finished = evt(ev.ChildFinished, child_mode="add_item", discarded=True)
+
+    ended = decide(definition, decision.session, finished)
+
+    assert ended.session.status is Status.CANCELLED and kinds(ended) == ["Finalize"]
+    assert ended.effects[0].kind == "discarded"
+    assert [name for name, _ in ended.analytics] == ["setup.discarded"]
+
+
+def test_cancel_over_a_saved_document_always_asks():
+    definition = REGISTRY.get("block_links")
+    session = new_session(
+        (definition.key, 1),
+        Edit(("link_settings",)),
+        ORIGIN,
+        ttl_seconds=60,
+        now=NOW,
+        parent_id="p",
+    )
+    context = Context(document={"guild_id": "1", "mode": "block_all"})
+    opened = decide(definition, session, evt(ev.Started), context)
+
+    asked = decide(definition, opened.session, evt(ev.Cancel), context)
+
+    assert asked.session.status is Status.AWAITING and kinds(asked) == ["Confirm"]
+
+
+OPENER_BACK = Context(back_to_opener=True)
+
+
+@pytest.mark.parametrize("form", DiskSource().list())
+def test_the_first_screen_of_a_setup_its_opener_takes_back_offers_back(form):
+    """k03 (PR15 round 5): opened by a screen that takes the message back, the
+    first screen shows a grey Voltar where Cancelar was, and no Cancelar."""
+    _, decision = start(form, context=OPENER_BACK)
+
+    buttons = screen(decision).buttons
+    assert [button.action for button in buttons][-1] == "back"
+    assert "cancel" not in [button.action for button in buttons]
+    back = buttons[-1]
+    assert (back.label, back.style) == ("Voltar", "secondary")
+
+
+def test_back_on_that_first_screen_closes_the_setup_as_discarded_and_returns():
+    definition, decision = start("block_links", context=OPENER_BACK)
+
+    left = decide(definition, decision.session, evt(ev.Back), OPENER_BACK)
+
+    assert left.session.status is Status.CANCELLED
+    assert kinds(left) == ["ReturnToOpener"]
+    assert [name for name, _ in left.analytics] == ["setup.discarded"]
+
+
+def test_the_later_screens_keep_their_cancel_and_their_back():
+    definition, decision = start("block_links", context=OPENER_BACK)
+
+    on_card = decide(
+        definition, decision.session, evt(ev.Answered, step_key="form"), OPENER_BACK
+    )
+    at_review = decide(
+        definition,
+        on_card.session,
+        evt(ev.Answered, step_key="link_settings"),
+        OPENER_BACK,
+    )
+
+    assert [button.action for button in screen(on_card).buttons][-1] == "cancel"
+    assert [button.action for button in screen(at_review).buttons][-1] == "cancel"
+    stayed = decide(definition, on_card.session, evt(ev.Back), OPENER_BACK)
+    assert kinds(stayed) == ["Ack"], "the card has no Back to the intro"
+
+
+def test_a_setup_no_opener_takes_back_keeps_cancel_on_its_first_screen():
+    definition, decision = start("block_links")
+
+    assert [button.action for button in screen(decision).buttons][-1] == "cancel"
+    assert kinds(decide(definition, decision.session, evt(ev.Back))) == ["Ack"]
+
+
 # ---------------------------------------------------------------- validation
 
 

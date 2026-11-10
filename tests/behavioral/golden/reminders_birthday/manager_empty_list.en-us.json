@@ -94,7 +94,7 @@
           },
           {
             "disabled": false,
-            "label": "Stats",
+            "label": "Statistics",
             "style": "secondary",
             "type": "button"
           }

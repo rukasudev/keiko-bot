@@ -104,6 +104,7 @@ def update_reminder(
     timezone_name: str = None,
     notification_time: str = None,
 ) -> None:
+    """Move a reminder to its new zone and hour, logging a refusal of the API."""
     if not reminder_id or bot.config.is_dev():
         return
     try:
@@ -120,6 +121,8 @@ def update_reminder(
             f"Failed to update reminder {reminder_id}: {type(e).__name__}: {e}",
             log_type=logconstants.COMMAND_WARN_TYPE,
         )
+        return False
+    return True
 
 
 def delete_reminder(reminder_id: Optional[str]) -> None:

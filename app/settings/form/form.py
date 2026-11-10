@@ -21,7 +21,12 @@ from app.settings.form.actions import (
     registry,
     selects,
 )
-from app.settings.form.actions.action import Context, confirm_button, label
+from app.settings.form.actions.action import (
+    Context,
+    back_button,
+    confirm_button,
+    label,
+)
 from app.settings.form.components import (
     Button,
     ChoiceOption,
@@ -45,6 +50,7 @@ from app.settings.form.effects import (
     Render,
     ResumeChild,
     ResumeParent,
+    ReturnToOpener,
     RunAside,
     ShowError,
 )
@@ -362,6 +368,20 @@ class Form(Engine):
         """True when Back has somewhere to go from `key`."""
         return self.previous_key(self.index(key)) is not None
 
+    def returns_to_opener(self, key: str | None) -> bool:
+        """True when Back on `key` gives the message back to whoever opened it."""
+        return self.context.back_to_opener and key == self.next_key(-1)
+
+    def framed(self, key: str | None, screen: Screen) -> Screen:
+        """The screen of `key`, its Cancel a Back when Back returns to the opener."""
+        if not self.returns_to_opener(key):
+            return screen
+        buttons = tuple(
+            back_button(self.locale) if button.action == "cancel" else button
+            for button in screen.buttons
+        )
+        return replace(screen, buttons=buttons)
+
     def show(self, key: str) -> None:
         """Render the step at `key` on the current message, or open its modal."""
         step = self.step(key)
@@ -374,6 +394,7 @@ class Form(Engine):
         screen = registry()[step.kind].render(
             step, self.session, self.screen_context(key)
         )
+        screen = self.framed(key, screen)
         self.session = self.session.at(key)
 
         if screen.flavour == "modal":
@@ -473,7 +494,8 @@ class Form(Engine):
         if step is None or isinstance(step, CompositionStep):
             return
         context = self.screen_context(key)
-        screen = registry()[step.kind].render(step, self.session, context)
+        drawn = registry()[step.kind].render(step, self.session, context)
+        screen = self.framed(key, drawn)
 
         if screen.flavour == "modal" and self.session.refused_on(step.key):
             screen = modal.refused_screen(step, self.session, context)
@@ -709,7 +731,7 @@ def discard_screen(locale: str) -> Screen:
         description=text("errors.discard-settings-confirmation.message", locale),
         color=Style.RED_COLOR,
         buttons=(
-            Button(text("buttons.cancel.keep", locale), "keep", "success"),
+            Button(text("buttons.cancel.keep", locale), "keep", "secondary"),
             Button(text("buttons.cancel.discard", locale), "discard", "danger"),
         ),
     )
@@ -1307,6 +1329,9 @@ def _on_back(form: Form) -> None:
     current = form.index(form.session.cursor)
     previous = form.previous_key(current)
 
+    if previous is None and form.returns_to_opener(form.session.cursor):
+        _discard(form, ReturnToOpener())
+        return
     if previous is None:
         form.effects.append(Ack())
         return
@@ -1323,14 +1348,40 @@ def _on_back(form: Form) -> None:
 
 
 def _on_cancel(form: Form) -> None:
+    if _holds_nothing(form):
+        _discard(form, Finalize("discarded"))
+        return
     form.session = form.session.with_status(Status.AWAITING, awaiting="discard")
     form.effects.append(Confirm(discard_screen(form.locale)))
 
 
+def _holds_nothing(form: Form) -> bool:
+    context = form.context
+    return not (form.session.answers or context.parent_values or context.document)
+
+
 def _on_discard_confirmed(form: Form) -> None:
-    form.emit("setup.discarded", step_key=form.session.cursor)
+    _discard(form, Finalize("discarded"))
+
+
+def _discard(form: Form, closing: Effect) -> None:
+    parent_id = form.session.parent_id
     form.session = form.session.with_status(Status.CANCELLED)
-    form.effects.append(Finalize("discarded"))
+    if parent_id is not None:
+        kind = form.session.mode.kind
+        form.effects.append(ResumeParent(parent_id, kind, {}, discarded=True))
+        return
+    form.emit("setup.discarded", step_key=form.session.cursor)
+    form.effects.append(closing)
+
+
+def _on_child_finished(form: Form) -> None:
+    event = form.event
+    assert isinstance(event, ev.ChildFinished)
+    if event.discarded:
+        _discard(form, Finalize("discarded"))
+        return
+    on_child_finished(form)
 
 
 def _on_review_confirmed(form: Form) -> None:
@@ -1382,7 +1433,7 @@ HANDLERS: dict[type[ev.Event], Callable[[Form], None]] = {
     ev.RemovalConfirmed: on_removal_confirmed,
     ev.MemberChosen: on_member_chosen,
     ev.ItemRemoved: on_item_removed,
-    ev.ChildFinished: on_child_finished,
+    ev.ChildFinished: _on_child_finished,
     ev.ScreenRequested: on_screen_requested,
     ev.Aside: _on_aside,
     ev.CommitSucceeded: _on_commit_succeeded,

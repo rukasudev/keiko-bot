@@ -85,7 +85,11 @@ maps the audit key to its product event and both are written from one call:
 | `disabled` | `feature.disabled` |
 | `added` / `removed` | `feature.item_added` / `feature.item_removed` |
 
-There are no new call sites for any of these.
+There are no new call sites for any of these. A server setting changed on the
+`/setup` settings screen goes through `insert_cog_event` too, as `edited` under
+the `settings` key (`change_setting` in `app/services/setup.py`), so it is a
+`config.changed` with `feature: settings` and `changed_keys: [<the key>]`, and
+an audit record of its own.
 
 ## 3. Adding a metric to a new feature
 
@@ -639,7 +643,7 @@ Traces are opened at the boundaries:
 | Deferred work | `schedule_webhook_job` → `Trace.handover` + `trace.run_traced` | the first job continues the request's message, which takes every line the request logs after the hand-over and is posted once both are done; a second job in the same request gets its own, under the same rule |
 | Confirmations | `ConfirmActionView(trace_name=)` (`app/views/confirm_action.py`) | one message for what the confirmation did |
 | Listeners | `trace.listener` (`app/services/trace.py`) for every listener of `app/cogs/events.py` | silent unless it fails or reports an event; each part runs on its own (a feature of `on_message` or `on_member_join`; the report, the snapshot and the pause of a server leaving; the record and the greeting of a server joining), so one that fails is an error with the listener's context, nothing is raised to discord.py, and the next one still runs |
-| Fan-outs | `trace.fan_out` (`app/services/trace.py`), behind the Twitch and YouTube notices and the birthday job | inside the trace of the job that runs it; each server is served on its own: one Keiko cannot reach (`DestinationNotFound`, a 403) is a warning, any other failure an error with the server's context, and neither stops the next; `destination` (`app/services/utils.py`) finds the server and its channel, `guild_locale` its language |
+| Fan-outs | `trace.fan_out` (`app/services/trace.py`), behind the Twitch and YouTube notices and the birthday job | inside the trace of the job that runs it; each server is served on its own: one Keiko cannot reach (`DestinationNotFound`, a 403) is a warning, any other failure an error with the server's context, and neither stops the next; `destination` (`app/services/utils.py`) finds the server and its channel, `server_language` (`app/services/moderations.py`) its saved language |
 | Heartbeat | `Heartbeat.beat` (`app/cogs/prometheus.py`) | silent unless it fails; a failed ping is a warning, so it stays in `guild.logs` and the monitor is what alerts |
 
 `silent_when_clean` is what keeps `on_message` from flooding the channel: a

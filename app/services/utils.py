@@ -248,11 +248,6 @@ def parse_locale(locale: str) -> str:
     return "en-us"
 
 
-def guild_locale(guild: Any, saved: Optional[str] = None) -> str:
-    """The language Keiko speaks in a server: the one its settings saved, else the server's."""
-    return parse_locale(saved or getattr(guild, "preferred_locale", None) or "en-us")
-
-
 def destination(guild_id: Any, channel_id: Any) -> Tuple[Any, Any]:
     """The server and the channel a delivery goes to, or DestinationNotFound for either."""
     from app import bot
@@ -274,10 +269,16 @@ def is_guild_admin(user: Any) -> bool:
 
 
 def parse_valid_locale(locale: discord.Locale) -> discord.Locale:
-    locale_value = getattr(locale, "value", str(locale))
-    if locale_value == discord.Locale.brazil_portuguese.value:
+    locale_value = str(getattr(locale, "value", locale)).lower()
+    if locale_value == discord.Locale.brazil_portuguese.value.lower():
         return discord.Locale.brazil_portuguese
     return discord.Locale.american_english
+
+
+def speak(interaction: Any, language: str) -> str:
+    """Make `language` what every later read of the interaction's locale answers in."""
+    interaction.locale = parse_valid_locale(language)
+    return language
 
 
 def ml(key: str, locale: str):
@@ -323,10 +324,19 @@ def stored_value(entry: Dict[str, Any]) -> Any:
 
 
 def fill(text: str, **values: Any) -> str:
-    """Replace every `$name` in a localized line with the value given for it."""
-    for name, value in values.items():
-        text = text.replace(f"${name}", str(value))
-    return text
+    """Replace every `$name` in a localized line with the value given for it, in one
+    pass and the longest name first, so `$page` never eats the start of `$pages`."""
+    if not values:
+        return text
+    names = "|".join(escape(name) for name in sorted(values, key=len, reverse=True))
+    return sub(r"\$(" + names + r")", lambda match: str(values[match.group(1)]), text)
+
+
+def join_names(names: List[str], locale: str) -> str:
+    """The names as one phrase in `locale`: "A, B e C", "A, B and C"."""
+    if len(names) <= 1:
+        return "".join(names)
+    return f"{', '.join(names[:-1])}{ml('messages.list-and', locale)}{names[-1]}"
 
 
 def fill_placeholders(

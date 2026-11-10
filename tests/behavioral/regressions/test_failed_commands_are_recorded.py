@@ -379,7 +379,7 @@ async def test_a_feature_button_that_raises_keeps_its_footnote(deps, guild, seco
 
     traces = []
 
-    async def open_feature(interaction, command_key, source):
+    async def open_feature(interaction, command_key, source, **opening):
         traces.append(current_trace())
         raise RuntimeError("the feature broke")
 

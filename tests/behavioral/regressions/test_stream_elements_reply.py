@@ -10,24 +10,27 @@ were the bug, so the listener reads the configured prefix too.
 
 Shared behaviour: `Events.on_message`, `stream_elements.check_message`, the
 `{context:prefix}` token of the form copy, which the adapter fills from the
-configuration, and the StreamElements lookup, which reads `OpenContext.prefix`.
+server's settings, and the StreamElements lookup, which reads `OpenContext.prefix`.
 Consumer that exposed it: stream_elements_commands (`ruff --select F821` names
 the line).
 
-Guaranteed: a command with the configured prefix (`ke!` in production) is
-answered with the picture of whoever asked, default or not, and a footer in the
-server's language; no other prefix is answered; the reply, the setup form and the
-review's "My version" all name the configured prefix, whatever it is.
+Guaranteed: a command with the server's prefix (the configured `ke!` until its
+admin saves another, PR15) is answered with the picture of whoever asked, default
+or not, and a footer in the server's language; no other prefix is answered; the
+reply, the setup form and the review's "My version" all name the server's prefix,
+whatever it is.
 """
 from types import SimpleNamespace
 
 import discord
 import pytest
 
+from app.data import moderations as moderations_data
 from app.exceptions import StreamElementsUnavailable
 from app.integrations.stream_elements import StreamElementsClient
-from app.services.utils import ml
+from app.services.utils import ml, parse_locale
 from tests.behavioral.harness.driver import FormScenario
+from tests.generators.moderations import recorded_server
 from tests.mocks.discord import (
     create_guild,
     create_member,
@@ -86,7 +89,7 @@ def reply_of(message):
 
 def english_guild():
     guild = create_guild()
-    guild.preferred_locale = discord.Locale.american_english
+    recorded_server(moderations_data.mongo_client, guild.id, language="en-us")
     return guild
 
 
@@ -117,7 +120,7 @@ async def test_a_member_with_a_picture_of_their_own_gets_the_reply(deps, streame
 
 async def test_the_reply_footer_speaks_the_language_of_the_server(deps, streamer_commands):
     guild = create_guild()
-    guild.preferred_locale = discord.Locale.brazil_portuguese
+    recorded_server(moderations_data.mongo_client, guild.id, language="pt-br")
 
     message = await ask(deps.bot, guild, member_without_a_picture(guild))
 
@@ -133,23 +136,27 @@ async def test_the_reply_footer_speaks_the_language_of_the_server(deps, streamer
     ).replace("$command", "ks!commands").replace("$streamer", "gaules")
 
 
-async def test_the_listener_answers_the_configured_prefix_and_no_other(
+async def test_the_listener_answers_the_servers_prefix_and_no_other(
     deps, streamer_commands
 ):
-    deps.bot.config.PREFIX = "kk!"
+    deps.bot.config.PREFIX = "ke!"
     guild = english_guild()
+    recorded_server(deps.mongo_client, guild.id, prefix="kk!")
 
     answered = await ask(deps.bot, guild, member_without_a_picture(guild), "kk!mouse")
     ignored = await ask(deps.bot, guild, member_without_a_picture(guild), "ks!mouse")
+    default = await ask(deps.bot, guild, member_without_a_picture(guild), "ke!mouse")
 
-    assert answered._reply.await_count == 1, "the listener answers the configured prefix"
+    assert answered._reply.await_count == 1, "the listener answers the server's prefix"
     assert "kk!commands" in reply_of(answered).footer.text
     assert ignored._reply.await_count == 0
+    assert default._reply.await_count == 0, "the default prefix no longer answers there"
 
 
-async def test_the_setup_names_the_configured_prefix(deps):
-    deps.bot.config.PREFIX = "kk!"
+async def test_the_setup_names_the_servers_prefix(deps):
+    deps.bot.config.PREFIX = "ke!"
     guild = create_guild()
+    recorded_server(deps.mongo_client, guild.id, prefix="kk!")
     scenario = FormScenario(
         guild=guild,
         user=create_member(guild, id=555, name="Tester"),
@@ -161,11 +168,12 @@ async def test_the_setup_names_the_configured_prefix(deps):
 
     intro = scenario.current_message.embeds[0].description
     assert "**kk!**" in intro and "`kk!mouse`" in intro
-    assert "ks!" not in intro
+    assert "ks!" not in intro and "ke!" not in intro
 
 
-async def test_my_version_names_the_configured_prefix(deps, monkeypatch):
-    deps.bot.config.PREFIX = "kk!"
+async def test_my_version_names_the_servers_prefix(deps, monkeypatch):
+    deps.bot.config.PREFIX = "ke!"
+    recorded_server(deps.mongo_client, create_guild().id, prefix="kk!")
     deps.twitch.add_user("gaules", user_id="181077473")
     monkeypatch.setattr(
         StreamElementsClient, "get_channel_info", staticmethod(lambda name: {"_id": "se1"})
@@ -188,8 +196,8 @@ async def test_my_version_names_the_configured_prefix(deps, monkeypatch):
     await scenario.submit_modal({scenario.pending_modal_fields()[0]: "gaules"})
 
     review = scenario.transcript
-    assert "`kk!mouse`" in review, "My version names the configured prefix"
-    assert "ks!" not in review
+    assert "`kk!mouse`" in review, "My version names the server's prefix"
+    assert "ks!" not in review and "ke!" not in review
 
 
 REPLY_IN_THE_ASKERS_WORDS = "$(user) uses a Logitech G Pro!"
@@ -474,7 +482,7 @@ def nothing_on(mock_cache):
 
 def server_message(content, locale=discord.Locale.american_english):
     guild = create_guild()
-    guild.preferred_locale = locale
+    recorded_server(moderations_data.mongo_client, guild.id, language=parse_locale(locale))
     author = create_member(guild, id=111, name="TestUser")
     return create_message(content=content, author=author, channel=guild.text_channels[0])
 
@@ -518,10 +526,11 @@ async def test_a_stream_elements_command_gets_only_its_reply(deps, stream_elemen
     one prefix for both, every StreamElements command would have been answered twice,
     by the reply and by the hint. The hint never said how to turn a prefix feature on.
 
-    Shared behaviour: `Errors.on_command_error` (`app/cogs/errors.py`), the
-    `answers_prefix` mark on `Commands.SETUP_FEATURES` and
-    `prefix_hint` (`app/services/help.py`), beside `Events.on_message`. Consumer that
-    exposed it: stream_elements_commands, the first feature that answers the prefix.
+    Shared behaviour: `Events._answer_the_prefix` (`app/cogs/events.py`), which
+    decides every prefixed message since PR15 round 3, the `answers_prefix` mark on
+    `Commands.SETUP_FEATURES` and `prefix_hint` (`app/services/help.py`). Consumer
+    that exposed it: stream_elements_commands, the first feature that answers the
+    prefix.
 
     Guaranteed: in a server where a prefix feature is on, a prefixed message gets the
     feature's answer and nothing from Keiko; in a server with none on, it gets one
@@ -531,6 +540,7 @@ async def test_a_stream_elements_command_gets_only_its_reply(deps, stream_elemen
     """
     deps.bot.config.PREFIX = "ke!"
     message = server_message("ke!mouse")
+    recorded_server(deps.mongo_client, message.guild.id, prefix="ke!")
 
     await handle(deps.bot, message)
 
@@ -559,6 +569,7 @@ async def test_a_prefixed_message_no_feature_answers_gets_the_hint_in_the_server
 ):
     deps.bot.config.PREFIX = "ke!"
     message = server_message("ke!mouse", locale)
+    recorded_server(deps.mongo_client, message.guild.id, prefix="ke!")
 
     await handle(deps.bot, message)
 
@@ -573,6 +584,7 @@ async def test_a_prefixed_message_no_feature_answers_gets_the_hint_in_the_server
 async def test_the_hint_names_the_configured_prefix(deps, nothing_on):
     deps.bot.config.PREFIX = "kk!"
     message = server_message("kk!mouse")
+    recorded_server(deps.mongo_client, message.guild.id, prefix="kk!")
 
     await handle(deps.bot, message)
 
@@ -581,13 +593,77 @@ async def test_the_hint_names_the_configured_prefix(deps, nothing_on):
     assert "ke!" not in hint and "ks!" not in hint
 
 
+async def test_ping_on_the_default_prefix_gets_only_the_pong(deps, nothing_on):
+    """A server still on Keiko's default prefix gets one answer to `ke!ping`.
+
+    Broke as: `Events._answer_the_prefix` answered `ke!ping` with the Pong, then
+    discord.py found no text command `ping` and handed the message to
+    `Errors.on_command_error`, which answered every `CommandNotFound` that started
+    with the default prefix with the prefix hint. A server whose prefix is the
+    default, every new server, got the Pong and the hint.
+
+    Shared behaviour: `Events._answer_the_prefix` (`app/cogs/events.py`), which now
+    decides every prefixed message, and `Errors.on_command_error`, silent on
+    `CommandNotFound`. Consumer that exposed it: the prefix `ping` (ux-493, ux-525).
+
+    Guaranteed: on the default prefix, `ke!ping` gets the Pong and nothing else.
+    """
+    deps.bot.config.PREFIX = "ke!"
+    deps.bot.latency = 0.0421
+    message = server_message("ke!ping")
+    recorded_server(deps.mongo_client, message.guild.id, prefix="ke!")
+
+    await handle(deps.bot, message)
+
+    assert message._reply.await_count == 1
+    assert message._reply.await_args.kwargs["embed"].title == "🏓 Pong!"
+    assert sent(message) == []
+
+
+async def as_discord_reads(bot, message):
+    """The listeners, then the lookup only for a message with the prefix the bot reads it with."""
+    from app.bot import server_command_prefix
+    from app.cogs.events import Events
+
+    await Events(bot).on_message(message)
+    if message.content.startswith(await server_command_prefix(bot, message)):
+        await look_up_the_command(bot, message)
+
+
+async def test_a_server_with_its_own_prefix_hints_only_at_the_default(deps, nothing_on):
+    """PR15: a server saves its own prefix. The hint answers only Keiko's default
+    prefix, once, and names the server's; a message with the server's own prefix
+    that no feature answers gets nothing, since other bots share short prefixes."""
+    deps.bot.config.PREFIX = "ke!"
+    default = server_message("ke!mouse")
+    own = server_message("!mouse")
+    recorded_server(deps.mongo_client, default.guild.id, prefix="!")
+
+    await as_discord_reads(deps.bot, default)
+    await as_discord_reads(deps.bot, own)
+
+    [hint] = sent(default)
+    assert "**!**" in hint and "ke!" not in hint
+    assert sent(own) == []
+
+
+async def test_a_server_with_a_prefix_inside_the_default_still_hints_once(deps, nothing_on):
+    deps.bot.config.PREFIX = "ke!"
+    message = server_message("ke!mouse")
+    recorded_server(deps.mongo_client, message.guild.id, prefix="ke")
+
+    await as_discord_reads(deps.bot, message)
+
+    assert len(sent(message)) == 1
+
+
 async def test_a_direct_message_gets_the_slash_hint_from_the_language_files(
     deps, mock_cache
 ):
     deps.bot.config.PREFIX = "ke!"
     message = direct_message("ke!mouse")
 
-    await look_up_the_command(deps.bot, message)
+    await handle(deps.bot, message)
 
     halves = [ml("messages.prefix-hint.direct", locale) for locale in ("pt-br", "en-us")]
     assert "messages.prefix-hint.direct" not in halves, "the hint lives in the language files"

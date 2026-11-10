@@ -56,6 +56,14 @@ en-us:
     label: Back
     desc: Go back to the previous menu
 
+  previous:
+    label: Previous
+    desc: Show the previous page
+
+  next:
+    label: Next
+    desc: Show the next page
+
   pause:
     label: Pause
     desc: Pause the feature
@@ -183,9 +191,6 @@ en-us:
     manage:
       label: Manage
       desc: Manage this feature
-    commands:
-      label: Commands
-      desc: See every command I have
     permissions:
       label: Permissions
       desc: Check what I need for each feature

@@ -99,7 +99,7 @@ async def test_stats_button_reports_the_numbers(scenario_factory):
     scenario = await scenario_factory(locale="pt-br").start_manager("block_links", dict(COG))
     await scenario.click(ml("buttons.stats.label", locale="pt-br"))
 
-    stats = scenario.expect_message(title_contains=_bm("stats.embed.title"))
+    stats = scenario.expect_message(title_contains=ml("commands.commands.commons.stats.title.block-links", locale="pt-br"))
     description = (stats.get("embed") or {}).get("description") or ""
     assert _bm("stats.fields.total") in description
     assert "spam-site.com" in description, "the most blocked website must show up"
@@ -201,6 +201,6 @@ async def test_stats_and_list_share_the_same_picture(scenario_factory):
     stats = await scenario_factory(locale="pt-br").start_manager("block_links", dict(COG))
     await stats.click(ml("buttons.stats.label", locale="pt-br"))
     stats_thumbnail = (stats.expect_message(
-        title_contains=_bm("stats.embed.title")).get("embed") or {}).get("thumbnail")
+        title_contains=ml("commands.commands.commons.stats.title.block-links", locale="pt-br")).get("embed") or {}).get("thumbnail")
 
     assert list_thumbnail and stats_thumbnail == list_thumbnail

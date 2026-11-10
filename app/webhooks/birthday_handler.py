@@ -12,9 +12,10 @@ from app.data import birthdays as birthdays_data
 from app.exceptions import ErrorContext
 from app.services import analytics
 from app.services.dates import is_valid_mm_dd, nearest_mm_dd_occurrence, zone_or_utc
+from app.services.moderations import server_language, server_timezone
 from app.services.reminders_birthdays import build_celebration_embed
 from app.services.trace import Outcome, fan_out
-from app.services.utils import destination, guild_locale
+from app.services.utils import destination
 
 
 async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
@@ -63,10 +64,10 @@ async def celebrate_in_guild(
 
     config = await asyncio.to_thread(birthdays_data.find_birthday_config, guild_id) or {}
     guild, channel = destination(guild_id, config.get("channel_id"))
-    locale = guild_locale(guild, config.get("locale"))
+    locale = await server_language(guild_id)
     mention_everyone = bool(config.get("mention_everyone"))
     allowed_mentions = discord.AllowedMentions(everyone=mention_everyone, users=False, roles=False)
-    year = celebration_year(mm_dd, config.get("timezone"))
+    year = celebration_year(mm_dd, await server_timezone(guild_id))
     for item in items:
         try:
             member = guild.get_member(int(item["user_id"]))

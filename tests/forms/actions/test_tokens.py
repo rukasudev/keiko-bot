@@ -94,3 +94,17 @@ def test_the_roles_step_names_several_roles_in_the_plural(locale, line):
     context = Context(definition=definition, steps=definition.steps, locale=locale)
 
     assert description_of(step, session, context).endswith(line)
+
+
+def test_the_server_settings_are_context_tokens():
+    context = Context(
+        server_language="pt-br",
+        server_timezone="America/Sao_Paulo",
+    )
+    body = (
+        "{context:server_language} {context:server_timezone} {context:server_mention}"
+    )
+
+    filled = apply_tokens(body, _session({}), context)
+
+    assert filled == "pt-br America/Sao_Paulo ", "the mention is no setting any more"

@@ -54,6 +54,7 @@ async def setup_gives_the_roles_now(scenario_factory, deps, locale):
 @golden_path(FORM, "setup_cancel_keep")
 async def setup_cancel_keep(scenario_factory, deps, locale):
     scenario = await _setup(scenario_factory, locale)
+    await scenario.select_option("Member", target="default_roles")
     await cancel_keep(scenario, locale)
     return scenario
 
@@ -61,6 +62,7 @@ async def setup_cancel_keep(scenario_factory, deps, locale):
 @golden_path(FORM, "setup_cancel_discard")
 async def setup_cancel_discard(scenario_factory, deps, locale):
     scenario = await _setup(scenario_factory, locale)
+    await scenario.select_option("Member", target="default_roles")
     await cancel_discard(scenario, locale)
     return scenario
 

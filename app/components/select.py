@@ -6,6 +6,7 @@ from app.components.buttons import BackButton, ExecuteCommandButton
 from app.settings.features import feature_keys
 from app.constants import DiscordLimits as limits
 from app.constants import ViewConstants as view_constants
+from app.services.moderations import interaction_language
 from app.services.utils import ml
 
 
@@ -52,6 +53,7 @@ class Select(discord.ui.Select):
         return options
 
     async def callback(self, interaction: discord.Interaction):
+        await interaction_language(interaction)
         self.view.selected_options = self.values
         if self.custom_callback:
             await self.custom_callback(interaction)

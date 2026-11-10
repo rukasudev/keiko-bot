@@ -55,12 +55,15 @@ class StreamElementsFeature(GenericCogFeature):
         )
 
     def asides(self) -> Mapping[str, AsideAction]:
-        """The command list answers with a paginated message of its own."""
+        """The statistics, and the command list on a paginated message of its own."""
 
         async def commands(interaction: Any, _responses: Any) -> None:
             await send_commands_view(interaction)
 
-        return {"commands": AsideAction(commands, own_response=True)}
+        return {
+            **super().asides(),
+            "commands": AsideAction(commands, own_response=True),
+        }
 
     async def prefetch(
         self, lookup: Lookup, context: OpenContext

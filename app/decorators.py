@@ -7,7 +7,7 @@ from discord.app_commands import Command
 from app.components.embed import response_embed
 from app.services import analytics
 from app.services.trace import trace_scope
-from app.services.utils import is_guild_admin, parse_locale, parse_valid_locale
+from app.services.utils import is_guild_admin
 
 
 def keiko_command(
@@ -21,7 +21,6 @@ def keiko_command(
     def decorator(func):
         @functools.wraps(func)
         async def wrapper(self, interaction: discord.Interaction, *args, **kwargs):
-            interaction.locale = parse_valid_locale(interaction.locale)
             command_name = (
                 interaction.command.qualified_name if interaction.command
                 else (name or func.__name__)
@@ -58,7 +57,7 @@ def keiko_admin_only(func: Callable) -> Callable:
     @functools.wraps(func)
     async def wrapper(self, interaction, *args, **kwargs):
         if not interaction.user.guild_permissions.administrator:
-            embed = response_embed("buttons.setup.admin-only", parse_locale(interaction.locale))
+            embed = response_embed("buttons.setup.admin-only", interaction.locale)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
         return await func(self, interaction, *args, **kwargs)
     return wrapper

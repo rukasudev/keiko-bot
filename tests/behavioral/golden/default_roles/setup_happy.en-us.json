@@ -628,6 +628,17 @@
           },
           {
             "disabled": false,
+            "label": "Statistics",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
             "label": "Help",
             "style": "secondary",
             "type": "button"

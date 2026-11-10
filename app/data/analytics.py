@@ -94,6 +94,15 @@ def find_events(query: Dict[str, Any]) -> List[Dict[str, Any]]:
     return list(mongo_client.guild.analytics_events.find(query, {"_id": False}))
 
 
+def find_events_since(
+    event: str, since: datetime, guild_id: Optional[str] = None
+) -> List[Dict[str, Any]]:
+    query: Dict[str, Any] = {"event": event, "ts": {"$gte": since}}
+    if guild_id is not None:
+        query["guild_id"] = str(guild_id)
+    return list(mongo_client.guild.analytics_events.find(query, {"_id": False}))
+
+
 def iter_events_between(start: datetime, end: datetime) -> Iterator[Dict[str, Any]]:
     """Every event from `start` up to `end`, oldest first, streamed rather than held."""
     yield from (

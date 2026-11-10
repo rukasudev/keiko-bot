@@ -3,7 +3,7 @@ import asyncio
 import discord
 from discord import app_commands
 
-from app.bot import DiscordBot
+from app.bot import DiscordBot, reader_locale
 from app.components.embed import response_error_embed, translate_embed
 from app.integrations.google_translate import GoogleTranslate
 from app.translator import locale_str
@@ -17,8 +17,9 @@ class Translate(Cog):
 
     async def translate_message(self, interaction: discord.Interaction, message: discord.Message) -> None:
         """
-        Translate a message to a specified locale
+        Translate a message into the reader's own language, told in the server's
         """
+        reader = reader_locale(interaction)
         if message.content.strip() == "":
             embed = response_error_embed("translate-message.translation-invalid-message", interaction.locale)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
@@ -30,7 +31,7 @@ class Translate(Cog):
         await interaction.response.defer(ephemeral=True, thinking=True)
 
         response = await asyncio.to_thread(
-            GoogleTranslate.translate, message.content, interaction.locale
+            GoogleTranslate.translate, message.content, reader
         )
         if not response:
             embed = response_error_embed("translate-message.translation-generic-error", interaction.locale)

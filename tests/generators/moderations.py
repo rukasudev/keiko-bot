@@ -155,6 +155,26 @@ async def moderations_config(
     return doc
 
 
+SERVER_SETTINGS = {
+    "language": "pt-br",
+    "timezone": "America/Sao_Paulo",
+    "prefix": "ks!",
+}
+
+
+def recorded_server(db, guild_id, **settings) -> dict:
+    """A server Keiko recorded, as the join and the migration leave it: its moderations
+    document with its `settings`; what was already saved stays unless named here."""
+    existing = db.guild.moderations.find_one({"guild_id": str(guild_id)}) or {}
+    saved = {**SERVER_SETTINGS, **(existing.get("settings") or {}), **settings}
+    db.guild.moderations.update_one(
+        {"guild_id": str(guild_id)},
+        {"$set": {"settings": saved}, "$setOnInsert": {"is_bot_online": True}},
+        upsert=True,
+    )
+    return saved
+
+
 # ============================================================================
 # HELPERS
 # ============================================================================

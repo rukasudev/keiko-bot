@@ -4,7 +4,6 @@ from discord import app_commands
 from app.bot import DiscordBot
 from app.decorators import keiko_admin_only, keiko_command
 from app.services import block_links as block_links_service
-from app.services.utils import parse_valid_locale
 from app.translator import locale_str
 from app.types.cogs import Group
 
@@ -32,5 +31,4 @@ class Block(
     async def validate_block_link(
         self, interaction: discord.Interaction, message: discord.Message
     ):
-        interaction.locale = parse_valid_locale(interaction.locale)
         await block_links_service.send_link_check_message(interaction, message)

@@ -904,6 +904,12 @@
           },
           {
             "disabled": false,
+            "label": "Estatísticas",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
             "label": "Ajuda",
             "style": "secondary",
             "type": "button"

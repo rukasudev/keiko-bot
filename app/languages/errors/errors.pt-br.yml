@@ -1,4 +1,15 @@
 pt-br:
+  server-setting-refused:
+    prefix:
+      title: Prefixo Não Salvo
+      message: "Desculpe, mas não consegui salvar esse prefixo. Escolha de novo no menu, por favor!"
+    language:
+      title: Idioma Não Salvo
+      message: "Desculpe, mas não consegui salvar esse idioma. Escolha de novo no menu, por favor!"
+    timezone:
+      title: Fuso Horário Não Salvo
+      message: "Desculpe, mas não consegui salvar esse fuso horário. Escolha de novo no menu, por favor!"
+
   command-generic-error:
     title: Erro ao Processar Comando
     message: "Desculpe, mas não consegui processar seu comando corretamente. Por favor, tente novamente mais tarde.\n\nSe quiser, me envie um report com o comando `/reportar`, ou fale comigo no meu servidor oficial usando o comando `/suporte` 💌"
@@ -77,7 +88,7 @@ pt-br:
     message: "Ops! Você precisa escolher o youtuber antes de eu mostrar a pré-visualização. Escolha um no card e tente de novo! 🐶"
 
   discard-settings-confirmation:
-    title: Cancelar Configuração?
+    title: Descartar Configurações?
     message: Se você cancelar agora, vou encerrar esta mensagem e tudo o que configuramos até aqui será perdido. Para configurar de novo, você precisará começar do zero. Tem certeza de que quer descartar tudo?
 
   invalid-date:
@@ -95,3 +106,4 @@ pt-br:
   reminders-birthdays-self-edit-limit:
     title: Edição de Aniversário Bloqueada
     message: "Você já usou sua edição de aniversário neste servidor. Se precisar corrigir de novo, fale com um moderador."
+

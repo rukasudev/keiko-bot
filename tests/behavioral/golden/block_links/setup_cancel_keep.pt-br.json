@@ -172,9 +172,145 @@
   },
   {
     "actor": "user",
-    "kind": "click",
+    "kind": "select",
     "message": "M2",
     "seq": 7,
+    "target": "mode",
+    "values": [
+      "allow_all"
+    ]
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🚦 Configurações Gerais",
+                "type": "text"
+              },
+              {
+                "content": "Escolha como eu devo tratar os links do seu servidor",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "🚦 **Modo de bloqueio**\n> 🔗 Bloquear alguns",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": true,
+                    "label": "🔗 Bloquear alguns",
+                    "value": "allow_all"
+                  },
+                  {
+                    "default": false,
+                    "label": "🚫 Bloquear todos",
+                    "value": "block_all"
+                  }
+                ],
+                "placeholder": "Escolher modo",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Minha resposta ao bloquear**\n> Nada de links por aqui! :p",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Personalizar resposta",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🛡️ **Adicionar exceções?**\nCanais e cargos onde eu nunca apago links.\n> #️⃣ **Canais permitidos:** Em branco\n> 🏷️ **Cargos permitidos:** Em branco",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Configurar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "📌 **Links personalizados bloqueados**\nSeus próprios sites ou links, um de cada vez. Você pode adicionar depois também!\n> Em branco",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Adicionar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 8
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 9,
     "target": "cancel"
   },
   {
@@ -182,7 +318,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 8,
+    "seq": 10,
     "thinking": false
   },
   {
@@ -191,7 +327,7 @@
       {
         "disabled": false,
         "label": "Continuar configurando",
-        "style": "success",
+        "style": "secondary",
         "type": "button"
       },
       {
@@ -209,18 +345,18 @@
       "footer": null,
       "image": null,
       "thumbnail": null,
-      "title": "🚨 Cancelar Configuração?"
+      "title": "🚨 Descartar Configurações?"
     },
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 9
+    "seq": 11
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M3",
-    "seq": 10,
+    "seq": 12,
     "target": "Continuar configurando"
   },
   {
@@ -228,13 +364,13 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 11,
+    "seq": 13,
     "thinking": false
   },
   {
     "actor": "bot",
     "kind": "delete_original",
     "message": "M3",
-    "seq": 12
+    "seq": 14
   }
 ]

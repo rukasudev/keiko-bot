@@ -20,8 +20,10 @@ class PaginationWithoutInteractionView(discord.ui.View):
         thumbnail: str = icons_constants.IMAGE_02,
         sep: int = 2,
         current_page: int = 1,
+        locale: str = "en-us",
     ):
         self.title = title
+        self.locale = locale
         self.description = description
         self.thumbnail = thumbnail
         self.current_page = current_page
@@ -51,7 +53,7 @@ class PaginationWithoutInteractionView(discord.ui.View):
         for item in data:
             embed.add_field(name=item, value=self.data[item], inline=False)
 
-        footer = ml("commands.pagination-view.footer", locale="en")
+        footer = ml("commands.pagination-view.footer", locale=self.locale)
         embed.set_thumbnail(url=self.thumbnail)
         embed.set_footer(
             text=f"• {footer} {self.current_page} / {len(self.separated_data)}"

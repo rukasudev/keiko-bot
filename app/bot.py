@@ -15,6 +15,7 @@ from typing import Any, Callable, Optional, Set
 
 import aiohttp
 import discord
+from discord import app_commands
 from discord.ext import commands
 from discord.ext.commands import Bot
 
@@ -44,6 +45,36 @@ def gateway_intents() -> discord.Intents:
         dm_messages=True,
         message_content=True,
     )
+
+
+async def server_command_prefix(bot: Any, message: discord.Message) -> str:
+    """The prefix a message is read with: the default in a DM, its server's in a server."""
+    from app.services.moderations import default_prefix, server_prefix
+
+    if message.guild is None:
+        return default_prefix()
+    return await server_prefix(str(message.guild.id))
+
+
+class KeikoTree(app_commands.CommandTree):
+    """The command tree: every app command answers in the language its server saved."""
+
+    async def interaction_check(self, interaction: discord.Interaction, /) -> bool:
+        from app.services.moderations import interaction_language
+
+        interaction.extras["reader_locale"] = interaction.locale
+        try:
+            await interaction_language(interaction)
+        except Exception as error:
+            if interaction.command is None:
+                raise app_commands.AppCommandError(f"{type(error).__name__}: {error}") from error
+            raise app_commands.CommandInvokeError(interaction.command, error) from error
+        return True
+
+
+def reader_locale(interaction: discord.Interaction) -> discord.Locale:
+    """The person's own Discord language, kept before the tree spoke the server's."""
+    return interaction.extras["reader_locale"]
 
 
 def default_mentions() -> discord.AllowedMentions:
@@ -88,7 +119,8 @@ class DiscordBot(Bot):
         self.reminder = ReminderWebhook(self)
         self.all_cogs = {}
         super().__init__(
-            command_prefix=self.config.PREFIX,
+            command_prefix=server_command_prefix,
+            tree_cls=KeikoTree,
             application_id=self.config.APPLICATION_ID,
             case_insensitive=True,
             help_command=None,

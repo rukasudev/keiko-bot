@@ -26,6 +26,35 @@ pt-br:
         month:
           name: mes
           desc: "Mês do aniversário"
+      stats:
+        title:
+          welcome-messages: "📊 Estatísticas de Mensagens de Boas-Vindas"
+          default-roles: "📊 Estatísticas de Cargos Padrão"
+          block-links: "📊 Estatísticas de Bloquear Links"
+          twitch: "📊 Estatísticas de Twitch Lives"
+          youtube: "📊 Estatísticas de YouTube Vídeos"
+          birthdays: "📊 Estatísticas de Lembretes de Aniversário"
+          stream-elements: "📊 Estatísticas de Comandos do StreamElements"
+        recent:
+          quiet: "💤 Nenhuma novidade nos últimos $days dias."
+          refused-one: "⚠️ Nos últimos $days dias, 1 vez eu não consegui fazer meu trabalho por falta de permissão. Confira em **Permissões** no `/configurar`!"
+          refused-many: "⚠️ Nos últimos $days dias, $count vezes eu não consegui fazer meu trabalho por falta de permissão. Confira em **Permissões** no `/configurar`!"
+          delivered-one:
+            welcome-messages: "✅ Enviei 1 mensagem de boas-vindas nos últimos $days dias!"
+            default-roles: "✅ Dei cargos para 1 membro nos últimos $days dias!"
+            block-links: "✅ Bloqueei 1 link nos últimos $days dias!"
+            twitch: "✅ Enviei 1 aviso de live nos últimos $days dias!"
+            youtube: "✅ Enviei 1 aviso de vídeo novo nos últimos $days dias!"
+            birthdays: "✅ Comemorei 1 aniversário nos últimos $days dias!"
+            stream-elements: "✅ Respondi 1 comando nos últimos $days dias!"
+          delivered-many:
+            welcome-messages: "✅ Enviei $count mensagens de boas-vindas nos últimos $days dias!"
+            default-roles: "✅ Dei cargos para $count membros nos últimos $days dias!"
+            block-links: "✅ Bloqueei $count links nos últimos $days dias!"
+            twitch: "✅ Enviei $count avisos de live nos últimos $days dias!"
+            youtube: "✅ Enviei $count avisos de vídeo novo nos últimos $days dias!"
+            birthdays: "✅ Comemorei $count aniversários nos últimos $days dias!"
+            stream-elements: "✅ Respondi $count comandos nos últimos $days dias!"
       block-links-manager:
         info-title: "🔎 Por que um link passou?"
         info: "Clique com o botão direito na mensagem, escolha **Apps** e depois **Validar Bloqueio de Link**: eu te mostro qual regra liberou ou bloqueou cada link dela!"
@@ -48,10 +77,6 @@ pt-br:
             rule: "Regra: $rule"
             not-deleted: "⚠️ Eu não consegui apagar essa mensagem. Confira se eu tenho a permissão de gerenciar mensagens!"
         stats:
-          button:
-            desc: Veja os números dos links bloqueados
-          embed:
-            title: "📊 Estatísticas de bloqueio de links"
           fields:
             total: Bloqueios desde sempre
             recent: Bloqueios nos últimos 90 dias
@@ -95,11 +120,6 @@ pt-br:
           unknown: "Não consegui falar com o StreamElements agora, mas busco a resposta assim que alguém usar um comando."
       reminders-birthdays-manager:
         stats:
-          button:
-            label: Estatísticas
-            desc: Ver estatísticas de aniversário
-          embed:
-            title: "📊 Estatísticas de aniversário"
           fields:
             total: Total de aniversários
             this-month: Aniversários neste mês
@@ -285,10 +305,20 @@ pt-br:
       embed:
         title: "🐶 Configuração do Servidor"
         desc: "Escolha o que você quer ajustar e eu te guio passo a passo!"
-        configured: "Configuradas · $count"
-        pending: "Para configurar · $count"
-        paused: Pausado
-        all-configured: "Tudo configurado! Use os botões para ajustar o que quiser ✨"
+        all-configured: "Parabéns, tudo configurado por aqui! Use os botões para ajustar o que quiser ✨"
+        states:
+          activated: "(Recentemente Ativado 🎉)"
+          configured: "✅"
+          paused: "⏸️"
+        categories:
+          moderations: Moderação
+          notifications: Notificações
+          integrations: Integrações
+        top-commands: "Comandos mais usados:"
+        category-briefs:
+          moderations: Recebo novos membros, dou cargos a eles e cuido dos links do servidor
+          notifications: Aviso o servidor quando seus criadores favoritos entram ao vivo ou postam, e quando é aniversário de algum membro
+          integrations: Conecto o servidor a outras plataformas, como o StreamElements
         footer: "Use o comando `/reportar` para me contar um bug"
         features:
           welcome-messages: Boas-vindas para novos membros
@@ -298,6 +328,30 @@ pt-br:
           youtube: Avisa quando sai um vídeo novo no canal
           birthdays: Parabéns no aniversário dos membros
           stream-elements: Responde aos comandos do StreamElements no chat
+      category:
+        intro: "Escolha uma funcionalidade para configurar ou gerenciar!"
+        page: "Página $page de $pages"
+      settings:
+        title: "⚙️ Configurações do Servidor"
+        row: "⚙️ **Configurações do Servidor**"
+        brief: Aqui você escolhe o idioma, o fuso horário e o prefixo que eu uso neste servidor
+        desc: "Esses são os padrões que eu uso nas mensagens para o servidor inteiro. Mude o que quiser!"
+        language: "🌐 **Idioma**\n> $value\n-# A língua que eu falo neste servidor"
+        language-placeholder: Alterar idioma
+        timezone: "🕒 **Fuso horário**\n> $value\n-# O fuso que eu sigo nos novos lembretes, como os de aniversário"
+        timezone-placeholder: Alterar fuso horário
+        prefix: "⌨️ **Prefixo**\n> $value\n-# Com esse prefixo eu respondo no chat a comandos como `$prefixping`. O resto fica nos comandos com barra (/)."
+        prefix-placeholder: Alterar prefixo
+        timezones:
+          brazil: "🇧🇷 Brasil (UTC-3)"
+          argentina: "🇦🇷 Argentina (UTC-3)"
+          united-states: "🇺🇸 Estados Unidos (UTC-5/UTC-4)"
+          portugal: "🇵🇹 Portugal (UTC+0/UTC+1)"
+          united-kingdom: "🇬🇧 Reino Unido (UTC+0/UTC+1)"
+          spain: "🇪🇸 Espanha (UTC+1/UTC+2)"
+          germany: "🇩🇪 Alemanha (UTC+1/UTC+2)"
+          japan: "🇯🇵 Japão (UTC+9)"
+          utc: "🌐 UTC (UTC+0)"
       history:
         desc: "As últimas mudanças em todas as minhas funcionalidades neste servidor:"
         empty: "Ainda não tem nenhuma mudança registrada por aqui. Configure uma funcionalidade e ela aparece nesta lista!"

@@ -147,6 +147,7 @@ class ChildFinished(Event):
     answers: Mapping[str, Any] = field(default_factory=dict)
     index: int | None = None
     cancelled: bool = False
+    discarded: bool = False
 
 
 @dataclass(frozen=True)

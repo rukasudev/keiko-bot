@@ -287,9 +287,245 @@
   },
   {
     "actor": "user",
-    "kind": "click",
+    "kind": "select",
     "message": "M2",
     "seq": 7,
+    "target": "channel",
+    "values": [
+      "general"
+    ]
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎂 Configuração do Lembrete",
+                "type": "text"
+              },
+              {
+                "content": "Escolha o canal, horário, menção e mensagem padrão dos lembretes de aniversário.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_BOLO.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "📺 **Canal**\n> <#100>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "placeholder": "Selecione um canal...",
+                "type": "channel_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🌎 **Fuso horário**\n> Em branco",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "🇧🇷 Brasil (UTC-3)",
+                    "value": "America/Sao_Paulo"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇦🇷 Argentina (UTC-3)",
+                    "value": "America/Argentina/Buenos_Aires"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇺🇸 Estados Unidos (UTC-5/UTC-4)",
+                    "value": "America/New_York"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇵🇹 Portugal (UTC+0/UTC+1)",
+                    "value": "Europe/Lisbon"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇬🇧 Reino Unido (UTC+0/UTC+1)",
+                    "value": "Europe/London"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇪🇸 Espanha (UTC+1/UTC+2)",
+                    "value": "Europe/Madrid"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇩🇪 Alemanha (UTC+1/UTC+2)",
+                    "value": "Europe/Berlin"
+                  },
+                  {
+                    "default": false,
+                    "label": "🇯🇵 Japão (UTC+9)",
+                    "value": "Asia/Tokyo"
+                  },
+                  {
+                    "default": false,
+                    "label": "🌐 UTC (UTC+0)",
+                    "value": "UTC"
+                  }
+                ],
+                "placeholder": "Escolher fuso horário",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "🕒 **Horário da notificação**\n> Em branco",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "08:00",
+                    "value": "08:00"
+                  },
+                  {
+                    "default": false,
+                    "label": "10:00",
+                    "value": "10:00"
+                  },
+                  {
+                    "default": false,
+                    "label": "12:00",
+                    "value": "12:00"
+                  },
+                  {
+                    "default": false,
+                    "label": "14:00",
+                    "value": "14:00"
+                  },
+                  {
+                    "default": false,
+                    "label": "16:00",
+                    "value": "16:00"
+                  },
+                  {
+                    "default": false,
+                    "label": "18:00",
+                    "value": "18:00"
+                  },
+                  {
+                    "default": false,
+                    "label": "20:00",
+                    "value": "20:00"
+                  },
+                  {
+                    "default": false,
+                    "label": "22:00",
+                    "value": "22:00"
+                  }
+                ],
+                "placeholder": "Escolher horário",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "📣 **Mencionar @everyone**\n> Não",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Sim",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Não",
+                "style": "primary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagem padrão dos membros:** 📌 Padrão do Keiko\n> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Personalizar mensagem",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 8
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 9,
     "target": "cancel"
   },
   {
@@ -297,7 +533,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 8,
+    "seq": 10,
     "thinking": false
   },
   {
@@ -306,7 +542,7 @@
       {
         "disabled": false,
         "label": "Continuar configurando",
-        "style": "success",
+        "style": "secondary",
         "type": "button"
       },
       {
@@ -324,18 +560,18 @@
       "footer": null,
       "image": null,
       "thumbnail": null,
-      "title": "🚨 Cancelar Configuração?"
+      "title": "🚨 Descartar Configurações?"
     },
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 9
+    "seq": 11
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M3",
-    "seq": 10,
+    "seq": 12,
     "target": "Continuar configurando"
   },
   {
@@ -343,13 +579,13 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 11,
+    "seq": 13,
     "thinking": false
   },
   {
     "actor": "bot",
     "kind": "delete_original",
     "message": "M3",
-    "seq": 12
+    "seq": 14
   }
 ]

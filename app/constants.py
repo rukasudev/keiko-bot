@@ -104,7 +104,9 @@ class FeaturePermissions:
 
 @dataclass(frozen=True)
 class FeatureSpec:
-    """One feature, declared once: its key, its command, its row on /setup, what it needs."""
+    """One feature, declared once: its key, its command, its row on /setup, what it needs.
+    `group` builds its slash command; `category` places it on /setup and the
+    greeting, and is the group unless declared."""
 
     key: str
     group: str
@@ -116,11 +118,18 @@ class FeatureSpec:
     server_permissions: Tuple[str, ...] = ()
     assigns_roles: bool = False
     answers_prefix: bool = False
+    category: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.category:
+            object.__setattr__(self, "category", self.group)
 
     def setup_entry(self) -> Dict[str, Any]:
         """The feature as `Commands.SETUP_FEATURES` lists it."""
         entry: Dict[str, Any] = {
             "command_key": self.key,
+            "group": self.group,
+            "category": self.category,
             "button_key": self.button_key,
             "emoji": self.emoji,
         }
@@ -137,7 +146,7 @@ class FeatureSpec:
 
 class Feature(Enum):
     """Every feature Keiko offers, in the order /setup lists them: the one table every
-    feature list derives from, except `COMMANDS_LIST`, which wave 3 derives.
+    feature list derives from.
     `module` names the feature's module under `app/settings/features/`, or is
     None when the generic feature saves it."""
 
@@ -195,6 +204,7 @@ class Feature(Enum):
         emoji="🎂",
         module="reminders_birthday",
         channel_permissions=FeaturePermissions.SENDS_TO_A_CHANNEL,
+        category="notifications",
     )
     INTEGRATIONS_STREAM_ELEMENTS_COMMANDS = FeatureSpec(
         key="stream_elements_commands",
@@ -354,18 +364,46 @@ class Commands:
 
     SELF_BIRTHDAY_EDIT_LIMIT: Final[int] = 1
 
-    COMMANDS_LIST: Final[List[str]] = [
-        BLOCK_LINKS_KEY,
-        DEFAULT_ROLES_KEY,
-        NOTIFICATIONS_TWITCH_KEY,
-        NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
-        REMINDERS_BIRTHDAY_KEY,
-        WELCOME_MESSAGES_KEY,
-    ]
+    COMMANDS_LIST: Final[List[str]] = [feature.value.key for feature in Feature]
+
+    SERVER_SETTINGS_KEY: Final[str] = "settings"
+    SERVER_LANGUAGE_KEY: Final[str] = "language"
+    SERVER_TIMEZONE_KEY: Final[str] = "timezone"
+    SERVER_PREFIX_KEY: Final[str] = "prefix"
+    SERVER_SETTING_KEYS: Final[Tuple[str, ...]] = (
+        SERVER_LANGUAGE_KEY,
+        SERVER_TIMEZONE_KEY,
+        SERVER_PREFIX_KEY,
+    )
+    SERVER_PREFIXES: Final[Tuple[str, ...]] = (
+        "k!", "ke!", "ke?", "ke$", "kb!", "kb?", "kb$", "k?", "k$",
+    )
+    SERVER_GUESSED_TIMEZONE: Final[str] = "UTC"
+    SERVER_GUESSED_TIMEZONES: Final[Dict[str, str]] = {
+        discord.Locale.brazil_portuguese.value: "America/Sao_Paulo",
+        discord.Locale.british_english.value: "Europe/London",
+    }
 
     SETUP_FEATURES: Final[List[Dict[str, Any]]] = [
         feature.value.setup_entry() for feature in Feature
     ]
+    SETUP_CATEGORIES: Final[Dict[str, str]] = {
+        "moderations": "🛡️",
+        "notifications": "🔔",
+        "integrations": "🔌",
+    }
+    FEATURE_STATS_DAYS: Final[int] = 7
+    SERVER_TIMEZONES: Final[Dict[str, str]] = {
+        "America/Sao_Paulo": "brazil",
+        "America/Argentina/Buenos_Aires": "argentina",
+        "America/New_York": "united-states",
+        "Europe/Lisbon": "portugal",
+        "Europe/London": "united-kingdom",
+        "Europe/Madrid": "spain",
+        "Europe/Berlin": "germany",
+        "Asia/Tokyo": "japan",
+        "UTC": "utc",
+    }
     SUPPORT_SERVER_URL: Final[str] = "https://discord.gg/Hdg239Cvbd"
 
     FEATURE_COMMANDS: Final[Dict[str, Dict[str, str]]] = {
@@ -445,6 +483,8 @@ class ViewConstants:
     DEFER_AFTER_SECONDS: Final[float] = 1.5
     GROUP_ITEMS_SHOWN: Final[int] = 3
     COMMANDS_PAGE_SIZE: Final[int] = 5
+    SETUP_PAGE_SIZE: Final[int] = 4
+    SETUP_CATEGORY_EXAMPLES: Final[int] = 3
     EDIT_BY_ITEM_MAX: Final[int] = 3
     CHOICE_BUTTONS_PER_ROW: Final[int] = 4
     FORM_SWEEP_SECONDS: Final[int] = 60

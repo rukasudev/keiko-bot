@@ -146,9 +146,104 @@
   },
   {
     "actor": "user",
-    "kind": "click",
+    "kind": "select",
     "message": "M2",
     "seq": 7,
+    "target": "default_roles",
+    "values": [
+      "Member"
+    ]
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 👩‍🎓 Cargos Padrão",
+                "type": "text"
+              },
+              {
+                "content": "Escolha os cargos que eu vou dar automaticamente para quem entrar no servidor.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "🤖 **Cargos para Bots**\n> Em branco",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Cargos para bots",
+                "type": "role_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "👥 **Cargos para Membros**\n> <@&202>",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 25,
+                "min": 0,
+                "placeholder": "Cargos para membros",
+                "type": "role_select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Avançar",
+            "style": "success",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Cancelar",
+            "style": "danger",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M2",
+    "seq": 8
+  },
+  {
+    "actor": "user",
+    "kind": "click",
+    "message": "M2",
+    "seq": 9,
     "target": "cancel"
   },
   {
@@ -156,7 +251,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 8,
+    "seq": 10,
     "thinking": false
   },
   {
@@ -165,7 +260,7 @@
       {
         "disabled": false,
         "label": "Continuar configurando",
-        "style": "success",
+        "style": "secondary",
         "type": "button"
       },
       {
@@ -183,18 +278,18 @@
       "footer": null,
       "image": null,
       "thumbnail": null,
-      "title": "🚨 Cancelar Configuração?"
+      "title": "🚨 Descartar Configurações?"
     },
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M3",
-    "seq": 9
+    "seq": 11
   },
   {
     "actor": "user",
     "kind": "click",
     "message": "M3",
-    "seq": 10,
+    "seq": 12,
     "target": "Descartar tudo"
   },
   {
@@ -202,7 +297,7 @@
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 11,
+    "seq": 13,
     "thinking": false
   },
   {
@@ -232,7 +327,7 @@
             "type": "text"
           },
           {
-            "content": "👥 **Cargos para Membros**\n> Em branco",
+            "content": "👥 **Cargos para Membros**\n> <@&202>",
             "type": "text"
           },
           {
@@ -247,12 +342,12 @@
     "ephemeral": true,
     "kind": "followup_edit",
     "message": "M2",
-    "seq": 12
+    "seq": 14
   },
   {
     "actor": "bot",
     "kind": "delete_original",
     "message": "M3",
-    "seq": 13
+    "seq": 15
   }
 ]
