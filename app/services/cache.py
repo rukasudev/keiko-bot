@@ -45,9 +45,12 @@ def increment_redis_key(key: str, increment_by=1):
 
 
 def increment_redis_key_with_expiration(key: str, increment_by: int, expiration: int):
-    """Counters that must not outlive their window: every analytics key expires."""
-    value = redis_client.incrby(key, increment_by)
-    redis_client.expire(key, expiration)
+    """Counters that must not outlive their window: every analytics key expires,
+    set with its value in one round trip."""
+    pipeline = redis_client.pipeline()
+    pipeline.incrby(key, increment_by)
+    pipeline.expire(key, expiration)
+    value, _expiring = pipeline.execute()
     return value
 
 

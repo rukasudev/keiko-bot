@@ -19,8 +19,10 @@ for Redis once per feature.
 
 Shared behaviour: every lifecycle commit of the feature document layer
 (app/settings/features/feature.py, and the birthday module's own commits), the
-one reading (`is_feature_on`, app/services/cogs.py) and the one writer
-(`set_feature_enabled`, app/services/moderations.py), the guild leave
+one reading (`is_feature_on`, app/services/cogs.py), the flag writers of
+app/services/moderations.py (`set_feature_enabled` for pause, unpause and the
+first save; `update_moderations_by_guild` alone for Disable, whose document is
+already gone), the guild leave
 (`leave_guild`, `pause_all_moderations_by_guild`), the /setup card and its
 permissions report (app/services/setup.py), and the unique guild index
 (app/data/indexes.py).

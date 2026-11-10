@@ -10,9 +10,10 @@ from typing import Any
 from app.constants import Commands
 from app.constants import ViewConstants as view_constants
 from app.data import birthdays as birthdays_data
+from app.services.cache import remove_cog_cache_by_guild
 from app.services.cogs import is_feature_on
 from app.services.dates import utc_today
-from app.services.moderations import set_feature_enabled
+from app.services.moderations import set_feature_enabled, update_moderations_by_guild
 from app.services.reminders_birthdays import (
     birthday_found_members,
     birthday_manager_cog_data,
@@ -171,7 +172,10 @@ class BirthdayFeature(GenericCogFeature):
     ) -> CommitResult:
         """Every birthday, reminder and the config go; the feature is off."""
         await asyncio.to_thread(disable_birthdays, context.guild_id)
-        await asyncio.to_thread(set_feature_enabled, context.guild_id, self.key, False)
+        await asyncio.to_thread(remove_cog_cache_by_guild, context.guild_id, self.key)
+        await asyncio.to_thread(
+            update_moderations_by_guild, context.guild_id, self.key, False
+        )
         return CommitResult(("reminders_birthday", "birthdays", "moderations"))
 
 

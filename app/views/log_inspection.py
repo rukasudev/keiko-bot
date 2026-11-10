@@ -139,11 +139,10 @@ class LogInspectionView(discord.ui.View):
 
     @staticmethod
     def _find_last_enabled_event(events):
-        last = None
         for event in events:
             if event.get("event") in ("enabled", "unpaused"):
-                last = event.get("datetime")
-        return last
+                return event.get("datetime")
+        return None
 
     async def history_callback(self, interaction: discord.Interaction):
         guild_id = self.guild.id if self.guild else self.guild_id

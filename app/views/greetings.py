@@ -159,8 +159,9 @@ class GreetingsView(_PersistentGreeting):
         for channel in guild.text_channels:
             if not channel.permissions_for(guild.me).send_messages:
                 continue
+            sent = await channel.send(embed=embed, view=self)
             self._emit_greeting_sent(guild, channel_found=True)
-            return await channel.send(embed=embed, view=self)
+            return sent
 
         self._emit_greeting_sent(guild, channel_found=False)
 

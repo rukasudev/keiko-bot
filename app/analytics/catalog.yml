@@ -203,7 +203,7 @@ events:
     version: 1
     class: [event, audit]
     description: An existing configuration was edited through the manager, or a server setting on the /setup settings screen (feature `settings`).
-    emitted_at: app/settings/features/generic.py — record_event, from the feature commit (edited); app/services/cogs.py — insert_cog_event for state changes made outside a form
+    emitted_at: app/settings/features/feature.py — record_event, from the feature commit (edited); app/services/cogs.py — insert_cog_event for state changes made outside a form
     actor: user
     required: [feature, source]
     optional: [session_id, changed_keys, changed_count]
@@ -227,7 +227,7 @@ events:
     version: 1
     class: [event, audit]
     description: A feature was paused from the manager.
-    emitted_at: app/settings/features/generic.py — record_event, from the feature commit (paused); app/services/cogs.py — insert_cog_event for state changes made outside a form
+    emitted_at: app/settings/features/feature.py — record_event, from the feature commit (paused); app/services/cogs.py — insert_cog_event for state changes made outside a form
     actor: user
     required: [feature, source]
     optional: [days_since_enabled, value_events_since_enabled]
@@ -239,7 +239,7 @@ events:
     version: 1
     class: [event, audit]
     description: A paused feature was resumed.
-    emitted_at: app/settings/features/generic.py — record_event, from the feature commit (unpaused); app/services/cogs.py — insert_cog_event for state changes made outside a form
+    emitted_at: app/settings/features/feature.py — record_event, from the feature commit (unpaused); app/services/cogs.py — insert_cog_event for state changes made outside a form
     actor: user
     required: [feature, source]
     optional: [days_since_enabled]
@@ -251,7 +251,7 @@ events:
     version: 1
     class: [event, audit]
     description: A feature was turned off and its configuration removed.
-    emitted_at: app/settings/features/generic.py — record_event, from the feature commit (disabled); app/services/cogs.py — insert_cog_event for state changes made outside a form
+    emitted_at: app/settings/features/feature.py — record_event, from the feature commit (disabled); app/services/cogs.py — insert_cog_event for state changes made outside a form
     actor: user
     required: [feature, source]
     optional: [days_since_enabled, value_events_since_enabled]
@@ -263,7 +263,7 @@ events:
     version: 1
     class: [event, audit]
     description: An item was added to a composition-based feature.
-    emitted_at: app/settings/features/generic.py — record_event, from the feature commit (added); app/services/cogs.py — insert_cog_event for state changes made outside a form
+    emitted_at: app/settings/features/feature.py — record_event, from the feature commit (added); app/services/cogs.py — insert_cog_event for state changes made outside a form
     actor: user
     required: [feature, source]
     optional: [item_count]
@@ -275,7 +275,7 @@ events:
     version: 1
     class: [event, audit]
     description: An item was removed from a composition-based feature.
-    emitted_at: app/settings/features/generic.py — record_event, from the feature commit (removed); app/services/cogs.py — insert_cog_event for state changes made outside a form
+    emitted_at: app/settings/features/feature.py — record_event, from the feature commit (removed); app/services/cogs.py — insert_cog_event for state changes made outside a form
     actor: user
     required: [feature, source]
     optional: [item_count]
@@ -398,7 +398,7 @@ events:
     version: 1
     class: [event, audit]
     description: A user sent feedback through /report.
-    emitted_at: app/services/report.py
+    emitted_at: app/cogs/base/report.py — Report.report
     actor: user
     required: []
     optional: [command]

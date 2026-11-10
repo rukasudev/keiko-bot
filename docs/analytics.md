@@ -58,7 +58,7 @@ only what is specific to it.
 | Seam | File | Events it produces |
 |---|---|---|
 | `observability.emit`, from `Decision.analytics` | `app/settings/discord/observability.py` | every `setup.*` and `feature.*_opened` event a form produces: `feature.setup_opened`, `feature.manager_opened`, `setup.step_viewed`, `setup.step_completed`, `setup.step_back`, `setup.validation_failed`, `setup.required_missing`, `setup.completed`, `setup.discarded`, `setup.discard_recovered`, `setup.abandoned` |
-| `record_event`, called by the feature commit | `app/settings/features/generic.py` | every lifecycle event a form causes (see below) |
+| `record_event`, called by the feature commit | `app/settings/features/feature.py` | every lifecycle event a form causes (see below) |
 | `insert_cog_event` | `app/services/cogs.py` | the same lifecycle events for state changes made outside a form (a feature disabled by a service) |
 | `run_feature_command` | `app/components/buttons.py` | `command.invoked` from any entry button |
 | `Events.on_interaction` / `on_guild_join` / `on_guild_remove` | `app/cogs/events.py` | `command.invoked`, `guild.joined`, `guild.removed` |
@@ -178,7 +178,10 @@ the forty-thousandth welcome message — they need the count.
 The guild profile is what every dashboard reads, so a screen costs one document
 instead of a collection scan. It is also the frozen snapshot `guild.removed`
 reports — which is why that event is emitted **before**
-`remove_all_cache_by_guild` runs in `on_guild_remove`.
+`remove_all_cache_by_guild` runs in `on_guild_remove`. A rule of `PROFILE_RULES`
+may carry `when`, the props an event must have to advance the profile: only a
+`guild.greeting_sent` with `channel_found: true` stamps `greeting_sent_at`, while
+the event itself is stored either way.
 
 ### The current size of a guild
 
