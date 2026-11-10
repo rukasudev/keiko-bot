@@ -51,6 +51,22 @@ def test_every_place_that_names_the_python_version_names_the_same_one():
     assert len(set(named.values())) == 1, named
 
 
+def test_every_github_hosted_job_runs_on_the_same_pinned_ubuntu():
+    runners = {
+        f"{name} {job_name}": job["runs-on"]
+        for name in ("ci.yml", "release.yml")
+        for job_name, job in _workflow(name)["jobs"].items()
+    }
+    hosted = {job: runner for job, runner in runners.items() if runner != "self-hosted"}
+
+    assert runners.pop("release.yml deploy") == "self-hosted", runners
+    assert set(hosted) == {"ci.yml check", "release.yml check", "release.yml build"}
+    assert len(set(hosted.values())) == 1, hosted
+    assert re.fullmatch(r"ubuntu-\d+\.\d+", hosted["ci.yml check"]), (
+        "ubuntu-latest moves the runner image under the release without a commit"
+    )
+
+
 def test_the_suite_runs_on_the_discord_py_release_the_image_installs():
     pins = [
         line
