@@ -18,7 +18,6 @@ Uso:
 import os
 import pytest
 import pytest_asyncio
-import asyncio
 from types import SimpleNamespace
 from unittest.mock import patch, AsyncMock, MagicMock
 
@@ -63,18 +62,6 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "unit: marca testes unitarios (sem I/O)"
     )
-
-
-# ============================================================================
-# EVENT LOOP
-# ============================================================================
-
-@pytest.fixture(scope="session")
-def event_loop():
-    """Event loop para toda a sessao."""
-    loop = asyncio.get_event_loop_policy().new_event_loop()
-    yield loop
-    loop.close()
 
 
 # ============================================================================
@@ -279,11 +266,13 @@ def birthday_today(monkeypatch):
 @pytest.fixture(autouse=True)
 def config_cache_isolation():
     """AUTOUSE: o que o cache lembrou e as quedas que viu nao passam de um teste ao outro."""
-    from app.services import cache
+    from app.services import cache, members
 
     cache.reset()
+    members.reset()
     yield
     cache.reset()
+    members.reset()
 
 
 @pytest.fixture

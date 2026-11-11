@@ -37,6 +37,7 @@ def gateway_intents() -> discord.Intents:
 
     No presences: nothing reads a member's status or activity, only the bot's own.
     DMs stay, so a prefixed command sent there still gets the use-slashes hint.
+    Members come with their events; `app.services.members` finds any other one.
     """
     return discord.Intents(
         guilds=True,
@@ -118,6 +119,7 @@ class DiscordBot(Bot):
         self.youtube = YoutubeClient(self)
         self.reminder = ReminderWebhook(self)
         self.all_cogs = {}
+        intents = gateway_intents()
         super().__init__(
             command_prefix=server_command_prefix,
             tree_cls=KeikoTree,
@@ -125,7 +127,10 @@ class DiscordBot(Bot):
             case_insensitive=True,
             help_command=None,
             owner_id=self.config.OWNER_ID,
-            intents=gateway_intents(),
+            intents=intents,
+            chunk_guilds_at_startup=False,
+            member_cache_flags=discord.MemberCacheFlags.from_intents(intents),
+            max_messages=None,
             status=self.config.STATUS,
             activity=discord.Activity(
                 type=self.config.ACTIVITY, name=self.config.DESCRIPTION

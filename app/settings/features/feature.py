@@ -17,7 +17,7 @@ from app.exceptions import ErrorContext
 from app.services.cache import get_cog_data_or_populate, remove_cog_cache_by_guild
 from app.services.cogs import LIFECYCLE_ANALYTICS_EVENTS, is_feature_on
 from app.services.feature_health import send_feature_stats
-from app.services.moderations import set_feature_enabled
+from app.services.moderations import set_feature_enabled, update_moderations_by_guild
 from app.settings.form.copy import normalize_locale
 from app.settings.form.form_state import Answer
 from app.settings.form.form_yaml import CompositionStep, FormDefinition, registry
@@ -88,7 +88,7 @@ class CommitResult:
 AsideHandler = Callable[[Any, Sequence[Mapping[str, Any]]], Awaitable[None]]
 
 
-ConfirmValues = Callable[[Mapping[str, Any], str, Any], Mapping[str, str]]
+ConfirmValues = Callable[[Mapping[str, Any], str, Any], Awaitable[Mapping[str, str]]]
 
 
 @dataclass(frozen=True)
@@ -611,7 +611,9 @@ class GenericCogFeature:
         await asyncio.to_thread(remove_cog_cache_by_guild, context.guild_id, self.key)
         await self.best_effort(self.after_disable(dropped or {}, context), context)
 
-        await asyncio.to_thread(set_feature_enabled, context.guild_id, self.key, False)
+        await asyncio.to_thread(
+            update_moderations_by_guild, context.guild_id, self.key, False
+        )
         return CommitResult(("moderations", self.key))
 
     async def before_item_added(

@@ -4,7 +4,10 @@ The whole storage budget rests on high-volume events never being written one
 document at a time, and on every derived number the dashboards read living in
 the guild profile so no dashboard has to scan raw events.
 """
+import contextlib
+
 import pytest
+from redis.exceptions import ConnectionError as RedisConnectionError
 
 from app.constants import Commands as constants
 from app.data import analytics as analytics_data
@@ -108,6 +111,32 @@ def test_rejoining_clears_the_removal_stamp():
     assert analytics_data.find_profile("60")["removed_at"] is None
 
 
+def test_only_a_greeting_posted_on_a_channel_stamps_the_profile():
+    """Broke as: `PROFILE_RULES` stamped `greeting_sent_at` for every
+    `guild.greeting_sent`, so a server with no writable channel read as greeted in
+    the reports. Shared behaviour: the guild profile every dashboard reads, and the
+    `greeting_sent` of `analytics_reports`. Guaranteed: the event is stored as ever,
+    and only a greeting posted on a channel stamps the profile."""
+    _flush(
+        ("guild.greeting_sent", {
+            "guild_id": "65", "features_offered": 7, "channel_found": False,
+        }),
+        ("guild.greeting_sent", {
+            "guild_id": "66", "features_offered": 7, "channel_found": True,
+        }),
+    )
+
+    unposted = analytics_data.find_profile("65") or {}
+    assert unposted.get("greeting_sent_at") is None, (
+        "a greeting with no channel to post on was stamped as sent"
+    )
+    assert analytics_data.find_profile("66")["greeting_sent_at"] is not None
+    assert [
+        event["props"]["channel_found"]
+        for event in analytics_data.find_events_by_guild("65")
+    ] == [False]
+
+
 def test_every_redis_analytics_counter_expires(redis_client):
     _flush(("value.delivered", {"guild_id": "70", "feature": "block_links"}))
 
@@ -115,6 +144,59 @@ def test_every_redis_analytics_counter_expires(redis_client):
     assert keys, "the hot window should have been written"
     for key in keys:
         assert redis_client.ttl(key) == constants.ANALYTICS_HOT_WINDOW_SECONDS
+
+
+class _DropsAfterOneRoundTrip:
+    """A Redis whose connection drops once it has answered one round trip."""
+
+    def __init__(self, inner):
+        self.inner = inner
+        self.trips = 0
+
+    def _trip(self):
+        self.trips += 1
+        if self.trips > 1:
+            raise RedisConnectionError("Connection reset by peer")
+
+    def incrby(self, *args, **kwargs):
+        self._trip()
+        return self.inner.incrby(*args, **kwargs)
+
+    def expire(self, *args, **kwargs):
+        self._trip()
+        return self.inner.expire(*args, **kwargs)
+
+    def pipeline(self, transaction=True):
+        pipeline = self.inner.pipeline(transaction)
+        execute = pipeline.execute
+
+        def one_round_trip():
+            self._trip()
+            return execute()
+
+        pipeline.execute = one_round_trip
+        return pipeline
+
+
+def test_a_counter_never_outlives_its_window_when_redis_drops_midway(
+    redis_client, monkeypatch
+):
+    """Broke as: `increment_redis_key_with_expiration` sent INCRBY and EXPIRE in two
+    round trips, so a connection lost between them left an analytics counter with no
+    TTL, kept forever. Shared behaviour: every expiring counter (the attempt count of
+    `analytics.count_attempt`, the hot window of `analytics_sink`). Guaranteed: a
+    counter is written with its TTL in one round trip, or not at all."""
+    from app.services import cache
+
+    monkeypatch.setattr(cache, "redis_client", _DropsAfterOneRoundTrip(redis_client))
+
+    with contextlib.suppress(RedisConnectionError):
+        cache.increment_redis_key_with_expiration("guild:80:analytics:probe", 1, 600)
+
+    assert redis_client.get("guild:80:analytics:probe") == "1"
+    assert redis_client.ttl("guild:80:analytics:probe") == 600, (
+        "the counter was written without its TTL"
+    )
 
 
 def test_metric_keys_drop_the_dots_mongo_would_read_as_nesting():

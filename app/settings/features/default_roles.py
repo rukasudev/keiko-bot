@@ -8,11 +8,14 @@ from typing import Any
 
 from app.constants import Commands
 from app.services.default_roles import (
+    count_label,
     count_roles_receivers,
     get_not_available_roles,
+    server_totals,
     set_default_roles,
     set_on_default_roles_sync,
 )
+from app.services.members import every_member
 from app.services.utils import get_available_roles_by_guild
 from app.settings.features.feature import (
     AsideAction,
@@ -45,7 +48,9 @@ class DefaultRolesFeature(GenericCogFeature):
         if opened.document is None:
             if not available:
                 return Opened(refusal="command-default-roles-low-permissions")
-            return replace(opened, values=_server_totals(context.guild))
+            return replace(
+                opened, values=await _server_totals(context.guild, context.locale)
+            )
         roles = _values(opened.document.get(Commands.DEFAULT_ROLES_KEY))
         return Opened(
             document=opened.document,
@@ -72,7 +77,9 @@ class DefaultRolesFeature(GenericCogFeature):
         if wanted is not None and wanted.raw and context.guild is not None:
             guild = context.guild
             self.in_background(
-                set_default_roles(dict(result.document or {}), guild, guild.members),
+                set_default_roles(
+                    dict(result.document or {}), guild, every_member(guild)
+                ),
                 context,
             )
         return result
@@ -108,10 +115,12 @@ class DefaultRolesFeature(GenericCogFeature):
         }
 
 
-def _server_totals(guild: Any) -> dict[str, str]:
-    members = list(guild.members) if guild is not None else []
-    bots = sum(1 for member in members if member.bot)
-    return {"members_count": str(len(members) - bots), "bots_count": str(bots)}
+async def _server_totals(guild: Any, locale: str) -> dict[str, str]:
+    members, bots = await server_totals(guild)
+    return {
+        "members_count": count_label(members, locale),
+        "bots_count": count_label(bots, locale),
+    }
 
 
 def _values(entry: Any) -> Any:
@@ -120,22 +129,16 @@ def _values(entry: Any) -> Any:
     return entry
 
 
-def _roles_of(
+async def _roles_of(
     document: Mapping[str, Any], locale: str, guild: Any = None
 ) -> Mapping[str, str]:
-    members, bots = _receivers(document, guild)
+    members, bots = await count_roles_receivers(document, guild)
     return {
         "members": _mentions(document.get(Commands.DEFAULT_ROLES_KEY), locale),
         "bots": _mentions(document.get(Commands.DEFAULT_ROLES_BOT_KEY), locale),
-        "members_count": str(members),
-        "bots_count": str(bots),
+        "members_count": count_label(members, locale),
+        "bots_count": count_label(bots, locale),
     }
-
-
-def _receivers(document: Mapping[str, Any], guild: Any) -> tuple[int, int]:
-    """How many members and bots of the guild the sync would hand a role to."""
-    members, bots = count_roles_receivers(document, guild)
-    return int(members), int(bots)
 
 
 def _mentions(entry: Any, locale: str) -> str:

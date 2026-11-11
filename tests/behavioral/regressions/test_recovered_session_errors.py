@@ -200,3 +200,27 @@ async def test_a_pending_error_is_forgotten_after_the_window(
     await _open(deps, guild, user, "default_roles")
 
     assert error.reactions == []
+
+
+async def test_the_errors_waiting_for_a_check_are_bounded(deps, log_channel, monkeypatch):
+    """Broke as: every form error waited the whole recovery window in a dict with no
+    size, holding the message it posted, so an outage that failed every session
+    for an hour kept every one of them (found by the memory soak, PR B). Shared
+    behaviour: `DiscordLogsHandler`. Guaranteed: at most
+    `Commands.ANALYTICS_RECOVERY_MAX_PENDING` errors wait; the oldest beyond it is
+    forgotten as if its window had passed, and the newest still get their check.
+    """
+    from app.constants import Commands
+
+    monkeypatch.setattr(Commands, "ANALYTICS_RECOVERY_MAX_PENDING", 2, raising=False)
+    guild = create_guild()
+    members = [create_member(guild, id=600 + index, name=f"M{index}") for index in range(3)]
+    errors = []
+    for member in members:
+        await _a_click_that_fails(deps, monkeypatch, guild, member)
+        errors.append(_render_errors(log_channel)[-1])
+
+    for member in members:
+        await _open(deps, guild, member, "default_roles")
+
+    assert [error.reactions for error in errors] == [[], ["✅"], ["✅"]]

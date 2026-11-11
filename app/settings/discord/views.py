@@ -22,6 +22,7 @@ from app.components.embed import (
 )
 from app.constants import DiscordLimits, Style
 from app.constants import ViewConstants as view_constants
+from app.services import members
 from app.settings.discord.interactions import encode
 from app.settings.form.components import (
     Button,
@@ -155,6 +156,12 @@ class UserPicker(ValuesSelect, discord.ui.UserSelect[Any]):
             **kwargs,
         )
         self.dispatcher = dispatcher
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        """Keep the picked members at hand for their pictures, then report them."""
+        for member in self.values:
+            members.remember(member)
+        await super().callback(interaction)
 
 
 class OptionsPicker(ValuesSelect, discord.ui.Select[Any]):

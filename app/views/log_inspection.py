@@ -139,11 +139,10 @@ class LogInspectionView(discord.ui.View):
 
     @staticmethod
     def _find_last_enabled_event(events):
-        last = None
         for event in events:
             if event.get("event") in ("enabled", "unpaused"):
-                last = event.get("datetime")
-        return last
+                return event.get("datetime")
+        return None
 
     async def history_callback(self, interaction: discord.Interaction):
         guild_id = self.guild.id if self.guild else self.guild_id
@@ -156,9 +155,7 @@ class LogInspectionView(discord.ui.View):
 
         browser = RecordsBrowser(
             fetch=fetch,
-            to_fields=lambda raw, i: parse_history_data(
-                raw, i, guild=self.guild, with_cog=True
-            ),
+            to_fields=lambda raw, i: parse_history_data(raw, i, with_cog=True),
             title=ml("buttons.changes-history.label", locale=interaction.locale),
         )
         await browser.send(interaction)

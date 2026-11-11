@@ -2,6 +2,11 @@ import sys
 
 
 def main(argv):
+    if argv and argv[0] == "soak":
+        from tools.keiko.soak import main as soak_main
+
+        return soak_main(argv[1:])
+
     if argv and argv[0] == "birthdays":
         from tools.keiko.birthdays.repair import main as repair_main
 

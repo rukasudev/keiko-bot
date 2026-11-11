@@ -11,6 +11,7 @@ en-us:
     content: "Happy birthday {user}! 🎉 Hope your day is full of joy and treats! ✨"
 
   list-and: " and "
+  count-at-least: "$count+"
 
   greetings-message:
     title: "Hello, I'm Keiko, your loyal Discord companion! :dog:"

@@ -86,7 +86,7 @@ def guild_double(guild_id=4242, owner_id=313):
     return SimpleNamespace(
         id=guild_id,
         member_count=120,
-        owner=SimpleNamespace(id=owner_id, mention=f"<@{owner_id}>"),
+        owner=None, owner_id=owner_id,
         preferred_locale="pt-BR",
     )
 
@@ -270,3 +270,19 @@ async def test_a_guild_with_nothing_on_says_none(deps, events, log_channel):
     await events.on_guild_remove(guild_double(guild_id=int(GUILD_ID)))
 
     assert "Active commands: none" in left_line(log_channel)
+
+
+async def test_the_join_names_an_owner_discord_py_never_cached(deps, events, log_channel):
+    """Broke as: the join read `guild.owner`, the owner's cached member, which is
+    None once no server's members are downloaded at start, so the join raised
+    before it recorded or posted anything. Shared behaviour: `Events` join and
+    leave. Guaranteed: both read `guild.owner_id`, so the owner is named and
+    recorded whether discord.py holds their member or not."""
+    await events.on_guild_join(guild_double(guild_id=778, owner_id=42))
+    await events.on_guild_remove(guild_double(guild_id=778, owner_id=42))
+
+    posted = {embed.title: rendered(embed) for embed in embeds(log_channel)}
+    assert "<@42>" in posted[logconstants.EVENT_JOIN_GUILD_TITLE]
+    assert "Left guild by 42" in posted[logconstants.EVENT_LEFT_GUILD_TITLE]
+    stored = deps.mongo_client.guild.moderations.find_one({"guild_id": "778"})
+    assert stored["owner_id"] == "42"

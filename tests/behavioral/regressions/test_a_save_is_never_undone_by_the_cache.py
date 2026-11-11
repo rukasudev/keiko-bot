@@ -655,7 +655,7 @@ async def test_disable_lets_every_streamer_go_even_when_the_flag_write_fails(
     def flag_write_fails(*args, **kwargs):
         raise RuntimeError("moderations did not answer")
 
-    monkeypatch.setattr(feature_module, "set_feature_enabled", flag_write_fails)
+    monkeypatch.setattr(feature_module, "update_moderations_by_guild", flag_write_fails)
     await scenario.click("disable")
     await scenario.submit_confirmation()
 

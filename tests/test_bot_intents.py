@@ -56,3 +56,20 @@ def test_nothing_reads_a_members_presence():
                     offenders.append(os.path.relpath(path, APP))
 
     assert offenders == []
+
+
+def test_members_and_messages_are_never_held_in_bulk():
+    """A cached member with its user costs about 736 bytes, so the member list of
+    every server read at start held about 19 MB for 26 thousand members, and a
+    server of a million members would hold about 740 MB. Guaranteed: no server's
+    members are downloaded at start, discord.py keeps only the members who join
+    while Keiko runs, and no message is cached (edits arrive as raw events)."""
+    from tests.mocks.discord import keiko_bot
+
+    state = keiko_bot()._connection
+
+    assert state._chunk_guilds is False
+    assert state.member_cache_flags.joined is True
+    assert state.member_cache_flags.voice is False
+    assert state.max_messages is None
+    assert list(keiko_bot().cached_messages) == []

@@ -15,6 +15,7 @@ from app.constants import Emojis, KeikoIcons
 from app.constants import ViewConstants as view_constants
 from app.settings.form import events as ev
 from app.settings.form.actions.action import Context, caption, label
+from app.settings.form.actions.configuration_card import pictured_members as on_card
 from app.settings.form.components import (
     Button,
     ChoiceOption,
@@ -58,6 +59,7 @@ from app.settings.form.form import (
     on_targets_chosen,
     open_member_picker,
     settle,
+    steps_for,
 )
 from app.settings.form.form_state import Answer, FormSession, Status, raw_value
 from app.settings.form.form_yaml import (
@@ -935,3 +937,29 @@ def decide(
         definition, session, event, context or Context(), panel or PanelExtras()
     )
     return settle(manager, HANDLERS)
+
+
+def pictured_members(
+    definition: FormDefinition,
+    session: FormSession,
+    context: Context,
+    event: ev.Event | None = None,
+) -> tuple[str, ...]:
+    """The members the session's next screen may picture: its cards', the item its
+    search found, and a member just chosen."""
+    pictured = [
+        member
+        for step in steps_for(definition, session.mode)
+        if isinstance(step, CardStep)
+        for member in on_card(step, session, context)
+    ]
+    place, _, index = (session.cursor or "").partition(":")
+    composition = definition.composition
+    if place == "found" and index.isdigit() and composition is not None:
+        items = items_of(context.document, composition.key)
+        if int(index) < len(items):
+            unique = composition.items.unique_by or ""
+            pictured.append(str(unwrap(items[int(index)].get(unique))))
+    if isinstance(event, ev.MemberChosen) and event.user_id:
+        pictured.append(event.user_id)
+    return tuple(dict.fromkeys(member for member in pictured if member.isdigit()))

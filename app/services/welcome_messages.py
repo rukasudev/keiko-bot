@@ -14,7 +14,7 @@ from app.constants import LogTypes as logconstants
 from app.constants import Style, WelcomeDesign
 from app.exceptions import ErrorContext
 from app.settings import open_feature
-from app.services import analytics, cache, images
+from app.services import analytics, cache, images, members
 from app.views.message_preview import MessagePreviewView
 from app.services.utils import (
     parse_welcome_messages,
@@ -242,7 +242,7 @@ async def send_welcome_message_preview(interaction: discord.Interaction, respons
 
     member = interaction.user
     if not isinstance(member, discord.Member):
-        member = interaction.guild.get_member(interaction.user.id)
+        member = await members.find(interaction.guild, interaction.user.id)
 
     if not member:
         return

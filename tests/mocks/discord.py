@@ -24,10 +24,15 @@ class MockRole:
     position: int = 1
     managed: bool = False
     guild: "MockGuild" = None
+    bot_id: Optional[int] = None
 
     @property
     def mention(self) -> str:
         return f"<@&{self.id}>"
+
+    def is_bot_managed(self) -> bool:
+        """The role Discord gives a bot when it joins, as discord.Role answers."""
+        return self.bot_id is not None
 
 
 @dataclass
@@ -192,12 +197,18 @@ class MockGuild:
     text_channels: List[MockChannel] = field(default_factory=list)
     roles: List[MockRole] = field(default_factory=list)
     members: List[MockMember] = field(default_factory=list)
-    member_count: int = 100
     me: MockMember = None
+    owner_id: int = 313
 
     def __post_init__(self):
         self._icon_url = f"https://cdn.discordapp.com/icons/{self.id}/fake.png"
         self._channel_map: Dict[int, MockChannel] = {}
+        # Every member Discord knows, cached by the gateway (`members`) or not.
+        self.server_members: Dict[int, MockMember] = {
+            member.id: member for member in self.members
+        }
+        self.fetched: List[int] = []
+        self.pages_fetched = 0
 
         # Conecta canais ao guild
         for channel in self.text_channels:
@@ -207,6 +218,11 @@ class MockGuild:
         # Conecta roles ao guild
         for role in self.roles:
             role.guild = self
+
+    @property
+    def member_count(self) -> int:
+        """Everyone Discord counts in the server, whether the gateway cached them or not."""
+        return len(self.server_members)
 
     @property
     def icon(self):
@@ -222,6 +238,25 @@ class MockGuild:
 
     def get_member(self, member_id: int) -> Optional[MockMember]:
         return next((m for m in self.members if m.id == member_id), None)
+
+    async def fetch_member(self, member_id: int) -> MockMember:
+        """The API's answer, never cached, as discord.Guild.fetch_member."""
+        self.fetched.append(member_id)
+        member = self.server_members.get(member_id)
+        if member is None:
+            raise discord.NotFound(
+                SimpleNamespace(status=404, reason="Not Found"),
+                {"code": 10007, "message": "Unknown Member"},
+            )
+        return member
+
+    async def fetch_members(self, *, limit: Optional[int] = 1000, after=None):
+        """Every member, a page of 1000 per request, as discord.Guild.fetch_members."""
+        everyone = list(self.server_members.values())[:limit]
+        for start in range(0, max(len(everyone), 1), 1000):
+            self.pages_fetched += 1
+            for member in everyone[start:start + 1000]:
+                yield member
 
     def add_channel(self, channel: MockChannel):
         """Adiciona um canal ao guild."""
@@ -459,7 +494,8 @@ def create_member(
     id: int = 111,
     name: str = "TestUser",
     roles: List[str] = None,
-    bot: bool = False
+    bot: bool = False,
+    cached: bool = True,
 ) -> MockMember:
     """
     Cria um MockMember vinculado ao guild.
@@ -482,7 +518,9 @@ def create_member(
         bot=bot
     )
 
-    guild.members.append(member)
+    guild.server_members[member.id] = member
+    if cached:
+        guild.members.append(member)
     return member
 
 
@@ -509,6 +547,11 @@ async def the_tree_checks(interaction: Any) -> None:
     """What discord.py does before any app command runs: Keiko's own bot's tree checks
     the interaction, which speaks the server's language from then on."""
     assert await _keiko().tree.interaction_check(interaction)
+
+
+def keiko_bot() -> Any:
+    """Keiko's own bot, built once from a fake config and never connected."""
+    return _keiko()
 
 
 @functools.lru_cache(maxsize=None)

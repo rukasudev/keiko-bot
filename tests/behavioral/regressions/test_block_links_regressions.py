@@ -330,7 +330,7 @@ async def leave(guild_id):
     from app.cogs.events import Events
 
     await Events(SimpleNamespace(user=SimpleNamespace(id=99), guilds=[])).on_guild_remove(
-        SimpleNamespace(id=int(guild_id), owner=SimpleNamespace(id=313, mention="<@313>"))
+        SimpleNamespace(id=int(guild_id), owner=None, owner_id=313)
     )
 
 

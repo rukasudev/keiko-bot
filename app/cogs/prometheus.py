@@ -29,6 +29,7 @@ class Heartbeat(commands.Cog):
 
     async def cog_load(self) -> None:
         metrics.record_build_info(self.bot.config.APP_VERSION)
+        watch_held_entries(self.bot)
         self.beat.start()
 
     async def cog_unload(self) -> None:
@@ -69,6 +70,26 @@ class Heartbeat(commands.Cog):
     @beat.before_loop
     async def before_beat(self) -> None:
         await self.bot.wait_until_ready()
+
+
+def watch_held_entries(bot: DiscordBot) -> None:
+    """Every in-process structure that can grow, as one `keiko_held_entries` series."""
+    from app.services import analytics, cache, debug_logs, images, journey, members
+    from app.settings.discord.callbacks import RUNTIME
+
+    counts = {
+        "form_sessions": lambda: len(RUNTIME.store),
+        "journeys": journey.open_count,
+        "settings_cache": cache.held_entries,
+        "images": lambda: images.download_image.cache_info().currsize,
+        "analytics_queue": lambda: analytics.stats()["queue_depth"],
+        "debug_logs_queue": lambda: debug_logs.stats()["queue_depth"],
+        "discord_messages": lambda: len(bot.cached_messages),
+        "discord_members": lambda: sum(len(guild.members) for guild in bot.guilds),
+        "recent_members": members.held,
+    }
+    for structure, count in counts.items():
+        metrics.watch_held_entries(structure, count)
 
 
 def _ping(url: str) -> None:

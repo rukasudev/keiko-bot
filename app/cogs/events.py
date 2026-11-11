@@ -14,7 +14,7 @@ from app.data.moderations import find_moderations_by_guild
 from app.services import block_links as block_links_service
 from app.services import default_roles as default_roles_service
 from app.services import stream_elements as stream_elements_service
-from app.services import analytics, analytics_reports, trace
+from app.services import analytics, analytics_reports, members, trace
 from app.services.cache import increment_redis_key
 from app.services.cogs import features_on
 from app.services.help import answer_prefix_command, prefix_hint
@@ -90,7 +90,7 @@ class Events(Cog, name="events"):
             f"🤖 Bot Name: {self.bot.application.name}\n"
             f"👤 Author: {self.bot.application.owner.name}\n"
             f"🏠 Total Guilds: {len(self.bot.guilds)}\n"
-            f"👥 Total Users: {len(self.bot.users)}\n"
+            f"👥 Total Users: {sum(guild.member_count or 0 for guild in self.bot.guilds)}\n"
             f"📌 Prefix: {default_prefix()}\n"
             f"🏷️ Version: {self.bot.config.APP_VERSION}\n"
             f"🎮 Current Activity: {self.bot.activity.name}\n"
@@ -114,6 +114,7 @@ class Events(Cog, name="events"):
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
+        members.remember(member)
         async with trace.listener(
             "on_member_join", member.guild.id, user_id=member.id
         ) as joined:
@@ -136,6 +137,7 @@ class Events(Cog, name="events"):
             await self._answer_the_prefix(message)
             return
 
+        members.remember(message.author)
         async with trace.listener(
             "on_message",
             message.guild.id,
@@ -178,6 +180,7 @@ class Events(Cog, name="events"):
 
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction) -> None:
+        members.remember(interaction.user)
         if interaction.type != discord.InteractionType.application_command:
             return None
 
@@ -218,7 +221,7 @@ class Events(Cog, name="events"):
             await joined.run("greeting", GreetingsView().send(guild))
 
     async def _record_join(self, guild: discord.Guild) -> None:
-        owner_id = str(guild.owner.id)
+        owner_id = str(guild.owner_id)
         exist, total_servers = await asyncio.to_thread(
             join_guild, guild.id, owner_id, guess_server_settings(guild)
         )
@@ -235,9 +238,9 @@ class Events(Cog, name="events"):
         )
 
         logger.info(
-            f"{action} by {guild.owner.mention}\nInvited by: {guild.owner.mention} ({total_servers} server{'s' if total_servers != 1 else ''} total)\nTotal servers: {total_guilds}",
+            f"{action} by <@{owner_id}>\nInvited by: <@{owner_id}> ({total_servers} server{'s' if total_servers != 1 else ''} total)\nTotal servers: {total_guilds}",
             guild_id=guild.id,
-            owner_id=guild.owner.id,
+            owner_id=guild.owner_id,
             log_type=logconstants.EVENT_JOIN_GUILD_TYPE,
         )
 
@@ -266,9 +269,9 @@ class Events(Cog, name="events"):
         commands_info = f"\nActive commands: {', '.join(active_commands)}" if active_commands else "\nActive commands: none"
 
         logger.info(
-            f"Left guild by {guild.owner.id}{commands_info}{duration_info}",
+            f"Left guild by {guild.owner_id}{commands_info}{duration_info}",
             guild_id=guild.id,
-            owner_id=guild.owner.id,
+            owner_id=guild.owner_id,
             log_type=logconstants.EVENT_LEFT_GUILD_TYPE,
         )
 

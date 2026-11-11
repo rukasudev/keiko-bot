@@ -2,8 +2,9 @@
 
 High-volume events never become a document — they are folded into the monthly
 bucket and into the guild profile, which is what the dashboards actually read.
-`PROFILE_RULES` declares how each event advances the profile so no event needs
-a branch of its own. Reference: docs/analytics.md
+`PROFILE_RULES` declares how each event advances the profile, and `when` the
+props an event must carry to advance it, so no event needs a branch of its own.
+Reference: docs/analytics.md
 """
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -21,6 +22,7 @@ PROFILE_RULES: Dict[str, Dict[str, Dict[str, Any]]] = {
         "set": {"removed_at": None},
     },
     "guild.greeting_sent": {
+        "when": {"channel_found": True},
         "set": {"greeting_sent_at": TIMESTAMP},
     },
     "guild.removed": {
@@ -170,10 +172,17 @@ def _collect_profile(
     if not rules or not guild_id:
         return
 
+    props = envelope.get("props") or {}
+    required = rules.get("when", {})
+    if any(props.get(name) != value for name, value in required.items()):
+        return
+
     feature = envelope.get("feature")
     parts = profile_updates.setdefault(guild_id, {})
 
     for operator, fields in rules.items():
+        if operator == "when":
+            continue
         target_key = {
             "inc": "inc",
             "set": "set_fields",

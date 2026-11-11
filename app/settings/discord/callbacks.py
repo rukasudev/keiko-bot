@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import time
-from collections.abc import Iterator, Mapping
+from collections.abc import Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from typing import Any
@@ -22,7 +22,7 @@ from app.components.embed import response_error_embed
 from app.constants import Commands as commands_constants
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
-from app.services import analytics, metrics
+from app.services import analytics, members, metrics
 from app.services.moderations import interaction_language, server_settings
 from app.services.trace import trace_scope
 from app.services.utils import fill, get_command_display_name, is_guild_admin, speak
@@ -151,27 +151,35 @@ def _draws_previews(decision: Decision, definition: Any) -> bool:
 
 
 class MemberPictures(Mapping[str, str]):
-    """Each member's picture by id, read from the server's own cache when asked."""
+    """Each member's picture by id: the ones found for this screen, else a cache's."""
 
-    def __init__(self, guild: Any) -> None:
+    def __init__(self, guild: Any, found: Mapping[str, str] | None = None) -> None:
         self.guild = guild
+        self.found = dict(found or {})
 
     def __getitem__(self, member_id: str) -> str:
-        member = (
-            self.guild.get_member(int(member_id))
-            if self.guild is not None and str(member_id).isdigit()
-            else None
-        )
+        if member_id in self.found:
+            return self.found[member_id]
+        member = members.known(self.guild, member_id)
         if member is None:
             raise KeyError(member_id)
         return str(member.display_avatar.url)
 
     def __iter__(self) -> Iterator[str]:
-        members = getattr(self.guild, "members", None) or ()
-        return (str(member.id) for member in members)
+        return iter(sorted({*self.found, *members.known_ids(self.guild)}))
 
     def __len__(self) -> int:
-        return len(getattr(self.guild, "members", None) or ())
+        return sum(1 for _ in self)
+
+
+async def pictures_for(guild: Any, member_ids: Sequence[str]) -> MemberPictures:
+    """The pictures of `member_ids`, from the API for a member no cache holds."""
+    found: dict[str, str] = {}
+    for member_id in member_ids:
+        member = await members.find(guild, member_id)
+        if member is not None:
+            found[member_id] = str(member.display_avatar.url)
+    return MemberPictures(guild, found)
 
 
 class Runtime:
@@ -368,7 +376,10 @@ class Runtime:
             metrics.record_interaction("in_time")
 
     async def _context(
-        self, session: FormSession, lookup: Lookup | None = None
+        self,
+        session: FormSession,
+        lookup: Lookup | None = None,
+        event: ev.Event | None = None,
     ) -> Context:
         state = self.sessions[session.id]
         opened = state.opened
@@ -400,7 +411,7 @@ class Runtime:
             )
             parent_values = {**document_values(document), **_flat(shown)}
         items = _items(session, parent, document)
-        return Context(
+        context = Context(
             now=_now(),
             ttl_seconds=view_constants.LONG_TIMEOUT_SECONDS,
             document=document,
@@ -416,6 +427,11 @@ class Runtime:
             previews=await state.ready_previews(False),
             member_pictures=MemberPictures(state.guild),
             back_to_opener=state.back is not None,
+        )
+        definition = registry.get(*session.definition)
+        pictured = manager.pictured_members(definition, session, context, event)
+        return replace(
+            context, member_pictures=await pictures_for(state.guild, pictured)
         )
 
     async def _apply(
@@ -437,7 +453,7 @@ class Runtime:
             lookup = lookup_for(definition, session, event)
             if lookup is not None:
                 await self._hold(interaction, state)
-            context = await self._context(session, lookup)
+            context = await self._context(session, lookup, event)
             decision = self._decide(definition, session, event, context)
             if state.previews_pending() and _draws_previews(decision, definition):
                 await self._hold(interaction, state)
@@ -817,7 +833,7 @@ class Runtime:
 
         embed = response_embed(question, locale, footer=True, image=True)
         if action.confirm_values and embed.description:
-            values = action.confirm_values(
+            values = await action.confirm_values(
                 state.opened.document or {}, locale, state.guild
             )
             embed.description = fill(embed.description, **values)

@@ -7,6 +7,7 @@ a catalog at all.
 """
 import ast
 import os
+import re
 
 import pytest
 
@@ -87,6 +88,27 @@ def test_every_declared_event_is_actually_emitted_somewhere():
     assert not never_emitted, (
         f"declared in catalog.yml but never emitted: {sorted(never_emitted)}"
     )
+
+
+def test_every_file_a_declaration_cites_exists():
+    """Broke as: the lifecycle events cited app/settings/features/generic.py and
+    report.submitted cited app/services/report.py, two files that do not exist, so
+    whoever followed `emitted_at` to an event landed nowhere. Guaranteed: every path
+    an `emitted_at` names is a file of the repository."""
+    repository = os.path.dirname(APP_ROOT)
+    cited = {
+        (name, path)
+        for name, declaration in analytics.events_catalog().items()
+        for path in re.findall(r"app/[\w/]+\.\w+", declaration["emitted_at"])
+    }
+
+    missing = sorted(
+        (name, path)
+        for name, path in cited
+        if not os.path.isfile(os.path.join(repository, path))
+    )
+    assert cited, "no declaration cites a file, so the pattern no longer matches"
+    assert not missing, f"emitted_at cites files that do not exist: {missing}"
 
 
 def _lifecycle_events():

@@ -19,7 +19,7 @@ from app.data import block_links as blocked_links_data
 from app.exceptions import ErrorContext
 from app.settings import open_feature
 from app.settings.form.responses.links import ParsedLink, parse_link
-from app.services import analytics, cache
+from app.services import analytics, cache, members
 
 from .utils import (
     check_two_lists_intersection,
@@ -454,6 +454,11 @@ async def check_edited_message(bot, payload) -> None:
 
     if message is None or message.author is None or message.author.bot:
         return
+
+    if getattr(message.author, "roles", None) is None:
+        member = await members.find(channel.guild, message.author.id)
+        if member is not None:
+            message.author = member
 
     await check_message(str(payload.guild_id), message)
 

@@ -10,7 +10,7 @@ from app.constants import Commands
 from app.constants import LogTypes as logconstants
 from app.data import birthdays as birthdays_data
 from app.exceptions import ErrorContext
-from app.services import analytics
+from app.services import analytics, members
 from app.services.dates import is_valid_mm_dd, nearest_mm_dd_occurrence, zone_or_utc
 from app.services.moderations import server_language, server_timezone
 from app.services.reminders_birthdays import build_celebration_embed
@@ -70,7 +70,7 @@ async def celebrate_in_guild(
     year = celebration_year(mm_dd, await server_timezone(guild_id))
     for item in items:
         try:
-            member = guild.get_member(int(item["user_id"]))
+            member = await members.find(guild, item["user_id"])
             embed = build_celebration_embed(item, member, guild, config, locale) if member else None
         except Exception as error:
             logger.error(

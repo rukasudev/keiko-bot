@@ -99,3 +99,37 @@ def test_no_metric_is_labelled_by_a_guild_or_a_user():
     )
     for metric in every_metric:
         assert not {"guild_id", "user_id", "guild", "user"} & set(metric._labelnames)
+
+
+def test_each_structure_that_can_grow_is_a_series_of_its_own():
+    """The sizes the memory alert reads: one closed label per structure, read at
+    the scrape; a structure that cannot be read is NaN and the scrape goes on."""
+    import math
+
+    from app.cogs.prometheus import watch_held_entries
+    from app.settings.discord.callbacks import RUNTIME
+
+    bot = SimpleNamespace(
+        cached_messages=["one", "two"],
+        guilds=[SimpleNamespace(members=[1, 2, 3]), SimpleNamespace(members=[4])],
+    )
+    watch_held_entries(bot)
+
+    assert sample("keiko_held_entries", structure="discord_messages") == 2
+    assert sample("keiko_held_entries", structure="discord_members") == 4
+    assert sample("keiko_held_entries", structure="form_sessions") == len(RUNTIME.store)
+    structures = {
+        series.labels["structure"]
+        for metric in REGISTRY.collect() if metric.name == "keiko_held_entries"
+        for series in metric.samples
+    }
+    assert structures == {
+        "form_sessions", "journeys", "settings_cache", "images", "analytics_queue",
+        "debug_logs_queue", "discord_messages", "discord_members", "recent_members",
+    }
+
+    watch_held_entries(SimpleNamespace())
+
+    assert math.isnan(REGISTRY.get_sample_value(
+        "keiko_held_entries", {"structure": "discord_messages"}
+    ))
