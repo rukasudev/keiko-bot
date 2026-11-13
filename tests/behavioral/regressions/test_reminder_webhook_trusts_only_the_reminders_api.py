@@ -85,7 +85,7 @@ from tests.mocks.discord import create_member
 import threading
 from time import sleep
 from app.services.notifications_youtube_video import unsubscribe_youtube_new_video
-from app.data import indexes
+from app.migrations.runner import declared_structure
 
 pytestmark = [
     pytest.mark.behavioral,
@@ -940,16 +940,15 @@ def test_a_new_renewal_row_expires_once_nothing_has_renewed_it(deps):
 
     Shared behaviour: the renewal rows of `app/data/reminder.py` (written when a
     server follows a youtuber nobody followed, stamped by every renewal the hub
-    takes and at every start, read by the reminder webhook) and the indexes of
-    `app/data/indexes.py`. Consumer that exposed it: notifications_youtube_video
+    takes and at every start, read by the reminder webhook) and the indexes the
+    baseline schema file declares. Consumer that exposed it: notifications_youtube_video
     (the review of v1, section 12, "collections without a TTL that only grow").
 
     Guaranteed: a row written now carries `expires_at`, moved forward every time the
     hub takes its subscription, and a TTL index removes it once that date has
     passed, so only a row nothing has renewed for `YOUTUBE_RENEWAL_ROW_SECONDS` goes;
     a row without the field (every row v0.9.0 wrote or writes) never gets one and
-    never expires. An index may name a collection of another database as
-    `database.collection`; a database name holds no dot, a collection name may.
+    never expires. The TTL index is declared in the `audit` database.
     """
     before = datetime.now(timezone.utc)
 
@@ -957,9 +956,10 @@ def test_a_new_renewal_row_expires_once_nothing_has_renewed_it(deps):
 
     row = find_reminder_by_id(7001)
     assert before + ROW_SECONDS <= row["expires_at"] <= datetime.now(timezone.utc) + ROW_SECONDS
-    assert ("audit.reminders", [("expires_at", 1)], {"expireAfterSeconds": 0}) in (
-        indexes.INDEXES
-    )
+    assert declared_structure()["audit"]["reminders"]["expires_at_1"] == {
+        "expireAfterSeconds": 0,
+        "key": [["expires_at", 1]],
+    }
 
 
 @pytest.mark.unit

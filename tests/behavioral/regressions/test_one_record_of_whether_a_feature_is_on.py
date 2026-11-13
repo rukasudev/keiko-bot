@@ -25,7 +25,7 @@ first save; `update_moderations_by_guild` alone for Disable, whose document is
 already gone), the guild leave
 (`leave_guild`, `pause_all_moderations_by_guild`), the /setup card and its
 permissions report (app/services/setup.py), and the unique guild index
-(app/data/indexes.py).
+(app/migrations/schema/0001_baseline.py).
 
 Guaranteed: the document decides (absent is off, `enabled: false` is paused,
 `enabled: true` is on, and only a document saved before `enabled` existed asks
@@ -33,8 +33,8 @@ the old flag) and every reader asks the same function; every change still
 writes the old flag with the same meaning, so v0.9.0 keeps working on the same
 data, and drops the cache even when that write fails; a guild Keiko left has
 nothing on in either record, for one Redis call when Redis is down; and a
-collection that still holds duplicate guilds never keeps the other indexes from
-being created.
+collection that still holds duplicate guilds stops the migration run before
+anything is written, naming the guild (tests/test_migrations_mongo.py).
 """
 import asyncio
 from datetime import datetime, timezone
@@ -42,17 +42,17 @@ from types import SimpleNamespace
 
 import discord
 import pytest
-from pymongo.errors import AutoReconnect, DuplicateKeyError
+from pymongo.errors import AutoReconnect
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from app.constants import Commands
-from app.data import indexes
-from app.data import moderations as moderations_data
-from app.data.birthdays import upsert_birthday_config
 from app.core import cache
 from app.core.moderations import update_moderations_by_guild
-from app.services.setup import category_page, permission_report
 from app.core.utils import ml
+from app.data import moderations as moderations_data
+from app.data.birthdays import upsert_birthday_config
+from app.migrations.runner import declared_structure
+from app.services.setup import category_page, permission_report
 from app.settings.features import feature_for
 from app.settings.features.feature import CommitContext, OpenContext
 from app.settings.form.form_state import Answer
@@ -443,64 +443,17 @@ async def test_leaving_a_guild_is_one_call_a_worker_thread_can_run(deps):
 
 
 def test_moderations_and_every_feature_collection_hold_one_document_per_guild():
+    guild = declared_structure()["guild"]
     unique = {
         collection
-        for collection, keys, options in indexes.INDEXES
-        if keys == [("guild_id", 1)]
-        and options.get("unique")
-        and options.get("partialFilterExpression") == {"guild_id": {"$type": "string"}}
+        for collection, indexes in guild.items()
+        for spec in indexes.values()
+        if spec["key"] == [["guild_id", 1]]
+        and spec.get("unique")
+        and spec.get("partialFilterExpression") == {"guild_id": {"$type": "string"}}
     }
 
     assert unique == {"moderations", *FEATURES}
-
-
-class _Collection:
-    def __init__(self, name, created):
-        self.name = name
-        self.created = created
-
-    def create_index(self, keys, **options):
-        if self.name == "moderations" and options.get("unique"):
-            raise DuplicateKeyError(
-                "E11000 duplicate key error collection: guild.moderations "
-                'index: guild_id_1 dup key: { guild_id: "4242" }'
-            )
-        self.created.append((self.name, keys, options))
-
-
-class _Database:
-    def __init__(self, name, created):
-        self.name = name
-        self.created = created
-
-    def __getitem__(self, name):
-        named = name if self.name == "guild" else f"{self.name}.{name}"
-        return _Collection(named, self.created)
-
-
-class _Client:
-    def __init__(self, created):
-        self.created = created
-
-    def __getitem__(self, name):
-        return _Database(name, self.created)
-
-
-def test_a_collection_with_duplicate_guilds_never_stops_the_other_indexes(
-    monkeypatch,
-):
-    created = []
-    monkeypatch.setattr(indexes, "mongo_client", _Client(created))
-
-    with pytest.raises(Exception, match="guild.moderations"):
-        indexes.ensure_indexes()
-
-    expected = [
-        (collection, keys, options)
-        for collection, keys, options in indexes.INDEXES
-        if not (collection == "moderations" and options.get("unique"))
-    ]
-    assert created == expected, "every other index is still created"
 
 
 def test_a_flag_for_a_guild_without_moderations_creates_them_with_the_defaults(deps):

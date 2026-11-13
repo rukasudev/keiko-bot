@@ -27,17 +27,20 @@ from pymongo import MongoClient
 from pymongo.errors import ServerSelectionTimeoutError
 
 import app as app_module
-from app.bot import discord_latency, DiscordBot
-from app.constants import DBConfigs, Dependencies
 from app import integrations
+from app.bot import DiscordBot, discord_latency
+from app.constants import DBConfigs, Dependencies
+from app.core import metrics
 from app.integrations.notion import NotionIntegration
 from app.integrations.reminder_webhook import ReminderWebhook
 from app.integrations.stream_elements import StreamElementsClient
 from app.integrations.twitch import TwitchClient
 from app.integrations.youtube import YoutubeClient
-from app.core import metrics
+from app.migrations import runner
 
 pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("outside_calls")]
+
+REAL_REQUIRE_APPLIED = runner.require_applied
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 APP = os.path.join(ROOT, "app")
@@ -276,7 +279,7 @@ def boot(monkeypatch):
     monkeypatch.setattr(app_module, "AsyncIOMotorClient", lambda *args, **options: object())
     monkeypatch.setattr(app_module, "connect_redis", lambda url: SimpleNamespace(ping=lambda: True))
     monkeypatch.setattr(app_module, "DiscordBot", lambda config: "the bot")
-    monkeypatch.setattr("app.data.indexes.ensure_indexes", lambda: None)
+    monkeypatch.setattr("app.migrations.runner.require_applied", lambda client: None)
     monkeypatch.setattr("app.core.analytics.configure", lambda config: None)
     monkeypatch.setattr("app.core.debug_logs.start_writer", lambda: None)
 
@@ -293,16 +296,22 @@ def boot(monkeypatch):
 
         monkeypatch.setattr(
             app_module, "MongoClient",
-            lambda *args, **options: SimpleNamespace(guild=SimpleNamespace(command=ping)),
+            lambda *args, **options: SimpleNamespace(
+                guild=SimpleNamespace(command=ping),
+                migrations=SimpleNamespace(
+                    changelog=SimpleNamespace(find=lambda query, projection: [])
+                ),
+            ),
         )
         config = SimpleNamespace(
             MONGO_URL="mongodb://mongo:27017",
             REDIS_URL="redis://redis:6379/0",
             is_prod=lambda: False,
-            load_db_configs=lambda: None,
+            load_db_configs=lambda: start.loaded.append(True),
         )
         return app_module.create_app(config), pings
 
+    start.loaded = []
     return start
 
 
@@ -314,6 +323,20 @@ def test_the_boot_waits_for_a_mongo_that_answers_a_moment_later(boot):
 
     assert bot == "the bot"
     assert len(pings) == 3
+
+
+def test_the_boot_stops_before_the_configs_when_a_migration_is_pending(
+    boot, monkeypatch, caplog
+):
+    """A deploy that skipped the migrations must not start on a database it predates."""
+    monkeypatch.setattr(runner, "require_applied", REAL_REQUIRE_APPLIED)
+
+    with pytest.raises(runner.MigrationsPending, match="make migrate"):
+        boot([{"ok": 1.0}])
+
+    assert "schema/0001_baseline" in caplog.text
+    assert "data/0001_bot_defaults" in caplog.text
+    assert boot.loaded == [], "the configs are read only from a migrated database"
 
 
 def test_the_boot_gives_up_on_a_mongo_that_never_answers(boot, monkeypatch):

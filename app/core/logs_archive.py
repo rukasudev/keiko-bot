@@ -36,12 +36,12 @@ from app import logger
 from app.constants import Commands as constants
 from app.constants import DBConfigs
 from app.constants import LogTypes as logconstants
+from app.core.trace import as_utc
+from app.core.utils import ml
 from app.data import analytics as analytics_data
 from app.data import logs as logs_data
 from app.data import util as util_data
-from app.data.indexes import INDEXES, located
-from app.core.trace import as_utc
-from app.core.utils import ml
+from app.migrations.runner import declared_structure
 
 FILENAME = "keiko_logs_{date}.jsonl.gz"
 ADMIN_LOCALE = "en-us"
@@ -302,9 +302,10 @@ def backed_up_collections() -> List[Tuple[str, str]]:
     """Every (database, collection) the backup copies: settings first, and last the
     collections whose documents expire a fixed time after they are written."""
     expiring = {
-        located(collection)
-        for collection, _keys, options in INDEXES
-        if options.get("expireAfterSeconds", 0) > 0
+        (database, collection)
+        for database, collections in declared_structure().items()
+        for collection, indexes in collections.items()
+        if any(spec.get("expireAfterSeconds", 0) > 0 for spec in indexes.values())
     }
     found = []
 

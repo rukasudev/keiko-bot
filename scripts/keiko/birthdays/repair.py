@@ -20,8 +20,8 @@ REPO_ROOT = os.path.dirname(
 def connect_readonly(mongo_url: str) -> None:
     """Just enough wiring to read birthdays. Deliberately not `create_app`.
 
-    `create_app` calls `ensure_indexes`, which writes. A command whose default
-    mode is "show me what you would do" must not touch the database to answer.
+    `create_app` needs a migrated database and every config document. A command
+    whose default mode is "show me what you would do" must only read birthdays.
     """
     import certifi
     from pymongo import MongoClient
@@ -82,7 +82,7 @@ def load_for_apply(environment: str):
     """The smallest wiring that can create a reminder and store its id.
 
     Deliberately not `create_app`: that pulls every secret out of SSM, opens
-    Redis, builds the Discord client and runs `ensure_indexes`, none of which
+    Redis, builds the Discord client and checks the migrations ledger, none of which
     this needs. It also loads `.env` with `override=True`, so the environment
     asked for on the command line lost to whatever the file said — which once
     pointed this command at the development database while it reported on

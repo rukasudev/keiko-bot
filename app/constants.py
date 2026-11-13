@@ -11,6 +11,8 @@ class Style:
 
 
 class DBConfigs:
+    SSM_REGION: Final[str] = "sa-east-1"
+
     KEIKO_ACTIVITY: Final[str] = "activity"
     KEIKO_STATUS: Final[str] = "status"
     KEIKO_DESCRIPTION: Final[str] = "description"
@@ -79,6 +81,18 @@ class DBConfigs:
         ADMIN_LOGS_BOT_ACTIONS_CHANNEL_ID,
         ADMIN_DUMP_CHANNEL_ID
     ]
+
+
+class Migrations:
+    """How the migrations runner holds its lock, times a version and accepts a server."""
+
+    LOCK_SECONDS: Final[int] = 15 * 60
+    TRANSACTION_BUDGET_SECONDS: Final[float] = 30.0
+    TRANSACTION_COMMIT_SECONDS: Final[float] = 10.0
+    COMMIT_RETRY_PAUSE_SECONDS: Final[float] = 0.2
+    DAY_SECONDS: Final[int] = 60 * 60 * 24
+    MIN_SERVER_VERSION: Final[Tuple[int, int]] = (5, 0)
+    SYSTEM_DATABASES: Final[FrozenSet[str]] = frozenset({"admin", "config", "local"})
 
 
 class Dependencies:

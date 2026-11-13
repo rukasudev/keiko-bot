@@ -12,7 +12,8 @@ Core architectural principle:
 
 ```bash
 make setup        # create venv and install dependencies
-make run          # start bot with Docker services (Redis, MongoDB)
+make run          # start bot with Docker services (Redis, MongoDB), after make migrate
+make migrate      # apply the pending database migrations (docs/migrations.md)
 make docker-up    # start only Redis and MongoDB containers
 make test         # python -m pytest tests/ app/ -x -q
 make logs ARGS="errors --since 7d"         # the log reader in scripts/keiko/logs
@@ -29,6 +30,11 @@ make clean        # clean cache and venv
 - `app/core/` — the shared modules every command builds on: `cache.py`, `analytics.py`,
   `trace.py`, `journey.py`, `utils.py`, `moderations.py`, `dates.py`, `members.py`...
 - `app/data/` — MongoDB access (pymongo); `app/core/cache.py` — Redis caching.
+- `app/migrations/` — the versioned database: `schema/NNNN_slug.py` (collections and
+  indexes), `data/NNNN_slug.py` (data, inside `with begin(db) as tx:`), `snapshot.json`,
+  the runner and its CLI (`python -m app.migrations status|migrate [--dry-run]|verify|snapshot`).
+  Where data lives: `docs/data-model.md`; how a migration is written and run:
+  `docs/migrations.md`.
 - `app/settings/` — what an admin configures, in three parts. `form/` is the engine:
   what a form YAML may declare (`form_yaml.py`), the frozen session (`form_state.py`),
   events, effects, the `when` evaluator (`conditions.py`), the screen model

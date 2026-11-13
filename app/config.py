@@ -1,6 +1,7 @@
 import logging
 import os
 from os.path import dirname, join
+from typing import Any, Optional
 
 import boto3
 from botocore.exceptions import ClientError
@@ -12,6 +13,28 @@ from app.constants import DBConfigs as constants
 def app_version() -> str:
     """The release this process runs, as the deploy names it, or `dev`."""
     return os.getenv("APP_VERSION") or "dev"
+
+
+def is_production() -> bool:
+    """Whether this process runs as production, as the image's environment says."""
+    return (os.getenv("APPLICATION_ENVIRONMENT") or "").upper() == "PROD"
+
+
+def ssm_client() -> Any:
+    """The SSM client production reads its parameters with."""
+    return boto3.client("ssm", region_name=constants.SSM_REGION)
+
+
+def mongo_url(ssm: Optional[Any] = None) -> str:
+    """The Mongo URL alone: SSM's in production, else the environment's or `.env`'s."""
+    if is_production():
+        parameter = (ssm or ssm_client()).get_parameter(
+            Name="/keiko/mongo/url", WithDecryption=True
+        )
+        return parameter["Parameter"]["Value"]
+    if not os.getenv("MONGO_URL"):
+        load_dotenv(join(dirname(__file__), "..", ".env"))
+    return os.getenv("MONGO_URL") or ""
 
 
 class AppConfig:
@@ -52,7 +75,7 @@ class AppConfig:
 
 
     def get_ssm_configs(self):
-        ssm = boto3.client("ssm", region_name="sa-east-1")
+        ssm = ssm_client()
 
         self.APPLICATION_ID = ssm.get_parameter(Name="/keiko/discord/application_id")["Parameter"][
             "Value"
@@ -62,7 +85,7 @@ class AppConfig:
         ]
         self.WEBHOOK_URL = ssm.get_parameter(Name="/keiko/webhook/url")["Parameter"]["Value"]
         self.BOT_TOKEN = ssm.get_parameter(Name="/keiko/discord/bot_token", WithDecryption=True)["Parameter"]["Value"]
-        self.MONGO_URL = ssm.get_parameter(Name="/keiko/mongo/url", WithDecryption=True)["Parameter"]["Value"]
+        self.MONGO_URL = mongo_url(ssm)
         self.TWITCH_CLIENT_ID = ssm.get_parameter(Name="/keiko/twitch/client_id", WithDecryption=True)["Parameter"][
             "Value"
         ]
@@ -143,7 +166,7 @@ class AppConfig:
         return self.ENVIRONMENT.upper() == "DEV"
 
     def is_prod(self) -> bool:
-        return self.ENVIRONMENT.upper() == "PROD"
+        return is_production()
 
     def is_debug(self) -> bool:
         return False if self.DEBUG is None else self.DEBUG.lower() == "true"

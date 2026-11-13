@@ -66,11 +66,15 @@ When a Redis key template lives in `app/constants.py`, its NAME starts with `RED
 (or `CACHE_`), and the key format follows the existing convention in
 `app/core/cache.py` (`guild:{guild_id}:...`).
 
-## 9. One-off migration scripts are not versioned
+## 9. Database changes are versioned in `app/migrations`
 
-Data-migration scripts run once; they do not enter the repository. Keep them outside
-the repo (the maintainer stores them with his task notes) and record what was run in
-the PR description or deploy notes.
+A change to the database's structure (a collection, an index) is a file in
+`app/migrations/schema/`; a change to its data is a file in `app/migrations/data/`.
+Each folder is numbered on its own (`0001_slug.py`, no gap), and every pending schema
+file runs before every pending data file. A release only adds; dropping what the old
+version reads comes in the next release. A data file writes inside one
+`with begin(db) as tx:` block. The release deploy runs them (`docs/migrations.md`). No
+one-off script outside them, no index created at boot.
 
 ## 10. Reusable orchestration becomes a generic view
 

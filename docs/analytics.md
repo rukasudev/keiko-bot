@@ -158,7 +158,7 @@ tag.
 ## 5. Storage
 
 Four collections, all in the `guild` database; the indexes of the first three
-are registered in `app/data/indexes.py`:
+are declared by the migrations in `app/migrations/schema/` (`docs/migrations.md`):
 
 | Collection | Shape | Retention |
 |---|---|---|

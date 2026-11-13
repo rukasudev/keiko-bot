@@ -13,6 +13,7 @@ change touches.
 | A form, a card, a panel, the engine | `docs/form-configuration.md` §3 (schema and step kinds), §5 (extension points) and §6 (feature modules); §7 for the Discord adapter |
 | Text a user sees | `.claude/skills/keiko-writing-style/SKILL.md` |
 | A metric, an event or a log line | `docs/analytics.md` |
+| Data a command stores, a collection or an index | `docs/data-model.md`, then `docs/migrations.md` |
 | Which tests to run for shared code | `docs/testing-strategy.md`, the impact map |
 | A user-visible behaviour change | `docs/ux-changes.md`: the header and the last rows only, to copy the row shape and take the next id |
 
@@ -23,6 +24,7 @@ change touches.
 - Copy: `app/languages/{buttons,commands,errors,messages}/<ns>.{en-us,pt-br}.yml`, read with `ml(key, locale)`.
 - Shared modules: `app/core/` (cache, analytics, trace, journey, utils, dates, members...); `app/services/` holds only command modules.
 - Data: `app/data/` (flat functions); cache: `app/core/cache.py`; server settings: `app/core/moderations.py`.
+- Database structure and data changes: `app/migrations/schema/` and `app/migrations/data/` (`NNNN_slug.py`, each folder numbered on its own); which collection holds what: `docs/data-model.md`.
 - /configurar: `app/services/setup.py`; statistics: `app/core/feature_health.py`.
 - Developer tooling: `scripts/keiko/` (`make logs`, `make repair-birthdays`, `make soak`); never imported by `app/`, left out of the image.
 - Tests: `tests/forms/` (platform contracts), `tests/behavioral/{scenarios,contracts,regressions,golden}/`.
@@ -35,6 +37,16 @@ Run from the worktree, with the sandbox off (`requests` reads a certifi `.pem` a
 ./.venv/bin/python -m pytest tests/ app/ -q -p no:cacheprovider
 ./.venv/bin/python -m pytest -m shared_contract -q -p no:cacheprovider
 PATH=$PWD/.venv/bin:$PATH make lint
+```
+
+The tests that need a real Mongo (`-m mongo`: the migrations and the query plans) run
+against a throwaway replica set on colima, never against `mongo-server`:
+
+```
+docker --context colima run -d --rm --name keiko-mig --ulimit nofile=64000 -p 27030:27017 mongo:7.0 --replSet rs0 --bind_ip_all
+docker --context colima exec keiko-mig mongosh --quiet --eval 'rs.initiate({_id:"rs0",members:[{_id:0,host:"localhost:27017"}]})'
+MONGO_URL="mongodb://localhost:27030/?directConnection=true" MONGO_TEST_URL="mongodb://localhost:27030/?directConnection=true" ./.venv/bin/python -m pytest -m mongo -q -p no:cacheprovider
+docker --context colima stop keiko-mig
 ```
 
 Goldens: `pytest tests/behavioral/golden --update-golden`, only once the code is final, in their own commit, after reading every diff.

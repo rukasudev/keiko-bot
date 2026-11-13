@@ -20,8 +20,9 @@ import pytest
 
 from app.constants import Commands, Commands as constants
 from app.constants import LogTypes as logconstants
-from app.data import analytics as analytics_data, indexes
+from app.data import analytics as analytics_data
 from app.data import logs as logs_data
+from app.migrations.runner import declared_structure
 from app.logger import CustomTimedRotatingFileHandler, LoggerHooks, StoredLogsHandler
 from app.core import debug_logs, logs_archive
 from app.core.trace import trace_scope
@@ -254,9 +255,9 @@ def test_an_oversized_message_keeps_its_tail():
 
 def test_the_logs_collection_expires_so_mongo_stays_a_window():
     ttl = [
-        options["expireAfterSeconds"]
-        for collection, _keys, options in indexes.INDEXES
-        if collection == "logs" and "expireAfterSeconds" in options
+        spec["expireAfterSeconds"]
+        for spec in declared_structure()["guild"]["logs"].values()
+        if "expireAfterSeconds" in spec
     ]
 
     assert ttl == [constants.DEBUG_LOGS_TTL_SECONDS]
@@ -265,9 +266,8 @@ def test_the_logs_collection_expires_so_mongo_stays_a_window():
 
 def test_every_query_the_sink_supports_has_an_index():
     keyed = {
-        tuple(key for key, _direction in keys)
-        for collection, keys, _options in indexes.INDEXES
-        if collection == "logs"
+        tuple(field for field, _direction in spec["key"])
+        for spec in declared_structure()["guild"]["logs"].values()
     }
 
     assert ("level", "ts") in keyed
@@ -2201,50 +2201,20 @@ async def test_a_history_that_cannot_be_read_only_warns(stored_settings, caplog)
 
 
 def test_the_ttl_index_is_created_in_the_audit_database():
-    """The indexes Keiko creates at startup reach the database each one names.
+    """The baseline schema file declares each index in the database its collection
+    lives in.
 
     Broke as: `audit.reminders` only grew, so its renewal rows got a TTL index, the first
-    index outside the `guild` database. Guaranteed: an index may name a collection of another
-    database as `database.collection`; a database name holds no dot, a collection name may.
+    index outside the `guild` database. Guaranteed: the baseline declares that TTL index
+    under the `audit` database, never under `guild`, next to the `guild` ones.
     """
-    created = []
+    structure = declared_structure()
 
-    class Collection:
-        def __init__(self, name):
-            self.name = name
-
-        def create_index(self, keys, **options):
-            created.append((self.name, keys, options))
-
-    class Database:
-        def __init__(self, name):
-            self.name = name
-
-        def __getitem__(self, collection):
-            return Collection(f"{self.name}.{collection}")
-
-    class Client:
-        def __getitem__(self, database):
-            return Database(database)
-
-    original = indexes.mongo_client
-    indexes.mongo_client = Client()
-    try:
-        indexes.ensure_indexes()
-    finally:
-        indexes.mongo_client = original
-
-    assert ("audit.reminders", [("expires_at", 1)], {"expireAfterSeconds": 0}) in created
-    assert ("guild.blocked_links", [("guild_id", 1), ("created_at", -1)], {}) in created
-
-
-@pytest.mark.parametrize(
-    "named, located",
-    [
-        ("blocked_links", ("guild", "blocked_links")),
-        ("audit.reminders", ("audit", "reminders")),
-        ("audit.reminders.archive", ("audit", "reminders.archive")),
-    ],
-)
-def test_an_index_names_its_database_before_the_first_dot(named, located):
-    assert indexes.located(named) == located
+    assert structure["audit"]["reminders"]["expires_at_1"] == {
+        "expireAfterSeconds": 0,
+        "key": [["expires_at", 1]],
+    }
+    assert "reminders" not in structure["guild"]
+    assert structure["guild"]["blocked_links"]["guild_id_1_created_at_-1"] == {
+        "key": [["guild_id", 1], ["created_at", -1]]
+    }

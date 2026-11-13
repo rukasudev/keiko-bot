@@ -20,7 +20,13 @@ known-first-party = ["app", "tests"]
 
 [tool.mypy]
 python_version = "3.12"
-files = ["app/settings"]
+files = [
+    "app/settings",
+    "app/migrations/__init__.py",
+    "app/migrations/__main__.py",
+    "app/migrations/helpers.py",
+    "app/migrations/runner.py",
+]
 explicit_package_bases = true
 strict = true
 follow_imports = "silent"

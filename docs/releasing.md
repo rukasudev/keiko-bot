@@ -25,6 +25,10 @@ new version instead.
 
 ## What a deploy does to the running bot
 
+0. Before anything stops, the new image runs the database migrations
+   (`docker run --rm <image> python -m app.migrations`): `status`, a dry run,
+   then `migrate`. A failed check or a failed migration stops the deploy there,
+   and the running container keeps serving (`docs/migrations.md`).
 1. `docker stop -t 30` sends SIGTERM. Keiko closes its Discord connection,
    writes the analytics events and log records still queued, and exits
    (`run` in `app/bot.py`). Docker kills it only if it is still running after
