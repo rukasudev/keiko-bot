@@ -33,18 +33,19 @@ from app.constants import Commands, DBConfigs, Migrations
 from app.core import analytics_reports
 from app.data import (
     analytics,
-    birthdays,
     block_links,
     cogs,
     logs,
-    notifications_twitch,
-    reminder,
     util,
 )
 from app.data.guild import cogs as guild_cogs
+from app.data.guild import members
+from app.data.guild import messages
 from app.data.guild import settings as guild_settings
 from app.data.keiko import integrations as keiko_integrations
+from app.data.keiko import schedules
 from app.data.keiko import settings as keiko_settings
+from app.data.keiko import subscriptions
 from app.migrations import runner
 from app.services import admin as admin_service
 
@@ -95,15 +96,14 @@ NO_TWITCH_SUBSCRIPTIONS = SimpleNamespace(get_subscriptions=lambda: {"data": []}
 NOT_A_QUERY = {
     "analytics.build_profile_operation",
     "analytics.insert_events",
-    "birthdays.build_default_item",
-    "birthdays.to_summary_composition",
+    "keiko.schedules.schedule_subject",
+    "keiko.schedules.schedule_id",
     "block_links.insert_blocked_link",
     "cogs.insert_cog_event",
     "cogs.insert_cog_event_async",
     "cogs.insert_error_by_command_async",
     "logs.day_bounds",
     "logs.insert_logs",
-    "reminder.insert_renewal_reminder",
     "util.collection_names",
     "util.parse_insert_timestamp",
     "util.parse_update_timestamp",
@@ -118,21 +118,6 @@ BY_DESIGN: Dict[Shape, str] = {
 }
 
 LEGACY: Dict[Shape, str] = {
-    ("reminders.birthdays", ("guild_id",)): "PR 1",
-    ("reminders.birthdays", ("guild_id", "user_id")): "PR 1",
-    ("reminders.birthdays", ("celebrated_year", "guild_id", "user_id")): "PR 1",
-    ("reminders.birthdays", ("date", "guild_id")): "PR 1",
-    ("reminders.birthdays", ("date", "reminder_id")): "PR 1",
-    ("reminders.birthdays", ("reminder_id",)): "PR 1",
-    ("audit.reminders", ("value",)): "PR 1",
-    ("audit.reminders", ("reminder_id",)): "PR 1",
-    ("audit.reminders", ("title", "value")): "PR 1",
-    ("audit.reminders", ("expires_at", "title", "value")): "PR 1",
-    ("audit.notifications_twitch", ("streamer",)): "PR 1",
-    (
-        "notifications.notifications_twitch",
-        ("channel_id", "guild_id", "streamer"),
-    ): "PR 1",
     **{(f"events.{collection}", ("guild_id",)): "PR 2" for collection in FEATURE_KEYS},
     ("guild.analytics_guild_month", ("month",)): "PR 2",
 }
@@ -292,10 +277,10 @@ async def drive() -> None:
     await drive_guild_cogs()
     await drive_events()
     drive_guild_settings(now)
-    drive_birthdays()
+    drive_members()
+    drive_schedules(now)
     drive_block_links()
-    drive_notifications()
-    drive_reminders(now)
+    drive_subscriptions_and_messages(now)
     drive_analytics(now)
     drive_analytics_reports(now)
     drive_logs_and_backup(now)
@@ -354,19 +339,32 @@ def drive_guild_settings(now: datetime) -> None:
     admin_service.servers_overview(now)
 
 
-def drive_birthdays() -> None:
-    birthdays.upsert_birthday_item(GUILD, MEMBER, DATE)
-    birthdays.find_birthday_item(GUILD, MEMBER)
-    birthdays.has_birthday_reminder(REMINDER)
-    birthdays.find_birthday_items_by_reminder_and_date(REMINDER, DATE)
-    birthdays.mark_birthday_celebrated(GUILD, MEMBER, 2026)
-    birthdays.find_birthday_items_by_guild(GUILD)
-    birthdays.find_reminder_id_by_guild_and_date(GUILD, DATE)
-    birthdays.find_birthdays_missing_reminder()
-    birthdays.set_reminder_id_for_guild_and_date(GUILD, DATE, REMINDER)
-    birthdays.count_birthday_items_by_guild_and_date(GUILD, DATE)
-    birthdays.remove_birthday_item(GUILD, MEMBER)
-    birthdays.delete_birthday_items_by_guild(GUILD)
+def drive_members() -> None:
+    cog, field = "reminders_birthday", "last_celebrated_year"
+    members.set_member_option(GUILD, MEMBER, cog, {"date": DATE}, display_name="Ana")
+    members.find_member_option(GUILD, MEMBER, cog)
+    members.find_members_by_option(GUILD, cog)
+    members.find_members_by_option(GUILD, cog, {"date": DATE})
+    members.count_members_by_option(GUILD, cog, {"date": DATE})
+    members.claim_member_state(GUILD, MEMBER, cog, field, 2026, "Ana")
+    members.restore_member_state(GUILD, MEMBER, cog, field, 2026, None)
+    members.unset_member_option(GUILD, MEMBER, cog)
+    members.unset_option_in_guild(GUILD, cog)
+
+
+def drive_schedules(now: datetime) -> None:
+    birthday = schedules.schedule_id("birthday", GUILD, DATE)
+    schedules.upsert_schedule(birthday, "birthday", REMINDER, due_at=now)
+    schedules.find_schedule(birthday)
+    schedules.find_schedule_by_reminder(REMINDER)
+    schedules.find_schedules_by_kind("youtube_renewal")
+    schedules.find_schedules_by_reminder(REMINDER)
+    schedules.find_schedules_by_reminder(REMINDER, "birthday")
+    schedules.find_schedules_missing_reminder("birthday", 50)
+    schedules.set_schedule_due(birthday, now)
+    schedules.extend_schedule_expiry(birthday, now)
+    schedules.delete_schedule_without_reminder(birthday)
+    schedules.delete_schedule(birthday)
 
 
 def drive_block_links() -> None:
@@ -377,19 +375,11 @@ def drive_block_links() -> None:
     block_links.delete_blocked_links_by_guild(GUILD)
 
 
-def drive_notifications() -> None:
-    notifications_twitch.update_last_stream_date("streamer", "2026-11-12")
-    notifications_twitch.find_last_stream_date("streamer")
-    notifications_twitch.save_stream_notification(GUILD, CHANNEL, "streamer", "1")
-    notifications_twitch.find_stream_notification(GUILD, CHANNEL, "streamer")
-
-
-def drive_reminders(now: datetime) -> None:
-    reminder.find_reminder_by_value("youtuber")
-    reminder.find_reminder_by_id(REMINDER)
-    reminder.stamp_hub_confirmation("youtuber", now)
-    reminder.mark_lapse_reported("youtuber", now)
-    reminder.delete_reminder_by_id(REMINDER)
+def drive_subscriptions_and_messages(now: datetime) -> None:
+    subscriptions.update_subscription_state("twitch", "streamer", {"last_live_started_at": now})
+    subscriptions.subscription_state("twitch", "streamer")
+    messages.save_message(GUILD, CHANNEL, "notifications_twitch", "streamer", "1")
+    messages.find_message(GUILD, CHANNEL, "notifications_twitch", "streamer")
 
 
 def drive_analytics(now: datetime) -> None:

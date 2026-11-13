@@ -17,6 +17,7 @@ import importlib
 import io
 import json
 import re
+from datetime import datetime
 from types import SimpleNamespace
 
 import pytest
@@ -531,17 +532,18 @@ def test_the_shipped_files_form_a_clean_plan_from_an_empty_ledger():
     versions, _problems = runner.read_versions()
     current = runner.plan(versions, [])
 
-    labels = [found.label for found in current.pending]
-
     assert current.problems == ()
-    assert labels == sorted(labels, key=lambda label: (label.startswith("data"), label))
-    assert {
+    assert [found.label for found in current.pending] == [
         "schema/0001_baseline",
         "schema/0002_guild_and_keiko",
+        "schema/0003_members_and_schedules",
+        "schema/0004_subscriptions_and_messages",
         "data/0001_bot_defaults",
         "data/0002_server_settings",
         "data/0003_cogs_and_keiko",
-    } <= set(labels)
+        "data/0004_members_and_schedules",
+        "data/0005_subscriptions_and_messages",
+    ]
 
 
 def _imports(path):
@@ -565,7 +567,9 @@ def test_a_migration_file_imports_nothing_from_the_app_but_the_helpers():
         for path in (runner.MIGRATIONS / kind).glob("0*.py")
     ]
 
-    assert len(paths) >= 5
+    versions, _problems = runner.read_versions()
+
+    assert len(paths) == len(versions)
     for path in paths:
         internal = {module for module in _imports(path) if _internal(module)}
         assert internal <= {"app.migrations.helpers"}, path.name
@@ -883,3 +887,46 @@ def test_the_cli_refuses_an_unknown_command():
         main(["rollback"], out=io.StringIO())
 
     assert raised.value.code == 2
+
+
+SUBSCRIPTIONS = importlib.import_module(
+    "app.migrations.data.0005_subscriptions_and_messages"
+)
+
+
+def test_the_hub_state_of_a_youtuber_keeps_the_newest_stamp_of_its_rows():
+    hub_states = SUBSCRIPTIONS._hub_states
+    early, late = datetime(2026, 10, 1), datetime(2026, 10, 5)
+
+    states = dict(
+        hub_states([
+            {"value": "pewdiepie", "hub_confirmed_at": early, "lapse_reported_at": None},
+            {"value": "pewdiepie", "hub_confirmed_at": late},
+            {"value": "mrbeast", "lapse_reported_at": late},
+        ])
+    )
+
+    assert states == {
+        "pewdiepie": {"hub_confirmed_at": late},
+        "mrbeast": {"lapse_reported_at": late},
+    }
+
+
+def test_a_lapse_report_older_than_the_hub_confirmation_is_not_copied():
+    hub_states = SUBSCRIPTIONS._hub_states
+    early, late = datetime(2026, 10, 1), datetime(2026, 10, 5)
+
+    states = dict(
+        hub_states([
+            {"value": "pewdiepie", "hub_confirmed_at": late, "lapse_reported_at": early},
+        ])
+    )
+
+    assert states == {"pewdiepie": {"hub_confirmed_at": late}}
+
+
+def test_the_new_homes_are_read_by_id_and_need_no_index():
+    structure = runner.declared_structure()
+
+    assert structure["keiko"]["subscriptions"] == {}
+    assert structure["guild"]["messages"] == {}

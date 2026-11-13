@@ -135,25 +135,25 @@ def load_for_apply(environment: str):
 
 
 def plan() -> List[Dict[str, Any]]:
-    from app.data import birthdays as birthdays_data
     from app.data.guild import settings as guild_settings
-    from app.services.reminders_birthdays import birthday_config
+    from app.data.keiko import schedules as schedules_data
+    from app.services.reminders_birthdays import (
+        birthday_config,
+        birthday_schedules_missing_reminder,
+        count_birthdays_on,
+    )
 
-    seen = set()
     entries = []
 
-    for item in birthdays_data.find_birthdays_missing_reminder(limit=500):
-        guild_id, mm_dd = item.get("guild_id"), item.get("date")
-        if not guild_id or not mm_dd or (guild_id, mm_dd) in seen:
-            continue
-        seen.add((guild_id, mm_dd))
-
+    for schedule in birthday_schedules_missing_reminder(limit=500):
+        guild_id, mm_dd = schedules_data.schedule_subject(schedule)
+        people = count_birthdays_on(guild_id, mm_dd)
         config = birthday_config(guild_id) or {}
         server = guild_settings.find_settings(guild_id) or {}
         entries.append({
             "guild_id": guild_id,
             "date": mm_dd,
-            "people": birthdays_data.count_birthday_items_by_guild_and_date(guild_id, mm_dd),
+            "people": people,
             "timezone": server.get("timezone"),
             "notification_time": config.get("notification_time"),
             "configured": bool(config),
@@ -167,16 +167,25 @@ def describe(entries: List[Dict[str, Any]]) -> None:
         print("Nothing to repair: every birthday points at a reminder.")
         return
 
-    print(f"{len(entries)} reminder(s) would be created:\n")
+    created = len(repairable(entries))
+    released = len(entries) - created
+    print(f"{created} reminder(s) would be created, {released} schedule(s) released:\n")
     print(f"{'guild':<22} {'date':<7} {'people':>6}  schedule")
     for entry in entries:
-        schedule = (
-            f"{entry['timezone']} {entry['notification_time'] or ''}".strip()
-            if entry["configured"] else "NO CONFIG - will be skipped"
-        )
+        if not entry["configured"]:
+            schedule = "NO CONFIG - will be released"
+        elif not entry["people"]:
+            schedule = "NO MEMBERS - will be released"
+        else:
+            schedule = f"{entry['timezone']} {entry['notification_time'] or ''}".strip()
         print(
             f"{entry['guild_id']:<22} {entry['date']:<7} {entry['people']:>6}  {schedule}"
         )
+
+
+def repairable(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """The entries the repair creates a reminder for; it releases the others."""
+    return [entry for entry in entries if entry["configured"] and entry["people"]]
 
 
 def apply_repair() -> int:
@@ -209,11 +218,10 @@ def main(argv: List[str]) -> int:
         print("\nDry run. Re-run with --apply to create these.")
         return 0
 
-    repairable = [entry for entry in entries if entry["configured"]]
-    if not repairable:
+    if not entries:
         return 0
 
-    print(f"\nCreating {len(repairable)} reminder(s)...")
+    print(f"\nCreating {len(repairable(entries))} reminder(s)...")
     repaired = apply_repair()
     print(f"Done: {repaired} created.")
 

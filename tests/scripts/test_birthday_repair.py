@@ -84,16 +84,16 @@ def test_missing_reminder_secrets_are_named_before_anything_opens(monkeypatch):
 
 @pytest.fixture
 def orphans(monkeypatch):
-    from app.data import birthdays as birthdays_data
+    from app.data.guild import members as members_data
     from app.services.reminders_birthdays import save_birthday_config
+    from tests.generators.birthdays import saved_birthday
     from tests.generators.moderations import recorded_server
 
-    recorded_server(birthdays_data.mongo_client, "g1", timezone="Asia/Tokyo")
+    recorded_server(members_data.mongo_client, "g1", timezone="Asia/Tokyo")
     save_birthday_config("g1", channel_id="9", notification_time="14:00")
     for user, date in (("7", "10-28"), ("8", "10-28"), ("9", "03-23")):
-        birthdays_data.upsert_birthday_item("g1", user, date, reminder_id=None)
-    birthdays_data.upsert_birthday_item("nocfg", "1", "01-01", reminder_id=None)
-    return birthdays_data
+        saved_birthday("g1", user, date, reminder_id=None)
+    saved_birthday("nocfg", "1", "01-01", reminder_id=None)
 
 
 def test_the_plan_groups_by_guild_and_date_not_by_person(orphans):
@@ -134,7 +134,17 @@ def test_an_empty_plan_says_so_rather_than_printing_a_header(orphans, capsys):
     assert "Nothing to repair" in capsys.readouterr().out
 
 
-def test_the_printed_plan_flags_what_will_be_skipped(orphans, capsys):
+def test_the_printed_plan_flags_what_will_be_released(orphans, capsys):
+    from app.data.keiko import schedules as schedules_data
+    from app.services.reminders_birthdays import birthday_schedule_id
+
+    schedules_data.upsert_schedule(
+        birthday_schedule_id("g1", "05-05"), "birthday", None
+    )
+
     repair.describe(repair.plan())
 
-    assert "NO CONFIG" in capsys.readouterr().out
+    printed = capsys.readouterr().out
+    assert "NO CONFIG - will be released" in printed
+    assert "NO MEMBERS - will be released" in printed
+    assert "2 reminder(s) would be created, 2 schedule(s) released" in printed

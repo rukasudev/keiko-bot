@@ -45,10 +45,10 @@ contract) and a later schema file drops them.
 |---|---|---|---|---|---|
 | `keiko` | `settings` | Keiko (one document) | `options`: presence, the prefix of a new server, the operator server and channels | `configs.data`, `configs.admin` | database PR 1 |
 | `keiko` | `integrations` | integration | `options`: on or off, the settings it needs | `configs.integrations` | database PR 1 |
-| `keiko` | `subscriptions` | external account Keiko follows (`twitch:{login}`, `youtube:{channel}`, `stream_elements:{name}`) | `state`: the last live, the hub confirmation, the external channel id | `audit.notifications_twitch`, part of `audit.reminders` | database PR 1 |
-| `keiko` | `schedules` | thing set for a time | a reminder on the reminders API, or a periodic job with its cursor | the birthday and YouTube `reminder_id`s, `guild.analytics_archives`, `guild.logs_files` | database PR 1 |
+| `keiko` | `subscriptions` | external account Keiko follows (`twitch:{login}`, `youtube:{handle}`) | `state`: the last live, the hub confirmation | `audit.notifications_twitch`, part of `audit.reminders` | database PR 1 |
+| `keiko` | `schedules` | thing set for a time | a reminder on the reminders API; later a periodic job with its cursor | the birthday and YouTube `reminder_id`s | database PR 1 |
 | `guild` | `settings` | server | `options`: language, time zone, prefix; `state`: owner, Keiko present, joined, left | `guild.moderations` without the feature flags | database PR 1 |
-| `guild` | `cogs` | server and cog | `enabled`, `schema_version`, `options` (what the form saved), `state` (what Keiko learned) | the seven `guild.{cog}` collections | database PR 1 |
+| `guild` | `cogs` | server and cog | `enabled`, `options` (what the form saved), `state` (what Keiko learned, `schema_version` included) | the seven `guild.{cog}` collections | database PR 1 |
 | `guild` | `members` | server and member | `options`: the birthday; `state`: what Keiko keeps about the member | `reminders.birthdays` | database PR 1 |
 | `guild` | `messages` | message Keiko posted and will edit | the cog, the subject, the channel, the message id | `notifications.notifications_twitch` | database PR 1 |
 | `events` | `changes` | change | what changed in a config, in the server settings or in Keiko's presence; written at once, kept forever | the seven `events.{cog}`, `events.settings` | database PR 2 |
@@ -62,6 +62,9 @@ contract) and a later schema file drops them.
 
 Only the analytics sink writes to `analytics`. Log lines (`guild.logs`, 30 days)
 do not move: they leave Mongo for a log service in a later pull request.
+`guild.analytics_archives` and `guild.logs_files` stay where they are until database
+PR 2 moves them to `keiko.schedules`. The Stream Elements channel id is not a
+subscription: it stays in the feature's `guild.cogs` document, under `state`.
 
 ## The documents
 
@@ -92,18 +95,42 @@ guild.members
 {
   _id: "921659827523051530:287394712398",
   guild_id, user_id,
-  options: {birthday: {...}},          the date the member or an admin saved
-  state: {display_name: "Ana", celebrated_year: 2026},
-  updated_at
+  options: {                           what the member chose, one key per cog
+    reminders_birthday: {date: "05-12", month: 5, day: 12, message, image, self_edit_count}
+  },
+  state: {                             what Keiko learned: the name, then one key per cog
+    display_name: "Ana",
+    reminders_birthday: {last_celebrated_year: 2026}
+  },
+  created_at, updated_at
+}
+
+keiko.schedules
+{
+  _id: "birthday:921659827523051530:05-12",   or "youtube_renewal:{handle}"
+  kind: "birthday",                    or "youtube_renewal"
+  reminder_id: "4001",                 always text; null while the reminders API refused it
+  due_at,                              when the reminder fires next; written, not read yet
+  expires_at,                          renewals only: the TTL drops one nothing renewed
+  created_at, updated_at
 }
 ```
 
 `app/data/guild/cogs.py` hands the app the flat feature document it always read,
 `{guild_id, enabled, **options, state: {...}}`, and splits it back on a write, so a
 feature module never names `options`. What Keiko learns on its own goes through
-`set_cog_state(guild_id, cog, fields)`. The birthday config keeps the form's keys
+`set_cog_state_async(guild_id, cog, fields)`. The birthday config keeps the form's keys
 (`channel`, `notification_time`, `mention_everyone`, `default_message`); its time zone
 is the server's.
+
+`app/data/guild/members.py` does the same per member: `find_member_option(guild_id,
+user_id, cog)` returns `{guild_id, user_id, **options[cog], state: {display_name,
+**state[cog]}}`, and the file never names a cog. What a birthday is (its defaults, the
+merge that keeps `self_edit_count`, the year celebrated) lives in
+`app/services/reminders_birthdays.py`. `app/data/keiko/schedules.py` takes the kind:
+`schedule_id(kind, *subject)`, `find_schedules_by_reminder(reminder_id, kind)`,
+`find_schedules_missing_reminder(kind, limit)`; each kind's ids live in the service
+that owns it (`birthday_schedule_id`, `youtube_renewal_id`).
 
 `keiko.settings` is one document, `_id: "keiko"`:
 `options {presence: {status, activity, description}, prefix, owner_id, operator: {admin_guild_id, admin_*_channel_id...}}`,
@@ -111,9 +138,21 @@ the operator ids stored as numbers. `keiko.integrations` is one document per
 integration, `_id` its name, `options` its switch and settings; the backup leaves it
 out.
 
-The member's display name sits next to the birthday, so a panel lists names
-without asking Discord for every member. Keiko refreshes the copy; it is never the
-truth about the member.
+The member's display name sits next to the birthday. `/birthday`, the admin add and
+the birthday post refresh the copy; it is read only where the member cannot be
+fetched, and it is never the truth about the member. Removing a birthday keeps
+`state`, so a member removed and added again is not celebrated twice in a year.
+
+`due_at` is written but not read yet. Keiko sets it when it saves a birthday
+schedule and when a reminder fires, and no code decides anything by it: the
+reminders API still fires each reminder. Database PR 2 is the first to read it,
+with the `kind, due_at` index, to run the periodic jobs. The schedules `data/0004`
+copied hold `due_at: null` until Keiko writes them again.
+
+One schedule per server and date holds the reminder every birthday on that date
+shares, so a date cannot get a second reminder. A reminder from before each server
+had its own may still sit on several servers' schedules; it is deleted only when the
+last of them goes.
 
 Every event has the same envelope. The collection says who caused it, and with
 that its retention and the moment it is written.

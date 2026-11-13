@@ -881,6 +881,16 @@ def stored_databases(deps):
     client.reminders.birthdays.insert_one(
         {"_id": ObjectId(), "guild_id": "1", "user_id": "555", "date": "05-12"}
     )
+    client.guild.members.insert_one(
+        {"_id": "1:555", "guild_id": "1", "user_id": "555",
+         "options": {"reminders_birthday": {"date": "05-12"}}}
+    )
+    client.keiko.schedules.insert_one(
+        {"_id": "birthday:1:05-12", "kind": "birthday", "reminder_id": "4001"}
+    )
+    client.keiko.integrations.insert_one(
+        {"_id": "notion", "options": {"token": SECRET}}
+    )
     client.configs.data.insert_one({"_id": ObjectId(), "status": "online"})
     client.keiko.settings.insert_one(
         {"_id": "keiko", "options": {"presence": {"status": "online"}}}
@@ -962,7 +972,9 @@ async def test_one_file_holds_every_collection(stored_databases):
         "configs/data.jsonl",
         "events/block_links.jsonl",
         "guild/cogs.jsonl",
+        "guild/members.jsonl",
         "guild/settings.jsonl",
+        "keiko/schedules.jsonl",
         "keiko/settings.jsonl",
         "manifest.json",
         "reminders/birthdays.jsonl",
@@ -971,12 +983,14 @@ async def test_one_file_holds_every_collection(stored_databases):
         "configs.data": 1,
         "events.block_links": 1,
         "guild.cogs": 1,
+        "guild.members": 1,
         "guild.settings": 2,
+        "keiko.schedules": 1,
         "keiko.settings": 1,
         "reminders.birthdays": 1,
     }
     assert content == ml("messages.admin-logs.daily-backup", "en-us").format(
-        date=today(), collections=6, documents=7
+        date=today(), collections=8, documents=9
     )
 
 
@@ -1004,6 +1018,29 @@ async def test_credentials_and_debug_logs_stay_out(stored_databases):
     assert "keiko/integrations.jsonl" not in files
     assert "guild/logs.jsonl" not in files
     assert not any(SECRET in text for text in files.values())
+
+
+async def test_the_accounts_keiko_follows_and_the_lives_it_posted_are_backed_up(
+    stored_databases, deps
+):
+    """The new homes of the Twitch lives, the hub state and the posted lives are copied.
+
+    Guaranteed: `keiko.subscriptions` and `guild.messages` reach the daily backup, the
+    first with the rest of `keiko`, the second with the rest of `guild`.
+    """
+    deps.mongo_client.keiko.subscriptions.insert_one(
+        {"_id": "twitch:gaules", "platform": "twitch", "account": "gaules", "state": {}}
+    )
+    deps.mongo_client.guild.messages.insert_one(
+        {"_id": "1:2:notifications_twitch:gaules", "message_id": "3"}
+    )
+    channel = Channel()
+
+    await run_backup(channel)
+
+    files = files_in(channel.sends[0][1])
+    assert "keiko/subscriptions.jsonl" in files
+    assert "guild/messages.jsonl" in files
 
 
 async def test_a_secret_outside_keikos_databases_or_in_error_audit_never_leaves(
@@ -1083,7 +1120,9 @@ async def test_a_backup_over_the_limit_is_packed_into_files_under_it(stored_data
         "configs/data.jsonl",
         "events/block_links.jsonl",
         "guild/cogs.jsonl",
+        "guild/members.jsonl",
         "guild/settings.jsonl",
+        "keiko/schedules.jsonl",
         "keiko/settings.jsonl",
         "reminders/birthdays.jsonl",
     }

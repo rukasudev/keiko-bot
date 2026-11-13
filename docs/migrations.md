@@ -19,10 +19,14 @@ app/migrations/
   schema/
     0001_baseline.py
     0002_guild_and_keiko.py
+    0003_members_and_schedules.py
+    0004_subscriptions_and_messages.py
   data/
     0001_bot_defaults.py
     0002_server_settings.py
     0003_cogs_and_keiko.py
+    0004_members_and_schedules.py
+    0005_subscriptions_and_messages.py
 ```
 
 ## The CLI
@@ -277,7 +281,20 @@ keyed by a hash of the guild id, the zone from its birthday config or its langua
 the prefix of `configs.data`). `data/0003_cogs_and_keiko` copies the seven feature
 collections into `guild.cogs` (a document without `enabled` takes its old moderations
 flag, once) and `configs.*` into `keiko.settings` and `keiko.integrations`. On a fresh
-database the last one writes `keiko.settings` from the defaults `data/0001` seeded.
+database it writes `keiko.settings` from the defaults `data/0001` seeded.
+
+`schema/0003_members_and_schedules` creates `guild.members` and `keiko.schedules`.
+`data/0004_members_and_schedules` copies each `reminders.birthdays` row into
+`guild.members`, and gives each server and date one birthday schedule with the
+reminder id its rows carried. Each YouTube renewal row of `audit.reminders` becomes
+one schedule per youtuber. Duplicate rows merge into the newest, and the counts say
+how many.
+
+`schema/0004_subscriptions_and_messages` creates `keiko.subscriptions` and
+`guild.messages`, read by `_id` only. `data/0005_subscriptions_and_messages` copies
+the last Twitch live of each streamer and the YouTube hub stamps into
+`keiko.subscriptions`, and the posted Twitch lives into `guild.messages`. On a fresh
+database the last two files write nothing.
 
 Nothing writes the operator ids: they are the admin server and channel ids, which
 have no neutral value. Set them by hand before the first boot, in `keiko.settings`

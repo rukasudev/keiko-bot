@@ -18,8 +18,11 @@ from app.core.utils import (
     split_messages,
 )
 from app.services import reminders_birthdays
-from app.data.birthdays import build_default_item
-from app.services.reminders_birthdays import can_self_edit_birthday, get_self_edit_count
+from app.services.reminders_birthdays import (
+    can_self_edit_birthday,
+    default_birthday,
+    get_self_edit_count,
+)
 from datetime import date, timedelta
 
 
@@ -262,10 +265,9 @@ class TestListRolesId:
 class TestBirthdayItemDefaults:
     """Testes para o formato padrao salvo por cadastro inline/pessoal."""
 
-    def test_build_default_item_uses_manager_compatible_styles(self):
-        item = build_default_item("123", "05-15", "reminder-1")
+    def test_default_birthday_uses_manager_compatible_styles(self):
+        item = default_birthday("05-15")
 
-        assert item["user_id"] == "123"
         assert item["date"] == "05-15"
         assert item["month"] == 5
         assert item["day"] == 15
@@ -287,7 +289,7 @@ class TestBirthdayItemDefaults:
             {"guild_id": "1", "user_id": "3", "date": "06-01", "month": 6},
         ]
 
-        with patch("app.services.reminders_birthdays.birthdays_data.find_birthday_items_by_guild", return_value=items):
+        with patch("app.services.reminders_birthdays.find_birthdays_by_guild", return_value=items):
             stats = get_birthday_stats("1", today=date(2026, 5, 2))
 
         assert stats["total"] == 3
@@ -297,16 +299,23 @@ class TestBirthdayItemDefaults:
         assert stats["max_date"] == ("05-15", 2)
 
     def test_reuses_existing_reminder_for_date(self):
-        with patch("app.services.reminders_birthdays.birthdays_data.find_reminder_id_by_guild_and_date", return_value="rem-1"):
-            with patch("app.services.reminders_birthdays.birthdays_data.find_birthday_item", return_value=None):
-                with patch(
-                    "app.services.reminders_birthdays.birthdays_data.upsert_birthday_item",
-                    return_value={"reminder_id": "rem-1"},
-                ):
-                    with patch("app.services.reminders_birthdays.reminders_service.create_reminder") as create:
-                        assert reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15")["reminder_id"] == "rem-1"
+        with patch(
+            "app.services.reminders_birthdays.schedules_data.find_schedule",
+            return_value={"_id": "birthday:guild-1:05-15", "reminder_id": "rem-1"},
+        ), patch(
+            "app.services.reminders_birthdays.schedules_data.upsert_schedule"
+        ) as upsert_schedule, patch(
+            "app.services.reminders_birthdays.find_birthday", return_value=None
+        ), patch(
+            "app.services.reminders_birthdays.save_birthday",
+            return_value={"date": "05-15"},
+        ), patch("app.services.reminders_birthdays.reminders_service.create_reminder") as create:
+            assert reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15") == {
+                "date": "05-15"
+            }
 
         create.assert_not_called()
+        upsert_schedule.assert_not_called()
 
     def test_save_setup_form_writes_config_and_items(self):
         from app.services.reminders_birthdays import save_setup_form
@@ -352,6 +361,7 @@ class TestBirthdayItemDefaults:
                 "content": "Feliz aniversario, {user}",
             },
             image={"mode": "default", "url": None},
+            display_name=None,
         )
         assert saved == [{"user_id": "222"}]
 
@@ -387,25 +397,28 @@ class TestBirthdayItemDefaults:
         assert saved == []
 
     def test_upsert_birthday_creates_reminder_with_guild_schedule(self):
-        with patch("app.services.reminders_birthdays.birthdays_data.find_reminder_id_by_guild_and_date", return_value=None):
-            with patch("app.services.reminders_birthdays.birthdays_data.find_birthday_item", return_value=None):
-                with patch(
-                    "app.services.reminders_birthdays.birthday_config",
-                    return_value={"timezone": "UTC", "notification_time": "12:00"},
-                ):
-                    with patch(
-                        "app.services.reminders_birthdays.birthdays_data.upsert_birthday_item",
-                        return_value={"reminder_id": "rem-1"},
-                    ):
-                        with patch(
-                            "app.services.reminders_birthdays.reminders_service.create_reminder",
-                            return_value="rem-1",
-                        ) as create, patch(
-                            "app.services.reminders_birthdays.server_setting",
-                            return_value="America/Sao_Paulo",
-                        ):
-                            assert reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15")["reminder_id"] == "rem-1"
+        with patch(
+            "app.services.reminders_birthdays.birthday_config",
+            return_value={"timezone": "UTC", "notification_time": "12:00"},
+        ), patch(
+            "app.services.reminders_birthdays.schedules_data.find_schedule", return_value=None
+        ), patch(
+            "app.services.reminders_birthdays.schedules_data.upsert_schedule"
+        ) as upsert_schedule, patch(
+            "app.services.reminders_birthdays.find_birthday", return_value=None
+        ), patch(
+            "app.services.reminders_birthdays.save_birthday",
+            return_value={"date": "05-15"},
+        ), patch(
+            "app.services.reminders_birthdays.reminders_service.create_reminder",
+            return_value="rem-1",
+        ) as create, patch(
+            "app.services.reminders_birthdays.server_setting",
+            return_value="America/Sao_Paulo",
+        ):
+            reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15")
 
+        assert upsert_schedule.call_args.args == ("birthday:guild-1:05-15", "birthday", "rem-1")
         create.assert_called_once_with(
             "birthday_reminder",
             "05-15",

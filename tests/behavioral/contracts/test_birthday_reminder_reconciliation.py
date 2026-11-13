@@ -12,9 +12,15 @@ no migration and no one-off script is needed for them.
 """
 import pytest
 
-from app.data import birthdays as birthdays_data
+from app.data.keiko import schedules as schedules_data
 from app.services import reminders_birthdays as birthdays_service
-from app.services.reminders_birthdays import save_birthday_config
+from app.services.reminders_birthdays import (
+    birthday_schedule_id,
+    birthday_schedules_missing_reminder,
+    find_birthday,
+    save_birthday_config,
+)
+from tests.generators.birthdays import saved_birthday
 from tests.generators.moderations import recorded_server
 
 pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("birthday_reminders")]
@@ -32,11 +38,19 @@ def guild_config(deps):
 
 
 def orphan(guild_id, user_id, date):
-    birthdays_data.upsert_birthday_item(guild_id, user_id, date, reminder_id=None)
+    saved_birthday(guild_id, user_id, date, reminder_id=None)
 
 
 def stored(guild_id, user_id):
-    return birthdays_data.find_birthday_item(guild_id, user_id)
+    """The schedule of the member's date: the reminder every birthday on it shares."""
+    birthday = find_birthday(guild_id, user_id)
+    return schedules_data.find_schedule(
+        birthday_schedule_id(guild_id, birthday["date"])
+    )
+
+
+def missing(limit=50):
+    return birthday_schedules_missing_reminder(limit)
 
 
 # --------------------------------------------------------------------------
@@ -45,18 +59,18 @@ def stored(guild_id, user_id):
 
 def test_a_birthday_without_a_reminder_is_findable(guild_config):
     orphan(guild_config, "7", "10-28")
-    birthdays_data.upsert_birthday_item(guild_config, "8", "05-15", reminder_id="4242")
+    saved_birthday(guild_config, "8", "05-15", reminder_id="4242")
 
-    missing = birthdays_data.find_birthdays_missing_reminder()
-
-    assert [item["user_id"] for item in missing] == ["7"]
+    assert [schedule["_id"] for schedule in missing()] == [
+        birthday_schedule_id(guild_config, "10-28")
+    ]
 
 
 def test_the_search_is_bounded_so_one_pass_cannot_run_away(guild_config):
     for index in range(10):
         orphan(guild_config, str(index), f"01-{index + 1:02d}")
 
-    assert len(birthdays_data.find_birthdays_missing_reminder(limit=4)) == 4
+    assert len(missing(limit=4)) == 4
 
 
 # --------------------------------------------------------------------------
@@ -98,8 +112,7 @@ def test_the_repair_uses_the_schedule_the_guild_configured(guild_config, monkeyp
 
 
 def test_everyone_sharing_a_date_gets_the_same_reminder(guild_config, monkeypatch):
-    """One reminder serves a whole guild-and-date, which is why the id is
-    written back to every record that shares it instead of once per person."""
+    """One reminder serves a whole guild-and-date: the date's schedule holds it once."""
     orphan(guild_config, "7", "10-28")
     orphan(guild_config, "8", "10-28")
     created = []
@@ -127,7 +140,7 @@ def test_a_still_failing_reminder_leaves_the_birthday_alone(guild_config, monkey
 
     assert repaired == 0
     assert stored(guild_config, "7")["reminder_id"] is None
-    assert len(birthdays_data.find_birthdays_missing_reminder()) == 1
+    assert len(missing()) == 1
 
 
 def test_one_broken_guild_does_not_stop_the_others(deps, guild_config, monkeypatch):
@@ -147,7 +160,7 @@ def test_one_broken_guild_does_not_stop_the_others(deps, guild_config, monkeypat
     assert stored("other", "9")["reminder_id"] == "777"
 
 
-def test_a_guild_that_deleted_its_config_is_skipped(monkeypatch):
+def test_a_guild_that_deleted_its_config_is_released(monkeypatch):
     orphan("gone", "7", "10-28")
     monkeypatch.setattr(
         birthdays_service.reminders_service, "create_reminder", lambda *a, **kw: "1"
@@ -156,6 +169,7 @@ def test_a_guild_that_deleted_its_config_is_skipped(monkeypatch):
     # No config means no channel to greet in; creating a reminder for it would
     # schedule a message with nowhere to go.
     assert birthdays_service.reconcile_missing_reminders() == 0
+    assert missing() == []
 
 
 # --------------------------------------------------------------------------

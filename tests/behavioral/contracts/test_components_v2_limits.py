@@ -299,16 +299,16 @@ async def test_a_birthday_panel_with_a_full_list_is_within_discord_limits(
 ):
     """bd-6: twenty-five birthdays, all in one month or spread over the year,
     keep the panel within the limits with its page and its footer row."""
-    from app.data.birthdays import upsert_birthday_item
     from app.services.reminders_birthdays import save_birthday_config
     from app.core.servers import set_feature_enabled
+    from tests.generators.birthdays import saved_birthday
 
     save_birthday_config(
         "123456789", "100", False, notification_time="08:00"
     )
     for index in range(25):
         month = index % months + 1
-        upsert_birthday_item("123456789", str(1000 + index), f"{month:02d}-{index + 1:02d}")
+        saved_birthday("123456789", str(1000 + index), f"{month:02d}-{index + 1:02d}")
     set_feature_enabled("123456789", "reminders_birthday", True)
     scenario = await scenario_factory(locale="pt-br").start_command("reminders_birthday")
 

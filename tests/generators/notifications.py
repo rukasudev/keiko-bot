@@ -70,17 +70,16 @@ async def twitch_audit(
     last_stream_date: datetime = None
 ) -> dict:
     """
-    Insere registro de auditoria de stream (para evitar duplicados).
+    Insere a subscription Twitch com a ultima live anunciada (para evitar duplicados).
     """
     doc = {
-        "streamer": streamer.lower(),
-        "last_stream_date": (last_stream_date or datetime.now(timezone.utc)).isoformat()
+        "_id": f"twitch:{streamer.lower()}",
+        "platform": "twitch",
+        "account": streamer.lower(),
+        "state": {"last_live_started_at": last_stream_date or datetime.now(timezone.utc)},
     }
 
-    if hasattr(db, 'audit'):
-        await _insert_or_sync(db.audit.notifications_twitch, doc)
-    else:
-        db.audit.notifications_twitch.insert_one(doc)
+    await _insert_or_sync(db.keiko.subscriptions, doc)
 
     return doc
 
@@ -96,16 +95,15 @@ async def twitch_notification_message(
     Insere referencia de mensagem enviada (para edicao posterior).
     """
     doc = {
-        "streamer": streamer.lower(),
+        "_id": f"{guild_id}:{channel_id}:notifications_twitch:{streamer.lower()}",
         "guild_id": guild_id,
         "channel_id": channel_id,
-        "message_id": message_id
+        "cog": "notifications_twitch",
+        "subject": streamer.lower(),
+        "message_id": message_id,
     }
 
-    if hasattr(db, 'notifications'):
-        await _insert_or_sync(db.notifications.notifications_twitch, doc)
-    else:
-        db.notifications.notifications_twitch.insert_one(doc)
+    await _insert_or_sync(db.guild.messages, doc)
 
     return doc
 
@@ -156,30 +154,6 @@ async def youtube(
     return doc
 
 
-async def reminder(
-    db,
-    reminder_id: str,
-    title: str,
-    value: str
-) -> dict:
-    """
-    Insere um reminder para renovacao de subscription.
-    """
-    doc = {
-        "reminder_id": reminder_id,
-        "title": title,
-        "value": value,
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-
-    if hasattr(db, 'audit'):
-        await _insert_or_sync(db.audit.reminders, doc)
-    else:
-        db.audit.reminders.insert_one(doc)
-
-    return doc
-
-
 # ============================================================================
 # HELPERS
 # ============================================================================
@@ -191,6 +165,14 @@ async def _insert_or_sync(collection, doc):
     except TypeError:
         # Fallback para mock sincrono
         collection.insert_one(doc)
+
+
+async def _delete_or_sync(collection, query):
+    """Remove documentos de forma assincrona."""
+    try:
+        await collection.delete_many(query)
+    except TypeError:
+        collection.delete_many(query)
 
 
 # ============================================================================
@@ -207,12 +189,8 @@ async def cleanup_twitch(db, streamer: str = None, guild_id: str = None):
                 db.guild.notifications_twitch.delete_many({"guild_id": guild_id})
 
         if streamer:
-            if hasattr(db, 'audit'):
-                await db.audit.notifications_twitch.delete_many({"streamer": streamer.lower()})
-                await db.notifications.notifications_twitch.delete_many({"streamer": streamer.lower()})
-            else:
-                db.audit.notifications_twitch.delete_many({"streamer": streamer.lower()})
-                db.notifications.notifications_twitch.delete_many({"streamer": streamer.lower()})
+            await _delete_or_sync(db.keiko.subscriptions, {"_id": f"twitch:{streamer.lower()}"})
+            await _delete_or_sync(db.guild.messages, {"subject": streamer.lower()})
     except Exception:
         pass
 

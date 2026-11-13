@@ -332,6 +332,11 @@ def _apply_update(doc, update, inserted):
             owner, leaf = _resolve_path(doc, key, create=True)
             owner[leaf] = value
 
+    for key in update.get("$unset") or {}:
+        owner, leaf = _resolve_path(doc, key)
+        if owner is not None:
+            owner.pop(leaf, None)
+
     for key, amount in (update.get("$inc") or {}).items():
         owner, leaf = _resolve_path(doc, key, create=True)
         owner[leaf] = (owner.get(leaf) or 0) + amount
@@ -430,6 +435,17 @@ def _matches(doc, filter_dict):
     return True
 
 
+def _inserted(filter_dict):
+    """The document an upsert starts from: the filter's plain equalities."""
+    document = {}
+    for key, value in filter_dict.items():
+        if isinstance(value, dict) and any(str(name).startswith("$") for name in value):
+            continue
+        owner, leaf = _resolve_path(document, key, create=True)
+        owner[leaf] = value
+    return document
+
+
 class MockMongoCollection:
     """Mock de uma collection MongoDB."""
 
@@ -468,20 +484,25 @@ class MockMongoCollection:
                 _apply_update(doc, update, inserted=False)
                 return MagicMock(matched_count=1, modified_count=1)
         if upsert:
-            new_doc = filter_dict.copy()
+            new_doc = _inserted(filter_dict)
             _apply_update(new_doc, update, inserted=True)
             self._data.append(new_doc)
             return MagicMock(matched_count=0, modified_count=0, upserted_id="mock_id")
         return MagicMock(matched_count=0, modified_count=0)
 
-    def update_many(self, filter_dict, update):
+    def update_many(self, filter_dict, update, upsert=False):
         """Every match, not just the first: the real driver's semantics."""
         modified = 0
         for doc in self._data:
             if _matches(doc, filter_dict):
                 _apply_update(doc, update, inserted=False)
                 modified += 1
-        return MagicMock(modified_count=modified)
+        if not modified and upsert:
+            new_doc = _inserted(filter_dict)
+            _apply_update(new_doc, update, inserted=True)
+            self._data.append(new_doc)
+            return MagicMock(matched_count=0, modified_count=0, upserted_id="mock_id")
+        return MagicMock(matched_count=modified, modified_count=modified)
 
     def bulk_write(self, operations, ordered=True):
         for operation in operations:

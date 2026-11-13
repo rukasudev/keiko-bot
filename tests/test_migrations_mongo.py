@@ -598,3 +598,134 @@ def test_an_operator_id_that_is_not_a_number_stops_the_run(client, versions):
 
     assert not passed
     assert "configs.admin admin_guild_id is 'the main one', not a Discord id" in out
+
+
+def test_from_empty_the_subscriptions_and_messages_file_writes_nothing(client, versions):
+    passed, out = run(client, versions)
+
+    assert passed, out
+    assert client.migrations.changelog.find_one({"_id": "data/0005"})["counts"] == {}
+    assert client.keiko.subscriptions.count_documents({}) == 0
+    assert client.guild.messages.count_documents({}) == 0
+
+
+def test_lives_hub_stamps_and_posted_lives_reach_their_new_homes(client, versions):
+    confirmed = datetime(2026, 10, 1, 18, 0)
+    reported = datetime(2026, 10, 6, 6, 0)
+    client.audit.notifications_twitch.insert_many([
+        {"streamer": "gaules", "last_stream_date": "2026-11-12T22:01:05Z"},
+        {"streamer": "gaules", "last_stream_date": "2026-11-10T20:00:00+00:00"},
+        {"streamer": "alanzoka", "last_stream_date": "2026-11-11T18:30:00Z"},
+    ])
+    client.notifications.notifications_twitch.insert_many([
+        {"guild_id": "1001", "channel_id": "2001", "streamer": "gaules", "message_id": "3001"},
+        {"guild_id": "1002", "channel_id": "2002", "streamer": "gaules", "message_id": "3002"},
+    ])
+    client.audit.reminders.insert_many([
+        {
+            "reminder_id": 7001,
+            "title": "youtube_notification",
+            "value": "pewdiepie",
+            "hub_confirmed_at": confirmed,
+            "lapse_reported_at": None,
+        },
+        {
+            "reminder_id": "7002",
+            "title": "youtube_notification",
+            "value": "mrbeast",
+            "hub_confirmed_at": confirmed,
+            "lapse_reported_at": reported,
+        },
+        {"reminder_id": "7003", "title": "youtube_notification", "value": "veritasium"},
+    ])
+
+    passed, out = run(client, versions)
+
+    assert passed, out
+    assert {document["_id"]: document for document in client.keiko.subscriptions.find({})} == {
+        "twitch:gaules": {
+            "_id": "twitch:gaules",
+            "platform": "twitch",
+            "account": "gaules",
+            "state": {"last_live_started_at": datetime(2026, 11, 12, 22, 1, 5)},
+        },
+        "twitch:alanzoka": {
+            "_id": "twitch:alanzoka",
+            "platform": "twitch",
+            "account": "alanzoka",
+            "state": {"last_live_started_at": datetime(2026, 11, 11, 18, 30)},
+        },
+        "youtube:pewdiepie": {
+            "_id": "youtube:pewdiepie",
+            "platform": "youtube",
+            "account": "pewdiepie",
+            "state": {"hub_confirmed_at": confirmed},
+        },
+        "youtube:mrbeast": {
+            "_id": "youtube:mrbeast",
+            "platform": "youtube",
+            "account": "mrbeast",
+            "state": {"hub_confirmed_at": confirmed, "lapse_reported_at": reported},
+        },
+    }
+    assert list(client.guild.messages.find({}, {"updated_at": False}).sort("_id", 1)) == [
+        {
+            "_id": "1001:2001:notifications_twitch:gaules",
+            "message_id": "3001",
+            "guild_id": "1001",
+            "channel_id": "2001",
+            "cog": "notifications_twitch",
+            "subject": "gaules",
+        },
+        {
+            "_id": "1002:2002:notifications_twitch:gaules",
+            "message_id": "3002",
+            "guild_id": "1002",
+            "channel_id": "2002",
+            "cog": "notifications_twitch",
+            "subject": "gaules",
+        },
+    ]
+    assert client.migrations.changelog.find_one({"_id": "data/0005"})["counts"] == {
+        "twitch_lives": 3,
+        "twitch_messages": 2,
+        "twitch_messages_replaced": 0,
+        "youtube_hub_states": 2,
+    }
+    assert client.audit.reminders.count_documents({}) == 3, "the old rows stay a release"
+
+
+def test_a_live_or_a_posted_live_it_cannot_read_stops_the_run_before_writing(
+    client, versions
+):
+    client.audit.notifications_twitch.insert_one(
+        {"streamer": "gaules", "last_stream_date": "None"}
+    )
+    client.notifications.notifications_twitch.insert_one(
+        {"guild_id": "1001", "channel_id": "2001", "streamer": "gaules"}
+    )
+    client.audit.reminders.insert_one(
+        {"title": "youtube_notification", "value": "mrbeast", "hub_confirmed_at": "yesterday"}
+    )
+
+    passed, out = run(client, versions)
+
+    assert not passed
+    assert "no readable last_stream_date" in out
+    assert "or a guild_id, channel_id or message_id is not a Discord id" in out
+    assert "a hub stamp that is not a date" in out
+    assert ledger(client) == []
+    assert "keiko" not in databases(client)
+
+
+def test_a_posted_live_whose_message_id_is_not_digits_stops_the_run(client, versions):
+    client.notifications.notifications_twitch.insert_one(
+        {"guild_id": 1001, "channel_id": "2001", "streamer": "gaules",
+         "message_id": "general"}
+    )
+
+    passed, out = run(client, versions)
+
+    assert not passed
+    assert "or a guild_id, channel_id or message_id is not a Discord id" in out
+    assert "keiko" not in databases(client)

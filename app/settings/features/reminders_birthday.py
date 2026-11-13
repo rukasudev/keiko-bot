@@ -9,11 +9,11 @@ from typing import Any
 
 from app.constants import Commands
 from app.constants import ViewConstants as view_constants
+from app.core import members
 from app.core.cache import remove_cog_cache_by_guild
 from app.core.cogs import is_feature_on
 from app.core.dates import utc_today
 from app.core.servers import set_feature_enabled
-from app.data import birthdays as birthdays_data
 from app.services.reminders_birthdays import (
     birthday_config,
     birthday_found_members,
@@ -22,6 +22,8 @@ from app.services.reminders_birthdays import (
     birthday_settings_rows,
     birthday_stats_lines,
     disable_birthdays,
+    find_birthday,
+    form_birthday_users,
     remove_birthday,
     save_birthday_config_changes,
     save_form_birthday_item,
@@ -43,7 +45,7 @@ from app.settings.form.responses.summary import PanelRow
 
 
 class BirthdayFeature(GenericCogFeature):
-    """Birthdays live in `reminders.birthdays`; the config in its cog document."""
+    """Birthdays live in `guild.members`; the config in its cog document."""
 
     def __init__(self, today: Callable[[], date] = utc_today) -> None:
         super().__init__(Commands.REMINDERS_BIRTHDAY_KEY)
@@ -113,8 +115,12 @@ class BirthdayFeature(GenericCogFeature):
     ) -> CommitResult:
         """The config, the first birthday and its reminder; the feature is on."""
         responses = self.responses_for_preview(payload["answers"], context.locale)
+        names = {
+            user_id: await members.display_name(context.guild, user_id)
+            for user_id in form_birthday_users(list(responses))
+        }
         await asyncio.to_thread(
-            save_setup_form, context.guild_id, responses, context.user_id
+            save_setup_form, context.guild_id, responses, context.user_id, names
         )
         await asyncio.to_thread(
             set_feature_enabled, context.guild_id, self.key, True, context.user_id
@@ -136,7 +142,10 @@ class BirthdayFeature(GenericCogFeature):
     ) -> CommitResult:
         """An edited member keeps its own birthday document."""
         item = self.item_document(payload["answers"], context.locale)
-        await asyncio.to_thread(save_form_birthday_item, context.guild_id, item)
+        name = await members.display_name(
+            context.guild, str(_value(item.get("user")) or "")
+        )
+        await asyncio.to_thread(save_form_birthday_item, context.guild_id, item, name)
         return CommitResult(("birthdays",))
 
     async def commit_add_item(
@@ -145,13 +154,12 @@ class BirthdayFeature(GenericCogFeature):
         """A new member's birthday, refused when the member is already listed."""
         item = self.item_document(payload["answers"], context.locale)
         user_id = str(_value(item.get("user")) or "")
-        existing = await asyncio.to_thread(
-            birthdays_data.find_birthday_item, context.guild_id, user_id
-        )
+        existing = await asyncio.to_thread(find_birthday, context.guild_id, user_id)
 
         if existing:
             raise DuplicateItem(user_id)
-        await asyncio.to_thread(save_form_birthday_item, context.guild_id, item)
+        name = await members.display_name(context.guild, user_id)
+        await asyncio.to_thread(save_form_birthday_item, context.guild_id, item, name)
         return CommitResult(("birthdays",))
 
     async def commit_remove_item(
@@ -160,9 +168,7 @@ class BirthdayFeature(GenericCogFeature):
         """Every chosen member's birthday goes while all are saved, or none does."""
         user_ids = [str(_value(item.get("user")) or "") for item in payload["items"]]
         for user_id in user_ids:
-            saved = await asyncio.to_thread(
-                birthdays_data.find_birthday_item, context.guild_id, user_id
-            )
+            saved = await asyncio.to_thread(find_birthday, context.guild_id, user_id)
             if not user_id or saved is None:
                 raise ListChanged(self.key)
 

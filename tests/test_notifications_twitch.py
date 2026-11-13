@@ -8,6 +8,7 @@ desde o recebimento do webhook ate o envio da mensagem.
 import pytest
 import discord
 from datetime import datetime, timedelta, timezone
+from app.data.guild.messages import save_message
 from app.services.notifications_twitch import (
     compose_notification_message,
     create_stream_notification_embed,
@@ -68,7 +69,7 @@ class TestTwitchStreamOnline:
                 }]
             }
         }]
-        twitch_data.find_last_stream_date.return_value = None  # Primeira vez
+        twitch_data.subscription_state.return_value = {}  # Primeira vez
         twitch_data.wait_for_stream_info.return_value = twitch.get_stream_info("gaules")
 
         # Act
@@ -83,11 +84,15 @@ class TestTwitchStreamOnline:
 
         # Verify mocks were called with correct arguments
         twitch_data.wait_for_stream_info.assert_called_once_with("gaules")
-        twitch_data.find_last_stream_date.assert_called_once_with("gaules")
+        twitch_data.subscription_state.assert_called_once_with("twitch", "gaules")
         twitch_data.find_guilds.assert_called_once_with("gaules")
-        twitch_data.save_notification.assert_called_once()
-        twitch_data.update_last_stream_date.assert_called_once_with(
-            "gaules", twitch.get_stream_info("gaules").get("started_at")
+        twitch_data.save_message.assert_called_once()
+        twitch_data.update_subscription_state.assert_called_once_with(
+            "twitch",
+            "gaules",
+            {"last_live_started_at": datetime.fromisoformat(
+                twitch.get_stream_info("gaules").get("started_at")
+            )},
         )
 
     @pytest.mark.asyncio
@@ -125,8 +130,8 @@ class TestTwitchStreamOnline:
         # When stream_info is None, should not proceed to find guilds or save
         twitch_data.wait_for_stream_info.assert_called_once_with("gaules")
         twitch_data.find_guilds.assert_not_called()
-        twitch_data.find_last_stream_date.assert_not_called()
-        twitch_data.save_notification.assert_not_called()
+        twitch_data.subscription_state.assert_not_called()
+        twitch_data.save_message.assert_not_called()
 
 
 class TestTwitchDuplicatePrevention:
@@ -154,7 +159,7 @@ class TestTwitchDuplicatePrevention:
             streamers=[{"name": "gaules", "channel_id": str(channel.id)}]
         )
 
-        recent_time = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+        recent_time = datetime.now(timezone.utc) - timedelta(minutes=30)
 
         bot.get_guild.return_value = guild
         guild.get_channel = lambda id: channel
@@ -167,8 +172,11 @@ class TestTwitchDuplicatePrevention:
                 "notification_messages": {"value": "{streamer} esta ao vivo!"}
             }]}
         }]
-        twitch_data.find_last_stream_date.return_value = recent_time
+        twitch_data.subscription_state.return_value = {
+            "last_live_started_at": recent_time
+        }
         twitch_data.is_more_than_one_hour.return_value = False  # Menos de 1 hora
+        twitch_data.wait_for_stream_info.return_value = twitch.get_stream_info("gaules")
 
         # Act
         await handle_send_streamer_notification("gaules")
@@ -178,10 +186,10 @@ class TestTwitchDuplicatePrevention:
 
         # Verify deduplication flow was followed
         twitch_data.wait_for_stream_info.assert_called_once_with("gaules")
-        twitch_data.find_last_stream_date.assert_called_once_with("gaules")
+        twitch_data.subscription_state.assert_called_once_with("twitch", "gaules")
         twitch_data.is_more_than_one_hour.assert_called_once()
-        twitch_data.save_notification.assert_not_called()
-        twitch_data.update_last_stream_date.assert_not_called()
+        twitch_data.save_message.assert_not_called()
+        twitch_data.update_subscription_state.assert_not_called()
 
 
 class TestTwitchTimeValidation:
@@ -199,10 +207,7 @@ class TestTwitchTimeValidation:
         two_hours_ago = now - timedelta(hours=2)
 
         # Act
-        result = is_more_than_one_hour(
-            now.isoformat(),
-            two_hours_ago.isoformat()
-        )
+        result = is_more_than_one_hour(now, two_hours_ago)
 
         # Assert
         assert result is True
@@ -219,10 +224,7 @@ class TestTwitchTimeValidation:
         thirty_min_ago = now - timedelta(minutes=30)
 
         # Act
-        result = is_more_than_one_hour(
-            now.isoformat(),
-            thirty_min_ago.isoformat()
-        )
+        result = is_more_than_one_hour(now, thirty_min_ago)
 
         # Assert
         assert result is False
@@ -433,9 +435,9 @@ async def test_two_deliveries_of_one_live_at_once_post_it_once(deps, servers):
 
     Guaranteed: before the fan-out, the notice claims the stream (its streamer and when it
     started) in Redis, as the YouTube announcement claims its video; a delivery that finds
-    the claim taken posts nothing. The claim is taken only once the followers are read, so a
-    delivery that could not read them (found in the next review: its claim held the live for
-    a day) leaves the live to the next delivery. When Redis cannot answer, the live is still
+    the claim taken posts nothing. The claim comes before the followers are read and is given
+    back when they cannot be read, so a delivery that could not read them (found in the next
+    review: its claim held the live for a day) leaves the live to the next delivery. When Redis cannot answer, the live is still
     announced, with a warning, rather than missed.
     """
     follow(deps, servers.first.id, servers.first.text_channels[0].id)
@@ -497,6 +499,47 @@ async def test_a_live_is_announced_when_redis_cannot_say_whether_it_was(
         record.levelno == logging.WARNING and "**gaules**" in record.getMessage()
         for record in caplog.records
     )
+
+
+@pytest.mark.behavioral
+@pytest.mark.regression
+@pytest.mark.shared_contract("fan_out")
+async def test_a_live_already_claimed_never_reads_who_follows_the_streamer(
+    deps, servers, monkeypatch
+):
+    """A delivery of a live another delivery already announces stops before the fan-out query.
+
+    Reported in the database plan of v1: the live notice read every server following the
+    streamer before it tried the claim, so each redelivery of one `stream.online` scanned
+    the followers only to find the live already announced.
+
+    Shared behaviour: `handle_send_streamer_notification`
+    (`app/services/notifications_twitch.py`), behind the Twitch webhook. Exposed by: the
+    query review of the database plan, on the fan-out query.
+
+    Guaranteed: the claim comes first; a delivery that finds it taken sends no query for
+    the followers and posts nothing.
+    """
+    from app.services import notifications_twitch
+
+    follow(deps, servers.first.id, servers.first.text_channels[0].id)
+    started_at = deps.twitch.get_stream_info("gaules")["started_at"]
+    assert notifications_twitch.claim_the_live("gaules", started_at)
+    read = notifications_twitch.find_guilds_by_streamer_name
+    queried = []
+
+    def find_guilds_by_streamer_name(streamer_name):
+        queried.append(streamer_name)
+        return read(streamer_name)
+
+    monkeypatch.setattr(
+        notifications_twitch, "find_guilds_by_streamer_name", find_guilds_by_streamer_name
+    )
+
+    await handle_send_streamer_notification("gaules")
+
+    assert notices(servers.first) == [], "the live was announced by the other delivery"
+    assert queried == [], "no server list is read for a live already claimed"
 
 
 GONE = 4004
@@ -681,9 +724,7 @@ async def test_the_offline_edit_skips_a_server_keiko_left_and_reaches_the_next(
     follow(deps, servers.second.id, servers.second.text_channels[0].id)
     await handle_send_streamer_notification("gaules")
     follow(deps, GONE, 100)
-    deps.mongo_client.notifications.notifications_twitch.insert_one({
-        "guild_id": str(GONE), "channel_id": "100", "streamer": "gaules", "message_id": "1",
-    })
+    save_message(GONE, 100, "notifications_twitch", "gaules", 1)
     reordered = sorted(
         deps.mongo_client.guild.notifications_twitch._data,
         key=lambda document: document["guild_id"] != str(GONE),

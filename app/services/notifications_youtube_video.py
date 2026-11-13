@@ -2,7 +2,7 @@ import asyncio
 import random
 import threading
 from dataclasses import dataclass
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from enum import Enum
 from http import HTTPStatus
 from typing import Any, Dict, List, Optional, Union
@@ -13,17 +13,6 @@ from requests import RequestException
 from app import bot, logger
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
-from app.exceptions import ErrorContext
-from app.data.guild import cogs as guild_cogs
-from app.data.guild import settings as guild_settings
-from app.data.reminder import (
-    delete_reminder_by_id,
-    find_reminder_by_value,
-    insert_renewal_reminder,
-    stamp_hub_confirmation,
-)
-from app.integrations.reminder_webhook import REMINDER_TIMEZONE, reminder_time
-from app.settings import open_feature
 from app.core import analytics
 from app.core.servers import server_language
 from app.core.trace import Outcome, fan_out
@@ -34,6 +23,13 @@ from app.core.utils import (
     split_messages,
     values_of,
 )
+from app.data.guild import cogs as guild_cogs
+from app.data.guild import settings as guild_settings
+from app.data.keiko import schedules
+from app.data.keiko.subscriptions import update_subscription_state
+from app.exceptions import ErrorContext
+from app.integrations.reminder_webhook import REMINDER_TIMEZONE, reminder_time
+from app.settings import open_feature
 from app.views.message_preview import MessagePreviewView
 
 
@@ -343,6 +339,61 @@ def handle_subscribe_youtubers_new_video(interaction: discord.Interaction, cogs:
 _RENEWALS = threading.Lock()
 
 
+def youtube_renewal_id(handle: str) -> str:
+    """The schedule of one youtuber's hub renewal."""
+    return schedules.schedule_id("youtube_renewal", handle)
+
+
+def find_reminder_by_value(youtuber: str) -> Optional[Dict[str, Any]]:
+    """The youtuber's renewal, or None."""
+    return _renewal(schedules.find_schedule(youtube_renewal_id(youtuber)))
+
+
+def find_reminder_by_id(reminder_id: Any) -> Optional[Dict[str, Any]]:
+    """A renewal reminder Keiko created, found by the id the reminders API gave it."""
+    schedule = schedules.find_schedule_by_reminder(reminder_id)
+    if not schedule or schedule.get("kind") != "youtube_renewal":
+        return None
+    return _renewal(schedule)
+
+
+def insert_renewal_reminder(
+    reminder_id: Any, youtuber: str, due_at: Optional[datetime] = None
+) -> None:
+    """Schedule a youtuber's renewal reminder, kept until nothing renews it for a while."""
+    schedules.upsert_schedule(
+        youtube_renewal_id(youtuber),
+        "youtube_renewal",
+        reminder_id,
+        due_at=due_at,
+        expires_at=_kept_until(datetime.now(timezone.utc)),
+    )
+
+
+def delete_reminder_by_id(reminder_id: Any) -> None:
+    """Forget the schedule of the renewal the reminders API knows as `reminder_id`."""
+    renewal = find_reminder_by_id(reminder_id)
+    if renewal:
+        schedules.delete_schedule(youtube_renewal_id(renewal["value"]))
+
+
+def _renewal(schedule: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
+    if not schedule:
+        return None
+
+    (youtuber,) = schedules.schedule_subject(schedule)
+    kept = {
+        key: schedule[key]
+        for key in ("created_at", "due_at", "expires_at")
+        if key in schedule
+    }
+    return {**kept, "reminder_id": schedule.get("reminder_id"), "value": youtuber}
+
+
+def _kept_until(renewed_at: datetime) -> datetime:
+    return renewed_at + timedelta(seconds=constants.YOUTUBE_RENEWAL_ROW_SECONDS)
+
+
 def subscribe_youtube_new_video(interaction: discord.Interaction, response: Dict[str, Any]):
     """Subscribe a youtuber a server starts following, with its one renewal; only a failed
     lookup keeps it unsaved."""
@@ -435,7 +486,7 @@ def ensure_renewal(
             )
             return
 
-        insert_renewal_reminder(reminder_id, youtuber)
+        insert_renewal_reminder(reminder_id, youtuber, renewal.astimezone(timezone.utc))
 
     logger.info(
         f"renewal of **{youtuber}** scheduled for {renewal:%Y-%m-%d %H:%M} ({REMINDER_TIMEZONE})",
@@ -452,6 +503,17 @@ def drop_unfollowed_renewal(renewal: Dict[str, Any]) -> bool:
         bot.reminder.delete_reminder(renewal.get("reminder_id"))
         delete_reminder_by_id(renewal.get("reminder_id"))
     return True
+
+
+def record_hub_confirmation(youtuber: str, moment: datetime) -> None:
+    """Record that the hub took the youtuber's subscription at `moment`, clearing any lapse
+    report, and keep its renewal for a while after."""
+    update_subscription_state(
+        "youtube", youtuber, {"hub_confirmed_at": moment, "lapse_reported_at": None}
+    )
+    schedules.extend_schedule_expiry(
+        youtube_renewal_id(youtuber), _kept_until(moment)
+    )
 
 
 def resubscribe_followed_channels() -> int:
@@ -484,7 +546,7 @@ def resubscribe_followed_channels() -> int:
             )
 
         if answer.outcome is HubOutcome.DONE:
-            stamp_hub_confirmation(youtuber, reminder_time().astimezone(timezone.utc))
+            record_hub_confirmation(youtuber, reminder_time().astimezone(timezone.utc))
             renewed += 1
             continue
         logger.warn(

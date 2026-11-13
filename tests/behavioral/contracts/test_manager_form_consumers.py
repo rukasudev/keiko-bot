@@ -86,14 +86,14 @@ async def test_manager_form_renders_birthday_via_real_settings_provider(
     """Birthday is the one consumer with a custom settings_provider; seed the
     DB through the real data layer and build cog_data with the real provider
     input function."""
-    from app.data.birthdays import upsert_birthday_item
     from app.services.reminders_birthdays import save_birthday_config
+    from tests.generators.birthdays import saved_birthday
     from app.services.reminders_birthdays import birthday_manager_cog_data
 
     save_birthday_config(
         GUILD_ID, "100", False, notification_time="08:00",
     )
-    upsert_birthday_item(GUILD_ID, "555", "05-12")
+    saved_birthday(GUILD_ID, "555", "05-12")
 
     cog_data = birthday_manager_cog_data(GUILD_ID)
     scenario = await scenario_factory(locale="pt-br").start_manager(

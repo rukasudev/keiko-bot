@@ -27,11 +27,11 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from app.constants import Commands
-from app.data.birthdays import find_birthday_item, upsert_birthday_item
 from app.core import servers as moderations_service
 from app.core import reminders as reminders_service
 from app.services import reminders_birthdays
 from app.services.reminders_birthdays import birthday_config, save_birthday_config
+from tests.generators.birthdays import last_celebrated_year, saved_birthday
 from tests.generators.moderations import recorded_server
 from tests.mocks.discord import create_guild, create_member
 
@@ -73,8 +73,8 @@ def birthdays(deps, api):
     """A server in São Paulo whose two birthdays are scheduled at 09:00 there."""
     recorded_server(deps.mongo_client, GUILD, timezone=SAO_PAULO)
     save_birthday_config(GUILD, "100", False, "09:00")
-    upsert_birthday_item(GUILD, "555", "05-12", reminder_id="4001")
-    upsert_birthday_item(GUILD, "556", "07-01", reminder_id="4002")
+    saved_birthday(GUILD, "555", "05-12", reminder_id="4001")
+    saved_birthday(GUILD, "556", "07-01", reminder_id="4002")
     api.zones.update({"4001": SAO_PAULO, "4002": SAO_PAULO})
     return api
 
@@ -200,10 +200,10 @@ async def test_a_birthdays_year_is_counted_where_the_server_is(
     recorded_server(deps.mongo_client, GUILD, timezone=server_zone)
     save_birthday_config(GUILD, "100", False, "09:00")
     moderations_service.set_feature_enabled(GUILD, Commands.REMINDERS_BIRTHDAY_KEY, True)
-    upsert_birthday_item(GUILD, "555", "07-02", reminder_id="4001")
+    saved_birthday(GUILD, "555", "07-02", reminder_id="4001")
 
     await birthday_handler.celebrate_in_guild(
         GUILD, [{"user_id": "555", "date": "07-02"}], "07-02", Counter()
     )
 
-    assert find_birthday_item(GUILD, "555")["celebrated_year"] == year
+    assert last_celebrated_year(GUILD, "555") == year

@@ -135,15 +135,15 @@ async def youtube_video(deps, guild):
 
 
 async def birthday(deps, guild):
-    from app.data.birthdays import upsert_birthday_item
     from app.services.reminders_birthdays import save_birthday_config
     from app.core.servers import set_feature_enabled
+    from tests.generators.birthdays import saved_birthday
     from app.webhooks.birthday_handler import celebrate_in_guild
 
     channel = guild.text_channels[0]
     create_member(guild, id=555, name="Tester")
     save_birthday_config(str(guild.id), str(channel.id), False)
-    upsert_birthday_item(str(guild.id), "555", "05-12", reminder_id="4001")
+    saved_birthday(str(guild.id), "555", "05-12", reminder_id="4001")
     set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
 
     await celebrate_in_guild(

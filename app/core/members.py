@@ -65,6 +65,12 @@ async def find(guild: Any, member_id: Any) -> Optional[Any]:
     return member
 
 
+async def display_name(guild: Any, member_id: Any) -> Optional[str]:
+    """The member's display name, or None when no member is named or it left."""
+    member = await find(guild, member_id) if member_id else None
+    return str(member.display_name) if member is not None else None
+
+
 async def every_member(guild: Any) -> AsyncIterator[Any]:
     """Every member of the server, a page at a time from the API, none of them kept."""
     async for member in guild.fetch_members(limit=None):

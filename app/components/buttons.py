@@ -170,7 +170,7 @@ class SyncronizeRemindersButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        from app import bot
+        from app.services.subscriptions import delete_renewal
 
         await interaction.response.defer(thinking=True)
 
@@ -179,7 +179,7 @@ class SyncronizeRemindersButton(discord.ui.Button):
             if count > 0:
                 continue
 
-            await asyncio.to_thread(bot.reminder.delete_reminder, reminder)
+            await asyncio.to_thread(delete_renewal, reminder)
             reminders_deleted.append(self.view.streamers_by_reminder[reminder])
 
         return await interaction.followup.send(
@@ -205,17 +205,17 @@ class RemoveDuplicatedReminderButton(discord.ui.Button):
             if count == 1:
                 continue
 
-            for reminder, streamer_name in self.view.streamers_by_reminder.items():
-                if streamer_name != streamer:
-                    continue
+            extras = [
+                reminder for reminder in self.view.untracked_reminders
+                if self.view.streamers_by_reminder[reminder] == streamer
+            ]
+            if len(extras) == count:
+                extras = extras[1:]
 
+            for reminder in extras:
                 await asyncio.to_thread(bot.reminder.delete_reminder, reminder)
-
                 removed_by_streamers[streamer] = removed_by_streamers.get(streamer, 0) + 1
                 removed_reminders += 1
-
-                if removed_by_streamers[streamer] == count - 1:
-                    break
 
         message = "\n".join([f"Deleted {count} reminders from {streamer}" for streamer, count in removed_by_streamers.items()])
 

@@ -71,7 +71,7 @@ class DBConfigs:
         "configs": ("admin", "data"),
         "events": None,
         "guild": None,
-        "keiko": ("settings",),
+        "keiko": None,
         "notifications": None,
         "reminders": None,
     }

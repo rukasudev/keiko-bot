@@ -34,7 +34,7 @@ from zoneinfo import ZoneInfo
 import pytest
 import requests
 
-from app.data.reminder import find_reminder_by_value, insert_renewal_reminder
+from app.services.notifications_youtube_video import find_reminder_by_value, insert_renewal_reminder
 from app.integrations import reminder_webhook
 from app.integrations import youtube as youtube_integration
 from app.core.utils import ml
@@ -129,7 +129,7 @@ async def test_the_renewal_an_unsubscribe_leaves_behind_drops_itself(
     scenario_factory, deps, trouble,
 ):
     """The unsubscribe never deletes the renewal, whatever the hub says; the renewal does."""
-    from app.data.reminder import find_reminder_by_id
+    from app.services.notifications_youtube_video import find_reminder_by_id
     from app.webhooks.reminder import renew_youtube_subscription
 
     scenario = await open_manager(scenario_factory, deps, "en-us", FORM, _seed_two_entries)
@@ -143,7 +143,7 @@ async def test_the_renewal_an_unsubscribe_leaves_behind_drops_itself(
     renew_youtube_subscription(7001)
 
     assert find_reminder_by_id(7001) is None
-    deps.bot.reminder.delete_reminder.assert_called_once_with(7001)
+    deps.bot.reminder.delete_reminder.assert_called_once_with("7001")
     deps.bot.reminder.update_reminder.assert_not_called()
 
 

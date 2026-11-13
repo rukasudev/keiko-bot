@@ -55,10 +55,10 @@ async def test_custom_image_upload_persists_permanent_url(
     await scenario.click("done")
 
     item = scenario.get_persisted(
-        "reminders",
-        "birthdays",
+        "guild",
+        "members",
         {"guild_id": str(scenario.guild.id), "user_id": "555"},
-    )
+    )["options"]["reminders_birthday"]
     assert item["image"]["mode"] == "custom"
     assert item["image"]["url"] == FAKE_CDN_URL
     await scenario.finish()

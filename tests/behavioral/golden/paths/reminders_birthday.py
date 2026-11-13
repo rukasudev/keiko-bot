@@ -10,9 +10,9 @@ A paused birthday feature opens its manager, like every other feature, so
 the lifecycle records its Unpause (ux-80).
 """
 
-from app.data.birthdays import upsert_birthday_item
 from app.services.reminders_birthdays import save_birthday_config
 from app.core.servers import set_feature_enabled
+from tests.generators.birthdays import saved_birthday
 from tests.behavioral.golden.paths import golden_path
 from tests.behavioral.golden.paths.common import (
     GUILD_ID,
@@ -41,7 +41,7 @@ def _seed_config(deps, enabled=True, members=("555",)):
         notification_time="08:00",
     )
     for index, user_id in enumerate(members):
-        upsert_birthday_item(GUILD_ID, user_id, f"{5 + index:02d}-12")
+        saved_birthday(GUILD_ID, user_id, f"{5 + index:02d}-12")
     set_feature_enabled(GUILD_ID, FORM, enabled)
 
 

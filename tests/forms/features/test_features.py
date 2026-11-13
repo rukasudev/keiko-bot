@@ -534,19 +534,17 @@ async def test_the_birthday_setup_writes_the_config_and_the_first_member(deps):
     config = find_cog_by_guild_id(GUILD_ID, "reminders_birthday")
     assert config["channel"] == "100" and config["notification_time"] == "08:00"
     assert config["enabled"] is True
-    item = deps.mongo_client.reminders["birthdays"].find_one(
-        {"guild_id": GUILD_ID, "user_id": "555"}
-    )
-    assert item["date"] == "05-12"
+    item = deps.mongo_client.guild["members"].find_one({"_id": f"{GUILD_ID}:555"})
+    assert item["options"]["reminders_birthday"]["date"] == "05-12"
 
 
 async def test_the_birthday_panel_opens_with_its_own_rows(deps):
     from app.core.servers import set_feature_enabled
-    from app.data.birthdays import upsert_birthday_item
     from app.services.reminders_birthdays import save_birthday_config
+    from tests.generators.birthdays import saved_birthday
 
     save_birthday_config(GUILD_ID, "100", False, notification_time="08:00")
-    upsert_birthday_item(GUILD_ID, "555", "05-12")
+    saved_birthday(GUILD_ID, "555", "05-12")
     set_feature_enabled(GUILD_ID, "reminders_birthday", True)
     opened = await feature_for("reminders_birthday").open(
         OpenContext(GUILD_ID, "555", "pt-br")
@@ -1076,13 +1074,13 @@ async def test_the_birthday_panel_counts_from_the_day_its_clock_gives(
 ):
     """The panel's next birthdays and the month it opens on follow the
     feature's clock (`BirthdayFeature.today`), never the machine's date."""
-    from app.data.birthdays import upsert_birthday_item
     from app.services.reminders_birthdays import save_birthday_config
     from app.settings.features.reminders_birthday import FEATURE
+    from tests.generators.birthdays import saved_birthday
 
     save_birthday_config(GUILD_ID, "100", False, notification_time="08:00")
-    upsert_birthday_item(GUILD_ID, "555", "05-12")
-    upsert_birthday_item(GUILD_ID, "777", "06-12")
+    saved_birthday(GUILD_ID, "555", "05-12")
+    saved_birthday(GUILD_ID, "777", "06-12")
     monkeypatch.setattr(FEATURE, "today", lambda: today)
 
     opened = await FEATURE.open(OpenContext(GUILD_ID, "555", "pt-br"))
@@ -1113,16 +1111,16 @@ async def test_a_found_member_shows_whose_messages_greet_them(deps):
     labelled by whose they are: the member's own, the server's default, or
     Keiko's default when nobody wrote one; the picture is the platform's, read
     from the server's members (review fixes K2)."""
-    from app.data.birthdays import upsert_birthday_item
     from app.services.reminders_birthdays import save_birthday_config
     from app.settings.features.reminders_birthday import FEATURE
+    from tests.generators.birthdays import saved_birthday
     from tests.mocks.discord import create_guild, create_member
 
     guild = create_guild()
     create_member(guild, id=777, name="Amiga")
     save_birthday_config(GUILD_ID, "100", False)
-    upsert_birthday_item(GUILD_ID, "777", "06-12")
-    upsert_birthday_item(
+    saved_birthday(GUILD_ID, "777", "06-12")
+    saved_birthday(
         GUILD_ID,
         "888",
         "07-01",

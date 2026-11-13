@@ -13,9 +13,9 @@ import discord
 import pytest
 
 from app.core.utils import ml
-from app.data.birthdays import upsert_birthday_item
 from app.services.reminders_birthdays import save_birthday_config
 from app.core.servers import set_feature_enabled
+from tests.generators.birthdays import saved_birthday
 from app.webhooks import birthday_handler
 from tests.behavioral.golden.paths.reminders_birthday import _type_day
 from tests.mocks.discord import create_member
@@ -167,18 +167,18 @@ async def test_happy_path_ptbr_persists_config_and_member(scenario_factory):
     assert server_zone(scenario) == "America/Sao_Paulo"
 
     scenario.expect_persisted(
-        "reminders", "birthdays",
-        {"guild_id": guild_id, "user_id": "555"},
-        {"date": "05-12"},
+        "guild", "members",
+        {"guild_id": guild_id, "user_id": "555", "options.reminders_birthday.date": "05-12"},
+        {},
     )
 
 
 async def test_happy_path_enus_same_flow_in_english(scenario_factory):
     scenario = await _run_happy_path(scenario_factory, "en-us")
     scenario.expect_persisted(
-        "reminders", "birthdays",
-        {"guild_id": str(scenario.guild.id), "user_id": "555"},
-        {"date": "05-12"},
+        "guild", "members",
+        {"guild_id": str(scenario.guild.id), "user_id": "555", "options.reminders_birthday.date": "05-12"},
+        {},
     )
 
 
@@ -199,9 +199,9 @@ async def test_invalid_day_shows_error_and_recovers(scenario_factory):
 
     await scenario.click("done")
     scenario.expect_persisted(
-        "reminders", "birthdays",
-        {"guild_id": str(scenario.guild.id), "user_id": "555"},
-        {"date": "02-28"},
+        "guild", "members",
+        {"guild_id": str(scenario.guild.id), "user_id": "555", "options.reminders_birthday.date": "02-28"},
+        {},
     )
     await scenario.finish()
 
@@ -215,7 +215,7 @@ async def test_the_setup_saves_the_settings_and_no_birthday(scenario_factory):
         {"notification_time": "08:00"},
     )
     scenario.expect_not_persisted(
-        "reminders", "birthdays", {"guild_id": guild_id}
+        "guild", "members", {"guild_id": guild_id}
     )
 
 
@@ -250,7 +250,7 @@ async def test_cancel_discards_and_persists_nothing(scenario_factory):
 
     guild_id = str(scenario.guild.id)
     scenario.expect_not_persisted("guild", "reminders_birthday", {"guild_id": guild_id})
-    scenario.expect_not_persisted("reminders", "birthdays", {"guild_id": guild_id})
+    scenario.expect_not_persisted("guild", "members", {"guild_id": guild_id})
     await scenario.finish()
 
 
@@ -266,8 +266,8 @@ async def test_persisted_documents_have_expected_shape(scenario_factory):
     assert "timezone" not in config, "the zone is the server's, not the birthdays'"
 
     item = scenario.get_persisted(
-        "reminders", "birthdays", {"guild_id": guild_id, "user_id": "555"}
-    )
+        "guild", "members", {"guild_id": guild_id, "user_id": "555"}
+    )["options"]["reminders_birthday"]
     assert item["date"] == "05-12"
     assert item["message"]["mode"] == "default"
     assert item["image"]["mode"] == "default"
@@ -286,7 +286,7 @@ async def _celebrate(deps, monkeypatch, mm_dd="05-12"):
         False,
         notification_time="08:00",
     )
-    upsert_birthday_item(guild_id, "555", mm_dd, reminder_id="reminder-1")
+    saved_birthday(guild_id, "555", mm_dd, reminder_id="reminder-1")
     set_feature_enabled(guild_id, "reminders_birthday", True)
 
     await birthday_handler.process_birthday_webhook("reminder-1", mm_dd)
@@ -387,8 +387,8 @@ async def test_the_member_is_chosen_on_the_card_with_their_picture_under_it(
 
     await _complete_member_card(scenario, "pt-br", month="06", day="27")
     item = scenario.get_persisted(
-        "reminders", "birthdays", {"guild_id": str(scenario.guild.id), "user_id": "777"}
-    )
+        "guild", "members", {"guild_id": str(scenario.guild.id), "user_id": "777"}
+    )["options"]["reminders_birthday"]
     assert item["date"] == "06-27"
     assert item["message"] == {"mode": "default", "title": None, "content": None}
     assert item["image"] == {"mode": "default", "url": None}
@@ -433,12 +433,12 @@ async def test_editing_a_member_keeps_the_member_fixed_on_the_card(
     await scenario.click("done")
 
     item = scenario.get_persisted(
-        "reminders", "birthdays", {"guild_id": str(scenario.guild.id), "user_id": "777"}
-    )
+        "guild", "members", {"guild_id": str(scenario.guild.id), "user_id": "777"}
+    )["options"]["reminders_birthday"]
     assert item["date"] == "06-30"
-    from app.data.birthdays import find_birthday_items_by_guild
+    from app.services.reminders_birthdays import find_birthdays_by_guild
 
-    saved = find_birthday_items_by_guild(str(scenario.guild.id))
+    saved = find_birthdays_by_guild(str(scenario.guild.id))
     assert sorted(saved_item["user_id"] for saved_item in saved) == ["555", "777"]
     await scenario.finish()
 

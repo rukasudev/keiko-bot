@@ -240,11 +240,14 @@ async def test_a_birthday_reminder_never_freezes_the_bot(deps, monkeypatch):
     save_birthday_config(guild_id, str(channel.id), False)
     set_feature_enabled(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY, True)
     monkeypatch.setattr(birthday_handler, "bot", deps.bot)
-    birthday = {"guild_id": guild_id, "user_id": "555", "date": "03-15", "reminder_id": "reminder-1"}
+    birthday = {"guild_id": guild_id, "user_id": "555", "date": "03-15", "state": {}}
+    schedule = {"_id": f"birthday:{guild_id}:03-15", "kind": "birthday"}
     monkeypatch.setattr(
-        "app.data.birthdays.find_birthday_items_by_reminder_and_date", blocking([birthday])
+        "app.data.keiko.schedules.find_schedules_by_reminder", blocking([schedule])
     )
-    monkeypatch.setattr("app.data.birthdays.mark_birthday_celebrated", blocking(True))
+    monkeypatch.setattr("app.data.keiko.schedules.set_schedule_due", blocking(1))
+    monkeypatch.setattr("app.data.guild.members.find_members_by_option", blocking([birthday]))
+    monkeypatch.setattr("app.data.guild.members.claim_member_state", blocking(True))
 
     ticks = await ticks_while(
         birthday_handler.process_birthday_webhook("reminder-1", "03-15")
@@ -581,7 +584,7 @@ def birthdays_on(monkeypatch):
         "app.services.reminders_birthdays.birthday_config",
         blocking({"channel": "1", "enabled": True}),
     )
-    monkeypatch.setattr("app.data.birthdays.find_birthday_item", blocking(None))
+    monkeypatch.setattr("app.data.guild.members.find_member_option", blocking(None))
     monkeypatch.setattr("app.services.reminders_birthdays.upsert_birthday", blocking(None))
 
 
@@ -793,9 +796,9 @@ async def test_a_live_notice_never_waits_on_the_database_on_the_loop(deps, guild
         notifications_twitch, "wait_for_stream_info",
         lambda streamer: deps.twitch.get_stream_info(streamer),
     )
-    monkeypatch.setattr(notifications_twitch, "find_last_stream_date", blocking(None))
+    monkeypatch.setattr(notifications_twitch, "subscription_state", blocking({}))
     monkeypatch.setattr(notifications_twitch, "find_guilds_by_streamer_name", blocking([]))
-    monkeypatch.setattr(notifications_twitch, "update_last_stream_date", blocking(None))
+    monkeypatch.setattr(notifications_twitch, "update_subscription_state", blocking(None))
 
     ticks = await ticks_while(notifications_twitch.handle_send_streamer_notification("gaules"))
 
@@ -836,8 +839,6 @@ ALLOWED: Dict[str, str] = {
     "app.services.admin.get_admin_configs": ADMIN_COMMAND,
     "app/cogs/admin/configs.py::Configs.update_config -> "
     "app.services.admin.update_admin_configs": ADMIN_COMMAND,
-    "app/cogs/admin/subscriptions.py::Subscriptions.show_reminder_subscriptions -> "
-    "app.services.subscriptions.get_reminder_subscriptions": ADMIN_COMMAND,
     "app/cogs/admin/subscriptions.py::Subscriptions.show_twitch_subscriptions -> "
     "app.services.subscriptions.get_twitch_subscriptions": ADMIN_COMMAND,
     "app/services/config.py::update_activity -> app.data.keiko.settings.update_presence": (

@@ -85,7 +85,7 @@ async def test_each_duplicate_birthday_is_told_once_and_the_next_member_is_not(
 
     assert _errors_since(scenario, start) == [], scenario.transcript
     scenario.expect_persisted(
-        "reminders", "birthdays", {"user_id": "777"}, {"user_id": "777"}
+        "guild", "members", {"user_id": "777"}, {"user_id": "777"}
     )
 
 

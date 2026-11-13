@@ -47,12 +47,11 @@ def configure_birthdays(deps, guild_id, *, birthdays=1, default_message=True):
         }} if default_message else {}),
     })
     for index in range(birthdays):
-        deps.mongo_client.reminders.birthdays.insert_one({
+        deps.mongo_client.guild.members.insert_one({
+            "_id": f"{guild_id}:u{index}",
             "guild_id": guild_id,
             "user_id": f"u{index}",
-            "date": "03-15",
-            "month": 3,
-            "day": 15,
+            "options": {"reminders_birthday": {"date": "03-15", "month": 3, "day": 15}},
         })
 
 
@@ -66,7 +65,7 @@ def test_a_feature_that_stores_its_own_shape_is_not_reported_as_unused(deps):
     assert usage["guilds"] == 3
     assert field(usage, "channel")["filled"] == 3
     assert field(usage, "reminders_birthday")["filled"] == 3, (
-        "the registered birthdays live in reminders.birthdays, not in the guild document"
+        "the registered birthdays live in guild.members, not in the guild document"
     )
     assert field(usage, "default_message_title")["filled"] == 3, (
         "the three default_message_* settings are one nested object in storage"
