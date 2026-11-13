@@ -14,6 +14,7 @@ import pytest
 
 from app.data import birthdays as birthdays_data
 from app.services import reminders_birthdays as birthdays_service
+from app.services.reminders_birthdays import save_birthday_config
 from tests.generators.moderations import recorded_server
 
 pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("birthday_reminders")]
@@ -22,10 +23,9 @@ pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("birthday_reminders"
 @pytest.fixture
 def guild_config(deps):
     recorded_server(deps.mongo_client, "1532291713580925048", timezone="UTC")
-    birthdays_data.upsert_birthday_config(
+    save_birthday_config(
         "1532291713580925048",
         channel_id="99",
-        timezone="UTC",
         notification_time="14:00",
     )
     return "1532291713580925048"
@@ -132,7 +132,7 @@ def test_a_still_failing_reminder_leaves_the_birthday_alone(guild_config, monkey
 
 def test_one_broken_guild_does_not_stop_the_others(deps, guild_config, monkeypatch):
     recorded_server(deps.mongo_client, "other")
-    birthdays_data.upsert_birthday_config("other", channel_id="1")
+    save_birthday_config("other", channel_id="1")
     orphan(guild_config, "7", "10-28")
     orphan("other", "9", "03-23")
 

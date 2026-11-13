@@ -18,7 +18,8 @@ import pytest
 from app import logger as logger_module
 from app.constants import Commands
 from app.data import birthdays as birthdays_data
-from app.data import moderations as moderations_data
+from app.core.servers import set_feature_enabled
+from app.services.reminders_birthdays import save_birthday_config
 from app.services import reminders_birthdays as birthdays_service
 from app.core import trace as trace_service
 from tests.generators.moderations import recorded_server
@@ -43,13 +44,9 @@ def closed_traces():
 
 @pytest.fixture
 def enabled(deps, monkeypatch):
-    moderations_data.mongo_client.guild.moderations.insert_one(
-        {"guild_id": GUILD_ID, Commands.REMINDERS_BIRTHDAY_KEY: True}
-    )
     recorded_server(deps.mongo_client, GUILD_ID, timezone="UTC")
-    birthdays_data.upsert_birthday_config(
-        GUILD_ID, channel_id="99", timezone="UTC", notification_time="14:00"
-    )
+    save_birthday_config(GUILD_ID, channel_id="99", notification_time="14:00")
+    set_feature_enabled(GUILD_ID, Commands.REMINDERS_BIRTHDAY_KEY, True)
     monkeypatch.setattr(
         birthdays_service.reminders_service, "create_reminder", lambda *a, **kw: "1"
     )

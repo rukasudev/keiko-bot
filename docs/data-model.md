@@ -36,8 +36,10 @@ key. How the change then reaches the database is in `docs/migrations.md`.
 
 ## The layout
 
-The new database ships in two pull requests. Until both are merged, the code reads
-the collections in the "today" column.
+The new database ships in two pull requests. The code reads a collection once the
+pull request in the "arrives" column is merged, and the collections in the "today"
+column until then. The old ones stay one release after the copy (expand, then
+contract) and a later schema file drops them.
 
 | database | collection | one document per | holds | today | arrives |
 |---|---|---|---|---|---|
@@ -80,10 +82,10 @@ guild.cogs
   _id: "921659827523051530:stream_elements_commands",
   guild_id, cog: "stream_elements_commands",
   enabled: true,                       the only answer to "is it on?"
-  schema_version: 1,
   options: {streamer: "shroud"},       what the form saved
-  state: {channel_id: "5f..."},        what Keiko found out on its own
-  created_at, updated_at, updated_by
+  state: {channel_id: "5f...", schema_version: 1},   what Keiko found out on its own
+  created_at, updated_at,
+  updated_by: "287394712398"           the member who last saved; Keiko's own writes leave it
 }
 
 guild.members
@@ -95,6 +97,19 @@ guild.members
   updated_at
 }
 ```
+
+`app/data/guild/cogs.py` hands the app the flat feature document it always read,
+`{guild_id, enabled, **options, state: {...}}`, and splits it back on a write, so a
+feature module never names `options`. What Keiko learns on its own goes through
+`set_cog_state(guild_id, cog, fields)`. The birthday config keeps the form's keys
+(`channel`, `notification_time`, `mention_everyone`, `default_message`); its time zone
+is the server's.
+
+`keiko.settings` is one document, `_id: "keiko"`:
+`options {presence: {status, activity, description}, prefix, owner_id, operator: {admin_guild_id, admin_*_channel_id...}}`,
+the operator ids stored as numbers. `keiko.integrations` is one document per
+integration, `_id` its name, `options` its switch and settings; the backup leaves it
+out.
 
 The member's display name sits next to the birthday, so a panel lists names
 without asking Discord for every member. Keiko refreshes the copy; it is never the

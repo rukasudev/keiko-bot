@@ -206,8 +206,9 @@ async def test_a_picked_member_has_a_picture_without_a_request():
 
 
 async def test_a_birthday_of_a_member_nobody_cached_is_celebrated(deps, monkeypatch):
-    from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
-    from app.core.moderations import update_moderations_by_guild
+    from app.data.birthdays import upsert_birthday_item
+    from app.services.reminders_birthdays import save_birthday_config
+    from app.core.servers import set_feature_enabled
     from app.webhooks import birthday_handler
     from tests.generators.moderations import recorded_server
 
@@ -216,10 +217,10 @@ async def test_a_birthday_of_a_member_nobody_cached_is_celebrated(deps, monkeypa
     recorded_server(deps.mongo_client, guild.id)
     deps.bot.get_guild = lambda guild_id: guild if int(guild_id) == guild.id else None
     monkeypatch.setattr(birthday_handler, "bot", deps.bot)
-    upsert_birthday_config(str(guild.id), str(guild.text_channels[0].id), False)
+    save_birthday_config(str(guild.id), str(guild.text_channels[0].id), False)
     for member_id in ("777", "404"):
         upsert_birthday_item(str(guild.id), member_id, "05-12", reminder_id="4001")
-    update_moderations_by_guild(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
+    set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
 
     await birthday_handler.process_birthday_webhook("4001", "05-12")
 

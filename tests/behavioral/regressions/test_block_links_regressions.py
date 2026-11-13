@@ -17,6 +17,7 @@ from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
 from tests.helpers.assertions import keys_in, values_in
 from tests.mocks import create_message
 import discord
+from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
@@ -514,7 +515,7 @@ async def test_the_stats_never_walk_the_keyspace(deps, monkeypatch, scenario_fac
 @pytest.mark.shared_contract("config_cache")
 async def test_forgetting_a_servers_settings_never_walks_the_keyspace(deps, monkeypatch):
     """The settings cache forgets its own keys; the counters are block links' to delete."""
-    deps.mongo_client.guild["block_links"].insert_one(dict(COG))
+    seed_cog(deps.mongo_client, "block_links", dict(COG))
     cache.get_cog_data_or_populate(GUILD_ID, Commands.BLOCK_LINKS_KEY)
     deps.redis_client.hincrby(COUNTERS, "total", 3)
     walks = keyspace_walks(deps, monkeypatch)
@@ -522,7 +523,7 @@ async def test_forgetting_a_servers_settings_never_walks_the_keyspace(deps, monk
     cache.remove_all_cache_by_guild(GUILD_ID)
 
     assert walks == [], f"leaving a server walked the keyspace: {walks}"
-    assert deps.redis_client.get(f"guild:{GUILD_ID}:cog.block_links") is None
+    assert deps.redis_client.get(f"cache:cog:{GUILD_ID}:block_links") is None
     assert deps.redis_client.hgetall(COUNTERS) == {"total": "3"}
 
 

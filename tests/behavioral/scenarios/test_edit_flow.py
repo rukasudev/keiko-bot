@@ -8,6 +8,8 @@ change into the persisted document.
 import pytest
 
 from app.core.utils import ml
+from app.data.guild.cogs import find_cog_by_guild_id
+from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
 
@@ -30,7 +32,7 @@ async def test_edit_card_updates_answer_and_upgrades_legacy_shape(
     meaningfully, and untouched keys survive."""
     from app.services.block_links import normalize_block_links_config
 
-    deps.mongo_client.guild["block_links"].insert_one(dict(LEGACY_COG))
+    seed_cog(deps.mongo_client, "block_links", dict(LEGACY_COG))
     scenario = await scenario_factory(locale="pt-br").start_manager(
         "block_links", normalize_block_links_config(LEGACY_COG)
     )
@@ -95,7 +97,7 @@ async def test_editing_one_default_roles_select_commits_it_from_its_own_edit(
 
     scenario.expect_component(label_or_action="pause")
     assert "<@&200>" in str(scenario.outputs[-1]), "the panel shows the new role"
-    document = deps.mongo_client.guild["default_roles"].find_one({"guild_id": GUILD_ID})
+    document = find_cog_by_guild_id(GUILD_ID, "default_roles")
 
     def ids(entry):
         values = entry["values"]

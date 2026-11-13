@@ -15,6 +15,7 @@ from types import SimpleNamespace
 import discord
 from tests.mocks.discord import create_guild, create_member, MockInteraction
 from app.constants import Commands
+from tests.generators.moderations import seed_cog
 
 pytestmark = pytest.mark.unit
 
@@ -172,7 +173,7 @@ def test_the_funnel_section_lists_every_feature_that_had_activity():
 
 def test_the_settings_section_names_what_nobody_fills(deps):
     for index in range(6):
-        deps.mongo_client.guild["welcome_messages"].insert_one({
+        seed_cog(deps.mongo_client, "welcome_messages", {
             "guild_id": str(index),
             "welcome_messages_channel": {"values": ["1"]},
             "welcome_custom_image": None,
@@ -218,9 +219,7 @@ class Cache(list):
 
 @pytest.fixture
 def stores(monkeypatch):
-    monkeypatch.setattr(admin, "mongo_client", SimpleNamespace(guild=SimpleNamespace(
-        moderations=SimpleNamespace(aggregate=lambda pipeline: [])
-    )))
+    monkeypatch.setattr(admin, "servers_overview", lambda since: {})
     monkeypatch.setattr(admin, "redis_client", SimpleNamespace(
         scan_iter=lambda pattern: [], get=lambda key: None, dbsize=lambda: 0
     ))
@@ -320,27 +319,17 @@ def bot():
 
 @pytest.fixture
 def adoption_stores(deps, monkeypatch):
-    monkeypatch.setattr(admin, "mongo_client", SimpleNamespace(guild=SimpleNamespace(
-        moderations=SimpleNamespace(aggregate=lambda pipeline: [FLAGS_AS_MONGO_SUMS_THEM])
-    )))
+    monkeypatch.setattr(
+        admin, "servers_overview", lambda since: FLAGS_AS_MONGO_SUMS_THEM
+    )
     monkeypatch.setattr(admin, "redis_client", SimpleNamespace(
         scan_iter=lambda pattern: [], get=lambda key: None, dbsize=lambda: 0
     ))
-    deps.mongo_client.guild.moderations.insert_one({
-        "guild_id": STAYED,
-        "is_bot_online": True,
-        Commands.BLOCK_LINKS_KEY: True,
-        Commands.DEFAULT_ROLES_KEY: True,
-        Commands.WELCOME_MESSAGES_KEY: False,
-    })
-    deps.mongo_client.guild.moderations.insert_one(
-        {"guild_id": LEFT, "is_bot_online": True, Commands.WELCOME_MESSAGES_KEY: True}
-    )
-    feature = deps.mongo_client.guild
-    feature[Commands.BLOCK_LINKS_KEY].insert_one({"guild_id": STAYED, "enabled": False})
-    feature[Commands.DEFAULT_ROLES_KEY].insert_one({"guild_id": STAYED})
-    feature[Commands.WELCOME_MESSAGES_KEY].insert_one({"guild_id": STAYED, "enabled": True})
-    feature[Commands.WELCOME_MESSAGES_KEY].insert_one({"guild_id": LEFT, "enabled": True})
+    db = deps.mongo_client
+    seed_cog(db, Commands.BLOCK_LINKS_KEY, {"guild_id": STAYED, "enabled": False})
+    seed_cog(db, Commands.DEFAULT_ROLES_KEY, {"guild_id": STAYED})
+    seed_cog(db, Commands.WELCOME_MESSAGES_KEY, {"guild_id": STAYED, "enabled": True})
+    seed_cog(db, Commands.WELCOME_MESSAGES_KEY, {"guild_id": LEFT, "enabled": True})
 
 
 async def test_a_feature_counts_where_its_saved_settings_say_on_in_a_server_keiko_is_in(
@@ -358,15 +347,15 @@ async def test_a_feature_counts_where_its_saved_settings_say_on_in_a_server_keik
     review of every reader of the old flags.
 
     Guaranteed: each feature counts the servers Keiko is in whose saved settings
-    `is_feature_on` calls on, a document saved before `enabled` following its old flag.
-    The Mongo aggregation the overview runs cannot run offline, so the test answers it the
-    way Mongo does for the flags below and checks the adoption does not come from it.
+    `is_feature_on` calls on; a document without `enabled` is off. The Mongo aggregation
+    the overview runs cannot run offline, so the test answers it the way Mongo would and
+    checks the adoption does not come from it.
     """
     adoption = (await admin.get_overview_data(bot))["feature_adoption"]
 
     assert adoption[Commands.WELCOME_MESSAGES_KEY] == 1, "on without the old flag, once"
     assert adoption[Commands.BLOCK_LINKS_KEY] == 0, "disabled while its flag stayed on"
-    assert adoption[Commands.DEFAULT_ROLES_KEY] == 1, "saved before `enabled`: its flag"
+    assert adoption[Commands.DEFAULT_ROLES_KEY] == 0, "a document without `enabled` is off"
 
 
 async def test_the_overview_reads_two_fields_of_each_feature_document(
@@ -375,15 +364,14 @@ async def test_the_overview_reads_two_fields_of_each_feature_document(
     """A feature document holds whole lists (links, birthdays, messages); the adoption
     needs to know only whose it is and whether it is on."""
     asked = []
-    for key in Commands.COMMANDS_LIST:
-        collection = deps.mongo_client.guild[key]
-        monkeypatch.setattr(
-            collection, "find",
-            lambda query, projection, read=collection.find: (asked.append(projection), read(query))[1],
-        )
+    collection = deps.mongo_client.guild.cogs
+    monkeypatch.setattr(
+        collection, "find",
+        lambda query, projection, read=collection.find: (asked.append(projection), read(query))[1],
+    )
 
     await admin.get_overview_data(bot)
 
     assert asked and all(
-        projection == {"_id": False, "guild_id": True, "enabled": True} for projection in asked
+        projection == {"guild_id": True, "enabled": True} for projection in asked
     )

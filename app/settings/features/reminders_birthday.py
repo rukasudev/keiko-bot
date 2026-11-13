@@ -12,9 +12,10 @@ from app.constants import ViewConstants as view_constants
 from app.core.cache import remove_cog_cache_by_guild
 from app.core.cogs import is_feature_on
 from app.core.dates import utc_today
-from app.core.moderations import set_feature_enabled, update_moderations_by_guild
+from app.core.servers import set_feature_enabled
 from app.data import birthdays as birthdays_data
 from app.services.reminders_birthdays import (
+    birthday_config,
     birthday_found_members,
     birthday_manager_cog_data,
     birthday_month_pages,
@@ -42,7 +43,7 @@ from app.settings.form.responses.summary import PanelRow
 
 
 class BirthdayFeature(GenericCogFeature):
-    """Birthdays live in `reminders.birthdays`; the config in its own document."""
+    """Birthdays live in `reminders.birthdays`; the config in its cog document."""
 
     def __init__(self, today: Callable[[], date] = utc_today) -> None:
         super().__init__(Commands.REMINDERS_BIRTHDAY_KEY)
@@ -51,11 +52,11 @@ class BirthdayFeature(GenericCogFeature):
     async def open(self, context: OpenContext) -> Opened:
         """The synthetic document the panel reads, paused or not, or nothing saved."""
         guild_id = context.guild_id
-        config = await asyncio.to_thread(birthdays_data.find_birthday_config, guild_id)
+        config = await asyncio.to_thread(birthday_config, guild_id)
         if not config:
             return Opened()
 
-        enabled = await asyncio.to_thread(is_feature_on, guild_id, self.key, config)
+        enabled = is_feature_on(config)
         document = await asyncio.to_thread(birthday_manager_cog_data, guild_id)
         today = self.today()
         rows = await asyncio.to_thread(
@@ -113,10 +114,12 @@ class BirthdayFeature(GenericCogFeature):
         """The config, the first birthday and its reminder; the feature is on."""
         responses = self.responses_for_preview(payload["answers"], context.locale)
         await asyncio.to_thread(
-            save_setup_form, context.guild_id, responses, context.locale
+            save_setup_form, context.guild_id, responses, context.user_id
         )
-        await asyncio.to_thread(set_feature_enabled, context.guild_id, self.key, True)
-        return CommitResult(("reminders_birthday", "birthdays", "moderations"))
+        await asyncio.to_thread(
+            set_feature_enabled, context.guild_id, self.key, True, context.user_id
+        )
+        return CommitResult(("reminders_birthday", "birthdays"))
 
     async def commit_edit(
         self, payload: Mapping[str, Any], context: CommitContext
@@ -124,7 +127,7 @@ class BirthdayFeature(GenericCogFeature):
         """Edited settings land on the config document."""
         changes = self.to_document(payload["answers"], context.locale)
         await asyncio.to_thread(
-            save_birthday_config_changes, context.guild_id, changes, context.locale
+            save_birthday_config_changes, context.guild_id, changes, context.user_id
         )
         return CommitResult(("reminders_birthday",))
 
@@ -173,10 +176,7 @@ class BirthdayFeature(GenericCogFeature):
         """Every birthday, reminder and the config go; the feature is off."""
         await asyncio.to_thread(disable_birthdays, context.guild_id)
         await asyncio.to_thread(remove_cog_cache_by_guild, context.guild_id, self.key)
-        await asyncio.to_thread(
-            update_moderations_by_guild, context.guild_id, self.key, False
-        )
-        return CommitResult(("reminders_birthday", "birthdays", "moderations"))
+        return CommitResult(("reminders_birthday", "birthdays"))
 
 
 def _value(entry: Any) -> Any:

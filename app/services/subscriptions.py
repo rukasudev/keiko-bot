@@ -7,8 +7,8 @@ from app.components.buttons import (
     SyncronizeSubscriptionsButton,
 )
 from app.constants import ViewConstants as view_constants
-from app.data.notifications_twitch import count_streamers_guilds
-from app.data.notifications_youtube_video import (
+from app.services.notifications_twitch import count_streamers_guilds
+from app.services.notifications_youtube_video import (
     count_youtube_video_subscription_by_guilds,
 )
 

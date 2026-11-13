@@ -28,7 +28,7 @@ make clean        # clean cache and venv
 - `app/services/` — command modules only: one module per feature command exposing
   `async manager(interaction, guild_id)`.
 - `app/core/` — the shared modules every command builds on: `cache.py`, `analytics.py`,
-  `trace.py`, `journey.py`, `utils.py`, `moderations.py`, `dates.py`, `members.py`...
+  `trace.py`, `journey.py`, `utils.py`, `servers.py`, `dates.py`, `members.py`...
 - `app/data/` — MongoDB access (pymongo); `app/core/cache.py` — Redis caching.
 - `app/migrations/` — the versioned database: `schema/NNNN_slug.py` (collections and
   indexes), `data/NNNN_slug.py` (data, inside `with begin(db) as tx:`), `snapshot.json`,

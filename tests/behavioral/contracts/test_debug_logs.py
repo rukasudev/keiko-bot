@@ -50,6 +50,7 @@ from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
 from tests.helpers.assertions import keys_in, values_in
 import discord
 from app.core.logs_archive import FILENAME
+from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("debug_logs")]
 
@@ -868,17 +869,12 @@ async def run_backup(channel, public_key=PUBLIC_KEY):
 def stored_databases(deps):
     """A small Keiko database: settings, the audit trail, birthdays and configs."""
     client = deps.mongo_client
-    client.guild.moderations.delete_many({})
-    moderation_id = ObjectId()
-    client.guild.moderations.insert_one(
-        {"_id": moderation_id, "guild_id": "1", "block_links": True, "created_at": JOINED}
+    client.guild.settings.delete_many({})
+    client.guild.settings.insert_one(
+        {"_id": "1", "state": {"present": True}, "created_at": JOINED}
     )
-    client.guild.moderations.insert_one(
-        {"_id": ObjectId(), "guild_id": "2", "block_links": False}
-    )
-    client.guild.block_links.insert_one(
-        {"_id": ObjectId(), "guild_id": "1", "enabled": True}
-    )
+    client.guild.settings.insert_one({"_id": "2", "state": {"present": False}})
+    seed_cog(client, "block_links", {"guild_id": "1", "enabled": True})
     client.events.block_links.insert_one(
         {"_id": ObjectId(), "guild_id": "1", "event": "enabled"}
     )
@@ -886,11 +882,17 @@ def stored_databases(deps):
         {"_id": ObjectId(), "guild_id": "1", "user_id": "555", "date": "05-12"}
     )
     client.configs.data.insert_one({"_id": ObjectId(), "status": "online"})
+    client.keiko.settings.insert_one(
+        {"_id": "keiko", "options": {"presence": {"status": "online"}}}
+    )
+    client.keiko.integrations.insert_one(
+        {"_id": "openai", "options": {"openai_api_key": SECRET}}
+    )
     client.configs.integrations.insert_one(
         {"_id": ObjectId(), "name": "openai", "configs": {"openai_api_key": SECRET}}
     )
     client.guild.logs.insert_one({"_id": ObjectId(), "message": "a debug line"})
-    return SimpleNamespace(moderation_id=moderation_id)
+    return SimpleNamespace(server_id="1")
 
 
 def files_in(sent):
@@ -959,20 +961,22 @@ async def test_one_file_holds_every_collection(stored_databases):
     assert sorted(files) == [
         "configs/data.jsonl",
         "events/block_links.jsonl",
-        "guild/block_links.jsonl",
-        "guild/moderations.jsonl",
+        "guild/cogs.jsonl",
+        "guild/settings.jsonl",
+        "keiko/settings.jsonl",
         "manifest.json",
         "reminders/birthdays.jsonl",
     ]
     assert json.loads(files["manifest.json"])["collections"] == {
         "configs.data": 1,
         "events.block_links": 1,
-        "guild.block_links": 1,
-        "guild.moderations": 2,
+        "guild.cogs": 1,
+        "guild.settings": 2,
+        "keiko.settings": 1,
         "reminders.birthdays": 1,
     }
     assert content == ml("messages.admin-logs.daily-backup", "en-us").format(
-        date=today(), collections=5, documents=6
+        date=today(), collections=6, documents=7
     )
 
 
@@ -981,12 +985,13 @@ async def test_documents_come_back_with_their_ids_and_types(stored_databases):
 
     await run_backup(channel)
 
-    lines = files_in(channel.sends[0][1])["guild/moderations.jsonl"].splitlines()
+    lines = files_in(channel.sends[0][1])["guild/settings.jsonl"].splitlines()
     restored = [json_util.loads(line) for line in lines]
-    first = next(document for document in restored if document["guild_id"] == "1")
-    assert first["_id"] == stored_databases.moderation_id
+    first = next(
+        document for document in restored if document["_id"] == stored_databases.server_id
+    )
     assert first["created_at"] == JOINED
-    assert first["block_links"] is True
+    assert first["state"]["present"] is True
 
 
 async def test_credentials_and_debug_logs_stay_out(stored_databases):
@@ -996,6 +1001,7 @@ async def test_credentials_and_debug_logs_stay_out(stored_databases):
 
     files = files_in(channel.sends[0][1])
     assert "configs/integrations.jsonl" not in files
+    assert "keiko/integrations.jsonl" not in files
     assert "guild/logs.jsonl" not in files
     assert not any(SECRET in text for text in files.values())
 
@@ -1046,16 +1052,14 @@ def test_expiring_collections_are_packed_after_the_settings(stored_databases, de
     order = [f"{database}.{name}" for database, name in logs_archive.backed_up_collections()]
 
     assert set(order[-2:]) == {"guild.analytics_events", "guild.blocked_links"}
-    assert order.index("audit.reminders") < order.index("guild.moderations"), (
+    assert order.index("audit.reminders") < order.index("guild.settings"), (
         "renewal rows were packed with the collections that age out"
     )
 
 
 async def test_a_backup_over_the_limit_is_packed_into_files_under_it(stored_databases, deps):
     """About 3 KB of settings and 3 KB of audit: together over 5 KB, apart under."""
-    deps.mongo_client.guild.block_links.insert_one(
-        {"_id": ObjectId(), "guild_id": "3", "answer": noise(2400)}
-    )
+    seed_cog(deps.mongo_client, "block_links", {"_id": ObjectId(), "guild_id": "3", "answer": noise(2400)})
     deps.mongo_client.events.block_links.insert_one(
         {"_id": ObjectId(), "guild_id": "3", "event": noise(2400)}
     )
@@ -1078,8 +1082,9 @@ async def test_a_backup_over_the_limit_is_packed_into_files_under_it(stored_data
     assert members == {
         "configs/data.jsonl",
         "events/block_links.jsonl",
-        "guild/block_links.jsonl",
-        "guild/moderations.jsonl",
+        "guild/cogs.jsonl",
+        "guild/settings.jsonl",
+        "keiko/settings.jsonl",
         "reminders/birthdays.jsonl",
     }
 
@@ -1103,8 +1108,9 @@ async def test_the_settings_go_out_when_only_they_fit_under_the_limit(
     assert {
         "configs/data.jsonl",
         "events/block_links.jsonl",
-        "guild/block_links.jsonl",
-        "guild/moderations.jsonl",
+        "guild/cogs.jsonl",
+        "guild/settings.jsonl",
+        "keiko/settings.jsonl",
         "reminders/birthdays.jsonl",
     } <= sent, "the settings were left out with the analytics"
     assert "guild/analytics_events.jsonl" not in sent
@@ -1171,7 +1177,7 @@ async def test_what_is_posted_opens_with_the_private_key_and_no_other(stored_dat
     posted = channel.sends[0][1].fp.getvalue()
     assert not zipfile.is_zipfile(io.BytesIO(posted)), "a readable zip reached Discord"
     assert SECRET not in posted.decode("latin-1")
-    assert "guild/moderations.jsonl" in files_in(channel.sends[0][1])
+    assert "guild/settings.jsonl" in files_in(channel.sends[0][1])
     with pytest.raises(pyrage.DecryptError):
         pyrage.decrypt(posted, [x25519.Identity.generate()])
 

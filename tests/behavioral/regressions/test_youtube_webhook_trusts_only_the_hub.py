@@ -91,7 +91,7 @@ from app.integrations import youtube as youtube_integration
 from app.integrations.youtube import YoutubeClient
 from app.services import notifications_youtube_video
 from app.core import trace as trace_service
-from tests.generators.moderations import recorded_server
+from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks.discord import create_guild
 
 pytestmark = [
@@ -239,7 +239,7 @@ def boot(monkeypatch):
 
 def follow(deps, guild_id, *youtubers, enabled=True):
     recorded_server(deps.mongo_client, guild_id)
-    deps.mongo_client.guild.notifications_youtube_video.insert_one({
+    seed_cog(deps.mongo_client, "notifications_youtube_video", {
         "guild_id": str(guild_id),
         "enabled": enabled,
         "notifications": {"values": [

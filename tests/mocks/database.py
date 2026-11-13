@@ -401,53 +401,50 @@ def _matches_value(actual, expected):
     return True
 
 
+def _field_values(doc, dotted_key):
+    """Every value a dotted path reaches, walking into each item of a list on the way."""
+    found = [doc]
+    for part in dotted_key.split("."):
+        reached = []
+        for current in found:
+            if isinstance(current, dict):
+                if part in current:
+                    reached.append(current[part])
+            elif isinstance(current, list):
+                reached.extend(
+                    item[part] for item in current if isinstance(item, dict) and part in item
+                )
+        found = reached
+    return found or [None]
+
+
+def _matches(doc, filter_dict):
+    """Whether a document matches every field of a filter, dotted paths included."""
+    for key, expected in filter_dict.items():
+        if "." not in key:
+            if not _matches_value(doc.get(key), expected):
+                return False
+            continue
+        if not any(_matches_value(value, expected) for value in _field_values(doc, key)):
+            return False
+    return True
+
+
 class MockMongoCollection:
     """Mock de uma collection MongoDB."""
 
     def __init__(self):
         self._data = []
 
-    def find_one(self, filter_dict):
+    def find_one(self, filter_dict=None, projection=None):
         for doc in self._data:
-            if all(_matches_value(doc.get(k), v) for k, v in filter_dict.items()):
+            if _matches(doc, filter_dict or {}):
                 return doc.copy()
         return None
 
     def find(self, filter_dict=None, projection=None):
         filter_dict = filter_dict or {}
-        results = []
-        for doc in self._data:
-            match = True
-            for k, v in filter_dict.items():
-                # Suporte a queries aninhadas como "notifications.values.streamer.value"
-                if '.' in k:
-                    parts = k.split('.')
-                    current = doc
-                    for part in parts:
-                        if isinstance(current, dict):
-                            current = current.get(part)
-                        elif isinstance(current, list):
-                            found = False
-                            for item in current:
-                                if isinstance(item, dict) and part in item:
-                                    current = item.get(part)
-                                    found = True
-                                    break
-                            if not found:
-                                current = None
-                                break
-                        else:
-                            current = None
-                            break
-                    if current != v:
-                        match = False
-                        break
-                elif not _matches_value(doc.get(k), v):
-                    match = False
-                    break
-            if match:
-                results.append(doc.copy())
-        return MockCursor(results)
+        return MockCursor([doc.copy() for doc in self._data if _matches(doc, filter_dict)])
 
     def count_documents(self, filter_dict=None):
         return len(list(self.find(filter_dict or {})))
@@ -467,7 +464,7 @@ class MockMongoCollection:
 
     def update_one(self, filter_dict, update, upsert=False):
         for doc in self._data:
-            if all(_matches_value(doc.get(k), v) for k, v in filter_dict.items()):
+            if _matches(doc, filter_dict):
                 _apply_update(doc, update, inserted=False)
                 return MagicMock(matched_count=1, modified_count=1)
         if upsert:
@@ -481,7 +478,7 @@ class MockMongoCollection:
         """Every match, not just the first: the real driver's semantics."""
         modified = 0
         for doc in self._data:
-            if all(_matches_value(doc.get(key), value) for key, value in filter_dict.items()):
+            if _matches(doc, filter_dict):
                 _apply_update(doc, update, inserted=False)
                 modified += 1
         return MagicMock(modified_count=modified)
@@ -495,13 +492,13 @@ class MockMongoCollection:
 
     def find_one_and_delete(self, filter_dict):
         for index, doc in enumerate(self._data):
-            if all(_matches_value(doc.get(k), v) for k, v in filter_dict.items()):
+            if _matches(doc, filter_dict):
                 return self._data.pop(index)
         return None
 
     def delete_one(self, filter_dict):
         for i, doc in enumerate(self._data):
-            if all(_matches_value(doc.get(k), v) for k, v in filter_dict.items()):
+            if _matches(doc, filter_dict):
                 self._data.pop(i)
                 return MagicMock(deleted_count=1)
         return MagicMock(deleted_count=0)
@@ -514,7 +511,7 @@ class MockMongoCollection:
 
         to_delete = []
         for i, doc in enumerate(self._data):
-            if all(_matches_value(doc.get(k), v) for k, v in filter_dict.items()):
+            if _matches(doc, filter_dict):
                 to_delete.append(i)
 
         for i in reversed(to_delete):

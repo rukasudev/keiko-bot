@@ -18,7 +18,6 @@ Uso:
 """
 
 from typing import List, Optional, Any
-from datetime import datetime, timezone
 
 
 async def welcome_messages(
@@ -58,10 +57,7 @@ async def welcome_messages(
     }
 
     # Suporta tanto mock quanto motor real
-    if hasattr(db, 'guild'):
-        await _insert_or_sync(db.guild.welcome_messages, doc)
-    else:
-        db.guild.welcome_messages.insert_one(doc)
+    seed_cog(db, "welcome_messages", doc)
 
     return doc
 
@@ -94,10 +90,7 @@ async def block_links(
         "answer": answer,
     }
 
-    if hasattr(db, 'guild'):
-        await _insert_or_sync(db.guild.block_links, doc)
-    else:
-        db.guild.block_links.insert_one(doc)
+    seed_cog(db, "block_links", doc)
 
     return doc
 
@@ -124,33 +117,7 @@ async def default_roles(
         }
     }
 
-    if hasattr(db, 'guild'):
-        await _insert_or_sync(db.guild.default_roles, doc)
-    else:
-        db.guild.default_roles.insert_one(doc)
-
-    return doc
-
-
-async def moderations_config(
-    db,
-    guild_id: str,
-    *,
-    pause_all: bool = False
-) -> dict:
-    """
-    Insere configuracao de moderacoes no banco.
-    """
-    doc = {
-        "guild_id": guild_id,
-        "pause_all": pause_all,
-        "created_at": datetime.now(timezone.utc).isoformat()
-    }
-
-    if hasattr(db, 'guild'):
-        await _insert_or_sync(db.guild.moderations, doc)
-    else:
-        db.guild.moderations.insert_one(doc)
+    seed_cog(db, "default_roles", doc)
 
     return doc
 
@@ -163,16 +130,43 @@ SERVER_SETTINGS = {
 
 
 def recorded_server(db, guild_id, **settings) -> dict:
-    """A server Keiko recorded, as the join and the migration leave it: its moderations
-    document with its `settings`; what was already saved stays unless named here."""
-    existing = db.guild.moderations.find_one({"guild_id": str(guild_id)}) or {}
-    saved = {**SERVER_SETTINGS, **(existing.get("settings") or {}), **settings}
-    db.guild.moderations.update_one(
-        {"guild_id": str(guild_id)},
-        {"$set": {"settings": saved}, "$setOnInsert": {"is_bot_online": True}},
+    """A server Keiko recorded, as the join and the migration leave it: its
+    guild.settings document; what was already saved stays unless named here."""
+    existing = db.guild.settings.find_one({"_id": str(guild_id)}) or {}
+    saved = {**SERVER_SETTINGS, **(existing.get("options") or {}), **settings}
+    db.guild.settings.update_one(
+        {"_id": str(guild_id)},
+        {"$set": {"options": saved}, "$setOnInsert": {"state": {"present": True}}},
         upsert=True,
     )
     return saved
+
+
+def stored_cog(cog, document) -> dict:
+    """The guild.cogs document of a flat feature document, as the data layer stores it."""
+    guild_id = str(document["guild_id"])
+    stored = {
+        "_id": f"{guild_id}:{cog}",
+        "guild_id": guild_id,
+        "cog": cog,
+        "options": {
+            key: value
+            for key, value in document.items()
+            if key not in ("_id", "guild_id", "enabled", "state", "created_at", "updated_at")
+        },
+        "state": dict(document.get("state") or {}),
+    }
+    if "enabled" in document:
+        stored["enabled"] = document["enabled"]
+    return stored
+
+
+def seed_cog(db, cog, document) -> dict:
+    """Save a server's feature document, given flat as the app reads it."""
+    stored = stored_cog(cog, document)
+    db.guild.cogs.delete_one({"_id": stored["_id"]})
+    db.guild.cogs.insert_one(stored)
+    return document
 
 
 # ============================================================================
@@ -194,20 +188,5 @@ async def _insert_or_sync(collection, doc):
 
 async def cleanup_guild(db, guild_id: str):
     """Remove todos os dados de um guild de teste."""
-    collections = [
-        "welcome_messages",
-        "block_links",
-        "default_roles",
-        "notifications_twitch",
-        "notifications_youtube_video",
-        "moderations"
-    ]
-
-    for collection_name in collections:
-        try:
-            if hasattr(db, 'guild'):
-                await db.guild[collection_name].delete_many({"guild_id": guild_id})
-            else:
-                db.guild[collection_name].delete_many({"guild_id": guild_id})
-        except Exception:
-            pass
+    db.guild.cogs.delete_many({"guild_id": guild_id})
+    db.guild.settings.delete_many({"_id": guild_id})

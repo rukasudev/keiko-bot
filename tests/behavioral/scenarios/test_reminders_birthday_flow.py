@@ -13,8 +13,9 @@ import discord
 import pytest
 
 from app.core.utils import ml
-from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
-from app.core.moderations import update_moderations_by_guild
+from app.data.birthdays import upsert_birthday_item
+from app.services.reminders_birthdays import save_birthday_config
+from app.core.servers import set_feature_enabled
 from app.webhooks import birthday_handler
 from tests.behavioral.golden.paths.reminders_birthday import _type_day
 from tests.mocks.discord import create_member
@@ -156,22 +157,19 @@ async def test_happy_path_ptbr_persists_config_and_member(scenario_factory):
     config = scenario.expect_persisted(
         "guild", "reminders_birthday", {"guild_id": guild_id},
         {
-            "channel_id": str(channel.id),
-            "timezone": "America/Sao_Paulo",
+            "channel": str(channel.id),
             "notification_time": "08:00",
             "mention_everyone": False,
+            "enabled": True,
         },
     )
     assert config is not None
+    assert server_zone(scenario) == "America/Sao_Paulo"
 
     scenario.expect_persisted(
         "reminders", "birthdays",
         {"guild_id": guild_id, "user_id": "555"},
         {"date": "05-12"},
-    )
-    scenario.expect_persisted(
-        "guild", "moderations", {"guild_id": guild_id},
-        {"reminders_birthday": True},
     )
 
 
@@ -233,11 +231,7 @@ async def test_editing_card_value_before_done_keeps_last_choice(scenario_factory
     scenario.expect_step("confirm")
     await scenario.confirm()
 
-    scenario.expect_persisted(
-        "guild", "reminders_birthday",
-        {"guild_id": str(scenario.guild.id)},
-        {"timezone": "America/New_York"},
-    )
+    assert server_zone(scenario) == "America/New_York"
     await scenario.finish()
 
 
@@ -267,9 +261,9 @@ async def test_persisted_documents_have_expected_shape(scenario_factory):
     config = scenario.get_persisted("guild", "reminders_birthday", {"guild_id": guild_id})
     volatile = {"created_at", "updated_at", "_id"}
     assert {k for k in config if k not in volatile} >= {
-        "guild_id", "channel_id", "mention_everyone", "timezone",
-        "notification_time",
+        "guild_id", "channel", "mention_everyone", "notification_time",
     }
+    assert "timezone" not in config, "the zone is the server's, not the birthdays'"
 
     item = scenario.get_persisted(
         "reminders", "birthdays", {"guild_id": guild_id, "user_id": "555"}
@@ -286,15 +280,14 @@ async def _celebrate(deps, monkeypatch, mm_dd="05-12"):
     channel = deps.guild.text_channels[0]
     if not deps.guild.get_member(555):
         create_member(deps.guild, id=555, name="Tester")
-    upsert_birthday_config(
+    save_birthday_config(
         guild_id,
         str(channel.id),
         False,
-        timezone="America/Sao_Paulo",
         notification_time="08:00",
     )
     upsert_birthday_item(guild_id, "555", mm_dd, reminder_id="reminder-1")
-    update_moderations_by_guild(guild_id, "reminders_birthday", True)
+    set_feature_enabled(guild_id, "reminders_birthday", True)
 
     await birthday_handler.process_birthday_webhook("reminder-1", mm_dd)
     return channel
@@ -337,13 +330,16 @@ async def test_the_settings_are_chosen_right_on_the_card(scenario_factory):
 
     scenario.expect_persisted(
         "guild", "reminders_birthday", {"guild_id": str(scenario.guild.id)},
-        {
-            "timezone": "America/Sao_Paulo",
-            "notification_time": "10:00",
-            "mention_everyone": True,
-        },
+        {"notification_time": "10:00", "mention_everyone": True},
     )
+    assert server_zone(scenario) == "America/Sao_Paulo"
     await scenario.finish()
+
+
+def server_zone(scenario):
+    """The time zone the server saved, where the birthdays read it."""
+    settings = scenario.get_persisted("guild", "settings", {"_id": str(scenario.guild.id)})
+    return settings["options"]["timezone"]
 
 
 def _drawn(scenario):

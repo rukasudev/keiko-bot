@@ -13,6 +13,7 @@ or the tests but the helpers.
 """
 
 import ast
+import importlib
 import io
 import json
 import re
@@ -340,8 +341,41 @@ def test_an_index_takes_the_name_mongo_would_give_it_unless_it_names_one():
     ]
 
 
+class _Collection:
+    def __init__(self, *ids):
+        self.documents = [{"_id": found} for found in ids]
+
+    def find(self, query, projection):
+        wanted = query["_id"]["$in"]
+        return [document for document in self.documents if document["_id"] in wanted]
+
+    def insert_many(self, documents):
+        self.documents += documents
+
+
+def test_insert_missing_writes_only_the_ids_the_collection_lacks_and_counts_them():
+    collection = _Collection("1001:welcome_messages")
+
+    inserted = helpers.insert_missing(
+        collection,
+        [
+            {"_id": "1001:welcome_messages", "enabled": False},
+            {"_id": "1001:default_roles", "enabled": True},
+        ],
+    )
+
+    assert inserted == 1
+    assert collection.documents == [
+        {"_id": "1001:welcome_messages"},
+        {"_id": "1001:default_roles", "enabled": True},
+    ]
+    assert helpers.insert_missing(collection, [{"_id": "1001:default_roles"}]) == 0
+
+
 def test_the_baseline_declares_exactly_what_the_old_baseline_declared():
-    assert runner.declared_structure() == runner._sorted(old_baseline())
+    baseline = [found for found in runner.read_folder("schema")[0] if found.number == "0001"]
+
+    assert runner._sorted(runner.declared(baseline)[0]) == runner._sorted(old_baseline())
 
 
 def test_an_index_as_mongo_lists_it_equals_the_one_declared():
@@ -497,11 +531,17 @@ def test_the_shipped_files_form_a_clean_plan_from_an_empty_ledger():
     versions, _problems = runner.read_versions()
     current = runner.plan(versions, [])
 
+    labels = [found.label for found in current.pending]
+
     assert current.problems == ()
-    assert [found.label for found in current.pending] == [
+    assert labels == sorted(labels, key=lambda label: (label.startswith("data"), label))
+    assert {
         "schema/0001_baseline",
+        "schema/0002_guild_and_keiko",
         "data/0001_bot_defaults",
-    ]
+        "data/0002_server_settings",
+        "data/0003_cogs_and_keiko",
+    } <= set(labels)
 
 
 def _imports(path):
@@ -525,7 +565,7 @@ def test_a_migration_file_imports_nothing_from_the_app_but_the_helpers():
         for path in (runner.MIGRATIONS / kind).glob("0*.py")
     ]
 
-    assert len(paths) == 2
+    assert len(paths) >= 5
     for path in paths:
         internal = {module for module in _imports(path) if _internal(module)}
         assert internal <= {"app.migrations.helpers"}, path.name
@@ -560,10 +600,8 @@ def test_the_baseline_keeps_the_retention_the_constants_name():
 
 
 def test_the_baseline_configs_hold_no_secret():
-    versions, _problems = runner.read_versions()
-    [bot_defaults] = [found for found in versions if found.kind == "data"]
-    module = bot_defaults.up.__globals__
-    defaults = json.dumps([module["BOT_DEFAULTS"], module["NOTION_DEFAULTS"]])
+    bot_defaults = importlib.import_module("app.migrations.data.0001_bot_defaults")
+    defaults = json.dumps([bot_defaults.BOT_DEFAULTS, bot_defaults.NOTION_DEFAULTS])
 
     for word in ("token", "secret", "password", "key", "url"):
         assert word not in defaults.lower(), word

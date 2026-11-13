@@ -8,7 +8,7 @@ from app.constants import LogTypes as logconstants
 from app.constants import supported_locales
 from app.integrations.google_translate import GoogleTranslate
 from app.core import analytics
-from app.core.moderations import interaction_language, server_language
+from app.core.servers import interaction_language, server_language
 from app.core.utils import fill, join_names, ml, parse_locale
 
 class SetupButton(discord.ui.Button):

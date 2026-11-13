@@ -577,9 +577,9 @@ async def test_a_message_is_checked_for_blocked_links_when_the_reply_fails(
 async def test_a_server_keiko_left_is_paused_whatever_failed_before(
     events, deps, guild, monkeypatch, caplog, failing
 ):
-    deps.mongo_client.guild.moderations.insert_one({
-        "guild_id": str(guild.id), "is_bot_online": True,
-    })
+    deps.mongo_client.guild.settings.insert_one(
+        {"_id": str(guild.id), "state": {"present": True}}
+    )
     if failing == "report":
         monkeypatch.setattr("app.cogs.events.features_on", broken(RuntimeError("Mongo hung up")))
     else:
@@ -590,8 +590,8 @@ async def test_a_server_keiko_left_is_paused_whatever_failed_before(
     with caplog.at_level("INFO"):
         await events.on_guild_remove(guild)
 
-    record = deps.mongo_client.guild.moderations.find_one({"guild_id": str(guild.id)})
-    assert record["is_bot_online"] is False, "the pause ran after the failure"
+    record = deps.mongo_client.guild.settings.find_one({"_id": str(guild.id)})
+    assert record["state"]["present"] is False, "the pause ran after the failure"
     failed = failures(caplog)
     assert failed and failed[0].context.guild_id == str(guild.id)
     assert failed[0].context.extra["part"] == failing

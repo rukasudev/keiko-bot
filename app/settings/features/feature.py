@@ -15,8 +15,9 @@ from app.constants import ViewConstants as view_constants
 from app.core.cache import get_cog_data_or_populate, remove_cog_cache_by_guild
 from app.core.cogs import LIFECYCLE_ANALYTICS_EVENTS, is_feature_on
 from app.core.feature_health import send_feature_stats
-from app.core.moderations import set_feature_enabled, update_moderations_by_guild
+from app.core.servers import set_feature_enabled
 from app.data import cogs as cogs_data
+from app.data.guild import cogs as guild_cogs
 from app.exceptions import ErrorContext
 from app.settings.form.copy import normalize_locale
 from app.settings.form.form_state import Answer
@@ -206,9 +207,7 @@ class GenericCogFeature:
         )
         if not document:
             return Opened()
-        enabled = await asyncio.to_thread(
-            is_feature_on, context.guild_id, self.key, document
-        )
+        enabled = is_feature_on(document)
         return Opened(
             document=document,
             panel=PanelExtras(
@@ -352,16 +351,28 @@ class GenericCogFeature:
             return {}
         return {"changed_keys": keys, "changed_count": len(keys)}
 
-    async def write_document(self, guild_id: str, document: Mapping[str, Any]) -> None:
+    async def write_document(
+        self,
+        guild_id: str,
+        document: Mapping[str, Any],
+        updated_by: str | None = None,
+    ) -> None:
         """Replace the guild's document, then drop its cache."""
         data = {**document, "guild_id": str(guild_id)}
-        await cogs_data.insert_cog_by_guild_id_async(self.key, data)
+        await guild_cogs.insert_cog_by_guild_id_async(self.key, data, updated_by)
         await asyncio.to_thread(remove_cog_cache_by_guild, guild_id, self.key)
 
-    async def update_document(self, guild_id: str, data: Mapping[str, Any]) -> None:
+    async def update_document(
+        self,
+        guild_id: str,
+        data: Mapping[str, Any],
+        updated_by: str | None = None,
+    ) -> None:
         """Merge `data` into the guild's document, then drop its cache."""
         payload = {**data, "guild_id": str(guild_id)}
-        await cogs_data.update_cog_by_guild_async(guild_id, self.key, payload)
+        await guild_cogs.update_cog_by_guild_async(
+            guild_id, self.key, payload, updated_by
+        )
         await asyncio.to_thread(remove_cog_cache_by_guild, guild_id, self.key)
 
     async def commit_setup(
@@ -370,9 +381,11 @@ class GenericCogFeature:
         """Store the whole document and record the feature as on."""
         document = self.to_document(payload["answers"], context.locale)
         document = await self.before_setup(document, payload["answers"], context)
-        await self.write_document(context.guild_id, document)
-        await asyncio.to_thread(set_feature_enabled, context.guild_id, self.key, True)
-        return CommitResult(("moderations", self.key), document=document)
+        await self.write_document(context.guild_id, document, context.user_id)
+        await asyncio.to_thread(
+            set_feature_enabled, context.guild_id, self.key, True, context.user_id
+        )
+        return CommitResult((self.key,), document=document)
 
     async def before_setup(
         self,
@@ -401,7 +414,7 @@ class GenericCogFeature:
         changes.pop("enabled", None)
         changes.pop("schema_version", None)
         changes = await self.before_edit(changes, payload["answers"], context)
-        await self.update_document(context.guild_id, changes)
+        await self.update_document(context.guild_id, changes, context.user_id)
         return CommitResult((self.key,), document={**context.document, **changes})
 
     async def commit_toggle(
@@ -493,7 +506,7 @@ class GenericCogFeature:
 
     async def saved_document(self, context: CommitContext) -> dict[str, Any]:
         """The document as it is saved now; a feature disabled meanwhile has none."""
-        document = await cogs_data.find_cog_by_guild_id_async(
+        document = await guild_cogs.find_cog_by_guild_id_async(
             context.guild_id, self.key
         )
         if document is None:
@@ -545,8 +558,8 @@ class GenericCogFeature:
         self, context: CommitContext, key: str, saved: Any, value: Any
     ) -> dict[str, Any]:
         """Store `value` under `key` while it is saved as read, then drop the cache."""
-        written = await cogs_data.update_cog_if_unchanged_async(
-            context.guild_id, self.key, key, saved, value
+        written = await guild_cogs.update_cog_if_unchanged_async(
+            context.guild_id, self.key, key, saved, value, context.user_id
         )
         if not written:
             raise ListChanged(self.key)
@@ -584,16 +597,20 @@ class GenericCogFeature:
     ) -> CommitResult:
         """Record the feature as off, keeping its document, while it is still saved."""
         await self.saved_document(context)
-        await asyncio.to_thread(set_feature_enabled, context.guild_id, self.key, False)
-        return CommitResult(("moderations", self.key))
+        await asyncio.to_thread(
+            set_feature_enabled, context.guild_id, self.key, False, context.user_id
+        )
+        return CommitResult((self.key,))
 
     async def commit_unpause(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
         """Record the feature as on again, while its document is still saved."""
         await self.saved_document(context)
-        await asyncio.to_thread(set_feature_enabled, context.guild_id, self.key, True)
-        return CommitResult(("moderations", self.key))
+        await asyncio.to_thread(
+            set_feature_enabled, context.guild_id, self.key, True, context.user_id
+        )
+        return CommitResult((self.key,))
 
     async def commit_disable(
         self, payload: Mapping[str, Any], context: CommitContext
@@ -605,16 +622,12 @@ class GenericCogFeature:
             if items != list(shown):
                 raise ListChanged(self.key)
 
-        dropped = await cogs_data.delete_cog_by_guild_id_async(
+        dropped = await guild_cogs.delete_cog_by_guild_id_async(
             context.guild_id, self.key
         )
         await asyncio.to_thread(remove_cog_cache_by_guild, context.guild_id, self.key)
         await self.best_effort(self.after_disable(dropped or {}, context), context)
-
-        await asyncio.to_thread(
-            update_moderations_by_guild, context.guild_id, self.key, False
-        )
-        return CommitResult(("moderations", self.key))
+        return CommitResult((self.key,))
 
     async def before_item_added(
         self, item: Mapping[str, Any], context: CommitContext

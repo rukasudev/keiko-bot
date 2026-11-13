@@ -13,13 +13,16 @@ Which collection holds what, and where a new command's data goes, is in
 ```
 app/migrations/
   runner.py         the plan, the checks, the lock, the transactions, verify
-  helpers.py        index, ttl, one_per (schema files) and begin (data files)
+  helpers.py        index, ttl, one_per (schema files); begin, insert_missing (data files)
   __main__.py       the CLI
   snapshot.json     the structure the schema files declare, plus the ledger's
   schema/
     0001_baseline.py
+    0002_guild_and_keiko.py
   data/
     0001_bot_defaults.py
+    0002_server_settings.py
+    0003_cogs_and_keiko.py
 ```
 
 ## The CLI
@@ -267,12 +270,22 @@ use the application's owner) and the Notion switch in `configs.integrations`
 (`enabled: false`), each only when missing. No migration writes a secret: tokens
 and keys stay in SSM or `.env`.
 
-Nothing creates `configs.admin`: its fields are the admin server and channel ids,
-which have no neutral value. Insert it by hand before the first boot:
-`admin_guild_id`, `admin_reports_channel_id`, `admin_logs_channel_id`,
-`admin_logs_command_call_id`, `admin_logs_error_channel_id`,
-`admin_logs_files_channel_id`, `admin_dump_channel_id` (strings of digits), and
-optionally `admin_logs_bot_actions_channel_id`.
+`schema/0002_guild_and_keiko` creates `guild.settings`, `guild.cogs`,
+`keiko.settings` and `keiko.integrations`. `data/0002_server_settings` gives every
+`guild.moderations` server its `guild.settings` document (the language from a table
+keyed by a hash of the guild id, the zone from its birthday config or its language,
+the prefix of `configs.data`). `data/0003_cogs_and_keiko` copies the seven feature
+collections into `guild.cogs` (a document without `enabled` takes its old moderations
+flag, once) and `configs.*` into `keiko.settings` and `keiko.integrations`. On a fresh
+database the last one writes `keiko.settings` from the defaults `data/0001` seeded.
+
+Nothing writes the operator ids: they are the admin server and channel ids, which
+have no neutral value. Set them by hand before the first boot, in `keiko.settings`
+under `options.operator`: `admin_guild_id`, `admin_reports_channel_id`,
+`admin_logs_channel_id`, `admin_logs_command_call_id`,
+`admin_logs_error_channel_id`, `admin_logs_files_channel_id`,
+`admin_dump_channel_id` (numbers), and optionally
+`admin_logs_bot_actions_channel_id`; or in `configs.admin` before `data/0003` runs.
 
 ## Converting an existing local volume
 

@@ -11,9 +11,10 @@ from app.constants import LogTypes as logconstants
 from app.data import birthdays as birthdays_data
 from app.exceptions import ErrorContext
 from app.core import analytics, members
+from app.core.cogs import is_feature_on
 from app.core.dates import is_valid_mm_dd, nearest_mm_dd_occurrence, zone_or_utc
-from app.core.moderations import server_language, server_timezone
-from app.services.reminders_birthdays import build_celebration_embed
+from app.core.servers import server_language, server_timezone
+from app.services.reminders_birthdays import birthday_config, build_celebration_embed
 from app.core.trace import Outcome, fan_out
 from app.core.utils import destination
 
@@ -59,11 +60,11 @@ async def celebrate_in_guild(
     guild_id: str, items: List[Dict[str, Any]], mm_dd: str, tally: Counter
 ) -> None:
     """Post each birthday this guild has not celebrated this year, counting how each one went."""
-    if not await asyncio.to_thread(birthdays_data.is_birthday_enabled, guild_id):
+    config = await asyncio.to_thread(birthday_config, guild_id)
+    if not is_feature_on(config):
         return
 
-    config = await asyncio.to_thread(birthdays_data.find_birthday_config, guild_id) or {}
-    guild, channel = destination(guild_id, config.get("channel_id"))
+    guild, channel = destination(guild_id, config.get("channel"))
     locale = await server_language(guild_id)
     mention_everyone = bool(config.get("mention_everyone"))
     allowed_mentions = discord.AllowedMentions(everyone=mention_everyone, users=False, roles=False)

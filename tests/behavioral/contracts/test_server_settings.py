@@ -1,11 +1,10 @@
 """Every server Keiko is in has its settings: language, time zone and prefix.
 
-Shared behaviour: the `settings` sub-document of `guild.moderations`, written by
-`join_guild` (`on_guild_join`, and `Events.on_ready` for a server joined while the
-bot was offline) with `guess_server_settings`, read by `server_settings` and its
-async readers through the cog cache, and saved one key at a time by
-`save_server_setting` (`app/core/moderations.py`); the prefix memo of
-`app/core/cache.py`; the `{context:server_*}` tokens the adapter fills.
+Shared behaviour: the `options` of `guild.settings` (`app/data/guild/settings.py`),
+written by `join_guild` (`on_guild_join`, and `Events.on_ready` for a server joined
+while the bot was offline) with `guess_server_settings`, read by `server_settings` and
+its async readers through the settings memo of `app/core/cache.py`, and saved one key
+at a time by `save_server_setting` (`app/core/servers.py`); the `{context:server_*}` tokens the adapter fills.
 Consumers: the public messages (PR15 package B), the settings screen of
 /configurar (package C), `bot.command_prefix`, `Events.on_message`, the prefix hint
 and the StreamElements form.
@@ -13,8 +12,8 @@ and the StreamElements form.
 Guaranteed: only a server Keiko records for the first time gets the guess, and a
 returning one keeps what its admin saved; nothing on a read guesses, a server
 without settings raises `ServerSettingsMissing`; a save refuses a value its key
-cannot hold and drops the cached record and the prefix memo; leaving a server
-never touches its settings.
+cannot hold and drops the settings memo; leaving a server never touches its
+settings and records that Keiko left.
 """
 
 import logging
@@ -28,10 +27,11 @@ from app.cogs import events as events_module
 from app.constants import Commands, DBConfigs
 from app.exceptions import InvalidServerSetting, ServerSettingsMissing
 from app.core import cache
-from app.core import moderations as moderations_service
+from app.core import servers as moderations_service
 from app.settings.discord.callbacks import RUNTIME
 from tests.behavioral.harness.driver import FormScenario
-from tests.generators.moderations import recorded_server
+from app.data.guild.cogs import find_cog_by_guild_id
+from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks.discord import create_guild, create_member
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("server_settings")]
@@ -66,8 +66,13 @@ def events(deps, monkeypatch):
 
 
 def settings_of(deps, guild_id):
-    document = deps.mongo_client.guild.moderations.find_one({"guild_id": str(guild_id)})
-    return (document or {}).get("settings")
+    document = deps.mongo_client.guild.settings.find_one({"_id": str(guild_id)})
+    return (document or {}).get("options")
+
+
+def state_of(deps, guild_id):
+    document = deps.mongo_client.guild.settings.find_one({"_id": str(guild_id)})
+    return (document or {}).get("state")
 
 
 @pytest.mark.parametrize(
@@ -87,38 +92,39 @@ async def test_a_new_server_gets_the_guess_once(deps, events, locale, language, 
         "timezone": timezone,
         "prefix": "ke!",
     }
-    documents = list(deps.mongo_client.guild.moderations.find({"guild_id": "777"}))
+    documents = list(deps.mongo_client.guild.settings.find({"_id": "777"}))
     assert len(documents) == 1
+    assert state_of(deps, 777)["present"] is True
+    assert state_of(deps, 777)["owner_id"] == "313"
+    assert state_of(deps, 777)["joined_at"] is not None
 
 
 async def test_a_returning_server_keeps_the_settings_its_admin_saved(deps, events):
-    deps.mongo_client.guild.moderations.insert_one(
-        {"guild_id": "777", "is_bot_online": False, "settings": dict(SAVED)}
+    deps.mongo_client.guild.settings.insert_one(
+        {"_id": "777", "options": dict(SAVED), "state": {"present": False}}
     )
 
     await events.on_guild_join(guild_double(locale=discord.Locale.brazil_portuguese))
 
-    document = deps.mongo_client.guild.moderations.find_one({"guild_id": "777"})
-    assert document["settings"] == SAVED
-    assert document["is_bot_online"] is True
+    assert settings_of(deps, 777) == SAVED
+    assert state_of(deps, 777)["present"] is True
 
 
 async def test_a_server_joined_while_the_bot_was_offline_is_recorded_on_ready(
     deps, events, monkeypatch, caplog
 ):
     """Discord fires no `on_guild_join` for a server added while Keiko was down."""
-    moderations = deps.mongo_client.guild.moderations
-    moderations.insert_one({"guild_id": "1", "is_bot_online": True, "settings": dict(SAVED)})
-    moderations.insert_one({"guild_id": "2", "is_bot_online": True})
+    servers = deps.mongo_client.guild.settings
+    servers.insert_one({"_id": "1", "options": dict(SAVED), "state": {"present": True}})
     deps.bot.guilds = [
         guild_double(guild_id=1),
         guild_double(guild_id=2, locale=discord.Locale.british_english),
         guild_double(guild_id=3),
     ]
     queries = []
-    find = moderations.find
+    find = servers.find
     monkeypatch.setattr(
-        moderations, "find",
+        servers, "find",
         lambda *args, **kwargs: (queries.append(args), find(*args, **kwargs))[1],
     )
 
@@ -132,23 +138,23 @@ async def test_a_server_joined_while_the_bot_was_offline_is_recorded_on_ready(
         "timezone": "America/Sao_Paulo",
         "prefix": "ke!",
     }
-    assert moderations.find_one({"guild_id": "3"})["owner_id"] == "313"
-    asked = [query for query in queries if "settings" in query[0]]
+    assert state_of(deps, 3)["owner_id"] == "313"
+    asked = [query for query in queries if "_id" in query[0]]
     assert len(asked) == 1, "one query finds the servers that already have settings"
     assert "📌 Prefix: ke!" in caplog.text, "the ready line prints the default prefix"
 
 
 async def test_leaving_a_server_flips_nothing_inside_its_settings(deps):
-    deps.mongo_client.guild.moderations.insert_one(
-        {"guild_id": "777", "is_bot_online": True, "block_links": True,
-         "settings": dict(SAVED)}
-    )
+    recorded_server(deps.mongo_client, "777", **SAVED)
+    seed_cog(deps.mongo_client, "block_links", {"guild_id": "777", "enabled": True})
 
-    moderations_service.leave_guild("777", "99")
+    paused = moderations_service.leave_guild("777", "99")
 
-    document = deps.mongo_client.guild.moderations.find_one({"guild_id": "777"})
-    assert document["settings"] == SAVED
-    assert document["block_links"] is False and document["is_bot_online"] is False
+    assert settings_of(deps, 777) == SAVED
+    assert state_of(deps, 777)["present"] is False
+    assert state_of(deps, 777)["left_at"] is not None
+    assert paused == ["block_links"]
+    assert find_cog_by_guild_id("777", "block_links")["enabled"] is False
 
 
 @pytest.mark.parametrize(
@@ -158,17 +164,17 @@ async def test_leaving_a_server_flips_nothing_inside_its_settings(deps):
     "document",
     [
         None,
-        {"guild_id": "777", "is_bot_online": True},
+        {"_id": "777", "state": {"present": True}},
         {
-            "guild_id": "777",
-            "settings": {"language": "pt-br", "timezone": "UTC", "mention": "everyone"},
+            "_id": "777",
+            "options": {"language": "pt-br", "timezone": "UTC", "mention": "everyone"},
         },
     ],
     ids=["none", "bare", "partial"],
 )
 async def test_a_server_without_settings_raises_instead_of_guessing(deps, reader, document):
     if document:
-        deps.mongo_client.guild.moderations.insert_one(document)
+        deps.mongo_client.guild.settings.insert_one(document)
 
     with pytest.raises(ServerSettingsMissing, match="guild 777"):
         await getattr(moderations_service, reader)("777")
@@ -246,7 +252,7 @@ async def test_a_value_its_key_cannot_hold_is_refused_and_nothing_is_saved(deps,
     assert settings_of(deps, 777) == SAVED
 
 
-async def test_a_save_drops_the_cached_record_and_the_prefix_memo(deps):
+async def test_a_save_drops_the_settings_memo(deps):
     recorded_server(deps.mongo_client, "777", **SAVED)
     assert await moderations_service.server_prefix("777") == "!!"
     assert moderations_service.server_settings("777")["language"] == "en-us"
@@ -264,20 +270,20 @@ async def test_the_prefix_is_read_once_and_again_only_after_its_memo_expires(
 ):
     recorded_server(deps.mongo_client, "777", **SAVED)
     reads = []
-    read = moderations_service.server_settings
+    read = moderations_service.guild_settings.find_settings
     monkeypatch.setattr(
-        moderations_service, "server_settings",
+        moderations_service.guild_settings, "find_settings",
         lambda guild_id: (reads.append(guild_id), read(guild_id))[1],
     )
     now = [1000.0]
     monkeypatch.setattr(cache, "monotonic", lambda: now[0])
 
     assert await moderations_service.server_prefix("777") == "!!"
-    deps.mongo_client.guild.moderations.update_one(
-        {"guild_id": "777"}, {"$set": {"settings.prefix": "kk!"}}
+    deps.mongo_client.guild.settings.update_one(
+        {"_id": "777"}, {"$set": {"options.prefix": "kk!"}}
     )
-    cache.remove_cog_cache_by_guild("777", Commands.MODERATIONS_KEY)
     assert await moderations_service.server_prefix("777") == "!!"
+    assert moderations_service.server_settings("777")["prefix"] == "!!"
     assert reads == ["777"], "a second message reads nothing"
 
     now[0] += DBConfigs.COG_CACHE_TTL_SECONDS + 1
@@ -334,9 +340,9 @@ async def test_a_form_on_a_server_missing_one_setting_raises_settings_missing(de
         locale="pt-br",
         mongo=deps.mongo_client,
     )
-    deps.mongo_client.guild.moderations.update_one(
-        {"guild_id": "777"},
-        {"$set": {"settings": {"language": "pt-br", "timezone": "UTC"}}},
+    deps.mongo_client.guild.settings.update_one(
+        {"_id": "777"},
+        {"$set": {"options": {"language": "pt-br", "timezone": "UTC"}}},
     )
 
     with pytest.raises(ServerSettingsMissing, match="guild 777"):
@@ -362,10 +368,7 @@ async def test_the_guild_inspection_prints_the_settings_as_one_line(deps):
     view = LogInspectionView(None, None, "777")
     embed = discord.Embed()
 
-    view._add_moderations_fields(
-        embed,
-        {"guild_id": "777", "stream_elements_commands": True, "settings": dict(SAVED)},
-    )
+    view._add_server_fields(embed, {"guild_id": "777", **SAVED})
 
     fields = {field.name: field.value for field in embed.fields}
     assert fields == {

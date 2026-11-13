@@ -1,7 +1,7 @@
 """Shared-component contract: the manager view must keep working for every
 command that consumes it.
 
-`send_command_manager_message` (app/core/moderations.py) + the summary
+`send_command_manager_message` (app/core/servers.py) + the summary
 renderers in app/core/utils.py are shared infrastructure: a change made
 for ONE command has historically broken the saved-configuration display of
 the OTHERS (see tests/behavioral/regressions/). Each consumer below uses
@@ -86,12 +86,12 @@ async def test_manager_form_renders_birthday_via_real_settings_provider(
     """Birthday is the one consumer with a custom settings_provider; seed the
     DB through the real data layer and build cog_data with the real provider
     input function."""
-    from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
+    from app.data.birthdays import upsert_birthday_item
+    from app.services.reminders_birthdays import save_birthday_config
     from app.services.reminders_birthdays import birthday_manager_cog_data
 
-    upsert_birthday_config(
-        GUILD_ID, "100", False,
-        timezone="America/Sao_Paulo", notification_time="08:00",
+    save_birthday_config(
+        GUILD_ID, "100", False, notification_time="08:00",
     )
     upsert_birthday_item(GUILD_ID, "555", "05-12")
 

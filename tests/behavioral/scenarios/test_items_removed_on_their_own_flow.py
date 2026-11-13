@@ -10,6 +10,7 @@ import pytest
 
 from tests.behavioral.golden.paths import notifications_twitch as twitch
 from tests.behavioral.golden.paths.common import GUILD_ID, seed_document
+from app.data.guild.cogs import find_cog_by_guild_id
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
 
@@ -24,7 +25,7 @@ def outside_dev(deps):
 
 
 def _stored(deps, form, guild_id=GUILD_ID):
-    return deps.mongo_client.guild[form].find_one({"guild_id": guild_id})
+    return find_cog_by_guild_id(guild_id, form)
 
 
 def _items(deps, form=twitch.FORM):
@@ -100,9 +101,9 @@ async def test_removing_the_only_streamer_after_another_panel_added_one_drops_no
     }
     scenario = await _twitch_panel(scenario_factory, deps, only)
     await scenario.click("remove_this:notifications$0")
-    deps.mongo_client.guild[twitch.FORM].update_one(
-        {"guild_id": GUILD_ID},
-        {"$set": {"notifications.values": [
+    deps.mongo_client.guild.cogs.update_one(
+        {"_id": f"{GUILD_ID}:{twitch.FORM}"},
+        {"$set": {"options.notifications.values": [
             twitch.notification("100", "gaules"),
             twitch.notification("102", "cellbit"),
         ]}},

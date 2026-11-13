@@ -10,6 +10,7 @@ import pytest
 
 from app.services import admin_digest
 from app.core import analytics, analytics_sink
+from tests.generators.moderations import seed_cog
 
 pytestmark = pytest.mark.unit
 
@@ -77,7 +78,7 @@ def test_permission_failures_are_called_out_as_the_bot_being_unable_to_work():
 
 def test_it_reports_settings_nobody_uses(deps):
     for index in range(5):
-        deps.mongo_client.guild["welcome_messages"].insert_one({
+        seed_cog(deps.mongo_client, "welcome_messages", {
             "guild_id": str(index),
             "welcome_messages_channel": {"values": ["1"]},
             "welcome_design": "server_blur",
@@ -95,8 +96,8 @@ def test_it_reports_settings_nobody_uses(deps):
 def test_the_unused_block_does_not_get_filled_by_one_noisy_form(deps):
     """Three lines from the same feature would crowd out every other one."""
     for index in range(4):
-        deps.mongo_client.guild["block_links"].insert_one({"guild_id": str(index)})
-        deps.mongo_client.guild["welcome_messages"].insert_one({"guild_id": str(index)})
+        seed_cog(deps.mongo_client, "block_links", {"guild_id": str(index)})
+        seed_cog(deps.mongo_client, "welcome_messages", {"guild_id": str(index)})
 
     lines = [
         line for line in admin_digest.build_weekly_digest().description.splitlines()

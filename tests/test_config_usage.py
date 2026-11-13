@@ -8,12 +8,13 @@ YAML declares the list it came from.
 import pytest
 
 from app.core import analytics_reports
+from tests.generators.moderations import seed_cog
 
 pytestmark = pytest.mark.unit
 
 
 def save(deps, feature, **document):
-    deps.mongo_client.guild[feature].insert_one({"guild_id": "g", **document})
+    seed_cog(deps.mongo_client, feature, {"guild_id": "g", **document})
 
 
 def field(usage, key):

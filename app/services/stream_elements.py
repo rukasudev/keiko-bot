@@ -11,12 +11,12 @@ from app.constants import LogTypes as logconstants
 from app.constants import Style as style_constants
 from app.constants import ViewConstants as view_constants
 from app.components.embed import base_embed, response_error_embed
-from app.data import cogs as cogs_data
+from app.data.guild import cogs as guild_cogs
 from app.exceptions import ErrorContext, StreamElementsUnavailable
 from app.integrations.stream_elements import StreamElementsClient
 from app.settings import open_feature
 from app.core import analytics, cache
-from app.core.moderations import server_language
+from app.core.servers import server_language
 from app.core.trace import outside_any_trace
 from app.core.utils import fill, ml
 from app.views.pagination import PaginationView
@@ -52,7 +52,9 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
 
     try:
         locale = await server_language(guild_id)
-        channel_id = await channel_of(guild_id, streamer, cogs.get("channel_id"))
+        channel_id = await channel_of(
+            guild_id, streamer, (cogs.get("state") or {}).get("channel_id")
+        )
 
         if command == "commands":
             view = await parse_command_list_view(channel_id, message, streamer, locale)
@@ -96,10 +98,16 @@ async def channel_of(guild_id: str, streamer: str, channel_id: Optional[str]) ->
         return str(channel_id)
 
     found = await asyncio.to_thread(_channel_or_recent_failure, streamer)
-    key = constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY
-    await cogs_data.update_cog_by_guild_async(guild_id, key, {"channel_id": found})
-    await asyncio.to_thread(cache.remove_cog_cache_by_guild, guild_id, key)
+    await keep_channel(guild_id, found)
     return found
+
+
+async def keep_channel(guild_id: str, channel_id: str) -> None:
+    """Keep the server's StreamElements channel id as what Keiko learned, then drop its
+    cache."""
+    key = constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY
+    await guild_cogs.set_cog_state_async(guild_id, key, {"channel_id": channel_id})
+    await asyncio.to_thread(cache.remove_cog_cache_by_guild, guild_id, key)
 
 
 def _channel_or_recent_failure(streamer: str) -> str:

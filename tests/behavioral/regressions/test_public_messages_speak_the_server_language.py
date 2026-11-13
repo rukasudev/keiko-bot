@@ -6,7 +6,7 @@ birthday from the language its setup happened to run in, and the StreamElements
 command list's page footer was always English. A server whose admin saved another
 language kept reading the guess.
 
-Shared behaviour: `server_language` (`app/core/moderations.py`), read off the loop
+Shared behaviour: `server_language` (`app/core/servers.py`), read off the loop
 by every public site: the Twitch notice and its status, the YouTube notice, the
 birthday celebration, the StreamElements reply and command list (with the page footer
 of `PaginationWithoutInteractionView`), the prefix hint and the greeting. Consumer
@@ -135,17 +135,16 @@ async def youtube_video(deps, guild):
 
 
 async def birthday(deps, guild):
-    from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
-    from app.core.moderations import update_moderations_by_guild
+    from app.data.birthdays import upsert_birthday_item
+    from app.services.reminders_birthdays import save_birthday_config
+    from app.core.servers import set_feature_enabled
     from app.webhooks.birthday_handler import celebrate_in_guild
 
     channel = guild.text_channels[0]
     create_member(guild, id=555, name="Tester")
-    saved = (deps.mongo_client.guild.moderations.find_one({"guild_id": str(guild.id)}))
-    birthday_locale = OTHER[saved["settings"]["language"]]
-    upsert_birthday_config(str(guild.id), str(channel.id), False, birthday_locale)
+    save_birthday_config(str(guild.id), str(channel.id), False)
     upsert_birthday_item(str(guild.id), "555", "05-12", reminder_id="4001")
-    update_moderations_by_guild(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
+    set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
 
     await celebrate_in_guild(
         str(guild.id), [{"user_id": "555", "date": "05-12"}], "05-12", Counter()
@@ -276,4 +275,4 @@ def test_no_module_guesses_a_servers_language_from_its_discord_locale():
         for path in APP.rglob("*.py")
         if "guild_locale" in path.read_text(encoding="utf-8")
     ] == []
-    assert guessing == ["core/moderations.py"], "only the join's guess reads it"
+    assert guessing == ["core/servers.py"], "only the join's guess reads it"

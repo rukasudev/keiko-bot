@@ -66,11 +66,11 @@ def test_the_voltar_of_a_category_page_is_grey(locale, pages):
 
 @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
 async def test_the_voltar_of_the_settings_screen_is_grey(deps, locale):
-    from app.data import moderations as moderations_data
+    from app.data.guild import settings as guild_settings
     from app.core import cache
     from app.services.setup import settings_screen
 
-    recorded_server(moderations_data.mongo_client, GUILD_ID, language=locale)
+    recorded_server(guild_settings.mongo_client, GUILD_ID, language=locale)
     cache.reset()
 
     _assert_grey(await settings_screen(GUILD_ID), locale, "settings screen")

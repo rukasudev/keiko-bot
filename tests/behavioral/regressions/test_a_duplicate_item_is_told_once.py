@@ -26,6 +26,7 @@ that succeeds sends no error at all.
 import pytest
 
 from app.core.utils import ml
+from app.data.guild.cogs import find_cog_by_guild_id
 from tests.behavioral.golden.paths import notifications_twitch as twitch
 from tests.behavioral.golden.paths.common import open_manager
 from tests.behavioral.golden.paths.reminders_birthday import (
@@ -112,7 +113,7 @@ async def test_each_duplicate_streamer_is_told_once_and_the_next_streamer_is_not
     await scenario.click("done")
 
     assert _errors_since(scenario, start) == [], scenario.transcript
-    saved = deps.mongo_client.guild[twitch.FORM].find_one({})
+    saved = find_cog_by_guild_id(str(scenario.guild.id), twitch.FORM)
     streamers = [
         item["streamer"]["value"] for item in saved["notifications"]["values"]
     ]

@@ -5,7 +5,7 @@ every answer only its clicker sees (a form, a panel and its side actions, an err
 the help) followed the clicker's Discord, so an admin whose Discord is in English
 configured a Portuguese server in English (f01 on the PR15 test page).
 
-Shared behaviour: `interaction_language` (`app/core/moderations.py`), the one
+Shared behaviour: `interaction_language` (`app/core/servers.py`), the one
 helper that sets an interaction's locale to the language Keiko answers it in, and
 `speak` (`app/core/utils.py`); the seams that call them before anything reads
 the locale: `KeikoTree.interaction_check` (`app/bot.py`) for every app command,
@@ -28,7 +28,7 @@ import discord
 import pytest
 
 from app.decorators import keiko_admin_only
-from app.core.moderations import interaction_language
+from app.core.servers import interaction_language
 from app.core.utils import ml
 from app.settings.form.form_yaml import registry
 from tests.generators.moderations import recorded_server
@@ -283,13 +283,13 @@ async def test_a_failed_language_read_reaches_the_error_handler_even_without_a_c
     """When the server's language cannot be read, the tree hands the error report an
     AppCommandError, also for an interaction that names no command (it used to raise
     an AttributeError while building the wrapper, and the person got no answer)."""
-    from app.core import moderations
+    from app.core import servers
     from tests.mocks.discord import _keiko
 
     async def broken(_interaction):
         raise RuntimeError("mongo is down")
 
-    monkeypatch.setattr(moderations, "interaction_language", broken)
+    monkeypatch.setattr(servers, "interaction_language", broken)
     interaction = SimpleNamespace(extras={}, locale=discord.Locale("pt-BR"), command=None)
 
     with pytest.raises(discord.app_commands.AppCommandError, match="mongo is down"):

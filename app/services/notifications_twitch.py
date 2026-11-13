@@ -13,9 +13,8 @@ from app import bot, logger
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
+from app.data.guild import cogs as guild_cogs
 from app.data.notifications_twitch import (
-    count_streamers_guilds,
-    find_guilds_by_streamer_name,
     find_last_stream_date,
     find_stream_notification,
     save_stream_notification,
@@ -23,7 +22,7 @@ from app.data.notifications_twitch import (
 )
 from app.settings import open_feature
 from app.core import analytics
-from app.core.moderations import server_language
+from app.core.servers import server_language
 from app.core.cache import claim_redis_key
 from app.core.trace import Outcome, fan_out
 from app.views.message_preview import MessagePreviewView
@@ -36,6 +35,27 @@ from app.core.utils import (
     split_messages,
     values_of,
 )
+
+
+def count_streamers_guilds(streamer_name: str) -> int:
+    """How many servers announce the streamer's lives while their notifications are on."""
+    return guild_cogs.count_cogs_by_option(
+        constants.NOTIFICATIONS_TWITCH_KEY,
+        "notifications.values.streamer.value",
+        streamer_name,
+        enabled_only=True,
+    )
+
+
+def find_guilds_by_streamer_name(streamer_name: str) -> List[Dict[str, Any]]:
+    """The notifications of every server announcing the streamer's lives, while on."""
+    return guild_cogs.find_cogs_by_option(
+        constants.NOTIFICATIONS_TWITCH_KEY,
+        "notifications.values.streamer.value",
+        streamer_name,
+        enabled_only=True,
+    )
+
 
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:

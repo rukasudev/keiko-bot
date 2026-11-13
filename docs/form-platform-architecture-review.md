@@ -3,7 +3,7 @@
 Date: 2026-09-13. Scope: the Form + YAML + State subsystem (`app/views/form.py`,
 `app/views/form_state.py`, `app/views/manager.py`, `app/views/summary_card.py`,
 `app/views/composition.py`, `app/views/edit.py`, `app/views/remove.py`,
-`app/components/*`, `app/core/moderations.py`, `app/languages/form/*.yml`) and
+`app/components/*`, `app/core/servers.py`, `app/languages/form/*.yml`) and
 everything that plugs into it. Review only: no code was changed.
 
 > **Baseline note (2026-09-13, same day).** Part I below was traced on the worktree
@@ -65,7 +65,7 @@ What a Keiko Form actually is (derived from the seven YAMLs and their services):
   output is one configuration document per (guild, feature) plus zero or more domain
   actions (Twitch/YouTube subscriptions, reminder scheduling, file re-hosting).
 - **Short-lived and single-actor.** Views time out at 30 minutes
-  (`app/views/form.py:71`); messages are ephemeral (`app/core/moderations.py:121`);
+  (`app/views/form.py:71`); messages are ephemeral (`app/core/servers.py:121`);
   nothing survives a restart. The only user who can click is the one who opened it.
 - **Two modes of the same session.** *Setup* (run every step, then `_finish`) and
   *Manage* (lifecycle actions on saved config: pause, unpause, disable, history, plus

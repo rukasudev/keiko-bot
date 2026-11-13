@@ -12,6 +12,7 @@ from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
 from app.data import birthdays as birthdays_data
 from app.data.birthdays import to_summary_composition
+from app.data.guild import cogs as guild_cogs
 from app.core.dates import (
     format_mm_dd_count,
     format_mm_dd_label,
@@ -25,9 +26,10 @@ from app.settings import open_feature
 from app.settings.form.responses.styles import format_value
 from app.core import members
 from app.core import reminders as reminders_service
+from app.core.cache import remove_cog_cache_by_guild
 from app.core.cogs import is_feature_on
 from app.exceptions import ServerSettingsMissing
-from app.core.moderations import save_server_setting, server_setting
+from app.core.servers import save_server_setting, server_setting
 from app.core.utils import (
     fill_placeholders,
     ml,
@@ -45,12 +47,40 @@ def _mb(key: str, locale: str) -> str:
     return ml(f"commands.commands.commons.reminders-birthdays-manager.{key}", locale=locale)
 
 
-def accepts_birthdays(guild_id: str) -> bool:
-    """Whether a guild takes birthdays: its feature is on and it is configured."""
-    return bool(
-        birthdays_data.is_birthday_enabled(guild_id)
-        and birthdays_data.find_birthday_config(guild_id)
+def birthday_config(guild_id: str) -> Optional[Dict[str, Any]]:
+    """The saved birthday configuration of a guild, or nothing."""
+    return guild_cogs.find_cog_by_guild_id(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY)
+
+
+def save_birthday_config(
+    guild_id: str,
+    channel_id: str,
+    mention_everyone: bool = False,
+    notification_time: Optional[str] = None,
+    default_message: Optional[Dict[str, Any]] = None,
+    updated_by: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Save the birthday configuration over the saved one; the configuration as saved."""
+    options: Dict[str, Any] = {
+        commands_constants.BIRTHDAY_CONFIG_CHANNEL: str(channel_id),
+        commands_constants.BIRTHDAY_CONFIG_MENTION_EVERYONE: bool(mention_everyone),
+    }
+    if notification_time is not None:
+        options[commands_constants.BIRTHDAY_CONFIG_NOTIFICATION_TIME] = str(notification_time)
+    if default_message is not None:
+        options["default_message"] = default_message
+
+    key = commands_constants.REMINDERS_BIRTHDAY_KEY
+    guild_cogs.insert_cog_by_guild_id(
+        key, {"guild_id": str(guild_id), **options}, updated_by
     )
+    remove_cog_cache_by_guild(str(guild_id), key)
+    return birthday_config(guild_id) or {}
+
+
+def accepts_birthdays(guild_id: str) -> bool:
+    """Whether a guild takes birthdays: it is configured and its feature is on."""
+    return is_feature_on(birthday_config(guild_id))
 
 
 def get_self_edit_count(item: Optional[Dict[str, Any]]) -> int:
@@ -81,7 +111,7 @@ def upsert_birthday(
 
     reminder_id = birthdays_data.find_reminder_id_by_guild_and_date(guild_id, mm_dd)
     if not reminder_id:
-        config = birthdays_data.find_birthday_config(guild_id) or {}
+        config = birthday_config(guild_id) or {}
         reminder_id = reminders_service.create_reminder(
             commands_constants.REMINDER_API_TITLE_BIRTHDAY,
             mm_dd,
@@ -125,7 +155,7 @@ def reconcile_missing_reminders(limit: int = 50) -> int:
             continue
         done.add((guild_id, mm_dd))
 
-        config = birthdays_data.find_birthday_config(guild_id)
+        config = birthday_config(guild_id)
         if not config:
             # No configuration means no channel to greet in; a reminder for it
             # would schedule a message with nowhere to go.
@@ -196,17 +226,15 @@ def birthday_manager_cog_data(guild_id: str, apply_defaults: bool = True) -> Dic
     choice: it counted three guilds as having configured a message they never
     touched. Absence stays absence when the caller says so.
     """
-    config = birthdays_data.find_birthday_config(guild_id) or {}
+    config = birthday_config(guild_id) or {}
     items = birthdays_data.find_birthday_items_by_guild(guild_id)
     message = config.get("default_message") or {}
     return {
         "guild_id": str(guild_id),
-        commands_constants.ENABLED_KEY: is_feature_on(
-            str(guild_id), commands_constants.REMINDERS_BIRTHDAY_KEY, config
-        ),
+        commands_constants.ENABLED_KEY: is_feature_on(config),
         commands_constants.BIRTHDAY_CONFIG_CHANNEL: {
             "style": "channel",
-            "values": str(config.get("channel_id")) if config.get("channel_id") else None,
+            "values": str(config.get("channel")) if config.get("channel") else None,
         },
         commands_constants.BIRTHDAY_CONFIG_MENTION_EVERYONE: {
             "style": "boolean",
@@ -239,12 +267,14 @@ def config_states() -> List[Dict[str, Any]]:
     """
     return [
         birthday_manager_cog_data(config["guild_id"], apply_defaults=False)
-        for config in birthdays_data.find_all_birthday_configs()
+        for config in guild_cogs.find_all_cogs(commands_constants.REMINDERS_BIRTHDAY_KEY)
         if config.get("guild_id")
     ]
 
 
-def save_birthday_config_changes(guild_id: str, data: Dict[str, Any], locale: str) -> None:
+def save_birthday_config_changes(
+    guild_id: str, data: Dict[str, Any], updated_by: Optional[str] = None
+) -> None:
     """Apply the edited settings on top of the saved birthday configuration."""
     config_keys = {
         commands_constants.BIRTHDAY_CONFIG_CHANNEL,
@@ -256,12 +286,12 @@ def save_birthday_config_changes(guild_id: str, data: Dict[str, Any], locale: st
         commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_CONTENT,
     }
     if config_keys.intersection(data):
-        config = birthdays_data.find_birthday_config(guild_id) or {}
+        config = birthday_config(guild_id) or {}
         channel_entry = data.get(commands_constants.BIRTHDAY_CONFIG_CHANNEL)
         mention_entry = data.get(commands_constants.BIRTHDAY_CONFIG_MENTION_EVERYONE)
         timezone_entry = data.get(commands_constants.BIRTHDAY_CONFIG_TIMEZONE)
         notification_time_entry = data.get(commands_constants.BIRTHDAY_CONFIG_NOTIFICATION_TIME)
-        channel_id = _extract_first(channel_entry) or config.get("channel_id")
+        channel_id = _extract_first(channel_entry) or config.get("channel")
         mention_everyone = (
             _parse_bool(_extract_first(mention_entry))
             if mention_entry is not None
@@ -274,10 +304,10 @@ def save_birthday_config_changes(guild_id: str, data: Dict[str, Any], locale: st
             guild_id,
             str(channel_id),
             mention_everyone,
-            locale,
             timezone_value,
             notification_time,
             default_message,
+            updated_by=updated_by,
         )
 
 
@@ -359,7 +389,7 @@ def birthday_settings_rows(
     guild_id: str, locale: str, today: Optional[date] = None
 ) -> List[Dict[str, Any]]:
     """The panel rows of the birthday feature, from its own collections, counted from `today`."""
-    config = birthdays_data.find_birthday_config(guild_id) or {}
+    config = birthday_config(guild_id) or {}
     stats = get_birthday_stats(guild_id, today=today)
     upcoming = get_upcoming_birthdays(guild_id, limit=3, today=today)
     upcoming_lines = [
@@ -371,7 +401,7 @@ def birthday_settings_rows(
         {
             "key": "channel",
             "title": _mb("settings.channel", locale),
-            "value": config.get("channel_id"),
+            "value": config.get("channel"),
             "style": "channel",
         },
         {
@@ -438,7 +468,7 @@ def birthday_month_pages(
 
 def birthday_found_members(guild_id: str, locale: str) -> Dict[str, List[str]]:
     """Each listed member's birthday messages, for the screen a search opens."""
-    config = birthdays_data.find_birthday_config(guild_id) or {}
+    config = birthday_config(guild_id) or {}
     found: Dict[str, List[str]] = {}
     for item in birthdays_data.find_birthday_items_by_guild(guild_id):
         source, title, content = message_source(item, config, locale)
@@ -519,9 +549,7 @@ async def send_birthday_preview(
     if user_id and guild:
         member = await members.find(guild, user_id) or member
 
-    config = await asyncio.to_thread(
-        birthdays_data.find_birthday_config, str(guild.id)
-    ) or {}
+    config = await asyncio.to_thread(birthday_config, str(guild.id)) or {}
     if values.get("default_message_mode"):
         config = {
             "default_message": {
@@ -564,24 +592,19 @@ def setup_birthdays(
     guild_id: str,
     channel_id: str,
     mention_everyone: bool,
-    locale: str = None,
     timezone_value: str = None,
     notification_time: str = None,
     default_message: Optional[Dict[str, Any]] = None,
+    updated_by: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Save the birthday configuration in the server's zone, a new zone chosen here
     becoming the server's for new reminders; a new hour moves every reminder to it."""
-    previous_config = birthdays_data.find_birthday_config(guild_id) or {}
+    previous_config = birthday_config(guild_id) or {}
     previous_zone = str(_server_zone(guild_id))
     zone = timezone_value or previous_zone
-    config = birthdays_data.upsert_birthday_config(
-        guild_id,
-        channel_id,
-        mention_everyone,
-        locale,
-        timezone=zone,
-        notification_time=notification_time,
-        default_message=default_message,
+    config = save_birthday_config(
+        guild_id, channel_id, mention_everyone, notification_time, default_message,
+        updated_by,
     )
     if zone != previous_zone:
         save_server_setting(guild_id, commands_constants.SERVER_TIMEZONE_KEY, zone)
@@ -590,7 +613,9 @@ def setup_birthdays(
     return config
 
 
-def save_setup_form(guild_id: str, responses: List[Dict[str, Any]], locale: str = None) -> List[Dict[str, Any]]:
+def save_setup_form(
+    guild_id: str, responses: List[Dict[str, Any]], updated_by: Optional[str] = None
+) -> List[Dict[str, Any]]:
     values = values_of(responses)
     channel_id = values.get(commands_constants.BIRTHDAY_CONFIG_CHANNEL)
     mention_everyone = _parse_bool(values.get(commands_constants.BIRTHDAY_CONFIG_MENTION_EVERYONE))
@@ -605,10 +630,10 @@ def save_setup_form(guild_id: str, responses: List[Dict[str, Any]], locale: str 
         guild_id,
         str(channel_id),
         mention_everyone,
-        locale,
         timezone_value,
         notification_time,
         default_message,
+        updated_by=updated_by,
     )
 
     saved_items = []
@@ -683,7 +708,7 @@ def disable_birthdays(guild_id: str) -> None:
     reminder_ids = {item.get("reminder_id") for item in items if item.get("reminder_id")}
 
     birthdays_data.delete_birthday_items_by_guild(guild_id)
-    birthdays_data.delete_birthday_config(guild_id)
+    guild_cogs.delete_cog_by_guild_id(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY)
 
     for reminder_id in reminder_ids:
         reminders_service.delete_reminder(reminder_id)

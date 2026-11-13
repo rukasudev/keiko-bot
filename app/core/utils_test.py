@@ -331,16 +331,16 @@ class TestBirthdayItemDefaults:
 
         with patch("app.services.reminders_birthdays.setup_birthdays") as setup:
             with patch("app.services.reminders_birthdays.upsert_birthday", return_value={"user_id": "222"}) as upsert:
-                saved = save_setup_form("guild-1", responses, "pt-br")
+                saved = save_setup_form("guild-1", responses)
 
         setup.assert_called_once_with(
             "guild-1",
             "111",
             True,
-            "pt-br",
             None,
             None,
             {"mode": "default", "title": None, "content": None},
+            updated_by=None,
         )
         upsert.assert_called_once_with(
             "guild-1",
@@ -369,13 +369,12 @@ class TestBirthdayItemDefaults:
         ]
 
         with patch("app.services.reminders_birthdays.setup_birthdays") as setup:
-            saved = save_setup_form("guild-1", responses, "pt-br")
+            saved = save_setup_form("guild-1", responses)
 
         setup.assert_called_once_with(
             "guild-1",
             "111",
             False,
-            "pt-br",
             "America/Sao_Paulo",
             "12:00",
             {
@@ -383,6 +382,7 @@ class TestBirthdayItemDefaults:
                 "title": "Parabens, {user}!",
                 "content": "Hoje tem festa no {server}.",
             },
+            updated_by=None,
         )
         assert saved == []
 
@@ -390,7 +390,7 @@ class TestBirthdayItemDefaults:
         with patch("app.services.reminders_birthdays.birthdays_data.find_reminder_id_by_guild_and_date", return_value=None):
             with patch("app.services.reminders_birthdays.birthdays_data.find_birthday_item", return_value=None):
                 with patch(
-                    "app.services.reminders_birthdays.birthdays_data.find_birthday_config",
+                    "app.services.reminders_birthdays.birthday_config",
                     return_value={"timezone": "UTC", "notification_time": "12:00"},
                 ):
                     with patch(

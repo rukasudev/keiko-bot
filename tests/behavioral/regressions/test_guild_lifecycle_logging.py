@@ -23,6 +23,7 @@ from app import logger as logger_module
 from app.constants import Commands, LogTypes as logconstants
 from app.data import analytics as analytics_data
 from app.core import analytics, trace as trace_service
+from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("logging")]
 
@@ -103,9 +104,10 @@ def embeds(log_channel):
 
 async def test_a_guild_removing_keiko_reaches_the_log_channel(deps, events, log_channel):
     guild = guild_double()
-    deps.mongo_client.guild.moderations.insert_one({
-        "guild_id": str(guild.id), "welcome_messages": True, "is_bot_online": True,
-    })
+    deps.mongo_client.guild.settings.insert_one(
+        {"_id": str(guild.id), "state": {"present": True}}
+    )
+    seed_cog(deps.mongo_client, "welcome_messages", {"guild_id": str(guild.id), "enabled": True})
 
     await events.on_guild_remove(guild)
 
@@ -146,9 +148,7 @@ async def test_a_guild_adding_keiko_reaches_the_log_channel(deps, events, log_ch
 
 
 async def test_a_returning_guild_is_still_reported(deps, events, log_channel):
-    deps.mongo_client.guild.moderations.insert_one({
-        "guild_id": "777", "is_bot_online": False,
-    })
+    deps.mongo_client.guild.settings.insert_one({"_id": "777", "state": {"present": False}})
 
     await events.on_guild_join(guild_double(guild_id=777))
 
@@ -237,35 +237,21 @@ async def test_the_left_guild_line_names_what_was_on_by_its_saved_settings(
     Guaranteed: the line lists exactly the features `is_feature_on` calls on before Keiko
     pauses them, and says "none" when nothing was.
     """
-    deps.mongo_client.guild.moderations.insert_one({
-        "guild_id": GUILD_ID,
-        "is_bot_online": True,
-        Commands.BLOCK_LINKS_KEY: True,
-        Commands.WELCOME_MESSAGES_KEY: False,
-    })
-    deps.mongo_client.guild[Commands.BLOCK_LINKS_KEY].insert_one(
-        {"guild_id": GUILD_ID, "enabled": False}
-    )
-    deps.mongo_client.guild[Commands.WELCOME_MESSAGES_KEY].insert_one(
-        {"guild_id": GUILD_ID, "enabled": True}
-    )
-    deps.mongo_client.guild[Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY].insert_one(
-        {"guild_id": GUILD_ID, "enabled": True}
-    )
+    seed_cog(deps.mongo_client, Commands.BLOCK_LINKS_KEY, {"guild_id": GUILD_ID, "enabled": False})
+    seed_cog(deps.mongo_client, Commands.WELCOME_MESSAGES_KEY, {"guild_id": GUILD_ID, "enabled": True})
+    seed_cog(deps.mongo_client, Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY, {"guild_id": GUILD_ID, "enabled": True})
 
     await events.on_guild_remove(guild_double(guild_id=int(GUILD_ID)))
 
     line = left_line(log_channel)
-    assert Commands.WELCOME_MESSAGES_KEY in line, "on without the old flag"
+    assert Commands.WELCOME_MESSAGES_KEY in line
     assert Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY in line
-    assert Commands.BLOCK_LINKS_KEY not in line, "disabled while its old flag stayed on"
+    assert Commands.BLOCK_LINKS_KEY not in line, "paused, so not on"
 
 
 @pytest.mark.regression
 async def test_a_guild_with_nothing_on_says_none(deps, events, log_channel):
-    deps.mongo_client.guild.moderations.insert_one(
-        {"guild_id": GUILD_ID, "is_bot_online": True, Commands.BLOCK_LINKS_KEY: True}
-    )
+    seed_cog(deps.mongo_client, Commands.BLOCK_LINKS_KEY, {"guild_id": GUILD_ID, "enabled": False})
 
     await events.on_guild_remove(guild_double(guild_id=int(GUILD_ID)))
 
@@ -284,5 +270,5 @@ async def test_the_join_names_an_owner_discord_py_never_cached(deps, events, log
     posted = {embed.title: rendered(embed) for embed in embeds(log_channel)}
     assert "<@42>" in posted[logconstants.EVENT_JOIN_GUILD_TITLE]
     assert "Left guild by 42" in posted[logconstants.EVENT_LEFT_GUILD_TITLE]
-    stored = deps.mongo_client.guild.moderations.find_one({"guild_id": "778"})
-    assert stored["owner_id"] == "42"
+    stored = deps.mongo_client.guild.settings.find_one({"_id": "778"})
+    assert stored["state"]["owner_id"] == "42"

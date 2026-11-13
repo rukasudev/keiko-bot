@@ -15,6 +15,7 @@ What must remain guaranteed: every audit event carries a real timestamp,
 whatever state the message it came from was in.
 """
 import pytest
+from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
@@ -31,7 +32,7 @@ async def test_editing_a_never_edited_panel_still_records_a_timestamp(
 ):
     from app.services.block_links import normalize_block_links_config
 
-    deps.mongo_client.guild["block_links"].insert_one(dict(LEGACY_COG))
+    seed_cog(deps.mongo_client, "block_links", dict(LEGACY_COG))
     scenario = await scenario_factory(locale="pt-br").start_manager(
         "block_links", normalize_block_links_config(LEGACY_COG)
     )

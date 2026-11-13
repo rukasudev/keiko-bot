@@ -2,7 +2,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional
 
 from app.constants import Commands as constants
 from app.data import cogs as cogs_data
-from app.data import moderations as moderations_data
+from app.data.guild import cogs as guild_cogs
 from app.core import analytics
 
 LIFECYCLE_ANALYTICS_EVENTS = {
@@ -22,7 +22,7 @@ def feature_config_states(feature: str) -> List[Dict[str, Any]]:
     in its service; everything else is a plain read of the collection.
     """
     provider = config_states_provider(feature)
-    return provider() if provider else cogs_data.find_all_cogs(feature)
+    return provider() if provider else guild_cogs.find_all_cogs(feature)
 
 
 def config_states_provider(feature: str) -> Optional[Callable[[], List[Dict[str, Any]]]]:
@@ -33,14 +33,9 @@ def config_states_provider(feature: str) -> Optional[Callable[[], List[Dict[str,
     return config_states
 
 
-def is_feature_on(guild_id: str, key: str, document: Optional[Mapping[str, Any]]) -> bool:
-    """Whether a feature is on: its saved document says so, or for a document saved
-    before `enabled` existed, its old moderations flag."""
-    if not document:
-        return False
-    if constants.ENABLED_KEY in document:
-        return bool(document[constants.ENABLED_KEY])
-    return bool(moderations_data.find_moderation_by_guild(guild_id, key))
+def is_feature_on(document: Optional[Mapping[str, Any]]) -> bool:
+    """Whether a feature is on: its saved document says so."""
+    return bool(document and document.get(constants.ENABLED_KEY))
 
 
 def feature_spec(command_key: str) -> Dict[str, Any]:
@@ -53,14 +48,11 @@ def feature_spec(command_key: str) -> Dict[str, Any]:
 
 def features_on(guild_id: str) -> List[str]:
     """The setup features that are on in a server, by `is_feature_on`."""
+    documents = guild_cogs.find_cogs_by_guild(guild_id)
     return [
         spec["command_key"]
         for spec in constants.SETUP_FEATURES
-        if is_feature_on(
-            guild_id,
-            spec["command_key"],
-            cogs_data.find_cog_by_guild_id(guild_id, spec["command_key"]),
-        )
+        if is_feature_on(documents.get(spec["command_key"]))
     ]
 
 

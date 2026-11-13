@@ -25,12 +25,13 @@ from types import SimpleNamespace
 import discord
 import pytest
 
-from app.data import moderations as moderations_data
+from app.data.guild import settings as guild_settings
 from app.exceptions import StreamElementsUnavailable
 from app.integrations.stream_elements import StreamElementsClient
 from app.core.utils import ml, parse_locale
 from tests.behavioral.harness.driver import FormScenario
-from tests.generators.moderations import recorded_server
+from app.data.guild.cogs import find_cog_by_guild_id
+from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks.discord import (
     create_guild,
     create_member,
@@ -55,7 +56,7 @@ def streamer_commands(mock_cache, monkeypatch):
 
     def configured(guild_id, key, *args, **kwargs):
         if key == "stream_elements_commands":
-            return {"streamer": "gaules", "channel_id": "se-gaules", "enabled": True}
+            return {"streamer": "gaules", "state": {"channel_id": "se-gaules"}, "enabled": True}
         return {}
 
     mock_cache.side_effect = configured
@@ -89,7 +90,7 @@ def reply_of(message):
 
 def english_guild():
     guild = create_guild()
-    recorded_server(moderations_data.mongo_client, guild.id, language="en-us")
+    recorded_server(guild_settings.mongo_client, guild.id, language="en-us")
     return guild
 
 
@@ -120,7 +121,7 @@ async def test_a_member_with_a_picture_of_their_own_gets_the_reply(deps, streame
 
 async def test_the_reply_footer_speaks_the_language_of_the_server(deps, streamer_commands):
     guild = create_guild()
-    recorded_server(moderations_data.mongo_client, guild.id, language="pt-br")
+    recorded_server(guild_settings.mongo_client, guild.id, language="pt-br")
 
     message = await ask(deps.bot, guild, member_without_a_picture(guild))
 
@@ -210,7 +211,7 @@ def counted_streamer_commands(mock_cache, monkeypatch):
 
     def configured(guild_id, key, *args, **kwargs):
         if key == "stream_elements_commands":
-            return {"streamer": "gaules", "channel_id": "se-gaules", "enabled": True}
+            return {"streamer": "gaules", "state": {"channel_id": "se-gaules"}, "enabled": True}
         return {}
 
     def commands(channel_id):
@@ -349,7 +350,7 @@ async def test_an_error_names_the_commands_length_never_its_text(
     deps, mock_cache, monkeypatch
 ):
     def configured(guild_id, key, *args, **kwargs):
-        return {"streamer": "gaules", "channel_id": "se-gaules", "enabled": True}
+        return {"streamer": "gaules", "state": {"channel_id": "se-gaules"}, "enabled": True}
 
     def unreadable(reply, user):
         raise ValueError("the reply could not be read")
@@ -460,7 +461,7 @@ def stream_elements_on(mock_cache, monkeypatch):
 
     def configured(guild_id, key, *args, **kwargs):
         if key == "stream_elements_commands":
-            return {"streamer": "gaules", "channel_id": "se-gaules", "enabled": True}
+            return {"streamer": "gaules", "state": {"channel_id": "se-gaules"}, "enabled": True}
         return {}
 
     mock_cache.side_effect = configured
@@ -482,7 +483,7 @@ def nothing_on(mock_cache):
 
 def server_message(content, locale=discord.Locale.american_english):
     guild = create_guild()
-    recorded_server(moderations_data.mongo_client, guild.id, language=parse_locale(locale))
+    recorded_server(guild_settings.mongo_client, guild.id, language=parse_locale(locale))
     author = create_member(guild, id=111, name="TestUser")
     return create_message(content=content, author=author, channel=guild.text_channels[0])
 
@@ -707,7 +708,7 @@ async def test_a_setup_in_dev_saves_the_channel_the_streamer_lookup_found(
         "guild",
         "stream_elements_commands",
         {"guild_id": str(scenario.guild.id)},
-        {"streamer": "shroud", "channel_id": "se-channel-of-shroud"},
+        {"streamer": "shroud", "state": {"channel_id": "se-channel-of-shroud"}},
     )
     assert asked == ["shroud"], "the commit asked StreamElements again for the channel"
 
@@ -717,12 +718,12 @@ def an_old_document(deps, mock_cache, monkeypatch):
     """A server whose document was saved by the dev bot: a streamer and no channel."""
     guild = english_guild()
     document = {"guild_id": str(guild.id), "streamer": "gaules", "enabled": True}
-    deps.mongo_client.guild["stream_elements_commands"].insert_one(dict(document))
+    seed_cog(deps.mongo_client, "stream_elements_commands", dict(document))
 
     def configured(guild_id, key, *args, **kwargs):
         if key != "stream_elements_commands":
             return {}
-        return deps.mongo_client.guild[key].find_one({"guild_id": str(guild_id)})
+        return find_cog_by_guild_id(str(guild_id), key)
 
     asked = []
 
@@ -768,10 +769,8 @@ async def test_an_old_document_without_its_channel_still_answers_ke_commands(
 
     assert reply_of(first).description == REPLY
     assert reply_of(second).description == REPLY
-    stored = deps.mongo_client.guild["stream_elements_commands"].find_one(
-        {"guild_id": str(guild.id)}
-    )
-    assert stored["channel_id"] == "se-gaules", "the channel was not written back"
+    stored = find_cog_by_guild_id(str(guild.id), "stream_elements_commands")
+    assert stored["state"]["channel_id"] == "se-gaules", "the channel was not written back"
     assert an_old_document.asked == ["gaules"], "the channel was looked up on every message"
 
 
@@ -838,7 +837,7 @@ def no_commands(stream_elements_on, monkeypatch):
     )
 
 
-PANEL = {"streamer": "gaules", "channel_id": "se-gaules", "enabled": True}
+PANEL = {"streamer": "gaules", "state": {"channel_id": "se-gaules"}, "enabled": True}
 
 
 async def _open_the_command_list(scenario_factory, locale="pt-br"):

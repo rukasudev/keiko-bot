@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 from zoneinfo import available_timezones
@@ -6,14 +5,13 @@ from zoneinfo import available_timezones
 import app as app_module
 from app.constants import Commands as commands_constants
 from app.constants import DBConfigs
-from app.constants import GuildConstants as guild_constants
 from app.constants import supported_locales
-from app.data import cogs as cogs_data
-from app.data import moderations as moderations_data
+from app.data.guild import cogs as guild_cogs
+from app.data.guild import settings as guild_settings
 from app.exceptions import InvalidServerSetting, ServerSettingsMissing
 from app.core.cache import (
     forget_remembered,
-    get_cog_data_or_populate,
+    recalled,
     remembered,
     remove_all_cache_by_guild,
     remove_cog_cache_by_guild,
@@ -22,62 +20,54 @@ from app.core.cogs import insert_cog_event, is_feature_on
 from app.core.utils import parse_locale, speak
 
 
-def update_moderations_by_guild(guild_id: str, key: str, value: Any):
-    if not guild_id:
-        return None
-
-    return moderations_data.upsert_moderations_by_guild(
-        guild_id, key, value, parse_default_moderations(guild_id)
+def set_feature_enabled(
+    guild_id: str, key: str, enabled: bool, updated_by: Optional[str] = None
+) -> None:
+    """Record whether a feature is on, and who said so when a person did: its
+    document, then its cache."""
+    guild_cogs.update_cog_by_guild(
+        guild_id, key, {commands_constants.ENABLED_KEY: enabled}, updated_by
     )
-
-
-def set_feature_enabled(guild_id: str, key: str, enabled: bool) -> None:
-    """Record whether a feature is on: its document, its cache, then its moderations flag."""
-    cogs_data.update_cog_by_guild(guild_id, key, {commands_constants.ENABLED_KEY: enabled})
     remove_cog_cache_by_guild(guild_id, key)
-    update_moderations_by_guild(guild_id, key, enabled)
 
 
 def join_guild(
     guild_id: int, owner_id: str, settings: Dict[str, Any]
 ) -> Tuple[Optional[Dict[str, Any]], int]:
-    """Mark Keiko online in a server it joined, with `settings` where it has none saved:
+    """Record Keiko in a server it joined, with `settings` where it has none saved:
     the server's earlier record, if any, and its owner's server count."""
-    exist = moderations_data.find_moderations_by_guild(guild_id)
+    exist = guild_settings.find_settings(guild_id)
 
-    if not exist:
-        insert_moderations_by_guild(guild_id, owner_id=owner_id)
-    else:
-        update_moderations_by_guild(guild_id, guild_constants.IS_BOT_ONLINE, True)
-        update_moderations_by_guild(guild_id, "owner_id", owner_id)
-
-    moderations_data.insert_server_settings(guild_id, settings)
-    remove_cog_cache_by_guild(str(guild_id), commands_constants.MODERATIONS_KEY)
-    return exist, moderations_data.count_moderations_by_owner(owner_id)
+    guild_settings.record_join(guild_id, owner_id, settings)
+    forget_remembered(_settings_memo(guild_id))
+    return exist, guild_settings.count_servers_by_owner(owner_id)
 
 
 def guilds_without_settings(guild_ids: Sequence[str]) -> List[str]:
     """The servers among `guild_ids` with no saved settings, found with one query."""
-    recorded = moderations_data.find_guild_ids_with_settings(list(guild_ids))
+    recorded = guild_settings.find_guild_ids_with_settings(list(guild_ids))
     return [guild_id for guild_id in guild_ids if str(guild_id) not in recorded]
 
 
-def leave_guild(guild_id: str, bot_user_id: str) -> Optional[Dict[str, Any]]:
-    """Everything a guild Keiko left needs, in one call a worker thread can run."""
-    moderations = pause_all_moderations_by_guild(guild_id, bot_user_id)
+def leave_guild(guild_id: str, bot_user_id: str) -> List[str]:
+    """Everything a guild Keiko left needs, in one call a worker thread can run: the
+    features it paused."""
+    paused = pause_features(guild_id, bot_user_id)
+    guild_settings.record_leave(guild_id)
     remove_all_cache_by_guild(guild_id)
-    return moderations
+    forget_remembered(_settings_memo(guild_id))
+    return paused
 
 
-def pause_all_moderations_by_guild(guild_id: str, bot_user_id: str):
-    """Pause every feature that is on in a guild Keiko left, and mark Keiko offline there."""
-    moderations = moderations_data.find_moderations_by_guild(guild_id)
+def pause_features(guild_id: str, bot_user_id: str) -> List[str]:
+    """Pause every feature that is on in a guild Keiko left."""
     paused = []
+
+    documents = guild_cogs.find_cogs_by_guild(guild_id)
 
     for spec in commands_constants.SETUP_FEATURES:
         key = spec["command_key"]
-        document = cogs_data.find_cog_by_guild_id(guild_id, key)
-        if not is_feature_on(str(guild_id), key, document):
+        if not is_feature_on(documents.get(key)):
             continue
 
         set_feature_enabled(guild_id, key, False)
@@ -90,33 +80,11 @@ def pause_all_moderations_by_guild(guild_id: str, bot_user_id: str):
             user_id=bot_user_id,
         )
 
-    for key, value in (moderations or {}).items():
-        if value is True and key not in (*paused, guild_constants.IS_BOT_ONLINE):
-            moderations_data.update_moderations_by_guild(guild_id, key, False)
-
-    moderations_data.update_moderations_by_guild(
-        guild_id, guild_constants.IS_BOT_ONLINE, False
-    )
-
-    return moderations
-
-
-def insert_moderations_by_guild(guild_id: str, data: Dict[str, Any] = None, owner_id: str = None) -> str:
-    default_data = parse_default_moderations(guild_id, owner_id=owner_id)
-
-    return moderations_data.insert_moderations_by_guild(data or default_data)
-
-
-def parse_default_moderations(guild_id: str, owner_id: str = None) -> Dict[str, Any]:
-    data = dict(guild_constants.COGS_MODERATIONS_COMMANDS_DEFAULT)
-    data["guild_id"] = str(guild_id)
-    if owner_id:
-        data["owner_id"] = str(owner_id)
-    return data
+    return paused
 
 
 def default_prefix() -> str:
-    """The prefix of the configs document: Keiko's in a DM and a new server's first one."""
+    """Keiko's prefix from keiko.settings: the one in a DM and a new server's first one."""
     return str(app_module.bot.config.PREFIX)
 
 
@@ -134,17 +102,14 @@ def guess_server_settings(guild: Any) -> Dict[str, Any]:
 
 
 def server_settings(guild_id: str) -> Dict[str, Any]:
-    """The three saved settings of a server, through the cache; ServerSettingsMissing when
-    it has none or lacks one."""
-    moderations = get_cog_data_or_populate(
-        str(guild_id), commands_constants.MODERATIONS_KEY, manager=True
+    """The three saved settings of a server, kept in this process between saves;
+    ServerSettingsMissing when it has none or lacks one."""
+    options = recalled(
+        _settings_memo(guild_id),
+        lambda: _saved_options(guild_id),
+        DBConfigs.COG_CACHE_TTL_SECONDS,
     )
-    settings = (moderations or {}).get(commands_constants.SERVER_SETTINGS_KEY)
-    if not isinstance(settings, dict) or any(
-        key not in settings for key in commands_constants.SERVER_SETTING_KEYS
-    ):
-        raise ServerSettingsMissing(guild_id)
-    return settings
+    return _complete(guild_id, options)
 
 
 def server_setting(guild_id: str, key: str) -> str:
@@ -176,13 +141,8 @@ async def server_timezone(guild_id: str) -> str:
 
 
 async def server_prefix(guild_id: str) -> str:
-    """The chat prefix of a server, kept in this process between saves."""
-    def read() -> str:
-        return server_setting(guild_id, commands_constants.SERVER_PREFIX_KEY)
-
-    return await remembered(
-        _prefix_memo(guild_id), read, DBConfigs.COG_CACHE_TTL_SECONDS
-    )
+    """The chat prefix of a server."""
+    return await _server_setting(guild_id, commands_constants.SERVER_PREFIX_KEY)
 
 
 def save_server_setting(guild_id: str, key: str, value: Any) -> None:
@@ -191,17 +151,37 @@ def save_server_setting(guild_id: str, key: str, value: Any) -> None:
     if not _valid_setting(key, value):
         raise InvalidServerSetting(key)
     server_settings(guild_id)
-    moderations_data.set_server_setting(guild_id, key, value)
-    remove_cog_cache_by_guild(str(guild_id), commands_constants.MODERATIONS_KEY)
-    forget_remembered(_prefix_memo(guild_id))
+    guild_settings.set_option(guild_id, key, value)
+    forget_remembered(_settings_memo(guild_id))
 
 
 async def _server_setting(guild_id: str, key: str) -> str:
-    return await asyncio.to_thread(server_setting, guild_id, key)
+    options = await remembered(
+        _settings_memo(guild_id),
+        lambda: _saved_options(guild_id),
+        DBConfigs.COG_CACHE_TTL_SECONDS,
+    )
+    return str(_complete(guild_id, options)[key])
 
 
-def _prefix_memo(guild_id: Any) -> str:
-    return f"guild:{guild_id}:settings.prefix"
+def _settings_memo(guild_id: Any) -> str:
+    return DBConfigs.SETTINGS_MEMO_KEY.format(guild_id=guild_id)
+
+
+def _saved_options(guild_id: str) -> Optional[Dict[str, Any]]:
+    document = guild_settings.find_settings(guild_id)
+    if document is None:
+        return None
+    keys = commands_constants.SERVER_SETTING_KEYS
+    return {key: document[key] for key in keys if key in document}
+
+
+def _complete(guild_id: str, options: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not isinstance(options, dict) or any(
+        key not in options for key in commands_constants.SERVER_SETTING_KEYS
+    ):
+        raise ServerSettingsMissing(guild_id)
+    return dict(options)
 
 
 def _valid_setting(key: str, value: Any) -> bool:

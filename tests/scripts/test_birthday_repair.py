@@ -85,11 +85,11 @@ def test_missing_reminder_secrets_are_named_before_anything_opens(monkeypatch):
 @pytest.fixture
 def orphans(monkeypatch):
     from app.data import birthdays as birthdays_data
+    from app.services.reminders_birthdays import save_birthday_config
     from tests.generators.moderations import recorded_server
 
     recorded_server(birthdays_data.mongo_client, "g1", timezone="Asia/Tokyo")
-    birthdays_data.upsert_birthday_config("g1", channel_id="9", timezone="UTC",
-                                          notification_time="14:00")
+    save_birthday_config("g1", channel_id="9", notification_time="14:00")
     for user, date in (("7", "10-28"), ("8", "10-28"), ("9", "03-23")):
         birthdays_data.upsert_birthday_item("g1", user, date, reminder_id=None)
     birthdays_data.upsert_birthday_item("nocfg", "1", "01-01", reminder_id=None)
@@ -115,7 +115,7 @@ def test_the_plan_carries_the_schedule_that_will_be_used(orphans):
 def test_the_repair_without_redis_reads_the_servers_zone_from_mongo(orphans, monkeypatch):
     """`--apply` has no Redis: the zone the reminders are created in still reads."""
     from app.core import cache
-    from app.core.moderations import server_setting
+    from app.core.servers import server_setting
 
     monkeypatch.setattr(cache, "redis_client", repair.NoRedis())
 

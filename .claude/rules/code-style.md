@@ -43,16 +43,23 @@ literal. Closed vocabularies (enum values stored in documents, i18n key suffixes
 i18n namespaces and similar strings live inline in the helper that uses them, not as
 module-level names in `app/services/*.py`.
 
-## 5. `app/data/` follows the flat existing pattern
+## 5. `app/data/` follows the flat pattern, one file per collection
 
-Plain functions calling `mongo_client.guild.<collection>` directly — exactly like
-`app/data/moderations.py`. No `DATABASE`/`COLLECTION` constants, no `_collection()`
-helper, no alternative database names.
+Plain functions calling `mongo_client.<database>.<collection>` directly — exactly like
+`app/data/guild/settings.py`. No `DATABASE`/`COLLECTION` constants, no `_collection()`
+helper, no alternative database names. A function returns the document the app reads
+and takes what the app writes; the stored shape (`options`, `state`) stays inside the
+file.
 
-## 6. Data-layer files are named after the feature
+## 6. Data-layer files are named after their collection
 
-The file name matches the feature/cog key (`block_links.py`), not the content it
-stores (`blocked_links.py`).
+`app/data/<database>/<collection>.py` holds every query of that one collection
+(`app/data/guild/cogs.py` for `guild.cogs`, `app/data/keiko/settings.py` for
+`keiko.settings`), whichever feature asks. A query that only one feature sends keeps
+its feature's paths in that feature's service, and calls a generic function of the
+collection's file (`find_cogs_by_option`). The files of the collections a later pull
+request moves (`app/data/birthdays.py`, `analytics.py`, `logs.py`, the events in
+`cogs.py`) keep their old names until then.
 
 ## 7. `app/views/` is generic infrastructure only
 
@@ -63,8 +70,10 @@ views (`PaginationView`, `RecordsBrowser`...).
 ## 8. Redis key constants carry a `REDIS_` prefix
 
 When a Redis key template lives in `app/constants.py`, its NAME starts with `REDIS_`
-(or `CACHE_`), and the key format follows the existing convention in
-`app/core/cache.py` (`guild:{guild_id}:...`).
+(or `CACHE_`), and the key starts with the prefix of its role
+(`docs/data-model.md`): `cache:` for a copy of a document, as
+`DBConfigs.CACHE_COG_KEY` (`cache:cog:{guild_id}:{cog}`). Older counters keep
+`guild:{guild_id}:...` until they move.
 
 ## 9. Database changes are versioned in `app/migrations`
 

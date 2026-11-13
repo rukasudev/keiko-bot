@@ -136,7 +136,8 @@ def load_for_apply(environment: str):
 
 def plan() -> List[Dict[str, Any]]:
     from app.data import birthdays as birthdays_data
-    from app.data import moderations as moderations_data
+    from app.data.guild import settings as guild_settings
+    from app.services.reminders_birthdays import birthday_config
 
     seen = set()
     entries = []
@@ -147,13 +148,13 @@ def plan() -> List[Dict[str, Any]]:
             continue
         seen.add((guild_id, mm_dd))
 
-        config = birthdays_data.find_birthday_config(guild_id) or {}
-        server = moderations_data.find_moderations_by_guild(guild_id) or {}
+        config = birthday_config(guild_id) or {}
+        server = guild_settings.find_settings(guild_id) or {}
         entries.append({
             "guild_id": guild_id,
             "date": mm_dd,
             "people": birthdays_data.count_birthday_items_by_guild_and_date(guild_id, mm_dd),
-            "timezone": (server.get("settings") or {}).get("timezone"),
+            "timezone": server.get("timezone"),
             "notification_time": config.get("notification_time"),
             "configured": bool(config),
         })

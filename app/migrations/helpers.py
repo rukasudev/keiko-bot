@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from types import TracebackType
-from typing import Any, Dict, Mapping, Optional, Type
+from typing import Any, Dict, Mapping, Optional, Sequence, Type
 
 from pymongo import ReadPreference
 from pymongo.client_session import ClientSession
@@ -222,6 +222,19 @@ class TransactionBlock:
 def begin(db: DataRun) -> TransactionBlock:
     """The one transaction of a data file, as `with begin(db) as tx:`."""
     return TransactionBlock(db)
+
+
+def insert_missing(collection: Any, documents: Sequence[Mapping[str, Any]]) -> int:
+    """Insert the `documents` whose `_id` the collection lacks, and count them."""
+    ids = [document["_id"] for document in documents]
+    present = {
+        found["_id"] for found in collection.find({"_id": {"$in": ids}}, {"_id": 1})
+    }
+    missing = [document for document in documents if document["_id"] not in present]
+
+    if missing:
+        collection.insert_many(missing)
+    return len(missing)
 
 
 def commit(session: ClientSession) -> None:

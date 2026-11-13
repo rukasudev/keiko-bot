@@ -18,7 +18,7 @@ from app.services.notifications_twitch import (
 )
 from tests.mocks import create_guild, create_member
 from tests.generators import notifications
-from tests.generators.moderations import recorded_server
+from tests.generators.moderations import recorded_server, seed_cog
 from tests.helpers import assert_embed_contains, assert_embed_field
 import asyncio
 import logging
@@ -529,7 +529,7 @@ def remember_sent_messages(channel):
 
 def follow(deps, guild_id, *channels):
     recorded_server(deps.mongo_client, guild_id)
-    deps.mongo_client.guild.notifications_twitch.insert_one({
+    seed_cog(deps.mongo_client, "notifications_twitch", {
         "guild_id": str(guild_id),
         "enabled": True,
         "notifications": {"values": [
@@ -732,12 +732,12 @@ async def test_a_streamer_saved_by_the_old_pause_is_still_announced(deps, server
     `enabled: false` is announced like any other, the field ignored."""
     follow(deps, servers.first.id, servers.first.text_channels[0].id)
     follow(deps, servers.second.id, *(channel.id for channel in servers.second.text_channels))
-    collection = deps.mongo_client.guild.notifications_twitch
-    stored = collection.find_one({"guild_id": str(servers.second.id)})
-    stored["notifications"]["values"][0]["enabled"] = False
+    collection = deps.mongo_client.guild.cogs
+    second = {"_id": f"{servers.second.id}:notifications_twitch"}
+    stored = collection.find_one(second)
+    stored["options"]["notifications"]["values"][0]["enabled"] = False
     collection.update_one(
-        {"guild_id": str(servers.second.id)},
-        {"$set": {"notifications": stored["notifications"]}},
+        second, {"$set": {"options.notifications": stored["options"]["notifications"]}}
     )
 
     await handle_send_streamer_notification("gaules")

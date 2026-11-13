@@ -18,6 +18,8 @@ class DBConfigs:
     KEIKO_DESCRIPTION: Final[str] = "description"
     KEIKO_OWNER_ID: Final[str] = "owner_id"
     KEIKO_PREFIX: Final[str] = "prefix"
+    KEIKO_PRESENCE: Final[str] = "presence"
+    KEIKO_OPERATOR: Final[str] = "operator"
 
     INTEGRATION_NOTION: Final[str] = "notion"
     INTEGRATION_NOTION_ENABLED: Final[bool] = "enabled"
@@ -54,6 +56,9 @@ class DBConfigs:
     COG_CACHE_TTL_SECONDS: Final[int] = 60 * 5
     COG_CACHE_MISSING_TTL_SECONDS: Final[int] = 60
     COG_CACHE_LAST_KNOWN_SIZE: Final[int] = 1024
+    CACHE_COG_KEY: Final[str] = "cache:cog:{guild_id}:{cog}"
+    SETTINGS_MEMO_KEY: Final[str] = "settings:{guild_id}"
+    SETTINGS_MEMO_SIZE: Final[int] = 1024
     COG_CACHE_RETRY_SECONDS: Final[int] = 30
     COG_CACHE_WARN_SECONDS: Final[int] = 60 * 5
 
@@ -66,11 +71,12 @@ class DBConfigs:
         "configs": ("admin", "data"),
         "events": None,
         "guild": None,
+        "keiko": ("settings",),
         "notifications": None,
         "reminders": None,
     }
     BACKUP_SKIPPED_COLLECTIONS: Final[Tuple[str, ...]] = (
-        "audit.errors", "configs.integrations", "guild.logs",
+        "audit.errors", "configs.integrations", "guild.logs", "keiko.integrations",
     )
 
     ADMIN_CONFIGS_LIST: Final[List] = [
@@ -337,7 +343,6 @@ class Commands:
     REDIS_YOUTUBE_NOTIFIED_VIDEO: Final[str] = "youtube:video:{video_id}:notified"
 
     # moderations
-    MODERATIONS_KEY: Final[str] = "moderations"
     WELCOME_MESSAGES_KEY: Final[str] = Feature.WELCOME_MESSAGES.value.key
     DEFAULT_ROLES_KEY: Final[str] = Feature.DEFAULT_ROLES.value.key
     DEFAULT_ROLES_BOT_KEY: Final[str] = "default_roles_bot"
@@ -456,14 +461,6 @@ class CogsConstants:
         MODERATIONS_COGS,
         HELP_COGS,
     ]
-
-
-class GuildConstants:
-    IS_BOT_ONLINE: Final[str] = "is_bot_online"
-    COGS_MODERATIONS_COMMANDS_DEFAULT: Final[Dict] = {
-        IS_BOT_ONLINE: True,
-        **{feature.value.key: False for feature in Feature},
-    }
 
 
 class FormConstants:

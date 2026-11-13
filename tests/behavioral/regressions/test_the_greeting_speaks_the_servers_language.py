@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock
 import discord
 import pytest
 
-from app.core.moderations import guess_server_settings
+from app.core.servers import guess_server_settings
 from app.core.utils import ml
 from tests.generators.moderations import recorded_server
 

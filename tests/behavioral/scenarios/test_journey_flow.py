@@ -6,6 +6,7 @@ engine, so what they assert is what lands in the admin channel.
 import pytest
 
 from app.core import analytics, journey
+from tests.generators.moderations import seed_cog
 
 pytestmark = pytest.mark.behavioral
 
@@ -150,7 +151,7 @@ async def test_editing_through_the_manager_lists_the_changed_fields(
 
     legacy = {"guild_id": GUILD_ID, "enabled": True, "mode": "block_all",
               "answer": "Resposta antiga"}
-    deps.mongo_client.guild["block_links"].insert_one(dict(legacy))
+    seed_cog(deps.mongo_client, "block_links", dict(legacy))
 
     scenario = await scenario_factory(locale="pt-br").start_manager(
         "block_links", normalize_block_links_config(legacy)

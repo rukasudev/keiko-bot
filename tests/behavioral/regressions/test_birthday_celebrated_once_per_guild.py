@@ -39,12 +39,9 @@ import discord
 import pytest
 
 from app.constants import Commands
-from app.data.birthdays import (
-    find_birthday_item,
-    upsert_birthday_config,
-    upsert_birthday_item,
-)
-from app.core.moderations import update_moderations_by_guild
+from app.data.birthdays import find_birthday_item, upsert_birthday_item
+from app.services.reminders_birthdays import save_birthday_config
+from app.core.servers import set_feature_enabled
 from app.webhooks import birthday_handler
 from tests.generators.moderations import recorded_server
 from tests.mocks.discord import create_guild, create_member
@@ -90,15 +87,14 @@ def guilds(deps, monkeypatch):
 
 def register(guild, member_id, reminder_id, mm_dd="05-12"):
     create_member(guild, id=member_id, name=f"Member {member_id}")
-    upsert_birthday_config(
+    save_birthday_config(
         str(guild.id),
         str(guild.text_channels[0].id),
         False,
-        timezone=TIMEZONE,
         notification_time="08:00",
     )
     upsert_birthday_item(str(guild.id), str(member_id), mm_dd, reminder_id=reminder_id)
-    update_moderations_by_guild(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
+    set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
 
 
 def celebrations(guild):
@@ -117,7 +113,7 @@ def refuse_messages(guild):
 
 
 def delete_channel(guild):
-    upsert_birthday_config(str(guild.id), "999", False, timezone=TIMEZONE)
+    save_birthday_config(str(guild.id), "999", False)
 
 
 def fail_the_first_message(guild, error):

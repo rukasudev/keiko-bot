@@ -63,7 +63,8 @@ import requests
 from app import logger as logger_module
 from app.api import create_api
 from app.constants import Commands
-from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
+from app.data.birthdays import upsert_birthday_item
+from app.services.reminders_birthdays import save_birthday_config
 from app.data.reminder import (
     find_reminder_by_id,
     insert_renewal_reminder,
@@ -79,13 +80,14 @@ from app.integrations.reminder_webhook import (
 )
 from app.services import notifications_youtube_video
 from app.core import trace as trace_service
-from app.core.moderations import update_moderations_by_guild
+from app.core.servers import set_feature_enabled
 from app.webhooks import birthday_handler
 from tests.mocks.discord import create_member
 import threading
 from time import sleep
 from app.services.notifications_youtube_video import unsubscribe_youtube_new_video
 from app.migrations.runner import declared_structure
+from tests.generators.moderations import recorded_server, seed_cog
 
 pytestmark = [
     pytest.mark.behavioral,
@@ -165,9 +167,9 @@ async def keiko(deps, monkeypatch, traces):
     guild_id = str(deps.guild.id)
     channel = deps.guild.text_channels[0]
     create_member(deps.guild, id=MEMBER_ID, name="Tester")
-    upsert_birthday_config(guild_id, str(channel.id), True, timezone="America/Sao_Paulo")
+    save_birthday_config(guild_id, str(channel.id), True)
     upsert_birthday_item(guild_id, str(MEMBER_ID), "05-12", reminder_id=str(BIRTHDAY_REMINDER))
-    update_moderations_by_guild(guild_id, Commands.REMINDERS_BIRTHDAY_KEY, True)
+    set_feature_enabled(guild_id, Commands.REMINDERS_BIRTHDAY_KEY, True)
     follow_youtuber(deps, guild_id, "pewdiepie")
 
     return SimpleNamespace(
@@ -180,7 +182,7 @@ async def keiko(deps, monkeypatch, traces):
 
 
 def follow_youtuber(deps, guild_id, youtuber, enabled=True):
-    deps.mongo_client.guild.notifications_youtube_video.insert_one({
+    seed_cog(deps.mongo_client, "notifications_youtube_video", {
         "guild_id": guild_id,
         "enabled": enabled,
         "notifications": {"values": [{"youtuber": {"value": youtuber}}]},
@@ -463,7 +465,7 @@ async def test_a_renewal_for_a_youtuber_no_server_follows_drops_itself(keiko, de
     """The one place a renewal is deleted: the unsubscribe leaves it, and it ends here."""
     from app.data.reminder import find_reminder_by_id
 
-    deps.mongo_client.guild.notifications_youtube_video.delete_many({})
+    deps.mongo_client.guild.cogs.delete_many({"cog": "notifications_youtube_video"})
     insert_renewal_reminder(stored_id, "pewdiepie")
     keiko.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
 
@@ -476,7 +478,7 @@ async def test_a_renewal_for_a_youtuber_no_server_follows_drops_itself(keiko, de
 
 
 async def test_a_paused_server_keeps_its_youtuber_renewed(keiko, deps, clock):
-    deps.mongo_client.guild.notifications_youtube_video.delete_many({})
+    deps.mongo_client.guild.cogs.delete_many({"cog": "notifications_youtube_video"})
     follow_youtuber(deps, str(deps.guild.id), "pewdiepie", enabled=False)
     insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
     keiko.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
@@ -733,7 +735,7 @@ async def test_a_youtuber_asked_for_from_everywhere_at_once_gets_one_renewal(you
 async def test_a_server_adding_a_youtuber_while_its_renewal_ends_gets_one(youtube):
     from app.webhooks.reminder import renew_youtube_subscription
 
-    youtube.mongo_client.guild.moderations.insert_one({"guild_id": "4242", "is_bot_online": False})
+    youtube.mongo_client.guild.settings.insert_one({"_id": "4242", "state": {"present": False}})
     follow_youtuber(youtube, "4242", "pewdiepie")
     a_renewal(youtube, 7001, "pewdiepie")
     reminders = youtube.bot.reminder
@@ -775,11 +777,7 @@ async def in_a_server_keiko_left(deps, guild_id=LEFT):
     """A server that followed the youtuber, then removed Keiko."""
     from app.cogs.events import Events
 
-    deps.mongo_client.guild.moderations.insert_one({
-        "guild_id": str(guild_id),
-        "is_bot_online": True,
-        Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY: True,
-    })
+    recorded_server(deps.mongo_client, str(guild_id))
     follow_youtuber(deps, str(guild_id), "pewdiepie")
     await Events(SimpleNamespace(user=SimpleNamespace(id=99), guilds=[])).on_guild_remove(
         SimpleNamespace(id=guild_id, owner=None, owner_id=313)
@@ -803,12 +801,12 @@ async def test_the_renewal_of_a_youtuber_only_servers_keiko_left_follow_ends(ren
     so the renewal of a youtuber only such servers followed went on forever, every four
     days, and the hub kept sending notices nobody would receive.
 
-    Shared behaviour: `count_servers_following` (`app/data/notifications_youtube_video.py`),
+    Shared behaviour: `count_servers_following` (`app/services/notifications_youtube_video.py`),
     read by the renewal (`app/webhooks/reminder.py`) and by the unsubscribe of a youtuber a
     server stops following. Exposed by: renewals of servers Keiko left in production.
 
-    Guaranteed: a server counts as following only while Keiko is in it (its moderations
-    record does not say it went offline); a youtuber nobody else follows drops its renewal
+    Guaranteed: a server counts as following only while Keiko is in it (its settings do
+    not say it left); a youtuber nobody else follows drops its renewal
     and is unsubscribed from the hub; a paused server Keiko is still in keeps its youtuber
     renewed, as before.
     """
@@ -899,7 +897,7 @@ def test_a_renewal_reminders_api_already_deleted_is_forgotten_here_too(
     Guaranteed: a 404 to a delete is a reminder already deleted; the local record goes too
     and the callback succeeds. Any other refusal still raises with its status and body.
     """
-    deps.mongo_client.guild.notifications_youtube_video.delete_many({})
+    deps.mongo_client.guild.cogs.delete_many({"cog": "notifications_youtube_video"})
     insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
 
     response = client.post(

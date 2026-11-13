@@ -404,7 +404,7 @@ nothing is looked up by reflection.
 | Validators | `VALIDATORS` in `app/settings/form/responses/validations.py`; each declares `needs` (`answers`, `items`, `external:<service>`) so the adapter prefetches before `decide` | `validate_streamer_name`, `validate_youtube_channel`, `validate_link_or_domain`, `validate_date` |
 | Transforms | `TRANSFORMS` in `app/settings/form/responses/transforms.py`; a `Transform` names its `part_keys`, `value_key`, `style`, `serialize` and `hydrate` | `mm_dd_date_parts`, `normalize_link` |
 | Formatters | `STYLES` and `format_value` in `app/settings/form/responses/styles.py` | the styles of 3.1 |
-| Copy tokens | `TOKEN_FORMATTERS` in `app/settings/form/actions/action.py`, then every value style; `PLURAL_TOKEN` there picks one of its two texts by `count_of` (`conditions.py`, the count the `when` grammar's `count` leaf reads); the `{context:name}` values are fields of `Context` and its `values`, filled in `Runtime._context` (`callbacks.py`) from `Opened.values` and from the server's settings `Runtime._open` read (`server_settings`, `app/core/moderations.py`) | `host` and the styles, `plural`; context `server_name`, `prefix`, `server_language`, `server_timezone`, `command` and the feature's own values |
+| Copy tokens | `TOKEN_FORMATTERS` in `app/settings/form/actions/action.py`, then every value style; `PLURAL_TOKEN` there picks one of its two texts by `count_of` (`conditions.py`, the count the `when` grammar's `count` leaf reads); the `{context:name}` values are fields of `Context` and its `values`, filled in `Runtime._context` (`callbacks.py`) from `Opened.values` and from the server's settings `Runtime._open` read (`server_settings`, `app/core/servers.py`) | `host` and the styles, `plural`; context `server_name`, `prefix`, `server_language`, `server_timezone`, `command` and the feature's own values |
 | Copy resolution | `text(key, locale)` and `normalize_locale` in `app/settings/form/copy.py` | reads the language files through `ml` |
 | Definitions | `DefinitionSource` (`load`, `list`) in `app/settings/form/form_yaml.py` | `DiskSource` over `app/languages/form/` |
 | Features | `Feature` in `app/constants.py`, one `FeatureSpec` each, whose `module` names the feature's module under `app/settings/features/` or is None; `feature_for(key)` in `app/settings/features/__init__.py` imports the module the spec names | the seven feature modules; a spec whose `module` is None gets `GenericCogFeature`, and a key no spec declares is refused |
@@ -444,8 +444,8 @@ contributes, and nothing more:
 
 A feature never sees the session, never renders, and never reaches another
 feature's document. `GenericCogFeature` (`app/settings/features/feature.py`)
-covers the common case: one document per guild in the feature's collection,
-lifecycle through `insert_cog_event`. Write a module only when persistence
+covers the common case: one `guild.cogs` document per guild and feature
+(`_id` `{guild}:{cog}`), lifecycle through `insert_cog_event`. Write a module only when persistence
 is not that (birthdays write members, twitch and youtube subscribe, welcome
 messages render banners).
 
@@ -467,7 +467,7 @@ labels in `value`, because v0.9.0 shows and matches them.
   locale.
 - **Language.** Every app command, slash or context menu, passes
   `KeikoTree.interaction_check` (`app/bot.py`) before it runs, which makes
-  `interaction_language` (`app/core/moderations.py`) the interaction's
+  `interaction_language` (`app/core/servers.py`) the interaction's
   locale and keeps the reader's own in `reader_locale` (the translation reads
   it); components that are not a session call `interaction_language` in their
   own callback. A server with no saved settings (`ServerSettingsMissing`, the
@@ -563,11 +563,10 @@ conventions:
    and namespace, the /setup button and emoji, the permissions it needs,
    whether it assigns roles, whether it answers the chat prefix, and the
    module that saves it (or None for the generic one). The key constant,
-   `Commands.SETUP_FEATURES`, `Commands.FEATURE_COMMANDS`, the moderation
-   defaults, `feature_keys` and the module `feature_for` imports come from
-   it. It is one table because those lists had drifted apart: the
-   moderation defaults had forgotten StreamElements, and group and
-   namespace were written twice for every command.
+   `Commands.SETUP_FEATURES`, `Commands.FEATURE_COMMANDS`, `feature_keys`
+   and the module `feature_for` imports come from it. It is one table so
+   those lists cannot drift apart, and group and namespace are written once
+   for every command.
    `tests/forms/features/test_features.py` refuses a declaration whose
    form, module, command or copy disagrees with it.
 1. **The definition**, `app/languages/form/<key>.yml`: `steps:` composed

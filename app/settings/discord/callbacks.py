@@ -23,7 +23,7 @@ from app.constants import Commands as commands_constants
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
 from app.core import analytics, members, metrics
-from app.core.moderations import interaction_language, server_settings
+from app.core.servers import interaction_language, server_settings
 from app.core.trace import trace_scope
 from app.core.utils import fill, get_command_display_name, is_guild_admin, speak
 from app.settings.discord import observability

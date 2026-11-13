@@ -6,7 +6,7 @@ import discord
 from app.components.embed import response_embed
 from app.constants import LogTypes as logconstants
 from app.core.cache import increment_redis_key
-from app.core.moderations import interaction_language
+from app.core.servers import interaction_language
 from app.core.utils import get_command_by_key, ml
 
 if TYPE_CHECKING:

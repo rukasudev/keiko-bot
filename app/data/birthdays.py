@@ -2,53 +2,7 @@ from typing import Any, Dict, List, Optional
 
 from app import mongo_client
 from app.constants import Commands as constants
-from app.data.moderations import find_moderation_by_guild
 from app.data.util import parse_insert_timestamp, parse_update_timestamp
-
-
-def is_birthday_enabled(guild_id: str) -> bool:
-    return bool(find_moderation_by_guild(guild_id, constants.REMINDERS_BIRTHDAY_KEY))
-
-
-def find_birthday_config(guild_id: str) -> Optional[Dict[str, Any]]:
-    return mongo_client.guild.reminders_birthday.find_one({"guild_id": str(guild_id)})
-
-
-def find_all_birthday_configs() -> List[Dict[str, Any]]:
-    """Every guild that configured birthdays, for reports that count guilds."""
-    return list(mongo_client.guild.reminders_birthday.find({}, {"_id": False}))
-
-
-def upsert_birthday_config(
-    guild_id: str,
-    channel_id: str,
-    mention_everyone: bool = False,
-    locale: str = None,
-    timezone: str = None,
-    notification_time: str = None,
-    default_message: Optional[Dict[str, Any]] = None,
-) -> Dict[str, Any]:
-    existing = find_birthday_config(guild_id) or {}
-    data = {
-        "guild_id": str(guild_id),
-        "channel_id": str(channel_id),
-        "mention_everyone": bool(mention_everyone),
-    }
-    if locale:
-        data["locale"] = str(locale)
-    if timezone is not None:
-        data["timezone"] = str(timezone)
-    if notification_time is not None:
-        data["notification_time"] = str(notification_time)
-    if default_message is not None:
-        data["default_message"] = default_message
-    update = parse_update_timestamp(data) if existing else parse_insert_timestamp(data)
-    mongo_client.guild.reminders_birthday.update_one(
-        {"guild_id": str(guild_id)},
-        {"$set": update},
-        upsert=True,
-    )
-    return {**existing, **update}
 
 
 def find_birthday_item(guild_id: str, user_id: str) -> Optional[Dict[str, Any]]:
@@ -171,11 +125,6 @@ def remove_birthday_item(guild_id: str, user_id: str) -> Optional[Dict[str, Any]
 
 def delete_birthday_items_by_guild(guild_id: str) -> int:
     result = mongo_client.reminders.birthdays.delete_many({"guild_id": str(guild_id)})
-    return result.deleted_count
-
-
-def delete_birthday_config(guild_id: str) -> int:
-    result = mongo_client.guild.reminders_birthday.delete_one({"guild_id": str(guild_id)})
     return result.deleted_count
 
 

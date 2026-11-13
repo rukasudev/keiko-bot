@@ -110,13 +110,21 @@ def data_file(number, name, up):
     return runner.Version("data", f"{number:04d}", name, "d" * 64, up=up)
 
 
+def shipped_ids(versions, kind=None):
+    return sorted(found.id for found in versions if kind in (None, found.kind))
+
+
+def next_number(versions, kind):
+    return 1 + max(int(found.number) for found in versions if found.kind == kind)
+
+
 def test_from_empty_to_the_latest_files_the_database_is_the_snapshot(
     client, versions
 ):
     passed, out = run(client, versions)
 
     assert passed, out
-    assert ledger_ids(client) == ["data/0001", "schema/0001"]
+    assert ledger_ids(client) == shipped_ids(versions)
     assert live(client) == runner.expected_structure(versions)
     assert runner.render(live(client)) == runner.SNAPSHOT.read_text()
     bot = client.configs.data.find_one({}, {"_id": False})
@@ -158,7 +166,9 @@ def test_the_ledger_names_each_file_by_its_folder_and_keeps_its_counts(
     assert schema["counts"] == {"collections_created": 31, "indexes_created": 25}
     assert (data["kind"], data["number"], data["name"]) == ("data", 1, "bot_defaults")
     assert data["counts"] == {"configs_data_created": 1, "configs_notion_created": 1}
-    assert data["sha256"] == versions[1].sha256
+    assert data["sha256"] == next(
+        found.sha256 for found in versions if found.id == "data/0001"
+    )
 
 
 def test_a_second_run_applies_nothing_and_changes_no_count(client, versions):
@@ -182,23 +192,25 @@ def test_every_pending_schema_file_runs_before_the_first_data_file(client, versi
             tx.guild.ordered.insert_one({"code": "a"})
             tx.count("inserted")
 
+    schema_number, data_number = next_number(versions, "schema"), next_number(versions, "data")
     files = [
         *versions,
-        data_file(2, "fill", fill),
-        schema_file(2, "ordered", {"guild": {"ordered": [index("code", unique=True)]}}),
+        data_file(data_number, "fill", fill),
+        schema_file(
+            schema_number, "ordered", {"guild": {"ordered": [index("code", unique=True)]}}
+        ),
     ]
 
     passed, out = run(client, files)
 
     assert passed, out
     assert seen == [["_id_", "code_1"]]
-    applied = [line.split(":")[0] for line in out.splitlines() if line.startswith("apply")]
-    assert applied == [
-        "apply   schema/0001_baseline",
-        "apply   schema/0002_ordered",
-        "apply   data/0001_bot_defaults",
-        "apply   data/0002_fill",
+    applied = [
+        line.split(":")[0].split()[1] for line in out.splitlines() if line.startswith("apply")
     ]
+    assert applied == sorted(applied, key=lambda label: (label.startswith("data"), label))
+    assert applied[-1] == f"data/{data_number:04d}_fill"
+    assert f"schema/{schema_number:04d}_ordered" in applied
 
 
 def test_a_failing_data_file_leaves_no_ledger_entry_and_none_of_its_writes(
@@ -209,30 +221,32 @@ def test_a_failing_data_file_leaves_no_ledger_entry_and_none_of_its_writes(
             tx.guild.moderations.insert_one({"guild_id": "half-written"})
             raise RuntimeError("the step broke")
 
-    passed, out = run(client, [*versions, data_file(2, "broken", broken)])
+    number = next_number(versions, "data")
+    passed, out = run(client, [*versions, data_file(number, "broken", broken)])
 
     assert not passed
-    assert "data/0002_broken not applied: RuntimeError: the step broke" in out
-    assert ledger_ids(client) == ["data/0001", "schema/0001"]
+    assert f"data/{number:04d}_broken not applied: RuntimeError: the step broke" in out
+    assert ledger_ids(client) == shipped_ids(versions)
     assert client.guild.moderations.count_documents({"guild_id": "half-written"}) == 0
 
     def fixed(db):
         with begin(db) as tx:
             tx.guild.moderations.insert_one({"guild_id": "whole"})
 
-    passed, out = run(client, [*versions, data_file(2, "broken", fixed)])
+    passed, out = run(client, [*versions, data_file(number, "broken", fixed)])
 
     assert passed, out
-    assert ledger_ids(client) == ["data/0001", "data/0002", "schema/0001"]
+    assert ledger_ids(client) == sorted([*shipped_ids(versions), f"data/{number:04d}"])
     assert client.guild.moderations.count_documents({"guild_id": "whole"}) == 1
 
 
 def test_a_data_file_that_never_enters_begin_is_not_recorded(client, versions):
-    passed, out = run(client, [*versions, data_file(2, "lazy", lambda db: None)])
+    number = next_number(versions, "data")
+    passed, out = run(client, [*versions, data_file(number, "lazy", lambda db: None)])
 
     assert not passed
-    assert "data/0002_lazy not applied: TransactionMisuse" in out
-    assert "data/0002" not in ledger_ids(client)
+    assert f"data/{number:04d}_lazy not applied: TransactionMisuse" in out
+    assert f"data/{number:04d}" not in ledger_ids(client)
 
 
 def test_a_data_file_over_the_transaction_budget_writes_nothing(
@@ -244,7 +258,9 @@ def test_a_data_file_over_the_transaction_budget_writes_nothing(
 
     assert not passed
     assert "BudgetExceeded" in out
-    assert ledger_ids(client) == ["schema/0001"], "the schema before it stays applied"
+    assert ledger_ids(client) == shipped_ids(versions, "schema"), (
+        "the schema before it stays applied"
+    )
     assert client.configs.data.count_documents({}) == 0
 
 
@@ -384,7 +400,7 @@ def test_the_boot_check_passes_only_after_the_run(client, versions):
     runner.require_applied(client, versions)
 
 
-def test_the_cli_runs_status_migrate_verify_and_snapshot(client):
+def test_the_cli_runs_status_migrate_verify_and_snapshot(client, versions):
     out = io.StringIO()
 
     assert main(["migrate", "--dry-run"], client=client, out=out) == 0
@@ -394,10 +410,191 @@ def test_the_cli_runs_status_migrate_verify_and_snapshot(client):
     snapshot = io.StringIO()
     assert main(["snapshot"], client=client, out=snapshot) == 0
 
-    assert "info    schema/: 1 applied, 0 pending" in out.getvalue()
+    schema_files = len(shipped_ids(versions, "schema"))
+    assert f"info    schema/: {schema_files} applied, 0 pending" in out.getvalue()
     assert "applied data/0001_bot_defaults" in out.getvalue()
     printed = json.loads(snapshot.getvalue())
     assert printed.pop(f"{MARKER}.owner") == []
     assert printed == json.loads(runner.SNAPSHOT.read_text())
     client.guild.logs.drop_index("ts_1")
     assert main(["verify"], client=client, out=io.StringIO()) == 1
+
+
+def test_from_empty_keiko_gets_its_settings_and_no_server_document(client, versions):
+    passed, out = run(client, versions)
+
+    assert passed, out
+    assert client.guild.settings.count_documents({}) == 0
+    assert client.guild.cogs.count_documents({}) == 0
+    assert client.keiko.settings.find_one({}) == {
+        "_id": "keiko",
+        "options": {
+            "presence": {"status": "online", "activity": 0, "description": "/help"},
+            "prefix": "ke!",
+            "owner_id": None,
+            "operator": {},
+        },
+    }
+    assert client.keiko.integrations.find_one({}) == {
+        "_id": "notion",
+        "options": {"enabled": False},
+    }
+
+
+JOINED = datetime(2025, 3, 1)
+LEFT = datetime(2026, 2, 1)
+FLAGS = {
+    "welcome_messages": True,
+    "default_roles": True,
+    "block_links": False,
+    "notifications_twitch": True,
+    "notifications_youtube_video": False,
+    "reminders_birthday": True,
+    "stream_elements_commands": True,
+}
+
+
+def production_shaped(client):
+    """Production before v1: flags on the moderations documents and no settings."""
+    client.configs.data.insert_one(
+        {"prefix": "ke!", "status": "idle", "activity": 2, "description": "/help",
+         "owner_id": None}
+    )
+    client.configs.admin.insert_one(
+        {"admin_guild_id": "123", "admin_logs_channel_id": "456"}
+    )
+    client.configs.integrations.insert_one(
+        {"name": "notion", "configs": {"enabled": True, "database_id": "db"}}
+    )
+    client.guild.moderations.insert_many([
+        {"guild_id": "1001", "owner_id": "9", "is_bot_online": True, **FLAGS,
+         "created_at": JOINED, "updated_at": JOINED},
+        {"guild_id": "1002", "owner_id": "9", "is_bot_online": False, **FLAGS,
+         "created_at": JOINED, "updated_at": LEFT},
+    ])
+    guild = client.guild
+    guild.welcome_messages.insert_one(
+        {"guild_id": "1001", "enabled": True, "welcome_messages_title": "Hi"}
+    )
+    guild.default_roles.insert_one(
+        {"guild_id": "1001", "default_roles": {"style": "role", "values": ["7"]}}
+    )
+    guild.block_links.insert_one({"guild_id": "1001", "enabled": False, "mode": "block_all"})
+    guild.notifications_twitch.insert_one({
+        "guild_id": "1001",
+        "enabled": True,
+        "notifications": {"style": "composition", "values": [{"streamer": {"value": "x"}}]},
+    })
+    guild.notifications_youtube_video.insert_one({"guild_id": "1001", "enabled": True})
+    guild.reminders_birthday.insert_one({
+        "guild_id": "1001",
+        "channel_id": "400",
+        "mention_everyone": False,
+        "locale": "en-us",
+        "timezone": "Europe/Lisbon",
+        "notification_time": "09:00",
+    })
+    guild.stream_elements_commands.insert_one(
+        {"guild_id": "1001", "enabled": True, "streamer": "shroud", "channel_id": "5f"}
+    )
+
+
+def test_a_production_shaped_database_moves_to_the_new_collections(client, versions):
+    production_shaped(client)
+
+    passed, out = run(client, versions)
+
+    assert passed, out
+    present = client.guild.settings.find_one({"_id": "1001"})
+    assert present["options"] == {
+        "language": "pt-br",
+        "timezone": "Europe/Lisbon",
+        "prefix": "ke!",
+    }
+    assert present["state"] == {
+        "owner_id": "9", "present": True, "joined_at": JOINED, "left_at": None
+    }
+    absent = client.guild.settings.find_one({"_id": "1002"})
+    assert absent["state"]["present"] is False and absent["state"]["left_at"] == LEFT
+
+    cogs = {document["cog"]: document for document in client.guild.cogs.find()}
+    assert len(cogs) == 7
+    assert {cog: document["_id"] for cog, document in cogs.items()} == {
+        cog: f"1001:{cog}" for cog in FLAGS
+    }
+    assert cogs["default_roles"]["enabled"] is True, "no enabled: the old flag"
+    assert cogs["block_links"]["enabled"] is False
+    assert cogs["stream_elements_commands"]["state"] == {"channel_id": "5f"}
+    assert cogs["stream_elements_commands"]["options"] == {"streamer": "shroud"}
+    assert cogs["reminders_birthday"]["options"] == {
+        "channel": "400",
+        "mention_everyone": False,
+        "notification_time": "09:00",
+    }
+
+    keiko = client.keiko.settings.find_one({"_id": "keiko"})["options"]
+    assert keiko["presence"] == {"status": "idle", "activity": 2, "description": "/help"}
+    assert keiko["operator"] == {"admin_guild_id": 123, "admin_logs_channel_id": 456}
+    assert client.keiko.integrations.find_one({"_id": "notion"})["options"] == {
+        "enabled": True, "database_id": "db"
+    }
+
+    entries = {entry["_id"]: entry["counts"] for entry in ledger(client)}
+    assert entries["data/0002"] == {"settings_created": 2}
+    assert entries["data/0003"] == {
+        "cogs_copied": 7, "keiko_settings_created": 1, "integrations_copied": 1
+    }
+    assert client.guild.moderations.count_documents({}) == 2, "the old ones stay"
+
+    before = counts(client)
+    passed, out = run(client, versions)
+    assert passed and "nothing to apply" in out
+    assert counts(client) == before
+
+
+def test_a_feature_document_whose_server_id_is_not_text_stops_the_run(client, versions):
+    client.guild.welcome_messages.insert_one({"guild_id": 1001, "enabled": True})
+
+    passed, out = run(client, versions)
+
+    assert not passed
+    assert "has a guild_id that is not text: 1001" in out
+    assert "keiko" not in databases(client)
+
+
+def test_two_integrations_with_the_same_name_stop_the_run_before_writing(
+    client, versions
+):
+    client.configs.integrations.insert_many([
+        {"name": "notion", "configs": {"enabled": True}},
+        {"name": "notion", "configs": {"enabled": False}},
+    ])
+
+    passed, out = run(client, versions)
+
+    assert not passed
+    assert "configs.integrations holds 2 documents named 'notion'" in out
+    assert "keiko" not in databases(client)
+
+
+def test_a_birthday_config_key_the_file_would_drop_stops_the_run(client, versions):
+    client.guild.reminders_birthday.insert_one(
+        {"guild_id": "1001", "channel_id": "400", "role_id": "77", "locale": "en-us"}
+    )
+
+    passed, out = run(client, versions)
+
+    assert not passed
+    assert "guild.reminders_birthday" in out
+    assert "holds role_id, which this file would drop" in out
+    assert "keiko" not in databases(client)
+
+
+def test_an_operator_id_that_is_not_a_number_stops_the_run(client, versions):
+    client.configs.data.insert_one({"status": "online", "prefix": "ke!"})
+    client.configs.admin.insert_one({"admin_guild_id": "the main one"})
+
+    passed, out = run(client, versions)
+
+    assert not passed
+    assert "configs.admin admin_guild_id is 'the main one', not a Discord id" in out

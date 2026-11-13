@@ -23,14 +23,15 @@ from app.constants import Commands
 from app.constants import KeikoIcons, supported_locales
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
-from app.data.cogs import find_cog_by_guild_id_async, find_cog_events_by_guild_id_async
+from app.data.cogs import find_cog_events_by_guild_id_async
+from app.data.guild.cogs import find_cog_by_guild_id_async
 from app.exceptions import InvalidServerSetting
 from app.integrations.google_translate import GoogleTranslate
 from app.core import analytics
 from app.core.cogs import feature_spec, insert_cog_event, is_feature_on
 from app.core.manager import parse_history_data
 from app.core.feature_health import feature_problems
-from app.core.moderations import (
+from app.core.servers import (
     interaction_language,
     save_server_setting,
     server_language,
@@ -134,8 +135,7 @@ async def _state(guild_id: str, command_key: str) -> str:
     document = await find_cog_by_guild_id_async(guild_id, command_key)
     if not document:
         return "pending"
-    on = await asyncio.to_thread(is_feature_on, guild_id, command_key, document)
-    return "configured" if on else "paused"
+    return "configured" if is_feature_on(document) else "paused"
 
 
 async def _states(guild_id: str) -> List[Row]:

@@ -14,6 +14,7 @@ Uso:
     )
 """
 
+from tests.generators.moderations import seed_cog
 from typing import List, Dict, Optional
 from datetime import datetime, timezone
 
@@ -57,10 +58,7 @@ async def twitch(
         }
     }
 
-    if hasattr(db, 'guild'):
-        await _insert_or_sync(db.guild.notifications_twitch, doc)
-    else:
-        db.guild.notifications_twitch.insert_one(doc)
+    seed_cog(db, "notifications_twitch", doc)
 
     return doc
 
@@ -153,10 +151,7 @@ async def youtube(
         }
     }
 
-    if hasattr(db, 'guild'):
-        await _insert_or_sync(db.guild.notifications_youtube_video, doc)
-    else:
-        db.guild.notifications_youtube_video.insert_one(doc)
+    seed_cog(db, "notifications_youtube_video", doc)
 
     return doc
 

@@ -13,7 +13,7 @@ from redis.exceptions import RedisError
 from app import logger, redis_client
 from app.constants import Commands, DBConfigs
 from app.constants import LogTypes as logconstants
-from app.data import cogs as cogs_data
+from app.data.guild import cogs as guild_cogs
 from app.core.cogs import is_feature_on
 from app.core.trace import outside_any_trace
 
@@ -94,7 +94,7 @@ def get_cog_data_or_populate(
     document = json_util.loads(raw) if raw else None
     if document is None:
         return None
-    return document if manager or is_feature_on(str(guild_id), key, document) else {}
+    return document if manager or is_feature_on(document) else {}
 
 
 def remove_cog_cache_by_guild(guild_id: str, key: str) -> None:
@@ -108,37 +108,48 @@ def remove_cog_cache_by_guild(guild_id: str, key: str) -> None:
 
 def remove_all_cache_by_guild(guild_id: str) -> None:
     """Forget every feature's cached settings for a guild, in this process and in Redis."""
-    prefix = f"guild:{guild_id}:"
+    prefix = _cog_key(guild_id, "")
     with _lock:
         features = [_cog_key(guild_id, spec["command_key"]) for spec in Commands.SETUP_FEATURES]
         remembered = [known for known in _last_known if known.startswith(prefix)]
         keys = sorted({*features, *remembered})
         for redis_key in keys:
             _forget(redis_key)
-        for memo_key in [known for known in _remembered if known.startswith(prefix)]:
-            _remembered.pop(memo_key)
-            _forget(memo_key)
 
     _delete_cached(keys)
 
 
-async def remembered(key: str, read: Callable[[], Any], seconds: float) -> Any:
-    """What `read` returns, read off the loop and kept in this process for `seconds`;
-    a read that raced a `forget_remembered(key)` is returned but not kept."""
-    with _lock:
-        held = _remembered.get(key)
-        generation = _generations.get(key, 0)
-    if held is not None and monotonic() < held[0]:
+def recalled(key: str, read: Callable[[], Any], seconds: float) -> Any:
+    """What `read` returns, kept in this process for `seconds`; a read that raced a
+    `forget_remembered(key)` is returned but not kept, and during a Mongo outage what
+    was kept last is served however old."""
+    held, fresh, generation = _held(key)
+    if fresh or (held is not None and not _may_try("mongo")):
         return held[1]
 
-    value = await asyncio.to_thread(read)
+    try:
+        value = read()
+    except PyMongoError as error:
+        return _last_kept(held, error)
 
-    with _lock:
-        if _generations.get(key, 0) == generation:
-            _remembered[key] = (monotonic() + seconds, value)
-            _remembered.move_to_end(key)
-            while len(_remembered) > DBConfigs.COG_CACHE_LAST_KNOWN_SIZE:
-                _remembered.popitem(last=False)
+    _recover("mongo")
+    _keep(key, generation, value, seconds)
+    return value
+
+
+async def remembered(key: str, read: Callable[[], Any], seconds: float) -> Any:
+    """What `recalled` keeps, with `read` run off the loop when nothing fresh is kept."""
+    held, fresh, generation = _held(key)
+    if fresh or (held is not None and not _may_try("mongo")):
+        return held[1]
+
+    try:
+        value = await asyncio.to_thread(read)
+    except PyMongoError as error:
+        return _last_kept(held, error)
+
+    _recover("mongo")
+    _keep(key, generation, value, seconds)
     return value
 
 
@@ -178,7 +189,32 @@ def reset() -> None:
 
 
 def _cog_key(guild_id: Any, key: str) -> str:
-    return f"guild:{guild_id}:cog.{key}"
+    return DBConfigs.CACHE_COG_KEY.format(guild_id=guild_id, cog=key)
+
+
+def _held(key: str) -> Tuple[Optional[Tuple[float, Any]], bool, int]:
+    with _lock:
+        held = _remembered.get(key)
+        generation = _generations.get(key, 0)
+    return held, held is not None and monotonic() < held[0], generation
+
+
+def _last_kept(held: Optional[Tuple[float, Any]], error: PyMongoError) -> Any:
+    _fail("mongo", error, warn=held is not None)
+    if held is None:
+        raise error
+    return held[1]
+
+
+def _keep(key: str, generation: int, value: Any, seconds: float) -> None:
+    with _lock:
+        if _generations.get(key, 0) != generation:
+            return
+
+        _remembered[key] = (monotonic() + seconds, value)
+        _remembered.move_to_end(key)
+        while len(_remembered) > DBConfigs.SETTINGS_MEMO_SIZE:
+            _remembered.popitem(last=False)
 
 
 def _count(value: Any) -> int:
@@ -214,7 +250,7 @@ def _stored(guild_id: str, key: str) -> str:
         raise copy.copy(_errors["mongo"])
 
     try:
-        document = cogs_data.find_cog_by_guild_id(guild_id, key)
+        document = guild_cogs.find_cog_by_guild_id(guild_id, key)
     except PyMongoError as error:
         _fail("mongo", error, warn=known is not None)
         if known is None:

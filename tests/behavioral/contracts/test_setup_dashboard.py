@@ -36,7 +36,7 @@ from tests.behavioral.golden.paths.block_links import ENABLED as BLOCK_LINKS
 from tests.behavioral.golden.paths.default_roles import ENABLED as DEFAULT_ROLES
 from tests.behavioral.golden.paths.notifications_twitch import ENABLED as TWITCH
 from tests.behavioral.golden.paths.welcome_messages import ENABLED as WELCOME
-from tests.generators.moderations import recorded_server
+from tests.generators.moderations import recorded_server, seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("setup_dashboard")]
 
@@ -45,13 +45,12 @@ BASE = "commands.commands.setup.embed"
 
 
 def seed(deps, enabled, paused=()):
-    """What a setup and a pause leave: each feature's document, and the old flags."""
-    deps.mongo_client.guild.moderations.insert_one(
-        {"guild_id": GUILD_ID, **{key: key not in paused for key in enabled}}
-    )
+    """What a setup and a pause leave: each feature's document."""
     for key in enabled:
-        deps.mongo_client.guild[key].insert_one(
-            {"guild_id": GUILD_ID, Commands.ENABLED_KEY: key not in paused}
+        seed_cog(
+            deps.mongo_client,
+            key,
+            {"guild_id": GUILD_ID, Commands.ENABLED_KEY: key not in paused},
         )
 
 
@@ -67,10 +66,10 @@ def configured(deps):
 
 def speaks(locale):
     """The server's saved language, which every /configurar page is drawn in."""
-    from app.data import moderations as moderations_data
+    from app.data.guild import settings as guild_settings
     from app.core import cache
 
-    recorded_server(moderations_data.mongo_client, GUILD_ID, language=locale)
+    recorded_server(guild_settings.mongo_client, GUILD_ID, language=locale)
     cache.reset()
 
 

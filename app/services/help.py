@@ -13,7 +13,7 @@ from app.components.select import HelpSelect
 from app.constants import CogsConstants as cogs_constants
 from app.constants import Commands as commands_constants
 from app.core import analytics, cache
-from app.core.moderations import server_language, server_prefix
+from app.core.servers import server_language, server_prefix
 from app.core.utils import (
     fill,
     get_command_display_name,

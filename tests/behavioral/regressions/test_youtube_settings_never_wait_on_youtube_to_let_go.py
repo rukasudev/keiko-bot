@@ -48,6 +48,8 @@ from tests.behavioral.golden.paths.notifications_youtube_video import (
     _submit_messages,
     _submit_youtuber,
 )
+from app.data.guild.cogs import find_cog_by_guild_id
+from tests.generators.moderations import seed_cog
 
 pytestmark = [
     pytest.mark.behavioral,
@@ -86,7 +88,7 @@ def youtube_answers(deps, trouble):
 
 
 def followed(deps):
-    document = deps.mongo_client.guild[FORM].find_one({"guild_id": GUILD_ID})
+    document = find_cog_by_guild_id(GUILD_ID, FORM)
     if document is None:
         return None
     return [item["youtuber"]["value"] for item in document["notifications"]["values"]]
@@ -254,7 +256,7 @@ async def test_removing_a_youtuber_a_paused_server_still_follows_keeps_the_hub_s
     scenario_factory, deps,
 ):
     scenario = await open_manager(scenario_factory, deps, "en-us", FORM, _seed_two_entries)
-    deps.mongo_client.guild[FORM].insert_one({
+    seed_cog(deps.mongo_client, FORM, {
         "guild_id": "999",
         "enabled": False,
         "notifications": {"values": [{"youtuber": {"value": "pewdiepie"}}]},

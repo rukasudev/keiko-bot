@@ -26,7 +26,7 @@ outage answers from Mongo, costs one Redis call per window, invalidations
 included, and one log line per window, a message of its own on the log channel
 even from a listener, and the invalidations it skipped are sent as soon as Redis
 answers; a Mongo outage serves what this process last read from Mongo, however
-long ago, from a bounded memory and with one log line per window, and fails at
+long ago, from a bounded memory (the server settings' memo too) and with one log line per window, and fails at
 once for anything else instead of waiting for the driver on every message; and
 an invalidation made by this process always wins: a read that raced it neither
 keeps nor leaves cached what it read, and its own failure never fails the save
@@ -49,14 +49,17 @@ from redis.exceptions import TimeoutError as RedisTimeoutError
 from app import logger as logger_module
 from app.constants import DBConfigs
 from app.core import cache
+from app.core import servers
 from app.core import trace as trace_service
 from app.settings.features import feature_for
 from app.settings.features.feature import CommitContext
+from app.data.guild.cogs import find_cog_by_guild_id
+from tests.generators.moderations import recorded_server, seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("config_cache")]
 
 GUILD_ID = "123456789"
-KEY = f"guild:{GUILD_ID}:cog.block_links"
+KEY = f"cache:cog:{GUILD_ID}:block_links"
 NOW = datetime(2026, 1, 1, 12, tzinfo=timezone.utc)
 
 BLOCK_LINKS = {
@@ -105,7 +108,7 @@ def redis_is_down(monkeypatch, deps):
 
 def mongo_is_down(monkeypatch, deps, collection="block_links"):
     error = ServerSelectionTimeoutError("No servers found yet")
-    return failing(monkeypatch, deps.mongo_client.guild[collection], "find_one", error)
+    return failing(monkeypatch, deps.mongo_client.guild.cogs, "find_one", error)
 
 
 def frozen_clock(monkeypatch):
@@ -164,7 +167,7 @@ def log_channel():
 async def test_a_server_without_settings_reads_mongo_once_not_on_every_message(
     deps, monkeypatch
 ):
-    reads = counted(monkeypatch, deps.mongo_client.guild["block_links"], "find_one")
+    reads = counted(monkeypatch, deps.mongo_client.guild.cogs, "find_one")
 
     answers = [read() for _message in range(5)]
 
@@ -190,7 +193,7 @@ async def test_a_setup_replaces_nothing_saved_at_once(deps):
 
 
 def test_a_redis_outage_still_answers_from_mongo(deps, monkeypatch):
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
     redis_is_down(monkeypatch, deps)
 
     assert read()["answer"] == BLOCK_LINKS["answer"]
@@ -200,7 +203,7 @@ def test_a_redis_outage_costs_one_call_and_one_line_per_window(
     deps, monkeypatch, caplog
 ):
     """A Redis that times out costs the socket timeout on every call it gets."""
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
     calls = redis_is_down(monkeypatch, deps)
     clock = frozen_clock(monkeypatch)
 
@@ -222,7 +225,7 @@ async def test_an_outage_inside_a_listener_posts_one_warning_per_window(
     deps, monkeypatch, log_channel
 ):
     """A listener's trace is posted only when it fails, and a fallback is no failure."""
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
     redis_is_down(monkeypatch, deps)
     clock = frozen_clock(monkeypatch)
 
@@ -244,7 +247,7 @@ async def test_an_outage_inside_a_listener_posts_one_warning_per_window(
 
 def test_invalidations_during_a_redis_outage_cost_no_redis_call(deps, monkeypatch):
     """Leaving a guild drops seven features and the guild: eight timeouts, before."""
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
     calls = redis_is_down(monkeypatch, deps)
     frozen_clock(monkeypatch)
     read()
@@ -258,7 +261,7 @@ def test_invalidations_during_a_redis_outage_cost_no_redis_call(deps, monkeypatc
 
 
 def test_redis_answering_an_invalidation_is_read_again_at_once(deps, monkeypatch):
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
     clock = frozen_clock(monkeypatch)
     down = [True]
     gets = []
@@ -282,7 +285,7 @@ def test_redis_answering_an_invalidation_is_read_again_at_once(deps, monkeypatch
 
 
 def test_a_mongo_outage_serves_the_last_known_settings(deps, monkeypatch, caplog):
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
     read()
     deps.redis_client.delete(KEY)
     mongo_is_down(monkeypatch, deps)
@@ -311,7 +314,7 @@ def test_a_mongo_outage_with_nothing_known_still_fails(deps, monkeypatch):
 
 def test_a_mongo_outage_is_not_waited_on_for_every_message(deps, monkeypatch):
     """The driver gives up after its server selection timeout, thirty seconds."""
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
     read()
     calls = mongo_is_down(monkeypatch, deps)
     frozen_clock(monkeypatch)
@@ -339,12 +342,10 @@ def test_during_a_mongo_outage_a_setting_never_read_fails_at_once(deps, monkeypa
 def test_the_last_known_settings_are_bounded(deps, monkeypatch):
     monkeypatch.setattr(DBConfigs, "COG_CACHE_LAST_KNOWN_SIZE", 2)
     for guild_id in ("1", "2", "3"):
-        deps.mongo_client.guild["block_links"].insert_one(
-            {**BLOCK_LINKS, "guild_id": guild_id}
-        )
+        seed_cog(deps.mongo_client, "block_links", {**BLOCK_LINKS, "guild_id": guild_id})
         read(guild_id)
     for guild_id in ("1", "2", "3"):
-        deps.redis_client.delete(f"guild:{guild_id}:cog.block_links")
+        deps.redis_client.delete(f"cache:cog:{guild_id}:block_links")
     mongo_is_down(monkeypatch, deps)
 
     assert read("3")["guild_id"] == "3"
@@ -357,7 +358,7 @@ def test_a_mongo_outage_longer_than_an_hour_keeps_serving_what_was_read(
     deps, monkeypatch, caplog
 ):
     """v0.9.0's month-long Redis copy kept block links running through one."""
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
     clock = frozen_clock(monkeypatch)
     read()
     mongo_is_down(monkeypatch, deps)
@@ -372,10 +373,69 @@ def test_a_mongo_outage_longer_than_an_hour_keeps_serving_what_was_read(
     assert len(warnings_about(caplog, "Mongo")) <= windows + 1, "a line per message"
 
 
+def settings_mongo_is_down(monkeypatch, deps):
+    error = ServerSelectionTimeoutError("No servers found yet")
+    return failing(monkeypatch, deps.mongo_client.guild.settings, "find_one", error)
+
+
+async def test_a_mongo_outage_serves_the_last_known_server_settings(
+    deps, monkeypatch, caplog
+):
+    """The server settings went through the cog cache and its last-known copy; their
+    memo must keep that: a read after the memo expired, during an outage, serves the
+    settings this process last read instead of failing every message."""
+    recorded_server(deps.mongo_client, GUILD_ID, prefix="k?", language="en-us")
+    clock = frozen_clock(monkeypatch)
+    assert servers.server_settings(GUILD_ID)["prefix"] == "k?"
+    clock[0] += DBConfigs.COG_CACHE_TTL_SECONDS + 1
+    calls = settings_mongo_is_down(monkeypatch, deps)
+
+    with caplog.at_level(logging.WARNING):
+        assert servers.server_settings(GUILD_ID)["prefix"] == "k?"
+        assert await servers.server_prefix(GUILD_ID) == "k?"
+        assert await servers.server_language(GUILD_ID) == "en-us"
+
+    assert len(calls) == 1, "Mongo is asked once, then skipped for a while"
+    assert len(warnings_about(caplog, "Mongo")) == 1
+
+
+async def test_a_mongo_outage_with_no_server_settings_read_still_fails(deps, monkeypatch):
+    recorded_server(deps.mongo_client, GUILD_ID)
+    settings_mongo_is_down(monkeypatch, deps)
+
+    with pytest.raises(ServerSelectionTimeoutError):
+        await servers.server_prefix(GUILD_ID)
+
+
+def test_a_save_is_never_undone_by_the_last_known_server_settings(deps, monkeypatch):
+    recorded_server(deps.mongo_client, GUILD_ID, prefix="k?")
+    servers.server_settings(GUILD_ID)
+    servers.save_server_setting(GUILD_ID, "prefix", "ke!")
+    settings_mongo_is_down(monkeypatch, deps)
+
+    with pytest.raises(ServerSelectionTimeoutError):
+        servers.server_settings(GUILD_ID)
+
+
+def test_the_last_known_server_settings_are_bounded(deps, monkeypatch):
+    monkeypatch.setattr(DBConfigs, "SETTINGS_MEMO_SIZE", 2)
+    clock = frozen_clock(monkeypatch)
+    for guild_id in ("1", "2", "3"):
+        recorded_server(deps.mongo_client, guild_id)
+        servers.server_settings(guild_id)
+    clock[0] += DBConfigs.COG_CACHE_TTL_SECONDS + 1
+    settings_mongo_is_down(monkeypatch, deps)
+
+    assert servers.server_settings("3")["prefix"]
+    assert servers.server_settings("2")["prefix"]
+    with pytest.raises(ServerSelectionTimeoutError):
+        servers.server_settings("1")
+
+
 def test_a_disable_racing_the_redis_write_never_leaves_the_old_settings(
     deps, monkeypatch
 ):
-    collection = deps.mongo_client.guild["block_links"]
+    collection = deps.mongo_client.guild.cogs
     collection.insert_one(dict(BLOCK_LINKS))
     original_setex = deps.redis_client.setex
 
@@ -395,7 +455,7 @@ def test_a_disable_racing_the_redis_write_never_leaves_the_old_settings(
 def test_a_disable_skipped_during_a_redis_blip_is_sent_when_redis_answers(
     deps, monkeypatch
 ):
-    collection = deps.mongo_client.guild["block_links"]
+    collection = deps.mongo_client.guild.cogs
     collection.insert_one(dict(BLOCK_LINKS))
     clock = frozen_clock(monkeypatch)
     read()
@@ -421,7 +481,7 @@ def test_a_redis_write_that_lands_and_then_fails_never_serves_the_old_settings(
     deps, monkeypatch
 ):
     """The Disable's delete reached Redis first, then the read's write, then its timeout."""
-    collection = deps.mongo_client.guild["block_links"]
+    collection = deps.mongo_client.guild.cogs
     collection.insert_one(dict(BLOCK_LINKS))
     clock = frozen_clock(monkeypatch)
     original_setex = deps.redis_client.setex
@@ -443,7 +503,7 @@ def test_a_redis_write_that_lands_and_then_fails_never_serves_the_old_settings(
 def test_a_disable_queued_behind_a_delete_in_flight_is_still_sent(deps, monkeypatch):
     """Another thread's delete is still on the wire while a message reads, a Redis
     blip opens the window and a Disable is queued behind it."""
-    collection = deps.mongo_client.guild["block_links"]
+    collection = deps.mongo_client.guild.cogs
     collection.insert_one(dict(BLOCK_LINKS))
     frozen_clock(monkeypatch)
     original_get = deps.redis_client.get
@@ -491,7 +551,7 @@ def test_a_stale_redis_entry_is_never_kept_as_the_last_known_settings(
 def test_a_read_racing_a_disable_never_keeps_or_caches_what_it_read(
     deps, monkeypatch
 ):
-    collection = deps.mongo_client.guild["block_links"]
+    collection = deps.mongo_client.guild.cogs
     collection.insert_one(dict(BLOCK_LINKS))
     original = collection.find_one
 
@@ -513,7 +573,7 @@ def test_a_read_racing_a_disable_never_keeps_or_caches_what_it_read(
 
 def test_an_invalidation_forgets_the_last_known_settings(deps, monkeypatch):
     """A Mongo outage must never bring back settings an admin just changed."""
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
     read()
     cache.remove_cog_cache_by_guild(GUILD_ID, "block_links")
     mongo_is_down(monkeypatch, deps)
@@ -523,7 +583,7 @@ def test_an_invalidation_forgets_the_last_known_settings(deps, monkeypatch):
 
 
 def test_leaving_a_guild_forgets_its_last_known_settings(deps, monkeypatch):
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
     read()
     cache.remove_all_cache_by_guild(GUILD_ID)
     mongo_is_down(monkeypatch, deps)
@@ -535,7 +595,7 @@ def test_leaving_a_guild_forgets_its_last_known_settings(deps, monkeypatch):
 def test_leaving_a_guild_while_redis_is_down_still_forgets_its_settings(
     deps, monkeypatch
 ):
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
     read()
     calls = redis_is_down(monkeypatch, deps)
 
@@ -549,11 +609,11 @@ def test_leaving_a_guild_while_redis_is_down_still_forgets_its_settings(
 
 
 async def test_a_failed_invalidation_never_fails_a_save(deps, monkeypatch):
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
     redis_is_down(monkeypatch, deps)
     context = CommitContext(GUILD_ID, "555", "pt-br", BLOCK_LINKS, NOW, "slash", "s1")
 
     await feature_for("block_links").commit("pause", {}, context)
 
-    stored = deps.mongo_client.guild["block_links"].find_one({"guild_id": GUILD_ID})
+    stored = find_cog_by_guild_id(GUILD_ID, "block_links")
     assert stored["enabled"] is False

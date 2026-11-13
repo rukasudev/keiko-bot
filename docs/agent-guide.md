@@ -23,7 +23,7 @@ change touches.
 - Forms: one YAML per feature in `app/languages/form/`; the engine in `app/settings/form/`; one module per feature in `app/settings/features/`; Discord only in `app/settings/discord/`.
 - Copy: `app/languages/{buttons,commands,errors,messages}/<ns>.{en-us,pt-br}.yml`, read with `ml(key, locale)`.
 - Shared modules: `app/core/` (cache, analytics, trace, journey, utils, dates, members...); `app/services/` holds only command modules.
-- Data: `app/data/` (flat functions); cache: `app/core/cache.py`; server settings: `app/core/moderations.py`.
+- Data: `app/data/<database>/<collection>.py` (flat functions, one file per collection: `guild/settings.py`, `guild/cogs.py`, `keiko/settings.py`, `keiko/integrations.py`); cache: `app/core/cache.py`; server settings, join and leave: `app/core/servers.py`.
 - Database structure and data changes: `app/migrations/schema/` and `app/migrations/data/` (`NNNN_slug.py`, each folder numbered on its own); which collection holds what: `docs/data-model.md`.
 - /configurar: `app/services/setup.py`; statistics: `app/core/feature_health.py`.
 - Developer tooling: `scripts/keiko/` (`make logs`, `make repair-birthdays`, `make soak`); never imported by `app/`, left out of the image.

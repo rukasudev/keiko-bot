@@ -25,6 +25,7 @@ from app.settings.features import feature_for, feature_keys
 from app.settings.form.form_yaml import registry
 from app.settings.form.manager import PanelExtras, panel_buttons
 from tests.mocks.discord import create_guild
+from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
 
@@ -201,7 +202,7 @@ def _days_ago(days):
 
 
 def _configure(deps, key):
-    deps.mongo_client.guild[key].insert_one({"guild_id": "777", Commands.ENABLED_KEY: True})
+    seed_cog(deps.mongo_client, key, {"guild_id": "777", Commands.ENABLED_KEY: True})
 
 
 def _refused(deps, key, days=1):

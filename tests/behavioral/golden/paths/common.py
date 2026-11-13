@@ -8,6 +8,7 @@ from app.data import cogs as cogs_data
 from app.core.utils import ml
 
 from tests.behavioral.golden.paths import golden_path
+from tests.generators.moderations import seed_cog
 
 GUILD_ID = "123456789"
 ADMIN_ID = "555"
@@ -34,7 +35,7 @@ def discard_label(locale: str) -> str:
 def seed_document(deps, form: str, document: Dict[str, Any]) -> None:
     """A deep copy: the old engine edits nested lists of the document in place,
     and a shared module-level seed would carry one path's edits into the next."""
-    deps.mongo_client.guild[form].insert_one(copy.deepcopy(document))
+    seed_cog(deps.mongo_client, form, copy.deepcopy(document))
 
 
 def seed_history(deps, form: str, *events: str) -> None:

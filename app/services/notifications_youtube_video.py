@@ -14,12 +14,8 @@ from app import bot, logger
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
-from app.data.notifications_youtube_video import (
-    count_servers_following,
-    count_youtube_video_subscription_by_guilds,
-    find_followed_youtubers,
-    find_guilds_by_youtuber,
-)
+from app.data.guild import cogs as guild_cogs
+from app.data.guild import settings as guild_settings
 from app.data.reminder import (
     delete_reminder_by_id,
     find_reminder_by_value,
@@ -29,7 +25,7 @@ from app.data.reminder import (
 from app.integrations.reminder_webhook import REMINDER_TIMEZONE, reminder_time
 from app.settings import open_feature
 from app.core import analytics
-from app.core.moderations import server_language
+from app.core.servers import server_language
 from app.core.trace import Outcome, fan_out
 from app.core.utils import (
     destination,
@@ -39,6 +35,51 @@ from app.core.utils import (
     values_of,
 )
 from app.views.message_preview import MessagePreviewView
+
+
+def count_youtube_video_subscription_by_guilds(youtuber: str) -> int:
+    """How many servers announce the youtuber's videos while their notifications are on."""
+    return guild_cogs.count_cogs_by_option(
+        constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
+        "notifications.values.youtuber.value",
+        youtuber,
+        enabled_only=True,
+    )
+
+
+def count_servers_following(youtuber: str) -> int:
+    """How many servers Keiko is still in follow the youtuber, paused or not."""
+    following = [
+        str(document.get("guild_id"))
+        for document in guild_cogs.find_cogs_by_option(
+            constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
+            "notifications.values.youtuber.value",
+            youtuber,
+        )
+    ]
+    return len(following) - guild_settings.count_absent(following)
+
+
+def find_guilds_by_youtuber(youtuber: str) -> List[Dict[str, Any]]:
+    """The notifications of every server announcing the youtuber's videos, while on."""
+    return guild_cogs.find_cogs_by_option(
+        constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
+        "notifications.values.youtuber.value",
+        youtuber,
+        enabled_only=True,
+    )
+
+
+def find_followed_youtubers() -> List[str]:
+    """Every youtuber an enabled guild follows, once each."""
+    documents = guild_cogs.find_enabled_cogs(constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY)
+    return sorted({
+        str(notification["youtuber"]["value"])
+        for document in documents
+        for notification in (document.get("notifications") or {}).get("values") or []
+        if (notification.get("youtuber") or {}).get("value")
+    })
+
 
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:

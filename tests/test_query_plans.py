@@ -32,19 +32,19 @@ import app.data
 from app.constants import Commands, DBConfigs, Migrations
 from app.core import analytics_reports
 from app.data import (
-    admin,
     analytics,
     birthdays,
     block_links,
     cogs,
-    config,
     logs,
-    moderations,
     notifications_twitch,
-    notifications_youtube_video,
     reminder,
     util,
 )
+from app.data.guild import cogs as guild_cogs
+from app.data.guild import settings as guild_settings
+from app.data.keiko import integrations as keiko_integrations
+from app.data.keiko import settings as keiko_settings
 from app.migrations import runner
 from app.services import admin as admin_service
 
@@ -60,7 +60,10 @@ pytestmark = [
 ]
 
 FEATURE_KEYS = [spec["command_key"] for spec in Commands.SETUP_FEATURES]
-GUILD_COLLECTIONS = ["moderations", *FEATURE_KEYS]
+FOLLOWED = {
+    Commands.NOTIFICATIONS_TWITCH_KEY: "notifications.values.streamer.value",
+    Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY: "notifications.values.youtuber.value",
+}
 
 GUILD = "111"
 OTHER_GUILD = "333"
@@ -100,7 +103,6 @@ NOT_A_QUERY = {
     "cogs.insert_error_by_command_async",
     "logs.day_bounds",
     "logs.insert_logs",
-    "moderations.insert_moderations_by_guild",
     "reminder.insert_renewal_reminder",
     "util.collection_names",
     "util.parse_insert_timestamp",
@@ -110,32 +112,12 @@ NOT_A_QUERY = {
 Shape = Tuple[str, Tuple[str, ...]]
 
 BY_DESIGN: Dict[Shape, str] = {
-    **{
-        (f"guild.{collection}", ()): "find_all_cogs counts every server's record"
-        for collection in GUILD_COLLECTIONS
-    },
     ("guild.analytics_guild_profile", ()): "find_profiles reads every profile",
     ("guild.logs", ()): "iter_documents streams a whole collection to the backup",
-    ("configs.admin", ()): "update_admin_configs writes the single admin document",
-    ("configs.admin", (DBConfigs.ADMIN_GUILD_ID,)): "the single admin document",
-    ("configs.data", ()): "update_db_configs writes the single bot document",
-    ("configs.data", (DBConfigs.KEIKO_STATUS,)): "the single bot document",
-    ("configs.integrations", ("name",)): "one document per integration",
+    ("guild.settings", ()): "the /admin overview counts every server Keiko recorded",
 }
 
 LEGACY: Dict[Shape, str] = {
-    # The partial guild_id_1 index ({"$type": "string"}) serves no equality or $in.
-    **{
-        (f"guild.{collection}", ("guild_id",)): "PR 1"
-        for collection in GUILD_COLLECTIONS
-    },
-    **{
-        (f"guild.{collection}", ("enabled", "guild_id")): "PR 1"
-        for collection in GUILD_COLLECTIONS
-    },
-    ("guild.moderations", ("guild_id", "settings")): "PR 1",
-    ("guild.moderations", ("guild_id", "is_bot_online")): "PR 1",
-    ("guild.moderations", ("owner_id",)): "PR 1",
     ("reminders.birthdays", ("guild_id",)): "PR 1",
     ("reminders.birthdays", ("guild_id", "user_id")): "PR 1",
     ("reminders.birthdays", ("celebrated_year", "guild_id", "user_id")): "PR 1",
@@ -146,24 +128,11 @@ LEGACY: Dict[Shape, str] = {
     ("audit.reminders", ("reminder_id",)): "PR 1",
     ("audit.reminders", ("title", "value")): "PR 1",
     ("audit.reminders", ("expires_at", "title", "value")): "PR 1",
-    (
-        "guild.notifications_twitch",
-        ("enabled", "notifications.values.streamer.value"),
-    ): "PR 1",
     ("audit.notifications_twitch", ("streamer",)): "PR 1",
     (
         "notifications.notifications_twitch",
         ("channel_id", "guild_id", "streamer"),
     ): "PR 1",
-    (
-        "guild.notifications_youtube_video",
-        ("enabled", "notifications.values.youtuber.value"),
-    ): "PR 1",
-    (
-        "guild.notifications_youtube_video",
-        ("notifications.values.youtuber.value",),
-    ): "PR 1",
-    ("guild.notifications_youtube_video", ("enabled",)): "PR 1",
     **{(f"events.{collection}", ("guild_id",)): "PR 2" for collection in FEATURE_KEYS},
     ("guild.analytics_guild_month", ("month",)): "PR 2",
 }
@@ -205,10 +174,11 @@ class Recorder(monitoring.CommandListener):
 
 
 def data_modules() -> List[Any]:
-    """Every module under `app/data`."""
+    """Every module under `app/data`, the database packages' modules included."""
     return [
-        importlib.import_module(f"app.data.{module.name}")
-        for module in pkgutil.iter_modules(app.data.__path__)
+        importlib.import_module(module.name)
+        for module in pkgutil.walk_packages(app.data.__path__, "app.data.")
+        if not module.ispkg
     ]
 
 
@@ -217,7 +187,7 @@ def public_functions() -> Dict[str, Tuple[Any, str]]:
     found = {}
 
     for module in data_modules():
-        short = module.__name__.rsplit(".", 1)[1]
+        short = module.__name__.removeprefix("app.data.")
         for name, function in inspect.getmembers(module, inspect.isfunction):
             if function.__module__ == module.__name__ and not name.startswith("_"):
                 found[f"{short}.{name}"] = (module, name)
@@ -265,7 +235,6 @@ def recording(migrated: MongoClient) -> Recording:
     recorder = Recorder()
     driven: Set[str] = set()
     url = os.environ["MONGO_TEST_URL"]
-    migrated.configs.integrations.insert_one({"name": "notion", "configs": {}})
 
     with (
         MongoClient(url, event_listeners=[recorder]) as mongo,
@@ -319,10 +288,10 @@ async def drive() -> None:
     """Call every query of `app/data` and of the services that build their filters."""
     now = datetime.now(timezone.utc)
 
-    drive_configs()
-    await drive_guild_collections()
+    drive_keiko()
+    await drive_guild_cogs()
     await drive_events()
-    drive_moderations()
+    drive_guild_settings(now)
     drive_birthdays()
     drive_block_links()
     drive_notifications()
@@ -333,32 +302,38 @@ async def drive() -> None:
     admin_service._what_keiko_stored(NO_TWITCH_SUBSCRIPTIONS, {GUILD})
 
 
-def drive_configs() -> None:
-    admin.find_admin_configs()
-    admin.update_admin_configs({DBConfigs.ADMIN_GUILD_ID: GUILD})
-    config.find_db_configs()
-    config.find_db_integration_configs("notion")
-    config.update_db_configs({DBConfigs.KEIKO_STATUS: "online"})
+def drive_keiko() -> None:
+    keiko_settings.find_keiko_settings()
+    keiko_settings.update_presence({DBConfigs.KEIKO_STATUS: "online"})
+    keiko_settings.update_operator({DBConfigs.ADMIN_GUILD_ID: 10})
+    keiko_integrations.find_integration(DBConfigs.INTEGRATION_NOTION)
 
 
-async def drive_guild_collections() -> None:
-    for collection in GUILD_COLLECTIONS:
+async def drive_guild_cogs() -> None:
+    for cog in FEATURE_KEYS:
         record = {"guild_id": GUILD, "enabled": True}
-        cogs.insert_cog_by_guild_id(collection, dict(record))
-        cogs.insert_cog_by_guild_id(collection, dict(record))
-        cogs.find_cog_by_guild_id(GUILD, collection)
-        cogs.find_all_cogs(collection, fields=("guild_id", "enabled"))
-        cogs.update_cog_by_guild(GUILD, collection, {"enabled": False})
-        cogs.delete_cog_by_guild_id(GUILD, collection)
+        guild_cogs.insert_cog_by_guild_id(cog, dict(record))
+        guild_cogs.find_cog_by_guild_id(GUILD, cog)
+        guild_cogs.find_all_cogs(cog)
+        guild_cogs.find_all_cogs(cog, fields=("guild_id", "enabled"))
+        guild_cogs.find_enabled_cogs(cog)
+        guild_cogs.update_cog_by_guild(GUILD, cog, {"enabled": False})
+        guild_cogs.delete_cog_by_guild_id(GUILD, cog)
 
-        await cogs.insert_cog_by_guild_id_async(collection, dict(record))
-        await cogs.insert_cog_by_guild_id_async(collection, dict(record))
-        await cogs.find_cog_by_guild_id_async(GUILD, collection)
-        await cogs.update_cog_by_guild_async(GUILD, collection, {"enabled": False})
-        await cogs.update_cog_if_unchanged_async(
-            GUILD, collection, "enabled", False, True
+        await guild_cogs.insert_cog_by_guild_id_async(cog, dict(record))
+        await guild_cogs.find_cog_by_guild_id_async(GUILD, cog)
+        await guild_cogs.update_cog_by_guild_async(GUILD, cog, {"enabled": False})
+        await guild_cogs.set_cog_state_async(GUILD, cog, {"channel_id": CHANNEL})
+        await guild_cogs.update_cog_if_unchanged_async(
+            GUILD, cog, "enabled", False, True
         )
-        await cogs.delete_cog_by_guild_id_async(GUILD, collection)
+        await guild_cogs.delete_cog_by_guild_id_async(GUILD, cog)
+
+    guild_cogs.find_cogs_by_guild(GUILD)
+    for cog, option in FOLLOWED.items():
+        for enabled_only in (False, True):
+            guild_cogs.find_cogs_by_option(cog, option, "followed", enabled_only)
+            guild_cogs.count_cogs_by_option(cog, option, "followed", enabled_only)
 
 
 async def drive_events() -> None:
@@ -367,23 +342,19 @@ async def drive_events() -> None:
         await cogs.find_cog_events_by_guild_id_async(GUILD, collection)
 
 
-def drive_moderations() -> None:
-    moderations.upsert_moderations_by_guild(GUILD, FEATURE, True, {"guild_id": GUILD})
-    moderations.find_moderation_by_guild(GUILD, FEATURE)
-    moderations.find_moderations_by_guild(GUILD)
-    moderations.count_moderations_by_owner(OWNER)
-    moderations.find_moderations_by_owner(OWNER)
-    moderations.update_moderations_by_guild(GUILD, FEATURE, False)
-    moderations.insert_server_settings(GUILD, {"language": "en-us"})
-    moderations.set_server_setting(GUILD, "language", "pt-br")
-    moderations.find_guild_ids_with_settings([GUILD, OTHER_GUILD])
+def drive_guild_settings(now: datetime) -> None:
+    guild_settings.record_join(GUILD, OWNER, {"language": "en-us"})
+    guild_settings.find_settings(GUILD)
+    guild_settings.find_guild_ids_with_settings([GUILD, OTHER_GUILD])
+    guild_settings.set_option(GUILD, "language", "pt-br")
+    guild_settings.count_servers_by_owner(OWNER)
+    guild_settings.find_servers_by_owner(OWNER)
+    guild_settings.count_absent([GUILD, OTHER_GUILD])
+    guild_settings.record_leave(GUILD)
+    admin_service.servers_overview(now)
 
 
 def drive_birthdays() -> None:
-    birthdays.is_birthday_enabled(GUILD)
-    birthdays.upsert_birthday_config(GUILD, CHANNEL)
-    birthdays.find_birthday_config(GUILD)
-    birthdays.find_all_birthday_configs()
     birthdays.upsert_birthday_item(GUILD, MEMBER, DATE)
     birthdays.find_birthday_item(GUILD, MEMBER)
     birthdays.has_birthday_reminder(REMINDER)
@@ -396,7 +367,6 @@ def drive_birthdays() -> None:
     birthdays.count_birthday_items_by_guild_and_date(GUILD, DATE)
     birthdays.remove_birthday_item(GUILD, MEMBER)
     birthdays.delete_birthday_items_by_guild(GUILD)
-    birthdays.delete_birthday_config(GUILD)
 
 
 def drive_block_links() -> None:
@@ -408,17 +378,10 @@ def drive_block_links() -> None:
 
 
 def drive_notifications() -> None:
-    notifications_twitch.count_streamers_guilds("streamer")
-    list(notifications_twitch.find_guilds_by_streamer_name("streamer"))
     notifications_twitch.update_last_stream_date("streamer", "2026-11-12")
     notifications_twitch.find_last_stream_date("streamer")
     notifications_twitch.save_stream_notification(GUILD, CHANNEL, "streamer", "1")
     notifications_twitch.find_stream_notification(GUILD, CHANNEL, "streamer")
-
-    notifications_youtube_video.count_youtube_video_subscription_by_guilds("youtuber")
-    notifications_youtube_video.count_servers_following("youtuber")
-    list(notifications_youtube_video.find_guilds_by_youtuber("youtuber"))
-    notifications_youtube_video.find_followed_youtubers()
 
 
 def drive_reminders(now: datetime) -> None:

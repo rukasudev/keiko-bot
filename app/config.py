@@ -126,22 +126,25 @@ class AppConfig:
             return ""
 
     def get_admin_db_configs(self):
-        return [{key: getattr(self, key) for key in constants.ADMIN_CONFIGS_LIST}]
+        """The operator ids the running Keiko uses, by attribute name."""
+        names = [key.upper() for key in constants.ADMIN_CONFIGS_LIST]
+        return {name: getattr(self, name) for name in names}
 
     def load_db_configs(self) -> None:
-        from app.data.admin import find_admin_configs
-        from app.data.config import find_db_configs, find_db_integration_configs
+        from app.data.keiko.integrations import find_integration
+        from app.data.keiko.settings import find_keiko_settings
 
-        db_configs = find_db_configs()
-        admin_configs = find_admin_configs()
+        db_configs = find_keiko_settings()
+        presence = db_configs[constants.KEIKO_PRESENCE]
+        admin_configs = db_configs[constants.KEIKO_OPERATOR]
 
-        self.STATUS = db_configs[constants.KEIKO_STATUS]
-        self.DESCRIPTION = db_configs[constants.KEIKO_DESCRIPTION]
-        self.ACTIVITY = db_configs[constants.KEIKO_ACTIVITY]
+        self.STATUS = presence[constants.KEIKO_STATUS]
+        self.DESCRIPTION = presence[constants.KEIKO_DESCRIPTION]
+        self.ACTIVITY = presence[constants.KEIKO_ACTIVITY]
         self.OWNER_ID = db_configs[constants.KEIKO_OWNER_ID]
         self.PREFIX = db_configs[constants.KEIKO_PREFIX]
 
-        notion_configs = find_db_integration_configs(constants.INTEGRATION_NOTION)
+        notion_configs = find_integration(constants.INTEGRATION_NOTION)
         self.NOTION_ENABLED = notion_configs.get(constants.INTEGRATION_NOTION_ENABLED)
         self.NOTION_DATABASE_ID = notion_configs.get(constants.INTEGRATION_NOTION_DATABASE_ID)
 
