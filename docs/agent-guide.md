@@ -56,6 +56,7 @@ Goldens: `pytest tests/behavioral/golden --update-golden`, only once the code is
 - A bug gets a failing test first, and the test asserts what a user sees.
 - Every string exists in `en-us` and `pt-br`; Keiko is "ele" in Portuguese.
 - `app/settings/` never names a command or a screen; `tests/forms/test_boundary.py` enforces it.
+- No generic layer names a command (`app/data`, `app/core`, `app/views`, `app/components`, the platform, `app/cogs/events.py`): it takes the feature key as a parameter, and the command's rule lives in `app/services/<feature>.py`, which may be wholly specific (code-style rule 22, `tests/test_generic_layers.py`).
 - No narrative comments; one-sentence docstrings on public names.
 - Commits: small, English, imperative; no co-author or AI attribution lines.
 - Never read `.env` or `*.pem`, never write to a real database, never push.

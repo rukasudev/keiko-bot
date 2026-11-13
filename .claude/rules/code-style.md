@@ -58,14 +58,15 @@ file.
 `keiko.settings`), whichever feature asks. A query that only one feature sends keeps
 its feature's paths in that feature's service, and calls a generic function of the
 collection's file (`find_cogs_by_option`). The files of the collections a later pull
-request moves (`app/data/birthdays.py`, `analytics.py`, `logs.py`, the events in
+request moves (`analytics.py`, `logs.py`, `block_links.py`, the events and errors in
 `cogs.py`) keep their old names until then.
 
 ## 7. `app/views/` is generic infrastructure only
 
 Files in `app/views/` must be generic and reusable across commands. A screen that
 belongs to one command lives in that command's service module and composes the generic
-views (`PaginationView`, `RecordsBrowser`...).
+views (`PaginationView`, `RecordsBrowser`...). The same holds for `app/components/`
+(rule 22).
 
 ## 8. Redis key constants carry a `REDIS_` prefix
 
@@ -101,7 +102,8 @@ across `app/services/*.py`.
 A helper with no feature-specific content (URL parsing, timestamp formatting,
 envelope unwrapping) does not live in a feature service — it goes to the generic
 home: `app/core/utils.py`, a focused module like `app/core/dates.py`, or
-`app/components/embed.py` for embeds; `app/services/` holds only command modules.
+`app/components/embed.py` for embeds; `app/services/` holds only command modules, and
+each may be wholly specific to its command (rule 22).
 Absolute red flag: generic engine code (validators, transforms, the form engine)
 importing from a feature service — that inversion means the helper is in the wrong
 module.
@@ -148,7 +150,7 @@ by definition.
 No `command_key ==` branch, no feature key literal, no feature import anywhere
 under `app/settings/form/`. A behaviour that one
 feature needs is a registered extension or a member of its `FeatureModule`; the
-boundary test refuses the literal.
+boundary test refuses the literal. Rule 22 extends this to every generic layer.
 
 ## 18. Nothing in `app/settings/` blocks the loop
 
@@ -178,3 +180,46 @@ helper called from one place folds into the step that uses it, unless its name s
 a rule the call site would not say (`_truthy`, `_same_text`, `_declared_order`). A
 large file is fine when everything in it is one context: split a file by context,
 never by size.
+
+## 22. Generic layers never name a command
+
+A module named after a collection or a capability serves every command the same way:
+`app/data/<database>/<collection>.py`, everything in `app/core/`, `app/views/` and
+`app/components/`, the platform in `app/settings/` (everything but
+`features/<feature>.py`), the shared listeners in `app/cogs/events.py` and the generic
+webhook routes. It takes the feature key, the field or the kind as a parameter, and it
+holds no function, constant, literal, branch or import that belongs to one command.
+
+Each command's rule lives in that command's own module, so it is found in one place:
+
+- `app/services/<feature>.py`: its domain rules, the paths of its fields, its defaults,
+  its screens and its copy. A service may be wholly specific to its command.
+- `app/settings/features/<feature>.py`: what its form saves and how it plugs into the
+  platform.
+
+A shared step that one command needs is a parameter, a field of its `FeatureSpec` or a
+hook of its `FeatureModule` that the shared code calls, never an `if` on its key.
+
+```python
+# WRONG: app/data/guild/members.py
+def find_birthdays_on(guild_id, mm_dd):
+    return mongo_client.guild.members.find(
+        {"guild_id": guild_id, "options.birthday.date": mm_dd}
+    )
+
+# RIGHT: app/data/guild/members.py takes the key
+def find_members_by_option(guild_id, cog, filters):
+    ...
+
+# and app/services/reminders_birthdays.py holds the birthday's rule
+def birthdays_on(guild_id, mm_dd):
+    return members.find_members_by_option(
+        guild_id, constants.REMINDERS_BIRTHDAY_KEY, {"date": mm_dd}
+    )
+```
+
+Before adding a function to a generic module, ask whether another command would call
+it the same way. If not, it goes to the command's module, and the generic module gains
+a parameter. `tests/test_generic_layers.py` refuses a feature key, a feature word or a
+command module import in these layers. The exceptions it lists are the ones the
+design-pattern pull request removes, and an exception that no longer matches fails.

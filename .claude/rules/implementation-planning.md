@@ -63,7 +63,9 @@ types, validators, transforms, formatters, state/response references, and the lo
 files that change. Clearly separate configuration changes from Python changes.
 
 ### 4. Required Python changes
-For each proposed Python change: why YAML alone is insufficient; why no existing
+For each proposed Python change: which module it lives in, and why (a generic module
+takes the feature key as a parameter; one command's rule lives in that command's
+service or feature module, code-style rule 22); why YAML alone is insufficient; why no existing
 implementation already handles it; whether it extends an existing abstraction or creates a
 new one; how the capability stays generic; which other features could reuse it. No Python
 change without this justification.
@@ -131,7 +133,9 @@ generic fix, related suites run, test kept permanently.
 
 ## Anti-patterns (never propose these when a generic path exists)
 
-`if command_name == "...":` branches; copying and renaming an existing handler; duplicating
+`if command_name == "...":` branches; a function, constant or branch of one command
+inside a generic module (`app/data`, `app/core`, `app/views`, `app/components`, the
+platform; code-style rule 22); copying and renaming an existing handler; duplicating
 an existing service; a second state-management mechanism; validation inside a command;
 hardcoded component behavior for one form; user-facing strings in Python; near-duplicates of
 existing generic components; new YAML properties equivalent to existing ones; new
