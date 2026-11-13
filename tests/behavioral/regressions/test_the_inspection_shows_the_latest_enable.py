@@ -17,7 +17,7 @@ import discord
 import pytest
 
 from app.constants import Commands
-from app.services.utils import format_relative_time
+from app.core.utils import format_relative_time
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 

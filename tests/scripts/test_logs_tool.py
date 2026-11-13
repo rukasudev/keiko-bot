@@ -20,7 +20,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from tools.keiko.logs import cli, parse, store  # noqa: E402
+from scripts.keiko.logs import cli, parse, store  # noqa: E402
 from app.constants import DBConfigs
 
 pytestmark = pytest.mark.unit
@@ -218,7 +218,7 @@ def day_log(date, message):
 def run_sync(tmp_path, monkeypatch, attachments, payloads, **flags):
     from types import SimpleNamespace
 
-    from tools.keiko.logs import cli, fetch
+    from scripts.keiko.logs import cli, fetch
 
     monkeypatch.setattr(fetch, "iter_log_attachments", lambda: iter(attachments))
     monkeypatch.setattr(fetch, "download", lambda url: payloads[url])
@@ -321,7 +321,7 @@ def test_the_default_report_holds_a_refused_start(every_level_connection):
     bot", `app/bot.py`'s `_report`) never appeared in the default report, the one record that
     says the bot is not running at all.
 
-    Shared behaviour: `store.signatures` and the `errors` subcommand of `tools/keiko/logs`.
+    Shared behaviour: `store.signatures` and the `errors` subcommand of `scripts/keiko/logs`.
 
     Guaranteed: the default report holds ERROR and CRITICAL; `--level WARNING` adds the
     warnings; nothing below the level asked for appears.

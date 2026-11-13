@@ -15,10 +15,10 @@ from app.data import cogs as cogs_data
 from app.exceptions import ErrorContext, StreamElementsUnavailable
 from app.integrations.stream_elements import StreamElementsClient
 from app.settings import open_feature
-from app.services import analytics, cache
-from app.services.moderations import server_language
-from app.services.trace import outside_any_trace
-from app.services.utils import fill, ml
+from app.core import analytics, cache
+from app.core.moderations import server_language
+from app.core.trace import outside_any_trace
+from app.core.utils import fill, ml
 from app.views.pagination import PaginationView
 from app.views.pagination_without_interaction import PaginationWithoutInteractionView
 

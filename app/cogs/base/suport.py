@@ -4,7 +4,7 @@ from app.constants import Style as constants
 from app.constants import KeikoIcons as keiko_icons
 from app.bot import DiscordBot
 from app.decorators import keiko_command
-from app.services.utils import ml
+from app.core.utils import ml
 from app.translator import locale_str
 from app.types.cogs import Cog
 

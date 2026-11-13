@@ -10,9 +10,9 @@ from app.bot import DiscordBot
 from app.constants import Commands, KeikoIcons, LogTypes, Style
 from app.data import admin as configs_data
 from app.data import cogs as cogs_data
-from app.services import logs_archive
-from app.services.cogs import is_feature_on
-from app.services.utils import format_datetime_output, format_relative_time
+from app.core import logs_archive
+from app.core.cogs import is_feature_on
+from app.core.utils import format_datetime_output, format_relative_time
 
 
 async def send_log_file_from_channel_by_date(
@@ -330,7 +330,7 @@ def build_overview_embed(bot: DiscordBot, data: dict) -> discord.Embed:
 def build_product_summary() -> str:
     """Configured versus actually working \u2014 the distinction command counts hide."""
     from app.data import analytics as analytics_data
-    from app.services import analytics_reports
+    from app.core import analytics_reports
 
     profiles = analytics_data.find_profiles()
     live = [profile for profile in profiles if not profile.get("removed_at")]

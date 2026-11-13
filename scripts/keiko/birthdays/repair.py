@@ -185,7 +185,7 @@ def apply_repair() -> int:
 
 
 def main(argv: List[str]) -> int:
-    parser = argparse.ArgumentParser(prog="python -m tools.keiko birthdays repair")
+    parser = argparse.ArgumentParser(prog="python -m scripts.keiko birthdays repair")
     parser.add_argument(
         "--apply", action="store_true",
         help="actually create the reminders (default is a dry run)",

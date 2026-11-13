@@ -5,9 +5,9 @@ import discord
 
 from app.components.embed import response_embed
 from app.constants import LogTypes as logconstants
-from app.services.cache import increment_redis_key
-from app.services.moderations import interaction_language
-from app.services.utils import get_command_by_key, ml
+from app.core.cache import increment_redis_key
+from app.core.moderations import interaction_language
+from app.core.utils import get_command_by_key, ml
 
 if TYPE_CHECKING:
     from app.settings import Ending
@@ -60,7 +60,7 @@ class JourneyRefreshButton(
 
     async def callback(self, interaction: discord.Interaction) -> None:
         from app.logger import build_trace_embed
-        from app.services import journey
+        from app.core import journey
 
         story = await asyncio.to_thread(journey.rebuild, self.session_id)
         if not story:
@@ -91,9 +91,9 @@ async def run_feature_command(
     user came from, and hands over to the form platform, with the `ending` of
     a setup and the `back` of its first screen (`app.settings.open_feature`).
     """
-    from app.services import analytics, metrics
-    from app.services.trace import trace_scope
-    from app.services.utils import is_guild_admin
+    from app.core import analytics, metrics
+    from app.core.trace import trace_scope
+    from app.core.utils import is_guild_admin
 
     analytics.mark_source(interaction, source)
     command = get_command_by_key(interaction.client, command_key)

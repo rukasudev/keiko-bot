@@ -12,8 +12,8 @@ import discord
 
 from app.components.embed import base_embed
 from app.constants import Commands as constants
-from app.services import analytics, analytics_reports
-from app.services.utils import describe_default, describe_step
+from app.core import analytics, analytics_reports
+from app.core.utils import describe_default, describe_step
 
 EVENT_ICONS = {
     "guild.joined": "➡️",

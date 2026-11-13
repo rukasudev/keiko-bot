@@ -17,7 +17,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from tools.keiko.birthdays import repair  # noqa: E402
+from scripts.keiko.birthdays import repair  # noqa: E402
 
 pytestmark = pytest.mark.unit
 
@@ -114,8 +114,8 @@ def test_the_plan_carries_the_schedule_that_will_be_used(orphans):
 
 def test_the_repair_without_redis_reads_the_servers_zone_from_mongo(orphans, monkeypatch):
     """`--apply` has no Redis: the zone the reminders are created in still reads."""
-    from app.services import cache
-    from app.services.moderations import server_setting
+    from app.core import cache
+    from app.core.moderations import server_setting
 
     monkeypatch.setattr(cache, "redis_client", repair.NoRedis())
 

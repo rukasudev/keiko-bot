@@ -90,7 +90,7 @@ from app import integrations
 from app.integrations import youtube as youtube_integration
 from app.integrations.youtube import YoutubeClient
 from app.services import notifications_youtube_video
-from app.services import trace as trace_service
+from app.core import trace as trace_service
 from tests.generators.moderations import recorded_server
 from tests.mocks.discord import create_guild
 

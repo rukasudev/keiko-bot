@@ -18,8 +18,8 @@ import pytest
 from app import logger as logger_module
 from app.constants import ViewConstants
 from app.settings.discord.callbacks import RUNTIME
-from app.services import journey
-from app.services import trace as trace_service
+from app.core import journey
+from app.core import trace as trace_service
 from tests.behavioral.harness.driver import FormScenario
 from tests.mocks.discord import create_guild, create_member
 

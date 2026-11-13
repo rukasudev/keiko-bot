@@ -7,9 +7,9 @@ from app.constants import Commands as commands_constants
 from app.constants import LogTypes as logconstants
 from app.constants import supported_locales
 from app.integrations.google_translate import GoogleTranslate
-from app.services import analytics
-from app.services.moderations import interaction_language, server_language
-from app.services.utils import fill, join_names, ml, parse_locale
+from app.core import analytics
+from app.core.moderations import interaction_language, server_language
+from app.core.utils import fill, join_names, ml, parse_locale
 
 class SetupButton(discord.ui.Button):
     """One feature's button of the greetings sent before beta.2, still answered."""

@@ -5,7 +5,7 @@ engine, so what they assert is what lands in the admin channel.
 """
 import pytest
 
-from app.services import analytics, journey
+from app.core import analytics, journey
 
 pytestmark = pytest.mark.behavioral
 
@@ -203,7 +203,7 @@ async def test_a_slash_invocation_starts_the_story_with_one_opening_line(
     "`/moderations block links` started" twice. The harness opens the form with
     no command trace around it, so this wraps it the way `keiko_command` does."""
     from app import logger as logger_module
-    from app.services.trace import trace_scope
+    from app.core.trace import trace_scope
 
     folding = logger_module.TraceFoldingHandler()
     logger_module.logger.addHandler(folding)

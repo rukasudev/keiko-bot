@@ -12,11 +12,11 @@ import pytest
 
 from app import logger as logger_module
 from app.constants import LogTypes as logconstants
-from app.services import trace as trace_service
-from app.services.trace import Outcome, Trace, trace_scope
+from app.core import trace as trace_service
+from app.core.trace import Outcome, Trace, trace_scope
 import discord
 from app.exceptions import DestinationNotFound
-from app.services.utils import destination
+from app.core.utils import destination
 from tests.generators.moderations import recorded_server
 from tests.mocks.discord import create_member, create_message
 
@@ -238,14 +238,14 @@ def test_a_repeated_attempt_is_called_out_on_the_message_you_already_read(
 
 
 def test_a_first_attempt_carries_no_footnote():
-    from app.services import analytics
+    from app.core import analytics
 
     assert analytics.describe_attempt(1, "block_links") is None
     assert analytics.describe_attempt(2, "block_links")
 
 
 def test_counting_an_attempt_never_breaks_the_command_it_measures():
-    from app.services import analytics
+    from app.core import analytics
 
     assert analytics.count_attempt(None, "block_links") == 0
     assert analytics.count_attempt("1", None) == 0
@@ -584,7 +584,7 @@ async def test_a_server_keiko_left_is_paused_whatever_failed_before(
         monkeypatch.setattr("app.cogs.events.features_on", broken(RuntimeError("Mongo hung up")))
     else:
         monkeypatch.setattr(
-            "app.services.analytics_reports.guild_snapshot", broken(RuntimeError("Mongo hung up"))
+            "app.core.analytics_reports.guild_snapshot", broken(RuntimeError("Mongo hung up"))
         )
 
     with caplog.at_level("INFO"):

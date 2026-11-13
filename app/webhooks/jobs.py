@@ -7,7 +7,7 @@ the order in place.
 """
 from typing import Any
 
-from app.services.trace import current_trace, run_traced
+from app.core.trace import current_trace, run_traced
 
 
 def schedule_webhook_job(coroutine: Any, name: str):

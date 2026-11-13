@@ -23,8 +23,8 @@ from app.constants import LogTypes as logconstants
 from app.data import analytics as analytics_data, indexes
 from app.data import logs as logs_data
 from app.logger import CustomTimedRotatingFileHandler, LoggerHooks, StoredLogsHandler
-from app.services import debug_logs, logs_archive
-from app.services.trace import trace_scope
+from app.core import debug_logs, logs_archive
+from app.core.trace import trace_scope
 import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -39,7 +39,7 @@ import io
 import zipfile
 from bson import json_util, ObjectId
 from app.cogs.analytics import Analytics
-from app.services.utils import ml
+from app.core.utils import ml
 from app.cogs import analytics as analytics_cog
 from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
     blocking,
@@ -48,7 +48,7 @@ from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
 )
 from tests.helpers.assertions import keys_in, values_in
 import discord
-from app.services.logs_archive import FILENAME
+from app.core.logs_archive import FILENAME
 
 pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("debug_logs")]
 
@@ -359,7 +359,7 @@ def both_handlers():
     from unittest.mock import MagicMock
 
     from app import logger as logger_module
-    from app.services import trace as trace_service
+    from app.core import trace as trace_service
 
     sends = []
     channel = _FakeChannel(sends)
@@ -532,7 +532,7 @@ def test_the_export_message_exists_in_both_locales():
 
 def test_every_field_the_sink_builds_is_a_column_the_index_stores():
     """A field added to the document but not to the store is dropped in silence."""
-    from tools.keiko.logs import store as tools_store
+    from scripts.keiko.logs import store as tools_store
 
     document = debug_logs.build_document(level="INFO", message="x")
     persisted = set(document) - {"v"}
@@ -1144,7 +1144,7 @@ async def test_a_missing_channel_builds_and_sends_nothing_and_says_so(
 
 
 def test_the_logs_tool_never_takes_the_backup_for_a_log_file(stored_databases, monkeypatch):
-    from tools.keiko.logs import fetch
+    from scripts.keiko.logs import fetch
 
     now = datetime(2026, 1, 1)
     whole, _skipped = logs_archive.build_backup(now, TEN_MB, RECIPIENT)
@@ -1617,7 +1617,7 @@ async def test_a_failing_archive_pass_is_an_error_and_never_takes_down_the_loop(
 
 @pytest.mark.usefixtures("frozen_clock")
 def test_the_logs_tool_never_takes_the_archive_for_a_log_file(deps, monkeypatch):
-    from tools.keiko.logs import fetch
+    from scripts.keiko.logs import fetch
 
     month = last_month()
     for day in range(0, 28, 3):

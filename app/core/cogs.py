@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, List, Mapping, Optional
 from app.constants import Commands as constants
 from app.data import cogs as cogs_data
 from app.data import moderations as moderations_data
-from app.services import analytics
+from app.core import analytics
 
 LIFECYCLE_ANALYTICS_EVENTS = {
     constants.ENABLED_KEY: "feature.enabled",

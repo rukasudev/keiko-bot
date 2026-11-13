@@ -1,4 +1,4 @@
-"""`python -m tools.keiko logs <command>` — the cold-tail log reader.
+"""`python -m scripts.keiko logs <command>` — the cold-tail log reader.
 
 Answers the question this whole thing exists for: what did Keiko do, and why
 did it break, further back than the 30 days Mongo keeps. Recent logs are better
@@ -14,7 +14,7 @@ import sys
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional
 
-from tools.keiko.logs import fetch, parse, store
+from scripts.keiko.logs import fetch, parse, store
 
 
 def parse_since(value: Optional[str]) -> Optional[str]:
@@ -139,7 +139,7 @@ def command_status(args) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="python -m tools.keiko logs")
+    parser = argparse.ArgumentParser(prog="python -m scripts.keiko logs")
     parser.add_argument("--db", default=store.DEFAULT_PATH)
 
     # `--db` also on every subcommand, because putting it after the verb is the

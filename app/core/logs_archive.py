@@ -40,8 +40,8 @@ from app.data import analytics as analytics_data
 from app.data import logs as logs_data
 from app.data import util as util_data
 from app.data.indexes import INDEXES, located
-from app.services.trace import as_utc
-from app.services.utils import ml
+from app.core.trace import as_utc
+from app.core.utils import ml
 
 FILENAME = "keiko_logs_{date}.jsonl.gz"
 ADMIN_LOCALE = "en-us"

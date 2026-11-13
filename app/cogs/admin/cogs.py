@@ -5,7 +5,7 @@ from discord.app_commands import Choice
 from app.bot import DiscordBot
 from app.constants import CogsConstants as constants
 from app.decorators import keiko_command
-from app.services.utils import cogs_manager
+from app.core.utils import cogs_manager
 from app.types.cogs import Group
 
 

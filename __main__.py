@@ -9,7 +9,7 @@ from app.bot import run
 from app.api import create_api, run_api
 from app.config import AppConfig
 from app.logger import LoggerHooks
-from app.services import images
+from app.core import images
 from app.webhooks import handle_webhook_api
 
 if __name__ == "__main__":

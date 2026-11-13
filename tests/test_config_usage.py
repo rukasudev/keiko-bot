@@ -7,7 +7,7 @@ YAML declares the list it came from.
 """
 import pytest
 
-from app.services import analytics_reports
+from app.core import analytics_reports
 
 pytestmark = pytest.mark.unit
 

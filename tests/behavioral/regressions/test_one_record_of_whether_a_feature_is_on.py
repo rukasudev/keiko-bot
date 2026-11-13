@@ -49,10 +49,10 @@ from app.constants import Commands
 from app.data import indexes
 from app.data import moderations as moderations_data
 from app.data.birthdays import upsert_birthday_config
-from app.services import cache
-from app.services.moderations import update_moderations_by_guild
+from app.core import cache
+from app.core.moderations import update_moderations_by_guild
 from app.services.setup import category_page, permission_report
-from app.services.utils import ml
+from app.core.utils import ml
 from app.settings.features import feature_for
 from app.settings.features.feature import CommitContext, OpenContext
 from app.settings.form.form_state import Answer
@@ -431,7 +431,7 @@ async def test_a_guild_keiko_left_while_redis_is_down_costs_one_redis_call(
 
 async def test_leaving_a_guild_is_one_call_a_worker_thread_can_run(deps):
     """What `on_guild_remove` hands to `asyncio.to_thread` once it moves off the loop."""
-    from app.services.moderations import leave_guild
+    from app.core.moderations import leave_guild
 
     seed_left_guild(deps)
     cache.get_cog_data_or_populate(LEFT_GUILD_ID, Commands.BLOCK_LINKS_KEY)

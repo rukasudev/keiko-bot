@@ -7,7 +7,7 @@ from app.constants import Commands as commands_constants
 from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
 from app.integrations.reminder_webhook import REMINDER_TIMEZONE, reminder_time
-from app.services.trace import as_utc
+from app.core.trace import as_utc
 from app.webhooks import webhooks
 from app.webhooks.jobs import schedule_webhook_job
 

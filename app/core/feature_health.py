@@ -9,9 +9,9 @@ import discord
 from app.components.embed import base_embed
 from app.constants import Commands as commands_constants
 from app.data import analytics as analytics_data
-from app.services.analytics_reports import value_counts
-from app.services.cogs import feature_spec
-from app.services.utils import fill, ml, parse_locale, stored_value
+from app.core.analytics_reports import value_counts
+from app.core.cogs import feature_spec
+from app.core.utils import fill, ml, parse_locale, stored_value
 
 
 def _ids(value: Any) -> List[str]:

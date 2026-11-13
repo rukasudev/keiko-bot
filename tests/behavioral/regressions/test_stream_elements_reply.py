@@ -28,7 +28,7 @@ import pytest
 from app.data import moderations as moderations_data
 from app.exceptions import StreamElementsUnavailable
 from app.integrations.stream_elements import StreamElementsClient
-from app.services.utils import ml, parse_locale
+from app.core.utils import ml, parse_locale
 from tests.behavioral.harness.driver import FormScenario
 from tests.generators.moderations import recorded_server
 from tests.mocks.discord import (

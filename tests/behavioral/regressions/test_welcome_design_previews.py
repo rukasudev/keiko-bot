@@ -37,7 +37,8 @@ import requests
 from PIL import Image
 
 from app.constants import WelcomeDesign
-from app.services import images, welcome_messages
+from app.services import welcome_messages
+from app.core import images
 from tests.mocks import create_member
 from tests.mocks.web import DISCORD_HOSTS, FakeWeb
 
@@ -94,7 +95,7 @@ def _attached_banner(channel):
 
 def _recorded_outcomes(monkeypatch):
     """The outcome of every delivery `analytics.record_value` is told about."""
-    from app.services import analytics
+    from app.core import analytics
 
     recorded = []
     monkeypatch.setattr(
@@ -238,7 +239,7 @@ async def test_a_banner_drawn_plain_says_so_where_it_can_be_counted(
     The member still gets a welcome, so the only place the degradation can show
     is the value it records: a warning inside a listener never reaches a channel.
     """
-    from app.services import analytics
+    from app.core import analytics
 
     recorded = []
     monkeypatch.setattr(
@@ -330,7 +331,7 @@ async def test_a_refused_background_says_why_in_the_log(
 
 def test_a_download_from_a_host_that_never_answers_gives_up(monkeypatch):
     from app.constants import DBConfigs
-    from app.services import images
+    from app.core import images
 
     monkeypatch.setattr(DBConfigs, "IMAGE_DOWNLOAD_TIMEOUT_SECONDS", 0.2)
     with silent_server() as port:
@@ -342,7 +343,7 @@ def test_a_download_from_a_host_that_never_answers_gives_up(monkeypatch):
 
 def test_the_downloaded_image_cache_is_bounded(monkeypatch, web):
     from app.constants import DBConfigs
-    from app.services import images
+    from app.core import images
 
     for index in range(DBConfigs.IMAGE_CACHE_SIZE + 5):
         images.download_image(f"https://cdn.discordapp.com/avatars/{index}/bounded.png")

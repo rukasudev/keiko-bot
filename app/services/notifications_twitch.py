@@ -22,12 +22,12 @@ from app.data.notifications_twitch import (
     update_last_stream_date,
 )
 from app.settings import open_feature
-from app.services import analytics
-from app.services.moderations import server_language
-from app.services.cache import claim_redis_key
-from app.services.trace import Outcome, fan_out
+from app.core import analytics
+from app.core.moderations import server_language
+from app.core.cache import claim_redis_key
+from app.core.trace import Outcome, fan_out
 from app.views.message_preview import MessagePreviewView
-from app.services.utils import (
+from app.core.utils import (
     destination,
     fill,
     fill_placeholders,

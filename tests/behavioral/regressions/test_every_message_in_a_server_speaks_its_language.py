@@ -28,8 +28,8 @@ import discord
 import pytest
 
 from app.decorators import keiko_admin_only
-from app.services.moderations import interaction_language
-from app.services.utils import ml
+from app.core.moderations import interaction_language
+from app.core.utils import ml
 from app.settings.form.form_yaml import registry
 from tests.generators.moderations import recorded_server
 from tests.mocks.discord import (
@@ -283,7 +283,7 @@ async def test_a_failed_language_read_reaches_the_error_handler_even_without_a_c
     """When the server's language cannot be read, the tree hands the error report an
     AppCommandError, also for an interaction that names no command (it used to raise
     an AttributeError while building the wrapper, and the person got no answer)."""
-    from app.services import moderations
+    from app.core import moderations
     from tests.mocks.discord import _keiko
 
     async def broken(_interaction):

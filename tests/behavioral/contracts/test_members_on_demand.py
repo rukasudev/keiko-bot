@@ -2,7 +2,7 @@
 
 discord.py no longer downloads any server's members at start and keeps only the
 members who join while Keiko runs, so a member is found the way
-`app.services.members` finds one: discord.py's cache, then the members events
+`app.core.members` finds one: discord.py's cache, then the members events
 carried in the last `Commands.MEMBERS_RECENT_SECONDS` (at most
 `Commands.MEMBERS_RECENT_SIZE`), then Discord's API. Every consumer that read
 the full member cache runs here against a server whose gateway cache is empty.
@@ -20,7 +20,7 @@ import discord
 import pytest
 
 from app.constants import Commands
-from app.services import members
+from app.core import members
 from tests.mocks.discord import MockRole, create_guild, create_member, create_message
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("members")]
@@ -105,7 +105,7 @@ async def test_the_events_keep_their_member_at_hand(deps):
 def test_the_history_names_its_actors_without_a_lookup():
     """The audit history is drawn synchronously: the mention of an id is the same
     `<@id>` a member's mention is, so no member is looked up at all."""
-    from app.services.manager import parse_history_data
+    from app.core.manager import parse_history_data
     from datetime import datetime
 
     guild = create_guild()
@@ -207,7 +207,7 @@ async def test_a_picked_member_has_a_picture_without_a_request():
 
 async def test_a_birthday_of_a_member_nobody_cached_is_celebrated(deps, monkeypatch):
     from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
-    from app.services.moderations import update_moderations_by_guild
+    from app.core.moderations import update_moderations_by_guild
     from app.webhooks import birthday_handler
     from tests.generators.moderations import recorded_server
 
@@ -301,7 +301,7 @@ async def test_past_the_counted_bound_the_screens_say_more_than_the_bound(
     [(10_000, "pt-br", "10 mil+"), (10_000, "en-us", "10,000+"), (5000, "en-us", "5,000+")],
 )
 def test_the_floor_label_follows_its_number(bound, locale, label):
-    from app.services.utils import at_least
+    from app.core.utils import at_least
 
     assert at_least(bound, locale) == label
 

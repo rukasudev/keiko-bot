@@ -12,12 +12,12 @@ from app import logger
 from app.constants import Commands
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
+from app.core.cache import get_cog_data_or_populate, remove_cog_cache_by_guild
+from app.core.cogs import LIFECYCLE_ANALYTICS_EVENTS, is_feature_on
+from app.core.feature_health import send_feature_stats
+from app.core.moderations import set_feature_enabled, update_moderations_by_guild
 from app.data import cogs as cogs_data
 from app.exceptions import ErrorContext
-from app.services.cache import get_cog_data_or_populate, remove_cog_cache_by_guild
-from app.services.cogs import LIFECYCLE_ANALYTICS_EVENTS, is_feature_on
-from app.services.feature_health import send_feature_stats
-from app.services.moderations import set_feature_enabled, update_moderations_by_guild
 from app.settings.form.copy import normalize_locale
 from app.settings.form.form_state import Answer
 from app.settings.form.form_yaml import CompositionStep, FormDefinition, registry
@@ -163,7 +163,7 @@ async def record_event(
     key: str, event: str, context: CommitContext, **props: Any
 ) -> None:
     """The permanent audit record of a state change, and its product event."""
-    from app.services import analytics
+    from app.core import analytics
 
     data = {
         "guild_id": context.guild_id,

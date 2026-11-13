@@ -11,7 +11,8 @@ import pytest
 
 from app.constants import ViewConstants as view_constants
 from app.data import analytics as analytics_data
-from app.services import admin_analytics, analytics, analytics_reports, analytics_sink
+from app.services import admin_analytics
+from app.core import analytics, analytics_reports, analytics_sink
 
 pytestmark = pytest.mark.unit
 

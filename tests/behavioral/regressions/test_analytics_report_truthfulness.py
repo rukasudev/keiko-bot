@@ -22,7 +22,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.services import admin_analytics, admin_digest, analytics, analytics_reports
+from app.services import admin_analytics, admin_digest
+from app.core import analytics, analytics_reports
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("analytics_reports")]
 

@@ -7,7 +7,7 @@ from discord import app_commands
 from app import logger
 from app.constants import LogTypes as logconstants
 from app.settings.form.responses.dates import MONTH_KEYS, is_valid_mm_dd, parse_date_parts
-from app.services.utils import ml
+from app.core.utils import ml
 from app.translator import locale_str
 
 __all__ = [

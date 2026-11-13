@@ -29,7 +29,7 @@ import pytest
 
 from app.constants import Commands
 from app.integrations.stream_elements import StreamElementsClient
-from app.services.utils import ml
+from app.core.utils import ml
 from tests.generators.moderations import recorded_server
 from tests.mocks.discord import MockInteraction, create_guild, create_member, create_message
 
@@ -136,7 +136,7 @@ async def youtube_video(deps, guild):
 
 async def birthday(deps, guild):
     from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
-    from app.services.moderations import update_moderations_by_guild
+    from app.core.moderations import update_moderations_by_guild
     from app.webhooks.birthday_handler import celebrate_in_guild
 
     channel = guild.text_channels[0]
@@ -262,7 +262,7 @@ async def test_an_answer_only_the_clicker_sees_speaks_the_saved_language(
 
 
 def test_no_module_guesses_a_servers_language_from_its_discord_locale():
-    import app.services.utils as utils
+    import app.core.utils as utils
 
     guessing = sorted(
         str(path.relative_to(APP))
@@ -276,4 +276,4 @@ def test_no_module_guesses_a_servers_language_from_its_discord_locale():
         for path in APP.rglob("*.py")
         if "guild_locale" in path.read_text(encoding="utf-8")
     ] == []
-    assert guessing == ["services/moderations.py"], "only the join's guess reads it"
+    assert guessing == ["core/moderations.py"], "only the join's guess reads it"

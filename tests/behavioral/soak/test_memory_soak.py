@@ -9,7 +9,7 @@ must keep at most `KEIKO_SOAK_MAX_BYTES` per iteration, charged to the line of
 `app/` that allocated it.
 
 Outside the default run (marker `soak`, deselected by `pytest.ini`). Run it with
-`make soak` or `python -m tools.keiko soak --minutes 600` for the rehearsal.
+`make soak` or `python -m scripts.keiko soak --minutes 600` for the rehearsal.
 """
 
 import csv

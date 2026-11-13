@@ -10,7 +10,7 @@ that sent no panel.
 """
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 from app.settings.discord.callbacks import Runtime
 from app.settings.form.form_state import Manage
 from app.settings.form.form_yaml import DiskSource

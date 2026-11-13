@@ -10,7 +10,7 @@ its real production YAML and a cog document in the real persisted shape
 """
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
 

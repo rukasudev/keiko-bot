@@ -37,7 +37,7 @@ import requests
 from app.data.reminder import find_reminder_by_value, insert_renewal_reminder
 from app.integrations import reminder_webhook
 from app.integrations import youtube as youtube_integration
-from app.services.utils import ml
+from app.core.utils import ml
 from tests.behavioral.golden.paths.common import GUILD_ID, open_manager
 from tests.behavioral.golden.paths.notifications_youtube_video import (
     FORM,

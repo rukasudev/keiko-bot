@@ -30,7 +30,8 @@ import yaml
 from PIL import Image, ImageFile, UnidentifiedImageError
 
 from app.constants import DBConfigs, WelcomeDesign
-from app.services import images, welcome_messages
+from app.services import welcome_messages
+from app.core import images
 from tests.mocks import create_member
 from tests.mocks.web import FakeWeb, png
 

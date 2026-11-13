@@ -126,7 +126,7 @@ async def test_the_birthday_pings_everyone_exactly_when_the_server_asked(
 ):
     from app.constants import Commands
     from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
-    from app.services.moderations import update_moderations_by_guild
+    from app.core.moderations import update_moderations_by_guild
     from app.webhooks import birthday_handler
 
     guild = create_guild(id=5001, channels=["birthdays"])

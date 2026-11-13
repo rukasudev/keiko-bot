@@ -10,7 +10,7 @@ limits here.
 import discord
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 from tests.behavioral.harness.locators import walk_items
 from tests.behavioral.scenarios.test_reminders_birthday_flow import (
     _setup,
@@ -300,7 +300,7 @@ async def test_a_birthday_panel_with_a_full_list_is_within_discord_limits(
     """bd-6: twenty-five birthdays, all in one month or spread over the year,
     keep the panel within the limits with its page and its footer row."""
     from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
-    from app.services.moderations import update_moderations_by_guild
+    from app.core.moderations import update_moderations_by_guild
 
     upsert_birthday_config(
         "123456789", "100", False, timezone="America/Sao_Paulo", notification_time="08:00"

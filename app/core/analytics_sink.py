@@ -11,8 +11,8 @@ from typing import Any, Dict, List, Optional
 
 from app.constants import Commands as constants
 from app.data import analytics as analytics_data
-from app.services import cache
-from app.services.analytics import bucket_size
+from app.core import cache
+from app.core.analytics import bucket_size
 
 TIMESTAMP = "__ts__"
 
@@ -112,7 +112,7 @@ def _partition(batch: List[Dict[str, Any]]):
     profile_updates: Dict[str, Dict[str, Dict[str, Any]]] = {}
     counters: Dict[str, int] = {}
 
-    from app.services.analytics import events_catalog
+    from app.core.analytics import events_catalog
     declarations = events_catalog()
 
     for envelope in batch:

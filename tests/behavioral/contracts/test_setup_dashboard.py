@@ -28,7 +28,7 @@ import discord
 import pytest
 
 from app.constants import Commands, KeikoIcons
-from app.services.utils import ml
+from app.core.utils import ml
 from tests.behavioral.contracts.test_components_v2_limits import _assert_within_limits
 from tests.behavioral.harness.locators import dispatch_click, walk_items
 from tests.behavioral.golden.paths.common import seed_document, seed_history
@@ -68,7 +68,7 @@ def configured(deps):
 def speaks(locale):
     """The server's saved language, which every /configurar page is drawn in."""
     from app.data import moderations as moderations_data
-    from app.services import cache
+    from app.core import cache
 
     recorded_server(moderations_data.mongo_client, GUILD_ID, language=locale)
     cache.reset()

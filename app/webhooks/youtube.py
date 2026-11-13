@@ -20,7 +20,7 @@ from app.webhooks.jobs import schedule_webhook_job
 @webhooks.route('/youtube', methods=['GET', 'POST'])
 def youtube_webhook():
     from app import bot
-    from app.services.cache import claim_redis_key, release_redis_key
+    from app.core.cache import claim_redis_key, release_redis_key
     from app.services.notifications_youtube_video import (
         announce_video,
         prepare_video_announcement,

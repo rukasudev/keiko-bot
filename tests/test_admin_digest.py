@@ -8,7 +8,8 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.services import admin_digest, analytics, analytics_sink
+from app.services import admin_digest
+from app.core import analytics, analytics_sink
 
 pytestmark = pytest.mark.unit
 

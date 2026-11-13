@@ -11,7 +11,7 @@ the lifecycle records its Unpause (ux-80).
 """
 
 from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
-from app.services.moderations import update_moderations_by_guild
+from app.core.moderations import update_moderations_by_guild
 from tests.behavioral.golden.paths import golden_path
 from tests.behavioral.golden.paths.common import (
     GUILD_ID,

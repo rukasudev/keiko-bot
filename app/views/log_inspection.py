@@ -5,9 +5,9 @@ from app.components.buttons import GenericButton, HistoryButton
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.data import moderations as moderations_data
-from app.services.cogs import find_cog_events_by_guild
-from app.services.manager import parse_history_data
-from app.services.utils import format_relative_time, ml
+from app.core.cogs import find_cog_events_by_guild
+from app.core.manager import parse_history_data
+from app.core.utils import format_relative_time, ml
 from app.views.records import RecordsBrowser
 
 COMMAND_STATUS_ICONS = {

@@ -24,8 +24,8 @@ import discord
 import pytest
 
 from app import logger as logger_module
-from app.services import journey as journey_service
-from app.services import trace as trace_service
+from app.core import journey as journey_service
+from app.core import trace as trace_service
 from tests.behavioral.harness import locators
 from tests.behavioral.harness.driver import FormScenario
 from tests.behavioral.harness.fake_interaction import FakeResponse

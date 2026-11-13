@@ -25,7 +25,7 @@ test:
 	$(ACTIVATE_VENV) && python -m pytest tests/ app/ -x -q
 
 soak:
-	$(ACTIVATE_VENV) && python -m tools.keiko soak $(SOAK_ARGS)
+	$(ACTIVATE_VENV) && python -m scripts.keiko soak $(SOAK_ARGS)
 
 lint:
 	$(ACTIVATE_VENV) && ruff check app/settings tests/forms && ruff check --select F401,F821 app && ruff format --check app/settings tests/forms && mypy

@@ -35,7 +35,7 @@ from app.integrations.reminder_webhook import ReminderWebhook
 from app.integrations.stream_elements import StreamElementsClient
 from app.integrations.twitch import TwitchClient
 from app.integrations.youtube import YoutubeClient
-from app.services import metrics
+from app.core import metrics
 
 pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("outside_calls")]
 
@@ -47,7 +47,7 @@ OWN_REQUESTS = {
         "the ping to the uptime monitor: not a dependency a feature waits on, its URL "
         "carries the monitor's token, and it keeps HEARTBEAT_TIMEOUT_SECONDS"
     ),
-    "app/services/images.py": (
+    "app/core/images.py": (
         "a picture streamed with its own bounds on time, size and pixels "
         "(DBConfigs.IMAGE_*), which the shared client does not do"
     ),
@@ -277,8 +277,8 @@ def boot(monkeypatch):
     monkeypatch.setattr(app_module, "connect_redis", lambda url: SimpleNamespace(ping=lambda: True))
     monkeypatch.setattr(app_module, "DiscordBot", lambda config: "the bot")
     monkeypatch.setattr("app.data.indexes.ensure_indexes", lambda: None)
-    monkeypatch.setattr("app.services.analytics.configure", lambda config: None)
-    monkeypatch.setattr("app.services.debug_logs.start_writer", lambda: None)
+    monkeypatch.setattr("app.core.analytics.configure", lambda config: None)
+    monkeypatch.setattr("app.core.debug_logs.start_writer", lambda: None)
 
     def start(answers):
         """Boot against a Mongo that answers each ping with the next of `answers`."""

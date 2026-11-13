@@ -33,8 +33,8 @@ from app.data.birthdays import (
     upsert_birthday_config,
     upsert_birthday_item,
 )
-from app.services import moderations as moderations_service
-from app.services import reminders as reminders_service
+from app.core import moderations as moderations_service
+from app.core import reminders as reminders_service
 from app.services import reminders_birthdays
 from tests.generators.moderations import recorded_server
 from tests.mocks.discord import create_guild, create_member
@@ -175,7 +175,7 @@ def test_the_zone_chosen_in_the_birthday_setup_is_the_servers_zone(deps, api):
 
 def test_the_not_applied_copy_and_error_are_gone():
     import app.exceptions as exceptions
-    from app.services.utils import ml
+    from app.core.utils import ml
 
     assert not hasattr(exceptions, "ServerSettingNotApplied")
     assert not hasattr(moderations_service, "register_setting_applier")

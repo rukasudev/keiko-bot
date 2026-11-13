@@ -27,7 +27,7 @@ import logging
 import discord
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 from app.settings.features.feature import GenericCogFeature
 from app.settings.features.stream_elements_commands import StreamElementsFeature
 from tests.behavioral.golden.paths import notifications_twitch as twitch

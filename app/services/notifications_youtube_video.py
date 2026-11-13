@@ -28,10 +28,10 @@ from app.data.reminder import (
 )
 from app.integrations.reminder_webhook import REMINDER_TIMEZONE, reminder_time
 from app.settings import open_feature
-from app.services import analytics
-from app.services.moderations import server_language
-from app.services.trace import Outcome, fan_out
-from app.services.utils import (
+from app.core import analytics
+from app.core.moderations import server_language
+from app.core.trace import Outcome, fan_out
+from app.core.utils import (
     destination,
     fill_placeholders,
     ml,

@@ -16,8 +16,8 @@ from unittest.mock import AsyncMock
 import discord
 import pytest
 
-from app.services.moderations import guess_server_settings
-from app.services.utils import ml
+from app.core.moderations import guess_server_settings
+from app.core.utils import ml
 from tests.generators.moderations import recorded_server
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]

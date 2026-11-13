@@ -100,7 +100,7 @@ async def test_the_twitch_preview_shows_an_example_when_nobody_is_live(deps):
     is visible. A streamer who is offline has no title, category or picture of
     the moment, so the example lines and the last stream's picture stand in."""
     from app.services.notifications_twitch import send_notification_preview
-    from app.services.utils import ml
+    from app.core.utils import ml
 
     deps.twitch.add_user("gaules", user_id="111")
     deps.twitch.set_last_video(
@@ -136,7 +136,7 @@ async def test_the_youtube_preview_carries_the_embed_the_notification_sends(
     item's snippet. Two calls, two quota units.
     """
     from app.services import notifications_youtube_video as youtube
-    from app.services.utils import ml
+    from app.core.utils import ml
 
     channel = {
         "id": "UC1",

@@ -20,10 +20,10 @@ from app.constants import Commands as constants
 from app.constants import FormConstants as form_constants
 from app.constants import ViewConstants as view_constants
 from app.data import analytics as analytics_data
-from app.services import analytics
-from app.services import cogs as cogs_service
-from app.services.analytics_sink import metric_key
-from app.services.utils import ensure_list, parse_form_yaml_to_dict
+from app.core import analytics
+from app.core import cogs as cogs_service
+from app.core.analytics_sink import metric_key
+from app.core.utils import ensure_list, parse_form_yaml_to_dict
 
 
 def configurable_fields(feature: str) -> List[Dict[str, Any]]:

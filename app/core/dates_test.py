@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
-from app.services.dates import nearest_mm_dd_occurrence, zone_or_utc
+from app.core.dates import nearest_mm_dd_occurrence, zone_or_utc
 
 pytestmark = pytest.mark.unit
 

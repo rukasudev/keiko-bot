@@ -30,15 +30,17 @@ import requests
 
 from app.constants import Commands as commands_constants
 from app.services import (
-    analytics,
-    analytics_sink,
     block_links,
-    debug_logs,
     default_roles,
-    logs_archive,
     notifications_twitch,
     stream_elements,
     welcome_messages,
+)
+from app.core import (
+    analytics,
+    analytics_sink,
+    debug_logs,
+    logs_archive,
 )
 from app.constants import DBConfigs
 from tests.mocks import create_member, create_message
@@ -228,7 +230,7 @@ async def test_the_heartbeat_ping_never_freezes_the_bot(monkeypatch):
 async def test_a_birthday_reminder_never_freezes_the_bot(deps, monkeypatch):
     """The webhook job runs on the loop: reading the birthdays and claiming each one block."""
     from app.data.birthdays import upsert_birthday_config
-    from app.services.moderations import update_moderations_by_guild
+    from app.core.moderations import update_moderations_by_guild
     from app.webhooks import birthday_handler
 
     guild_id = str(deps.guild.id)
@@ -669,7 +671,7 @@ async def test_unloading_the_analytics_cog_never_freezes_the_bot(slow_storage):
 async def test_counting_a_slash_command_never_freezes_the_bot(deps, guild, monkeypatch):
     from app.cogs import events as events_module
 
-    monkeypatch.setattr("app.services.cache.increment_redis_key", blocking(1))
+    monkeypatch.setattr("app.core.cache.increment_redis_key", blocking(1))
     monkeypatch.setattr(events_module, "increment_redis_key", blocking(1), raising=False)
     interaction = interaction_in(
         guild, command=SimpleNamespace(qualified_name="moderations block links", _attr="block_links")
@@ -710,7 +712,7 @@ async def test_opening_a_feature_from_a_button_never_freezes_the_bot(deps, guild
     from app.components import buttons
 
     monkeypatch.setattr(analytics, "count_attempt", blocking(2))
-    monkeypatch.setattr("app.services.cache.increment_redis_key", blocking(1))
+    monkeypatch.setattr("app.core.cache.increment_redis_key", blocking(1))
     monkeypatch.setattr(buttons, "increment_redis_key", blocking(1), raising=False)
     opened = AsyncMock()
     monkeypatch.setattr("app.settings.open_feature", opened)
@@ -727,7 +729,7 @@ async def test_opening_a_feature_from_a_button_never_freezes_the_bot(deps, guild
 async def test_refreshing_a_session_message_never_freezes_the_bot(deps, guild, monkeypatch):
     from app.components.buttons import JourneyRefreshButton
 
-    monkeypatch.setattr("app.services.journey.rebuild", blocking(None))
+    monkeypatch.setattr("app.core.journey.rebuild", blocking(None))
     interaction = interaction_in(guild)
 
     ticks = await ticks_while(JourneyRefreshButton("abc123").callback(interaction))

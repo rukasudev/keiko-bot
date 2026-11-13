@@ -1,7 +1,7 @@
 """Run the memory soak (`tests/behavioral/soak`) for a number of iterations or minutes.
 
-python -m tools.keiko soak                       # 600 iterations, about 3 minutes
-python -m tools.keiko soak --minutes 600 --report soak.csv
+python -m scripts.keiko soak                       # 600 iterations, about 3 minutes
+python -m scripts.keiko soak --minutes 600 --report soak.csv
 """
 
 import argparse
@@ -21,7 +21,7 @@ SETTINGS = {
 
 
 def parse(argv: List[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(prog="python -m tools.keiko soak")
+    parser = argparse.ArgumentParser(prog="python -m scripts.keiko soak")
     parser.add_argument("--iterations", type=int, help="iterations after the warm-up")
     parser.add_argument("--minutes", type=float, help="run this long instead")
     parser.add_argument("--warmup", type=int, help="iterations before checkpoints")

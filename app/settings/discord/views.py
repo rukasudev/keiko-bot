@@ -22,7 +22,7 @@ from app.components.embed import (
 )
 from app.constants import DiscordLimits, Style
 from app.constants import ViewConstants as view_constants
-from app.services import members
+from app.core import members
 from app.settings.discord.interactions import encode
 from app.settings.form.components import (
     Button,

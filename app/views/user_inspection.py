@@ -3,7 +3,7 @@ import discord
 from app import bot, logger
 from app.constants import LogTypes as logconstants
 from app.data import moderations as moderations_data
-from app.services.utils import format_relative_time
+from app.core.utils import format_relative_time
 
 
 BOT_STATUS_ICONS = {

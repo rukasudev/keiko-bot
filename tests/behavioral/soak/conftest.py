@@ -39,8 +39,8 @@ async def soak_logging(monkeypatch):
     published on the running loop at once, and pytest's own capture removed."""
     from app import logger as logger_module
     from app.constants import Commands
-    from app.services import analytics, journey
-    from app.services import trace as trace_service
+    from app.core import analytics, journey
+    from app.core import trace as trace_service
     from tests.behavioral.soak.traffic import admin_bot
 
     root = logging.getLogger()

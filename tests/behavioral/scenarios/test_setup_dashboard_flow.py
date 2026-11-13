@@ -11,7 +11,7 @@ import discord
 import pytest
 
 from app.constants import Commands
-from app.services.utils import ml
+from app.core.utils import ml
 from app.settings.form.form_state import Manage
 from tests.behavioral.golden.paths.common import GUILD_ID
 from tests.behavioral.harness import locators
@@ -277,7 +277,7 @@ async def test_the_settings_screen_quotes_each_value_under_its_name(scenario_fac
     ),
 ])
 async def test_the_prefix_line_names_the_servers_own_prefix(scenario_factory, deps, locale, line):
-    from app.services import cache
+    from app.core import cache
     from app.services.setup import settings_screen
 
     recorded_server(deps.mongo_client, GUILD_ID, language=locale, prefix="k?")

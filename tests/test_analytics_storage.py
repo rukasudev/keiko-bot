@@ -11,8 +11,8 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 
 from app.constants import Commands as constants
 from app.data import analytics as analytics_data
-from app.services import analytics, analytics_sink
-from app.services.trace import trace_scope
+from app.core import analytics, analytics_sink
+from app.core.trace import trace_scope
 
 pytestmark = pytest.mark.unit
 
@@ -186,7 +186,7 @@ def test_a_counter_never_outlives_its_window_when_redis_drops_midway(
     TTL, kept forever. Shared behaviour: every expiring counter (the attempt count of
     `analytics.count_attempt`, the hot window of `analytics_sink`). Guaranteed: a
     counter is written with its TTL in one round trip, or not at all."""
-    from app.services import cache
+    from app.core import cache
 
     monkeypatch.setattr(cache, "redis_client", _DropsAfterOneRoundTrip(redis_client))
 

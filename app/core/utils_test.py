@@ -7,7 +7,7 @@ Estes testes NAO fazem I/O - apenas testam logica pura.
 import discord
 import pytest
 from unittest.mock import MagicMock, patch
-from app.services.utils import (
+from app.core.utils import (
     get_message_links,
     check_two_lists_intersection,
     fill,
@@ -691,19 +691,19 @@ class TestEnsureList:
     """ensure_list coerces the scalar-collapsed {style, values} envelopes."""
 
     def test_none_becomes_empty_list(self):
-        from app.services.utils import ensure_list
+        from app.core.utils import ensure_list
         assert ensure_list(None) == []
 
     def test_scalar_is_wrapped(self):
-        from app.services.utils import ensure_list
+        from app.core.utils import ensure_list
         assert ensure_list("201") == ["201"]
 
     def test_list_is_returned_as_list(self):
-        from app.services.utils import ensure_list
+        from app.core.utils import ensure_list
         assert ensure_list(["a", "b"]) == ["a", "b"]
 
     def test_tuple_and_set_become_lists(self):
-        from app.services.utils import ensure_list
+        from app.core.utils import ensure_list
         assert ensure_list(("a",)) == ["a"]
         assert sorted(ensure_list({"a", "b"})) == ["a", "b"]
 
@@ -791,7 +791,7 @@ class TestLocaleCopyAgreesWithThePlatform:
         discord.Locale.brazil_portuguese, discord.Locale.american_english,
     ])
     def test_parse_locale_maps_a_locale_the_way_the_platform_does(self, locale):
-        from app.services.utils import parse_locale
+        from app.core.utils import parse_locale
         from app.settings.form.copy import normalize_locale
 
         assert parse_locale(locale) == normalize_locale(locale)
@@ -803,7 +803,7 @@ class TestLocaleCopyAgreesWithThePlatform:
     ])
     @pytest.mark.parametrize("locale", ["en-us", "pt-br", "pt", "fr"])
     def test_ml_reads_a_key_the_way_the_platform_does(self, key, locale):
-        from app.services.utils import ml
+        from app.core.utils import ml
         from app.settings.form.copy import text
 
         assert ml(key, locale) == text(key, locale)

@@ -12,7 +12,7 @@ comes back to that screen. Two modes: block_all (allowlist) and allow_all
 import json
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 
 pytestmark = pytest.mark.behavioral
 

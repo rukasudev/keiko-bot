@@ -11,8 +11,8 @@ from app.bot import DiscordBot
 from app.components.embed import report_embed, response_embed
 from app.constants import LogTypes as logconstants
 from app.decorators import keiko_command
-from app.services import analytics
-from app.services.utils import parse_valid_locale
+from app.core import analytics
+from app.core.utils import parse_valid_locale
 from app.translator import locale_str
 from app.types.cogs import Cog
 

@@ -6,8 +6,8 @@ from app.components.buttons import BackButton, ExecuteCommandButton
 from app.settings.features import feature_keys
 from app.constants import DiscordLimits as limits
 from app.constants import ViewConstants as view_constants
-from app.services.moderations import interaction_language
-from app.services.utils import ml
+from app.core.moderations import interaction_language
+from app.core.utils import ml
 
 
 def _fit(text: Optional[str]) -> Optional[str]:

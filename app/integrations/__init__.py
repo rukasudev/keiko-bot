@@ -11,7 +11,7 @@ from typing import Any, Dict
 import requests
 
 from app.constants import Dependencies
-from app.services import metrics
+from app.core import metrics
 
 
 def check_integration_enabled(func):

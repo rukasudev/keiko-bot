@@ -7,7 +7,7 @@ sub-form and the real Select-based remove view.
 
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
 

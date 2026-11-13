@@ -48,8 +48,8 @@ from redis.exceptions import TimeoutError as RedisTimeoutError
 
 from app import logger as logger_module
 from app.constants import DBConfigs
-from app.services import cache
-from app.services import trace as trace_service
+from app.core import cache
+from app.core import trace as trace_service
 from app.settings.features import feature_for
 from app.settings.features.feature import CommitContext
 

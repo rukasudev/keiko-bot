@@ -6,7 +6,7 @@ below is produced by shared code, so a new YAML command inherits all of it.
 """
 import pytest
 
-from app.services import analytics
+from app.core import analytics
 
 pytestmark = pytest.mark.behavioral
 

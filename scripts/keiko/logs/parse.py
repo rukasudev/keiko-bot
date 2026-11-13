@@ -14,7 +14,7 @@ import re
 from datetime import datetime, timezone
 from typing import Any, Dict, Iterator, List, Optional
 
-from tools.keiko.logs import store
+from scripts.keiko.logs import store
 
 # "[INFO] 2026-08-20 14:23:01 (guild_id: 123) - message"
 TEXT_LINE = re.compile(

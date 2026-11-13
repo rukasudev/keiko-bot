@@ -266,7 +266,7 @@ def _response_helper_files():
 
 def _service_files():
     paths = []
-    for part in ("services", "views", "components", "cogs", "webhooks", "api"):
+    for part in ("core", "services", "views", "components", "cogs", "webhooks", "api"):
         paths += [
             path
             for path in python_files(os.path.join(ROOT, "app", part))

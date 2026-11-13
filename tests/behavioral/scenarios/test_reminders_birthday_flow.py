@@ -12,9 +12,9 @@ import json
 import discord
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
-from app.services.moderations import update_moderations_by_guild
+from app.core.moderations import update_moderations_by_guild
 from app.webhooks import birthday_handler
 from tests.behavioral.golden.paths.reminders_birthday import _type_day
 from tests.mocks.discord import create_member

@@ -10,12 +10,12 @@ from app.constants import Commands
 from app.constants import LogTypes as logconstants
 from app.data import birthdays as birthdays_data
 from app.exceptions import ErrorContext
-from app.services import analytics, members
-from app.services.dates import is_valid_mm_dd, nearest_mm_dd_occurrence, zone_or_utc
-from app.services.moderations import server_language, server_timezone
+from app.core import analytics, members
+from app.core.dates import is_valid_mm_dd, nearest_mm_dd_occurrence, zone_or_utc
+from app.core.moderations import server_language, server_timezone
 from app.services.reminders_birthdays import build_celebration_embed
-from app.services.trace import Outcome, fan_out
-from app.services.utils import destination
+from app.core.trace import Outcome, fan_out
+from app.core.utils import destination
 
 
 async def process_birthday_webhook(reminder_id: str, notes: str) -> None:

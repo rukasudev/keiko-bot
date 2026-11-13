@@ -2,7 +2,7 @@ import discord
 
 from app.bot import DiscordBot
 from app.decorators import keiko_command
-from app.services import analytics
+from app.core import analytics
 from app.translator import locale_str
 from app.types.cogs import Cog
 from app.services.setup import open_setup_dashboard

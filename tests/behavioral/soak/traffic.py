@@ -23,7 +23,7 @@ import discord
 
 from app import logger
 from app.exceptions import ErrorContext
-from app.services import analytics, debug_logs, trace
+from app.core import analytics, debug_logs, trace
 from app.settings.discord.callbacks import RUNTIME
 from tests.behavioral.golden.paths import all_paths
 from tests.behavioral.golden.paths import block_links as block_links_path
@@ -243,7 +243,8 @@ class Traffic:
         redis._expirations.clear()
 
     def _forget_mock_calls(self) -> None:
-        from app.services import images, welcome_messages
+        from app.services import welcome_messages
+        from app.core import images
 
         for holder in (
             self.deps.bot,

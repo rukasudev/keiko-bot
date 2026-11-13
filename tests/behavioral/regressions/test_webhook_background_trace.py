@@ -26,7 +26,7 @@ from flask import Flask
 
 import app as app_module
 from app import logger as logger_module
-from app.services import debug_logs, trace as trace_service
+from app.core import debug_logs, trace as trace_service
 from app.webhooks import webhooks
 from app.webhooks.jobs import schedule_webhook_job
 import logging

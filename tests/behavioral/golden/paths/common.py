@@ -5,7 +5,7 @@ import datetime
 from typing import Any, Callable, Dict
 
 from app.data import cogs as cogs_data
-from app.services.utils import ml
+from app.core.utils import ml
 
 from tests.behavioral.golden.paths import golden_path
 

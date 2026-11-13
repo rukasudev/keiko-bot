@@ -9,7 +9,7 @@ lists a configuration card draws, like every other Edit, Add and Remove.
 import discord
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 from tests.behavioral.golden.paths import block_links, notifications_twitch
 from tests.behavioral.golden.paths import notifications_youtube_video as youtube
 from tests.behavioral.golden.paths import reminders_birthday

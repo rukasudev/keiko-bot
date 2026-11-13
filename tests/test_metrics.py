@@ -10,7 +10,7 @@ import discord
 import pytest
 from prometheus_client import REGISTRY
 
-from app.services import metrics
+from app.core import metrics
 
 pytestmark = pytest.mark.unit
 

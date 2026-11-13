@@ -28,7 +28,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 
 from tests.behavioral.golden.paths import notifications_twitch as twitch
 from tests.behavioral.golden.paths import notifications_youtube_video as youtube

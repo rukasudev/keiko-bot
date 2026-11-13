@@ -22,7 +22,7 @@ import pytest
 from app import logger as logger_module
 from app.constants import Commands, LogTypes as logconstants
 from app.data import analytics as analytics_data
-from app.services import analytics, trace as trace_service
+from app.core import analytics, trace as trace_service
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("logging")]
 

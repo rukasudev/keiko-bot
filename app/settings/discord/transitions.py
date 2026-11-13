@@ -21,7 +21,7 @@ from app.components.embed import base_embed, response_error_embed, with_footer
 from app.constants import DiscordLimits, Style
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
-from app.services.utils import parse_command_event_description
+from app.core.utils import parse_command_event_description
 from app.settings.discord import views
 from app.settings.form.components import Screen
 from app.settings.form.copy import error_message, text

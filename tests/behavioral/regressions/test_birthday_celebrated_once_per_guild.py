@@ -44,7 +44,7 @@ from app.data.birthdays import (
     upsert_birthday_config,
     upsert_birthday_item,
 )
-from app.services.moderations import update_moderations_by_guild
+from app.core.moderations import update_moderations_by_guild
 from app.webhooks import birthday_handler
 from tests.generators.moderations import recorded_server
 from tests.mocks.discord import create_guild, create_member

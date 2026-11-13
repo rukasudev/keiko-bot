@@ -2,7 +2,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 import discord
 
-from app.services.utils import get_command_display_name, ml
+from app.core.utils import get_command_display_name, ml
 
 
 def parse_history_data(

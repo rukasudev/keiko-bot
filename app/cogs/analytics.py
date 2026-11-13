@@ -7,7 +7,8 @@ from app import logger
 from app.bot import DiscordBot, write_queues
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
-from app.services import admin_digest, analytics, analytics_sink, debug_logs, logs_archive
+from app.services import admin_digest
+from app.core import analytics, analytics_sink, debug_logs, logs_archive
 
 
 class Analytics(commands.Cog):

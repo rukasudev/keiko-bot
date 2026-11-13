@@ -117,8 +117,8 @@ def log_channels(monkeypatch):
     posted or not.
     """
     from app import logger as logger_module
-    from app.services import journey as journey_service
-    from app.services import trace as trace_service
+    from app.core import journey as journey_service
+    from app.core import trace as trace_service
 
     channels = {channel_id: LogChannel() for channel_id in (1, 2, 3, 4)}
     bot = SimpleNamespace(
@@ -157,7 +157,7 @@ def log_channels(monkeypatch):
 @pytest.fixture
 def stories():
     """Every journey publication: whose, how it reads, and how it ended."""
-    from app.services import journey
+    from app.core import journey
 
     published = []
     journey.clear()

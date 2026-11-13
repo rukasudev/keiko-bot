@@ -18,7 +18,7 @@ import yaml
 
 from app.config import app_version
 from app.constants import Commands as constants
-from app.services.trace import current_trace
+from app.core.trace import current_trace
 
 _CATALOG: Optional[Dict[str, Any]] = None
 _QUEUE: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=constants.ANALYTICS_QUEUE_MAXSIZE)
@@ -206,7 +206,7 @@ def count_attempt(guild_id: Any, feature: str) -> int:
     if not guild_id or not feature:
         return 0
 
-    from app.services import cache
+    from app.core import cache
 
     try:
         return cache.increment_redis_key_with_expiration(
@@ -348,7 +348,7 @@ def flush() -> int:
     but stops after a bounded number of batches so the bot's loop is never
     held hostage by a producer that outruns it.
     """
-    from app.services import analytics_sink
+    from app.core import analytics_sink
 
     flushed = 0
     for _ in range(constants.ANALYTICS_FLUSH_MAX_BATCHES):

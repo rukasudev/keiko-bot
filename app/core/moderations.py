@@ -11,15 +11,15 @@ from app.constants import supported_locales
 from app.data import cogs as cogs_data
 from app.data import moderations as moderations_data
 from app.exceptions import InvalidServerSetting, ServerSettingsMissing
-from app.services.cache import (
+from app.core.cache import (
     forget_remembered,
     get_cog_data_or_populate,
     remembered,
     remove_all_cache_by_guild,
     remove_cog_cache_by_guild,
 )
-from app.services.cogs import insert_cog_event, is_feature_on
-from app.services.utils import parse_locale, speak
+from app.core.cogs import insert_cog_event, is_feature_on
+from app.core.utils import parse_locale, speak
 
 
 def update_moderations_by_guild(guild_id: str, key: str, value: Any):

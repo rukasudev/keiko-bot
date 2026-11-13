@@ -9,7 +9,7 @@ own, and when the feature cannot be read again only the activation embed stays.
 """
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 from app.settings.features import feature_for
 from app.settings.form.form_state import Manage
 from tests.behavioral.golden.paths.reminders_birthday import (

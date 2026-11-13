@@ -9,7 +9,7 @@ import pytest
 
 from app.constants import Commands as constants
 from app.data import analytics as analytics_data
-from app.services import analytics, analytics_reports, analytics_sink
+from app.core import analytics, analytics_reports, analytics_sink
 
 pytestmark = pytest.mark.unit
 

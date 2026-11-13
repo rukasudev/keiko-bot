@@ -7,7 +7,8 @@ precisely to compare two tiny groups. The guard rails are part of the feature.
 import pytest
 
 from app.data import analytics as analytics_data
-from app.services import admin, admin_analytics, analytics, analytics_sink
+from app.services import admin, admin_analytics
+from app.core import analytics, analytics_sink
 import threading
 from datetime import datetime, timedelta
 from types import SimpleNamespace

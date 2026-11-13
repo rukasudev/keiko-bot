@@ -14,11 +14,11 @@ from app.data.moderations import find_moderations_by_guild
 from app.services import block_links as block_links_service
 from app.services import default_roles as default_roles_service
 from app.services import stream_elements as stream_elements_service
-from app.services import analytics, analytics_reports, members, trace
-from app.services.cache import increment_redis_key
-from app.services.cogs import features_on
+from app.core import analytics, analytics_reports, members, trace
+from app.core.cache import increment_redis_key
+from app.core.cogs import features_on
 from app.services.help import answer_prefix_command, prefix_hint
-from app.services.moderations import (
+from app.core.moderations import (
     default_prefix,
     guess_server_settings,
     guilds_without_settings,
@@ -26,7 +26,7 @@ from app.services.moderations import (
     leave_guild,
     server_prefix,
 )
-from app.services.utils import (
+from app.core.utils import (
     cogs_manager,
     format_relative_time,
     get_available_roles_by_guild,

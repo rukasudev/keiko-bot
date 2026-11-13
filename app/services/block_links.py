@@ -19,9 +19,9 @@ from app.data import block_links as blocked_links_data
 from app.exceptions import ErrorContext
 from app.settings import open_feature
 from app.settings.form.responses.links import ParsedLink, parse_link
-from app.services import analytics, cache, members
+from app.core import analytics, cache, members
 
-from .utils import (
+from app.core.utils import (
     check_two_lists_intersection,
     ensure_list,
     fill_placeholders,

@@ -2,12 +2,13 @@
 """
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from app.constants import Commands
 from app.data import block_links as block_links_data
-from app.services import block_links, cache
+from app.services import block_links
+from app.core import cache
 from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
     blocking,
     MIN_TICKS,

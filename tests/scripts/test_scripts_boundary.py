@@ -1,4 +1,4 @@
-"""`tools/` may import `app/`. `app/` may never import `tools/`.
+"""`scripts/` may import `app/`. `app/` may never import `scripts/`.
 
 The tooling exists to inspect the product, so it is allowed to read the
 product's own constants and shapes. The reverse would put developer tooling on
@@ -13,7 +13,7 @@ import pytest
 pytestmark = pytest.mark.unit
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-IMPORTS_TOOLS = re.compile(r"^\s*(?:from|import)\s+tools\b", re.MULTILINE)
+IMPORTS_SCRIPTS = re.compile(r"^\s*(?:from|import)\s+scripts\b", re.MULTILINE)
 
 
 def python_files(directory):
@@ -29,12 +29,12 @@ def test_no_module_under_app_imports_the_tooling():
     offenders = [
         os.path.relpath(path, ROOT)
         for path in python_files("app")
-        if IMPORTS_TOOLS.search(open(path, encoding="utf-8").read())
+        if IMPORTS_SCRIPTS.search(open(path, encoding="utf-8").read())
     ]
 
     assert offenders == [], (
-        f"app/ must not depend on tools/: {offenders}. "
-        "tools/ is excluded from the deploy image, so this import fails in prod."
+        f"app/ must not depend on scripts/: {offenders}. "
+        "scripts/ is excluded from the deploy image, so this import fails in prod."
     )
 
 
@@ -42,4 +42,4 @@ def test_the_tooling_is_excluded_from_the_deploy_image():
     with open(os.path.join(ROOT, ".dockerignore"), encoding="utf-8") as handle:
         ignored = {line.strip().rstrip("/") for line in handle}
 
-    assert "tools" in ignored
+    assert "scripts" in ignored

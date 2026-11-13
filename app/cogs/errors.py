@@ -11,9 +11,9 @@ from app.constants import Commands as commandsconstants
 from app.constants import LogTypes as logconstants
 from app.data.cogs import insert_error_by_command_async
 from app.exceptions import ErrorContext
-from app.services import analytics, metrics, utils
-from app.services.cache import increment_redis_key
-from app.services.trace import trace_scope
+from app.core import analytics, metrics, utils
+from app.core.cache import increment_redis_key
+from app.core.trace import trace_scope
 from app.types.cogs import Cog
 
 

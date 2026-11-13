@@ -22,7 +22,7 @@ import pytest
 from app import logger as logger_module
 from app.constants import LogTypes as logconstants
 from app.logger import StoredLogsHandler
-from app.services import debug_logs
+from app.core import debug_logs
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from app.exceptions import ErrorContext
@@ -146,8 +146,8 @@ def test_keikos_own_error_still_reaches_the_channel(bus):
 
 
 def test_a_module_of_ours_with_its_own_logger_still_reaches_the_channel(bus):
-    """`app.services.trace` logs under its own name and is very much ours."""
-    bus.discord.emit(record("app.services.trace", "twitch stream.online failed"))
+    """`app.core.trace` logs under its own name and is very much ours."""
+    bus.discord.emit(record("app.core.trace", "twitch stream.online failed"))
 
     assert len(bus.sends) == 1
 

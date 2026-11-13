@@ -23,7 +23,7 @@ counts `expired`.
 import pytest
 from prometheus_client import REGISTRY
 
-from app.services import journey
+from app.core import journey
 from tests.behavioral.golden.paths.reminders_birthday import (
     _complete_member_card,
     _guild,

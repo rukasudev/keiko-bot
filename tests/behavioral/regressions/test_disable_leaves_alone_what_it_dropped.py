@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.services import cache
+from app.core import cache
 from app.settings.features import feature_for
 from app.settings.features.feature import CommitContext
 

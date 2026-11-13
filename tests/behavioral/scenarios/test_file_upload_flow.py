@@ -68,7 +68,7 @@ async def test_a_welcome_custom_image_is_required_only_for_custom_designs(
     scenario_factory, dump_channel
 ):
     """The image section only shows for a custom design, and Done asks for it."""
-    from app.services.utils import ml
+    from app.core.utils import ml
 
     scenario = await scenario_factory(locale="pt-br").start("welcome_messages")
     await scenario.confirm()

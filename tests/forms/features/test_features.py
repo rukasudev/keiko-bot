@@ -574,8 +574,8 @@ async def test_the_birthday_setup_writes_the_config_and_the_first_member(deps):
 
 
 async def test_the_birthday_panel_opens_with_its_own_rows(deps):
+    from app.core.moderations import update_moderations_by_guild
     from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
-    from app.services.moderations import update_moderations_by_guild
 
     upsert_birthday_config(
         GUILD_ID, "100", False, timezone="America/Sao_Paulo", notification_time="08:00"
@@ -892,8 +892,8 @@ async def test_the_stream_elements_panel_tells_no_commands_from_a_failure(
 ):
     """Broke as: the panel's count read a streamer with no active command and a
     StreamElements failure alike, as "I couldn't reach StreamElements"."""
+    from app.core.utils import ml
     from app.services import stream_elements as stream_elements_service
-    from app.services.utils import ml
 
     deps.mongo_client.guild["moderations"].insert_one(
         {"guild_id": GUILD_ID, "stream_elements_commands": True}

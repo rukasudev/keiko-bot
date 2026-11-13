@@ -5,9 +5,9 @@ import discord
 from discord.app_commands import Command
 
 from app.components.embed import response_embed
-from app.services import analytics
-from app.services.trace import trace_scope
-from app.services.utils import is_guild_admin
+from app.core import analytics
+from app.core.trace import trace_scope
+from app.core.utils import is_guild_admin
 
 
 def keiko_command(

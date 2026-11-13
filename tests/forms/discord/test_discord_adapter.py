@@ -14,7 +14,7 @@ from types import SimpleNamespace
 import discord
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 from app.settings.discord.callbacks import RUNTIME
 from app.settings.discord.interactions import decode, encode, is_ours
 from app.settings.discord.views import modal_of
@@ -431,7 +431,7 @@ def test_a_text_modal_carries_only_text_inputs():
 @pytest.fixture
 def closed_traces():
     from app import logger as logger_module
-    from app.services import trace as trace_service
+    from app.core import trace as trace_service
 
     trace_service.clear_sinks()
     captured: list = []
@@ -445,7 +445,7 @@ def closed_traces():
 
 @pytest.fixture
 def stories():
-    from app.services import journey
+    from app.core import journey
 
     journey.clear()
     seen: dict = {}

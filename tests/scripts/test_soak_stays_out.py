@@ -49,4 +49,4 @@ def test_make_soak_runs_the_soak_through_the_tool():
     with open(os.path.join(ROOT, "Makefile"), encoding="utf-8") as handle:
         makefile = handle.read()
 
-    assert "soak:\n\t$(ACTIVATE_VENV) && python -m tools.keiko soak" in makefile
+    assert "soak:\n\t$(ACTIVATE_VENV) && python -m scripts.keiko soak" in makefile

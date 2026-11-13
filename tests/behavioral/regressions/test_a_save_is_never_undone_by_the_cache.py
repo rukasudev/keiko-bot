@@ -23,12 +23,12 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.services import cache, journey
+from app.core import cache, journey
 from app.settings.features import feature_for
 from app.settings.features.feature import CommitContext
 from app.settings.form.form_state import Answer
 import json
-from app.services.utils import ml
+from app.core.utils import ml
 from tests.behavioral.golden.paths import block_links
 from tests.behavioral.golden.paths import notifications_twitch as twitch
 from tests.behavioral.golden.paths import notifications_youtube_video as youtube

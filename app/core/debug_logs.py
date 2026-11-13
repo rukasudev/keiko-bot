@@ -34,7 +34,7 @@ from typing import Any, Dict, List, Optional
 
 from app.config import app_version
 from app.constants import Commands as constants
-from app.services.trace import current_trace
+from app.core.trace import current_trace
 
 SCHEMA_VERSION = 1
 

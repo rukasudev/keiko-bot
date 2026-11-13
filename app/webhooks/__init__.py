@@ -7,8 +7,8 @@ from app import logger
 from app.api import create_api, run_api
 from app.config import AppConfig
 from app.constants import LogTypes as logconstants
-from app.services import metrics
-from app.services.trace import trace_scope
+from app.core import metrics
+from app.core.trace import trace_scope
 
 webhooks = Blueprint('webhooks', __name__)
 

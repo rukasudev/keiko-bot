@@ -20,7 +20,7 @@ from app.constants import Commands
 from app.data import birthdays as birthdays_data
 from app.data import moderations as moderations_data
 from app.services import reminders_birthdays as birthdays_service
-from app.services import trace as trace_service
+from app.core import trace as trace_service
 from tests.generators.moderations import recorded_server
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]

@@ -27,8 +27,8 @@ import pytest
 from app.cogs import events as events_module
 from app.constants import Commands, DBConfigs
 from app.exceptions import InvalidServerSetting, ServerSettingsMissing
-from app.services import cache
-from app.services import moderations as moderations_service
+from app.core import cache
+from app.core import moderations as moderations_service
 from app.settings.discord.callbacks import RUNTIME
 from tests.behavioral.harness.driver import FormScenario
 from tests.generators.moderations import recorded_server

@@ -13,9 +13,9 @@ from app.constants import LogTypes as logconstants
 from app.data import birthdays as birthdays_data
 from app.decorators import keiko_command
 from app.services import reminders_birthdays as birthdays_service
-from app.services.dates import format_mm_dd_label, get_month_choices, parse_date_parts
-from app.services.trace import settle
-from app.services.utils import parse_locale
+from app.core.dates import format_mm_dd_label, get_month_choices, parse_date_parts
+from app.core.trace import settle
+from app.core.utils import parse_locale
 from app.translator import locale_str
 from app.types.cogs import Cog
 from app.views.confirm_action import ConfirmActionView

@@ -49,7 +49,7 @@ import pytest
 
 from app.constants import DBConfigs, Dependencies, LogTypes
 from app.data import logs as logs_data
-from app.services import analytics, analytics_sink, debug_logs
+from app.core import analytics, analytics_sink, debug_logs
 from tests.behavioral.contracts.test_logger_trace import discord_logs  # noqa: F401
 from app.bot import DiscordBot
 

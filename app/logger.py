@@ -17,10 +17,10 @@ from app.constants import DiscordLimits as limits
 from app.constants import LogTypes as constants
 from app.constants import Style as style
 from app.constants import TraceTitles as titles
-from app.services import debug_logs
-from app.services import journey as journey_service
-from app.services import trace as trace_service
-from app.services.utils import format_traceback_message
+from app.core import debug_logs
+from app.core import journey as journey_service
+from app.core import trace as trace_service
+from app.core.utils import format_traceback_message
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)

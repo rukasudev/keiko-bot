@@ -14,8 +14,8 @@ from app import logger, redis_client
 from app.constants import Commands, DBConfigs
 from app.constants import LogTypes as logconstants
 from app.data import cogs as cogs_data
-from app.services.cogs import is_feature_on
-from app.services.trace import outside_any_trace
+from app.core.cogs import is_feature_on
+from app.core.trace import outside_any_trace
 
 _lock = threading.Lock()
 _last_known: "OrderedDict[str, str]" = OrderedDict()

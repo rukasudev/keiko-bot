@@ -77,8 +77,9 @@ from app.integrations.reminder_webhook import (
     ReminderAPIError,
     ReminderWebhook,
 )
-from app.services import notifications_youtube_video, trace as trace_service
-from app.services.moderations import update_moderations_by_guild
+from app.services import notifications_youtube_video
+from app.core import trace as trace_service
+from app.core.moderations import update_moderations_by_guild
 from app.webhooks import birthday_handler
 from tests.mocks.discord import create_member
 import threading
@@ -576,7 +577,7 @@ async def test_a_birthday_reminder_with_the_password_celebrates_once(keiko):
 def test_the_webhooks_import_before_the_databases_connect():
     """`__main__` imports every route before `create_app` connects Mongo and Redis.
 
-    A route module that imports `app.data` or `app.services.cache` at the top reads
+    A route module that imports `app.data` or `app.core.cache` at the top reads
     `app.mongo_client` before it exists, and the bot does not start.
     """
     result = subprocess.run(

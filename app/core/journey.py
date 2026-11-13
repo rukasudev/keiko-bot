@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, Optional, Set
 
 from app.constants import Commands as constants
-from app.services.trace import Trace
+from app.core.trace import Trace
 
 _JOURNEYS: Dict[str, Trace] = {}
 _PUBLISHER: Optional[Callable[[Trace], None]] = None
@@ -55,7 +55,7 @@ def _line_for(event: str, props: Dict[str, Any], feature: str = None) -> Optiona
     Step keys are YAML identifiers — `custom_links` means nothing to a reader —
     so they are resolved to the title the user actually saw on screen.
     """
-    from app.services.utils import describe_step
+    from app.core.utils import describe_step
 
     step = describe_step(feature, props.get("step_key")) if feature else props.get("step_key")
 
@@ -95,7 +95,7 @@ def _line_for(event: str, props: Dict[str, Any], feature: str = None) -> Optiona
 
 def _saved(props: Dict[str, Any], feature: str = None) -> str:
     """What a save configured: step titles and counts, never the values."""
-    from app.services.utils import describe_step
+    from app.core.utils import describe_step
 
     parts = []
     steps = props.get("configured_steps")
@@ -306,7 +306,7 @@ def rebuild(session_id: str) -> Optional[Trace]:
     already stored. So refreshing costs one read and works on any message,
     including one left stale by a restart.
     """
-    from app.services import analytics_reports
+    from app.core import analytics_reports
 
     events = analytics_reports.session_events(session_id)
     if not events:
@@ -385,7 +385,7 @@ def recent_attempts(guild_id: Any, feature: str, session_id: str) -> Optional[st
         return None
 
     try:
-        from app.services import analytics_reports
+        from app.core import analytics_reports
 
         since = datetime.now(timezone.utc) - timedelta(
             seconds=constants.ANALYTICS_ATTEMPTS_WINDOW_SECONDS
@@ -403,7 +403,7 @@ def recent_attempts(guild_id: Any, feature: str, session_id: str) -> Optional[st
     if not previous:
         return None
 
-    from app.services.utils import describe_step
+    from app.core.utils import describe_step
 
     lines = [f"**Last 24h · {feature} · this guild**"]
     for session in previous[: constants.ANALYTICS_JOURNEY_HISTORY_LIMIT]:
@@ -429,7 +429,7 @@ def _publish(journey: Trace) -> None:
 
 def install() -> None:
     """Wire the journey to the event stream. Called once at startup."""
-    from app.services import analytics
+    from app.core import analytics
 
     analytics.register_observer(record)
 

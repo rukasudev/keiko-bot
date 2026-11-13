@@ -9,7 +9,7 @@ Only the Twitch HTTP boundary is fake; the YAML validator
 
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 
 pytestmark = pytest.mark.behavioral
 

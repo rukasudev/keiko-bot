@@ -16,7 +16,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from tools.keiko.logs import cli, fetch, store  # noqa: E402
+from scripts.keiko.logs import cli, fetch, store  # noqa: E402
 
 pytestmark = pytest.mark.unit
 

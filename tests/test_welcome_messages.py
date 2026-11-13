@@ -10,11 +10,12 @@ from urllib.parse import urlparse
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from app.services import images, welcome_messages
+from app.services import welcome_messages
+from app.core import images
 from app.services.welcome_messages import send_welcome_message
 from tests.mocks import create_guild, create_member
 from tests.generators import moderations
-from app.services.utils import parse_welcome_messages
+from app.core.utils import parse_welcome_messages
 
 REAL_CREATE_BANNER = welcome_messages.create_banner
 REAL_UPLOAD_ASSET = images.upload_asset

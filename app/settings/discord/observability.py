@@ -11,10 +11,10 @@ from prometheus_client import Counter
 
 from app import logger
 from app.constants import LogTypes as logconstants
+from app.core import analytics, journey
+from app.core.analytics import bucket_duration
+from app.core.trace import current_trace
 from app.exceptions import ErrorContext
-from app.services import analytics, journey
-from app.services.analytics import bucket_duration
-from app.services.trace import current_trace
 from app.settings.form.effects import Finalize
 from app.settings.form.form import Decision
 from app.settings.form.form_state import FormSession

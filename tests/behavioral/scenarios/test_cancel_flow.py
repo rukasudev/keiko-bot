@@ -8,8 +8,8 @@ Once something was answered, Cancelar asks to keep or discard, as before
 import discord
 import pytest
 
-from app.services import analytics
-from app.services.utils import ml
+from app.core import analytics
+from app.core.utils import ml
 from app.settings.discord.callbacks import RUNTIME
 from app.settings.form.form_state import Status
 from tests.behavioral.harness import locators

@@ -12,7 +12,7 @@ from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
 from app.data import birthdays as birthdays_data
 from app.data.birthdays import to_summary_composition
-from app.services.dates import (
+from app.core.dates import (
     format_mm_dd_count,
     format_mm_dd_label,
     format_month_count,
@@ -23,12 +23,12 @@ from app.services.dates import (
 )
 from app.settings import open_feature
 from app.settings.form.responses.styles import format_value
-from app.services import members
-from app.services import reminders as reminders_service
-from app.services.cogs import is_feature_on
+from app.core import members
+from app.core import reminders as reminders_service
+from app.core.cogs import is_feature_on
 from app.exceptions import ServerSettingsMissing
-from app.services.moderations import save_server_setting, server_setting
-from app.services.utils import (
+from app.core.moderations import save_server_setting, server_setting
+from app.core.utils import (
     fill_placeholders,
     ml,
     parse_locale,

@@ -19,8 +19,8 @@ import discord
 import pytest
 
 from app.constants import Commands
-from app.services import feature_health
-from app.services.utils import fill, ml
+from app.core import feature_health
+from app.core.utils import fill, ml
 from app.settings.features import feature_for, feature_keys
 from app.settings.form.form_yaml import registry
 from app.settings.form.manager import PanelExtras, panel_buttons

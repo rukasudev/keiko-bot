@@ -20,7 +20,7 @@ nothing is abandoned afterwards.
 """
 import pytest
 
-from app.services import analytics
+from app.core import analytics
 from app.settings.discord.callbacks import RUNTIME
 from app.settings.form.form_state import Status
 

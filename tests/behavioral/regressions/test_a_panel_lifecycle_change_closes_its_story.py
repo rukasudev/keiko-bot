@@ -24,7 +24,7 @@ import importlib
 
 import pytest
 
-from app.services import analytics, journey
+from app.core import analytics, journey
 from tests.behavioral.golden.paths.common import seed_document
 
 pytestmark = [

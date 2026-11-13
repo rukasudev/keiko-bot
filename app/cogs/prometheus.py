@@ -12,8 +12,8 @@ from app import logger
 from app.bot import DiscordBot
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
-from app.services import metrics
-from app.services.trace import trace_scope
+from app.core import metrics
+from app.core.trace import trace_scope
 
 
 class Heartbeat(commands.Cog):
@@ -74,7 +74,7 @@ class Heartbeat(commands.Cog):
 
 def watch_held_entries(bot: DiscordBot) -> None:
     """Every in-process structure that can grow, as one `keiko_held_entries` series."""
-    from app.services import analytics, cache, debug_logs, images, journey, members
+    from app.core import analytics, cache, debug_logs, images, journey, members
     from app.settings.discord.callbacks import RUNTIME
 
     counts = {

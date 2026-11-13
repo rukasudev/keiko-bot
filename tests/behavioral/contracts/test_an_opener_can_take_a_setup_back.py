@@ -13,8 +13,8 @@ Cancelar on its first screen, and a manager opened with one ignores it
 import discord
 import pytest
 
-from app.services import analytics
-from app.services.utils import ml
+from app.core import analytics
+from app.core.utils import ml
 from app.settings.discord.callbacks import RUNTIME
 from app.settings.form.form_state import Manage, Status
 from app.settings.form.form_yaml import DiskSource

@@ -23,7 +23,7 @@ from app.services.admin import (
     send_log_file_from_channel_by_date,
 )
 from app.decorators import keiko_command
-from app.services.utils import (
+from app.core.utils import (
     format_datetime_output,
     parse_log_filename_with_date,
 )

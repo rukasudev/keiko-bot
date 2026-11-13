@@ -24,7 +24,7 @@ duplicate item, help), every button still visible on screen keeps working.
 """
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression,
               pytest.mark.shared_contract("manager_form")]
