@@ -20,7 +20,7 @@ in front of them carries no `🚨` line, and the retry modal is prefilled.
 import discord
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 from tests.behavioral.golden.paths import notifications_twitch as twitch
 from tests.behavioral.golden.paths import stream_elements_commands as streamelements
 from tests.behavioral.harness import locators

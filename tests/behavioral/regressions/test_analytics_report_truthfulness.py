@@ -3,7 +3,7 @@
 The first weekly digest that reached the admin channel said seven settings were
 used by nobody. Five of them were used by everybody: `config_usage` walked the
 raw `guild.<cog_key>` document looking for the keys the YAML names, and a
-feature that keeps its own storage shape — birthdays store `channel_id`, a
+feature that keeps its own storage shape — birthdays then stored `channel_id`, a
 nested `default_message`, and the birthdays themselves in another database —
 answered every lookup with `None`. The report is read as "candidates for
 removal", so a false zero is an invitation to delete a setting every guild uses.
@@ -22,7 +22,9 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.services import admin_analytics, admin_digest, analytics, analytics_reports
+from app.services import admin_analytics, admin_digest
+from app.core import analytics, analytics_reports
+from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("analytics_reports")]
 
@@ -33,12 +35,10 @@ def field(usage, key):
 
 def configure_birthdays(deps, guild_id, *, birthdays=1, default_message=True):
     """A guild configured through the real birthday flow, stored as it stores."""
-    deps.mongo_client.guild.reminders_birthday.insert_one({
+    seed_cog(deps.mongo_client, "reminders_birthday", {
         "guild_id": guild_id,
-        "channel_id": f"chan-{guild_id}",
-        "locale": "pt-br",
+        "channel": f"chan-{guild_id}",
         "mention_everyone": True,
-        "timezone": "America/Sao_Paulo",
         "notification_time": "09:00",
         **({"default_message": {
             "mode": "custom",
@@ -47,26 +47,25 @@ def configure_birthdays(deps, guild_id, *, birthdays=1, default_message=True):
         }} if default_message else {}),
     })
     for index in range(birthdays):
-        deps.mongo_client.reminders.birthdays.insert_one({
+        deps.mongo_client.guild.members.insert_one({
+            "_id": f"{guild_id}:u{index}",
             "guild_id": guild_id,
             "user_id": f"u{index}",
-            "date": "03-15",
-            "month": 3,
-            "day": 15,
+            "options": {"reminders_birthday": {"date": "03-15", "month": 3, "day": 15}},
         })
 
 
 def test_a_feature_that_stores_its_own_shape_is_not_reported_as_unused(deps):
-    """`channel` lives in `channel_id`, and the birthdays live in another database."""
+    """The birthdays live in another database, the default message is one object."""
     for guild_id in ("1", "2", "3"):
         configure_birthdays(deps, guild_id, birthdays=2)
 
     usage = analytics_reports.config_usage("reminders_birthday")
 
     assert usage["guilds"] == 3
-    assert field(usage, "channel")["filled"] == 3, "stored as channel_id, still the channel"
+    assert field(usage, "channel")["filled"] == 3
     assert field(usage, "reminders_birthday")["filled"] == 3, (
-        "the registered birthdays live in reminders.birthdays, not in the guild document"
+        "the registered birthdays live in guild.members, not in the guild document"
     )
     assert field(usage, "default_message_title")["filled"] == 3, (
         "the three default_message_* settings are one nested object in storage"
@@ -106,11 +105,11 @@ def test_the_value_a_card_draws_is_not_a_value_a_guild_chose(deps):
 
 def test_a_boolean_nobody_touched_is_not_a_boolean_somebody_turned_off(deps):
     """`bool(None)` is `False`, and `False` is a value someone picked."""
-    deps.mongo_client.guild.reminders_birthday.insert_one({
-        "guild_id": "1", "channel_id": "c1",
+    seed_cog(deps.mongo_client, "reminders_birthday", {
+        "guild_id": "1", "channel": "c1",
     })
-    deps.mongo_client.guild.reminders_birthday.insert_one({
-        "guild_id": "2", "channel_id": "c2", "mention_everyone": False,
+    seed_cog(deps.mongo_client, "reminders_birthday", {
+        "guild_id": "2", "channel": "c2", "mention_everyone": False,
     })
 
     mention = field(analytics_reports.config_usage("reminders_birthday"), "mention_everyone")
@@ -122,7 +121,7 @@ def test_a_boolean_nobody_touched_is_not_a_boolean_somebody_turned_off(deps):
 def test_a_setting_left_on_its_yaml_default_says_so_instead_of_reading_as_dead(deps):
     """No guild stores `mode`, because block_all is the default nobody changed."""
     for guild_id in ("1", "2"):
-        deps.mongo_client.guild.block_links.insert_one({
+        seed_cog(deps.mongo_client, "block_links", {
             "guild_id": guild_id,
             "allowed_links": {"values": ["youtube.com"]},
             "answer": "no links here",
@@ -138,7 +137,7 @@ def test_a_setting_left_on_its_yaml_default_says_so_instead_of_reading_as_dead(d
 
 
 def test_a_setting_with_no_declared_default_stays_a_plain_zero(deps):
-    deps.mongo_client.guild.block_links.insert_one({
+    seed_cog(deps.mongo_client, "block_links", {
         "guild_id": "1", "answer": "no links here",
     })
 

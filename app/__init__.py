@@ -12,7 +12,7 @@ from app import logger
 from app.bot import DiscordBot
 from app.config import AppConfig
 from app.constants import DBConfigs
-from app.services import metrics
+from app.core import metrics
 
 bot: DiscordBot
 
@@ -82,6 +82,17 @@ def reach_mongo(client: Any) -> Dict[str, Any]:
             logger.warn(f"MongoDB is not answering yet, asking again: {type(error).__name__}")
 
 
+def require_migrations(client: Any) -> None:
+    """Stop the boot, naming each file, when the ledger lacks one this code has."""
+    from app.migrations.runner import MigrationsPending, require_applied
+
+    try:
+        require_applied(client)
+    except MigrationsPending as error:
+        logger.error(str(error))
+        raise
+
+
 def connect_redis(url: str) -> redis.Redis:
     """A Redis client that gives up on a connection or a read that hangs."""
     return TimedRedis.from_url(
@@ -100,6 +111,7 @@ def create_app(config: AppConfig) -> DiscordBot:
     motor_client = connect_mongo(AsyncIOMotorClient, config)
 
     mongo_status = "OK" if reach_mongo(mongo_client).get("ok") == 1.0 else "Error"
+    require_migrations(mongo_client)
     config.load_db_configs()
     logger.info(f"MongoDB: {mongo_status}")
 
@@ -107,16 +119,7 @@ def create_app(config: AppConfig) -> DiscordBot:
     redis_status = "OK" if redis_client.ping() else "Error"
     logger.info(f"Redis: {redis_status}")
 
-    try:
-        from app.data.indexes import ensure_indexes
-
-        ensure_indexes()
-    except Exception as error:
-        # Indexes are an optimization and a retention policy, never a reason
-        # to keep the bot from starting.
-        logger.warn(f"Could not ensure Mongo indexes: {type(error).__name__}: {error}")
-
-    from app.services import analytics, debug_logs
+    from app.core import analytics, debug_logs
 
     analytics.configure(config)
     debug_logs.start_writer()

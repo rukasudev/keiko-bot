@@ -8,7 +8,7 @@ What broke (roadmap #18):
 - avatars were asked at 1024 px for a circle the banner draws at 200, and an
   lru_cache of 128 kept decoded pictures of up to 1024 x 1024, about 512 MB.
 
-Shared behaviour: `app/services/images.py`, which downloads every picture a
+Shared behaviour: `app/core/images.py`, which downloads every picture a
 banner draws, and the Pillow cap set once at startup. Consumers: every member
 joining a server with welcome messages, the design gallery and the welcome
 preview. Guaranteed: a picture is refused by its headers or its dimensions
@@ -30,7 +30,8 @@ import yaml
 from PIL import Image, ImageFile, UnidentifiedImageError
 
 from app.constants import DBConfigs, WelcomeDesign
-from app.services import images, welcome_messages
+from app.services import welcome_messages
+from app.core import images
 from tests.mocks import create_member
 from tests.mocks.web import FakeWeb, png
 

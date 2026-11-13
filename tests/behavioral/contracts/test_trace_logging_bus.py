@@ -17,9 +17,9 @@ import pytest
 
 from app import logger as logger_module
 from app.logger import StoredLogsHandler
-from app.services import debug_logs
-from app.services import trace as trace_service
-from app.services.trace import trace_scope
+from app.core import debug_logs
+from app.core import trace as trace_service
+from app.core.trace import trace_scope
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("logging")]
 

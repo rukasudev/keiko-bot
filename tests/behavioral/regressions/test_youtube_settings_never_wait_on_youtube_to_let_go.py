@@ -34,10 +34,10 @@ from zoneinfo import ZoneInfo
 import pytest
 import requests
 
-from app.data.reminder import find_reminder_by_value, insert_renewal_reminder
+from app.services.notifications_youtube_video import find_reminder_by_value, insert_renewal_reminder
 from app.integrations import reminder_webhook
 from app.integrations import youtube as youtube_integration
-from app.services.utils import ml
+from app.core.utils import ml
 from tests.behavioral.golden.paths.common import GUILD_ID, open_manager
 from tests.behavioral.golden.paths.notifications_youtube_video import (
     FORM,
@@ -48,6 +48,8 @@ from tests.behavioral.golden.paths.notifications_youtube_video import (
     _submit_messages,
     _submit_youtuber,
 )
+from app.data.guild.cogs import find_cog_by_guild_id
+from tests.generators.moderations import seed_cog
 
 pytestmark = [
     pytest.mark.behavioral,
@@ -86,7 +88,7 @@ def youtube_answers(deps, trouble):
 
 
 def followed(deps):
-    document = deps.mongo_client.guild[FORM].find_one({"guild_id": GUILD_ID})
+    document = find_cog_by_guild_id(GUILD_ID, FORM)
     if document is None:
         return None
     return [item["youtuber"]["value"] for item in document["notifications"]["values"]]
@@ -127,7 +129,7 @@ async def test_the_renewal_an_unsubscribe_leaves_behind_drops_itself(
     scenario_factory, deps, trouble,
 ):
     """The unsubscribe never deletes the renewal, whatever the hub says; the renewal does."""
-    from app.data.reminder import find_reminder_by_id
+    from app.services.notifications_youtube_video import find_reminder_by_id
     from app.webhooks.reminder import renew_youtube_subscription
 
     scenario = await open_manager(scenario_factory, deps, "en-us", FORM, _seed_two_entries)
@@ -141,7 +143,7 @@ async def test_the_renewal_an_unsubscribe_leaves_behind_drops_itself(
     renew_youtube_subscription(7001)
 
     assert find_reminder_by_id(7001) is None
-    deps.bot.reminder.delete_reminder.assert_called_once_with(7001)
+    deps.bot.reminder.delete_reminder.assert_called_once_with("7001")
     deps.bot.reminder.update_reminder.assert_not_called()
 
 
@@ -254,7 +256,7 @@ async def test_removing_a_youtuber_a_paused_server_still_follows_keeps_the_hub_s
     scenario_factory, deps,
 ):
     scenario = await open_manager(scenario_factory, deps, "en-us", FORM, _seed_two_entries)
-    deps.mongo_client.guild[FORM].insert_one({
+    seed_cog(deps.mongo_client, FORM, {
         "guild_id": "999",
         "enabled": False,
         "notifications": {"values": [{"youtuber": {"value": "pewdiepie"}}]},

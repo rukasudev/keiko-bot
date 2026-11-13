@@ -1,13 +1,15 @@
+import asyncio
+
 import discord
 
 from app import bot, logger
 from app.components.buttons import GenericButton, HistoryButton
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
-from app.data import moderations as moderations_data
-from app.services.cogs import find_cog_events_by_guild
-from app.services.manager import parse_history_data
-from app.services.utils import format_relative_time, ml
+from app.data.guild import settings as guild_settings
+from app.core.cogs import features_on, find_cog_events_by_guild
+from app.core.manager import parse_history_data
+from app.core.utils import format_relative_time, ml
 from app.views.records import RecordsBrowser
 
 COMMAND_STATUS_ICONS = {
@@ -59,10 +61,10 @@ class LogInspectionView(discord.ui.View):
         embed.add_field(name="guild_id", value=self.guild.id, inline=False)
         embed.add_field(name="guild_created_at", value=self.parse_if_time(self.guild.created_at), inline=False)
 
-        moderations = moderations_data.find_moderations_by_guild(self.guild.id)
-        if moderations:
-            self._add_moderations_fields(embed, moderations)
-            self._add_commands_status(embed, moderations)
+        server = await asyncio.to_thread(guild_settings.find_settings, self.guild.id)
+        if server:
+            self._add_server_fields(embed, server)
+            await asyncio.to_thread(self._add_commands_status, embed, server)
 
         try:
             integrations = await self.guild.integrations()
@@ -89,34 +91,35 @@ class LogInspectionView(discord.ui.View):
             color=discord.Color.dark_gray(),
         )
 
-        moderations = moderations_data.find_moderations_by_guild(self.guild_id)
-        if moderations:
-            self._add_moderations_fields(embed, moderations)
-            self._add_commands_status(embed, moderations)
+        server = await asyncio.to_thread(guild_settings.find_settings, self.guild_id)
+        if server:
+            self._add_server_fields(embed, server)
+            await asyncio.to_thread(self._add_commands_status, embed, server)
 
         return embed
 
-    def _add_moderations_fields(self, embed: discord.Embed, moderations: dict):
-        for key, value in moderations.items():
-            if key in ["guild_id", "_id"] + constants.COMMANDS_LIST + ["is_bot_online"]:
-                continue
+    def _add_server_fields(self, embed: discord.Embed, server: dict):
+        options = {
+            key: server[key] for key in constants.SERVER_SETTING_KEYS if key in server
+        }
+        fields = {
+            "owner_id": server.get("owner_id"),
+            "added_at": server.get("created_at"),
+            "joined_at": server.get("joined_at"),
+            "left_at": server.get("left_at"),
+            "updated_at": server.get("updated_at"),
+            constants.SERVER_SETTINGS_KEY: self.settings_line(options),
+        }
+        for key, value in fields.items():
+            if value:
+                embed.add_field(name=key, value=self.parse_if_time(value), inline=False)
 
-            if not value:
-                continue
-
-            if key == "created_at":
-                key = "added_at"
-
-            if key == constants.SERVER_SETTINGS_KEY and isinstance(value, dict):
-                value = self.settings_line(value)
-
-            embed.add_field(name=key, value=self.parse_if_time(value), inline=False)
-
-    def _add_commands_status(self, embed: discord.Embed, moderations: dict):
+    def _add_commands_status(self, embed: discord.Embed, server: dict):
         guild_id = self.guild.id if self.guild else self.guild_id
+        active = set(features_on(str(guild_id)))
         status_lines = []
         for command_key in constants.COMMANDS_LIST:
-            is_active = moderations.get(command_key, False)
+            is_active = command_key in active
             icon = COMMAND_STATUS_ICONS.get(is_active, "\u274c")
             line = f"{icon} {command_key}"
 
@@ -128,7 +131,7 @@ class LogInspectionView(discord.ui.View):
 
             status_lines.append(line)
 
-        bot_online = moderations.get("is_bot_online", False)
+        bot_online = bool(server.get("present"))
         bot_icon = COMMAND_STATUS_ICONS.get(bot_online, "\u274c")
 
         embed.add_field(

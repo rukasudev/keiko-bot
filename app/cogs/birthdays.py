@@ -10,12 +10,11 @@ from app import logger
 from app.constants import Commands as commands_constants
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
-from app.data import birthdays as birthdays_data
 from app.decorators import keiko_command
 from app.services import reminders_birthdays as birthdays_service
-from app.services.dates import format_mm_dd_label, get_month_choices, parse_date_parts
-from app.services.trace import settle
-from app.services.utils import parse_locale
+from app.core.dates import format_mm_dd_label, get_month_choices, parse_date_parts
+from app.core.trace import settle
+from app.core.utils import parse_locale
 from app.translator import locale_str
 from app.types.cogs import Cog
 from app.views.confirm_action import ConfirmActionView
@@ -91,7 +90,7 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
         await interaction.response.defer(ephemeral=True, thinking=True)
 
         existing = await asyncio.to_thread(
-            birthdays_data.find_birthday_item, guild_id, str(interaction.user.id)
+            birthdays_service.find_birthday, guild_id, str(interaction.user.id)
         )
         if existing:
             if not birthdays_service.can_self_edit_birthday(existing):
@@ -119,6 +118,7 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
                     user_id=str(interaction.user.id),
                     mm_dd=date,
                     increment_self_edit=True,
+                    display_name=interaction.user.display_name,
                 )
                 settle("replaced")
                 logger.info("🎂 birthday replaced", log_type=logconstants.COMMAND_INFO_TYPE)
@@ -153,6 +153,7 @@ class Birthday(Cog, name=locale_str("birthday", type="name", namespace="birthday
             guild_id=guild_id,
             user_id=str(interaction.user.id),
             mm_dd=date,
+            display_name=interaction.user.display_name,
         )
         settle("registered")
         logger.info("🎂 birthday registered", log_type=logconstants.COMMAND_INFO_TYPE)

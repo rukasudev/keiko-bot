@@ -17,7 +17,7 @@ import pytest
 from app import logger as logger_module
 from app.constants import DiscordLimits as limits
 from app.constants import TraceTitles as titles
-from app.services.trace import Trace
+from app.core.trace import Trace
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("logging")]
 
@@ -203,7 +203,7 @@ def test_a_plain_command_is_unaffected_by_the_action_path():
 def test_the_title_and_the_timeline_agree_on_the_icon():
     """One vocabulary: what the timeline line shows and what the title shows
     for the same outcome must not diverge, which is how this started."""
-    from app.services import journey
+    from app.core import journey
 
     for outcome in titles.OUTCOME_LABELS:
         icon = journey.outcome_icon(outcome)

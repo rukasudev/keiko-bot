@@ -33,7 +33,7 @@ from prometheus_client import REGISTRY
 from app import logger as logger_module
 from app.cogs import prometheus as prometheus_cog
 from app.constants import Commands
-from app.services import debug_logs, metrics
+from app.core import debug_logs, metrics
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("heartbeat")]
 

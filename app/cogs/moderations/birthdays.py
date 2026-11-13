@@ -8,7 +8,7 @@ from app.components.embed import response_embed, response_error_embed
 from app.constants import KeikoIcons
 from app.decorators import keiko_admin_only, keiko_command
 from app.services import reminders_birthdays as birthdays_service
-from app.services.dates import format_mm_dd_label, get_month_choices, parse_date_parts
+from app.core.dates import format_mm_dd_label, get_month_choices, parse_date_parts
 from app.translator import locale_str
 from app.types.cogs import Group
 

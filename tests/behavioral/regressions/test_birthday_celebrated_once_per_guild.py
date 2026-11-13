@@ -8,7 +8,8 @@ another guild's hour; a reminder delivered twice celebrated twice; and one guild
 stopped every guild after it, because the whole date ran inside one `try`.
 
 Shared behaviour: `process_birthday_webhook`, the job every birthday reminder runs, over
-`reminders.birthdays`, which the form, `/birthday` and the reconcile pass also write.
+`guild.members` and `keiko.schedules`, which the form, `/birthday` and the reconcile pass
+also write.
 Exposed by: two servers sharing a date in production.
 
 Guaranteed: a reminder celebrates only the items that carry its id; a member is celebrated
@@ -39,13 +40,10 @@ import discord
 import pytest
 
 from app.constants import Commands
-from app.data.birthdays import (
-    find_birthday_item,
-    upsert_birthday_config,
-    upsert_birthday_item,
-)
-from app.services.moderations import update_moderations_by_guild
+from app.services.reminders_birthdays import save_birthday_config
+from app.core.servers import set_feature_enabled
 from app.webhooks import birthday_handler
+from tests.generators.birthdays import last_celebrated_year, saved_birthday
 from tests.generators.moderations import recorded_server
 from tests.mocks.discord import create_guild, create_member
 from app.services.reminders_birthdays import build_celebration_embed
@@ -90,15 +88,14 @@ def guilds(deps, monkeypatch):
 
 def register(guild, member_id, reminder_id, mm_dd="05-12"):
     create_member(guild, id=member_id, name=f"Member {member_id}")
-    upsert_birthday_config(
+    save_birthday_config(
         str(guild.id),
         str(guild.text_channels[0].id),
         False,
-        timezone=TIMEZONE,
         notification_time="08:00",
     )
-    upsert_birthday_item(str(guild.id), str(member_id), mm_dd, reminder_id=reminder_id)
-    update_moderations_by_guild(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
+    saved_birthday(str(guild.id), str(member_id), mm_dd, reminder_id=reminder_id)
+    set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
 
 
 def celebrations(guild):
@@ -106,7 +103,7 @@ def celebrations(guild):
 
 
 def stored_year(member_id):
-    return find_birthday_item(str(FIRST_GUILD), str(member_id))["celebrated_year"]
+    return last_celebrated_year(str(FIRST_GUILD), str(member_id))
 
 
 def refuse_messages(guild):
@@ -117,7 +114,7 @@ def refuse_messages(guild):
 
 
 def delete_channel(guild):
-    upsert_birthday_config(str(guild.id), "999", False, timezone=TIMEZONE)
+    save_birthday_config(str(guild.id), "999", False)
 
 
 def fail_the_first_message(guild, error):
@@ -181,7 +178,7 @@ async def test_an_edit_after_the_celebration_keeps_the_member_celebrated(guilds)
     register(guilds.first, 555, "4001")
     await fire("4001")
 
-    upsert_birthday_item(
+    saved_birthday(
         str(FIRST_GUILD),
         "555",
         "05-12",
@@ -194,9 +191,9 @@ async def test_an_edit_after_the_celebration_keeps_the_member_celebrated(guilds)
 
 async def test_a_new_year_celebrates_again(guilds, deps):
     register(guilds.first, 555, "4001")
-    deps.mongo_client.reminders.birthdays.update_one(
-        {"guild_id": str(FIRST_GUILD), "user_id": "555"},
-        {"$set": {"celebrated_year": 2025}},
+    deps.mongo_client.guild.members.update_one(
+        {"_id": f"{FIRST_GUILD}:555"},
+        {"$set": {"state.reminders_birthday.last_celebrated_year": 2025}},
     )
 
     await fire("4001")
@@ -292,6 +289,37 @@ async def test_a_message_discord_fails_to_send_does_not_stop_the_next_member_and
     assert errors[0].exc_info is not None
 
 
+@pytest.mark.parametrize("error", [
+    discord.HTTPException(
+        SimpleNamespace(status=500, reason="Internal Server Error"), "Discord is down"
+    ),
+    discord.Forbidden(SimpleNamespace(status=403, reason="Forbidden"), "Missing Permissions"),
+], ids=["discord-fails", "discord-refuses"])
+async def test_a_message_discord_did_not_post_leaves_the_year_to_the_next_delivery(
+    guilds, error,
+):
+    """A failed post must not spend the member's year.
+
+    Reported in the database plan (F9): the year was recorded just before the send and
+    kept when Discord failed it, so the member got no message that year and every later
+    delivery of the reminder skipped them as already celebrated.
+
+    Shared behaviour: `celebrate_in_guild`, the claim every birthday post takes.
+    Exposed by: reading the webhook for the move to `guild.members`.
+
+    Guaranteed: the claim is still taken before the send, so two deliveries at once post
+    once; a send Discord fails or refuses gives the year back, and the next delivery posts.
+    """
+    register(guilds.first, 555, "4001")
+    fail_the_first_message(guilds.first, error)
+
+    await fire("4001")
+    assert celebrations(guilds.first) == []
+
+    await fire("4001")
+    assert len(celebrations(guilds.first)) == 1, "the next delivery posts"
+
+
 async def test_an_unexpected_error_inside_the_send_is_an_error_not_a_missing_server(
     guilds, caplog,
 ):
@@ -342,7 +370,7 @@ async def test_a_member_who_moves_their_birthday_after_the_celebration_waits_for
     register(guilds.first, 555, "4001", mm_dd="05-12")
     await fire("4001", "05-12")
 
-    upsert_birthday_item(str(FIRST_GUILD), "555", "11-20", reminder_id="4009")
+    saved_birthday(str(FIRST_GUILD), "555", "11-20", reminder_id="4009")
     clock.moment = datetime(2026, 11, 20, 8, 0, tzinfo=ZoneInfo(TIMEZONE))
     await fire("4009", "11-20")
 
@@ -359,7 +387,7 @@ def test_a_member_named_with_braces_is_celebrated_as_they_are_named():
     fans". The welcome looked for `{user}` in any capitals but filled only the lowercase one,
     so "Hi {USER}!" mentioned nobody at all.
 
-    Shared behaviour: `fill_placeholders` (`app/services/utils.py`), now behind every
+    Shared behaviour: `fill_placeholders` (`app/core/utils.py`), now behind every
     template an admin writes: the notices, the welcome and the birthday celebration.
     Exposed by: the wave 1 review of the notices' placeholders.
 

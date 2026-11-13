@@ -24,7 +24,8 @@ duplicate item, help), every button still visible on screen keeps working.
 """
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
+from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression,
               pytest.mark.shared_contract("manager_form")]
@@ -52,7 +53,7 @@ ADD = ml("buttons.add.label", locale="pt-br")
 async def _panel(scenario_factory, deps):
     from app.services.block_links import normalize_block_links_config
 
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS_COG))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS_COG))
     return await scenario_factory(locale="pt-br").start_manager(
         "block_links", normalize_block_links_config(dict(BLOCK_LINKS_COG))
     )

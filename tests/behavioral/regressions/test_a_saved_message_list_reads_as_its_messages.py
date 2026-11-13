@@ -8,7 +8,7 @@ The Twitch preview and both real notifiers read the same value the same way: a l
 became its Python repr in the preview and an AttributeError in the notifier.
 
 Shared behaviour: the one helper that turns a saved message value into the messages
-a sender picks from (`split_messages` in `app/services/utils.py`), read by the
+a sender picks from (`split_messages` in `app/core/utils.py`), read by the
 Twitch and YouTube previews (the card's and the panel's Pré-visualizar) and by the
 live and new video announcements. Consumers that exposed it: notifications_youtube_video
 and notifications_twitch, whose saved items may hold a list or a `;`-joined string.
@@ -28,13 +28,13 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 
 from tests.behavioral.golden.paths import notifications_twitch as twitch
 from tests.behavioral.golden.paths import notifications_youtube_video as youtube
 from tests.behavioral.golden.paths import welcome_messages as welcome
 from tests.behavioral.golden.paths.common import open_manager, seed_document
-from tests.generators.moderations import recorded_server
+from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks.discord import create_guild, create_member
 
 pytestmark = [
@@ -210,7 +210,7 @@ async def test_a_live_is_announced_with_one_saved_message(
     guild, channel = _destination(deps, "lives")
     deps.twitch.add_user("gaules", user_id="123")
     deps.twitch.set_stream_online("gaules")
-    deps.mongo_client.guild.notifications_twitch.insert_one({
+    seed_cog(deps.mongo_client, "notifications_twitch", {
         "guild_id": str(guild.id),
         "enabled": True,
         "notifications": {"values": [{
@@ -239,7 +239,7 @@ def _welcome_seed(stored):
         **welcome.ENABLED,
         "welcome_messages": {"style": "bullet", "values": stored},
     }
-    return lambda deps: deps.mongo_client.guild.welcome_messages.insert_one(document)
+    return lambda deps: seed_cog(deps.mongo_client, "welcome_messages", document)
 
 
 @WELCOME_SHAPES
@@ -272,7 +272,7 @@ async def test_a_new_member_is_welcomed_with_one_saved_message(deps, stored):
     guild, channel = _destination(deps, "boas-vindas")
     member = create_member(guild, id=999, name="Novata")
     member._user = member
-    deps.mongo_client.guild.welcome_messages.insert_one({
+    seed_cog(deps.mongo_client, "welcome_messages", {
         **welcome.ENABLED,
         "guild_id": str(guild.id),
         "welcome_messages_channel": {"style": "channel", "values": str(channel.id)},

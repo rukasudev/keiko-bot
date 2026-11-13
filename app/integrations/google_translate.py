@@ -13,8 +13,8 @@ from app import logger
 from app.constants import Dependencies
 from app.constants import LogTypes as logconstants
 from app.integrations import http_get
-from app.services import metrics
-from app.services.utils import ml
+from app.core import metrics
+from app.core.utils import ml
 
 languages_with_flags = {
     "ar": "🇸🇦",  # Arabic - Saudi Arabia

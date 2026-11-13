@@ -5,9 +5,9 @@ import discord
 
 from app.components.embed import response_embed
 from app.constants import LogTypes as logconstants
-from app.services.cache import increment_redis_key
-from app.services.moderations import interaction_language
-from app.services.utils import get_command_by_key, ml
+from app.core.cache import increment_redis_key
+from app.core.servers import interaction_language
+from app.core.utils import get_command_by_key, ml
 
 if TYPE_CHECKING:
     from app.settings import Ending
@@ -60,7 +60,7 @@ class JourneyRefreshButton(
 
     async def callback(self, interaction: discord.Interaction) -> None:
         from app.logger import build_trace_embed
-        from app.services import journey
+        from app.core import journey
 
         story = await asyncio.to_thread(journey.rebuild, self.session_id)
         if not story:
@@ -91,9 +91,9 @@ async def run_feature_command(
     user came from, and hands over to the form platform, with the `ending` of
     a setup and the `back` of its first screen (`app.settings.open_feature`).
     """
-    from app.services import analytics, metrics
-    from app.services.trace import trace_scope
-    from app.services.utils import is_guild_admin
+    from app.core import analytics, metrics
+    from app.core.trace import trace_scope
+    from app.core.utils import is_guild_admin
 
     analytics.mark_source(interaction, source)
     command = get_command_by_key(interaction.client, command_key)
@@ -170,7 +170,7 @@ class SyncronizeRemindersButton(discord.ui.Button):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        from app import bot
+        from app.services.subscriptions import delete_renewal
 
         await interaction.response.defer(thinking=True)
 
@@ -179,7 +179,7 @@ class SyncronizeRemindersButton(discord.ui.Button):
             if count > 0:
                 continue
 
-            await asyncio.to_thread(bot.reminder.delete_reminder, reminder)
+            await asyncio.to_thread(delete_renewal, reminder)
             reminders_deleted.append(self.view.streamers_by_reminder[reminder])
 
         return await interaction.followup.send(
@@ -205,17 +205,17 @@ class RemoveDuplicatedReminderButton(discord.ui.Button):
             if count == 1:
                 continue
 
-            for reminder, streamer_name in self.view.streamers_by_reminder.items():
-                if streamer_name != streamer:
-                    continue
+            extras = [
+                reminder for reminder in self.view.untracked_reminders
+                if self.view.streamers_by_reminder[reminder] == streamer
+            ]
+            if len(extras) == count:
+                extras = extras[1:]
 
+            for reminder in extras:
                 await asyncio.to_thread(bot.reminder.delete_reminder, reminder)
-
                 removed_by_streamers[streamer] = removed_by_streamers.get(streamer, 0) + 1
                 removed_reminders += 1
-
-                if removed_by_streamers[streamer] == count - 1:
-                    break
 
         message = "\n".join([f"Deleted {count} reminders from {streamer}" for streamer, count in removed_by_streamers.items()])
 

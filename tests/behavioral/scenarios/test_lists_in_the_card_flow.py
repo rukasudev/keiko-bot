@@ -139,9 +139,9 @@ async def test_a_birthday_found_by_search_is_removed_from_its_own_screen(
     await scenario.click("remove_this:reminders_birthday$1")
     await scenario.click("remove_items")
 
-    from app.data.birthdays import find_birthday_items_by_guild
+    from app.services.reminders_birthdays import find_birthdays_by_guild
 
-    assert [item["user_id"] for item in find_birthday_items_by_guild("123456789")] == [
+    assert [item["user_id"] for item in find_birthdays_by_guild("123456789")] == [
         "555"
     ]
     await scenario.finish()

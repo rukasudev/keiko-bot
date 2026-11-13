@@ -19,10 +19,25 @@ services:
   mongodb:
     image: mongo:7.0
     container_name: mongo-server
+    command: ["--replSet", "rs0", "--bind_ip_all"]
     ports:
       - "27017:27017"
     volumes:
       - keiko_mongodb_data:/data/db
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - >-
+          try { rs.status() } catch (error) {
+          rs.initiate({_id: "rs0", members: [{_id: 0, host: "localhost:27017"}]}) };
+          quit(db.hello().isWritablePrimary ? 0 : 1)
+      interval: 5s
+      timeout: 10s
+      retries: 12
+      start_period: 5s
 
 volumes:
   keiko_redis_data:

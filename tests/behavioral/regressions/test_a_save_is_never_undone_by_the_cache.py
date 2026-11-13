@@ -11,7 +11,7 @@ for whoever read it in that window.
 Shared behaviour: the document layer every feature commits through
 (`GenericCogFeature`, app/settings/features/feature.py) and the config cache
 every runtime reader goes through (`get_cog_data_or_populate`,
-app/services/cache.py). Exposed by block links (`on_message`) and default roles
+app/core/cache.py). Exposed by block links (`on_message`) and default roles
 (`on_member_join`), which read on every event.
 
 Guaranteed: a read that races a save can return the old document while the save
@@ -23,17 +23,19 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.services import cache, journey
+from app.core import cache, journey
 from app.settings.features import feature_for
 from app.settings.features.feature import CommitContext
 from app.settings.form.form_state import Answer
 import json
-from app.services.utils import ml
+from app.core.utils import ml
 from tests.behavioral.golden.paths import block_links
 from tests.behavioral.golden.paths import notifications_twitch as twitch
 from tests.behavioral.golden.paths import notifications_youtube_video as youtube
 from tests.behavioral.golden.paths.common import seed_document
 from tests.mocks.discord import create_guild, create_member
+from app.data.guild.cogs import find_cog_by_guild_id
+from tests.generators.moderations import seed_cog, stored_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
@@ -76,8 +78,8 @@ def a_reader_arrives_during(collection, operation, monkeypatch, key):
 async def test_a_member_joining_during_an_edit_never_brings_the_old_roles_back(
     deps, monkeypatch
 ):
-    collection = deps.mongo_client.guild["default_roles"]
-    collection.insert_one(dict(AUTO_ROLES))
+    collection = deps.mongo_client.guild.cogs
+    collection.insert_one(stored_cog("default_roles", AUTO_ROLES))
     cache.get_cog_data_or_populate(GUILD_ID, "default_roles")
     a_reader_arrives_during(collection, "update_one", monkeypatch, "default_roles")
 
@@ -93,8 +95,8 @@ async def test_a_member_joining_during_an_edit_never_brings_the_old_roles_back(
 
 
 async def test_disable_is_seen_by_the_next_message(deps, monkeypatch):
-    collection = deps.mongo_client.guild["block_links"]
-    collection.insert_one(dict(BLOCK_LINKS))
+    collection = deps.mongo_client.guild.cogs
+    collection.insert_one(stored_cog("block_links", BLOCK_LINKS))
     cache.get_cog_data_or_populate(GUILD_ID, "block_links")
     a_reader_arrives_during(collection, "find_one_and_delete", monkeypatch, "block_links")
 
@@ -109,8 +111,8 @@ async def test_a_paused_feature_is_never_on_while_it_is_being_disabled(
     deps, monkeypatch
 ):
     paused = {**BLOCK_LINKS, "enabled": False}
-    collection = deps.mongo_client.guild["block_links"]
-    collection.insert_one(dict(paused))
+    collection = deps.mongo_client.guild.cogs
+    collection.insert_one(stored_cog("block_links", paused))
     seen = a_reader_arrives_during(collection, "find_one_and_delete", monkeypatch, "block_links")
 
     await feature_for("block_links").commit("disable", {}, context(paused))
@@ -121,11 +123,11 @@ async def test_a_paused_feature_is_never_on_while_it_is_being_disabled(
 
 
 async def test_a_cached_setting_lives_minutes_not_a_month(deps):
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
 
     cache.get_cog_data_or_populate(GUILD_ID, "block_links")
 
-    ttl = deps.redis_client.ttl(f"guild:{GUILD_ID}:cog.block_links")
+    ttl = deps.redis_client.ttl(f"cache:cog:{GUILD_ID}:block_links")
     assert 0 < ttl <= 15 * 60, f"the entry lives {ttl} seconds"
 
 
@@ -167,7 +169,7 @@ def _story_of(story, admin_id):
 
 
 def _saved(deps, form):
-    return deps.mongo_client.guild[form].find_one({"guild_id": GUILD_ID})
+    return find_cog_by_guild_id(GUILD_ID, form)
 
 
 def _streamers(deps):
@@ -244,11 +246,6 @@ def _recorded(deps, form):
         event["event"]
         for event in deps.mongo_client.events[form].find({"guild_id": GUILD_ID})
     ]
-
-
-def _flag(deps, form):
-    moderations = deps.mongo_client.guild.moderations.find_one({"guild_id": GUILD_ID})
-    return (moderations or {}).get(form)
 
 
 async def _two_panels(scenario_factory, form):
@@ -431,7 +428,7 @@ async def test_a_save_that_fails_after_the_subscription_lets_the_new_streamer_go
     twitch._known_streamers(deps)
     seed_document(deps, twitch.FORM, twitch.ENABLED)
     scenario = await scenario_factory(locale=LOCALE).start_command(twitch.FORM)
-    collection = deps.mongo_client.guild[twitch.FORM]
+    collection = deps.mongo_client.guild.cogs
 
     def unavailable(*args, **kwargs):
         raise RuntimeError("the database did not answer")
@@ -570,7 +567,6 @@ async def test_a_pause_after_another_panel_disabled_the_feature_changes_nothing(
 
     assert _saved(deps, block_links.FORM) is None
     assert _recorded(deps, block_links.FORM) == ["disabled"]
-    assert _flag(deps, block_links.FORM) is False, "no feature turned on with no settings"
     assert _closed_in_place(second)
 
 
@@ -602,7 +598,7 @@ async def test_a_removal_whose_save_fails_never_unsubscribes_the_youtuber(
     youtube._known_channels(deps)
     seed_document(deps, youtube.FORM, youtube.TWO_ENTRIES)
     scenario = await scenario_factory(locale=LOCALE).start_command(youtube.FORM)
-    collection = deps.mongo_client.guild[youtube.FORM]
+    collection = deps.mongo_client.guild.cogs
 
     def unavailable(*args, **kwargs):
         raise RuntimeError("the database did not answer")
@@ -655,7 +651,7 @@ async def test_disable_lets_every_streamer_go_even_when_the_flag_write_fails(
     def flag_write_fails(*args, **kwargs):
         raise RuntimeError("moderations did not answer")
 
-    monkeypatch.setattr(feature_module, "update_moderations_by_guild", flag_write_fails)
+    monkeypatch.setattr(feature_module, "set_feature_enabled", flag_write_fails)
     await scenario.click("disable")
     await scenario.submit_confirmation()
 
@@ -697,7 +693,7 @@ async def test_unpausing_subscribes_every_saved_youtuber_again(scenario_factory,
 async def test_a_list_is_written_only_while_it_is_saved_exactly_as_read(deps):
     """MongoDB compares an embedded document field by field and in order, and
     `{}` matches only an empty one: the compare-and-set must hold under it."""
-    from app.data.cogs import update_cog_if_unchanged_async
+    from app.data.guild.cogs import update_cog_if_unchanged_async
 
     seed_document(deps, twitch.FORM, twitch.ENABLED)
     saved = _saved(deps, twitch.FORM)["notifications"]

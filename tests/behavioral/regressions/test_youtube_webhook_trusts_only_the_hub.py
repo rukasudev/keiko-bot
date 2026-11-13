@@ -90,8 +90,8 @@ from app import integrations
 from app.integrations import youtube as youtube_integration
 from app.integrations.youtube import YoutubeClient
 from app.services import notifications_youtube_video
-from app.services import trace as trace_service
-from tests.generators.moderations import recorded_server
+from app.core import trace as trace_service
+from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks.discord import create_guild
 
 pytestmark = [
@@ -239,7 +239,7 @@ def boot(monkeypatch):
 
 def follow(deps, guild_id, *youtubers, enabled=True):
     recorded_server(deps.mongo_client, guild_id)
-    deps.mongo_client.guild.notifications_youtube_video.insert_one({
+    seed_cog(deps.mongo_client, "notifications_youtube_video", {
         "guild_id": str(guild_id),
         "enabled": enabled,
         "notifications": {"values": [
@@ -902,7 +902,7 @@ async def test_a_channel_or_video_youtube_does_not_have_is_not_an_error(hub):
 async def test_a_renewal_youtube_answers_with_an_error_is_tried_again_in_an_hour(hub, deps):
     """Read as a missing channel, a quota error moved the renewal four days on without
     subscribing; Keiko now tries again itself an hour later."""
-    from app.data.reminder import insert_renewal_reminder
+    from app.services.notifications_youtube_video import insert_renewal_reminder
     from app.integrations.reminder_webhook import REMINDER_TIMEZONE
     from app.webhooks.reminder import renew_youtube_subscription
 
@@ -985,7 +985,8 @@ async def test_the_start_counts_only_the_channels_the_hub_accepted(hub, deps, ca
 
 
 async def test_the_start_stamps_every_youtuber_the_hub_took_again(hub, deps, monkeypatch):
-    from app.data.reminder import find_reminder_by_value, insert_renewal_reminder
+    from app.data.keiko.subscriptions import subscription_state
+    from app.services.notifications_youtube_video import insert_renewal_reminder
     from app.integrations import reminder_webhook
 
     moment = datetime(2026, 10, 1, 15, 0, tzinfo=timezone(timedelta(hours=-3)))
@@ -1003,9 +1004,9 @@ async def test_the_start_stamps_every_youtuber_the_hub_took_again(hub, deps, mon
 
     notifications_youtube_video.resubscribe_followed_channels()
 
-    stamped = find_reminder_by_value("pewdiepie").get("hub_confirmed_at")
+    stamped = subscription_state("youtube", "pewdiepie").get("hub_confirmed_at")
     assert stamped is not None and stamped.astimezone(timezone.utc) == moment.astimezone(timezone.utc)
-    assert find_reminder_by_value("mrbeast").get("hub_confirmed_at") is None, "the hub said 503"
+    assert subscription_state("youtube", "mrbeast") == {}, "the hub said 503"
 
 
 async def test_an_answer_from_the_hub_keeps_neither_the_exception_nor_the_secrets_it_held(hub):

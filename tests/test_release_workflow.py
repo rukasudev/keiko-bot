@@ -47,7 +47,7 @@ def test_every_place_that_names_the_python_version_names_the_same_one():
         **_setup_python_versions("release.yml"),
     }
 
-    assert len(named) == 5, named
+    assert len(named) == 6, named
     assert len(set(named.values())) == 1, named
 
 
@@ -60,7 +60,12 @@ def test_every_github_hosted_job_runs_on_the_same_pinned_ubuntu():
     hosted = {job: runner for job, runner in runners.items() if runner != "self-hosted"}
 
     assert runners.pop("release.yml deploy") == "self-hosted", runners
-    assert set(hosted) == {"ci.yml check", "release.yml check", "release.yml build"}
+    assert set(hosted) == {
+        "ci.yml check",
+        "ci.yml mongo",
+        "release.yml check",
+        "release.yml build",
+    }
     assert len(set(hosted.values())) == 1, hosted
     assert re.fullmatch(r"ubuntu-\d+\.\d+", hosted["ci.yml check"]), (
         "ubuntu-latest moves the runner image under the release without a commit"
@@ -136,6 +141,25 @@ def test_the_container_is_told_the_version_it_runs():
     assert "github.event.release.tag_name" in workflow["env"]["VERSION"]
     assert "inputs.version" in workflow["env"]["VERSION"]
 
+
+
+def test_the_new_image_migrates_before_the_old_container_stops():
+    """A failed migration must stop the deploy while the running version keeps serving."""
+    names = [step["name"] for step in _deploy()["steps"]]
+    migrations = _deploy()["steps"][names.index("Run the migrations with the new image")]
+    script = migrations["run"]
+
+    assert (
+        names.index("Pull the version")
+        < names.index("Run the migrations with the new image")
+        < names.index("Replace the running container")
+    )
+    assert "docker run --rm" in script
+    assert "${{ env.REGISTRY }}:${{ env.VERSION }} python -m app.migrations" in script
+    assert "-e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_REGION" in script
+    assert set(migrations["env"]) == {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"}
+    calls = [line.strip() for line in script.splitlines() if line.strip().startswith("migrations ")]
+    assert calls == ["migrations status", "migrations migrate --dry-run", "migrations migrate"]
 
 FAKE_DOCKER = r"""#!/bin/bash
 polls=$(cat "$FAKE_STATE/polls")

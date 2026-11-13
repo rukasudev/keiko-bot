@@ -30,15 +30,17 @@ import requests
 
 from app.constants import Commands as commands_constants
 from app.services import (
-    analytics,
-    analytics_sink,
     block_links,
-    debug_logs,
     default_roles,
-    logs_archive,
     notifications_twitch,
     stream_elements,
     welcome_messages,
+)
+from app.core import (
+    analytics,
+    analytics_sink,
+    debug_logs,
+    logs_archive,
 )
 from app.constants import DBConfigs
 from tests.mocks import create_member, create_message
@@ -52,6 +54,7 @@ import os
 from typing import Dict, Iterator, List, NamedTuple, Optional, Set, Tuple
 from pyrage import x25519
 from app.cogs.analytics import Analytics
+from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("event_loop")]
 
@@ -227,21 +230,24 @@ async def test_the_heartbeat_ping_never_freezes_the_bot(monkeypatch):
 
 async def test_a_birthday_reminder_never_freezes_the_bot(deps, monkeypatch):
     """The webhook job runs on the loop: reading the birthdays and claiming each one block."""
-    from app.data.birthdays import upsert_birthday_config
-    from app.services.moderations import update_moderations_by_guild
+    from app.services.reminders_birthdays import save_birthday_config
+    from app.core.servers import set_feature_enabled
     from app.webhooks import birthday_handler
 
     guild_id = str(deps.guild.id)
     channel = deps.guild.text_channels[0]
     create_member(deps.guild, id=555, name="Tester")
-    upsert_birthday_config(guild_id, str(channel.id), False)
-    update_moderations_by_guild(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY, True)
+    save_birthday_config(guild_id, str(channel.id), False)
+    set_feature_enabled(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY, True)
     monkeypatch.setattr(birthday_handler, "bot", deps.bot)
-    birthday = {"guild_id": guild_id, "user_id": "555", "date": "03-15", "reminder_id": "reminder-1"}
+    birthday = {"guild_id": guild_id, "user_id": "555", "date": "03-15", "state": {}}
+    schedule = {"_id": f"birthday:{guild_id}:03-15", "kind": "birthday"}
     monkeypatch.setattr(
-        "app.data.birthdays.find_birthday_items_by_reminder_and_date", blocking([birthday])
+        "app.data.keiko.schedules.find_schedules_by_reminder", blocking([schedule])
     )
-    monkeypatch.setattr("app.data.birthdays.mark_birthday_celebrated", blocking(True))
+    monkeypatch.setattr("app.data.keiko.schedules.set_schedule_due", blocking(1))
+    monkeypatch.setattr("app.data.guild.members.find_members_by_option", blocking([birthday]))
+    monkeypatch.setattr("app.data.guild.members.claim_member_state", blocking(True))
 
     ticks = await ticks_while(
         birthday_handler.process_birthday_webhook("reminder-1", "03-15")
@@ -301,10 +307,8 @@ async def test_subscribing_a_youtuber_never_freezes_the_bot(deps, monkeypatch):
     from app.settings.features.feature import CommitContext
 
     deps.bot.config.is_dev = lambda: False
-    deps.mongo_client.guild[commands_constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY].insert_one(
-        {"guild_id": "123456789", "enabled": True,
-         "notifications": {"style": "composition", "values": []}}
-    )
+    seed_cog(deps.mongo_client, commands_constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY, {"guild_id": "123456789", "enabled": True,
+         "notifications": {"style": "composition", "values": []}})
     feature = feature_for(commands_constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY)
     monkeypatch.setattr(feature, "subscribe", blocking())
     context = CommitContext(
@@ -430,7 +434,7 @@ def test_a_stalled_redis_gives_up_instead_of_holding_a_thread(monkeypatch):
         client = connect_redis(f"redis://127.0.0.1:{listener.getsockname()[1]}/0")
         started = time.monotonic()
         with pytest.raises(redis.exceptions.TimeoutError):
-            client.get("guild:1:cog.block_links")
+            client.get("cache:cog:1:block_links")
         assert time.monotonic() - started < 3
     finally:
         listener.close()
@@ -576,9 +580,11 @@ async def test_reporting_a_bug_never_freezes_the_bot(deps, guild, monkeypatch):
 @pytest.fixture
 def birthdays_on(monkeypatch):
     """A guild whose birthday feature is on, every read and the save blocking."""
-    monkeypatch.setattr("app.data.birthdays.is_birthday_enabled", blocking(True))
-    monkeypatch.setattr("app.data.birthdays.find_birthday_config", blocking({"channel_id": "1"}))
-    monkeypatch.setattr("app.data.birthdays.find_birthday_item", blocking(None))
+    monkeypatch.setattr(
+        "app.services.reminders_birthdays.birthday_config",
+        blocking({"channel": "1", "enabled": True}),
+    )
+    monkeypatch.setattr("app.data.guild.members.find_member_option", blocking(None))
     monkeypatch.setattr("app.services.reminders_birthdays.upsert_birthday", blocking(None))
 
 
@@ -669,7 +675,7 @@ async def test_unloading_the_analytics_cog_never_freezes_the_bot(slow_storage):
 async def test_counting_a_slash_command_never_freezes_the_bot(deps, guild, monkeypatch):
     from app.cogs import events as events_module
 
-    monkeypatch.setattr("app.services.cache.increment_redis_key", blocking(1))
+    monkeypatch.setattr("app.core.cache.increment_redis_key", blocking(1))
     monkeypatch.setattr(events_module, "increment_redis_key", blocking(1), raising=False)
     interaction = interaction_in(
         guild, command=SimpleNamespace(qualified_name="moderations block links", _attr="block_links")
@@ -710,7 +716,7 @@ async def test_opening_a_feature_from_a_button_never_freezes_the_bot(deps, guild
     from app.components import buttons
 
     monkeypatch.setattr(analytics, "count_attempt", blocking(2))
-    monkeypatch.setattr("app.services.cache.increment_redis_key", blocking(1))
+    monkeypatch.setattr("app.core.cache.increment_redis_key", blocking(1))
     monkeypatch.setattr(buttons, "increment_redis_key", blocking(1), raising=False)
     opened = AsyncMock()
     monkeypatch.setattr("app.settings.open_feature", opened)
@@ -727,7 +733,7 @@ async def test_opening_a_feature_from_a_button_never_freezes_the_bot(deps, guild
 async def test_refreshing_a_session_message_never_freezes_the_bot(deps, guild, monkeypatch):
     from app.components.buttons import JourneyRefreshButton
 
-    monkeypatch.setattr("app.services.journey.rebuild", blocking(None))
+    monkeypatch.setattr("app.core.journey.rebuild", blocking(None))
     interaction = interaction_in(guild)
 
     ticks = await ticks_while(JourneyRefreshButton("abc123").callback(interaction))
@@ -759,25 +765,24 @@ def events(monkeypatch):
 
 
 async def test_a_guild_removing_keiko_never_freezes_the_bot(deps, events, monkeypatch):
-    deps.mongo_client.guild.moderations.insert_one(
-        {"guild_id": "4242", "is_bot_online": True, "block_links": True}
-    )
-    slow_reads(deps.mongo_client.guild.moderations, monkeypatch)
+    deps.mongo_client.guild.settings.insert_one({"_id": "4242", "state": {"present": True}})
+    seed_cog(deps.mongo_client, "block_links", {"guild_id": "4242", "enabled": True})
+    slow_reads(deps.mongo_client.guild.settings, monkeypatch)
 
     ticks = await ticks_while(events.on_guild_remove(guild_double()))
 
     assert ticks >= MIN_TICKS, f"the loop only came back {ticks} times"
-    moderations = deps.mongo_client.guild.moderations.find_one({"guild_id": "4242"})
-    assert moderations["is_bot_online"] is False, "leaving still marks Keiko offline"
+    server = deps.mongo_client.guild.settings.find_one({"_id": "4242"})
+    assert server["state"]["present"] is False, "leaving still marks Keiko gone"
 
 
 async def test_a_guild_adding_keiko_never_freezes_the_bot(deps, events, monkeypatch):
-    slow_reads(deps.mongo_client.guild.moderations, monkeypatch)
+    slow_reads(deps.mongo_client.guild.settings, monkeypatch)
 
     ticks = await ticks_while(events.on_guild_join(guild_double(guild_id=777)))
 
     assert ticks >= MIN_TICKS, f"the loop only came back {ticks} times"
-    assert deps.mongo_client.guild.moderations.find_one({"guild_id": "777"}), (
+    assert deps.mongo_client.guild.settings.find_one({"_id": "777"}), (
         "joining still records the guild"
     )
 
@@ -791,9 +796,9 @@ async def test_a_live_notice_never_waits_on_the_database_on_the_loop(deps, guild
         notifications_twitch, "wait_for_stream_info",
         lambda streamer: deps.twitch.get_stream_info(streamer),
     )
-    monkeypatch.setattr(notifications_twitch, "find_last_stream_date", blocking(None))
+    monkeypatch.setattr(notifications_twitch, "subscription_state", blocking({}))
     monkeypatch.setattr(notifications_twitch, "find_guilds_by_streamer_name", blocking([]))
-    monkeypatch.setattr(notifications_twitch, "update_last_stream_date", blocking(None))
+    monkeypatch.setattr(notifications_twitch, "update_subscription_state", blocking(None))
 
     ticks = await ticks_while(notifications_twitch.handle_send_streamer_notification("gaules"))
 
@@ -834,17 +839,14 @@ ALLOWED: Dict[str, str] = {
     "app.services.admin.get_admin_configs": ADMIN_COMMAND,
     "app/cogs/admin/configs.py::Configs.update_config -> "
     "app.services.admin.update_admin_configs": ADMIN_COMMAND,
-    "app/cogs/admin/subscriptions.py::Subscriptions.show_reminder_subscriptions -> "
-    "app.services.subscriptions.get_reminder_subscriptions": ADMIN_COMMAND,
     "app/cogs/admin/subscriptions.py::Subscriptions.show_twitch_subscriptions -> "
     "app.services.subscriptions.get_twitch_subscriptions": ADMIN_COMMAND,
-    "app/services/config.py::update_activity -> app.data.config.update_db_configs": (
+    "app/services/config.py::update_activity -> app.data.keiko.settings.update_presence": (
         ADMIN_COMMAND
     ),
-    "app/services/config.py::update_description -> app.data.config.update_db_configs": (
-        ADMIN_COMMAND
-    ),
-    "app/services/config.py::update_status -> app.data.config.update_db_configs": (
+    "app/services/config.py::update_description -> "
+    "app.data.keiko.settings.update_presence": ADMIN_COMMAND,
+    "app/services/config.py::update_status -> app.data.keiko.settings.update_presence": (
         ADMIN_COMMAND
     ),
     "app/settings/discord/callbacks.py::Runtime._commit -> "
@@ -857,14 +859,6 @@ ALLOWED: Dict[str, str] = {
         "the journey reads its history in a worker thread whenever a loop runs; only "
         "the no-loop fallback stays synchronous"
     ),
-    "app/views/log_inspection.py::LogInspectionView._get_offline_guild_info_embed -> "
-    "app.data.moderations.find_moderations_by_guild": INSPECTION_VIEW,
-    "app/views/log_inspection.py::LogInspectionView._get_offline_guild_info_embed -> "
-    "app.views.log_inspection.LogInspectionView._add_commands_status": INSPECTION_VIEW,
-    "app/views/log_inspection.py::LogInspectionView.get_guild_info_embed -> "
-    "app.data.moderations.find_moderations_by_guild": INSPECTION_VIEW,
-    "app/views/log_inspection.py::LogInspectionView.get_guild_info_embed -> "
-    "app.views.log_inspection.LogInspectionView._add_commands_status": INSPECTION_VIEW,
     "app/views/user_inspection.py::UserInspectionView.send -> "
     "app.views.user_inspection.UserInspectionView._get_embed": INSPECTION_VIEW,
 }
@@ -1396,7 +1390,7 @@ async def test_the_daily_backup_never_freezes_the_bot(deps, monkeypatch):
     and it keeps ticking while the pass reads and moves how far back the logs files
     channel is known clear of old files (`logs_archive.delete_old_files`).
     """
-    deps.mongo_client.guild.moderations.insert_one({"guild_id": "1"})
+    deps.mongo_client.guild.settings.insert_one({"_id": "1"})
     monkeypatch.setattr("app.data.util.iter_documents", blocking([{"guild_id": "1"}]))
     async def nothing_older():
         return

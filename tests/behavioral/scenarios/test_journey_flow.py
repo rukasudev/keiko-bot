@@ -5,7 +5,8 @@ engine, so what they assert is what lands in the admin channel.
 """
 import pytest
 
-from app.services import analytics, journey
+from app.core import analytics, journey
+from tests.generators.moderations import seed_cog
 
 pytestmark = pytest.mark.behavioral
 
@@ -150,7 +151,7 @@ async def test_editing_through_the_manager_lists_the_changed_fields(
 
     legacy = {"guild_id": GUILD_ID, "enabled": True, "mode": "block_all",
               "answer": "Resposta antiga"}
-    deps.mongo_client.guild["block_links"].insert_one(dict(legacy))
+    seed_cog(deps.mongo_client, "block_links", dict(legacy))
 
     scenario = await scenario_factory(locale="pt-br").start_manager(
         "block_links", normalize_block_links_config(legacy)
@@ -203,7 +204,7 @@ async def test_a_slash_invocation_starts_the_story_with_one_opening_line(
     "`/moderations block links` started" twice. The harness opens the form with
     no command trace around it, so this wraps it the way `keiko_command` does."""
     from app import logger as logger_module
-    from app.services.trace import trace_scope
+    from app.core.trace import trace_scope
 
     folding = logger_module.TraceFoldingHandler()
     logger_module.logger.addHandler(folding)

@@ -43,34 +43,48 @@ literal. Closed vocabularies (enum values stored in documents, i18n key suffixes
 i18n namespaces and similar strings live inline in the helper that uses them, not as
 module-level names in `app/services/*.py`.
 
-## 5. `app/data/` follows the flat existing pattern
+## 5. `app/data/` follows the flat pattern, one file per collection
 
-Plain functions calling `mongo_client.guild.<collection>` directly — exactly like
-`app/data/moderations.py`. No `DATABASE`/`COLLECTION` constants, no `_collection()`
-helper, no alternative database names.
+Plain functions calling `mongo_client.<database>.<collection>` directly — exactly like
+`app/data/guild/settings.py`. No `DATABASE`/`COLLECTION` constants, no `_collection()`
+helper, no alternative database names. A function returns the document the app reads
+and takes what the app writes; the stored shape (`options`, `state`) stays inside the
+file.
 
-## 6. Data-layer files are named after the feature
+## 6. Data-layer files are named after their collection
 
-The file name matches the feature/cog key (`block_links.py`), not the content it
-stores (`blocked_links.py`).
+`app/data/<database>/<collection>.py` holds every query of that one collection
+(`app/data/guild/cogs.py` for `guild.cogs`, `app/data/keiko/settings.py` for
+`keiko.settings`), whichever feature asks. A query that only one feature sends keeps
+its feature's paths in that feature's service, and calls a generic function of the
+collection's file (`find_cogs_by_option`). The files of the collections a later pull
+request moves (`analytics.py`, `logs.py`, `block_links.py`, the events and errors in
+`cogs.py`) keep their old names until then.
 
 ## 7. `app/views/` is generic infrastructure only
 
 Files in `app/views/` must be generic and reusable across commands. A screen that
 belongs to one command lives in that command's service module and composes the generic
-views (`PaginationView`, `RecordsBrowser`...).
+views (`PaginationView`, `RecordsBrowser`...). The same holds for `app/components/`
+(rule 22).
 
 ## 8. Redis key constants carry a `REDIS_` prefix
 
 When a Redis key template lives in `app/constants.py`, its NAME starts with `REDIS_`
-(or `CACHE_`), and the key format follows the existing convention in
-`app/services/cache.py` (`guild:{guild_id}:...`).
+(or `CACHE_`), and the key starts with the prefix of its role
+(`docs/data-model.md`): `cache:` for a copy of a document, as
+`DBConfigs.CACHE_COG_KEY` (`cache:cog:{guild_id}:{cog}`). Older counters keep
+`guild:{guild_id}:...` until they move.
 
-## 9. One-off migration scripts are not versioned
+## 9. Database changes are versioned in `app/migrations`
 
-Data-migration scripts run once; they do not enter the repository. Keep them outside
-the repo (the maintainer stores them with his task notes) and record what was run in
-the PR description or deploy notes.
+A change to the database's structure (a collection, an index) is a file in
+`app/migrations/schema/`; a change to its data is a file in `app/migrations/data/`.
+Each folder is numbered on its own (`0001_slug.py`, no gap), and every pending schema
+file runs before every pending data file. A release only adds; dropping what the old
+version reads comes in the next release. A data file writes inside one
+`with begin(db) as tx:` block. The release deploy runs them (`docs/migrations.md`). No
+one-off script outside them, no index created at boot.
 
 ## 10. Reusable orchestration becomes a generic view
 
@@ -87,10 +101,12 @@ across `app/services/*.py`.
 
 A helper with no feature-specific content (URL parsing, timestamp formatting,
 envelope unwrapping) does not live in a feature service — it goes to the generic
-home: `app/services/utils.py`, a focused module like `app/services/dates.py`, or
-`app/components/embed.py` for embeds. Absolute red flag: generic engine code
-(validators, transforms, the form engine) importing from a feature service — that
-inversion means the helper is in the wrong module.
+home: `app/core/utils.py`, a focused module like `app/core/dates.py`, or
+`app/components/embed.py` for embeds; `app/services/` holds only command modules, and
+each may be wholly specific to its command (rule 22).
+Absolute red flag: generic engine code (validators, transforms, the form engine)
+importing from a feature service — that inversion means the helper is in the wrong
+module.
 
 ## 12. View/UI tunables are global
 
@@ -134,7 +150,7 @@ by definition.
 No `command_key ==` branch, no feature key literal, no feature import anywhere
 under `app/settings/form/`. A behaviour that one
 feature needs is a registered extension or a member of its `FeatureModule`; the
-boundary test refuses the literal.
+boundary test refuses the literal. Rule 22 extends this to every generic layer.
 
 ## 18. Nothing in `app/settings/` blocks the loop
 
@@ -164,3 +180,46 @@ helper called from one place folds into the step that uses it, unless its name s
 a rule the call site would not say (`_truthy`, `_same_text`, `_declared_order`). A
 large file is fine when everything in it is one context: split a file by context,
 never by size.
+
+## 22. Generic layers never name a command
+
+A module named after a collection or a capability serves every command the same way:
+`app/data/<database>/<collection>.py`, everything in `app/core/`, `app/views/` and
+`app/components/`, the platform in `app/settings/` (everything but
+`features/<feature>.py`), the shared listeners in `app/cogs/events.py` and the generic
+webhook routes. It takes the feature key, the field or the kind as a parameter, and it
+holds no function, constant, literal, branch or import that belongs to one command.
+
+Each command's rule lives in that command's own module, so it is found in one place:
+
+- `app/services/<feature>.py`: its domain rules, the paths of its fields, its defaults,
+  its screens and its copy. A service may be wholly specific to its command.
+- `app/settings/features/<feature>.py`: what its form saves and how it plugs into the
+  platform.
+
+A shared step that one command needs is a parameter, a field of its `FeatureSpec` or a
+hook of its `FeatureModule` that the shared code calls, never an `if` on its key.
+
+```python
+# WRONG: app/data/guild/members.py
+def find_birthdays_on(guild_id, mm_dd):
+    return mongo_client.guild.members.find(
+        {"guild_id": guild_id, "options.birthday.date": mm_dd}
+    )
+
+# RIGHT: app/data/guild/members.py takes the key
+def find_members_by_option(guild_id, cog, filters):
+    ...
+
+# and app/services/reminders_birthdays.py holds the birthday's rule
+def birthdays_on(guild_id, mm_dd):
+    return members.find_members_by_option(
+        guild_id, constants.REMINDERS_BIRTHDAY_KEY, {"date": mm_dd}
+    )
+```
+
+Before adding a function to a generic module, ask whether another command would call
+it the same way. If not, it goes to the command's module, and the generic module gains
+a parameter. `tests/test_generic_layers.py` refuses a feature key, a feature word or a
+command module import in these layers. The exceptions it lists are the ones the
+design-pattern pull request removes, and an exception that no longer matches fails.

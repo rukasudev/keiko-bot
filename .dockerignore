@@ -10,4 +10,4 @@ venv/
 .env
 
 # Developer tooling never ships in the deploy image.
-tools/
+scripts/

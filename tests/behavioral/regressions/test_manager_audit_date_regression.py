@@ -6,7 +6,7 @@ edited reports `edited_at = None`, so the `edited` event was written with
 `datetime: None`. `find_cog_events_by_guild_id` sorts on that field, so the
 History screen showed the edit out of order — or lost it among the null keys.
 
-Shared behavior affected: `insert_cog_event` (app/services/cogs.py), consumed
+Shared behavior affected: `insert_cog_event` (app/core/cogs.py), consumed
 by the form engine, the manager lifecycle and the History button of every
 configured feature. The five sibling call sites already used the
 `edited_at or created_at` fallback; this one did not.
@@ -15,6 +15,7 @@ What must remain guaranteed: every audit event carries a real timestamp,
 whatever state the message it came from was in.
 """
 import pytest
+from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
@@ -31,7 +32,7 @@ async def test_editing_a_never_edited_panel_still_records_a_timestamp(
 ):
     from app.services.block_links import normalize_block_links_config
 
-    deps.mongo_client.guild["block_links"].insert_one(dict(LEGACY_COG))
+    seed_cog(deps.mongo_client, "block_links", dict(LEGACY_COG))
     scenario = await scenario_factory(locale="pt-br").start_manager(
         "block_links", normalize_block_links_config(LEGACY_COG)
     )

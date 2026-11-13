@@ -59,7 +59,7 @@ only what is specific to it.
 |---|---|---|
 | `observability.emit`, from `Decision.analytics` | `app/settings/discord/observability.py` | every `setup.*` and `feature.*_opened` event a form produces: `feature.setup_opened`, `feature.manager_opened`, `setup.step_viewed`, `setup.step_completed`, `setup.step_back`, `setup.validation_failed`, `setup.required_missing`, `setup.completed`, `setup.discarded`, `setup.discard_recovered`, `setup.abandoned` |
 | `record_event`, called by the feature commit | `app/settings/features/feature.py` | every lifecycle event a form causes (see below) |
-| `insert_cog_event` | `app/services/cogs.py` | the same lifecycle events for state changes made outside a form (a feature disabled by a service) |
+| `insert_cog_event` | `app/core/cogs.py` | the same lifecycle events for state changes made outside a form (a feature disabled by a service) |
 | `run_feature_command` | `app/components/buttons.py` | `command.invoked` from any entry button |
 | `Events.on_interaction` / `on_guild_join` / `on_guild_remove` | `app/cogs/events.py` | `command.invoked`, `guild.joined`, `guild.removed` |
 | `Errors.on_app_command_error` | `app/cogs/errors.py` | `command.failed` |
@@ -158,7 +158,7 @@ tag.
 ## 5. Storage
 
 Four collections, all in the `guild` database; the indexes of the first three
-are registered in `app/data/indexes.py`:
+are declared by the migrations in `app/migrations/schema/` (`docs/migrations.md`):
 
 | Collection | Shape | Retention |
 |---|---|---|
@@ -202,7 +202,7 @@ erased. A guild whose member count Discord does not report is left as it was.
 
 Raw events live 90 days; after that only the daily counters remain, so a funnel
 could not be rebuilt once its month was gone. The `Analytics` cog
-(`Analytics.archive_months`, `app/services/logs_archive.py`) runs a pass every day at the
+(`Analytics.archive_months`, `app/core/logs_archive.py`) runs a pass every day at the
 same hour and posts, oldest first, every complete month no pass has posted whose
 first day the raw events still reach (`logs_archive.months_to_archive`: a month that
 started less than `ANALYTICS_EVENTS_TTL_SECONDS` ago), on the logs files
@@ -349,7 +349,7 @@ context menus, buttons, selects, modals and autocomplete.
 **No label is ever a guild or a user id.** A label takes one series per value, so
 an id is both a privacy leak and an unbounded number of series; every label above
 is a closed list (`tests/test_metrics.py`, `tests/test_outside_calls.py`).
-`app/services/metrics.py` is the
+`app/core/metrics.py` is the
 generic home for what every layer records, so a cog never imports the form
 adapter to record a number. A dependency outside `Dependencies.NAMES` is refused
 before the call is sent, so a typo cannot open a new series.
@@ -474,7 +474,7 @@ backup, `Analytics.post_daily_backup` deletes the bot's own files there past the
 "What the logs files channel keeps", `docs/releasing.md`).
 
 Every document names the release that wrote it (`app_version`), so a line from
-before a deploy and one from after it never read alike. `tools/keiko/logs`
+before a deploy and one from after it never read alike. `scripts/keiko/logs`
 indexes the same column; its schema version moved to 3, so a local index built
 before is rebuilt from the channel on the next `sync`.
 
@@ -598,7 +598,7 @@ rails (a bounded queue drained by `AnalyticsCog`) and nothing else.
 
 ## The rule that is easy to break
 
-Nothing in `app/services/debug_logs.py` or its callers may call `logger.*`. The
+Nothing in `app/core/debug_logs.py` or its callers may call `logger.*`. The
 sink runs underneath `logging`: a warning about a failed write is itself a
 write, which fails, and warns again. `flush(on_error=...)` hands the exception
 back instead, and `report_flush_failure` prints to stderr — outside the logging
@@ -608,19 +608,19 @@ tree, where it cannot feed itself. `test_debug_logs.py` pins this.
 
 Inside 30 days, query `guild.logs` directly; `session_id` returns every line of
 one interaction. Older than that, up to 90 days, the daily files are the source,
-and `python -m tools.keiko logs sync` indexes them into a local SQLite with
+and `python -m scripts.keiko logs sync` indexes them into a local SQLite with
 full-text search (the channel holds nothing older, so `sync` finds nothing older;
 what a local index already read stays on that machine):
 
 ```bash
-python -m tools.keiko logs sync --incremental   # index new daily files
-python -m tools.keiko logs errors --since 7d    # repeated failures, grouped
-python -m tools.keiko logs query "ConnectionError" --traceback
-python -m tools.keiko logs query --session a1b2c3
+python -m scripts.keiko logs sync --incremental   # index new daily files
+python -m scripts.keiko logs errors --since 7d    # repeated failures, grouped
+python -m scripts.keiko logs query "ConnectionError" --traceback
+python -m scripts.keiko logs query --session a1b2c3
 ```
 
-`tools/` never ships in the deploy image and `app/` never imports it
-(`tests/tools/test_tools_boundary.py`).
+`scripts/` never ships in the deploy image and `app/` never imports it
+(`tests/scripts/test_scripts_boundary.py`).
 
 
 ---
@@ -632,7 +632,7 @@ one message per unit of work.
 
 ## The trace
 
-`app/services/trace.py` holds a `Trace` in a `contextvars.ContextVar`. Every
+`app/core/trace.py` holds a `Trace` in a `contextvars.ContextVar`. Every
 `logger.*` call underneath an open trace becomes a line of its timeline instead
 of a separate Discord message; when the trace closes, `DiscordLogsHandler`
 posts the assembled result. This is why none of the ~113 existing log calls had
@@ -648,8 +648,8 @@ Traces are opened at the boundaries:
 | Webhooks | `webhook_trace`, opened and closed around each request in `app/webhooks/__init__.py` | silent unless the request failed, continued by its first job; `/healthcheck` opens none; a request refused with a 4xx never posts its trace, nor does a 503 without an error (the sender is asked to deliver again later) |
 | Deferred work | `schedule_webhook_job` → `Trace.handover` + `trace.run_traced` | the first job continues the request's message, which takes every line the request logs after the hand-over and is posted once both are done; a second job in the same request gets its own, under the same rule |
 | Confirmations | `ConfirmActionView(trace_name=)` (`app/views/confirm_action.py`) | one message for what the confirmation did |
-| Listeners | `trace.listener` (`app/services/trace.py`) for every listener of `app/cogs/events.py` | silent unless it fails or reports an event; each part runs on its own (a feature of `on_message` or `on_member_join`; the report, the snapshot and the pause of a server leaving; the record and the greeting of a server joining), so one that fails is an error with the listener's context, nothing is raised to discord.py, and the next one still runs |
-| Fan-outs | `trace.fan_out` (`app/services/trace.py`), behind the Twitch and YouTube notices and the birthday job | inside the trace of the job that runs it; each server is served on its own: one Keiko cannot reach (`DestinationNotFound`, a 403) is a warning, any other failure an error with the server's context, and neither stops the next; `destination` (`app/services/utils.py`) finds the server and its channel, `server_language` (`app/services/moderations.py`) its saved language |
+| Listeners | `trace.listener` (`app/core/trace.py`) for every listener of `app/cogs/events.py` | silent unless it fails or reports an event; each part runs on its own (a feature of `on_message` or `on_member_join`; the report, the snapshot and the pause of a server leaving; the record and the greeting of a server joining), so one that fails is an error with the listener's context, nothing is raised to discord.py, and the next one still runs |
+| Fan-outs | `trace.fan_out` (`app/core/trace.py`), behind the Twitch and YouTube notices and the birthday job | inside the trace of the job that runs it; each server is served on its own: one Keiko cannot reach (`DestinationNotFound`, a 403) is a warning, any other failure an error with the server's context, and neither stops the next; `destination` (`app/core/utils.py`) finds the server and its channel, `server_language` (`app/core/servers.py`) its saved language |
 | Heartbeat | `Heartbeat.beat` (`app/cogs/prometheus.py`) | silent unless it fails; a failed ping is a warning, so it stays in `guild.logs` and the monitor is what alerts |
 
 `silent_when_clean` is what keeps `on_message` from flooding the channel: a
@@ -687,7 +687,7 @@ with the session id, and an error record still gets its own message in the
 error channel.
 
 Every trace opened for a person carries `is_admin` (`is_guild_admin`,
-`app/services/utils.py`), rendered as the `Admin` field. A unit of work names
+`app/core/utils.py`), rendered as the `Admin` field. A unit of work names
 how it ended with `trace.settle(result)`; `Trace.finish` keeps that result
 unless the work failed, so `/birthday` reads `registered`, `asked`, `replaced`
 or `refused` instead of `success`, with one line per outcome and never the date.
@@ -712,7 +712,7 @@ The flood protection is untouched: `on_message`, `on_member_join` and
 `on_raw_message_edit` log nothing at all on a successful run, which is why only
 the two guild events ever went missing. A warning inside a listener is still
 swallowed with its clean trace, except one: a Redis or Mongo outage met by the
-settings cache (`app/services/cache.py`) is news about the process, not about
+settings cache (`app/core/cache.py`) is news about the process, not about
 the message that ran into it, so the cache logs it outside any trace
 (`with trace.outside_any_trace():`). It is a message of its own on the log
 channel, once per store per
@@ -787,7 +787,7 @@ A trace covers one interaction. A configuration attempt spans many, and the
 interesting part — the steps, the rejected value, the abandonment — happens in
 button clicks, whose traces are quiet. So a session gets a **journey**: the same
 `Trace` structure kept open and re-rendered instead of closed
-(`app/services/journey.py`).
+(`app/core/journey.py`).
 
 A saved session reads as a summary:
 

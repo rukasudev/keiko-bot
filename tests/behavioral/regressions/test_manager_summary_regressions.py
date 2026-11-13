@@ -7,6 +7,7 @@ from tests.behavioral.harness.locators import walk_items
 from tests.behavioral.golden.paths.common import GUILD_ID, seed_document
 from tests.behavioral.harness import locators
 from types import SimpleNamespace
+from app.data.guild.cogs import find_cog_by_guild_id
 
 pytestmark = [
     pytest.mark.behavioral,
@@ -19,7 +20,7 @@ async def test_manager_form_keeps_rendering_existing_config_for_all_consumers(
         scenario_factory):
     """What broke: while developing the birthday-reminder flow, shared
     summary rendering (then `parse_settings_with_database_values` in
-    app/services/utils.py, today `panel_rows` in app/settings/form/actions/manage.py)
+    app/core/utils.py, today `panel_rows` in app/settings/form/actions/manage.py)
     was changed and stopped resolving titles for keys nested inside
     `multi_select.selects[]`. The birthday flow kept
     working; commands like /moderations default roles silently lost their
@@ -362,9 +363,7 @@ async def test_a_custom_design_puts_the_image_on_the_panel_with_its_own_edit(
     assert IMAGE_LINE in _lines(scenario.current_message.view)
     await scenario.click("section:welcome_config/image")
     await scenario.submit_file_upload(filename="novo.png", content=b"\x89PNG")
-    document = deps.mongo_client.guild["welcome_messages"].find_one(
-        {"guild_id": GUILD_ID}
-    )
+    document = find_cog_by_guild_id(GUILD_ID, "welcome_messages")
     assert document["welcome_custom_image"] == UPLOADED
 
 

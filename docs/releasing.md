@@ -25,6 +25,10 @@ new version instead.
 
 ## What a deploy does to the running bot
 
+0. Before anything stops, the new image runs the database migrations
+   (`docker run --rm <image> python -m app.migrations`): `status`, a dry run,
+   then `migrate`. A failed check or a failed migration stops the deploy there,
+   and the running container keeps serving (`docs/migrations.md`).
 1. `docker stop -t 30` sends SIGTERM. Keiko closes its Discord connection,
    writes the analytics events and log records still queued, and exits
    (`run` in `app/bot.py`). Docker kills it only if it is still running after
@@ -70,8 +74,8 @@ new version instead.
    which ends the wait at once, or running the previous version again (below).
    To find such a start afterwards: the same day, query `guild.logs` for
    `level` CRITICAL. Later, once the daily file that holds it is on the logs
-   channel, run `python -m tools.keiko logs sync --incremental` and then
-   `python -m tools.keiko logs errors --level CRITICAL --since 7d`. The errors
+   channel, run `python -m scripts.keiko logs sync --incremental` and then
+   `python -m scripts.keiko logs errors --level CRITICAL --since 7d`. The errors
    view reads the local index that `logs sync` builds, and shows ERROR by
    default.
 
@@ -165,7 +169,7 @@ private key for as long as you keep the files it opens.
 ### What the logs files channel keeps
 
 Right after the backup, the same daily pass deletes the bot's own files on that
-channel once they are past their kind's age (`logs_archive.delete_old_files`, `app/services/logs_archive.py`):
+channel once they are past their kind's age (`logs_archive.delete_old_files`, `app/core/logs_archive.py`):
 
 | Kind | File names | Kept |
 | --- | --- | --- |
@@ -207,6 +211,6 @@ tool (no `--incremental`, so every daily file still on the channel is indexed),
 then copy the index somewhere safe; or download the attachments themselves:
 
 ```bash
-python -m tools.keiko logs sync
+python -m scripts.keiko logs sync
 cp ~/.keiko/logs.db /somewhere/safe/keiko-logs-$(date +%F).db
 ```

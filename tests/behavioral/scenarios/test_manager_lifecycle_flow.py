@@ -7,7 +7,8 @@ sub-form and the real Select-based remove view.
 
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
+from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
 
@@ -41,7 +42,7 @@ def _twitch_cog(*streamers: str) -> dict:
 
 
 async def test_pause_requires_typed_confirmation_and_pauses(scenario_factory, deps):
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS_COG))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS_COG))
     scenario = await scenario_factory(locale="pt-br").start_manager(
         "block_links", dict(BLOCK_LINKS_COG)
     )
@@ -55,15 +56,12 @@ async def test_pause_requires_typed_confirmation_and_pauses(scenario_factory, de
         title_contains=ml("commands.command-events.paused.title", locale="pt-br"),
     )
     scenario.expect_persisted(
-        "guild", "moderations", {"guild_id": GUILD_ID}, {"block_links": False}
-    )
-    scenario.expect_persisted(
         "guild", "block_links", {"guild_id": GUILD_ID}, {"enabled": False}
     )
 
 
 async def test_wrong_confirmation_word_does_not_pause(scenario_factory, deps):
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS_COG))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS_COG))
     scenario = await scenario_factory(locale="pt-br").start_manager(
         "block_links", dict(BLOCK_LINKS_COG)
     )
@@ -76,7 +74,7 @@ async def test_wrong_confirmation_word_does_not_pause(scenario_factory, deps):
 
 async def test_unpause_reenables_command(scenario_factory, deps):
     paused = {**BLOCK_LINKS_COG, "enabled": False}
-    deps.mongo_client.guild["block_links"].insert_one(dict(paused))
+    seed_cog(deps.mongo_client, "block_links", dict(paused))
     scenario = await scenario_factory(locale="pt-br").start_manager(
         "block_links", dict(paused)
     )
@@ -90,13 +88,10 @@ async def test_unpause_reenables_command(scenario_factory, deps):
     scenario.expect_persisted(
         "guild", "block_links", {"guild_id": GUILD_ID}, {"enabled": True}
     )
-    scenario.expect_persisted(
-        "guild", "moderations", {"guild_id": GUILD_ID}, {"block_links": True}
-    )
 
 
 async def test_disable_deletes_configuration(scenario_factory, deps):
-    deps.mongo_client.guild["block_links"].insert_one(dict(BLOCK_LINKS_COG))
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS_COG))
     scenario = await scenario_factory(locale="pt-br").start_manager(
         "block_links", dict(BLOCK_LINKS_COG)
     )
@@ -113,7 +108,7 @@ async def test_disable_deletes_configuration(scenario_factory, deps):
 async def test_add_item_runs_real_subform_and_appends(scenario_factory, deps):
     deps.twitch.add_user("cellbit", user_id="222")
     cog = _twitch_cog("gaules")
-    deps.mongo_client.guild["notifications_twitch"].insert_one(dict(cog))
+    seed_cog(deps.mongo_client, "notifications_twitch", dict(cog))
     scenario = await scenario_factory(locale="pt-br").start_manager(
         "notifications_twitch", cog
     )
@@ -144,7 +139,7 @@ async def test_remove_item_unsubscribes_and_updates_document(scenario_factory, d
     deps.twitch.add_user("cellbit", user_id="222")
     deps.twitch.subscribe_to_stream_online_event("111")
     cog = _twitch_cog("gaules", "cellbit")
-    deps.mongo_client.guild["notifications_twitch"].insert_one(dict(cog))
+    seed_cog(deps.mongo_client, "notifications_twitch", dict(cog))
     scenario = await scenario_factory(locale="pt-br").start_manager(
         "notifications_twitch", cog
     )

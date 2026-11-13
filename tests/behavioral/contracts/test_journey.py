@@ -11,8 +11,8 @@ from unittest.mock import AsyncMock
 import pytest
 
 from app.constants import Commands as constants
-from app.services import analytics, journey
-from app.services.trace import Trace, trace_scope
+from app.core import analytics, journey
+from app.core.trace import Trace, trace_scope
 import asyncio
 from datetime import datetime, timedelta, timezone
 from app.data import analytics as analytics_data
@@ -207,7 +207,7 @@ def test_a_failure_is_published_immediately(published):
 
 def test_a_story_can_be_rebuilt_from_storage_for_the_refresh_button(deps):
     """Refreshing costs one read: the steps were never only in memory."""
-    from app.services import analytics_sink
+    from app.core import analytics_sink
 
     analytics.reset()
     journey.install()
@@ -257,7 +257,7 @@ def test_refreshing_a_stored_session_renders_without_a_timezone_clash(deps):
 
 
 def test_rebuilding_an_unfinished_session_reports_it_as_in_progress(deps):
-    from app.services import analytics_sink
+    from app.core import analytics_sink
 
     analytics.reset()
     journey.install()

@@ -1,18 +1,19 @@
 import asyncio
 import resource
 from datetime import datetime, timezone
-from typing import Any, Dict, Set
+from typing import Any, Dict, List, Set
 
 import discord
 
-from app import mongo_client, redis_client
+from app import redis_client
 from app.bot import DiscordBot
-from app.constants import Commands, KeikoIcons, LogTypes, Style
-from app.data import admin as configs_data
-from app.data import cogs as cogs_data
-from app.services import logs_archive
-from app.services.cogs import is_feature_on
-from app.services.utils import format_datetime_output, format_relative_time
+from app.constants import Commands, DBConfigs, KeikoIcons, LogTypes, Style
+from app.data.guild import cogs as guild_cogs
+from app.data.guild import settings as guild_settings
+from app.data.keiko import settings as keiko_settings
+from app.core import logs_archive
+from app.core.cogs import is_feature_on
+from app.core.utils import format_datetime_output, format_relative_time
 
 
 async def send_log_file_from_channel_by_date(
@@ -39,14 +40,15 @@ async def send_log_file_from_channel_by_date(
     await interaction.followup.send(f":pensive: Log file not found for **{date}**")
 
 
-def update_admin_configs(bot: DiscordBot, data: Dict[str, Any]):
-    configs_data.update_admin_configs(data)
-    key, value = next(iter(data.items()))
-    return setattr(bot.config, key, value)
+def update_admin_configs(bot: DiscordBot, data: Dict[str, int]) -> None:
+    """Save operator ids and use them at once."""
+    keiko_settings.update_operator(data)
+    for key, value in data.items():
+        setattr(bot.config, key.upper(), value)
 
 
 def get_admin_configs():
-    return configs_data.find_admin_configs()
+    return keiko_settings.find_keiko_settings().get(DBConfigs.KEIKO_OPERATOR, {})
 
 
 async def get_overview_data(bot: DiscordBot) -> dict:
@@ -85,33 +87,42 @@ def _what_discord_shows(bot: DiscordBot) -> Dict[str, Any]:
     }
 
 
+def servers_overview(since: datetime) -> Dict[str, Any]:
+    """Servers Keiko is in and left, its top owner, the newest server and how many it
+    recorded since `since`, in one read."""
+    pipeline: List[Dict[str, Any]] = [
+        {
+            "$facet": {
+                "guild_status": [
+                    {"$group": {"_id": "$state.present", "count": {"$sum": 1}}}
+                ],
+                "top_owner": [
+                    {"$match": {"state.present": True}},
+                    {"$group": {"_id": "$state.owner_id", "count": {"$sum": 1}}},
+                    {"$sort": {"count": -1}},
+                    {"$limit": 1},
+                ],
+                "newest_guild": [
+                    {"$match": {"state.present": True}},
+                    {"$sort": {"created_at": -1}},
+                    {"$limit": 1},
+                    {"$project": {"guild_id": "$_id", "created_at": 1}},
+                ],
+                "monthly_growth": [
+                    {"$match": {"created_at": {"$gte": since}}},
+                    {"$count": "total"},
+                ],
+            }
+        }
+    ]
+    found = guild_settings.aggregate_settings(pipeline)
+    return found[0] if found else {}
+
+
 def _what_keiko_stored(twitch: Any, guild_ids: Set[str]) -> Dict[str, Any]:
     first_day_of_month = datetime.now(tz=timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    pipeline = [{"$facet": {
-        "guild_status": [
-            {"$group": {"_id": "$is_bot_online", "count": {"$sum": 1}}}
-        ],
-        "top_owner": [
-            {"$match": {"is_bot_online": True}},
-            {"$group": {"_id": "$owner_id", "count": {"$sum": 1}}},
-            {"$sort": {"count": -1}},
-            {"$limit": 1}
-        ],
-        "newest_guild": [
-            {"$match": {"is_bot_online": True}},
-            {"$sort": {"created_at": -1}},
-            {"$limit": 1},
-            {"$project": {"guild_id": 1, "created_at": 1}}
-        ],
-        "monthly_growth": [
-            {"$match": {"created_at": {"$gte": first_day_of_month}}},
-            {"$count": "total"}
-        ]
-    }}]
-
-    facet_result = list(mongo_client.guild.moderations.aggregate(pipeline))
-    facet = facet_result[0] if facet_result else {}
+    facet = servers_overview(first_day_of_month)
 
     # Parse guild status
     active_guilds = 0
@@ -203,9 +214,8 @@ def count_feature_adoption(guild_ids: Set[str]) -> Dict[str, int]:
     return {
         key: sum(
             1
-            for document in cogs_data.find_all_cogs(key, fields=("guild_id", "enabled"))
-            if str(document.get("guild_id")) in guild_ids
-            and is_feature_on(str(document.get("guild_id")), key, document)
+            for document in guild_cogs.find_all_cogs(key, fields=("guild_id", "enabled"))
+            if str(document.get("guild_id")) in guild_ids and is_feature_on(document)
         )
         for key in Commands.COMMANDS_LIST
     }
@@ -330,7 +340,7 @@ def build_overview_embed(bot: DiscordBot, data: dict) -> discord.Embed:
 def build_product_summary() -> str:
     """Configured versus actually working \u2014 the distinction command counts hide."""
     from app.data import analytics as analytics_data
-    from app.services import analytics_reports
+    from app.core import analytics_reports
 
     profiles = analytics_data.find_profiles()
     live = [profile for profile in profiles if not profile.get("removed_at")]

@@ -3,8 +3,8 @@ from typing import Awaitable, Callable, Optional
 import discord
 
 from app.constants import ViewConstants as view_constants
-from app.services.trace import trace_scope
-from app.services.utils import is_guild_admin, ml, speak
+from app.core.trace import trace_scope
+from app.core.utils import is_guild_admin, ml, speak
 
 
 class ConfirmActionView(discord.ui.View):

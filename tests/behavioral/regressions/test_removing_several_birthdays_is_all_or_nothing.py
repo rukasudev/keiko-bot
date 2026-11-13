@@ -24,11 +24,8 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.data.birthdays import (
-    find_birthday_items_by_guild,
-    remove_birthday_item,
-    upsert_birthday_item,
-)
+from app.services.reminders_birthdays import find_birthdays_by_guild, remove_birthday
+from tests.generators.birthdays import saved_birthday
 from app.settings.features import feature_for
 from app.settings.features.feature import CommitContext, ListChanged
 from tests.behavioral.golden.paths.common import GUILD_ID
@@ -43,7 +40,7 @@ NOW = datetime(2026, 11, 6, tzinfo=timezone.utc)
 
 
 def _saved():
-    return sorted(item["user_id"] for item in find_birthday_items_by_guild(GUILD_ID))
+    return sorted(item["user_id"] for item in find_birthdays_by_guild(GUILD_ID))
 
 
 def _removal(*user_ids):
@@ -59,9 +56,9 @@ async def _remove(*user_ids):
 
 
 async def test_a_removal_whose_member_went_meanwhile_removes_nobody(deps):
-    upsert_birthday_item(GUILD_ID, "555", "05-12")
-    upsert_birthday_item(GUILD_ID, "777", "06-12")
-    remove_birthday_item(GUILD_ID, "777")
+    saved_birthday(GUILD_ID, "555", "05-12")
+    saved_birthday(GUILD_ID, "777", "06-12")
+    remove_birthday(GUILD_ID, "777")
 
     with pytest.raises(ListChanged):
         await _remove("555", "777")
@@ -70,8 +67,8 @@ async def test_a_removal_whose_member_went_meanwhile_removes_nobody(deps):
 
 
 async def test_a_removal_of_members_all_saved_removes_them_all(deps):
-    upsert_birthday_item(GUILD_ID, "555", "05-12")
-    upsert_birthday_item(GUILD_ID, "777", "06-12")
+    saved_birthday(GUILD_ID, "555", "05-12")
+    saved_birthday(GUILD_ID, "777", "06-12")
 
     await _remove("555", "777")
 

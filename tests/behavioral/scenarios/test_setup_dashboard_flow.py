@@ -11,12 +11,13 @@ import discord
 import pytest
 
 from app.constants import Commands
-from app.services.utils import ml
+from app.core.utils import ml
 from app.settings.form.form_state import Manage
 from tests.behavioral.golden.paths.common import GUILD_ID
 from tests.behavioral.harness import locators
-from tests.generators.moderations import recorded_server
+from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks.discord import create_guild, create_member
+from app.data.guild.cogs import find_cog_by_guild_id
 
 pytestmark = pytest.mark.behavioral
 
@@ -238,8 +239,8 @@ async def _open_settings(scenario):
 
 
 def _saved(deps):
-    document = deps.mongo_client.guild.moderations.find_one({"guild_id": GUILD_ID})
-    return document[Commands.SERVER_SETTINGS_KEY]
+    document = deps.mongo_client.guild.settings.find_one({"_id": GUILD_ID})
+    return document["options"]
 
 
 def _selects(message):
@@ -277,7 +278,7 @@ async def test_the_settings_screen_quotes_each_value_under_its_name(scenario_fac
     ),
 ])
 async def test_the_prefix_line_names_the_servers_own_prefix(scenario_factory, deps, locale, line):
-    from app.services import cache
+    from app.core import cache
     from app.services.setup import settings_screen
 
     recorded_server(deps.mongo_client, GUILD_ID, language=locale, prefix="k?")
@@ -402,9 +403,7 @@ async def test_voltar_on_the_settings_screen_goes_back_to_the_first_page(
 
 
 def _configure(deps, key, document=None, enabled=True):
-    deps.mongo_client.guild[key].insert_one(
-        {**(document or {}), "guild_id": GUILD_ID, Commands.ENABLED_KEY: enabled}
-    )
+    seed_cog(deps.mongo_client, key, {**(document or {}), "guild_id": GUILD_ID, Commands.ENABLED_KEY: enabled})
 
 
 def _beside_section(message, wanted):
@@ -483,7 +482,7 @@ async def test_a_setup_from_configurar_ends_on_its_category_marked_just_turned_o
         event for event in scenario.outputs
         if (event.get("embed") or {}).get("title") == title
     ]
-    assert deps.mongo_client.guild.default_roles.find_one({"guild_id": GUILD_ID})
+    assert find_cog_by_guild_id(GUILD_ID, "default_roles")
 
     await _press(scenario, _button(message, "Voltar"))
     await _press(scenario, _beside(message, _category("moderations")))

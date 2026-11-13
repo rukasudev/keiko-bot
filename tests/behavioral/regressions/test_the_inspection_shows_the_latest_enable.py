@@ -17,7 +17,8 @@ import discord
 import pytest
 
 from app.constants import Commands
-from app.services.utils import format_relative_time
+from app.core.utils import format_relative_time
+from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
@@ -39,8 +40,10 @@ async def test_a_feature_that_is_on_is_dated_from_its_latest_enable(deps):
     deps.mongo_client.events[Commands.BLOCK_LINKS_KEY].insert_many(history)
     embed = discord.Embed()
 
+    seed_cog(deps.mongo_client, Commands.BLOCK_LINKS_KEY, {"guild_id": GUILD_ID, "enabled": True})
+
     LogInspectionView(None, None, GUILD_ID)._add_commands_status(
-        embed, {Commands.BLOCK_LINKS_KEY: True}
+        embed, {"_id": GUILD_ID, "state": {"present": True}}
     )
 
     [status] = embed.fields

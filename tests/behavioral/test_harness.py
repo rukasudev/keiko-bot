@@ -216,8 +216,7 @@ async def _mini_run(scenario_factory) -> FormScenario:
 async def test_two_identical_runs_produce_identical_normalized_output(
         scenario_factory, deps):
     first = await _mini_run(scenario_factory)
-    deps.mongo_client.guild["default_roles"]._data.clear()
-    deps.mongo_client.guild["moderations"]._data.clear()
+    deps.mongo_client.guild.cogs._data.clear()
     deps.redis_client.flushdb()
     second = await _mini_run(scenario_factory)
     assert first.outputs == second.outputs

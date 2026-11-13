@@ -10,11 +10,12 @@ from urllib.parse import urlparse
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from app.services import images, welcome_messages
+from app.services import welcome_messages
+from app.core import images
 from app.services.welcome_messages import send_welcome_message
 from tests.mocks import create_guild, create_member
 from tests.generators import moderations
-from app.services.utils import parse_welcome_messages
+from app.core.utils import parse_welcome_messages
 
 REAL_CREATE_BANNER = welcome_messages.create_banner
 REAL_UPLOAD_ASSET = images.upload_asset
@@ -441,7 +442,7 @@ async def test_a_server_named_with_braces_is_welcomed_as_it_is_named(mock_cache,
     fans". The welcome looked for `{user}` in any capitals but filled only the lowercase one,
     so "Hi {USER}!" mentioned nobody at all.
 
-    Shared behaviour: `fill_placeholders` (`app/services/utils.py`), now behind every
+    Shared behaviour: `fill_placeholders` (`app/core/utils.py`), now behind every
     template an admin writes: the notices, the welcome and the birthday celebration.
     Exposed by: the wave 1 review of the notices' placeholders.
 

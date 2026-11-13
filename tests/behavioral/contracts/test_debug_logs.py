@@ -20,11 +20,12 @@ import pytest
 
 from app.constants import Commands, Commands as constants
 from app.constants import LogTypes as logconstants
-from app.data import analytics as analytics_data, indexes
+from app.data import analytics as analytics_data
 from app.data import logs as logs_data
+from app.migrations.runner import declared_structure
 from app.logger import CustomTimedRotatingFileHandler, LoggerHooks, StoredLogsHandler
-from app.services import debug_logs, logs_archive
-from app.services.trace import trace_scope
+from app.core import debug_logs, logs_archive
+from app.core.trace import trace_scope
 import asyncio
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -39,7 +40,7 @@ import io
 import zipfile
 from bson import json_util, ObjectId
 from app.cogs.analytics import Analytics
-from app.services.utils import ml
+from app.core.utils import ml
 from app.cogs import analytics as analytics_cog
 from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
     blocking,
@@ -48,7 +49,8 @@ from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
 )
 from tests.helpers.assertions import keys_in, values_in
 import discord
-from app.services.logs_archive import FILENAME
+from app.core.logs_archive import FILENAME
+from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("debug_logs")]
 
@@ -254,9 +256,9 @@ def test_an_oversized_message_keeps_its_tail():
 
 def test_the_logs_collection_expires_so_mongo_stays_a_window():
     ttl = [
-        options["expireAfterSeconds"]
-        for collection, _keys, options in indexes.INDEXES
-        if collection == "logs" and "expireAfterSeconds" in options
+        spec["expireAfterSeconds"]
+        for spec in declared_structure()["guild"]["logs"].values()
+        if "expireAfterSeconds" in spec
     ]
 
     assert ttl == [constants.DEBUG_LOGS_TTL_SECONDS]
@@ -265,9 +267,8 @@ def test_the_logs_collection_expires_so_mongo_stays_a_window():
 
 def test_every_query_the_sink_supports_has_an_index():
     keyed = {
-        tuple(key for key, _direction in keys)
-        for collection, keys, _options in indexes.INDEXES
-        if collection == "logs"
+        tuple(field for field, _direction in spec["key"])
+        for spec in declared_structure()["guild"]["logs"].values()
     }
 
     assert ("level", "ts") in keyed
@@ -359,7 +360,7 @@ def both_handlers():
     from unittest.mock import MagicMock
 
     from app import logger as logger_module
-    from app.services import trace as trace_service
+    from app.core import trace as trace_service
 
     sends = []
     channel = _FakeChannel(sends)
@@ -532,7 +533,7 @@ def test_the_export_message_exists_in_both_locales():
 
 def test_every_field_the_sink_builds_is_a_column_the_index_stores():
     """A field added to the document but not to the store is dropped in silence."""
-    from tools.keiko.logs import store as tools_store
+    from scripts.keiko.logs import store as tools_store
 
     document = debug_logs.build_document(level="INFO", message="x")
     persisted = set(document) - {"v"}
@@ -868,29 +869,40 @@ async def run_backup(channel, public_key=PUBLIC_KEY):
 def stored_databases(deps):
     """A small Keiko database: settings, the audit trail, birthdays and configs."""
     client = deps.mongo_client
-    client.guild.moderations.delete_many({})
-    moderation_id = ObjectId()
-    client.guild.moderations.insert_one(
-        {"_id": moderation_id, "guild_id": "1", "block_links": True, "created_at": JOINED}
+    client.guild.settings.delete_many({})
+    client.guild.settings.insert_one(
+        {"_id": "1", "state": {"present": True}, "created_at": JOINED}
     )
-    client.guild.moderations.insert_one(
-        {"_id": ObjectId(), "guild_id": "2", "block_links": False}
-    )
-    client.guild.block_links.insert_one(
-        {"_id": ObjectId(), "guild_id": "1", "enabled": True}
-    )
+    client.guild.settings.insert_one({"_id": "2", "state": {"present": False}})
+    seed_cog(client, "block_links", {"guild_id": "1", "enabled": True})
     client.events.block_links.insert_one(
         {"_id": ObjectId(), "guild_id": "1", "event": "enabled"}
     )
     client.reminders.birthdays.insert_one(
         {"_id": ObjectId(), "guild_id": "1", "user_id": "555", "date": "05-12"}
     )
+    client.guild.members.insert_one(
+        {"_id": "1:555", "guild_id": "1", "user_id": "555",
+         "options": {"reminders_birthday": {"date": "05-12"}}}
+    )
+    client.keiko.schedules.insert_one(
+        {"_id": "birthday:1:05-12", "kind": "birthday", "reminder_id": "4001"}
+    )
+    client.keiko.integrations.insert_one(
+        {"_id": "notion", "options": {"token": SECRET}}
+    )
     client.configs.data.insert_one({"_id": ObjectId(), "status": "online"})
+    client.keiko.settings.insert_one(
+        {"_id": "keiko", "options": {"presence": {"status": "online"}}}
+    )
+    client.keiko.integrations.insert_one(
+        {"_id": "openai", "options": {"openai_api_key": SECRET}}
+    )
     client.configs.integrations.insert_one(
         {"_id": ObjectId(), "name": "openai", "configs": {"openai_api_key": SECRET}}
     )
     client.guild.logs.insert_one({"_id": ObjectId(), "message": "a debug line"})
-    return SimpleNamespace(moderation_id=moderation_id)
+    return SimpleNamespace(server_id="1")
 
 
 def files_in(sent):
@@ -959,20 +971,26 @@ async def test_one_file_holds_every_collection(stored_databases):
     assert sorted(files) == [
         "configs/data.jsonl",
         "events/block_links.jsonl",
-        "guild/block_links.jsonl",
-        "guild/moderations.jsonl",
+        "guild/cogs.jsonl",
+        "guild/members.jsonl",
+        "guild/settings.jsonl",
+        "keiko/schedules.jsonl",
+        "keiko/settings.jsonl",
         "manifest.json",
         "reminders/birthdays.jsonl",
     ]
     assert json.loads(files["manifest.json"])["collections"] == {
         "configs.data": 1,
         "events.block_links": 1,
-        "guild.block_links": 1,
-        "guild.moderations": 2,
+        "guild.cogs": 1,
+        "guild.members": 1,
+        "guild.settings": 2,
+        "keiko.schedules": 1,
+        "keiko.settings": 1,
         "reminders.birthdays": 1,
     }
     assert content == ml("messages.admin-logs.daily-backup", "en-us").format(
-        date=today(), collections=5, documents=6
+        date=today(), collections=8, documents=9
     )
 
 
@@ -981,12 +999,13 @@ async def test_documents_come_back_with_their_ids_and_types(stored_databases):
 
     await run_backup(channel)
 
-    lines = files_in(channel.sends[0][1])["guild/moderations.jsonl"].splitlines()
+    lines = files_in(channel.sends[0][1])["guild/settings.jsonl"].splitlines()
     restored = [json_util.loads(line) for line in lines]
-    first = next(document for document in restored if document["guild_id"] == "1")
-    assert first["_id"] == stored_databases.moderation_id
+    first = next(
+        document for document in restored if document["_id"] == stored_databases.server_id
+    )
     assert first["created_at"] == JOINED
-    assert first["block_links"] is True
+    assert first["state"]["present"] is True
 
 
 async def test_credentials_and_debug_logs_stay_out(stored_databases):
@@ -996,8 +1015,32 @@ async def test_credentials_and_debug_logs_stay_out(stored_databases):
 
     files = files_in(channel.sends[0][1])
     assert "configs/integrations.jsonl" not in files
+    assert "keiko/integrations.jsonl" not in files
     assert "guild/logs.jsonl" not in files
     assert not any(SECRET in text for text in files.values())
+
+
+async def test_the_accounts_keiko_follows_and_the_lives_it_posted_are_backed_up(
+    stored_databases, deps
+):
+    """The new homes of the Twitch lives, the hub state and the posted lives are copied.
+
+    Guaranteed: `keiko.subscriptions` and `guild.messages` reach the daily backup, the
+    first with the rest of `keiko`, the second with the rest of `guild`.
+    """
+    deps.mongo_client.keiko.subscriptions.insert_one(
+        {"_id": "twitch:gaules", "platform": "twitch", "account": "gaules", "state": {}}
+    )
+    deps.mongo_client.guild.messages.insert_one(
+        {"_id": "1:2:notifications_twitch:gaules", "message_id": "3"}
+    )
+    channel = Channel()
+
+    await run_backup(channel)
+
+    files = files_in(channel.sends[0][1])
+    assert "keiko/subscriptions.jsonl" in files
+    assert "guild/messages.jsonl" in files
 
 
 async def test_a_secret_outside_keikos_databases_or_in_error_audit_never_leaves(
@@ -1046,16 +1089,14 @@ def test_expiring_collections_are_packed_after_the_settings(stored_databases, de
     order = [f"{database}.{name}" for database, name in logs_archive.backed_up_collections()]
 
     assert set(order[-2:]) == {"guild.analytics_events", "guild.blocked_links"}
-    assert order.index("audit.reminders") < order.index("guild.moderations"), (
+    assert order.index("audit.reminders") < order.index("guild.settings"), (
         "renewal rows were packed with the collections that age out"
     )
 
 
 async def test_a_backup_over_the_limit_is_packed_into_files_under_it(stored_databases, deps):
     """About 3 KB of settings and 3 KB of audit: together over 5 KB, apart under."""
-    deps.mongo_client.guild.block_links.insert_one(
-        {"_id": ObjectId(), "guild_id": "3", "answer": noise(2400)}
-    )
+    seed_cog(deps.mongo_client, "block_links", {"_id": ObjectId(), "guild_id": "3", "answer": noise(2400)})
     deps.mongo_client.events.block_links.insert_one(
         {"_id": ObjectId(), "guild_id": "3", "event": noise(2400)}
     )
@@ -1078,8 +1119,11 @@ async def test_a_backup_over_the_limit_is_packed_into_files_under_it(stored_data
     assert members == {
         "configs/data.jsonl",
         "events/block_links.jsonl",
-        "guild/block_links.jsonl",
-        "guild/moderations.jsonl",
+        "guild/cogs.jsonl",
+        "guild/members.jsonl",
+        "guild/settings.jsonl",
+        "keiko/schedules.jsonl",
+        "keiko/settings.jsonl",
         "reminders/birthdays.jsonl",
     }
 
@@ -1103,8 +1147,9 @@ async def test_the_settings_go_out_when_only_they_fit_under_the_limit(
     assert {
         "configs/data.jsonl",
         "events/block_links.jsonl",
-        "guild/block_links.jsonl",
-        "guild/moderations.jsonl",
+        "guild/cogs.jsonl",
+        "guild/settings.jsonl",
+        "keiko/settings.jsonl",
         "reminders/birthdays.jsonl",
     } <= sent, "the settings were left out with the analytics"
     assert "guild/analytics_events.jsonl" not in sent
@@ -1144,7 +1189,7 @@ async def test_a_missing_channel_builds_and_sends_nothing_and_says_so(
 
 
 def test_the_logs_tool_never_takes_the_backup_for_a_log_file(stored_databases, monkeypatch):
-    from tools.keiko.logs import fetch
+    from scripts.keiko.logs import fetch
 
     now = datetime(2026, 1, 1)
     whole, _skipped = logs_archive.build_backup(now, TEN_MB, RECIPIENT)
@@ -1171,7 +1216,7 @@ async def test_what_is_posted_opens_with_the_private_key_and_no_other(stored_dat
     posted = channel.sends[0][1].fp.getvalue()
     assert not zipfile.is_zipfile(io.BytesIO(posted)), "a readable zip reached Discord"
     assert SECRET not in posted.decode("latin-1")
-    assert "guild/moderations.jsonl" in files_in(channel.sends[0][1])
+    assert "guild/settings.jsonl" in files_in(channel.sends[0][1])
     with pytest.raises(pyrage.DecryptError):
         pyrage.decrypt(posted, [x25519.Identity.generate()])
 
@@ -1617,7 +1662,7 @@ async def test_a_failing_archive_pass_is_an_error_and_never_takes_down_the_loop(
 
 @pytest.mark.usefixtures("frozen_clock")
 def test_the_logs_tool_never_takes_the_archive_for_a_log_file(deps, monkeypatch):
-    from tools.keiko.logs import fetch
+    from scripts.keiko.logs import fetch
 
     month = last_month()
     for day in range(0, 28, 3):
@@ -2201,50 +2246,20 @@ async def test_a_history_that_cannot_be_read_only_warns(stored_settings, caplog)
 
 
 def test_the_ttl_index_is_created_in_the_audit_database():
-    """The indexes Keiko creates at startup reach the database each one names.
+    """The baseline schema file declares each index in the database its collection
+    lives in.
 
     Broke as: `audit.reminders` only grew, so its renewal rows got a TTL index, the first
-    index outside the `guild` database. Guaranteed: an index may name a collection of another
-    database as `database.collection`; a database name holds no dot, a collection name may.
+    index outside the `guild` database. Guaranteed: the baseline declares that TTL index
+    under the `audit` database, never under `guild`, next to the `guild` ones.
     """
-    created = []
+    structure = declared_structure()
 
-    class Collection:
-        def __init__(self, name):
-            self.name = name
-
-        def create_index(self, keys, **options):
-            created.append((self.name, keys, options))
-
-    class Database:
-        def __init__(self, name):
-            self.name = name
-
-        def __getitem__(self, collection):
-            return Collection(f"{self.name}.{collection}")
-
-    class Client:
-        def __getitem__(self, database):
-            return Database(database)
-
-    original = indexes.mongo_client
-    indexes.mongo_client = Client()
-    try:
-        indexes.ensure_indexes()
-    finally:
-        indexes.mongo_client = original
-
-    assert ("audit.reminders", [("expires_at", 1)], {"expireAfterSeconds": 0}) in created
-    assert ("guild.blocked_links", [("guild_id", 1), ("created_at", -1)], {}) in created
-
-
-@pytest.mark.parametrize(
-    "named, located",
-    [
-        ("blocked_links", ("guild", "blocked_links")),
-        ("audit.reminders", ("audit", "reminders")),
-        ("audit.reminders.archive", ("audit", "reminders.archive")),
-    ],
-)
-def test_an_index_names_its_database_before_the_first_dot(named, located):
-    assert indexes.located(named) == located
+    assert structure["audit"]["reminders"]["expires_at_1"] == {
+        "expireAfterSeconds": 0,
+        "key": [["expires_at", 1]],
+    }
+    assert "reminders" not in structure["guild"]
+    assert structure["guild"]["blocked_links"]["guild_id_1_created_at_-1"] == {
+        "key": [["guild_id", 1], ["created_at", -1]]
+    }

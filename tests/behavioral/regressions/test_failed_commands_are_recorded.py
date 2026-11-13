@@ -47,8 +47,8 @@ from tests.behavioral.harness.fake_interaction import FakeInteraction, FakeRespo
 from tests.behavioral.harness.message_store import MessageStore
 from tests.mocks.discord import create_guild, create_member, MockInteraction
 from app.decorators import keiko_command
-from app.services import analytics
-from app.services.trace import current_trace
+from app.core import analytics
+from app.core.trace import current_trace
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 

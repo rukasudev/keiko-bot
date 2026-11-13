@@ -26,9 +26,9 @@ from app.integrations.notion import NotionIntegration
 from app.integrations.reminder_webhook import ReminderWebhook
 from app.integrations.twitch import TwitchClient
 from app.integrations.youtube import YoutubeClient
-from app.services import analytics, debug_logs, metrics
-from app.services.trace import trace_scope
-from app.services.utils import cogs_manager, get_cogs_folder
+from app.core import analytics, debug_logs, metrics
+from app.core.trace import trace_scope
+from app.core.utils import cogs_manager, get_cogs_folder
 from app.translator import Translator
 
 
@@ -37,7 +37,7 @@ def gateway_intents() -> discord.Intents:
 
     No presences: nothing reads a member's status or activity, only the bot's own.
     DMs stay, so a prefixed command sent there still gets the use-slashes hint.
-    Members come with their events; `app.services.members` finds any other one.
+    Members come with their events; `app.core.members` finds any other one.
     """
     return discord.Intents(
         guilds=True,
@@ -50,7 +50,7 @@ def gateway_intents() -> discord.Intents:
 
 async def server_command_prefix(bot: Any, message: discord.Message) -> str:
     """The prefix a message is read with: the default in a DM, its server's in a server."""
-    from app.services.moderations import default_prefix, server_prefix
+    from app.core.servers import default_prefix, server_prefix
 
     if message.guild is None:
         return default_prefix()
@@ -61,7 +61,7 @@ class KeikoTree(app_commands.CommandTree):
     """The command tree: every app command answers in the language its server saved."""
 
     async def interaction_check(self, interaction: discord.Interaction, /) -> bool:
-        from app.services.moderations import interaction_language
+        from app.core.servers import interaction_language
 
         interaction.extras["reader_locale"] = interaction.locale
         try:

@@ -3,7 +3,7 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 import discord
 
 from app.constants import ViewConstants as view_constants
-from app.services.utils import ml
+from app.core.utils import ml
 
 Page = Union[str, discord.Embed]
 

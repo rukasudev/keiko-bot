@@ -168,7 +168,7 @@ def test_the_custom_links_say_what_the_mode_in_force_does_with_them(mode, line):
 )
 def test_the_notification_previews_wait_for_who_they_announce(form, needs):
     """H (round 6): the preview names its key and an error both locales hold."""
-    from app.services.utils import ml
+    from app.core.utils import ml
 
     card = compile_form(form, DiskSource().load(form)).composition.steps[0]
     error = f"errors.{card.preview_needs.error}.message"

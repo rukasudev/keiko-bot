@@ -1,0 +1,822 @@
+"""
+Testes unitarios para utils.py.
+
+Estes testes NAO fazem I/O - apenas testam logica pura.
+"""
+
+import discord
+import pytest
+from unittest.mock import MagicMock, patch
+from app.core.utils import (
+    get_message_links,
+    check_two_lists_intersection,
+    fill,
+    fill_placeholders,
+    list_roles_id,
+    parse_welcome_messages,
+    format_datetime_output,
+    split_messages,
+)
+from app.services import reminders_birthdays
+from app.services.reminders_birthdays import (
+    can_self_edit_birthday,
+    default_birthday,
+    get_self_edit_count,
+)
+from datetime import date, timedelta
+
+
+class TestGetMessageLinks:
+    """Testes para extracao de links de mensagens."""
+
+    def test_detects_https_link(self):
+        """
+        Verifica que links HTTPS sao detectados corretamente.
+
+        Input: Mensagem contendo um link HTTPS
+        Output: Lista contendo o link detectado
+        """
+        # Arrange
+        content = "Check https://example.com"
+
+        # Act
+        links = get_message_links(content)
+
+        # Assert
+        assert len(links) == 1
+        assert "example.com" in links[0]
+
+    def test_detects_http_link(self):
+        """
+        Verifica que links HTTP (sem SSL) sao detectados.
+
+        Input: Mensagem contendo um link HTTP
+        Output: Lista contendo o link detectado
+        """
+        # Arrange
+        content = "Old site http://old.com"
+
+        # Act
+        links = get_message_links(content)
+
+        # Assert
+        assert len(links) == 1
+        assert "old.com" in links[0]
+
+    def test_detects_link_with_path_and_query(self):
+        """
+        Verifica que links com path e query string sao detectados integralmente.
+
+        Input: Mensagem com link contendo path e parametros
+        Output: Link completo com path e query
+        """
+        # Arrange
+        content = "https://site.com/path/to/page?query=1&other=2"
+
+        # Act
+        links = get_message_links(content)
+
+        # Assert
+        assert len(links) == 1
+        assert "site.com" in links[0]
+        assert "path" in links[0]
+
+    def test_detects_multiple_links(self):
+        """
+        Verifica que multiplos links na mesma mensagem sao todos detectados.
+
+        Input: Mensagem com dois links diferentes
+        Output: Lista com ambos os links
+        """
+        # Arrange
+        content = "Links: https://a.com and https://b.com"
+
+        # Act
+        links = get_message_links(content)
+
+        # Assert
+        assert len(links) == 2
+
+    def test_returns_empty_when_no_links(self):
+        """
+        Verifica que mensagem sem links retorna lista vazia.
+
+        Input: Mensagem de texto sem nenhum link
+        Output: Lista vazia
+        """
+        # Arrange
+        content = "No links here, just text."
+
+        # Act
+        links = get_message_links(content)
+
+        # Assert
+        assert len(links) == 0
+
+    def test_handles_links_in_sentence(self):
+        """
+        Verifica que links em meio a frases sao detectados.
+
+        Input: Mensagem com link no meio do texto
+        Output: Link extraido corretamente
+        """
+        # Arrange
+        content = "Veja esse video https://youtube.com/watch?v=123 que legal"
+
+        # Act
+        links = get_message_links(content)
+
+        # Assert
+        assert len(links) == 1
+        assert "youtube.com" in links[0]
+
+    def test_converts_to_lowercase(self):
+        """
+        Verifica que links sao convertidos para lowercase.
+
+        Input: Link com letras maiusculas
+        Output: Link em lowercase
+        """
+        # Arrange
+        content = "Check HTTPS://EXAMPLE.COM/PATH"
+
+        # Act
+        links = get_message_links(content)
+
+        # Assert
+        assert len(links) == 1
+        assert links[0] == links[0].lower()
+
+
+class TestCheckTwoListsIntersection:
+    """Testes para verificacao de intersecao de listas."""
+
+    def test_returns_true_when_intersection_exists(self):
+        """
+        Verifica que retorna True quando listas tem elementos em comum.
+
+        Input: Duas listas com elemento "b" em comum
+        Output: True
+        """
+        # Arrange
+        list_a = ["a", "b", "c"]
+        list_b = ["b", "d", "e"]
+
+        # Act
+        result = check_two_lists_intersection(list_a, list_b)
+
+        # Assert
+        assert result is True
+
+    def test_returns_false_when_no_intersection(self):
+        """
+        Verifica que retorna False quando listas nao tem elementos em comum.
+
+        Input: Duas listas sem elementos em comum
+        Output: False
+        """
+        # Arrange
+        list_a = ["a", "b", "c"]
+        list_b = ["d", "e", "f"]
+
+        # Act
+        result = check_two_lists_intersection(list_a, list_b)
+
+        # Assert
+        assert result is False
+
+    def test_handles_empty_lists(self):
+        """
+        Verifica que retorna False quando uma das listas esta vazia.
+
+        Input: Uma lista vazia e uma com elementos
+        Output: False
+        """
+        # Arrange
+        list_a = []
+        list_b = ["a", "b"]
+
+        # Act
+        result = check_two_lists_intersection(list_a, list_b)
+
+        # Assert
+        assert result is False
+
+    def test_handles_both_empty_lists(self):
+        """
+        Verifica que retorna False quando ambas as listas estao vazias.
+
+        Input: Duas listas vazias
+        Output: False
+        """
+        # Arrange
+        list_a = []
+        list_b = []
+
+        # Act
+        result = check_two_lists_intersection(list_a, list_b)
+
+        # Assert
+        assert result is False
+
+
+class TestListRolesId:
+    """Testes para conversao de roles em IDs."""
+
+    def test_converts_roles_to_string_ids(self):
+        """
+        Verifica que roles sao convertidos para lista de IDs em string.
+
+        Input: Lista de roles com IDs numericos
+        Output: Lista de strings com os IDs
+        """
+        # Arrange
+        role1 = MagicMock()
+        role1.id = 123
+        role2 = MagicMock()
+        role2.id = 456
+        roles = [role1, role2]
+
+        # Act
+        result = list_roles_id(roles)
+
+        # Assert
+        assert result == ["123", "456"]
+
+    def test_handles_empty_list(self):
+        """
+        Verifica que lista vazia retorna lista vazia.
+
+        Input: Lista vazia de roles
+        Output: Lista vazia
+        """
+        # Arrange
+        roles = []
+
+        # Act
+        result = list_roles_id(roles)
+
+        # Assert
+        assert result == []
+
+
+
+
+class TestBirthdayItemDefaults:
+    """Testes para o formato padrao salvo por cadastro inline/pessoal."""
+
+    def test_default_birthday_uses_manager_compatible_styles(self):
+        item = default_birthday("05-15")
+
+        assert item["date"] == "05-15"
+        assert item["month"] == 5
+        assert item["day"] == 15
+        assert item["message"]["mode"] == "default"
+        assert item["image"]["mode"] == "default"
+        assert item["self_edit_count"] == 0
+
+    def test_self_edit_limit_allows_only_first_overwrite(self):
+        assert can_self_edit_birthday({"self_edit_count": 0}) is True
+        assert can_self_edit_birthday({"self_edit_count": 1}) is False
+        assert get_self_edit_count({"self_edit_count": "invalid"}) == 0
+
+    def test_birthday_stats_from_items(self):
+        from app.services.reminders_birthdays import get_birthday_stats
+
+        items = [
+            {"guild_id": "1", "user_id": "1", "date": "05-15", "month": 5},
+            {"guild_id": "1", "user_id": "2", "date": "05-15", "month": 5},
+            {"guild_id": "1", "user_id": "3", "date": "06-01", "month": 6},
+        ]
+
+        with patch("app.services.reminders_birthdays.find_birthdays_by_guild", return_value=items):
+            stats = get_birthday_stats("1", today=date(2026, 5, 2))
+
+        assert stats["total"] == 3
+        assert stats["current_month"] == 2
+        assert stats["max_month"] == (5, 2)
+        assert stats["min_month"] == (6, 1)
+        assert stats["max_date"] == ("05-15", 2)
+
+    def test_reuses_existing_reminder_for_date(self):
+        with patch(
+            "app.services.reminders_birthdays.schedules_data.find_schedule",
+            return_value={"_id": "birthday:guild-1:05-15", "reminder_id": "rem-1"},
+        ), patch(
+            "app.services.reminders_birthdays.schedules_data.upsert_schedule"
+        ) as upsert_schedule, patch(
+            "app.services.reminders_birthdays.find_birthday", return_value=None
+        ), patch(
+            "app.services.reminders_birthdays.save_birthday",
+            return_value={"date": "05-15"},
+        ), patch("app.services.reminders_birthdays.reminders_service.create_reminder") as create:
+            assert reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15") == {
+                "date": "05-15"
+            }
+
+        create.assert_not_called()
+        upsert_schedule.assert_not_called()
+
+    def test_save_setup_form_writes_config_and_items(self):
+        from app.services.reminders_birthdays import save_setup_form
+
+        responses = [
+            {"key": "channel", "value": "111", "style": "channel"},
+            {"key": "mention_everyone", "value": "True"},
+            {
+                "key": "reminders_birthday",
+                "value": [
+                    {
+                        "user": {"value": "222", "title": "Member", "style": "user"},
+                        "date": {"value": "05-15", "title": "Birthday", "style": "mm_dd"},
+                        "use_custom_message": {"value": "custom", "title": "Message"},
+                        "custom_message_title": {"value": "Parabens", "title": "Title"},
+                        "custom_message_content": {"value": "Feliz aniversario, {user}", "title": "Content"},
+                        "use_custom_image": {"value": "default", "title": "Image"},
+                    }
+                ],
+            },
+        ]
+
+        with patch("app.services.reminders_birthdays.setup_birthdays") as setup:
+            with patch("app.services.reminders_birthdays.upsert_birthday", return_value={"user_id": "222"}) as upsert:
+                saved = save_setup_form("guild-1", responses)
+
+        setup.assert_called_once_with(
+            "guild-1",
+            "111",
+            True,
+            None,
+            None,
+            {"mode": "default", "title": None, "content": None},
+            updated_by=None,
+        )
+        upsert.assert_called_once_with(
+            "guild-1",
+            "222",
+            "05-15",
+            message={
+                "mode": "custom",
+                "title": "Parabens",
+                "content": "Feliz aniversario, {user}",
+            },
+            image={"mode": "default", "url": None},
+            display_name=None,
+        )
+        assert saved == [{"user_id": "222"}]
+
+    def test_save_setup_form_writes_schedule_and_default_message(self):
+        from app.services.reminders_birthdays import save_setup_form
+
+        responses = [
+            {"key": "channel", "value": "111", "style": "channel"},
+            {"key": "mention_everyone", "value": False, "style": "boolean"},
+            {"key": "timezone", "value": "America/Sao_Paulo"},
+            {"key": "notification_time", "value": "12:00"},
+            {"key": "default_message_mode", "value": "custom"},
+            {"key": "default_message_title", "value": "Parabens, {user}!"},
+            {"key": "default_message_content", "value": "Hoje tem festa no {server}."},
+        ]
+
+        with patch("app.services.reminders_birthdays.setup_birthdays") as setup:
+            saved = save_setup_form("guild-1", responses)
+
+        setup.assert_called_once_with(
+            "guild-1",
+            "111",
+            False,
+            "America/Sao_Paulo",
+            "12:00",
+            {
+                "mode": "custom",
+                "title": "Parabens, {user}!",
+                "content": "Hoje tem festa no {server}.",
+            },
+            updated_by=None,
+        )
+        assert saved == []
+
+    def test_upsert_birthday_creates_reminder_with_guild_schedule(self):
+        with patch(
+            "app.services.reminders_birthdays.birthday_config",
+            return_value={"timezone": "UTC", "notification_time": "12:00"},
+        ), patch(
+            "app.services.reminders_birthdays.schedules_data.find_schedule", return_value=None
+        ), patch(
+            "app.services.reminders_birthdays.schedules_data.upsert_schedule"
+        ) as upsert_schedule, patch(
+            "app.services.reminders_birthdays.find_birthday", return_value=None
+        ), patch(
+            "app.services.reminders_birthdays.save_birthday",
+            return_value={"date": "05-15"},
+        ), patch(
+            "app.services.reminders_birthdays.reminders_service.create_reminder",
+            return_value="rem-1",
+        ) as create, patch(
+            "app.services.reminders_birthdays.server_setting",
+            return_value="America/Sao_Paulo",
+        ):
+            reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15")
+
+        assert upsert_schedule.call_args.args == ("birthday:guild-1:05-15", "birthday", "rem-1")
+        create.assert_called_once_with(
+            "birthday_reminder",
+            "05-15",
+            notes="05-15",
+            timezone_name="America/Sao_Paulo",
+            notification_time="12:00",
+        )
+
+    def test_birthday_message_uses_server_default_before_keiko_default(self):
+        from app.services.reminders_birthdays import resolve_message
+
+        title, content = resolve_message(
+            {"message": {"mode": "default", "title": None, "content": None}},
+            {
+                "default_message": {
+                    "mode": "custom",
+                    "title": "Servidor feliz, {user}",
+                    "content": "Hoje e dia de bolo em {server}.",
+                }
+            },
+            "pt-br",
+        )
+
+        assert title == "Servidor feliz, {user}"
+        assert content == "Hoje e dia de bolo em {server}."
+
+class TestSplitJoinedMessages:
+    """Testes para divisao de mensagens salvas como texto separado por ;."""
+
+    def test_splits_by_semicolon(self):
+        """
+        Verifica que mensagens sao divididas por ponto e virgula.
+
+        Input: String com tres mensagens separadas por ;
+        Output: Lista com tres mensagens
+        """
+        # Arrange
+        messages = "Msg1;Msg2;Msg3"
+
+        # Act
+        result = split_messages(messages)
+
+        # Assert
+        assert len(result) == 3
+        assert result[0] == "Msg1"
+        assert result[1] == "Msg2"
+        assert result[2] == "Msg3"
+
+    def test_handles_single_message(self):
+        """
+        Verifica que mensagem unica retorna lista com um elemento.
+
+        Input: String com apenas uma mensagem
+        Output: Lista com um elemento
+        """
+        # Arrange
+        messages = "Single message"
+
+        # Act
+        result = split_messages(messages)
+
+        # Assert
+        assert len(result) == 1
+        assert result[0] == "Single message"
+
+
+class TestSplitMessages:
+    """Testes para as mensagens de um valor salvo, lista ou separado por ;."""
+
+    @pytest.mark.parametrize(
+        "stored",
+        [["Msg1", " Msg2"], ("Msg1", "Msg2"), "Msg1; Msg2", "Msg1;;Msg2;"],
+        ids=["list", "tuple", "joined", "blanks"],
+    )
+    def test_every_stored_shape_reads_as_its_messages(self, stored):
+        assert split_messages(stored) == ["Msg1", "Msg2"]
+
+    @pytest.mark.parametrize("stored", [None, "", [], [" "]])
+    def test_nothing_saved_reads_as_no_message(self, stored):
+        assert split_messages(stored) == []
+
+
+class TestParseWelcomeMessages:
+    """Testes para formatacao de mensagens de boas-vindas."""
+
+    @pytest.fixture
+    def member(self):
+        """Member mock para testes."""
+        m = MagicMock()
+        m._user = MagicMock()
+        m._user.id = 123
+        m.guild.name = "Test Server"
+        m.guild.member_count = 100
+        return m
+
+    def test_replaces_user_placeholder_with_mention(self, member):
+        """
+        Verifica que o placeholder {user} e substituido pela mencao do membro.
+
+        Input: Mensagem com {user} e um member com ID 123
+        Output: Mensagem com "<@!123>" no lugar de {user}
+        """
+        # Arrange
+        message = "Hello {user}!"
+
+        # Act
+        result = parse_welcome_messages(message, member)
+
+        # Assert
+        assert "<@!123>" in result
+
+    def test_replaces_server_placeholder_with_guild_name(self, member):
+        """
+        Verifica que o placeholder {server} e substituido pelo nome do servidor.
+
+        Input: Mensagem com {server} e um member de guild "Test Server"
+        Output: Mensagem com "Test Server" no lugar de {server}
+        """
+        # Arrange
+        message = "Welcome to {server}!"
+
+        # Act
+        result = parse_welcome_messages(message, member)
+
+        # Assert
+        assert "Test Server" in result
+
+    def test_replaces_member_count_placeholder(self, member):
+        """
+        Verifica que o placeholder {member_count} e substituido pelo total de membros.
+
+        Input: Mensagem com {member_count} e guild com 100 membros
+        Output: Mensagem com "100" no lugar de {member_count}
+        """
+        # Arrange
+        message = "We are {member_count} members!"
+
+        # Act
+        result = parse_welcome_messages(message, member)
+
+        # Assert
+        assert "100" in result
+
+    def test_replaces_multiple_placeholders_in_same_message(self, member):
+        """
+        Verifica que multiplos placeholders sao substituidos na mesma mensagem.
+
+        Input: Mensagem com {user}, {server} e {member_count}
+        Output: Todos os placeholders substituidos corretamente
+        """
+        # Arrange
+        message = "{user} joined {server}! Now we have {member_count} members!"
+
+        # Act
+        result = parse_welcome_messages(message, member)
+
+        # Assert
+        assert "<@!123>" in result
+        assert "Test Server" in result
+        assert "100" in result
+
+    def test_adds_mention_when_no_user_placeholder(self, member):
+        """
+        Verifica que adiciona mencao automaticamente quando nao ha {user}.
+
+        Input: Mensagem sem placeholder {user}
+        Output: Mensagem com mencao adicionada ao final
+        """
+        # Arrange
+        message = "Welcome to the server!"
+
+        # Act
+        result = parse_welcome_messages(message, member)
+
+        # Assert
+        assert "<@!123>" in result
+
+    def test_selects_random_message_when_multiple_provided(self, member):
+        """
+        Verifica que escolhe uma mensagem aleatoria quando multiplas sao
+        fornecidas separadas por ponto e virgula.
+
+        Input: Tres mensagens separadas por ";"
+        Output: Uma das mensagens e escolhida (com variacao)
+        """
+        # Arrange
+        messages = "Msg1 {user};Msg2 {user};Msg3 {user}"
+
+        # Act
+        results = set()
+        for _ in range(50):
+            results.add(parse_welcome_messages(messages, member))
+
+        # Assert
+        assert len(results) > 1  # Deve ter variacao
+
+
+class TestFormatDatetimeOutput:
+    """Testes para formatacao de duracao."""
+
+    def test_formats_seconds_only(self):
+        """
+        Verifica formatacao de apenas segundos.
+
+        Input: Duracao de 45 segundos
+        Output: "45s"
+        """
+        # Arrange
+        delta = timedelta(seconds=45)
+
+        # Act
+        result = format_datetime_output(delta)
+
+        # Assert
+        assert result == "45s"
+
+    def test_formats_minutes_and_seconds(self):
+        """
+        Verifica formatacao de minutos e segundos.
+
+        Input: Duracao de 5 minutos e 30 segundos
+        Output: "5m 30s"
+        """
+        # Arrange
+        delta = timedelta(minutes=5, seconds=30)
+
+        # Act
+        result = format_datetime_output(delta)
+
+        # Assert
+        assert result == "5m 30s"
+
+    def test_formats_hours_minutes_seconds(self):
+        """
+        Verifica formatacao de horas, minutos e segundos.
+
+        Input: Duracao de 2 horas, 30 minutos e 15 segundos
+        Output: "2h 30m 15s"
+        """
+        # Arrange
+        delta = timedelta(hours=2, minutes=30, seconds=15)
+
+        # Act
+        result = format_datetime_output(delta)
+
+        # Assert
+        assert result == "2h 30m 15s"
+
+    def test_formats_days_hours_minutes(self):
+        """
+        Verifica formatacao de dias, horas e minutos.
+
+        Input: Duracao de 1 dia, 5 horas e 30 minutos
+        Output: "1d 5h 30m"
+        """
+        # Arrange
+        delta = timedelta(days=1, hours=5, minutes=30)
+
+        # Act
+        result = format_datetime_output(delta)
+
+        # Assert
+        assert result == "1d 5h 30m"
+
+    def test_formats_zero_duration(self):
+        """
+        Verifica formatacao de duracao zero.
+
+        Input: Duracao de 0 segundos
+        Output: "0s"
+        """
+        # Arrange
+        delta = timedelta(seconds=0)
+
+        # Act
+        result = format_datetime_output(delta)
+
+        # Assert
+        assert result == "0s"
+
+
+class TestEnsureList:
+    """ensure_list coerces the scalar-collapsed {style, values} envelopes."""
+
+    def test_none_becomes_empty_list(self):
+        from app.core.utils import ensure_list
+        assert ensure_list(None) == []
+
+    def test_scalar_is_wrapped(self):
+        from app.core.utils import ensure_list
+        assert ensure_list("201") == ["201"]
+
+    def test_list_is_returned_as_list(self):
+        from app.core.utils import ensure_list
+        assert ensure_list(["a", "b"]) == ["a", "b"]
+
+    def test_tuple_and_set_become_lists(self):
+        from app.core.utils import ensure_list
+        assert ensure_list(("a",)) == ["a"]
+        assert sorted(ensure_list({"a", "b"})) == ["a", "b"]
+
+
+class TestGetMessageLinksSchemeless:
+    """Conservative schemeless detection: www.* hosts and domain.tld/path."""
+
+    def test_detects_www_host_without_scheme(self):
+        assert get_message_links("olha www.spam-site.com ai") == ["www.spam-site.com"]
+
+    def test_detects_bare_domain_with_path(self):
+        assert get_message_links("entra em discord.gg/abc123") == ["discord.gg/abc123"]
+
+    def test_bare_domain_without_path_is_ignored(self):
+        assert get_message_links("gosto de youtube.com e pronto") == []
+
+    def test_common_dotted_words_are_not_links(self):
+        assert get_message_links("uso node.js e li o package.json na v1.2.3") == []
+
+    def test_trailing_punctuation_is_trimmed(self):
+        assert get_message_links("corre em bit.ly/promo!") == ["bit.ly/promo"]
+
+    def test_email_is_not_a_link(self):
+        assert get_message_links("fala com a gente em contato@site.com") == []
+
+    def test_http_link_is_not_double_extracted(self):
+        assert get_message_links("veja https://youtube.com/watch?v=a") == [
+            "https://youtube.com/watch?v=a"
+        ]
+
+
+class TestFill:
+    """The `$name` filler of Keiko's own localized lines."""
+
+    def test_a_name_that_starts_another_fills_only_its_own_placeholder(self):
+        assert fill("Página $page de $pages", page=1, pages=1) == "Página 1 de 1"
+        assert fill("$pages pages, page $page", pages=3, page=2) == "3 pages, page 2"
+
+    def test_a_value_is_never_read_as_a_placeholder(self):
+        assert fill("$a and $b", a="$b", b="x") == "$b and x"
+
+    def test_a_name_not_given_stays_as_written(self):
+        assert fill("$count of $total", count=2) == "2 of $total"
+
+
+class TestFillPlaceholders:
+    """The one filler behind the notification templates an admin writes."""
+
+    def test_each_placeholder_is_filled(self):
+        assert fill_placeholders("{a} and {b}", {"a": "1", "b": "2"}) == "1 and 2"
+
+    def test_a_value_is_never_read_as_a_template(self):
+        assert fill_placeholders("{a} {b}", {"a": "{b}", "b": "x"}) == "{b} x"
+
+    def test_anything_else_in_braces_stays_as_typed(self):
+        template = "{a:>99} {A} {a.real} {a[0]} {other}"
+
+        assert fill_placeholders(template, {"a": "1"}) == template
+
+    def test_the_required_placeholder_is_added_on_its_own_line_when_missing(self):
+        assert fill_placeholders("Live!", {"link": "https://x"}, required="link") == (
+            "Live!\nhttps://x"
+        )
+
+    def test_the_required_placeholder_is_not_added_when_present(self):
+        assert fill_placeholders("Go {link} now", {"link": "https://x"}, required="link") == (
+            "Go https://x now"
+        )
+
+    def test_a_placeholder_in_other_capitals_is_text(self):
+        assert fill_placeholders("{LINK}", {"link": "https://x"}, required="link") == (
+            "{LINK}\nhttps://x"
+        )
+
+
+class TestLocaleCopyAgreesWithThePlatform:
+    """`ml` and `parse_locale` here, and `text` and `normalize_locale` in the form platform,
+    are two copies of one rule: the platform imports only itself and `app.constants`, and
+    this module, which the logger imports at boot, cannot import the platform, whose
+    package pulls in the data layer before the Mongo client exists. Guaranteed: both
+    copies give the same answer, so they never drift apart."""
+
+    @pytest.mark.parametrize("locale", [
+        "en-us", "en-US", "pt-br", "pt-BR", "pt", "en", "fr", "es-ES", "", "xx-yy",
+        discord.Locale.brazil_portuguese, discord.Locale.american_english,
+    ])
+    def test_parse_locale_maps_a_locale_the_way_the_platform_does(self, locale):
+        from app.core.utils import parse_locale
+        from app.settings.form.copy import normalize_locale
+
+        assert parse_locale(locale) == normalize_locale(locale)
+
+    @pytest.mark.parametrize("key", [
+        "commands.form-notices.closed",
+        "messages.admin-logs.daily-export",
+        "messages.no-such-key",
+    ])
+    @pytest.mark.parametrize("locale", ["en-us", "pt-br", "pt", "fr"])
+    def test_ml_reads_a_key_the_way_the_platform_does(self, key, locale):
+        from app.core.utils import ml
+        from app.settings.form.copy import text
+
+        assert ml(key, locale) == text(key, locale)

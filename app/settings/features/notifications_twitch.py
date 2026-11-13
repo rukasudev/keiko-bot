@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from app.constants import Commands
-from app.data.notifications_twitch import count_streamers_guilds
 from app.services.notifications_twitch import (
+    count_streamers_guilds,
     send_notification_preview,
     subscribe_streamer,
     unsubscribe_streamer,

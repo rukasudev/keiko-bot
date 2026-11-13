@@ -12,7 +12,7 @@ import re
 import pytest
 
 from app.constants import Commands as constants
-from app.services import analytics, analytics_sink
+from app.core import analytics, analytics_sink
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("analytics")]
 
@@ -113,7 +113,7 @@ def test_every_file_a_declaration_cites_exists():
 
 def _lifecycle_events():
     """Lifecycle events reach `emit` through insert_cog_event, not literally."""
-    from app.services.cogs import LIFECYCLE_ANALYTICS_EVENTS
+    from app.core.cogs import LIFECYCLE_ANALYTICS_EVENTS
 
     return LIFECYCLE_ANALYTICS_EVENTS.values()
 
@@ -121,7 +121,7 @@ def _lifecycle_events():
 def test_lifecycle_events_are_emitted_through_the_audit_facade():
     """The state changes already flowed through insert_cog_event, so the
     product view costs no new call sites — the point of section 9.3."""
-    from app.services.cogs import LIFECYCLE_ANALYTICS_EVENTS
+    from app.core.cogs import LIFECYCLE_ANALYTICS_EVENTS
 
     declared = analytics.events_catalog()
     for audit_key, event in LIFECYCLE_ANALYTICS_EVENTS.items():
@@ -209,7 +209,7 @@ def test_only_values_the_yaml_itself_lists_may_be_recorded():
 
 def test_no_free_text_or_id_field_of_any_form_is_ever_tabulated():
     """Swept across every real form, so a new field cannot opt itself in."""
-    from app.services.analytics_reports import configurable_fields
+    from app.core.analytics_reports import configurable_fields
 
     for feature in constants.COMMANDS_LIST:
         for field in configurable_fields(feature):

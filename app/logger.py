@@ -17,10 +17,10 @@ from app.constants import DiscordLimits as limits
 from app.constants import LogTypes as constants
 from app.constants import Style as style
 from app.constants import TraceTitles as titles
-from app.services import debug_logs
-from app.services import journey as journey_service
-from app.services import trace as trace_service
-from app.services.utils import format_traceback_message
+from app.core import debug_logs
+from app.core import journey as journey_service
+from app.core import trace as trace_service
+from app.core.utils import format_traceback_message
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -103,7 +103,7 @@ def record_identity(record: logging.LogRecord) -> dict:
     """The ids a log record carries, from whichever source supplied them.
 
     A record gets them three ways — an `interaction`, an `ErrorContext` (a
-    listener's or a fan-out's, `app/services/trace.py`), or a bare `guild_id` — and
+    listener's or a fan-out's, `app/core/trace.py`), or a bare `guild_id` — and
     both handlers need the same answer. Keeping the knowledge here means a new
     field on `ErrorContext` reaches the embed and the stored document together,
     instead of one of them quietly falling behind.

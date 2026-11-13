@@ -8,7 +8,7 @@ same as when the message closed.
 """
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 from tests.behavioral.golden.paths import notifications_twitch as twitch
 from tests.behavioral.golden.paths.common import open_manager
 from tests.behavioral.golden.paths.reminders_birthday import (

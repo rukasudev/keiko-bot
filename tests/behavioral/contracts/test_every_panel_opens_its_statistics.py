@@ -3,7 +3,7 @@
 Shared behaviour: the `stats` aside `GenericCogFeature.asides` gives every feature
 (`app/settings/features/feature.py`), the "📊 Estatísticas" button the manager draws
 on every panel (`panel_buttons`, `app/settings/form/manager.py`), and the embed of
-`send_feature_stats` (`app/services/feature_health.py`): the feature's own lines
+`send_feature_stats` (`app/core/feature_health.py`): the feature's own lines
 (`stats_lines`, which block links and birthdays fill) and the sentence
 `feature_health` writes about its last `Commands.FEATURE_STATS_DAYS` days, which
 left the /configurar rows in PR15 round 2. Consumers: the seven feature panels.
@@ -19,12 +19,13 @@ import discord
 import pytest
 
 from app.constants import Commands
-from app.services import feature_health
-from app.services.utils import fill, ml
+from app.core import feature_health
+from app.core.utils import fill, ml
 from app.settings.features import feature_for, feature_keys
 from app.settings.form.form_yaml import registry
 from app.settings.form.manager import PanelExtras, panel_buttons
 from tests.mocks.discord import create_guild
+from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
 
@@ -201,7 +202,7 @@ def _days_ago(days):
 
 
 def _configure(deps, key):
-    deps.mongo_client.guild[key].insert_one({"guild_id": "777", Commands.ENABLED_KEY: True})
+    seed_cog(deps.mongo_client, key, {"guild_id": "777", Commands.ENABLED_KEY: True})
 
 
 def _refused(deps, key, days=1):

@@ -3,7 +3,7 @@
 Date: 2026-09-13. Scope: the Form + YAML + State subsystem (`app/views/form.py`,
 `app/views/form_state.py`, `app/views/manager.py`, `app/views/summary_card.py`,
 `app/views/composition.py`, `app/views/edit.py`, `app/views/remove.py`,
-`app/components/*`, `app/services/moderations.py`, `app/languages/form/*.yml`) and
+`app/components/*`, `app/core/servers.py`, `app/languages/form/*.yml`) and
 everything that plugs into it. Review only: no code was changed.
 
 > **Baseline note (2026-09-13, same day).** Part I below was traced on the worktree
@@ -65,7 +65,7 @@ What a Keiko Form actually is (derived from the seven YAMLs and their services):
   output is one configuration document per (guild, feature) plus zero or more domain
   actions (Twitch/YouTube subscriptions, reminder scheduling, file re-hosting).
 - **Short-lived and single-actor.** Views time out at 30 minutes
-  (`app/views/form.py:71`); messages are ephemeral (`app/services/moderations.py:121`);
+  (`app/views/form.py:71`); messages are ephemeral (`app/core/servers.py:121`);
   nothing survives a restart. The only user who can click is the one who opened it.
 - **Two modes of the same session.** *Setup* (run every step, then `_finish`) and
   *Manage* (lifecycle actions on saved config: pause, unpause, disable, history, plus
@@ -180,11 +180,11 @@ a `show_*` method. The existing harness already models exactly that contract
   `render(step, session)`); the manager panel (from the saved document via
   `FeatureModule.summary`); labels and formatted values (from answers + locale).
 - **Persistent, separate truth:** the saved configuration document per (guild, feature)
-  in Mongo, plus the cached copy in Redis (30-day TTL, `app/services/cache.py:29-43`).
+  in Mongo, plus the cached copy in Redis (30-day TTL, `app/core/cache.py:29-43`).
   A session is a *proposal* until `Commit` succeeds; after commit, the document is the
   truth and the session is closed.
 - **Never a source of truth:** component `custom_id`s, message ids, YAML at runtime,
-  closure variables, the Redis cache (invalidated on write, `app/services/cogs.py:11,42,51`).
+  closure variables, the Redis cache (invalidated on write, `app/core/cogs.py:11,42,51`).
 
 Derived state rebuild: any render is `screen = kind.render(step, session)`; if a
 message is missing or an edit fails, the adapter re-sends the same screen. A manager
@@ -409,7 +409,7 @@ Dependency direction: `features → platform types`; `adapters → platform + fe
 | `FormSession` | `engine.store` | ≤ expiry (30 min) |
 | Discord message ids for a session | `adapters.discord` (in session metadata, adapter-private) | session |
 | Saved configuration document | `features/<key>` via `app/data` | durable |
-| Redis cache of the document | `app/services/cache` | 30 days, invalidated on write |
+| Redis cache of the document | `app/core/cache` | 30 days, invalidated on write |
 | Pre-fetched context (guild roles, external lookups) | adapter, per event | one `decide` |
 
 ### 6.3 Side-effect model
@@ -451,7 +451,7 @@ Traced execution path, first-time setup:
 ```
 cog (app/cogs/.../*.py)            @keiko_command + @keiko_admin_only (app/decorators.py:14-46)
   → service.manager(interaction, guild_id)          app/services/<key>.py
-    → cache.get_cog_data_or_populate(...)            app/services/cache.py:29-43
+    → cache.get_cog_data_or_populate(...)            app/core/cache.py:29-43
     → send_command_form_message(interaction, key, persistence_callback?)   moderations.py:104-121
       → Form(command_key, locale)                    form.py:57-73  (View, timeout=1800, Confirm+Cancel)
         → parse_form_yaml_to_dict(key)  (cached)     utils.py:75-82
@@ -542,7 +542,7 @@ put behaviour is a helper every form shares.**
 | Rendering mode | `Form._using_layout_view` + `interaction.message.flags.components_v2` | neither | `_transition_from_layout_view`, `_send_layout_view` | no | should be derived from step kind |
 | Preview task | `Form._preview_task` | itself | `_start_preview_pregeneration` | no | feature-specific |
 | Cross-view links | `parent_view.edited_form_view`, `parent_view.form_view`, `parent_view._original_embed`, `Form.after_callback`, `Form.persistence_callback`, `composition_index`, `prefilled_step_keys`, `prefilled_composition_fields`, `all_cogs`, `composition_responses` | set by other objects via attribute injection | `buttons.py:124-127,318-322`, `edit.py:155-158,169`, `composition.py:96-98,108,142` | no | implicit state |
-| Redis cog cache | `cache.py` | Mongo is | writes through `services/cogs.py` | 30-day TTL | derived |
+| Redis cog cache | `cache.py` | Mongo is | writes through `core/cogs.py` | 30-day TTL | derived |
 | Moderations flags | `moderations` collection | itself (feature enabled/paused) | `update_moderations_by_guild`, pause/unpause | Mongo | can diverge from cog doc (`_finish` writes both, non-atomically) |
 
 Invalid combinations reachable today: `moderations[key]=True` with no cog document
@@ -619,7 +619,7 @@ manager `pause_handler` was built from a stale `cogs` (`manager.py:158-168`).
   (`validate_streamer_name`, `modals.py:730-738`), inside `_finish`
   (`StreamElementsClient.get_channel_info`, `form.py:939-940`), inside preview
   generation (`welcome_messages.py:187-192`), and every pymongo/redis call in
-  `app/data` and `app/services/cache.py`.
+  `app/data` and `app/core/cache.py`.
 - **C2 — Silent expiry and restarts.** Form views live 1800 s (`form.py:71`), modals
   300 s; no view implements `on_timeout` (pinned by
   `tests/behavioral/contracts/test_view_timeouts.py:47`), and no form view is
@@ -973,7 +973,7 @@ DEFAULT = GenericCogFeature()   # today's insert_cog_by_guild path; used when a 
 
 ### 18.4 Boundaries kept from today
 
-`app/data/*`, `app/services/cache.py`, `app/services/{dates,transforms,compositions}.py`,
+`app/data/*`, `app/core/cache.py`, `app/core/dates.py`, `app/services/{transforms,compositions}.py`,
 the component classes in `app/components/` and `app/views/summary_card.py` (as
 renderers), the i18n stack, the behavioral harness.
 
@@ -1386,7 +1386,7 @@ what replaces it.
 | `hidden` copied into every response entry; `styled_values` label/raw split in `_save_step_response` | More fields on the untyped response dict | **No.** | Typed `Answer`; visibility and labels are definition facts, resolved at render. |
 | `RecordsBrowser`, `base_embed`, `ViewConstants`, `DiscordLimits` | Generic view for record lists; shared embed skeleton; global tunables and limits | **Yes.** Generic, no engine coupling. | Kept as generic views/constants outside the platform; the browser becomes a renderer consumer. |
 | `.claude/rules/code-style.md` | 12 maintainer-reviewed rules | **Yes.** | Kept; extended by II.6 and enforced by tooling. |
-| Debug logs in `guild.logs` + daily archive + `tools/keiko logs` | Storage and query of everything logged | **Yes.** Outside the form platform; it is what made II.1 possible. | Kept unchanged. |
+| Debug logs in `guild.logs` + daily archive + `scripts/keiko logs` | Storage and query of everything logged | **Yes.** Outside the form platform; it is what made II.1 possible. | Kept unchanged. |
 | `block_links` redesign (card with modes, custom rules composition, conditions, records) | The first form that exercises card + composition + conditions together | **As a form, yes; as evidence, invaluable.** It is the form that pushed the grammar past its design and produced H10–H12. | It is the first form to migrate *after* the simple ones, and the primary consumer for the `when` grammar tests. |
 
 Net effect on Part I's conclusions: the **diagnosis stands**; two symptoms were
@@ -1478,10 +1478,10 @@ impossible.
 
 Main has more than Part I described. These are the surfaces that exist today (`docs/analytics.md`), listed as **requirements the target must keep satisfying**, not as an implementation to extend (II.0.b says why):
 
-- **Trace** per unit of work in a `ContextVar` (`app/services/trace.py`): one Discord
+- **Trace** per unit of work in a `ContextVar` (`app/core/trace.py`): one Discord
   message per slash command / webhook request / deferred job; listeners silent unless
   they fail or report an event.
-- **Journey** per configuration session (`app/services/journey.py`): one message,
+- **Journey** per configuration session (`app/core/journey.py`): one message,
   re-rendered until the session ends, with step lines resolved to the titles the user
   saw, and a 24h history footer per feature.
 - **Product analytics** with a catalog of 30 events (`app/analytics/catalog.yml`),
@@ -1489,7 +1489,7 @@ Main has more than Part I described. These are the surfaces that exist today (`d
   real flow; storage split into events (90d), monthly counters (13mo) and a guild
   profile.
 - **Debug logs** in `guild.logs` (30d, indexed by `session_id`) plus a daily archive
-  and a CLI with full-text search and error grouping (`tools/keiko logs`).
+  and a CLI with full-text search and error grouping (`scripts/keiko logs`).
 - **Session friction** (`FormSession`): steps viewed, validation failures, back count,
   duration bucket, per-step time.
 - Weekly digest and `/admin insights`.
@@ -1705,7 +1705,7 @@ leave out.
 
 - `app/settings/` is a package with **no import of `discord`** outside
   `app/settings/discord/`, enforced by a boundary test like
-  `tests/tools/test_tools_boundary.py`.
+  `tests/scripts/test_scripts_boundary.py`.
 - **Async end to end**: the data layer moves to `motor`; `off_loop` is deleted with the
   last sync call site. I12 becomes true by construction, not by wrapper.
 - **Definition**: typed models, JSON Schema export, `version`, the `when` grammar of

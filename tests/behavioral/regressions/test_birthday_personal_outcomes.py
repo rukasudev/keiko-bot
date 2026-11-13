@@ -17,10 +17,10 @@ import pytest
 
 from app import logger as logger_module
 from app.constants import Commands
-from app.data import birthdays as birthdays_data
-from app.data import moderations as moderations_data
+from app.core.servers import set_feature_enabled
+from app.services.reminders_birthdays import find_birthday, save_birthday_config
 from app.services import reminders_birthdays as birthdays_service
-from app.services import trace as trace_service
+from app.core import trace as trace_service
 from tests.generators.moderations import recorded_server
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
@@ -43,13 +43,9 @@ def closed_traces():
 
 @pytest.fixture
 def enabled(deps, monkeypatch):
-    moderations_data.mongo_client.guild.moderations.insert_one(
-        {"guild_id": GUILD_ID, Commands.REMINDERS_BIRTHDAY_KEY: True}
-    )
     recorded_server(deps.mongo_client, GUILD_ID, timezone="UTC")
-    birthdays_data.upsert_birthday_config(
-        GUILD_ID, channel_id="99", timezone="UTC", notification_time="14:00"
-    )
+    save_birthday_config(GUILD_ID, channel_id="99", notification_time="14:00")
+    set_feature_enabled(GUILD_ID, Commands.REMINDERS_BIRTHDAY_KEY, True)
     monkeypatch.setattr(
         birthdays_service.reminders_service, "create_reminder", lambda *a, **kw: "1"
     )
@@ -67,7 +63,9 @@ def interaction_for(admin=False):
         guild=SimpleNamespace(id=int(GUILD_ID)),
         guild_id=int(GUILD_ID),
         user=SimpleNamespace(
-            id=USER_ID, guild_permissions=SimpleNamespace(administrator=admin)
+            id=USER_ID,
+            display_name="Ana",
+            guild_permissions=SimpleNamespace(administrator=admin),
         ),
         response=SimpleNamespace(
             send_message=AsyncMock(), defer=AsyncMock(), edit_message=AsyncMock()
@@ -125,7 +123,7 @@ async def test_replacing_a_birthday_is_its_own_traced_unit_of_work(enabled, clos
     replaced = closed_traces[-1]
     assert replaced is not asked and replaced.result == "replaced"
     assert any("birthday replaced" in line for line in lines(replaced))
-    assert birthdays_data.find_birthday_item(GUILD_ID, str(USER_ID))["date"] == "04-20"
+    assert find_birthday(GUILD_ID, str(USER_ID))["date"] == "04-20"
 
 
 async def test_the_trace_says_whether_the_person_is_an_admin(deps, closed_traces):

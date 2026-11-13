@@ -8,14 +8,25 @@ import discord
 from app import bot, logger
 from app.constants import Commands
 from app.constants import LogTypes as logconstants
-from app.data import birthdays as birthdays_data
+from app.data.keiko import schedules as schedules_data
 from app.exceptions import ErrorContext
-from app.services import analytics, members
-from app.services.dates import is_valid_mm_dd, nearest_mm_dd_occurrence, zone_or_utc
-from app.services.moderations import server_language, server_timezone
-from app.services.reminders_birthdays import build_celebration_embed
-from app.services.trace import Outcome, fan_out
-from app.services.utils import destination
+from app.core import analytics, members
+from app.core.cogs import is_feature_on
+from app.core.dates import is_valid_mm_dd, nearest_mm_dd_occurrence, zone_or_utc
+from app.core.servers import server_language, server_timezone
+from app.services.reminders_birthdays import (
+    birthday_config,
+    birthday_schedule_id,
+    birthday_schedules_by_reminder,
+    build_celebration_embed,
+    claim_birthday_year,
+    find_birthdays_on,
+    last_celebrated_year,
+    next_birthday_due,
+    release_birthday_year,
+)
+from app.core.trace import Outcome, fan_out
+from app.core.utils import destination
 
 
 async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
@@ -28,12 +39,7 @@ async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
         logger.warn(f"Invalid birthday reminder notes: {notes}", log_type=logconstants.COMMAND_WARN_TYPE)
         return
 
-    items = await asyncio.to_thread(
-        birthdays_data.find_birthday_items_by_reminder_and_date, reminder_id, mm_dd
-    )
-    grouped: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
-    for item in items:
-        grouped[str(item.get("guild_id"))].append(item)
+    grouped = await asyncio.to_thread(birthdays_of_reminder, reminder_id, mm_dd)
 
     tally: Counter = Counter()
     served = await fan_out(
@@ -55,19 +61,35 @@ async def process_birthday_webhook(reminder_id: str, notes: str) -> None:
     )
 
 
+def birthdays_of_reminder(reminder_id: str, mm_dd: str) -> Dict[str, List[Dict[str, Any]]]:
+    """The birthdays one reminder schedules on its date, server by server."""
+    grouped: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for schedule in birthday_schedules_by_reminder(reminder_id):
+        guild_id, date = schedules_data.schedule_subject(schedule)
+        if date == mm_dd:
+            grouped[guild_id].extend(find_birthdays_on(guild_id, mm_dd))
+    return grouped
+
+
 async def celebrate_in_guild(
     guild_id: str, items: List[Dict[str, Any]], mm_dd: str, tally: Counter
 ) -> None:
     """Post each birthday this guild has not celebrated this year, counting how each one went."""
-    if not await asyncio.to_thread(birthdays_data.is_birthday_enabled, guild_id):
+    config = await asyncio.to_thread(birthday_config, guild_id)
+    if not is_feature_on(config):
         return
 
-    config = await asyncio.to_thread(birthdays_data.find_birthday_config, guild_id) or {}
-    guild, channel = destination(guild_id, config.get("channel_id"))
+    guild, channel = destination(guild_id, config.get("channel"))
     locale = await server_language(guild_id)
     mention_everyone = bool(config.get("mention_everyone"))
     allowed_mentions = discord.AllowedMentions(everyone=mention_everyone, users=False, roles=False)
-    year = celebration_year(mm_dd, await server_timezone(guild_id))
+    zone = await server_timezone(guild_id)
+    year = celebration_year(mm_dd, zone)
+    await asyncio.to_thread(
+        schedules_data.set_schedule_due,
+        birthday_schedule_id(guild_id, mm_dd),
+        next_birthday_due(mm_dd, zone, config.get("notification_time")),
+    )
     for item in items:
         try:
             member = await members.find(guild, item["user_id"])
@@ -89,11 +111,16 @@ async def celebrate_in_guild(
             continue
 
         if not member:
-            logger.warn(f"Member not found: {item['user_id']}", log_type=logconstants.COMMAND_WARN_TYPE)
+            known_as = item["state"].get("display_name") or item["user_id"]
+            logger.warn(f"Member not found: {known_as}", log_type=logconstants.COMMAND_WARN_TYPE)
             continue
 
         first_this_year = await asyncio.to_thread(
-            birthdays_data.mark_birthday_celebrated, guild_id, item["user_id"], year
+            claim_birthday_year,
+            guild_id,
+            item["user_id"],
+            year,
+            member.display_name,
         )
         if not first_this_year:
             logger.info(
@@ -109,9 +136,11 @@ async def celebrate_in_guild(
                 allowed_mentions=allowed_mentions,
             )
         except discord.Forbidden as error:
+            await _release(guild_id, item, year)
             analytics.record_permission_failure(guild.id, Commands.REMINDERS_BIRTHDAY_KEY, error)
             raise
         except discord.HTTPException as error:
+            await _release(guild_id, item, year)
             logger.error(
                 f"Birthday of member {item['user_id']} not sent: {type(error).__name__}: {error}",
                 log_type=logconstants.COMMAND_ERROR_TYPE,
@@ -125,6 +154,9 @@ async def celebrate_in_guild(
             )
             tally["members_failed"] += 1
             continue
+        except Exception:
+            await _release(guild_id, item, year)
+            raise
 
         try:
             await message.add_reaction(Commands.REMINDERS_BIRTHDAY_REACTION)
@@ -135,6 +167,16 @@ async def celebrate_in_guild(
             )
         analytics.record_value(guild.id, Commands.REMINDERS_BIRTHDAY_KEY)
         tally["celebrated"] += 1
+
+
+async def _release(guild_id: str, item: Dict[str, Any], year: int) -> None:
+    await asyncio.to_thread(
+        release_birthday_year,
+        guild_id,
+        item["user_id"],
+        year,
+        last_celebrated_year(item),
+    )
 
 
 def celebration_year(mm_dd: str, timezone_name: Optional[str]) -> int:

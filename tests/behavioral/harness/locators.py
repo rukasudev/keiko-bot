@@ -13,7 +13,7 @@ from typing import Any, Iterator, List, Optional
 import discord
 
 from app.settings.discord.interactions import decode
-from app.services.utils import ml
+from app.core.utils import ml
 from tests.behavioral.harness.errors import LocatorError
 
 # Semantic aliases -> (i18n label key | None, explicit custom_ids)

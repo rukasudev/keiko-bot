@@ -7,7 +7,7 @@ from app.bot import DiscordBot
 from app.cogs.notifications.twitch import Twitch
 from app.cogs.notifications.youtube import Youtube
 from app.services import notifications_youtube_video
-from app.services.trace import run_traced
+from app.core.trace import run_traced
 from app.translator import locale_str
 from app.types.cogs import GroupCog
 

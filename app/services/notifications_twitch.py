@@ -12,22 +12,11 @@ from redis.exceptions import RedisError
 from app import bot, logger
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
-from app.exceptions import ErrorContext
-from app.data.notifications_twitch import (
-    count_streamers_guilds,
-    find_guilds_by_streamer_name,
-    find_last_stream_date,
-    find_stream_notification,
-    save_stream_notification,
-    update_last_stream_date,
-)
-from app.settings import open_feature
-from app.services import analytics
-from app.services.moderations import server_language
-from app.services.cache import claim_redis_key
-from app.services.trace import Outcome, fan_out
-from app.views.message_preview import MessagePreviewView
-from app.services.utils import (
+from app.core import analytics
+from app.core.cache import claim_redis_key, release_redis_key
+from app.core.servers import server_language
+from app.core.trace import Outcome, as_utc, fan_out
+from app.core.utils import (
     destination,
     fill,
     fill_placeholders,
@@ -36,6 +25,33 @@ from app.services.utils import (
     split_messages,
     values_of,
 )
+from app.data.guild import cogs as guild_cogs
+from app.data.guild.messages import find_message, save_message
+from app.data.keiko.subscriptions import subscription_state, update_subscription_state
+from app.exceptions import ErrorContext
+from app.settings import open_feature
+from app.views.message_preview import MessagePreviewView
+
+
+def count_streamers_guilds(streamer_name: str) -> int:
+    """How many servers announce the streamer's lives while their notifications are on."""
+    return guild_cogs.count_cogs_by_option(
+        constants.NOTIFICATIONS_TWITCH_KEY,
+        "notifications.values.streamer.value",
+        streamer_name,
+        enabled_only=True,
+    )
+
+
+def find_guilds_by_streamer_name(streamer_name: str) -> List[Dict[str, Any]]:
+    """The notifications of every server announcing the streamer's lives, while on."""
+    return guild_cogs.find_cogs_by_option(
+        constants.NOTIFICATIONS_TWITCH_KEY,
+        "notifications.values.streamer.value",
+        streamer_name,
+        enabled_only=True,
+    )
+
 
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:
@@ -62,18 +78,28 @@ async def handle_send_streamer_notification(streamer_name: str) -> None:
             return
 
         stream_started_at = stream_info.get("started_at")
-        last_stream_date = await asyncio.to_thread(find_last_stream_date, streamer_name)
+        started_at = parser.parse(stream_started_at)
+        last_live = await asyncio.to_thread(last_live_of, streamer_name)
 
-        if not last_stream_date or is_more_than_one_hour(stream_started_at, last_stream_date):
-            guilds_data = await asyncio.to_thread(following_guilds, streamer_name)
+        if not last_live or is_more_than_one_hour(started_at, last_live):
             if not await asyncio.to_thread(claim_the_live, streamer_name, stream_started_at):
                 logger.info(
                     f"The live of **{streamer_name}** started at {stream_started_at} was already announced",
                     log_type=logconstants.COMMAND_INFO_TYPE,
                 )
                 return
+            try:
+                guilds_data = await asyncio.to_thread(following_guilds, streamer_name)
+            except Exception:
+                await asyncio.to_thread(give_back_the_live, streamer_name, stream_started_at)
+                raise
             await send_streamer_notifications(stream_info, user_info, guilds_data)
-            await asyncio.to_thread(update_last_stream_date, streamer_name, stream_started_at)
+            await asyncio.to_thread(
+                update_subscription_state,
+                "twitch",
+                streamer_name,
+                {"last_live_started_at": started_at},
+            )
         else:
             await edit_streamer_notifications(user_info, status=constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE)
     except Exception as e:
@@ -87,11 +113,10 @@ async def handle_send_streamer_notification(streamer_name: str) -> None:
 
 def claim_the_live(streamer_name: str, started_at: Any) -> bool:
     """Whether this delivery of a live is the one that announces it; True when Redis cannot say."""
-    claim = constants.REDIS_TWITCH_NOTIFIED_STREAM.format(
-        streamer=streamer_name, started_at=started_at
-    )
     try:
-        return claim_redis_key(claim, constants.TWITCH_NOTIFIED_STREAM_TTL_SECONDS)
+        return claim_redis_key(
+            live_claim(streamer_name, started_at), constants.TWITCH_NOTIFIED_STREAM_TTL_SECONDS
+        )
     except RedisError as error:
         logger.warn(
             f"The live of **{streamer_name}** is announced without its claim — Redis: "
@@ -99,6 +124,23 @@ def claim_the_live(streamer_name: str, started_at: Any) -> bool:
             log_type=logconstants.COMMAND_WARN_TYPE,
         )
         return True
+
+def give_back_the_live(streamer_name: str, started_at: Any) -> None:
+    """Free the claim of a live this delivery could not announce, for the next delivery."""
+    try:
+        release_redis_key(live_claim(streamer_name, started_at))
+    except RedisError as error:
+        logger.warn(
+            f"The claim of the live of **{streamer_name}** stays until it expires — Redis: "
+            f"{type(error).__name__}",
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+
+def live_claim(streamer_name: str, started_at: Any) -> str:
+    """The Redis key one live of a streamer is claimed under."""
+    return constants.REDIS_TWITCH_NOTIFIED_STREAM.format(
+        streamer=streamer_name, started_at=started_at
+    )
 
 async def send_streamer_notifications(
     stream_info: Dict[str, Any], user_info: Dict[str, Any], guilds_data: List[Dict[str, Any]]
@@ -136,12 +178,11 @@ async def handle_send_streamer_offline_notification(streamer_name: str) -> None:
 
     try:
         guilds_data = await asyncio.to_thread(following_guilds, streamer_name)
-        last_stream_date = await asyncio.to_thread(find_last_stream_date, streamer_name)
+        last_live = await asyncio.to_thread(last_live_of, streamer_name)
         stream_duration = None
 
-        if last_stream_date:
-            last_stream_date = parser.parse(last_stream_date)
-            stream_duration = format_datetime_output(datetime.datetime.now(datetime.timezone.utc) - last_stream_date)
+        if last_live:
+            stream_duration = format_datetime_output(datetime.datetime.now(datetime.timezone.utc) - last_live)
 
         logger.info(f"Editing notifications to offline for **{streamer_name}**", log_type=logconstants.COMMAND_INFO_TYPE)
         count = await update_notification_status(guilds_data, streamer_name, constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_OFFLINE, stream_duration)
@@ -181,7 +222,12 @@ async def announce_live(
         raise
 
     await asyncio.to_thread(
-        save_stream_notification, guild.id, channel.id, streamer_name, message.id
+        save_message,
+        guild.id,
+        channel.id,
+        constants.NOTIFICATIONS_TWITCH_KEY,
+        streamer_name,
+        message.id,
     )
     analytics.record_value(guild.id, constants.NOTIFICATIONS_TWITCH_KEY)
 
@@ -248,7 +294,7 @@ async def fetch_notification_message(
     guild: Any, channel: Any, streamer_name: str
 ) -> Optional[discord.Message]:
     stream_notification = await asyncio.to_thread(
-        find_stream_notification, guild.id, channel.id, streamer_name
+        find_message, guild.id, channel.id, constants.NOTIFICATIONS_TWITCH_KEY, streamer_name
     )
     if not stream_notification:
         return None
@@ -264,8 +310,14 @@ def following_guilds(streamer_name: str) -> List[Dict[str, Any]]:
     return list(find_guilds_by_streamer_name(streamer_name))
 
 
-def is_more_than_one_hour(start_time: str, last_time: str) -> bool:
-    return (parser.parse(start_time) - parser.parse(last_time)).total_seconds() > 3600
+def last_live_of(streamer_name: str) -> Optional[datetime.datetime]:
+    """When the streamer's last announced live started, as Keiko recorded it."""
+    state = subscription_state("twitch", streamer_name)
+    return as_utc(state.get("last_live_started_at"))
+
+
+def is_more_than_one_hour(start_time: datetime.datetime, last_time: datetime.datetime) -> bool:
+    return (start_time - last_time).total_seconds() > 3600
 
 
 def wait_for_stream_info(streamer: str) -> Dict[str, Any]:

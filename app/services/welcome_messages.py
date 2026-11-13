@@ -14,9 +14,9 @@ from app.constants import LogTypes as logconstants
 from app.constants import Style, WelcomeDesign
 from app.exceptions import ErrorContext
 from app.settings import open_feature
-from app.services import analytics, cache, images, members
+from app.core import analytics, cache, images, members
 from app.views.message_preview import MessagePreviewView
-from app.services.utils import (
+from app.core.utils import (
     parse_welcome_messages,
     render_welcome_message,
     split_messages,

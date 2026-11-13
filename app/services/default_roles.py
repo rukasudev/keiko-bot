@@ -9,9 +9,9 @@ from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
 from app.settings import open_feature
-from app.services import analytics, cache, members
-from app.services.members import every_member
-from app.services.utils import at_least, fill, get_available_roles_by_guild, ml
+from app.core import analytics, cache, members
+from app.core.members import every_member
+from app.core.utils import at_least, fill, get_available_roles_by_guild, ml
 
 
 async def set_on_member_join(member: discord.Member):

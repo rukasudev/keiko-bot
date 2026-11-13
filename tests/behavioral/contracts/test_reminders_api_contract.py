@@ -20,7 +20,7 @@ import re
 
 import pytest
 
-from app.services import reminders as reminders_service
+from app.core import reminders as reminders_service
 
 pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("reminders_api")]
 

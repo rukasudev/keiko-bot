@@ -29,9 +29,13 @@ class Configs(Group, name="configs"):
         config: str,
         value: Union[str],
     ) -> None:
-        update_admin_configs(
-            self.bot, {config: int(value) if "ID" in config else value}
-        )
+        if not value.isdigit():
+            await interaction.response.send_message(
+                f":x: `{value}` is not a Discord id, so `{config}` was not changed."
+            )
+            return
+
+        update_admin_configs(self.bot, {config: int(value)})
         await interaction.response.send_message(
             f":meta: Config `{config}` was updated successfully!"
         )
@@ -50,11 +54,8 @@ class Configs(Group, name="configs"):
         )
 
         parsed_configs = "\n".join(
-            [
-                f"{key}: {value}"
-                for config in self.bot.config.get_db_configs()
-                for key, value in config.items()
-            ]
+            f"{key}: {value}"
+            for key, value in self.bot.config.get_admin_db_configs().items()
         )
 
         response = f":card_box: **Configs in database:**\n{parsed_database_configs}\n\n"

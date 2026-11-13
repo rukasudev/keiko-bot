@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 from app.constants import Commands
-from app.data.notifications_youtube_video import count_servers_following
 from app.services.notifications_youtube_video import (
+    count_servers_following,
     send_notification_preview,
     subscribe_youtube_new_video,
     unsubscribe_youtube_new_video,

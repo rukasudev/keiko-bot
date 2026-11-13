@@ -3,7 +3,7 @@ from discord import Locale, app_commands
 from discord.app_commands import TranslationContext, locale_str
 
 from app.constants import supported_locales
-from app.services.utils import ml
+from app.core.utils import ml
 
 
 class Translator(app_commands.Translator):

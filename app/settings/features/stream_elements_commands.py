@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any, cast
 
 import app as app_module
@@ -15,12 +16,14 @@ from app.services.stream_elements import (
     channel_of,
     find_channel,
     get_commands_in_cache_or_populate,
+    keep_channel,
     send_commands_view,
     warn_unavailable,
 )
 from app.settings.features.feature import (
     AsideAction,
     CommitContext,
+    CommitResult,
     GenericCogFeature,
     OpenContext,
     Opened,
@@ -86,25 +89,26 @@ class StreamElementsFeature(GenericCogFeature):
                 pass
         return found
 
-    async def before_setup(
-        self,
-        document: dict[str, Any],
-        answers: Mapping[str, Answer],
-        context: CommitContext,
-    ) -> dict[str, Any]:
-        """The StreamElements channel id the streamer lookup found."""
-        return await _with_channel(document, answers)
+    async def commit_setup(
+        self, payload: Mapping[str, Any], context: CommitContext
+    ) -> CommitResult:
+        """Store the document, then keep its streamer's StreamElements channel id."""
+        written = await super().commit_setup(payload, context)
+        document = await _with_channel(
+            context.guild_id, written.document or {}, payload["answers"]
+        )
+        return replace(written, document=document)
 
-    async def before_edit(
-        self,
-        changes: dict[str, Any],
-        answers: Mapping[str, Answer],
-        context: CommitContext,
-    ) -> dict[str, Any]:
-        """A new streamer brings its own StreamElements channel id."""
-        if "streamer" not in changes:
-            return changes
-        return await _with_channel(changes, answers)
+    async def commit_edit(
+        self, payload: Mapping[str, Any], context: CommitContext
+    ) -> CommitResult:
+        """Merge the edit; a new streamer brings its own StreamElements channel id."""
+        written = await super().commit_edit(payload, context)
+        document = written.document or {}
+        if document.get("streamer") == context.document.get("streamer"):
+            return written
+        document = await _with_channel(context.guild_id, document, payload["answers"])
+        return replace(written, document=document)
 
 
 def _commands_button(locale: str) -> Button:
@@ -135,7 +139,7 @@ async def _loaded(document: Mapping[str, Any], context: OpenContext) -> str:
     streamer = str(unwrap(document.get("streamer")) or "")
     try:
         channel_id = await channel_of(
-            context.guild_id, streamer, unwrap(document.get("channel_id"))
+            context.guild_id, streamer, (document.get("state") or {}).get("channel_id")
         )
         commands = await asyncio.to_thread(
             get_commands_in_cache_or_populate, channel_id, context.member
@@ -169,7 +173,7 @@ def _enabled_commands(streamer: str, prefix: str) -> dict[str, Any]:
 
 
 async def _with_channel(
-    document: dict[str, Any], answers: Mapping[str, Answer]
+    guild_id: str, document: Mapping[str, Any], answers: Mapping[str, Answer]
 ) -> dict[str, Any]:
     looked_up = answers.get("stream_elements_channel_id")
     channel_id = looked_up.raw if looked_up is not None else None
@@ -177,7 +181,10 @@ async def _with_channel(
         channel_id = await asyncio.to_thread(
             find_channel, str(document.get("streamer", ""))
         )
-    return {**document, "channel_id": str(channel_id)}
+
+    await keep_channel(guild_id, str(channel_id))
+    state = {**(document.get("state") or {}), "channel_id": str(channel_id)}
+    return {**document, "state": state}
 
 
 FEATURE = StreamElementsFeature()

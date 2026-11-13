@@ -55,10 +55,10 @@ async def test_custom_image_upload_persists_permanent_url(
     await scenario.click("done")
 
     item = scenario.get_persisted(
-        "reminders",
-        "birthdays",
+        "guild",
+        "members",
         {"guild_id": str(scenario.guild.id), "user_id": "555"},
-    )
+    )["options"]["reminders_birthday"]
     assert item["image"]["mode"] == "custom"
     assert item["image"]["url"] == FAKE_CDN_URL
     await scenario.finish()
@@ -68,7 +68,7 @@ async def test_a_welcome_custom_image_is_required_only_for_custom_designs(
     scenario_factory, dump_channel
 ):
     """The image section only shows for a custom design, and Done asks for it."""
-    from app.services.utils import ml
+    from app.core.utils import ml
 
     scenario = await scenario_factory(locale="pt-br").start("welcome_messages")
     await scenario.confirm()

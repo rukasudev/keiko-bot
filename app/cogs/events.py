@@ -10,15 +10,15 @@ from app.constants import CogsConstants as cogconstants
 from app.constants import Commands as commandsconstants
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants
-from app.data.moderations import find_moderations_by_guild
+from app.data.guild.settings import find_settings
 from app.services import block_links as block_links_service
 from app.services import default_roles as default_roles_service
 from app.services import stream_elements as stream_elements_service
-from app.services import analytics, analytics_reports, members, trace
-from app.services.cache import increment_redis_key
-from app.services.cogs import features_on
+from app.core import analytics, analytics_reports, members, trace
+from app.core.cache import increment_redis_key
+from app.core.cogs import features_on
 from app.services.help import answer_prefix_command, prefix_hint
-from app.services.moderations import (
+from app.core.servers import (
     default_prefix,
     guess_server_settings,
     guilds_without_settings,
@@ -26,7 +26,7 @@ from app.services.moderations import (
     leave_guild,
     server_prefix,
 )
-from app.services.utils import (
+from app.core.utils import (
     cogs_manager,
     format_relative_time,
     get_available_roles_by_guild,
@@ -258,11 +258,11 @@ class Events(Cog, name="events"):
             )
 
     async def _report_leaving(self, guild: discord.Guild) -> None:
-        moderations = await asyncio.to_thread(find_moderations_by_guild, guild.id)
+        server = await asyncio.to_thread(find_settings, guild.id)
         active_commands = await asyncio.to_thread(features_on, str(guild.id))
 
         duration_info = ""
-        created_at = (moderations or {}).get("created_at")
+        created_at = (server or {}).get("joined_at")
         if created_at:
             duration_info = f"\nLeft after {format_relative_time(created_at).replace(' ago', '')} (added_at: {created_at.strftime('%Y-%m-%d %H:%M:%S')})"
 

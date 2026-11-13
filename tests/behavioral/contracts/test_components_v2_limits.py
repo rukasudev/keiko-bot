@@ -10,7 +10,7 @@ limits here.
 import discord
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 from tests.behavioral.harness.locators import walk_items
 from tests.behavioral.scenarios.test_reminders_birthday_flow import (
     _setup,
@@ -299,16 +299,17 @@ async def test_a_birthday_panel_with_a_full_list_is_within_discord_limits(
 ):
     """bd-6: twenty-five birthdays, all in one month or spread over the year,
     keep the panel within the limits with its page and its footer row."""
-    from app.data.birthdays import upsert_birthday_config, upsert_birthday_item
-    from app.services.moderations import update_moderations_by_guild
+    from app.services.reminders_birthdays import save_birthday_config
+    from app.core.servers import set_feature_enabled
+    from tests.generators.birthdays import saved_birthday
 
-    upsert_birthday_config(
-        "123456789", "100", False, timezone="America/Sao_Paulo", notification_time="08:00"
+    save_birthday_config(
+        "123456789", "100", False, notification_time="08:00"
     )
     for index in range(25):
         month = index % months + 1
-        upsert_birthday_item("123456789", str(1000 + index), f"{month:02d}-{index + 1:02d}")
-    update_moderations_by_guild("123456789", "reminders_birthday", True)
+        saved_birthday("123456789", str(1000 + index), f"{month:02d}-{index + 1:02d}")
+    set_feature_enabled("123456789", "reminders_birthday", True)
     scenario = await scenario_factory(locale="pt-br").start_command("reminders_birthday")
 
     view = scenario.current_message.view

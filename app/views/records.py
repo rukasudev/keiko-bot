@@ -8,7 +8,7 @@ from app.constants import ViewConstants as view_constants
 
 from app.components.buttons import GenericButton
 from app.components.embed import base_embed
-from app.services.utils import ml, parse_locale
+from app.core.utils import ml, parse_locale
 from app.views.pagination import PaginationView
 
 

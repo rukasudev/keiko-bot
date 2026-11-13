@@ -16,7 +16,7 @@ import discord
 import pytest
 
 from app.constants import Commands
-from app.services import members
+from app.core import members
 from tests.behavioral.golden.paths import reminders_birthday as birthdays
 from tests.behavioral.harness import locators
 from tests.mocks.discord import create_guild, create_member

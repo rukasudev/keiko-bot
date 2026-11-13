@@ -7,6 +7,8 @@ from dataclasses import replace
 from typing import Any
 
 from app.constants import Commands
+from app.core.members import every_member
+from app.core.utils import get_available_roles_by_guild
 from app.services.default_roles import (
     count_label,
     count_roles_receivers,
@@ -15,8 +17,6 @@ from app.services.default_roles import (
     set_default_roles,
     set_on_default_roles_sync,
 )
-from app.services.members import every_member
-from app.services.utils import get_available_roles_by_guild
 from app.settings.features.feature import (
     AsideAction,
     CommitContext,

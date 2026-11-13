@@ -18,7 +18,9 @@ from app.settings.discord.callbacks import RUNTIME
 from app.settings.discord.interactions import decode as decode_component_id
 from app.settings.form.manager import confirmation_word
 from tests.behavioral.harness import locators
-from tests.generators.moderations import recorded_server
+from app.constants import Commands
+from app.data.guild.cogs import find_all_cogs
+from tests.generators.moderations import recorded_server, seed_cog
 from tests.behavioral.harness.errors import (
     LocatorError,
     ScenarioAssertionError,
@@ -36,6 +38,9 @@ _LOCALES = {
 _CONTENT_KINDS = ("send", "edit", "followup_send", "followup_edit", "edit_original")
 # A deferred interaction answers with a followup: same message, other HTTP call.
 _ANSWERED_AS = {"followup_send": "send", "followup_edit": "edit"}
+
+
+FEATURE_KEYS = {spec["command_key"] for spec in Commands.SETUP_FEATURES}
 
 
 class FormScenario:
@@ -89,12 +94,9 @@ class FormScenario:
         """What the old manager received as an argument, the platform reads from Mongo."""
         document = copy.deepcopy(cog_data)
         document["guild_id"] = str(self.guild.id)
-        collection = self.db.guild[command_key]
-        if collection.find_one({"guild_id": str(self.guild.id)}) is None:
-            collection.insert_one(document)
-        self.db.guild.moderations.update_one(
-            {"guild_id": str(self.guild.id)}, {"$set": {command_key: True}}, upsert=True
-        )
+        document.setdefault("enabled", True)
+        if self.db.guild.cogs.find_one({"_id": f"{self.guild.id}:{command_key}"}) is None:
+            seed_cog(self.db, command_key, document)
 
     # ------------------------------------------------------------ user actions
 
@@ -349,6 +351,15 @@ class FormScenario:
 
     def get_persisted(self, database: str, collection: str,
                       filter_subset: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+        if database == "guild" and collection in FEATURE_KEYS:
+            return next(
+                (
+                    document
+                    for document in find_all_cogs(collection)
+                    if all(document.get(key) == value for key, value in filter_subset.items())
+                ),
+                None,
+            )
         return self.db[database][collection].find_one(filter_subset)
 
     # ------------------------------------------------------------ introspection

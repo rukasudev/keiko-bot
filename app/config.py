@@ -1,6 +1,7 @@
 import logging
 import os
 from os.path import dirname, join
+from typing import Any, Optional
 
 import boto3
 from botocore.exceptions import ClientError
@@ -12,6 +13,28 @@ from app.constants import DBConfigs as constants
 def app_version() -> str:
     """The release this process runs, as the deploy names it, or `dev`."""
     return os.getenv("APP_VERSION") or "dev"
+
+
+def is_production() -> bool:
+    """Whether this process runs as production, as the image's environment says."""
+    return (os.getenv("APPLICATION_ENVIRONMENT") or "").upper() == "PROD"
+
+
+def ssm_client() -> Any:
+    """The SSM client production reads its parameters with."""
+    return boto3.client("ssm", region_name=constants.SSM_REGION)
+
+
+def mongo_url(ssm: Optional[Any] = None) -> str:
+    """The Mongo URL alone: SSM's in production, else the environment's or `.env`'s."""
+    if is_production():
+        parameter = (ssm or ssm_client()).get_parameter(
+            Name="/keiko/mongo/url", WithDecryption=True
+        )
+        return parameter["Parameter"]["Value"]
+    if not os.getenv("MONGO_URL"):
+        load_dotenv(join(dirname(__file__), "..", ".env"))
+    return os.getenv("MONGO_URL") or ""
 
 
 class AppConfig:
@@ -52,7 +75,7 @@ class AppConfig:
 
 
     def get_ssm_configs(self):
-        ssm = boto3.client("ssm", region_name="sa-east-1")
+        ssm = ssm_client()
 
         self.APPLICATION_ID = ssm.get_parameter(Name="/keiko/discord/application_id")["Parameter"][
             "Value"
@@ -62,7 +85,7 @@ class AppConfig:
         ]
         self.WEBHOOK_URL = ssm.get_parameter(Name="/keiko/webhook/url")["Parameter"]["Value"]
         self.BOT_TOKEN = ssm.get_parameter(Name="/keiko/discord/bot_token", WithDecryption=True)["Parameter"]["Value"]
-        self.MONGO_URL = ssm.get_parameter(Name="/keiko/mongo/url", WithDecryption=True)["Parameter"]["Value"]
+        self.MONGO_URL = mongo_url(ssm)
         self.TWITCH_CLIENT_ID = ssm.get_parameter(Name="/keiko/twitch/client_id", WithDecryption=True)["Parameter"][
             "Value"
         ]
@@ -103,22 +126,25 @@ class AppConfig:
             return ""
 
     def get_admin_db_configs(self):
-        return [{key: getattr(self, key) for key in constants.ADMIN_CONFIGS_LIST}]
+        """The operator ids the running Keiko uses, by attribute name."""
+        names = [key.upper() for key in constants.ADMIN_CONFIGS_LIST]
+        return {name: getattr(self, name) for name in names}
 
     def load_db_configs(self) -> None:
-        from app.data.admin import find_admin_configs
-        from app.data.config import find_db_configs, find_db_integration_configs
+        from app.data.keiko.integrations import find_integration
+        from app.data.keiko.settings import find_keiko_settings
 
-        db_configs = find_db_configs()
-        admin_configs = find_admin_configs()
+        db_configs = find_keiko_settings()
+        presence = db_configs[constants.KEIKO_PRESENCE]
+        admin_configs = db_configs[constants.KEIKO_OPERATOR]
 
-        self.STATUS = db_configs[constants.KEIKO_STATUS]
-        self.DESCRIPTION = db_configs[constants.KEIKO_DESCRIPTION]
-        self.ACTIVITY = db_configs[constants.KEIKO_ACTIVITY]
+        self.STATUS = presence[constants.KEIKO_STATUS]
+        self.DESCRIPTION = presence[constants.KEIKO_DESCRIPTION]
+        self.ACTIVITY = presence[constants.KEIKO_ACTIVITY]
         self.OWNER_ID = db_configs[constants.KEIKO_OWNER_ID]
         self.PREFIX = db_configs[constants.KEIKO_PREFIX]
 
-        notion_configs = find_db_integration_configs(constants.INTEGRATION_NOTION)
+        notion_configs = find_integration(constants.INTEGRATION_NOTION)
         self.NOTION_ENABLED = notion_configs.get(constants.INTEGRATION_NOTION_ENABLED)
         self.NOTION_DATABASE_ID = notion_configs.get(constants.INTEGRATION_NOTION_DATABASE_ID)
 
@@ -143,7 +169,7 @@ class AppConfig:
         return self.ENVIRONMENT.upper() == "DEV"
 
     def is_prod(self) -> bool:
-        return self.ENVIRONMENT.upper() == "PROD"
+        return is_production()
 
     def is_debug(self) -> bool:
         return False if self.DEBUG is None else self.DEBUG.lower() == "true"

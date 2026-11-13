@@ -43,6 +43,7 @@ BOOKKEEPING = (
     "created_at",
     "updated_at",
     "schema_version",
+    "state",
 )
 EMOJI_PREFIX = re.compile(
     r"^(?:[\U0001F000-\U0001FAFF\u2190-\u21FF\u2300-\u23FF\u25A0-\u27BF"

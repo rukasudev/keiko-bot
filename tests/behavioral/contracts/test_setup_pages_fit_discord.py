@@ -31,7 +31,7 @@ CROWDED = 13
 
 def speaks(deps, locale):
     """The server's saved language, which every /configurar page is drawn in."""
-    from app.services import cache
+    from app.core import cache
 
     recorded_server(deps.mongo_client, GUILD_ID, language=locale)
     cache.reset()

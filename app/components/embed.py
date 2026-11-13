@@ -6,7 +6,7 @@ import discord
 
 from app.constants import KeikoIcons as icons
 from app.constants import Style as constants
-from app.services.utils import ml
+from app.core.utils import ml
 
 
 def with_footer(embed: discord.Embed, footer: str) -> discord.Embed:

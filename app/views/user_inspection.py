@@ -2,8 +2,8 @@ import discord
 
 from app import bot, logger
 from app.constants import LogTypes as logconstants
-from app.data import moderations as moderations_data
-from app.services.utils import format_relative_time
+from app.data.guild import settings as guild_settings
+from app.core.utils import format_relative_time
 
 
 BOT_STATUS_ICONS = {
@@ -31,7 +31,7 @@ class UserInspectionView(discord.ui.View):
         )
         embed.add_field(name="Display Name", value=self.user.display_name, inline=False)
 
-        total_guilds = moderations_data.count_moderations_by_owner(str(self.user.id))
+        total_guilds = guild_settings.count_servers_by_owner(str(self.user.id))
         embed.add_field(name="Total Guilds Invited", value=total_guilds, inline=False)
 
         guilds_value = self._get_guilds_field()
@@ -43,29 +43,26 @@ class UserInspectionView(discord.ui.View):
         return embed
 
     def _get_guilds_field(self) -> str:
-        moderations = moderations_data.find_moderations_by_owner(str(self.user.id))
+        servers = guild_settings.find_servers_by_owner(str(self.user.id))
 
-        if not moderations:
+        if not servers:
             return "No guilds found"
 
         lines = []
-        for mod in moderations:
-            guild_id = mod.get("guild_id", "Unknown")
+        for server in servers:
+            guild_id = server.get("guild_id", "Unknown")
             guild = bot.get_guild(int(guild_id)) if guild_id != "Unknown" else None
             guild_name = guild.name if guild else "Unknown Guild"
 
-            is_online = mod.get("is_bot_online", False)
+            is_online = bool(server.get("present"))
             status_icon = BOT_STATUS_ICONS.get(is_online, "\u274c")
             status_label = "Active" if is_online else "Left"
 
-            created_at = mod.get("created_at")
+            created_at = server.get("created_at")
             added_str = f" — added {format_relative_time(created_at)}" if created_at else ""
 
-            left_str = ""
-            if not is_online:
-                updated_at = mod.get("updated_at")
-                if updated_at and updated_at != created_at:
-                    left_str = f" — left {format_relative_time(updated_at)}"
+            left_at = None if is_online else server.get("left_at")
+            left_str = f" — left {format_relative_time(left_at)}" if left_at else ""
 
             lines.append(f"{status_icon} {guild_name} (`{guild_id}`) — {status_label}{added_str}{left_str}")
 

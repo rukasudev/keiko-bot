@@ -9,7 +9,7 @@ own, and when the feature cannot be read again only the activation embed stays.
 """
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 from app.settings.features import feature_for
 from app.settings.form.form_state import Manage
 from tests.behavioral.golden.paths.reminders_birthday import (
@@ -90,10 +90,10 @@ async def test_the_birthday_setup_sends_the_panel_below_its_activation(
     assert PANEL_INTRO in str(after) and "<@777>" in str(after)
     scenario.expect_component(label_or_action="add")
     scenario.expect_persisted(
-        "reminders",
-        "birthdays",
-        {"guild_id": str(scenario.guild.id), "user_id": "777"},
-        {"date": "05-12"},
+        "guild",
+        "members",
+        {"guild_id": str(scenario.guild.id), "user_id": "777", "options.reminders_birthday.date": "05-12"},
+        {},
     )
     names = [event["event"] for event in analytics_events]
     assert names.count("feature.enabled") == 1

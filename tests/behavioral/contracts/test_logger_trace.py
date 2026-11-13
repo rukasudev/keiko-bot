@@ -12,11 +12,11 @@ import pytest
 
 from app import logger as logger_module
 from app.constants import LogTypes as logconstants
-from app.services import trace as trace_service
-from app.services.trace import Outcome, Trace, trace_scope
+from app.core import trace as trace_service
+from app.core.trace import Outcome, Trace, trace_scope
 import discord
 from app.exceptions import DestinationNotFound
-from app.services.utils import destination
+from app.core.utils import destination
 from tests.generators.moderations import recorded_server
 from tests.mocks.discord import create_member, create_message
 
@@ -238,14 +238,14 @@ def test_a_repeated_attempt_is_called_out_on_the_message_you_already_read(
 
 
 def test_a_first_attempt_carries_no_footnote():
-    from app.services import analytics
+    from app.core import analytics
 
     assert analytics.describe_attempt(1, "block_links") is None
     assert analytics.describe_attempt(2, "block_links")
 
 
 def test_counting_an_attempt_never_breaks_the_command_it_measures():
-    from app.services import analytics
+    from app.core import analytics
 
     assert analytics.count_attempt(None, "block_links") == 0
     assert analytics.count_attempt("1", None) == 0
@@ -384,7 +384,7 @@ def forbidden():
 async def test_every_server_is_served_on_its_own_and_says_how_it_went(caplog):
     """The execution context every listener, webhook job and notice runs in.
 
-    `fan_out` and `listener` (`app/services/trace.py`) are what the Twitch, YouTube and
+    `fan_out` and `listener` (`app/core/trace.py`) are what the Twitch, YouTube and
     birthday fan-outs and the `on_message` and `on_member_join` listeners share; each consumer has its own suite, and
     this one pins the shared rules once: a server's share runs on its own and says how it
     went, a server Keiko cannot reach is a warning and anything else an error with its
@@ -518,7 +518,7 @@ async def test_a_new_member_is_welcomed_when_giving_roles_fails(
     listener context that raised where `trace.listener` logs.
 
     Shared behaviour: the unit of work a listener runs for one server (`trace.listener`,
-    `app/services/trace.py`), behind all six listeners of `app/cogs/events.py`. Exposed by:
+    `app/core/trace.py`), behind all six listeners of `app/cogs/events.py`. Exposed by:
     the reviews of the listeners.
 
     Guaranteed: each part of a listener runs on its own; a failure is an error with the
@@ -577,21 +577,21 @@ async def test_a_message_is_checked_for_blocked_links_when_the_reply_fails(
 async def test_a_server_keiko_left_is_paused_whatever_failed_before(
     events, deps, guild, monkeypatch, caplog, failing
 ):
-    deps.mongo_client.guild.moderations.insert_one({
-        "guild_id": str(guild.id), "is_bot_online": True,
-    })
+    deps.mongo_client.guild.settings.insert_one(
+        {"_id": str(guild.id), "state": {"present": True}}
+    )
     if failing == "report":
         monkeypatch.setattr("app.cogs.events.features_on", broken(RuntimeError("Mongo hung up")))
     else:
         monkeypatch.setattr(
-            "app.services.analytics_reports.guild_snapshot", broken(RuntimeError("Mongo hung up"))
+            "app.core.analytics_reports.guild_snapshot", broken(RuntimeError("Mongo hung up"))
         )
 
     with caplog.at_level("INFO"):
         await events.on_guild_remove(guild)
 
-    record = deps.mongo_client.guild.moderations.find_one({"guild_id": str(guild.id)})
-    assert record["is_bot_online"] is False, "the pause ran after the failure"
+    record = deps.mongo_client.guild.settings.find_one({"_id": str(guild.id)})
+    assert record["state"]["present"] is False, "the pause ran after the failure"
     failed = failures(caplog)
     assert failed and failed[0].context.guild_id == str(guild.id)
     assert failed[0].context.extra["part"] == failing

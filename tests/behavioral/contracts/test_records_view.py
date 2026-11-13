@@ -8,7 +8,7 @@ primitive's own contract so every consumer inherits it.
 """
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 from app.views.pagination import PaginationView
 from app.views.records import RecordsBrowser
 

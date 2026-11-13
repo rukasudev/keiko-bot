@@ -2,12 +2,13 @@
 """
 import pytest
 
-from app.services.utils import ml
+from app.core.utils import ml
 from datetime import datetime, timezone
 from types import SimpleNamespace
 from app.constants import Commands
 from app.data import block_links as block_links_data
-from app.services import block_links, cache
+from app.services import block_links
+from app.core import cache
 from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
     blocking,
     MIN_TICKS,
@@ -16,6 +17,7 @@ from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
 from tests.helpers.assertions import keys_in, values_in
 from tests.mocks import create_message
 import discord
+from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
@@ -359,7 +361,7 @@ async def test_a_blocked_link_is_counted_in_one_hash_of_its_server(
     across servers: the numbers lived only per server, in Redis, and left with it.
 
     Shared behaviour: `cache.remove_all_cache_by_guild` (every server Keiko leaves),
-    the Redis helpers of `app/services/cache.py`, and the block_links enforcement,
+    the Redis helpers of `app/core/cache.py`, and the block_links enforcement,
     Stats and leave. Consumer that exposed it: block_links (the review of v1,
     findings 3.6 and 3.12).
 
@@ -513,7 +515,7 @@ async def test_the_stats_never_walk_the_keyspace(deps, monkeypatch, scenario_fac
 @pytest.mark.shared_contract("config_cache")
 async def test_forgetting_a_servers_settings_never_walks_the_keyspace(deps, monkeypatch):
     """The settings cache forgets its own keys; the counters are block links' to delete."""
-    deps.mongo_client.guild["block_links"].insert_one(dict(COG))
+    seed_cog(deps.mongo_client, "block_links", dict(COG))
     cache.get_cog_data_or_populate(GUILD_ID, Commands.BLOCK_LINKS_KEY)
     deps.redis_client.hincrby(COUNTERS, "total", 3)
     walks = keyspace_walks(deps, monkeypatch)
@@ -521,7 +523,7 @@ async def test_forgetting_a_servers_settings_never_walks_the_keyspace(deps, monk
     cache.remove_all_cache_by_guild(GUILD_ID)
 
     assert walks == [], f"leaving a server walked the keyspace: {walks}"
-    assert deps.redis_client.get(f"guild:{GUILD_ID}:cog.block_links") is None
+    assert deps.redis_client.get(f"cache:cog:{GUILD_ID}:block_links") is None
     assert deps.redis_client.hgetall(COUNTERS) == {"total": "3"}
 
 

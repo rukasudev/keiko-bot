@@ -7,7 +7,7 @@ from app.constants import Commands as commands_constants
 from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
 from app.integrations.reminder_webhook import REMINDER_TIMEZONE, reminder_time
-from app.services.trace import as_utc
+from app.core.trace import as_utc
 from app.webhooks import webhooks
 from app.webhooks.jobs import schedule_webhook_job
 
@@ -65,10 +65,10 @@ def reminder_webhook():
 
 
 def process_birthday_reminder(reminder_id: str, notes: str) -> None:
-    from app.data import birthdays as birthdays_data
+    from app.services.reminders_birthdays import birthday_schedules_by_reminder
     from app.webhooks.birthday_handler import process_birthday_webhook
 
-    if not birthdays_data.has_birthday_reminder(reminder_id):
+    if not birthday_schedules_by_reminder(reminder_id):
         logger.warn(
             f"birthday reminder {reminder_id} — not one of **Keiko**'s, ignored",
             log_type=logconstants.COMMAND_WARN_TYPE,
@@ -87,11 +87,12 @@ def process_birthday_reminder(reminder_id: str, notes: str) -> None:
 
 def renew_youtube_subscription(reminder_id: str) -> None:
     from app import bot
-    from app.data.reminder import find_reminder_by_id, stamp_hub_confirmation
     from app.services.notifications_youtube_video import (
         HubOutcome,
         ask_the_hub,
         drop_unfollowed_renewal,
+        find_reminder_by_id,
+        record_hub_confirmation,
     )
 
     renewal = find_reminder_by_id(reminder_id)
@@ -128,10 +129,11 @@ def renew_youtube_subscription(reminder_id: str) -> None:
         )
         report_a_coming_lapse(renewal, reminder_id, now)
         bot.reminder.update_reminder(renewal.get('reminder_id'), retry.date(), time_tz=f'{retry:%H:%M}')
+        record_renewal_due(youtuber, retry)
         return
 
     if answer.outcome is HubOutcome.DONE:
-        stamp_hub_confirmation(youtuber, now.astimezone(timezone.utc))
+        record_hub_confirmation(youtuber, now.astimezone(timezone.utc))
     elif answer.outcome in (HubOutcome.NO_CHANNEL, HubOutcome.REFUSED):
         logger.error(
             f'renewal of **{youtuber}** failed — {answer.detail}; the next renewal tries again',
@@ -146,23 +148,33 @@ def renew_youtube_subscription(reminder_id: str) -> None:
     bot.reminder.update_reminder(
         renewal.get('reminder_id'), next_renewal.date(), time_tz=f'{next_renewal:%H:%M}'
     )
+    record_renewal_due(youtuber, next_renewal)
     logger.info(
         f'renewal scheduled for {next_renewal:%Y-%m-%d %H:%M} ({REMINDER_TIMEZONE})',
         log_type=logconstants.COMMAND_INFO_TYPE,
     )
 
 
+def record_renewal_due(youtuber: str, moment: datetime) -> None:
+    """Keep on the renewal's schedule when its reminder fires next."""
+    from app.data.keiko.schedules import set_schedule_due
+    from app.services.notifications_youtube_video import youtube_renewal_id
+
+    set_schedule_due(youtube_renewal_id(youtuber), moment.astimezone(timezone.utc))
+
+
 def report_a_coming_lapse(renewal: dict, reminder_id: str, now: datetime) -> None:
     """Tell the error channel once that a renewal failing for days is about to let its lease end."""
-    from app.data.reminder import mark_lapse_reported
+    from app.data.keiko.subscriptions import subscription_state, update_subscription_state
 
     youtuber = renewal.get('value')
-    confirmed = as_utc(renewal.get('hub_confirmed_at') or renewal.get('created_at'))
+    hub = subscription_state('youtube', youtuber)
+    confirmed = as_utc(hub.get('hub_confirmed_at') or renewal.get('created_at'))
     lease = timedelta(seconds=commands_constants.YOUTUBE_HUB_LEASE_SECONDS)
     lapses_at = (confirmed + lease if confirmed else now).astimezone(timezone.utc)
     margin = timedelta(seconds=commands_constants.YOUTUBE_HUB_LEASE_MARGIN_SECONDS)
 
-    if renewal.get('lapse_reported_at') or now < lapses_at - margin:
+    if hub.get('lapse_reported_at') or now < lapses_at - margin:
         return
 
     logger.error(
@@ -178,4 +190,6 @@ def report_a_coming_lapse(renewal: dict, reminder_id: str, now: datetime) -> Non
             },
         ),
     )
-    mark_lapse_reported(youtuber, now.astimezone(timezone.utc))
+    update_subscription_state(
+        'youtube', youtuber, {'lapse_reported_at': now.astimezone(timezone.utc)}
+    )

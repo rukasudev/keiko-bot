@@ -29,3 +29,66 @@ jobs:
 
       - name: Run the test suite
         run: make test
+
+  mongo:
+    runs-on: ubuntu-24.04
+    env:
+      MONGO_URL: mongodb://localhost:27017/?directConnection=true
+      MONGO_TEST_URL: mongodb://localhost:27017/?directConnection=true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m venv .venv
+          .venv/bin/pip install -r requirements-test.txt
+
+      - name: Start a single-node replica set
+        run: |
+          docker run -d --name mongo --ulimit nofile=64000:64000 -p 27017:27017 \
+            mongo:7.0 --replSet rs0 --bind_ip_all
+          for attempt in $(seq 30); do
+            docker exec mongo mongosh --quiet --eval "db.hello().ok" && break
+            sleep 1
+          done
+          docker exec mongo mongosh --quiet --eval \
+            'rs.initiate({_id: "rs0", members: [{_id: 0, host: "localhost:27017"}]})'
+          for attempt in $(seq 30); do
+            primary=$(docker exec mongo mongosh --quiet --eval "db.hello().isWritablePrimary")
+            [ "$primary" = "true" ] && break
+            sleep 1
+          done
+          test "$primary" = "true"
+
+      - name: Migrate twice from empty and verify
+        run: |
+          count() {
+            docker exec mongo mongosh --quiet --eval '
+              db.adminCommand({listDatabases: 1}).databases
+                .filter(d => !["admin", "config", "local"].includes(d.name))
+                .forEach(d => db.getSiblingDB(d.name).getCollectionNames().sort()
+                  .forEach(c => print(d.name + "." + c, db.getSiblingDB(d.name)[c].countDocuments({}))))'
+          }
+          .venv/bin/python -m app.migrations status
+          .venv/bin/python -m app.migrations migrate --dry-run
+          .venv/bin/python -m app.migrations migrate
+          count > first.txt
+          .venv/bin/python -m app.migrations migrate | tee second.txt
+          count > again.txt
+          grep -q "nothing to apply" second.txt
+          if grep -q "^apply " second.txt; then echo "the second run applied a migration"; exit 1; fi
+          diff first.txt again.txt
+          .venv/bin/python -m app.migrations verify
+          .venv/bin/python -m app.migrations snapshot | diff - app/migrations/snapshot.json
+
+      - name: Run the tests that need a real Mongo
+        run: |
+          docker exec mongo mongosh --quiet --eval \
+            'db.adminCommand({listDatabases: 1}).databases.forEach(d => { if (!["admin", "config", "local"].includes(d.name)) db.getSiblingDB(d.name).dropDatabase() })'
+          .venv/bin/python -m pytest -m mongo -q

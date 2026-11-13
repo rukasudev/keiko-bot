@@ -26,7 +26,7 @@ from flask import Flask
 
 import app as app_module
 from app import logger as logger_module
-from app.services import debug_logs, trace as trace_service
+from app.core import debug_logs, trace as trace_service
 from app.webhooks import webhooks
 from app.webhooks.jobs import schedule_webhook_job
 import logging
@@ -319,7 +319,7 @@ async def test_a_line_logged_after_the_hand_over_reaches_the_jobs_message(traces
     posted: those lines reached `guild.logs` and no message. And a job that finished before
     the request closed was posted before those lines could arrive.
 
-    Shared behaviour: `Trace.handover` (`app/services/trace.py`), behind every webhook that
+    Shared behaviour: `Trace.handover` (`app/core/trace.py`), behind every webhook that
     defers its work (Twitch, YouTube, the reminders). Exposed by: a reminder callback whose
     second reminder vanished from the log channel.
 

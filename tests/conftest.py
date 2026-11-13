@@ -177,17 +177,20 @@ def auto_inject_dependencies(deps):
         patch('app.services.subscriptions.bot', deps.bot),
         patch('app.data.cogs.mongo_client', deps.mongo_client),
         patch('app.data.cogs.motor_client', deps.motor_client),
-        patch('app.data.notifications_twitch.mongo_client', deps.mongo_client),
-        patch('app.data.notifications_youtube_video.mongo_client', deps.mongo_client),
-        patch('app.data.moderations.mongo_client', deps.mongo_client),
-        patch('app.data.birthdays.mongo_client', deps.mongo_client),
-        patch('app.data.reminder.mongo_client', deps.mongo_client),
+        patch('app.data.guild.cogs.mongo_client', deps.mongo_client),
+        patch('app.data.guild.cogs.motor_client', deps.motor_client),
+        patch('app.data.guild.settings.mongo_client', deps.mongo_client),
+        patch('app.data.keiko.settings.mongo_client', deps.mongo_client),
+        patch('app.data.keiko.integrations.mongo_client', deps.mongo_client),
+        patch('app.data.guild.members.mongo_client', deps.mongo_client),
+        patch('app.data.keiko.schedules.mongo_client', deps.mongo_client),
+        patch('app.data.keiko.subscriptions.mongo_client', deps.mongo_client),
+        patch('app.data.guild.messages.mongo_client', deps.mongo_client),
         patch('app.data.block_links.mongo_client', deps.mongo_client),
         patch('app.data.analytics.mongo_client', deps.mongo_client),
         patch('app.data.logs.mongo_client', deps.mongo_client),
         patch('app.data.util.mongo_client', deps.mongo_client),
-        patch('app.services.cache.redis_client', deps.redis_client),
-        patch('app.services.cache.cogs_data.mongo_client', deps.mongo_client),
+        patch('app.core.cache.redis_client', deps.redis_client),
         patch(
             'app.integrations.stream_elements.StreamElementsClient.get_channel_info',
             staticmethod(lambda name: {"_id": f"se-{name}"}),
@@ -230,7 +233,7 @@ def _no_banner_rendering():
         "app.services.welcome_messages.draw_banner",
         new=AsyncMock(side_effect=lambda *args, **kwargs: BytesIO(png())),
     ), patch(
-        "app.services.images.upload_asset",
+        "app.core.images.upload_asset",
         new=AsyncMock(return_value="https://cdn.example.com/previews/welcome-example.gif"),
     ):
         yield
@@ -239,7 +242,7 @@ def _no_banner_rendering():
 @pytest.fixture(autouse=True)
 def observability_isolation():
     """AUTOUSE: nenhum evento nem log vaza de um teste para o proximo."""
-    from app.services import analytics, debug_logs, trace
+    from app.core import analytics, debug_logs, trace
 
     analytics.reset()
     debug_logs.reset()
@@ -266,7 +269,7 @@ def birthday_today(monkeypatch):
 @pytest.fixture(autouse=True)
 def config_cache_isolation():
     """AUTOUSE: o que o cache lembrou e as quedas que viu nao passam de um teste ao outro."""
-    from app.services import cache, members
+    from app.core import cache, members
 
     cache.reset()
     members.reset()
@@ -278,7 +281,7 @@ def config_cache_isolation():
 @pytest.fixture
 def analytics_events():
     """Grava os eventos emitidos durante o teste, sem tocar o banco."""
-    from app.services import analytics
+    from app.core import analytics
 
     recorded = analytics.start_recording()
     yield recorded
@@ -372,7 +375,7 @@ def admin_interaction(admin_member, guild, channel) -> MockInteraction:
 @pytest.fixture
 def mock_cache():
     """Mock do cache.get_cog_data_or_populate."""
-    with patch('app.services.cache.get_cog_data_or_populate') as mock:
+    with patch('app.core.cache.get_cog_data_or_populate') as mock:
         yield mock
 
 
@@ -408,10 +411,10 @@ def twitch_data():
     mocks = SimpleNamespace()
     targets = {
         'find_guilds': 'app.services.notifications_twitch.find_guilds_by_streamer_name',
-        'find_last_stream_date': 'app.services.notifications_twitch.find_last_stream_date',
-        'save_notification': 'app.services.notifications_twitch.save_stream_notification',
-        'update_last_stream_date': 'app.services.notifications_twitch.update_last_stream_date',
-        'find_notification': 'app.services.notifications_twitch.find_stream_notification',
+        'subscription_state': 'app.services.notifications_twitch.subscription_state',
+        'save_message': 'app.services.notifications_twitch.save_message',
+        'update_subscription_state': 'app.services.notifications_twitch.update_subscription_state',
+        'find_message': 'app.services.notifications_twitch.find_message',
         'count_guilds': 'app.services.notifications_twitch.count_streamers_guilds',
         'wait_for_stream_info': 'app.services.notifications_twitch.wait_for_stream_info',
         'is_more_than_one_hour': 'app.services.notifications_twitch.is_more_than_one_hour',

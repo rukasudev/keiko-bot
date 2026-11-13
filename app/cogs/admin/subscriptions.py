@@ -31,5 +31,5 @@ class Subscriptions(Group, name="subscriptions"):
     async def show_reminder_subscriptions(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True)
 
-        view = get_reminder_subscriptions()
+        view = await get_reminder_subscriptions()
         await interaction.followup.send(view=view, embed=view.custom_embed, ephemeral=True)

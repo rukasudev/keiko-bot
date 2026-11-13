@@ -7,7 +7,7 @@ from app.constants import KeikoIcons as icons_constants
 from app.constants import LogTypes as logconstants
 from app.constants import Style as constants
 from app.constants import ViewConstants as view_constants
-from app.services.utils import ml
+from app.core.utils import ml
 
 
 class PaginationView(discord.ui.View):

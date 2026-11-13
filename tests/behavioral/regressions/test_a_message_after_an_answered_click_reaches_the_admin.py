@@ -24,7 +24,7 @@ refuses `delete_after` the way discord.py does.
 import pytest
 
 from app.constants import ViewConstants
-from app.services.utils import ml
+from app.core.utils import ml
 from tests.behavioral.golden.paths import notifications_twitch as twitch
 from tests.behavioral.regressions.test_a_save_is_never_undone_by_the_cache import (
     _remove,
