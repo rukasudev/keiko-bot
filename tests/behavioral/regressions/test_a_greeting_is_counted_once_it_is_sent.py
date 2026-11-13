@@ -8,7 +8,7 @@ never saw it.
 
 Shared behaviour: the onboarding greeting (app/views/greetings.py), sent by
 `Events.on_guild_join`, and the guild profile and admin digest that read its
-event (app/services/analytics_sink.py, app/services/admin_analytics.py).
+event (app/core/analytics_sink.py, app/services/admin_analytics.py).
 
 Guaranteed: a greeting that reached a channel is counted once with
 `channel_found=True`; a greeting whose send failed is never counted as sent; a

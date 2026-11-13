@@ -359,7 +359,7 @@ def test_a_member_named_with_braces_is_celebrated_as_they_are_named():
     fans". The welcome looked for `{user}` in any capitals but filled only the lowercase one,
     so "Hi {USER}!" mentioned nobody at all.
 
-    Shared behaviour: `fill_placeholders` (`app/services/utils.py`), now behind every
+    Shared behaviour: `fill_placeholders` (`app/core/utils.py`), now behind every
     template an admin writes: the notices, the welcome and the birthday celebration.
     Exposed by: the wave 1 review of the notices' placeholders.
 

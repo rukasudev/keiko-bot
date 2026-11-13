@@ -6,7 +6,7 @@ birthday from the language its setup happened to run in, and the StreamElements
 command list's page footer was always English. A server whose admin saved another
 language kept reading the guess.
 
-Shared behaviour: `server_language` (`app/services/moderations.py`), read off the loop
+Shared behaviour: `server_language` (`app/core/moderations.py`), read off the loop
 by every public site: the Twitch notice and its status, the YouTube notice, the
 birthday celebration, the StreamElements reply and command list (with the page footer
 of `PaginationWithoutInteractionView`), the prefix hint and the greeting. Consumer

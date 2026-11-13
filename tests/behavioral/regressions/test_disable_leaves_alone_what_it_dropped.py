@@ -10,7 +10,7 @@ same over its own config.
 Shared behaviour: the Disable commit of the feature document layer
 (`GenericCogFeature.commit_disable`, app/settings/features/feature.py), the
 birthday module's Disable (app/settings/features/reminders_birthday.py) and the
-moderations flag writer (app/services/moderations.py). Exposed by the v1 review
+moderations flag writer (app/core/moderations.py). Exposed by the v1 review
 of the Disable path.
 
 Guaranteed: Disable never writes the collection it deleted from, so a document

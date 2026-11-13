@@ -3,7 +3,7 @@
 Shared behaviour: the `stats` aside `GenericCogFeature.asides` gives every feature
 (`app/settings/features/feature.py`), the "📊 Estatísticas" button the manager draws
 on every panel (`panel_buttons`, `app/settings/form/manager.py`), and the embed of
-`send_feature_stats` (`app/services/feature_health.py`): the feature's own lines
+`send_feature_stats` (`app/core/feature_health.py`): the feature's own lines
 (`stats_lines`, which block links and birthdays fill) and the sentence
 `feature_health` writes about its last `Commands.FEATURE_STATS_DAYS` days, which
 left the /configurar rows in PR15 round 2. Consumers: the seven feature panels.

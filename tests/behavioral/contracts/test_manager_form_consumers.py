@@ -1,8 +1,8 @@
 """Shared-component contract: the manager view must keep working for every
 command that consumes it.
 
-`send_command_manager_message` (app/services/moderations.py) + the summary
-renderers in app/services/utils.py are shared infrastructure: a change made
+`send_command_manager_message` (app/core/moderations.py) + the summary
+renderers in app/core/utils.py are shared infrastructure: a change made
 for ONE command has historically broken the saved-configuration display of
 the OTHERS (see tests/behavioral/regressions/). Each consumer below uses
 its real production YAML and a cog document in the real persisted shape

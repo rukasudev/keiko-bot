@@ -2,7 +2,7 @@
 
 A reusable writing/style system extracted from the existing Keiko Discord bot codebase. Use it whenever you write or edit user-facing text — slash command descriptions, embeds, modals, buttons, forms, error/success messages, and notification copy.
 
-All user-facing strings live in `app/languages/**/*.yml` and are routed through `ml()` (`app/services/utils.py:292`). Embed and button construction is centralized in `app/components/embed.py` and `app/components/buttons.py`; the form screens, modals and cards are drawn by `app/settings/discord/views.py` from the definitions in `app/languages/form/`.
+All user-facing strings live in `app/languages/**/*.yml` and are routed through `ml()` (`app/core/utils.py:292`). Embed and button construction is centralized in `app/components/embed.py` and `app/components/buttons.py`; the form screens, modals and cards are drawn by `app/settings/discord/views.py` from the definitions in `app/languages/form/`.
 
 ---
 
@@ -290,7 +290,7 @@ Use existing `command-events.{enabled,paused,unpaused,disabled,edited,added,remo
 
 **Variables**
 18. USE `{user}`, `{server}`, `{member_count}`, `{streamer}`, `{stream_link}`, `{youtuber}`, `{video_link}` for user-customized message templates (welcome, notification messages).
-19. USE `$user`, `$command_name`, `$date`, `$setup_command`, `$cog_name`, `$cog_key`, `$ping`, `$action`, `$roles` for system/event descriptions injected by `services/utils.py`.
+19. USE `$user`, `$command_name`, `$date`, `$setup_command`, `$cog_name`, `$cog_key`, `$ping`, `$action`, `$roles` for system/event descriptions injected by `core/utils.py`.
 20. NEVER mix the two syntaxes in the same key.
 
 **Localization**

@@ -70,8 +70,8 @@ new version instead.
    which ends the wait at once, or running the previous version again (below).
    To find such a start afterwards: the same day, query `guild.logs` for
    `level` CRITICAL. Later, once the daily file that holds it is on the logs
-   channel, run `python -m tools.keiko logs sync --incremental` and then
-   `python -m tools.keiko logs errors --level CRITICAL --since 7d`. The errors
+   channel, run `python -m scripts.keiko logs sync --incremental` and then
+   `python -m scripts.keiko logs errors --level CRITICAL --since 7d`. The errors
    view reads the local index that `logs sync` builds, and shows ERROR by
    default.
 
@@ -165,7 +165,7 @@ private key for as long as you keep the files it opens.
 ### What the logs files channel keeps
 
 Right after the backup, the same daily pass deletes the bot's own files on that
-channel once they are past their kind's age (`logs_archive.delete_old_files`, `app/services/logs_archive.py`):
+channel once they are past their kind's age (`logs_archive.delete_old_files`, `app/core/logs_archive.py`):
 
 | Kind | File names | Kept |
 | --- | --- | --- |
@@ -207,6 +207,6 @@ tool (no `--incremental`, so every daily file still on the channel is indexed),
 then copy the index somewhere safe; or download the attachments themselves:
 
 ```bash
-python -m tools.keiko logs sync
+python -m scripts.keiko logs sync
 cp ~/.keiko/logs.db /somewhere/safe/keiko-logs-$(date +%F).db
 ```

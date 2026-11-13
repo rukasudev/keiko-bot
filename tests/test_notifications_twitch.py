@@ -582,7 +582,7 @@ async def test_a_server_keiko_left_does_not_stop_the_live_notice_of_the_next(
     2h" on the second message; that footer was English, written in Python.
 
     Shared behaviour: the per-server fan-out every notice now runs through
-    (`app/services/trace.py`, the generic part of the YouTube announcement), and the
+    (`app/core/trace.py`, the generic part of the YouTube announcement), and the
     Twitch notifier on top of it. Exposed by: the production guild Keiko left.
 
     Guaranteed: each server gets its notice and its status on its own; a server Keiko

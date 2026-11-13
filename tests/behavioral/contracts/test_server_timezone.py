@@ -1,6 +1,6 @@
 """A server keeps one time zone, and a new one applies to new reminders only.
 
-Shared behaviour: `save_server_setting` (`app/services/moderations.py`) for the key
+Shared behaviour: `save_server_setting` (`app/core/moderations.py`) for the key
 `timezone`, which writes the setting and nothing else; the birthday card and the
 birthday setup (`setup_birthdays`, `app/services/reminders_birthdays.py`), which read
 the server's zone, make a zone chosen there the server's and keep writing it on the

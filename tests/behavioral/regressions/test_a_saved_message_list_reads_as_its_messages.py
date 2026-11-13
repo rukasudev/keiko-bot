@@ -8,7 +8,7 @@ The Twitch preview and both real notifiers read the same value the same way: a l
 became its Python repr in the preview and an AttributeError in the notifier.
 
 Shared behaviour: the one helper that turns a saved message value into the messages
-a sender picks from (`split_messages` in `app/services/utils.py`), read by the
+a sender picks from (`split_messages` in `app/core/utils.py`), read by the
 Twitch and YouTube previews (the card's and the panel's Pré-visualizar) and by the
 live and new video announcements. Consumers that exposed it: notifications_youtube_video
 and notifications_twitch, whose saved items may hold a list or a `;`-joined string.

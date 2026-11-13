@@ -319,7 +319,7 @@ async def test_a_line_logged_after_the_hand_over_reaches_the_jobs_message(traces
     posted: those lines reached `guild.logs` and no message. And a job that finished before
     the request closed was posted before those lines could arrive.
 
-    Shared behaviour: `Trace.handover` (`app/services/trace.py`), behind every webhook that
+    Shared behaviour: `Trace.handover` (`app/core/trace.py`), behind every webhook that
     defers its work (Twitch, YouTube, the reminders). Exposed by: a reminder callback whose
     second reminder vanished from the log channel.
 

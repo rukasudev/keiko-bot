@@ -1,6 +1,6 @@
 """The config cache: what every runtime reader of a feature's settings goes through.
 
-`get_cog_data_or_populate` (app/services/cache.py) answers block links on every
+`get_cog_data_or_populate` (app/core/cache.py) answers block links on every
 message, welcome messages and auto roles on every member join, StreamElements on
 every `ks!` command, and every manager panel when it opens.
 

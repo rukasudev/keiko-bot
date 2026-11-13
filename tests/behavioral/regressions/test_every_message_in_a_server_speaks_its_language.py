@@ -5,9 +5,9 @@ every answer only its clicker sees (a form, a panel and its side actions, an err
 the help) followed the clicker's Discord, so an admin whose Discord is in English
 configured a Portuguese server in English (f01 on the PR15 test page).
 
-Shared behaviour: `interaction_language` (`app/services/moderations.py`), the one
+Shared behaviour: `interaction_language` (`app/core/moderations.py`), the one
 helper that sets an interaction's locale to the language Keiko answers it in, and
-`speak` (`app/services/utils.py`); the seams that call them before anything reads
+`speak` (`app/core/utils.py`); the seams that call them before anything reads
 the locale: `KeikoTree.interaction_check` (`app/bot.py`) for every app command,
 slash or context menu, which keeps the reader's own language for the translation;
 the form adapter's opening, clicks and expired sessions

@@ -4,8 +4,8 @@ Shared behaviour: the `settings` sub-document of `guild.moderations`, written by
 `join_guild` (`on_guild_join`, and `Events.on_ready` for a server joined while the
 bot was offline) with `guess_server_settings`, read by `server_settings` and its
 async readers through the cog cache, and saved one key at a time by
-`save_server_setting` (`app/services/moderations.py`); the prefix memo of
-`app/services/cache.py`; the `{context:server_*}` tokens the adapter fills.
+`save_server_setting` (`app/core/moderations.py`); the prefix memo of
+`app/core/cache.py`; the `{context:server_*}` tokens the adapter fills.
 Consumers: the public messages (PR15 package B), the settings screen of
 /configurar (package C), `bot.command_prefix`, `Events.on_message`, the prefix hint
 and the StreamElements form.

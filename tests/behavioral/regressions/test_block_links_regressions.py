@@ -360,7 +360,7 @@ async def test_a_blocked_link_is_counted_in_one_hash_of_its_server(
     across servers: the numbers lived only per server, in Redis, and left with it.
 
     Shared behaviour: `cache.remove_all_cache_by_guild` (every server Keiko leaves),
-    the Redis helpers of `app/services/cache.py`, and the block_links enforcement,
+    the Redis helpers of `app/core/cache.py`, and the block_links enforcement,
     Stats and leave. Consumer that exposed it: block_links (the review of v1,
     findings 3.6 and 3.12).
 

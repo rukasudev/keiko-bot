@@ -64,7 +64,7 @@ views (`PaginationView`, `RecordsBrowser`...).
 
 When a Redis key template lives in `app/constants.py`, its NAME starts with `REDIS_`
 (or `CACHE_`), and the key format follows the existing convention in
-`app/services/cache.py` (`guild:{guild_id}:...`).
+`app/core/cache.py` (`guild:{guild_id}:...`).
 
 ## 9. One-off migration scripts are not versioned
 
@@ -87,10 +87,11 @@ across `app/services/*.py`.
 
 A helper with no feature-specific content (URL parsing, timestamp formatting,
 envelope unwrapping) does not live in a feature service — it goes to the generic
-home: `app/services/utils.py`, a focused module like `app/services/dates.py`, or
-`app/components/embed.py` for embeds. Absolute red flag: generic engine code
-(validators, transforms, the form engine) importing from a feature service — that
-inversion means the helper is in the wrong module.
+home: `app/core/utils.py`, a focused module like `app/core/dates.py`, or
+`app/components/embed.py` for embeds; `app/services/` holds only command modules.
+Absolute red flag: generic engine code (validators, transforms, the form engine)
+importing from a feature service — that inversion means the helper is in the wrong
+module.
 
 ## 12. View/UI tunables are global
 

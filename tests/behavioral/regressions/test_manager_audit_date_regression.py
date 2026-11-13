@@ -6,7 +6,7 @@ edited reports `edited_at = None`, so the `edited` event was written with
 `datetime: None`. `find_cog_events_by_guild_id` sorts on that field, so the
 History screen showed the edit out of order — or lost it among the null keys.
 
-Shared behavior affected: `insert_cog_event` (app/services/cogs.py), consumed
+Shared behavior affected: `insert_cog_event` (app/core/cogs.py), consumed
 by the form engine, the manager lifecycle and the History button of every
 configured feature. The five sibling call sites already used the
 `edited_at or created_at` fallback; this one did not.

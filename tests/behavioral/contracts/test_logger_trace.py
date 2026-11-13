@@ -384,7 +384,7 @@ def forbidden():
 async def test_every_server_is_served_on_its_own_and_says_how_it_went(caplog):
     """The execution context every listener, webhook job and notice runs in.
 
-    `fan_out` and `listener` (`app/services/trace.py`) are what the Twitch, YouTube and
+    `fan_out` and `listener` (`app/core/trace.py`) are what the Twitch, YouTube and
     birthday fan-outs and the `on_message` and `on_member_join` listeners share; each consumer has its own suite, and
     this one pins the shared rules once: a server's share runs on its own and says how it
     went, a server Keiko cannot reach is a warning and anything else an error with its
@@ -518,7 +518,7 @@ async def test_a_new_member_is_welcomed_when_giving_roles_fails(
     listener context that raised where `trace.listener` logs.
 
     Shared behaviour: the unit of work a listener runs for one server (`trace.listener`,
-    `app/services/trace.py`), behind all six listeners of `app/cogs/events.py`. Exposed by:
+    `app/core/trace.py`), behind all six listeners of `app/cogs/events.py`. Exposed by:
     the reviews of the listeners.
 
     Guaranteed: each part of a listener runs on its own; a failure is an error with the

@@ -24,6 +24,14 @@ docker-up:
 test:
 	$(ACTIVATE_VENV) && python -m pytest tests/ app/ -x -q
 
+.PHONY: logs repair-birthdays soak
+
+logs:
+	$(ACTIVATE_VENV) && python -m scripts.keiko logs $(ARGS)
+
+repair-birthdays:
+	$(ACTIVATE_VENV) && python -m scripts.keiko birthdays repair $(ARGS)
+
 soak:
 	$(ACTIVATE_VENV) && python -m scripts.keiko soak $(SOAK_ARGS)
 

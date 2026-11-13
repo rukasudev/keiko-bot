@@ -15,15 +15,20 @@ make setup        # create venv and install dependencies
 make run          # start bot with Docker services (Redis, MongoDB)
 make docker-up    # start only Redis and MongoDB containers
 make test         # python -m pytest tests/ app/ -x -q
+make logs ARGS="errors --since 7d"         # the log reader in scripts/keiko/logs
+make repair-birthdays                      # dry run of scripts/keiko/birthdays/repair.py; ARGS="--apply" writes
+make soak         # the memory soak, through scripts/keiko/soak.py
 make clean        # clean cache and venv
 ```
 
 ## Repo map
 
 - `app/cogs/` — slash commands, grouped by feature; bodies delegate to services.
-- `app/services/` — business logic; one module per feature command exposing
-  `async manager(interaction, guild_id)`, plus shared helpers (`utils.py`, `moderations.py`).
-- `app/data/` — MongoDB access (pymongo); `app/services/cache.py` — Redis caching.
+- `app/services/` — command modules only: one module per feature command exposing
+  `async manager(interaction, guild_id)`.
+- `app/core/` — the shared modules every command builds on: `cache.py`, `analytics.py`,
+  `trace.py`, `journey.py`, `utils.py`, `moderations.py`, `dates.py`, `members.py`...
+- `app/data/` — MongoDB access (pymongo); `app/core/cache.py` — Redis caching.
 - `app/settings/` — what an admin configures, in three parts. `form/` is the engine:
   what a form YAML may declare (`form_yaml.py`), the frozen session (`form_state.py`),
   events, effects, the `when` evaluator (`conditions.py`), the screen model
@@ -36,9 +41,11 @@ make clean        # clean cache and venv
 - `app/languages/form/<command_key>.yml` — one bilingual YAML per feature command declaring
   its entire interaction flow (`steps:`).
 - `app/languages/{buttons,commands,errors,messages,locales}/<ns>.<locale>.yml` — paired
-  `en-us`/`pt-br` files, resolved at runtime via `ml(key, locale)` (`app/services/utils.py`).
+  `en-us`/`pt-br` files, resolved at runtime via `ml(key, locale)` (`app/core/utils.py`).
 - `app/integrations/`, `app/webhooks/`, `app/api/` — third-party clients, webhook handlers,
   Flask API.
+- `scripts/` — developer tooling (`python -m scripts.keiko ...`, `make logs`,
+  `make repair-birthdays`, `make soak`); never imported by `app/`, left out of the image.
 - `tests/` — pytest suite; `conftest.py` loads real i18n and mocks Mongo/Redis/Discord.
   `tests/forms/` (boundary, invariants, compiler, engine, adapter) is the architectural
   contract suite of the platform.

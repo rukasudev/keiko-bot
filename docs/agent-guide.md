@@ -21,8 +21,10 @@ change touches.
 - Slash commands: `app/cogs/`; their logic: `app/services/<feature>.py`.
 - Forms: one YAML per feature in `app/languages/form/`; the engine in `app/settings/form/`; one module per feature in `app/settings/features/`; Discord only in `app/settings/discord/`.
 - Copy: `app/languages/{buttons,commands,errors,messages}/<ns>.{en-us,pt-br}.yml`, read with `ml(key, locale)`.
-- Data: `app/data/` (flat functions); cache: `app/services/cache.py`; server settings: `app/services/moderations.py`.
-- /configurar: `app/services/setup.py`; statistics: `app/services/feature_health.py`.
+- Shared modules: `app/core/` (cache, analytics, trace, journey, utils, dates, members...); `app/services/` holds only command modules.
+- Data: `app/data/` (flat functions); cache: `app/core/cache.py`; server settings: `app/core/moderations.py`.
+- /configurar: `app/services/setup.py`; statistics: `app/core/feature_health.py`.
+- Developer tooling: `scripts/keiko/` (`make logs`, `make repair-birthdays`, `make soak`); never imported by `app/`, left out of the image.
 - Tests: `tests/forms/` (platform contracts), `tests/behavioral/{scenarios,contracts,regressions,golden}/`.
 
 ## The gate

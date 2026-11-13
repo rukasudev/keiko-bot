@@ -19,7 +19,7 @@ async def test_manager_form_keeps_rendering_existing_config_for_all_consumers(
         scenario_factory):
     """What broke: while developing the birthday-reminder flow, shared
     summary rendering (then `parse_settings_with_database_values` in
-    app/services/utils.py, today `panel_rows` in app/settings/form/actions/manage.py)
+    app/core/utils.py, today `panel_rows` in app/settings/form/actions/manage.py)
     was changed and stopped resolving titles for keys nested inside
     `multi_select.selects[]`. The birthday flow kept
     working; commands like /moderations default roles silently lost their

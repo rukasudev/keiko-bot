@@ -11,7 +11,7 @@ for whoever read it in that window.
 Shared behaviour: the document layer every feature commits through
 (`GenericCogFeature`, app/settings/features/feature.py) and the config cache
 every runtime reader goes through (`get_cog_data_or_populate`,
-app/services/cache.py). Exposed by block links (`on_message`) and default roles
+app/core/cache.py). Exposed by block links (`on_message`) and default roles
 (`on_member_join`), which read on every event.
 
 Guaranteed: a read that races a save can return the old document while the save
