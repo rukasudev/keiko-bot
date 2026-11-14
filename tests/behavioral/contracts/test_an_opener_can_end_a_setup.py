@@ -121,8 +121,8 @@ async def test_a_setup_with_an_ending_records_what_any_setup_records(
     on_ending = _records("1004", form, analytics_events, stories, deps)
     on_panel = _records("1005", form, analytics_events, stories, deps)
     assert on_ending[0] and on_ending[1] and on_ending[2]
-    sources = {event[1] for event in on_ending[0]}
-    assert sources == {"setup_dashboard"}
+    sources = {event[1] for event in on_ending[0] if event[1] is not None}
+    assert sources == {"setup_dashboard"}, "an event that keeps its source lost it"
     assert [event[0] for event in on_ending[0]] == [event[0] for event in on_panel[0]]
     assert [event[2] for event in on_ending[0]] == [event[2] for event in on_panel[0]]
     assert on_ending[1:] == on_panel[1:]

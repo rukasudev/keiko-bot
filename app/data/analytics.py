@@ -1,16 +1,9 @@
 from datetime import datetime, timezone
-from typing import Any, Dict, Iterator, List, Optional
+from typing import Any, Dict, List, Optional
 
 from pymongo import UpdateOne
 
 from app import mongo_client
-
-
-def insert_events(documents: List[Dict[str, Any]]):
-    """Raw low-volume events. Unordered so one bad document keeps the rest."""
-    if not documents:
-        return None
-    return mongo_client.guild.analytics_events.insert_many(documents, ordered=False)
 
 
 def increment_months(increments: Dict[str, Dict[str, int]]):
@@ -76,42 +69,6 @@ def find_profiles(query: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]
     return list(mongo_client.guild.analytics_guild_profile.find(query or {}))
 
 
-def find_events_by_guild(guild_id: str, limit: Optional[int] = None) -> List[Dict[str, Any]]:
-    records = list(
-        mongo_client.guild.analytics_events
-        .find({"guild_id": str(guild_id)}, {"_id": False})
-        .sort("ts", -1)
-    )
-    records.sort(key=_newest_first, reverse=True)
-    return records[:limit] if limit else records
-
-
-def count_events(query: Dict[str, Any]) -> int:
-    return mongo_client.guild.analytics_events.count_documents(query)
-
-
-def find_events(query: Dict[str, Any]) -> List[Dict[str, Any]]:
-    return list(mongo_client.guild.analytics_events.find(query, {"_id": False}))
-
-
-def find_events_since(
-    event: str, since: datetime, guild_id: Optional[str] = None
-) -> List[Dict[str, Any]]:
-    query: Dict[str, Any] = {"event": event, "ts": {"$gte": since}}
-    if guild_id is not None:
-        query["guild_id"] = str(guild_id)
-    return list(mongo_client.guild.analytics_events.find(query, {"_id": False}))
-
-
-def iter_events_between(start: datetime, end: datetime) -> Iterator[Dict[str, Any]]:
-    """Every event from `start` up to `end`, oldest first, streamed rather than held."""
-    yield from (
-        mongo_client.guild.analytics_events
-        .find({"ts": {"$gte": start, "$lt": end}})
-        .sort("ts", 1)
-    )
-
-
 def find_month_buckets(guild_id: str) -> List[Dict[str, Any]]:
     return list(mongo_client.guild.analytics_guild_month.find({"guild_id": str(guild_id)}))
 
@@ -133,11 +90,6 @@ def delete_analytics_by_guild(guild_id: str) -> Dict[str, int]:
             {"_id": guild_id}
         ).deleted_count,
     }
-
-
-def _newest_first(record: Dict[str, Any]) -> float:
-    ts = record.get("ts")
-    return ts.timestamp() if hasattr(ts, "timestamp") else 0.0
 
 
 def find_archived_month(month: str) -> Optional[Dict[str, Any]]:

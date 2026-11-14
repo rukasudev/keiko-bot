@@ -72,15 +72,19 @@ def _in_guild(scenario_factory, guild_id):
     return factory
 
 
+def _without_source(props):
+    return {key: value for key, value in props.items() if key != "source"}
+
+
 def _records(guild_id, form, analytics_events, stories, deps):
     events = [
         (
-            event["event"],
-            event["source"],
+            event["type"],
+            event["props"].get("source"),
             {
                 key: value
                 for key, value in event["props"].items()
-                if key not in VOLATILE
+                if key not in VOLATILE and key != "source"
             },
         )
         for event in analytics_events
@@ -89,12 +93,12 @@ def _records(guild_id, form, analytics_events, stories, deps):
     told = [story[1:] for story in stories if story[0] == guild_id]
     audit = [
         {
-            key: value
+            key: _without_source(value) if key == "props" else value
             for key, value in record.items()
-            if key not in ("datetime", "guild_id")
+            if key not in ("ts", "guild_id", "trace_id", "session_id")
         }
-        for record in deps.mongo_client.events[form].find(
-            {"guild_id": guild_id}, {"_id": False}
+        for record in deps.mongo_client.events.changes.find(
+            {"guild_id": guild_id, "cog": form}, {"_id": False}
         )
     ]
     return events, told, audit

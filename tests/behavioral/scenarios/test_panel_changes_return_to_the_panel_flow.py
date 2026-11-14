@@ -46,7 +46,7 @@ def _closed_embeds(scenario):
 
 
 def _names(recorded):
-    return [event["event"] for event in recorded]
+    return [event["type"] for event in recorded]
 
 
 async def test_a_birthday_added_from_the_panel_returns_to_the_updated_panel(

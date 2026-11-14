@@ -2,6 +2,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 import discord
 
+from app.core.cogs import lifecycle_key
 from app.core.utils import get_command_display_name, ml
 
 
@@ -11,28 +12,31 @@ def parse_history_data(
     with_cog: bool = None,
     label_for: Optional[Callable[[str], str]] = None,
 ) -> Dict[str, Any]:
-    """Each audit record as the line the history lists, the actor named by mention."""
+    """Each change as the line the history lists, the actor named by mention."""
     system_desc = ml(
         "commands.command-events.system.description", locale=interaction.locale
     )
 
     response = {}
     for item in data:
-        key = item["datetime"].strftime("%Y-%m-%d %H:%M:%S") + " UTC"
-        user_mention = f"<@{item['user_id']}>"
-        is_bot_user = str(item["user_id"]) == str(interaction.client.user.id)
+        key = item["ts"].strftime("%Y-%m-%d %H:%M:%S") + " UTC"
+        actor = item.get("actor") or {}
+        user_mention = f"<@{actor.get('id')}>"
+        is_bot_user = actor.get("kind") == "bot" or str(actor.get("id")) == str(
+            interaction.client.user.id
+        )
 
         command = "short-description" if not with_cog else "short-description-with-cog"
         desc = ml(
-            f"commands.command-events.{item['event']}.{command}",
+            f"commands.command-events.{lifecycle_key(item['type'])}.{command}",
             locale=interaction.locale,
-        ).replace("$user", user_mention).replace("$cog_name", item["cog_key"])
+        ).replace("$user", user_mention).replace("$cog_name", item["cog"])
 
         if is_bot_user:
             desc += f" _({system_desc})_"
 
         if label_for is not None:
-            desc = f"{label_for(item['cog_key'])} · {desc}"
+            desc = f"{label_for(item['cog'])} · {desc}"
 
         if key not in response:
             response[key] = []

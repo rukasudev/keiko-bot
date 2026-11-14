@@ -14,11 +14,11 @@ from app.cogs.admin.configs import Configs
 from app.cogs.admin.debug import Debug
 from app.cogs.admin.subscriptions import Subscriptions
 from app.cogs.admin.sync import Sync
-from app.data.analytics import delete_analytics_by_guild
 from app.logger import DiscordLogsHandler
 from app.services import admin_analytics
 from app.services.admin import (
     build_overview_embed,
+    forget_guild,
     get_overview_data,
     send_log_file_from_channel_by_date,
 )
@@ -96,7 +96,7 @@ class Admin(GroupCog, name="admin"):
         self, interaction: discord.Interaction, guild_id: str
     ) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
-        deleted = delete_analytics_by_guild(guild_id)
+        deleted = await asyncio.to_thread(forget_guild, guild_id)
         await interaction.followup.send(
             f"Erased analytics for guild `{guild_id}` — "
             f"**{deleted['events']}** events, **{deleted['months']}** monthly buckets, "

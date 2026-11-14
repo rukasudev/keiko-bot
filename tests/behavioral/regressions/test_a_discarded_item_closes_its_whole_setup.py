@@ -38,7 +38,7 @@ async def test_cancel_on_an_item_closes_its_setup_as_discarded(
     scenario_factory, stories, monkeypatch, form
 ):
     events = []
-    monkeypatch.setattr(analytics, "emit", lambda name, **_: events.append(name))
+    monkeypatch.setattr(analytics, "record", lambda name, **_: events.append(name))
     scenario = await scenario_factory(locale="pt-br").start(form)
     setup = scenario.session.id
     await scenario.confirm()

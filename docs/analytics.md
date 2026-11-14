@@ -7,8 +7,8 @@ how to add a metric to a new feature (usually: you do not have to).
 | Kind | Question it answers | Where it lives | Retention | Lossy |
 |---|---|---|---|---|
 | **Operational** | Is the system healthy? | Prometheus → Grafana (`app/cogs/prometheus.py`) | Grafana's | yes |
-| **Product analytics** | How do people use Keiko? | `guild.analytics_*` (this document) | 90d raw, counters 13mo | **yes, by design** |
-| **Audit** | Who changed what, when? | `events.<cog_key>` (`insert_cog_event`) | permanent | **no** |
+| **Product analytics** | How do people use Keiko? | `events.activity`, `events.interactions`, `guild.analytics_*` (this document) | 90d raw, counters 13mo | **yes, by design** |
+| **Changes** | Who changed what, when? | `events.changes` (`analytics.record`) | permanent | **no** |
 | **Debug** | Why did it break? | `guild.logs` + the daily file on the logs channel | 30d hot, file 90d | yes |
 
 Boundary rules:
@@ -17,8 +17,9 @@ Boundary rules:
   product events.
 - Product analytics is **never a source of truth**. If an event is lost,
   nothing breaks.
-- Audit is **never lossy and never batched** — it answers "who turned my
-  feature off", so it stays a synchronous write.
+- A change is **never batched** — it answers "who turned my feature off", so
+  `record` writes it at once (in a thread when it is called on the loop) and a
+  caller that must see it stored awaits `analytics.written()`.
 - A traceback is debug. The **type** of the exception is a metric.
 
 ---
@@ -26,15 +27,38 @@ Boundary rules:
 ## 1. The one function handlers call
 
 ```python
-from app.services import analytics
+from app.core import analytics
 
-analytics.emit("value.delivered", guild_id=guild.id, feature="welcome_messages")
+analytics.record(
+    "link.blocked",
+    guild_id=guild.id,
+    cog=constants.BLOCK_LINKS_KEY,
+    actor=analytics.actor("user", message.author.id),
+    props={"host": verdict.host, "mode": mode, "reason": verdict.reason, "deleted": True},
+)
 ```
 
-`emit` never raises, never blocks and never retries. It validates the name
-against `app/analytics/catalog.yml`, drops anything the catalog does not
-declare, strips free text, and puts a small envelope on a thread-safe queue.
-`Analytics` (`app/cogs/analytics.py`) drains that queue every few seconds.
+`record(type, *, guild_id=None, cog=None, actor=None, props=None, session_id=None)`
+never raises and never retries. It validates the type against
+`app/analytics/catalog.yml`, drops any prop the catalog does not declare, strips
+free text and builds one envelope (below). What it fills from the current trace:
+the server, the cog, the trace id, the session, `props.source` for an event that
+declares `source`, and the actor (`{"kind": <the catalog's actor>, "id": <the
+trace's user, for a user>}`) when none is given. `analytics.actor(kind, id)`
+names one: `user`, `bot` (Keiko itself, as when it pauses a feature on leaving a
+server) or `job`.
+
+The catalog's `collection` decides what happens next:
+
+| `collection` | written | kept |
+|---|---|---|
+| `changes` | at once, by `record` (a thread of its own; `await analytics.written()` waits for it on the loop) | for good |
+| `activity`, `interactions` | by the sink, in the batch `Analytics` (`app/cogs/analytics.py`) drains every few seconds | 90 days (TTL on `ts`) |
+| `none` | no document | the sink's counts only |
+
+Every event, document or not, goes to the queue and is counted by the sink.
+`value.delivered` is the one `none` event: one per welcome, role or notice, a
+count with no document (D2 of database PR 2).
 
 Inside the form engine there is a shorter path that fills the session context
 for you:
@@ -46,9 +70,9 @@ self.emit_event("setup.step_viewed", interaction, step_key=..., step_action=...)
 Inside a form nobody writes that call. `decide` (`app/settings/form/form.py`)
 returns the events of each decision in `Decision.analytics`, and
 `observability.emit` (`app/settings/discord/observability.py`) is the one
-place that hands them to `analytics.emit` with `guild_id`, `user_id`,
-`feature`, `source` and `session_id` from the session. An engine handler names
-only what is specific to it.
+place that hands them to `analytics.record` with the server, the member, the
+cog, the source and the session of the form. An engine handler names only what
+is specific to it.
 
 ## 2. Where instrumentation lives
 
@@ -58,11 +82,11 @@ only what is specific to it.
 | Seam | File | Events it produces |
 |---|---|---|
 | `observability.emit`, from `Decision.analytics` | `app/settings/discord/observability.py` | every `setup.*` and `feature.*_opened` event a form produces: `feature.setup_opened`, `feature.manager_opened`, `setup.step_viewed`, `setup.step_completed`, `setup.step_back`, `setup.validation_failed`, `setup.required_missing`, `setup.completed`, `setup.discarded`, `setup.discard_recovered`, `setup.abandoned` |
-| `record_event`, called by the feature commit | `app/settings/features/feature.py` | every lifecycle event a form causes (see below) |
-| `insert_cog_event` | `app/core/cogs.py` | the same lifecycle events for state changes made outside a form (a feature disabled by a service) |
+| `GenericCogFeature.commit` | `app/settings/features/feature.py` | every lifecycle change a form causes (see below) |
+| `pause_features`, `change_setting` | `app/core/servers.py`, `app/services/setup.py` | the changes made outside a form: Keiko pausing a server's features as it leaves (`actor.kind` `bot`), a server setting on the /setup settings screen |
 | `run_feature_command` | `app/components/buttons.py` | `command.invoked` from any entry button |
 | `Events.on_interaction` / `on_guild_join` / `on_guild_remove` | `app/cogs/events.py` | `command.invoked`, `guild.joined`, `guild.removed` |
-| `Errors.on_app_command_error` | `app/cogs/errors.py` | `command.failed` |
+| `Errors.on_app_command_error` | `app/cogs/errors.py` | `command.failed`, with the command and the error type; the traceback stays in the error channel and the logs |
 | `GreetingsView.send` | `app/views/greetings.py` | `guild.greeting_sent` |
 
 The engine decides *which* event a decision produces (`Engine.show`,
@@ -72,12 +96,13 @@ after the session is stored. `ms_on_step` and the friction counters are
 measured by the adapter (`Friction`), never by the engine, because the engine
 has no clock.
 
-### `insert_cog_event` is the audit + analytics facade
+### A lifecycle change is one event
 
-Every state change already passed through it, so `LIFECYCLE_ANALYTICS_EVENTS`
-maps the audit key to its product event and both are written from one call:
+Every state change of a feature passes through its commit, and
+`LIFECYCLE_ANALYTICS_EVENTS` (`app/core/cogs.py`) maps the commit's lifecycle
+key to the event it records, once, in `events.changes`:
 
-| Audit event | Product event |
+| Lifecycle key | Event |
 |---|---|
 | `enabled` | `feature.enabled` |
 | `edited` | `config.changed` |
@@ -85,11 +110,15 @@ maps the audit key to its product event and both are written from one call:
 | `disabled` | `feature.disabled` |
 | `added` / `removed` | `feature.item_added` / `feature.item_removed` |
 
-There are no new call sites for any of these. A server setting changed on the
-`/setup` settings screen goes through `insert_cog_event` too, as `edited` under
-the `settings` key (`change_setting` in `app/services/setup.py`), so it is a
-`config.changed` with `feature: settings` and `changed_keys: [<the key>]`, and
-an audit record of its own.
+The same document is the product event and the history line: there is no audit
+row beside it. The panel's History button and the log inspection read one cog's
+changes (`cogs.find_changes(guild_id, cog)`, newest first, at most
+`EVENTS_HISTORY_READ_LIMIT`), and the /setup History reads the whole server's,
+its settings' included, in one query. A server setting changed on the /setup
+settings screen is a `config.changed` with `cog: settings` and
+`changed_keys: [<the key>]`. The history names each line by its lifecycle key
+(`cogs.lifecycle_key(type)` → `commands.command-events.<key>`), and a change
+whose actor is the bot reads "by the system".
 
 ## 3. Adding a metric to a new feature
 
@@ -107,70 +136,91 @@ Work only exists when the feature delivers value in a way only it knows about:
 2. Add one line: `analytics.record_value(guild.id, constants.MY_FEATURE_KEY)`.
    For a delivery Discord refused, `analytics.record_permission_failure(...)`.
 3. If you genuinely need a new event, **add it to `app/analytics/catalog.yml`
-   first**. `emit` drops undeclared names, and the contract suite fails the
-   build for an emit that is not in the catalog — and for a catalog entry
-   nobody emits.
+   first**, with its `collection`: `changes` when someone changed something,
+   `activity` when a command acted, `interactions` when someone asked for
+   something (`docs/data-model.md`). `record` drops undeclared types, and the
+   contract suite fails the build for a `record` that is not in the catalog —
+   and for a catalog entry nobody records.
 4. Run `make test`.
 
 ## 4. The catalog
 
-`app/analytics/catalog.yml` is the single source of truth for event names,
-their properties, and their retention. It also declares the closed
+`app/analytics/catalog.yml` is the single source of truth for event types,
+their collection and their properties. It also declares the closed
 vocabularies (`sources`, `results`).
 
 ```yaml
-setup.validation_failed:
+link.blocked:
   version: 1
-  class: [event, counter]
-  description: A YAML validator refused the value submitted in a modal.
-  emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (Engine.refuse)
+  collection: activity
+  description: A link the server's rules refuse was found in a message, deleted or not.
+  emitted_at: app/services/block_links.py — record_blocked_links
   actor: user
-  required: [feature, session_id, step_key, validation, error_key]
-  optional: [attempt_n]
-  retention_days: 90
-  cardinality_risk: low
+  required: [host, mode, reason, deleted]
+  optional: [link, rule, match, channel_id]
+  private: [link]
+  cardinality_risk: medium
 ```
 
-`class` decides storage:
-
-- `event` — one document in `guild.analytics_events` (TTL 90 days);
-- `counter` — folded into `guild.analytics_guild_month`, **never a document**;
-- `audit` — also written to `events.<cog_key>`.
-
-Properties not listed under `required`/`optional` are dropped and counted in
-`analytics.stats()["undeclared_props"]`, visible in `/admin pipeline`.
+- `collection` — `changes`, `activity`, `interactions` or `none` (section 1).
+  Retention is the collection's, enforced by its TTL index
+  (`EVENTS_ACTIVITY_TTL_SECONDS`, `EVENTS_INTERACTIONS_TTL_SECONDS`; a change
+  has none), so an event declares no retention of its own.
+- `actor` — the kind `record` gives the actor when the call names none:
+  `user`, `bot` or `job`.
+- `required`/`optional` — the props. Anything else is dropped and counted in
+  `analytics.stats()["undeclared_props"]`, visible in `/admin pipeline`.
+  `source` (validated against `sources`) and `result` (against `results`) are
+  props, kept on the events a report reads them from.
+- `private` — props kept in the database and left out of the monthly archive
+  (a blocked link's address).
 
 ### The envelope
 
-`_build_envelope` wraps the properties the catalog allows in the same fields for
-every event: `event`, `event_id` (a random hex id of its own, so a copy written
-twice can be told apart), `v` (the event's catalog `version`), `ts`, `guild_id`,
-`user_id`, `actor`, `feature`, `source`, `session_id`, `result`, `props`, `env`
-and `app_version` (the release that emitted it, from `APP_VERSION`, `dev` when
-the deploy names none). An `event` class stores the envelope as it is.
+`_build_envelope` wraps the props the catalog allows in the same fields for
+every event, in every collection:
 
-`version` versions an event's **properties**: it moves when a property is added,
-removed or changes meaning. A field added to the envelope is not a property of
-any event, so `event_id` and `app_version` left every `version` where it was.
-Neither carries anything about a person: one is random, the other is a release
-tag.
+```
+{_id, ts, type, guild_id, cog, actor: {kind, id}, trace_id, session_id, props, v}
+```
+
+`ts` is UTC, `type` the catalog's name, `guild_id` text or `None`, `cog` the
+feature (or `settings`) or `None`, `trace_id` the trace that recorded it (the
+same id the log lines carry), `session_id` the form session or the trace, and
+`v` the event's catalog `version`. Nothing else: the random `event_id`, `env`
+and `app_version` of the first envelope are gone, since the trace id and the
+deploy tag answer what they answered.
+
+`version` versions an event's **props**: it moves when a prop is added, removed
+or changes meaning.
 
 ## 5. Storage
 
-Four collections, all in the `guild` database; the indexes of the first three
-are declared by the migrations in `app/migrations/schema/` (`docs/migrations.md`):
+The events live in the `events` database (`app/data/events/`, one module per
+collection, every function taking the server, the cog and the types as
+parameters), the numbers in the `guild` database for now; every index is
+declared by the migrations in `app/migrations/schema/` (`docs/migrations.md`):
 
 | Collection | Shape | Retention |
 |---|---|---|
-| `analytics_events` | one document per low-volume event | TTL 90 days on `ts`; each month also goes out as a file (below) |
+| `events.changes` | one document per change; indexes `{guild_id, -ts}`, `{guild_id, cog, -ts}`, `{guild_id, cog, type, -ts}` | kept |
+| `events.activity` | one document per thing a command did (`link.blocked`, `value.blocked_by_permission`, `guild.greeting_sent`); indexes `{guild_id, -ts}`, `{guild_id, cog, -ts}`, `{guild_id, cog, actor.id, -ts}`, `{type, -ts}` | TTL 90 days on `ts`; each month also goes out as a file (below) |
+| `events.interactions` | one document per thing someone asked for (commands, failures, setups and their steps, help, dashboard, reports); indexes `{guild_id, -ts}`, `{type, -ts}`, `{type, cog, -ts}`, `{session_id, ts}` | TTL 90 days on `ts`; each month also goes out as a file |
 | `analytics_guild_month` | bucket per guild per month: `days.<dd>.<metric>` counters | TTL 400 days on `updated_at` |
 | `analytics_guild_profile` | one document per guild, the derived state, plus its current size | TTL 365 days **after** `removed_at` |
 | `analytics_archives` | one document per month already posted as a file: `_id` the month (`2026-09`), `posted_at`, `events`, `files` | kept, twelve a year |
 
-The reason for the split is the free tier. A delivery event per welcome message
-at a thousand guilds is hundreds of thousands of documents a month; as a
-counter it is twelve documents per guild per year. Nobody needs the document of
-the forty-thousandth welcome message — they need the count.
+The reason `value.delivered` has no document is the free tier. A delivery event
+per welcome message at a thousand guilds is hundreds of thousands of documents a
+month; as a counter it is twelve documents per guild per year. Nobody needs the
+document of the forty-thousandth welcome message — they need the count.
+
+Every read of an event collection sends its limit to Mongo: a history reads at
+most `EVENTS_HISTORY_READ_LIMIT`, the /admin guild timeline
+`ANALYTICS_TIMELINE_READ_LIMIT` from each collection, and a report the newest
+`ANALYTICS_REPORT_READ_LIMIT` events of its type. Counts by type, by site or by
+member are aggregations (`count_by_type`, `count_by_field`), never a read of
+every document.
 
 `metric_key` replaces dots in an event name (`value.delivered` →
 `value_delivered`) because Mongo reads a dot in an update path as nesting.
@@ -192,7 +242,7 @@ kept none, so no report could compare large servers with small ones. Once a day
 that has a profile gets `size_bucket` (the same `bucket_size` vocabulary as
 `guild.joined`: `<50`, `50-500`, `500-5k`, `5k+`) and `size_measured_at` on it,
 in one bulk write off the loop (`analytics_sink.record_guild_sizes`). It is a measurement, not an event: nothing goes
-to `analytics_events` or the queue, and the profile is written through the same
+to the event collections or the queue, and the profile is written through the same
 `build_profile_operation` the sink uses, with `upsert=False`. It never creates a
 profile: a profile is still born from a guild's first event, so the reports keep
 counting the guilds they counted, and a guild `/admin forget` erased stays
@@ -200,12 +250,13 @@ erased. A guild whose member count Discord does not report is left as it was.
 
 ### The monthly archive
 
-Raw events live 90 days; after that only the daily counters remain, so a funnel
-could not be rebuilt once its month was gone. The `Analytics` cog
+Activity and interactions live 90 days; after that only the daily counters
+remain, so a funnel could not be rebuilt once its month was gone. Changes are
+kept for good, so they are not archived. The `Analytics` cog
 (`Analytics.archive_months`, `app/core/logs_archive.py`) runs a pass every day at the
 same hour and posts, oldest first, every complete month no pass has posted whose
 first day the raw events still reach (`logs_archive.months_to_archive`: a month that
-started less than `ANALYTICS_EVENTS_TTL_SECONDS` ago), on the logs files
+started less than `EVENTS_INTERACTIONS_TTL_SECONDS` ago), on the logs files
 channel, where the daily log export goes: one message in Keiko's voice
 (`messages.admin-logs.monthly-events`) with the file attached, then marks the
 month in `analytics_archives`. A day the bot was down, a pass that failed, or a
@@ -221,13 +272,14 @@ the sessions under its own key (below), so read one copy, never the two together
 
 Keiko keeps for good only what names no server and no member; anything that
 does keeps a TTL. So the archive leaves without identity
-(`archive.without_identity`): of each event it keeps `_id`, `event`, `event_id`
-(random), `v`, `ts`, `actor`, `feature`, `source`, `session_id` (hashed, see
-below), `result`, `props`, `env` and `app_version`
-(`Commands.ANALYTICS_ARCHIVE_FIELDS`), and drops `guild_id`, `user_id` and any
+(`archive.without_identity`): of each activity and interaction, merged oldest
+first, it keeps `_id`, `ts`, `type`, `cog`, the actor's `kind` (never its id),
+`session_id` (hashed, see below), `props` and `v`
+(`Commands.ANALYTICS_ARCHIVE_FIELDS`), and drops `guild_id`, `trace_id` and any
 other field, so a Discord id added to the envelope later (a channel, a message,
 an interaction, an owner) never reaches the file; it also drops every property
-whose name ends in `_id`. The catalog declares no property that names a person
+whose name ends in `_id` and every property the catalog declares `private` (a
+blocked link's address). The catalog declares no property that names a person
 or a server: they are closed vocabularies (step keys, error keys, sources,
 commands, a chosen option), buckets (size, duration), counts, booleans and YAML
 keys. The step, the buckets and the counts stay, so a funnel is rebuilt from the
@@ -263,7 +315,7 @@ To work on a month again, open it and restore it next to the live data, then
 point the reports at the copy:
 
 ```bash
-age -d -i key.txt keiko_events_2026-09.jsonl.gz.age | gunzip | mongoimport --db keiko_archive --collection analytics_events
+age -d -i key.txt keiko_events_2026-09.jsonl.gz.age | gunzip | mongoimport --db keiko_archive --collection interactions
 ```
 
 ### Redis
@@ -274,9 +326,18 @@ in a shared keyspace is how a free tier dies.
 
 ### Keiko's own block links record
 
+Every blocked link is one `link.blocked` activity (at most
+`BLOCK_LINKS_EVENTS_MAX_PER_MESSAGE` per message), carrying `host`, `link`,
+`rule`, `mode`, `reason`, `match`, `deleted` and `channel_id`, and the member who
+sent it as the actor. The panel's records list reads them newest first (one
+member's through `{guild_id, cog, actor.id, -ts}`); the Stats count the last 90
+days' sites and members with an aggregation, and a site or a member older than
+that is no longer named (D5 of database PR 2). Disabling the feature deletes the
+server's block links activity.
+
 Not an event, but kept beside them: every blocked link is also counted in
 `guild.block_links_totals` (`count_blocked_links`, `app/data/block_links.py`),
-in the worker thread that writes the record and the server's counters. It
+in the worker thread that records it and the server's counters. It
 names no server and no member, so it is kept for good: `{_id: "total",
 blocked}` and one `{_id: "site:<host>", host, blocked}` per site, added with
 `$inc`. A site is the full host as it was blocked (`www.` dropped, subdomains
@@ -303,7 +364,9 @@ whose options are written in the YAML.
 a real flow and asserts it appears in no event. That makes the privacy rule
 executable instead of documented.
 
-`/admin forget <guild_id>` erases every analytics record of a guild. The monthly
+`/admin forget <guild_id>` erases every analytics record of a guild
+(`admin.forget_guild`): its changes, activity and interactions, its month buckets
+and its profile. The monthly
 events archive holds nothing to erase, since it names no guild; the daily log
 export does, and a file already posted is out of its reach until the logs files
 channel deletes it, 90 days after it was posted.
@@ -316,11 +379,12 @@ channel deletes it, 90 days after it was posted.
 | Redis down | counters are skipped, dashboards fall back to Mongo |
 | Queue full | the newest event is dropped and counted |
 | Event not in the catalog | dropped and counted |
-| Exception inside `emit` | swallowed at the boundary, never propagates |
+| Exception inside `record` | swallowed at the boundary, never propagates |
+| Mongo down when a change is written | the change is lost, counted in `change_failures` and logged as a warning; the command goes on |
 | Bot stops: a deploy's SIGTERM, `/admin shutdown`, a run that fails | both queues are written before the process ends (`run` in `app/bot.py`); a start Discord refused writes them again after its five-minute wait, unless a SIGTERM ends the wait first |
 | SIGKILL, an OOM kill or a hard crash of the interpreter | up to a few seconds of queued events are lost, by design |
 
-`ANALYTICS_ENABLED=false` turns `emit` into a no-op without a deploy.
+`ANALYTICS_ENABLED=false` turns `record` into a no-op without a deploy.
 `/admin pipeline` shows emitted, flushed, dropped, unknown and queue depth.
 
 ---
@@ -590,7 +654,7 @@ Discord's cache, which the loop changes as servers and channels come and go: `/a
 overview` counts servers, members and channels on the loop and hands over only its Mongo,
 Redis and Twitch reads.
 
-## Why not `analytics.emit`
+## Why not `analytics.record`
 
 Because the catalog drops undeclared events and `sanitize_props` strips free
 text — and a log message and a traceback *are* free text. The two share the
@@ -834,7 +898,7 @@ the journey closes as `❌ failure` with that line.
 
 **Lines come from the events that are already emitted.** `journey.record` is
 registered through `analytics.register_observer`, the same pattern as
-`trace.register_sink`: one `emit`, several consumers. Nothing is instrumented
+`trace.register_sink`: one `record`, several consumers. Nothing is instrumented
 twice, so a line in the log can never disagree with a number in a dashboard.
 
 Outcomes: `✅ saved` · `🔧 edited` · `🚫 discarded` · `⏸️ paused` · `▶️ resumed` ·
@@ -876,9 +940,9 @@ before, 2 after). The middle of the story is one click away.
 ### The refresh button
 
 Every line of a journey came from an event that is already stored, so
-`journey.rebuild(session_id)` reconstructs the whole story from
-`guild.analytics_events` with a single read — no new storage was needed for
-this.
+`journey.rebuild(session_id)` reconstructs the whole story from the session's
+interactions (`{session_id, ts}`) and the server's changes since its first one —
+no new storage was needed for this.
 
 `JourneyRefreshButton` (`app/components/buttons.py`) is a `DynamicItem` whose
 custom id carries the session, registered once in `DiscordBot.setup_hook`. It

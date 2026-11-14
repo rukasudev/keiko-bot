@@ -52,7 +52,7 @@ contract) and a later schema file drops them.
 | `guild` | `members` | server and member | `options`: the birthday; `state`: what Keiko keeps about the member | `reminders.birthdays` | database PR 1 |
 | `guild` | `messages` | message Keiko posted and will edit | the cog, the subject, the channel, the message id | `notifications.notifications_twitch` | database PR 1 |
 | `events` | `changes` | change | what changed in a config, in the server settings or in Keiko's presence; written at once, kept forever | the seven `events.{cog}`, `events.settings` | database PR 2 |
-| `events` | `activity` | thing a command did | a blocked link, an announced live; written in the batch, 90 days | `guild.blocked_links`, part of `guild.analytics_events` | database PR 2 |
+| `events` | `activity` | thing a command did | a blocked link, a delivery Discord refused, a greeting; written in the batch, 90 days | `guild.blocked_links`, part of `guild.analytics_events` | database PR 2 |
 | `events` | `interactions` | thing someone asked for | a command, a button, a setup, a failure; written in the batch, 90 days | the rest of `guild.analytics_events`, `audit.errors` | database PR 2 |
 | `analytics` | `counts` | server and month | how many of each event type, day by day | `guild.analytics_guild_month` | database PR 2 |
 | `analytics` | `lifetime` | server | setups, value delivered, errors, size | `guild.analytics_guild_profile` | database PR 2 |
@@ -160,17 +160,29 @@ that its retention and the moment it is written.
 ```
 events.changes | events.activity | events.interactions
 {
-  ts, type: "link.blocked",            the type is declared in app/analytics/catalog.yml
-  guild_id, cog: "block_links",
-  actor: {kind: "user", id},           user, bot or job
-  trace_id, session_id,
-  props: {link, host, rule},
-  v: 1
+  _id, ts,                             ts in UTC
+  type: "link.blocked",                declared in app/analytics/catalog.yml, with its collection
+  guild_id, cog: "block_links",        text, or null for an event of no server or no cog
+  actor: {kind: "user", id},           user, bot or job; the id of the member, or of Keiko
+  trace_id, session_id,                the trace that recorded it, the form session
+  props: {host, link, rule, mode, reason, match, deleted, channel_id},
+  v: 1                                 the catalog version of the props
 }
 ```
 
+One call writes every event: `analytics.record(type, guild_id=, cog=, actor=,
+props=, session_id=)` (`app/core/analytics.py`, `docs/analytics.md` section 1).
+A change is written at once and kept; activity and interactions are written in
+the analytics sink's batch and expire 90 days after `ts`; a type whose
+collection is `none` (`value.delivered`) has no document and is only counted.
+`app/data/events/{changes,activity,interactions}.py` read and delete them by
+server, cog, type, time and actor, every read with its Mongo limit, and never
+name a command: a command's prop paths (`props.host` for the sites block links
+counts) stay in its service.
+
 `analytics.counts` is one document per server and month, with the day's counts
-inside it: `{_id: "{guild}|2026-11", guild_id, month, days: {"10": {"link.blocked|block_links": 4}}}`.
+inside it: `{_id: "{guild}|2026-11", guild_id, month, days: {"10": {"link_blocked|block_links": 4}}}`
+(the type loses its dots, which an update path would read as nesting).
 
 ## A new command: seven questions
 

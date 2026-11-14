@@ -50,11 +50,11 @@ class Report(Cog, name="report"):
     ) -> None:
         await interaction.response.defer()
 
-        analytics.emit(
+        analytics.record(
             "report.submitted",
             guild_id=interaction.guild_id,
-            user_id=interaction.user.id,
-            command=command,
+            actor=analytics.actor("user", interaction.user.id),
+            props={"command": command},
         )
 
         notion_response = await asyncio.to_thread(

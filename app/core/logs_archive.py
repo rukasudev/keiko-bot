@@ -15,6 +15,7 @@ their kind's age are deleted: backups after 30 days, daily logs after 90
 """
 import asyncio
 import gzip
+import heapq
 import io
 import json
 import re
@@ -36,11 +37,13 @@ from app import logger
 from app.constants import Commands as constants
 from app.constants import DBConfigs
 from app.constants import LogTypes as logconstants
+from app.core.analytics import events_catalog
 from app.core.trace import as_utc
 from app.core.utils import ml
 from app.data import analytics as analytics_data
 from app.data import logs as logs_data
 from app.data import util as util_data
+from app.data.events import activity, interactions
 from app.migrations.runner import declared_structure
 
 FILENAME = "keiko_logs_{date}.jsonl.gz"
@@ -186,7 +189,7 @@ def is_archived(month: datetime) -> bool:
 
 def months_to_archive(now: datetime) -> List[datetime]:
     """Every complete month never posted whose start the events still reach, oldest first."""
-    reached = now - timedelta(seconds=constants.ANALYTICS_EVENTS_TTL_SECONDS)
+    reached = now - timedelta(seconds=constants.EVENTS_INTERACTIONS_TTL_SECONDS)
     months = []
 
     month = last_month(now)
@@ -241,15 +244,20 @@ def mark_archived(month: datetime, files: List[ArchiveFile], now: datetime) -> N
 
 def without_identity(event: Mapping[str, Any], key: bytes) -> Dict[str, Any]:
     """An event with no server, member or other Discord id: only the envelope fields the
-    archive keeps, no property named after an id, and its session hashed under `key`."""
+    archive keeps, the actor's kind without its id, no property named after an id or
+    declared private, and its session hashed under `key`."""
     kept = {
         field: event[field] for field in constants.ANALYTICS_ARCHIVE_FIELDS if field in event
     }
 
+    if "actor" in kept:
+        kept["actor"] = {"kind": (kept["actor"] or {}).get("kind")}
+
     if "props" in kept:
+        private = set((events_catalog().get(event.get("type")) or {}).get("private") or [])
         kept["props"] = {
             name: value for name, value in (kept["props"] or {}).items()
-            if not name.endswith("_id")
+            if not name.endswith("_id") and name not in private
         }
 
     if kept.get("session_id"):
@@ -267,7 +275,11 @@ def _parts(
         json_util.dumps(
             without_identity(event, key), json_options=json_util.RELAXED_JSON_OPTIONS
         )
-        for event in analytics_data.iter_events_between(start, end)
+        for event in heapq.merge(
+            activity.iter_between(start, end),
+            interactions.iter_between(start, end),
+            key=lambda event: as_utc(event["ts"]),
+        )
     )
     if not payload:
         return []

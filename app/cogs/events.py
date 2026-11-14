@@ -204,14 +204,16 @@ class Events(Cog, name="events"):
                 increment_redis_key, f"{logconstants.COMMAND_CALL_TYPE}:{feature}"
             )
 
-        analytics.emit(
+        analytics.record(
             "command.invoked",
             guild_id=interaction.guild_id,
-            user_id=interaction.user.id,
-            command=interaction.command.qualified_name,
-            source=analytics.resolve_source(interaction),
-            feature=feature,
-            is_admin=is_guild_admin(interaction.user),
+            cog=feature,
+            actor=analytics.actor("user", interaction.user.id),
+            props={
+                "command": interaction.command.qualified_name,
+                "source": analytics.resolve_source(interaction),
+                "is_admin": is_guild_admin(interaction.user),
+            },
         )
 
     @commands.Cog.listener()
@@ -229,12 +231,14 @@ class Events(Cog, name="events"):
 
         total_guilds = len(self.bot.guilds)
 
-        analytics.emit(
+        analytics.record(
             "guild.joined",
             guild_id=guild.id,
-            returning=bool(exist),
-            size_bucket=analytics.bucket_size(guild.member_count),
-            owner_guilds=total_servers,
+            props={
+                "returning": bool(exist),
+                "size_bucket": analytics.bucket_size(guild.member_count),
+                "owner_guilds": total_servers,
+            },
         )
 
         logger.info(
@@ -277,7 +281,7 @@ class Events(Cog, name="events"):
 
     async def _snapshot_leaving(self, guild: discord.Guild) -> None:
         snapshot = await asyncio.to_thread(analytics_reports.guild_snapshot, str(guild.id))
-        analytics.emit("guild.removed", guild_id=guild.id, **snapshot)
+        analytics.record("guild.removed", guild_id=guild.id, props=snapshot)
         await asyncio.to_thread(analytics.flush)
 
 

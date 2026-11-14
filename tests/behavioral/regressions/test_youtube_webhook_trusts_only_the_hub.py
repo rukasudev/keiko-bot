@@ -558,7 +558,7 @@ async def test_a_server_that_refuses_the_announcement_is_counted(
 
     assert len(hub.channel._sent_messages) == 1
     refused = [event["guild_id"] for event in analytics_events
-               if event["event"] == "value.blocked_by_permission"]
+               if event["type"] == "value.blocked_by_permission"]
     assert refused == [str(closed.id)]
     assert errors_in(caplog) == [], "a missing permission is a warning, not an error"
 

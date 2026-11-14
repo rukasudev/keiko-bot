@@ -25,6 +25,7 @@ import pytest
 from app.services import admin_analytics, admin_digest
 from app.core import analytics, analytics_reports
 from tests.generators.moderations import seed_cog
+from tests.generators.events import age_events, record_event
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("analytics_reports")]
 
@@ -146,13 +147,12 @@ def test_a_setting_with_no_declared_default_stays_a_plain_zero(deps):
 
 def test_the_digest_never_prints_none_where_a_step_belongs(deps):
     """A setup abandoned on the opening screen reached no step at all."""
-    analytics.emit(
+    record_event(
         "feature.setup_opened", guild_id="1", user_id="9",
         feature="reminders_birthday", source="slash", session_id="s1",
     )
     analytics.flush()
-    for document in deps.mongo_client.guild.analytics_events._data:
-        document["ts"] = datetime.now(timezone.utc) - timedelta(days=1)
+    age_events(deps.mongo_client, datetime.now(timezone.utc) - timedelta(days=1))
 
     description = admin_digest.build_weekly_digest().description
 

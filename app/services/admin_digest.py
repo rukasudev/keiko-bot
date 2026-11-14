@@ -13,6 +13,7 @@ import discord
 from app.components.embed import base_embed
 from app.constants import Commands as constants
 from app.data import analytics as analytics_data
+from app.data.events import activity, changes
 from app.core import analytics_reports
 from app.core.utils import describe_default, describe_step
 
@@ -69,8 +70,9 @@ def _headline(since: datetime, guild_count: Optional[int] = None) -> str:
     profiles = analytics_data.find_profiles()
     live = [profile for profile in profiles if not profile.get("removed_at")]
 
-    joined = len(analytics_data.find_events_since("guild.joined", since))
-    removed = len(analytics_data.find_events_since("guild.removed", since))
+    arrivals = changes.count_since(["guild.joined", "guild.removed"], since)
+    joined = arrivals.get("guild.joined", 0)
+    removed = arrivals.get("guild.removed", 0)
 
     # Two different numbers, and never the same label: a caller that cannot
     # supply the real count must not publish the smaller one as if it were.
@@ -150,7 +152,7 @@ def _attention_lines(since: datetime) -> List[str]:
 def _guilds_with_permission_failures(since: datetime) -> List[str]:
     return list({
         event.get("guild_id")
-        for event in analytics_data.find_events_since("value.blocked_by_permission", since)
+        for event in activity.find_by_type(["value.blocked_by_permission"], since)
         if event.get("guild_id")
     })
 

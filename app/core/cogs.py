@@ -1,9 +1,8 @@
 from typing import Any, Callable, Dict, List, Mapping, Optional
 
 from app.constants import Commands as constants
-from app.data import cogs as cogs_data
+from app.data.events import changes
 from app.data.guild import cogs as guild_cogs
-from app.core import analytics
 
 LIFECYCLE_ANALYTICS_EVENTS = {
     constants.ENABLED_KEY: "feature.enabled",
@@ -56,43 +55,19 @@ def features_on(guild_id: str) -> List[str]:
     ]
 
 
-def insert_cog_event(
-    guild_id: str,
-    cog_key: str,
-    event: str,
-    date: str,
-    user_id: str,
-    source: Optional[str] = None,
-    session_id: Optional[str] = None,
-    **props: Any,
-):
-    """Writes the permanent audit record and emits its analytics counterpart.
-
-    Every state change already passes through here, so the product view comes
-    for free — no handler gains an analytics call of its own.
-    """
-    data = {
-        "guild_id": guild_id,
-        "cog_key": cog_key,
-        "user_id": user_id,
-        "datetime": date,
-        "event": event,
-    }
-
-    analytics_event = LIFECYCLE_ANALYTICS_EVENTS.get(event)
-    if analytics_event:
-        analytics.emit(
-            analytics_event,
-            guild_id=guild_id,
-            user_id=user_id,
-            feature=cog_key,
-            source=source or "manager",
-            session_id=session_id,
-            **props,
-        )
-
-    return cogs_data.insert_cog_event(cog_key, data)
+def find_changes(guild_id: str, cog: Optional[str] = None) -> List[Dict[str, Any]]:
+    """A server's lifecycle changes, or one cog's, newest first, as a history lists them."""
+    return changes.find_by_guild(
+        guild_id,
+        cog=cog,
+        types=list(LIFECYCLE_ANALYTICS_EVENTS.values()),
+        limit=constants.EVENTS_HISTORY_READ_LIMIT,
+    )
 
 
-def find_cog_events_by_guild(guild_id: str, cog_key: str):
-    return cogs_data.find_cog_events_by_guild_id(guild_id, cog_key)
+def lifecycle_key(event_type: str) -> Optional[str]:
+    """The lifecycle key of a change's type, the one its history line is named by."""
+    return next(
+        (key for key, mapped in LIFECYCLE_ANALYTICS_EVENTS.items() if mapped == event_type),
+        None,
+    )

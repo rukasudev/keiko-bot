@@ -173,26 +173,26 @@ def build_guild_journey_embed(guild_id: str) -> discord.Embed:
 
 
 def _timeline_line(event: Dict[str, Any]) -> str:
-    icon = EVENT_ICONS.get(event["event"], "•")
+    icon = EVENT_ICONS.get(event["type"], "•")
     stamp = event["ts"].strftime("%d/%m %H:%M") if event.get("ts") else "--/--"
-    detail = event.get("feature") or ""
+    detail = event.get("cog") or ""
     props = event.get("props") or {}
 
-    step = describe_step(event.get("feature"), props.get("step_key")) if props.get("step_key") else None
+    step = describe_step(event.get("cog"), props.get("step_key")) if props.get("step_key") else None
 
-    if event["event"] == "setup.validation_failed":
+    if event["type"] == "setup.validation_failed":
         detail = f"{detail} / {step} ({props.get('error_key')})"
-    elif event["event"] == "setup.completed":
+    elif event["type"] == "setup.completed":
         detail = f"{detail} ({props.get('duration_bucket')}, {props.get('steps_viewed')} steps)"
-    elif event["event"] == "setup.discarded":
+    elif event["type"] == "setup.discarded":
         detail = f"{detail} at {step}"
-    elif event["event"] == "guild.greeting_sent":
+    elif event["type"] == "guild.greeting_sent":
         detail = f"{props.get('features_offered')} features offered"
         if not props.get("channel_found"):
             detail += " — no writable channel"
 
-    source = f" · via {event['source']}" if event.get("source") else ""
-    return f"`{stamp}` {icon} {event['event']} — {detail}{source}"
+    source = f" · via {props['source']}" if props.get("source") else ""
+    return f"`{stamp}` {icon} {event['type']} — {detail}{source}"
 
 
 def build_churn_embed() -> discord.Embed:

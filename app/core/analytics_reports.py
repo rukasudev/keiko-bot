@@ -20,9 +20,11 @@ from app.constants import Commands as constants
 from app.constants import FormConstants as form_constants
 from app.constants import ViewConstants as view_constants
 from app.data import analytics as analytics_data
+from app.data.events import activity, changes, interactions
 from app.core import analytics
 from app.core import cogs as cogs_service
 from app.core.analytics_sink import metric_key
+from app.core.trace import as_utc
 from app.core.utils import ensure_list, parse_form_yaml_to_dict
 
 
@@ -192,7 +194,7 @@ def value_metrics() -> Dict[str, str]:
     return {
         metric_key(event, feature): feature
         for feature in constants.COMMANDS_LIST
-        for event in ("value.delivered", "feature.action_performed")
+        for event in ("value.delivered", "link.blocked")
     }
 
 
@@ -265,15 +267,12 @@ def guild_snapshot(guild_id: str) -> Dict[str, Any]:
 
 def funnel(feature: str) -> Dict[str, int]:
     """Setup opened -> completed -> first value -> value on a second day."""
-    opened = analytics_data.count_events(
-        {"event": "feature.setup_opened", "feature": feature}
+    counts = interactions.count_by_type(
+        ["feature.setup_opened", "setup.completed", "setup.discarded"], cog=feature
     )
-    completed = analytics_data.count_events(
-        {"event": "setup.completed", "feature": feature}
-    )
-    discarded = analytics_data.count_events(
-        {"event": "setup.discarded", "feature": feature}
-    )
+    opened = counts.get("feature.setup_opened", 0)
+    completed = counts.get("setup.completed", 0)
+    discarded = counts.get("setup.discarded", 0)
 
     activated = 0
     recurring = 0
@@ -326,9 +325,9 @@ def setup_sessions(
         session = sessions.setdefault(session_id, {
             "session_id": session_id,
             "guild_id": event.get("guild_id"),
-            "user_id": event.get("user_id"),
-            "feature": event.get("feature"),
-            "source": event.get("source"),
+            "user_id": (event.get("actor") or {}).get("id"),
+            "feature": event.get("cog"),
+            "source": (event.get("props") or {}).get("source"),
             "last_step": None,
             "last_step_index": -1,
             "last_seen": None,
@@ -343,7 +342,7 @@ def setup_sessions(
         if timestamp and (not session["last_seen"] or timestamp > session["last_seen"]):
             session["last_seen"] = timestamp
 
-        name = event["event"]
+        name = event["type"]
         props = event.get("props") or {}
         if name == "setup.step_viewed":
             index = props.get("step_index", 0)
@@ -379,16 +378,14 @@ def _setup_events(
     feature: Optional[str], guild_id: Optional[str], since: Optional[datetime]
 ) -> List[Dict[str, Any]]:
     """One read of the events sessions are rebuilt from, in the order they are read."""
-    query: Dict[str, Any] = {"event": {"$in": list(SETUP_SESSION_EVENTS)}}
-    if feature:
-        query["feature"] = feature
+    limit = constants.ANALYTICS_REPORT_READ_LIMIT
     if guild_id:
-        query["guild_id"] = str(guild_id)
-    if since:
-        query["ts"] = {"$gte": since}
-
-    events = analytics_data.find_events(query)
-    return sorted(events, key=lambda event: SETUP_SESSION_EVENTS.index(event["event"]))
+        events = interactions.find_by_guild(
+            guild_id, feature, SETUP_SESSION_EVENTS, since, limit
+        )
+    else:
+        events = interactions.find_by_type(SETUP_SESSION_EVENTS, feature, since, limit)
+    return sorted(events, key=lambda event: SETUP_SESSION_EVENTS.index(event["type"]))
 
 
 def _expired_or_open(last_seen: Optional[datetime]) -> str:
@@ -446,16 +443,12 @@ def step_durations(feature: Optional[str] = None) -> List[Dict[str, Any]]:
     can be doubt, distraction, or the admin reading another tab. Read it to
     find candidates to look at, never as proof of confusion.
     """
-    query = {"event": "setup.step_completed"}
-    if feature:
-        query["feature"] = feature
-
     samples: Dict[tuple, List[int]] = {}
-    for event in analytics_data.find_events(query):
+    for event in _report_events("setup.step_completed", feature):
         ms = (event.get("props") or {}).get("ms_on_step")
         if not isinstance(ms, int):
             continue
-        samples.setdefault((event.get("feature"), event["props"].get("step_key")), []).append(ms)
+        samples.setdefault((event.get("cog"), event["props"].get("step_key")), []).append(ms)
 
     rows = []
     for (feature_key, step_key), values in samples.items():
@@ -473,17 +466,13 @@ def step_durations(feature: Optional[str] = None) -> List[Dict[str, Any]]:
 
 def choice_distribution(feature: Optional[str] = None) -> Dict[str, Dict[str, int]]:
     """What people picked on steps whose options the YAML declares."""
-    query = {"event": "setup.step_completed"}
-    if feature:
-        query["feature"] = feature
-
     counts: Dict[str, Dict[str, int]] = {}
-    for event in analytics_data.find_events(query):
+    for event in _report_events("setup.step_completed", feature):
         props = event.get("props") or {}
         choice = props.get("choice")
         if not choice:
             continue
-        key = f"{event.get('feature')}/{props.get('step_key')}"
+        key = f"{event.get('cog')}/{props.get('step_key')}"
         counts.setdefault(key, {})
         counts[key][choice] = counts[key].get(choice, 0) + 1
     return counts
@@ -491,14 +480,10 @@ def choice_distribution(feature: Optional[str] = None) -> Dict[str, Dict[str, in
 
 def friction(feature: Optional[str] = None) -> List[Dict[str, Any]]:
     """Steps ranked by how often they reject a user, worst first."""
-    query = {"event": "setup.validation_failed"}
-    if feature:
-        query["feature"] = feature
-
     by_step: Dict[tuple, Dict[str, Any]] = {}
-    for event in analytics_data.find_events(query):
+    for event in _report_events("setup.validation_failed", feature):
         props = event.get("props") or {}
-        key = (event.get("feature"), props.get("step_key"), props.get("error_key"))
+        key = (event.get("cog"), props.get("step_key"), props.get("error_key"))
         row = by_step.setdefault(key, {
             "feature": key[0], "step_key": key[1], "error_key": key[2],
             "failures": 0, "sessions": set(),
@@ -548,19 +533,42 @@ def guilds_at_risk(quiet_days: int = 14) -> List[Dict[str, Any]]:
     return sorted(rows, key=lambda row: row["days_quiet"], reverse=True)
 
 
-def session_events(session_id: str) -> List[Dict[str, Any]]:
-    """Everything one configuration attempt recorded, oldest first."""
-    events = analytics_data.find_events({"session_id": session_id})
-    return sorted(
-        events,
-        key=lambda event: event.get("ts") or datetime.min.replace(tzinfo=timezone.utc),
+def _report_events(event_type: str, feature: Optional[str]) -> List[Dict[str, Any]]:
+    """The newest interactions of one type a report reads, one feature's when given."""
+    return interactions.find_by_type(
+        [event_type], feature, limit=constants.ANALYTICS_REPORT_READ_LIMIT
     )
+
+
+def session_events(session_id: str) -> List[Dict[str, Any]]:
+    """Everything one configuration attempt recorded, its changes too, oldest first."""
+    limit = constants.ANALYTICS_REPORT_READ_LIMIT
+    events = interactions.find_by_session(session_id, limit)
+    if events and events[0].get("guild_id"):
+        events += [
+            change
+            for change in changes.find_by_guild(
+                events[0]["guild_id"], since=events[0].get("ts"), limit=limit
+            )
+            if change.get("session_id") == session_id
+        ]
+    return sorted(events, key=_when)
+
+
+def _when(event: Dict[str, Any]) -> datetime:
+    return as_utc(event.get("ts")) or datetime.min.replace(tzinfo=timezone.utc)
 
 
 def guild_timeline(guild_id: str, limit: int = None) -> List[Dict[str, Any]]:
-    return analytics_data.find_events_by_guild(
-        guild_id, limit or constants.ANALYTICS_TIMELINE_READ_LIMIT
-    )
+    """A server's latest events of the three collections, newest first."""
+    limit = limit or constants.ANALYTICS_TIMELINE_READ_LIMIT
+    events = [
+        *changes.find_by_guild(guild_id, limit=limit),
+        *activity.find_by_guild(guild_id, limit=limit),
+        *interactions.find_by_guild(guild_id, limit=limit),
+    ]
+    events.sort(key=_when, reverse=True)
+    return events[:limit]
 
 
 def churn_comparison() -> Dict[str, Dict[str, Any]]:
@@ -596,7 +604,7 @@ def _distinct_value_days(guild_id: str, feature: str) -> int:
     days = set()
     for bucket in analytics_data.find_month_buckets(guild_id):
         for day, metrics in (bucket.get("days") or {}).items():
-            for event in ("value.delivered", "feature.action_performed"):
+            for event in ("value.delivered", "link.blocked"):
                 if metrics.get(metric_key(event, feature)):
                     days.add(f"{bucket.get('month')}-{day}")
     return len(days)

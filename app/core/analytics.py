@@ -1,41 +1,42 @@
-"""Product analytics: one public entry point, `emit`.
+"""Product analytics: one public entry point, `record`.
 
-Handlers never talk to a database. They call `emit`, which validates the name
+Handlers never talk to a database. They call `record`, which validates the type
 against app/analytics/catalog.yml, drops anything the catalog does not declare,
-strips free text, and hands a small envelope to a thread-safe queue. A loop in
-AnalyticsCog drains that queue into Mongo. Losing an event is acceptable by
-design; breaking a command never is. Reference: docs/analytics.md
+strips free text, and builds one envelope. The catalog names the event's
+collection: a change is written at once, activity and interactions go to a
+thread-safe queue a loop in AnalyticsCog drains into Mongo, and every event is
+counted by the sink. Losing a batched event is acceptable by design; breaking a
+command never is. Reference: docs/analytics.md
 """
 import asyncio
 import contextlib
 import os
 import queue
-import uuid
+import threading
 from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Callable, Dict, List, Optional
+from typing import Any, AsyncIterator, Callable, Dict, List, Mapping, Optional, Set
 
 import yaml
 
-from app.config import app_version
 from app.constants import Commands as constants
 from app.core.trace import current_trace
 
 _CATALOG: Optional[Dict[str, Any]] = None
 _QUEUE: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=constants.ANALYTICS_QUEUE_MAXSIZE)
 _ENABLED = True
-_ENVIRONMENT = "dev"
 _RECORDER: Optional[List[Dict[str, Any]]] = None
 _OBSERVERS: List[Callable[[Dict[str, Any]], None]] = []
+_WRITES: Set["asyncio.Future[None]"] = set()
 _STATS: Dict[str, int] = {
     "emitted": 0, "dropped": 0, "unknown": 0, "flushed": 0, "undeclared_props": 0,
-    "observer_errors": 0,
+    "observer_errors": 0, "change_failures": 0,
 }
 
 
 def register_observer(observer: Callable[[Dict[str, Any]], None]) -> None:
-    """Watch every event as it is emitted, without touching the emit sites.
+    """Watch every event as it is recorded, without touching the record sites.
 
-    Mirrors `trace.register_sink`: one `emit` call, several consumers. The
+    Mirrors `trace.register_sink`: one `record` call, several consumers. The
     journey log is the first one — it renders the same events the dashboards
     count, so a line never disagrees with a number.
     """
@@ -73,10 +74,14 @@ def sources_catalog() -> List[str]:
     return catalog().get("sources") or []
 
 
+def collection_of(event_type: str) -> Optional[str]:
+    """The collection the catalog writes an event to, `none` for a count alone."""
+    return (events_catalog().get(event_type) or {}).get("collection")
+
+
 def configure(config: Any) -> None:
-    global _ENABLED, _ENVIRONMENT
+    global _ENABLED
     _ENABLED = bool(getattr(config, "ANALYTICS_ENABLED", True))
-    _ENVIRONMENT = "prod" if getattr(config, "is_prod", bool)() else "dev"
 
 
 def is_enabled() -> bool:
@@ -87,30 +92,57 @@ def stats() -> Dict[str, int]:
     return {**_STATS, "queue_depth": _QUEUE.qsize()}
 
 
-def emit(event: str, **props: Any) -> Optional[Dict[str, Any]]:
-    """Record one product event. Never raises, never blocks, never retries."""
+def actor(kind: str, actor_id: Any = None) -> Dict[str, Any]:
+    """Who caused an event: a user, the bot or a job, and its id."""
+    return {"kind": kind, "id": str(actor_id) if actor_id else None}
+
+
+def record(
+    event_type: str,
+    *,
+    guild_id: Any = None,
+    cog: Optional[str] = None,
+    actor: Optional[Mapping[str, Any]] = None,
+    props: Optional[Mapping[str, Any]] = None,
+    session_id: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Record one event. Never raises, never blocks the loop, never retries."""
     try:
-        return _emit(event, props)
+        return _record(
+            event_type, guild_id, cog, actor, dict(props or {}), session_id
+        )
     except Exception:
         _STATS["dropped"] += 1
         return None
 
 
-def _emit(event: str, props: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+def _record(
+    event_type: str,
+    guild_id: Any,
+    cog: Optional[str],
+    who: Optional[Mapping[str, Any]],
+    props: Dict[str, Any],
+    session_id: Optional[str],
+) -> Optional[Dict[str, Any]]:
     if not _ENABLED:
         return None
 
-    declaration = events_catalog().get(event)
+    declaration = events_catalog().get(event_type)
     if not declaration:
         _STATS["unknown"] += 1
         return None
 
-    envelope = _build_envelope(event, declaration, props)
+    envelope = _build_envelope(
+        event_type, declaration, guild_id, cog, who, props, session_id
+    )
 
     _notify(envelope)
 
     if _RECORDER is not None:
         _RECORDER.append(envelope)
+
+    if declaration.get("collection") == "changes":
+        _write_change(dict(envelope))
 
     try:
         _QUEUE.put_nowait(envelope)
@@ -122,33 +154,93 @@ def _emit(event: str, props: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 
 def _build_envelope(
-    event: str, declaration: Dict[str, Any], props: Dict[str, Any]
+    event_type: str,
+    declaration: Dict[str, Any],
+    guild_id: Any,
+    cog: Optional[str],
+    who: Optional[Mapping[str, Any]],
+    props: Dict[str, Any],
+    session_id: Optional[str],
 ) -> Dict[str, Any]:
     trace = current_trace()
+    guild_id = guild_id or (trace.guild_id if trace else None)
 
-    guild_id = props.pop("guild_id", None) or (trace.guild_id if trace else None)
-    user_id = props.pop("user_id", None) or (trace.user_id if trace else None)
-    feature = props.pop("feature", None) or (trace.feature if trace else None)
-    source = props.pop("source", None) or (trace.source if trace else None)
-    session_id = props.pop("session_id", None) or (trace.session_id if trace else None)
-    result = props.pop("result", None)
+    if _declares(declaration, "source"):
+        props["source"] = _valid_source(
+            props.get("source") or (trace.source if trace else None)
+        )
+    if "result" in props:
+        props["result"] = _valid_result(props["result"])
 
     return {
-        "event": event,
-        "event_id": uuid.uuid4().hex,
-        "v": declaration.get("version", 1),
         "ts": datetime.now(timezone.utc),
+        "type": event_type,
         "guild_id": str(guild_id) if guild_id else None,
-        "user_id": str(user_id) if user_id else None,
-        "actor": declaration.get("actor", "user"),
-        "feature": feature,
-        "source": _valid_source(source),
-        "session_id": session_id,
-        "result": _valid_result(result),
+        "cog": cog or (trace.feature if trace else None),
+        "actor": _actor(declaration, who, trace),
+        "trace_id": trace.id if trace else None,
+        "session_id": session_id or (trace.session_id if trace else None),
         "props": sanitize_props(_declared_props(declaration, props)),
-        "env": _ENVIRONMENT,
-        "app_version": app_version(),
+        "v": declaration.get("version", 1),
     }
+
+
+def _actor(
+    declaration: Dict[str, Any], who: Optional[Mapping[str, Any]], trace: Any
+) -> Dict[str, Any]:
+    """The given actor, else the catalog's kind with the trace's user for a user."""
+    if who is not None:
+        return actor(who.get("kind") or declaration.get("actor", "user"), who.get("id"))
+
+    kind = declaration.get("actor", "user")
+    return actor(kind, trace.user_id if trace and kind == "user" else None)
+
+
+def _declares(declaration: Dict[str, Any], prop: str) -> bool:
+    return prop in (declaration.get("required") or []) or prop in (
+        declaration.get("optional") or []
+    )
+
+
+def _write_change(document: Dict[str, Any]) -> None:
+    """A change is written now, in a thread: joined off the loop, awaited by `written`
+    on it."""
+    from app.data.events import changes
+
+    try:
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        writer = threading.Thread(target=_stored, args=(changes.insert, document))
+        writer.start()
+        writer.join()
+        return
+
+    write = loop.create_task(asyncio.to_thread(_stored, changes.insert, document))
+    _WRITES.add(write)
+    write.add_done_callback(_WRITES.discard)
+
+
+def _stored(insert: Callable[[Dict[str, Any]], Any], document: Dict[str, Any]) -> None:
+    try:
+        insert(document)
+    except Exception as error:
+        _STATS["change_failures"] += 1
+        from app import logger
+        from app.constants import LogTypes as logconstants
+
+        logger.warn(
+            f"Could not write a {document.get('type')} change: "
+            f"{type(error).__name__}: {error}",
+            log_type=logconstants.COMMAND_WARN_TYPE,
+        )
+
+
+async def written() -> None:
+    """Wait until every change this loop handed to a thread is in the database."""
+    loop = asyncio.get_running_loop()
+    pending = [write for write in _WRITES if write.get_loop() is loop]
+    if pending:
+        await asyncio.gather(*pending, return_exceptions=True)
 
 
 def _declared_props(declaration: Dict[str, Any], props: Dict[str, Any]) -> Dict[str, Any]:
@@ -266,16 +358,16 @@ def record_value(guild_id: Any, feature: str, outcome: str = "ok") -> None:
     This is what separates a feature that is merely configured from one that is
     actually working, so it is the single most important signal Keiko records.
     """
-    emit("value.delivered", guild_id=guild_id, feature=feature, outcome=outcome)
+    record("value.delivered", guild_id=guild_id, cog=feature, props={"outcome": outcome})
 
 
 def record_permission_failure(guild_id: Any, feature: str, error: Exception) -> None:
     """Delivery that Discord refused: the bot cannot do its job here."""
-    emit(
+    record(
         "value.blocked_by_permission",
         guild_id=guild_id,
-        feature=feature,
-        error_type=type(error).__name__,
+        cog=feature,
+        props={"error_type": type(error).__name__},
     )
 
 
@@ -382,6 +474,7 @@ def reset() -> None:
     global _RECORDER, _ENABLED
     drain(limit=constants.ANALYTICS_QUEUE_MAXSIZE)
     _OBSERVERS.clear()
+    _WRITES.clear()
     _RECORDER = None
     _ENABLED = True
     for key in _STATS:

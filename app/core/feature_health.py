@@ -9,6 +9,7 @@ import discord
 from app.components.embed import base_embed
 from app.constants import Commands as commands_constants
 from app.data import analytics as analytics_data
+from app.data.events import activity
 from app.core.analytics_reports import value_counts
 from app.core.cogs import feature_spec
 from app.core.utils import fill, ml, parse_locale, stored_value
@@ -110,16 +111,19 @@ async def feature_health(
     buckets, refusals, views = await asyncio.gather(
         asyncio.to_thread(analytics_data.find_month_buckets, guild_id),
         asyncio.to_thread(
-            analytics_data.find_events_since, "value.blocked_by_permission", since, guild_id
+            activity.count_by_type,
+            ["value.blocked_by_permission"],
+            guild_id,
+            spec["command_key"],
+            since,
         ),
         saved_settings(spec["command_key"], guild_id, user_id, locale, guild),
     )
-    refused = [event for event in refusals if event.get("feature") == spec["command_key"]]
 
     return health_line(
         spec,
         feature_problems(spec, views, guild, locale),
-        len(refused),
+        refusals.get("value.blocked_by_permission", 0),
         value_counts(buckets, since).get(spec["command_key"], 0),
         locale,
     )

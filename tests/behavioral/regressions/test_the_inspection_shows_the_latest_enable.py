@@ -19,6 +19,7 @@ import pytest
 from app.constants import Commands
 from app.core.utils import format_relative_time
 from tests.generators.moderations import seed_cog
+from tests.generators.events import event
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
@@ -32,12 +33,15 @@ async def test_a_feature_that_is_on_is_dated_from_its_latest_enable(deps):
     first_setup = now - timedelta(days=90)
     unpaused = now - timedelta(days=1)
     history = [
-        {"guild_id": GUILD_ID, "event": "enabled", "datetime": first_setup},
-        {"guild_id": GUILD_ID, "event": "paused", "datetime": now - timedelta(days=2)},
-        {"guild_id": GUILD_ID, "event": "unpaused", "datetime": unpaused},
-        {"guild_id": GUILD_ID, "event": "edited", "datetime": now - timedelta(hours=1)},
+        event(event_type, guild_id=GUILD_ID, cog=Commands.BLOCK_LINKS_KEY, ts=moment)
+        for event_type, moment in (
+            ("feature.enabled", first_setup),
+            ("feature.paused", now - timedelta(days=2)),
+            ("feature.unpaused", unpaused),
+            ("config.changed", now - timedelta(hours=1)),
+        )
     ]
-    deps.mongo_client.events[Commands.BLOCK_LINKS_KEY].insert_many(history)
+    deps.mongo_client.events.changes.insert_many(history)
     embed = discord.Embed()
 
     seed_cog(deps.mongo_client, Commands.BLOCK_LINKS_KEY, {"guild_id": GUILD_ID, "enabled": True})

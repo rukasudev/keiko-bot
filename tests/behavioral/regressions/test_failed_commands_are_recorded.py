@@ -22,10 +22,15 @@ Found in the closing review: a failure while recording reached nothing in
 Discord, because the quiet trace kept its line and the exception surfaced only
 as asyncio's "Task exception was never retrieved", which is muted there.
 
+Database PR 2 folded `audit.errors` into `command.failed`: the failure is one
+interaction, written by the analytics sink, carrying the command and the error
+type and never the traceback, which stays in the error channel and the logs.
+
 Guaranteed: a failed command puts a message with its traceback in the error
 channel and a `command.failed` event carrying the error type before the person
-is answered, and a record in `audit.errors` when Mongo takes it within
-`COMMAND_FAILURE_STORE_SECONDS`; the person is answered even when the answer
+is answered, and that event is what the sink stores, with no traceback; the
+failure's counter waits at most `COMMAND_FAILURE_STORE_SECONDS`; the person is
+answered even when the answer
 fails, while the record is still being written, and when recording itself
 raises, which reaches the error channel too; a Mongo stall holds no thread of
 the default executor; the handler adds one message, the error. (A failed
@@ -82,11 +87,13 @@ def expired():
 
 
 def stored_failures(deps):
-    return list(deps.mongo_client.audit.errors.find({}))
+    """The `command.failed` interactions once the sink wrote its batch."""
+    analytics.flush()
+    return list(deps.mongo_client.events.interactions.find({"type": "command.failed"}))
 
 
 def failed_events(analytics_events):
-    return [event for event in analytics_events if event["event"] == "command.failed"]
+    return [event for event in analytics_events if event["type"] == "command.failed"]
 
 
 def answered(interaction):
@@ -115,26 +122,15 @@ class StalledMongo:
     def __getattr__(self, name):
         return self
 
-    def insert_one(self, document):
+    def insert_many(self, documents, ordered=True):
         self.released.wait(10)
-
-
-class StalledMotor:
-    """The same Mongo seen through motor: the write is awaited forever."""
-
-    def __getattr__(self, name):
-        return self
-
-    async def insert_one(self, document):
-        await asyncio.Event().wait()
 
 
 @pytest.fixture
 def stalled_mongo(monkeypatch):
-    """Mongo stops answering writes, for the sync and the async client alike."""
+    """Mongo stops answering the writes of the interactions."""
     released = threading.Event()
-    monkeypatch.setattr("app.data.cogs.mongo_client", StalledMongo(released))
-    monkeypatch.setattr("app.data.cogs.motor_client", StalledMotor())
+    monkeypatch.setattr("app.data.events.interactions.mongo_client", StalledMongo(released))
     monkeypatch.setattr(Commands, "COMMAND_FAILURE_STORE_SECONDS", 0.05, raising=False)
     yield
     released.set()
@@ -153,13 +149,16 @@ async def test_a_failed_command_reaches_the_error_channel_the_audit_and_analytic
     assert 'raise KeyError("allowed_links")' in embed.description, (
         "the traceback is what the error channel is read for"
     )
-    [stored] = stored_failures(deps)
-    assert stored["command_key"] == "block_links"
-    assert "KeyError" in stored["error_message"]
     [event] = failed_events(analytics_events)
     assert event["props"]["error_type"] == "KeyError"
     assert event["props"]["command"] == "moderations block links"
-    assert event["feature"] == "block_links"
+    assert event["cog"] == "block_links"
+    [stored] = stored_failures(deps)
+    assert stored["cog"] == "block_links"
+    assert stored["props"] == {
+        "command": "moderations block links", "error_type": "KeyError"
+    }
+    assert "allowed_links" not in str(stored), "a traceback reached the event"
     [answer] = answered(interaction)
     assert answer.ephemeral
 

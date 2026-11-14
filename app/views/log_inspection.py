@@ -7,7 +7,8 @@ from app.components.buttons import GenericButton, HistoryButton
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.data.guild import settings as guild_settings
-from app.core.cogs import features_on, find_cog_events_by_guild
+from app.core.cogs import features_on, find_changes
+from app.data.events import changes
 from app.core.manager import parse_history_data
 from app.core.utils import format_relative_time, ml
 from app.views.records import RecordsBrowser
@@ -124,8 +125,7 @@ class LogInspectionView(discord.ui.View):
             line = f"{icon} {command_key}"
 
             if is_active:
-                events = find_cog_events_by_guild(guild_id, command_key)
-                last_enabled = self._find_last_enabled_event(events)
+                last_enabled = self._find_last_enabled_event(str(guild_id), command_key)
                 if last_enabled:
                     line += f" ({format_relative_time(last_enabled)})"
 
@@ -141,23 +141,18 @@ class LogInspectionView(discord.ui.View):
         )
 
     @staticmethod
-    def _find_last_enabled_event(events):
-        for event in events:
-            if event.get("event") in ("enabled", "unpaused"):
-                return event.get("datetime")
-        return None
+    def _find_last_enabled_event(guild_id: str, cog: str):
+        found = changes.find_by_guild(
+            guild_id, cog=cog, types=["feature.enabled", "feature.unpaused"], limit=1
+        )
+        return found[0]["ts"] if found else None
 
     async def history_callback(self, interaction: discord.Interaction):
         guild_id = self.guild.id if self.guild else self.guild_id
 
-        def fetch(i: discord.Interaction, uid) -> list:
-            raw_data = []
-            for cog_key in constants.COMMANDS_LIST:
-                raw_data += find_cog_events_by_guild(guild_id, cog_key)
-            return raw_data
-
+        history = await asyncio.to_thread(find_changes, str(guild_id))
         browser = RecordsBrowser(
-            fetch=fetch,
+            fetch=lambda _interaction, _user: history,
             to_fields=lambda raw, i: parse_history_data(raw, i, with_cog=True),
             title=ml("buttons.changes-history.label", locale=interaction.locale),
         )

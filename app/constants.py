@@ -275,6 +275,9 @@ class Commands:
 
     # analytics
     ANALYTICS_EVENTS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 90
+    EVENTS_ACTIVITY_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 90
+    EVENTS_INTERACTIONS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 90
+    EVENTS_HISTORY_READ_LIMIT: Final[int] = 200
     ANALYTICS_MONTHLY_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 400
     ANALYTICS_PROFILE_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 365
     ANALYTICS_QUEUE_MAXSIZE: Final[int] = 5000
@@ -286,14 +289,14 @@ class Commands:
     ANALYTICS_HOT_WINDOW_SECONDS: Final[int] = 60 * 60 * 24 * 8
     ANALYTICS_ATTEMPTS_WINDOW_SECONDS: Final[int] = 60 * 60 * 24
     ANALYTICS_TIMELINE_READ_LIMIT: Final[int] = 25
+    ANALYTICS_REPORT_READ_LIMIT: Final[int] = 10000
     ANALYTICS_DIGEST_HOUR: Final[int] = 9
     ANALYTICS_DIGEST_WEEKDAY: Final[int] = 0
     ANALYTICS_DIGEST_WINDOW_DAYS: Final[int] = 7
     ANALYTICS_ARCHIVE_HOUR: Final[int] = 1
     ANALYTICS_ARCHIVE_MINUTE: Final[int] = 30
     ANALYTICS_ARCHIVE_FIELDS: Final[Tuple[str, ...]] = (
-        "_id", "event", "event_id", "v", "ts", "actor", "feature", "source",
-        "session_id", "result", "props", "env", "app_version",
+        "_id", "ts", "type", "cog", "actor", "session_id", "props", "v",
     )
     ANALYTICS_JOURNEY_HISTORY_LIMIT: Final[int] = 4
     ANALYTICS_JOURNEY_DEBOUNCE_SECONDS: Final[float] = 1.0

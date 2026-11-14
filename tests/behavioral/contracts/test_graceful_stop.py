@@ -52,6 +52,7 @@ from app.data import logs as logs_data
 from app.core import analytics, analytics_sink, debug_logs
 from tests.behavioral.contracts.test_logger_trace import discord_logs  # noqa: F401
 from app.bot import DiscordBot
+from tests.generators.events import record_event
 
 bot_module = importlib.import_module("app.bot")
 
@@ -354,7 +355,7 @@ def slow_batch(stored, monkeypatch):
 
 
 def _queue_one_of_each():
-    analytics.emit("guild.joined", guild_id=1, returning=False)
+    record_event("guild.joined", guild_id=1, returning=False)
     debug_logs.record(debug_logs.build_document(level="INFO", message="closing"))
 
 
@@ -373,7 +374,7 @@ def test_a_sigterm_closes_the_bot_and_writes_both_queues_before_the_process_ends
 
     assert bot.closed_on is bot.served_on, "the bot closes on its own loop"
     assert bot.closes == 1, "a second SIGTERM does not close it twice"
-    assert [event["event"] for event in stored.events] == ["guild.joined"]
+    assert [event["type"] for event in stored.events] == ["guild.joined"]
     assert [log["message"] for log in stored.logs] == ["closing"]
     assert stored.exits == [(0, 1, 1)], "the process ends with 0, after both writes"
 
@@ -381,7 +382,7 @@ def test_a_sigterm_closes_the_bot_and_writes_both_queues_before_the_process_ends
 def test_a_sigterm_lets_a_batch_being_written_finish_before_the_process_ends(
     sigterm, stored, slow_batch
 ):
-    analytics.emit("guild.joined", guild_id=1, returning=False)
+    record_event("guild.joined", guild_id=1, returning=False)
 
     with pytest.raises(ProcessEnded):
         bot_module.run(FlushingBot(slow_batch), "token")
@@ -394,7 +395,7 @@ def test_a_batch_that_outlasts_the_wait_never_holds_the_stop_past_it(
 ):
     monkeypatch.setattr(Dependencies, "BLOCKING_IO_STOP_WAIT_SECONDS", 0.05)
     slow_batch.seconds = 5
-    analytics.emit("guild.joined", guild_id=1, returning=False)
+    record_event("guild.joined", guild_id=1, returning=False)
     started = time.monotonic()
 
     try:
@@ -549,7 +550,7 @@ def test_a_sigterm_during_the_fatal_start_backoff_exits_with_0_at_once(
     _queue_one_of_each()
 
     def stop_during_the_wait():
-        analytics.emit("guild.joined", guild_id=2, returning=False)
+        record_event("guild.joined", guild_id=2, returning=False)
         _send_sigterm()
 
     backoff.during = stop_during_the_wait
@@ -566,7 +567,7 @@ def test_a_sigterm_during_the_write_after_the_backoff_lets_it_finish_and_exits_w
     _queue_one_of_each()
 
     def logged_during_the_wait():
-        analytics.emit("guild.joined", guild_id=4, returning=False)
+        record_event("guild.joined", guild_id=4, returning=False)
         debug_logs.record(debug_logs.build_document(level="INFO", message="waiting"))
 
     def persist(batch):
@@ -602,7 +603,7 @@ def test_what_is_logged_during_the_fatal_start_backoff_is_written_before_the_exi
     sigterm, stored, backoff
 ):
     _queue_one_of_each()
-    backoff.during = lambda: analytics.emit("guild.joined", guild_id=3, returning=False)
+    backoff.during = lambda: record_event("guild.joined", guild_id=3, returning=False)
 
     with pytest.raises(ProcessEnded):
         bot_module.run(FailingBot(discord.PrivilegedIntentsRequired(None)), "token")

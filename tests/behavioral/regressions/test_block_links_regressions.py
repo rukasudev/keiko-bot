@@ -3,10 +3,10 @@
 import pytest
 
 from app.core.utils import ml
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from app.constants import Commands
-from app.data import block_links as block_links_data
+from app.data.events import activity
 from app.services import block_links
 from app.core import cache
 from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
@@ -17,6 +17,7 @@ from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
 from tests.helpers.assertions import keys_in, values_in
 from tests.mocks import create_message
 import discord
+from tests.generators.events import insert_blocked_link
 from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
@@ -293,7 +294,7 @@ def keyspace_walks(deps, monkeypatch):
 
 
 def seed_record(user_id="111", host="spam-site.com"):
-    block_links_data.insert_blocked_link({
+    insert_blocked_link({
         "guild_id": GUILD_ID,
         "user_id": user_id,
         "channel_id": "100",
@@ -475,15 +476,18 @@ async def test_the_numbers_v090_counted_are_still_counted(
     description = await stats_description(scenario_factory)
 
     assert f"**{_bm('stats.fields.total')}:** 6" in description
-    assert "`spam-site.com` (5)" in description
-    assert "<@222> (5)" in description
+    assert "`spam-site.com` (1)" in description
+    assert "<@222> (2)" in description
 
 
 @pytest.mark.shared_contract("config_cache")
 async def test_a_counter_whose_records_expired_is_found_by_its_name_in_the_hash(
     deps, scenario_factory
 ):
-    """What the one-off fold of the deploy leaves: the name, at zero, in the hash."""
+    """What the one-off fold of the deploy leaves: the name, at zero, in the hash.
+
+    The sites and the member come from the last 90 days of blocks (D5 of database PR
+    2), so a counter whose blocks expired still adds to the total and names no site."""
     seed_v090_counters(deps, total=50, hosts={"ancient.com": 50}, users={"333": 50})
     deps.redis_client.hincrby(COUNTERS, "host:ancient.com", 0)
     deps.redis_client.hincrby(COUNTERS, "user:333", 0)
@@ -491,8 +495,31 @@ async def test_a_counter_whose_records_expired_is_found_by_its_name_in_the_hash(
     description = await stats_description(scenario_factory)
 
     assert f"**{_bm('stats.fields.total')}:** 50" in description
-    assert "`ancient.com` (50)" in description
-    assert "<@333> (50)" in description
+    assert "ancient.com" not in description
+
+
+@pytest.mark.shared_contract("config_cache")
+async def test_the_sites_and_the_member_come_from_the_last_90_days_of_blocks(
+    deps, scenario_factory
+):
+    """Database PR 2 (D5): a blocked link is a `link.blocked` activity kept 90 days,
+    and the Stats count its sites and members from those, in Mongo, never by reading
+    every block of the server. Guaranteed: a block older than the window names no
+    site and no member, and the newest ones are counted by site and by member."""
+    old = datetime.now(timezone.utc) - timedelta(days=120)
+    insert_blocked_link({
+        "guild_id": GUILD_ID, "user_id": "999", "host": "ancient.com",
+        "deleted": True, "created_at": old,
+    })
+    for user_id in ("111", "111", "222"):
+        seed_record(user_id=user_id, host="spam-site.com")
+
+    description = await stats_description(scenario_factory)
+
+    assert "ancient.com" not in description and "<@999>" not in description
+    assert "`spam-site.com` (3)" in description
+    assert "<@111> (2)" in description
+    assert f"**{_bm('stats.fields.recent')}:** 3" in description
 
 
 @pytest.mark.shared_contract("config_cache")
@@ -509,7 +536,7 @@ async def test_the_stats_never_walk_the_keyspace(deps, monkeypatch, scenario_fac
 
     assert walks == [], f"the Stats walked the keyspace: {walks}"
     assert f"**{_bm('stats.fields.total')}:** 3" in description
-    assert "`spam-site.com` (3)" in description
+    assert "`spam-site.com` (1)" in description
 
 
 @pytest.mark.shared_contract("config_cache")
@@ -564,7 +591,7 @@ async def test_a_failed_read_on_leave_still_deletes_the_hash_and_the_total(deps,
     def mongo_is_down(*args, **kwargs):
         raise ConnectionError("mongo is down")
 
-    monkeypatch.setattr(block_links_data, "find_blocked_links_by_guild", mongo_is_down)
+    monkeypatch.setattr(activity, "count_by_field", mongo_is_down)
 
     await leave(GUILD_ID)
 
@@ -574,7 +601,7 @@ async def test_a_failed_read_on_leave_still_deletes_the_hash_and_the_total(deps,
 
 @pytest.mark.shared_contract("config_cache")
 async def test_keiko_leaving_a_server_never_freezes_the_bot(deps, monkeypatch):
-    monkeypatch.setattr(block_links_data, "find_blocked_links_by_guild", blocking([]))
+    monkeypatch.setattr(activity, "count_by_field", blocking([]))
 
     ticks = await ticks_while(leave(GUILD_ID))
 
@@ -587,7 +614,7 @@ async def test_recording_a_blocked_link_never_freezes_the_bot(
 ):
     """Every blocked message in every server writes its record."""
     mock_cache.return_value = dict(COG)
-    monkeypatch.setattr(block_links_data, "insert_blocked_link", blocking())
+    monkeypatch.setattr("app.core.analytics.record", blocking())
     message = create_message(channel, member, "https://spam-site.com")
 
     ticks = await ticks_while(block_links.check_message(GUILD_ID, message))
@@ -599,9 +626,7 @@ async def test_recording_a_blocked_link_never_freezes_the_bot(
 
 @pytest.mark.shared_contract("config_cache")
 async def test_the_stats_never_freeze_the_bot(deps, monkeypatch):
-    monkeypatch.setattr(
-        block_links_data, "find_blocked_links_by_guild", blocking([])
-    )
+    monkeypatch.setattr(activity, "count_by_field", blocking([]))
     sent = []
 
     async def send(**kwargs):

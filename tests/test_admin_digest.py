@@ -11,6 +11,7 @@ import pytest
 from app.services import admin_digest
 from app.core import analytics, analytics_sink
 from tests.generators.moderations import seed_cog
+from tests.generators.events import age_events, record_event
 
 pytestmark = pytest.mark.unit
 
@@ -21,8 +22,7 @@ def flush():
 
 def age_everything(deps, days):
     moment = datetime.now(timezone.utc) - timedelta(days=days)
-    for document in deps.mongo_client.guild.analytics_events._data:
-        document["ts"] = moment
+    age_events(deps.mongo_client, moment)
 
 
 def test_it_still_sends_something_on_a_completely_empty_install():
@@ -34,7 +34,7 @@ def test_it_still_sends_something_on_a_completely_empty_install():
 
 
 def test_a_quiet_week_says_so_instead_of_going_silent():
-    analytics.emit("guild.joined", guild_id="1", returning=False)
+    record_event("guild.joined", guild_id="1", returning=False)
     analytics.record_value("1", "welcome_messages")
     flush()
 
@@ -45,11 +45,11 @@ def test_a_quiet_week_says_so_instead_of_going_silent():
 
 
 def test_it_leads_with_what_needs_a_decision(deps):
-    analytics.emit(
+    record_event(
         "feature.setup_opened", guild_id="1", user_id="9", feature="block_links",
         source="slash", session_id="s1",
     )
-    analytics.emit(
+    record_event(
         "setup.step_viewed", guild_id="1", user_id="9", feature="block_links",
         source="slash", session_id="s1", step_key="custom_link",
         step_action="modal", step_index=2,
@@ -66,7 +66,7 @@ def test_it_leads_with_what_needs_a_decision(deps):
 
 def test_permission_failures_are_called_out_as_the_bot_being_unable_to_work():
     for guild in ("1", "2"):
-        analytics.emit(
+        record_event(
             "value.blocked_by_permission", guild_id=guild,
             feature="block_links", error_type="Forbidden",
         )
@@ -122,9 +122,9 @@ def test_deliveries_are_summed_from_the_counters_not_from_documents():
 
 
 def test_guild_movement_shows_both_directions():
-    analytics.emit("guild.joined", guild_id="1", returning=False)
-    analytics.emit("guild.joined", guild_id="2", returning=False)
-    analytics.emit("guild.removed", guild_id="3", days_in_guild=10)
+    record_event("guild.joined", guild_id="1", returning=False)
+    record_event("guild.joined", guild_id="2", returning=False)
+    record_event("guild.removed", guild_id="3", days_in_guild=10)
     flush()
 
     description = admin_digest.build_weekly_digest().description
@@ -133,7 +133,7 @@ def test_guild_movement_shows_both_directions():
 
 
 def test_events_older_than_the_window_do_not_count(deps):
-    analytics.emit("guild.joined", guild_id="1", returning=False)
+    record_event("guild.joined", guild_id="1", returning=False)
     flush()
     age_everything(deps, days=30)
 

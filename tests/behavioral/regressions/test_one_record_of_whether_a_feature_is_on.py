@@ -362,8 +362,13 @@ async def test_a_guild_keiko_left_has_nothing_on(deps, events):
     paused = sorted(
         key
         for key in FEATURES
-        if deps.mongo_client.events[key].find_one(
-            {"guild_id": LEFT_GUILD_ID, "event": Commands.PAUSED_KEY}
+        if deps.mongo_client.events.changes.find_one(
+            {
+                "guild_id": LEFT_GUILD_ID,
+                "cog": key,
+                "type": "feature.paused",
+                "actor.kind": "bot",
+            }
         )
     )
     assert paused == sorted(

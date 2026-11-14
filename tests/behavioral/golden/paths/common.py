@@ -4,7 +4,8 @@ import copy
 import datetime
 from typing import Any, Callable, Dict
 
-from app.data import cogs as cogs_data
+from app.core.cogs import LIFECYCLE_ANALYTICS_EVENTS
+from app.data.events import changes
 from app.core.utils import ml
 
 from tests.behavioral.golden.paths import golden_path
@@ -39,14 +40,18 @@ def seed_document(deps, form: str, document: Dict[str, Any]) -> None:
 
 
 def seed_history(deps, form: str, *events: str) -> None:
-    """Audit records the history screen lists, on a fixed clock."""
+    """Changes the history screen lists, on a fixed clock."""
     for index, event in enumerate(events):
-        cogs_data.insert_cog_event(form, {
+        changes.insert({
+            "ts": FIXED_EVENT_TIME + datetime.timedelta(hours=index),
+            "type": LIFECYCLE_ANALYTICS_EVENTS[event],
             "guild_id": GUILD_ID,
-            "cog_key": form,
-            "user_id": ADMIN_ID,
-            "datetime": FIXED_EVENT_TIME + datetime.timedelta(hours=index),
-            "event": event,
+            "cog": form,
+            "actor": {"kind": "user", "id": ADMIN_ID},
+            "trace_id": None,
+            "session_id": None,
+            "props": {"source": "manager"},
+            "v": 1,
         })
 
 

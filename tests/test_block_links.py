@@ -9,6 +9,15 @@ import pytest
 from app.services.block_links import check_message
 from tests.mocks import create_message, create_member
 from tests.generators import moderations
+from tests.generators.events import blocked_links
+
+
+def _blocks(guild_id):
+    """The blocked links once the sink wrote its batch."""
+    from app.core import analytics
+
+    analytics.flush()
+    return blocked_links(guild_id)
 
 
 class TestBlockLinksCheckMessage:
@@ -507,34 +516,30 @@ class TestBlockLinksRecords:
     async def test_records_the_blocked_link_with_the_rule_that_decided_it(
         self, mock_cache, mongodb, guild, bot, channel, member
     ):
-        from app.data.block_links import find_blocked_links_by_guild
-
         mock_cache.return_value = self._cog()
         msg = create_message(channel, member, "olha https://spam-site.com/promo")
 
         await check_message(str(guild.id), msg)
 
-        records = find_blocked_links_by_guild(str(guild.id))
+        records = _blocks(str(guild.id))
         assert len(records) == 1
-        assert records[0]["host"] == "spam-site.com"
-        assert records[0]["reason"] == "blocked-no-rule"
-        assert records[0]["user_id"] == str(member.id)
-        assert records[0]["deleted"] is True
-        assert "created_at" in records[0]
+        assert records[0]["props"]["host"] == "spam-site.com"
+        assert records[0]["props"]["reason"] == "blocked-no-rule"
+        assert records[0]["actor"] == {"kind": "user", "id": str(member.id)}
+        assert records[0]["props"]["deleted"] is True
+        assert "ts" in records[0]
 
     @pytest.mark.asyncio
     async def test_allowed_link_records_nothing(
         self, mock_cache, mongodb, guild, bot, channel, member
     ):
-        from app.data.block_links import find_blocked_links_by_guild
-
         mock_cache.return_value = self._cog()
         msg = create_message(channel, member, "https://youtube.com/watch?v=abc")
 
         await check_message(str(guild.id), msg)
 
         msg.assert_not_deleted()
-        assert find_blocked_links_by_guild(str(guild.id)) == []
+        assert _blocks(str(guild.id)) == []
 
     @pytest.mark.asyncio
     async def test_a_failed_deletion_is_recorded_as_not_deleted(
@@ -542,8 +547,6 @@ class TestBlockLinksRecords:
     ):
         """Faltou permissao de apagar mensagens: o registro precisa existir
         marcado como nao apagado, senao o dono do servidor nunca descobre."""
-        from app.data.block_links import find_blocked_links_by_guild
-
         mock_cache.return_value = self._cog()
         msg = create_message(channel, member, "https://spam-site.com")
         msg._delete.side_effect = RuntimeError("missing permissions")
@@ -551,9 +554,9 @@ class TestBlockLinksRecords:
         with pytest.raises(RuntimeError):
             await check_message(str(guild.id), msg)
 
-        records = find_blocked_links_by_guild(str(guild.id))
+        records = _blocks(str(guild.id))
         assert len(records) == 1
-        assert records[0]["deleted"] is False
+        assert records[0]["props"]["deleted"] is False
 
     @pytest.mark.asyncio
     async def test_recording_never_breaks_the_moderation(
@@ -566,7 +569,7 @@ class TestBlockLinksRecords:
         mock_cache.return_value = self._cog()
         msg = create_message(channel, member, "https://spam-site.com")
 
-        with patch("app.data.block_links.insert_blocked_link",
+        with patch("app.core.analytics.record",
                    side_effect=RuntimeError("mongo down")):
             await check_message(str(guild.id), msg)
 
@@ -576,12 +579,10 @@ class TestBlockLinksRecords:
     async def test_records_are_capped_per_message(
         self, mock_cache, mongodb, guild, bot, channel, member
     ):
-        from app.data.block_links import find_blocked_links_by_guild
-
         mock_cache.return_value = self._cog()
         links = " ".join(f"https://spam{index}.com" for index in range(9))
         msg = create_message(channel, member, links)
 
         await check_message(str(guild.id), msg)
 
-        assert len(find_blocked_links_by_guild(str(guild.id))) == 3
+        assert len(_blocks(str(guild.id))) == 3

@@ -263,7 +263,7 @@ async def test_a_guild_that_fails_does_not_stop_the_next_and_is_counted(
     assert "celebrated=1 guilds_failed=1 members_failed=0" in caplog.text
     if break_guild is refuse_messages:
         refused = [event for event in analytics_events
-                   if event["event"] == "value.blocked_by_permission"]
+                   if event["type"] == "value.blocked_by_permission"]
         assert [event["guild_id"] for event in refused] == [str(FIRST_GUILD)]
 
 

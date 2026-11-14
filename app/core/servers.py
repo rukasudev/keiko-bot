@@ -1,4 +1,3 @@
-from datetime import datetime
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 from zoneinfo import available_timezones
 
@@ -16,7 +15,8 @@ from app.core.cache import (
     remove_all_cache_by_guild,
     remove_cog_cache_by_guild,
 )
-from app.core.cogs import insert_cog_event, is_feature_on
+from app.core import analytics
+from app.core.cogs import is_feature_on
 from app.core.utils import parse_locale, speak
 
 
@@ -72,12 +72,12 @@ def pause_features(guild_id: str, bot_user_id: str) -> List[str]:
 
         set_feature_enabled(guild_id, key, False)
         paused.append(key)
-        insert_cog_event(
-            str(guild_id),
-            key,
-            commands_constants.PAUSED_KEY,
-            date=datetime.fromisoformat(datetime.now().isoformat()),
-            user_id=bot_user_id,
+        analytics.record(
+            "feature.paused",
+            guild_id=guild_id,
+            cog=key,
+            actor=analytics.actor("bot", bot_user_id),
+            props={"source": "internal"},
         )
 
     return paused

@@ -34,10 +34,10 @@ from app.core import analytics_reports
 from app.data import (
     analytics,
     block_links,
-    cogs,
     logs,
     util,
 )
+from app.data.events import activity, changes, interactions
 from app.data.guild import cogs as guild_cogs
 from app.data.guild import members
 from app.data.guild import messages
@@ -95,13 +95,11 @@ NO_TWITCH_SUBSCRIPTIONS = SimpleNamespace(get_subscriptions=lambda: {"data": []}
 
 NOT_A_QUERY = {
     "analytics.build_profile_operation",
-    "analytics.insert_events",
+    "events.activity.insert_many",
+    "events.changes.insert",
+    "events.interactions.insert_many",
     "keiko.schedules.schedule_subject",
     "keiko.schedules.schedule_id",
-    "block_links.insert_blocked_link",
-    "cogs.insert_cog_event",
-    "cogs.insert_cog_event_async",
-    "cogs.insert_error_by_command_async",
     "logs.day_bounds",
     "logs.insert_logs",
     "util.collection_names",
@@ -118,7 +116,7 @@ BY_DESIGN: Dict[Shape, str] = {
 }
 
 LEGACY: Dict[Shape, str] = {
-    **{(f"events.{collection}", ("guild_id",)): "PR 2" for collection in FEATURE_KEYS},
+    ("events.changes", ("ts", "type")): "PR 2",
     ("guild.analytics_guild_month", ("month",)): "PR 2",
 }
 
@@ -275,7 +273,7 @@ async def drive() -> None:
 
     drive_keiko()
     await drive_guild_cogs()
-    await drive_events()
+    drive_events(now)
     drive_guild_settings(now)
     drive_members()
     drive_schedules(now)
@@ -321,10 +319,42 @@ async def drive_guild_cogs() -> None:
             guild_cogs.count_cogs_by_option(cog, option, "followed", enabled_only)
 
 
-async def drive_events() -> None:
-    for collection in FEATURE_KEYS:
-        list(cogs.find_cog_events_by_guild_id(GUILD, collection))
-        await cogs.find_cog_events_by_guild_id_async(GUILD, collection)
+def drive_events(now: datetime) -> None:
+    since = now - timedelta(days=1)
+    lifecycle = ["feature.enabled", "feature.unpaused"]
+    blocked = ["link.blocked"]
+    setup = ["feature.setup_opened", "setup.completed"]
+
+    changes.find_by_guild(GUILD)
+    changes.find_by_guild(GUILD, types=lifecycle, limit=5)
+    changes.find_by_guild(GUILD, FEATURE, lifecycle, since, 1)
+    changes.count_by_type(GUILD)
+    changes.count_by_type(GUILD, FEATURE, lifecycle, since)
+    changes.count_since(["guild.joined", "guild.removed"], since)
+    changes.delete_by_guild(OTHER_GUILD)
+    changes.delete_by_guild(OTHER_GUILD, FEATURE)
+
+    activity.find_by_guild(GUILD)
+    activity.find_by_guild(GUILD, FEATURE, blocked, since, 5)
+    activity.find_by_guild(GUILD, FEATURE, blocked, limit=5, actor_id=MEMBER)
+    activity.find_by_type(["value.blocked_by_permission"], since, 5)
+    activity.count_by_type(blocked)
+    activity.count_by_type(blocked, GUILD, FEATURE, since)
+    activity.count_by_field(GUILD, FEATURE, "props.host", blocked, since, 3)
+    activity.count_by_field(GUILD, FEATURE, "actor.id", blocked)
+    list(activity.iter_between(since, now))
+    activity.delete_by_guild(OTHER_GUILD)
+    activity.delete_by_guild(OTHER_GUILD, FEATURE)
+
+    interactions.find_by_guild(GUILD)
+    interactions.find_by_guild(GUILD, FEATURE, setup, since, 5)
+    interactions.find_by_type(setup)
+    interactions.find_by_type(setup, FEATURE, since, 5)
+    interactions.find_by_session("session", 5)
+    interactions.count_by_type(setup, cog=FEATURE)
+    interactions.count_by_type(setup, GUILD, FEATURE, since)
+    list(interactions.iter_between(since, now))
+    interactions.delete_by_guild(OTHER_GUILD)
 
 
 def drive_guild_settings(now: datetime) -> None:
@@ -369,10 +399,6 @@ def drive_schedules(now: datetime) -> None:
 
 def drive_block_links() -> None:
     block_links.count_blocked_links(1, {"example.com": 1}, datetime.now(timezone.utc))
-    block_links.find_blocked_links_by_guild(GUILD)
-    block_links.find_blocked_links_by_guild(GUILD, user_id=MEMBER, limit=5)
-    block_links.count_blocked_links_by_guild(GUILD)
-    block_links.delete_blocked_links_by_guild(GUILD)
 
 
 def drive_subscriptions_and_messages(now: datetime) -> None:
@@ -389,10 +415,6 @@ def drive_analytics(now: datetime) -> None:
     )
     analytics.find_profile(GUILD)
     analytics.find_profiles()
-    analytics.find_events_by_guild(GUILD, limit=5)
-    analytics.find_events_since("value.delivered", now)
-    analytics.find_events_since("value.delivered", now, guild_id=GUILD)
-    list(analytics.iter_events_between(now - timedelta(days=1), now))
     analytics.find_month_buckets(GUILD)
     analytics.find_month_buckets_by_month(MONTH)
     analytics.find_archived_month(MONTH)
@@ -409,6 +431,7 @@ def drive_analytics_reports(now: datetime) -> None:
         analytics_reports.choice_distribution(feature)
         analytics_reports.friction(feature)
     analytics_reports.session_events("session")
+    analytics_reports.guild_timeline(GUILD)
 
 
 def drive_logs_and_backup(now: datetime) -> None:

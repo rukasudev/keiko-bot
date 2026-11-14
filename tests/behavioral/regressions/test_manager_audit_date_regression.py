@@ -42,12 +42,12 @@ async def test_editing_a_never_edited_panel_still_records_a_timestamp(
     await scenario.submit_modal({"resposta": "Resposta nova"})
     await scenario.click("done")
 
-    events = list(deps.mongo_client.events["block_links"].find({}))
-    edited = [event for event in events if event["event"] == "edited"]
+    events = list(deps.mongo_client.events.changes.find({"cog": "block_links"}))
+    edited = [event for event in events if event["type"] == "config.changed"]
 
     assert edited, "the edit must produce an audit record"
     for event in edited:
-        assert event["datetime"] is not None, (
+        assert event["ts"] is not None, (
             "an audit record without a timestamp cannot be ordered in History"
         )
 

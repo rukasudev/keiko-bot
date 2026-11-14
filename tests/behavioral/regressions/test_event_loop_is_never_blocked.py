@@ -55,6 +55,7 @@ from typing import Dict, Iterator, List, NamedTuple, Optional, Set, Tuple
 from pyrage import x25519
 from app.cogs.analytics import Analytics
 from tests.generators.moderations import seed_cog
+from tests.generators.events import record_event
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("event_loop")]
 
@@ -644,7 +645,7 @@ def slow_storage(monkeypatch):
 
     monkeypatch.setattr(analytics_sink, "persist", write)
     monkeypatch.setattr("app.data.logs.insert_logs", write)
-    analytics.emit("guild.joined", guild_id=1, returning=False)
+    record_event("guild.joined", guild_id=1, returning=False)
     debug_logs.record(debug_logs.build_document(level="INFO", message="queued"))
     return written
 
@@ -831,8 +832,6 @@ INSPECTION_VIEW = "operator inspection views, follow-up"
 
 
 ALLOWED: Dict[str, str] = {
-    "app/cogs/admin/__init__.py::Admin.forget_guild -> "
-    "app.data.analytics.delete_analytics_by_guild": ADMIN_COMMAND,
     "app/cogs/admin/__init__.py::Admin.show_guild_journey -> "
     "app.services.admin_analytics.build_guild_journey_embed": ADMIN_COMMAND,
     "app/cogs/admin/configs.py::Configs.show_config -> "

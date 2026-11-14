@@ -12,11 +12,11 @@ from app import logger
 from app.constants import Commands
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
+from app.core import analytics
 from app.core.cache import get_cog_data_or_populate, remove_cog_cache_by_guild
 from app.core.cogs import LIFECYCLE_ANALYTICS_EVENTS, is_feature_on
 from app.core.feature_health import send_feature_stats
 from app.core.servers import set_feature_enabled
-from app.data import cogs as cogs_data
 from app.data.guild import cogs as guild_cogs
 from app.exceptions import ErrorContext
 from app.settings.form.copy import normalize_locale
@@ -160,36 +160,8 @@ EVENT_KEY = {
 }
 
 
-async def record_event(
-    key: str, event: str, context: CommitContext, **props: Any
-) -> None:
-    """The permanent audit record of a state change, and its product event."""
-    from app.core import analytics
-
-    data = {
-        "guild_id": context.guild_id,
-        "cog_key": key,
-        "user_id": context.user_id,
-        "datetime": context.when,
-        "event": event,
-    }
-    analytics_event = LIFECYCLE_ANALYTICS_EVENTS.get(event)
-
-    if analytics_event:
-        analytics.emit(
-            analytics_event,
-            guild_id=context.guild_id,
-            user_id=context.user_id,
-            feature=key,
-            source=context.source,
-            session_id=context.session_id,
-            **props,
-        )
-    await cogs_data.insert_cog_event_async(key, data)
-
-
 class GenericCogFeature:
-    """Persistence every feature shares: the cog document and the audit trail."""
+    """Persistence every feature shares: the cog document and its changes."""
 
     def __init__(self, key: str) -> None:
         self.key = key
@@ -314,7 +286,7 @@ class GenericCogFeature:
     async def commit(
         self, kind: str, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """Write what `kind` asks for and record the audit event."""
+        """Write what `kind` asks for and record the change it made."""
         handlers = {
             "setup": self.commit_setup,
             "edit": self.commit_edit,
@@ -334,9 +306,15 @@ class GenericCogFeature:
             )
             raise
 
-        await record_event(
-            self.key, EVENT_KEY[kind], context, **self.event_props(kind, payload)
+        analytics.record(
+            LIFECYCLE_ANALYTICS_EVENTS[EVENT_KEY[kind]],
+            guild_id=context.guild_id,
+            cog=self.key,
+            actor=analytics.actor("user", context.user_id),
+            props={"source": context.source, **self.event_props(kind, payload)},
+            session_id=context.session_id,
         )
+        await analytics.written()
         return result
 
     def event_props(self, kind: str, payload: Mapping[str, Any]) -> dict[str, Any]:

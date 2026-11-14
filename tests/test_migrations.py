@@ -538,11 +538,13 @@ def test_the_shipped_files_form_a_clean_plan_from_an_empty_ledger():
         "schema/0002_guild_and_keiko",
         "schema/0003_members_and_schedules",
         "schema/0004_subscriptions_and_messages",
+        "schema/0005_events",
         "data/0001_bot_defaults",
         "data/0002_server_settings",
         "data/0003_cogs_and_keiko",
         "data/0004_members_and_schedules",
         "data/0005_subscriptions_and_messages",
+        "data/0006_events",
     ]
 
 

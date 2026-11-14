@@ -13,6 +13,7 @@ from app.constants import ViewConstants as view_constants
 from app.data import analytics as analytics_data
 from app.services import admin_analytics
 from app.core import analytics, analytics_reports, analytics_sink
+from tests.generators.events import age_events, record_event
 
 pytestmark = pytest.mark.unit
 
@@ -24,14 +25,14 @@ def flush():
 
 
 def open_setup(session, guild="1"):
-    analytics.emit(
+    record_event(
         "feature.setup_opened", guild_id=guild, user_id="9", feature=FEATURE,
         source="slash", session_id=session,
     )
 
 
 def view_step(session, step, index, guild="1"):
-    analytics.emit(
+    record_event(
         "setup.step_viewed", guild_id=guild, user_id="9", feature=FEATURE,
         source="slash", session_id=session, step_key=step,
         step_action="options", step_index=index,
@@ -41,10 +42,7 @@ def view_step(session, step, index, guild="1"):
 def age_session(session, minutes):
     """Push a session's events into the past so the view would have expired."""
     moment = datetime.now(timezone.utc) - timedelta(minutes=minutes)
-    for collection in [analytics_data.mongo_client.guild.analytics_events]:
-        for document in collection._data:
-            if document.get("session_id") == session:
-                document["ts"] = moment
+    age_events(analytics_data.mongo_client, moment, session)
 
 
 def test_an_expired_session_reports_the_step_it_reached():
@@ -74,7 +72,7 @@ def test_a_session_still_inside_the_timeout_is_open_not_abandoned():
 def test_a_completed_session_is_never_counted_as_a_dropoff():
     open_setup("s3")
     view_step("s3", "mode", 1)
-    analytics.emit(
+    record_event(
         "setup.completed", guild_id="1", user_id="9", feature=FEATURE,
         source="slash", session_id="s3", duration_ms=1000, steps_viewed=1,
     )
@@ -89,7 +87,7 @@ def test_a_discard_reports_the_step_it_was_discarded_from():
     open_setup("s4")
     view_step("s4", "mode", 1)
     view_step("s4", "custom_link", 2)
-    analytics.emit(
+    record_event(
         "setup.discarded", guild_id="1", user_id="9", feature=FEATURE,
         session_id="s4", step_key="custom_link", steps_viewed=2,
         validation_failures=0, back_count=0,
@@ -106,7 +104,7 @@ def test_a_session_that_kept_failing_a_field_says_so():
     open_setup("s5")
     view_step("s5", "custom_link", 1)
     for _ in range(3):
-        analytics.emit(
+        record_event(
             "setup.validation_failed", guild_id="1", user_id="9", feature=FEATURE,
             source="slash", session_id="s5", step_key="custom_link",
             validation="validate_link", error_key="link-not-recognized",
@@ -151,7 +149,7 @@ def test_the_dropoff_report_ranks_the_steps_that_lose_the_most_people():
 def test_the_screen_separates_discarded_from_expired():
     open_setup("c1")
     view_step("c1", "mode", 1)
-    analytics.emit(
+    record_event(
         "setup.discarded", guild_id="1", user_id="9", feature=FEATURE,
         session_id="c1", step_key="mode",
     )
@@ -169,7 +167,7 @@ def test_the_screen_separates_discarded_from_expired():
 def test_a_single_session_can_be_read_on_its_own():
     open_setup("d1")
     view_step("d1", "custom_link", 1)
-    analytics.emit(
+    record_event(
         "setup.validation_failed", guild_id="1", user_id="9", feature=FEATURE,
         source="slash", session_id="d1", step_key="custom_link",
         validation="validate_link", error_key="link-not-recognized",

@@ -637,8 +637,8 @@ async def test_the_history_lists_every_feature_newest_first_and_names_each(deps)
 
     records = await guild_history(GUILD_ID)
 
-    assert (records[0]["cog_key"], records[0]["event"]) == ("block_links", "paused")
-    assert {record["cog_key"] for record in records} == {"welcome_messages", "block_links"}
+    assert (records[0]["cog"], records[0]["type"]) == ("block_links", "feature.paused")
+    assert {record["cog"] for record in records} == {"welcome_messages", "block_links"}
 
     interaction = SimpleNamespace(
         locale="pt-br", guild=None, client=SimpleNamespace(user=SimpleNamespace(id=999))
@@ -646,6 +646,37 @@ async def test_the_history_lists_every_feature_newest_first_and_names_each(deps)
     rendered = "\n".join(history_fields(records, interaction, "pt-br").values())
     assert "**🚫 Bloquear Links**" in rendered
     assert "**🎉 Mensagens de Boas-Vindas**" in rendered
+
+
+async def test_the_history_lists_the_server_settings_changed_on_the_settings_screen(deps):
+    """Broke as: a server setting changed on the /setup settings screen was written
+    to `events.settings`, a collection nothing read, so the history of /setup never
+    showed it. Guaranteed: the history reads the server's changes in one query, the
+    settings' among them, each line named by what it changed."""
+    from app.core import analytics
+    from app.services.setup import guild_history, history_fields
+
+    seed_history(deps, "block_links", "enabled")
+    analytics.record(
+        "config.changed",
+        guild_id=GUILD_ID,
+        cog=Commands.SERVER_SETTINGS_KEY,
+        actor=analytics.actor("user", "555"),
+        props={"source": "setup_dashboard", "changed_keys": ["language"]},
+    )
+    await analytics.written()
+
+    records = await guild_history(GUILD_ID)
+
+    assert [record["cog"] for record in records] == [
+        Commands.SERVER_SETTINGS_KEY, "block_links"
+    ]
+    interaction = SimpleNamespace(
+        locale="pt-br", guild=None, client=SimpleNamespace(user=SimpleNamespace(id=999))
+    )
+    lines = list(history_fields(records, interaction, "pt-br").values())
+    assert lines[0].startswith(ml("commands.commands.setup.settings.row", "pt-br"))
+    assert "<@555>" in lines[0]
 
 
 PERMISSIONS_BASE = "commands.commands.setup.permissions"

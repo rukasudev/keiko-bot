@@ -36,6 +36,7 @@ from tests.behavioral.golden.paths.common import seed_document
 from tests.mocks.discord import create_guild, create_member
 from app.data.guild.cogs import find_cog_by_guild_id
 from tests.generators.moderations import seed_cog, stored_cog
+from tests.generators.events import lifecycle
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
@@ -242,10 +243,7 @@ def _closed_in_place(scenario):
 
 
 def _recorded(deps, form):
-    return [
-        event["event"]
-        for event in deps.mongo_client.events[form].find({"guild_id": GUILD_ID})
-    ]
+    return lifecycle(deps.mongo_client, GUILD_ID, form)
 
 
 async def _two_panels(scenario_factory, form):

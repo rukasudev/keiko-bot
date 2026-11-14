@@ -8,6 +8,8 @@ import discord
 from app import redis_client
 from app.bot import DiscordBot
 from app.constants import Commands, DBConfigs, KeikoIcons, LogTypes, Style
+from app.data.analytics import delete_analytics_by_guild
+from app.data.events import activity, changes, interactions
 from app.data.guild import cogs as guild_cogs
 from app.data.guild import settings as guild_settings
 from app.data.keiko import settings as keiko_settings
@@ -45,6 +47,16 @@ def update_admin_configs(bot: DiscordBot, data: Dict[str, int]) -> None:
     keiko_settings.update_operator(data)
     for key, value in data.items():
         setattr(bot.config, key.upper(), value)
+
+
+def forget_guild(guild_id: str) -> Dict[str, int]:
+    """Erase what Keiko recorded about a server: its events, buckets and profile."""
+    deleted = delete_analytics_by_guild(guild_id)
+    deleted["events"] += sum(
+        collection.delete_by_guild(guild_id)
+        for collection in (changes, activity, interactions)
+    )
+    return deleted
 
 
 def get_admin_configs():

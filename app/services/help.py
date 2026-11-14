@@ -88,11 +88,11 @@ async def send_help(
     ephemeral: bool = False,
 ) -> None:
     """Open the paginated command list with its command select."""
-    analytics.emit(
+    analytics.record(
         "help.opened",
         guild_id=interaction.guild_id,
-        user_id=interaction.user.id,
-        source=source or analytics.resolve_source(interaction),
+        actor=analytics.actor("user", interaction.user.id),
+        props={"source": source or analytics.resolve_source(interaction)},
     )
     fields, select_data = command_list(interaction)
     base = "commands.commands.help.embed"

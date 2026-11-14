@@ -446,6 +446,20 @@ def _inserted(filter_dict):
     return document
 
 
+def _grouped(rows, specification):
+    """`$group` by one `$path`, counting each group with `{"$sum": 1}`."""
+    path = specification["_id"].removeprefix("$")
+    counters = [name for name in specification if name != "_id"]
+    groups = {}
+    for row in rows:
+        value = _field_values(row, path)[0]
+        key = repr(value)
+        group = groups.setdefault(key, {"_id": value, **{name: 0 for name in counters}})
+        for name in counters:
+            group[name] += specification[name]["$sum"]
+    return list(groups.values())
+
+
 class MockMongoCollection:
     """Mock de uma collection MongoDB."""
 
@@ -510,6 +524,23 @@ class MockMongoCollection:
                 operation._filter, operation._doc, upsert=operation._upsert
             )
         return MagicMock(modified_count=len(operations))
+
+    def aggregate(self, pipeline):
+        """The stages the event counts send: $match, $group by one path, $sort, $limit."""
+        rows = [doc.copy() for doc in self._data]
+        for stage in pipeline:
+            (operator, argument), = stage.items()
+            if operator == "$match":
+                rows = [row for row in rows if _matches(row, argument)]
+            elif operator == "$group":
+                rows = _grouped(rows, argument)
+            elif operator == "$sort":
+                rows = MockCursor(rows).sort(list(argument.items()))._data
+            elif operator == "$limit":
+                rows = rows[:argument]
+            else:
+                raise NotImplementedError(operator)
+        return MockCursor(rows)
 
     def find_one_and_delete(self, filter_dict):
         for index, doc in enumerate(self._data):

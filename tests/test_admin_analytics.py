@@ -16,6 +16,8 @@ import discord
 from tests.mocks.discord import create_guild, create_member, MockInteraction
 from app.constants import Commands
 from tests.generators.moderations import seed_cog
+from app.services.admin import forget_guild
+from tests.generators.events import record_event, stored
 
 pytestmark = pytest.mark.unit
 
@@ -25,11 +27,11 @@ def flush():
 
 
 def complete_setup(guild_id, feature, session="s"):
-    analytics.emit(
+    record_event(
         "feature.setup_opened", guild_id=guild_id, user_id="9", feature=feature,
         source="slash", session_id=session,
     )
-    analytics.emit(
+    record_event(
         "setup.completed", guild_id=guild_id, user_id="9", feature=feature,
         source="slash", session_id=session, duration_ms=1000, steps_viewed=3,
     )
@@ -53,12 +55,12 @@ def test_the_funnel_screen_survives_a_feature_nobody_touched():
 
 def test_the_friction_screen_ranks_the_steps_that_reject_people():
     for _ in range(3):
-        analytics.emit(
+        record_event(
             "setup.validation_failed", guild_id="2", user_id="9",
             feature="block_links", session_id="s", step_key="custom_link",
             validation="validate_link", error_key="link-not-recognized",
         )
-    analytics.emit(
+    record_event(
         "setup.validation_failed", guild_id="2", user_id="9",
         feature="reminders_birthday", session_id="s2", step_key="date",
         validation="validate_date", error_key="invalid-date",
@@ -72,7 +74,7 @@ def test_the_friction_screen_ranks_the_steps_that_reject_people():
 
 def test_the_churn_screen_refuses_to_read_a_tiny_population_as_a_conclusion():
     complete_setup("3", "block_links")
-    analytics.emit("guild.removed", guild_id="3", days_in_guild=5)
+    record_event("guild.removed", guild_id="3", days_in_guild=5)
     flush()
 
     embed = admin_analytics.build_churn_embed()
@@ -86,8 +88,8 @@ def test_the_churn_screen_never_claims_a_cause():
 
 
 def test_the_guild_screen_tells_the_story_in_order():
-    analytics.emit("guild.joined", guild_id="4", returning=False)
-    analytics.emit(
+    record_event("guild.joined", guild_id="4", returning=False)
+    record_event(
         "guild.greeting_sent", guild_id="4", features_offered=4, channel_found=True
     )
     complete_setup("4", "welcome_messages")
@@ -100,7 +102,7 @@ def test_the_guild_screen_tells_the_story_in_order():
 
 
 def test_the_guild_screen_flags_a_greeting_nobody_could_see():
-    analytics.emit(
+    record_event(
         "guild.greeting_sent", guild_id="5", features_offered=4, channel_found=False
     )
     flush()
@@ -127,11 +129,16 @@ def test_forgetting_a_guild_removes_every_trace_of_it():
     flush()
 
     assert analytics_data.find_profile("7")
-    deleted = analytics_data.delete_analytics_by_guild("7")
+    record_event(
+        "feature.paused", guild_id="7", user_id="9", feature="block_links",
+        source="manager",
+    )
+    deleted = forget_guild("7")
 
     assert deleted["profile"] == 1
+    assert deleted["events"] >= 3
     assert analytics_data.find_profile("7") is None
-    assert analytics_data.find_events_by_guild("7") == []
+    assert stored("7") == []
     assert analytics_data.find_month_buckets("7") == []
 
 
@@ -140,10 +147,10 @@ def test_forgetting_one_guild_leaves_the_others_alone():
     complete_setup("9", "block_links")
     flush()
 
-    analytics_data.delete_analytics_by_guild("8")
+    forget_guild("8")
 
     assert analytics_data.find_profile("9")
-    assert analytics_data.find_events_by_guild("9")
+    assert stored("9")
 
 
 def test_every_section_of_insights_builds_without_data(deps):
@@ -185,7 +192,7 @@ def test_the_settings_section_names_what_nobody_fills(deps):
 
 
 def test_the_timing_section_states_what_the_number_is_not():
-    analytics.emit(
+    record_event(
         "setup.step_completed", guild_id="1", user_id="9", feature="block_links",
         source="slash", session_id="s", step_key="answer", step_action="modal",
         ms_on_step=45000,
@@ -200,7 +207,7 @@ def test_the_timing_section_states_what_the_number_is_not():
 
 
 def test_the_pipeline_screen_reports_what_was_dropped():
-    analytics.emit("nope.not_real", value=1)
+    record_event("nope.not_real", value=1)
     embed = admin_analytics.build_pipeline_embed()
     assert "Unknown events: **1**" in embed.description
 

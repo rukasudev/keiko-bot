@@ -22,6 +22,7 @@ from app.constants import Commands, Commands as constants
 from app.constants import LogTypes as logconstants
 from app.data import analytics as analytics_data
 from app.data import logs as logs_data
+from app.data.events import activity, interactions
 from app.migrations.runner import declared_structure
 from app.logger import CustomTimedRotatingFileHandler, LoggerHooks, StoredLogsHandler
 from app.core import debug_logs, logs_archive
@@ -1293,20 +1294,21 @@ def posted_months(deps):
     return {marker["_id"] for marker in deps.mongo_client.guild.analytics_archives.find({})}
 
 
-def store_event(deps, ts, guild_id="1", **extra):
+def store_event(deps, ts, guild_id="1", collection="interactions", **extra):
     document = {
         "_id": ObjectId(),
-        "event": "feature.setup_opened",
-        "event_id": os.urandom(8).hex(),
-        "v": 1,
         "ts": ts,
+        "type": "feature.setup_opened",
         "guild_id": guild_id,
-        "user_id": "9",
-        "feature": "block_links",
+        "cog": "block_links",
+        "actor": {"kind": "user", "id": "9"},
+        "trace_id": os.urandom(8).hex(),
+        "session_id": None,
         "props": {},
+        "v": 1,
         **extra,
     }
-    deps.mongo_client.guild.analytics_events.insert_one(document)
+    deps.mongo_client.events[collection].insert_one(document)
     return document
 
 
@@ -1366,7 +1368,18 @@ async def test_each_months_events_go_out_in_one_file_with_one_message(deps):
         store_event(deps, month + timedelta(days=1)),
         store_event(deps, month + timedelta(days=20), guild_id="2"),
     ]
+    inside.append(
+        store_event(
+            deps,
+            month + timedelta(days=10),
+            collection="activity",
+            type="link.blocked",
+            props={"host": "spam.com", "link": "https://spam.com/promo"},
+        )
+    )
+    inside.sort(key=lambda event: event["ts"])
     store_event(deps, (month + timedelta(days=32)).replace(day=1))
+    store_event(deps, month + timedelta(days=3), collection="changes")
     channel = MonthChannel()
 
     await run_archive(channel)
@@ -1376,34 +1389,33 @@ async def test_each_months_events_go_out_in_one_file_with_one_message(deps):
         f"keiko_events_{label()}.jsonl.gz.age",
     ], "October is still running and is not posted"
     (august, first), (content, sent) = channel.sends
-    assert [line["event_id"] for line in lines_of(first)] == [before["event_id"]]
+    assert [line["_id"] for line in lines_of(first)] == [before["_id"]]
     assert august == ml("messages.admin-logs.monthly-events", "en-us").format(
         month="2026-08", count=1
     )
     assert content == ml("messages.admin-logs.monthly-events", "en-us").format(
-        month=label(), count=2
+        month=label(), count=3
     )
-    assert [line["event_id"] for line in lines_of(sent)] == [
-        event["event_id"] for event in inside
-    ]
+    assert [line["_id"] for line in lines_of(sent)] == [event["_id"] for event in inside]
+    assert "link" not in lines_of(sent)[1]["props"], "a private prop left in the archive"
 
 
 @pytest.mark.usefixtures("frozen_clock")
 async def test_the_archive_names_no_server_member_or_discord_id(deps):
-    """Read field by field: the ids the archive keeps on purpose (the event's `_id` and
-    `event_id`, set here to collide with the raw ids) would fail a check of its text."""
+    """Read field by field: the id the archive keeps on purpose (the event's `_id`, set
+    here to collide with the raw ids) would fail a check of its text."""
     stored = store_event(
         deps,
         last_month() + timedelta(days=4),
         guild_id="111222333444",
-        user_id="555666777888",
+        actor={"kind": "user", "id": "555666777888"},
         owner_id="999000111222",
         session_id="a1b2c3d4",
+        trace_id="111222333444beef",
         _id=ObjectId("a1b2c3d4" + "0" * 16),
-        event_id="111222333444beef",
-        source="slash",
-        result="success",
         props={
+            "source": "slash",
+            "result": "success",
             "step_key": "mode",
             "duration_bucket": "<1m",
             "size_bucket": "50-500",
@@ -1417,17 +1429,20 @@ async def test_the_archive_names_no_server_member_or_discord_id(deps):
 
     lines = lines_of(channel.sends[0][1])
     line = lines[0]
-    assert {"guild_id", "user_id", "owner_id"} & set(line) == set()
-    assert line["props"] == {"step_key": "mode", "duration_bucket": "<1m", "size_bucket": "50-500"}
-    assert (line["event_id"], line["event"], line["feature"]) == (
-        stored["event_id"], "feature.setup_opened", "block_links"
+    assert {"guild_id", "owner_id", "trace_id"} & set(line) == set()
+    assert line["actor"] == {"kind": "user"}
+    assert line["props"] == {
+        "source": "slash", "result": "success",
+        "step_key": "mode", "duration_bucket": "<1m", "size_bucket": "50-500",
+    }
+    assert (line["_id"], line["type"], line["cog"]) == (
+        stored["_id"], "feature.setup_opened", "block_links"
     )
-    assert (line["source"], line["result"]) == ("slash", "success")
     id_fields = {key for key in keys_in(lines) if key.endswith("_id")}
-    assert id_fields <= {"_id", "event_id", "session_id"}, f"{id_fields} left in the archive"
+    assert id_fields <= {"_id", "session_id"}, f"{id_fields} left in the archive"
     identities = {
         "111222333444", "555666777888", "999000111222", "123123123123", "456456456456",
-        "a1b2c3d4",
+        "a1b2c3d4", "111222333444beef",
     }
     identities |= {int(identity) for identity in identities if identity.isdigit()}
     left = [value for value in values_in(lines) if value in identities]
@@ -1558,9 +1573,10 @@ async def test_a_month_without_events_posts_nothing_and_is_not_read_again(
 
     await run_archive(channel)
     reads = []
-    monkeypatch.setattr(
-        analytics_data, "iter_events_between", lambda *args: reads.append(args) or []
-    )
+    for collection in (activity, interactions):
+        monkeypatch.setattr(
+            collection, "iter_between", lambda *args: reads.append(args) or []
+        )
     await run_archive(channel)
 
     assert channel.sends == []
@@ -1589,8 +1605,8 @@ async def test_a_month_over_the_upload_limit_goes_in_files_under_it(deps):
         channel.sends[0][0]
     )
     assert [content for content, _part in channel.sends[1:]] == [None] * (len(parts) - 1)
-    sent = [line["event_id"] for part in parts for line in lines_of(part)]
-    assert sent == [event["event_id"] for event in stored], "every event, once, in order"
+    sent = [line["_id"] for part in parts for line in lines_of(part)]
+    assert sent == [event["_id"] for event in stored], "every event, once, in order"
 
 
 @pytest.mark.usefixtures("frozen_clock")
@@ -1602,8 +1618,8 @@ async def test_an_archived_month_opens_with_the_private_key_and_no_other(deps):
 
     posted = channel.sends[0][1].fp.getvalue()
     assert not posted.startswith(b"\x1f\x8b"), "a readable gzip reached Discord"
-    assert stored["event_id"].encode() not in posted
-    assert lines_of(channel.sends[0][1])[0]["event_id"] == stored["event_id"]
+    assert stored["type"].encode() not in posted
+    assert lines_of(channel.sends[0][1])[0]["_id"] == stored["_id"]
     with pytest.raises(pyrage.DecryptError):
         pyrage.decrypt(posted, [x25519.Identity.generate()])
 
@@ -1615,9 +1631,10 @@ async def test_without_a_valid_public_key_no_month_is_read_or_posted(
 ):
     store_event(deps, last_month() + timedelta(days=2))
     reads = []
-    monkeypatch.setattr(
-        analytics_data, "iter_events_between", lambda *args: reads.append(args) or []
-    )
+    for collection in (activity, interactions):
+        monkeypatch.setattr(
+            collection, "iter_between", lambda *args: reads.append(args) or []
+        )
     channel = MonthChannel()
 
     with caplog.at_level(logging.WARNING):
@@ -1745,8 +1762,8 @@ async def test_a_failing_measure_is_a_warning_that_never_takes_down_the_loop(
 @pytest.mark.usefixtures("frozen_clock")
 async def test_archiving_a_month_never_freezes_the_bot(deps, monkeypatch):
     mark_posted(deps, "2026-08")
-    event = {"event": "feature.setup_opened", "ts": last_month(), "props": {}}
-    monkeypatch.setattr(analytics_data, "iter_events_between", blocking([event]))
+    event = {"type": "feature.setup_opened", "ts": last_month(), "props": {}}
+    monkeypatch.setattr(interactions, "iter_between", blocking([event]))
     channel = MonthChannel()
 
     ticks = await ticks_while(run_archive(channel))
@@ -1973,10 +1990,10 @@ async def test_every_name_keiko_gives_its_files_is_known_by_its_kind(
         collection.insert_one({"_id": ObjectId(), "noise": noise(3000)})
     month = datetime(2025, 9, 1, tzinfo=timezone.utc)
     for day in range(0, 28, 3):
-        deps.mongo_client.guild.analytics_events.insert_one(
+        deps.mongo_client.events.interactions.insert_one(
             {
                 "_id": ObjectId(),
-                "event": "feature.setup_opened",
+                "type": "feature.setup_opened",
                 "ts": month + timedelta(days=day),
                 "props": {"padding": noise(1500)},
             }

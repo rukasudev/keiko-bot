@@ -17,7 +17,8 @@ pytestmark = pytest.mark.unit
 APP = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "app")
 READS_PRESENCE = re.compile(
     r"\.(?:activities|raw_status|desktop_status|mobile_status|web_status|client_status)\b"
-    r"|is_on_mobile|on_presence_update|(?<!bot)\.activity\b|presences\s*=\s*True"
+    r"|is_on_mobile|on_presence_update|(?<!bot)(?<!events)\.activity\b"
+    r"|presences\s*=\s*True"
     r"|(?:member|user|author)\.status\b"
 )
 

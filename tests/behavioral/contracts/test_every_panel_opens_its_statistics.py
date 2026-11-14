@@ -206,10 +206,10 @@ def _configure(deps, key):
 
 
 def _refused(deps, key, days=1):
-    deps.mongo_client.guild.analytics_events.insert_one({
-        "event": "value.blocked_by_permission",
+    deps.mongo_client.events.activity.insert_one({
+        "type": "value.blocked_by_permission",
         "guild_id": "777",
-        "feature": key,
+        "cog": key,
         "ts": _days_ago(days),
     })
 
@@ -233,7 +233,7 @@ async def _last_days(key, guild=None):
 async def test_a_missing_permission_is_told_before_the_refusals_and_the_deliveries(deps):
     _configure(deps, Commands.BLOCK_LINKS_KEY)
     _refused(deps, Commands.BLOCK_LINKS_KEY)
-    _delivered(deps, Commands.BLOCK_LINKS_KEY, 3, "feature_action_performed")
+    _delivered(deps, Commands.BLOCK_LINKS_KEY, 3, "link_blocked")
     guild = create_guild(id=777)
     guild.me.guild_permissions = discord.Permissions.all()
     guild.me.guild_permissions.update(manage_messages=False)
@@ -249,7 +249,7 @@ async def test_the_refused_deliveries_of_the_last_days_come_before_the_ones_made
     for days in (1, 2, 9):
         _refused(deps, Commands.BLOCK_LINKS_KEY, days=days)
     _refused(deps, Commands.WELCOME_MESSAGES_KEY)
-    _delivered(deps, Commands.BLOCK_LINKS_KEY, 3, "feature_action_performed")
+    _delivered(deps, Commands.BLOCK_LINKS_KEY, 3, "link_blocked")
 
     line = await _last_days(Commands.BLOCK_LINKS_KEY)
 
@@ -262,13 +262,13 @@ async def test_the_refused_deliveries_of_the_last_days_come_before_the_ones_made
 @pytest.mark.parametrize("key,event,count,sentence", [
     (
         Commands.BLOCK_LINKS_KEY,
-        "feature_action_performed",
+        "link_blocked",
         3,
         "✅ Bloqueei 3 links nos últimos 7 dias!",
     ),
     (
         Commands.BLOCK_LINKS_KEY,
-        "feature_action_performed",
+        "link_blocked",
         1,
         "✅ Bloqueei 1 link nos últimos 7 dias!",
     ),
@@ -313,7 +313,7 @@ async def test_every_features_deliveries_read_as_a_sentence_in_both_languages(
 
 async def test_a_feature_whose_deliveries_are_older_than_seven_days_reads_quiet(deps):
     _configure(deps, Commands.BLOCK_LINKS_KEY)
-    _delivered(deps, Commands.BLOCK_LINKS_KEY, 40, "feature_action_performed", days=12)
+    _delivered(deps, Commands.BLOCK_LINKS_KEY, 40, "link_blocked", days=12)
     _refused(deps, Commands.BLOCK_LINKS_KEY, days=9)
 
     assert await _last_days(Commands.BLOCK_LINKS_KEY) == "💤 Nenhuma novidade nos últimos 7 dias."
@@ -322,12 +322,14 @@ async def test_a_feature_whose_deliveries_are_older_than_seven_days_reads_quiet(
 async def test_the_statistics_read_the_analytics_once(deps, monkeypatch):
     _configure(deps, Commands.WELCOME_MESSAGES_KEY)
     reads = []
-    for name in ("analytics_events", "analytics_guild_month"):
-        collection = deps.mongo_client.guild[name]
-        original = collection.find
+    for collection, name, method in (
+        (deps.mongo_client.events.activity, "activity", "aggregate"),
+        (deps.mongo_client.guild.analytics_guild_month, "analytics_guild_month", "find"),
+    ):
+        original = getattr(collection, method)
         monkeypatch.setattr(
             collection,
-            "find",
+            method,
             lambda *args, original=original, name=name, **kwargs: (
                 reads.append(name) or original(*args, **kwargs)
             ),
@@ -335,7 +337,7 @@ async def test_the_statistics_read_the_analytics_once(deps, monkeypatch):
 
     await _stats(Commands.WELCOME_MESSAGES_KEY, create_guild(id=777))
 
-    assert sorted(reads) == ["analytics_events", "analytics_guild_month"]
+    assert sorted(reads) == ["activity", "analytics_guild_month"]
 
 
 @pytest.mark.parametrize("locale,sentence", [

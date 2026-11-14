@@ -2,10 +2,11 @@
 
 This is the fourth kind of signal in docs/analytics.md, and the only one that
 had no durable home: operational lives in Prometheus, product analytics in
-`guild.analytics_*`, audit in `events.<cog_key>`, and debug lived only in a log
+`events.activity`, `events.interactions` and `guild.analytics_*`, changes in
+`events.changes`, and debug lived only in a log
 file that the container deletes and in Discord embeds that truncate tracebacks.
 
-Deliberately NOT `analytics.emit`: that path validates against the catalog and
+Deliberately NOT `analytics.record`: that path validates against the catalog and
 `sanitize_props` strips free text, which is exactly what a log message and a
 traceback are. Same rails — a bounded queue drained by the Analytics cog — and
 a separate destination, so neither contract has to bend for the other.

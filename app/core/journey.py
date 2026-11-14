@@ -249,29 +249,29 @@ def _read_recent_attempts(journey: Trace) -> None:
 
 
 def record(envelope: Dict[str, Any]) -> None:
-    """Observer entry point: turn an emitted event into a line, if it has one."""
+    """Observer entry point: turn a recorded event into a line, if it has one."""
     journey = _JOURNEYS.get(envelope.get("session_id"))
     if not journey or journey.finished_at:
         return
 
     line = _line_for(
-        envelope["event"], envelope.get("props") or {}, envelope.get("feature")
+        envelope["type"], envelope.get("props") or {}, envelope.get("cog")
     )
     if not line:
         return
 
     # The sentences carry their own icon, and a rejected value is ordinary
     # friction — only a real failure should colour the whole message red.
-    failed = envelope["event"] in FAILURE_EVENTS
+    failed = envelope["type"] in FAILURE_EVENTS
     level = logging.ERROR if failed else logging.INFO
-    outcome = TERMINAL_OUTCOMES.get(envelope["event"])
+    outcome = TERMINAL_OUTCOMES.get(envelope["type"])
     if outcome in CONDENSED_OUTCOMES:
         _condense(journey)
     journey.add(
-        line, level, timestamp=envelope.get("ts"), kind=LINE_KINDS.get(envelope["event"])
+        line, level, timestamp=envelope.get("ts"), kind=LINE_KINDS.get(envelope["type"])
     )
 
-    action = ACTIONS.get(envelope["event"])
+    action = ACTIONS.get(envelope["type"])
     if action:
         journey.last_action = action
 
@@ -314,11 +314,11 @@ def rebuild(session_id: str) -> Optional[Trace]:
 
     first = events[0]
     story = Trace(
-        first.get("props", {}).get("command") or first.get("feature") or "session",
-        source=first.get("source"),
+        first.get("props", {}).get("command") or first.get("cog") or "session",
+        source=first.get("props", {}).get("source"),
         guild_id=first.get("guild_id"),
-        user_id=first.get("user_id"),
-        feature=first.get("feature"),
+        user_id=(first.get("actor") or {}).get("id"),
+        feature=first.get("cog"),
         session_id=session_id,
     )
     story.is_journey = True
@@ -336,14 +336,14 @@ def rebuild(session_id: str) -> Optional[Trace]:
     entries = []
     for envelope in events:
         line = _line_for(
-            envelope["event"], envelope.get("props") or {}, envelope.get("feature")
+            envelope["type"], envelope.get("props") or {}, envelope.get("cog")
         )
         if line:
-            level = logging.ERROR if envelope["event"] in FAILURE_EVENTS else logging.INFO
+            level = logging.ERROR if envelope["type"] in FAILURE_EVENTS else logging.INFO
             entries.append(
-                (line, level, envelope.get("ts"), LINE_KINDS.get(envelope["event"]))
+                (line, level, envelope.get("ts"), LINE_KINDS.get(envelope["type"]))
             )
-        outcome = TERMINAL_OUTCOMES.get(envelope["event"], outcome)
+        outcome = TERMINAL_OUTCOMES.get(envelope["type"], outcome)
 
     for line, level, timestamp, kind in entries:
         story.add(line, level, timestamp=timestamp, kind=kind)

@@ -27,6 +27,7 @@ from app.settings.form.responses.responses import (
     list_values,
 )
 from app.settings.form.responses.summary import unwrap
+from tests.generators.events import lifecycle
 from tests.generators.moderations import seed_cog
 
 pytestmark = pytest.mark.unit
@@ -217,8 +218,9 @@ async def test_a_generic_setup_enables_the_feature_and_stores_the_document(deps)
     assert stored["default_roles"] == {"style": "role", "values": "202"}
     assert stored["default_roles_bot"] == {"style": "role", "values": ["201"]}
     assert stored["enabled"] is True
-    event = deps.mongo_client.events["default_roles"].find_one({"guild_id": GUILD_ID})
-    assert event["event"] == "enabled" and event["user_id"] == "555"
+    event = deps.mongo_client.events.changes.find_one({"guild_id": GUILD_ID})
+    assert event["type"] == "feature.enabled"
+    assert event["actor"] == {"kind": "user", "id": "555"}
 
 
 def _guild_with(members):
@@ -344,10 +346,7 @@ async def test_pause_unpause_and_disable_move_the_document(deps):
     assert find_cog_by_guild_id(GUILD_ID, "default_roles")["enabled"] is True
     await feature.commit("disable", {}, context)
     assert find_cog_by_guild_id(GUILD_ID, "default_roles") is None
-    events = [
-        e["event"]
-        for e in deps.mongo_client.events["default_roles"].find({"guild_id": GUILD_ID})
-    ]
+    events = lifecycle(deps.mongo_client, GUILD_ID, "default_roles")
     assert events == ["paused", "unpaused", "disabled"]
 
 
@@ -474,8 +473,8 @@ async def test_a_website_turns_on_or_off_in_the_choice_as_it_is_saved(
 
     stored = find_cog_by_guild_id(GUILD_ID, "block_links")
     assert stored["allowed_links"] == {"style": "bullet", "values": saved}
-    event = deps.mongo_client.events["block_links"].find_one({"guild_id": GUILD_ID})
-    assert event["event"] == "edited", "a toggle is audited as the edit it was"
+    event = deps.mongo_client.events.changes.find_one({"guild_id": GUILD_ID})
+    assert event["type"] == "config.changed", "a toggle is recorded as the edit it was"
 
 
 async def test_the_youtuber_picture_is_the_medium_thumbnail(deps, monkeypatch):

@@ -11,6 +11,7 @@ from typing import Any, Dict, List, Optional
 
 from app.constants import Commands as constants
 from app.data import analytics as analytics_data
+from app.data.events import activity, interactions
 from app.core import cache
 from app.core.analytics import bucket_size
 
@@ -61,7 +62,7 @@ PROFILE_RULES: Dict[str, Dict[str, Dict[str, Any]]] = {
         "min": {"features.{feature}.first_value_at": TIMESTAMP},
         "max": {"features.{feature}.last_value_at": TIMESTAMP, "last_value_at": TIMESTAMP},
     },
-    "feature.action_performed": {
+    "link.blocked": {
         "inc": {"features.{feature}.value_count": 1, "totals.value_events": 1},
         "min": {"features.{feature}.first_value_at": TIMESTAMP},
         "max": {"features.{feature}.last_value_at": TIMESTAMP, "last_value_at": TIMESTAMP},
@@ -85,7 +86,8 @@ def persist(batch: List[Dict[str, Any]]) -> None:
     """A failure in any destination costs the batch, never the caller."""
     documents, increments, profile_operations, counters = _partition(batch)
 
-    _safely(analytics_data.insert_events, documents)
+    _safely(activity.insert_many, documents["activity"])
+    _safely(interactions.insert_many, documents["interactions"])
     _safely(analytics_data.increment_months, increments)
     _safely(analytics_data.update_profiles, profile_operations)
     _safely(_increment_hot_window, counters)
@@ -107,7 +109,7 @@ def record_guild_sizes(member_counts: Dict[str, Optional[int]], now: datetime) -
     return len(operations)
 
 def _partition(batch: List[Dict[str, Any]]):
-    documents: List[Dict[str, Any]] = []
+    documents: Dict[str, List[Dict[str, Any]]] = {"activity": [], "interactions": []}
     increments: Dict[str, Dict[str, int]] = {}
     profile_updates: Dict[str, Dict[str, Dict[str, Any]]] = {}
     counters: Dict[str, int] = {}
@@ -116,14 +118,12 @@ def _partition(batch: List[Dict[str, Any]]):
     declarations = events_catalog()
 
     for envelope in batch:
-        declaration = declarations.get(envelope["event"]) or {}
-        classes = declaration.get("class") or []
+        collection = (declarations.get(envelope["type"]) or {}).get("collection")
 
-        if "event" in classes:
-            documents.append(envelope)
+        if collection in documents:
+            documents[collection].append(envelope)
 
-        if "counter" in classes or "event" in classes:
-            _collect_increment(increments, counters, envelope)
+        _collect_increment(increments, counters, envelope)
 
         _collect_profile(profile_updates, envelope)
 
@@ -150,7 +150,7 @@ def _collect_increment(
         return
 
     ts: datetime = envelope["ts"]
-    metric = metric_key(envelope["event"], envelope.get("feature"))
+    metric = metric_key(envelope["type"], envelope.get("cog"))
     bucket_id = f"{guild_id}|{ts.strftime('%Y-%m')}"
 
     bucket = increments.setdefault(bucket_id, {})
@@ -167,7 +167,7 @@ def _collect_profile(
     profile_updates: Dict[str, Dict[str, Dict[str, Any]]],
     envelope: Dict[str, Any],
 ) -> None:
-    rules = PROFILE_RULES.get(envelope["event"])
+    rules = PROFILE_RULES.get(envelope["type"])
     guild_id = envelope.get("guild_id")
     if not rules or not guild_id:
         return
@@ -177,7 +177,7 @@ def _collect_profile(
     if any(props.get(name) != value for name, value in required.items()):
         return
 
-    feature = envelope.get("feature")
+    feature = envelope.get("cog")
     parts = profile_updates.setdefault(guild_id, {})
 
     for operator, fields in rules.items():
@@ -209,7 +209,7 @@ def _resolve_value(value: Any, envelope: Dict[str, Any]) -> Any:
     if value == TIMESTAMP:
         return envelope["ts"]
     if value == "__user__":
-        return envelope.get("user_id")
+        return (envelope.get("actor") or {}).get("id")
     return value
 
 

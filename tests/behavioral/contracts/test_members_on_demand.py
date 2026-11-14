@@ -113,10 +113,10 @@ def test_the_history_names_its_actors_without_a_lookup():
         locale="pt-br", guild=guild, client=SimpleNamespace(user=SimpleNamespace(id=1))
     )
     record = {
-        "datetime": datetime(2026, 1, 1, 9, 30),
-        "user_id": "777",
-        "event": "edited",
-        "cog_key": "welcome_messages",
+        "ts": datetime(2026, 1, 1, 9, 30),
+        "actor": {"kind": "user", "id": "777"},
+        "type": "config.changed",
+        "cog": "welcome_messages",
     }
 
     lines = parse_history_data([record], interaction)

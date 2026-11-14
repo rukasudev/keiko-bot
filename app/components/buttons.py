@@ -108,7 +108,7 @@ async def run_feature_command(
         feature=command_key,
         is_admin=is_guild_admin(interaction.user),
     ) as trace, analytics.counting_attempt(trace, interaction.guild_id, command_key):
-        analytics.emit("command.invoked", command=command_name)
+        analytics.record("command.invoked", props={"command": command_name})
         counted = asyncio.ensure_future(asyncio.to_thread(
             increment_redis_key, f"{logconstants.COMMAND_CALL_TYPE}:{command_key}:button"
         ))

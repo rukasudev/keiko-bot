@@ -30,6 +30,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GENERIC_LAYERS = (
     "app/data/guild",
     "app/data/keiko",
+    "app/data/events",
     "app/data/util.py",
     "app/core",
     "app/views",

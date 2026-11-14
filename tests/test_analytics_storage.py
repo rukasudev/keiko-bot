@@ -1,4 +1,4 @@
-"""Storage contract: what becomes a document, what becomes a counter.
+"""Storage contract: which collection an event lands in, and what is only counted.
 
 The whole storage budget rests on high-volume events never being written one
 document at a time, and on every derived number the dashboards read living in
@@ -13,35 +13,64 @@ from app.constants import Commands as constants
 from app.data import analytics as analytics_data
 from app.core import analytics, analytics_sink
 from app.core.trace import trace_scope
+from app.data.events import activity, changes, interactions
+from tests.generators.events import record_event, stored
 
 pytestmark = pytest.mark.unit
 
 
 def _flush(*emissions):
     for event, props in emissions:
-        analytics.emit(event, **props)
+        record_event(event, **props)
     analytics.flush()
 
 
-def test_low_volume_events_are_stored_as_documents():
+def test_an_interaction_is_written_in_the_sinks_batch():
     _flush(("setup.completed", {
         "guild_id": "10", "user_id": "1", "feature": "block_links",
         "source": "slash", "session_id": "s1", "duration_ms": 1000,
         "steps_viewed": 4,
     }))
 
-    events = analytics_data.find_events_by_guild("10")
+    events = interactions.find_by_guild("10")
     assert len(events) == 1
-    assert events[0]["event"] == "setup.completed"
+    assert events[0]["type"] == "setup.completed"
     assert events[0]["props"]["steps_viewed"] == 4
+    assert stored("10") == events
+
+
+def test_a_change_is_written_at_once_and_counted_by_the_sink():
+    """A change is the history a panel lists: it is in the database as soon as
+    `record` returns, before any flush, and the sink still counts it."""
+    record_event("feature.paused", guild_id="11", feature="block_links", source="manager")
+
+    [change] = changes.find_by_guild("11")
+    assert change["type"] == "feature.paused"
+    assert change["cog"] == "block_links"
+
+    analytics.flush()
+    assert stored("11") == [change], "the sink wrote the change a second time"
+    day = list(analytics_data.find_month_buckets("11")[0]["days"].values())[0]
+    assert day["feature_paused|block_links"] == 1
+
+
+def test_activity_lands_in_its_own_collection():
+    _flush(("value.blocked_by_permission", {
+        "guild_id": "12", "feature": "welcome_messages", "error_type": "Forbidden",
+    }))
+
+    [event] = activity.find_by_guild("12")
+    assert event["type"] == "value.blocked_by_permission"
+    assert event["actor"] == {"kind": "bot", "id": None}
+    assert interactions.find_by_guild("12") == []
 
 
 def test_value_delivery_never_creates_a_document():
     for _ in range(50):
-        analytics.emit("value.delivered", guild_id="20", feature="welcome_messages")
+        analytics.record_value("20", "welcome_messages")
     analytics.flush()
 
-    assert analytics_data.find_events_by_guild("20") == []
+    assert stored("20") == []
 
     buckets = analytics_data.find_month_buckets("20")
     assert len(buckets) == 1
@@ -132,8 +161,7 @@ def test_only_a_greeting_posted_on_a_channel_stamps_the_profile():
     )
     assert analytics_data.find_profile("66")["greeting_sent_at"] is not None
     assert [
-        event["props"]["channel_found"]
-        for event in analytics_data.find_events_by_guild("65")
+        event["props"]["channel_found"] for event in activity.find_by_guild("65")
     ] == [False]
 
 
@@ -216,26 +244,29 @@ def test_events_without_a_guild_never_reach_the_per_guild_stores():
 def test_the_trace_supplies_context_the_call_site_does_not_repeat():
     with trace_scope("cmd", guild_id="80", user_id="9", source="slash",
                      feature="block_links", session_id="sess"):
-        analytics.emit("feature.setup_opened")
+        analytics.record("feature.setup_opened")
     analytics.flush()
 
-    event = analytics_data.find_events_by_guild("80")[0]
-    assert event["user_id"] == "9"
-    assert event["source"] == "slash"
-    assert event["feature"] == "block_links"
+    event = interactions.find_by_guild("80")[0]
+    assert event["actor"] == {"kind": "user", "id": "9"}
+    assert event["props"]["source"] == "slash"
+    assert event["cog"] == "block_links"
     assert event["session_id"] == "sess"
+    assert event["trace_id"]
 
 
-def test_every_stored_event_names_its_release_and_an_id_of_its_own(monkeypatch):
-    """The release says which code produced a number; the id lets a copy be told apart."""
-    monkeypatch.setenv("APP_VERSION", "v1.4.0")
-    _flush(
-        ("command.failed", {"guild_id": "90", "command": "ping", "error_type": "KeyError"}),
-        ("command.failed", {"guild_id": "90", "command": "ping", "error_type": "KeyError"}),
-    )
+def test_every_event_has_the_one_envelope():
+    """The envelope of database PR 2: what happened, where, who, the trace and the
+    session, the props, the version; no id, environment or release of its own (the
+    trace and the deploy tag answer those)."""
+    _flush(("command.failed", {
+        "guild_id": "90", "user_id": "9", "feature": "block_links",
+        "command": "ping", "error_type": "KeyError",
+    }))
 
-    events = analytics_data.find_events_by_guild("90")
-    assert [event["app_version"] for event in events] == ["v1.4.0", "v1.4.0"]
-    identifiers = {event["event_id"] for event in events}
-    assert len(identifiers) == 2
-    assert all(len(identifier) == 32 for identifier in identifiers)
+    [event] = interactions.find_by_guild("90")
+    assert set(event) == {
+        "ts", "type", "guild_id", "cog", "actor", "trace_id", "session_id", "props", "v",
+    }
+    assert event["props"] == {"command": "ping", "error_type": "KeyError"}
+    assert event["v"] == 1
