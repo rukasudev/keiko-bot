@@ -12,7 +12,6 @@ import asyncio
 import contextlib
 import os
 import queue
-import threading
 from datetime import datetime, timezone
 from typing import Any, AsyncIterator, Callable, Dict, List, Mapping, Optional, Set
 
@@ -20,6 +19,7 @@ import yaml
 
 from app.constants import Commands as constants
 from app.core.trace import current_trace, drain_runs
+from app.core.threads import to_thread
 
 _CATALOG: Optional[Dict[str, Any]] = None
 _QUEUE: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=constants.ANALYTICS_QUEUE_MAXSIZE)
@@ -72,11 +72,6 @@ def events_catalog() -> Dict[str, Any]:
 
 def sources_catalog() -> List[str]:
     return catalog().get("sources") or []
-
-
-def collection_of(event_type: str) -> Optional[str]:
-    """The collection the catalog writes an event to, `none` for a count alone."""
-    return (events_catalog().get(event_type) or {}).get("collection")
 
 
 def value_events() -> List[str]:
@@ -132,25 +127,27 @@ def _record(
     props: Dict[str, Any],
     session_id: Optional[str],
 ) -> Optional[Dict[str, Any]]:
-    if not _ENABLED:
-        return None
-
     declaration = events_catalog().get(event_type)
     if not declaration:
         _STATS["unknown"] += 1
         return None
 
+    is_change = declaration.get("collection") == "changes"
+    if not _ENABLED and not is_change:
+        return None
+
     envelope = _build_envelope(
         event_type, declaration, guild_id, cog, who, props, session_id
     )
+    if is_change:
+        _write_change(dict(envelope))
+    if not _ENABLED:
+        return envelope
 
     _notify(envelope)
 
     if _RECORDER is not None:
         _RECORDER.append(envelope)
-
-    if declaration.get("collection") == "changes":
-        _write_change(dict(envelope))
 
     try:
         _QUEUE.put_nowait(envelope)
@@ -214,26 +211,26 @@ def _declares(declaration: Dict[str, Any], prop: str) -> bool:
 
 
 def _write_change(document: Dict[str, Any]) -> None:
-    """A change is written now, in a thread: joined off the loop, awaited by `written`
-    on it."""
-    from app.data.events import changes
+    """A change is written now: on the running loop as a task `written` awaits, and from
+    a thread through the client's loop."""
+    from app.data import wait
 
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
-        writer = threading.Thread(target=_stored, args=(changes.insert, document))
-        writer.start()
-        writer.join()
+        wait(_stored(document))
         return
 
-    write = loop.create_task(asyncio.to_thread(_stored, changes.insert, document))
+    write = loop.create_task(_stored(document))
     _WRITES.add(write)
     write.add_done_callback(_WRITES.discard)
 
 
-def _stored(insert: Callable[[Dict[str, Any]], Any], document: Dict[str, Any]) -> None:
+async def _stored(document: Dict[str, Any]) -> None:
+    from app.data import data
+
     try:
-        insert(document)
+        await data().events_changes.insert(document)
     except Exception as error:
         _STATS["change_failures"] += 1
         from app import logger
@@ -247,7 +244,7 @@ def _stored(insert: Callable[[Dict[str, Any]], Any], document: Dict[str, Any]) -
 
 
 async def written() -> None:
-    """Wait until every change this loop handed to a thread is in the database."""
+    """Wait until every change this loop is writing is in the database."""
     loop = asyncio.get_running_loop()
     pending = [write for write in _WRITES if write.get_loop() is loop]
     if pending:
@@ -336,7 +333,7 @@ async def counting_attempt(trace: Any, guild_id: Any, feature: Optional[str]) ->
     if not feature:
         yield
         return
-    attempts = asyncio.ensure_future(asyncio.to_thread(count_attempt, guild_id, feature))
+    attempts = asyncio.ensure_future(to_thread(count_attempt, guild_id, feature))
     try:
         yield
     finally:
@@ -444,7 +441,7 @@ def drain(limit: int = constants.ANALYTICS_FLUSH_BATCH) -> List[Dict[str, Any]]:
     return batch
 
 
-def flush() -> int:
+async def flush() -> int:
     """Drain the event queue, then the closed traces, into Mongo. Called by the
     AnalyticsCog loop.
 
@@ -459,10 +456,10 @@ def flush() -> int:
         batch = drain()
         if not batch:
             break
-        analytics_sink.persist(batch)
+        await analytics_sink.persist(batch)
         flushed += len(batch)
 
-    analytics_sink.persist_runs(drain_runs())
+    await analytics_sink.persist_runs(drain_runs())
     _STATS["flushed"] += flushed
     return flushed
 

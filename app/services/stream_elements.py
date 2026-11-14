@@ -1,4 +1,3 @@
-import asyncio
 import random
 import re
 from typing import Dict, Optional
@@ -11,7 +10,7 @@ from app.constants import LogTypes as logconstants
 from app.constants import Style as style_constants
 from app.constants import ViewConstants as view_constants
 from app.components.embed import base_embed, response_error_embed
-from app.data.guild import cogs as guild_cogs
+from app.data import data
 from app.exceptions import ErrorContext, StreamElementsUnavailable
 from app.integrations.stream_elements import StreamElementsClient
 from app.settings import open_feature
@@ -21,6 +20,7 @@ from app.core.trace import outside_any_trace
 from app.core.utils import fill, ml
 from app.views.pagination import PaginationView
 from app.views.pagination_without_interaction import PaginationWithoutInteractionView
+from app.core.threads import to_thread
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:
     """The slash command: the setup form, or the manager of what is saved."""
@@ -28,7 +28,7 @@ async def manager(interaction: discord.Interaction, guild_id: str) -> None:
 
 
 async def check_message(guild_id: str, message: discord.Message, prefix: str) -> None:
-    cogs = await asyncio.to_thread(
+    cogs = await to_thread(
         cache.get_cog_data_or_populate,
         guild_id,
         constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
@@ -62,7 +62,7 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
                 return
             return await view.send(message)
 
-        reply = await asyncio.to_thread(
+        reply = await to_thread(
             get_reply_in_cache_or_populate, channel_id, command, message.author
         )
         if not reply:
@@ -77,7 +77,7 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
             guild_id, constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY
         )
     except StreamElementsUnavailable as unavailable:
-        await asyncio.to_thread(warn_unavailable, streamer, unavailable)
+        await to_thread(warn_unavailable, streamer, unavailable)
         if command == "commands":
             await message.reply(
                 embed=response_error_embed("stream-elements-unavailable", locale)
@@ -97,7 +97,7 @@ async def channel_of(guild_id: str, streamer: str, channel_id: Optional[str]) ->
     if channel_id:
         return str(channel_id)
 
-    found = await asyncio.to_thread(_channel_or_recent_failure, streamer)
+    found = await to_thread(_channel_or_recent_failure, streamer)
     await keep_channel(guild_id, found)
     return found
 
@@ -106,8 +106,8 @@ async def keep_channel(guild_id: str, channel_id: str) -> None:
     """Keep the server's StreamElements channel id as what Keiko learned, then drop its
     cache."""
     key = constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY
-    await guild_cogs.set_cog_state_async(guild_id, key, {"channel_id": channel_id})
-    await asyncio.to_thread(cache.remove_cog_cache_by_guild, guild_id, key)
+    await data().guild_cogs.set_cog_state(guild_id, key, {"channel_id": channel_id})
+    await to_thread(cache.remove_cog_cache_by_guild, guild_id, key)
 
 
 def _channel_or_recent_failure(streamer: str) -> str:
@@ -171,7 +171,7 @@ async def parse_command_list_view(
     lookups go to a thread."""
     from app import bot
 
-    commands_list = await asyncio.to_thread(
+    commands_list = await to_thread(
         get_commands_in_cache_or_populate, channel_id, message.author
     )
     if not commands_list:
@@ -182,7 +182,7 @@ async def parse_command_list_view(
     description = ml(f"{namespace}.embed.desc", locale=locale).replace(
         "$streamer", streamer
     )
-    user_info = await asyncio.to_thread(bot.twitch.get_user_info, streamer)
+    user_info = await to_thread(bot.twitch.get_user_info, streamer)
     icon = (user_info or {}).get("profile_image_url")
     view = PaginationWithoutInteractionView(
         title,
@@ -199,7 +199,7 @@ async def parse_command_list_view(
 async def send_commands_view(interaction: discord.Interaction) -> None:
     """The paginated command list, opened from the manager panel."""
     guild_id = str(interaction.guild.id)
-    cogs = await asyncio.to_thread(
+    cogs = await to_thread(
         cache.get_cog_data_or_populate,
         guild_id,
         constants.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
@@ -209,11 +209,11 @@ async def send_commands_view(interaction: discord.Interaction) -> None:
     locale = interaction.locale
     try:
         channel_id = await channel_of(guild_id, streamer, (cogs or {}).get("channel_id"))
-        commands_list = await asyncio.to_thread(
+        commands_list = await to_thread(
             get_commands_in_cache_or_populate, channel_id, interaction.user
         )
     except StreamElementsUnavailable as unavailable:
-        await asyncio.to_thread(warn_unavailable, streamer, unavailable)
+        await to_thread(warn_unavailable, streamer, unavailable)
         return await interaction.response.send_message(
             embed=response_error_embed("stream-elements-unavailable", locale),
             ephemeral=True,

@@ -8,7 +8,7 @@ desde o recebimento do webhook ate o envio da mensagem.
 import pytest
 import discord
 from datetime import datetime, timedelta, timezone
-from app.data.guild.messages import save_message
+from app.data import data
 from app.services.notifications_twitch import (
     compose_notification_message,
     create_stream_notification_embed,
@@ -724,7 +724,7 @@ async def test_the_offline_edit_skips_a_server_keiko_left_and_reaches_the_next(
     follow(deps, servers.second.id, servers.second.text_channels[0].id)
     await handle_send_streamer_notification("gaules")
     follow(deps, GONE, 100)
-    save_message(GONE, 100, "notifications_twitch", "gaules", 1)
+    await data().guild_messages.save_message(GONE, 100, "notifications_twitch", "gaules", 1)
     reordered = sorted(
         deps.mongo_client.guild.notifications_twitch._data,
         key=lambda document: document["guild_id"] != str(GONE),

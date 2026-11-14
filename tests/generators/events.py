@@ -4,8 +4,8 @@ event collections directly."""
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Mapping, Optional
 
+from app.data import data, wait
 from app.core import analytics
-from app.data.events import activity, changes, interactions
 
 BLOCK_LINKS = "block_links"
 LINK_PROPS = ("channel_id", "link", "host", "mode", "reason", "rule", "match", "deleted")
@@ -49,12 +49,12 @@ def blocked_link(row: Mapping[str, Any]) -> Dict[str, Any]:
 
 def insert_blocked_link(row: Mapping[str, Any]) -> None:
     """Seed one blocked link the way the sink writes it."""
-    activity.insert_many([blocked_link(row)])
+    wait(data().events_activity.insert_many([blocked_link(row)]))
 
 
 def blocked_links(guild_id: str) -> List[Dict[str, Any]]:
     """A server's blocked links, newest first, as the records list reads them."""
-    return activity.find_by_guild(guild_id, cog=BLOCK_LINKS, types=["link.blocked"])
+    return wait(data().events_activity.find_by_guild(guild_id, cog=BLOCK_LINKS, types=["link.blocked"]))
 
 
 def record_event(
@@ -81,9 +81,9 @@ def record_event(
 def stored(guild_id: str) -> List[Dict[str, Any]]:
     """Every event a server has in the three collections, newest first."""
     found = [
-        *changes.find_by_guild(guild_id),
-        *activity.find_by_guild(guild_id),
-        *interactions.find_by_guild(guild_id),
+        *wait(data().events_changes.find_by_guild(guild_id)),
+        *wait(data().events_activity.find_by_guild(guild_id)),
+        *wait(data().events_interactions.find_by_guild(guild_id)),
     ]
     return sorted(found, key=lambda document: document["ts"], reverse=True)
 

@@ -1,6 +1,6 @@
 """Generic records browser: fetch records, format them into pagination
 fields, and optionally filter by member through a select round trip."""
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 import discord
 
@@ -15,7 +15,7 @@ from app.views.pagination import PaginationView
 class RecordsBrowser:
     """Browse screen for a command's records.
 
-    `fetch(interaction, user_id)` returns the raw records and `to_fields`
+    `fetch(interaction, user_id)` is awaited for the raw records and `to_fields`
     turns them into the `{name: value}` dict `PaginationView` renders.
     `filter_namespace` enables the member filter and resolves its copy from
     the `{label, all-label, title, description, empty}` leaf keys.
@@ -23,7 +23,7 @@ class RecordsBrowser:
 
     def __init__(
         self,
-        fetch: Callable[[discord.Interaction, Optional[str]], List[Any]],
+        fetch: Callable[[discord.Interaction, Optional[str]], Awaitable[List[Any]]],
         to_fields: Callable[[List[Any], discord.Interaction], Dict[str, str]],
         title: str,
         description: str = "",
@@ -44,7 +44,7 @@ class RecordsBrowser:
     async def send(
         self, interaction: discord.Interaction, user_id: Optional[str] = None
     ) -> None:
-        records = self.fetch(interaction, user_id)
+        records = await self.fetch(interaction, user_id)
 
         if not records:
             empty = self._empty_copy(interaction, filtered=bool(user_id))

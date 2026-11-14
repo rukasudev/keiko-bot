@@ -1,4 +1,3 @@
-import asyncio
 
 from discord import app_commands
 from discord.ext import tasks
@@ -10,6 +9,7 @@ from app.services import notifications_youtube_video
 from app.core.trace import run_traced
 from app.translator import locale_str
 from app.types.cogs import GroupCog
+from app.core.threads import to_thread
 
 
 @app_commands.guild_only()
@@ -28,7 +28,7 @@ class Notifications(GroupCog, name=locale_str("notifications", type="groups")):
     async def resubscribe_youtube(self) -> None:
         """Subscribe every followed YouTube channel again with the hub secret, once per start."""
         await run_traced(
-            asyncio.to_thread(notifications_youtube_video.resubscribe_followed_channels),
+            to_thread(notifications_youtube_video.resubscribe_followed_channels),
             "youtube resubscribe",
             source="job",
         )

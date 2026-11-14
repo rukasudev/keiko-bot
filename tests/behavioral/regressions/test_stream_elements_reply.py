@@ -25,12 +25,13 @@ from types import SimpleNamespace
 import discord
 import pytest
 
+from app.data import data, wait
 from app.data.guild import settings as guild_settings
 from app.exceptions import StreamElementsUnavailable
 from app.integrations.stream_elements import StreamElementsClient
 from app.core.utils import ml, parse_locale
+from tests.mocks.database import fake_store
 from tests.behavioral.harness.driver import FormScenario
-from app.data.guild.cogs import find_cog_by_guild_id
 from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks.discord import (
     create_guild,
@@ -90,7 +91,7 @@ def reply_of(message):
 
 def english_guild():
     guild = create_guild()
-    recorded_server(guild_settings.mongo_client, guild.id, language="en-us")
+    recorded_server(fake_store(), guild.id, language="en-us")
     return guild
 
 
@@ -121,7 +122,7 @@ async def test_a_member_with_a_picture_of_their_own_gets_the_reply(deps, streame
 
 async def test_the_reply_footer_speaks_the_language_of_the_server(deps, streamer_commands):
     guild = create_guild()
-    recorded_server(guild_settings.mongo_client, guild.id, language="pt-br")
+    recorded_server(fake_store(), guild.id, language="pt-br")
 
     message = await ask(deps.bot, guild, member_without_a_picture(guild))
 
@@ -483,7 +484,7 @@ def nothing_on(mock_cache):
 
 def server_message(content, locale=discord.Locale.american_english):
     guild = create_guild()
-    recorded_server(guild_settings.mongo_client, guild.id, language=parse_locale(locale))
+    recorded_server(fake_store(), guild.id, language=parse_locale(locale))
     author = create_member(guild, id=111, name="TestUser")
     return create_message(content=content, author=author, channel=guild.text_channels[0])
 
@@ -723,7 +724,7 @@ def an_old_document(deps, mock_cache, monkeypatch):
     def configured(guild_id, key, *args, **kwargs):
         if key != "stream_elements_commands":
             return {}
-        return find_cog_by_guild_id(str(guild_id), key)
+        return wait(data().guild_cogs.find_cog_by_guild_id(str(guild_id), key))
 
     asked = []
 
@@ -769,7 +770,7 @@ async def test_an_old_document_without_its_channel_still_answers_ke_commands(
 
     assert reply_of(first).description == REPLY
     assert reply_of(second).description == REPLY
-    stored = find_cog_by_guild_id(str(guild.id), "stream_elements_commands")
+    stored = await data().guild_cogs.find_cog_by_guild_id(str(guild.id), "stream_elements_commands")
     assert stored["state"]["channel_id"] == "se-gaules", "the channel was not written back"
     assert an_old_document.asked == ["gaules"], "the channel was looked up on every message"
 

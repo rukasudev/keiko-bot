@@ -59,7 +59,7 @@ def _sessions(status):
 
 
 async def _panel(scenario_factory, deps):
-    _seed_config(deps)
+    await _seed_config(deps)
     return await scenario_factory(locale="pt-br", guild=_guild()).start_command(
         FEATURE
     )

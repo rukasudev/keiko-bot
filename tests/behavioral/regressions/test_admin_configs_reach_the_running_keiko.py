@@ -23,6 +23,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.data import data, wait
 from app.config import AppConfig
 from tests.mocks.discord import MockInteraction, create_guild, create_member
 
@@ -54,7 +55,7 @@ def keiko(deps):
         {"_id": "notion", "options": {"enabled": False}}
     )
     config = AppConfig.__new__(AppConfig)
-    config.load_db_configs()
+    wait(config.load_db_configs(data()))
     return SimpleNamespace(config=config)
 
 
@@ -82,11 +83,10 @@ async def test_an_updated_channel_is_the_one_keiko_uses_now_and_after_a_restart(
 
     assert keiko.config.ADMIN_LOGS_CHANNEL_ID == 999
     restarted = AppConfig.__new__(AppConfig)
-    restarted.load_db_configs()
+    await restarted.load_db_configs(data())
     assert restarted.ADMIN_LOGS_CHANNEL_ID == 999
-    from app.data.keiko.settings import find_keiko_settings
 
-    assert find_keiko_settings()["operator"]["admin_logs_channel_id"] == 999
+    assert (await data().keiko_settings.find_keiko_settings())["operator"]["admin_logs_channel_id"] == 999
 
 
 async def test_an_id_that_is_not_a_number_is_refused_and_nothing_changes(keiko):

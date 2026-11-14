@@ -21,7 +21,7 @@ class Subscriptions(Group, name="subscriptions"):
     async def show_twitch_subscriptions(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True)
 
-        view = get_twitch_subscriptions()
+        view = await get_twitch_subscriptions()
         await interaction.followup.send(view=view, embed=view.custom_embed, ephemeral=True)
 
     @keiko_command(

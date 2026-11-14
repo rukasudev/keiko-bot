@@ -19,10 +19,10 @@ from datetime import datetime, timezone
 
 import pytest
 
+from app.data import data
 from app.core import cache
 from app.settings.features import feature_for
 from app.settings.features.feature import CommitContext
-from app.data.guild.cogs import find_cog_by_guild_id
 from tests.generators.moderations import seed_cog, stored_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
@@ -65,7 +65,7 @@ async def test_a_setup_saved_right_after_a_disable_stays_on(deps, monkeypatch):
 
     await feature_for("block_links").commit("disable", {}, context(BLOCK_LINKS))
 
-    assert find_cog_by_guild_id(GUILD_ID, "block_links")["enabled"] is True, (
+    assert (await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "block_links"))["enabled"] is True, (
         "Disable paused the block links another admin set up right after it"
     )
 
@@ -74,12 +74,12 @@ async def test_a_birthday_setup_saved_right_after_a_disable_stays_on(deps, monke
     collection = deps.mongo_client.guild.cogs
     collection.insert_one(stored_cog("reminders_birthday", BIRTHDAYS))
     another_admin_saves_right_after(
-        collection, "delete_one", monkeypatch, "reminders_birthday", BIRTHDAYS
+        collection, "find_one_and_delete", monkeypatch, "reminders_birthday", BIRTHDAYS
     )
 
     await feature_for("reminders_birthday").commit("disable", {}, context(BIRTHDAYS))
 
-    assert find_cog_by_guild_id(GUILD_ID, "reminders_birthday")["enabled"] is True, (
+    assert (await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "reminders_birthday"))["enabled"] is True, (
         "Disable paused the birthdays another admin set up right after it"
     )
 

@@ -232,7 +232,7 @@ class Runtime:
     ) -> None:
         key = opening.key
         feature = feature_for(key)
-        settings = await asyncio.to_thread(server_settings, guild_id)
+        settings = await server_settings(guild_id)
         opened = await feature.open(
             OpenContext(guild_id, str(interaction.user.id), locale, guild, member)
         )
@@ -884,11 +884,10 @@ class Runtime:
         from app.views.records import RecordsBrowser
 
         locale = session.origin.locale
-        changes = await asyncio.to_thread(
-            find_changes, session.origin.guild_id, session.key
-        )
         browser = RecordsBrowser(
-            fetch=lambda _interaction, _user: changes,
+            fetch=lambda _interaction, _user: find_changes(
+                session.origin.guild_id, session.key
+            ),
             to_fields=parse_history_data,
             title=text("buttons.changes-history.label", locale),
             description=parse_history_desc(interaction, session.key),

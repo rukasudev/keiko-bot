@@ -143,23 +143,111 @@ def test_the_container_is_told_the_version_it_runs():
 
 
 
-def test_the_new_image_migrates_before_the_old_container_stops():
-    """A failed migration must stop the deploy while the running version keeps serving."""
+def _migration_calls(step_name):
+    script = _step(step_name)["run"]
+    return re.findall(r"^\s*(?:if ! )?(migrations [^;\n]+?)(?:; then)?$", script, re.M)
+
+
+def _step(name):
+    steps = _deploy()["steps"]
+    [step] = [step for step in steps if step["name"] == name]
+    return step
+
+
+def test_the_new_image_checks_the_migrations_while_the_old_version_serves():
+    """A failed status or dry run stops the deploy while the running version serves."""
     names = [step["name"] for step in _deploy()["steps"]]
-    migrations = _deploy()["steps"][names.index("Run the migrations with the new image")]
-    script = migrations["run"]
+    check = _step("Check the migrations with the new image")
 
     assert (
         names.index("Pull the version")
-        < names.index("Run the migrations with the new image")
+        < names.index("Check the migrations with the new image")
+        < names.index("Stop the running container and migrate")
         < names.index("Replace the running container")
     )
-    assert "docker run --rm" in script
-    assert "${{ env.REGISTRY }}:${{ env.VERSION }} python -m app.migrations" in script
-    assert "-e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_REGION" in script
-    assert set(migrations["env"]) == {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"}
-    calls = [line.strip() for line in script.splitlines() if line.strip().startswith("migrations ")]
-    assert calls == ["migrations status", "migrations migrate --dry-run", "migrations migrate"]
+    assert "docker stop" not in check["run"]
+    assert "docker run --rm" in check["run"]
+    assert "${{ env.REGISTRY }}:${{ env.VERSION }} python -m app.migrations" in check["run"]
+    assert "-e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_REGION" in check["run"]
+    assert set(check["env"]) == {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"}
+    assert _migration_calls("Check the migrations with the new image") == [
+        "migrations status",
+        "migrations migrate --dry-run",
+    ]
+
+
+def test_the_data_migrates_only_once_the_old_version_has_stopped():
+    """Broke as: `migrate` ran while the old container served, so what it wrote to the
+    old collections during the copy was never copied and was lost with the cutover."""
+    migrate = _step("Stop the running container and migrate")
+    script = migrate["run"]
+
+    assert _migration_calls("Stop the running container and migrate") == [
+        "migrations migrate"
+    ]
+    assert script.index('docker stop -t "$STOP_GRACE_SECONDS" keiko-bot') < script.index(
+        "migrations migrate"
+    )
+    assert "docker rm" not in script, "the old container stays, to start it again"
+    assert set(migrate["env"]) == {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"}
+
+
+FAKE_MIGRATING_DOCKER = r"""#!/bin/bash
+echo "$*" >> "$FAKE_STATE/calls"
+case "$1" in
+  stop|start) ;;
+  run) exit "${MIGRATE_CODE:-0}" ;;
+  *) echo "unexpected docker call: $*" >&2; exit 2 ;;
+esac
+"""
+
+
+@pytest.fixture
+def migrate_step(tmp_path):
+    """Runs the migrate step's own script with `bash -e` against a fake `docker` that
+    records every call, its `run` exiting with `MIGRATE_CODE`."""
+    step = _step("Stop the running container and migrate")
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "docker").write_text(FAKE_MIGRATING_DOCKER)
+    (bin_dir / "docker").chmod(0o755)
+    script = step["run"].replace("${{ env.REGISTRY }}:${{ env.VERSION }}", "keiko:v1")
+
+    def run(**scenario):
+        state = tmp_path / "state"
+        state.mkdir(exist_ok=True)
+        (state / "calls").write_text("")
+        env = {
+            "PATH": f"{bin_dir}:/usr/bin:/bin",
+            "FAKE_STATE": str(state),
+            "STOP_GRACE_SECONDS": str(_deploy()["env"]["STOP_GRACE_SECONDS"]),
+            "VERSION": "v1",
+            **{name: str(value) for name, value in scenario.items()},
+        }
+        result = subprocess.run(
+            ["bash", "-e", "-c", script], env=env, capture_output=True, text=True, timeout=30
+        )
+        calls = [call.split()[0] for call in (state / "calls").read_text().splitlines()]
+        return SimpleNamespace(code=result.returncode, out=result.stdout, calls=calls)
+
+    return run
+
+
+def test_a_migration_that_succeeds_leaves_the_old_container_stopped(migrate_step):
+    result = migrate_step()
+
+    assert result.code == 0, result.out
+    assert result.calls == ["stop", "run"]
+
+
+def test_a_migration_that_fails_starts_the_old_version_again_and_fails_the_job(
+    migrate_step,
+):
+    result = migrate_step(MIGRATE_CODE=1)
+
+    assert result.code == 1
+    assert result.calls == ["stop", "run", "start"]
+    assert "starting the version that was running again" in result.out
 
 
 def test_redis_is_cleaned_and_checked_once_the_old_version_has_stopped():
@@ -171,7 +259,7 @@ def test_redis_is_cleaned_and_checked_once_the_old_version_has_stopped():
     script = redis["run"]
 
     assert (
-        names.index("Run the migrations with the new image")
+        names.index("Stop the running container and migrate")
         < names.index("Replace the running container")
         < names.index("Check the bot stayed up")
         < names.index("Clean Redis once the new version serves")

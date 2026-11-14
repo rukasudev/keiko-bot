@@ -21,12 +21,12 @@ import pytest
 import redis
 import redis.client
 import requests
-from motor.motor_asyncio import AsyncIOMotorClient
 from prometheus_client import REGISTRY
-from pymongo import MongoClient
+from pymongo import AsyncMongoClient
 from pymongo.errors import ServerSelectionTimeoutError
 
 import app as app_module
+from tests.mocks.database import FakeAsyncMongoClient, MockMongoClient
 from app import integrations
 from app.bot import DiscordBot, discord_latency
 from app.constants import DBConfigs, Dependencies
@@ -40,7 +40,7 @@ from app.migrations import runner
 
 pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("outside_calls")]
 
-REAL_REQUIRE_APPLIED = runner.require_applied
+REAL_REQUIRE_RECORDED = runner.require_recorded
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 APP = os.path.join(ROOT, "app")
@@ -219,17 +219,10 @@ def test_a_translation_google_does_not_answer_is_no_translation_and_names_no_tex
     assert "ConnectionError" in caplog.text
 
 
-@pytest.mark.parametrize("client_class", [MongoClient, AsyncIOMotorClient],
-                         ids=["pymongo", "motor"])
-def test_the_mongo_clients_give_up_on_a_server_and_on_a_read_and_time_commands(
-    config, client_class
-):
-    client = app_module.connect_mongo(client_class, config, connect=False)
-    try:
-        options = client.options
-        listeners = options.event_listeners
-    finally:
-        client.close()
+def test_the_mongo_client_gives_up_on_a_server_and_on_a_read_and_times_commands(config):
+    client = app_module.connect_mongo(AsyncMongoClient, config, connect=False)
+    options = client.options
+    listeners = options.event_listeners
 
     assert options.server_selection_timeout == DBConfigs.MONGO_SERVER_SELECTION_TIMEOUT_SECONDS
     assert options.pool_options.connect_timeout == DBConfigs.MONGO_CONNECT_TIMEOUT_SECONDS
@@ -274,45 +267,61 @@ def test_a_redis_pipeline_is_timed_once_per_round_trip(monkeypatch):
 @pytest.fixture
 def boot(monkeypatch):
     """`create_app` with every client faked, and the process's globals put back after."""
-    for name in ("mongo_client", "motor_client", "redis_client", "bot"):
+    import app.data as data_module
+
+    for name in ("redis_client", "bot"):
         monkeypatch.setattr(app_module, name, getattr(app_module, name, None), raising=False)
-    monkeypatch.setattr(app_module, "AsyncIOMotorClient", lambda *args, **options: object())
+    monkeypatch.setattr(app_module, "_CONFIG", None)
+    monkeypatch.setattr(data_module, "_INSTALLED", data_module._INSTALLED)
     monkeypatch.setattr(app_module, "connect_redis", lambda url: SimpleNamespace(ping=lambda: True))
     monkeypatch.setattr(app_module, "DiscordBot", lambda config: "the bot")
-    monkeypatch.setattr("app.migrations.runner.require_applied", lambda client: None)
+    monkeypatch.setattr("app.migrations.runner.require_recorded", lambda recorded: None)
     monkeypatch.setattr("app.core.analytics.configure", lambda config: None)
-    monkeypatch.setattr("app.core.debug_logs.start_writer", lambda: None)
 
     def start(answers):
         """Boot against a Mongo that answers each ping with the next of `answers`."""
         pings = []
 
-        def ping(command):
+        async def ping(command):
             pings.append(command)
             answer = answers[min(len(pings), len(answers)) - 1]
             if isinstance(answer, Exception):
                 raise answer
             return answer
 
-        monkeypatch.setattr(
-            app_module, "MongoClient",
-            lambda *args, **options: SimpleNamespace(
-                guild=SimpleNamespace(command=ping),
-                migrations=SimpleNamespace(
-                    changelog=SimpleNamespace(find=lambda query, projection: [])
-                ),
-            ),
-        )
+        monkeypatch.setattr(app_module, "AsyncMongoClient", PingingClient.factory(ping))
+
+        async def loaded(store):
+            start.loaded.append(True)
+
         config = SimpleNamespace(
             MONGO_URL="mongodb://mongo:27017",
             REDIS_URL="redis://redis:6379/0",
             is_prod=lambda: False,
-            load_db_configs=lambda: start.loaded.append(True),
+            load_db_configs=loaded,
         )
         return app_module.create_app(config), pings
 
     start.loaded = []
     return start
+
+
+class PingingClient(FakeAsyncMongoClient):
+    """The async client over an empty store, its `guild` database answering pings."""
+
+    def __init__(self, ping):
+        super().__init__(MockMongoClient())
+        self._ping = ping
+
+    @classmethod
+    def factory(cls, ping):
+        return lambda *args, **options: cls(ping)
+
+    def __getitem__(self, name):
+        database = super().__getitem__(name)
+        if name == "guild":
+            database.command = self._ping
+        return database
 
 
 def test_the_boot_waits_for_a_mongo_that_answers_a_moment_later(boot):
@@ -329,7 +338,7 @@ def test_the_boot_stops_before_the_configs_when_a_migration_is_pending(
     boot, monkeypatch, caplog
 ):
     """A deploy that skipped the migrations must not start on a database it predates."""
-    monkeypatch.setattr(runner, "require_applied", REAL_REQUIRE_APPLIED)
+    monkeypatch.setattr(runner, "require_recorded", REAL_REQUIRE_RECORDED)
 
     with pytest.raises(runner.MigrationsPending, match="make migrate"):
         boot([{"ok": 1.0}])

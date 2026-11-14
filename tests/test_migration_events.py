@@ -15,6 +15,7 @@ map; a run from empty writes nothing, and a second run writes nothing new.
 The mongo half runs against a throwaway replica set (MONGO_TEST_URL), like the runner's.
 """
 
+import asyncio
 import importlib
 import io
 import os
@@ -24,6 +25,7 @@ import pytest
 from bson import ObjectId
 from pymongo import MongoClient
 
+from app.data import data
 from app.constants import Commands, Migrations
 from app.core import analytics
 from app.core.cogs import LIFECYCLE_ANALYTICS_EVENTS
@@ -115,6 +117,43 @@ def test_an_audit_row_becomes_the_change_it_recorded():
         "props": {},
         "v": 1,
     }
+
+
+def test_the_pauses_keiko_made_on_leaving_a_server_name_the_bot():
+    """Broke as: every events.<cog> row was copied as a member's change, so the pauses
+    Keiko wrote for each feature of a server it left read in the History as a member
+    who paused them. A person pauses one feature at a time; Keiko paused all of a
+    server's at once, so the id that paused two features of one server within
+    `SAME_LEAVE_SECONDS` is Keiko's, and every row with that id is the bot's."""
+    left = [
+        ("block_links", audit("paused", guild_id="1", user_id=999, moment=NOW)),
+        (
+            "welcome_messages",
+            audit(
+                "paused", guild_id="1", user_id=999, cog="welcome_messages",
+                moment=NOW + timedelta(milliseconds=300),
+            ),
+        ),
+        ("block_links", audit("paused", guild_id="3", user_id=999, moment=NOW)),
+        ("block_links", audit("paused", guild_id="2", user_id="555", moment=NOW)),
+        (
+            "welcome_messages",
+            audit(
+                "paused", guild_id="2", user_id="555", cog="welcome_messages",
+                moment=NOW + timedelta(minutes=2),
+            ),
+        ),
+    ]
+
+    changes = MIGRATION.changes_from_audits(left)
+
+    assert [change["actor"] for change in changes] == [
+        {"kind": "bot", "id": "999"},
+        {"kind": "bot", "id": "999"},
+        {"kind": "bot", "id": "999"},
+        {"kind": "user", "id": "555"},
+        {"kind": "user", "id": "555"},
+    ]
 
 
 def test_an_audit_row_without_a_date_takes_the_time_of_its_id():
@@ -306,6 +345,7 @@ def production_shaped(client):
 
 EMPTY_COUNTS = {
     "changes_from_audit": 0,
+    "changes_by_keiko": 0,
     "changes_from_analytics": 0,
     "lifecycle_events_left_to_audit": 0,
     "activity_from_analytics": 0,
@@ -334,6 +374,7 @@ def test_production_rows_land_in_their_new_collections(server):
 
     assert counts == {
         "changes_from_audit": 5,
+        "changes_by_keiko": 0,
         "changes_from_analytics": 1,
         "lifecycle_events_left_to_audit": 1,
         "activity_from_analytics": 1,
@@ -368,16 +409,29 @@ def test_production_rows_land_in_their_new_collections(server):
 
 @pytest.mark.mongo
 def test_the_copied_events_are_what_the_readers_find(server, monkeypatch):
+    from pymongo import AsyncMongoClient
+
+    import app.data as data_layer
     from app.core import cogs as cogs_service
-    from app.data.events import activity, changes
 
     production_shaped(server)
     migrate(server)
-    monkeypatch.setattr(changes, "mongo_client", server)
-    monkeypatch.setattr(activity, "mongo_client", server)
+    monkeypatch.setattr(data_layer, "_INSTALLED", data_layer._INSTALLED)
 
-    history = cogs_service.find_changes("1", "block_links")
-    blocks = activity.find_by_guild("1", "block_links", ["link.blocked"])
+    async def read():
+        store = data_layer.build(AsyncMongoClient(os.environ["MONGO_TEST_URL"]))
+        data_layer.install(store)
+        try:
+            return (
+                await cogs_service.find_changes("1", "block_links"),
+                await data().events_activity.find_by_guild(
+                    "1", "block_links", ["link.blocked"]
+                ),
+            )
+        finally:
+            await store.close()
+
+    history, blocks = asyncio.run(read())
 
     assert [change["type"] for change in history] == [
         "config.changed", "feature.paused", "feature.enabled"

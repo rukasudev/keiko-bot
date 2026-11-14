@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
-from collections.abc import Callable, Mapping
+from collections.abc import Awaitable, Callable, Mapping
 from typing import Any, cast
 
 import app as app_module
 from app.constants import ViewConstants as view_constants
+from app.core.threads import to_thread
 from app.settings.features.feature import (
     AsideAction,
     CommitContext,
@@ -29,7 +29,7 @@ class SubscriptionFeature(GenericCogFeature):
     external: str = ""
     subscribe: Subscribe
     unsubscribe: Subscribe
-    followers: Callable[[str], int]
+    followers: Callable[[str], Awaitable[int]]
     preview_sender: Any = None
 
     def __init__(self, key: str) -> None:
@@ -67,18 +67,16 @@ class SubscriptionFeature(GenericCogFeature):
         if self.external not in lookup.services:
             return {}
         if self.external == "twitch":
-            info = await asyncio.to_thread(self._twitch_user, lookup.value)
+            info = await to_thread(self._twitch_user, lookup.value)
             return {
                 "twitch": {
                     self.lookup_result: info.get("id"),
                     "profile_image": str(info.get("profile_image_url") or ""),
                 }
             }
-        found = await asyncio.to_thread(self._lookup, lookup.value)
+        found = await to_thread(self._lookup, lookup.value)
         image = (
-            await asyncio.to_thread(self._profile_image, lookup.value, found)
-            if found
-            else ""
+            await to_thread(self._profile_image, lookup.value, found) if found else ""
         )
         return {self.external: {self.lookup_result: found, "profile_image": image}}
 
@@ -115,7 +113,7 @@ class SubscriptionFeature(GenericCogFeature):
         if self._gated() or composition is None:
             return document
         for item in items_of(document, composition.key):
-            await asyncio.to_thread(self.subscribe, None, item)
+            await to_thread(self.subscribe, None, item)
         return document
 
     async def commit_unpause(
@@ -125,7 +123,7 @@ class SubscriptionFeature(GenericCogFeature):
         if not self._gated():
             _saved, items = await self.saved_list(context)
             for item in items:
-                await asyncio.to_thread(self.subscribe, None, item)
+                await to_thread(self.subscribe, None, item)
 
         return await super().commit_unpause(payload, context)
 
@@ -135,7 +133,7 @@ class SubscriptionFeature(GenericCogFeature):
         """A new item subscribes before it is saved, outside dev."""
         if self._gated():
             return
-        await asyncio.to_thread(self.subscribe, None, item)
+        await to_thread(self.subscribe, None, item)
 
     async def before_item_replaced(
         self, old: Mapping[str, Any], new: Mapping[str, Any], context: CommitContext
@@ -143,7 +141,7 @@ class SubscriptionFeature(GenericCogFeature):
         """A new name is subscribed before the edit is saved, outside dev."""
         if self._gated() or _name(old, self.item_key) == _name(new, self.item_key):
             return
-        await asyncio.to_thread(self.subscribe, None, new)
+        await to_thread(self.subscribe, None, new)
 
     async def after_item_replaced(
         self, old: Mapping[str, Any], new: Mapping[str, Any], context: CommitContext
@@ -175,9 +173,9 @@ class SubscriptionFeature(GenericCogFeature):
         if not name:
             return
 
-        followers = await asyncio.to_thread(self.followers, str(name))
+        followers = await self.followers(str(name))
         if followers == 0:
-            await asyncio.to_thread(self.unsubscribe, None, item)
+            await to_thread(self.unsubscribe, None, item)
 
 
 def _name(item: Mapping[str, Any], key: str) -> str:

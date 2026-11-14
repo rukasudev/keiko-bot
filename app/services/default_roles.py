@@ -1,4 +1,3 @@
-import asyncio
 from typing import Any, AsyncIterable, Dict, List, Mapping, Optional, Tuple, Union
 
 import discord
@@ -12,10 +11,11 @@ from app.settings import open_feature
 from app.core import analytics, cache, members
 from app.core.members import every_member
 from app.core.utils import at_least, fill, get_available_roles_by_guild, ml
+from app.core.threads import to_thread
 
 
 async def set_on_member_join(member: discord.Member):
-    cogs = await asyncio.to_thread(
+    cogs = await to_thread(
         cache.get_cog_data_or_populate, member.guild.id, constants.DEFAULT_ROLES_KEY
     )
 
@@ -40,7 +40,7 @@ async def set_on_member_join(member: discord.Member):
 
 
 async def set_on_default_roles_sync(interaction: discord.Interaction):
-    cogs = await asyncio.to_thread(
+    cogs = await to_thread(
         cache.get_cog_data_or_populate, interaction.guild.id, constants.DEFAULT_ROLES_KEY
     )
 

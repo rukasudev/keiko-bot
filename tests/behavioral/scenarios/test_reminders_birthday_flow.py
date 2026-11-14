@@ -280,14 +280,14 @@ async def _celebrate(deps, monkeypatch, mm_dd="05-12"):
     channel = deps.guild.text_channels[0]
     if not deps.guild.get_member(555):
         create_member(deps.guild, id=555, name="Tester")
-    save_birthday_config(
+    await save_birthday_config(
         guild_id,
         str(channel.id),
         False,
         notification_time="08:00",
     )
     saved_birthday(guild_id, "555", mm_dd, reminder_id="reminder-1")
-    set_feature_enabled(guild_id, "reminders_birthday", True)
+    await set_feature_enabled(guild_id, "reminders_birthday", True)
 
     await birthday_handler.process_birthday_webhook("reminder-1", mm_dd)
     return channel
@@ -352,7 +352,7 @@ def _drawn(scenario):
 async def _panel_of(scenario_factory, deps, members=("555",)):
     from tests.behavioral.golden.paths.reminders_birthday import _guild, _seed_config
 
-    _seed_config(deps, members=members)
+    await _seed_config(deps, members=members)
     return await scenario_factory(locale="pt-br", guild=_guild()).start_command(
         "reminders_birthday"
     )
@@ -438,7 +438,7 @@ async def test_editing_a_member_keeps_the_member_fixed_on_the_card(
     assert item["date"] == "06-30"
     from app.services.reminders_birthdays import find_birthdays_by_guild
 
-    saved = find_birthdays_by_guild(str(scenario.guild.id))
+    saved = await find_birthdays_by_guild(str(scenario.guild.id))
     assert sorted(saved_item["user_id"] for saved_item in saved) == ["555", "777"]
     await scenario.finish()
 

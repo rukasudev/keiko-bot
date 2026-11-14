@@ -46,7 +46,7 @@ async def test_a_feature_that_is_on_is_dated_from_its_latest_enable(deps):
 
     seed_cog(deps.mongo_client, Commands.BLOCK_LINKS_KEY, {"guild_id": GUILD_ID, "enabled": True})
 
-    LogInspectionView(None, None, GUILD_ID)._add_commands_status(
+    await LogInspectionView(None, None, GUILD_ID)._add_commands_status(
         embed, {"_id": GUILD_ID, "state": {"present": True}}
     )
 

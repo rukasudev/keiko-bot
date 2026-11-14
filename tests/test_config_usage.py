@@ -7,6 +7,7 @@ YAML declares the list it came from.
 """
 import pytest
 
+from app.data import wait
 from app.core import analytics_reports
 from tests.generators.moderations import seed_cog
 
@@ -28,7 +29,7 @@ def test_a_setting_nobody_fills_shows_zero_without_any_event(deps):
              welcome_messages_channel={"values": ["123"]},
              welcome_custom_image=None)
 
-    usage = analytics_reports.config_usage("welcome_messages")
+    usage = wait(analytics_reports.config_usage("welcome_messages"))
 
     assert usage["guilds"] == 4
     assert field(usage, "welcome_messages_channel")["filled"] == 4
@@ -40,7 +41,7 @@ def test_an_empty_envelope_does_not_count_as_configured(deps):
     save(deps, "block_links", guild_id="1", allowed_links={"values": []})
     save(deps, "block_links", guild_id="2", allowed_links={"values": ["youtube.com"]})
 
-    assert field(analytics_reports.config_usage("block_links"), "allowed_links")["filled"] == 1
+    assert field(wait(analytics_reports.config_usage("block_links")), "allowed_links")["filled"] == 1
 
 
 def test_a_closed_vocabulary_field_reports_its_distribution(deps):
@@ -48,7 +49,7 @@ def test_a_closed_vocabulary_field_reports_its_distribution(deps):
         save(deps, "block_links", guild_id=str(index), mode="block_all")
     save(deps, "block_links", guild_id="9", mode="allow_all")
 
-    mode = field(analytics_reports.config_usage("block_links"), "mode")
+    mode = field(wait(analytics_reports.config_usage("block_links")), "mode")
 
     assert mode["closed_vocabulary"]
     assert mode["values"] == {"block_all": 3, "allow_all": 1}
@@ -57,7 +58,7 @@ def test_a_closed_vocabulary_field_reports_its_distribution(deps):
 def test_a_free_text_field_never_reports_what_people_wrote(deps):
     save(deps, "block_links", guild_id="1", answer="meu servidor secreto discord.gg/xyz")
 
-    answer = field(analytics_reports.config_usage("block_links"), "answer")
+    answer = field(wait(analytics_reports.config_usage("block_links")), "answer")
 
     assert answer["filled"] == 1, "it still counts as configured"
     assert answer["values"] == {}, "but never says what was written"
@@ -68,7 +69,7 @@ def test_channel_and_role_fields_never_report_their_ids(deps):
          allowed_chats={"values": ["111", "222"]},
          allowed_roles={"values": ["333"]})
 
-    usage = analytics_reports.config_usage("block_links")
+    usage = wait(analytics_reports.config_usage("block_links"))
 
     for key in ("allowed_chats", "allowed_roles"):
         assert field(usage, key)["filled"] == 1
@@ -82,7 +83,7 @@ def test_a_boolean_setting_reports_how_many_turned_it_on(deps):
     save(deps, "reminders_birthday", guild_id="2", mention_everyone=False)
     save(deps, "reminders_birthday", guild_id="3", mention_everyone=True)
 
-    mention = field(analytics_reports.config_usage("reminders_birthday"), "mention_everyone")
+    mention = field(wait(analytics_reports.config_usage("reminders_birthday")), "mention_everyone")
 
     assert mention["values"] == {"True": 2, "False": 1}
 
@@ -92,13 +93,13 @@ def test_multi_valued_settings_count_each_option_once_per_guild(deps):
          allowed_links={"values": ["youtube.com", "spotify.com"]})
     save(deps, "block_links", guild_id="2", allowed_links={"values": ["youtube.com"]})
 
-    values = field(analytics_reports.config_usage("block_links"), "allowed_links")["values"]
+    values = field(wait(analytics_reports.config_usage("block_links")), "allowed_links")["values"]
 
     assert values == {"youtube.com": 2, "spotify.com": 1}
 
 
 def test_a_feature_nobody_configured_reports_zero_guilds_and_does_not_crash(deps):
-    usage = analytics_reports.config_usage("notifications_twitch")
+    usage = wait(analytics_reports.config_usage("notifications_twitch"))
 
     assert usage["guilds"] == 0
     assert all(row["share"] == 0 for row in usage["fields"])
@@ -109,7 +110,7 @@ def test_unused_settings_lists_the_candidates_for_removal(deps):
         save(deps, "welcome_messages", guild_id=str(index),
              welcome_messages_channel={"values": ["1"]}, welcome_custom_image=None)
 
-    rows = analytics_reports.unused_settings()
+    rows = wait(analytics_reports.unused_settings())
     dead = [row for row in rows if row["key"] == "welcome_custom_image"]
 
     assert dead, "a setting nobody uses must surface"

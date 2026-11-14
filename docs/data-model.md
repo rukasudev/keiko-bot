@@ -116,10 +116,14 @@ keiko.schedules
 }
 ```
 
+Each collection has one async repository in `app/data/<database>/<collection>.py`,
+reached as `data().<database>_<collection>` (`data().guild_cogs`,
+`data().keiko_schedules`); its methods are the collection's generic operations.
+
 `app/data/guild/cogs.py` hands the app the flat feature document it always read,
 `{guild_id, enabled, **options, state: {...}}`, and splits it back on a write, so a
 feature module never names `options`. What Keiko learns on its own goes through
-`set_cog_state_async(guild_id, cog, fields)`. The birthday config keeps the form's keys
+`data().guild_cogs.set_cog_state(guild_id, cog, fields)`. The birthday config keeps the form's keys
 (`channel`, `notification_time`, `mention_everyone`, `default_message`); its time zone
 is the server's.
 
@@ -255,4 +259,4 @@ Notifications for a new streaming platform follow Twitch. Take Kick:
   it.
 
 No step needs a collection named after the command, and none needs Python outside
-the feature module and its `app/data` functions.
+the feature module and the `app/data` repositories it awaits.

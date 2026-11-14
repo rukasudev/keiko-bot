@@ -114,7 +114,9 @@ The same document is the product event and the history line: there is no audit
 row beside it. The panel's History button and the log inspection read one cog's
 changes (`cogs.find_changes(guild_id, cog)`, newest first, at most
 `EVENTS_HISTORY_READ_LIMIT`), and the /setup History reads the whole server's,
-its settings' included, in one query. A server setting changed on the /setup
+its settings' included, in one query. Either History lists at most
+`EVENTS_HISTORY_READ_LIMIT` (200) changes, the newest: an older change stays in
+`events.changes`, kept for good, but no History shows it. A server setting changed on the /setup
 settings screen is a `config.changed` with `cog: settings` and
 `changed_keys: [<the key>]`. The history names each line by its lifecycle key
 (`cogs.lifecycle_key(type)` → `commands.command-events.<key>`), and a change
@@ -232,7 +234,7 @@ Every read of an event collection sends its limit to Mongo: a history reads at
 most `EVENTS_HISTORY_READ_LIMIT`, the /admin guild timeline
 `ANALYTICS_TIMELINE_READ_LIMIT` from each collection, and a report the newest
 `ANALYTICS_REPORT_READ_LIMIT` events of its type. Counts by type, by site or by
-member are aggregations (`count_by_type`, `count_by_field`), never a read of
+member are aggregations (`count_by_field`), never a read of
 every document.
 
 `metric_key` replaces dots in an event name (`value.delivered|welcome_messages`
@@ -395,7 +397,9 @@ executable instead of documented.
 `/admin forget <guild_id>` erases every analytics record of a guild
 (`admin.forget_guild`): its events (`events.*`, and the raw events, audit rows and
 block records of before), its counts and lifetime (and the buckets and profile of
-before) and its runs. The monthly
+before) and its runs. It writes what the queue still holds first (the events, the
+closed traces, the changes being written) and erases it with the rest, so the next
+flush brings nothing of the guild back. The monthly
 events archive holds nothing to erase, since it names no guild; the daily log
 export does, and a file already posted is out of its reach until the logs files
 channel deletes it, 90 days after it was posted.
@@ -413,7 +417,10 @@ channel deletes it, 90 days after it was posted.
 | Bot stops: a deploy's SIGTERM, `/admin shutdown`, a run that fails | both queues are written before the process ends (`run` in `app/bot.py`); a start Discord refused writes them again after its five-minute wait, unless a SIGTERM ends the wait first |
 | SIGKILL, an OOM kill or a hard crash of the interpreter | up to a few seconds of queued events are lost, by design |
 
-`ANALYTICS_ENABLED=false` turns `record` into a no-op without a deploy.
+`ANALYTICS_ENABLED=false` turns `record` into a no-op without a deploy, except for a
+change: `events.changes` is the only history a server has, so a `collection: changes`
+event is still written, and only the queue and the journey go quiet
+(`tests/behavioral/regressions/test_changes_ignore_the_analytics_kill_switch.py`).
 `/admin pipeline` shows emitted, flushed, dropped, unknown and queue depth.
 
 ---
@@ -430,7 +437,7 @@ process is scraped. Keiko's own:
 | `keiko_build_info` | `version` | the heartbeat cog when it loads, `metrics.record_build_info` |
 | `keiko_interactions_total` | `outcome` (`in_time`, `deferred`, `failed`), `code` (Discord's error code, such as `10062` or `40060`, or empty) | the form adapter (`open_feature`, `handle`, a click on a lost session), `run_feature_command` (a feature a button opens) and `Errors.on_app_command_error` |
 | `keiko_webhook_refusals_total` | `route` (the URL rule, never the path a request typed), `status` (the 4xx it was answered with) | the refusal hook of `app/webhooks/__init__.py` |
-| `keiko_dependency_latency_seconds` (a histogram, buckets `Dependencies.LATENCY_BUCKETS`) | `dependency` (one of `Dependencies.NAMES`: `mongo`, `redis`, `discord`, `twitch`, `youtube`, `reminders`, `notion`, `translate`, `stream_elements`) | every call, answered or not: the shared HTTP client (`app/integrations/__init__.py`) for the HTTP services, `MongoLatency` (a pymongo command listener on both Mongo clients) and `TimedRedis` with its `TimedPipeline`, one call per round trip (`app/__init__.py`), `discord_latency` (the aiohttp trace discord.py sends its requests through, `app/bot.py`), and `metrics.timed("translate")` around the language detection, which brings its own HTTP client |
+| `keiko_dependency_latency_seconds` (a histogram, buckets `Dependencies.LATENCY_BUCKETS`) | `dependency` (one of `Dependencies.NAMES`: `mongo`, `redis`, `discord`, `twitch`, `youtube`, `reminders`, `notion`, `translate`, `stream_elements`) | every call, answered or not: the shared HTTP client (`app/integrations/__init__.py`) for the HTTP services, `MongoLatency` (a pymongo command listener on the async Mongo client) and `TimedRedis` with its `TimedPipeline`, one call per round trip (`app/__init__.py`), `discord_latency` (the aiohttp trace discord.py sends its requests through, `app/bot.py`), and `metrics.timed("translate")` around the language detection, which brings its own HTTP client |
 | `keiko_form_*` | see `observability.py` | the form adapter |
 | `keiko_held_entries` (a gauge read at every scrape) | `structure` (`form_sessions`, `journeys`, `settings_cache`, `images`, `analytics_queue`, `debug_logs_queue`, `discord_messages`, `discord_members`, `recent_members`) | `watch_held_entries` in `app/cogs/prometheus.py`, when the heartbeat cog loads; a count that cannot be read is NaN |
 
@@ -512,7 +519,7 @@ was more than five seconds late (`le="5.0"` is how the client names that bucket)
 The `Heartbeat` cog (`app/cogs/prometheus.py`) ticks every `Commands.HEARTBEAT_SECONDS`. Each tick is
 counted with how late it woke up against the time it was scheduled for, the loop
 lag a blocked event loop shows first, then pings `HEARTBEAT_URL` through
-`asyncio.to_thread`. A monitor that stops hearing the ping is how a stopped,
+`app.core.threads.to_thread`. A monitor that stops hearing the ping is how a stopped,
 frozen or disconnected bot gets noticed: a frozen loop never runs the tick, and
 while the gateway is down (`on_disconnect`, until `on_ready` or `on_resumed`) the
 tick records the lag and skips the ping.
@@ -641,14 +648,20 @@ A stranger on the internet could degrade Keiko by sending it garbage.
 ## Never block the event loop
 
 Everything runs on one loop: the gateway heartbeat, every interaction, every
-listener, every job. `requests`, `pymongo` and `time.sleep` are synchronous, so
-a coroutine that reaches them directly stops the bot — and Discord gives an
+listener, every job. `requests`, the sync pymongo client and `time.sleep` are
+synchronous, so a coroutine that reaches them directly stops the bot — and Discord gives an
 interaction three seconds, so a blocking call between the click and the
 acknowledgement is a failed interaction the person sees.
 
-`asyncio.to_thread` is the one way through for the legacy synchronous data
-calls, and `app/settings/` never reaches them at all (`tests/forms/test_boundary.py`
-refuses `requests`, `pymongo` and `time.sleep` there). Production had
+Mongo is reached only through the async repositories of `app/data/`, awaited on the
+loop; the sync pymongo client stays in `app/migrations/` (which runs before the loop)
+and the scripts, and the loop test refuses it anywhere else in `app/`, and a repository
+call left unawaited. A thread job that cannot be a coroutine (the daily backup and the
+archives, the YouTube hub calls, the settings cache's fallback read, a Flask webhook)
+waits on a repository through the client's loop with `app.data.wait` or
+`app.data.iterate`. `app.core.threads.to_thread` stays the way through for `requests`, Redis and
+the other synchronous calls, and `app/settings/` never reaches them at all
+(`tests/forms/test_boundary.py` refuses `requests`, `pymongo` and `time.sleep` there). Production had
 52 `heartbeat blocked for more than 20 seconds` warnings in a day, every
 traceback ending in a `find_one` reached from `on_message`, and a `10062 Unknown
 interaction` on a guild whose youtuber had just been saved by two blocking
@@ -656,29 +669,41 @@ interaction` on a guild whose youtuber had just been saved by two blocking
 
 The rest of `app/` is held to the same line call by call:
 `tests/behavioral/regressions/test_event_loop_is_never_blocked.py` reads every coroutine and fails on a direct
-call to a blocking function — `requests`, the Mongo and Redis clients,
+call to a blocking function — `requests`, the Redis client,
 `time.sleep`, the language detection, and every synchronous function of `app/`
 that reaches one of them, through its imports, `self`, a nested def, a client the
 bot holds, or a name that holds one (a local, a module alias, a `functools.partial`,
 a function that only returns a collection). It cannot see `open`, `subprocess`, an
 inherited method or a blocking function handed to a synchronous helper; its docstring
-keeps that list. The calls that have to stay for now are listed in its `ALLOWED`,
-each with its reason (today: the operator commands of the admin guild, the block
-links counters and stats the counters PR moves off the loop, the no-loop fallback of
-the journey's history read when a form opens, and the operator inspection views); an
-entry that no longer matches anything fails too, so the list only shrinks.
+keeps that list. A call that has to stay would be listed in its `ALLOWED` with its
+reason; the list is empty since the async data layer, and an entry that no longer
+matches anything fails too, so it only shrinks.
 
 The calls a thread takes run on Keiko's own pool, not asyncio's: `DiscordBot.setup_hook`
-installs `BlockingIO` (`app/bot.py`) as the loop's default executor before any cog loads,
-`Dependencies.BLOCKING_IO_THREADS` threads named `keiko-io` (asyncio's own has five on
-the 1 vCPU the bot runs on, and the Twitch waits sleep in them). Closing the loop drops
+calls `app.core.threads.install` before any cog loads, and `app.core.threads.to_thread`
+hands every call to `Dependencies.BLOCKING_IO_THREADS` threads named `keiko-io`
+(asyncio's own has five on the 1 vCPU the bot runs on, and the Twitch waits sleep in
+them). The loop's own work, the host name lookup and the TLS handshake of every new
+Mongo connection and every Discord request, runs on `Dependencies.LOOP_IO_THREADS`
+threads of its own named `keiko-loop`, the loop's default executor: a thread job
+waiting on Mongo through `app.data.wait` holds a `keiko-io` thread until the loop
+answers, and with both on one pool a burst of such jobs left no thread for the lookups
+their reads waited for, so every read hung for good
+(`tests/behavioral/regressions/test_a_full_pool_of_thread_reads_still_reaches_mongo.py`,
+which also refuses `asyncio.to_thread` and `run_in_executor` anywhere else in `app/`).
+`app.data.wait` gives up after `DBConfigs.MONGO_THREAD_WAIT_SECONDS` with a
+`TimeoutError`, cancelling the read, so no thread waits forever on a loop that is
+gone. Closing the loop drops
 the calls still queued and waits for none under way: `asyncio.run` would otherwise join
 the pool for up to five minutes, and a stop has thirty seconds before Docker kills the
 process and the queues `run` writes after the loop are lost
-(`tests/behavioral/contracts/test_graceful_stop.py`). `run` then gives the
-calls still running up to `Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS` to end before it
-writes the queues and exits, so a flush writing its batch is never cut in the middle
-(`tests/behavioral/contracts/test_graceful_stop.py`). What a thread is handed never walks
+(`tests/behavioral/contracts/test_graceful_stop.py`). The flushes run on the loop:
+closing the bot unloads the Analytics cog, which gives a flush writing its batch up to
+`Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS` to end before its last flush; then the pool
+calls under way get as long again to end, waited on off the loop, the changes the loop
+is writing (`analytics.written`) as long again, and only then the log writer and the
+Mongo client close; what is logged after the loop is gone is written by `run` on a loop
+and a client of its own, bound with `app.data.bind_loop` so a thread job reads through it (`tests/behavioral/contracts/test_graceful_stop.py`). What a thread is handed never walks
 Discord's cache, which the loop changes as servers and channels come and go: `/admin
 overview` counts servers, members and channels on the loop and hands over only its Mongo,
 Redis and Twitch reads.
@@ -942,8 +967,8 @@ The 24h history is read **once, when the journey opens**
 render. It is one query for that guild's setup events of the feature, bounded
 by the 24-hour window it reports; it used to be seven queries that brought every
 guild's setup events of the feature for the whole 90 days and filtered them in
-Python. The read runs in a worker thread whenever a loop runs, so the form never
-waits on it: the footnote is set when it lands, which is before the debounced
+Python. The read is a task on the running loop (`journey._read_recent_attempts`), so
+the form never waits on it: the footnote is set when it lands, which is before the debounced
 first render unless the read is slower than that, and then the next render
 carries it.
 

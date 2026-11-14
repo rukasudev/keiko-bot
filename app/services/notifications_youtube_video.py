@@ -1,4 +1,3 @@
-import asyncio
 import random
 import threading
 from dataclasses import dataclass
@@ -23,19 +22,18 @@ from app.core.utils import (
     split_messages,
     values_of,
 )
-from app.data.guild import cogs as guild_cogs
-from app.data.guild import settings as guild_settings
+from app.data import data, wait
 from app.data.keiko import schedules
-from app.data.keiko.subscriptions import update_subscription_state
 from app.exceptions import ErrorContext
 from app.integrations.reminder_webhook import REMINDER_TIMEZONE, reminder_time
 from app.settings import open_feature
 from app.views.message_preview import MessagePreviewView
+from app.core.threads import to_thread
 
 
-def count_youtube_video_subscription_by_guilds(youtuber: str) -> int:
+async def count_youtube_video_subscription_by_guilds(youtuber: str) -> int:
     """How many servers announce the youtuber's videos while their notifications are on."""
-    return guild_cogs.count_cogs_by_option(
+    return await data().guild_cogs.count_cogs_by_option(
         constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
         "notifications.values.youtuber.value",
         youtuber,
@@ -43,22 +41,22 @@ def count_youtube_video_subscription_by_guilds(youtuber: str) -> int:
     )
 
 
-def count_servers_following(youtuber: str) -> int:
+async def count_servers_following(youtuber: str) -> int:
     """How many servers Keiko is still in follow the youtuber, paused or not."""
     following = [
         str(document.get("guild_id"))
-        for document in guild_cogs.find_cogs_by_option(
+        for document in await data().guild_cogs.find_cogs_by_option(
             constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
             "notifications.values.youtuber.value",
             youtuber,
         )
     ]
-    return len(following) - guild_settings.count_absent(following)
+    return len(following) - await data().guild_settings.count_absent(following)
 
 
-def find_guilds_by_youtuber(youtuber: str) -> List[Dict[str, Any]]:
+async def find_guilds_by_youtuber(youtuber: str) -> List[Dict[str, Any]]:
     """The notifications of every server announcing the youtuber's videos, while on."""
-    return guild_cogs.find_cogs_by_option(
+    return await data().guild_cogs.find_cogs_by_option(
         constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
         "notifications.values.youtuber.value",
         youtuber,
@@ -66,9 +64,11 @@ def find_guilds_by_youtuber(youtuber: str) -> List[Dict[str, Any]]:
     )
 
 
-def find_followed_youtubers() -> List[str]:
+async def find_followed_youtubers() -> List[str]:
     """Every youtuber an enabled guild follows, once each."""
-    documents = guild_cogs.find_enabled_cogs(constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY)
+    documents = await data().guild_cogs.find_enabled_cogs(
+        constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY
+    )
     return sorted({
         str(notification["youtuber"]["value"])
         for document in documents
@@ -115,7 +115,7 @@ def prepare_video_announcement(video_id: str, channel_id: str) -> Optional[Video
         video=video,
         channel=channel,
         youtuber=youtuber,
-        followers=list(find_guilds_by_youtuber(youtuber)),
+        followers=list(wait(find_guilds_by_youtuber(youtuber))),
     )
 
 
@@ -234,10 +234,10 @@ async def build_preview_embed(youtuber: str, locale: str) -> Optional[discord.Em
     the newest item of that playlist.
     """
     try:
-        channel = await asyncio.to_thread(bot.youtube.get_channel_by_handle, youtuber)
+        channel = await to_thread(bot.youtube.get_channel_by_handle, youtuber)
         uploads = ((channel or {}).get("contentDetails") or {}).get("relatedPlaylists") or {}
         latest = (
-            await asyncio.to_thread(bot.youtube.get_latest_upload, uploads["uploads"])
+            await to_thread(bot.youtube.get_latest_upload, uploads["uploads"])
             if uploads.get("uploads")
             else None
         )
@@ -344,24 +344,24 @@ def youtube_renewal_id(handle: str) -> str:
     return schedules.schedule_id("youtube_renewal", handle)
 
 
-def find_reminder_by_value(youtuber: str) -> Optional[Dict[str, Any]]:
+async def find_reminder_by_value(youtuber: str) -> Optional[Dict[str, Any]]:
     """The youtuber's renewal, or None."""
-    return _renewal(schedules.find_schedule(youtube_renewal_id(youtuber)))
+    return _renewal(await data().keiko_schedules.find_schedule(youtube_renewal_id(youtuber)))
 
 
-def find_reminder_by_id(reminder_id: Any) -> Optional[Dict[str, Any]]:
+async def find_reminder_by_id(reminder_id: Any) -> Optional[Dict[str, Any]]:
     """A renewal reminder Keiko created, found by the id the reminders API gave it."""
-    schedule = schedules.find_schedule_by_reminder(reminder_id)
+    schedule = await data().keiko_schedules.find_schedule_by_reminder(reminder_id)
     if not schedule or schedule.get("kind") != "youtube_renewal":
         return None
     return _renewal(schedule)
 
 
-def insert_renewal_reminder(
+async def insert_renewal_reminder(
     reminder_id: Any, youtuber: str, due_at: Optional[datetime] = None
 ) -> None:
     """Schedule a youtuber's renewal reminder, kept until nothing renews it for a while."""
-    schedules.upsert_schedule(
+    await data().keiko_schedules.upsert_schedule(
         youtube_renewal_id(youtuber),
         "youtube_renewal",
         reminder_id,
@@ -370,11 +370,11 @@ def insert_renewal_reminder(
     )
 
 
-def delete_reminder_by_id(reminder_id: Any) -> None:
+async def delete_reminder_by_id(reminder_id: Any) -> None:
     """Forget the schedule of the renewal the reminders API knows as `reminder_id`."""
-    renewal = find_reminder_by_id(reminder_id)
+    renewal = await find_reminder_by_id(reminder_id)
     if renewal:
-        schedules.delete_schedule(youtube_renewal_id(renewal["value"]))
+        await data().keiko_schedules.delete_schedule(youtube_renewal_id(renewal["value"]))
 
 
 def _renewal(schedule: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
@@ -400,8 +400,8 @@ def subscribe_youtube_new_video(interaction: discord.Interaction, response: Dict
     youtuber = response.get("youtuber").get("value")
 
     with _RENEWALS:
-        subscribed = count_youtube_video_subscription_by_guilds(youtuber) > 0 and bool(
-            find_reminder_by_value(youtuber)
+        subscribed = wait(count_youtube_video_subscription_by_guilds(youtuber)) > 0 and bool(
+            wait(find_reminder_by_value(youtuber))
         )
     if subscribed:
         logger.info(
@@ -450,15 +450,15 @@ def ensure_renewal(
 ) -> None:
     """Schedule a youtuber's renewal unless it has one, so however many ask at once it has
     one; it runs within the hour when the hub could not take the subscription now."""
-    wait = (
+    delay = (
         constants.YOUTUBE_RENEWAL_RETRY_SECONDS
         if answer.outcome is HubOutcome.TRY_LATER
         else constants.YOUTUBE_RENEWAL_INTERVAL_SECONDS
     )
-    renewal = reminder_time(timedelta(seconds=wait))
+    renewal = reminder_time(timedelta(seconds=delay))
 
     with _RENEWALS:
-        if find_reminder_by_value(youtuber):
+        if wait(find_reminder_by_value(youtuber)):
             return
 
         try:
@@ -486,7 +486,7 @@ def ensure_renewal(
             )
             return
 
-        insert_renewal_reminder(reminder_id, youtuber, renewal.astimezone(timezone.utc))
+        wait(insert_renewal_reminder(reminder_id, youtuber, renewal.astimezone(timezone.utc)))
 
     logger.info(
         f"renewal of **{youtuber}** scheduled for {renewal:%Y-%m-%d %H:%M} ({REMINDER_TIMEZONE})",
@@ -498,20 +498,20 @@ def drop_unfollowed_renewal(renewal: Dict[str, Any]) -> bool:
     """Delete a renewal no server Keiko is in follows, counted and deleted under the lock a
     subscribe decides under, so a server adding the youtuber meanwhile makes its own."""
     with _RENEWALS:
-        if count_servers_following(renewal.get("value")):
+        if wait(count_servers_following(renewal.get("value"))):
             return False
         bot.reminder.delete_reminder(renewal.get("reminder_id"))
-        delete_reminder_by_id(renewal.get("reminder_id"))
+        wait(delete_reminder_by_id(renewal.get("reminder_id")))
     return True
 
 
-def record_hub_confirmation(youtuber: str, moment: datetime) -> None:
+async def record_hub_confirmation(youtuber: str, moment: datetime) -> None:
     """Record that the hub took the youtuber's subscription at `moment`, clearing any lapse
     report, and keep its renewal for a while after."""
-    update_subscription_state(
+    await data().keiko_subscriptions.update_subscription_state(
         "youtube", youtuber, {"hub_confirmed_at": moment, "lapse_reported_at": None}
     )
-    schedules.extend_schedule_expiry(
+    await data().keiko_schedules.extend_schedule_expiry(
         youtube_renewal_id(youtuber), _kept_until(moment)
     )
 
@@ -528,7 +528,7 @@ def resubscribe_followed_channels() -> int:
         )
         return 0
 
-    youtubers = find_followed_youtubers()
+    youtubers = wait(find_followed_youtubers())
     renewed = 0
 
     for youtuber in youtubers:
@@ -546,7 +546,7 @@ def resubscribe_followed_channels() -> int:
             )
 
         if answer.outcome is HubOutcome.DONE:
-            record_hub_confirmation(youtuber, reminder_time().astimezone(timezone.utc))
+            wait(record_hub_confirmation(youtuber, reminder_time().astimezone(timezone.utc)))
             renewed += 1
             continue
         logger.warn(
@@ -570,7 +570,7 @@ def handle_unsubscribe_youtube_new_video(interaction: discord.Interaction, cogs:
 def unsubscribe_youtube_new_video(interaction: discord.Interaction, notification: Dict[str, Any]):
     """Unsubscribe a youtuber no other server follows; the renewal ends itself, never here."""
     youtuber = notification.get("youtuber").get("value")
-    followers = count_servers_following(youtuber)
+    followers = wait(count_servers_following(youtuber))
 
     if followers > 1:
         logger.warn(

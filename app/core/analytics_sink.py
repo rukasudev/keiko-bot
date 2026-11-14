@@ -16,9 +16,8 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Tuple
 
 from app.constants import Commands as constants
 from app.core.analytics import bucket_size
-from app.data.analytics import counts, keiko, lifetime
-from app.data.events import activity, interactions
-from app.data.traces import runs as trace_runs
+from app.data import data
+from app.data.analytics import counts, lifetime
 
 TIMESTAMP = "__ts__"
 
@@ -131,22 +130,25 @@ class Numbers:
     admins: Dict[Tuple[str, str], None]
 
 
-def persist(batch: List[Dict[str, Any]]) -> None:
+async def persist(batch: List[Dict[str, Any]]) -> None:
     """A failure in any destination costs the batch, never the caller."""
     from app.core.analytics import events_catalog
 
     numbers = derive(batch, events_catalog())
     moment = now()
+    store = data()
 
-    _safely(activity.insert_many, numbers.documents["activity"])
-    _safely(interactions.insert_many, numbers.documents["interactions"])
-    _safely(counts.increment, numbers.counts, moment)
-    _safely(keiko.increment, numbers.keiko, moment, numbers.keiko_labels)
-    _safely(lifetime.update, [
+    await _safely(store.events_activity.insert_many, numbers.documents["activity"])
+    await _safely(store.events_interactions.insert_many, numbers.documents["interactions"])
+    await _safely(store.analytics_counts.increment, numbers.counts, moment)
+    await _safely(
+        store.analytics_keiko.increment, numbers.keiko, moment, numbers.keiko_labels
+    )
+    await _safely(store.analytics_lifetime.update, [
         lifetime.lifetime_operation(guild_id, **parts)
         for guild_id, parts in numbers.lifetimes.items()
     ])
-    _safely(lifetime.update, [
+    await _safely(store.analytics_lifetime.update, [
         lifetime.admin_operation(
             guild_id, user_id, constants.ANALYTICS_LIFETIME_ADMINS_MAX
         )
@@ -154,7 +156,7 @@ def persist(batch: List[Dict[str, Any]]) -> None:
     ])
 
 
-def persist_runs(closed: Iterable[Mapping[str, Any]]) -> None:
+async def persist_runs(closed: Iterable[Mapping[str, Any]]) -> None:
     """The traces the trace sink queued: each command's latency, and the runs kept."""
     closed = list(closed)
     latencies: Dict[str, Dict[str, int]] = {}
@@ -171,11 +173,16 @@ def persist_runs(closed: Iterable[Mapping[str, Any]]) -> None:
             f".ms.{latency_bucket(entry['duration_ms'])}",
         )
 
-    _safely(keiko.increment, latencies, now(), labels)
-    _safely(trace_runs.insert_runs, [entry["run"] for entry in closed if entry.get("run")])
+    store = data()
+    await _safely(store.analytics_keiko.increment, latencies, now(), labels)
+    await _safely(
+        store.traces_runs.insert_runs, [entry["run"] for entry in closed if entry.get("run")]
+    )
 
 
-def record_guild_sizes(member_counts: Dict[str, Optional[int]], moment: datetime) -> int:
+async def record_guild_sizes(
+    member_counts: Dict[str, Optional[int]], moment: datetime
+) -> int:
     """The current size bucket of every guild that has a lifetime; never creates one."""
     operations = [
         lifetime.lifetime_operation(
@@ -186,7 +193,7 @@ def record_guild_sizes(member_counts: Dict[str, Optional[int]], moment: datetime
         for guild_id, count in member_counts.items()
         if count is not None
     ]
-    lifetime.update(operations)
+    await data().analytics_lifetime.update(operations)
     return len(operations)
 
 
@@ -324,8 +331,13 @@ def _advance_lifetime(
                 continue
             resolved_path = path.format(feature=fact.cog)
             resolved = fact.ts if value == TIMESTAMP else value
+            held = target.get(resolved_path)
             if operator == "inc":
-                target[resolved_path] = target.get(resolved_path, 0) + resolved
+                target[resolved_path] = (held or 0) + resolved
+            elif held is not None and operator == "min":
+                target[resolved_path] = min(held, resolved)
+            elif held is not None and operator == "max":
+                target[resolved_path] = max(held, resolved)
             else:
                 target[resolved_path] = resolved
 
@@ -340,11 +352,11 @@ def _add(fields: Dict[str, int], path: str) -> None:
     fields[path] = fields.get(path, 0) + 1
 
 
-def _safely(operation, payload, *arguments) -> None:
+async def _safely(operation, payload, *arguments) -> None:
     if not payload:
         return
     try:
-        operation(payload, *arguments)
+        await operation(payload, *arguments)
     except Exception as error:
         from app import logger
         from app.constants import LogTypes as logconstants

@@ -12,7 +12,7 @@ no migration and no one-off script is needed for them.
 """
 import pytest
 
-from app.data.keiko import schedules as schedules_data
+from app.data import data, wait
 from app.services import reminders_birthdays as birthdays_service
 from app.services.reminders_birthdays import (
     birthday_schedule_id,
@@ -29,11 +29,11 @@ pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("birthday_reminders"
 @pytest.fixture
 def guild_config(deps):
     recorded_server(deps.mongo_client, "1532291713580925048", timezone="UTC")
-    save_birthday_config(
+    wait(save_birthday_config(
         "1532291713580925048",
         channel_id="99",
         notification_time="14:00",
-    )
+    ))
     return "1532291713580925048"
 
 
@@ -43,14 +43,14 @@ def orphan(guild_id, user_id, date):
 
 def stored(guild_id, user_id):
     """The schedule of the member's date: the reminder every birthday on it shares."""
-    birthday = find_birthday(guild_id, user_id)
-    return schedules_data.find_schedule(
+    birthday = wait(find_birthday(guild_id, user_id))
+    return wait(data().keiko_schedules.find_schedule(
         birthday_schedule_id(guild_id, birthday["date"])
-    )
+    ))
 
 
 def missing(limit=50):
-    return birthday_schedules_missing_reminder(limit)
+    return wait(birthday_schedules_missing_reminder(limit))
 
 
 # --------------------------------------------------------------------------
@@ -87,7 +87,7 @@ def test_the_pass_creates_the_missing_reminder_and_stores_it(guild_config, monke
 
     monkeypatch.setattr(birthdays_service.reminders_service, "create_reminder", create)
 
-    repaired = birthdays_service.reconcile_missing_reminders()
+    repaired = wait(birthdays_service.reconcile_missing_reminders())
 
     assert repaired == 1
     assert stored(guild_config, "7")["reminder_id"] == "5150"
@@ -105,7 +105,7 @@ def test_the_repair_uses_the_schedule_the_guild_configured(guild_config, monkeyp
         lambda *a, **kw: seen.update(kw) or "1",
     )
 
-    birthdays_service.reconcile_missing_reminders()
+    wait(birthdays_service.reconcile_missing_reminders())
 
     assert seen["timezone_name"] == "UTC"
     assert seen["notification_time"] == "14:00"
@@ -122,7 +122,7 @@ def test_everyone_sharing_a_date_gets_the_same_reminder(guild_config, monkeypatc
         lambda *a, **kw: created.append(1) or "5150",
     )
 
-    birthdays_service.reconcile_missing_reminders()
+    wait(birthdays_service.reconcile_missing_reminders())
 
     assert len(created) == 1
     assert stored(guild_config, "7")["reminder_id"] == "5150"
@@ -136,7 +136,7 @@ def test_a_still_failing_reminder_leaves_the_birthday_alone(guild_config, monkey
         birthdays_service.reminders_service, "create_reminder", lambda *a, **kw: None
     )
 
-    repaired = birthdays_service.reconcile_missing_reminders()
+    repaired = wait(birthdays_service.reconcile_missing_reminders())
 
     assert repaired == 0
     assert stored(guild_config, "7")["reminder_id"] is None
@@ -145,7 +145,7 @@ def test_a_still_failing_reminder_leaves_the_birthday_alone(guild_config, monkey
 
 def test_one_broken_guild_does_not_stop_the_others(deps, guild_config, monkeypatch):
     recorded_server(deps.mongo_client, "other")
-    save_birthday_config("other", channel_id="1")
+    wait(save_birthday_config("other", channel_id="1"))
     orphan(guild_config, "7", "10-28")
     orphan("other", "9", "03-23")
 
@@ -156,7 +156,7 @@ def test_one_broken_guild_does_not_stop_the_others(deps, guild_config, monkeypat
 
     monkeypatch.setattr(birthdays_service.reminders_service, "create_reminder", create)
 
-    assert birthdays_service.reconcile_missing_reminders() == 1
+    assert wait(birthdays_service.reconcile_missing_reminders()) == 1
     assert stored("other", "9")["reminder_id"] == "777"
 
 
@@ -168,7 +168,7 @@ def test_a_guild_that_deleted_its_config_is_released(monkeypatch):
 
     # No config means no channel to greet in; creating a reminder for it would
     # schedule a message with nowhere to go.
-    assert birthdays_service.reconcile_missing_reminders() == 0
+    assert wait(birthdays_service.reconcile_missing_reminders()) == 0
     assert missing() == []
 
 
@@ -183,9 +183,10 @@ def run_loop(monkeypatch, outcome):
 
     from app.cogs.birthdays import Birthday
 
-    monkeypatch.setattr(
-        birthdays_service, "reconcile_missing_reminders", outcome
-    )
+    async def reconcile(limit):
+        return outcome(limit)
+
+    monkeypatch.setattr(birthdays_service, "reconcile_missing_reminders", reconcile)
     return asyncio.get_event_loop().run_until_complete(
         Birthday.reconcile_reminders.coro(SimpleNamespace(bot=SimpleNamespace()))
     )

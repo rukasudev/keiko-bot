@@ -1020,13 +1020,13 @@ def _compare(
     return len(wanted)
 
 
-def require_applied(
-    client: Any,
+def require_recorded(
+    recorded: Set[str],
     versions: Optional[Sequence[Version]] = None,
     root: Path = MIGRATIONS,
 ) -> None:
-    """Stop the boot when a file is refused or shares a number, or when the ledger
-    lacks a file this code has."""
+    """Stop the boot when a file is refused or shares a number, or when `recorded`,
+    the ids the ledger holds, lacks a file this code has."""
     problems: List[str] = []
     if versions is None:
         found, problems = read_versions(root)
@@ -1038,9 +1038,6 @@ def require_applied(
             " Fix them before the bot starts"
         )
 
-    recorded = {
-        str(entry["_id"]) for entry in client.migrations.changelog.find({}, {"_id": 1})
-    }
     pending = [version.label for version in versions if version.id not in recorded]
     if pending:
         raise MigrationsPending(

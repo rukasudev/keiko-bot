@@ -303,13 +303,13 @@ async def test_a_birthday_panel_with_a_full_list_is_within_discord_limits(
     from app.core.servers import set_feature_enabled
     from tests.generators.birthdays import saved_birthday
 
-    save_birthday_config(
+    await save_birthday_config(
         "123456789", "100", False, notification_time="08:00"
     )
     for index in range(25):
         month = index % months + 1
         saved_birthday("123456789", str(1000 + index), f"{month:02d}-{index + 1:02d}")
-    set_feature_enabled("123456789", "reminders_birthday", True)
+    await set_feature_enabled("123456789", "reminders_birthday", True)
     scenario = await scenario_factory(locale="pt-br").start_command("reminders_birthday")
 
     view = scenario.current_message.view

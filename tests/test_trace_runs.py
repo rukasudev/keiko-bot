@@ -12,10 +12,10 @@ from datetime import timedelta
 
 import pytest
 
+from app.data import data, wait
 from app.constants import Commands as constants
 from app.core import analytics, journey, trace
 from app.core.analytics_sink import now
-from app.data.analytics import keiko
 
 pytestmark = pytest.mark.unit
 
@@ -36,7 +36,7 @@ def closed(name="probe", *, command=None, error=False, slow_ms=0, result=None):
 
 
 def stored(deps):
-    analytics.flush()
+    wait(analytics.flush())
     return {run["trace_id"]: run for run in deps.mongo_client.traces.runs.find({})}
 
 
@@ -75,7 +75,7 @@ def test_a_commands_latency_is_counted_once_from_the_trace_that_closes_it(deps):
     stored(deps)
 
     moment = now()
-    [document] = keiko.find_counters([f"commands:{moment:%Y-%m}"])
+    [document] = wait(data().analytics_keiko.find_counters([f"commands:{moment:%Y-%m}"]))
     assert document["days"][f"{moment:%d}"]["birthday"]["ms"] == {
         "0-250": 1, "1000-2000": 1,
     }
@@ -101,7 +101,7 @@ def test_two_runs_whose_trace_ids_collide_are_both_kept(deps, monkeypatch):
     monkeypatch.setattr(trace, "new_trace_id", lambda: "a1b2c3")
     closed("failed", result=trace.constants.TRACE_RESULT_FAILURE)
     closed("failed again", result=trace.constants.TRACE_RESULT_FAILURE)
-    analytics.flush()
+    wait(analytics.flush())
 
     kept = list(deps.mongo_client.traces.runs.find({"trace_id": "a1b2c3"}))
 

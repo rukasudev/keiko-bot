@@ -82,6 +82,8 @@ RETENTION_DAYS = 90
 
 SAME_FAILURE_SECONDS = 5
 
+SAME_LEAVE_SECONDS = 1
+
 ERROR_TYPE = re.compile(r"```(\w+):")
 
 BATCH = 500
@@ -120,17 +122,45 @@ def envelope(row_id, ts, event_type, guild_id, cog, actor, props, session_id=Non
     }
 
 
-def change_from_audit(cog, row):
-    """The events.changes document of one events.<cog> row."""
+def change_from_audit(cog, row, keiko=frozenset()):
+    """The events.changes document of one events.<cog> row, the bot's when one of
+    `keiko` wrote it."""
+    user_id = as_text(row.get("user_id"))
     return envelope(
         row["_id"],
         moment_of(row, "datetime"),
         LIFECYCLE[row["event"]],
         row["guild_id"],
         row.get("cog_key") or cog,
-        {"kind": "user", "id": as_text(row.get("user_id"))},
+        {"kind": "bot" if user_id in keiko else "user", "id": user_id},
         {},
     )
+
+
+def keiko_ids(audits):
+    """The ids that paused two features of one server within `SAME_LEAVE_SECONDS`:
+    Keiko's, which paused every feature of a server it left at once, where a person
+    pauses one at a time."""
+    pauses = {}
+    for cog, row in audits:
+        user_id, moment = as_text(row.get("user_id")), moment_of(row, "datetime")
+        if row.get("event") == "paused" and user_id and moment:
+            owner = (as_text(row.get("guild_id")), user_id)
+            pauses.setdefault(owner, []).append((moment, row.get("cog_key") or cog))
+
+    found = set()
+    for (_guild_id, user_id), moments in pauses.items():
+        moments.sort()
+        for (earlier, cog), (later, other) in zip(moments, moments[1:]):
+            if cog != other and (later - earlier).total_seconds() <= SAME_LEAVE_SECONDS:
+                found.add(user_id)
+    return frozenset(found)
+
+
+def changes_from_audits(audits):
+    """The events.changes documents of the (cog, row) pairs, Keiko's as the bot's."""
+    keiko = keiko_ids(audits)
+    return [change_from_audit(cog, row, keiko) for cog, row in audits]
 
 
 def from_analytics_event(row):
@@ -271,11 +301,13 @@ def inserted(collection, documents):
 def up(db):
     """Write each event once into its collection, the oldest kept ids and dates."""
     with begin(db) as tx:
-        changes = [
-            change_from_audit(cog, row)
-            for cog in AUDIT_COGS
-            for row in tx.events[cog].find({}).sort("_id", 1)
-        ]
+        changes = changes_from_audits(
+            [
+                (cog, row)
+                for cog in AUDIT_COGS
+                for row in tx.events[cog].find({}).sort("_id", 1)
+            ]
+        )
         copied = {"changes": [], "activity": [], "interactions": []}
         skipped = 0
         for row in tx.guild.analytics_events.find({}).sort("_id", 1):
@@ -302,6 +334,10 @@ def up(db):
                 failures.append(failure)
 
         tx.count("changes_from_audit", inserted(tx.events.changes, changes))
+        tx.count(
+            "changes_by_keiko",
+            sum(change["actor"]["kind"] == "bot" for change in changes),
+        )
         tx.count(
             "changes_from_analytics", inserted(tx.events.changes, copied["changes"])
         )

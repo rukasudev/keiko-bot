@@ -14,12 +14,12 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 
 import discord
 
+from app.data import data, wait
 from app.settings.discord.callbacks import RUNTIME
 from app.settings.discord.interactions import decode as decode_component_id
 from app.settings.form.manager import confirmation_word
 from tests.behavioral.harness import locators
 from app.constants import Commands
-from app.data.guild.cogs import find_all_cogs
 from tests.generators.moderations import recorded_server, seed_cog
 from tests.behavioral.harness.errors import (
     LocatorError,
@@ -355,7 +355,7 @@ class FormScenario:
             return next(
                 (
                     document
-                    for document in find_all_cogs(collection)
+                    for document in wait(data().guild_cogs.find_all_cogs(collection))
                     if all(document.get(key) == value for key, value in filter_subset.items())
                 ),
                 None,

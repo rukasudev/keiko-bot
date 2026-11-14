@@ -15,6 +15,7 @@ ping is not ping; the slash /ping answers with the same embed.
 import pytest
 
 from app.data.guild import settings as guild_settings
+from tests.mocks.database import fake_store
 from tests.generators.moderations import recorded_server
 from tests.mocks.discord import create_guild, create_member, create_message
 
@@ -32,7 +33,7 @@ async def say(bot, guild, content):
 
 def server(language, prefix):
     guild = create_guild()
-    recorded_server(guild_settings.mongo_client, guild.id, language=language, prefix=prefix)
+    recorded_server(fake_store(), guild.id, language=language, prefix=prefix)
     return guild
 
 

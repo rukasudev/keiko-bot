@@ -1,6 +1,5 @@
 """How monitoring sees Keiko: the Prometheus metrics endpoint, and the heartbeat that tells
 the uptime monitor the bot is alive and connected, and Prometheus how late it runs."""
-import asyncio
 from datetime import timedelta
 
 import discord
@@ -14,6 +13,7 @@ from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.core import metrics
 from app.core.trace import trace_scope
+from app.core.threads import to_thread
 
 
 class Heartbeat(commands.Cog):
@@ -60,7 +60,7 @@ class Heartbeat(commands.Cog):
 
         async with trace_scope("heartbeat", source="internal", silent_when_clean=True):
             try:
-                await asyncio.to_thread(_ping, url)
+                await to_thread(_ping, url)
             except Exception as error:
                 logger.warn(
                     f"Heartbeat ping failed: {type(error).__name__}",

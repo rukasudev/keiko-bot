@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from app.data import data, wait
 from app.constants import Commands, Commands as constants
 from app.constants import LogTypes as logconstants
 from app.data.analytics import lifetime
@@ -35,6 +36,7 @@ import os
 import pyrage
 from pyrage import x25519
 from app.config import AppConfig
+from tests.mocks.database import fake_store
 from tests.test_config import production_config
 import base64
 import io
@@ -45,7 +47,9 @@ from app.core.utils import ml
 from app.cogs import analytics as analytics_cog
 from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
     blocking,
+    blocking_rows,
     MIN_TICKS,
+    slow,
     ticks_while,
 )
 from tests.helpers.assertions import keys_in, values_in
@@ -78,7 +82,7 @@ def install_handler():
 
 
 def stored():
-    return list(logs_data.mongo_client.guild.logs.find({}))
+    return list(fake_store().guild.logs.find({}))
 
 
 # --------------------------------------------------------------------------
@@ -132,15 +136,15 @@ def test_a_failing_write_never_produces_another_log(monkeypatch):
     handler = install_handler()
     logging.getLogger().addHandler(handler)
 
-    def explode(_documents):
+    async def explode(_documents):
         raise ConnectionError("mongo is down")
 
-    monkeypatch.setattr(logs_data, "insert_logs", explode)
+    monkeypatch.setattr(data().guild_logs, "insert_logs", explode)
 
     debug_logs.record(debug_logs.build_document(level="ERROR", message="boom"))
 
     reported = []
-    debug_logs.flush(on_error=reported.append)
+    wait(debug_logs.flush(on_error=reported.append))
 
     try:
         assert len(reported) == 1
@@ -159,13 +163,13 @@ def test_flushing_without_arguments_still_reports_the_failure(monkeypatch, capsy
     argument was omitted, so a second caller would lose write failures in
     silence. Every caller getting it right is not an invariant.
     """
-    def explode(_documents):
+    async def explode(_documents):
         raise ConnectionError("mongo is down")
 
-    monkeypatch.setattr(logs_data, "insert_logs", explode)
+    monkeypatch.setattr(data().guild_logs, "insert_logs", explode)
     debug_logs.record(debug_logs.build_document(level="ERROR", message="boom"))
 
-    debug_logs.flush()
+    wait(debug_logs.flush())
 
     assert "mongo is down" in capsys.readouterr().err
     assert debug_logs.stats()["failed"] == 1
@@ -198,7 +202,7 @@ def test_the_whole_traceback_is_stored_not_the_truncated_embed_version():
         record.exc_info = sys.exc_info()
         handler.emit(record)
 
-    debug_logs.flush()
+    wait(debug_logs.flush())
     document = stored()[0]
 
     assert "ValueError: the real cause" in document["traceback"]
@@ -211,7 +215,7 @@ def test_a_log_written_inside_a_trace_carries_the_session():
     with trace_scope("block_links", guild_id="99", user_id="7", source="slash"):
         handler.emit(make_record("inside the flow"))
 
-    debug_logs.flush()
+    wait(debug_logs.flush())
     document = stored()[0]
 
     assert document["guild_id"] == "99"
@@ -223,7 +227,7 @@ def test_a_log_written_inside_a_trace_carries_the_session():
 def test_record_metadata_points_at_the_code_that_logged():
     handler = install_handler()
     handler.emit(make_record("where am i"))
-    debug_logs.flush()
+    wait(debug_logs.flush())
 
     document = stored()[0]
     assert document["module"] == "thing.py"
@@ -237,7 +241,7 @@ def test_every_stored_line_names_the_release_that_wrote_it(monkeypatch):
     monkeypatch.setenv("APP_VERSION", "v1.4.0")
     handler = install_handler()
     handler.emit(make_record("after the deploy"))
-    debug_logs.flush()
+    wait(debug_logs.flush())
 
     assert stored()[0]["app_version"] == "v1.4.0"
 
@@ -283,10 +287,10 @@ def test_every_query_the_sink_supports_has_an_index():
 
 def test_the_daily_export_round_trips_through_gzipped_json_lines():
     day = datetime(2026, 8, 20, tzinfo=timezone.utc)
-    logs_data.insert_logs([
+    wait(data().guild_logs.insert_logs([
         debug_logs.build_document(level="INFO", message="second", ts=day.replace(hour=9)),
         debug_logs.build_document(level="ERROR", message="first", ts=day.replace(hour=1)),
-    ])
+    ]))
 
     payload, written = logs_archive.build_archive(day)
 
@@ -301,7 +305,7 @@ def test_the_daily_export_round_trips_through_gzipped_json_lines():
 
 def test_the_export_only_takes_the_day_it_was_asked_for():
     day = datetime(2026, 8, 20, tzinfo=timezone.utc)
-    logs_data.insert_logs([
+    wait(data().guild_logs.insert_logs([
         debug_logs.build_document(level="INFO", message="today", ts=day.replace(hour=12)),
         debug_logs.build_document(
             level="INFO", message="yesterday", ts=day - timedelta(hours=1)
@@ -309,7 +313,7 @@ def test_the_export_only_takes_the_day_it_was_asked_for():
         debug_logs.build_document(
             level="INFO", message="tomorrow", ts=day + timedelta(days=1)
         ),
-    ])
+    ]))
 
     payload, written = logs_archive.build_archive(day)
 
@@ -407,7 +411,7 @@ def test_the_discord_embed_survives_the_stored_handler_being_installed(both_hand
     assert fields["Guild ID"] == "4242"
     assert embed.footer.text.startswith("• ")
 
-    debug_logs.flush()
+    wait(debug_logs.flush())
     document = stored()[0]
     assert document["guild_id"] == "4242"
     assert document["message"] == "twitch subscription failed"
@@ -427,7 +431,7 @@ def test_both_sinks_read_the_same_identity_from_one_record(both_handlers):
     logging.getLogger().error("failed in flow", extra={"context": context})
 
     fields = {f.name: f.value for f in both_handlers.sends[0]["embed"].fields}
-    debug_logs.flush()
+    wait(debug_logs.flush())
     document = stored()[0]
 
     assert fields["Guild Id"] == "77"
@@ -470,9 +474,9 @@ def test_the_daily_export_posts_yesterday_to_the_files_channel():
             sends.append((content, file))
 
     yesterday = logs_archive.previous_day()
-    logs_data.insert_logs([
+    wait(data().guild_logs.insert_logs([
         debug_logs.build_document(level="ERROR", message="yesterday's failure", ts=yesterday)
-    ])
+    ]))
 
     run_export(Channel())
 
@@ -504,11 +508,11 @@ def test_the_export_failing_never_takes_down_the_loop(monkeypatch):
         async def send(self, content, file=None):
             raise RuntimeError("discord is down")
 
-    logs_data.insert_logs([
+    wait(data().guild_logs.insert_logs([
         debug_logs.build_document(
             level="INFO", message="something", ts=logs_archive.previous_day()
         )
-    ])
+    ]))
 
     assert run_export(Channel()) is None
 
@@ -548,26 +552,36 @@ def test_every_field_the_sink_builds_is_a_column_the_index_stores():
 # The writer thread: durable immediately, batched only when it helps
 # --------------------------------------------------------------------------
 
+def reading(reads):
+    """A streamed read that records it was asked and yields nothing."""
+    async def iter_between(*args):
+        reads.append(args)
+        return
+        yield
+
+    return iter_between
+
+
 @pytest.fixture
-def writer():
+async def writer():
     """The suite never starts it implicitly, so assertions stay deterministic."""
     debug_logs.start_writer()
     yield
-    debug_logs.stop_writer()
+    await debug_logs.stop_writer()
 
 
-def wait_for(predicate, timeout=2.0):
+async def wait_for(predicate, timeout=2.0):
     import time
 
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         if predicate():
             return True
-        time.sleep(0.005)
+        await asyncio.sleep(0.005)
     return predicate()
 
 
-def test_a_log_reaches_mongo_without_waiting_for_any_tick(writer):
+async def test_a_log_reaches_mongo_without_waiting_for_any_tick(writer):
     """The whole point of the writer: no poll interval stands between a line
     being logged and it being queryable.
 
@@ -577,47 +591,59 @@ def test_a_log_reaches_mongo_without_waiting_for_any_tick(writer):
     handler = install_handler()
     handler.emit(make_record("written straight away", level=logging.ERROR))
 
-    assert wait_for(lambda: len(stored()) == 1), "record never reached Mongo"
+    assert await wait_for(lambda: len(stored()) == 1), "record never reached Mongo"
     assert stored()[0]["message"] == "written straight away"
 
 
-def test_a_burst_is_written_in_batches_not_one_document_at_a_time(monkeypatch, writer):
+async def test_a_line_logged_on_another_thread_wakes_the_writer(writer):
+    """`logging` runs on the thread that called it; the writer lives on the loop."""
+    handler = install_handler()
+    await asyncio.to_thread(handler.emit, make_record("from a worker", level=logging.INFO))
+
+    assert await wait_for(lambda: len(stored()) == 1), "record never reached Mongo"
+
+
+async def test_a_burst_is_written_in_batches_not_one_document_at_a_time(monkeypatch, writer):
     """A busy on_message must not cost one round trip per line."""
     batches = []
-    monkeypatch.setattr(logs_data, "insert_logs", lambda docs: batches.append(len(docs)))
+
+    async def insert_logs(docs):
+        batches.append(len(docs))
+
+    monkeypatch.setattr(data().guild_logs, "insert_logs", insert_logs)
 
     for index in range(600):
         debug_logs.record(debug_logs.build_document(level="INFO", message=f"L{index}"))
 
-    assert wait_for(lambda: sum(batches) == 600), f"only wrote {sum(batches)}"
+    assert await wait_for(lambda: sum(batches) == 600), f"only wrote {sum(batches)}"
     assert len(batches) < 600, "every document went out on its own round trip"
     assert max(batches) <= constants.DEBUG_LOGS_FLUSH_BATCH
 
 
-def test_stopping_the_writer_drains_what_is_still_queued():
+async def test_stopping_the_writer_drains_what_is_still_queued():
     """Shutdown must not drop the last lines before the process goes away."""
     debug_logs.start_writer()
     for index in range(5):
         debug_logs.record(debug_logs.build_document(level="INFO", message=f"L{index}"))
 
-    debug_logs.stop_writer()
+    await debug_logs.stop_writer()
 
     assert len(stored()) == 5
 
 
-def test_a_failing_write_leaves_the_writer_alive(monkeypatch, capsys, writer):
+async def test_a_failing_write_leaves_the_writer_alive(monkeypatch, capsys, writer):
     """One bad batch must not silently end logging for the rest of the process."""
-    monkeypatch.setattr(
-        logs_data, "insert_logs",
-        lambda docs: (_ for _ in ()).throw(ConnectionError("mongo is down")),
-    )
+    async def refuse(docs):
+        raise ConnectionError("mongo is down")
+
+    monkeypatch.setattr(data().guild_logs, "insert_logs", refuse)
     debug_logs.record(debug_logs.build_document(level="ERROR", message="first"))
-    assert wait_for(lambda: debug_logs.stats()["failed"] == 1)
+    assert await wait_for(lambda: debug_logs.stats()["failed"] == 1)
 
     monkeypatch.undo()
     debug_logs.record(debug_logs.build_document(level="INFO", message="after recovery"))
 
-    assert wait_for(lambda: any(d["message"] == "after recovery" for d in stored()))
+    assert await wait_for(lambda: any(d["message"] == "after recovery" for d in stored()))
     assert debug_logs.writer_running()
     assert "mongo is down" in capsys.readouterr().err
 
@@ -1042,6 +1068,30 @@ async def test_the_accounts_keiko_follows_and_the_lives_it_posted_are_backed_up(
     files = files_in(channel.sends[0][1])
     assert "keiko/subscriptions.jsonl" in files
     assert "guild/messages.jsonl" in files
+
+
+async def test_the_numbers_and_the_migrations_ledger_are_backed_up(stored_databases, deps):
+    """The numbers kept past the events' 90 days and the ledger of applied files are copied.
+
+    Guaranteed: `analytics.counts`, `analytics.lifetime`, `analytics.keiko` and
+    `migrations.changelog` reach the daily backup, since a restore without them loses
+    every number older than the events and runs the data files again.
+    """
+    deps.mongo_client.analytics.counts.insert_one({"_id": "1|2026-11", "days": {}})
+    deps.mongo_client.analytics.lifetime.insert_one({"_id": "1", "totals": {}})
+    deps.mongo_client.analytics.keiko.insert_one({"_id": "blocked:total", "count": 1})
+    deps.mongo_client.migrations.changelog.insert_one({"_id": "schema/0001"})
+    channel = Channel()
+
+    await run_backup(channel)
+
+    files = files_in(channel.sends[0][1])
+    assert {
+        "analytics/counts.jsonl",
+        "analytics/lifetime.jsonl",
+        "analytics/keiko.jsonl",
+        "migrations/changelog.jsonl",
+    } <= set(files)
 
 
 async def test_a_secret_outside_keikos_databases_or_in_error_audit_never_leaves(
@@ -1573,10 +1623,8 @@ async def test_a_month_without_events_posts_nothing_and_is_not_read_again(
 
     await run_archive(channel)
     reads = []
-    for collection in (activity, interactions):
-        monkeypatch.setattr(
-            collection, "iter_between", lambda *args: reads.append(args) or []
-        )
+    for collection in (data().events_activity, data().events_interactions):
+        monkeypatch.setattr(collection, "iter_between", reading(reads))
     await run_archive(channel)
 
     assert channel.sends == []
@@ -1631,10 +1679,8 @@ async def test_without_a_valid_public_key_no_month_is_read_or_posted(
 ):
     store_event(deps, last_month() + timedelta(days=2))
     reads = []
-    for collection in (activity, interactions):
-        monkeypatch.setattr(
-            collection, "iter_between", lambda *args: reads.append(args) or []
-        )
+    for collection in (data().events_activity, data().events_interactions):
+        monkeypatch.setattr(collection, "iter_between", reading(reads))
     channel = MonthChannel()
 
     with caplog.at_level(logging.WARNING):
@@ -1731,7 +1777,7 @@ async def test_measuring_never_creates_a_profile_and_never_undoes_a_forget(deps)
     profiles = deps.mongo_client.analytics.lifetime
     profiles.insert_one({"_id": "1", "joined_at": datetime(2026, 1, 2, tzinfo=timezone.utc)})
     profiles.insert_one({"_id": "2", "joined_at": datetime(2026, 1, 2, tzinfo=timezone.utc)})
-    lifetime.delete_by_guild("2")
+    await data().analytics_lifetime.delete_by_guild("2")
     guilds = [
         SimpleNamespace(id=1, member_count=12),
         SimpleNamespace(id=2, member_count=800),
@@ -1747,10 +1793,10 @@ async def test_measuring_never_creates_a_profile_and_never_undoes_a_forget(deps)
 async def test_a_failing_measure_is_a_warning_that_never_takes_down_the_loop(
     deps, monkeypatch, caplog
 ):
-    def explode(*_args):
+    async def explode(*_args):
         raise ConnectionError("mongo is down")
 
-    monkeypatch.setattr(lifetime, "update", explode)
+    monkeypatch.setattr(data().analytics_lifetime, "update", explode)
     guilds = [SimpleNamespace(id=1, member_count=12)]
 
     with caplog.at_level(logging.WARNING):
@@ -1763,7 +1809,7 @@ async def test_a_failing_measure_is_a_warning_that_never_takes_down_the_loop(
 async def test_archiving_a_month_never_freezes_the_bot(deps, monkeypatch):
     mark_posted(deps, "2026-08")
     event = {"type": "feature.setup_opened", "ts": last_month(), "props": {}}
-    monkeypatch.setattr(interactions, "iter_between", blocking([event]))
+    monkeypatch.setattr(data().events_interactions, "iter_between", blocking_rows([event]))
     channel = MonthChannel()
 
     ticks = await ticks_while(run_archive(channel))
@@ -1774,7 +1820,7 @@ async def test_archiving_a_month_never_freezes_the_bot(deps, monkeypatch):
 
 @pytest.mark.usefixtures("frozen_clock")
 async def test_measuring_the_guilds_never_freezes_the_bot(deps, monkeypatch):
-    monkeypatch.setattr(lifetime, "update", blocking())
+    monkeypatch.setattr(data().analytics_lifetime, "update", slow())
     guilds = [SimpleNamespace(id=1, member_count=12)]
 
     ticks = await ticks_while(
@@ -2211,10 +2257,10 @@ async def test_a_history_that_breaks_after_some_deletes_says_the_pass_stopped(
 async def test_a_mark_that_cannot_be_written_says_the_pass_stopped(
     stored_settings, monkeypatch, caplog
 ):
-    def refuse(*_args):
+    async def refuse(*_args):
         raise ConnectionError("mongo is down")
 
-    monkeypatch.setattr("app.data.logs.update_retention", refuse)
+    monkeypatch.setattr(data().guild_logs_files, "update_retention", refuse)
     old = Posted("keiko_logs_2026-06-01.jsonl.gz", days_ago=120)
     channel = FilesChannel(old)
 

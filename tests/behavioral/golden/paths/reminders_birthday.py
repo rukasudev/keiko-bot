@@ -10,6 +10,7 @@ A paused birthday feature opens its manager, like every other feature, so
 the lifecycle records its Unpause (ux-80).
 """
 
+from app.data import wait
 from app.services.reminders_birthdays import save_birthday_config
 from app.core.servers import set_feature_enabled
 from tests.generators.birthdays import saved_birthday
@@ -33,8 +34,8 @@ def _guild():
     return guild
 
 
-def _seed_config(deps, enabled=True, members=("555",)):
-    save_birthday_config(
+async def _seed_config(deps, enabled=True, members=("555",)):
+    await save_birthday_config(
         GUILD_ID,
         "100",
         False,
@@ -42,7 +43,7 @@ def _seed_config(deps, enabled=True, members=("555",)):
     )
     for index, user_id in enumerate(members):
         saved_birthday(GUILD_ID, user_id, f"{5 + index:02d}-12")
-    set_feature_enabled(GUILD_ID, FORM, enabled)
+    await set_feature_enabled(GUILD_ID, FORM, enabled)
 
 
 async def _open(scenario_factory, locale):
@@ -105,7 +106,7 @@ async def setup_cancel_discard(scenario_factory, deps, locale):
 
 
 async def _open_manager(scenario_factory, deps, locale, members=("555",)):
-    _seed_config(deps, members=members)
+    await _seed_config(deps, members=members)
     return await scenario_factory(locale=locale, guild=_guild()).start_command(FORM)
 
 

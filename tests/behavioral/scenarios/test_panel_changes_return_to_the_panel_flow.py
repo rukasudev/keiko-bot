@@ -52,7 +52,7 @@ def _names(recorded):
 async def test_a_birthday_added_from_the_panel_returns_to_the_updated_panel(
     scenario_factory, deps, analytics_events
 ):
-    _seed_config(deps)
+    await _seed_config(deps)
     scenario = await scenario_factory(locale=LOCALE, guild=_guild()).start_command(
         "reminders_birthday"
     )

@@ -230,12 +230,14 @@ def open_journey(
 
 
 def _read_recent_attempts(journey: Trace) -> None:
-    """Read the footnote in a worker thread whenever a loop runs, so opening never waits."""
+    """Read the footnote as a task whenever a loop runs, so opening never waits."""
+    from app.data import wait
+
     arguments = (journey.guild_id, journey.feature, journey.session_id)
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
-        journey.footnote = recent_attempts(*arguments)
+        journey.footnote = wait(recent_attempts(*arguments))
         return
 
     def noted(reading: "asyncio.Task[Optional[str]]") -> None:
@@ -243,7 +245,7 @@ def _read_recent_attempts(journey: Trace) -> None:
         if not reading.cancelled() and reading.exception() is None:
             journey.footnote = reading.result()
 
-    reading = loop.create_task(asyncio.to_thread(recent_attempts, *arguments))
+    reading = loop.create_task(recent_attempts(*arguments))
     _READS.add(reading)
     reading.add_done_callback(noted)
 
@@ -300,7 +302,7 @@ def finalize(session_id: str, outcome: str) -> Optional[Trace]:
     return journey
 
 
-def rebuild(session_id: str) -> Optional[Trace]:
+async def rebuild(session_id: str) -> Optional[Trace]:
     """Rebuild a session's story from the events, for the refresh button.
 
     The steps were never only in memory — every line came from an event that is
@@ -309,7 +311,7 @@ def rebuild(session_id: str) -> Optional[Trace]:
     """
     from app.core import analytics_reports
 
-    events = analytics_reports.session_events(session_id)
+    events = await analytics_reports.session_events(session_id)
     if not events:
         return _JOURNEYS.get(session_id)
 
@@ -354,7 +356,7 @@ def rebuild(session_id: str) -> Optional[Trace]:
 
     live = _JOURNEYS.get(session_id)
     story.name = live.name if live else story.name
-    story.footnote = live.footnote if live else recent_attempts(
+    story.footnote = live.footnote if live else await recent_attempts(
         story.guild_id, story.feature, session_id
     )
 
@@ -380,7 +382,7 @@ def _open_or_expired(last_seen: Any) -> str:
     return "abandoned" if quiet > view_constants.LONG_TIMEOUT_SECONDS else "in progress"
 
 
-def recent_attempts(guild_id: Any, feature: str, session_id: str) -> Optional[str]:
+async def recent_attempts(guild_id: Any, feature: str, session_id: str) -> Optional[str]:
     """What this guild already tried on this feature, from its own events of the window."""
     if not guild_id or not feature:
         return None
@@ -393,7 +395,7 @@ def recent_attempts(guild_id: Any, feature: str, session_id: str) -> Optional[st
         )
         previous = [
             session
-            for session in analytics_reports.setup_sessions(
+            for session in await analytics_reports.setup_sessions(
                 feature, guild_id=str(guild_id), since=since
             )
             if session["session_id"] != session_id

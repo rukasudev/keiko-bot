@@ -9,8 +9,8 @@ Only the Twitch HTTP boundary is fake; the YAML validator
 
 import pytest
 
+from app.data import data
 from app.core.utils import ml
-from app.data.guild.cogs import find_cog_by_guild_id
 from tests.generators.moderations import seed_cog
 
 pytestmark = pytest.mark.behavioral
@@ -290,7 +290,7 @@ async def test_editing_the_streamer_of_a_saved_item_rewrites_its_messages(
     await scenario.submit_modal({scenario.pending_modal_fields()[0]: "cellbit"})
     await scenario.click("done")
 
-    stored = find_cog_by_guild_id(GUILD_ID, "notifications_twitch")
+    stored = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "notifications_twitch")
     item = stored["notifications"]["values"][0]
     assert item["streamer"]["value"] == "cellbit"
     assert item["notification_messages"]["value"] == (

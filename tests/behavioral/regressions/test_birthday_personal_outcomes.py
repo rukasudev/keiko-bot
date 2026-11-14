@@ -15,6 +15,7 @@ from unittest.mock import AsyncMock
 import discord
 import pytest
 
+from app.data import wait
 from app import logger as logger_module
 from app.constants import Commands
 from app.core.servers import set_feature_enabled
@@ -44,8 +45,8 @@ def closed_traces():
 @pytest.fixture
 def enabled(deps, monkeypatch):
     recorded_server(deps.mongo_client, GUILD_ID, timezone="UTC")
-    save_birthday_config(GUILD_ID, channel_id="99", notification_time="14:00")
-    set_feature_enabled(GUILD_ID, Commands.REMINDERS_BIRTHDAY_KEY, True)
+    wait(save_birthday_config(GUILD_ID, channel_id="99", notification_time="14:00"))
+    wait(set_feature_enabled(GUILD_ID, Commands.REMINDERS_BIRTHDAY_KEY, True))
     monkeypatch.setattr(
         birthdays_service.reminders_service, "create_reminder", lambda *a, **kw: "1"
     )
@@ -123,7 +124,7 @@ async def test_replacing_a_birthday_is_its_own_traced_unit_of_work(enabled, clos
     replaced = closed_traces[-1]
     assert replaced is not asked and replaced.result == "replaced"
     assert any("birthday replaced" in line for line in lines(replaced))
-    assert find_birthday(GUILD_ID, str(USER_ID))["date"] == "04-20"
+    assert (await find_birthday(GUILD_ID, str(USER_ID)))["date"] == "04-20"
 
 
 async def test_the_trace_says_whether_the_person_is_an_admin(deps, closed_traces):

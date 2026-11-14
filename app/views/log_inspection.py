@@ -1,4 +1,3 @@
-import asyncio
 
 import discord
 
@@ -6,9 +5,8 @@ from app import bot, logger
 from app.components.buttons import GenericButton, HistoryButton
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
-from app.data.guild import settings as guild_settings
+from app.data import data
 from app.core.cogs import features_on, find_changes
-from app.data.events import changes
 from app.core.manager import parse_history_data
 from app.core.utils import format_relative_time, ml
 from app.views.records import RecordsBrowser
@@ -62,10 +60,10 @@ class LogInspectionView(discord.ui.View):
         embed.add_field(name="guild_id", value=self.guild.id, inline=False)
         embed.add_field(name="guild_created_at", value=self.parse_if_time(self.guild.created_at), inline=False)
 
-        server = await asyncio.to_thread(guild_settings.find_settings, self.guild.id)
+        server = await data().guild_settings.find_settings(self.guild.id)
         if server:
             self._add_server_fields(embed, server)
-            await asyncio.to_thread(self._add_commands_status, embed, server)
+            await self._add_commands_status(embed, server)
 
         try:
             integrations = await self.guild.integrations()
@@ -92,10 +90,10 @@ class LogInspectionView(discord.ui.View):
             color=discord.Color.dark_gray(),
         )
 
-        server = await asyncio.to_thread(guild_settings.find_settings, self.guild_id)
+        server = await data().guild_settings.find_settings(self.guild_id)
         if server:
             self._add_server_fields(embed, server)
-            await asyncio.to_thread(self._add_commands_status, embed, server)
+            await self._add_commands_status(embed, server)
 
         return embed
 
@@ -115,9 +113,9 @@ class LogInspectionView(discord.ui.View):
             if value:
                 embed.add_field(name=key, value=self.parse_if_time(value), inline=False)
 
-    def _add_commands_status(self, embed: discord.Embed, server: dict):
+    async def _add_commands_status(self, embed: discord.Embed, server: dict):
         guild_id = self.guild.id if self.guild else self.guild_id
-        active = set(features_on(str(guild_id)))
+        active = set(await features_on(str(guild_id)))
         status_lines = []
         for command_key in constants.COMMANDS_LIST:
             is_active = command_key in active
@@ -125,7 +123,7 @@ class LogInspectionView(discord.ui.View):
             line = f"{icon} {command_key}"
 
             if is_active:
-                last_enabled = self._find_last_enabled_event(str(guild_id), command_key)
+                last_enabled = await self._find_last_enabled_event(str(guild_id), command_key)
                 if last_enabled:
                     line += f" ({format_relative_time(last_enabled)})"
 
@@ -141,8 +139,8 @@ class LogInspectionView(discord.ui.View):
         )
 
     @staticmethod
-    def _find_last_enabled_event(guild_id: str, cog: str):
-        found = changes.find_by_guild(
+    async def _find_last_enabled_event(guild_id: str, cog: str):
+        found = await data().events_changes.find_by_guild(
             guild_id, cog=cog, types=["feature.enabled", "feature.unpaused"], limit=1
         )
         return found[0]["ts"] if found else None
@@ -150,9 +148,11 @@ class LogInspectionView(discord.ui.View):
     async def history_callback(self, interaction: discord.Interaction):
         guild_id = self.guild.id if self.guild else self.guild_id
 
-        history = await asyncio.to_thread(find_changes, str(guild_id))
+        async def fetch(_interaction, _user):
+            return await find_changes(str(guild_id))
+
         browser = RecordsBrowser(
-            fetch=lambda _interaction, _user: history,
+            fetch=fetch,
             to_fields=lambda raw, i: parse_history_data(raw, i, with_cog=True),
             title=ml("buttons.changes-history.label", locale=interaction.locale),
         )

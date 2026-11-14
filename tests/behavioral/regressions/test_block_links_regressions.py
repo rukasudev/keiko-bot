@@ -12,6 +12,7 @@ from app.core import analytics, cache
 from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
     blocking,
     MIN_TICKS,
+    slow,
     ticks_while,
 )
 from tests.mocks import create_message
@@ -350,7 +351,7 @@ async def test_the_stats_total_is_the_servers_lifetime_and_redis_holds_no_count(
     await block_links.check_message(
         GUILD_ID, create_message(channel, member, "https://spam-site.com")
     )
-    analytics.flush()
+    await analytics.flush()
     walks = keyspace_walks(deps, monkeypatch)
 
     description = await stats_description(scenario_factory)
@@ -417,7 +418,7 @@ async def test_recording_a_blocked_link_never_freezes_the_bot(
 
 @pytest.mark.shared_contract("config_cache")
 async def test_the_stats_never_freeze_the_bot(deps, monkeypatch):
-    monkeypatch.setattr(activity, "count_by_field", blocking([]))
+    monkeypatch.setattr(deps.data.events_activity, "count_by_field", slow([]))
     sent = []
 
     async def send(**kwargs):

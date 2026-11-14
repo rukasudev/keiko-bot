@@ -10,6 +10,7 @@ from itertools import cycle, islice
 import discord
 import pytest
 
+from app.data import data
 from app.constants import Commands
 from app.core.utils import ml
 from app.settings.form.form_state import Manage
@@ -17,7 +18,6 @@ from tests.behavioral.golden.paths.common import GUILD_ID
 from tests.behavioral.harness import locators
 from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks.discord import create_guild, create_member
-from app.data.guild.cogs import find_cog_by_guild_id
 
 pytestmark = pytest.mark.behavioral
 
@@ -481,7 +481,7 @@ async def test_a_setup_from_configurar_ends_on_its_category_marked_just_turned_o
         event for event in scenario.outputs
         if (event.get("embed") or {}).get("title") == title
     ]
-    assert find_cog_by_guild_id(GUILD_ID, "default_roles")
+    assert await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "default_roles")
 
     await _press(scenario, _button(message, "Voltar"))
     await _press(scenario, _beside(message, _category("moderations")))

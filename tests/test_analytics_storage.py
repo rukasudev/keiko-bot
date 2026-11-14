@@ -5,15 +5,15 @@ document at a time, and on every derived number the dashboards read living in
 the guild profile so no dashboard has to scan raw events.
 """
 import contextlib
+from datetime import datetime, timezone
 
 import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
 
+from app.data import data, wait
 from app.constants import Commands as constants
-from app.data.analytics import counts, keiko, lifetime
 from app.core import analytics, analytics_sink
 from app.core.trace import trace_scope
-from app.data.events import activity, changes, interactions
 from tests.generators.events import record_event, stored
 
 pytestmark = pytest.mark.unit
@@ -22,7 +22,7 @@ pytestmark = pytest.mark.unit
 def _flush(*emissions):
     for event, props in emissions:
         record_event(event, **props)
-    analytics.flush()
+    wait(analytics.flush())
 
 
 def test_an_interaction_is_written_in_the_sinks_batch():
@@ -32,7 +32,7 @@ def test_an_interaction_is_written_in_the_sinks_batch():
         "steps_viewed": 4,
     }))
 
-    events = interactions.find_by_guild("10")
+    events = wait(data().events_interactions.find_by_guild("10"))
     assert len(events) == 1
     assert events[0]["type"] == "setup.completed"
     assert events[0]["props"]["steps_viewed"] == 4
@@ -44,13 +44,13 @@ def test_a_change_is_written_at_once_and_counted_by_the_sink():
     `record` returns, before any flush, and the sink still counts it."""
     record_event("feature.paused", guild_id="11", feature="block_links", source="manager")
 
-    [change] = changes.find_by_guild("11")
+    [change] = wait(data().events_changes.find_by_guild("11"))
     assert change["type"] == "feature.paused"
     assert change["cog"] == "block_links"
 
-    analytics.flush()
+    wait(analytics.flush())
     assert stored("11") == [change], "the sink wrote the change a second time"
-    day = list(counts.find_by_guild("11")[0]["days"].values())[0]
+    day = list(wait(data().analytics_counts.find_by_guild("11"))[0]["days"].values())[0]
     assert day["feature_paused|block_links"] == 1
 
 
@@ -59,20 +59,20 @@ def test_activity_lands_in_its_own_collection():
         "guild_id": "12", "feature": "welcome_messages", "error_type": "Forbidden",
     }))
 
-    [event] = activity.find_by_guild("12")
+    [event] = wait(data().events_activity.find_by_guild("12"))
     assert event["type"] == "value.blocked_by_permission"
     assert event["actor"] == {"kind": "bot", "id": None}
-    assert interactions.find_by_guild("12") == []
+    assert wait(data().events_interactions.find_by_guild("12")) == []
 
 
 def test_value_delivery_never_creates_a_document():
     for _ in range(50):
         analytics.record_value("20", "welcome_messages")
-    analytics.flush()
+    wait(analytics.flush())
 
     assert stored("20") == []
 
-    buckets = counts.find_by_guild("20")
+    buckets = wait(data().analytics_counts.find_by_guild("20"))
     assert len(buckets) == 1
     day = list(buckets[0]["days"].values())[0]
     assert day["value_delivered|welcome_messages"] == 50
@@ -87,12 +87,32 @@ def test_delivery_advances_the_guild_profile_counters():
         }),
     )
 
-    profile = lifetime.find_lifetime("30")
+    profile = wait(data().analytics_lifetime.find_lifetime("30"))
     assert profile["features"]["default_roles"]["value_count"] == 2
     assert profile["features"]["default_roles"]["permission_failures"] == 1
     assert profile["totals"]["value_events"] == 2
     assert profile["features"]["default_roles"]["first_value_at"] is not None
     assert profile["last_value_at"] is not None
+
+
+def test_one_batch_keeps_the_first_and_the_last_value_in_time_whatever_their_order():
+    """Broke as: the sink folded every event of a batch into one update by keeping the
+    last event's timestamp, so `$min` and `$max` got the batch's last moment, and a
+    server's first value read as a later one and its last value as an earlier one.
+
+    Guaranteed: within one batch, `first_value_at` keeps the earliest moment and
+    `last_value_at` the latest, in whatever order the events were queued."""
+    first, last, between = (
+        datetime(2026, 11, 1, hour, tzinfo=timezone.utc) for hour in (9, 11, 10)
+    )
+    for moment in (first, last, between):
+        record_event("value.delivered", guild_id="35", feature="default_roles")["ts"] = moment
+    wait(analytics.flush())
+
+    profile = wait(data().analytics_lifetime.find_lifetime("35"))
+    assert profile["features"]["default_roles"]["first_value_at"] == first
+    assert profile["features"]["default_roles"]["last_value_at"] == last
+    assert profile["last_value_at"] == last
 
 
 def test_profile_tracks_the_setup_funnel_per_feature():
@@ -113,7 +133,7 @@ def test_profile_tracks_the_setup_funnel_per_feature():
         }),
     )
 
-    profile = lifetime.find_lifetime("40")
+    profile = wait(data().analytics_lifetime.find_lifetime("40"))
     feature = profile["features"]["welcome_messages"]
     assert feature["setup_attempts"] == 1
     assert feature["validation_failures"] == 1
@@ -129,7 +149,7 @@ def test_removal_stamps_the_profile_so_retention_can_expire_it():
         ("guild.removed", {"guild_id": "50", "days_in_guild": 12}),
     )
 
-    profile = lifetime.find_lifetime("50")
+    profile = wait(data().analytics_lifetime.find_lifetime("50"))
     assert profile["joined_at"] is not None
     assert profile["removed_at"] is not None
 
@@ -138,7 +158,7 @@ def test_rejoining_clears_the_removal_stamp():
     _flush(("guild.removed", {"guild_id": "60", "days_in_guild": 3}))
     _flush(("guild.joined", {"guild_id": "60", "returning": True}))
 
-    assert lifetime.find_lifetime("60")["removed_at"] is None
+    assert wait(data().analytics_lifetime.find_lifetime("60"))["removed_at"] is None
 
 
 def test_only_a_greeting_posted_on_a_channel_stamps_the_profile():
@@ -156,13 +176,13 @@ def test_only_a_greeting_posted_on_a_channel_stamps_the_profile():
         }),
     )
 
-    unposted = lifetime.find_lifetime("65") or {}
+    unposted = wait(data().analytics_lifetime.find_lifetime("65")) or {}
     assert unposted.get("greeting_sent_at") is None, (
         "a greeting with no channel to post on was stamped as sent"
     )
-    assert lifetime.find_lifetime("66")["greeting_sent_at"] is not None
+    assert wait(data().analytics_lifetime.find_lifetime("66"))["greeting_sent_at"] is not None
     assert [
-        event["props"]["channel_found"] for event in activity.find_by_guild("65")
+        event["props"]["channel_found"] for event in wait(data().events_activity.find_by_guild("65"))
     ] == [False]
 
 
@@ -172,11 +192,11 @@ def test_the_sink_writes_no_counter_to_redis(redis_client):
     assert redis_client.keys("guild:70:analytics:*") == [], (
         "the daily window nobody read is written again"
     )
-    assert counts.find_by_guild("70"), "the count went to Mongo"
+    assert wait(data().analytics_counts.find_by_guild("70")), "the count went to Mongo"
 
 
 def _counts(guild_id):
-    [document] = counts.find_by_guild(guild_id)
+    [document] = wait(data().analytics_counts.find_by_guild(guild_id))
     return document
 
 
@@ -205,7 +225,7 @@ def test_every_event_with_a_guild_is_counted_by_day_and_a_command_by_name():
 
 
 def _keiko(counter_id):
-    [document] = keiko.find_counters([counter_id])
+    [document] = wait(data().analytics_keiko.find_counters([counter_id]))
     return document
 
 
@@ -249,15 +269,15 @@ def test_a_blocked_link_adds_to_keikos_total_and_its_sites_naming_no_one():
         for guild, host in (("74", "spam-site.com"), ("75", "spam-site.com"), ("74", "x.io"))
     ]
 
-    analytics_sink.persist(batch)
+    wait(analytics_sink.persist(batch))
 
     documents = {
         document["_id"]: {
             field: value for field, value in document.items() if field != "updated_at"
         }
-        for document in keiko.find_counters(
+        for document in wait(data().analytics_keiko.find_counters(
             ["blocked:total", "blocked:site:spam-site.com", "blocked:site:x.io"]
-        )
+        ))
     }
     assert documents == {
         "blocked:total": {"_id": "blocked:total", "blocked": 3},
@@ -280,7 +300,7 @@ def test_a_commands_latency_lands_in_its_bucket_and_a_slow_run_is_kept(deps):
         }},
     ]
 
-    analytics_sink.persist_runs(closed)
+    wait(analytics_sink.persist_runs(closed))
 
     month, day = started.strftime("%Y-%m"), started.strftime("%d")
     assert _keiko(f"commands:{month}")["days"][day]["birthday"]["ms"] == {
@@ -306,7 +326,7 @@ def test_a_servers_admins_are_counted_once_each_up_to_the_cap(monkeypatch):
             "changed_keys": ["mode"],
         }))
 
-    found = lifetime.find_lifetime("76")
+    found = wait(data().analytics_lifetime.find_lifetime("76"))
     assert found["admins_count"] == 2
     assert sorted(found["admins"]) == ["1", "2"]
 
@@ -374,17 +394,17 @@ def test_metric_keys_drop_the_dots_mongo_would_read_as_nesting():
 def test_events_without_a_guild_never_reach_the_per_guild_stores():
     _flush(("command.failed", {"command": "ping", "error_type": "TimeoutError"}))
 
-    assert lifetime.find_lifetimes() == []
-    assert counts.find_by_guild("") == []
+    assert wait(data().analytics_lifetime.find_lifetimes()) == []
+    assert wait(data().analytics_counts.find_by_guild("")) == []
 
 
 def test_the_trace_supplies_context_the_call_site_does_not_repeat():
     with trace_scope("cmd", guild_id="80", user_id="9", source="slash",
                      feature="block_links", session_id="sess"):
         analytics.record("feature.setup_opened")
-    analytics.flush()
+    wait(analytics.flush())
 
-    event = interactions.find_by_guild("80")[0]
+    event = wait(data().events_interactions.find_by_guild("80"))[0]
     assert event["actor"] == {"kind": "user", "id": "9"}
     assert event["props"]["source"] == "slash"
     assert event["cog"] == "block_links"
@@ -401,7 +421,7 @@ def test_every_event_has_the_one_envelope():
         "command": "ping", "error_type": "KeyError",
     }))
 
-    [event] = interactions.find_by_guild("90")
+    [event] = wait(data().events_interactions.find_by_guild("90"))
     assert set(event) == {
         "ts", "type", "guild_id", "cog", "actor", "trace_id", "session_id", "props", "v",
     }

@@ -6,17 +6,18 @@ desde a deteccao ate a acao de moderacao.
 """
 
 import pytest
+from app.data import wait
 from app.services.block_links import check_message
 from tests.mocks import create_message, create_member
 from tests.generators import moderations
 from tests.generators.events import blocked_links
 
 
-def _blocks(guild_id):
+async def _blocks(guild_id):
     """The blocked links once the sink wrote its batch."""
     from app.core import analytics
 
-    analytics.flush()
+    await analytics.flush()
     return blocked_links(guild_id)
 
 
@@ -521,7 +522,7 @@ class TestBlockLinksRecords:
 
         await check_message(str(guild.id), msg)
 
-        records = _blocks(str(guild.id))
+        records = await _blocks(str(guild.id))
         assert len(records) == 1
         assert records[0]["props"]["host"] == "spam-site.com"
         assert records[0]["props"]["reason"] == "blocked-no-rule"
@@ -539,7 +540,7 @@ class TestBlockLinksRecords:
         await check_message(str(guild.id), msg)
 
         msg.assert_not_deleted()
-        assert _blocks(str(guild.id)) == []
+        assert await _blocks(str(guild.id)) == []
 
     @pytest.mark.asyncio
     async def test_a_failed_deletion_is_recorded_as_not_deleted(
@@ -554,7 +555,7 @@ class TestBlockLinksRecords:
         with pytest.raises(RuntimeError):
             await check_message(str(guild.id), msg)
 
-        records = _blocks(str(guild.id))
+        records = await _blocks(str(guild.id))
         assert len(records) == 1
         assert records[0]["props"]["deleted"] is False
 
@@ -585,4 +586,4 @@ class TestBlockLinksRecords:
 
         await check_message(str(guild.id), msg)
 
-        assert len(_blocks(str(guild.id))) == 3
+        assert len(await _blocks(str(guild.id))) == 3

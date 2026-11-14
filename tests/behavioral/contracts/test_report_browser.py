@@ -23,7 +23,7 @@ def embed(title):
 
 def sections(counter=None):
     def build(name):
-        def _build():
+        async def _build():
             if counter is not None:
                 counter.append(name)
             return embed(name)
@@ -128,9 +128,15 @@ def _as_sections():
     return [ReportSection(**section) for section in sections()]
 
 
+def _built(shown):
+    async def build():
+        return shown
+    return build
+
+
 def _long_section():
     from app.views.report_browser import ReportSection
     return [ReportSection(
-        key="long", label="L" * 200, build=lambda: embed("long"),
+        key="long", label="L" * 200, build=_built(embed("long")),
         description="D" * 200,
     )]

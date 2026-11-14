@@ -59,7 +59,6 @@ async def welcome_messages(
         "welcome_messages_footer": footer
     }
 
-    # Suporta tanto mock quanto motor real
     seed_cog(db, "welcome_messages", doc)
 
     return doc

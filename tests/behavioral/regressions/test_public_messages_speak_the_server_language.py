@@ -142,9 +142,9 @@ async def birthday(deps, guild):
 
     channel = guild.text_channels[0]
     create_member(guild, id=555, name="Tester")
-    save_birthday_config(str(guild.id), str(channel.id), False)
+    await save_birthday_config(str(guild.id), str(channel.id), False)
     saved_birthday(str(guild.id), "555", "05-12", reminder_id="4001")
-    set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
+    await set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
 
     await celebrate_in_guild(
         str(guild.id), [{"user_id": "555", "date": "05-12"}], "05-12", Counter()

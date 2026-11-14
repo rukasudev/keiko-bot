@@ -1,11 +1,11 @@
+import asyncio
 import time
-from typing import Any, Dict
+from typing import Any, Mapping, Optional, Set
 
 import certifi
 import redis
 import redis.client
-from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo import MongoClient, monitoring
+from pymongo import AsyncMongoClient, monitoring
 from pymongo.errors import ServerSelectionTimeoutError
 
 from app import logger
@@ -13,12 +13,15 @@ from app.bot import DiscordBot
 from app.config import AppConfig
 from app.constants import DBConfigs
 from app.core import metrics
+from app.data import Data, build, expect_loop, install
+from app.data.collection import Client
 
 bot: DiscordBot
+_CONFIG: Optional[AppConfig] = None
 
 
 class MongoLatency(monitoring.CommandListener):
-    """Times every command the Mongo clients send, as the `mongo` dependency."""
+    """Times every command the Mongo client sends, as the `mongo` dependency."""
 
     def started(self, event: monitoring.CommandStartedEvent) -> None:
         pass
@@ -69,28 +72,57 @@ def _milliseconds(seconds: float) -> int:
     return int(seconds * 1000)
 
 
-def reach_mongo(client: Any) -> Dict[str, Any]:
+async def reach_mongo(client: Client) -> Mapping[str, Any]:
     """Ping Mongo at boot, asking again while no server answers, for a bounded time."""
     deadline = time.monotonic() + DBConfigs.MONGO_BOOT_WAIT_SECONDS
 
     while True:
         try:
-            return client.guild.command("ping")
+            return await client["guild"].command("ping")
         except ServerSelectionTimeoutError as error:
             if time.monotonic() >= deadline:
                 raise
             logger.warn(f"MongoDB is not answering yet, asking again: {type(error).__name__}")
 
 
-def require_migrations(client: Any) -> None:
+def require_migrations(recorded: Set[str]) -> None:
     """Stop the boot, naming each file, when the ledger lacks one this code has."""
-    from app.migrations.runner import MigrationsPending, require_applied
+    from app.migrations.runner import MigrationsPending, require_recorded
 
     try:
-        require_applied(client)
+        require_recorded(recorded)
     except MigrationsPending as error:
         logger.error(str(error))
         raise
+
+
+async def prepare_mongo(config: AppConfig) -> str:
+    """On a client of the boot alone: wait for Mongo, refuse a database its migrations
+    miss, and read Keiko's settings."""
+    boot = build(connect_mongo(AsyncMongoClient, config))
+    try:
+        answer = await reach_mongo(boot.client)
+        require_migrations(await boot.migrations_changelog.applied_ids())
+        await config.load_db_configs(boot)
+    finally:
+        await boot.close()
+    return "OK" if answer.get("ok") == 1.0 else "Error"
+
+
+def connect_data(config: AppConfig) -> Data:
+    """Install the repositories over a new client, which the first loop to use it owns."""
+    global _CONFIG
+    _CONFIG = config
+    connected = build(connect_mongo(AsyncMongoClient, config))
+    install(connected)
+    expect_loop()
+    return connected
+
+
+def reconnect_data() -> None:
+    """A new client for a new loop, once the bot's loop is gone; none before a boot."""
+    if _CONFIG is not None:
+        connect_data(_CONFIG)
 
 
 def connect_redis(url: str) -> redis.Redis:
@@ -105,24 +137,19 @@ def connect_redis(url: str) -> redis.Redis:
 
 
 def create_app(config: AppConfig) -> DiscordBot:
-    global mongo_client, motor_client, redis_client, bot
+    global redis_client, bot
 
-    mongo_client = connect_mongo(MongoClient, config)
-    motor_client = connect_mongo(AsyncIOMotorClient, config)
-
-    mongo_status = "OK" if reach_mongo(mongo_client).get("ok") == 1.0 else "Error"
-    require_migrations(mongo_client)
-    config.load_db_configs()
+    mongo_status = asyncio.run(prepare_mongo(config))
+    connect_data(config)
     logger.info(f"MongoDB: {mongo_status}")
 
     redis_client = connect_redis(config.REDIS_URL)
     redis_status = "OK" if redis_client.ping() else "Error"
     logger.info(f"Redis: {redis_status}")
 
-    from app.core import analytics, debug_logs
+    from app.core import analytics
 
     analytics.configure(config)
-    debug_logs.start_writer()
 
     bot = DiscordBot(config)
 

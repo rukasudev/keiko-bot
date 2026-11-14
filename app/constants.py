@@ -40,6 +40,8 @@ class DBConfigs:
     MONGO_CONNECT_TIMEOUT_SECONDS: Final[float] = 5.0
     MONGO_SOCKET_TIMEOUT_SECONDS: Final[float] = 20.0
     MONGO_BOOT_WAIT_SECONDS: Final[float] = 30.0
+    MONGO_THREAD_WAIT_SECONDS: Final[float] = 30.0
+    MONGO_THREAD_BATCH: Final[int] = 500
     FATAL_START_BACKOFF_SECONDS: Final[int] = 300
     FATAL_START_PHRASE: Final[str] = "Discord refused to start the bot"
     FATAL_START_CLOSE_CODES: Final[FrozenSet[int]] = frozenset({4004, 4010, 4011, 4012, 4013})
@@ -67,11 +69,13 @@ class DBConfigs:
     AGE_TAG_BYTES: Final[int] = 16
 
     BACKUP_COLLECTIONS: Final[Dict[str, Optional[Tuple[str, ...]]]] = {
+        "analytics": None,
         "audit": None,
         "configs": ("admin", "data"),
         "events": None,
         "guild": None,
         "keiko": None,
+        "migrations": ("changelog",),
         "notifications": None,
         "reminders": None,
     }
@@ -129,6 +133,7 @@ class Dependencies:
     HTTP_CONNECT_TIMEOUT_SECONDS: Final[float] = 5.0
     HTTP_READ_TIMEOUT_SECONDS: Final[float] = 15.0
     BLOCKING_IO_THREADS: Final[int] = 32
+    LOOP_IO_THREADS: Final[int] = 4
     BLOCKING_IO_STOP_WAIT_SECONDS: Final[float] = 5.0
 
 

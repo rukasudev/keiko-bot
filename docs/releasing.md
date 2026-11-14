@@ -25,10 +25,14 @@ new version instead.
 
 ## What a deploy does to the running bot
 
-0. Before anything stops, the new image runs the database migrations
-   (`docker run --rm <image> python -m app.migrations`): `status`, a dry run,
-   then `migrate`. A failed check or a failed migration stops the deploy there,
-   and the running container keeps serving (`docs/migrations.md`).
+0. Before anything stops, the new image checks the database migrations
+   (`docker run --rm <image> python -m app.migrations`): `status`, then a dry
+   run. A failed check stops the deploy there, and the running container keeps
+   serving. Then the running container stops (step 1) and only then the new
+   image runs `migrate`, so nothing the old version writes lands in a collection
+   the migration already copied. A failed migration starts the stopped container
+   again (`docker start keiko-bot`, the same name and arguments) and fails the
+   deploy (`docs/migrations.md`).
 1. `docker stop -t 30` sends SIGTERM. Keiko closes its Discord connection,
    writes the analytics events and log records still queued, and exits
    (`run` in `app/bot.py`). Docker kills it only if it is still running after
@@ -161,8 +165,8 @@ daily log files.
    ```bash
    age -d -i key.txt keiko_backup_2026-10-05.zip.age > backup.zip
    unzip backup.zip -d backup                        # manifest.json counts each collection
-   mongoimport --uri "$MONGO_URL" --db guild --collection moderations \
-     --file backup/guild/moderations.jsonl --mode upsert
+   mongoimport --uri "$MONGO_URL" --db guild --collection cogs \
+     --file backup/guild/cogs.jsonl --mode upsert
    ```
 
    Import into a scratch database first (`--db restore_guild`) when you only need
@@ -172,7 +176,7 @@ daily log files.
 
    ```bash
    age -d -i key.txt keiko_events_2026-09.jsonl.gz.age | gunzip \
-     | mongoimport --uri "$MONGO_URL" --db keiko_archive --collection analytics_events
+     | mongoimport --uri "$MONGO_URL" --db keiko_archive --collection events
    ```
 
 A new key pair only seals what is posted after the restart: keep every old

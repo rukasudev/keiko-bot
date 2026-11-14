@@ -1,4 +1,3 @@
-import asyncio
 import resource
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Set
@@ -9,14 +8,8 @@ from app.bot import DiscordBot
 from app.constants import Commands, DBConfigs, KeikoIcons, Style
 from app.core import analytics, analytics_reports, cache, logs_archive
 from app.core.utils import format_datetime_output, format_relative_time
-from app.data import util
-from app.data.analytics import counts, lifetime
-from app.data.events import activity, changes, interactions
-from app.data.guild import cogs as guild_cogs
-from app.data.guild import settings as guild_settings
-from app.data.keiko import settings as keiko_settings
-from app.data.keiko import subscriptions
-from app.data.traces import runs as trace_runs
+from app.data import data
+from app.core.threads import to_thread
 
 
 async def send_log_file_from_channel_by_date(
@@ -43,27 +36,28 @@ async def send_log_file_from_channel_by_date(
     await interaction.followup.send(f":pensive: Log file not found for **{date}**")
 
 
-def update_admin_configs(bot: DiscordBot, data: Dict[str, int]) -> None:
+async def update_admin_configs(bot: DiscordBot, configs: Dict[str, int]) -> None:
     """Save operator ids and use them at once."""
-    keiko_settings.update_operator(data)
-    for key, value in data.items():
+    await data().keiko_settings.update_operator(configs)
+    for key, value in configs.items():
         setattr(bot.config, key.upper(), value)
 
     analytics.record(
         "keiko.settings_changed",
-        props={"group": "operator", "changed_keys": sorted(data)},
+        props={"group": "operator", "changed_keys": sorted(configs)},
     )
 
 
-def get_admin_configs():
-    return keiko_settings.find_keiko_settings().get(DBConfigs.KEIKO_OPERATOR, {})
+async def get_admin_configs():
+    settings = await data().keiko_settings.find_keiko_settings()
+    return settings.get(DBConfigs.KEIKO_OPERATOR, {})
 
 
 async def get_overview_data(bot: DiscordBot) -> dict:
     """The overview's numbers: Discord's cache read on the loop that owns it, and what
-    Keiko stored, read in a thread."""
+    Keiko stored."""
     shown = _what_discord_shows(bot)
-    stored = await asyncio.to_thread(_what_keiko_stored, shown.pop("guild_ids"))
+    stored = await _what_keiko_stored(shown.pop("guild_ids"))
     newest_guild_id = stored.pop("newest_guild_id")
     newest_guild = bot.get_guild(int(newest_guild_id)) if newest_guild_id else None
     stored["newest_guild_name"] = newest_guild.name if newest_guild else newest_guild_id
@@ -95,7 +89,7 @@ def _what_discord_shows(bot: DiscordBot) -> Dict[str, Any]:
     }
 
 
-def servers_overview(since: datetime) -> Dict[str, Any]:
+async def servers_overview(since: datetime) -> Dict[str, Any]:
     """Servers Keiko is in and left, its top owner, the newest server and how many it
     recorded since `since`, in one read."""
     pipeline: List[Dict[str, Any]] = [
@@ -123,14 +117,14 @@ def servers_overview(since: datetime) -> Dict[str, Any]:
             }
         }
     ]
-    found = guild_settings.aggregate_settings(pipeline)
+    found = await data().guild_settings.aggregate_settings(pipeline)
     return found[0] if found else {}
 
 
-def _what_keiko_stored(guild_ids: Set[str]) -> Dict[str, Any]:
+async def _what_keiko_stored(guild_ids: Set[str]) -> Dict[str, Any]:
     first_day_of_month = datetime.now(tz=timezone.utc).replace(day=1, hour=0, minute=0, second=0, microsecond=0)
 
-    facet = servers_overview(first_day_of_month)
+    facet = await servers_overview(first_day_of_month)
 
     # Parse guild status
     active_guilds = 0
@@ -150,7 +144,7 @@ def _what_keiko_stored(guild_ids: Set[str]) -> Dict[str, Any]:
         top_owner_id = None
         top_owner_count = 0
 
-    feature_adoption = count_feature_adoption(guild_ids)
+    feature_adoption = await count_feature_adoption(guild_ids)
 
     # Parse newest guild
     newest_guild_data = facet.get("newest_guild", [])
@@ -166,13 +160,13 @@ def _what_keiko_stored(guild_ids: Set[str]) -> Dict[str, Any]:
     monthly_growth = monthly_growth_data[0]["total"] if monthly_growth_data else 0
 
     since = datetime.now(timezone.utc) - timedelta(days=Commands.ANALYTICS_OVERVIEW_DAYS)
-    command_calls, command_errors = analytics_reports.command_usage(since)
+    command_calls, command_errors = await analytics_reports.command_usage(since)
     total_calls = sum(command_calls.values())
     total_errors = sum(command_errors.values())
     error_rate = round(total_errors / total_calls * 100, 1) if total_calls > 0 else None
 
-    redis_keys = cache.count_keys()
-    twitch_streamers = subscriptions.count_subscriptions("twitch")
+    redis_keys = await to_thread(cache.count_keys)
+    twitch_streamers = await data().keiko_subscriptions.count_subscriptions("twitch")
 
     return {
         "active_guilds": active_guilds,
@@ -190,17 +184,16 @@ def _what_keiko_stored(guild_ids: Set[str]) -> Dict[str, Any]:
         "error_rate": error_rate,
         "redis_keys": redis_keys,
         "twitch_streamers": twitch_streamers,
-        "product_summary": build_product_summary(),
+        "product_summary": await build_product_summary(),
     }
 
 
-def count_feature_adoption(guild_ids: Set[str]) -> Dict[str, int]:
+async def count_feature_adoption(guild_ids: Set[str]) -> Dict[str, int]:
     """How many of these servers have each feature on, by the record the bot runs on,
     reading only the ids of the servers where it is on."""
+    cogs = data().guild_cogs
     return {
-        key: sum(
-            1 for guild_id in guild_cogs.find_enabled_guild_ids(key) if guild_id in guild_ids
-        )
+        key: sum(1 for guild_id in await cogs.find_enabled_guild_ids(key) if guild_id in guild_ids)
         for key in Commands.COMMANDS_LIST
     }
 
@@ -321,13 +314,13 @@ def build_overview_embed(bot: DiscordBot, data: dict) -> discord.Embed:
     return embed
 
 
-def build_product_summary() -> str:
+async def build_product_summary() -> str:
     """Configured versus actually working \u2014 the distinction command counts hide."""
-    lifetimes = lifetime.find_lifetimes()
+    lifetimes = await data().analytics_lifetime.find_lifetimes()
     live = [profile for profile in lifetimes if not profile.get("removed_at")]
     activated = [profile for profile in live if profile.get("last_value_at")]
-    abandoned = analytics_reports.abandoned_features(lifetimes=lifetimes)
-    at_risk = analytics_reports.guilds_at_risk()
+    abandoned = await analytics_reports.abandoned_features(lifetimes=lifetimes)
+    at_risk = await analytics_reports.guilds_at_risk()
 
     return (
         f"Guilds delivering value: **{len(activated)}** of **{len(live)}**\n"
@@ -336,25 +329,39 @@ def build_product_summary() -> str:
     )
 
 
-def forget_guild(guild_id: str) -> Dict[str, int]:
+async def forget_guild(guild_id: str) -> Dict[str, int]:
     """Erase every record Keiko keeps about a guild's activity: its events, its
-    numbers and its traces, in the collections of today and of before."""
+    numbers and its traces, in the collections of today and of before, the ones still
+    queued written first so no later flush brings them back."""
+    await analytics.flush()
+    await analytics.written()
+    store = data()
     current = ("changes", "activity", "interactions")
-    audits = [name for name in util.collection_names("events") if name not in current]
-    events = sum(
-        collection.delete_by_guild(guild_id)
-        for collection in (changes, activity, interactions)
-    )
-    events += sum(util.delete_guild_rows("events", name, guild_id) for name in audits)
-    events += sum(
-        util.delete_guild_rows("guild", name, guild_id)
+    found = await store.databases.collection_names("events")
+    audits = [name for name in found if name not in current]
+    events = sum([
+        await collection.delete_by_guild(guild_id)
+        for collection in (
+            store.events_changes, store.events_activity, store.events_interactions
+        )
+    ])
+    events += sum([
+        await store.databases.delete_guild_rows("events", name, guild_id)
+        for name in audits
+    ])
+    events += sum([
+        await store.databases.delete_guild_rows("guild", name, guild_id)
         for name in ("analytics_events", "blocked_links")
+    ])
+    months = await store.databases.delete_guild_rows(
+        "guild", "analytics_guild_month", guild_id
     )
-    months = util.delete_guild_rows("guild", "analytics_guild_month", guild_id)
-    profile = util.delete_guild_rows("guild", "analytics_guild_profile", guild_id, "_id")
+    profile = await store.databases.delete_guild_rows(
+        "guild", "analytics_guild_profile", guild_id, "_id"
+    )
     return {
         "events": events,
-        "months": months + counts.delete_by_guild(guild_id),
-        "profile": profile + lifetime.delete_by_guild(guild_id),
-        "traces": trace_runs.delete_by_guild(guild_id),
+        "months": months + await store.analytics_counts.delete_by_guild(guild_id),
+        "profile": profile + await store.analytics_lifetime.delete_by_guild(guild_id),
+        "traces": await store.traces_runs.delete_by_guild(guild_id),
     }

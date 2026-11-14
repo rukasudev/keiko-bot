@@ -21,6 +21,7 @@ import pytest
 from app.components.buttons import BackButton
 from app.constants import Commands
 from app.core.utils import ml
+from tests.mocks.database import fake_store
 from tests.behavioral.golden.paths import block_links
 from tests.behavioral.golden.paths import default_roles
 from tests.behavioral.harness.locators import walk_items
@@ -70,7 +71,7 @@ async def test_the_voltar_of_the_settings_screen_is_grey(deps, locale):
     from app.core import cache
     from app.services.setup import settings_screen
 
-    recorded_server(guild_settings.mongo_client, GUILD_ID, language=locale)
+    recorded_server(fake_store(), GUILD_ID, language=locale)
     cache.reset()
 
     _assert_grey(await settings_screen(GUILD_ID), locale, "settings screen")

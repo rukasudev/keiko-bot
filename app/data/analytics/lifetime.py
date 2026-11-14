@@ -1,10 +1,11 @@
-"""`analytics.lifetime`: one document per server, the state its events add up to."""
+"""analytics.lifetime: one document per server, the state its events add up to."""
+
 from datetime import datetime
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from pymongo import UpdateOne
 
-from app import mongo_client
+from app.data.collection import Document, Repository
 
 
 def lifetime_operation(
@@ -41,36 +42,33 @@ def admin_operation(guild_id: str, user_id: str, cap: int) -> UpdateOne:
     )
 
 
-def update(operations: Sequence[UpdateOne]) -> Any:
-    """Apply the servers' updates in one round trip."""
-    if not operations:
-        return None
-    return mongo_client.analytics.lifetime.bulk_write(list(operations), ordered=False)
-
-
-def find_lifetime(guild_id: str) -> Optional[Dict[str, Any]]:
-    """One server's lifetime."""
-    return mongo_client.analytics.lifetime.find_one({"_id": str(guild_id)})
-
-
-def find_lifetimes() -> List[Dict[str, Any]]:
+class Lifetime(Repository):
     """Every server's lifetime."""
-    return list(mongo_client.analytics.lifetime.find({}))
 
+    async def update(self, operations: Sequence[UpdateOne]) -> Any:
+        """Apply the servers' updates in one round trip."""
+        if not operations:
+            return None
+        return await self._collection.bulk_write(list(operations), ordered=False)
 
-def find_quiet(before: datetime) -> List[Dict[str, Any]]:
-    """The servers Keiko is in whose last value came before `before`, or never came."""
-    quiet = mongo_client.analytics.lifetime.find(
-        {"removed_at": None, "last_value_at": {"$lt": before}}
-    )
-    never = mongo_client.analytics.lifetime.find(
-        {"removed_at": None, "last_value_at": None}
-    )
-    return [*quiet, *never]
+    async def find_lifetime(self, guild_id: Any) -> Optional[Document]:
+        """One server's lifetime."""
+        return await self._collection.find_one({"_id": str(guild_id)})
 
+    async def find_lifetimes(self) -> List[Document]:
+        """Every server's lifetime."""
+        return await self._collection.find({}).to_list()
 
-def delete_by_guild(guild_id: str) -> int:
-    """Delete a server's lifetime."""
-    return mongo_client.analytics.lifetime.delete_many(
-        {"_id": str(guild_id)}
-    ).deleted_count
+    async def find_quiet(self, before: datetime) -> List[Document]:
+        """The servers Keiko is in whose last value came before `before`, or never
+        came."""
+        quiet = self._collection.find(
+            {"removed_at": None, "last_value_at": {"$lt": before}}
+        )
+        never = self._collection.find({"removed_at": None, "last_value_at": None})
+        return [*await quiet.to_list(), *await never.to_list()]
+
+    async def delete_by_guild(self, guild_id: Any) -> int:
+        """Delete a server's lifetime."""
+        result = await self._collection.delete_many({"_id": str(guild_id)})
+        return result.deleted_count

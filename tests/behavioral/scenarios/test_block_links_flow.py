@@ -12,8 +12,8 @@ comes back to that screen. Two modes: block_all (allowlist) and allow_all
 import json
 import pytest
 
+from app.data import data
 from app.core.utils import ml
-from app.data.guild.cogs import find_cog_by_guild_id
 from tests.generators.moderations import seed_cog
 
 pytestmark = pytest.mark.behavioral
@@ -414,7 +414,7 @@ async def test_back_and_cancel_around_the_exceptions_keep_or_drop_the_draft(
     await scenario.click("cancel")
     await scenario.click("Descartar tudo")
 
-    assert find_cog_by_guild_id(GUILD_ID, "block_links") is None
+    assert await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "block_links") is None
     await scenario.finish()
 
 

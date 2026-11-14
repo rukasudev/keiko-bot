@@ -1,4 +1,3 @@
-import asyncio
 import datetime
 import random
 import re
@@ -25,17 +24,16 @@ from app.core.utils import (
     split_messages,
     values_of,
 )
-from app.data.guild import cogs as guild_cogs
-from app.data.guild.messages import find_message, save_message
-from app.data.keiko.subscriptions import subscription_state, update_subscription_state
+from app.data import data, wait
 from app.exceptions import ErrorContext
 from app.settings import open_feature
 from app.views.message_preview import MessagePreviewView
+from app.core.threads import to_thread
 
 
-def count_streamers_guilds(streamer_name: str) -> int:
+async def count_streamers_guilds(streamer_name: str) -> int:
     """How many servers announce the streamer's lives while their notifications are on."""
-    return guild_cogs.count_cogs_by_option(
+    return await data().guild_cogs.count_cogs_by_option(
         constants.NOTIFICATIONS_TWITCH_KEY,
         "notifications.values.streamer.value",
         streamer_name,
@@ -43,9 +41,9 @@ def count_streamers_guilds(streamer_name: str) -> int:
     )
 
 
-def find_guilds_by_streamer_name(streamer_name: str) -> List[Dict[str, Any]]:
+async def find_guilds_by_streamer_name(streamer_name: str) -> List[Dict[str, Any]]:
     """The notifications of every server announcing the streamer's lives, while on."""
-    return guild_cogs.find_cogs_by_option(
+    return await data().guild_cogs.find_cogs_by_option(
         constants.NOTIFICATIONS_TWITCH_KEY,
         "notifications.values.streamer.value",
         streamer_name,
@@ -70,8 +68,8 @@ async def handle_send_streamer_notification(streamer_name: str) -> None:
 
     try:
         # The second one sleeps 15 seconds between attempts.
-        user_info = await asyncio.to_thread(bot.twitch.get_user_info, streamer_name)
-        stream_info = await asyncio.to_thread(wait_for_stream_info, streamer_name)
+        user_info = await to_thread(bot.twitch.get_user_info, streamer_name)
+        stream_info = await to_thread(wait_for_stream_info, streamer_name)
 
         if not stream_info:
             logger.info(f"Stream info not found for streamer **{streamer_name}**", log_type=logconstants.COMMAND_INFO_TYPE)
@@ -79,26 +77,23 @@ async def handle_send_streamer_notification(streamer_name: str) -> None:
 
         stream_started_at = stream_info.get("started_at")
         started_at = parser.parse(stream_started_at)
-        last_live = await asyncio.to_thread(last_live_of, streamer_name)
+        last_live = await last_live_of(streamer_name)
 
         if not last_live or is_more_than_one_hour(started_at, last_live):
-            if not await asyncio.to_thread(claim_the_live, streamer_name, stream_started_at):
+            if not await to_thread(claim_the_live, streamer_name, stream_started_at):
                 logger.info(
                     f"The live of **{streamer_name}** started at {stream_started_at} was already announced",
                     log_type=logconstants.COMMAND_INFO_TYPE,
                 )
                 return
             try:
-                guilds_data = await asyncio.to_thread(following_guilds, streamer_name)
+                guilds_data = await following_guilds(streamer_name)
             except Exception:
-                await asyncio.to_thread(give_back_the_live, streamer_name, stream_started_at)
+                await to_thread(give_back_the_live, streamer_name, stream_started_at)
                 raise
             await send_streamer_notifications(stream_info, user_info, guilds_data)
-            await asyncio.to_thread(
-                update_subscription_state,
-                "twitch",
-                streamer_name,
-                {"last_live_started_at": started_at},
+            await data().keiko_subscriptions.update_subscription_state(
+                "twitch", streamer_name, {"last_live_started_at": started_at}
             )
         else:
             await edit_streamer_notifications(user_info, status=constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE)
@@ -161,7 +156,7 @@ async def send_streamer_notifications(
 
 async def edit_streamer_notifications(user_info: Dict[str, Any], status: str) -> None:
     streamer_name = user_info.get("login")
-    guilds_data = await asyncio.to_thread(following_guilds, streamer_name)
+    guilds_data = await following_guilds(streamer_name)
     logger.info(f"Editing notifications to {status} for **{streamer_name}**", log_type=logconstants.COMMAND_INFO_TYPE)
 
     count = await update_notification_status(guilds_data, streamer_name, status)
@@ -177,8 +172,8 @@ async def handle_send_streamer_offline_notification(streamer_name: str) -> None:
     )
 
     try:
-        guilds_data = await asyncio.to_thread(following_guilds, streamer_name)
-        last_live = await asyncio.to_thread(last_live_of, streamer_name)
+        guilds_data = await following_guilds(streamer_name)
+        last_live = await last_live_of(streamer_name)
         stream_duration = None
 
         if last_live:
@@ -221,13 +216,8 @@ async def announce_live(
         analytics.record_permission_failure(guild.id, constants.NOTIFICATIONS_TWITCH_KEY, error)
         raise
 
-    await asyncio.to_thread(
-        save_message,
-        guild.id,
-        channel.id,
-        constants.NOTIFICATIONS_TWITCH_KEY,
-        streamer_name,
-        message.id,
+    await data().guild_messages.save_message(
+        guild.id, channel.id, constants.NOTIFICATIONS_TWITCH_KEY, streamer_name, message.id
     )
     analytics.record_value(guild.id, constants.NOTIFICATIONS_TWITCH_KEY)
 
@@ -293,8 +283,8 @@ def stream_status(status: str, locale: str, duration: Optional[str] = None) -> s
 async def fetch_notification_message(
     guild: Any, channel: Any, streamer_name: str
 ) -> Optional[discord.Message]:
-    stream_notification = await asyncio.to_thread(
-        find_message, guild.id, channel.id, constants.NOTIFICATIONS_TWITCH_KEY, streamer_name
+    stream_notification = await data().guild_messages.find_message(
+        guild.id, channel.id, constants.NOTIFICATIONS_TWITCH_KEY, streamer_name
     )
     if not stream_notification:
         return None
@@ -305,14 +295,14 @@ async def fetch_notification_message(
         return None
 
 
-def following_guilds(streamer_name: str) -> List[Dict[str, Any]]:
+async def following_guilds(streamer_name: str) -> List[Dict[str, Any]]:
     """Every guild document that follows the streamer, read to the end."""
-    return list(find_guilds_by_streamer_name(streamer_name))
+    return list(await find_guilds_by_streamer_name(streamer_name))
 
 
-def last_live_of(streamer_name: str) -> Optional[datetime.datetime]:
+async def last_live_of(streamer_name: str) -> Optional[datetime.datetime]:
     """When the streamer's last announced live started, as Keiko recorded it."""
-    state = subscription_state("twitch", streamer_name)
+    state = await data().keiko_subscriptions.subscription_state("twitch", streamer_name)
     return as_utc(state.get("last_live_started_at"))
 
 
@@ -421,7 +411,7 @@ def unsubscribe_streamer(interaction: discord.Interaction, notification: Dict[st
     streamer = notification.get("streamer").get("value")
     streamer_id = bot.twitch.get_user_id_from_login(streamer)
 
-    guilds_by_streamer = count_streamers_guilds(streamer)
+    guilds_by_streamer = wait(count_streamers_guilds(streamer))
     if guilds_by_streamer > 1:
         logger.warn(
             f"Streamer {streamer} has more than one subscription and will not be unsubscribed",
@@ -472,8 +462,8 @@ async def build_preview_embed(streamer: str, locale: str) -> Optional[discord.Em
     description always says where the live's own description goes.
     """
     try:
-        user_info = await asyncio.to_thread(bot.twitch.get_user_info, streamer) or {}
-        stream_info = await asyncio.to_thread(bot.twitch.get_stream_info, streamer)
+        user_info = await to_thread(bot.twitch.get_user_info, streamer) or {}
+        stream_info = await to_thread(bot.twitch.get_stream_info, streamer)
     except Exception as error:
         logger.warn(
             f"Could not draw the twitch preview of {streamer}: {error}",
@@ -494,7 +484,7 @@ async def build_preview_embed(streamer: str, locale: str) -> Optional[discord.Em
 async def last_stream_thumbnail(user_info: Dict[str, Any]) -> str:
     """The last stream's picture, so a preview shows the space one fills."""
     try:
-        found = await asyncio.to_thread(
+        found = await to_thread(
             bot.twitch.get_last_video_thumbnail, user_info.get("id")
         )
     except Exception:

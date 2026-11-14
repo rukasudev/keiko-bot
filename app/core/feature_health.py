@@ -11,7 +11,7 @@ from app.constants import Commands as commands_constants
 from app.core import analytics
 from app.core.analytics_reports import window_months, window_totals
 from app.core.analytics_sink import metric_key
-from app.data.analytics import counts
+from app.data import data
 from app.core.cogs import feature_spec
 from app.core.utils import fill, ml, parse_locale, stored_value
 
@@ -111,7 +111,7 @@ async def feature_health(
     key = spec["command_key"]
     since = datetime.now(timezone.utc) - timedelta(days=commands_constants.FEATURE_STATS_DAYS)
     months, views = await asyncio.gather(
-        asyncio.to_thread(counts.find_by_guild, guild_id, window_months(since)[0]),
+        data().analytics_counts.find_by_guild(guild_id, window_months(since)[0]),
         saved_settings(key, guild_id, user_id, locale, guild),
     )
     totals = window_totals(months, since, {

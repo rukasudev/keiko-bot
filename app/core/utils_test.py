@@ -7,6 +7,7 @@ Estes testes NAO fazem I/O - apenas testam logica pura.
 import discord
 import pytest
 from unittest.mock import MagicMock, patch
+from app.data import data, wait
 from app.core.utils import (
     get_message_links,
     check_two_lists_intersection,
@@ -290,7 +291,7 @@ class TestBirthdayItemDefaults:
         ]
 
         with patch("app.services.reminders_birthdays.find_birthdays_by_guild", return_value=items):
-            stats = get_birthday_stats("1", today=date(2026, 5, 2))
+            stats = wait(get_birthday_stats("1", today=date(2026, 5, 2)))
 
         assert stats["total"] == 3
         assert stats["current_month"] == 2
@@ -299,18 +300,18 @@ class TestBirthdayItemDefaults:
         assert stats["max_date"] == ("05-15", 2)
 
     def test_reuses_existing_reminder_for_date(self):
-        with patch(
-            "app.services.reminders_birthdays.schedules_data.find_schedule",
+        with patch.object(
+            data().keiko_schedules, "find_schedule",
             return_value={"_id": "birthday:guild-1:05-15", "reminder_id": "rem-1"},
-        ), patch(
-            "app.services.reminders_birthdays.schedules_data.upsert_schedule"
+        ), patch.object(
+            data().keiko_schedules, "upsert_schedule",
         ) as upsert_schedule, patch(
             "app.services.reminders_birthdays.find_birthday", return_value=None
         ), patch(
             "app.services.reminders_birthdays.save_birthday",
             return_value={"date": "05-15"},
         ), patch("app.services.reminders_birthdays.reminders_service.create_reminder") as create:
-            assert reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15") == {
+            assert wait(reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15")) == {
                 "date": "05-15"
             }
 
@@ -340,7 +341,7 @@ class TestBirthdayItemDefaults:
 
         with patch("app.services.reminders_birthdays.setup_birthdays") as setup:
             with patch("app.services.reminders_birthdays.upsert_birthday", return_value={"user_id": "222"}) as upsert:
-                saved = save_setup_form("guild-1", responses)
+                saved = wait(save_setup_form("guild-1", responses))
 
         setup.assert_called_once_with(
             "guild-1",
@@ -379,7 +380,7 @@ class TestBirthdayItemDefaults:
         ]
 
         with patch("app.services.reminders_birthdays.setup_birthdays") as setup:
-            saved = save_setup_form("guild-1", responses)
+            saved = wait(save_setup_form("guild-1", responses))
 
         setup.assert_called_once_with(
             "guild-1",
@@ -400,10 +401,10 @@ class TestBirthdayItemDefaults:
         with patch(
             "app.services.reminders_birthdays.birthday_config",
             return_value={"timezone": "UTC", "notification_time": "12:00"},
-        ), patch(
-            "app.services.reminders_birthdays.schedules_data.find_schedule", return_value=None
-        ), patch(
-            "app.services.reminders_birthdays.schedules_data.upsert_schedule"
+        ), patch.object(
+            data().keiko_schedules, "find_schedule", return_value=None
+        ), patch.object(
+            data().keiko_schedules, "upsert_schedule",
         ) as upsert_schedule, patch(
             "app.services.reminders_birthdays.find_birthday", return_value=None
         ), patch(
@@ -416,7 +417,7 @@ class TestBirthdayItemDefaults:
             "app.services.reminders_birthdays.server_setting",
             return_value="America/Sao_Paulo",
         ):
-            reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15")
+            wait(reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15"))
 
         assert upsert_schedule.call_args.args == ("birthday:guild-1:05-15", "birthday", "rem-1")
         create.assert_called_once_with(

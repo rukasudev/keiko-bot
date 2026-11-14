@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from app.data import wait
 from app.constants import Commands
 from app.core.servers import set_feature_enabled
 from app.services.reminders_birthdays import find_birthday, save_birthday_config
@@ -48,8 +49,8 @@ GUILD = 1001
 TIMEZONE = "America/Sao_Paulo"
 
 
-def display_name(guild_id, user_id):
-    return find_birthday(str(guild_id), str(user_id))["state"].get(
+async def display_name(guild_id, user_id):
+    return (await find_birthday(str(guild_id), str(user_id)))["state"].get(
         "display_name"
     )
 
@@ -57,11 +58,11 @@ def display_name(guild_id, user_id):
 async def test_the_birthday_command_keeps_the_members_name(enabled):  # noqa: F811
     await run(interaction_for(), 3, 14)
 
-    assert display_name(PERSONAL_GUILD, PERSONAL_USER) == "Ana"
+    assert await display_name(PERSONAL_GUILD, PERSONAL_USER) == "Ana"
 
 
 async def test_the_admin_add_keeps_the_picked_members_name(scenario_factory, deps):
-    _seed_config(deps)
+    await _seed_config(deps)
     scenario = await scenario_factory(locale="pt-br", guild=_guild()).start_command(
         "reminders_birthday"
     )
@@ -69,7 +70,7 @@ async def test_the_admin_add_keeps_the_picked_members_name(scenario_factory, dep
     await scenario.select_option("Amiga", target="user")
     await _complete_member_card(scenario, "pt-br")
 
-    assert display_name(scenario.guild.id, 777) == "Amiga"
+    assert await display_name(scenario.guild.id, 777) == "Amiga"
 
 
 @pytest.fixture
@@ -84,8 +85,8 @@ def birthday_server(deps, monkeypatch):
     deps.bot.get_guild = lambda guild_id: guild if int(guild_id) == GUILD else None
     monkeypatch.setattr(birthday_handler, "bot", deps.bot)
     monkeypatch.setattr(birthday_handler, "datetime", Clock)
-    save_birthday_config(str(GUILD), str(guild.text_channels[0].id), False)
-    set_feature_enabled(str(GUILD), Commands.REMINDERS_BIRTHDAY_KEY, True)
+    wait(save_birthday_config(str(GUILD), str(guild.text_channels[0].id), False))
+    wait(set_feature_enabled(str(GUILD), Commands.REMINDERS_BIRTHDAY_KEY, True))
     return guild
 
 
@@ -96,7 +97,7 @@ async def test_a_post_refreshes_a_name_that_changed(birthday_server):
     await birthday_handler.process_birthday_webhook("4001", "05-12")
 
     assert len(birthday_server.text_channels[0]._sent_messages) == 1
-    assert display_name(GUILD, 555) == "Bea"
+    assert await display_name(GUILD, 555) == "Bea"
 
 
 async def test_a_member_discord_no_longer_has_is_named_by_the_copy(
@@ -114,8 +115,8 @@ async def test_a_member_discord_no_longer_has_is_named_by_the_copy(
 def test_a_save_without_a_name_keeps_the_stored_one(deps):
     saved_birthday("1", "555", "05-12", display_name="Ana")
     recorded_server(deps.mongo_client, "1", timezone=TIMEZONE)
-    save_birthday_config("1", "9", False)
+    wait(save_birthday_config("1", "9", False))
 
-    birthdays_service.upsert_birthday("1", "555", "06-01")
+    wait(birthdays_service.upsert_birthday("1", "555", "06-01"))
 
-    assert display_name(1, 555) == "Ana"
+    assert wait(display_name(1, 555)) == "Ana"

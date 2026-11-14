@@ -8,6 +8,7 @@ created and nothing is written until `--apply` is passed, and the plan printed
 by a dry run is exactly what `--apply` then executes.
 """
 import argparse
+import asyncio
 import os
 import sys
 from typing import Any, Dict, List
@@ -24,13 +25,11 @@ def connect_readonly(mongo_url: str) -> None:
     whose default mode is "show me what you would do" must only read birthdays.
     """
     import certifi
-    from pymongo import MongoClient
+    from pymongo import AsyncMongoClient
 
-    import app
+    from app.data import build, install
 
-    app.mongo_client = MongoClient(
-        mongo_url, tls=True, tlsCAFile=certifi.where()
-    )
+    install(build(AsyncMongoClient(mongo_url, tls=True, tlsCAFile=certifi.where())))
 
 
 def mongo_url_from_environment() -> str:
@@ -134,8 +133,8 @@ def load_for_apply(environment: str):
     print(f"Environment: {environment.lower()}\nDatabase:    {host}\n")
 
 
-def plan() -> List[Dict[str, Any]]:
-    from app.data.guild import settings as guild_settings
+async def plan() -> List[Dict[str, Any]]:
+    from app.data import data
     from app.data.keiko import schedules as schedules_data
     from app.services.reminders_birthdays import (
         birthday_config,
@@ -145,11 +144,11 @@ def plan() -> List[Dict[str, Any]]:
 
     entries = []
 
-    for schedule in birthday_schedules_missing_reminder(limit=500):
+    for schedule in await birthday_schedules_missing_reminder(limit=500):
         guild_id, mm_dd = schedules_data.schedule_subject(schedule)
-        people = count_birthdays_on(guild_id, mm_dd)
-        config = birthday_config(guild_id) or {}
-        server = guild_settings.find_settings(guild_id) or {}
+        people = await count_birthdays_on(guild_id, mm_dd)
+        config = await birthday_config(guild_id) or {}
+        server = await data().guild_settings.find_settings(guild_id) or {}
         entries.append({
             "guild_id": guild_id,
             "date": mm_dd,
@@ -188,10 +187,10 @@ def repairable(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return [entry for entry in entries if entry["configured"] and entry["people"]]
 
 
-def apply_repair() -> int:
+async def apply_repair() -> int:
     from app.services import reminders_birthdays as birthdays_service
 
-    return birthdays_service.reconcile_missing_reminders(limit=500)
+    return await birthdays_service.reconcile_missing_reminders(limit=500)
 
 
 def main(argv: List[str]) -> int:
@@ -211,10 +210,24 @@ def main(argv: List[str]) -> int:
     else:
         connect_readonly(mongo_url_from_environment())
 
-    entries = plan()
+    return asyncio.run(repair(args.apply))
+
+
+async def repair(apply: bool) -> int:
+    """The plan, and with `apply` its repair, on the one loop the client lives on."""
+    from app.data import data
+
+    try:
+        return await _repair(apply)
+    finally:
+        await data().close()
+
+
+async def _repair(apply: bool) -> int:
+    entries = await plan()
     describe(entries)
 
-    if not args.apply:
+    if not apply:
         print("\nDry run. Re-run with --apply to create these.")
         return 0
 
@@ -222,10 +235,10 @@ def main(argv: List[str]) -> int:
         return 0
 
     print(f"\nCreating {len(repairable(entries))} reminder(s)...")
-    repaired = apply_repair()
+    repaired = await apply_repair()
     print(f"Done: {repaired} created.")
 
-    remaining = plan()
+    remaining = await plan()
     if remaining:
         print(f"Still pending: {len(remaining)}. Check the log for the API's answer.")
     return 0

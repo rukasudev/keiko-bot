@@ -7,10 +7,10 @@ SIGTERM at its default and a container's PID 1 ignores a signal left at its
 default, so Docker waited and killed it the same way.
 
 `run` and `stop` (`app/bot.py`) turn SIGTERM into `close()` on the bot's own loop, writes
-both queues once the loop is gone, and ends the process; a flush still writing its batch
-on Keiko's pool of threads when the loop closed gets up to
-`Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS` to finish first, so the exit never cuts a
-batch in the middle and never waits past that either. The webhook API runs
+both queues once the loop is gone, on a loop and a Mongo client of their own, and ends the
+process; a flush still writing its batch when the bot closes gets up to
+`Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS` to finish before the cog's last flush, so the
+close never cuts a batch in the middle and never waits past that either. The webhook API runs
 on a non-daemon thread that would otherwise keep a stopped bot alive until
 Docker's SIGKILL. A bot that closes itself (`/admin shutdown`) still writes
 its queues but keeps the process, because an exit would make Docker's restart
@@ -47,9 +47,11 @@ from unittest.mock import MagicMock
 import discord
 import pytest
 
+import app.data as data_layer
 from app.constants import DBConfigs, Dependencies, LogTypes
+from app.data import data, wait
 from app.data import logs as logs_data
-from app.core import analytics, analytics_sink, debug_logs
+from app.core import analytics, analytics_sink, debug_logs, threads
 from tests.behavioral.contracts.test_logger_trace import discord_logs  # noqa: F401
 from app.bot import DiscordBot
 from tests.generators.events import record_event
@@ -173,31 +175,6 @@ class FailsWhileStoppingBot(RunningBot):
         raise RuntimeError("the gateway closed badly")
 
 
-class FlushingBot(RunningBot):
-    """A bot whose analytics flush is still writing its batch on Keiko's pool of threads
-    when a SIGTERM closes it, as the analytics cog's loop can be every five seconds. Its
-    loop runs and closes the way `asyncio.run` does inside discord.py's `Bot.run`."""
-
-    def __init__(self, batch):
-        super().__init__()
-        self.batch = batch
-
-    def run(self, token, *, reconnect):
-        with asyncio.Runner(loop_factory=asyncio.new_event_loop) as runner:
-            runner.run(self._serve())
-
-    async def _serve(self):
-        bot_module.install_blocking_io()
-        self.loop = self.served_on = asyncio.get_running_loop()
-        self._closed = asyncio.Event()
-        asyncio.ensure_future(asyncio.to_thread(analytics.flush))
-        await asyncio.to_thread(self.batch.writing.wait, 2)
-
-        _send_sigterm()
-
-        await asyncio.wait_for(self._closed.wait(), timeout=2)
-
-
 class StartingBot(FakeBot):
     """A bot that receives SIGTERM before its loop exists."""
 
@@ -289,10 +266,17 @@ def sigterm():
 
 
 @pytest.fixture
-def stored(monkeypatch):
+def stored(deps, monkeypatch):
     written = SimpleNamespace(events=[], logs=[], exits=[])
-    monkeypatch.setattr(analytics_sink, "persist", written.events.extend)
-    monkeypatch.setattr(logs_data, "insert_logs", written.logs.extend)
+
+    async def persist(events):
+        written.events.extend(events)
+
+    async def insert_logs(logs):
+        written.logs.extend(logs)
+
+    monkeypatch.setattr(analytics_sink, "persist", persist)
+    monkeypatch.setattr(deps.data.guild_logs, "insert_logs", insert_logs)
 
     def end_process(code):
         written.exits.append((code, len(written.events), len(written.logs)))
@@ -342,16 +326,33 @@ def console(capfd):
 @pytest.fixture
 def slow_batch(stored, monkeypatch):
     """An analytics batch whose write takes `seconds` once it has begun."""
-    batch = SimpleNamespace(writing=threading.Event(), done=threading.Event(), seconds=0.3)
+    batch = SimpleNamespace(writing=asyncio.Event(), seconds=0.3)
 
-    def persist(events):
+    async def persist(events):
         batch.writing.set()
-        batch.done.wait(batch.seconds)
+        await asyncio.sleep(batch.seconds)
         stored.events.extend(events)
 
     monkeypatch.setattr(analytics_sink, "persist", persist)
-    monkeypatch.setattr(bot_module, "_POOL", None, raising=False)
     return batch
+
+
+def flushing_cog(task):
+    """The Analytics cog's loops, its flush loop running `task` as its iteration."""
+    from app.cogs.analytics import Analytics
+
+    loops = SimpleNamespace(
+        flush_events=SimpleNamespace(
+            get_task=lambda: task, stop=MagicMock(), cancel=MagicMock()
+        ),
+        send_weekly_digest=MagicMock(),
+        export_daily_logs=MagicMock(),
+        archive_months=MagicMock(),
+        measure_guild_sizes=MagicMock(),
+        post_daily_backup=MagicMock(),
+    )
+    loops._finish_flush = lambda: Analytics._finish_flush(loops)
+    return loops
 
 
 def _queue_one_of_each():
@@ -379,34 +380,40 @@ def test_a_sigterm_closes_the_bot_and_writes_both_queues_before_the_process_ends
     assert stored.exits == [(0, 1, 1)], "the process ends with 0, after both writes"
 
 
-def test_a_sigterm_lets_a_batch_being_written_finish_before_the_process_ends(
-    sigterm, stored, slow_batch
-):
+async def test_closing_the_bot_lets_a_batch_being_written_finish_first(stored, slow_batch):
+    """The flush loop writes on the bot's loop; closing the bot unloads the cog, which
+    lets the batch under way end before the last flush and the Mongo client close."""
+    from app.cogs.analytics import Analytics
+
     record_event("guild.joined", guild_id=1, returning=False)
+    under_way = asyncio.ensure_future(analytics.flush())
+    await slow_batch.writing.wait()
 
-    with pytest.raises(ProcessEnded):
-        bot_module.run(FlushingBot(slow_batch), "token")
+    await Analytics.cog_unload(flushing_cog(under_way))
 
-    assert stored.exits == [(0, 1, 0)], "the batch under way is written, then the process ends"
+    assert under_way.done() and not under_way.cancelled()
+    assert len(stored.events) == 1, "the batch under way is written"
 
 
-def test_a_batch_that_outlasts_the_wait_never_holds_the_stop_past_it(
-    sigterm, stored, slow_batch, monkeypatch
+async def test_a_batch_that_outlasts_the_wait_never_holds_the_close_past_it(
+    stored, slow_batch, monkeypatch
 ):
+    from app.cogs.analytics import Analytics
+
     monkeypatch.setattr(Dependencies, "BLOCKING_IO_STOP_WAIT_SECONDS", 0.05)
     slow_batch.seconds = 5
     record_event("guild.joined", guild_id=1, returning=False)
+    under_way = asyncio.ensure_future(analytics.flush())
+    await slow_batch.writing.wait()
     started = time.monotonic()
 
     try:
-        with pytest.raises(ProcessEnded):
-            bot_module.run(FlushingBot(slow_batch), "token")
+        await Analytics.cog_unload(flushing_cog(under_way))
         waited = time.monotonic() - started
     finally:
-        slow_batch.done.set()
+        under_way.cancel()
 
-    assert stored.exits == [(0, 0, 0)]
-    assert waited < 2, f"the stop waited {waited:.1f}s for a write past its deadline"
+    assert waited < 2, f"the close waited {waited:.1f}s for a write past its deadline"
 
 
 def test_a_sigterm_while_the_bot_is_starting_still_writes_both_queues(sigterm, stored):
@@ -442,7 +449,7 @@ def test_a_sigterm_after_a_self_close_ends_the_process_at_once(sigterm, stored):
 def test_a_sigterm_during_the_final_writes_waits_for_them(sigterm, stored, monkeypatch):
     _queue_one_of_each()
 
-    def persist(batch):
+    async def persist(batch):
         stored.events.extend(batch)
         _sigterm_without_interrupting("during the final writes")
 
@@ -570,7 +577,7 @@ def test_a_sigterm_during_the_write_after_the_backoff_lets_it_finish_and_exits_w
         record_event("guild.joined", guild_id=4, returning=False)
         debug_logs.record(debug_logs.build_document(level="INFO", message="waiting"))
 
-    def persist(batch):
+    async def persist(batch):
         stored.events.extend(batch)
         if backoff.seconds:
             _sigterm_without_interrupting("during the write after the backoff")
@@ -716,16 +723,8 @@ async def test_unloading_the_analytics_cog_writes_both_queues(stored):
     from app.cogs.analytics import Analytics
 
     _queue_one_of_each()
-    loops = SimpleNamespace(
-        flush_events=MagicMock(),
-        send_weekly_digest=MagicMock(),
-        export_daily_logs=MagicMock(),
-        archive_months=MagicMock(),
-        measure_guild_sizes=MagicMock(),
-        post_daily_backup=MagicMock(),
-    )
 
-    await Analytics.cog_unload(loops)
+    await Analytics.cog_unload(flushing_cog(None))
 
     assert len(stored.events) == 1 and len(stored.logs) == 1
     assert stored.exits == []
@@ -741,7 +740,7 @@ def test_a_sigterm_before_the_loop_exists_stops_the_way_ctrl_c_does():
 @pytest.fixture
 def forget_the_pool(monkeypatch):
     """Each test installs its own pool; none is left for the stop of a later test."""
-    monkeypatch.setattr(bot_module, "_POOL", None)
+    monkeypatch.setattr(threads, "_POOL", None)
 
 
 def thread_name():
@@ -767,15 +766,40 @@ def test_a_blocking_call_runs_on_keikos_own_pool():
     loop never reached Mongo.
 
     Guaranteed: from the moment the bot sets itself up, before any cog loads, every blocking
-    call runs on a pool of `Dependencies.BLOCKING_IO_THREADS` threads named `keiko-io`; and
+    call handed over through `app.core.threads.to_thread` runs on a pool of
+    `Dependencies.BLOCKING_IO_THREADS` threads named `keiko-io`, and the loop's own work
+    (host name lookups, TLS handshakes) on a pool of its own named `keiko-loop`; and
     closing the loop drops the calls still queued and waits for none under way. Every test
     runs its own loop and closes it the way `asyncio.run` does inside discord.py's `Bot.run`.
     """
     async def main():
-        bot_module.install_blocking_io()
-        return await asyncio.to_thread(thread_name)
+        threads.install()
+        return await threads.to_thread(thread_name)
 
     assert run(main()).startswith("keiko-io")
+
+
+@pytest.mark.usefixtures("forget_the_pool")
+def test_the_loops_own_work_runs_apart_from_keikos_pool():
+    async def main():
+        threads.install()
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(None, thread_name)
+
+    assert run(main()).startswith("keiko-loop")
+
+
+@pytest.mark.usefixtures("forget_the_pool")
+def test_a_loop_keiko_never_set_up_hands_its_calls_to_its_default_executor():
+    async def installed():
+        threads.install()
+
+    async def main():
+        return await threads.to_thread(thread_name)
+
+    run(installed())
+
+    assert not run(main()).startswith("keiko")
 
 
 @pytest.mark.usefixtures("forget_the_pool")
@@ -788,10 +812,9 @@ def test_the_pool_runs_as_many_calls_at_once_as_it_has_threads():
         release.wait(5)
 
     async def main():
-        bot_module.install_blocking_io()
-        loop = asyncio.get_running_loop()
+        threads.install()
         calls = [
-            loop.run_in_executor(None, call)
+            asyncio.ensure_future(threads.to_thread(call))
             for _ in range(Dependencies.BLOCKING_IO_THREADS + 3)
         ]
         await asyncio.sleep(0.3)
@@ -808,8 +831,8 @@ def test_closing_the_loop_never_waits_for_a_call_under_way():
     released = threading.Event()
 
     async def main():
-        bot_module.install_blocking_io()
-        asyncio.get_running_loop().run_in_executor(None, released.wait, 30)
+        threads.install()
+        asyncio.ensure_future(threads.to_thread(released.wait, 30))
         await asyncio.sleep(0.05)
 
     started = time.monotonic()
@@ -828,11 +851,10 @@ def test_closing_the_loop_drops_the_calls_still_queued():
     ran = []
 
     async def main():
-        bot_module.install_blocking_io()
-        loop = asyncio.get_running_loop()
+        threads.install()
         for _ in range(Dependencies.BLOCKING_IO_THREADS):
-            loop.run_in_executor(None, released.wait, 30)
-        loop.run_in_executor(None, ran.append, "queued")
+            asyncio.ensure_future(threads.to_thread(released.wait, 30))
+        asyncio.ensure_future(threads.to_thread(ran.append, "queued"))
         await asyncio.sleep(0.05)
 
     try:
@@ -849,13 +871,22 @@ def test_the_bot_installs_the_pool_before_any_cog_loads(monkeypatch):
     seen = []
 
     async def load(bot, mode, cogs, sync=False):
-        seen.append(await asyncio.to_thread(thread_name))
+        seen.append(await threads.to_thread(thread_name))
 
     async def no_translator(translator):
         return None
 
     monkeypatch.setattr(importlib.import_module("app.bot"), "cogs_manager", load)
-    bot = DiscordBot(SimpleNamespace(
+    bot = keiko()
+    monkeypatch.setattr(bot.tree, "set_translator", no_translator)
+
+    run(bot.setup_hook())
+
+    assert len(seen) == 1 and seen[0].startswith("keiko-io")
+
+
+def keiko():
+    return DiscordBot(SimpleNamespace(
         PREFIX="ke!",
         APPLICATION_ID=1,
         OWNER_ID=2,
@@ -870,8 +901,85 @@ def test_the_bot_installs_the_pool_before_any_cog_loads(monkeypatch):
         REMINDER_APPLICATION_ID="1",
         REMINDER_API_KEY="api-key",
     ))
-    monkeypatch.setattr(bot.tree, "set_translator", no_translator)
 
-    run(bot.setup_hook())
 
-    assert len(seen) == 1 and seen[0].startswith("keiko-io")
+def changes_while_open(deps, monkeypatch, seconds):
+    """Every change is written `seconds` after it began, and refused once the client
+    closed, as a closed pymongo client refuses it."""
+    insert = deps.data.events_changes.insert
+
+    async def slow_insert(document):
+        await asyncio.sleep(seconds)
+        if deps.data.client.closed:
+            raise RuntimeError("the client is closed")
+        await insert(document)
+
+    monkeypatch.setattr(deps.data.events_changes, "insert", slow_insert)
+
+
+def stored_changes(deps):
+    return sorted(
+        change["type"] for change in deps.mongo_client.events.changes.find({})
+    )
+
+
+@pytest.mark.usefixtures("forget_the_pool")
+def test_closing_the_bot_writes_the_pool_call_and_the_change_under_way(deps, monkeypatch):
+    """Broke as: `DiscordBot.close` closed the Mongo client while a pool call and a
+    change written on the loop were still under way, and both were lost.
+
+    Guaranteed: closing the bot lets the pool calls under way end, for up to
+    `Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS`, and the changes the loop is writing
+    reach Mongo before the client closes."""
+    changes_while_open(deps, monkeypatch, 0.2)
+    started = threading.Event()
+
+    def pause_from_a_thread():
+        started.set()
+        time.sleep(0.1)
+        analytics.record("feature.paused", guild_id="1", cog="block_links")
+
+    async def main():
+        threads.install()
+        data_layer.bind_loop(asyncio.get_running_loop())
+        bot = keiko()
+        on_the_pool = asyncio.ensure_future(threads.to_thread(pause_from_a_thread))
+        await asyncio.get_running_loop().run_in_executor(None, started.wait, 2)
+        analytics.record("feature.unpaused", guild_id="1", cog="block_links")
+        await bot.close()
+        await on_the_pool
+
+    run(main())
+
+    assert stored_changes(deps) == ["feature.paused", "feature.unpaused"]
+    assert deps.data.client.closed
+
+
+def test_the_final_writes_read_on_their_own_loop(deps, monkeypatch, stored):
+    """Broke as: the writes `run` makes once the bot's loop is gone installed a new
+    client, but a thread job still read through the dead loop the old one lived on.
+
+    Guaranteed: the final writes bind their own loop, so a thread job's read reaches
+    the client installed for it."""
+    import app
+
+    dead = asyncio.new_event_loop()
+    data_layer.bind_loop(dead)
+    dead.close()
+    read_on, final = [], []
+
+    async def find_settings(guild_id):
+        read_on.append(asyncio.get_running_loop())
+        return {"guild_id": guild_id}
+
+    async def flush_reading_from_a_thread():
+        final.append(asyncio.get_running_loop())
+        await asyncio.to_thread(lambda: wait(data().guild_settings.find_settings("1")))
+
+    monkeypatch.setattr(app, "reconnect_data", lambda: None)
+    monkeypatch.setattr(deps.data.guild_settings, "find_settings", find_settings)
+    monkeypatch.setattr(analytics, "flush", flush_reading_from_a_thread)
+
+    bot_module.write_queues()
+
+    assert read_on == final, "the thread job read through the dead loop"

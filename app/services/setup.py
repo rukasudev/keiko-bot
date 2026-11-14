@@ -22,7 +22,7 @@ from app.constants import Commands
 from app.constants import KeikoIcons, supported_locales
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
-from app.data.guild.cogs import find_cog_by_guild_id_async
+from app.data import data
 from app.exceptions import InvalidServerSetting
 from app.integrations.google_translate import GoogleTranslate
 from app.core import analytics
@@ -49,7 +49,7 @@ def feature_label(spec: Dict[str, Any], locale: str) -> str:
 
 async def guild_history(guild_id: str) -> List[Dict[str, Any]]:
     """The server's changes, every feature's and its settings', newest first."""
-    return await asyncio.to_thread(find_changes, guild_id)
+    return await find_changes(guild_id)
 
 
 def history_fields(
@@ -71,9 +71,8 @@ async def send_history(interaction: discord.Interaction) -> None:
     from app.views.records import RecordsBrowser
 
     locale = await interaction_language(interaction)
-    records = await guild_history(str(interaction.guild.id))
     browser = RecordsBrowser(
-        fetch=lambda _interaction, _user: records,
+        fetch=lambda _interaction, _user: guild_history(str(interaction.guild.id)),
         to_fields=lambda shown, clicked: history_fields(shown, clicked, locale),
         title=ml("buttons.changes-history.label", locale),
         description=ml("commands.commands.setup.history.desc", locale),
@@ -126,7 +125,7 @@ def _translated_command(command_key: str, locale: str) -> str:
 
 
 async def _state(guild_id: str, command_key: str) -> str:
-    document = await find_cog_by_guild_id_async(guild_id, command_key)
+    document = await data().guild_cogs.find_cog_by_guild_id(guild_id, command_key)
     if not document:
         return "pending"
     return "configured" if is_feature_on(document) else "paused"
@@ -477,7 +476,7 @@ async def settings_screen(guild_id: str) -> discord.ui.LayoutView:
     """The server settings in the server's language, one row per value with what
     changes it, then Voltar."""
     base = "commands.commands.setup.settings"
-    settings = await asyncio.to_thread(server_settings, guild_id)
+    settings = await server_settings(guild_id)
     locale = settings[Commands.SERVER_LANGUAGE_KEY]
     languages = {value.lower(): _language_label(value) for value in supported_locales}
     zones = {value: _timezone_label(value, locale) for value in Commands.SERVER_TIMEZONES}
@@ -510,7 +509,7 @@ async def change_setting(interaction: discord.Interaction, key: str, value: str)
     guild_id = str(interaction.guild.id)
     await interaction.response.defer()
     try:
-        await asyncio.to_thread(save_server_setting, guild_id, key, value)
+        await save_server_setting(guild_id, key, value)
     except InvalidServerSetting as refused:
         embed = response_error_embed(f"server-setting-refused.{refused.key}", locale)
         await interaction.followup.send(embed=embed, ephemeral=True)

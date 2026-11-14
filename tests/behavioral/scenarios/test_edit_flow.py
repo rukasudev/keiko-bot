@@ -7,8 +7,8 @@ change into the persisted document.
 
 import pytest
 
+from app.data import data
 from app.core.utils import ml
-from app.data.guild.cogs import find_cog_by_guild_id
 from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
@@ -97,7 +97,7 @@ async def test_editing_one_default_roles_select_commits_it_from_its_own_edit(
 
     scenario.expect_component(label_or_action="pause")
     assert "<@&200>" in str(scenario.outputs[-1]), "the panel shows the new role"
-    document = find_cog_by_guild_id(GUILD_ID, "default_roles")
+    document = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "default_roles")
 
     def ids(entry):
         values = entry["values"]

@@ -21,6 +21,7 @@ known-first-party = ["app", "tests"]
 [tool.mypy]
 python_version = "3.12"
 files = [
+    "app/data",
     "app/settings",
     "app/migrations/__init__.py",
     "app/migrations/__main__.py",
@@ -39,5 +40,5 @@ module = ["app.settings.discord.*", "app.settings.features.*"]
 disallow_untyped_calls = false
 
 [[tool.mypy.overrides]]
-module = ["discord.*", "i18n.*", "yaml.*", "motor.*", "bson.*", "redis.*", "prometheus_client.*"]
+module = ["discord.*", "i18n.*", "yaml.*", "bson.*", "redis.*", "prometheus_client.*"]
 ignore_missing_imports = true

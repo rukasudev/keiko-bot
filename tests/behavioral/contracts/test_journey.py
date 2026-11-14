@@ -10,13 +10,14 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.data import wait
 from app.constants import Commands as constants
 from app.core import analytics, journey
 from app.core.trace import Trace, trace_scope
 import asyncio
 from datetime import datetime, timedelta, timezone
 from app.data.events import interactions
-from tests.behavioral.regressions.test_event_loop_is_never_blocked import MIN_TICKS, TICK_SECONDS, blocking, ticks_while
+from tests.behavioral.regressions.test_event_loop_is_never_blocked import MIN_TICKS, TICK_SECONDS, blocking, slow, ticks_while
 from tests.generators.events import age_events, record_event
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("journey")]
@@ -220,10 +221,10 @@ def test_a_story_can_be_rebuilt_from_storage_for_the_refresh_button(deps):
             source="slash", session_id=SESSION, step_key=step,
             step_action="options", step_index=1,
         )
-    analytics.flush()
+    wait(analytics.flush())
     journey.clear()
 
-    rebuilt = journey.rebuild(SESSION)
+    rebuilt = wait(journey.rebuild(SESSION))
 
     assert rebuilt is not None
     messages = [line["message"] for line in rebuilt.lines]
@@ -246,13 +247,13 @@ def test_refreshing_a_stored_session_renders_without_a_timezone_clash(deps):
         source="slash", session_id=SESSION, step_key="mode",
         step_action="options", step_index=1,
     )
-    analytics.flush()
+    wait(analytics.flush())
     journey.clear()
 
     for document in deps.mongo_client.events.interactions._data:
         document["ts"] = document["ts"].replace(tzinfo=None)
 
-    story = journey.rebuild(SESSION)
+    story = wait(journey.rebuild(SESSION))
 
     assert isinstance(story.duration_ms, int)
     assert build_trace_embed(story).description
@@ -269,9 +270,9 @@ def test_rebuilding_an_unfinished_session_reports_it_as_in_progress(deps):
         source="slash", session_id=SESSION, step_key="mode",
         step_action="options", step_index=1,
     )
-    analytics.flush()
+    wait(analytics.flush())
 
-    assert journey.rebuild(SESSION).result == "in progress"
+    assert wait(journey.rebuild(SESSION)).result == "in progress"
 
 
 def test_rebuilding_a_session_whose_view_expired_says_abandoned(deps):
@@ -285,13 +286,13 @@ def test_rebuilding_a_session_whose_view_expired_says_abandoned(deps):
         source="slash", session_id=SESSION, step_key="mode",
         step_action="options", step_index=1,
     )
-    analytics.flush()
+    wait(analytics.flush())
     journey.clear()
 
     old = datetime.now(timezone.utc) - timedelta(hours=3)
     age_events(deps.mongo_client, old)
 
-    assert journey.rebuild(SESSION).result == "abandoned", (
+    assert wait(journey.rebuild(SESSION)).result == "abandoned", (
         "a message left stale by a restart must repair itself when refreshed"
     )
 
@@ -514,10 +515,10 @@ def test_a_rebuilt_saved_session_is_condensed_the_same_way(deps):
     record_event("setup.completed", duration_ms=1000, steps_viewed=2,
                    duration_bucket="<1m", configured_steps=["custom_links"],
                    **identity)
-    analytics.flush()
+    wait(analytics.flush())
     journey.clear()
 
-    rebuilt = journey.rebuild(SESSION)
+    rebuilt = wait(journey.rebuild(SESSION))
 
     messages = [line["message"] for line in rebuilt.lines]
     assert not any(message.startswith("step:") for message in messages)
@@ -541,10 +542,10 @@ def test_a_rebuilt_story_still_says_whether_the_person_was_an_admin(deps):
         "feature.setup_opened", guild_id="1", user_id="9", feature="block_links",
         source="slash", session_id=SESSION, is_admin=True,
     )
-    analytics.flush()
+    wait(analytics.flush())
     journey.clear()
 
-    assert journey.rebuild(SESSION).is_admin is True
+    assert wait(journey.rebuild(SESSION)).is_admin is True
 
 
 FEATURE = "block_links"
@@ -620,7 +621,7 @@ def test_opening_a_panel_reads_only_this_servers_last_day(deps, monkeypatch):
     attempt("s-recent", HERE)
     attempt("s-elsewhere", ELSEWHERE)
     attempt("s-old", HERE, step="custom_links")
-    analytics.flush()
+    wait(analytics.flush())
     age(deps, "s-old", hours=48)
     read = documents_read(deps, monkeypatch)
 
@@ -647,7 +648,7 @@ async def test_opening_a_panel_never_waits_on_its_history(deps, monkeypatch):
             "props": {"source": "slash"}, "ts": earlier,
         },
     ]
-    monkeypatch.setattr(interactions, "find_by_guild", blocking(stored))
+    monkeypatch.setattr(deps.data.events_interactions, "find_by_guild", slow(stored))
 
     async def open_and_read():
         story = open_panel()

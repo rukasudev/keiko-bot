@@ -2,7 +2,7 @@ import discord
 
 from app import bot, logger
 from app.constants import LogTypes as logconstants
-from app.data.guild import settings as guild_settings
+from app.data import data
 from app.core.utils import format_relative_time
 
 
@@ -17,7 +17,7 @@ class UserInspectionView(discord.ui.View):
         self.user = user
         super().__init__(timeout=None)
 
-    def _get_embed(self) -> discord.Embed:
+    async def _get_embed(self) -> discord.Embed:
         embed = discord.Embed(
             title=self.user.name,
             color=discord.Color.green(),
@@ -31,10 +31,10 @@ class UserInspectionView(discord.ui.View):
         )
         embed.add_field(name="Display Name", value=self.user.display_name, inline=False)
 
-        total_guilds = guild_settings.count_servers_by_owner(str(self.user.id))
+        total_guilds = await data().guild_settings.count_servers_by_owner(str(self.user.id))
         embed.add_field(name="Total Guilds Invited", value=total_guilds, inline=False)
 
-        guilds_value = self._get_guilds_field()
+        guilds_value = await self._get_guilds_field()
         embed.add_field(name="Guilds", value=guilds_value, inline=False)
 
         if self.user.avatar:
@@ -42,8 +42,8 @@ class UserInspectionView(discord.ui.View):
 
         return embed
 
-    def _get_guilds_field(self) -> str:
-        servers = guild_settings.find_servers_by_owner(str(self.user.id))
+    async def _get_guilds_field(self) -> str:
+        servers = await data().guild_settings.find_servers_by_owner(str(self.user.id))
 
         if not servers:
             return "No guilds found"
@@ -77,7 +77,7 @@ class UserInspectionView(discord.ui.View):
             return value
 
     async def send(self, interaction: discord.Interaction):
-        embed = self._get_embed()
+        embed = await self._get_embed()
         await interaction.response.send_message(embed=embed, view=self, ephemeral=True)
 
     async def on_error(self, interaction: discord.Interaction, error: Exception, item: discord.ui.Item) -> None:

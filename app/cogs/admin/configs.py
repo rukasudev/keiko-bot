@@ -35,7 +35,7 @@ class Configs(Group, name="configs"):
             )
             return
 
-        update_admin_configs(self.bot, {config: int(value)})
+        await update_admin_configs(self.bot, {config: int(value)})
         await interaction.response.send_message(
             f":meta: Config `{config}` was updated successfully!"
         )
@@ -48,7 +48,7 @@ class Configs(Group, name="configs"):
         parsed_database_configs = "\n".join(
             [
                 f"{key}: {value}"
-                for key, value in get_admin_configs().items()
+                for key, value in (await get_admin_configs()).items()
                 if key in constants.ADMIN_CONFIGS_LIST
             ]
         )

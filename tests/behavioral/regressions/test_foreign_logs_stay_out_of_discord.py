@@ -19,6 +19,7 @@ import logging
 
 import pytest
 
+from app.data import wait
 from app import logger as logger_module
 from app.constants import LogTypes as logconstants
 from app.logger import StoredLogsHandler
@@ -26,6 +27,7 @@ from app.core import debug_logs
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from app.exceptions import ErrorContext
+from tests.mocks.database import fake_store
 from tests.mocks.discord import (
     create_guild,
     create_member,
@@ -99,10 +101,10 @@ def record(name, message, level=logging.ERROR, **extra):
 
 
 def stored_messages():
-    debug_logs.flush()
+    wait(debug_logs.flush())
     from app.data import logs as logs_data
 
-    return [document["message"] for document in logs_data.mongo_client.guild.logs.find({})]
+    return [document["message"] for document in fake_store().guild.logs.find({})]
 
 
 def test_a_port_scanner_cannot_post_to_the_error_channel(bus):

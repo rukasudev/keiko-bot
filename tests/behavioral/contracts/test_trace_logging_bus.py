@@ -15,6 +15,8 @@ import logging
 
 import pytest
 
+from tests.mocks.database import fake_store
+from app.data import wait
 from app import logger as logger_module
 from app.logger import StoredLogsHandler
 from app.core import debug_logs
@@ -43,10 +45,10 @@ def sink():
 
 
 def stored_messages():
-    debug_logs.flush()
+    wait(debug_logs.flush())
     from app.data import logs as logs_data
 
-    return [document["message"] for document in logs_data.mongo_client.guild.logs.find({})]
+    return [document["message"] for document in fake_store().guild.logs.find({})]
 
 
 # --------------------------------------------------------------------------
@@ -126,12 +128,12 @@ def test_a_quiet_trace_stores_its_lines_under_the_session_and_posts_nothing(sink
         )
 
     assert trace.is_noteworthy is False
-    debug_logs.flush()
+    wait(debug_logs.flush())
     from app.data import logs as logs_data
 
     stored = [
         document
-        for document in logs_data.mongo_client.guild.logs.find({})
+        for document in fake_store().guild.logs.find({})
         if "rev=2" in document["message"]
     ]
     assert stored and stored[0].get("session_id") == "sess01"

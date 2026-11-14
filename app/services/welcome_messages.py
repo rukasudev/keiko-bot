@@ -22,6 +22,7 @@ from app.core.utils import (
     split_messages,
     values_of,
 )
+from app.core.threads import to_thread
 
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:
@@ -30,7 +31,7 @@ async def manager(interaction: discord.Interaction, guild_id: str) -> None:
 
 
 async def send_welcome_message(member: discord.Member):
-    cogs = await asyncio.to_thread(
+    cogs = await to_thread(
         cache.get_cog_data_or_populate, member.guild.id, constants.WELCOME_MESSAGES_KEY
     )
 
@@ -216,7 +217,7 @@ async def send_welcome_message_preview(interaction: discord.Interaction, respons
     welcome_data = values_of(response, WelcomeDesign.PREVIEW_DATA_KEYS)
 
     if not welcome_data:
-        cogs = await asyncio.to_thread(
+        cogs = await to_thread(
             cache.get_cog_data_or_populate,
             interaction.guild.id,
             constants.WELCOME_MESSAGES_KEY,
@@ -285,7 +286,7 @@ async def _background(
     try:
         if urlparse(source).scheme in ("http", "https"):
             return await images.fetch_image(source)
-        return await asyncio.to_thread(_open_asset, _asset_path(source))
+        return await to_thread(_open_asset, _asset_path(source))
     except Exception as e:
         logger.warn(
             "Welcome banner background unavailable, drawing a plain one: "
@@ -400,7 +401,7 @@ async def draw_banner(
         ),
     )
 
-    return await asyncio.to_thread(
+    return await to_thread(
         _paint_banner,
         background_img,
         overlay_image,

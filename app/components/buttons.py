@@ -1,4 +1,3 @@
-import asyncio
 from typing import TYPE_CHECKING, Any, Callable, Optional
 
 import discord
@@ -6,6 +5,7 @@ import discord
 from app.components.embed import response_embed
 from app.core.servers import interaction_language
 from app.core.utils import get_command_by_key, ml
+from app.core.threads import to_thread
 
 if TYPE_CHECKING:
     from app.settings import Ending
@@ -60,7 +60,7 @@ class JourneyRefreshButton(
         from app.logger import build_trace_embed
         from app.core import journey
 
-        story = await asyncio.to_thread(journey.rebuild, self.session_id)
+        story = await journey.rebuild(self.session_id)
         if not story:
             return await interaction.response.defer()
 
@@ -173,7 +173,7 @@ class SyncronizeRemindersButton(discord.ui.Button):
             if count > 0:
                 continue
 
-            await asyncio.to_thread(delete_renewal, reminder)
+            await delete_renewal(reminder)
             reminders_deleted.append(self.view.streamers_by_reminder[reminder])
 
         return await interaction.followup.send(
@@ -207,7 +207,7 @@ class RemoveDuplicatedReminderButton(discord.ui.Button):
                 extras = extras[1:]
 
             for reminder in extras:
-                await asyncio.to_thread(bot.reminder.delete_reminder, reminder)
+                await to_thread(bot.reminder.delete_reminder, reminder)
                 removed_by_streamers[streamer] = removed_by_streamers.get(streamer, 0) + 1
                 removed_reminders += 1
 
@@ -236,7 +236,7 @@ class SyncronizeSubscriptionsButton(discord.ui.Button):
             if count > 0:
                 continue
 
-            await asyncio.to_thread(
+            await to_thread(
                 handle_unsubscribe_streamer, interaction, {"streamer": {"value": streamer}}
             )
             unsubscribed_streamers.append(streamer)

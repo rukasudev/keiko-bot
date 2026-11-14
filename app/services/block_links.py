@@ -1,4 +1,3 @@
-import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -14,8 +13,7 @@ from app.constants import Commands as constants
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
 from app.constants import Style
-from app.data.analytics import lifetime
-from app.data.events import activity
+from app.data import data
 from app.exceptions import ErrorContext
 from app.settings import open_feature
 from app.settings.form.responses.links import ParsedLink, parse_link
@@ -32,6 +30,7 @@ from app.core.utils import (
     parse_form_yaml_to_dict,
     parse_locale,
 )
+from app.core.threads import to_thread
 
 
 @dataclass(frozen=True)
@@ -326,7 +325,7 @@ def evaluate_message(
 async def check_message(guild_id: str, message: discord.Message) -> None:
     """Command service to check whether a message carries a blocked link."""
     # Every message in every guild reaches this line, and a cache miss reads Mongo.
-    cogs = await asyncio.to_thread(
+    cogs = await to_thread(
         cache.get_cog_data_or_populate, guild_id, constants.BLOCK_LINKS_KEY
     )
 
@@ -361,7 +360,7 @@ async def check_message(guild_id: str, message: discord.Message) -> None:
         )
         raise
     finally:
-        await asyncio.to_thread(
+        await to_thread(
             record_blocked_links, guild_id, message, evaluation, deleted=deleted
         )
 
@@ -535,7 +534,7 @@ async def send_link_check_message(
         props={"source": "context_menu", "surface": "diagnostic"},
     )
     locale = parse_locale(interaction.locale)
-    cogs = await asyncio.to_thread(
+    cogs = await to_thread(
         cache.get_cog_data_or_populate,
         str(interaction.guild_id),
         constants.BLOCK_LINKS_KEY,
@@ -561,11 +560,11 @@ async def send_link_check_message(
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-def get_blocked_link_records(
+async def get_blocked_link_records(
     guild_id: str, user_id: Optional[str] = None
 ) -> List[Dict[str, Any]]:
     """The server's latest blocked links, or one member's, newest first."""
-    return activity.find_by_guild(
+    return await data().events_activity.find_by_guild(
         guild_id,
         cog=constants.BLOCK_LINKS_KEY,
         types=["link.blocked"],
@@ -602,16 +601,17 @@ def parse_blocked_link_records(
     return data
 
 
-def get_blocked_links_stats(guild_id: str) -> Dict[str, Any]:
+async def get_blocked_links_stats(guild_id: str) -> Dict[str, Any]:
     """The all-time total from the server's lifetime, the rest from the last 90 days."""
     since = datetime.now(timezone.utc) - timedelta(
         seconds=constants.EVENTS_ACTIVITY_TTL_SECONDS
     )
-    hosts = _blocks_by(guild_id, "props.host", since)
-    users = _blocks_by(guild_id, "actor.id", since)
-    deleted = dict(_blocks_by(guild_id, "props.deleted", since))
+    hosts = await _blocks_by(guild_id, "props.host", since)
+    users = await _blocks_by(guild_id, "actor.id", since)
+    deleted = dict(await _blocks_by(guild_id, "props.deleted", since))
     recent = sum(deleted.values())
-    features = (lifetime.find_lifetime(guild_id) or {}).get("features") or {}
+    profile = await data().analytics_lifetime.find_lifetime(guild_id) or {}
+    features = profile.get("features") or {}
     blocked = (features.get(constants.BLOCK_LINKS_KEY) or {}).get("value_count") or 0
 
     return {
@@ -623,18 +623,18 @@ def get_blocked_links_stats(guild_id: str) -> Dict[str, Any]:
     }
 
 
-def _blocks_by(
+async def _blocks_by(
     guild_id: str, field: str, since: Optional[datetime] = None
 ) -> List[Tuple[Any, int]]:
     """The server's blocked links counted by the value at `field`, most first."""
-    return activity.count_by_field(
+    return await data().events_activity.count_by_field(
         guild_id, constants.BLOCK_LINKS_KEY, field, types=["link.blocked"], since=since
     )
 
 
-def blocked_links_stats_lines(guild_id: str, locale: str) -> List[str]:
+async def blocked_links_stats_lines(guild_id: str, locale: str) -> List[str]:
     """The link blocker's own figures for its statistics."""
-    stats = get_blocked_links_stats(guild_id)
+    stats = await get_blocked_links_stats(guild_id)
     if not stats["total"]:
         return [_bm("stats.empty", locale)]
 

@@ -2,60 +2,25 @@
 Mocks de banco de dados para testes.
 
 Este modulo contem:
-- Early patching: mocks instalados antes que modulos do app sejam importados
+- Early patching: `app.bot` e `app.redis_client` antes que modulos do app sejam importados
 - MockRedisClient, MockMongoClient: mocks completos para testes unitarios
+- FakeAsyncMongoClient: o lado async do mesmo store, que os repositorios de
+  `app.data` recebem (find devolve um cursor async, aggregate e awaited, o resto tambem)
 
 IMPORTANTE: Importar este modulo executa o early patching como side-effect.
 Isso e intencional - o conftest.py importa este modulo antes de qualquer
 modulo da app.
 """
 
+import asyncio
+import threading
 from unittest.mock import MagicMock
 
 
 # ============================================================================
 # EARLY PATCHING - Before any app modules are imported
 # ============================================================================
-# This is necessary because app.data.* modules import mongo_client at load time
-
-class _EarlyMockMongoClient:
-    """Early mock for mongo_client before tests configure it properly."""
-    def __getitem__(self, name):
-        return _EarlyMockDatabase()
-
-    def __getattr__(self, name):
-        return _EarlyMockDatabase()
-
-
-class _EarlyMockDatabase:
-    """Early mock database."""
-    def __getitem__(self, name):
-        return _EarlyMockCollection()
-
-    def __getattr__(self, name):
-        return _EarlyMockCollection()
-
-
-class _EarlyMockCollection:
-    """Early mock collection."""
-    def find_one(self, *args, **kwargs):
-        return None
-
-    def find(self, *args, **kwargs):
-        return []
-
-    def count_documents(self, *args, **kwargs):
-        return 0
-
-    def insert_one(self, *args, **kwargs):
-        return MagicMock(inserted_id="mock")
-
-    def update_one(self, *args, **kwargs):
-        return MagicMock(modified_count=0)
-
-    def delete_one(self, *args, **kwargs):
-        return MagicMock(deleted_count=0)
-
+# Services bind `app.bot` and `app.redis_client` at import time.
 
 class _EarlyMockRedisClient:
     """Early mock for redis_client before tests configure it properly."""
@@ -78,99 +43,7 @@ class _EarlyMockRedisClient:
         return True
 
 
-class _EarlyMockMotorClient(_EarlyMockMongoClient):
-    """Early mock for motor_client: the same empty answers, awaited."""
-
-    def __getitem__(self, name):
-        return _EarlyMockMotorDatabase()
-
-    def __getattr__(self, name):
-        return _EarlyMockMotorDatabase()
-
-
-class _EarlyMockMotorDatabase(_EarlyMockDatabase):
-    def __getitem__(self, name):
-        return MockMotorCollection(_EarlyMockCollection())
-
-    def __getattr__(self, name):
-        return MockMotorCollection(_EarlyMockCollection())
-
-
-class MockMotorCursor:
-    """The awaitable side of a cursor: `to_list` and `async for`."""
-
-    def __init__(self, cursor):
-        self._cursor = cursor
-
-    def sort(self, field, direction=-1):
-        self._cursor.sort(field, direction)
-        return self
-
-    def limit(self, count):
-        self._cursor.limit(count)
-        return self
-
-    async def to_list(self, length=None):
-        items = list(self._cursor)
-        return items if length is None else items[:length]
-
-    def __aiter__(self):
-        self._items = iter(list(self._cursor))
-        return self
-
-    async def __anext__(self):
-        try:
-            return next(self._items)
-        except StopIteration:
-            raise StopAsyncIteration from None
-
-
-class MockMotorCollection:
-    """A motor-shaped collection over the same in-memory documents."""
-
-    def __init__(self, collection):
-        self._collection = collection
-
-    def find(self, *args, **kwargs):
-        return MockMotorCursor(self._collection.find(*args, **kwargs))
-
-    def __getattr__(self, name):
-        method = getattr(self._collection, name)
-
-        async def call(*args, **kwargs):
-            return method(*args, **kwargs)
-
-        return call
-
-
-class MockMotorDatabase:
-    def __init__(self, database):
-        self._database = database
-
-    def __getitem__(self, name):
-        return MockMotorCollection(self._database[name])
-
-    def __getattr__(self, name):
-        return self[name]
-
-
-class MockMotorClient:
-    """motor over the MockMongoClient: every write lands in the same store."""
-
-    def __init__(self, backing):
-        self._backing = backing
-
-    def __getitem__(self, name):
-        return MockMotorDatabase(self._backing[name])
-
-    def __getattr__(self, name):
-        return self[name]
-
-
-# Install early mocks into app module before anything imports from it
 import app
-app.mongo_client = _EarlyMockMongoClient()
-app.motor_client = _EarlyMockMotorClient()
 app.redis_client = _EarlyMockRedisClient()
 app.bot = MagicMock()
 
@@ -620,3 +493,155 @@ class MockMongoClient:
 
     def list_database_names(self):
         return list(self._databases.keys())
+
+
+class FakeAsyncCursor:
+    """The awaited side of a cursor: `sort` and `limit` chain, `to_list` and `async for`
+    read."""
+
+    def __init__(self, cursor):
+        self._cursor = cursor
+        self._items = None
+
+    def sort(self, field, direction=-1):
+        self._cursor.sort(field, direction)
+        return self
+
+    def limit(self, count):
+        self._cursor.limit(count)
+        return self
+
+    async def to_list(self, length=None):
+        items = self._remaining()
+        taken = list(items if length is None else items[:length])
+        del items[: len(taken)]
+        return taken
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        items = self._remaining()
+        if not items:
+            raise StopAsyncIteration
+        return items.pop(0)
+
+    def _remaining(self):
+        if self._items is None:
+            self._items = list(self._cursor)
+        return self._items
+
+
+class FakeAsyncCollection:
+    """An AsyncMongoClient-shaped collection over the same in-memory documents, reached
+    only when used, as Mongo creates a collection only once something touches it."""
+
+    def __init__(self, database, name):
+        self._database = database
+        self._name = name
+
+    @property
+    def _collection(self):
+        return self._database[self._name]
+
+    def find(self, *args, **kwargs):
+        return FakeAsyncCursor(self._collection.find(*args, **kwargs))
+
+    async def aggregate(self, pipeline):
+        return FakeAsyncCursor(self._collection.aggregate(pipeline))
+
+    def __getattr__(self, name):
+        if name.startswith("_"):
+            raise AttributeError(name)
+        method = getattr(self._collection, name)
+
+        async def call(*args, **kwargs):
+            return method(*args, **kwargs)
+
+        return call
+
+
+class FakeAsyncDatabase:
+    def __init__(self, database):
+        self._database = database
+
+    def __getitem__(self, name):
+        return FakeAsyncCollection(self._database, name)
+
+    def __getattr__(self, name):
+        return self[name]
+
+    async def list_collection_names(self):
+        return self._database.list_collection_names()
+
+    async def command(self, command):
+        return {"ok": 1.0}
+
+
+class FakeAsyncMongoClient:
+    """The async client over a MockMongoClient: every write lands in the same store."""
+
+    def __init__(self, backing):
+        self.backing = backing
+        self.closed = False
+
+    def __getitem__(self, name):
+        return FakeAsyncDatabase(self.backing[name])
+
+    def __getattr__(self, name):
+        return self[name]
+
+    async def close(self):
+        self.closed = True
+
+
+def settled(coroutine):
+    """The answer of a coroutine over the fake, which never waits on anything, run to
+    its end at once; a coroutine that would wait fails the test instead."""
+    try:
+        coroutine.send(None)
+    except StopIteration as finished:
+        return finished.value
+    coroutine.close()
+    raise RuntimeError("a coroutine over the fake Mongo waited on something real")
+
+
+class SettlingLoop:
+    """The loop `app.data.wait` falls back to with no loop bound: a loop of the calling
+    thread's own, or, on a thread whose loop is already running (a test calling a
+    thread job directly), the coroutine settled where it is, over the fake."""
+
+    _threads = threading.local()
+
+    def run_until_complete(self, awaitable):
+        try:
+            asyncio.get_running_loop()
+        except RuntimeError:
+            return self._own().run_until_complete(awaitable)
+        return settled(awaitable)
+
+    def is_closed(self):
+        return False
+
+    def _own(self):
+        loop = getattr(self._threads, "loop", None)
+        if loop is None or loop.is_closed():
+            loop = asyncio.new_event_loop()
+            self._threads.loop = loop
+        return loop
+
+
+def fake_store():
+    """The in-memory store the installed repositories write to, read and seeded sync."""
+    from app.data import data
+
+    return data().client.backing
+
+
+def answering(value):
+    """A stand-in for a coroutine function: awaited with any arguments, it answers
+    `value`."""
+    async def call(*_args, **_kwargs):
+        return value
+
+    return call

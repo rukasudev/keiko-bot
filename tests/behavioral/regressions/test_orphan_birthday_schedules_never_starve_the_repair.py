@@ -19,7 +19,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from app.data.keiko import schedules as schedules_data
+from app.data import data, wait
 from app.services import reminders_birthdays as birthdays_service
 from app.services.reminders_birthdays import save_birthday_config
 from tests.generators.birthdays import saved_birthday
@@ -35,7 +35,7 @@ EARLY = datetime(2000, 1, 1, tzinfo=timezone.utc)
 @pytest.fixture
 def configured(deps):
     recorded_server(deps.mongo_client, GUILD, timezone="UTC")
-    save_birthday_config(GUILD, channel_id="99", notification_time="14:00")
+    wait(save_birthday_config(GUILD, channel_id="99", notification_time="14:00"))
     return GUILD
 
 
@@ -51,18 +51,18 @@ def creates(monkeypatch):
 
 
 def unneeded_schedule(guild_id, mm_dd, index):
-    schedules_data.upsert_schedule(
+    wait(data().keiko_schedules.upsert_schedule(
         birthdays_service.birthday_schedule_id(guild_id, mm_dd),
         "birthday",
         None,
         due_at=EARLY + timedelta(days=index),
-    )
+    ))
 
 
 def reminder_of(guild_id, mm_dd):
-    schedule = schedules_data.find_schedule(
+    schedule = wait(data().keiko_schedules.find_schedule(
         birthdays_service.birthday_schedule_id(guild_id, mm_dd)
-    )
+    ))
     return (schedule or {}).get("reminder_id")
 
 
@@ -73,29 +73,29 @@ def test_a_real_birthday_behind_a_pass_of_unneeded_schedules_gets_its_reminder(
         unneeded_schedule(configured, f"01-{index + 1:02d}", index)
     unneeded_schedule("no-config", "02-02", 0)
     saved_birthday(configured, "7", "12-25", reminder_id=None)
-    schedules_data.set_schedule_due(
+    wait(data().keiko_schedules.set_schedule_due(
         birthdays_service.birthday_schedule_id(configured, "12-25"),
         datetime(2100, 1, 1, tzinfo=timezone.utc),
-    )
+    ))
 
     for _ in range(3):
-        birthdays_service.reconcile_missing_reminders(limit=LIMIT)
+        wait(birthdays_service.reconcile_missing_reminders(limit=LIMIT))
 
     assert reminder_of(configured, "12-25") == "r-12-25"
     assert creates == ["12-25"]
-    assert birthdays_service.birthday_schedules_missing_reminder(limit=50) == []
+    assert wait(birthdays_service.birthday_schedules_missing_reminder(limit=50)) == []
 
 
 def test_a_birthday_whose_save_fails_leaves_no_schedule(configured, creates, monkeypatch):
-    def refuse(*args, **kwargs):
+    async def refuse(*args, **kwargs):
         raise ConnectionError("mongo is down")
 
-    monkeypatch.setattr(birthdays_service.members_data, "set_member_option", refuse)
+    monkeypatch.setattr(data().guild_members, "set_member_option", refuse)
 
     with pytest.raises(ConnectionError):
-        birthdays_service.upsert_birthday(configured, "7", "12-25")
+        wait(birthdays_service.upsert_birthday(configured, "7", "12-25"))
 
-    assert birthdays_service.find_birthday(configured, "7") is None
-    assert schedules_data.find_schedule(
+    assert wait(birthdays_service.find_birthday(configured, "7")) is None
+    assert wait(data().keiko_schedules.find_schedule(
         birthdays_service.birthday_schedule_id(configured, "12-25")
-    ) is None
+    )) is None

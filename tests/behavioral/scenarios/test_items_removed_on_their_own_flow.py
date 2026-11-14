@@ -10,7 +10,7 @@ import pytest
 
 from tests.behavioral.golden.paths import notifications_twitch as twitch
 from tests.behavioral.golden.paths.common import GUILD_ID, seed_document
-from app.data.guild.cogs import find_cog_by_guild_id
+from app.data import data, wait
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
 
@@ -24,12 +24,12 @@ def outside_dev(deps):
     deps.bot.config.is_dev = lambda: False
 
 
-def _stored(deps, form, guild_id=GUILD_ID):
-    return find_cog_by_guild_id(guild_id, form)
+async def _stored(deps, form, guild_id=GUILD_ID):
+    return await data().guild_cogs.find_cog_by_guild_id(guild_id, form)
 
 
 def _items(deps, form=twitch.FORM):
-    return _stored(deps, form)["notifications"]["values"]
+    return wait(_stored(deps, form))["notifications"]["values"]
 
 
 async def _twitch_panel(scenario_factory, deps, document=twitch.ENABLED):
@@ -84,7 +84,7 @@ async def test_removing_the_only_streamer_asks_and_turns_twitch_off(
     assert "a função **Twitch Lives** será **desativada**" in warning.description
     await scenario.click("remove_items")
 
-    assert _stored(deps, twitch.FORM) is None
+    assert await _stored(deps, twitch.FORM) is None
     assert deps.twitch.unsubscribe_calls, "the feature off lets gaules go"
     scenario.expect_message(title_contains="desativado")
 

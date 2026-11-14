@@ -14,7 +14,7 @@ from app.components.embed import base_embed
 from app.constants import Commands as constants
 from app.core import analytics, analytics_reports
 from app.core.utils import describe_default, describe_step
-from app.data.analytics import lifetime
+from app.data import data
 
 EVENT_ICONS = {
     "guild.joined": "➡️",
@@ -38,8 +38,8 @@ EVENT_ICONS = {
 }
 
 
-def build_funnel_embed(feature: str) -> discord.Embed:
-    steps = analytics_reports.funnel(feature)
+async def build_funnel_embed(feature: str) -> discord.Embed:
+    steps = await analytics_reports.funnel(feature)
     opened = steps["setup_opened"]
 
     lines = [
@@ -63,8 +63,8 @@ def _funnel_line(label: str, value: int, total: int) -> str:
     return f"**{label}** — {value}{share}"
 
 
-def build_friction_embed(feature: Optional[str] = None) -> discord.Embed:
-    rows = analytics_reports.friction(feature)[:10]
+async def build_friction_embed(feature: Optional[str] = None) -> discord.Embed:
+    rows = (await analytics_reports.friction(feature))[:10]
     if not rows:
         return base_embed("🧱 Friction", "No validation failures recorded yet.")
 
@@ -91,8 +91,8 @@ DROPOFF_REASONS = {
 }
 
 
-def build_dropoff_embed(feature: Optional[str] = None) -> discord.Embed:
-    rows = analytics_reports.dropoff(feature)
+async def build_dropoff_embed(feature: Optional[str] = None) -> discord.Embed:
+    rows = await analytics_reports.dropoff(feature)
     if not rows:
         return base_embed(
             "🛑 Where setups die",
@@ -147,9 +147,9 @@ def build_session_embed(session: dict) -> discord.Embed:
     )
 
 
-def build_guild_journey_embed(guild_id: str) -> discord.Embed:
-    profile = analytics_reports.guild_snapshot(guild_id)
-    timeline = analytics_reports.guild_timeline(guild_id)
+async def build_guild_journey_embed(guild_id: str) -> discord.Embed:
+    profile = await analytics_reports.guild_snapshot(guild_id)
+    timeline = await analytics_reports.guild_timeline(guild_id)
 
     header = (
         f"**{profile['days_in_guild']}** days · "
@@ -196,8 +196,8 @@ def _timeline_line(event: Dict[str, Any]) -> str:
     return f"`{stamp}` {icon} {event['type']} — {detail}{source}"
 
 
-def build_churn_embed() -> discord.Embed:
-    comparison = analytics_reports.churn_comparison()
+async def build_churn_embed() -> discord.Embed:
+    comparison = await analytics_reports.churn_comparison()
     removed, retained = comparison["removed"], comparison["retained"]
 
     lines = [
@@ -209,7 +209,7 @@ def build_churn_embed() -> discord.Embed:
         lines.append("")
         lines.append("⚠️ Populations are too small to read as a conclusion.")
 
-    at_risk = analytics_reports.guilds_at_risk()
+    at_risk = await analytics_reports.guilds_at_risk()
     if at_risk:
         lines.append("")
         lines.append(f"**At risk** ({len(at_risk)} guilds quiet for 14+ days):")
@@ -245,8 +245,8 @@ def _population_line(label: str, population: Dict[str, Any]) -> str:
     )
 
 
-def build_abandoned_embed() -> discord.Embed:
-    rows = analytics_reports.abandoned_features()[:15]
+async def build_abandoned_embed() -> discord.Embed:
+    rows = (await analytics_reports.abandoned_features())[:15]
     if not rows:
         return base_embed(
             "🧊 Abandoned features",
@@ -265,7 +265,7 @@ def build_abandoned_embed() -> discord.Embed:
     )
 
 
-def build_pipeline_embed() -> discord.Embed:
+async def build_pipeline_embed() -> discord.Embed:
     stats = analytics.stats()
     lines = [
         f"Emitted: **{stats['emitted']}**",
@@ -279,9 +279,9 @@ def build_pipeline_embed() -> discord.Embed:
     return base_embed("🩺 Analytics pipeline", "\n".join(lines))
 
 
-def build_config_usage_embed(feature: Optional[str] = None) -> discord.Embed:
+async def build_config_usage_embed(feature: Optional[str] = None) -> discord.Embed:
     """Settings nobody fills in — read from what is stored, so it needs no event."""
-    rows = analytics_reports.unused_settings()
+    rows = await analytics_reports.unused_settings()
     if feature:
         rows = [row for row in rows if row["feature"] == feature]
 
@@ -303,8 +303,8 @@ def build_config_usage_embed(feature: Optional[str] = None) -> discord.Embed:
     )
 
 
-def build_step_timing_embed(feature: Optional[str] = None) -> discord.Embed:
-    rows = analytics_reports.step_durations(feature)
+async def build_step_timing_embed(feature: Optional[str] = None) -> discord.Embed:
+    rows = await analytics_reports.step_durations(feature)
     if not rows:
         return base_embed("⏱️ Slowest steps", "No step time recorded yet.")
 
@@ -315,7 +315,7 @@ def build_step_timing_embed(feature: Optional[str] = None) -> discord.Embed:
         for row in rows[:10]
     ]
 
-    distribution = analytics_reports.choice_distribution(feature)
+    distribution = await analytics_reports.choice_distribution(feature)
     if distribution:
         lines.append("")
         lines.append("**What people picked**")
@@ -367,12 +367,12 @@ def insight_sections() -> List[Dict[str, Any]]:
     ]
 
 
-def build_all_funnels_embed() -> discord.Embed:
+async def build_all_funnels_embed() -> discord.Embed:
     """Every feature side by side — one funnel per line instead of per command."""
-    lifetimes = lifetime.find_lifetimes()
+    lifetimes = await data().analytics_lifetime.find_lifetimes()
     lines = []
     for feature in constants.COMMANDS_LIST:
-        steps = analytics_reports.funnel(feature, lifetimes)
+        steps = await analytics_reports.funnel(feature, lifetimes)
         if not steps["setup_opened"]:
             continue
         lines.append(

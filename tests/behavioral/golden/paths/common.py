@@ -1,11 +1,12 @@
 """Steps every form shares: seeding a saved configuration, opening the
 command through its service, and the manager lifecycle buttons."""
+import inspect
 import copy
 import datetime
 from typing import Any, Callable, Dict
 
+from app.data import data, wait
 from app.core.cogs import LIFECYCLE_ANALYTICS_EVENTS
-from app.data.events import changes
 from app.core.utils import ml
 
 from tests.behavioral.golden.paths import golden_path
@@ -42,7 +43,7 @@ def seed_document(deps, form: str, document: Dict[str, Any]) -> None:
 def seed_history(deps, form: str, *events: str) -> None:
     """Changes the history screen lists, on a fixed clock."""
     for index, event in enumerate(events):
-        changes.insert({
+        wait(data().events_changes.insert({
             "ts": FIXED_EVENT_TIME + datetime.timedelta(hours=index),
             "type": LIFECYCLE_ANALYTICS_EVENTS[event],
             "guild_id": GUILD_ID,
@@ -52,12 +53,14 @@ def seed_history(deps, form: str, *events: str) -> None:
             "session_id": None,
             "props": {"source": "manager"},
             "v": 1,
-        })
+        }))
 
 
 async def open_manager(scenario_factory, deps, locale: str, form: str,
-                       seed: Callable[[Any], None]):
-    seed(deps)
+                       seed: Callable[[Any], Any]):
+    seeded = seed(deps)
+    if inspect.isawaitable(seeded):
+        await seeded
     return await scenario_factory(locale=locale).start_command(form)
 
 
@@ -98,8 +101,10 @@ def register_lifecycle(form: str, seed_enabled: Callable[[Any], None],
 
     @golden_path(form, "manager_history")
     async def manager_history(scenario_factory, deps, locale):
-        def seed(deps_):
-            seed_enabled(deps_)
+        async def seed(deps_):
+            seeded = seed_enabled(deps_)
+            if inspect.isawaitable(seeded):
+                await seeded
             seed_history(deps_, form, "enabled", "edited")
 
         scenario = await open_manager(scenario_factory, deps, locale, form, seed)

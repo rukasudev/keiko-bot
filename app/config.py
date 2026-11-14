@@ -140,11 +140,10 @@ class AppConfig:
         names = [key.upper() for key in constants.ADMIN_CONFIGS_LIST]
         return {name: getattr(self, name) for name in names}
 
-    def load_db_configs(self) -> None:
-        from app.data.keiko.integrations import find_integration
-        from app.data.keiko.settings import find_keiko_settings
-
-        db_configs = find_keiko_settings()
+    async def load_db_configs(self, store: Any) -> None:
+        """Read Keiko's settings and the Notion integration from `store`, the boot's
+        repositories."""
+        db_configs = await store.keiko_settings.find_keiko_settings()
         presence = db_configs[constants.KEIKO_PRESENCE]
         admin_configs = db_configs[constants.KEIKO_OPERATOR]
 
@@ -154,7 +153,9 @@ class AppConfig:
         self.OWNER_ID = db_configs[constants.KEIKO_OWNER_ID]
         self.PREFIX = db_configs[constants.KEIKO_PREFIX]
 
-        notion_configs = find_integration(constants.INTEGRATION_NOTION)
+        notion_configs = await store.keiko_integrations.find_integration(
+            constants.INTEGRATION_NOTION
+        )
         self.NOTION_ENABLED = notion_configs.get(constants.INTEGRATION_NOTION_ENABLED)
         self.NOTION_DATABASE_ID = notion_configs.get(constants.INTEGRATION_NOTION_DATABASE_ID)
 

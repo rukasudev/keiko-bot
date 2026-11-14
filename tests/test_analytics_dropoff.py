@@ -9,10 +9,12 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from app.data import wait
 from app.constants import ViewConstants as view_constants
 from app.data import analytics as analytics_data
 from app.services import admin_analytics
 from app.core import analytics, analytics_reports, analytics_sink
+from tests.mocks.database import fake_store
 from tests.generators.events import age_events, record_event
 
 pytestmark = pytest.mark.unit
@@ -21,7 +23,7 @@ FEATURE = "block_links"
 
 
 def flush():
-    analytics.flush()
+    wait(analytics.flush())
 
 
 def open_setup(session, guild="1"):
@@ -42,7 +44,7 @@ def view_step(session, step, index, guild="1"):
 def age_session(session, minutes):
     """Push a session's events into the past so the view would have expired."""
     moment = datetime.now(timezone.utc) - timedelta(minutes=minutes)
-    age_events(analytics_data.mongo_client, moment, session)
+    age_events(fake_store(), moment, session)
 
 
 def test_an_expired_session_reports_the_step_it_reached():
@@ -52,7 +54,7 @@ def test_an_expired_session_reports_the_step_it_reached():
     flush()
     age_session("s1", minutes=view_constants.LONG_TIMEOUT_SECONDS // 60 + 5)
 
-    session = analytics_reports.setup_sessions(FEATURE)[0]
+    session = wait(analytics_reports.setup_sessions(FEATURE))[0]
     assert session["outcome"] == "expired"
     assert session["last_step"] == "permissions"
 
@@ -62,11 +64,11 @@ def test_a_session_still_inside_the_timeout_is_open_not_abandoned():
     view_step("s2", "mode", 1)
     flush()
 
-    session = analytics_reports.setup_sessions(FEATURE)[0]
+    session = wait(analytics_reports.setup_sessions(FEATURE))[0]
     assert session["outcome"] == "open", (
         "an attempt the user may still be working on must not count as lost"
     )
-    assert analytics_reports.dropoff(FEATURE) == []
+    assert wait(analytics_reports.dropoff(FEATURE)) == []
 
 
 def test_a_completed_session_is_never_counted_as_a_dropoff():
@@ -79,8 +81,8 @@ def test_a_completed_session_is_never_counted_as_a_dropoff():
     flush()
     age_session("s3", minutes=120)
 
-    assert analytics_reports.setup_sessions(FEATURE)[0]["outcome"] == "completed"
-    assert analytics_reports.dropoff(FEATURE) == []
+    assert wait(analytics_reports.setup_sessions(FEATURE))[0]["outcome"] == "completed"
+    assert wait(analytics_reports.dropoff(FEATURE)) == []
 
 
 def test_a_discard_reports_the_step_it_was_discarded_from():
@@ -94,7 +96,7 @@ def test_a_discard_reports_the_step_it_was_discarded_from():
     )
     flush()
 
-    session = analytics_reports.setup_sessions(FEATURE)[0]
+    session = wait(analytics_reports.setup_sessions(FEATURE))[0]
     assert session["outcome"] == "discarded"
     assert session["last_step"] == "custom_link"
     assert session["reason"] == "discarded-without-error"
@@ -112,7 +114,7 @@ def test_a_session_that_kept_failing_a_field_says_so():
     flush()
     age_session("s5", minutes=120)
 
-    session = analytics_reports.setup_sessions(FEATURE)[0]
+    session = wait(analytics_reports.setup_sessions(FEATURE))[0]
     assert session["reason"] == "repeated-validation-failure"
     assert session["validation_failures"] == 3
     assert session["failed_keys"] == ["link-not-recognized"] * 3
@@ -124,7 +126,7 @@ def test_a_session_that_left_with_nothing_failing_says_exactly_that():
     flush()
     age_session("s6", minutes=120)
 
-    session = analytics_reports.setup_sessions(FEATURE)[0]
+    session = wait(analytics_reports.setup_sessions(FEATURE))[0]
     assert session["reason"] == "left-without-a-recorded-problem", (
         "the absence of a recorded problem must not be dressed up as a cause"
     )
@@ -140,7 +142,7 @@ def test_the_dropoff_report_ranks_the_steps_that_lose_the_most_people():
     for session in ["a1", "a2", "a3", "b1"]:
         age_session(session, minutes=120)
 
-    rows = analytics_reports.dropoff(FEATURE)
+    rows = wait(analytics_reports.dropoff(FEATURE))
     assert rows[0]["step_key"] == "custom_link"
     assert rows[0]["lost"] == 3
     assert rows[1]["step_key"] == "permissions"
@@ -159,7 +161,7 @@ def test_the_screen_separates_discarded_from_expired():
     age_session("c1", minutes=120)
     age_session("c2", minutes=120)
 
-    embed = admin_analytics.build_dropoff_embed(FEATURE)
+    embed = wait(admin_analytics.build_dropoff_embed(FEATURE))
     assert "1 discarded, 1 expired" in embed.description
     assert "the view timed out" in embed.description
 
@@ -175,7 +177,7 @@ def test_a_single_session_can_be_read_on_its_own():
     flush()
     age_session("d1", minutes=120)
 
-    session = analytics_reports.setup_sessions(FEATURE)[0]
+    session = wait(analytics_reports.setup_sessions(FEATURE))[0]
     embed = admin_analytics.build_session_embed(session)
     assert "custom_link" in embed.description
     assert "link-not-recognized" in embed.description

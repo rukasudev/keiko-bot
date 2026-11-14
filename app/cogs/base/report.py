@@ -1,4 +1,3 @@
-import asyncio
 import random
 from typing import List
 
@@ -15,6 +14,7 @@ from app.core import analytics
 from app.core.utils import parse_valid_locale
 from app.translator import locale_str
 from app.types.cogs import Cog
+from app.core.threads import to_thread
 
 
 async def report_autocomplete(
@@ -57,7 +57,7 @@ class Report(Cog, name="report"):
             props={"command": command},
         )
 
-        notion_response = await asyncio.to_thread(
+        notion_response = await to_thread(
             self._create_notion_report, interaction, title, description, command, attachment
         )
         ticket_id = self._get_ticket_unique_id(notion_response)

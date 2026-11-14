@@ -47,6 +47,7 @@ import discord
 import pytest
 from discord import app_commands
 
+from app.data import wait
 from app.cogs.errors import Errors
 from tests.behavioral.harness.fake_interaction import FakeInteraction, FakeResponse
 from tests.behavioral.harness.message_store import MessageStore
@@ -86,9 +87,9 @@ def expired():
     )
 
 
-def stored_failures(deps):
+async def stored_failures(deps):
     """The `command.failed` interactions once the sink wrote its batch."""
-    analytics.flush()
+    await analytics.flush()
     return list(deps.mongo_client.events.interactions.find({"type": "command.failed"}))
 
 
@@ -113,24 +114,15 @@ def posted(log_channels):
     )
 
 
-class StalledMongo:
-    """A Mongo that takes the connection and never answers a write."""
-
-    def __init__(self, released):
-        self.released = released
-
-    def __getattr__(self, name):
-        return self
-
-    def insert_many(self, documents, ordered=True):
-        self.released.wait(10)
-
-
 @pytest.fixture
-def stalled_mongo(monkeypatch):
-    """Mongo stops answering the writes of the interactions."""
-    released = threading.Event()
-    monkeypatch.setattr("app.data.events.interactions.mongo_client", StalledMongo(released))
+def stalled_mongo(deps, monkeypatch):
+    """Mongo takes the connection and never answers the writes of the interactions."""
+    released = asyncio.Event()
+
+    async def insert_many(documents):
+        await released.wait()
+
+    monkeypatch.setattr(deps.data.events_interactions, "insert_many", insert_many)
     yield
     released.set()
 
@@ -152,7 +144,7 @@ async def test_a_failed_command_reaches_the_error_channel_the_audit_and_analytic
     assert event["props"]["error_type"] == "KeyError"
     assert event["props"]["command"] == "moderations block links"
     assert event["cog"] == "block_links"
-    [stored] = stored_failures(deps)
+    [stored] = await stored_failures(deps)
     assert stored["cog"] == "block_links"
     assert stored["props"] == {
         "command": "moderations block links", "error_type": "KeyError"
@@ -174,7 +166,7 @@ async def test_a_failure_is_recorded_even_when_the_answer_cannot_be_sent(
     await errors_cog().on_app_command_error(interaction, error)
 
     assert len(log_channels.errors.embeds) == 1
-    assert len(stored_failures(deps)) == 1
+    assert len(await stored_failures(deps)) == 1
     assert len(failed_events(analytics_events)) == 1
 
 
@@ -197,7 +189,7 @@ async def test_the_error_channel_and_analytics_hear_of_a_failure_before_the_pers
     await errors_cog().on_app_command_error(interaction, error)
 
     assert reported_when_answered == {"error_channel": 1, "analytics": 1}
-    assert len(stored_failures(deps)) == 1, "and the record follows"
+    assert len(await stored_failures(deps)) == 1, "and the record follows"
 
 
 async def test_the_person_is_answered_while_the_record_is_still_being_written(
@@ -300,7 +292,7 @@ async def test_an_error_without_an_original_is_recorded_under_its_own_type(
     [event] = failed_events(analytics_events)
     assert event["props"]["error_type"] == "CheckFailure"
     assert len(log_channels.errors.embeds) == 1
-    assert len(stored_failures(deps)) == 1
+    assert len(await stored_failures(deps)) == 1
 
 
 async def test_a_failed_command_is_counted_with_the_code_discord_answered(

@@ -1,10 +1,9 @@
-import asyncio
 import copy
 import threading
 from collections import OrderedDict
 from itertools import count
 from time import monotonic
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
 from bson import json_util
 from pymongo.errors import PyMongoError
@@ -13,7 +12,7 @@ from redis.exceptions import RedisError
 from app import logger, redis_client
 from app.constants import Commands, DBConfigs
 from app.constants import LogTypes as logconstants
-from app.data.guild import cogs as guild_cogs
+from app.data import data, wait
 from app.core.cogs import is_feature_on
 from app.core.trace import outside_any_trace
 
@@ -89,7 +88,7 @@ def remove_all_cache_by_guild(guild_id: str) -> None:
     _delete_cached(keys)
 
 
-def recalled(key: str, read: Callable[[], Any], seconds: float) -> Any:
+async def remembered(key: str, read: Callable[[], Awaitable[Any]], seconds: float) -> Any:
     """What `read` returns, kept in this process for `seconds`; a read that raced a
     `forget_remembered(key)` is returned but not kept, and during a Mongo outage what
     was kept last is served however old."""
@@ -98,23 +97,7 @@ def recalled(key: str, read: Callable[[], Any], seconds: float) -> Any:
         return held[1]
 
     try:
-        value = read()
-    except PyMongoError as error:
-        return _last_kept(held, error)
-
-    _recover("mongo")
-    _keep(key, generation, value, seconds)
-    return value
-
-
-async def remembered(key: str, read: Callable[[], Any], seconds: float) -> Any:
-    """What `recalled` keeps, with `read` run off the loop when nothing fresh is kept."""
-    held, fresh, generation = _held(key)
-    if fresh or (held is not None and not _may_try("mongo")):
-        return held[1]
-
-    try:
-        value = await asyncio.to_thread(read)
+        value = await read()
     except PyMongoError as error:
         return _last_kept(held, error)
 
@@ -213,7 +196,7 @@ def _stored(guild_id: str, key: str) -> str:
         raise copy.copy(_errors["mongo"])
 
     try:
-        document = guild_cogs.find_cog_by_guild_id(guild_id, key)
+        document = wait(data().guild_cogs.find_cog_by_guild_id(guild_id, key))
     except PyMongoError as error:
         _fail("mongo", error, warn=known is not None)
         if known is None:

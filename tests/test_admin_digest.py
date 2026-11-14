@@ -9,6 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.data import wait
 from app.services import admin_digest
 from app.core import analytics, analytics_sink
 from tests.generators.moderations import seed_cog
@@ -18,7 +19,7 @@ pytestmark = pytest.mark.unit
 
 
 def flush():
-    analytics.flush()
+    wait(analytics.flush())
 
 
 def flush_as_of(days):
@@ -27,7 +28,7 @@ def flush_as_of(days):
     batch = analytics.drain()
     for envelope in batch:
         envelope["ts"] = moment
-    analytics_sink.persist(batch)
+    wait(analytics_sink.persist(batch))
 
 
 def age_everything(deps, days):
@@ -36,7 +37,7 @@ def age_everything(deps, days):
 
 
 def test_it_still_sends_something_on_a_completely_empty_install():
-    embed = admin_digest.build_weekly_digest()
+    embed = wait(admin_digest.build_weekly_digest())
 
     assert embed.title.startswith("📊 Keiko")
     assert "0** guilds" in embed.description
@@ -48,7 +49,7 @@ def test_a_quiet_week_says_so_instead_of_going_silent():
     analytics.record_value("1", "welcome_messages")
     flush()
 
-    description = admin_digest.build_weekly_digest().description
+    description = wait(admin_digest.build_weekly_digest()).description
 
     assert "Nothing needs a decision this week." in description
     assert "welcomes sent" in description
@@ -67,7 +68,7 @@ def test_it_leads_with_what_needs_a_decision(deps):
     flush()
     age_everything(deps, days=1)
 
-    description = admin_digest.build_weekly_digest().description
+    description = wait(admin_digest.build_weekly_digest()).description
 
     attention = description.index("Needs attention")
     assert "custom_link" in description
@@ -82,7 +83,7 @@ def test_permission_failures_are_called_out_as_the_bot_being_unable_to_work():
         )
     flush()
 
-    description = admin_digest.build_weekly_digest().description
+    description = wait(admin_digest.build_weekly_digest()).description
     assert "2** guilds where Discord refused" in description
 
 
@@ -98,7 +99,7 @@ def test_it_reports_settings_nobody_uses(deps):
             "welcome_custom_image": None,
         })
 
-    description = admin_digest.build_weekly_digest().description
+    description = wait(admin_digest.build_weekly_digest()).description
     assert "welcome_custom_image" in description
     assert "0** of **5** guilds" in description
 
@@ -110,7 +111,7 @@ def test_the_unused_block_does_not_get_filled_by_one_noisy_form(deps):
         seed_cog(deps.mongo_client, "welcome_messages", {"guild_id": str(index)})
 
     lines = [
-        line for line in admin_digest.build_weekly_digest().description.splitlines()
+        line for line in wait(admin_digest.build_weekly_digest()).description.splitlines()
         if line.startswith("• **") and "guilds" in line
     ]
     features = [line.split("**")[1] for line in lines]
@@ -125,7 +126,7 @@ def test_deliveries_are_summed_from_the_counters_not_from_documents():
         analytics.record_value("1", "reminders_birthday")
     flush()
 
-    description = admin_digest.build_weekly_digest().description
+    description = wait(admin_digest.build_weekly_digest()).description
 
     assert "**12** links blocked" in description
     assert "**3** birthdays celebrated" in description
@@ -137,7 +138,7 @@ def test_guild_movement_shows_both_directions():
     record_event("guild.removed", guild_id="3", days_in_guild=10)
     flush()
 
-    description = admin_digest.build_weekly_digest().description
+    description = wait(admin_digest.build_weekly_digest()).description
     assert "+2 joined" in description
     assert "-1 left" in description
 
@@ -146,12 +147,34 @@ def test_events_older_than_the_window_do_not_count(deps):
     record_event("guild.joined", guild_id="1", returning=False)
     flush_as_of(days=30)
 
-    description = admin_digest.build_weekly_digest(days=7).description
+    description = wait(admin_digest.build_weekly_digest(days=7)).description
     assert "joined" not in description
 
 
+def test_the_week_counts_seven_days_and_names_them():
+    """Broke as: the window ran from the day a week ago to today, both included, so the
+    digest summed eight calendar days, a server that joined on last Monday counted in
+    two digests, and its title named eight dates.
+
+    Guaranteed: the digest counts today and the six days before it, an arrival seven
+    days ago is left to last week's digest, and the title names those seven days."""
+    record_event("guild.joined", guild_id="1", returning=False)
+    flush_as_of(days=6)
+    record_event("guild.joined", guild_id="2", returning=False)
+    flush_as_of(days=7)
+
+    embed = wait(admin_digest.build_weekly_digest(days=7))
+
+    first = datetime.now(timezone.utc) - timedelta(days=6)
+    today = datetime.now(timezone.utc)
+    assert "+1 joined" in embed.description
+    assert embed.title == (
+        f"📊 Keiko — week of {first.strftime('%d/%m')} – {today.strftime('%d/%m')}"
+    )
+
+
 def test_it_points_at_where_to_dig_deeper():
-    assert "/admin insights" in admin_digest.build_weekly_digest().description
+    assert "/admin insights" in wait(admin_digest.build_weekly_digest()).description
 
 
 class SentTo:

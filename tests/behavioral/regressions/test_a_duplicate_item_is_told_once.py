@@ -25,8 +25,8 @@ that succeeds sends no error at all.
 """
 import pytest
 
+from app.data import data
 from app.core.utils import ml
-from app.data.guild.cogs import find_cog_by_guild_id
 from tests.behavioral.golden.paths import notifications_twitch as twitch
 from tests.behavioral.golden.paths.common import open_manager
 from tests.behavioral.golden.paths.reminders_birthday import (
@@ -62,7 +62,7 @@ async def _add_birthday(scenario, member):
 async def test_each_duplicate_birthday_is_told_once_and_the_next_member_is_not(
     scenario_factory, deps
 ):
-    _seed_config(deps)
+    await _seed_config(deps)
     scenario = await scenario_factory(locale=LOCALE, guild=_guild()).start_command(
         "reminders_birthday"
     )
@@ -113,7 +113,7 @@ async def test_each_duplicate_streamer_is_told_once_and_the_next_streamer_is_not
     await scenario.click("done")
 
     assert _errors_since(scenario, start) == [], scenario.transcript
-    saved = find_cog_by_guild_id(str(scenario.guild.id), twitch.FORM)
+    saved = await data().guild_cogs.find_cog_by_guild_id(str(scenario.guild.id), twitch.FORM)
     streamers = [
         item["streamer"]["value"] for item in saved["notifications"]["values"]
     ]

@@ -13,7 +13,6 @@ the holder of the private key opens them. Right after the backup, Keiko's own fi
 their kind's age are deleted: backups after 30 days, daily logs after 90
 (`DAILY_LOGS_RETENTION_DAYS`), the monthly archive never.
 """
-import asyncio
 import gzip
 import heapq
 import io
@@ -40,10 +39,7 @@ from app.constants import LogTypes as logconstants
 from app.core.analytics import events_catalog
 from app.core.trace import as_utc
 from app.core.utils import ml
-from app.data import analytics as analytics_data
-from app.data import logs as logs_data
-from app.data import util as util_data
-from app.data.events import activity, interactions
+from app.data import data, iterate, wait
 from app.migrations.runner import declared_structure
 
 FILENAME = "keiko_logs_{date}.jsonl.gz"
@@ -90,7 +86,8 @@ def serialize(document: Dict[str, Any]) -> str:
 
 def build_archive(day: datetime) -> Tuple[Optional[bytes], int]:
     """Stream one day into a gzip buffer. Returns (payload, record count)."""
-    return gzip_lines(serialize(document) for document in logs_data.iter_logs_for_day(day))
+    documents = iterate(data().guild_logs.iter_logs_for_day(day))
+    return gzip_lines(serialize(document) for document in documents)
 
 
 def gzip_lines(lines: Iterable[str]) -> Tuple[Optional[bytes], int]:
@@ -182,12 +179,13 @@ def last_month(now: datetime) -> datetime:
     return (this_month - timedelta(days=1)).replace(day=1)
 
 
-def is_archived(month: datetime) -> bool:
+async def is_archived(month: datetime) -> bool:
     """Whether the month's events were already posted."""
-    return analytics_data.find_archived_month(month.strftime("%Y-%m")) is not None
+    archives = data().guild_analytics_archives
+    return await archives.find_archived_month(month.strftime("%Y-%m")) is not None
 
 
-def months_to_archive(now: datetime) -> List[datetime]:
+async def months_to_archive(now: datetime) -> List[datetime]:
     """Every complete month never posted whose start the events still reach, oldest first."""
     reached = now - timedelta(seconds=constants.EVENTS_INTERACTIONS_TTL_SECONDS)
     months = []
@@ -197,7 +195,7 @@ def months_to_archive(now: datetime) -> List[datetime]:
         months.append(month)
         month = last_month(month)
 
-    return [month for month in reversed(months) if not is_archived(month)]
+    return [month for month in reversed(months) if not await is_archived(month)]
 
 
 def build_month_files(
@@ -230,9 +228,9 @@ def build_month_message(
     return "\n".join(lines)
 
 
-def mark_archived(month: datetime, files: List[ArchiveFile], now: datetime) -> None:
+async def mark_archived(month: datetime, files: List[ArchiveFile], now: datetime) -> None:
     """Remember the month went out, so no later pass posts it again."""
-    analytics_data.mark_month_archived(
+    await data().guild_analytics_archives.mark_month_archived(
         month.strftime("%Y-%m"),
         {
             "posted_at": now,
@@ -276,8 +274,8 @@ def _parts(
             without_identity(event, key), json_options=json_util.RELAXED_JSON_OPTIONS
         )
         for event in heapq.merge(
-            activity.iter_between(start, end),
-            interactions.iter_between(start, end),
+            iterate(data().events_activity.iter_between(start, end)),
+            iterate(data().events_interactions.iter_between(start, end)),
             key=lambda event: as_utc(event["ts"]),
         )
     )
@@ -322,7 +320,7 @@ def backed_up_collections() -> List[Tuple[str, str]]:
     found = []
 
     for database, wanted in DBConfigs.BACKUP_COLLECTIONS.items():
-        present = util_data.collection_names(database)
+        present = wait(data().databases.collection_names(database))
         names = present if wanted is None else [name for name in present if name in wanted]
         for collection in sorted(names):
             skipped = f"{database}.{collection}" in DBConfigs.BACKUP_SKIPPED_COLLECTIONS
@@ -438,7 +436,7 @@ def _zipped(
 
     with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         with archive.open(f"{database}/{collection}.jsonl", "w") as stream:
-            for document in util_data.iter_documents(database, collection):
+            for document in iterate(data().databases.iter_documents(database, collection)):
                 line = json_util.dumps(
                     document, json_options=json_util.CANONICAL_JSON_OPTIONS
                 )
@@ -546,7 +544,7 @@ async def delete_old_files(
     stopped = None
 
     try:
-        retention = await asyncio.to_thread(logs_data.find_retention)
+        retention = await data().guild_logs_files.find_retention()
         async for message in channel.history(
             limit=None,
             after=as_utc(retention["cleared_until"]) if retention else None,
@@ -573,9 +571,7 @@ async def delete_old_files(
 
         if with_backups and not beyond_cap and not failures:
             cleared_until = now - timedelta(days=max(kind.days for kind in kinds))
-            await asyncio.to_thread(
-                logs_data.update_retention, {"cleared_until": cleared_until}
-            )
+            await data().guild_logs_files.update_retention({"cleared_until": cleared_until})
     except Exception as error:
         stopped = f"{type(error).__name__}: {error}"
 

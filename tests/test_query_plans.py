@@ -3,49 +3,34 @@
 Set MONGO_TEST_URL to a throwaway replica set (CI starts one). The suite drops every
 database it finds there, so it refuses a server holding data it did not write.
 
-Guaranteed: every public function of `app/data` is driven against the indexes
-production builds, or is named in NOT_A_QUERY; every find, aggregate, count, update,
-delete and findAndModify it sends is explained one statement at a time, and a winning
-plan that reads a whole collection, or a whole index, fails the build unless its shape
-is in BY_DESIGN or LEGACY; a listed shape that is no longer sent, or that an index now
-serves, fails as stale, naming the PR that was to remove it.
+Guaranteed: every public method of every repository `app.data.build` makes is driven
+against the indexes production builds, or is named in NOT_A_QUERY; every find,
+aggregate, count, update, delete and findAndModify it sends is explained one statement
+at a time, and a winning plan that reads a whole collection, or a whole index, fails the
+build unless its shape is in BY_DESIGN or LEGACY; a listed shape that is no longer sent,
+or that an index now serves, fails as stale, naming the PR that was to remove it.
 """
 
 import asyncio
 import copy
 import functools
-import importlib
 import inspect
 import io
 import os
-import pkgutil
-from dataclasses import dataclass
+from dataclasses import dataclass, fields
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterator, List, Set, Tuple
 
 import pytest
-from motor.motor_asyncio import AsyncIOMotorClient
-from pymongo import MongoClient, monitoring
+from pymongo import AsyncMongoClient, MongoClient, monitoring
 
-import app.data
+import app.data as data_layer
 from app.constants import Commands, DBConfigs, Migrations
 from app.core import analytics_reports
-from app.data import (
-    analytics,
-    logs,
-    util,
-)
-from app.data.analytics import counts, keiko, lifetime
-from app.data.events import activity, changes, interactions
-from app.data.guild import cogs as guild_cogs
-from app.data.guild import members
-from app.data.guild import messages
-from app.data.guild import settings as guild_settings
-from app.data.keiko import integrations as keiko_integrations
-from app.data.keiko import schedules
-from app.data.keiko import settings as keiko_settings
-from app.data.keiko import subscriptions
-from app.data.traces import runs
+from app.data import Data, build, data
+from app.data.analytics.counts import count_id
+from app.data.analytics.lifetime import admin_operation, lifetime_operation
+from app.data.keiko.schedules import schedule_id
 from app.migrations import runner
 from app.services import admin as admin_service
 
@@ -90,29 +75,18 @@ SESSION_FIELDS = {
 WHOLE_RANGES = {"[MinKey, MaxKey]", "[MaxKey, MinKey]"}
 
 NOT_A_QUERY = {
-    "analytics.counts.count_id",
-    "analytics.lifetime.admin_operation",
-    "analytics.lifetime.lifetime_operation",
-    "events.activity.insert_many",
-    "events.changes.insert",
-    "events.interactions.insert_many",
-    "keiko.schedules.schedule_subject",
-    "keiko.schedules.schedule_id",
-    "events.counted",
-    "events.grouped",
-    "events.newest_first",
-    "events.selection",
-    "logs.day_bounds",
-    "logs.insert_logs",
-    "util.collection_names",
-    "util.parse_insert_timestamp",
-    "util.parse_update_timestamp",
+    "events_activity.insert_many",
+    "events_changes.insert",
+    "events_interactions.insert_many",
+    "guild_logs.insert_logs",
+    "databases.collection_names",
 }
 
 Shape = Tuple[str, Tuple[str, ...]]
 
 BY_DESIGN: Dict[Shape, str] = {
     ("analytics.lifetime", ()): "find_lifetimes reads every server's lifetime",
+    ("migrations.changelog", ()): "the boot reads the whole ledger of applied files",
     ("guild.logs", ()): "iter_documents streams a whole collection to the backup",
     ("guild.settings", ()): "the /admin overview counts every server Keiko recorded",
 }
@@ -138,7 +112,7 @@ class Plan:
 
 @dataclass(frozen=True)
 class Recording:
-    """What the driver reached: the data functions it called and every plan."""
+    """What the driver reached: the repository methods it called and every plan."""
 
     driven: Set[str]
     plans: List[Plan]
@@ -162,25 +136,23 @@ class Recorder(monitoring.CommandListener):
         """Nothing to keep from a failure."""
 
 
-def data_modules() -> List[Any]:
-    """Every module and package under `app/data`."""
-    return [
-        importlib.import_module(module.name)
-        for module in pkgutil.walk_packages(app.data.__path__, "app.data.")
-    ]
+def repositories(store: Data) -> Dict[str, Any]:
+    """Every repository of `store`, by its name in `Data`."""
+    return {
+        field.name: getattr(store, field.name)
+        for field in fields(Data)
+        if field.name != "client"
+    }
 
 
-def public_functions() -> Dict[str, Tuple[Any, str]]:
-    """Every public function `app/data` defines, by `module.function`."""
-    found = {}
-
-    for module in data_modules():
-        short = module.__name__.removeprefix("app.data.")
-        for name, function in inspect.getmembers(module, inspect.isfunction):
-            if function.__module__ == module.__name__ and not name.startswith("_"):
-                found[f"{short}.{name}"] = (module, name)
-
-    return found
+def public_methods(store: Data) -> Dict[str, Tuple[Any, str]]:
+    """Every public method of every repository, by `repository.method`."""
+    return {
+        f"{name}.{method}": (repository, method)
+        for name, repository in repositories(store).items()
+        for method, _function in inspect.getmembers(type(repository), inspect.isfunction)
+        if not method.startswith("_")
+    }
 
 
 @pytest.fixture(scope="module")
@@ -217,25 +189,25 @@ def migrated(client: MongoClient) -> MongoClient:
     return client
 
 
+@dataclass(frozen=True)
+class Driven:
+    """The repositories over the recording client, and the methods called so far."""
+
+    store: Data
+    names: Set[str]
+
+
 @pytest.fixture(scope="module")
 def recording(migrated: MongoClient) -> Recording:
-    """Drive every data function through recording clients, then explain each query."""
+    """Drive every repository method through a recording client, then explain each
+    query."""
     recorder = Recorder()
-    driven: Set[str] = set()
     url = os.environ["MONGO_TEST_URL"]
 
-    with (
-        MongoClient(url, event_listeners=[recorder]) as mongo,
-        pytest.MonkeyPatch.context() as patch,
-    ):
-        for name, (module, attribute) in public_functions().items():
-            function = getattr(module, attribute)
-            patch.setattr(module, attribute, marking(name, function, driven))
-        for module in data_modules():
-            if "mongo_client" in vars(module):
-                patch.setattr(module, "mongo_client", mongo)
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(data_layer, "_INSTALLED", data_layer._INSTALLED)
         patch.setattr("app.core.cache.count_keys", lambda: 0)
-        asyncio.run(drive_with_motor(url, recorder, patch))
+        driven = asyncio.run(drive_recorded(url, recorder, patch))
 
     create_collections_read(migrated, recorder.commands)
     plans = [
@@ -243,213 +215,227 @@ def recording(migrated: MongoClient) -> Recording:
         for database, command in recorder.commands
         for statement in statements(command)
     ]
-    return Recording(driven=driven, plans=plans)
+    return Recording(driven=driven.names, plans=plans)
 
 
-def marking(name: str, function: Any, driven: Set[str]) -> Any:
-    """The function, adding its name to `driven` on every call."""
-
-    @functools.wraps(function)
-    def call(*args: Any, **kwargs: Any) -> Any:
-        driven.add(name)
-        return function(*args, **kwargs)
-
-    return call
-
-
-async def drive_with_motor(
+async def drive_recorded(
     url: str, recorder: Recorder, patch: pytest.MonkeyPatch
-) -> None:
-    """Run the driver with a recording motor client in every data module."""
-    motor = AsyncIOMotorClient(url, event_listeners=[recorder])
-    for module in data_modules():
-        if "motor_client" in vars(module):
-            patch.setattr(module, "motor_client", motor)
+) -> Driven:
+    """Install the repositories over a recording client on this loop, and drive them."""
+    store = build(AsyncMongoClient(url, event_listeners=[recorder]))
+    driven = Driven(store=store, names=set())
+    for name, (repository, method) in public_methods(store).items():
+        patch.setattr(repository, method, marking(name, getattr(repository, method), driven))
+    data_layer.install(store)
 
     try:
         await drive()
     finally:
-        motor.close()
+        await store.close()
+    return driven
+
+
+def marking(name: str, method: Any, driven: Driven) -> Any:
+    """The method, adding its name to the driven names on every call."""
+    if inspect.isasyncgenfunction(method):
+
+        @functools.wraps(method)
+        async def streamed(*args: Any, **kwargs: Any) -> Any:
+            driven.names.add(name)
+            async for document in method(*args, **kwargs):
+                yield document
+
+        return streamed
+
+    @functools.wraps(method)
+    async def call(*args: Any, **kwargs: Any) -> Any:
+        driven.names.add(name)
+        return await method(*args, **kwargs)
+
+    return call
+
+
+async def read_all(stream: Any) -> List[Any]:
+    return [document async for document in stream]
 
 
 async def drive() -> None:
-    """Call every query of `app/data` and of the services that build their filters."""
+    """Call every repository method, and the services that build their own filters."""
     now = datetime.now(timezone.utc)
 
-    drive_keiko()
+    await drive_keiko()
     await drive_guild_cogs()
-    drive_events(now)
-    drive_guild_settings(now)
-    drive_members()
-    drive_schedules(now)
-    drive_subscriptions_and_messages(now)
-    drive_analytics(now)
-    drive_analytics_reports(now)
-    drive_logs_and_backup(now)
-    admin_service._what_keiko_stored({GUILD})
+    await drive_events(now)
+    await drive_guild_settings(now)
+    await drive_members()
+    await drive_schedules(now)
+    await drive_subscriptions_and_messages(now)
+    await drive_analytics(now)
+    await drive_analytics_reports(now)
+    await drive_logs_and_backup(now)
+    await data().migrations_changelog.applied_ids()
+    await admin_service._what_keiko_stored({GUILD})
 
 
-def drive_keiko() -> None:
-    keiko_settings.find_keiko_settings()
-    keiko_settings.update_presence({DBConfigs.KEIKO_STATUS: "online"})
-    keiko_settings.update_operator({DBConfigs.ADMIN_GUILD_ID: 10})
-    keiko_integrations.find_integration(DBConfigs.INTEGRATION_NOTION)
+async def drive_keiko() -> None:
+    settings = data().keiko_settings
+    await settings.find_keiko_settings()
+    await settings.update_presence({DBConfigs.KEIKO_STATUS: "online"})
+    await settings.update_operator({DBConfigs.ADMIN_GUILD_ID: 10})
+    await data().keiko_integrations.find_integration(DBConfigs.INTEGRATION_NOTION)
 
 
 async def drive_guild_cogs() -> None:
+    cogs = data().guild_cogs
     for cog in FEATURE_KEYS:
         record = {"guild_id": GUILD, "enabled": True}
-        guild_cogs.insert_cog_by_guild_id(cog, dict(record))
-        guild_cogs.find_cog_by_guild_id(GUILD, cog)
-        guild_cogs.find_all_cogs(cog)
-        guild_cogs.find_all_cogs(cog, fields=("guild_id", "enabled"))
-        guild_cogs.find_enabled_cogs(cog)
-        guild_cogs.update_cog_by_guild(GUILD, cog, {"enabled": False})
-        guild_cogs.delete_cog_by_guild_id(GUILD, cog)
+        await cogs.insert_cog_by_guild_id(cog, dict(record))
+        await cogs.find_cog_by_guild_id(GUILD, cog)
+        await cogs.find_all_cogs(cog)
+        await cogs.find_all_cogs(cog, fields=("guild_id", "enabled"))
+        await cogs.find_enabled_cogs(cog)
+        await cogs.find_enabled_guild_ids(cog)
+        await cogs.update_cog_by_guild(GUILD, cog, {"enabled": False})
+        await cogs.set_cog_state(GUILD, cog, {"channel_id": CHANNEL})
+        await cogs.update_cog_if_unchanged(GUILD, cog, "enabled", False, True)
+        await cogs.delete_cog_by_guild_id(GUILD, cog)
 
-        await guild_cogs.insert_cog_by_guild_id_async(cog, dict(record))
-        await guild_cogs.find_cog_by_guild_id_async(GUILD, cog)
-        await guild_cogs.update_cog_by_guild_async(GUILD, cog, {"enabled": False})
-        await guild_cogs.set_cog_state_async(GUILD, cog, {"channel_id": CHANNEL})
-        await guild_cogs.update_cog_if_unchanged_async(
-            GUILD, cog, "enabled", False, True
-        )
-        await guild_cogs.delete_cog_by_guild_id_async(GUILD, cog)
-
-    guild_cogs.find_cogs_by_guild(GUILD)
+    await cogs.find_cogs_by_guild(GUILD)
     for cog, option in FOLLOWED.items():
         for enabled_only in (False, True):
-            guild_cogs.find_cogs_by_option(cog, option, "followed", enabled_only)
-            guild_cogs.count_cogs_by_option(cog, option, "followed", enabled_only)
+            await cogs.find_cogs_by_option(cog, option, "followed", enabled_only)
+            await cogs.count_cogs_by_option(cog, option, "followed", enabled_only)
 
 
-def drive_events(now: datetime) -> None:
+async def drive_events(now: datetime) -> None:
     since = now - timedelta(days=1)
     lifecycle = ["feature.enabled", "feature.unpaused"]
     blocked = ["link.blocked"]
     setup = ["feature.setup_opened", "setup.completed"]
+    changes = data().events_changes
+    activity = data().events_activity
+    interactions = data().events_interactions
 
-    changes.find_by_guild(GUILD)
-    changes.find_by_guild(GUILD, types=lifecycle, limit=5)
-    changes.find_by_guild(GUILD, FEATURE, lifecycle, since, 1)
-    changes.count_by_type(GUILD)
-    changes.count_by_type(GUILD, FEATURE, lifecycle, since)
-    changes.delete_by_guild(OTHER_GUILD)
-    changes.delete_by_guild(OTHER_GUILD, FEATURE)
+    await changes.find_by_guild(GUILD)
+    await changes.find_by_guild(GUILD, types=lifecycle, limit=5)
+    await changes.find_by_guild(GUILD, FEATURE, lifecycle, since, 1)
+    await changes.delete_by_guild(OTHER_GUILD)
+    await changes.delete_by_guild(OTHER_GUILD, FEATURE)
 
-    activity.find_by_guild(GUILD)
-    activity.find_by_guild(GUILD, FEATURE, blocked, since, 5)
-    activity.find_by_guild(GUILD, FEATURE, blocked, limit=5, actor_id=MEMBER)
-    activity.find_by_type(["value.blocked_by_permission"], since, 5)
-    activity.count_by_type(blocked)
-    activity.count_by_type(blocked, GUILD, FEATURE, since)
-    activity.count_by_field(GUILD, FEATURE, "props.host", blocked, since, 3)
-    activity.count_by_field(GUILD, FEATURE, "actor.id", blocked)
-    list(activity.iter_between(since, now))
-    activity.delete_by_guild(OTHER_GUILD)
-    activity.delete_by_guild(OTHER_GUILD, FEATURE)
+    await activity.find_by_guild(GUILD)
+    await activity.find_by_guild(GUILD, FEATURE, blocked, since, 5)
+    await activity.find_by_guild(GUILD, FEATURE, blocked, limit=5, actor_id=MEMBER)
+    await activity.count_by_field(GUILD, FEATURE, "props.host", blocked, since, 3)
+    await activity.count_by_field(GUILD, FEATURE, "actor.id", blocked)
+    await read_all(activity.iter_between(since, now))
+    await activity.delete_by_guild(OTHER_GUILD)
+    await activity.delete_by_guild(OTHER_GUILD, FEATURE)
 
-    interactions.find_by_guild(GUILD)
-    interactions.find_by_guild(GUILD, FEATURE, setup, since, 5)
-    interactions.find_by_type(setup)
-    interactions.find_by_type(setup, FEATURE, since, 5)
-    interactions.find_by_session("session", 5)
-    interactions.count_by_type(setup, cog=FEATURE)
-    interactions.count_by_type(setup, GUILD, FEATURE, since)
-    list(interactions.iter_between(since, now))
-    interactions.delete_by_guild(OTHER_GUILD)
+    await interactions.find_by_guild(GUILD)
+    await interactions.find_by_guild(GUILD, FEATURE, setup, since, 5)
+    await interactions.find_by_type(setup)
+    await interactions.find_by_type(setup, FEATURE, since, 5)
+    await interactions.find_by_session("session", 5)
+    await read_all(interactions.iter_between(since, now))
+    await interactions.delete_by_guild(OTHER_GUILD)
 
 
-def drive_guild_settings(now: datetime) -> None:
-    guild_settings.record_join(GUILD, OWNER, {"language": "en-us"})
-    guild_settings.find_settings(GUILD)
-    guild_settings.find_guild_ids_with_settings([GUILD, OTHER_GUILD])
-    guild_settings.set_option(GUILD, "language", "pt-br")
-    guild_settings.count_servers_by_owner(OWNER)
-    guild_settings.find_servers_by_owner(OWNER)
-    guild_settings.count_absent([GUILD, OTHER_GUILD])
-    guild_settings.record_leave(GUILD)
-    admin_service.servers_overview(now)
+async def drive_guild_settings(now: datetime) -> None:
+    settings = data().guild_settings
+    await settings.record_join(GUILD, OWNER, {"language": "en-us"})
+    await settings.find_settings(GUILD)
+    await settings.find_guild_ids_with_settings([GUILD, OTHER_GUILD])
+    await settings.set_option(GUILD, "language", "pt-br")
+    await settings.count_servers_by_owner(OWNER)
+    await settings.find_servers_by_owner(OWNER)
+    await settings.count_absent([GUILD, OTHER_GUILD])
+    await settings.record_leave(GUILD)
+    await admin_service.servers_overview(now)
 
 
-def drive_members() -> None:
+async def drive_members() -> None:
     cog, field = "reminders_birthday", "last_celebrated_year"
-    members.set_member_option(GUILD, MEMBER, cog, {"date": DATE}, display_name="Ana")
-    members.find_member_option(GUILD, MEMBER, cog)
-    members.find_members_by_option(GUILD, cog)
-    members.find_members_by_option(GUILD, cog, {"date": DATE})
-    members.count_members_by_option(GUILD, cog, {"date": DATE})
-    members.claim_member_state(GUILD, MEMBER, cog, field, 2026, "Ana")
-    members.restore_member_state(GUILD, MEMBER, cog, field, 2026, None)
-    members.unset_member_option(GUILD, MEMBER, cog)
-    members.unset_option_in_guild(GUILD, cog)
+    members = data().guild_members
+    await members.set_member_option(GUILD, MEMBER, cog, {"date": DATE}, display_name="Ana")
+    await members.find_member_option(GUILD, MEMBER, cog)
+    await members.find_members_by_option(GUILD, cog)
+    await members.find_members_by_option(GUILD, cog, {"date": DATE})
+    await members.count_members_by_option(GUILD, cog, {"date": DATE})
+    await members.claim_member_state(GUILD, MEMBER, cog, field, 2026, "Ana")
+    await members.restore_member_state(GUILD, MEMBER, cog, field, 2026, None)
+    await members.unset_member_option(GUILD, MEMBER, cog)
+    await members.unset_option_in_guild(GUILD, cog)
 
 
-def drive_schedules(now: datetime) -> None:
-    birthday = schedules.schedule_id("birthday", GUILD, DATE)
-    schedules.upsert_schedule(birthday, "birthday", REMINDER, due_at=now)
-    schedules.find_schedule(birthday)
-    schedules.find_schedule_by_reminder(REMINDER)
-    schedules.find_schedules_by_kind("youtube_renewal")
-    schedules.find_schedules_by_reminder(REMINDER)
-    schedules.find_schedules_by_reminder(REMINDER, "birthday")
-    schedules.find_schedules_missing_reminder("birthday", 50)
-    schedules.set_schedule_due(birthday, now)
-    schedules.extend_schedule_expiry(birthday, now)
-    schedules.delete_schedule_without_reminder(birthday)
-    schedules.delete_schedule(birthday)
+async def drive_schedules(now: datetime) -> None:
+    schedules = data().keiko_schedules
+    birthday = schedule_id("birthday", GUILD, DATE)
+    await schedules.upsert_schedule(birthday, "birthday", REMINDER, due_at=now)
+    await schedules.find_schedule(birthday)
+    await schedules.find_schedule_by_reminder(REMINDER)
+    await schedules.find_schedules_by_kind("youtube_renewal")
+    await schedules.find_schedules_by_reminder(REMINDER)
+    await schedules.find_schedules_by_reminder(REMINDER, "birthday")
+    await schedules.find_schedules_missing_reminder("birthday", 50)
+    await schedules.set_schedule_due(birthday, now)
+    await schedules.extend_schedule_expiry(birthday, now)
+    await schedules.delete_schedule_without_reminder(birthday)
+    await schedules.delete_schedule(birthday)
 
 
-def drive_subscriptions_and_messages(now: datetime) -> None:
-    subscriptions.update_subscription_state("twitch", "streamer", {"last_live_started_at": now})
-    subscriptions.subscription_state("twitch", "streamer")
-    subscriptions.count_subscriptions("twitch")
-    messages.save_message(GUILD, CHANNEL, "notifications_twitch", "streamer", "1")
-    messages.find_message(GUILD, CHANNEL, "notifications_twitch", "streamer")
+async def drive_subscriptions_and_messages(now: datetime) -> None:
+    subscriptions = data().keiko_subscriptions
+    messages = data().guild_messages
+    await subscriptions.update_subscription_state(
+        "twitch", "streamer", {"last_live_started_at": now}
+    )
+    await subscriptions.subscription_state("twitch", "streamer")
+    await subscriptions.count_subscriptions("twitch")
+    await messages.save_message(GUILD, CHANNEL, "notifications_twitch", "streamer", "1")
+    await messages.find_message(GUILD, CHANNEL, "notifications_twitch", "streamer")
 
 
-def drive_analytics(now: datetime) -> None:
-    counts.increment({counts.count_id(GUILD, MONTH): {"days.12.value": 1}}, now)
-    counts.find_by_guild(GUILD)
-    counts.find_by_guild(GUILD, MONTH)
-    counts.find_by_month(MONTH)
-    lifetime.update([
-        lifetime.lifetime_operation(GUILD, inc={"totals.value_events": 1}),
-        lifetime.admin_operation(GUILD, MEMBER, 25),
+async def drive_analytics(now: datetime) -> None:
+    store = data()
+    await store.analytics_counts.increment({count_id(GUILD, MONTH): {"days.12.value": 1}}, now)
+    await store.analytics_counts.find_by_guild(GUILD)
+    await store.analytics_counts.find_by_guild(GUILD, MONTH)
+    await store.analytics_counts.find_by_month(MONTH)
+    await store.analytics_lifetime.update([
+        lifetime_operation(GUILD, inc={"totals.value_events": 1}),
+        admin_operation(GUILD, MEMBER, 25),
     ])
-    lifetime.find_lifetime(GUILD)
-    lifetime.find_lifetimes()
-    lifetime.find_quiet(now)
+    await store.analytics_lifetime.find_lifetime(GUILD)
+    await store.analytics_lifetime.find_lifetimes()
+    await store.analytics_lifetime.find_quiet(now)
     day = f"day:{MONTH}"
-    keiko.increment({day: {"days.12.value": 1}}, now, {day: {"month": MONTH}})
-    keiko.find_counters([f"day:{MONTH}", f"commands:{MONTH}"])
-    runs.insert_runs([{"trace_id": "abc123", "ts": now, "guild_id": GUILD}])
-    analytics.find_archived_month(MONTH)
-    analytics.mark_month_archived(MONTH, {"archived_at": now})
-    admin_service.forget_guild(OTHER_GUILD)
-    for collection in (changes, activity, interactions):
-        collection.delete_by_guild(OTHER_GUILD)
+    await store.analytics_keiko.increment({day: {"days.12.value": 1}}, now, {day: {"month": MONTH}})
+    await store.analytics_keiko.find_counters([f"day:{MONTH}", f"commands:{MONTH}"])
+    await store.traces_runs.insert_runs([{"trace_id": "abc123", "ts": now, "guild_id": GUILD}])
+    await store.guild_analytics_archives.find_archived_month(MONTH)
+    await store.guild_analytics_archives.mark_month_archived(MONTH, {"archived_at": now})
+    await admin_service.forget_guild(OTHER_GUILD)
 
 
-def drive_analytics_reports(now: datetime) -> None:
-    analytics_reports.funnel(FEATURE)
-    analytics_reports.guilds_at_risk()
-    analytics_reports.command_usage(now - timedelta(days=30))
-    analytics_reports._setup_events(None, None, None)
-    analytics_reports._setup_events(FEATURE, GUILD, now)
+async def drive_analytics_reports(now: datetime) -> None:
+    await analytics_reports.funnel(FEATURE)
+    await analytics_reports.guilds_at_risk()
+    await analytics_reports.command_usage(now - timedelta(days=30))
+    await analytics_reports._setup_events(None, None, None)
+    await analytics_reports._setup_events(FEATURE, GUILD, now)
     for feature in (None, FEATURE):
-        analytics_reports.step_durations(feature)
-        analytics_reports.choice_distribution(feature)
-        analytics_reports.friction(feature)
-    analytics_reports.session_events("session")
-    analytics_reports.guild_timeline(GUILD)
+        await analytics_reports.step_durations(feature)
+        await analytics_reports.choice_distribution(feature)
+        await analytics_reports.friction(feature)
+    await analytics_reports.session_events("session")
+    await analytics_reports.guild_timeline(GUILD)
 
 
-def drive_logs_and_backup(now: datetime) -> None:
-    list(logs.iter_logs_for_day(now))
-    logs.update_retention({"checked_at": now})
-    logs.find_retention()
-    list(util.iter_documents("guild", "logs"))
+async def drive_logs_and_backup(now: datetime) -> None:
+    await read_all(data().guild_logs.iter_logs_for_day(now))
+    await data().guild_logs_files.update_retention({"checked_at": now})
+    await data().guild_logs_files.find_retention()
+    await read_all(data().databases.iter_documents("guild", "logs"))
 
 
 def create_collections_read(
@@ -534,13 +520,20 @@ def listed_as(shape: Shape) -> str:
     return f"legacy, removed in {LEGACY[shape]}"
 
 
-def test_every_public_data_function_is_driven(recording: Recording) -> None:
-    public = set(public_functions())
+def test_every_repository_method_is_driven(recording: Recording) -> None:
+    public = set(public_methods(build(_Unreached())))
 
     assert public - recording.driven - NOT_A_QUERY == set(), (
         "drive these in tests/test_query_plans.py, or name them in NOT_A_QUERY"
     )
-    assert NOT_A_QUERY - public == set(), "NOT_A_QUERY names functions app/data lost"
+    assert NOT_A_QUERY - public == set(), "NOT_A_QUERY names methods app/data lost"
+
+
+class _Unreached:
+    """A client the repositories are built over only to be listed."""
+
+    def __getitem__(self, name: str) -> "_Unreached":
+        return self
 
 
 def test_no_query_reads_a_whole_collection_unless_listed(recording: Recording) -> None:

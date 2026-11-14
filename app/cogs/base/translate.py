@@ -1,4 +1,3 @@
-import asyncio
 
 import discord
 from discord import app_commands
@@ -8,6 +7,7 @@ from app.components.embed import response_error_embed, translate_embed
 from app.integrations.google_translate import GoogleTranslate
 from app.translator import locale_str
 from app.types.cogs import Cog
+from app.core.threads import to_thread
 
 
 class Translate(Cog):
@@ -30,7 +30,7 @@ class Translate(Cog):
 
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        response = await asyncio.to_thread(
+        response = await to_thread(
             GoogleTranslate.translate, message.content, reader
         )
         if not response:

@@ -80,7 +80,7 @@ jobs:
       - name: Pull the version
         run: docker pull ${{ env.REGISTRY }}:${{ env.VERSION }}
 
-      - name: Run the migrations with the new image
+      - name: Check the migrations with the new image
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -94,7 +94,25 @@ jobs:
           }
           migrations status
           migrations migrate --dry-run
-          migrations migrate
+
+      - name: Stop the running container and migrate
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          migrations() {
+            docker run --rm \
+              -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_REGION \
+              -e APP_VERSION="$VERSION" \
+              ${{ env.REGISTRY }}:${{ env.VERSION }} python -m app.migrations "$@"
+          }
+          docker stop -t "$STOP_GRACE_SECONDS" keiko-bot || true
+          if ! migrations migrate; then
+            echo "The migration failed: starting the version that was running again."
+            docker start keiko-bot || true
+            exit 1
+          fi
 
       - name: Replace the running container
         env:
@@ -102,7 +120,6 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: ${{ secrets.AWS_REGION }}
         run: |
-          docker stop -t "$STOP_GRACE_SECONDS" keiko-bot || true
           docker rm keiko-bot || true
           docker run -d --name keiko-bot --restart unless-stopped \
             -p 127.0.0.1:5000:5000 -p 127.0.0.1:8000:8000 \

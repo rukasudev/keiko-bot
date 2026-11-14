@@ -29,6 +29,7 @@ import pytest
 
 from app.constants import Commands, KeikoIcons
 from app.core.utils import ml
+from tests.mocks.database import fake_store
 from tests.behavioral.contracts.test_components_v2_limits import _assert_within_limits
 from tests.behavioral.harness.locators import dispatch_click, walk_items
 from tests.behavioral.golden.paths.common import seed_document, seed_history
@@ -69,7 +70,7 @@ def speaks(locale):
     from app.data.guild import settings as guild_settings
     from app.core import cache
 
-    recorded_server(guild_settings.mongo_client, GUILD_ID, language=locale)
+    recorded_server(fake_store(), GUILD_ID, language=locale)
     cache.reset()
 
 
@@ -1012,13 +1013,16 @@ async def test_the_first_page_reads_each_feature_document_once(configured, monke
     from app.services import setup
 
     read = []
-    original = setup.find_cog_by_guild_id_async
+    from app.data import data
+
+    cogs = data().guild_cogs
+    original = cogs.find_cog_by_guild_id
 
     async def counted(guild_id, command_key):
         read.append(command_key)
         return await original(guild_id, command_key)
 
-    monkeypatch.setattr(setup, "find_cog_by_guild_id_async", counted)
+    monkeypatch.setattr(cogs, "find_cog_by_guild_id", counted)
     await setup.setup_dashboard(GUILD_ID)
 
     assert sorted(read) == sorted(spec["command_key"] for spec in Commands.SETUP_FEATURES)

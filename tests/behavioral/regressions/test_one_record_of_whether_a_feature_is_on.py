@@ -42,11 +42,11 @@ import pytest
 from pymongo.errors import AutoReconnect
 from redis.exceptions import ConnectionError as RedisConnectionError
 
+from app.data import data, wait
 from app.constants import Commands
 from app.core import cache
 from app.core.servers import set_feature_enabled
 from app.core.utils import ml
-from app.data.guild import settings as guild_settings
 from app.services.reminders_birthdays import save_birthday_config
 from app.services.setup import category_page, permission_report
 from app.settings.features import feature_for
@@ -55,7 +55,6 @@ from app.settings.form.form_state import Answer
 from tests.behavioral.contracts.test_setup_dashboard import EVERYTHING
 from tests.behavioral.contracts.test_setup_dashboard import guild as server
 from tests.behavioral.harness.locators import walk_items
-from app.data.guild.cogs import find_cog_by_guild_id, insert_cog_by_guild_id
 from tests.generators.moderations import recorded_server, seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
@@ -204,13 +203,13 @@ async def test_every_change_writes_only_the_document(deps):
     key = Commands.DEFAULT_ROLES_KEY
 
     await feature.commit("setup", {"answers": answers}, context())
-    assert find_cog_by_guild_id(GUILD_ID, key)["enabled"] is True
+    assert (await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, key))["enabled"] is True
     await feature.commit("pause", {}, context(AUTO_ROLES))
-    assert find_cog_by_guild_id(GUILD_ID, key)["enabled"] is False
+    assert (await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, key))["enabled"] is False
     await feature.commit("unpause", {}, context(AUTO_ROLES))
-    assert find_cog_by_guild_id(GUILD_ID, key)["enabled"] is True
+    assert (await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, key))["enabled"] is True
     await feature.commit("disable", {}, context(AUTO_ROLES))
-    assert find_cog_by_guild_id(GUILD_ID, key) is None
+    assert await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, key) is None
     assert deps.mongo_client.guild.moderations.count_documents({}) == 0, (
         "a change wrote the retired moderations flag"
     )
@@ -219,36 +218,35 @@ async def test_every_change_writes_only_the_document(deps):
 async def test_a_failed_pause_leaves_the_cache_agreeing_with_the_document(
     deps, monkeypatch
 ):
-    from app.core import servers
 
     seed_cog(deps.mongo_client, Commands.BLOCK_LINKS_KEY, dict(BLOCK_LINKS))
     cache.get_cog_data_or_populate(GUILD_ID, Commands.BLOCK_LINKS_KEY)
 
-    def refused(*args, **kwargs):
+    async def refused(*args, **kwargs):
         raise AutoReconnect("connection closed")
 
-    monkeypatch.setattr(servers.guild_cogs, "update_cog_by_guild", refused)
+    monkeypatch.setattr(deps.data.guild_cogs, "update_cog_by_guild", refused)
 
     with pytest.raises(AutoReconnect):
         await feature_for(Commands.BLOCK_LINKS_KEY).commit(
             "pause", {}, context(BLOCK_LINKS)
         )
 
-    assert find_cog_by_guild_id(GUILD_ID, Commands.BLOCK_LINKS_KEY)["enabled"] is True
+    assert (await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, Commands.BLOCK_LINKS_KEY))["enabled"] is True
     assert cache.get_cog_data_or_populate(GUILD_ID, Commands.BLOCK_LINKS_KEY)["answer"], (
         "the pause was not saved and the cache said block links was off"
     )
 
 
 async def test_disabling_birthdays_leaves_nothing_on(deps):
-    save_birthday_config(
+    await save_birthday_config(
         GUILD_ID, "100", False, notification_time="08:00"
     )
-    set_feature_enabled(GUILD_ID, BIRTHDAYS, True)
+    await set_feature_enabled(GUILD_ID, BIRTHDAYS, True)
 
     await feature_for(BIRTHDAYS).commit("disable", {}, context())
 
-    assert find_cog_by_guild_id(GUILD_ID, BIRTHDAYS) is None
+    assert await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, BIRTHDAYS) is None
     row = await setup_row(BIRTHDAYS)
     assert row.accessory.label == SET_UP
 
@@ -276,7 +274,7 @@ async def test_editing_paused_birthdays_keeps_them_paused(deps):
         "edit", {"answers": {"notification_time": Answer("10:00")}}, context()
     )
 
-    config = find_cog_by_guild_id(GUILD_ID, BIRTHDAYS)
+    config = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, BIRTHDAYS)
     assert config["enabled"] is False, "an edit turned paused birthdays back on"
     assert config["notification_time"] == "10:00"
 
@@ -288,7 +286,7 @@ async def test_a_setup_records_birthdays_as_on_over_a_paused_document(deps):
 
     await birthdays.commit("setup", {"answers": BIRTHDAY_SETUP}, context())
 
-    config = find_cog_by_guild_id(GUILD_ID, BIRTHDAYS)
+    config = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, BIRTHDAYS)
     assert config["enabled"] is True, "the document still said paused"
     row = await setup_row(BIRTHDAYS)
     assert PAUSED not in subtext_of(row)
@@ -340,16 +338,16 @@ def seed_left_guild(deps):
     )
 
 
-def assert_nothing_on(deps):
+async def assert_nothing_on(deps):
     still_on = [
         key
         for key in FEATURES
         if (
-            find_cog_by_guild_id(LEFT_GUILD_ID, key) or {}
+            await data().guild_cogs.find_cog_by_guild_id(LEFT_GUILD_ID, key) or {}
         ).get("enabled")
     ]
     assert still_on == [], f"features still on in a guild Keiko left: {still_on}"
-    server = guild_settings.find_settings(LEFT_GUILD_ID)
+    server = await data().guild_settings.find_settings(LEFT_GUILD_ID)
     assert server["present"] is False and server["left_at"] is not None
 
 
@@ -358,7 +356,7 @@ async def test_a_guild_keiko_left_has_nothing_on(deps, events):
 
     await events.on_guild_remove(guild)
 
-    assert_nothing_on(deps)
+    await assert_nothing_on(deps)
     paused = sorted(
         key
         for key in FEATURES
@@ -395,33 +393,33 @@ async def test_a_guild_keiko_left_while_redis_is_down_costs_one_redis_call(
 
     await events.on_guild_remove(guild)
 
-    assert_nothing_on(deps)
+    await assert_nothing_on(deps)
     assert len(calls) == 1, f"{len(calls)} Redis timeouts for one guild leaving"
 
 
-async def test_leaving_a_guild_is_one_call_a_worker_thread_can_run(deps):
-    """What `on_guild_remove` hands to `asyncio.to_thread` once it moves off the loop."""
+async def test_leaving_a_guild_is_one_awaited_call(deps):
+    """What `on_guild_remove` awaits for the guild Keiko left."""
     from app.core.servers import leave_guild
 
     seed_left_guild(deps)
     cache.get_cog_data_or_populate(LEFT_GUILD_ID, Commands.BLOCK_LINKS_KEY)
 
-    await asyncio.to_thread(leave_guild, LEFT_GUILD_ID, "99")
+    await leave_guild(LEFT_GUILD_ID, "99")
 
-    assert_nothing_on(deps)
+    await assert_nothing_on(deps)
     assert deps.redis_client.keys(f"cache:cog:{LEFT_GUILD_ID}:*") == []
 
 
 def test_a_server_holds_one_document_per_cog_by_its_id(deps):
     for _attempt in range(2):
-        insert_cog_by_guild_id(Commands.BLOCK_LINKS_KEY, dict(BLOCK_LINKS))
+        wait(data().guild_cogs.insert_cog_by_guild_id(Commands.BLOCK_LINKS_KEY, dict(BLOCK_LINKS)))
 
     saved = list(deps.mongo_client.guild.cogs.find({"guild_id": GUILD_ID}))
     assert [document["_id"] for document in saved] == [f"{GUILD_ID}:block_links"]
 
 
 def test_turning_on_a_feature_a_server_never_saved_creates_nothing(deps):
-    set_feature_enabled(UNRECORDED_GUILD_ID, Commands.BLOCK_LINKS_KEY, True)
+    wait(set_feature_enabled(UNRECORDED_GUILD_ID, Commands.BLOCK_LINKS_KEY, True))
 
-    assert find_cog_by_guild_id(UNRECORDED_GUILD_ID, Commands.BLOCK_LINKS_KEY) is None
+    assert wait(data().guild_cogs.find_cog_by_guild_id(UNRECORDED_GUILD_ID, Commands.BLOCK_LINKS_KEY)) is None
     assert deps.mongo_client.guild.moderations.count_documents({}) == 0
