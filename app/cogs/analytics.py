@@ -8,7 +8,7 @@ from app.bot import DiscordBot, write_queues
 from app.constants import Commands as constants
 from app.constants import LogTypes as logconstants
 from app.services import admin_digest
-from app.core import analytics, analytics_sink, debug_logs, logs_archive
+from app.core import analytics, analytics_sink, debug_logs, logs_archive, trace
 
 
 class Analytics(commands.Cog):
@@ -23,6 +23,7 @@ class Analytics(commands.Cog):
 
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
+        trace.register_sink(trace.keep_run)
         self.flush_events.start()
         self.send_weekly_digest.start()
         self.export_daily_logs.start()
@@ -57,8 +58,8 @@ class Analytics(commands.Cog):
 
     @tasks.loop(time=time(hour=constants.ANALYTICS_DIGEST_HOUR))
     async def send_weekly_digest(self) -> None:
-        """Fires daily, acts on Mondays — the loop has no weekly cadence."""
-        if datetime.now().weekday() != constants.ANALYTICS_DIGEST_WEEKDAY:
+        """Fires daily at its UTC hour and acts on Mondays in UTC."""
+        if datetime.now(timezone.utc).weekday() != constants.ANALYTICS_DIGEST_WEEKDAY:
             return
 
         channel = self.bot.get_channel(self.bot.config.ADMIN_LOGS_CHANNEL_ID)

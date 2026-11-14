@@ -2,9 +2,10 @@
 
 Two kinds of read, and only the first one is cheap by construction:
 
-- **behavior** — the guild profile and the monthly buckets, never a scan of raw
-  events, so a funnel or a churn screen costs one document instead of a
-  collection sweep;
+- **behavior** — a server's lifetime and its monthly counts, so a funnel or a
+  churn screen reads documents the sink already added up; the setup reports
+  (drop-off, friction, step times) still rebuild sessions from the raw events of
+  the last 90 days;
 - **configuration** — `config_usage` reads what guilds actually saved, through
   `cogs.feature_config_states`. That is a read per feature, and a feature with
   its own persistence pays a few reads per configured guild. It is bounded by
@@ -14,12 +15,12 @@ Two kinds of read, and only the first one is cheap by construction:
 Reference: docs/analytics.md
 """
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, Iterable, List, Optional, Set
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 from app.constants import Commands as constants
 from app.constants import FormConstants as form_constants
 from app.constants import ViewConstants as view_constants
-from app.data import analytics as analytics_data
+from app.data.analytics import keiko, lifetime
 from app.data.events import activity, changes, interactions
 from app.core import analytics
 from app.core import cogs as cogs_service
@@ -194,7 +195,7 @@ def value_metrics() -> Dict[str, str]:
     return {
         metric_key(event, feature): feature
         for feature in constants.COMMANDS_LIST
-        for event in ("value.delivered", "link.blocked")
+        for event in analytics.value_events()
     }
 
 
@@ -206,9 +207,11 @@ def window_days(since: datetime) -> Set[str]:
     }
 
 
-def value_counts(buckets: Iterable[Dict[str, Any]], since: datetime) -> Dict[str, int]:
-    """Deliveries per feature since `since`, summed from the month buckets given."""
-    wanted = value_metrics()
+def window_totals(
+    buckets: Iterable[Dict[str, Any]], since: datetime, wanted: Dict[str, str]
+) -> Dict[str, int]:
+    """The counts of the metrics `wanted` names since `since`, summed under the label
+    each maps to, from month documents shaped `{month, days: {dd: {metric: n}}}`."""
     days = window_days(since)
 
     totals: Dict[str, int] = {}
@@ -218,15 +221,43 @@ def value_counts(buckets: Iterable[Dict[str, Any]], since: datetime) -> Dict[str
             if f"{month}|{day}" not in days:
                 continue
             for metric, count in metrics.items():
-                feature = wanted.get(metric)
-                if feature:
-                    totals[feature] = totals.get(feature, 0) + count
+                label = wanted.get(metric)
+                if label and isinstance(count, int):
+                    totals[label] = totals.get(label, 0) + count
     return totals
+
+
+def value_counts(buckets: Iterable[Dict[str, Any]], since: datetime) -> Dict[str, int]:
+    """Deliveries per feature since `since`, summed from the month documents given."""
+    return window_totals(buckets, since, value_metrics())
+
+
+def window_months(since: datetime) -> List[str]:
+    """Every month from `since` to this one, as `YYYY-MM`."""
+    return sorted({day.split("|", 1)[0] for day in window_days(since)})
+
+
+def command_usage(since: datetime) -> Tuple[Dict[str, int], Dict[str, int]]:
+    """Each command's calls and failures since `since`, from Keiko's monthly counters."""
+    days = window_days(since)
+    calls: Dict[str, int] = {}
+    failures: Dict[str, int] = {}
+
+    counter_ids = [f"commands:{month}" for month in window_months(since)]
+    for document in keiko.find_counters(counter_ids):
+        for day, commands in (document.get("days") or {}).items():
+            if f"{document.get('month')}|{day}" not in days:
+                continue
+            for name, tallies in commands.items():
+                calls[name] = calls.get(name, 0) + (tallies.get("invoked") or 0)
+                failures[name] = failures.get(name, 0) + (tallies.get("failed") or 0)
+
+    return calls, failures
 
 
 def feature_history(guild_id: str, feature: str) -> Dict[str, Any]:
     """How long a feature has been on and how much value it delivered."""
-    profile = analytics_data.find_profile(guild_id) or {}
+    profile = lifetime.find_lifetime(guild_id) or {}
     stats = (profile.get("features") or {}).get(feature) or {}
     return {
         "days_since_enabled": days_since(stats.get("completed_at")),
@@ -235,8 +266,8 @@ def feature_history(guild_id: str, feature: str) -> Dict[str, Any]:
 
 
 def guild_snapshot(guild_id: str) -> Dict[str, Any]:
-    """The frozen profile a removal event reports, read as one document."""
-    profile = analytics_data.find_profile(guild_id) or {}
+    """The frozen lifetime a removal event reports, read as one document."""
+    profile = lifetime.find_lifetime(guild_id) or {}
     features = profile.get("features") or {}
     totals = profile.get("totals") or {}
 
@@ -259,28 +290,33 @@ def guild_snapshot(guild_id: str) -> Dict[str, Any]:
         "setups_discarded": totals.get("setups_discarded") or 0,
         "value_events": totals.get("value_events") or 0,
         "permission_failures": totals.get("permission_failures") or 0,
-        "distinct_admins": len(profile.get("admins") or []),
+        "distinct_admins": profile.get("admins_count") or 0,
         "greeting_sent": bool(profile.get("greeting_sent_at")),
         "first_feature": first_feature,
     }
 
 
-def funnel(feature: str) -> Dict[str, int]:
-    """Setup opened -> completed -> first value -> value on a second day."""
-    counts = interactions.count_by_type(
-        ["feature.setup_opened", "setup.completed", "setup.discarded"], cog=feature
-    )
-    opened = counts.get("feature.setup_opened", 0)
-    completed = counts.get("setup.completed", 0)
-    discarded = counts.get("setup.discarded", 0)
+def funnel(
+    feature: str, lifetimes: Optional[List[Dict[str, Any]]] = None
+) -> Dict[str, int]:
+    """Servers that opened the setup -> completed it -> got a first value -> got value
+    on a second day, every step counted on the same lifetimes, so no step can hold a
+    server the step before it lost."""
+    opened = completed = discarded = activated = recurring = 0
 
-    activated = 0
-    recurring = 0
-    for profile in analytics_data.find_profiles():
+    for profile in lifetime.find_lifetimes() if lifetimes is None else lifetimes:
         stats = (profile.get("features") or {}).get(feature) or {}
-        if stats.get("first_value_at"):
-            activated += 1
-        if _distinct_value_days(profile.get("_id"), feature) >= 2:
+        if not (stats.get("opened_at") or stats.get("completed_at")):
+            continue
+        opened += 1
+        discarded += 1 if stats.get("setups_discarded") else 0
+        if not stats.get("completed_at"):
+            continue
+        completed += 1
+        if not stats.get("first_value_at"):
+            continue
+        activated += 1
+        if _different_days(stats["first_value_at"], stats.get("last_value_at")):
             recurring += 1
 
     return {
@@ -292,6 +328,10 @@ def funnel(feature: str) -> Dict[str, int]:
     }
 
 
+def _different_days(first: datetime, last: Optional[datetime]) -> bool:
+    return isinstance(last, datetime) and last.date() != first.date()
+
+
 SETUP_SESSION_EVENTS = (
     "feature.setup_opened",
     "setup.step_viewed",
@@ -300,6 +340,7 @@ SETUP_SESSION_EVENTS = (
     "setup.step_back",
     "setup.completed",
     "setup.discarded",
+    "setup.abandoned",
 )
 
 
@@ -362,6 +403,9 @@ def setup_sessions(
         elif name == "setup.discarded":
             session["outcome"] = "discarded"
             session["last_step"] = props.get("step_key") or session["last_step"]
+        elif name == "setup.abandoned" and not session["outcome"]:
+            session["outcome"] = "expired"
+            session["last_step"] = props.get("step_key") or session["last_step"]
 
     for session in sessions.values():
         session["outcome"] = session["outcome"] or _expired_or_open(session["last_seen"])
@@ -389,7 +433,8 @@ def _setup_events(
 
 
 def _expired_or_open(last_seen: Optional[datetime]) -> str:
-    """The view dies after LONG_TIMEOUT_SECONDS, so it cannot finish after that."""
+    """A session that recorded no end: the view dies after LONG_TIMEOUT_SECONDS, so it
+    cannot finish after that."""
     if not isinstance(last_seen, datetime):
         return "open"
     reference = last_seen if last_seen.tzinfo else last_seen.replace(tzinfo=timezone.utc)
@@ -501,10 +546,12 @@ def friction(feature: Optional[str] = None) -> List[Dict[str, Any]]:
     return sorted(rows, key=lambda row: row["failures"], reverse=True)
 
 
-def abandoned_features(days: int = 14) -> List[Dict[str, Any]]:
+def abandoned_features(
+    days: int = 14, lifetimes: Optional[List[Dict[str, Any]]] = None
+) -> List[Dict[str, Any]]:
     """Configured and never delivered anything — the actionable failure."""
     rows = []
-    for profile in analytics_data.find_profiles():
+    for profile in lifetime.find_lifetimes() if lifetimes is None else lifetimes:
         for feature, stats in (profile.get("features") or {}).items():
             age = days_since(stats.get("completed_at"))
             if age is None or age < days or stats.get("first_value_at"):
@@ -518,19 +565,25 @@ def abandoned_features(days: int = 14) -> List[Dict[str, Any]]:
 
 
 def guilds_at_risk(quiet_days: int = 14) -> List[Dict[str, Any]]:
+    """Servers Keiko is in with no value for `quiet_days`: quiet since their last value,
+    or since they added Keiko when none ever came (an unknown arrival is kept, last)."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=quiet_days)
     rows = []
-    for profile in analytics_data.find_profiles():
-        if profile.get("removed_at"):
-            continue
-        quiet = days_since(profile.get("last_value_at"))
-        if quiet is None or quiet < quiet_days:
+    for profile in lifetime.find_quiet(cutoff):
+        quiet = days_since(profile.get("last_value_at") or profile.get("joined_at"))
+        if quiet is not None and quiet < quiet_days:
             continue
         rows.append({
             "guild_id": profile.get("_id"),
             "days_quiet": quiet,
+            "never_delivered": not profile.get("last_value_at"),
             "value_events": (profile.get("totals") or {}).get("value_events") or 0,
         })
-    return sorted(rows, key=lambda row: row["days_quiet"], reverse=True)
+    return sorted(
+        rows,
+        key=lambda row: (row["days_quiet"] is not None, row["days_quiet"] or 0),
+        reverse=True,
+    )
 
 
 def _report_events(event_type: str, feature: Optional[str]) -> List[Dict[str, Any]]:
@@ -574,7 +627,7 @@ def guild_timeline(guild_id: str, limit: int = None) -> List[Dict[str, Any]]:
 def churn_comparison() -> Dict[str, Dict[str, Any]]:
     """Removed versus retained, always reported with the population size."""
     removed, retained = [], []
-    for profile in analytics_data.find_profiles():
+    for profile in lifetime.find_lifetimes():
         (removed if profile.get("removed_at") else retained).append(profile)
 
     return {
@@ -598,16 +651,6 @@ def _population(profiles: List[Dict[str, Any]]) -> Dict[str, Any]:
         "pct_with_value": round(100 * with_value / total),
         "avg_setups_completed": round(completed / total, 1),
     }
-
-
-def _distinct_value_days(guild_id: str, feature: str) -> int:
-    days = set()
-    for bucket in analytics_data.find_month_buckets(guild_id):
-        for day, metrics in (bucket.get("days") or {}).items():
-            for event in ("value.delivered", "link.blocked"):
-                if metrics.get(metric_key(event, feature)):
-                    days.add(f"{bucket.get('month')}-{day}")
-    return len(days)
 
 
 def pipeline_health() -> Dict[str, int]:

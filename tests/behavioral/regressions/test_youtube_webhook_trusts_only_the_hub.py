@@ -110,7 +110,7 @@ MRBEAST = "UCX6OQ3DkcsbYNE6H8uQQuVA"
 STRANGER = "UC-stranger-channel-0000"
 TOPIC = "https://www.youtube.com/xml/feeds/videos.xml?channel_id={}"
 VIDEO_LINK = "https://www.youtube.com/watch?v=video-1"
-CLAIM = "youtube:video:video-1:notified"
+CLAIM = "claim:youtube:video:video-1"
 HOSTILE_BODY = (
     "<yt:videoId></yt:videoId><yt:channelId></yt:channelId><published></published>" * 1000
 ).encode()[: 64 * 1024]

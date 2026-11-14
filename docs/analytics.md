@@ -165,7 +165,9 @@ link.blocked:
 - `collection` — `changes`, `activity`, `interactions` or `none` (section 1).
   Retention is the collection's, enforced by its TTL index
   (`EVENTS_ACTIVITY_TTL_SECONDS`, `EVENTS_INTERACTIONS_TTL_SECONDS`; a change
-  has none), so an event declares no retention of its own.
+  has none), so an event declares no retention of its own. Every event, document
+  or not, is counted by the sink (`analytics.counts`, `analytics.keiko`) and
+  advances the server's lifetime when a rule names it.
 - `actor` — the kind `record` gives the actor when the call names none:
   `user`, `bot` or `job`.
 - `required`/`optional` — the props. Anything else is dropped and counted in
@@ -174,6 +176,14 @@ link.blocked:
   props, kept on the events a report reads them from.
 - `private` — props kept in the database and left out of the monthly archive
   (a blocked link's address).
+- `counts_as_value` — the event is a feature doing its job: the sink advances the
+  lifetime's value fields with it, and the reports count it as delivered value
+  (`value.delivered`, `link.blocked`).
+- `keiko_tally` — `{name, kind, prop}`: the sink adds the event to Keiko's own
+  `{name}:total` and `{name}:{kind}:{prop value}` counters (`blocked:site:{host}`).
+- `keiko_wide` — the event is about Keiko itself and names no server, whatever the
+  trace's (`keiko.settings_changed`, written when an operator changes Keiko's
+  presence or its operator ids).
 
 ### The envelope
 
@@ -198,7 +208,8 @@ or changes meaning.
 
 The events live in the `events` database (`app/data/events/`, one module per
 collection, every function taking the server, the cog and the types as
-parameters), the numbers in the `guild` database for now; every index is
+parameters); every number derived from them lives in the `analytics` database,
+and only the sink (`app/core/analytics_sink.py`) writes it. Every index is
 declared by the migrations in `app/migrations/schema/` (`docs/migrations.md`):
 
 | Collection | Shape | Retention |
@@ -206,9 +217,11 @@ declared by the migrations in `app/migrations/schema/` (`docs/migrations.md`):
 | `events.changes` | one document per change; indexes `{guild_id, -ts}`, `{guild_id, cog, -ts}`, `{guild_id, cog, type, -ts}` | kept |
 | `events.activity` | one document per thing a command did (`link.blocked`, `value.blocked_by_permission`, `guild.greeting_sent`); indexes `{guild_id, -ts}`, `{guild_id, cog, -ts}`, `{guild_id, cog, actor.id, -ts}`, `{type, -ts}` | TTL 90 days on `ts`; each month also goes out as a file (below) |
 | `events.interactions` | one document per thing someone asked for (commands, failures, setups and their steps, help, dashboard, reports); indexes `{guild_id, -ts}`, `{type, -ts}`, `{type, cog, -ts}`, `{session_id, ts}` | TTL 90 days on `ts`; each month also goes out as a file |
-| `analytics_guild_month` | bucket per guild per month: `days.<dd>.<metric>` counters | TTL 400 days on `updated_at` |
-| `analytics_guild_profile` | one document per guild, the derived state, plus its current size | TTL 365 days **after** `removed_at` |
-| `analytics_archives` | one document per month already posted as a file: `_id` the month (`2026-09`), `posted_at`, `events`, `files` | kept, twelve a year |
+| `analytics.counts` | `{_id: "{guild}\|YYYY-MM", guild_id, month, days: {dd: {metric: n}}}`, every event of a server counted by day | TTL 400 days on `updated_at` |
+| `analytics.lifetime` | `{_id: guild_id, ...}`, the state a server's events add up to, plus its current size | TTL 365 days **after** `removed_at` |
+| `analytics.keiko` | Keiko's own counters, every server summed: `day:YYYY-MM`, `commands:YYYY-MM`, `blocked:total`, `blocked:site:{host}` | kept; they name no server and no member |
+| `traces.runs` | one document per trace that failed, logged an error or was slow: an ObjectId `_id` (a trace id is six hex characters and can repeat inside 30 days), the `trace_id` as a field; index `{guild_id, -ts}` | TTL 30 days on `ts` |
+| `guild.analytics_archives` | one document per month already posted as a file: `_id` the month (`2026-09`), `posted_at`, `events`, `files` | kept, twelve a year |
 
 The reason `value.delivered` has no document is the free tier. A delivery event
 per welcome message at a thousand guilds is hundreds of thousands of documents a
@@ -222,29 +235,39 @@ most `EVENTS_HISTORY_READ_LIMIT`, the /admin guild timeline
 member are aggregations (`count_by_type`, `count_by_field`), never a read of
 every document.
 
-`metric_key` replaces dots in an event name (`value.delivered` →
-`value_delivered`) because Mongo reads a dot in an update path as nesting.
+`metric_key` replaces dots in an event name (`value.delivered|welcome_messages`
+becomes `value_delivered|welcome_messages`) because Mongo reads a dot in an update
+path as nesting. An event that carries `command` is also counted as
+`type|cog|command` (`command_invoked||help` when it has no cog).
 
-The guild profile is what every dashboard reads, so a screen costs one document
+`analytics.keiko` holds, per month, `day:YYYY-MM` (`days.dd.metric`, every server
+summed) and `commands:YYYY-MM` (`days.dd.{command}.{invoked, failed,
+errors.{error_type}, ms.{bucket}}`); the latency bucket comes from the trace that
+closes a command, by the edges `Commands.COMMAND_LATENCY_EDGES_MS`.
+
+The lifetime is what every dashboard reads, so a screen costs one document
 instead of a collection scan. It is also the frozen snapshot `guild.removed`
 reports — which is why that event is emitted **before**
-`remove_all_cache_by_guild` runs in `on_guild_remove`. A rule of `PROFILE_RULES`
-may carry `when`, the props an event must have to advance the profile: only a
-`guild.greeting_sent` with `channel_found: true` stamps `greeting_sent_at`, while
-the event itself is stored either way.
+`remove_all_cache_by_guild` runs in `on_guild_remove`. `LIFETIME_RULES` declares
+how each event advances it, and a rule may carry `when`, the props an event must
+have: only a `guild.greeting_sent` with `channel_found: true` stamps
+`greeting_sent_at`, while the event itself is stored either way.
+`feature.enabled` clears `disabled_at` and `paused_at`, so a feature turned off
+and on again is active again. The admins a server had are kept once each, up to
+`Commands.ANALYTICS_LIFETIME_ADMINS_MAX`, and counted in `admins_count`.
 
 ### The current size of a guild
 
-`guild.joined` carries the size bucket of the day Keiko joined, and the profile
+`guild.joined` carries the size bucket of the day Keiko joined, and the lifetime
 kept none, so no report could compare large servers with small ones. Once a day
 (`Analytics.measure_guild_sizes`, `app/cogs/analytics.py`, at
 `ANALYTICS_ARCHIVE_HOUR:ANALYTICS_ARCHIVE_MINUTE` UTC) every guild Keiko is in
-that has a profile gets `size_bucket` (the same `bucket_size` vocabulary as
+that has a lifetime gets `size_bucket` (the same `bucket_size` vocabulary as
 `guild.joined`: `<50`, `50-500`, `500-5k`, `5k+`) and `size_measured_at` on it,
 in one bulk write off the loop (`analytics_sink.record_guild_sizes`). It is a measurement, not an event: nothing goes
-to the event collections or the queue, and the profile is written through the same
-`build_profile_operation` the sink uses, with `upsert=False`. It never creates a
-profile: a profile is still born from a guild's first event, so the reports keep
+to the event collections or the queue, and the lifetime is written through the same
+`lifetime_operation` the sink uses, with `upsert=False`. It never creates a
+lifetime: a lifetime is still born from a guild's first event, so the reports keep
 counting the guilds they counted, and a guild `/admin forget` erased stays
 erased. A guild whose member count Discord does not report is left as it was.
 
@@ -320,9 +343,8 @@ age -d -i key.txt keiko_events_2026-09.jsonl.gz.age | gunzip | mongoimport --db 
 
 ### Redis
 
-Only the hot window, under `guild:{guild_id}:analytics:*`, and **every key has
-an `EXPIRE`** (`increment_redis_key_with_expiration`). A counter without a TTL
-in a shared keyspace is how a free tier dies.
+The sink writes no Redis key. No feature counts in Redis either: command calls and
+errors are `command.invoked` and `command.failed`, counted in `analytics.keiko`.
 
 ### Keiko's own block links record
 
@@ -335,18 +357,24 @@ days' sites and members with an aggregation, and a site or a member older than
 that is no longer named (D5 of database PR 2). Disabling the feature deletes the
 server's block links activity.
 
-Not an event, but kept beside them: every blocked link is also counted in
-`guild.block_links_totals` (`count_blocked_links`, `app/data/block_links.py`),
-in the worker thread that records it and the server's counters. It
-names no server and no member, so it is kept for good: `{_id: "total",
-blocked}` and one `{_id: "site:<host>", host, blocked}` per site, added with
-`$inc`. A site is the full host as it was blocked (`www.` dropped, subdomains
-kept: `cdn.spam-site.com` and `spam-site.com` are two sites), never a path or a
-link, and it is a value, never a field name, since a host has dots. "Which links
-Keiko blocks most" is `find({"host": {"$exists": true}}).sort("blocked", -1)`.
-The server's own counters, a Redis hash with per-site and per-member counts,
-expire 400 days after its last block and go when Keiko leaves; this record
-stays.
+Each `link.blocked` also adds one to `analytics.keiko` `blocked:total` and to
+`blocked:site:{host}` (`{_id, host, blocked}`), written by the sink from the
+event's `keiko_tally`. It names no server and no member, so it is kept for good. A
+site is the full host as it was blocked (`www.` dropped, subdomains kept), never a
+path or a link. "Which links Keiko blocks most" is
+`find({"host": {"$exists": true}}).sort("blocked", -1)`. A server's own all-time
+total is its lifetime's `features.block_links.value_count`; per site and per
+member only the records of the last 90 days remain.
+
+### The runs worth reading again
+
+`trace.keep_run`, a trace sink, queues a closed trace that failed, logged an error
+or took longer than `Commands.TRACE_RUNS_SLOW_MS`, unless another trace superseded
+it, and the latency of the trace that closes a command. `journey.finalize` does the
+same for a form session that failed or outlasted
+`Commands.TRACE_RUNS_SLOW_SESSION_MS`. The 5 s flush writes them with the events
+(`analytics_sink.persist_runs`): the run to `traces.runs` with its bounded lines, the
+latency to `analytics.keiko`.
 
 ## 6. Privacy
 
@@ -365,8 +393,9 @@ a real flow and asserts it appears in no event. That makes the privacy rule
 executable instead of documented.
 
 `/admin forget <guild_id>` erases every analytics record of a guild
-(`admin.forget_guild`): its changes, activity and interactions, its month buckets
-and its profile. The monthly
+(`admin.forget_guild`): its events (`events.*`, and the raw events, audit rows and
+block records of before), its counts and lifetime (and the buckets and profile of
+before) and its runs. The monthly
 events archive holds nothing to erase, since it names no guild; the daily log
 export does, and a file already posted is out of its reach until the logs files
 channel deletes it, 90 days after it was posted.
@@ -785,11 +814,11 @@ id. A StreamElements outage follows the same rule for the same reason: it is new
 about a streamer, not about the member who typed `ke!commands`, so
 `warn_unavailable` (`app/services/stream_elements.py`) logs it outside any trace,
 only when it is the call that claims the streamer's warning mark in Redis
-(`Commands.REDIS_STREAM_ELEMENTS_WARNED`, set if absent for
+(`Commands.REDIS_STREAM_ELEMENTS_WARNED_THROTTLE`, set if absent for
 `Commands.STREAM_ELEMENTS_FAILURE_SECONDS`), whichever path met it (a command in
 chat, the panel's command list or its count) and whichever process. That mark only
 throttles the warning: a failed channel lookup keeps its own mark
-(`REDIS_STREAM_ELEMENTS_CHANNEL_FAILED`, `STREAM_ELEMENTS_CHANNEL_FAILED_SECONDS`),
+(`REDIS_STREAM_ELEMENTS_CHANNEL_THROTTLE`, `STREAM_ELEMENTS_CHANNEL_FAILED_SECONDS`),
 and a failed command fetch sets neither the channel mark nor any retry block. The member and the
 admin get Keiko's error embed; no event is added, and
 `keiko_dependency_latency_seconds{dependency="stream_elements"}` is still what
@@ -1089,7 +1118,12 @@ Two numbers in the headline are easy to get wrong, and were:
   profile is created by the first event a guild produces;
 - **"delivered value" is the window, not the lifetime.** A profile keeps
   `last_value_at` for as long as it exists, so counting profiles quietly turns
-  "this week" into "at some point". It is read from the daily buckets instead.
+  "this week" into "at some point". It is read from each server's daily counts
+  instead; the joined, left and delivered totals come from Keiko's own
+  `day:YYYY-MM` counters.
+
+The drop-off and step-time sections are rebuilt from the raw events, so they cover
+the 90 days those are kept, and say so.
 
 On the first run after a deploy the window also over-claims itself: the title
 says seven days, and the counters only exist from the day the collector started.

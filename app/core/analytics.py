@@ -19,7 +19,7 @@ from typing import Any, AsyncIterator, Callable, Dict, List, Mapping, Optional, 
 import yaml
 
 from app.constants import Commands as constants
-from app.core.trace import current_trace
+from app.core.trace import current_trace, drain_runs
 
 _CATALOG: Optional[Dict[str, Any]] = None
 _QUEUE: "queue.Queue[Dict[str, Any]]" = queue.Queue(maxsize=constants.ANALYTICS_QUEUE_MAXSIZE)
@@ -77,6 +77,14 @@ def sources_catalog() -> List[str]:
 def collection_of(event_type: str) -> Optional[str]:
     """The collection the catalog writes an event to, `none` for a count alone."""
     return (events_catalog().get(event_type) or {}).get("collection")
+
+
+def value_events() -> List[str]:
+    """The events the catalog marks as a feature doing its job."""
+    return [
+        name for name, declaration in events_catalog().items()
+        if declaration.get("counts_as_value")
+    ]
 
 
 def configure(config: Any) -> None:
@@ -163,7 +171,10 @@ def _build_envelope(
     session_id: Optional[str],
 ) -> Dict[str, Any]:
     trace = current_trace()
-    guild_id = guild_id or (trace.guild_id if trace else None)
+    if declaration.get("keiko_wide"):
+        guild_id = None
+    else:
+        guild_id = guild_id or (trace.guild_id if trace else None)
 
     if _declares(declaration, "source"):
         props["source"] = _valid_source(
@@ -302,7 +313,7 @@ def count_attempt(guild_id: Any, feature: str) -> int:
 
     try:
         return cache.increment_redis_key_with_expiration(
-            constants.REDIS_ANALYTICS_ATTEMPTS.format(
+            constants.REDIS_ATTEMPTS_WINDOW.format(
                 guild_id=guild_id, feature=feature
             ),
             1,
@@ -434,7 +445,8 @@ def drain(limit: int = constants.ANALYTICS_FLUSH_BATCH) -> List[Dict[str, Any]]:
 
 
 def flush() -> int:
-    """Drain the queue into Mongo and Redis. Called by the AnalyticsCog loop.
+    """Drain the event queue, then the closed traces, into Mongo. Called by the
+    AnalyticsCog loop.
 
     Keeps going while there is more, so a burst is not spread across ticks,
     but stops after a bounded number of batches so the bot's loop is never
@@ -450,6 +462,7 @@ def flush() -> int:
         analytics_sink.persist(batch)
         flushed += len(batch)
 
+    analytics_sink.persist_runs(drain_runs())
     _STATS["flushed"] += flushed
     return flushed
 

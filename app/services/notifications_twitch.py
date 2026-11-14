@@ -138,7 +138,7 @@ def give_back_the_live(streamer_name: str, started_at: Any) -> None:
 
 def live_claim(streamer_name: str, started_at: Any) -> str:
     """The Redis key one live of a streamer is claimed under."""
-    return constants.REDIS_TWITCH_NOTIFIED_STREAM.format(
+    return constants.REDIS_TWITCH_LIVE_CLAIM.format(
         streamer=streamer_name, started_at=started_at
     )
 

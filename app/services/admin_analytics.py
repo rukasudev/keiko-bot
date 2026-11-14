@@ -2,7 +2,7 @@
 
 Admin-only surfaces, restricted to the admin guild, so they follow the existing
 English-only convention of the admin cog rather than the localized product copy
-rules. Every number is read from the guild profile or the monthly buckets, and
+rules. Every number is read from a server's lifetime or its monthly counts, and
 every comparison prints the population it was computed from — with 80 guilds a
 percentage without its N is noise. Reference: docs/analytics.md
 """
@@ -14,6 +14,7 @@ from app.components.embed import base_embed
 from app.constants import Commands as constants
 from app.core import analytics, analytics_reports
 from app.core.utils import describe_default, describe_step
+from app.data.analytics import lifetime
 
 EVENT_ICONS = {
     "guild.joined": "➡️",
@@ -168,7 +169,7 @@ def build_guild_journey_embed(guild_id: str) -> discord.Embed:
     return base_embed(
         f"🏠 Guild {guild_id}",
         "\n".join(lines),
-        footer=f"detailed timeline covers the last {constants.ANALYTICS_EVENTS_TTL_SECONDS // 86400} days",
+        footer=f"detailed timeline covers the last {constants.EVENTS_INTERACTIONS_TTL_SECONDS // 86400} days",
     )
 
 
@@ -212,17 +213,25 @@ def build_churn_embed() -> discord.Embed:
     if at_risk:
         lines.append("")
         lines.append(f"**At risk** ({len(at_risk)} guilds quiet for 14+ days):")
-        lines.extend(
-            f"`{row['guild_id']}` — quiet **{row['days_quiet']}d**, "
-            f"{row['value_events']} lifetime deliveries"
-            for row in at_risk[:5]
-        )
+        lines.extend(_at_risk_line(row) for row in at_risk[:5])
 
     return base_embed(
         "🚪 Churn",
         "\n".join(lines),
         footer="correlation, never cause — Discord does not report why a bot is removed",
     )
+
+
+def _at_risk_line(row: Dict[str, Any]) -> str:
+    quiet = (
+        f"quiet **{row['days_quiet']}d**" if row["days_quiet"] is not None
+        else "quiet since before its arrival was recorded"
+    )
+    deliveries = (
+        "never delivered" if row["never_delivered"]
+        else f"{row['value_events']} lifetime deliveries"
+    )
+    return f"`{row['guild_id']}` — {quiet}, {deliveries}"
 
 
 def _population_line(label: str, population: Dict[str, Any]) -> str:
@@ -360,9 +369,10 @@ def insight_sections() -> List[Dict[str, Any]]:
 
 def build_all_funnels_embed() -> discord.Embed:
     """Every feature side by side — one funnel per line instead of per command."""
+    lifetimes = lifetime.find_lifetimes()
     lines = []
     for feature in constants.COMMANDS_LIST:
-        steps = analytics_reports.funnel(feature)
+        steps = analytics_reports.funnel(feature, lifetimes)
         if not steps["setup_opened"]:
             continue
         lines.append(

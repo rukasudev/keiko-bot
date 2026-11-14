@@ -99,6 +99,20 @@ class Migrations:
     DAY_SECONDS: Final[int] = 60 * 60 * 24
     MIN_SERVER_VERSION: Final[Tuple[int, int]] = (5, 0)
     SYSTEM_DATABASES: Final[FrozenSet[str]] = frozenset({"admin", "config", "local"})
+    REDIS_ROLE_PREFIXES: Final[Tuple[str, ...]] = ("cache:", "claim:", "throttle:", "window:")
+    REDIS_RETIRED_PATTERNS: Final[Tuple[str, ...]] = (
+        "command.call:*",
+        "command.error:*",
+        "guild:*:block_links:*",
+        "guild:*:analytics:*",
+        "guild:*:cog.*",
+        "twitch:stream:*:notified",
+        "youtube:video:*:notified",
+        "stream_elements:*",
+        "streamelements:*",
+    )
+    REDIS_SCAN_BATCH: Final[int] = 500
+    REDIS_CHECK_SAMPLE: Final[int] = 20
 
 
 class Dependencies:
@@ -247,7 +261,6 @@ class Commands:
     ADDED_KEY: Final[str] = "added"
     REMOVED_KEY: Final[str] = "removed"
 
-    COMMAND_FAILURE_STORE_SECONDS: Final[float] = 1.0
     MEMBERS_RECENT_SIZE: Final[int] = 5000
     MEMBERS_RECENT_SECONDS: Final[float] = 10 * 60
 
@@ -265,13 +278,8 @@ class Commands:
 
     BLOCK_LINKS_DIAGNOSTIC_MAX_LINKS: Final[int] = 5
     BLOCK_LINKS_EVENTS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 90
-    BLOCK_LINKS_COUNTERS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 400
     BLOCK_LINKS_EVENTS_MAX_PER_MESSAGE: Final[int] = 3
     BLOCK_LINKS_EVENTS_READ_LIMIT: Final[int] = 200
-    REDIS_BLOCK_LINKS_COUNTER_TOTAL: Final[str] = "guild:{guild_id}:block_links:total"
-    REDIS_BLOCK_LINKS_COUNTER_HOST: Final[str] = "guild:{guild_id}:block_links:host:{value}"
-    REDIS_BLOCK_LINKS_COUNTER_USER: Final[str] = "guild:{guild_id}:block_links:user:{value}"
-    REDIS_BLOCK_LINKS_COUNTERS: Final[str] = "guild:{guild_id}:block_links:counters"
 
     # analytics
     ANALYTICS_EVENTS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 90
@@ -286,7 +294,6 @@ class Commands:
     ANALYTICS_FLUSH_MAX_BATCHES: Final[int] = 25
     ANALYTICS_MAX_PROPS: Final[int] = 12
     ANALYTICS_MAX_VALUE_LENGTH: Final[int] = 64
-    ANALYTICS_HOT_WINDOW_SECONDS: Final[int] = 60 * 60 * 24 * 8
     ANALYTICS_ATTEMPTS_WINDOW_SECONDS: Final[int] = 60 * 60 * 24
     ANALYTICS_TIMELINE_READ_LIMIT: Final[int] = 25
     ANALYTICS_REPORT_READ_LIMIT: Final[int] = 10000
@@ -302,9 +309,15 @@ class Commands:
     ANALYTICS_JOURNEY_DEBOUNCE_SECONDS: Final[float] = 1.0
     ANALYTICS_RECOVERY_WINDOW_SECONDS: Final[int] = 60 * 60
     ANALYTICS_RECOVERY_MAX_PENDING: Final[int] = 256
+    ANALYTICS_LIFETIME_ADMINS_MAX: Final[int] = 25
+    ANALYTICS_OVERVIEW_DAYS: Final[int] = 30
+    COMMAND_LATENCY_EDGES_MS: Final[Tuple[int, ...]] = (250, 500, 1000, 2000, 5000)
+    TRACE_RUNS_SLOW_MS: Final[int] = 2000
+    TRACE_RUNS_SLOW_SESSION_MS: Final[int] = 15 * 60 * 1000
+    TRACE_RUNS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 30
+    TRACE_RUNS_QUEUE_MAXSIZE: Final[int] = 1000
     STREAM_ELEMENTS_TIMEOUT_SECONDS: Final[float] = 5.0
-    REDIS_ANALYTICS_DAILY: Final[str] = "guild:{guild_id}:analytics:{date}:{metric}"
-    REDIS_ANALYTICS_ATTEMPTS: Final[str] = "guild:{guild_id}:analytics:attempts:{feature}"
+    REDIS_ATTEMPTS_WINDOW: Final[str] = "window:attempts:{guild_id}:{feature}"
 
     # debug logs — the hot window of "why did it break?", queried directly in
     # Mongo. Anything older lives in the daily file on the Discord logs channel.
@@ -343,7 +356,7 @@ class Commands:
     YOUTUBE_HUB_LEASE_SECONDS: Final[int] = 5 * 24 * 60 * 60
     YOUTUBE_HUB_LEASE_MARGIN_SECONDS: Final[int] = 12 * 60 * 60
     YOUTUBE_CALLBACK_TOKEN_LENGTH: Final[int] = 32
-    REDIS_YOUTUBE_NOTIFIED_VIDEO: Final[str] = "youtube:video:{video_id}:notified"
+    REDIS_YOUTUBE_VIDEO_CLAIM: Final[str] = "claim:youtube:video:{video_id}"
 
     # moderations
     WELCOME_MESSAGES_KEY: Final[str] = Feature.WELCOME_MESSAGES.value.key
@@ -358,18 +371,22 @@ class Commands:
     NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE: Final[str] = "online"
     NOTIFICATIONS_TWITCH_STREAM_STATUS_OFFLINE: Final[str] = "offline"
     TWITCH_NOTIFIED_STREAM_TTL_SECONDS: Final[int] = 60 * 60 * 24
-    REDIS_TWITCH_NOTIFIED_STREAM: Final[str] = "twitch:stream:{streamer}:{started_at}:notified"
+    REDIS_TWITCH_LIVE_CLAIM: Final[str] = "claim:twitch:live:{streamer}:{started_at}"
 
     NOTIFICATIONS_YOUTUBE_VIDEO_KEY: Final[str] = Feature.NOTIFICATIONS_YOUTUBE_VIDEO.value.key
 
     INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: Final[str] = (
         Feature.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS.value.key
     )
-    REDIS_STREAM_ELEMENTS_COMMANDS: Final[str] = "stream_elements:channel:{channel_id}:commands"
-    REDIS_STREAM_ELEMENTS_CHANNEL_FAILED: Final[str] = (
-        "stream_elements:streamer:{streamer}:channel_failed"
+    CACHE_STREAM_ELEMENTS_COMMANDS: Final[str] = (
+        "cache:stream_elements:commands:{channel_id}"
     )
-    REDIS_STREAM_ELEMENTS_WARNED: Final[str] = "stream_elements:streamer:{streamer}:warned"
+    REDIS_STREAM_ELEMENTS_CHANNEL_THROTTLE: Final[str] = (
+        "throttle:stream_elements:channel:{streamer}"
+    )
+    REDIS_STREAM_ELEMENTS_WARNED_THROTTLE: Final[str] = (
+        "throttle:stream_elements:warned:{streamer}"
+    )
     STREAM_ELEMENTS_COMMANDS_CACHE_SECONDS: Final[int] = 60 * 60 * 24
     STREAM_ELEMENTS_NO_COMMANDS_CACHE_SECONDS: Final[int] = 60 * 5
     STREAM_ELEMENTS_CHANNEL_FAILED_SECONDS: Final[int] = 60 * 5

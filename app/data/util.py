@@ -22,6 +22,14 @@ def collection_names(database: str) -> List[str]:
     return mongo_client[database].list_collection_names()
 
 
+def delete_guild_rows(
+    database: str, collection: str, guild_id: Any, field: str = "guild_id"
+) -> int:
+    """Delete the documents of one guild, found by `field`, and count them."""
+    query = {field: str(guild_id)}
+    return mongo_client[database][collection].delete_many(query).deleted_count
+
+
 def iter_documents(database: str, collection: str) -> Iterator[Dict[str, Any]]:
     """Stream a collection, so the backup never holds one whole in memory."""
     for document in mongo_client[database][collection].find({}):

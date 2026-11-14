@@ -633,7 +633,7 @@ async def test_an_edited_message_check_that_fails_is_an_error_with_its_context(
 async def test_a_command_count_that_fails_is_an_error_with_its_context(
     events, guild, channel, monkeypatch, caplog
 ):
-    monkeypatch.setattr("app.cogs.events.increment_redis_key", broken(RuntimeError("Redis is down")))
+    monkeypatch.setattr("app.cogs.events.is_guild_admin", broken(RuntimeError("no member")))
     interaction = SimpleNamespace(
         type=discord.InteractionType.application_command,
         command=SimpleNamespace(_attr="block_links", qualified_name="moderations block links"),

@@ -30,7 +30,7 @@ from tests.behavioral.golden.paths import block_links as block_links_path
 from tests.behavioral.golden.paths import default_roles as default_roles_path
 from tests.behavioral.golden.paths import stream_elements_commands as stream_path
 from tests.behavioral.golden.paths import welcome_messages as welcome_path
-from tests.generators.moderations import recorded_server
+from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks.discord import (
     MockChannel,
     create_guild,
@@ -141,10 +141,7 @@ class Traffic:
         for form, saved in SAVED.items():
             document = copy.deepcopy(saved)
             document["guild_id"] = str(guild_id)
-            mongo.guild[form].insert_one(document)
-            mongo.guild.moderations.update_one(
-                {"guild_id": str(guild_id)}, {"$set": {form: True}}, upsert=True
-            )
+            seed_cog(mongo, form, document)
         return guild
 
     async def _forms(self, guild: Any, member_id: int, number: int) -> None:

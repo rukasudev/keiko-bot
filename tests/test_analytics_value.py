@@ -8,7 +8,7 @@ import discord
 import pytest
 
 from app.constants import Commands as constants
-from app.data import analytics as analytics_data
+from app.data.analytics import lifetime
 from app.core import analytics, analytics_reports, analytics_sink
 from app.data.events import activity
 from tests.generators.events import record_event
@@ -27,7 +27,7 @@ def test_a_configured_feature_with_no_delivery_is_reported_as_abandoned():
     )
     flush()
 
-    profile = analytics_data.find_profile("1")
+    profile = lifetime.find_lifetime("1")
     feature = profile["features"]["welcome_messages"]
     assert feature["completed_at"] is not None
     assert feature.get("first_value_at") is None
@@ -42,7 +42,7 @@ def test_delivery_moves_a_feature_out_of_the_abandoned_set():
     analytics.record_value("2", "default_roles")
     flush()
 
-    profile = analytics_data.find_profile("2")
+    profile = lifetime.find_lifetime("2")
     assert profile["features"]["default_roles"]["first_value_at"] is not None
     assert analytics_reports.abandoned_features(days=0) == []
 
@@ -52,7 +52,7 @@ def test_permission_failures_are_counted_separately_from_deliveries():
     analytics.record_permission_failure("3", "welcome_messages", discord.Forbidden.__new__(discord.Forbidden))
     flush()
 
-    profile = analytics_data.find_profile("3")
+    profile = lifetime.find_lifetime("3")
     feature = profile["features"]["welcome_messages"]
     assert feature["value_count"] == 1
     assert feature["permission_failures"] == 1
@@ -87,7 +87,7 @@ def test_a_blocked_link_is_one_activity_and_one_value_delivered():
     flush()
 
     assert len(activity.find_by_guild("5")) == 20
-    profile = analytics_data.find_profile("5")
+    profile = lifetime.find_lifetime("5")
     assert profile["features"]["block_links"]["value_count"] == 20
 
 

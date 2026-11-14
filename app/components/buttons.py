@@ -4,8 +4,6 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 import discord
 
 from app.components.embed import response_embed
-from app.constants import LogTypes as logconstants
-from app.core.cache import increment_redis_key
 from app.core.servers import interaction_language
 from app.core.utils import get_command_by_key, ml
 
@@ -107,11 +105,9 @@ async def run_feature_command(
         source=source,
         feature=command_key,
         is_admin=is_guild_admin(interaction.user),
+        command=command_name,
     ) as trace, analytics.counting_attempt(trace, interaction.guild_id, command_key):
         analytics.record("command.invoked", props={"command": command_name})
-        counted = asyncio.ensure_future(asyncio.to_thread(
-            increment_redis_key, f"{logconstants.COMMAND_CALL_TYPE}:{command_key}:button"
-        ))
 
         from app.settings import open_feature
 
@@ -120,8 +116,6 @@ async def run_feature_command(
         except Exception as error:
             metrics.record_interaction("failed", error)
             raise
-        finally:
-            await asyncio.gather(counted, return_exceptions=True)
 
 
 class ExecuteCommandButton(discord.ui.Button):

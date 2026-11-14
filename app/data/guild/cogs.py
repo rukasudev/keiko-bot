@@ -86,6 +86,12 @@ def find_enabled_cogs(cog: str) -> List[Dict[str, Any]]:
     return [_flat_document(stored) for stored in found]
 
 
+def find_enabled_guild_ids(cog: str) -> List[str]:
+    """The ids of the servers that have `cog` on, read without their documents."""
+    found = mongo_client.guild.cogs.find({"cog": cog, "enabled": True}, {"guild_id": True})
+    return [str(stored["guild_id"]) for stored in found]
+
+
 def insert_cog_by_guild_id(
     cog: str, data: Mapping[str, Any], updated_by: Optional[str] = None
 ) -> Any:

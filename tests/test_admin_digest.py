@@ -5,6 +5,7 @@ be readable when nothing happened, lead with what needs a decision, and never
 break on a fresh install with no data at all.
 """
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import pytest
 
@@ -18,6 +19,15 @@ pytestmark = pytest.mark.unit
 
 def flush():
     analytics.flush()
+
+
+def flush_as_of(days):
+    """Write what was emitted as if it had happened `days` ago."""
+    moment = datetime.now(timezone.utc) - timedelta(days=days)
+    batch = analytics.drain()
+    for envelope in batch:
+        envelope["ts"] = moment
+    analytics_sink.persist(batch)
 
 
 def age_everything(deps, days):
@@ -134,8 +144,7 @@ def test_guild_movement_shows_both_directions():
 
 def test_events_older_than_the_window_do_not_count(deps):
     record_event("guild.joined", guild_id="1", returning=False)
-    flush()
-    age_everything(deps, days=30)
+    flush_as_of(days=30)
 
     description = admin_digest.build_weekly_digest(days=7).description
     assert "joined" not in description
@@ -143,3 +152,43 @@ def test_events_older_than_the_window_do_not_count(deps):
 
 def test_it_points_at_where_to_dig_deeper():
     assert "/admin insights" in admin_digest.build_weekly_digest().description
+
+
+class SentTo:
+    """The logs channel the digest is posted to."""
+
+    def __init__(self):
+        self.embeds = []
+
+    async def send(self, embed):
+        self.embeds.append(embed)
+
+
+async def test_the_digest_goes_out_on_monday_in_utc_whatever_the_host_clock_says(
+    monkeypatch,
+):
+    """Broke as: the loop fires at `ANALYTICS_DIGEST_HOUR` UTC, and the weekday it
+    checked was the host's local one, so on a host behind UTC a Monday 09:00 UTC run
+    read Sunday and the week's digest never went out. Guaranteed: the digest is
+    sent when it is Monday in UTC."""
+    from app.cogs import analytics as analytics_cog
+
+    monday = datetime(2026, 11, 16, 9, 0, tzinfo=timezone.utc)
+
+    class HostBehindUtc(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return monday if tz else (monday - timedelta(hours=10)).replace(tzinfo=None)
+
+    monkeypatch.setattr(analytics_cog, "datetime", HostBehindUtc)
+    channel = SentTo()
+    cog = analytics_cog.Analytics.__new__(analytics_cog.Analytics)
+    cog.bot = SimpleNamespace(
+        get_channel=lambda channel_id: channel,
+        config=SimpleNamespace(ADMIN_LOGS_CHANNEL_ID=1),
+        guilds=[],
+    )
+
+    await analytics_cog.Analytics.send_weekly_digest.coro(cog)
+
+    assert len(channel.embeds) == 1, "Monday in UTC sent no digest"

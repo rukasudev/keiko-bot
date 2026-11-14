@@ -182,37 +182,6 @@ async def test_listing_stream_elements_commands_never_freezes_the_bot(
     assert ticks >= MIN_TICKS
 
 
-async def test_storing_a_failed_command_never_freezes_the_bot(deps, monkeypatch):
-    """The record of a failed command counts it in Redis, a synchronous client."""
-    import discord
-    from discord import app_commands
-
-    from app.cogs.errors import Errors
-    from tests.behavioral.harness.fake_interaction import FakeInteraction
-    from tests.behavioral.harness.message_store import MessageStore
-    from tests.mocks import create_guild
-
-    monkeypatch.setattr("app.cogs.errors.increment_redis_key", blocking())
-    guild = create_guild()
-    interaction = FakeInteraction(
-        MessageStore(),
-        guild=guild,
-        user=create_member(guild),
-        locale=discord.Locale.american_english,
-    )
-    interaction.command = SimpleNamespace(
-        qualified_name="moderations block links", _attr="block_links"
-    )
-    error = app_commands.CommandInvokeError(
-        SimpleNamespace(name="links"), KeyError("allowed_links")
-    )
-    handler = Errors(SimpleNamespace(config=SimpleNamespace(is_prod=lambda: False)))
-
-    ticks = await ticks_while(handler.on_app_command_error(interaction, error))
-
-    assert ticks >= MIN_TICKS
-
-
 async def test_the_heartbeat_ping_never_freezes_the_bot(monkeypatch):
     """The ping says the bot is alive; waiting for it on the loop would make it a lie."""
     from app.cogs.prometheus import Heartbeat
@@ -673,23 +642,6 @@ async def test_unloading_the_analytics_cog_never_freezes_the_bot(slow_storage):
     assert len(slow_storage) == 2, "both queues were written"
 
 
-async def test_counting_a_slash_command_never_freezes_the_bot(deps, guild, monkeypatch):
-    from app.cogs import events as events_module
-
-    monkeypatch.setattr("app.core.cache.increment_redis_key", blocking(1))
-    monkeypatch.setattr(events_module, "increment_redis_key", blocking(1), raising=False)
-    interaction = interaction_in(
-        guild, command=SimpleNamespace(qualified_name="moderations block links", _attr="block_links")
-    )
-    interaction.type = discord.InteractionType.application_command
-
-    ticks = await ticks_while(
-        events_module.Events(SimpleNamespace(owner_id=1)).on_interaction(interaction)
-    )
-
-    assert ticks >= MIN_TICKS, f"the loop only came back {ticks} times"
-
-
 class Probe:
     """A slash command that answers at once, as every Keiko command is wrapped."""
 
@@ -717,8 +669,6 @@ async def test_opening_a_feature_from_a_button_never_freezes_the_bot(deps, guild
     from app.components import buttons
 
     monkeypatch.setattr(analytics, "count_attempt", blocking(2))
-    monkeypatch.setattr("app.core.cache.increment_redis_key", blocking(1))
-    monkeypatch.setattr(buttons, "increment_redis_key", blocking(1), raising=False)
     opened = AsyncMock()
     monkeypatch.setattr("app.settings.open_feature", opened)
     interaction = interaction_in(guild)
@@ -832,20 +782,18 @@ INSPECTION_VIEW = "operator inspection views, follow-up"
 
 
 ALLOWED: Dict[str, str] = {
-    "app/cogs/admin/__init__.py::Admin.show_guild_journey -> "
-    "app.services.admin_analytics.build_guild_journey_embed": ADMIN_COMMAND,
     "app/cogs/admin/configs.py::Configs.show_config -> "
     "app.services.admin.get_admin_configs": ADMIN_COMMAND,
     "app/cogs/admin/configs.py::Configs.update_config -> "
     "app.services.admin.update_admin_configs": ADMIN_COMMAND,
     "app/cogs/admin/subscriptions.py::Subscriptions.show_twitch_subscriptions -> "
     "app.services.subscriptions.get_twitch_subscriptions": ADMIN_COMMAND,
-    "app/services/config.py::update_activity -> app.data.keiko.settings.update_presence": (
+    "app/services/config.py::update_activity -> app.services.config._save_presence": (
         ADMIN_COMMAND
     ),
     "app/services/config.py::update_description -> "
-    "app.data.keiko.settings.update_presence": ADMIN_COMMAND,
-    "app/services/config.py::update_status -> app.data.keiko.settings.update_presence": (
+    "app.services.config._save_presence": ADMIN_COMMAND,
+    "app/services/config.py::update_status -> app.services.config._save_presence": (
         ADMIN_COMMAND
     ),
     "app/settings/discord/callbacks.py::Runtime._commit -> "

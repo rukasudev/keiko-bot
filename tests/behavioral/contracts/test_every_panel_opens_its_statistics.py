@@ -19,7 +19,6 @@ import discord
 import pytest
 
 from app.constants import Commands
-from app.core import feature_health
 from app.core.utils import fill, ml
 from app.settings.features import feature_for, feature_keys
 from app.settings.form.form_yaml import registry
@@ -94,10 +93,8 @@ async def test_a_quiet_feature_says_so_under_its_own_title(deps):
     assert _paragraphs(embed) == [fill(ml(f"{RECENT}.quiet", "pt-br"), days=DAYS)]
 
 
-async def test_the_deliveries_of_the_last_days_are_counted(deps, monkeypatch):
-    monkeypatch.setattr(
-        feature_health, "value_counts", lambda buckets, since: {"default_roles": 3}
-    )
+async def test_the_deliveries_of_the_last_days_are_counted(deps):
+    _delivered(deps, Commands.DEFAULT_ROLES_KEY, 3, "value_delivered")
 
     embed = await _stats(Commands.DEFAULT_ROLES_KEY, create_guild(id=777))
 
@@ -106,10 +103,8 @@ async def test_the_deliveries_of_the_last_days_are_counted(deps, monkeypatch):
     ]
 
 
-async def test_a_missing_permission_comes_before_the_deliveries(deps, monkeypatch):
-    monkeypatch.setattr(
-        feature_health, "value_counts", lambda buckets, since: {"default_roles": 3}
-    )
+async def test_a_missing_permission_comes_before_the_deliveries(deps):
+    _delivered(deps, Commands.DEFAULT_ROLES_KEY, 3, "value_delivered")
     guild = create_guild(id=777)
     guild.me.guild_permissions = discord.Permissions.all()
     guild.me.guild_permissions.update(manage_roles=False)
@@ -206,18 +201,13 @@ def _configure(deps, key):
 
 
 def _refused(deps, key, days=1):
-    deps.mongo_client.events.activity.insert_one({
-        "type": "value.blocked_by_permission",
-        "guild_id": "777",
-        "cog": key,
-        "ts": _days_ago(days),
-    })
+    _delivered(deps, key, 1, "value_blocked_by_permission", days=days, tag="refused")
 
 
-def _delivered(deps, key, count, event, days=1):
+def _delivered(deps, key, count, event, days=1, tag="delivered"):
     moment = _days_ago(days)
-    deps.mongo_client.guild.analytics_guild_month.insert_one({
-        "_id": f"777|{moment:%Y-%m}|{key}|{days}",
+    deps.mongo_client.analytics.counts.insert_one({
+        "_id": f"777|{moment:%Y-%m}|{key}|{days}|{tag}",
         "guild_id": "777",
         "month": f"{moment:%Y-%m}",
         "days": {f"{moment:%d}": {f"{event}|{key}": count}},
@@ -295,13 +285,11 @@ async def test_the_deliveries_of_the_last_seven_days_are_named_per_feature(
 ])
 @pytest.mark.parametrize("count", [1, 3])
 async def test_every_features_deliveries_read_as_a_sentence_in_both_languages(
-    deps, monkeypatch, locale, verb, count
+    deps, locale, verb, count
 ):
     lines = {}
     for key in feature_keys():
-        monkeypatch.setattr(
-            feature_health, "value_counts", lambda buckets, since, key=key: {key: count}
-        )
+        _delivered(deps, key, count, "value_delivered")
         embed = await _stats_in(locale, key, create_guild(id=777))
         lines[key] = _paragraphs(embed)[-1]
 
@@ -322,14 +310,12 @@ async def test_a_feature_whose_deliveries_are_older_than_seven_days_reads_quiet(
 async def test_the_statistics_read_the_analytics_once(deps, monkeypatch):
     _configure(deps, Commands.WELCOME_MESSAGES_KEY)
     reads = []
-    for collection, name, method in (
-        (deps.mongo_client.events.activity, "activity", "aggregate"),
-        (deps.mongo_client.guild.analytics_guild_month, "analytics_guild_month", "find"),
-    ):
-        original = getattr(collection, method)
+    for name in ("counts",):
+        collection = deps.mongo_client.analytics[name]
+        original = collection.find
         monkeypatch.setattr(
             collection,
-            method,
+            "find",
             lambda *args, original=original, name=name, **kwargs: (
                 reads.append(name) or original(*args, **kwargs)
             ),
@@ -337,7 +323,7 @@ async def test_the_statistics_read_the_analytics_once(deps, monkeypatch):
 
     await _stats(Commands.WELCOME_MESSAGES_KEY, create_guild(id=777))
 
-    assert sorted(reads) == ["activity", "analytics_guild_month"]
+    assert sorted(reads) == ["counts"]
 
 
 @pytest.mark.parametrize("locale,sentence", [

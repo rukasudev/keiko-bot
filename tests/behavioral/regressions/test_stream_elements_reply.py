@@ -320,7 +320,7 @@ def test_a_streamer_without_commands_is_asked_once_in_a_while(deps, monkeypatch)
 
     assert (first, second) == (None, None)
     assert fetched == ["se-quiet"], "a streamer with no command was asked on every message"
-    assert deps.redis_client.ttl("stream_elements:channel:se-quiet:commands") <= 60 * 5
+    assert 0 < deps.redis_client.ttl("cache:stream_elements:commands:se-quiet") <= 60 * 5
 
 
 @pytest.mark.parametrize(
@@ -793,7 +793,7 @@ async def test_a_channel_lookup_that_failed_is_not_asked_again_on_every_message(
 
     Shared behaviour: `channel_of`, read by the `ke!` listener, the panel's command
     list and the panel's count; the channel's failure mark in Redis
-    (`REDIS_STREAM_ELEMENTS_CHANNEL_FAILED`, `STREAM_ELEMENTS_CHANNEL_FAILED_SECONDS`).
+    (`REDIS_STREAM_ELEMENTS_CHANNEL_THROTTLE`, `STREAM_ELEMENTS_CHANNEL_FAILED_SECONDS`).
     Consumer that exposed it: stream_elements_commands, the architecture review of
     the beta.2 feedback.
 
@@ -970,9 +970,9 @@ async def test_an_outage_warns_again_only_once_its_mark_in_redis_is_gone(
     restart) warned again on its own clock, and the channel lookup's failure mark
     borrowed its TTL from "no commands".
 
-    Shared behaviour: `warn_unavailable` with `Commands.REDIS_STREAM_ELEMENTS_WARNED`
+    Shared behaviour: `warn_unavailable` with `Commands.REDIS_STREAM_ELEMENTS_WARNED_THROTTLE`
     and `Commands.STREAM_ELEMENTS_FAILURE_SECONDS`, and the channel lookup's own
-    `REDIS_STREAM_ELEMENTS_CHANNEL_FAILED` with `STREAM_ELEMENTS_CHANNEL_FAILED_SECONDS`,
+    `REDIS_STREAM_ELEMENTS_CHANNEL_THROTTLE` with `STREAM_ELEMENTS_CHANNEL_FAILED_SECONDS`,
     met by the `ke!` listener, the panel's command list and the panel's count.
     Consumer that exposed it: stream_elements_commands (review fixes K2, item 7).
 
@@ -984,8 +984,8 @@ async def test_an_outage_warns_again_only_once_its_mark_in_redis_is_gone(
 
     guild = english_guild()
     member = member_without_a_picture(guild)
-    mark = Commands.REDIS_STREAM_ELEMENTS_WARNED.format(streamer="gaules")
-    channel = Commands.REDIS_STREAM_ELEMENTS_CHANNEL_FAILED.format(streamer="gaules")
+    mark = Commands.REDIS_STREAM_ELEMENTS_WARNED_THROTTLE.format(streamer="gaules")
+    channel = Commands.REDIS_STREAM_ELEMENTS_CHANNEL_THROTTLE.format(streamer="gaules")
 
     def warnings():
         return [
@@ -1019,7 +1019,7 @@ async def test_a_failed_channel_lookup_is_marked_for_five_minutes(
 
     await ask(deps.bot, guild, member_without_a_picture(guild), "ks!mouse")
 
-    channel = Commands.REDIS_STREAM_ELEMENTS_CHANNEL_FAILED.format(streamer="gaules")
-    warned = Commands.REDIS_STREAM_ELEMENTS_WARNED.format(streamer="gaules")
+    channel = Commands.REDIS_STREAM_ELEMENTS_CHANNEL_THROTTLE.format(streamer="gaules")
+    warned = Commands.REDIS_STREAM_ELEMENTS_WARNED_THROTTLE.format(streamer="gaules")
     assert deps.redis_client.ttl(channel) == 60 * 5
     assert deps.redis_client.ttl(warned) == 60 * 30

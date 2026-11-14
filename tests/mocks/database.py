@@ -213,10 +213,10 @@ class MockRedisClient:
         import fnmatch
         return [k for k in self._data.keys() if fnmatch.fnmatch(k, pattern)]
 
-    def scan_iter(self, pattern):
+    def scan_iter(self, match="*", count=None):
         import fnmatch
         for key in list(self._data.keys()):
-            if fnmatch.fnmatch(key, pattern):
+            if fnmatch.fnmatchcase(key, match):
                 yield key
 
     def flushdb(self):
@@ -252,7 +252,21 @@ class MockRedisClient:
         return True
 
     def ttl(self, key):
+        if key not in self._data:
+            return -2
         return self._expirations.get(key, -1)
+
+    def unlink(self, *keys):
+        present = [key for key in keys if key in self._data]
+        self.delete(*present)
+        return len(present)
+
+    def advance(self, seconds):
+        """Let `seconds` pass: every TTL shrinks and a key whose TTL runs out is gone."""
+        for key in list(self._expirations):
+            self._expirations[key] -= seconds
+            if self._expirations[key] <= 0:
+                self.delete(key)
 
 
 class MockRedisPipeline:
@@ -392,7 +406,7 @@ def _matches_value(actual, expected):
         "$gt": lambda a, b: a is not None and a > b,
         "$lte": lambda a, b: a is not None and a <= b,
         "$lt": lambda a, b: a is not None and a < b,
-        "$ne": lambda a, b: a != b,
+        "$ne": lambda a, b: b not in a if isinstance(a, list) else a != b,
         "$in": lambda a, b: a in b,
         "$exists": lambda a, b: (a is not None) == b,
     }

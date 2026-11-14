@@ -161,6 +161,33 @@ def test_the_new_image_migrates_before_the_old_container_stops():
     calls = [line.strip() for line in script.splitlines() if line.strip().startswith("migrations ")]
     assert calls == ["migrations status", "migrations migrate --dry-run", "migrations migrate"]
 
+
+def test_redis_is_cleaned_and_checked_once_the_old_version_has_stopped():
+    """The old version writes the retired keys until it stops, so a cleanup run while
+    it serves leaves counters without a TTL behind and the check fails the release."""
+    steps = _deploy()["steps"]
+    names = [step["name"] for step in steps]
+    redis = steps[names.index("Clean Redis once the new version serves")]
+    script = redis["run"]
+
+    assert (
+        names.index("Run the migrations with the new image")
+        < names.index("Replace the running container")
+        < names.index("Check the bot stayed up")
+        < names.index("Clean Redis once the new version serves")
+        < names.index("Remove images no container uses")
+    )
+    assert "docker run --rm" in script
+    assert "${{ env.REGISTRY }}:${{ env.VERSION }} python -m app.migrations" in script
+    assert "-e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_REGION" in script
+    assert set(redis["env"]) == {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_REGION"}
+    calls = [line.strip() for line in script.splitlines() if line.strip().startswith("migrations ")]
+    assert calls == [
+        "migrations redis-cleanup --dry-run",
+        "migrations redis-cleanup",
+        "migrations redis-check",
+    ]
+
 FAKE_DOCKER = r"""#!/bin/bash
 polls=$(cat "$FAKE_STATE/polls")
 case "$1" in

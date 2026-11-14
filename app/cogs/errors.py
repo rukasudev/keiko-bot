@@ -1,4 +1,3 @@
-import asyncio
 import traceback
 
 import discord
@@ -7,11 +6,9 @@ from discord.ext import commands
 from app import logger
 from app.bot import DiscordBot
 from app.components.embed import response_error_embed
-from app.constants import Commands as commandsconstants
 from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
 from app.core import analytics, metrics, utils
-from app.core.cache import increment_redis_key
 from app.core.trace import trace_scope
 from app.types.cogs import Cog
 
@@ -28,7 +25,7 @@ class Errors(Cog, name="errors"):
         interaction: discord.Interaction,
         error: discord.app_commands.AppCommandError,
     ) -> None:
-        """Report the failure, answer the person whatever happens, then wait for its record."""
+        """Report the failure, then answer the person whatever happens."""
         async with trace_scope(
             _command_name(interaction),
             guild_id=interaction.guild_id,
@@ -36,9 +33,8 @@ class Errors(Cog, name="errors"):
             source=analytics.resolve_source(interaction),
             quiet=True,
         ):
-            record = None
             try:
-                record = self.report_failure(interaction, getattr(error, "original", error))
+                self.report_failure(interaction, getattr(error, "original", error))
             except Exception as report_error:
                 logger.error(
                     f"Could not report a failure of **{_command_name(interaction)}**: "
@@ -50,12 +46,10 @@ class Errors(Cog, name="errors"):
             finally:
                 await self.send_default_error_message(interaction)
 
-            await self.wait_for_the_record(record)
-
     def report_failure(
         self, interaction: discord.Interaction, failure: BaseException
-    ) -> "asyncio.Future[None]":
-        """The error channel and `command.failed` now; the failure's counter started."""
+    ) -> None:
+        """The error channel and `command.failed`, before the person is answered."""
         command_name = _command_name(interaction)
         feature = getattr(interaction.command, "_attr", None)
         exc_info = (type(failure), failure, failure.__traceback__)
@@ -81,19 +75,6 @@ class Errors(Cog, name="errors"):
             props={"command": command_name, "error_type": type(failure).__name__},
         )
         metrics.record_interaction("failed", failure)
-
-        return asyncio.ensure_future(_store_failure(feature or command_name))
-
-    async def wait_for_the_record(self, record: "asyncio.Future[None]") -> None:
-        """Wait for the failure's counter at most `COMMAND_FAILURE_STORE_SECONDS`."""
-        try:
-            await asyncio.wait_for(record, commandsconstants.COMMAND_FAILURE_STORE_SECONDS)
-        except Exception as storage_error:
-            logger.warn(
-                f"Could not store a command failure: "
-                f"{type(storage_error).__name__}: {storage_error}",
-                log_type=logconstants.COMMAND_WARN_TYPE,
-            )
 
     @commands.Cog.listener()
     async def on_command_error(
@@ -134,12 +115,6 @@ def _command_name(interaction: discord.Interaction) -> str:
     if interaction.command:
         return interaction.command.qualified_name
     return logconstants.UNKNOWN_COMMAND
-
-
-async def _store_failure(command_key: str) -> None:
-    await asyncio.to_thread(
-        increment_redis_key, f"{logconstants.COMMAND_ERROR_TYPE}:{command_key}"
-    )
 
 
 async def setup(bot: DiscordBot) -> None:

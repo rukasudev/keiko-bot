@@ -8,9 +8,10 @@ import discord
 
 from app.components.embed import base_embed
 from app.constants import Commands as commands_constants
-from app.data import analytics as analytics_data
-from app.data.events import activity
-from app.core.analytics_reports import value_counts
+from app.core import analytics
+from app.core.analytics_reports import window_months, window_totals
+from app.core.analytics_sink import metric_key
+from app.data.analytics import counts
 from app.core.cogs import feature_spec
 from app.core.utils import fill, ml, parse_locale, stored_value
 
@@ -107,24 +108,22 @@ async def feature_health(
     """How one feature did in its last days, in a sentence: the problem first."""
     from app.settings.features import saved_settings
 
+    key = spec["command_key"]
     since = datetime.now(timezone.utc) - timedelta(days=commands_constants.FEATURE_STATS_DAYS)
-    buckets, refusals, views = await asyncio.gather(
-        asyncio.to_thread(analytics_data.find_month_buckets, guild_id),
-        asyncio.to_thread(
-            activity.count_by_type,
-            ["value.blocked_by_permission"],
-            guild_id,
-            spec["command_key"],
-            since,
-        ),
-        saved_settings(spec["command_key"], guild_id, user_id, locale, guild),
+    months, views = await asyncio.gather(
+        asyncio.to_thread(counts.find_by_guild, guild_id, window_months(since)[0]),
+        saved_settings(key, guild_id, user_id, locale, guild),
     )
+    totals = window_totals(months, since, {
+        metric_key("value.blocked_by_permission", key): "refused",
+        **{metric_key(event, key): "delivered" for event in analytics.value_events()},
+    })
 
     return health_line(
         spec,
         feature_problems(spec, views, guild, locale),
-        refusals.get("value.blocked_by_permission", 0),
-        value_counts(buckets, since).get(spec["command_key"], 0),
+        totals.get("refused", 0),
+        totals.get("delivered", 0),
         locale,
     )
 

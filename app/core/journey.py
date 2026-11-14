@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, Optional, Set
 
 from app.constants import Commands as constants
-from app.core.trace import Trace
+from app.core.trace import Trace, keep_run
 
 _JOURNEYS: Dict[str, Trace] = {}
 _PUBLISHER: Optional[Callable[[Trace], None]] = None
@@ -295,6 +295,7 @@ def finalize(session_id: str, outcome: str) -> Optional[Trace]:
 
     journey.finish(outcome)
     _publish(journey)
+    keep_run(journey, slow_ms=constants.TRACE_RUNS_SLOW_SESSION_MS)
     _JOURNEYS.pop(session_id, None)
     return journey
 

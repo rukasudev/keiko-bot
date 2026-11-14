@@ -1,10 +1,9 @@
 import asyncio
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Set, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 import discord
 
-from collections import Counter
 
 from app import logger
 from app.constants import (
@@ -15,7 +14,7 @@ from app.constants import Commands as constants
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
 from app.constants import Style
-from app.data import block_links as blocked_links_data
+from app.data.analytics import lifetime
 from app.data.events import activity
 from app.exceptions import ErrorContext
 from app.settings import open_feature
@@ -400,19 +399,6 @@ def record_blocked_links(
                 },
             )
 
-        if recorded:
-            hosts = Counter(verdict.host for verdict in recorded)
-            blocked_links_data.count_blocked_links(
-                len(recorded), hosts, datetime.now(timezone.utc)
-            )
-            increments = Counter({f"host:{host}": count for host, count in hosts.items()})
-            increments.update({"total": len(recorded), f"user:{user_id}": len(recorded)})
-            cache.increment_redis_hash(
-                constants.REDIS_BLOCK_LINKS_COUNTERS.format(guild_id=guild_id),
-                increments,
-                constants.BLOCK_LINKS_COUNTERS_TTL_SECONDS,
-            )
-
         if blocked and not deleted:
             analytics.record(
                 "value.blocked_by_permission",
@@ -617,7 +603,7 @@ def parse_blocked_link_records(
 
 
 def get_blocked_links_stats(guild_id: str) -> Dict[str, Any]:
-    """The all-time total from the counters, the rest from the last 90 days of blocks."""
+    """The all-time total from the server's lifetime, the rest from the last 90 days."""
     since = datetime.now(timezone.utc) - timedelta(
         seconds=constants.EVENTS_ACTIVITY_TTL_SECONDS
     )
@@ -625,10 +611,11 @@ def get_blocked_links_stats(guild_id: str) -> Dict[str, Any]:
     users = _blocks_by(guild_id, "actor.id", since)
     deleted = dict(_blocks_by(guild_id, "props.deleted", since))
     recent = sum(deleted.values())
+    features = (lifetime.find_lifetime(guild_id) or {}).get("features") or {}
+    blocked = (features.get(constants.BLOCK_LINKS_KEY) or {}).get("value_count") or 0
 
-    counters = _counters(guild_id, hosts, users)
     return {
-        "total": counters["total"] or recent,
+        "total": blocked or recent,
         "recent": recent,
         "top_hosts": [(host, count) for host, count in hosts if host][:3],
         "top_user": next(((user, count) for user, count in users if user), None),
@@ -643,58 +630,6 @@ def _blocks_by(
     return activity.count_by_field(
         guild_id, constants.BLOCK_LINKS_KEY, field, types=["link.blocked"], since=since
     )
-
-
-def forget_counters(guild_id: str) -> None:
-    """Delete a guild's own counts by name: its hash and its total first, then the loose
-    keys of v0.9.0 the hash and the records name, so a failed read never keeps them all."""
-    hash_key = constants.REDIS_BLOCK_LINKS_COUNTERS.format(guild_id=guild_id)
-
-    try:
-        counted = cache.get_redis_hash_counters(hash_key)
-    finally:
-        cache.delete_redis_keys([hash_key, _loose_key(guild_id, "total")])
-
-    hosts = _blocks_by(guild_id, "props.host")
-    users = _blocks_by(guild_id, "actor.id")
-    names = _counter_names(counted, hosts, users)
-    cache.delete_redis_keys([_loose_key(guild_id, name) for name in names])
-
-
-def _counters(
-    guild_id: str, hosts: List[Tuple[Any, int]], users: List[Tuple[Any, int]]
-) -> Dict[str, int]:
-    """Every counter of a guild by name: its hash plus the loose keys of v0.9.0."""
-    counted = cache.get_redis_hash_counters(
-        constants.REDIS_BLOCK_LINKS_COUNTERS.format(guild_id=guild_id)
-    )
-    loose_keys = {
-        name: _loose_key(guild_id, name)
-        for name in _counter_names(counted, hosts, users)
-    }
-    loose = cache.get_redis_counters(list(loose_keys.values()))
-    return {name: counted.get(name, 0) + loose[key] for name, key in loose_keys.items()}
-
-
-def _counter_names(
-    counted: Dict[str, int], hosts: List[Tuple[Any, int]], users: List[Tuple[Any, int]]
-) -> Set[str]:
-    """The names a guild's counters go by: its hash's fields, and every site and
-    member its blocks know, so the loose keys are found without a walk."""
-    names = {"total", *counted}
-    names.update(f"host:{host}" for host, _count in hosts if host)
-    names.update(f"user:{user}" for user, _count in users if user)
-    return names
-
-
-def _loose_key(guild_id: str, name: str) -> str:
-    kind, _, value = name.partition(":")
-    template = {
-        "total": constants.REDIS_BLOCK_LINKS_COUNTER_TOTAL,
-        "host": constants.REDIS_BLOCK_LINKS_COUNTER_HOST,
-        "user": constants.REDIS_BLOCK_LINKS_COUNTER_USER,
-    }[kind]
-    return template.format(guild_id=guild_id, value=value)
 
 
 def blocked_links_stats_lines(guild_id: str, locale: str) -> List[str]:

@@ -27,14 +27,24 @@ def ssm_client() -> Any:
 
 def mongo_url(ssm: Optional[Any] = None) -> str:
     """The Mongo URL alone: SSM's in production, else the environment's or `.env`'s."""
+    return _url("/keiko/mongo/url", "MONGO_URL", ssm)
+
+
+def redis_url(ssm: Optional[Any] = None) -> str:
+    """The Redis URL alone: SSM's in production, else the environment's or `.env`'s."""
+    return _url("/keiko/redis/url", "REDIS_URL", ssm)
+
+
+def _url(parameter_name: str, variable: str, ssm: Optional[Any]) -> str:
     if is_production():
         parameter = (ssm or ssm_client()).get_parameter(
-            Name="/keiko/mongo/url", WithDecryption=True
+            Name=parameter_name, WithDecryption=True
         )
         return parameter["Parameter"]["Value"]
-    if not os.getenv("MONGO_URL"):
+
+    if not os.getenv(variable):
         load_dotenv(join(dirname(__file__), "..", ".env"))
-    return os.getenv("MONGO_URL") or ""
+    return os.getenv(variable) or ""
 
 
 class AppConfig:
@@ -103,7 +113,7 @@ class AppConfig:
                 "YouTube notices are refused and nothing is subscribed until it can"
             )
             self.YOUTUBE_HUB_SECRET = None
-        self.REDIS_URL = ssm.get_parameter(Name="/keiko/redis/url", WithDecryption=True)["Parameter"]["Value"]
+        self.REDIS_URL = redis_url(ssm)
         self.NOTION_TOKEN = ssm.get_parameter(Name="/keiko/notion/token", WithDecryption=True)["Parameter"]["Value"]
         self.DETECT_LANGUAGE_API_KEY = ssm.get_parameter(
             Name="/keiko/detect_language/api_key", WithDecryption=True)["Parameter"]["Value"]

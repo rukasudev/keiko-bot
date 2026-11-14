@@ -19,6 +19,9 @@ Uso:
 
 from typing import List, Optional, Any
 
+from app.constants import DBConfigs
+from app.core.cache import forget_remembered
+
 
 async def welcome_messages(
     db,
@@ -131,7 +134,8 @@ SERVER_SETTINGS = {
 
 def recorded_server(db, guild_id, **settings) -> dict:
     """A server Keiko recorded, as the join and the migration leave it: its
-    guild.settings document; what was already saved stays unless named here."""
+    guild.settings document, its settings memo forgotten as every save does; what was
+    already saved stays unless named here."""
     existing = db.guild.settings.find_one({"_id": str(guild_id)}) or {}
     saved = {**SERVER_SETTINGS, **(existing.get("options") or {}), **settings}
     db.guild.settings.update_one(
@@ -139,6 +143,7 @@ def recorded_server(db, guild_id, **settings) -> dict:
         {"$set": {"options": saved}, "$setOnInsert": {"state": {"present": True}}},
         upsert=True,
     )
+    forget_remembered(DBConfigs.SETTINGS_MEMO_KEY.format(guild_id=guild_id))
     return saved
 
 

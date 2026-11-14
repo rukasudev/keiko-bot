@@ -23,3 +23,10 @@ def update_subscription_state(platform: str, account: str, fields: Dict[str, Any
         },
         upsert=True,
     )
+
+
+def count_subscriptions(platform: str) -> int:
+    """How many accounts Keiko follows on one platform."""
+    return mongo_client.keiko.subscriptions.count_documents(
+        {"_id": {"$gte": f"{platform}:", "$lt": f"{platform};"}}
+    )

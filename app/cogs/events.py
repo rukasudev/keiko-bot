@@ -15,7 +15,6 @@ from app.services import block_links as block_links_service
 from app.services import default_roles as default_roles_service
 from app.services import stream_elements as stream_elements_service
 from app.core import analytics, analytics_reports, members, trace
-from app.core.cache import increment_redis_key
 from app.core.cogs import features_on
 from app.services.help import answer_prefix_command, prefix_hint
 from app.core.servers import (
@@ -199,11 +198,6 @@ class Events(Cog, name="events"):
         # Context menus are ContextMenu, not Command, so they carry no `_attr`.
         feature = getattr(interaction.command, "_attr", None)
 
-        if feature and str(interaction.user.id) != str(self.bot.owner_id):
-            await asyncio.to_thread(
-                increment_redis_key, f"{logconstants.COMMAND_CALL_TYPE}:{feature}"
-            )
-
         analytics.record(
             "command.invoked",
             guild_id=interaction.guild_id,
@@ -255,10 +249,6 @@ class Events(Cog, name="events"):
             await left.run("snapshot", self._snapshot_leaving(guild))
             await left.run(
                 "leave", asyncio.to_thread(leave_guild, guild.id, str(self.bot.user.id))
-            )
-            await left.run(
-                "block_links",
-                asyncio.to_thread(block_links_service.forget_counters, str(guild.id)),
             )
 
     async def _report_leaving(self, guild: discord.Guild) -> None:

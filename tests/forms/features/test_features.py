@@ -871,7 +871,7 @@ async def test_the_stream_elements_panel_tells_no_commands_from_a_failure(
 
     monkeypatch.setattr(client, "get_chat_commands", staticmethod(lambda channel: []))
     empty = await panel_line()
-    deps.redis_client.delete("stream_elements:channel:c1:commands")
+    deps.redis_client.delete("cache:stream_elements:commands:c1")
 
     def down(channel):
         raise ConnectionError("StreamElements is down")

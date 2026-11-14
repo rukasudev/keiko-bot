@@ -25,6 +25,7 @@ files = [
     "app/migrations/__init__.py",
     "app/migrations/__main__.py",
     "app/migrations/helpers.py",
+    "app/migrations/redis_keys.py",
     "app/migrations/runner.py",
 ]
 explicit_package_bases = true

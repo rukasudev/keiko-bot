@@ -20,7 +20,7 @@ import pytest
 
 from app.constants import Commands, Commands as constants
 from app.constants import LogTypes as logconstants
-from app.data import analytics as analytics_data
+from app.data.analytics import lifetime
 from app.data import logs as logs_data
 from app.data.events import activity, interactions
 from app.migrations.runner import declared_structure
@@ -1705,7 +1705,7 @@ def test_the_logs_tool_never_takes_the_archive_for_a_log_file(deps, monkeypatch)
 @pytest.mark.usefixtures("frozen_clock")
 async def test_a_guild_with_a_profile_gets_its_current_size_on_it(deps):
     joined = datetime(2026, 1, 2, tzinfo=timezone.utc)
-    profiles = deps.mongo_client.guild.analytics_guild_profile
+    profiles = deps.mongo_client.analytics.lifetime
     profiles.insert_one({"_id": "1", "joined_at": joined, "size_bucket": "5k+"})
     profiles.insert_one({"_id": "2", "joined_at": joined})
     profiles.insert_one({"_id": "3", "joined_at": joined})
@@ -1728,10 +1728,10 @@ async def test_a_guild_with_a_profile_gets_its_current_size_on_it(deps):
 @pytest.mark.usefixtures("frozen_clock")
 async def test_measuring_never_creates_a_profile_and_never_undoes_a_forget(deps):
     """A profile is born from a guild's first event; `/admin forget` must stay done."""
-    profiles = deps.mongo_client.guild.analytics_guild_profile
+    profiles = deps.mongo_client.analytics.lifetime
     profiles.insert_one({"_id": "1", "joined_at": datetime(2026, 1, 2, tzinfo=timezone.utc)})
     profiles.insert_one({"_id": "2", "joined_at": datetime(2026, 1, 2, tzinfo=timezone.utc)})
-    analytics_data.delete_analytics_by_guild("2")
+    lifetime.delete_by_guild("2")
     guilds = [
         SimpleNamespace(id=1, member_count=12),
         SimpleNamespace(id=2, member_count=800),
@@ -1750,7 +1750,7 @@ async def test_a_failing_measure_is_a_warning_that_never_takes_down_the_loop(
     def explode(*_args):
         raise ConnectionError("mongo is down")
 
-    monkeypatch.setattr(analytics_data, "update_profiles", explode)
+    monkeypatch.setattr(lifetime, "update", explode)
     guilds = [SimpleNamespace(id=1, member_count=12)]
 
     with caplog.at_level(logging.WARNING):
@@ -1774,7 +1774,7 @@ async def test_archiving_a_month_never_freezes_the_bot(deps, monkeypatch):
 
 @pytest.mark.usefixtures("frozen_clock")
 async def test_measuring_the_guilds_never_freezes_the_bot(deps, monkeypatch):
-    monkeypatch.setattr(analytics_data, "update_profiles", blocking())
+    monkeypatch.setattr(lifetime, "update", blocking())
     guilds = [SimpleNamespace(id=1, member_count=12)]
 
     ticks = await ticks_while(

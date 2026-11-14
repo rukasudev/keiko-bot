@@ -85,7 +85,7 @@ class Admin(GroupCog, name="admin"):
         self, interaction: discord.Interaction, guild_id: str
     ) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
-        embed = admin_analytics.build_guild_journey_embed(guild_id)
+        embed = await asyncio.to_thread(admin_analytics.build_guild_journey_embed, guild_id)
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @keiko_command(
@@ -100,7 +100,7 @@ class Admin(GroupCog, name="admin"):
         await interaction.followup.send(
             f"Erased analytics for guild `{guild_id}` — "
             f"**{deleted['events']}** events, **{deleted['months']}** monthly buckets, "
-            f"**{deleted['profile']}** profile.",
+            f"**{deleted['profile']}** profile, **{deleted['traces']}** traces.",
             ephemeral=True,
         )
 

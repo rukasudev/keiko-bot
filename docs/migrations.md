@@ -21,12 +21,16 @@ app/migrations/
     0002_guild_and_keiko.py
     0003_members_and_schedules.py
     0004_subscriptions_and_messages.py
+    0005_events.py
+    0006_analytics_and_traces.py
   data/
     0001_bot_defaults.py
     0002_server_settings.py
     0003_cogs_and_keiko.py
     0004_members_and_schedules.py
     0005_subscriptions_and_messages.py
+    0006_events.py
+    0007_analytics.py
 ```
 
 ## The CLI
@@ -38,6 +42,9 @@ python -m app.migrations migrate              # apply every pending file: schema
 python -m app.migrations verify               # the live database against snapshot.json
 python -m app.migrations snapshot             # the live structure, as snapshot.json is written
 python -m app.migrations snapshot --declared  # what the schema files declare, without Mongo
+python -m app.migrations redis-cleanup --dry-run  # count the Redis keys of the retired families
+python -m app.migrations redis-cleanup        # unlink them (Redis, not Mongo: docs/data-model.md)
+python -m app.migrations redis-check          # fail on a key without a TTL, warn on one outside the four roles
 make migrate                                  # migrate against the local docker-compose Mongo
 ```
 

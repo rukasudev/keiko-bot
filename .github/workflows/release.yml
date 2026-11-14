@@ -151,5 +151,21 @@ jobs:
           echo "keiko-bot ready, and up for $((poll * POLL_SECONDS)) s: $state"
           test "$state" = "running 0"
 
+      - name: Clean Redis once the new version serves
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          migrations() {
+            docker run --rm \
+              -e AWS_ACCESS_KEY_ID -e AWS_SECRET_ACCESS_KEY -e AWS_REGION \
+              -e APP_VERSION="$VERSION" \
+              ${{ env.REGISTRY }}:${{ env.VERSION }} python -m app.migrations "$@"
+          }
+          migrations redis-cleanup --dry-run
+          migrations redis-cleanup
+          migrations redis-check
+
       - name: Remove images no container uses
         run: docker image prune -af

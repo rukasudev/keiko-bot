@@ -539,12 +539,14 @@ def test_the_shipped_files_form_a_clean_plan_from_an_empty_ledger():
         "schema/0003_members_and_schedules",
         "schema/0004_subscriptions_and_messages",
         "schema/0005_events",
+        "schema/0006_analytics_and_traces",
         "data/0001_bot_defaults",
         "data/0002_server_settings",
         "data/0003_cogs_and_keiko",
         "data/0004_members_and_schedules",
         "data/0005_subscriptions_and_messages",
         "data/0006_events",
+        "data/0007_analytics",
     ]
 
 
@@ -602,6 +604,21 @@ def test_the_baseline_keeps_the_retention_the_constants_name():
     )
     assert (
         guild["logs"]["ts_1"]["expireAfterSeconds"] == Commands.DEBUG_LOGS_TTL_SECONDS
+    )
+
+
+def test_the_numbers_and_the_runs_keep_the_retention_the_constants_name():
+    declared = runner.declared_structure()
+    analytics, traces = declared["analytics"], declared["traces"]
+
+    assert analytics["counts"]["updated_at_1"]["expireAfterSeconds"] == (
+        Commands.ANALYTICS_MONTHLY_TTL_SECONDS
+    )
+    assert analytics["lifetime"]["removed_at_1"]["expireAfterSeconds"] == (
+        Commands.ANALYTICS_PROFILE_TTL_SECONDS
+    )
+    assert traces["runs"]["ts_1"]["expireAfterSeconds"] == (
+        Commands.TRACE_RUNS_TTL_SECONDS
     )
 
 

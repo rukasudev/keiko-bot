@@ -200,7 +200,8 @@ def test_a_failure_analytics_already_holds_is_recognised_by_command_and_time():
 
 
 def test_the_files_mappings_agree_with_the_catalog_and_the_constants():
-    """A migration file holds literals only, so this is what keeps them true."""
+    """A migration file holds literals only, so this is what keeps them true; a blocked
+    link comes from its own rows and a change of Keiko's settings was never kept."""
     catalog = analytics.events_catalog()
     lifecycle = set(LIFECYCLE_ANALYTICS_EVENTS.values())
 
@@ -209,7 +210,8 @@ def test_the_files_mappings_agree_with_the_catalog_and_the_constants():
         expected = "audit" if name in lifecycle else catalog[name]["collection"]
         assert collection == expected, name
     documented = {name for name, declaration in catalog.items()
-                  if declaration["collection"] != "none" and name != "link.blocked"}
+                  if declaration["collection"] != "none"
+                  and name not in ("link.blocked", "keiko.settings_changed")}
     assert documented <= set(MIGRATION.COLLECTIONS), "an event the file cannot map"
     assert MIGRATION.RETENTION_DAYS * 86400 == Commands.EVENTS_INTERACTIONS_TTL_SECONDS
     assert MIGRATION.AUDIT_COGS == (

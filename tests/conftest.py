@@ -189,6 +189,10 @@ def auto_inject_dependencies(deps):
         patch('app.data.guild.messages.mongo_client', deps.mongo_client),
         patch('app.data.block_links.mongo_client', deps.mongo_client),
         patch('app.data.analytics.mongo_client', deps.mongo_client),
+        patch('app.data.analytics.counts.mongo_client', deps.mongo_client),
+        patch('app.data.analytics.lifetime.mongo_client', deps.mongo_client),
+        patch('app.data.analytics.keiko.mongo_client', deps.mongo_client),
+        patch('app.data.traces.runs.mongo_client', deps.mongo_client),
         patch('app.data.logs.mongo_client', deps.mongo_client),
         patch('app.data.util.mongo_client', deps.mongo_client),
         patch('app.core.cache.redis_client', deps.redis_client),
@@ -248,10 +252,12 @@ def observability_isolation():
     analytics.reset()
     debug_logs.reset()
     trace.clear_sinks()
+    trace.drain_runs()
     yield
     analytics.reset()
     debug_logs.reset()
     trace.clear_sinks()
+    trace.drain_runs()
 
 
 @pytest.fixture(autouse=True)

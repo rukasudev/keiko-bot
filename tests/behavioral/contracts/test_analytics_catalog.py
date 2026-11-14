@@ -65,7 +65,7 @@ def test_every_declaration_carries_the_required_schema():
 
 def test_event_names_follow_the_domain_dot_fact_convention():
     domains = {"command", "feature", "setup", "config", "guild", "value", "help",
-               "dashboard", "report", "link"}
+               "dashboard", "report", "link", "keiko"}
     for name in analytics.events_catalog():
         domain, _, fact = name.partition(".")
         assert fact, f"{name} must be <domain>.<fact>"
@@ -166,10 +166,27 @@ def test_each_collection_keeps_its_events_as_long_as_its_ttl_says():
     assert not any("expireAfterSeconds" in spec for spec in events["changes"].values())
 
 
-def test_profile_rules_only_reference_catalog_events():
+def test_the_sink_rules_only_reference_catalog_events():
     declared = analytics.events_catalog()
-    unknown = [name for name in analytics_sink.PROFILE_RULES if name not in declared]
-    assert not unknown, f"PROFILE_RULES references undeclared events: {unknown}"
+    named = [*analytics_sink.LIFETIME_RULES, *analytics_sink.COMMAND_TALLIES]
+    unknown = [name for name in named if name not in declared]
+    assert not unknown, f"the sink's rules reference undeclared events: {unknown}"
+
+
+def test_the_value_and_the_tallies_the_sink_reads_are_declared_on_their_events():
+    """The sink names no event of one command (rule 22): an event that is value says
+    so with `counts_as_value`, a tally of Keiko's own with `keiko_tally`, and the prop
+    a tally reads is one the event declares."""
+    declared = analytics.events_catalog()
+
+    assert "value.delivered" in analytics.value_events()
+    for name, declaration in declared.items():
+        tally = declaration.get("keiko_tally")
+        if tally is None:
+            continue
+        assert set(tally) == {"name", "kind", "prop"}, name
+        props = set(declaration.get("required") or [])
+        assert tally["prop"] in props, f"{name} tallies a prop it may not carry"
 
 
 def test_unknown_events_are_dropped_instead_of_stored():

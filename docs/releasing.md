@@ -78,6 +78,18 @@ new version instead.
    `python -m scripts.keiko logs errors --level CRITICAL --since 7d`. The errors
    view reads the local index that `logs sync` builds, and shows ERROR by
    default.
+6. Once the check passes, the new image cleans Redis (`python -m app.migrations
+   redis-cleanup`, after its `--dry-run`) and then checks it (`redis-check`). The
+   cleanup unlinks, with SCAN and UNLINK in batches, every key of a retired family
+   (`Migrations.REDIS_RETIRED_PATTERNS`); run again it finds nothing. The check
+   fails the deploy on any key without a TTL and names up to 20 of them; a key
+   outside `cache:`, `claim:`, `throttle:` and `window:` that has a TTL (v0.9.0's
+   translations, cached for a day under their raw text) is listed as a warning and
+   left to expire. It runs after the old
+   container has stopped because the old version writes the retired keys until
+   then: a cleanup run while it still serves would leave counters without a TTL
+   behind. A failure here leaves the new bot running; read the keys it names,
+   fix the writer, and release again.
 
 ## Choose the number
 

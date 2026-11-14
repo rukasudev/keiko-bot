@@ -39,13 +39,6 @@ def count_by_type(
     return dict(counted(rows))
 
 
-def count_since(types: Sequence[str], since: datetime) -> Dict[str, int]:
-    """How many changes of each type every server had since `since`, by type."""
-    query = selection(types=types, since=since)
-    rows = mongo_client.events.changes.aggregate(grouped(query, "type"))
-    return dict(counted(rows))
-
-
 def delete_by_guild(guild_id: Any, cog: Optional[str] = None) -> int:
     """Erase a server's changes, or one cog's, and count them."""
     query = selection(guild_id, cog)

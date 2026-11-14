@@ -1,4 +1,7 @@
 {
+  "analytics.counts": ["index(guild_id, -month)", "index(month)", "ttl(updated_at, days=400)"],
+  "analytics.keiko": [],
+  "analytics.lifetime": ["index(removed_at, last_value_at)", "ttl(removed_at, days=365)"],
   "audit.errors": [],
   "audit.notifications_twitch": [],
   "audit.reminders": ["ttl(expires_at)"],
@@ -42,5 +45,6 @@
   "migrations.changelog": [],
   "migrations.lock": ["ttl(expires_at)"],
   "notifications.notifications_twitch": [],
-  "reminders.birthdays": []
+  "reminders.birthdays": [],
+  "traces.runs": ["index(guild_id, -ts)", "ttl(ts, days=30)"]
 }

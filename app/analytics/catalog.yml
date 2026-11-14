@@ -10,6 +10,9 @@
 #             none         -> no document; the sink still counts it
 # actor:      user | bot | job (the kind of actor.id)
 # private:    props kept in the database and left out of the monthly archive
+# counts_as_value: true when the event is the feature doing its job (lifetime value)
+# keiko_tally: {name, kind, prop} -> analytics.keiko `{name}:total` and `{name}:{kind}:{prop}`
+# keiko_wide: true when the event is about Keiko itself: it names no server, whatever the trace's
 
 sources:
   - slash
@@ -259,6 +262,7 @@ events:
   value.delivered:
     version: 1
     collection: none
+    counts_as_value: true
     description: The feature did the thing the user configured it to do.
     emitted_at: the send/assign call site of each feature service
     actor: bot
@@ -279,6 +283,8 @@ events:
   link.blocked:
     version: 1
     collection: activity
+    counts_as_value: true
+    keiko_tally: {name: blocked, kind: site, prop: host}
     description: A link the server's rules refuse was found in a message, deleted or not; the member who sent it is the actor.
     emitted_at: app/services/block_links.py — record_blocked_links
     actor: user
@@ -294,6 +300,17 @@ events:
     emitted_at: the welcome preview aside (app/settings/features/welcome_messages.py) and the block links diagnostic
     actor: user
     required: [surface]
+    optional: []
+    cardinality_risk: low
+
+  keiko.settings_changed:
+    version: 1
+    collection: changes
+    keiko_wide: true
+    description: An operator changed Keiko's own settings, its presence or its operator ids.
+    emitted_at: app/services/config.py — update_activity, update_description, update_status; app/services/admin.py — update_admin_configs
+    actor: user
+    required: [group, changed_keys]
     optional: []
     cardinality_risk: low
 

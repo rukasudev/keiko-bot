@@ -21,7 +21,6 @@ import os
 import pkgutil
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from types import SimpleNamespace
 from typing import Any, Dict, Iterator, List, Set, Tuple
 
 import pytest
@@ -33,10 +32,10 @@ from app.constants import Commands, DBConfigs, Migrations
 from app.core import analytics_reports
 from app.data import (
     analytics,
-    block_links,
     logs,
     util,
 )
+from app.data.analytics import counts, keiko, lifetime
 from app.data.events import activity, changes, interactions
 from app.data.guild import cogs as guild_cogs
 from app.data.guild import members
@@ -46,6 +45,7 @@ from app.data.keiko import integrations as keiko_integrations
 from app.data.keiko import schedules
 from app.data.keiko import settings as keiko_settings
 from app.data.keiko import subscriptions
+from app.data.traces import runs
 from app.migrations import runner
 from app.services import admin as admin_service
 
@@ -88,18 +88,20 @@ SESSION_FIELDS = {
     "startTransaction",
 }
 WHOLE_RANGES = {"[MinKey, MaxKey]", "[MaxKey, MinKey]"}
-EMPTY_REDIS = SimpleNamespace(
-    scan_iter=lambda pattern: iter(()), get=lambda key: None, dbsize=lambda: 0
-)
-NO_TWITCH_SUBSCRIPTIONS = SimpleNamespace(get_subscriptions=lambda: {"data": []})
 
 NOT_A_QUERY = {
-    "analytics.build_profile_operation",
+    "analytics.counts.count_id",
+    "analytics.lifetime.admin_operation",
+    "analytics.lifetime.lifetime_operation",
     "events.activity.insert_many",
     "events.changes.insert",
     "events.interactions.insert_many",
     "keiko.schedules.schedule_subject",
     "keiko.schedules.schedule_id",
+    "events.counted",
+    "events.grouped",
+    "events.newest_first",
+    "events.selection",
     "logs.day_bounds",
     "logs.insert_logs",
     "util.collection_names",
@@ -110,14 +112,18 @@ NOT_A_QUERY = {
 Shape = Tuple[str, Tuple[str, ...]]
 
 BY_DESIGN: Dict[Shape, str] = {
-    ("guild.analytics_guild_profile", ()): "find_profiles reads every profile",
+    ("analytics.lifetime", ()): "find_lifetimes reads every server's lifetime",
     ("guild.logs", ()): "iter_documents streams a whole collection to the backup",
     ("guild.settings", ()): "the /admin overview counts every server Keiko recorded",
 }
 
 LEGACY: Dict[Shape, str] = {
-    ("events.changes", ("ts", "type")): "PR 2",
-    ("guild.analytics_guild_month", ("month",)): "PR 2",
+    **{
+        (f"events.{collection}", ("guild_id",)): (
+            "the schema file that drops the audits of before PR 2"
+        )
+        for collection in FEATURE_KEYS
+    },
 }
 
 
@@ -157,11 +163,10 @@ class Recorder(monitoring.CommandListener):
 
 
 def data_modules() -> List[Any]:
-    """Every module under `app/data`, the database packages' modules included."""
+    """Every module and package under `app/data`."""
     return [
         importlib.import_module(module.name)
         for module in pkgutil.walk_packages(app.data.__path__, "app.data.")
-        if not module.ispkg
     ]
 
 
@@ -229,7 +234,7 @@ def recording(migrated: MongoClient) -> Recording:
         for module in data_modules():
             if "mongo_client" in vars(module):
                 patch.setattr(module, "mongo_client", mongo)
-        patch.setattr(admin_service, "redis_client", EMPTY_REDIS)
+        patch.setattr("app.core.cache.count_keys", lambda: 0)
         asyncio.run(drive_with_motor(url, recorder, patch))
 
     create_collections_read(migrated, recorder.commands)
@@ -277,12 +282,11 @@ async def drive() -> None:
     drive_guild_settings(now)
     drive_members()
     drive_schedules(now)
-    drive_block_links()
     drive_subscriptions_and_messages(now)
     drive_analytics(now)
     drive_analytics_reports(now)
     drive_logs_and_backup(now)
-    admin_service._what_keiko_stored(NO_TWITCH_SUBSCRIPTIONS, {GUILD})
+    admin_service._what_keiko_stored({GUILD})
 
 
 def drive_keiko() -> None:
@@ -330,7 +334,6 @@ def drive_events(now: datetime) -> None:
     changes.find_by_guild(GUILD, FEATURE, lifecycle, since, 1)
     changes.count_by_type(GUILD)
     changes.count_by_type(GUILD, FEATURE, lifecycle, since)
-    changes.count_since(["guild.joined", "guild.removed"], since)
     changes.delete_by_guild(OTHER_GUILD)
     changes.delete_by_guild(OTHER_GUILD, FEATURE)
 
@@ -397,33 +400,41 @@ def drive_schedules(now: datetime) -> None:
     schedules.delete_schedule(birthday)
 
 
-def drive_block_links() -> None:
-    block_links.count_blocked_links(1, {"example.com": 1}, datetime.now(timezone.utc))
-
-
 def drive_subscriptions_and_messages(now: datetime) -> None:
     subscriptions.update_subscription_state("twitch", "streamer", {"last_live_started_at": now})
     subscriptions.subscription_state("twitch", "streamer")
+    subscriptions.count_subscriptions("twitch")
     messages.save_message(GUILD, CHANNEL, "notifications_twitch", "streamer", "1")
     messages.find_message(GUILD, CHANNEL, "notifications_twitch", "streamer")
 
 
 def drive_analytics(now: datetime) -> None:
-    analytics.increment_months({f"{GUILD}|{MONTH}": {"days.12.value": 1}})
-    analytics.update_profiles(
-        [analytics.build_profile_operation(GUILD, inc={"totals.value_events": 1})]
-    )
-    analytics.find_profile(GUILD)
-    analytics.find_profiles()
-    analytics.find_month_buckets(GUILD)
-    analytics.find_month_buckets_by_month(MONTH)
+    counts.increment({counts.count_id(GUILD, MONTH): {"days.12.value": 1}}, now)
+    counts.find_by_guild(GUILD)
+    counts.find_by_guild(GUILD, MONTH)
+    counts.find_by_month(MONTH)
+    lifetime.update([
+        lifetime.lifetime_operation(GUILD, inc={"totals.value_events": 1}),
+        lifetime.admin_operation(GUILD, MEMBER, 25),
+    ])
+    lifetime.find_lifetime(GUILD)
+    lifetime.find_lifetimes()
+    lifetime.find_quiet(now)
+    day = f"day:{MONTH}"
+    keiko.increment({day: {"days.12.value": 1}}, now, {day: {"month": MONTH}})
+    keiko.find_counters([f"day:{MONTH}", f"commands:{MONTH}"])
+    runs.insert_runs([{"trace_id": "abc123", "ts": now, "guild_id": GUILD}])
     analytics.find_archived_month(MONTH)
     analytics.mark_month_archived(MONTH, {"archived_at": now})
-    analytics.delete_analytics_by_guild(OTHER_GUILD)
+    admin_service.forget_guild(OTHER_GUILD)
+    for collection in (changes, activity, interactions):
+        collection.delete_by_guild(OTHER_GUILD)
 
 
 def drive_analytics_reports(now: datetime) -> None:
     analytics_reports.funnel(FEATURE)
+    analytics_reports.guilds_at_risk()
+    analytics_reports.command_usage(now - timedelta(days=30))
     analytics_reports._setup_events(None, None, None)
     analytics_reports._setup_events(FEATURE, GUILD, now)
     for feature in (None, FEATURE):

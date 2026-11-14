@@ -184,6 +184,33 @@ counts) stay in its service.
 inside it: `{_id: "{guild}|2026-11", guild_id, month, days: {"10": {"link_blocked|block_links": 4}}}`
 (the type loses its dots, which an update path would read as nesting).
 
+## Redis
+
+Redis holds four roles, each one a key prefix, and every key has a TTL. Nothing
+in it is the truth: a lost key costs a read of Mongo, a repeated call or a count
+that starts again.
+
+| Role | Means | Key | TTL |
+|---|---|---|---|
+| `cache:` | a copy of a document or an answer | `cache:cog:{guild_id}:{cog}` (`DBConfigs.CACHE_COG_KEY`) | 5 min, 1 min when the server has none |
+| | | `cache:stream_elements:commands:{channel_id}` (`Commands.CACHE_STREAM_ELEMENTS_COMMANDS`) | 24 h, 5 min with no command |
+| `claim:` | this was done once already | `claim:twitch:live:{streamer}:{started_at}` (`Commands.REDIS_TWITCH_LIVE_CLAIM`) | 24 h |
+| | | `claim:youtube:video:{video_id}` (`Commands.REDIS_YOUTUBE_VIDEO_CLAIM`) | 7 d |
+| `throttle:` | do not try again yet | `throttle:stream_elements:channel:{streamer}` (`Commands.REDIS_STREAM_ELEMENTS_CHANNEL_THROTTLE`) | 5 min |
+| | | `throttle:stream_elements:warned:{streamer}` (`Commands.REDIS_STREAM_ELEMENTS_WARNED_THROTTLE`) | 30 min |
+| `window:` | a count over a fixed period | `window:attempts:{guild_id}:{feature}` (`Commands.REDIS_ATTEMPTS_WINDOW`) | 24 h from the first count |
+
+- A key template lives in `app/constants.py`, named `REDIS_*` or `CACHE_*`, and
+  starts with its role. Every write goes through `app/core/cache.py`.
+- A write sets its TTL in the same command or the same pipeline: `setex`, a claim
+  with `SET NX EX`, a window with `SET NX EX` then `INCRBY`. A window's TTL is set
+  by its first count only, so it closes on time however busy the server is.
+- A new key family is one of the four roles. A count that must last belongs in
+  `analytics`, through an event, never in Redis.
+- `python -m app.migrations redis-check` fails on any key without a TTL and warns on
+  one outside the four roles that has a TTL; the release runs it after
+  `redis-cleanup` (`docs/releasing.md`).
+
 ## A new command: seven questions
 
 Ask them in order. Each "yes" says where that part of the data lives. Most

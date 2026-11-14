@@ -111,7 +111,7 @@ async def keep_channel(guild_id: str, channel_id: str) -> None:
 
 
 def _channel_or_recent_failure(streamer: str) -> str:
-    failed_key = constants.REDIS_STREAM_ELEMENTS_CHANNEL_FAILED.format(streamer=streamer)
+    failed_key = constants.REDIS_STREAM_ELEMENTS_CHANNEL_THROTTLE.format(streamer=streamer)
     failed = cache.get_data_from_redis(failed_key)
     if failed:
         raise StreamElementsUnavailable(str(failed.get("error")))
@@ -145,7 +145,7 @@ def find_channel(streamer: str) -> str:
 def warn_unavailable(streamer: str, error: StreamElementsUnavailable) -> None:
     """Tell the log channel StreamElements failed, once per streamer while its Redis mark lives."""
     claimed = cache.claim_redis_key(
-        constants.REDIS_STREAM_ELEMENTS_WARNED.format(streamer=streamer),
+        constants.REDIS_STREAM_ELEMENTS_WARNED_THROTTLE.format(streamer=streamer),
         constants.STREAM_ELEMENTS_FAILURE_SECONDS,
     )
     if not claimed:
@@ -327,7 +327,7 @@ def get_reply_in_cache_or_populate(
 def _channel_commands(channel_id: str) -> Dict[str, str]:
     """The streamer's enabled commands by name, with their replies as written: cached a
     day, a streamer with none for a few minutes, a failure never (it raises)."""
-    cache_key = constants.REDIS_STREAM_ELEMENTS_COMMANDS.format(channel_id=channel_id)
+    cache_key = constants.CACHE_STREAM_ELEMENTS_COMMANDS.format(channel_id=channel_id)
     cached = cache.get_data_from_redis(cache_key)
     if cached:
         return cached["commands"]

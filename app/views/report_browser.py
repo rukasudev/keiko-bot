@@ -4,6 +4,7 @@ Built for `/admin insights`, but nothing here knows about analytics: any
 command that would otherwise become a handful of sibling commands can compose
 it instead. Reference: docs/analytics.md
 """
+import asyncio
 from typing import Any, Callable, Dict, List, Optional
 
 import discord
@@ -59,7 +60,8 @@ class ReportBrowserView(discord.ui.View):
         if not section:
             return await interaction.response.defer()
 
-        await interaction.response.edit_message(embed=section.build(), view=self)
+        embed = await asyncio.to_thread(section.build)
+        await interaction.response.edit_message(embed=embed, view=self)
 
 
 class ReportBrowser:
@@ -80,7 +82,7 @@ class ReportBrowser:
             return
 
         view = ReportBrowserView(self.sections, self.placeholder)
-        embed = self.sections[0].build()
+        embed = await asyncio.to_thread(self.sections[0].build)
 
         if interaction.response.is_done():
             await interaction.followup.send(
