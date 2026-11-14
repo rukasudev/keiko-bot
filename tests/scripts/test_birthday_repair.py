@@ -8,6 +8,8 @@ would have said "nothing to repair" about a database it never opened, because
 Nothing here reaches the network or a database: these cover the guards and the
 plan, which is where that failure lived.
 """
+from tests.mocks.database import fake_store
+from app.data import data, wait
 import os
 import sys
 
@@ -89,15 +91,15 @@ def orphans(monkeypatch):
     from tests.generators.birthdays import saved_birthday
     from tests.generators.moderations import recorded_server
 
-    recorded_server(members_data.mongo_client, "g1", timezone="Asia/Tokyo")
-    save_birthday_config("g1", channel_id="9", notification_time="14:00")
+    recorded_server(fake_store(), "g1", timezone="Asia/Tokyo")
+    wait(save_birthday_config("g1", channel_id="9", notification_time="14:00"))
     for user, date in (("7", "10-28"), ("8", "10-28"), ("9", "03-23")):
         saved_birthday("g1", user, date, reminder_id=None)
     saved_birthday("nocfg", "1", "01-01", reminder_id=None)
 
 
 def test_the_plan_groups_by_guild_and_date_not_by_person(orphans):
-    entries = repair.plan()
+    entries = wait(repair.plan())
 
     dates = sorted(entry["date"] for entry in entries if entry["guild_id"] == "g1")
     assert dates == ["03-23", "10-28"], "one reminder serves a whole date"
@@ -105,7 +107,7 @@ def test_the_plan_groups_by_guild_and_date_not_by_person(orphans):
 
 
 def test_the_plan_carries_the_schedule_that_will_be_used(orphans):
-    entry = next(e for e in repair.plan() if e["date"] == "10-28")
+    entry = next(e for e in wait(repair.plan()) if e["date"] == "10-28")
 
     assert entry["timezone"] == "Asia/Tokyo", "the server's zone, which the repair uses"
     assert entry["notification_time"] == "14:00"
@@ -119,11 +121,11 @@ def test_the_repair_without_redis_reads_the_servers_zone_from_mongo(orphans, mon
 
     monkeypatch.setattr(cache, "redis_client", repair.NoRedis())
 
-    assert server_setting("g1", "timezone") == "Asia/Tokyo"
+    assert wait(server_setting("g1", "timezone")) == "Asia/Tokyo"
 
 
 def test_a_guild_with_no_configuration_is_marked_not_repairable(orphans):
-    entry = next(e for e in repair.plan() if e["guild_id"] == "nocfg")
+    entry = next(e for e in wait(repair.plan()) if e["guild_id"] == "nocfg")
 
     assert entry["configured"] is False
 
@@ -135,14 +137,13 @@ def test_an_empty_plan_says_so_rather_than_printing_a_header(orphans, capsys):
 
 
 def test_the_printed_plan_flags_what_will_be_released(orphans, capsys):
-    from app.data.keiko import schedules as schedules_data
     from app.services.reminders_birthdays import birthday_schedule_id
 
-    schedules_data.upsert_schedule(
+    wait(data().keiko_schedules.upsert_schedule(
         birthday_schedule_id("g1", "05-05"), "birthday", None
-    )
+    ))
 
-    repair.describe(repair.plan())
+    repair.describe(wait(repair.plan()))
 
     printed = capsys.readouterr().out
     assert "NO CONFIG - will be released" in printed

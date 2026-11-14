@@ -1,4 +1,3 @@
-import asyncio
 from datetime import datetime
 
 import discord
@@ -10,12 +9,11 @@ from app.constants import CogsConstants as cogconstants
 from app.constants import Commands as commandsconstants
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants
-from app.data.guild.settings import find_settings
+from app.data import data
 from app.services import block_links as block_links_service
 from app.services import default_roles as default_roles_service
 from app.services import stream_elements as stream_elements_service
 from app.core import analytics, analytics_reports, members, trace
-from app.core.cache import increment_redis_key
 from app.core.cogs import features_on
 from app.services.help import answer_prefix_command, prefix_hint
 from app.core.servers import (
@@ -104,13 +102,11 @@ class Events(Cog, name="events"):
 
     async def _record_offline_joins(self) -> None:
         guilds = {str(guild.id): guild for guild in self.bot.guilds}
-        missing = await asyncio.to_thread(guilds_without_settings, list(guilds))
+        missing = await guilds_without_settings(list(guilds))
 
         for guild_id in missing:
             guild = guilds[guild_id]
-            await asyncio.to_thread(
-                join_guild, guild.id, str(guild.owner_id), guess_server_settings(guild)
-            )
+            await join_guild(guild.id, str(guild.owner_id), guess_server_settings(guild))
 
     @commands.Cog.listener()
     async def on_member_join(self, member: discord.Member):
@@ -199,19 +195,16 @@ class Events(Cog, name="events"):
         # Context menus are ContextMenu, not Command, so they carry no `_attr`.
         feature = getattr(interaction.command, "_attr", None)
 
-        if feature and str(interaction.user.id) != str(self.bot.owner_id):
-            await asyncio.to_thread(
-                increment_redis_key, f"{logconstants.COMMAND_CALL_TYPE}:{feature}"
-            )
-
-        analytics.emit(
+        analytics.record(
             "command.invoked",
             guild_id=interaction.guild_id,
-            user_id=interaction.user.id,
-            command=interaction.command.qualified_name,
-            source=analytics.resolve_source(interaction),
-            feature=feature,
-            is_admin=is_guild_admin(interaction.user),
+            cog=feature,
+            actor=analytics.actor("user", interaction.user.id),
+            props={
+                "command": interaction.command.qualified_name,
+                "source": analytics.resolve_source(interaction),
+                "is_admin": is_guild_admin(interaction.user),
+            },
         )
 
     @commands.Cog.listener()
@@ -222,19 +215,19 @@ class Events(Cog, name="events"):
 
     async def _record_join(self, guild: discord.Guild) -> None:
         owner_id = str(guild.owner_id)
-        exist, total_servers = await asyncio.to_thread(
-            join_guild, guild.id, owner_id, guess_server_settings(guild)
-        )
+        exist, total_servers = await join_guild(guild.id, owner_id, guess_server_settings(guild))
         action = "Joined new guild" if not exist else "Joined again"
 
         total_guilds = len(self.bot.guilds)
 
-        analytics.emit(
+        analytics.record(
             "guild.joined",
             guild_id=guild.id,
-            returning=bool(exist),
-            size_bucket=analytics.bucket_size(guild.member_count),
-            owner_guilds=total_servers,
+            props={
+                "returning": bool(exist),
+                "size_bucket": analytics.bucket_size(guild.member_count),
+                "owner_guilds": total_servers,
+            },
         )
 
         logger.info(
@@ -250,16 +243,12 @@ class Events(Cog, name="events"):
             await left.run("report", self._report_leaving(guild))
             await left.run("snapshot", self._snapshot_leaving(guild))
             await left.run(
-                "leave", asyncio.to_thread(leave_guild, guild.id, str(self.bot.user.id))
-            )
-            await left.run(
-                "block_links",
-                asyncio.to_thread(block_links_service.forget_counters, str(guild.id)),
+                "leave", leave_guild(guild.id, str(self.bot.user.id))
             )
 
     async def _report_leaving(self, guild: discord.Guild) -> None:
-        server = await asyncio.to_thread(find_settings, guild.id)
-        active_commands = await asyncio.to_thread(features_on, str(guild.id))
+        server = await data().guild_settings.find_settings(guild.id)
+        active_commands = await features_on(str(guild.id))
 
         duration_info = ""
         created_at = (server or {}).get("joined_at")
@@ -276,9 +265,9 @@ class Events(Cog, name="events"):
         )
 
     async def _snapshot_leaving(self, guild: discord.Guild) -> None:
-        snapshot = await asyncio.to_thread(analytics_reports.guild_snapshot, str(guild.id))
-        analytics.emit("guild.removed", guild_id=guild.id, **snapshot)
-        await asyncio.to_thread(analytics.flush)
+        snapshot = await analytics_reports.guild_snapshot(str(guild.id))
+        analytics.record("guild.removed", guild_id=guild.id, props=snapshot)
+        await analytics.flush()
 
 
 async def setup(bot: DiscordBot) -> None:

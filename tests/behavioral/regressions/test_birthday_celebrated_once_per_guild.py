@@ -39,6 +39,7 @@ from zoneinfo import ZoneInfo
 import discord
 import pytest
 
+from app.data import wait
 from app.constants import Commands
 from app.services.reminders_birthdays import save_birthday_config
 from app.core.servers import set_feature_enabled
@@ -86,16 +87,16 @@ def guilds(deps, monkeypatch):
     return SimpleNamespace(first=first, second=second)
 
 
-def register(guild, member_id, reminder_id, mm_dd="05-12"):
+async def register(guild, member_id, reminder_id, mm_dd="05-12"):
     create_member(guild, id=member_id, name=f"Member {member_id}")
-    save_birthday_config(
+    await save_birthday_config(
         str(guild.id),
         str(guild.text_channels[0].id),
         False,
         notification_time="08:00",
     )
     saved_birthday(str(guild.id), str(member_id), mm_dd, reminder_id=reminder_id)
-    set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
+    await set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
 
 
 def celebrations(guild):
@@ -113,8 +114,8 @@ def refuse_messages(guild):
     guild.text_channels[0]._send.side_effect = forbidden
 
 
-def delete_channel(guild):
-    save_birthday_config(str(guild.id), "999", False)
+async def delete_channel(guild):
+    await save_birthday_config(str(guild.id), "999", False)
 
 
 def fail_the_first_message(guild, error):
@@ -148,8 +149,8 @@ def errors_in(caplog):
 async def test_two_guilds_on_one_date_each_get_one_celebration_from_their_own_reminder(
     guilds,
 ):
-    register(guilds.first, 555, "4001")
-    register(guilds.second, 777, "4002")
+    await register(guilds.first, 555, "4001")
+    await register(guilds.second, 777, "4002")
 
     await fire("4001")
 
@@ -165,7 +166,7 @@ async def test_two_guilds_on_one_date_each_get_one_celebration_from_their_own_re
 
 
 async def test_the_same_reminder_twice_in_one_year_celebrates_once(guilds):
-    register(guilds.first, 555, "4001")
+    await register(guilds.first, 555, "4001")
 
     await fire("4001")
     await fire("4001")
@@ -175,7 +176,7 @@ async def test_the_same_reminder_twice_in_one_year_celebrates_once(guilds):
 
 async def test_an_edit_after_the_celebration_keeps_the_member_celebrated(guilds):
     """v0.9.0 and this version both rewrite the item with `$set`; neither may erase the key."""
-    register(guilds.first, 555, "4001")
+    await register(guilds.first, 555, "4001")
     await fire("4001")
 
     saved_birthday(
@@ -190,7 +191,7 @@ async def test_an_edit_after_the_celebration_keeps_the_member_celebrated(guilds)
 
 
 async def test_a_new_year_celebrates_again(guilds, deps):
-    register(guilds.first, 555, "4001")
+    await register(guilds.first, 555, "4001")
     deps.mongo_client.guild.members.update_one(
         {"_id": f"{FIRST_GUILD}:555"},
         {"$set": {"state.reminders_birthday.last_celebrated_year": 2025}},
@@ -206,7 +207,7 @@ async def test_a_new_years_eve_birthday_delivered_after_midnight_counts_for_its_
     guilds, clock,
 ):
     """The year is the birthday's, not the clock's: 00:30 on 01-01 still celebrates 12-31."""
-    register(guilds.first, 555, "4031", mm_dd="12-31")
+    await register(guilds.first, 555, "4031", mm_dd="12-31")
 
     clock.moment = datetime(2027, 1, 1, 0, 30, tzinfo=ZoneInfo(TIMEZONE))
     await fire("4031", "12-31")
@@ -219,7 +220,7 @@ async def test_a_new_years_eve_birthday_delivered_after_midnight_counts_for_its_
 
 async def test_a_birthday_delivered_early_counts_for_its_own_year(guilds, clock):
     """A reminder carrying a stale time zone can arrive the evening before the day."""
-    register(guilds.first, 555, "4031", mm_dd="12-31")
+    await register(guilds.first, 555, "4031", mm_dd="12-31")
 
     clock.moment = datetime(2026, 12, 30, 23, 30, tzinfo=ZoneInfo(TIMEZONE))
     await fire("4031", "12-31")
@@ -232,7 +233,7 @@ async def test_a_birthday_delivered_early_counts_for_its_own_year(guilds, clock)
 
 async def test_a_birthday_reminder_waits_until_the_bot_is_ready(guilds, deps):
     """A reminder that arrives while the bot boots must not miss its guilds."""
-    register(guilds.first, 555, "4001")
+    await register(guilds.first, 555, "4001")
     ready = asyncio.Event()
     deps.bot.wait_until_ready = ready.wait
 
@@ -252,9 +253,11 @@ async def test_a_guild_that_fails_does_not_stop_the_next_and_is_counted(
     guilds, analytics_events, caplog, break_guild,
 ):
     """Both items carry one reminder: before 2026-05-10 there was one per date for every guild."""
-    register(guilds.first, 555, "4000")
-    register(guilds.second, 777, "4000")
-    break_guild(guilds.first)
+    await register(guilds.first, 555, "4000")
+    await register(guilds.second, 777, "4000")
+    broken = break_guild(guilds.first)
+    if broken is not None:
+        await broken
 
     with caplog.at_level("INFO"):
         await fire("4000")
@@ -263,7 +266,7 @@ async def test_a_guild_that_fails_does_not_stop_the_next_and_is_counted(
     assert "celebrated=1 guilds_failed=1 members_failed=0" in caplog.text
     if break_guild is refuse_messages:
         refused = [event for event in analytics_events
-                   if event["event"] == "value.blocked_by_permission"]
+                   if event["type"] == "value.blocked_by_permission"]
         assert [event["guild_id"] for event in refused] == [str(FIRST_GUILD)]
 
 
@@ -271,8 +274,8 @@ async def test_a_message_discord_fails_to_send_does_not_stop_the_next_member_and
     guilds, caplog,
 ):
     """A 403 means the whole channel is closed to Keiko; any other error is about one message."""
-    register(guilds.first, 555, "4001")
-    register(guilds.first, 556, "4001")
+    await register(guilds.first, 555, "4001")
+    await register(guilds.first, 556, "4001")
     fail_the_first_message(guilds.first, discord.HTTPException(
         SimpleNamespace(status=500, reason="Internal Server Error"), "Discord is down"
     ))
@@ -310,7 +313,7 @@ async def test_a_message_discord_did_not_post_leaves_the_year_to_the_next_delive
     Guaranteed: the claim is still taken before the send, so two deliveries at once post
     once; a send Discord fails or refuses gives the year back, and the next delivery posts.
     """
-    register(guilds.first, 555, "4001")
+    await register(guilds.first, 555, "4001")
     fail_the_first_message(guilds.first, error)
 
     await fire("4001")
@@ -324,7 +327,7 @@ async def test_an_unexpected_error_inside_the_send_is_an_error_not_a_missing_ser
     guilds, caplog,
 ):
     """A real `KeyError` used to be caught as `LookupError` and read as a missing server."""
-    register(guilds.first, 555, "4001")
+    await register(guilds.first, 555, "4001")
     guilds.first.text_channels[0]._send.side_effect = KeyError("embed")
 
     with caplog.at_level("INFO"):
@@ -341,8 +344,8 @@ async def test_a_celebration_that_cannot_be_drawn_does_not_spend_the_year(
 ):
     """The member is claimed once the message exists, so a drawing error leaves them for a
     retry, and the next member is still celebrated."""
-    register(guilds.first, 555, "4001")
-    register(guilds.first, 556, "4001")
+    await register(guilds.first, 555, "4001")
+    await register(guilds.first, 556, "4001")
     draw = birthday_handler.build_celebration_embed
 
     def broken_for_one_member(item, *args, **kwargs):
@@ -367,7 +370,7 @@ async def test_a_member_who_moves_their_birthday_after_the_celebration_waits_for
     guilds, clock,
 ):
     """Decided with Lucas: at most one celebration per member, guild and year."""
-    register(guilds.first, 555, "4001", mm_dd="05-12")
+    await register(guilds.first, 555, "4001", mm_dd="05-12")
     await fire("4001", "05-12")
 
     saved_birthday(str(FIRST_GUILD), "555", "11-20", reminder_id="4009")

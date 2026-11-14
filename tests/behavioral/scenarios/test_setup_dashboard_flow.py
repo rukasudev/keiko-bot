@@ -10,6 +10,7 @@ from itertools import cycle, islice
 import discord
 import pytest
 
+from app.data import data
 from app.constants import Commands
 from app.core.utils import ml
 from app.settings.form.form_state import Manage
@@ -17,7 +18,6 @@ from tests.behavioral.golden.paths.common import GUILD_ID
 from tests.behavioral.harness import locators
 from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks.discord import create_guild, create_member
-from app.data.guild.cogs import find_cog_by_guild_id
 
 pytestmark = pytest.mark.behavioral
 
@@ -337,18 +337,17 @@ async def test_the_settings_screen_saves_a_value_and_draws_it_again(
     assert _saved(deps)[key] == value
     assert scenario.current_message is message
     assert any(shown in text for text in _texts(message)), "the new value is shown"
-    changed = [event for event in analytics_events if event["event"] == "config.changed"]
-    assert [(event["feature"], event["source"], event["props"]) for event in changed] == [
+    changed = [event for event in analytics_events if event["type"] == "config.changed"]
+    assert [(event["cog"], event["props"]) for event in changed] == [
         (
             Commands.SERVER_SETTINGS_KEY,
-            "setup_dashboard",
-            {"changed_keys": [key], "changed_count": 1},
+            {"source": "setup_dashboard", "changed_keys": [key], "changed_count": 1},
         )
     ]
-    audit = deps.mongo_client.events[Commands.SERVER_SETTINGS_KEY].find(
-        {"guild_id": GUILD_ID}, {"_id": False}
+    history = deps.mongo_client.events.changes.find(
+        {"guild_id": GUILD_ID, "cog": Commands.SERVER_SETTINGS_KEY}, {"_id": False}
     )
-    assert [record["event"] for record in audit] == [Commands.EDITED_KEY]
+    assert [record["type"] for record in history] == ["config.changed"]
 
 
 async def test_a_new_language_redraws_the_settings_screen_in_it_at_once(
@@ -482,7 +481,7 @@ async def test_a_setup_from_configurar_ends_on_its_category_marked_just_turned_o
         event for event in scenario.outputs
         if (event.get("embed") or {}).get("title") == title
     ]
-    assert find_cog_by_guild_id(GUILD_ID, "default_roles")
+    assert await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "default_roles")
 
     await _press(scenario, _button(message, "Voltar"))
     await _press(scenario, _beside(message, _category("moderations")))

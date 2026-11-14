@@ -23,6 +23,7 @@ from unittest.mock import AsyncMock
 import discord
 import pytest
 
+from app.data import data
 from app.cogs import events as events_module
 from app.constants import Commands, DBConfigs
 from app.exceptions import InvalidServerSetting, ServerSettingsMissing
@@ -30,7 +31,6 @@ from app.core import cache
 from app.core import servers as moderations_service
 from app.settings.discord.callbacks import RUNTIME
 from tests.behavioral.harness.driver import FormScenario
-from app.data.guild.cogs import find_cog_by_guild_id
 from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks.discord import create_guild, create_member
 
@@ -148,13 +148,13 @@ async def test_leaving_a_server_flips_nothing_inside_its_settings(deps):
     recorded_server(deps.mongo_client, "777", **SAVED)
     seed_cog(deps.mongo_client, "block_links", {"guild_id": "777", "enabled": True})
 
-    paused = moderations_service.leave_guild("777", "99")
+    paused = await moderations_service.leave_guild("777", "99")
 
     assert settings_of(deps, 777) == SAVED
     assert state_of(deps, 777)["present"] is False
     assert state_of(deps, 777)["left_at"] is not None
     assert paused == ["block_links"]
-    assert find_cog_by_guild_id("777", "block_links")["enabled"] is False
+    assert (await data().guild_cogs.find_cog_by_guild_id("777", "block_links"))["enabled"] is False
 
 
 @pytest.mark.parametrize(
@@ -179,13 +179,13 @@ async def test_a_server_without_settings_raises_instead_of_guessing(deps, reader
     with pytest.raises(ServerSettingsMissing, match="guild 777"):
         await getattr(moderations_service, reader)("777")
     with pytest.raises(ServerSettingsMissing, match="guild 777"):
-        moderations_service.server_settings("777")
+        await moderations_service.server_settings("777")
 
 
 async def test_the_readers_return_what_the_server_saved(deps):
     recorded_server(deps.mongo_client, "777", **SAVED)
 
-    assert moderations_service.server_settings("777") == SAVED
+    assert await moderations_service.server_settings("777") == SAVED
     assert await moderations_service.server_language("777") == "en-us"
     assert await moderations_service.server_timezone("777") == "Europe/Berlin"
     assert await moderations_service.server_prefix("777") == "!!"
@@ -214,7 +214,7 @@ def test_the_prefixes_a_server_may_pick_are_one_closed_list_in_order():
 async def test_a_value_its_key_holds_is_saved(deps, key, value):
     recorded_server(deps.mongo_client, "777", **SAVED)
 
-    moderations_service.save_server_setting("777", key, value)
+    await moderations_service.save_server_setting("777", key, value)
 
     assert settings_of(deps, 777) == {**SAVED, key: value}
 
@@ -246,7 +246,7 @@ async def test_a_value_its_key_cannot_hold_is_refused_and_nothing_is_saved(deps,
     recorded_server(deps.mongo_client, "777", **SAVED)
 
     with pytest.raises(InvalidServerSetting) as refused:
-        moderations_service.save_server_setting("777", key, value)
+        await moderations_service.save_server_setting("777", key, value)
 
     assert refused.value.key == key
     assert settings_of(deps, 777) == SAVED
@@ -255,13 +255,13 @@ async def test_a_value_its_key_cannot_hold_is_refused_and_nothing_is_saved(deps,
 async def test_a_save_drops_the_settings_memo(deps):
     recorded_server(deps.mongo_client, "777", **SAVED)
     assert await moderations_service.server_prefix("777") == "!!"
-    assert moderations_service.server_settings("777")["language"] == "en-us"
+    assert (await moderations_service.server_settings("777"))["language"] == "en-us"
 
-    moderations_service.save_server_setting("777", "prefix", "k?")
-    moderations_service.save_server_setting("777", "language", "pt-br")
+    await moderations_service.save_server_setting("777", "prefix", "k?")
+    await moderations_service.save_server_setting("777", "language", "pt-br")
 
     assert await moderations_service.server_prefix("777") == "k?"
-    assert moderations_service.server_settings("777")["language"] == "pt-br"
+    assert (await moderations_service.server_settings("777"))["language"] == "pt-br"
     assert await moderations_service.server_language("777") == "pt-br"
 
 
@@ -270,11 +270,14 @@ async def test_the_prefix_is_read_once_and_again_only_after_its_memo_expires(
 ):
     recorded_server(deps.mongo_client, "777", **SAVED)
     reads = []
-    read = moderations_service.guild_settings.find_settings
-    monkeypatch.setattr(
-        moderations_service.guild_settings, "find_settings",
-        lambda guild_id: (reads.append(guild_id), read(guild_id))[1],
-    )
+    settings = deps.data.guild_settings
+    read = settings.find_settings
+
+    async def counted(guild_id):
+        reads.append(guild_id)
+        return await read(guild_id)
+
+    monkeypatch.setattr(settings, "find_settings", counted)
     now = [1000.0]
     monkeypatch.setattr(cache, "monotonic", lambda: now[0])
 
@@ -283,7 +286,7 @@ async def test_the_prefix_is_read_once_and_again_only_after_its_memo_expires(
         {"_id": "777"}, {"$set": {"options.prefix": "kk!"}}
     )
     assert await moderations_service.server_prefix("777") == "!!"
-    assert moderations_service.server_settings("777")["prefix"] == "!!"
+    assert (await moderations_service.server_settings("777"))["prefix"] == "!!"
     assert reads == ["777"], "a second message reads nothing"
 
     now[0] += DBConfigs.COG_CACHE_TTL_SECONDS + 1

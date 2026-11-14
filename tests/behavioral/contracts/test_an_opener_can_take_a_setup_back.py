@@ -77,7 +77,7 @@ def launched(deps):
 @pytest.fixture
 def analytics_events(monkeypatch):
     recorded = []
-    monkeypatch.setattr(analytics, "emit", lambda name, **props: recorded.append(name))
+    monkeypatch.setattr(analytics, "record", lambda name, **fields: recorded.append(name))
     return recorded
 
 

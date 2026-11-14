@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Mapping, Sequence
 from typing import Any
 
 from app.constants import Commands
 from app.constants import ViewConstants as view_constants
-from app.data.block_links import delete_blocked_links_by_guild
+from app.data import data
 from app.services.block_links import (
     blocked_links_stats_lines,
     normalize_block_links_config,
@@ -83,15 +82,17 @@ class BlockLinksFeature(GenericCogFeature):
             ),
         }
 
-    def stats_lines(self, guild_id: str, locale: str) -> Sequence[str]:
+    async def stats_lines(self, guild_id: str, locale: str) -> Sequence[str]:
         """The blocks of all time and of the last days, the sites and the member."""
-        return blocked_links_stats_lines(guild_id, locale)
+        return await blocked_links_stats_lines(guild_id, locale)
 
     async def after_disable(
         self, document: Mapping[str, Any], context: CommitContext
     ) -> None:
-        """The blocked-links records go with the feature."""
-        await asyncio.to_thread(delete_blocked_links_by_guild, context.guild_id)
+        """The blocked links it recorded go with the feature."""
+        await data().events_activity.delete_by_guild(
+            context.guild_id, Commands.BLOCK_LINKS_KEY
+        )
 
 
 FEATURE = BlockLinksFeature()

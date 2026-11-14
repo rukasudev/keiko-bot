@@ -3,15 +3,13 @@ setup, and how its process runs and stops: the threads blocking calls run on, SI
 closing the bot, and the queues written however it stops."""
 
 import asyncio
-import concurrent.futures
 import contextlib
 import os
 import signal
 import threading
 import time
-from concurrent.futures import Future, ThreadPoolExecutor
 from types import FrameType, SimpleNamespace
-from typing import Any, Callable, Optional, Set
+from typing import Any, Optional
 
 import aiohttp
 import discord
@@ -26,9 +24,10 @@ from app.integrations.notion import NotionIntegration
 from app.integrations.reminder_webhook import ReminderWebhook
 from app.integrations.twitch import TwitchClient
 from app.integrations.youtube import YoutubeClient
-from app.core import analytics, debug_logs, metrics
+from app.core import analytics, debug_logs, metrics, threads
 from app.core.trace import trace_scope
 from app.core.utils import cogs_manager, get_cogs_folder
+from app.data import bind_loop, data
 from app.translator import Translator
 
 
@@ -142,7 +141,9 @@ class DiscordBot(Bot):
     async def setup_hook(self) -> None:
         from app.components.buttons import JourneyRefreshButton
 
-        install_blocking_io()
+        threads.install()
+        bind_loop(asyncio.get_running_loop())
+        debug_logs.start_writer()
 
         # Registered as a class, not per message: a session's refresh button
         # keeps working across restarts because its id carries the session.
@@ -151,47 +152,18 @@ class DiscordBot(Bot):
         await cogs_manager(self, "load", get_cogs_folder())
         await self.tree.set_translator(Translator(self))
 
-
-class BlockingIO(ThreadPoolExecutor):
-    """The threads every blocking call runs on; stopping them waits for none, and the
-    process gives the calls under way a short while before it ends."""
-
-    def __init__(self) -> None:
-        super().__init__(
-            max_workers=Dependencies.BLOCKING_IO_THREADS, thread_name_prefix="keiko-io"
-        )
-        self._under_way: Set["Future[Any]"] = set()
-        self._tracking = threading.Lock()
-
-    def submit(self, fn: Callable[..., Any], /, *args: Any, **kwargs: Any) -> "Future[Any]":
-        future = super().submit(fn, *args, **kwargs)
-        with self._tracking:
-            self._under_way.add(future)
-        future.add_done_callback(self._settled)
-        return future
-
-    def shutdown(self, wait: bool = True, *, cancel_futures: bool = False) -> None:
-        super().shutdown(wait=False, cancel_futures=True)
-
-    def wait_under_way(self, timeout: float) -> None:
-        """Wait up to `timeout` seconds for the calls already running to end."""
-        with self._tracking:
-            under_way = list(self._under_way)
-        concurrent.futures.wait(under_way, timeout=timeout)
-
-    def _settled(self, future: "Future[Any]") -> None:
-        with self._tracking:
-            self._under_way.discard(future)
-
-
-_POOL: Optional[BlockingIO] = None
-
-
-def install_blocking_io() -> None:
-    """Make Keiko's pool the running loop's default executor, behind `asyncio.to_thread`."""
-    global _POOL
-    _POOL = BlockingIO()
-    asyncio.get_running_loop().set_default_executor(_POOL)
+    async def close(self) -> None:
+        """Close the gateway and the cogs, let the pool calls and the changes under way
+        end, then close the log writer and the Mongo client this loop holds."""
+        try:
+            await super().close()
+        finally:
+            seconds = Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS
+            await threads.under_way_ended(seconds)
+            with contextlib.suppress(TimeoutError):
+                await asyncio.wait_for(analytics.written(), seconds)
+            await debug_logs.stop_writer()
+            await data().close()
 
 
 def run(bot: commands.Bot, token: str) -> None:
@@ -248,17 +220,32 @@ def stop(bot: commands.Bot) -> None:
 
 
 def write_queues() -> None:
-    """Write what the analytics and debug log queues still hold."""
-    analytics.flush()
-    debug_logs.stop_writer()
-    debug_logs.flush()
+    """Write what the analytics and debug log queues still hold once the bot's loop is
+    gone, on a loop and a Mongo client of their own."""
+    asyncio.run(_write_queues())
+
+
+async def flush_queues() -> None:
+    """Write what the analytics and debug log queues hold, on the running loop."""
+    await analytics.flush()
+    await debug_logs.flush()
+
+
+async def _write_queues() -> None:
+    import app
+
+    app.reconnect_data()
+    bind_loop(asyncio.get_running_loop())
+    try:
+        await flush_queues()
+    finally:
+        await data().close()
 
 
 def _let_writes_under_way_end() -> None:
-    """A flush still writing its batch in a thread when the loop closed is given
+    """A call still under way on the pool when the loop closed is given
     `Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS` to finish, so the exit never cuts it."""
-    if _POOL is not None:
-        _POOL.wait_under_way(Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS)
+    threads.wait_under_way(Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS)
 
 
 def _announce_ready(bot: commands.Bot) -> None:

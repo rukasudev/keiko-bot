@@ -4,17 +4,19 @@ from datetime import datetime, time, timezone
 from discord.ext import commands, tasks
 
 from app import logger
-from app.bot import DiscordBot, write_queues
+from app.bot import DiscordBot, flush_queues
 from app.constants import Commands as constants
+from app.constants import Dependencies
 from app.constants import LogTypes as logconstants
 from app.services import admin_digest
-from app.core import analytics, analytics_sink, debug_logs, logs_archive
+from app.core import analytics, analytics_sink, debug_logs, logs_archive, trace
+from app.core.threads import to_thread
 
 
 class Analytics(commands.Cog):
-    """Keiko's own scheduled work, timed by the bot's loop and done in a thread: it drains the
-    buffered writes into storage, sends the weekly digest, and keeps the logs files channel
-    (the daily logs, each month's events, the daily backup and the old files' cleanup).
+    """Keiko's own scheduled work, timed by the bot's loop: it drains the buffered writes into
+    storage, sends the weekly digest, and keeps the logs files channel (the daily logs, each
+    month's events, the daily backup and the old files' cleanup), its files built in a thread.
 
     Both queues ride the same loop on purpose: they have the same shape — a
     bounded buffer that must never make a command wait on a database — and a
@@ -23,6 +25,7 @@ class Analytics(commands.Cog):
 
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
+        trace.register_sink(trace.keep_run)
         self.flush_events.start()
         self.send_weekly_digest.start()
         self.export_daily_logs.start()
@@ -31,25 +34,33 @@ class Analytics(commands.Cog):
         self.post_daily_backup.start()
 
     async def cog_unload(self) -> None:
-        self.flush_events.cancel()
+        await self._finish_flush()
         self.send_weekly_digest.cancel()
         self.export_daily_logs.cancel()
         self.archive_months.cancel()
         self.measure_guild_sizes.cancel()
         self.post_daily_backup.cancel()
-        await asyncio.to_thread(write_queues)
+        await flush_queues()
+
+    async def _finish_flush(self) -> None:
+        """Let a flush under way end its batch, for a bounded time, before the last one."""
+        running = self.flush_events.get_task()
+        self.flush_events.stop()
+        if running is not None and not running.done():
+            await asyncio.wait({running}, timeout=Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS)
+        self.flush_events.cancel()
 
     @tasks.loop(seconds=constants.ANALYTICS_FLUSH_SECONDS)
     async def flush_events(self) -> None:
         try:
-            await asyncio.to_thread(analytics.flush)
+            await analytics.flush()
         except Exception as error:
             logger.warn(
                 f"Analytics flush failed: {type(error).__name__}: {error}",
                 log_type=logconstants.COMMAND_WARN_TYPE,
             )
 
-        await asyncio.to_thread(debug_logs.flush)
+        await debug_logs.flush()
 
     @flush_events.before_loop
     async def before_flush(self) -> None:
@@ -57,8 +68,8 @@ class Analytics(commands.Cog):
 
     @tasks.loop(time=time(hour=constants.ANALYTICS_DIGEST_HOUR))
     async def send_weekly_digest(self) -> None:
-        """Fires daily, acts on Mondays — the loop has no weekly cadence."""
-        if datetime.now().weekday() != constants.ANALYTICS_DIGEST_WEEKDAY:
+        """Fires daily at its UTC hour and acts on Mondays in UTC."""
+        if datetime.now(timezone.utc).weekday() != constants.ANALYTICS_DIGEST_WEEKDAY:
             return
 
         channel = self.bot.get_channel(self.bot.config.ADMIN_LOGS_CHANNEL_ID)
@@ -68,9 +79,7 @@ class Analytics(commands.Cog):
         try:
             # The bot is the only one that knows how many guilds it is in:
             # analytics only ever sees the guilds that did something.
-            digest = await asyncio.to_thread(
-                admin_digest.build_weekly_digest, guild_count=len(self.bot.guilds)
-            )
+            digest = await admin_digest.build_weekly_digest(guild_count=len(self.bot.guilds))
             await channel.send(embed=digest)
         except Exception as error:
             logger.warn(
@@ -102,7 +111,7 @@ class Analytics(commands.Cog):
         day = logs_archive.previous_day()
 
         try:
-            daily_file, written = await asyncio.to_thread(logs_archive.build_daily_file, day)
+            daily_file, written = await to_thread(logs_archive.build_daily_file, day)
             if not daily_file:
                 return
             await channel.send(logs_archive.build_message(day, written), file=daily_file)
@@ -129,7 +138,7 @@ class Analytics(commands.Cog):
         now = datetime.now(timezone.utc)
 
         try:
-            months = await asyncio.to_thread(logs_archive.months_to_archive, now)
+            months = await logs_archive.months_to_archive(now)
         except Exception as error:
             logger.error(
                 f"Monthly events archive failed: {type(error).__name__}: {error}",
@@ -151,7 +160,7 @@ class Analytics(commands.Cog):
 
         for month in months:
             try:
-                files = await asyncio.to_thread(
+                files = await to_thread(
                     logs_archive.build_month_files,
                     month,
                     channel.guild.filesize_limit,
@@ -163,7 +172,7 @@ class Analytics(commands.Cog):
                         logs_archive.build_month_message(month, files),
                         [(part.filename, part.payload) for part in files],
                     )
-                await asyncio.to_thread(logs_archive.mark_archived, month, files, now)
+                await logs_archive.mark_archived(month, files, now)
             except Exception as error:
                 logger.error(
                     f"Monthly events archive failed for {month:%Y-%m}: "
@@ -187,9 +196,7 @@ class Analytics(commands.Cog):
         member_counts = {str(guild.id): guild.member_count for guild in self.bot.guilds}
 
         try:
-            await asyncio.to_thread(
-                analytics_sink.record_guild_sizes, member_counts, datetime.now(timezone.utc)
-            )
+            await analytics_sink.record_guild_sizes(member_counts, datetime.now(timezone.utc))
         except Exception as error:
             logger.warn(
                 f"Guild sizes not recorded: {type(error).__name__}: {error}",
@@ -215,7 +222,7 @@ class Analytics(commands.Cog):
         if recipient is not None:
             try:
                 limit = channel.guild.filesize_limit
-                files, skipped = await asyncio.to_thread(
+                files, skipped = await to_thread(
                     logs_archive.build_backup, now, limit, recipient
                 )
                 if skipped:

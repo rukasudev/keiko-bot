@@ -116,7 +116,7 @@ def youtube_webhook():
         )
         return 'Video from another channel', 204
 
-    claim = commands_constants.REDIS_YOUTUBE_NOTIFIED_VIDEO.format(video_id=notice.video_id)
+    claim = commands_constants.REDIS_YOUTUBE_VIDEO_CLAIM.format(video_id=notice.video_id)
     if not claim_redis_key(claim, commands_constants.YOUTUBE_NOTIFIED_VIDEO_TTL_SECONDS):
         logger.info(
             f'youtube video {notice.video_id} was already announced. No action taken.',

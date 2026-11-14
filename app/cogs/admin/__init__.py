@@ -1,4 +1,3 @@
-import asyncio
 import os
 import shutil
 from datetime import datetime
@@ -14,11 +13,11 @@ from app.cogs.admin.configs import Configs
 from app.cogs.admin.debug import Debug
 from app.cogs.admin.subscriptions import Subscriptions
 from app.cogs.admin.sync import Sync
-from app.data.analytics import delete_analytics_by_guild
 from app.logger import DiscordLogsHandler
 from app.services import admin_analytics
 from app.services.admin import (
     build_overview_embed,
+    forget_guild,
     get_overview_data,
     send_log_file_from_channel_by_date,
 )
@@ -30,6 +29,7 @@ from app.core.utils import (
 from app.types.cogs import GroupCog
 from app.views.report_browser import ReportBrowser
 from app.views.user_inspection import UserInspectionView
+from app.core.threads import to_thread
 
 
 @app_commands.default_permissions()
@@ -47,7 +47,7 @@ class Admin(GroupCog, name="admin"):
     async def show_overview(self, interaction: discord.Interaction) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
         data = await get_overview_data(self.bot)
-        embed = await asyncio.to_thread(build_overview_embed, self.bot, data)
+        embed = await to_thread(build_overview_embed, self.bot, data)
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @keiko_command(
@@ -85,7 +85,7 @@ class Admin(GroupCog, name="admin"):
         self, interaction: discord.Interaction, guild_id: str
     ) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
-        embed = admin_analytics.build_guild_journey_embed(guild_id)
+        embed = await admin_analytics.build_guild_journey_embed(guild_id)
         await interaction.followup.send(embed=embed, ephemeral=True)
 
     @keiko_command(
@@ -96,11 +96,11 @@ class Admin(GroupCog, name="admin"):
         self, interaction: discord.Interaction, guild_id: str
     ) -> None:
         await interaction.response.defer(thinking=True, ephemeral=True)
-        deleted = delete_analytics_by_guild(guild_id)
+        deleted = await forget_guild(guild_id)
         await interaction.followup.send(
             f"Erased analytics for guild `{guild_id}` — "
             f"**{deleted['events']}** events, **{deleted['months']}** monthly buckets, "
-            f"**{deleted['profile']}** profile.",
+            f"**{deleted['profile']}** profile, **{deleted['traces']}** traces.",
             ephemeral=True,
         )
 

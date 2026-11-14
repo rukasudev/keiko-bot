@@ -52,7 +52,7 @@ contract) and a later schema file drops them.
 | `guild` | `members` | server and member | `options`: the birthday; `state`: what Keiko keeps about the member | `reminders.birthdays` | database PR 1 |
 | `guild` | `messages` | message Keiko posted and will edit | the cog, the subject, the channel, the message id | `notifications.notifications_twitch` | database PR 1 |
 | `events` | `changes` | change | what changed in a config, in the server settings or in Keiko's presence; written at once, kept forever | the seven `events.{cog}`, `events.settings` | database PR 2 |
-| `events` | `activity` | thing a command did | a blocked link, an announced live; written in the batch, 90 days | `guild.blocked_links`, part of `guild.analytics_events` | database PR 2 |
+| `events` | `activity` | thing a command did | a blocked link, a delivery Discord refused, a greeting; written in the batch, 90 days | `guild.blocked_links`, part of `guild.analytics_events` | database PR 2 |
 | `events` | `interactions` | thing someone asked for | a command, a button, a setup, a failure; written in the batch, 90 days | the rest of `guild.analytics_events`, `audit.errors` | database PR 2 |
 | `analytics` | `counts` | server and month | how many of each event type, day by day | `guild.analytics_guild_month` | database PR 2 |
 | `analytics` | `lifetime` | server | setups, value delivered, errors, size | `guild.analytics_guild_profile` | database PR 2 |
@@ -116,10 +116,14 @@ keiko.schedules
 }
 ```
 
+Each collection has one async repository in `app/data/<database>/<collection>.py`,
+reached as `data().<database>_<collection>` (`data().guild_cogs`,
+`data().keiko_schedules`); its methods are the collection's generic operations.
+
 `app/data/guild/cogs.py` hands the app the flat feature document it always read,
 `{guild_id, enabled, **options, state: {...}}`, and splits it back on a write, so a
 feature module never names `options`. What Keiko learns on its own goes through
-`set_cog_state_async(guild_id, cog, fields)`. The birthday config keeps the form's keys
+`data().guild_cogs.set_cog_state(guild_id, cog, fields)`. The birthday config keeps the form's keys
 (`channel`, `notification_time`, `mention_everyone`, `default_message`); its time zone
 is the server's.
 
@@ -160,17 +164,56 @@ that its retention and the moment it is written.
 ```
 events.changes | events.activity | events.interactions
 {
-  ts, type: "link.blocked",            the type is declared in app/analytics/catalog.yml
-  guild_id, cog: "block_links",
-  actor: {kind: "user", id},           user, bot or job
-  trace_id, session_id,
-  props: {link, host, rule},
-  v: 1
+  _id, ts,                             ts in UTC
+  type: "link.blocked",                declared in app/analytics/catalog.yml, with its collection
+  guild_id, cog: "block_links",        text, or null for an event of no server or no cog
+  actor: {kind: "user", id},           user, bot or job; the id of the member, or of Keiko
+  trace_id, session_id,                the trace that recorded it, the form session
+  props: {host, link, rule, mode, reason, match, deleted, channel_id},
+  v: 1                                 the catalog version of the props
 }
 ```
 
+One call writes every event: `analytics.record(type, guild_id=, cog=, actor=,
+props=, session_id=)` (`app/core/analytics.py`, `docs/analytics.md` section 1).
+A change is written at once and kept; activity and interactions are written in
+the analytics sink's batch and expire 90 days after `ts`; a type whose
+collection is `none` (`value.delivered`) has no document and is only counted.
+`app/data/events/{changes,activity,interactions}.py` read and delete them by
+server, cog, type, time and actor, every read with its Mongo limit, and never
+name a command: a command's prop paths (`props.host` for the sites block links
+counts) stay in its service.
+
 `analytics.counts` is one document per server and month, with the day's counts
-inside it: `{_id: "{guild}|2026-11", guild_id, month, days: {"10": {"link.blocked|block_links": 4}}}`.
+inside it: `{_id: "{guild}|2026-11", guild_id, month, days: {"10": {"link_blocked|block_links": 4}}}`
+(the type loses its dots, which an update path would read as nesting).
+
+## Redis
+
+Redis holds four roles, each one a key prefix, and every key has a TTL. Nothing
+in it is the truth: a lost key costs a read of Mongo, a repeated call or a count
+that starts again.
+
+| Role | Means | Key | TTL |
+|---|---|---|---|
+| `cache:` | a copy of a document or an answer | `cache:cog:{guild_id}:{cog}` (`DBConfigs.CACHE_COG_KEY`) | 5 min, 1 min when the server has none |
+| | | `cache:stream_elements:commands:{channel_id}` (`Commands.CACHE_STREAM_ELEMENTS_COMMANDS`) | 24 h, 5 min with no command |
+| `claim:` | this was done once already | `claim:twitch:live:{streamer}:{started_at}` (`Commands.REDIS_TWITCH_LIVE_CLAIM`) | 24 h |
+| | | `claim:youtube:video:{video_id}` (`Commands.REDIS_YOUTUBE_VIDEO_CLAIM`) | 7 d |
+| `throttle:` | do not try again yet | `throttle:stream_elements:channel:{streamer}` (`Commands.REDIS_STREAM_ELEMENTS_CHANNEL_THROTTLE`) | 5 min |
+| | | `throttle:stream_elements:warned:{streamer}` (`Commands.REDIS_STREAM_ELEMENTS_WARNED_THROTTLE`) | 30 min |
+| `window:` | a count over a fixed period | `window:attempts:{guild_id}:{feature}` (`Commands.REDIS_ATTEMPTS_WINDOW`) | 24 h from the first count |
+
+- A key template lives in `app/constants.py`, named `REDIS_*` or `CACHE_*`, and
+  starts with its role. Every write goes through `app/core/cache.py`.
+- A write sets its TTL in the same command or the same pipeline: `setex`, a claim
+  with `SET NX EX`, a window with `SET NX EX` then `INCRBY`. A window's TTL is set
+  by its first count only, so it closes on time however busy the server is.
+- A new key family is one of the four roles. A count that must last belongs in
+  `analytics`, through an event, never in Redis.
+- `python -m app.migrations redis-check` fails on any key without a TTL and warns on
+  one outside the four roles that has a TTL; the release runs it after
+  `redis-cleanup` (`docs/releasing.md`).
 
 ## A new command: seven questions
 
@@ -216,4 +259,4 @@ Notifications for a new streaming platform follow Twitch. Take Kick:
   it.
 
 No step needs a collection named after the command, and none needs Python outside
-the feature module and its `app/data` functions.
+the feature module and the `app/data` repositories it awaits.

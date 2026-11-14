@@ -1,11 +1,12 @@
-"""The CLI: `python -m app.migrations status|migrate [--dry-run]|verify|snapshot`."""
+"""The CLI of the Mongo migrations and of the Redis cleanup and check."""
 
 import argparse
 import sys
 from typing import Any, List, Optional, TextIO
 
-from app.config import is_production, mongo_url
-from app.migrations import runner
+from app import connect_redis
+from app.config import is_production, mongo_url, redis_url
+from app.migrations import redis_keys, runner
 
 
 def parser() -> argparse.ArgumentParser:
@@ -33,15 +34,31 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         help="print what schema/ declares instead, without Mongo",
     )
+    cleanup = chosen.add_parser(
+        "redis-cleanup", help="unlink the Redis keys of every retired family"
+    )
+    cleanup.add_argument(
+        "--dry-run", action="store_true", help="count the keys without unlinking them"
+    )
+    chosen.add_parser(
+        "redis-check",
+        help="fail on a key without a TTL, warn on one outside the four roles",
+    )
     return commands
 
 
 def main(
-    argv: Optional[List[str]] = None, client: Any = None, out: TextIO = sys.stdout
+    argv: Optional[List[str]] = None,
+    client: Any = None,
+    out: TextIO = sys.stdout,
+    redis_client: Any = None,
 ) -> int:
     """Run one command; 0 when every step passed, 1 otherwise."""
     args = parser().parse_args(argv)
     report = runner.Report(out)
+    if args.command.startswith("redis-"):
+        return _redis(args, redis_client, report)
+
     versions, problems = runner.read_versions()
     for problem in problems:
         report.line("fail", problem)
@@ -68,6 +85,22 @@ def main(
     else:
         out.write(runner.render(runner.live_structure(client)))
         passed = True
+    return 0 if passed and not report.failed else 1
+
+
+def _redis(args: argparse.Namespace, client: Any, report: runner.Report) -> int:
+    if client is None:
+        url = redis_url()
+        if not url:
+            report.line("fail", "no Redis URL: set REDIS_URL (SSM in production)")
+            return 1
+
+        client = connect_redis(url)
+
+    if args.command == "redis-cleanup":
+        passed = redis_keys.cleanup(client, report, dry_run=args.dry_run)
+    else:
+        passed = redis_keys.check(client, report)
     return 0 if passed and not report.failed else 1
 
 

@@ -59,14 +59,14 @@ def _sessions(status):
 
 
 async def _panel(scenario_factory, deps):
-    _seed_config(deps)
+    await _seed_config(deps)
     return await scenario_factory(locale="pt-br", guild=_guild()).start_command(
         FEATURE
     )
 
 
 def _names(recorded):
-    return [event["event"] for event in recorded]
+    return [event["type"] for event in recorded]
 
 
 async def test_a_panel_that_added_a_member_and_expired_ends_completed(

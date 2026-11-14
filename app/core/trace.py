@@ -10,6 +10,7 @@ context, and neither stops the next server. Reference: docs/analytics.md
 """
 import asyncio
 import logging
+import queue
 import threading
 import uuid
 from contextlib import asynccontextmanager, contextmanager
@@ -32,6 +33,7 @@ from typing import (
 
 import discord
 
+from app.constants import Commands as commands_constants
 from app.constants import LogTypes as constants
 from app.exceptions import DestinationNotFound, ErrorContext
 
@@ -39,6 +41,9 @@ _logger = logging.getLogger(__name__)
 _current_trace: ContextVar[Optional["Trace"]] = ContextVar("keiko_trace", default=None)
 _sinks: List[Callable[["Trace"], None]] = []
 _owners_lock = threading.Lock()
+_runs: "queue.Queue[Dict[str, Any]]" = queue.Queue(
+    maxsize=commands_constants.TRACE_RUNS_QUEUE_MAXSIZE
+)
 
 
 def register_sink(sink: Callable[["Trace"], None]) -> None:
@@ -94,9 +99,11 @@ class Trace:
         silent_when_clean: bool = False,
         quiet: bool = False,
         is_admin: Optional[bool] = None,
+        command: Optional[str] = None,
     ) -> None:
         self.id = new_trace_id()
         self.name = name
+        self.command = command
         self.source = source
         self.guild_id = str(guild_id) if guild_id else None
         self.user_id = str(user_id) if user_id else None
@@ -229,6 +236,7 @@ class Trace:
             feature=self.feature,
             session_id=self.session_id,
             is_admin=self.is_admin,
+            command=self.command,
             **self.publishing(),
         )
         successor.started_at = self.started_at
@@ -367,6 +375,62 @@ def emit_to_sinks(trace: Trace) -> None:
             sink(trace)
         except Exception:
             pass
+
+
+def keep_run(trace: Trace, slow_ms: int = commands_constants.TRACE_RUNS_SLOW_MS) -> None:
+    """The sink of what outlives a closed trace: a command's latency, measured on the
+    trace that closes it, and the run itself when it failed, logged an error or took
+    longer than `slow_ms`. A superseded trace's lines live on in its successor."""
+    command = trace.command if trace.successor is None else None
+    kept = not trace.superseded and (
+        trace.result == constants.TRACE_RESULT_FAILURE
+        or trace.has_error
+        or trace.duration_ms > slow_ms
+    )
+    if not command and not kept:
+        return
+
+    entry = {
+        "command": command,
+        "ts": trace.started_at,
+        "duration_ms": trace.duration_ms,
+        "run": run_document(trace) if kept else None,
+    }
+    try:
+        _runs.put_nowait(entry)
+    except queue.Full:
+        pass
+
+
+def run_document(trace: Trace) -> Dict[str, Any]:
+    """A closed trace as `traces.runs` keeps it."""
+    return {
+        "trace_id": trace.id,
+        "ts": trace.started_at,
+        "name": trace.name,
+        "source": trace.source,
+        "guild_id": trace.guild_id,
+        "cog": trace.feature,
+        "user_id": trace.user_id,
+        "session_id": trace.session_id,
+        "result": trace.result,
+        "duration_ms": trace.duration_ms,
+        "lines": [dict(line) for line in trace.lines],
+        "truncated": trace.truncated,
+    }
+
+
+def drain_runs(
+    limit: int = commands_constants.TRACE_RUNS_QUEUE_MAXSIZE,
+) -> List[Dict[str, Any]]:
+    """Take what `keep_run` queued, oldest first."""
+    drained: List[Dict[str, Any]] = []
+    while len(drained) < limit:
+        try:
+            drained.append(_runs.get_nowait())
+        except queue.Empty:
+            break
+    return drained
 
 
 def add_line(

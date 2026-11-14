@@ -15,7 +15,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, Optional, Set
 
 from app.constants import Commands as constants
-from app.core.trace import Trace
+from app.core.trace import Trace, keep_run
 
 _JOURNEYS: Dict[str, Trace] = {}
 _PUBLISHER: Optional[Callable[[Trace], None]] = None
@@ -230,12 +230,14 @@ def open_journey(
 
 
 def _read_recent_attempts(journey: Trace) -> None:
-    """Read the footnote in a worker thread whenever a loop runs, so opening never waits."""
+    """Read the footnote as a task whenever a loop runs, so opening never waits."""
+    from app.data import wait
+
     arguments = (journey.guild_id, journey.feature, journey.session_id)
     try:
         loop = asyncio.get_running_loop()
     except RuntimeError:
-        journey.footnote = recent_attempts(*arguments)
+        journey.footnote = wait(recent_attempts(*arguments))
         return
 
     def noted(reading: "asyncio.Task[Optional[str]]") -> None:
@@ -243,35 +245,35 @@ def _read_recent_attempts(journey: Trace) -> None:
         if not reading.cancelled() and reading.exception() is None:
             journey.footnote = reading.result()
 
-    reading = loop.create_task(asyncio.to_thread(recent_attempts, *arguments))
+    reading = loop.create_task(recent_attempts(*arguments))
     _READS.add(reading)
     reading.add_done_callback(noted)
 
 
 def record(envelope: Dict[str, Any]) -> None:
-    """Observer entry point: turn an emitted event into a line, if it has one."""
+    """Observer entry point: turn a recorded event into a line, if it has one."""
     journey = _JOURNEYS.get(envelope.get("session_id"))
     if not journey or journey.finished_at:
         return
 
     line = _line_for(
-        envelope["event"], envelope.get("props") or {}, envelope.get("feature")
+        envelope["type"], envelope.get("props") or {}, envelope.get("cog")
     )
     if not line:
         return
 
     # The sentences carry their own icon, and a rejected value is ordinary
     # friction — only a real failure should colour the whole message red.
-    failed = envelope["event"] in FAILURE_EVENTS
+    failed = envelope["type"] in FAILURE_EVENTS
     level = logging.ERROR if failed else logging.INFO
-    outcome = TERMINAL_OUTCOMES.get(envelope["event"])
+    outcome = TERMINAL_OUTCOMES.get(envelope["type"])
     if outcome in CONDENSED_OUTCOMES:
         _condense(journey)
     journey.add(
-        line, level, timestamp=envelope.get("ts"), kind=LINE_KINDS.get(envelope["event"])
+        line, level, timestamp=envelope.get("ts"), kind=LINE_KINDS.get(envelope["type"])
     )
 
-    action = ACTIONS.get(envelope["event"])
+    action = ACTIONS.get(envelope["type"])
     if action:
         journey.last_action = action
 
@@ -295,11 +297,12 @@ def finalize(session_id: str, outcome: str) -> Optional[Trace]:
 
     journey.finish(outcome)
     _publish(journey)
+    keep_run(journey, slow_ms=constants.TRACE_RUNS_SLOW_SESSION_MS)
     _JOURNEYS.pop(session_id, None)
     return journey
 
 
-def rebuild(session_id: str) -> Optional[Trace]:
+async def rebuild(session_id: str) -> Optional[Trace]:
     """Rebuild a session's story from the events, for the refresh button.
 
     The steps were never only in memory — every line came from an event that is
@@ -308,17 +311,17 @@ def rebuild(session_id: str) -> Optional[Trace]:
     """
     from app.core import analytics_reports
 
-    events = analytics_reports.session_events(session_id)
+    events = await analytics_reports.session_events(session_id)
     if not events:
         return _JOURNEYS.get(session_id)
 
     first = events[0]
     story = Trace(
-        first.get("props", {}).get("command") or first.get("feature") or "session",
-        source=first.get("source"),
+        first.get("props", {}).get("command") or first.get("cog") or "session",
+        source=first.get("props", {}).get("source"),
         guild_id=first.get("guild_id"),
-        user_id=first.get("user_id"),
-        feature=first.get("feature"),
+        user_id=(first.get("actor") or {}).get("id"),
+        feature=first.get("cog"),
         session_id=session_id,
     )
     story.is_journey = True
@@ -336,14 +339,14 @@ def rebuild(session_id: str) -> Optional[Trace]:
     entries = []
     for envelope in events:
         line = _line_for(
-            envelope["event"], envelope.get("props") or {}, envelope.get("feature")
+            envelope["type"], envelope.get("props") or {}, envelope.get("cog")
         )
         if line:
-            level = logging.ERROR if envelope["event"] in FAILURE_EVENTS else logging.INFO
+            level = logging.ERROR if envelope["type"] in FAILURE_EVENTS else logging.INFO
             entries.append(
-                (line, level, envelope.get("ts"), LINE_KINDS.get(envelope["event"]))
+                (line, level, envelope.get("ts"), LINE_KINDS.get(envelope["type"]))
             )
-        outcome = TERMINAL_OUTCOMES.get(envelope["event"], outcome)
+        outcome = TERMINAL_OUTCOMES.get(envelope["type"], outcome)
 
     for line, level, timestamp, kind in entries:
         story.add(line, level, timestamp=timestamp, kind=kind)
@@ -353,7 +356,7 @@ def rebuild(session_id: str) -> Optional[Trace]:
 
     live = _JOURNEYS.get(session_id)
     story.name = live.name if live else story.name
-    story.footnote = live.footnote if live else recent_attempts(
+    story.footnote = live.footnote if live else await recent_attempts(
         story.guild_id, story.feature, session_id
     )
 
@@ -379,7 +382,7 @@ def _open_or_expired(last_seen: Any) -> str:
     return "abandoned" if quiet > view_constants.LONG_TIMEOUT_SECONDS else "in progress"
 
 
-def recent_attempts(guild_id: Any, feature: str, session_id: str) -> Optional[str]:
+async def recent_attempts(guild_id: Any, feature: str, session_id: str) -> Optional[str]:
     """What this guild already tried on this feature, from its own events of the window."""
     if not guild_id or not feature:
         return None
@@ -392,7 +395,7 @@ def recent_attempts(guild_id: Any, feature: str, session_id: str) -> Optional[st
         )
         previous = [
             session
-            for session in analytics_reports.setup_sessions(
+            for session in await analytics_reports.setup_sessions(
                 feature, guild_id=str(guild_id), since=since
             )
             if session["session_id"] != session_id

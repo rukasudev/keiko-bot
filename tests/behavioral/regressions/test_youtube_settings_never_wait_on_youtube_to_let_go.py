@@ -34,6 +34,7 @@ from zoneinfo import ZoneInfo
 import pytest
 import requests
 
+from app.data import data, wait
 from app.services.notifications_youtube_video import find_reminder_by_value, insert_renewal_reminder
 from app.integrations import reminder_webhook
 from app.integrations import youtube as youtube_integration
@@ -48,7 +49,6 @@ from tests.behavioral.golden.paths.notifications_youtube_video import (
     _submit_messages,
     _submit_youtuber,
 )
-from app.data.guild.cogs import find_cog_by_guild_id
 from tests.generators.moderations import seed_cog
 
 pytestmark = [
@@ -87,8 +87,8 @@ def youtube_answers(deps, trouble):
     deps.youtube.get_channel_id_from_username = fail
 
 
-def followed(deps):
-    document = find_cog_by_guild_id(GUILD_ID, FORM)
+async def followed(deps):
+    document = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, FORM)
     if document is None:
         return None
     return [item["youtuber"]["value"] for item in document["notifications"]["values"]]
@@ -112,16 +112,16 @@ async def test_removing_a_youtuber_completes_whatever_youtube_answers(
     scenario_factory, deps, caplog, trouble,
 ):
     scenario = await open_manager(scenario_factory, deps, "en-us", FORM, _seed_two_entries)
-    insert_renewal_reminder(7001, "pewdiepie")
+    await insert_renewal_reminder(7001, "pewdiepie")
     youtube_answers(deps, trouble)
 
     with caplog.at_level("INFO"):
         await scenario.click("remove_this:notifications$0")
         await scenario.click("remove_items")
 
-    assert followed(deps) == ["mrbeast"]
+    assert await followed(deps) == ["mrbeast"]
     assert unsubscribe_errors(caplog) == ["pewdiepie"]
-    assert find_reminder_by_value("pewdiepie") is not None, "kept until it finds nobody follows"
+    assert await find_reminder_by_value("pewdiepie") is not None, "kept until it finds nobody follows"
 
 
 @pytest.mark.parametrize("trouble", [None, "data-api-error"], ids=["hub-takes-it", "data-api-error"])
@@ -133,16 +133,16 @@ async def test_the_renewal_an_unsubscribe_leaves_behind_drops_itself(
     from app.webhooks.reminder import renew_youtube_subscription
 
     scenario = await open_manager(scenario_factory, deps, "en-us", FORM, _seed_two_entries)
-    insert_renewal_reminder(7001, "pewdiepie")
+    await insert_renewal_reminder(7001, "pewdiepie")
     if trouble:
         youtube_answers(deps, trouble)
     await scenario.click("remove_this:notifications$0")
     await scenario.click("remove_items")
 
-    assert find_reminder_by_value("pewdiepie") is not None, "the unsubscribe leaves it"
+    assert await find_reminder_by_value("pewdiepie") is not None, "the unsubscribe leaves it"
     renew_youtube_subscription(7001)
 
-    assert find_reminder_by_id(7001) is None
+    assert await find_reminder_by_id(7001) is None
     deps.bot.reminder.delete_reminder.assert_called_once_with("7001")
     deps.bot.reminder.update_reminder.assert_not_called()
 
@@ -206,7 +206,7 @@ async def test_a_change_that_needs_the_channel_fails_as_a_timeout_does(
             await scenario.click(step)
 
     assert told_it_could_not_be_processed(scenario)
-    assert followed(deps) == SAVED_BEFORE[change], "nothing is saved"
+    assert await followed(deps) == SAVED_BEFORE[change], "nothing is saved"
 
 
 @pytest.mark.parametrize("trouble", ["timeout", "data-api-error"])
@@ -215,14 +215,14 @@ async def test_a_failed_edit_leaves_the_youtuber_still_followed_with_its_renewal
 ):
     """The new youtuber is subscribed before the edit is saved; its lookup fails here."""
     deps.bot.config.is_dev = lambda: False
-    insert_renewal_reminder(7001, "pewdiepie")
+    await insert_renewal_reminder(7001, "pewdiepie")
     scenario, commit = await _edit(scenario_factory, deps)
     youtube_answers(deps, trouble)
 
     await scenario.click("done")
 
-    assert followed(deps) == ["pewdiepie"]
-    assert find_reminder_by_value("pewdiepie") is not None, (
+    assert await followed(deps) == ["pewdiepie"]
+    assert await find_reminder_by_value("pewdiepie") is not None, (
         "a youtuber still followed without a renewal would go quiet within five days"
     )
 
@@ -233,7 +233,7 @@ async def test_an_edit_that_fails_after_the_old_name_was_unsubscribed_keeps_its_
     """The new name is subscribed before the edit is saved and the old one is let go only
     after it; here the lookup of the new name failed, so neither happened."""
     deps.bot.config.is_dev = lambda: False
-    insert_renewal_reminder(7001, "pewdiepie")
+    await insert_renewal_reminder(7001, "pewdiepie")
     scenario, commit = await _edit(scenario_factory, deps)
     look_up = deps.youtube.get_channel_id_from_username
 
@@ -246,8 +246,8 @@ async def test_an_edit_that_fails_after_the_old_name_was_unsubscribed_keeps_its_
 
     await scenario.click("done")
 
-    assert followed(deps) == ["pewdiepie"], "nothing is saved"
-    assert find_reminder_by_value("pewdiepie") is not None, (
+    assert await followed(deps) == ["pewdiepie"], "nothing is saved"
+    assert await find_reminder_by_value("pewdiepie") is not None, (
         "a youtuber still followed keeps its renewal, which subscribes it again"
     )
 
@@ -261,14 +261,14 @@ async def test_removing_a_youtuber_a_paused_server_still_follows_keeps_the_hub_s
         "enabled": False,
         "notifications": {"values": [{"youtuber": {"value": "pewdiepie"}}]},
     })
-    insert_renewal_reminder(7001, "pewdiepie")
+    await insert_renewal_reminder(7001, "pewdiepie")
 
     await scenario.click("remove_this:notifications$0")
     await scenario.click("remove_items")
 
-    assert followed(deps) == ["mrbeast"]
+    assert await followed(deps) == ["mrbeast"]
     assert deps.youtube.unsubscribe_calls == [], "the paused server unpauses still subscribed"
-    assert find_reminder_by_value("pewdiepie") is not None
+    assert await find_reminder_by_value("pewdiepie") is not None
 
 
 def renewal_created(deps):
@@ -294,9 +294,9 @@ async def test_a_youtuber_added_while_the_hub_cannot_take_it_is_saved_and_tried_
     with caplog.at_level("INFO"):
         await scenario.click("done")
 
-    assert followed(deps) == ["pewdiepie", "mrbeast"], "the hub's answer does not undo the save"
+    assert await followed(deps) == ["pewdiepie", "mrbeast"], "the hub's answer does not undo the save"
     assert renewal_created(deps) - CLOCK == timedelta(hours=1), "Keiko's own retry covers it"
-    assert find_reminder_by_value("mrbeast") is not None
+    assert await find_reminder_by_value("mrbeast") is not None
     assert any(
         record.levelno == logging.WARNING and "**mrbeast**" in record.getMessage()
         for record in caplog.records
@@ -314,7 +314,7 @@ async def test_a_youtuber_added_while_the_hub_refuses_it_is_saved_with_an_error(
     with caplog.at_level("INFO"):
         await scenario.click("done")
 
-    assert followed(deps) == ["pewdiepie", "mrbeast"]
+    assert await followed(deps) == ["pewdiepie", "mrbeast"]
     refusals = [
         record for record in caplog.records
         if record.levelno >= logging.ERROR

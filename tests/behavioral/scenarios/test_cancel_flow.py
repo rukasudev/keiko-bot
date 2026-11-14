@@ -21,7 +21,7 @@ pytestmark = pytest.mark.behavioral
 def analytics_events(monkeypatch):
     recorded = []
     monkeypatch.setattr(
-        analytics, "emit", lambda name, **props: recorded.append(name)
+        analytics, "record", lambda name, **fields: recorded.append(name)
     )
     return recorded
 

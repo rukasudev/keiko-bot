@@ -19,9 +19,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from app.data import data
 from app import logger as logger_module
 from app.constants import Commands, LogTypes as logconstants
-from app.data import analytics as analytics_data
 from app.core import analytics, trace as trace_service
 from tests.generators.moderations import seed_cog
 
@@ -123,7 +123,8 @@ async def test_the_removal_analytics_event_was_never_the_broken_part(deps, event
     """Production has the events and not the messages; keep both true together."""
     await events.on_guild_remove(guild_double())
 
-    assert analytics_data.count_events({"event": "guild.removed"}) == 1
+    removed = await data().events_changes.find_by_guild("4242", types=["guild.removed"])
+    assert len(removed) == 1
 
 
 async def test_a_guild_adding_keiko_reaches_the_log_channel(deps, events, log_channel):
@@ -141,10 +142,9 @@ async def test_a_guild_adding_keiko_reaches_the_log_channel(deps, events, log_ch
     assert len(joined) == 1
     assert "777" in rendered(joined[0])
 
-    # `on_guild_remove` flushes by hand because the guild is about to be wiped;
-    # a join rides the cog's periodic flush, which is what this stands in for.
-    analytics.flush()
-    assert analytics_data.count_events({"event": "guild.joined"}) == 1
+    await analytics.written()
+    joined = await data().events_changes.find_by_guild("777", types=["guild.joined"])
+    assert len(joined) == 1
 
 
 async def test_a_returning_guild_is_still_reported(deps, events, log_channel):

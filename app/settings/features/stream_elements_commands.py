@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Mapping
 from dataclasses import replace
 from typing import Any, cast
@@ -10,6 +9,7 @@ from typing import Any, cast
 import app as app_module
 from app.constants import Commands
 from app.constants import ViewConstants as view_constants
+from app.core.threads import to_thread
 from app.exceptions import StreamElementsUnavailable
 from app.integrations.stream_elements import StreamElementsClient
 from app.services.stream_elements import (
@@ -75,14 +75,12 @@ class StreamElementsFeature(GenericCogFeature):
         found: dict[str, Mapping[str, Any]] = {}
         if "twitch" in lookup.services:
             twitch = cast(Any, app_module).bot.twitch
-            user_id = await asyncio.to_thread(
-                twitch.get_user_id_from_login, lookup.value
-            )
-            image = await asyncio.to_thread(_profile_image, lookup.value)
+            user_id = await to_thread(twitch.get_user_id_from_login, lookup.value)
+            image = await to_thread(_profile_image, lookup.value)
             found["twitch"] = {"user_id": user_id, "profile_image": image}
         if "stream_elements" in lookup.services:
             try:
-                found["stream_elements"] = await asyncio.to_thread(
+                found["stream_elements"] = await to_thread(
                     _enabled_commands, lookup.value, context.prefix
                 )
             except Exception:
@@ -141,11 +139,11 @@ async def _loaded(document: Mapping[str, Any], context: OpenContext) -> str:
         channel_id = await channel_of(
             context.guild_id, streamer, (document.get("state") or {}).get("channel_id")
         )
-        commands = await asyncio.to_thread(
+        commands = await to_thread(
             get_commands_in_cache_or_populate, channel_id, context.member
         )
     except StreamElementsUnavailable as unavailable:
-        await asyncio.to_thread(warn_unavailable, streamer, unavailable)
+        await to_thread(warn_unavailable, streamer, unavailable)
         return _copy("loaded.unknown", locale)
     except Exception:
         return _copy("loaded.unknown", locale)
@@ -178,9 +176,7 @@ async def _with_channel(
     looked_up = answers.get("stream_elements_channel_id")
     channel_id = looked_up.raw if looked_up is not None else None
     if not channel_id:
-        channel_id = await asyncio.to_thread(
-            find_channel, str(document.get("streamer", ""))
-        )
+        channel_id = await to_thread(find_channel, str(document.get("streamer", "")))
 
     await keep_channel(guild_id, str(channel_id))
     state = {**(document.get("state") or {}), "channel_id": str(channel_id)}

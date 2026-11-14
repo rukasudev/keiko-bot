@@ -1,10 +1,9 @@
-import asyncio
 import copy
 import threading
 from collections import OrderedDict
 from itertools import count
 from time import monotonic
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
 from bson import json_util
 from pymongo.errors import PyMongoError
@@ -13,7 +12,7 @@ from redis.exceptions import RedisError
 from app import logger, redis_client
 from app.constants import Commands, DBConfigs
 from app.constants import LogTypes as logconstants
-from app.data.guild import cogs as guild_cogs
+from app.data import data, wait
 from app.core.cogs import is_feature_on
 from app.core.trace import outside_any_trace
 
@@ -28,11 +27,9 @@ _warned_at: Dict[str, float] = {}
 _remembered: "OrderedDict[str, Tuple[float, Any]]" = OrderedDict()
 
 
-def set_data_in_redis(key: str, data: Dict[str, Any]):
-    redis_client.set(key, json_util.dumps(data))
-
 def set_data_in_redis_with_expiration(key: str, data: Dict[str, Any], expiration: int):
     redis_client.setex(key, expiration, json_util.dumps(data))
+
 
 def get_data_from_redis(key: str) -> Dict[str, Any]:
     data = redis_client.get(key)
@@ -40,47 +37,19 @@ def get_data_from_redis(key: str) -> Dict[str, Any]:
         return json_util.loads(data)
     return {}
 
-def increment_redis_key(key: str, increment_by=1):
-    return redis_client.incrby(key, increment_by)
-
 
 def increment_redis_key_with_expiration(key: str, increment_by: int, expiration: int):
-    """Counters that must not outlive their window: every analytics key expires,
-    set with its value in one round trip."""
+    """Add to a counter whose window ends `expiration` seconds after its first count."""
     pipeline = redis_client.pipeline()
+    pipeline.set(key, 0, nx=True, ex=expiration)
     pipeline.incrby(key, increment_by)
-    pipeline.expire(key, expiration)
-    value, _expiring = pipeline.execute()
+    _opened, value = pipeline.execute()
     return value
 
 
-def increment_redis_hash(key: str, increments: Dict[str, int], expiration: int) -> None:
-    """Add to several counters of one hash and keep it `expiration` seconds from now,
-    in a single round trip."""
-    pipeline = redis_client.pipeline(transaction=False)
-
-    for field, amount in increments.items():
-        pipeline.hincrby(key, field, amount)
-
-    pipeline.expire(key, expiration)
-    pipeline.execute()
-
-
-def get_redis_hash_counters(key: str) -> Dict[str, int]:
-    """Every counter of one hash, by field."""
-    return {field: _count(value) for field, value in redis_client.hgetall(key).items()}
-
-
-def get_redis_counters(keys: List[str]) -> Dict[str, int]:
-    """Several counters in one round trip; a key that does not exist counts zero."""
-    if not keys:
-        return {}
-    return {key: _count(value) for key, value in zip(keys, redis_client.mget(keys))}
-
-
-def delete_redis_keys(keys: List[str]) -> None:
-    """Delete keys by name, and again as soon as Redis answers when it does not now."""
-    _delete_cached(keys)
+def count_keys() -> int:
+    """How many keys Redis holds, in one command that walks nothing."""
+    return redis_client.dbsize()
 
 
 def get_cog_data_or_populate(
@@ -119,7 +88,7 @@ def remove_all_cache_by_guild(guild_id: str) -> None:
     _delete_cached(keys)
 
 
-def recalled(key: str, read: Callable[[], Any], seconds: float) -> Any:
+async def remembered(key: str, read: Callable[[], Awaitable[Any]], seconds: float) -> Any:
     """What `read` returns, kept in this process for `seconds`; a read that raced a
     `forget_remembered(key)` is returned but not kept, and during a Mongo outage what
     was kept last is served however old."""
@@ -128,23 +97,7 @@ def recalled(key: str, read: Callable[[], Any], seconds: float) -> Any:
         return held[1]
 
     try:
-        value = read()
-    except PyMongoError as error:
-        return _last_kept(held, error)
-
-    _recover("mongo")
-    _keep(key, generation, value, seconds)
-    return value
-
-
-async def remembered(key: str, read: Callable[[], Any], seconds: float) -> Any:
-    """What `recalled` keeps, with `read` run off the loop when nothing fresh is kept."""
-    held, fresh, generation = _held(key)
-    if fresh or (held is not None and not _may_try("mongo")):
-        return held[1]
-
-    try:
-        value = await asyncio.to_thread(read)
+        value = await read()
     except PyMongoError as error:
         return _last_kept(held, error)
 
@@ -217,13 +170,6 @@ def _keep(key: str, generation: int, value: Any, seconds: float) -> None:
             _remembered.popitem(last=False)
 
 
-def _count(value: Any) -> int:
-    try:
-        return int(value or 0)
-    except (TypeError, ValueError):
-        return 0
-
-
 def _cached(redis_key: str) -> Optional[str]:
     if not _send_deletes():
         return None
@@ -250,7 +196,7 @@ def _stored(guild_id: str, key: str) -> str:
         raise copy.copy(_errors["mongo"])
 
     try:
-        document = guild_cogs.find_cog_by_guild_id(guild_id, key)
+        document = wait(data().guild_cogs.find_cog_by_guild_id(guild_id, key))
     except PyMongoError as error:
         _fail("mongo", error, warn=known is not None)
         if known is None:

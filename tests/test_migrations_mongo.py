@@ -393,11 +393,11 @@ def test_a_second_bot_document_stops_the_run_before_writing(client, versions):
 
 def test_the_boot_check_passes_only_after_the_run(client, versions):
     with pytest.raises(runner.MigrationsPending):
-        runner.require_applied(client, versions)
+        runner.require_recorded(set(ledger_ids(client)), versions)
 
     run(client, versions)
 
-    runner.require_applied(client, versions)
+    runner.require_recorded(set(ledger_ids(client)), versions)
 
 
 def test_the_cli_runs_status_migrate_verify_and_snapshot(client, versions):

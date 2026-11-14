@@ -18,6 +18,7 @@ import app
 from app import logger
 from app.constants import DBConfigs, DiscordLimits
 from app.constants import LogTypes as logconstants
+from app.core.threads import to_thread
 
 _downloads: Dict[str, "asyncio.Task[Image.Image]"] = {}
 _uploaded_assets: Dict[str, Tuple[str, float]] = {}
@@ -83,14 +84,14 @@ async def fetch_image(url: str) -> Image.Image:
 
 async def _fetch(url: str) -> Image.Image:
     try:
-        return await asyncio.to_thread(download_image, url)
+        return await to_thread(download_image, url)
     except requests.HTTPError:
         if not is_attachment(url):
             raise
         refreshed = await refresh_attachment_url(url)
         if refreshed == url:
             raise
-        return await asyncio.to_thread(download_image, refreshed)
+        return await to_thread(download_image, refreshed)
 
 
 def is_attachment(url: str) -> bool:

@@ -26,6 +26,7 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from app.data import wait
 from app.constants import Commands
 from app.core import servers as moderations_service
 from app.core import reminders as reminders_service
@@ -72,7 +73,7 @@ def api(monkeypatch):
 def birthdays(deps, api):
     """A server in São Paulo whose two birthdays are scheduled at 09:00 there."""
     recorded_server(deps.mongo_client, GUILD, timezone=SAO_PAULO)
-    save_birthday_config(GUILD, "100", False, "09:00")
+    wait(save_birthday_config(GUILD, "100", False, "09:00"))
     saved_birthday(GUILD, "555", "05-12", reminder_id="4001")
     saved_birthday(GUILD, "556", "07-01", reminder_id="4002")
     api.zones.update({"4001": SAO_PAULO, "4002": SAO_PAULO})
@@ -85,19 +86,19 @@ def saved_zone(deps):
 
 
 def test_a_new_zone_in_the_settings_moves_no_birthday(deps, birthdays):
-    moderations_service.save_server_setting(GUILD, "timezone", LISBON)
+    wait(moderations_service.save_server_setting(GUILD, "timezone", LISBON))
 
     assert saved_zone(deps) == LISBON
     assert birthdays.updates == []
     assert birthdays.zones == {"4001": SAO_PAULO, "4002": SAO_PAULO}
-    assert birthday_config(GUILD)["notification_time"] == "09:00"
-    assert "timezone" not in birthday_config(GUILD)
+    assert wait(birthday_config(GUILD))["notification_time"] == "09:00"
+    assert "timezone" not in wait(birthday_config(GUILD))
 
 
 def test_the_birthday_after_a_new_zone_is_scheduled_in_it(deps, birthdays):
-    moderations_service.save_server_setting(GUILD, "timezone", LISBON)
+    wait(moderations_service.save_server_setting(GUILD, "timezone", LISBON))
 
-    reminders_birthdays.upsert_birthday(GUILD, "557", "09-09")
+    wait(reminders_birthdays.upsert_birthday(GUILD, "557", "09-09"))
 
     assert [reminder["timezone"] for reminder in birthdays.created] == [LISBON]
     assert birthdays.updates == []
@@ -106,31 +107,31 @@ def test_the_birthday_after_a_new_zone_is_scheduled_in_it(deps, birthdays):
 def test_a_zone_saved_where_no_birthday_is_configured_writes_only_the_setting(deps, api):
     recorded_server(deps.mongo_client, GUILD, timezone=SAO_PAULO)
 
-    moderations_service.save_server_setting(GUILD, "timezone", LISBON)
+    wait(moderations_service.save_server_setting(GUILD, "timezone", LISBON))
 
     assert saved_zone(deps) == LISBON
-    assert birthday_config(GUILD) is None
+    assert wait(birthday_config(GUILD)) is None
     assert api.updates == []
 
 
 def test_a_zone_chosen_on_the_birthday_card_is_the_servers_and_moves_nothing(
     deps, birthdays
 ):
-    reminders_birthdays.save_birthday_config_changes(
+    wait(reminders_birthdays.save_birthday_config_changes(
         GUILD, {Commands.BIRTHDAY_CONFIG_TIMEZONE: {"values": [LISBON]}}
-    )
+    ))
 
     assert saved_zone(deps) == LISBON
-    assert "timezone" not in birthday_config(GUILD)
+    assert "timezone" not in wait(birthday_config(GUILD))
     assert birthdays.updates == []
 
 
 def test_a_new_hour_moves_each_birthday_once_in_the_servers_zone(deps, birthdays):
     recorded_server(deps.mongo_client, GUILD, timezone=LISBON)
 
-    reminders_birthdays.save_birthday_config_changes(
+    wait(reminders_birthdays.save_birthday_config_changes(
         GUILD, {Commands.BIRTHDAY_CONFIG_NOTIFICATION_TIME: {"values": ["10:00"]}}
-    )
+    ))
 
     assert sorted(birthdays.updates) == [
         ("4001", LISBON, "10:00"),
@@ -140,19 +141,19 @@ def test_a_new_hour_moves_each_birthday_once_in_the_servers_zone(deps, birthdays
 
 
 def test_a_new_zone_and_hour_together_move_each_birthday_once(deps, birthdays):
-    reminders_birthdays.setup_birthdays(GUILD, "100", False, LISBON, "10:00")
+    wait(reminders_birthdays.setup_birthdays(GUILD, "100", False, LISBON, "10:00"))
 
     assert sorted(birthdays.updates) == [
         ("4001", LISBON, "10:00"),
         ("4002", LISBON, "10:00"),
     ]
     assert saved_zone(deps) == LISBON
-    assert birthday_config(GUILD)["notification_time"] == "10:00"
+    assert wait(birthday_config(GUILD))["notification_time"] == "10:00"
 
 
 def test_the_birthday_card_shows_the_servers_zone(deps, birthdays):
-    document = reminders_birthdays.birthday_manager_cog_data(GUILD)
-    rows = reminders_birthdays.birthday_settings_rows(GUILD, "pt-br")
+    document = wait(reminders_birthdays.birthday_manager_cog_data(GUILD))
+    rows = wait(reminders_birthdays.birthday_settings_rows(GUILD, "pt-br"))
 
     assert document[Commands.BIRTHDAY_CONFIG_TIMEZONE] == SAO_PAULO
     assert next(row for row in rows if row["key"] == "timezone")["value"] == SAO_PAULO
@@ -161,10 +162,10 @@ def test_the_birthday_card_shows_the_servers_zone(deps, birthdays):
 def test_the_zone_chosen_in_the_birthday_setup_is_the_servers_zone(deps, api):
     recorded_server(deps.mongo_client, GUILD, timezone=SAO_PAULO)
 
-    reminders_birthdays.setup_birthdays(GUILD, "100", False, LISBON, "09:00")
+    wait(reminders_birthdays.setup_birthdays(GUILD, "100", False, LISBON, "09:00"))
 
     assert saved_zone(deps) == LISBON
-    assert "timezone" not in birthday_config(GUILD)
+    assert "timezone" not in wait(birthday_config(GUILD))
 
 
 def test_the_not_applied_copy_and_error_are_gone():
@@ -198,8 +199,8 @@ async def test_a_birthdays_year_is_counted_where_the_server_is(
     deps.bot.get_guild = lambda guild_id: guild if str(guild_id) == GUILD else None
     monkeypatch.setattr(birthday_handler, "datetime", Clock)
     recorded_server(deps.mongo_client, GUILD, timezone=server_zone)
-    save_birthday_config(GUILD, "100", False, "09:00")
-    moderations_service.set_feature_enabled(GUILD, Commands.REMINDERS_BIRTHDAY_KEY, True)
+    await save_birthday_config(GUILD, "100", False, "09:00")
+    await moderations_service.set_feature_enabled(GUILD, Commands.REMINDERS_BIRTHDAY_KEY, True)
     saved_birthday(GUILD, "555", "07-02", reminder_id="4001")
 
     await birthday_handler.celebrate_in_guild(

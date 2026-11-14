@@ -22,9 +22,11 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
+from app.data import wait
 from app.services import admin_analytics, admin_digest
 from app.core import analytics, analytics_reports
 from tests.generators.moderations import seed_cog
+from tests.generators.events import age_events, record_event
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("analytics_reports")]
 
@@ -60,7 +62,7 @@ def test_a_feature_that_stores_its_own_shape_is_not_reported_as_unused(deps):
     for guild_id in ("1", "2", "3"):
         configure_birthdays(deps, guild_id, birthdays=2)
 
-    usage = analytics_reports.config_usage("reminders_birthday")
+    usage = wait(analytics_reports.config_usage("reminders_birthday"))
 
     assert usage["guilds"] == 3
     assert field(usage, "channel")["filled"] == 3
@@ -75,7 +77,7 @@ def test_a_feature_that_stores_its_own_shape_is_not_reported_as_unused(deps):
 def test_a_guild_that_left_the_optional_parts_empty_still_counts_as_zero(deps):
     configure_birthdays(deps, "1", birthdays=0, default_message=False)
 
-    usage = analytics_reports.config_usage("reminders_birthday")
+    usage = wait(analytics_reports.config_usage("reminders_birthday"))
 
     assert field(usage, "channel")["filled"] == 1
     assert field(usage, "reminders_birthday")["filled"] == 0
@@ -93,7 +95,7 @@ def test_the_value_a_card_draws_is_not_a_value_a_guild_chose(deps):
     configure_birthdays(deps, "2", default_message=False)
     configure_birthdays(deps, "3", default_message=True)
 
-    usage = analytics_reports.config_usage("reminders_birthday")
+    usage = wait(analytics_reports.config_usage("reminders_birthday"))
 
     assert field(usage, "default_message_mode")["filled"] == 1, (
         "only the guild that actually chose a mode has one"
@@ -112,7 +114,7 @@ def test_a_boolean_nobody_touched_is_not_a_boolean_somebody_turned_off(deps):
         "guild_id": "2", "channel": "c2", "mention_everyone": False,
     })
 
-    mention = field(analytics_reports.config_usage("reminders_birthday"), "mention_everyone")
+    mention = field(wait(analytics_reports.config_usage("reminders_birthday")), "mention_everyone")
 
     assert mention["filled"] == 1
     assert mention["values"] == {"False": 1}
@@ -127,12 +129,12 @@ def test_a_setting_left_on_its_yaml_default_says_so_instead_of_reading_as_dead(d
             "answer": "no links here",
         })
 
-    mode = field(analytics_reports.config_usage("block_links"), "mode")
+    mode = field(wait(analytics_reports.config_usage("block_links")), "mode")
 
     assert mode["filled"] == 0
     assert mode["default"] == "block_all", "the YAML declares what the silence means"
 
-    description = admin_analytics.build_config_usage_embed("block_links").description
+    description = wait(admin_analytics.build_config_usage_embed("block_links")).description
     assert "block_all" in description
 
 
@@ -141,20 +143,19 @@ def test_a_setting_with_no_declared_default_stays_a_plain_zero(deps):
         "guild_id": "1", "answer": "no links here",
     })
 
-    assert field(analytics_reports.config_usage("block_links"), "custom_links")["default"] is None
+    assert field(wait(analytics_reports.config_usage("block_links")), "custom_links")["default"] is None
 
 
 def test_the_digest_never_prints_none_where_a_step_belongs(deps):
     """A setup abandoned on the opening screen reached no step at all."""
-    analytics.emit(
+    record_event(
         "feature.setup_opened", guild_id="1", user_id="9",
         feature="reminders_birthday", source="slash", session_id="s1",
     )
-    analytics.flush()
-    for document in deps.mongo_client.guild.analytics_events._data:
-        document["ts"] = datetime.now(timezone.utc) - timedelta(days=1)
+    wait(analytics.flush())
+    age_events(deps.mongo_client, datetime.now(timezone.utc) - timedelta(days=1))
 
-    description = admin_digest.build_weekly_digest().description
+    description = wait(admin_digest.build_weekly_digest()).description
 
     assert "None" not in description
     assert "died before the first step" in description
@@ -163,9 +164,9 @@ def test_the_digest_never_prints_none_where_a_step_belongs(deps):
 def test_the_headline_counts_the_guilds_the_bot_is_in(deps):
     """A guild with no event since the deploy has no profile, and still exists."""
     analytics.record_value("1", "welcome_messages")
-    analytics.flush()
+    wait(analytics.flush())
 
-    description = admin_digest.build_weekly_digest(guild_count=73).description
+    description = wait(admin_digest.build_weekly_digest(guild_count=73)).description
 
     assert "**73** guilds" in description
     assert "**1** delivered value" in description

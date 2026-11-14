@@ -12,12 +12,18 @@ Exposed by: the inventory of the writers of `configs.admin`.
 
 Guaranteed: an updated operator id is a number in the running config at once and in the
 saved settings a restart reads; `show` answers with what is saved and what runs.
+
+Database PR 2: a change to Keiko's own settings (its presence through /config, its
+operator ids through /admin configs) wrote nothing anyone could read back. Guaranteed:
+each is one `keiko.settings_changed` change, naming no server, with the operator who
+made it as the actor and the keys it changed.
 """
 
 from types import SimpleNamespace
 
 import pytest
 
+from app.data import data, wait
 from app.config import AppConfig
 from tests.mocks.discord import MockInteraction, create_guild, create_member
 
@@ -49,7 +55,7 @@ def keiko(deps):
         {"_id": "notion", "options": {"enabled": False}}
     )
     config = AppConfig.__new__(AppConfig)
-    config.load_db_configs()
+    wait(config.load_db_configs(data()))
     return SimpleNamespace(config=config)
 
 
@@ -77,11 +83,10 @@ async def test_an_updated_channel_is_the_one_keiko_uses_now_and_after_a_restart(
 
     assert keiko.config.ADMIN_LOGS_CHANNEL_ID == 999
     restarted = AppConfig.__new__(AppConfig)
-    restarted.load_db_configs()
+    await restarted.load_db_configs(data())
     assert restarted.ADMIN_LOGS_CHANNEL_ID == 999
-    from app.data.keiko.settings import find_keiko_settings
 
-    assert find_keiko_settings()["operator"]["admin_logs_channel_id"] == 999
+    assert (await data().keiko_settings.find_keiko_settings())["operator"]["admin_logs_channel_id"] == 999
 
 
 async def test_an_id_that_is_not_a_number_is_refused_and_nothing_changes(keiko):
@@ -106,3 +111,48 @@ async def test_show_answers_with_the_saved_and_the_running_configs(keiko):
     saved, running = content.split("Configs in Keiko")
     assert "admin_logs_channel_id: 12" in saved
     assert "ADMIN_LOGS_CHANNEL_ID: 12" in running
+
+
+def _keiko_changes(deps):
+    return list(deps.mongo_client.events.changes.find({"type": "keiko.settings_changed"}))
+
+
+async def test_an_operator_change_is_recorded_as_a_change_of_keiko_naming_no_server(
+    keiko, deps
+):
+    from app.core import analytics
+
+    configs, cog = _cog(keiko)
+    interaction = _interaction()
+
+    await configs.update_config.callback(
+        cog, interaction, config="admin_logs_channel_id", value="999"
+    )
+    await analytics.written()
+
+    [change] = _keiko_changes(deps)
+    assert change["guild_id"] is None
+    assert change["actor"] == {"kind": "user", "id": str(interaction.user.id)}
+    assert change["props"] == {
+        "group": "operator", "changed_keys": ["admin_logs_channel_id"]
+    }
+
+
+async def test_a_presence_change_is_recorded_as_a_change_of_keiko(keiko, deps):
+    from app.core import analytics
+    from app.core.trace import trace_scope
+    from app.services.config import update_status
+
+    bot = SimpleNamespace(change_presence=_presence_changed)
+    async with trace_scope("config status", guild_id=4242, user_id=77):
+        await update_status(bot, SimpleNamespace(value="idle"))
+    await analytics.written()
+
+    [change] = _keiko_changes(deps)
+    assert change["guild_id"] is None
+    assert change["actor"] == {"kind": "user", "id": "77"}
+    assert change["props"] == {"group": "presence", "changed_keys": ["status"]}
+
+
+async def _presence_changed(**kwargs):
+    return None

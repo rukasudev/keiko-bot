@@ -16,6 +16,7 @@ Uso:
 """
 
 import os
+import threading
 import pytest
 import pytest_asyncio
 from types import SimpleNamespace
@@ -35,8 +36,9 @@ if os.path.isdir(_LANGUAGES_ROOT):
     i18n.set("fallback", "en")
 
 # Early patching happens as side-effect of this import
-from tests.mocks.database import MockMotorClient, MockRedisClient, MockMongoClient
+from tests.mocks.database import FakeAsyncMongoClient, MockRedisClient, MockMongoClient, SettlingLoop
 from tests.generators.moderations import recorded_server
+from app.data import build as build_data, install as install_data
 
 from tests.mocks import (
     create_guild,
@@ -86,22 +88,10 @@ def redis_client(request):
         yield MockRedisClient()
 
 
-@pytest_asyncio.fixture(scope="function")
-async def mongodb(request):
-    """
-    Database MongoDB para testes.
-    - Para testes unitarios: retorna MockMongoClient
-    - Para testes de integracao (@pytest.mark.integration): conecta ao MongoDB real
-    """
-    if request.node.get_closest_marker("integration"):
-        from motor.motor_asyncio import AsyncIOMotorClient
-        client = AsyncIOMotorClient("mongodb://localhost:27017")
-        db = client.keiko_test
-        yield db
-        await client.drop_database("keiko_test")
-        client.close()
-    else:
-        yield MockMongoClient()
+@pytest.fixture(scope="function")
+def mongodb():
+    """O store em memoria: os testes semeiam e conferem documentos nele, de forma sync."""
+    return MockMongoClient()
 
 
 # ============================================================================
@@ -120,9 +110,9 @@ def deps(mongodb, redis_client):
     """
     ns = SimpleNamespace()
 
-    # Banco de dados
+    # Banco de dados: o store sync e os repositorios async sobre ele
     ns.mongo_client = mongodb
-    ns.motor_client = MockMotorClient(mongodb)
+    ns.data = build_data(FakeAsyncMongoClient(mongodb))
     ns.redis_client = redis_client
 
     # APIs mockadas
@@ -175,22 +165,11 @@ def auto_inject_dependencies(deps):
         patch('app.services.stream_elements.bot', deps.bot),
         patch('app.services.default_roles.bot', deps.bot),
         patch('app.services.subscriptions.bot', deps.bot),
-        patch('app.data.cogs.mongo_client', deps.mongo_client),
-        patch('app.data.cogs.motor_client', deps.motor_client),
-        patch('app.data.guild.cogs.mongo_client', deps.mongo_client),
-        patch('app.data.guild.cogs.motor_client', deps.motor_client),
-        patch('app.data.guild.settings.mongo_client', deps.mongo_client),
-        patch('app.data.keiko.settings.mongo_client', deps.mongo_client),
-        patch('app.data.keiko.integrations.mongo_client', deps.mongo_client),
-        patch('app.data.guild.members.mongo_client', deps.mongo_client),
-        patch('app.data.keiko.schedules.mongo_client', deps.mongo_client),
-        patch('app.data.keiko.subscriptions.mongo_client', deps.mongo_client),
-        patch('app.data.guild.messages.mongo_client', deps.mongo_client),
-        patch('app.data.block_links.mongo_client', deps.mongo_client),
-        patch('app.data.analytics.mongo_client', deps.mongo_client),
-        patch('app.data.logs.mongo_client', deps.mongo_client),
-        patch('app.data.util.mongo_client', deps.mongo_client),
         patch('app.core.cache.redis_client', deps.redis_client),
+        patch('app.data._own_loop', SettlingLoop),
+        patch('app.data._LOOP', None),
+        patch('app.data._LOOP_EXPECTED', threading.Event()),
+        patch('app.data._LOOP_BOUND', threading.Event()),
         patch(
             'app.integrations.stream_elements.StreamElementsClient.get_channel_info',
             staticmethod(lambda name: {"_id": f"se-{name}"}),
@@ -202,6 +181,8 @@ def auto_inject_dependencies(deps):
             ]),
         ),
     ]
+
+    install_data(deps.data)
 
     started_patches = []
     for p in patches:
@@ -247,10 +228,12 @@ def observability_isolation():
     analytics.reset()
     debug_logs.reset()
     trace.clear_sinks()
+    trace.drain_runs()
     yield
     analytics.reset()
     debug_logs.reset()
     trace.clear_sinks()
+    trace.drain_runs()
 
 
 @pytest.fixture(autouse=True)
@@ -406,32 +389,39 @@ def mock_ml():
 
 
 @pytest.fixture
-def twitch_data():
+def twitch_data(deps):
     """Mocks da camada de dados e helpers de notificacoes Twitch."""
     mocks = SimpleNamespace()
     targets = {
         'find_guilds': 'app.services.notifications_twitch.find_guilds_by_streamer_name',
-        'subscription_state': 'app.services.notifications_twitch.subscription_state',
-        'save_message': 'app.services.notifications_twitch.save_message',
-        'update_subscription_state': 'app.services.notifications_twitch.update_subscription_state',
-        'find_message': 'app.services.notifications_twitch.find_message',
         'count_guilds': 'app.services.notifications_twitch.count_streamers_guilds',
         'wait_for_stream_info': 'app.services.notifications_twitch.wait_for_stream_info',
         'is_more_than_one_hour': 'app.services.notifications_twitch.is_more_than_one_hour',
     }
+    repositories = {
+        'subscription_state': (deps.data.keiko_subscriptions, 'subscription_state'),
+        'update_subscription_state': (
+            deps.data.keiko_subscriptions, 'update_subscription_state'
+        ),
+        'save_message': (deps.data.guild_messages, 'save_message'),
+        'find_message': (deps.data.guild_messages, 'find_message'),
+    }
 
-    patches = []
-    for attr, target in targets.items():
-        p = patch(target)
+    patches = [
+        (attr, patch.object(repository, method))
+        for attr, (repository, method) in repositories.items()
+    ] + [(attr, patch(target)) for attr, target in targets.items()]
+    started = []
+    for attr, p in patches:
         try:
             setattr(mocks, attr, p.start())
-            patches.append(p)
+            started.append(p)
         except Exception:
             setattr(mocks, attr, MagicMock())
 
     yield mocks
 
-    for p in patches:
+    for p in started:
         p.stop()
 
 

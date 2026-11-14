@@ -21,12 +21,16 @@ app/migrations/
     0002_guild_and_keiko.py
     0003_members_and_schedules.py
     0004_subscriptions_and_messages.py
+    0005_events.py
+    0006_analytics_and_traces.py
   data/
     0001_bot_defaults.py
     0002_server_settings.py
     0003_cogs_and_keiko.py
     0004_members_and_schedules.py
     0005_subscriptions_and_messages.py
+    0006_events.py
+    0007_analytics.py
 ```
 
 ## The CLI
@@ -38,6 +42,9 @@ python -m app.migrations migrate              # apply every pending file: schema
 python -m app.migrations verify               # the live database against snapshot.json
 python -m app.migrations snapshot             # the live structure, as snapshot.json is written
 python -m app.migrations snapshot --declared  # what the schema files declare, without Mongo
+python -m app.migrations redis-cleanup --dry-run  # count the Redis keys of the retired families
+python -m app.migrations redis-cleanup        # unlink them (Redis, not Mongo: docs/data-model.md)
+python -m app.migrations redis-check          # fail on a key without a TTL, warn on one outside the four roles
 make migrate                                  # migrate against the local docker-compose Mongo
 ```
 
@@ -235,12 +242,17 @@ run does not take the lock, and it fails when another run holds it.
 
 ## Where it runs
 
-- **Production**: `.github/workflows/release.yml`, deploy job, step "Run the
-  migrations with the new image", between "Pull the version" and "Replace the
-  running container":
-  `docker run --rm <new image> python -m app.migrations status`, then
-  `migrate --dry-run`, then `migrate`, with the same AWS environment the bot gets.
-  A failure stops the deploy, and the old container keeps running.
+- **Production**: `.github/workflows/release.yml`, deploy job, with the same AWS
+  environment the bot gets. Step "Check the migrations with the new image", while
+  the old container still serves: `docker run --rm <new image> python -m
+  app.migrations status`, then `migrate --dry-run`; a failure stops the deploy and
+  the old container keeps running. Step "Stop the running container and migrate":
+  `docker stop` the old container, then `migrate`, so nothing the old version
+  writes during the copy lands in a collection already copied; a failed `migrate`
+  starts the old container again (`docker start keiko-bot`, the same name and
+  arguments) and fails the job. Then "Replace the running container" starts the new
+  version. Redis is cleaned only after "Check the bot stayed up", once the new
+  version serves.
 - **CI**: the `mongo` job in `.github/workflows/ci.yml` starts a single-node
   replica set and runs `migrate` twice from empty. It fails when the second run
   applies anything or changes any count. Then it runs `verify`, compares
@@ -295,6 +307,17 @@ how many.
 the last Twitch live of each streamer and the YouTube hub stamps into
 `keiko.subscriptions`, and the posted Twitch lives into `guild.messages`. On a fresh
 database the last two files write nothing.
+
+`data/0006_events` copies the seven `events.{cog}` collections and `events.settings`
+into `events.changes`, and `guild.analytics_events`, `guild.blocked_links` and
+`audit.errors` into `events.activity` and `events.interactions`. An audit row keeps
+its member as the actor, except Keiko's own pauses: on leaving a server the old code
+paused every feature that was on at once, under the bot's user id, and nothing in the
+database stores that id. The file learns it from that shape: an id that paused two
+features of one server within `SAME_LEAVE_SECONDS` is Keiko's, since a person pauses
+one feature at a time, and every row with it becomes `kind: bot`
+(`changes_by_keiko` counts them). A Keiko that never left a server with two features
+on leaves its pauses as a member's.
 
 Nothing writes the operator ids: they are the admin server and channel ids, which
 have no neutral value. Set them by hand before the first boot, in `keiko.settings`

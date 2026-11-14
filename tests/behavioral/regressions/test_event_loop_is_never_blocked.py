@@ -29,6 +29,7 @@ import redis
 import requests
 
 from app.constants import Commands as commands_constants
+from app.data import data
 from app.services import (
     block_links,
     default_roles,
@@ -55,6 +56,7 @@ from typing import Dict, Iterator, List, NamedTuple, Optional, Set, Tuple
 from pyrage import x25519
 from app.cogs.analytics import Analytics
 from tests.generators.moderations import seed_cog
+from tests.generators.events import record_event
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("event_loop")]
 
@@ -89,11 +91,29 @@ async def ticks_while(awaitable):
 
 
 def blocking(return_value=None):
-    """A stand-in for `requests`, `find_one` or `time.sleep`."""
+    """A stand-in for `requests` or `time.sleep`."""
     def call(*args, **kwargs):
         time.sleep(BLOCKING_SECONDS)
         return return_value
     return call
+
+
+def slow(return_value=None):
+    """A stand-in for a repository method on a slow Mongo: it takes as long as
+    `blocking`, awaited, so the loop keeps running meanwhile."""
+    async def call(*args, **kwargs):
+        await asyncio.sleep(BLOCKING_SECONDS)
+        return return_value
+    return call
+
+
+def blocking_rows(rows):
+    """A stand-in for a streamed read a thread job makes, each call holding its thread."""
+    async def stream(*args, **kwargs):
+        time.sleep(BLOCKING_SECONDS)
+        for row in rows:
+            yield row
+    return stream
 
 
 async def test_checking_a_message_never_freezes_the_bot(
@@ -181,37 +201,6 @@ async def test_listing_stream_elements_commands_never_freezes_the_bot(
     assert ticks >= MIN_TICKS
 
 
-async def test_storing_a_failed_command_never_freezes_the_bot(deps, monkeypatch):
-    """The record of a failed command counts it in Redis, a synchronous client."""
-    import discord
-    from discord import app_commands
-
-    from app.cogs.errors import Errors
-    from tests.behavioral.harness.fake_interaction import FakeInteraction
-    from tests.behavioral.harness.message_store import MessageStore
-    from tests.mocks import create_guild
-
-    monkeypatch.setattr("app.cogs.errors.increment_redis_key", blocking())
-    guild = create_guild()
-    interaction = FakeInteraction(
-        MessageStore(),
-        guild=guild,
-        user=create_member(guild),
-        locale=discord.Locale.american_english,
-    )
-    interaction.command = SimpleNamespace(
-        qualified_name="moderations block links", _attr="block_links"
-    )
-    error = app_commands.CommandInvokeError(
-        SimpleNamespace(name="links"), KeyError("allowed_links")
-    )
-    handler = Errors(SimpleNamespace(config=SimpleNamespace(is_prod=lambda: False)))
-
-    ticks = await ticks_while(handler.on_app_command_error(interaction, error))
-
-    assert ticks >= MIN_TICKS
-
-
 async def test_the_heartbeat_ping_never_freezes_the_bot(monkeypatch):
     """The ping says the bot is alive; waiting for it on the loop would make it a lie."""
     from app.cogs.prometheus import Heartbeat
@@ -237,17 +226,16 @@ async def test_a_birthday_reminder_never_freezes_the_bot(deps, monkeypatch):
     guild_id = str(deps.guild.id)
     channel = deps.guild.text_channels[0]
     create_member(deps.guild, id=555, name="Tester")
-    save_birthday_config(guild_id, str(channel.id), False)
-    set_feature_enabled(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY, True)
+    await save_birthday_config(guild_id, str(channel.id), False)
+    await set_feature_enabled(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY, True)
     monkeypatch.setattr(birthday_handler, "bot", deps.bot)
     birthday = {"guild_id": guild_id, "user_id": "555", "date": "03-15", "state": {}}
     schedule = {"_id": f"birthday:{guild_id}:03-15", "kind": "birthday"}
-    monkeypatch.setattr(
-        "app.data.keiko.schedules.find_schedules_by_reminder", blocking([schedule])
-    )
-    monkeypatch.setattr("app.data.keiko.schedules.set_schedule_due", blocking(1))
-    monkeypatch.setattr("app.data.guild.members.find_members_by_option", blocking([birthday]))
-    monkeypatch.setattr("app.data.guild.members.claim_member_state", blocking(True))
+    schedules, members = deps.data.keiko_schedules, deps.data.guild_members
+    monkeypatch.setattr(schedules, "find_schedules_by_reminder", slow([schedule]))
+    monkeypatch.setattr(schedules, "set_schedule_due", slow(1))
+    monkeypatch.setattr(members, "find_members_by_option", slow([birthday]))
+    monkeypatch.setattr(members, "claim_member_state", slow(True))
 
     ticks = await ticks_while(
         birthday_handler.process_birthday_webhook("reminder-1", "03-15")
@@ -268,7 +256,7 @@ async def test_renewing_the_youtube_subscriptions_at_start_never_freezes_the_bot
     deps.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
     monkeypatch.setattr(
         "app.services.notifications_youtube_video.find_followed_youtubers",
-        blocking(["pewdiepie"]),
+        slow(["pewdiepie"]),
     )
 
     ticks = await ticks_while(Notifications(deps.bot).resubscribe_youtube())
@@ -513,15 +501,15 @@ def interaction_in(guild, user=None, command=None):
     return interaction
 
 
-def slow_reads(collection, monkeypatch):
-    """A Mongo collection whose every `find_one` takes as long as a blocked call."""
-    read = collection.find_one
+def slow_reads(repository, method, monkeypatch):
+    """A repository whose every `method` takes as long as a blocked call, awaited."""
+    read = getattr(repository, method)
 
-    def find_one(*args, **kwargs):
-        time.sleep(0.25)
-        return read(*args, **kwargs)
+    async def slowly(*args, **kwargs):
+        await asyncio.sleep(BLOCKING_SECONDS)
+        return await read(*args, **kwargs)
 
-    monkeypatch.setattr(collection, "find_one", find_one)
+    monkeypatch.setattr(repository, method, slowly)
 
 
 async def test_translating_a_message_never_freezes_the_bot(deps, guild, monkeypatch):
@@ -582,10 +570,10 @@ def birthdays_on(monkeypatch):
     """A guild whose birthday feature is on, every read and the save blocking."""
     monkeypatch.setattr(
         "app.services.reminders_birthdays.birthday_config",
-        blocking({"channel": "1", "enabled": True}),
+        slow({"channel": "1", "enabled": True}),
     )
-    monkeypatch.setattr("app.data.guild.members.find_member_option", blocking(None))
-    monkeypatch.setattr("app.services.reminders_birthdays.upsert_birthday", blocking(None))
+    monkeypatch.setattr(data().guild_members, "find_member_option", slow(None))
+    monkeypatch.setattr("app.services.reminders_birthdays.upsert_birthday", slow(None))
 
 
 async def test_registering_a_birthday_never_freezes_the_bot(deps, guild, birthdays_on):
@@ -625,7 +613,7 @@ async def test_finishing_the_pending_birthday_reminders_never_freezes_the_bot(mo
     from app.cogs.birthdays import Birthday
 
     monkeypatch.setattr(
-        "app.services.reminders_birthdays.reconcile_missing_reminders", blocking(0)
+        "app.services.reminders_birthdays.reconcile_missing_reminders", slow(0)
     )
 
     ticks = await ticks_while(Birthday.reconcile_reminders.coro(SimpleNamespace()))
@@ -638,13 +626,13 @@ def slow_storage(monkeypatch):
     """Both queues hold a record, and writing either to Mongo blocks."""
     written = []
 
-    def write(batch):
-        time.sleep(0.25)
+    async def write(batch):
+        await asyncio.sleep(BLOCKING_SECONDS)
         written.extend(batch)
 
     monkeypatch.setattr(analytics_sink, "persist", write)
-    monkeypatch.setattr("app.data.logs.insert_logs", write)
-    analytics.emit("guild.joined", guild_id=1, returning=False)
+    monkeypatch.setattr(data().guild_logs, "insert_logs", write)
+    record_event("guild.joined", guild_id=1, returning=False)
     debug_logs.record(debug_logs.build_document(level="INFO", message="queued"))
     return written
 
@@ -662,31 +650,16 @@ async def test_unloading_the_analytics_cog_never_freezes_the_bot(slow_storage):
     from app.cogs.analytics import Analytics
 
     loops = SimpleNamespace(
-        flush_events=MagicMock(), send_weekly_digest=MagicMock(), export_daily_logs=MagicMock(),
-        archive_months=MagicMock(), measure_guild_sizes=MagicMock(), post_daily_backup=MagicMock(),
+        flush_events=MagicMock(get_task=lambda: None), send_weekly_digest=MagicMock(),
+        export_daily_logs=MagicMock(), archive_months=MagicMock(),
+        measure_guild_sizes=MagicMock(), post_daily_backup=MagicMock(),
     )
+    loops._finish_flush = lambda: Analytics._finish_flush(loops)
 
     ticks = await ticks_while(Analytics.cog_unload(loops))
 
     assert ticks >= MIN_TICKS, f"the loop only came back {ticks} times"
     assert len(slow_storage) == 2, "both queues were written"
-
-
-async def test_counting_a_slash_command_never_freezes_the_bot(deps, guild, monkeypatch):
-    from app.cogs import events as events_module
-
-    monkeypatch.setattr("app.core.cache.increment_redis_key", blocking(1))
-    monkeypatch.setattr(events_module, "increment_redis_key", blocking(1), raising=False)
-    interaction = interaction_in(
-        guild, command=SimpleNamespace(qualified_name="moderations block links", _attr="block_links")
-    )
-    interaction.type = discord.InteractionType.application_command
-
-    ticks = await ticks_while(
-        events_module.Events(SimpleNamespace(owner_id=1)).on_interaction(interaction)
-    )
-
-    assert ticks >= MIN_TICKS, f"the loop only came back {ticks} times"
 
 
 class Probe:
@@ -716,8 +689,6 @@ async def test_opening_a_feature_from_a_button_never_freezes_the_bot(deps, guild
     from app.components import buttons
 
     monkeypatch.setattr(analytics, "count_attempt", blocking(2))
-    monkeypatch.setattr("app.core.cache.increment_redis_key", blocking(1))
-    monkeypatch.setattr(buttons, "increment_redis_key", blocking(1), raising=False)
     opened = AsyncMock()
     monkeypatch.setattr("app.settings.open_feature", opened)
     interaction = interaction_in(guild)
@@ -733,7 +704,7 @@ async def test_opening_a_feature_from_a_button_never_freezes_the_bot(deps, guild
 async def test_refreshing_a_session_message_never_freezes_the_bot(deps, guild, monkeypatch):
     from app.components.buttons import JourneyRefreshButton
 
-    monkeypatch.setattr("app.core.journey.rebuild", blocking(None))
+    monkeypatch.setattr("app.core.journey.rebuild", slow(None))
     interaction = interaction_in(guild)
 
     ticks = await ticks_while(JourneyRefreshButton("abc123").callback(interaction))
@@ -767,7 +738,7 @@ def events(monkeypatch):
 async def test_a_guild_removing_keiko_never_freezes_the_bot(deps, events, monkeypatch):
     deps.mongo_client.guild.settings.insert_one({"_id": "4242", "state": {"present": True}})
     seed_cog(deps.mongo_client, "block_links", {"guild_id": "4242", "enabled": True})
-    slow_reads(deps.mongo_client.guild.settings, monkeypatch)
+    slow_reads(deps.data.guild_settings, "find_settings", monkeypatch)
 
     ticks = await ticks_while(events.on_guild_remove(guild_double()))
 
@@ -777,7 +748,7 @@ async def test_a_guild_removing_keiko_never_freezes_the_bot(deps, events, monkey
 
 
 async def test_a_guild_adding_keiko_never_freezes_the_bot(deps, events, monkeypatch):
-    slow_reads(deps.mongo_client.guild.settings, monkeypatch)
+    slow_reads(deps.data.guild_settings, "find_settings", monkeypatch)
 
     ticks = await ticks_while(events.on_guild_join(guild_double(guild_id=777)))
 
@@ -796,9 +767,10 @@ async def test_a_live_notice_never_waits_on_the_database_on_the_loop(deps, guild
         notifications_twitch, "wait_for_stream_info",
         lambda streamer: deps.twitch.get_stream_info(streamer),
     )
-    monkeypatch.setattr(notifications_twitch, "subscription_state", blocking({}))
-    monkeypatch.setattr(notifications_twitch, "find_guilds_by_streamer_name", blocking([]))
-    monkeypatch.setattr(notifications_twitch, "update_subscription_state", blocking(None))
+    subscriptions = deps.data.keiko_subscriptions
+    monkeypatch.setattr(subscriptions, "subscription_state", slow({}))
+    monkeypatch.setattr(notifications_twitch, "find_guilds_by_streamer_name", slow([]))
+    monkeypatch.setattr(subscriptions, "update_subscription_state", slow(None))
 
     ticks = await ticks_while(notifications_twitch.handle_send_streamer_notification("gaules"))
 
@@ -815,52 +787,23 @@ PRIMITIVES = {
 }
 
 
-PRIMITIVE_ROOTS = ("app.mongo_client.", "app.redis_client.", "detectlanguage.")
+PRIMITIVE_ROOTS = ("app.redis_client.", "detectlanguage.")
 
 
-HANDOFFS = {"asyncio.to_thread", "threading.Thread"}
+HANDOFFS = {"app.core.threads.to_thread", "asyncio.to_thread", "threading.Thread"}
 
 
-ADMIN_COMMAND = (
-    "an operator command in the admin guild, run by hand; its file is outside the loop "
-    "PR of wave 2"
-)
+ALLOWED: Dict[str, str] = {}
 
 
-INSPECTION_VIEW = "operator inspection views, follow-up"
-
-
-ALLOWED: Dict[str, str] = {
-    "app/cogs/admin/__init__.py::Admin.forget_guild -> "
-    "app.data.analytics.delete_analytics_by_guild": ADMIN_COMMAND,
-    "app/cogs/admin/__init__.py::Admin.show_guild_journey -> "
-    "app.services.admin_analytics.build_guild_journey_embed": ADMIN_COMMAND,
-    "app/cogs/admin/configs.py::Configs.show_config -> "
-    "app.services.admin.get_admin_configs": ADMIN_COMMAND,
-    "app/cogs/admin/configs.py::Configs.update_config -> "
-    "app.services.admin.update_admin_configs": ADMIN_COMMAND,
-    "app/cogs/admin/subscriptions.py::Subscriptions.show_twitch_subscriptions -> "
-    "app.services.subscriptions.get_twitch_subscriptions": ADMIN_COMMAND,
-    "app/services/config.py::update_activity -> app.data.keiko.settings.update_presence": (
-        ADMIN_COMMAND
-    ),
-    "app/services/config.py::update_description -> "
-    "app.data.keiko.settings.update_presence": ADMIN_COMMAND,
-    "app/services/config.py::update_status -> app.data.keiko.settings.update_presence": (
-        ADMIN_COMMAND
-    ),
-    "app/settings/discord/callbacks.py::Runtime._commit -> "
-    "app.settings.discord.observability.open_journey": (
-        "the journey reads its history in a worker thread whenever a loop runs; only "
-        "the no-loop fallback stays synchronous"
-    ),
-    "app/settings/discord/callbacks.py::Runtime._open -> "
-    "app.settings.discord.observability.open_journey": (
-        "the journey reads its history in a worker thread whenever a loop runs; only "
-        "the no-loop fallback stays synchronous"
-    ),
-    "app/views/user_inspection.py::UserInspectionView.send -> "
-    "app.views.user_inspection.UserInspectionView._get_embed": INSPECTION_VIEW,
+SYNC_PYMONGO = {
+    "pymongo.MongoClient",
+    "pymongo.mongo_client",
+    "pymongo.collection",
+    "pymongo.database",
+    "pymongo.cursor",
+    "pymongo.command_cursor",
+    "pymongo.synchronous",
 }
 
 
@@ -1215,7 +1158,7 @@ def test_no_coroutine_calls_a_blocking_function():
     """No coroutine anywhere in `app/` calls a blocking function directly.
 
     Everything runs on one event loop: the gateway heartbeat, every interaction, every
-    listener and job. `requests`, the pymongo and Redis clients, `time.sleep`, the language
+    listener and job. `requests`, the Redis client, `time.sleep`, the language
     detection and every synchronous function that reaches one of them block it, so a
     coroutine hands them to a thread (`asyncio.to_thread`) instead of calling them. Rule 18
     of `.claude/rules/code-style.md` says it for `app/settings/`, where
@@ -1259,6 +1202,101 @@ def test_every_allowed_call_says_why():
     assert [entry for entry, reason in ALLOWED.items() if not reason.strip()] == []
 
 
+def _sync_pymongo_imports(root: str) -> List[str]:
+    found = []
+    for path in _files(root):
+        relative = os.path.relpath(path, root)
+        if relative.startswith(os.path.join("app", "migrations")):
+            continue
+        with open(path, encoding="utf-8") as source:
+            tree = ast.parse(source.read())
+        for node in ast.walk(tree):
+            names: List[str] = []
+            if isinstance(node, ast.Import):
+                names = [alias.name for alias in node.names]
+            elif isinstance(node, ast.ImportFrom) and node.module:
+                names = [node.module] + [f"{node.module}.{alias.name}" for alias in node.names]
+            found += [
+                f"{relative}:{node.lineno} {name}"
+                for name in names
+                if any(name == banned or name.startswith(f"{banned}.") for banned in SYNC_PYMONGO)
+            ]
+    return found
+
+
+@pytest.mark.unit
+def test_no_module_outside_the_migrations_imports_the_sync_mongo_client():
+    """The runtime reaches Mongo only through the async repositories of `app/data/`.
+
+    The sync pymongo client blocks the loop on every round trip, and once it was in the
+    runtime every call needed a thread to hand it to. It stays in `app/migrations/`, which
+    runs before the loop exists, and in the scripts; everywhere else `pymongo` lends only
+    what has no connection (`AsyncMongoClient`, `UpdateOne`, the errors, the results, the
+    command listener).
+    """
+    assert _sync_pymongo_imports(ROOT) == []
+
+
+def _unawaited_repository_calls(root: str) -> List[str]:
+    found = []
+    allowed_wrappers = {"wait", "iterate", "gather"}
+    for path in _files(root):
+        with open(path, encoding="utf-8") as source:
+            tree = ast.parse(source.read())
+        parents = {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Attribute):
+                continue
+            repository = node.func.value
+            if not (
+                isinstance(repository, ast.Attribute)
+                and isinstance(repository.value, ast.Call)
+                and isinstance(repository.value.func, ast.Name)
+                and repository.value.func.id == "data"
+            ):
+                continue
+            parent = parents.get(node)
+            wrapper = parent.func if isinstance(parent, ast.Call) else None
+            wrapped = isinstance(wrapper, (ast.Name, ast.Attribute)) and (
+                getattr(wrapper, "id", None) or getattr(wrapper, "attr", None)
+            ) in allowed_wrappers
+            if not isinstance(parent, ast.Await) and not wrapped:
+                found.append(f"{os.path.relpath(path, root)}:{node.lineno}")
+    return found
+
+
+@pytest.mark.unit
+def test_every_repository_call_is_awaited():
+    """A repository method is a coroutine: called without `await` it does nothing, and the
+    caller reads a coroutine where it expected the documents. A thread job waits on it
+    through the client's loop with `app.data.wait` or `app.data.iterate`."""
+    assert _unawaited_repository_calls(ROOT) == []
+
+
+@pytest.mark.unit
+def test_the_mongo_checks_see_a_sync_client_and_a_call_left_unawaited(tmp_path):
+    """Both checks are tests too: a checker that went blind would pass everything."""
+    _write(tmp_path, "app/__init__.py", "")
+    _write(tmp_path, "app/migrations/runner.py", "from pymongo import MongoClient\n")
+    _write(tmp_path, "app/core/reads.py", (
+        "from pymongo import MongoClient, UpdateOne\n"
+        "import pymongo.collection\n"
+        "from app.data import data, wait\n"
+        "async def kept(guild_id):\n"
+        "    return await data().guild_cogs.find_cogs_by_guild(guild_id)\n"
+        "def in_a_thread(guild_id):\n"
+        "    return wait(data().guild_cogs.find_cogs_by_guild(guild_id))\n"
+        "async def forgotten(guild_id):\n"
+        "    return data().guild_cogs.find_cogs_by_guild(guild_id)\n"
+    ))
+
+    assert _sync_pymongo_imports(str(tmp_path)) == [
+        "app/core/reads.py:1 pymongo.MongoClient",
+        "app/core/reads.py:2 pymongo.collection",
+    ]
+    assert _unawaited_repository_calls(str(tmp_path)) == ["app/core/reads.py:9"]
+
+
 def _write(root, path, source):
     full = root / path
     full.parent.mkdir(parents=True, exist_ok=True)
@@ -1271,19 +1309,19 @@ def test_the_scan_sees_every_way_a_coroutine_reaches_a_blocking_call(tmp_path):
     _write(tmp_path, "app/__init__.py", "")
     _write(tmp_path, "app/data/__init__.py", "")
     _write(tmp_path, "app/data/things.py", (
-        "from app import mongo_client\n"
-        "guild_database = mongo_client.guild\n"
+        "from app import redis_client\n"
+        "guild_database = redis_client.guild\n"
         "def find_thing(guild_id):\n"
-        "    return mongo_client.guild['things'].find_one({'guild_id': guild_id})\n"
+        "    return redis_client.guild['things'].find_one({'guild_id': guild_id})\n"
         "def database():\n"
         "    \"\"\"The guild database.\"\"\"\n"
-        "    return mongo_client.guild\n"
+        "    return redis_client.guild\n"
         "def count_things():\n"
         "    return database().things.count_documents({})\n"
         "def find_other(guild_id):\n"
         "    return guild_database.others.find_one({'guild_id': guild_id})\n"
         "def find_kept(guild_id):\n"
-        "    kept = mongo_client.guild.kept\n"
+        "    kept = redis_client.guild.kept\n"
         "    return kept.find_one({'guild_id': guild_id})\n"
     ))
     _write(tmp_path, "app/integrations/__init__.py", "")
@@ -1305,7 +1343,7 @@ def test_the_scan_sees_every_way_a_coroutine_reaches_a_blocking_call(tmp_path):
         "import functools\n"
         "import time\n"
         "from functools import partial\n"
-        "from app import bot, mongo_client\n"
+        "from app import bot, redis_client\n"
         "from app.data import things\n"
         "from app.integrations.web import Client\n"
         "def summary(guild_id):\n"
@@ -1331,7 +1369,7 @@ def test_the_scan_sees_every_way_a_coroutine_reaches_a_blocking_call(tmp_path):
         "    client = Client()\n"
         "    return client.fetch(url)\n"
         "async def through_a_collection_in_a_local(guild_id):\n"
-        "    collection = mongo_client.guild.things\n"
+        "    collection = redis_client.guild.things\n"
         "    return collection.find_one({'guild_id': guild_id})\n"
         "async def through_a_partial(guild_id):\n"
         "    load = functools.partial(things.find_thing, guild_id)\n"
@@ -1362,7 +1400,7 @@ def test_the_scan_sees_every_way_a_coroutine_reaches_a_blocking_call(tmp_path):
         f"{feature}through_a_receiver_in_a_local -> app.integrations.web.Client.fetch",
         f"{feature}through_an_instance -> app.integrations.web.Client.fetch",
         f"{feature}through_a_collection_in_a_local -> "
-        "app.mongo_client.guild.things.find_one",
+        "app.redis_client.guild.things.find_one",
         f"{feature}through_a_partial -> app.data.things.find_thing",
         f"{feature}through_a_partial -> app.services.feature.summary",
         f"{feature}through_data_functions -> app.data.things.count_things",
@@ -1391,7 +1429,9 @@ async def test_the_daily_backup_never_freezes_the_bot(deps, monkeypatch):
     channel is known clear of old files (`logs_archive.delete_old_files`).
     """
     deps.mongo_client.guild.settings.insert_one({"_id": "1"})
-    monkeypatch.setattr("app.data.util.iter_documents", blocking([{"guild_id": "1"}]))
+    monkeypatch.setattr(
+        deps.data.databases, "iter_documents", blocking_rows([{"guild_id": "1"}])
+    )
     async def nothing_older():
         return
         yield
@@ -1418,8 +1458,8 @@ async def test_the_daily_backup_never_freezes_the_bot(deps, monkeypatch):
 
 @pytest.mark.regression
 @pytest.mark.parametrize("call", ["find_retention", "update_retention"])
-async def test_clearing_the_old_files_never_freezes_the_bot(monkeypatch, call):
-    monkeypatch.setattr(f"app.data.logs.{call}", blocking(None))
+async def test_clearing_the_old_files_never_freezes_the_bot(deps, monkeypatch, call):
+    monkeypatch.setattr(deps.data.guild_logs_files, call, slow(None))
     posted = logs_archive.BackupFile("keiko_backup_2026-10-05.zip.age", b"sealed", {"guild.x": 1})
     monkeypatch.setattr(logs_archive, "build_backup", lambda *args: ([posted], []))
     walks = []

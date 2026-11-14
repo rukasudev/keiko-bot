@@ -32,6 +32,7 @@ def keiko_command(
                 user_id=interaction.user.id,
                 source="slash",
                 is_admin=is_guild_admin(interaction.user),
+                command=command_name,
             ) as trace:
                 feature = getattr(interaction.command, "_attr", None)
                 if feature:

@@ -90,12 +90,12 @@ async def test_manager_form_renders_birthday_via_real_settings_provider(
     from tests.generators.birthdays import saved_birthday
     from app.services.reminders_birthdays import birthday_manager_cog_data
 
-    save_birthday_config(
+    await save_birthday_config(
         GUILD_ID, "100", False, notification_time="08:00",
     )
     saved_birthday(GUILD_ID, "555", "05-12")
 
-    cog_data = birthday_manager_cog_data(GUILD_ID)
+    cog_data = await birthday_manager_cog_data(GUILD_ID)
     scenario = await scenario_factory(locale="pt-br").start_manager(
         "reminders_birthday", cog_data
     )

@@ -10,7 +10,7 @@ import pytest
 import yaml
 
 from app.constants import Commands, Feature
-from app.data.guild.cogs import find_cog_by_guild_id
+from app.data import data
 from app.settings.features import feature_for, feature_keys
 from app.settings.features.feature import (
     CommitContext,
@@ -27,6 +27,7 @@ from app.settings.form.responses.responses import (
     list_values,
 )
 from app.settings.form.responses.summary import unwrap
+from tests.generators.events import lifecycle
 from tests.generators.moderations import seed_cog
 
 pytestmark = pytest.mark.unit
@@ -213,12 +214,13 @@ async def test_a_generic_setup_enables_the_feature_and_stores_the_document(deps)
     answers = {"default_roles_bot": Answer(["201"]), "default_roles": Answer("202")}
     result = await feature.commit("setup", {"answers": answers}, _context())
     assert result.written == ("default_roles",)
-    stored = find_cog_by_guild_id(GUILD_ID, "default_roles")
+    stored = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "default_roles")
     assert stored["default_roles"] == {"style": "role", "values": "202"}
     assert stored["default_roles_bot"] == {"style": "role", "values": ["201"]}
     assert stored["enabled"] is True
-    event = deps.mongo_client.events["default_roles"].find_one({"guild_id": GUILD_ID})
-    assert event["event"] == "enabled" and event["user_id"] == "555"
+    event = deps.mongo_client.events.changes.find_one({"guild_id": GUILD_ID})
+    assert event["type"] == "feature.enabled"
+    assert event["actor"] == {"kind": "user", "id": "555"}
 
 
 def _guild_with(members):
@@ -266,7 +268,7 @@ async def test_a_default_roles_setup_gives_the_roles_out_after_the_commit(
 
     assert result.written == ("default_roles",)
     assert given == [], "the commit never waits for the roles to be given"
-    stored = find_cog_by_guild_id(GUILD_ID, "default_roles")
+    stored = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "default_roles")
     assert "sync_existing" not in stored, "the choice is never saved as a setting"
     released.set()
     for _ in range(5):
@@ -339,15 +341,18 @@ async def test_pause_unpause_and_disable_move_the_document(deps):
     seed_cog(deps.mongo_client, "default_roles", dict(DOCUMENTS["default_roles"]))
     context = _context(DOCUMENTS["default_roles"])
     await feature.commit("pause", {}, context)
-    assert find_cog_by_guild_id(GUILD_ID, "default_roles")["enabled"] is False
+    assert (await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "default_roles"))[
+        "enabled"
+    ] is False
     await feature.commit("unpause", {}, context)
-    assert find_cog_by_guild_id(GUILD_ID, "default_roles")["enabled"] is True
+    assert (await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "default_roles"))[
+        "enabled"
+    ] is True
     await feature.commit("disable", {}, context)
-    assert find_cog_by_guild_id(GUILD_ID, "default_roles") is None
-    events = [
-        e["event"]
-        for e in deps.mongo_client.events["default_roles"].find({"guild_id": GUILD_ID})
-    ]
+    assert (
+        await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "default_roles") is None
+    )
+    events = lifecycle(deps.mongo_client, GUILD_ID, "default_roles")
     assert events == ["paused", "unpaused", "disabled"]
 
 
@@ -363,7 +368,9 @@ async def test_adding_an_item_appends_it_and_subscribes_outside_dev(deps):
         "notification_messages": Answer("oi"),
     }
     result = await feature.commit("add_item", {"answers": item}, _context(document))
-    stored = find_cog_by_guild_id(GUILD_ID, "notifications_twitch")
+    stored = await data().guild_cogs.find_cog_by_guild_id(
+        GUILD_ID, "notifications_twitch"
+    )
     assert [i["streamer"]["value"] for i in stored["notifications"]["values"]] == [
         "gaules",
         "cellbit",
@@ -391,7 +398,9 @@ async def test_removing_an_item_unsubscribes_it(deps):
     document = _two_streamers()
     seed_cog(deps.mongo_client, "notifications_twitch", copy.deepcopy(document))
     await feature.commit("remove_item", {"indexes": [0]}, _context(document))
-    stored = find_cog_by_guild_id(GUILD_ID, "notifications_twitch")
+    stored = await data().guild_cogs.find_cog_by_guild_id(
+        GUILD_ID, "notifications_twitch"
+    )
     assert [
         item["streamer"]["value"] for item in stored["notifications"]["values"]
     ] == ["cellbit"]
@@ -414,7 +423,9 @@ async def test_several_items_go_in_one_save_and_each_lets_its_subscription_go(de
         "remove_item", {"indexes": [0, 2]}, _context(document)
     )
 
-    stored = find_cog_by_guild_id(GUILD_ID, "notifications_twitch")
+    stored = await data().guild_cogs.find_cog_by_guild_id(
+        GUILD_ID, "notifications_twitch"
+    )
     names = [item["streamer"]["value"] for item in stored["notifications"]["values"]]
     assert names == ["cellbit"]
     assert len(deps.twitch.unsubscribe_calls) >= 2
@@ -431,7 +442,9 @@ async def test_a_removal_saves_nothing_when_one_chosen_item_changed_meanwhile(de
             "remove_item", {"indexes": [0, 1]}, _context(document)
         )
 
-    stored = find_cog_by_guild_id(GUILD_ID, "notifications_twitch")
+    stored = await data().guild_cogs.find_cog_by_guild_id(
+        GUILD_ID, "notifications_twitch"
+    )
     assert len(stored["notifications"]["values"]) == 2
 
 
@@ -472,10 +485,10 @@ async def test_a_website_turns_on_or_off_in_the_choice_as_it_is_saved(
         _context(document),
     )
 
-    stored = find_cog_by_guild_id(GUILD_ID, "block_links")
+    stored = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "block_links")
     assert stored["allowed_links"] == {"style": "bullet", "values": saved}
-    event = deps.mongo_client.events["block_links"].find_one({"guild_id": GUILD_ID})
-    assert event["event"] == "edited", "a toggle is audited as the edit it was"
+    event = deps.mongo_client.events.changes.find_one({"guild_id": GUILD_ID})
+    assert event["type"] == "config.changed", "a toggle is recorded as the edit it was"
 
 
 async def test_the_youtuber_picture_is_the_medium_thumbnail(deps, monkeypatch):
@@ -531,7 +544,9 @@ async def test_the_birthday_setup_writes_the_config_and_the_first_member(deps):
     }
     result = await feature.commit("setup", {"answers": answers}, _context())
     assert result.written == ("reminders_birthday", "birthdays")
-    config = find_cog_by_guild_id(GUILD_ID, "reminders_birthday")
+    config = await data().guild_cogs.find_cog_by_guild_id(
+        GUILD_ID, "reminders_birthday"
+    )
     assert config["channel"] == "100" and config["notification_time"] == "08:00"
     assert config["enabled"] is True
     item = deps.mongo_client.guild["members"].find_one({"_id": f"{GUILD_ID}:555"})
@@ -543,9 +558,9 @@ async def test_the_birthday_panel_opens_with_its_own_rows(deps):
     from app.services.reminders_birthdays import save_birthday_config
     from tests.generators.birthdays import saved_birthday
 
-    save_birthday_config(GUILD_ID, "100", False, notification_time="08:00")
+    await save_birthday_config(GUILD_ID, "100", False, notification_time="08:00")
     saved_birthday(GUILD_ID, "555", "05-12")
-    set_feature_enabled(GUILD_ID, "reminders_birthday", True)
+    await set_feature_enabled(GUILD_ID, "reminders_birthday", True)
     opened = await feature_for("reminders_birthday").open(
         OpenContext(GUILD_ID, "555", "pt-br")
     )
@@ -646,7 +661,9 @@ async def test_editing_the_streamer_refreshes_the_stream_elements_channel(
         "edit", {"answers": {"streamer": Answer("cellbit")}}, _context(saved)
     )
 
-    stored = find_cog_by_guild_id(GUILD_ID, "stream_elements_commands")
+    stored = await data().guild_cogs.find_cog_by_guild_id(
+        GUILD_ID, "stream_elements_commands"
+    )
     assert stored["streamer"] == "cellbit"
     assert stored["state"]["channel_id"] == "channel-of-cellbit"
     assert result.document["state"]["channel_id"] == "channel-of-cellbit"
@@ -678,7 +695,9 @@ async def test_a_setup_saves_the_stream_elements_channel_in_dev(deps, monkeypatc
         },
         _context(),
     )
-    stored = find_cog_by_guild_id(GUILD_ID, "stream_elements_commands")
+    stored = await data().guild_cogs.find_cog_by_guild_id(
+        GUILD_ID, "stream_elements_commands"
+    )
     assert stored["state"]["channel_id"] == "se-shroud"
     assert looked_up.document["state"]["channel_id"] == "se-shroud"
     assert asked == [], "the channel the streamer lookup found was looked up again"
@@ -689,7 +708,9 @@ async def test_a_setup_saves_the_stream_elements_channel_in_dev(deps, monkeypatc
     await feature.commit(
         "setup", {"answers": {"streamer": Answer("gaules")}}, _context()
     )
-    stored = find_cog_by_guild_id(GUILD_ID, "stream_elements_commands")
+    stored = await data().guild_cogs.find_cog_by_guild_id(
+        GUILD_ID, "stream_elements_commands"
+    )
     assert stored["state"]["channel_id"] == "channel-of-gaules"
     assert asked == ["gaules"]
 
@@ -872,7 +893,7 @@ async def test_the_stream_elements_panel_tells_no_commands_from_a_failure(
 
     monkeypatch.setattr(client, "get_chat_commands", staticmethod(lambda channel: []))
     empty = await panel_line()
-    deps.redis_client.delete("stream_elements:channel:c1:commands")
+    deps.redis_client.delete("cache:stream_elements:commands:c1")
 
     def down(channel):
         raise ConnectionError("StreamElements is down")
@@ -1078,7 +1099,7 @@ async def test_the_birthday_panel_counts_from_the_day_its_clock_gives(
     from app.settings.features.reminders_birthday import FEATURE
     from tests.generators.birthdays import saved_birthday
 
-    save_birthday_config(GUILD_ID, "100", False, notification_time="08:00")
+    await save_birthday_config(GUILD_ID, "100", False, notification_time="08:00")
     saved_birthday(GUILD_ID, "555", "05-12")
     saved_birthday(GUILD_ID, "777", "06-12")
     monkeypatch.setattr(FEATURE, "today", lambda: today)
@@ -1097,7 +1118,7 @@ async def test_the_birthday_panel_shows_its_list_even_with_no_birthday(deps):
     from app.services.reminders_birthdays import save_birthday_config
     from app.settings.features.reminders_birthday import FEATURE
 
-    save_birthday_config(GUILD_ID, "100", False)
+    await save_birthday_config(GUILD_ID, "100", False)
 
     opened = await FEATURE.open(OpenContext(GUILD_ID, "555", "pt-br"))
 
@@ -1118,7 +1139,7 @@ async def test_a_found_member_shows_whose_messages_greet_them(deps):
 
     guild = create_guild()
     create_member(guild, id=777, name="Amiga")
-    save_birthday_config(GUILD_ID, "100", False)
+    await save_birthday_config(GUILD_ID, "100", False)
     saved_birthday(GUILD_ID, "777", "06-12")
     saved_birthday(
         GUILD_ID,
@@ -1136,7 +1157,7 @@ async def test_a_found_member_shows_whose_messages_greet_them(deps):
         "💬 **Mensagens de parabéns:**\n```• Oi {user}\n• Parabéns!```",
     )
 
-    save_birthday_config(
+    await save_birthday_config(
         GUILD_ID,
         "100",
         False,

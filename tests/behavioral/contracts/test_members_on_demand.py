@@ -113,10 +113,10 @@ def test_the_history_names_its_actors_without_a_lookup():
         locale="pt-br", guild=guild, client=SimpleNamespace(user=SimpleNamespace(id=1))
     )
     record = {
-        "datetime": datetime(2026, 1, 1, 9, 30),
-        "user_id": "777",
-        "event": "edited",
-        "cog_key": "welcome_messages",
+        "ts": datetime(2026, 1, 1, 9, 30),
+        "actor": {"kind": "user", "id": "777"},
+        "type": "config.changed",
+        "cog": "welcome_messages",
     }
 
     lines = parse_history_data([record], interaction)
@@ -217,10 +217,10 @@ async def test_a_birthday_of_a_member_nobody_cached_is_celebrated(deps, monkeypa
     recorded_server(deps.mongo_client, guild.id)
     deps.bot.get_guild = lambda guild_id: guild if int(guild_id) == guild.id else None
     monkeypatch.setattr(birthday_handler, "bot", deps.bot)
-    save_birthday_config(str(guild.id), str(guild.text_channels[0].id), False)
+    await save_birthday_config(str(guild.id), str(guild.text_channels[0].id), False)
     for member_id in ("777", "404"):
         saved_birthday(str(guild.id), member_id, "05-12", reminder_id="4001")
-    set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
+    await set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
 
     await birthday_handler.process_birthday_webhook("4001", "05-12")
 

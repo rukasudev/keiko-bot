@@ -46,6 +46,7 @@ from pymongo.errors import ServerSelectionTimeoutError
 from redis.exceptions import ConnectionError as RedisConnectionError
 from redis.exceptions import TimeoutError as RedisTimeoutError
 
+from app.data import data, wait
 from app import logger as logger_module
 from app.constants import DBConfigs
 from app.core import cache
@@ -53,7 +54,6 @@ from app.core import servers
 from app.core import trace as trace_service
 from app.settings.features import feature_for
 from app.settings.features.feature import CommitContext
-from app.data.guild.cogs import find_cog_by_guild_id
 from tests.generators.moderations import recorded_server, seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("config_cache")]
@@ -386,12 +386,12 @@ async def test_a_mongo_outage_serves_the_last_known_server_settings(
     settings this process last read instead of failing every message."""
     recorded_server(deps.mongo_client, GUILD_ID, prefix="k?", language="en-us")
     clock = frozen_clock(monkeypatch)
-    assert servers.server_settings(GUILD_ID)["prefix"] == "k?"
+    assert (await servers.server_settings(GUILD_ID))["prefix"] == "k?"
     clock[0] += DBConfigs.COG_CACHE_TTL_SECONDS + 1
     calls = settings_mongo_is_down(monkeypatch, deps)
 
     with caplog.at_level(logging.WARNING):
-        assert servers.server_settings(GUILD_ID)["prefix"] == "k?"
+        assert (await servers.server_settings(GUILD_ID))["prefix"] == "k?"
         assert await servers.server_prefix(GUILD_ID) == "k?"
         assert await servers.server_language(GUILD_ID) == "en-us"
 
@@ -409,12 +409,12 @@ async def test_a_mongo_outage_with_no_server_settings_read_still_fails(deps, mon
 
 def test_a_save_is_never_undone_by_the_last_known_server_settings(deps, monkeypatch):
     recorded_server(deps.mongo_client, GUILD_ID, prefix="k?")
-    servers.server_settings(GUILD_ID)
-    servers.save_server_setting(GUILD_ID, "prefix", "ke!")
+    wait(servers.server_settings(GUILD_ID))
+    wait(servers.save_server_setting(GUILD_ID, "prefix", "ke!"))
     settings_mongo_is_down(monkeypatch, deps)
 
     with pytest.raises(ServerSelectionTimeoutError):
-        servers.server_settings(GUILD_ID)
+        wait(servers.server_settings(GUILD_ID))
 
 
 def test_the_last_known_server_settings_are_bounded(deps, monkeypatch):
@@ -422,14 +422,14 @@ def test_the_last_known_server_settings_are_bounded(deps, monkeypatch):
     clock = frozen_clock(monkeypatch)
     for guild_id in ("1", "2", "3"):
         recorded_server(deps.mongo_client, guild_id)
-        servers.server_settings(guild_id)
+        wait(servers.server_settings(guild_id))
     clock[0] += DBConfigs.COG_CACHE_TTL_SECONDS + 1
     settings_mongo_is_down(monkeypatch, deps)
 
-    assert servers.server_settings("3")["prefix"]
-    assert servers.server_settings("2")["prefix"]
+    assert wait(servers.server_settings("3"))["prefix"]
+    assert wait(servers.server_settings("2"))["prefix"]
     with pytest.raises(ServerSelectionTimeoutError):
-        servers.server_settings("1")
+        wait(servers.server_settings("1"))
 
 
 def test_a_disable_racing_the_redis_write_never_leaves_the_old_settings(
@@ -615,5 +615,5 @@ async def test_a_failed_invalidation_never_fails_a_save(deps, monkeypatch):
 
     await feature_for("block_links").commit("pause", {}, context)
 
-    stored = find_cog_by_guild_id(GUILD_ID, "block_links")
+    stored = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "block_links")
     assert stored["enabled"] is False

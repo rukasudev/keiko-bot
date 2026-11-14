@@ -1,10 +1,8 @@
-import asyncio
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, Dict, List, Optional, Set, Tuple
+from datetime import datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional, Tuple
 import discord
 
-from collections import Counter
 
 from app import logger
 from app.constants import (
@@ -15,7 +13,7 @@ from app.constants import Commands as constants
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
 from app.constants import Style
-from app.data import block_links as blocked_links_data
+from app.data import data
 from app.exceptions import ErrorContext
 from app.settings import open_feature
 from app.settings.form.responses.links import ParsedLink, parse_link
@@ -32,6 +30,7 @@ from app.core.utils import (
     parse_form_yaml_to_dict,
     parse_locale,
 )
+from app.core.threads import to_thread
 
 
 @dataclass(frozen=True)
@@ -326,7 +325,7 @@ def evaluate_message(
 async def check_message(guild_id: str, message: discord.Message) -> None:
     """Command service to check whether a message carries a blocked link."""
     # Every message in every guild reaches this line, and a cache miss reads Mongo.
-    cogs = await asyncio.to_thread(
+    cogs = await to_thread(
         cache.get_cog_data_or_populate, guild_id, constants.BLOCK_LINKS_KEY
     )
 
@@ -361,7 +360,7 @@ async def check_message(guild_id: str, message: discord.Message) -> None:
         )
         raise
     finally:
-        await asyncio.to_thread(
+        await to_thread(
             record_blocked_links, guild_id, message, evaluation, deleted=deleted
         )
 
@@ -382,49 +381,29 @@ def record_blocked_links(
         recorded = blocked[:constants.BLOCK_LINKS_EVENTS_MAX_PER_MESSAGE]
 
         for verdict in recorded:
-            blocked_links_data.insert_blocked_link({
-                "guild_id": str(guild_id),
-                "user_id": user_id,
-                "channel_id": str(getattr(channel, "id", "")),
-                "message_id": str(getattr(message, "id", "")),
-                "link": verdict.raw[:100],
-                "host": verdict.host,
-                "mode": evaluation.mode,
-                "reason": verdict.reason,
-                "rule": verdict.rule,
-                "match": verdict.match,
-                "deleted": deleted,
-            })
-
-        if recorded:
-            hosts = Counter(verdict.host for verdict in recorded)
-            blocked_links_data.count_blocked_links(
-                len(recorded), hosts, datetime.now(timezone.utc)
-            )
-            increments = Counter({f"host:{host}": count for host, count in hosts.items()})
-            increments.update({"total": len(recorded), f"user:{user_id}": len(recorded)})
-            cache.increment_redis_hash(
-                constants.REDIS_BLOCK_LINKS_COUNTERS.format(guild_id=guild_id),
-                increments,
-                constants.BLOCK_LINKS_COUNTERS_TTL_SECONDS,
-            )
-
-        for verdict in blocked:
-            analytics.emit(
-                "feature.action_performed",
+            analytics.record(
+                "link.blocked",
                 guild_id=guild_id,
-                feature=constants.BLOCK_LINKS_KEY,
-                mode=evaluation.mode,
-                reason=verdict.reason,
-                deleted=deleted,
+                cog=constants.BLOCK_LINKS_KEY,
+                actor=analytics.actor("user", user_id),
+                props={
+                    "channel_id": str(getattr(channel, "id", "")),
+                    "link": verdict.raw,
+                    "host": verdict.host,
+                    "mode": evaluation.mode,
+                    "reason": verdict.reason,
+                    "rule": verdict.rule,
+                    "match": verdict.match,
+                    "deleted": deleted,
+                },
             )
 
         if blocked and not deleted:
-            analytics.emit(
+            analytics.record(
                 "value.blocked_by_permission",
                 guild_id=guild_id,
-                feature=constants.BLOCK_LINKS_KEY,
-                error_type="Forbidden",
+                cog=constants.BLOCK_LINKS_KEY,
+                props={"error_type": "Forbidden"},
             )
     except Exception as e:
         logger.error(
@@ -547,16 +526,15 @@ async def send_link_check_message(
     interaction: discord.Interaction, message: discord.Message
 ) -> None:
     """Message context menu: why a link of this message was (not) blocked."""
-    analytics.emit(
+    analytics.record(
         "feature.tested",
         guild_id=interaction.guild_id,
-        user_id=interaction.user.id,
-        feature=constants.BLOCK_LINKS_KEY,
-        source="context_menu",
-        surface="diagnostic",
+        cog=constants.BLOCK_LINKS_KEY,
+        actor=analytics.actor("user", interaction.user.id),
+        props={"source": "context_menu", "surface": "diagnostic"},
     )
     locale = parse_locale(interaction.locale)
-    cogs = await asyncio.to_thread(
+    cogs = await to_thread(
         cache.get_cog_data_or_populate,
         str(interaction.guild_id),
         constants.BLOCK_LINKS_KEY,
@@ -582,11 +560,16 @@ async def send_link_check_message(
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
-def get_blocked_link_records(
+async def get_blocked_link_records(
     guild_id: str, user_id: Optional[str] = None
 ) -> List[Dict[str, Any]]:
-    return blocked_links_data.find_blocked_links_by_guild(
-        guild_id, user_id=user_id, limit=constants.BLOCK_LINKS_EVENTS_READ_LIMIT
+    """The server's latest blocked links, or one member's, newest first."""
+    return await data().events_activity.find_by_guild(
+        guild_id,
+        cog=constants.BLOCK_LINKS_KEY,
+        types=["link.blocked"],
+        limit=constants.BLOCK_LINKS_EVENTS_READ_LIMIT,
+        actor_id=user_id,
     )
 
 
@@ -596,112 +579,62 @@ def parse_blocked_link_records(
     """Records as the {field name: field value} dict PaginationView renders."""
     data = {}
     for index, record in enumerate(records, start=1):
-        icon = "⚠️" if record.get("deleted") is False else "🚫"
-        title = f"{index}. {icon} {record.get('host') or '-'}"
+        props = record.get("props") or {}
+        icon = "⚠️" if props.get("deleted") is False else "🚫"
+        title = f"{index}. {icon} {props.get('host') or '-'}"
 
-        lines = [f"`{record.get('link') or '-'}`"]
+        lines = [f"`{props.get('link') or '-'}`"]
         lines.append(
             _bm("blocked-list.record.line", locale)
-            .replace("$user", f"<@{record.get('user_id')}>")
-            .replace("$channel", f"<#{record.get('channel_id')}>")
-            .replace("$date", format_discord_timestamp(record.get("created_at")))
+            .replace("$user", f"<@{(record.get('actor') or {}).get('id')}>")
+            .replace("$channel", f"<#{props.get('channel_id')}>")
+            .replace("$date", format_discord_timestamp(record.get("ts")))
         )
-        if record.get("rule"):
+        if props.get("rule"):
             lines.append(
-                _bm("blocked-list.record.rule", locale).replace("$rule", record["rule"])
+                _bm("blocked-list.record.rule", locale).replace("$rule", props["rule"])
             )
-        if record.get("deleted") is False:
+        if props.get("deleted") is False:
             lines.append(_bm("blocked-list.record.not-deleted", locale))
 
         data[title] = "\n".join(lines)
     return data
 
 
-def get_blocked_links_stats(guild_id: str) -> Dict[str, Any]:
-    """All-time numbers from the counters, recent ones from the records."""
-    records = blocked_links_data.find_blocked_links_by_guild(guild_id)
-    counters = _counters(guild_id, records)
-
-    hosts = _counted(counters, "host") or Counter(
-        record.get("host") for record in records if record.get("host")
+async def get_blocked_links_stats(guild_id: str) -> Dict[str, Any]:
+    """The all-time total from the server's lifetime, the rest from the last 90 days."""
+    since = datetime.now(timezone.utc) - timedelta(
+        seconds=constants.EVENTS_ACTIVITY_TTL_SECONDS
     )
-    users = _counted(counters, "user") or Counter(
-        record.get("user_id") for record in records if record.get("user_id")
-    )
-    top_users = users.most_common(1)
+    hosts = await _blocks_by(guild_id, "props.host", since)
+    users = await _blocks_by(guild_id, "actor.id", since)
+    deleted = dict(await _blocks_by(guild_id, "props.deleted", since))
+    recent = sum(deleted.values())
+    profile = await data().analytics_lifetime.find_lifetime(guild_id) or {}
+    features = profile.get("features") or {}
+    blocked = (features.get(constants.BLOCK_LINKS_KEY) or {}).get("value_count") or 0
 
     return {
-        "total": counters["total"] or len(records),
-        "recent": len(records),
-        "top_hosts": hosts.most_common(3),
-        "top_user": top_users[0] if top_users else None,
-        "not_deleted": sum(
-            1 for record in records if record.get("deleted") is False
-        ),
+        "total": blocked or recent,
+        "recent": recent,
+        "top_hosts": [(host, count) for host, count in hosts if host][:3],
+        "top_user": next(((user, count) for user, count in users if user), None),
+        "not_deleted": deleted.get(False, 0),
     }
 
 
-def forget_counters(guild_id: str) -> None:
-    """Delete a guild's own counts by name: its hash and its total first, then the loose
-    keys of v0.9.0 the hash and the records name, so a failed read never keeps them all."""
-    hash_key = constants.REDIS_BLOCK_LINKS_COUNTERS.format(guild_id=guild_id)
-
-    try:
-        counted = cache.get_redis_hash_counters(hash_key)
-    finally:
-        cache.delete_redis_keys([hash_key, _loose_key(guild_id, "total")])
-
-    records = blocked_links_data.find_blocked_links_by_guild(guild_id)
-    names = _counter_names(counted, records)
-    cache.delete_redis_keys([_loose_key(guild_id, name) for name in names])
-
-
-def _counters(guild_id: str, records: List[Dict[str, Any]]) -> Dict[str, int]:
-    """Every counter of a guild by name: its hash plus the loose keys of v0.9.0."""
-    counted = cache.get_redis_hash_counters(
-        constants.REDIS_BLOCK_LINKS_COUNTERS.format(guild_id=guild_id)
+async def _blocks_by(
+    guild_id: str, field: str, since: Optional[datetime] = None
+) -> List[Tuple[Any, int]]:
+    """The server's blocked links counted by the value at `field`, most first."""
+    return await data().events_activity.count_by_field(
+        guild_id, constants.BLOCK_LINKS_KEY, field, types=["link.blocked"], since=since
     )
-    loose_keys = {
-        name: _loose_key(guild_id, name) for name in _counter_names(counted, records)
-    }
-    loose = cache.get_redis_counters(list(loose_keys.values()))
-    return {name: counted.get(name, 0) + loose[key] for name, key in loose_keys.items()}
 
 
-def _counter_names(counted: Dict[str, int], records: List[Dict[str, Any]]) -> Set[str]:
-    """The names a guild's counters go by: its hash's fields, and every site and
-    member its records know, so the loose keys are found without a walk."""
-    names = {"total", *counted}
-    names.update(f"host:{record['host']}" for record in records if record.get("host"))
-    names.update(
-        f"user:{record['user_id']}" for record in records if record.get("user_id")
-    )
-    return names
-
-
-def _loose_key(guild_id: str, name: str) -> str:
-    kind, _, value = name.partition(":")
-    template = {
-        "total": constants.REDIS_BLOCK_LINKS_COUNTER_TOTAL,
-        "host": constants.REDIS_BLOCK_LINKS_COUNTER_HOST,
-        "user": constants.REDIS_BLOCK_LINKS_COUNTER_USER,
-    }[kind]
-    return template.format(guild_id=guild_id, value=value)
-
-
-def _counted(counters: Dict[str, int], kind: str) -> Counter:
-    """The counters of one kind, by what they count, leaving out the ones at zero."""
-    prefix = f"{kind}:"
-    return Counter({
-        name[len(prefix):]: count
-        for name, count in counters.items()
-        if name.startswith(prefix) and count
-    })
-
-
-def blocked_links_stats_lines(guild_id: str, locale: str) -> List[str]:
+async def blocked_links_stats_lines(guild_id: str, locale: str) -> List[str]:
     """The link blocker's own figures for its statistics."""
-    stats = get_blocked_links_stats(guild_id)
+    stats = await get_blocked_links_stats(guild_id)
     if not stats["total"]:
         return [_bm("stats.empty", locale)]
 

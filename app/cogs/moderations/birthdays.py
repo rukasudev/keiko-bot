@@ -1,4 +1,3 @@
-import asyncio
 
 import discord
 from discord import app_commands
@@ -53,18 +52,13 @@ class Birthdays(
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         guild_id = str(interaction.guild.id)
-        if not await asyncio.to_thread(birthdays_service.accepts_birthdays, guild_id):
+        if not await birthdays_service.accepts_birthdays(guild_id):
             embed = response_error_embed("reminders-birthdays-disabled", interaction.locale, footer=True)
             return await interaction.response.send_message(embed=embed, ephemeral=True)
 
         await interaction.response.defer(ephemeral=True, thinking=True)
 
-        await asyncio.to_thread(
-            birthdays_service.upsert_birthday,
-            guild_id=guild_id,
-            user_id=str(member.id),
-            mm_dd=date,
-        )
+        await birthdays_service.upsert_birthday(guild_id=guild_id, user_id=str(member.id), mm_dd=date)
 
         embed = response_embed(
             "commands.commands.moderations-birthdays-add.response",

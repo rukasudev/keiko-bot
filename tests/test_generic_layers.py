@@ -28,8 +28,11 @@ pytestmark = pytest.mark.unit
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GENERIC_LAYERS = (
+    "app/data/analytics",
+    "app/data/events",
     "app/data/guild",
     "app/data/keiko",
+    "app/data/traces",
     "app/data/util.py",
     "app/core",
     "app/views",

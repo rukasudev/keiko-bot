@@ -8,6 +8,7 @@ from app.constants import LogTypes as logconstants
 from app.exceptions import ErrorContext
 from app.integrations.reminder_webhook import REMINDER_TIMEZONE, reminder_time
 from app.core.trace import as_utc
+from app.data import data, wait
 from app.webhooks import webhooks
 from app.webhooks.jobs import schedule_webhook_job
 
@@ -68,7 +69,7 @@ def process_birthday_reminder(reminder_id: str, notes: str) -> None:
     from app.services.reminders_birthdays import birthday_schedules_by_reminder
     from app.webhooks.birthday_handler import process_birthday_webhook
 
-    if not birthday_schedules_by_reminder(reminder_id):
+    if not wait(birthday_schedules_by_reminder(reminder_id)):
         logger.warn(
             f"birthday reminder {reminder_id} — not one of **Keiko**'s, ignored",
             log_type=logconstants.COMMAND_WARN_TYPE,
@@ -95,7 +96,7 @@ def renew_youtube_subscription(reminder_id: str) -> None:
         record_hub_confirmation,
     )
 
-    renewal = find_reminder_by_id(reminder_id)
+    renewal = wait(find_reminder_by_id(reminder_id))
 
     if not renewal:
         logger.warn(
@@ -133,7 +134,7 @@ def renew_youtube_subscription(reminder_id: str) -> None:
         return
 
     if answer.outcome is HubOutcome.DONE:
-        record_hub_confirmation(youtuber, now.astimezone(timezone.utc))
+        wait(record_hub_confirmation(youtuber, now.astimezone(timezone.utc)))
     elif answer.outcome in (HubOutcome.NO_CHANNEL, HubOutcome.REFUSED):
         logger.error(
             f'renewal of **{youtuber}** failed — {answer.detail}; the next renewal tries again',
@@ -157,18 +158,17 @@ def renew_youtube_subscription(reminder_id: str) -> None:
 
 def record_renewal_due(youtuber: str, moment: datetime) -> None:
     """Keep on the renewal's schedule when its reminder fires next."""
-    from app.data.keiko.schedules import set_schedule_due
     from app.services.notifications_youtube_video import youtube_renewal_id
 
-    set_schedule_due(youtube_renewal_id(youtuber), moment.astimezone(timezone.utc))
+    schedules = data().keiko_schedules
+    wait(schedules.set_schedule_due(youtube_renewal_id(youtuber), moment.astimezone(timezone.utc)))
 
 
 def report_a_coming_lapse(renewal: dict, reminder_id: str, now: datetime) -> None:
     """Tell the error channel once that a renewal failing for days is about to let its lease end."""
-    from app.data.keiko.subscriptions import subscription_state, update_subscription_state
-
+    subscriptions = data().keiko_subscriptions
     youtuber = renewal.get('value')
-    hub = subscription_state('youtube', youtuber)
+    hub = wait(subscriptions.subscription_state('youtube', youtuber))
     confirmed = as_utc(hub.get('hub_confirmed_at') or renewal.get('created_at'))
     lease = timedelta(seconds=commands_constants.YOUTUBE_HUB_LEASE_SECONDS)
     lapses_at = (confirmed + lease if confirmed else now).astimezone(timezone.utc)
@@ -190,6 +190,6 @@ def report_a_coming_lapse(renewal: dict, reminder_id: str, now: datetime) -> Non
             },
         ),
     )
-    update_subscription_state(
+    wait(subscriptions.update_subscription_state(
         'youtube', youtuber, {'lapse_reported_at': now.astimezone(timezone.utc)}
-    )
+    ))

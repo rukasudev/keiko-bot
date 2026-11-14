@@ -1,12 +1,18 @@
 {
+  "analytics.counts": ["index(guild_id, -month)", "index(month)", "ttl(updated_at, days=400)"],
+  "analytics.keiko": [],
+  "analytics.lifetime": ["index(removed_at, last_value_at)", "ttl(removed_at, days=365)"],
   "audit.errors": [],
   "audit.notifications_twitch": [],
   "audit.reminders": ["ttl(expires_at)"],
   "configs.admin": [],
   "configs.data": [],
   "configs.integrations": [],
+  "events.activity": ["index(guild_id, -ts)", "index(guild_id, cog, -ts)", "index(guild_id, cog, actor.id, -ts)", "index(type, -ts)", "ttl(ts, days=90)"],
   "events.block_links": [],
+  "events.changes": ["index(guild_id, -ts)", "index(guild_id, cog, -ts)", "index(guild_id, cog, type, -ts)"],
   "events.default_roles": [],
+  "events.interactions": ["index(guild_id, -ts)", "index(session_id, ts)", "index(type, -ts)", "index(type, cog, -ts)", "ttl(ts, days=90)"],
   "events.notifications_twitch": [],
   "events.notifications_youtube_video": [],
   "events.reminders_birthday": [],
@@ -39,5 +45,6 @@
   "migrations.changelog": [],
   "migrations.lock": ["ttl(expires_at)"],
   "notifications.notifications_twitch": [],
-  "reminders.birthdays": []
+  "reminders.birthdays": [],
+  "traces.runs": ["index(guild_id, -ts)", "ttl(ts, days=30)"]
 }

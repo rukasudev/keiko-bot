@@ -12,8 +12,9 @@ import discord
 
 from app.components.embed import base_embed
 from app.constants import Commands as constants
-from app.data import analytics as analytics_data
 from app.core import analytics_reports
+from app.core.analytics_sink import metric_key
+from app.data import data
 from app.core.utils import describe_default, describe_step
 
 VALUE_LABELS = {
@@ -27,7 +28,7 @@ VALUE_LABELS = {
 }
 
 
-def build_weekly_digest(
+async def build_weekly_digest(
     days: int = constants.ANALYTICS_DIGEST_WINDOW_DAYS,
     guild_count: Optional[int] = None,
 ) -> discord.Embed:
@@ -37,27 +38,30 @@ def build_weekly_digest(
     since analytics was deployed — on the first week that was 12 out of 73.
     """
     since = datetime.now(timezone.utc) - timedelta(days=days)
+    keiko_days = await _keiko_days(since)
+    servers = await _server_counts(since)
 
-    attention = _attention_lines(since)
-    delivered = _delivered_lines(since)
-    unused = _unused_lines()
-    slowest = _slow_step_lines()
+    attention = await _attention_lines(since, servers)
+    delivered = _delivered_lines(since, keiko_days)
+    unused = await _unused_lines()
+    slowest = await _slow_step_lines()
 
-    description = [_headline(since, guild_count)]
+    description = [await _headline(since, keiko_days, servers, guild_count)]
 
     if attention:
         description += ["", "**⚠️ Needs attention**"] + attention
     if unused:
         description += ["", "**📉 Settings nobody uses**"] + unused
     if slowest:
-        description += ["", "**⏱️ Slowest steps**"] + slowest
+        description += ["", f"**⏱️ Slowest steps** ({_raw_window()})"] + slowest
     if delivered:
         description += ["", "**✅ Delivered value**"] + delivered
 
     if not attention:
         description += ["", "Nothing needs a decision this week."]
 
-    window = f"{since.strftime('%d/%m')} – {datetime.now(timezone.utc).strftime('%d/%m')}"
+    first = since + timedelta(days=1)
+    window = f"{first.strftime('%d/%m')} – {datetime.now(timezone.utc).strftime('%d/%m')}"
     return base_embed(
         f"📊 Keiko — week of {window}",
         "\n".join(description),
@@ -65,12 +69,41 @@ def build_weekly_digest(
     )
 
 
-def _headline(since: datetime, guild_count: Optional[int] = None) -> str:
-    profiles = analytics_data.find_profiles()
-    live = [profile for profile in profiles if not profile.get("removed_at")]
+def _raw_window() -> str:
+    """The reports rebuilt from raw events cover their whole retention, not the week."""
+    return f"last {constants.EVENTS_INTERACTIONS_TTL_SECONDS // 86400} days"
 
-    joined = len(analytics_data.find_events_since("guild.joined", since))
-    removed = len(analytics_data.find_events_since("guild.removed", since))
+
+async def _keiko_days(since: datetime) -> List[Dict[str, Any]]:
+    """Keiko's own daily counts, every server summed, for the months the week touches."""
+    return await data().analytics_keiko.find_counters(
+        [f"day:{month}" for month in analytics_reports.window_months(since)]
+    )
+
+
+async def _server_counts(since: datetime) -> List[Dict[str, Any]]:
+    """Every server's counts for the months the week touches, read once."""
+    found: List[Dict[str, Any]] = []
+    for month in analytics_reports.window_months(since):
+        found += await data().analytics_counts.find_by_month(month)
+    return found
+
+
+async def _headline(
+    since: datetime,
+    keiko_days: List[Dict[str, Any]],
+    servers: List[Dict[str, Any]],
+    guild_count: Optional[int] = None,
+) -> str:
+    lifetimes = await data().analytics_lifetime.find_lifetimes()
+    live = [profile for profile in lifetimes if not profile.get("removed_at")]
+
+    arrivals = analytics_reports.window_totals(
+        keiko_days,
+        since,
+        {metric_key("guild.joined", None): "joined", metric_key("guild.removed", None): "removed"},
+    )
+    joined, removed = arrivals.get("joined", 0), arrivals.get("removed", 0)
 
     # Two different numbers, and never the same label: a caller that cannot
     # supply the real count must not publish the smaller one as if it were.
@@ -82,22 +115,20 @@ def _headline(since: datetime, guild_count: Optional[int] = None) -> str:
         line += f" ({_signed(joined)} joined, {_signed(-removed)} left)"
     # In the window, not ever: a profile keeps `last_value_at` for as long as it
     # exists, so counting profiles turns "this week" into "at some point".
-    line += f" · **{len(_delivering_guilds(since))}** delivered value this week"
+    delivering = _guilds_with(servers, since, analytics_reports.value_metrics())
+    line += f" · **{len(delivering)}** delivered value this week"
     return line
 
 
-def _delivering_guilds(since: datetime) -> Set[str]:
-    """Guilds with at least one delivery inside the window."""
-    wanted = analytics_reports.value_metrics()
-    days = analytics_reports.window_days(since)
-
-    guilds = set()
-    for bucket in _all_month_buckets():
-        month = bucket.get("month")
-        for day, metrics in (bucket.get("days") or {}).items():
-            if f"{month}|{day}" in days and any(metric in wanted for metric in metrics):
-                guilds.add(bucket.get("guild_id"))
-    return guilds
+def _guilds_with(
+    servers: List[Dict[str, Any]], since: datetime, wanted: Dict[str, str]
+) -> Set[str]:
+    """The servers that counted any of the metrics `wanted` names inside the window."""
+    return {
+        document.get("guild_id")
+        for document in servers
+        if analytics_reports.window_totals([document], since, wanted)
+    }
 
 
 def _signed(value: int) -> str:
@@ -115,19 +146,19 @@ def _where(row: Dict[str, Any]) -> str:
     return f"at `{describe_step(row['feature'], row['step_key'])}`"
 
 
-def _attention_lines(since: datetime) -> List[str]:
+async def _attention_lines(since: datetime, servers: List[Dict[str, Any]]) -> List[str]:
     lines = []
 
-    for row in analytics_reports.dropoff()[:3]:
+    for row in (await analytics_reports.dropoff())[:3]:
         reasons = sorted(row["reasons"].items(), key=lambda item: item[1], reverse=True)
         top_reason = reasons[0][0] if reasons else "unknown"
         setups = "setup" if row["lost"] == 1 else "setups"
         lines.append(
             f"• **{row['feature']}**: {row['lost']} {setups} died "
-            f"{_where(row)} ({top_reason.replace('-', ' ')})"
+            f"{_where(row)} ({top_reason.replace('-', ' ')}, {_raw_window()})"
         )
 
-    blocked = _guilds_with_permission_failures(since)
+    blocked = _guilds_with(servers, since, _refusal_metrics())
     if blocked:
         lines.append(
             f"• **{len(blocked)}** guilds where Discord refused an action "
@@ -135,7 +166,7 @@ def _attention_lines(since: datetime) -> List[str]:
         )
 
     dead = [
-        row for row in analytics_reports.abandoned_features()
+        row for row in await analytics_reports.abandoned_features()
         if row["days_since_setup"] <= 30
     ]
     if dead:
@@ -147,19 +178,18 @@ def _attention_lines(since: datetime) -> List[str]:
     return lines
 
 
-def _guilds_with_permission_failures(since: datetime) -> List[str]:
-    return list({
-        event.get("guild_id")
-        for event in analytics_data.find_events_since("value.blocked_by_permission", since)
-        if event.get("guild_id")
-    })
+def _refusal_metrics() -> Dict[str, str]:
+    return {
+        metric_key("value.blocked_by_permission", feature): feature
+        for feature in constants.COMMANDS_LIST
+    }
 
 
-def _unused_lines() -> List[str]:
+async def _unused_lines() -> List[str]:
     """One per feature, so a single noisy form does not fill the whole block."""
     lines = []
     seen = set()
-    for row in analytics_reports.unused_settings():
+    for row in await analytics_reports.unused_settings():
         if row["feature"] in seen:
             continue
         seen.add(row["feature"])
@@ -172,9 +202,9 @@ def _unused_lines() -> List[str]:
     return lines
 
 
-def _slow_step_lines() -> List[str]:
+async def _slow_step_lines() -> List[str]:
     lines = []
-    for row in analytics_reports.step_durations()[:3]:
+    for row in (await analytics_reports.step_durations())[:3]:
         seconds = row["median_ms"] / 1000
         readable = f"{seconds:.0f}s" if seconds < 60 else f"{seconds / 60:.1f}min"
         lines.append(
@@ -183,8 +213,8 @@ def _slow_step_lines() -> List[str]:
     return lines
 
 
-def _delivered_lines(since: datetime) -> List[str]:
-    totals = _value_totals(since)
+def _delivered_lines(since: datetime, keiko_days: List[Dict[str, Any]]) -> List[str]:
+    totals = analytics_reports.value_counts(keiko_days, since)
     if not totals:
         return []
 
@@ -193,19 +223,3 @@ def _delivered_lines(since: datetime) -> List[str]:
         for feature, count in sorted(totals.items(), key=lambda item: item[1], reverse=True)
     ]
     return ["• " + " · ".join(parts)]
-
-
-def _value_totals(since: datetime) -> Dict[str, int]:
-    """Deliveries in the window, summed from the monthly buckets."""
-    return analytics_reports.value_counts(_all_month_buckets(), since)
-
-
-def _all_month_buckets() -> List[Dict[str, Any]]:
-    months = {
-        datetime.now(timezone.utc).strftime("%Y-%m"),
-        (datetime.now(timezone.utc) - timedelta(days=31)).strftime("%Y-%m"),
-    }
-    buckets = []
-    for month in months:
-        buckets += analytics_data.find_month_buckets_by_month(month)
-    return buckets

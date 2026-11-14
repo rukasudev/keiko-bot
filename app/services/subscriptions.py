@@ -1,4 +1,3 @@
-import asyncio
 from typing import Any, Dict
 
 import discord
@@ -10,17 +9,19 @@ from app.components.buttons import (
     SyncronizeSubscriptionsButton,
 )
 from app.constants import ViewConstants as view_constants
-from app.data.keiko.schedules import find_schedules_by_kind, schedule_subject
+from app.data import data
+from app.data.keiko.schedules import schedule_subject
 from app.services.notifications_twitch import count_streamers_guilds
 from app.services.notifications_youtube_video import (
     count_youtube_video_subscription_by_guilds,
     delete_reminder_by_id,
 )
+from app.core.threads import to_thread
 
 
 async def get_reminder_subscriptions() -> discord.ui.View:
     """The YouTube renewals on the reminders API, told apart by their schedules."""
-    overview = await asyncio.to_thread(_reminder_overview)
+    overview = await _reminder_overview()
     view = generate_reminders_by_streamer_view(
         overview["guilds_by_reminder"],
         overview["streamers_by_reminder"],
@@ -31,11 +32,11 @@ async def get_reminder_subscriptions() -> discord.ui.View:
     return view
 
 
-def _reminder_overview() -> Dict[str, Any]:
-    reminders = bot.reminder.get_reminders()
+async def _reminder_overview() -> Dict[str, Any]:
+    reminders = await to_thread(bot.reminder.get_reminders)
     tracked = {
         schedule["reminder_id"]: schedule_subject(schedule)[0]
-        for schedule in find_schedules_by_kind("youtube_renewal")
+        for schedule in await data().keiko_schedules.find_schedules_by_kind("youtube_renewal")
     }
     streamers_by_reminder = {}
     reminders_count_by_streamers = {}
@@ -54,7 +55,7 @@ def _reminder_overview() -> Dict[str, Any]:
         reminders_count_by_streamers[streamer] = reminders_count_by_streamers.get(streamer, 0) + 1
 
     guilds_by_streamer = {
-        streamer: count_youtube_video_subscription_by_guilds(streamer)
+        streamer: await count_youtube_video_subscription_by_guilds(streamer)
         for streamer in reminders_count_by_streamers
     }
     return {
@@ -70,10 +71,10 @@ def _reminder_overview() -> Dict[str, Any]:
     }
 
 
-def delete_renewal(reminder_id: str) -> None:
+async def delete_renewal(reminder_id: str) -> None:
     """Delete a YouTube renewal on the reminders API, then its schedule."""
-    bot.reminder.delete_reminder(reminder_id)
-    delete_reminder_by_id(reminder_id)
+    await to_thread(bot.reminder.delete_reminder, reminder_id)
+    await delete_reminder_by_id(reminder_id)
 
 
 def generate_reminders_by_streamer_view(
@@ -100,14 +101,14 @@ def generate_reminders_by_streamer_view(
     view.custom_embed = embed
     return view
 
-def get_twitch_subscriptions() -> discord.ui.View:
-    subscriptions = bot.twitch.get_subscriptions()["data"]
+async def get_twitch_subscriptions() -> discord.ui.View:
+    subscriptions = (await to_thread(bot.twitch.get_subscriptions))["data"]
     guils_by_streamer = {}
 
     for subscription in subscriptions:
         user_id = subscription["condition"]["broadcaster_user_id"]
-        streamer = bot.twitch.get_user_info_by_id(user_id)
-        count = count_streamers_guilds(streamer["login"])
+        streamer = await to_thread(bot.twitch.get_user_info_by_id, user_id)
+        count = await count_streamers_guilds(streamer["login"])
         guils_by_streamer[streamer["login"]] = count
 
     return generate_guilds_by_twitch_subscription_view(guils_by_streamer)

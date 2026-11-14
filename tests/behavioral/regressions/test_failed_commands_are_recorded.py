@@ -22,11 +22,17 @@ Found in the closing review: a failure while recording reached nothing in
 Discord, because the quiet trace kept its line and the exception surfaced only
 as asyncio's "Task exception was never retrieved", which is muted there.
 
+Database PR 2 folded `audit.errors` into `command.failed`: the failure is one
+interaction, written by the analytics sink, carrying the command and the error
+type and never the traceback, which stays in the error channel and the logs; the
+`command.error:*` counter the handler waited for went with it, so nothing is stored
+beside the event.
+
 Guaranteed: a failed command puts a message with its traceback in the error
 channel and a `command.failed` event carrying the error type before the person
-is answered, and a record in `audit.errors` when Mongo takes it within
-`COMMAND_FAILURE_STORE_SECONDS`; the person is answered even when the answer
-fails, while the record is still being written, and when recording itself
+is answered, and that event is what the sink stores, with no traceback; the
+person is answered even when the answer fails, while the record is still being
+written, and when recording itself
 raises, which reaches the error channel too; a Mongo stall holds no thread of
 the default executor; the handler adds one message, the error. (A failed
 `keiko_command` also posts its own trace in the calls channel: that message is
@@ -41,8 +47,8 @@ import discord
 import pytest
 from discord import app_commands
 
+from app.data import wait
 from app.cogs.errors import Errors
-from app.constants import Commands
 from tests.behavioral.harness.fake_interaction import FakeInteraction, FakeResponse
 from tests.behavioral.harness.message_store import MessageStore
 from tests.mocks.discord import create_guild, create_member, MockInteraction
@@ -81,12 +87,14 @@ def expired():
     )
 
 
-def stored_failures(deps):
-    return list(deps.mongo_client.audit.errors.find({}))
+async def stored_failures(deps):
+    """The `command.failed` interactions once the sink wrote its batch."""
+    await analytics.flush()
+    return list(deps.mongo_client.events.interactions.find({"type": "command.failed"}))
 
 
 def failed_events(analytics_events):
-    return [event for event in analytics_events if event["event"] == "command.failed"]
+    return [event for event in analytics_events if event["type"] == "command.failed"]
 
 
 def answered(interaction):
@@ -106,36 +114,15 @@ def posted(log_channels):
     )
 
 
-class StalledMongo:
-    """A Mongo that takes the connection and never answers a write."""
-
-    def __init__(self, released):
-        self.released = released
-
-    def __getattr__(self, name):
-        return self
-
-    def insert_one(self, document):
-        self.released.wait(10)
-
-
-class StalledMotor:
-    """The same Mongo seen through motor: the write is awaited forever."""
-
-    def __getattr__(self, name):
-        return self
-
-    async def insert_one(self, document):
-        await asyncio.Event().wait()
-
-
 @pytest.fixture
-def stalled_mongo(monkeypatch):
-    """Mongo stops answering writes, for the sync and the async client alike."""
-    released = threading.Event()
-    monkeypatch.setattr("app.data.cogs.mongo_client", StalledMongo(released))
-    monkeypatch.setattr("app.data.cogs.motor_client", StalledMotor())
-    monkeypatch.setattr(Commands, "COMMAND_FAILURE_STORE_SECONDS", 0.05, raising=False)
+def stalled_mongo(deps, monkeypatch):
+    """Mongo takes the connection and never answers the writes of the interactions."""
+    released = asyncio.Event()
+
+    async def insert_many(documents):
+        await released.wait()
+
+    monkeypatch.setattr(deps.data.events_interactions, "insert_many", insert_many)
     yield
     released.set()
 
@@ -153,13 +140,16 @@ async def test_a_failed_command_reaches_the_error_channel_the_audit_and_analytic
     assert 'raise KeyError("allowed_links")' in embed.description, (
         "the traceback is what the error channel is read for"
     )
-    [stored] = stored_failures(deps)
-    assert stored["command_key"] == "block_links"
-    assert "KeyError" in stored["error_message"]
     [event] = failed_events(analytics_events)
     assert event["props"]["error_type"] == "KeyError"
     assert event["props"]["command"] == "moderations block links"
-    assert event["feature"] == "block_links"
+    assert event["cog"] == "block_links"
+    [stored] = await stored_failures(deps)
+    assert stored["cog"] == "block_links"
+    assert stored["props"] == {
+        "command": "moderations block links", "error_type": "KeyError"
+    }
+    assert "allowed_links" not in str(stored), "a traceback reached the event"
     [answer] = answered(interaction)
     assert answer.ephemeral
 
@@ -176,7 +166,7 @@ async def test_a_failure_is_recorded_even_when_the_answer_cannot_be_sent(
     await errors_cog().on_app_command_error(interaction, error)
 
     assert len(log_channels.errors.embeds) == 1
-    assert len(stored_failures(deps)) == 1
+    assert len(await stored_failures(deps)) == 1
     assert len(failed_events(analytics_events)) == 1
 
 
@@ -199,14 +189,13 @@ async def test_the_error_channel_and_analytics_hear_of_a_failure_before_the_pers
     await errors_cog().on_app_command_error(interaction, error)
 
     assert reported_when_answered == {"error_channel": 1, "analytics": 1}
-    assert len(stored_failures(deps)) == 1, "and the record follows"
+    assert len(await stored_failures(deps)) == 1, "and the record follows"
 
 
 async def test_the_person_is_answered_while_the_record_is_still_being_written(
-    deps, log_channels, stalled_mongo, monkeypatch
+    deps, log_channels, stalled_mongo
 ):
     """Discord gives three seconds, and a failure late in them has none to spare."""
-    monkeypatch.setattr(Commands, "COMMAND_FAILURE_STORE_SECONDS", 1.0, raising=False)
     interaction, error = failing_command()
 
     handling = asyncio.ensure_future(errors_cog().on_app_command_error(interaction, error))
@@ -303,7 +292,7 @@ async def test_an_error_without_an_original_is_recorded_under_its_own_type(
     [event] = failed_events(analytics_events)
     assert event["props"]["error_type"] == "CheckFailure"
     assert len(log_channels.errors.embeds) == 1
-    assert len(stored_failures(deps)) == 1
+    assert len(await stored_failures(deps)) == 1
 
 
 async def test_a_failed_command_is_counted_with_the_code_discord_answered(
@@ -383,7 +372,6 @@ async def test_a_feature_button_that_raises_keeps_its_footnote(deps, guild, seco
         traces.append(current_trace())
         raise RuntimeError("the feature broke")
 
-    monkeypatch.setattr(buttons, "increment_redis_key", lambda key: 1)
     monkeypatch.setattr("app.settings.open_feature", open_feature)
 
     with pytest.raises(RuntimeError):

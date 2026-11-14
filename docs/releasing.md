@@ -25,10 +25,14 @@ new version instead.
 
 ## What a deploy does to the running bot
 
-0. Before anything stops, the new image runs the database migrations
-   (`docker run --rm <image> python -m app.migrations`): `status`, a dry run,
-   then `migrate`. A failed check or a failed migration stops the deploy there,
-   and the running container keeps serving (`docs/migrations.md`).
+0. Before anything stops, the new image checks the database migrations
+   (`docker run --rm <image> python -m app.migrations`): `status`, then a dry
+   run. A failed check stops the deploy there, and the running container keeps
+   serving. Then the running container stops (step 1) and only then the new
+   image runs `migrate`, so nothing the old version writes lands in a collection
+   the migration already copied. A failed migration starts the stopped container
+   again (`docker start keiko-bot`, the same name and arguments) and fails the
+   deploy (`docs/migrations.md`).
 1. `docker stop -t 30` sends SIGTERM. Keiko closes its Discord connection,
    writes the analytics events and log records still queued, and exits
    (`run` in `app/bot.py`). Docker kills it only if it is still running after
@@ -78,6 +82,18 @@ new version instead.
    `python -m scripts.keiko logs errors --level CRITICAL --since 7d`. The errors
    view reads the local index that `logs sync` builds, and shows ERROR by
    default.
+6. Once the check passes, the new image cleans Redis (`python -m app.migrations
+   redis-cleanup`, after its `--dry-run`) and then checks it (`redis-check`). The
+   cleanup unlinks, with SCAN and UNLINK in batches, every key of a retired family
+   (`Migrations.REDIS_RETIRED_PATTERNS`); run again it finds nothing. The check
+   fails the deploy on any key without a TTL and names up to 20 of them; a key
+   outside `cache:`, `claim:`, `throttle:` and `window:` that has a TTL (v0.9.0's
+   translations, cached for a day under their raw text) is listed as a warning and
+   left to expire. It runs after the old
+   container has stopped because the old version writes the retired keys until
+   then: a cleanup run while it still serves would leave counters without a TTL
+   behind. A failure here leaves the new bot running; read the keys it names,
+   fix the writer, and release again.
 
 ## Choose the number
 
@@ -149,8 +165,8 @@ daily log files.
    ```bash
    age -d -i key.txt keiko_backup_2026-10-05.zip.age > backup.zip
    unzip backup.zip -d backup                        # manifest.json counts each collection
-   mongoimport --uri "$MONGO_URL" --db guild --collection moderations \
-     --file backup/guild/moderations.jsonl --mode upsert
+   mongoimport --uri "$MONGO_URL" --db guild --collection cogs \
+     --file backup/guild/cogs.jsonl --mode upsert
    ```
 
    Import into a scratch database first (`--db restore_guild`) when you only need
@@ -160,7 +176,7 @@ daily log files.
 
    ```bash
    age -d -i key.txt keiko_events_2026-09.jsonl.gz.age | gunzip \
-     | mongoimport --uri "$MONGO_URL" --db keiko_archive --collection analytics_events
+     | mongoimport --uri "$MONGO_URL" --db keiko_archive --collection events
    ```
 
 A new key pair only seals what is posted after the restart: keep every old

@@ -12,12 +12,13 @@ from app import logger
 from app.constants import Commands
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
+from app.core import analytics
 from app.core.cache import get_cog_data_or_populate, remove_cog_cache_by_guild
 from app.core.cogs import LIFECYCLE_ANALYTICS_EVENTS, is_feature_on
 from app.core.feature_health import send_feature_stats
 from app.core.servers import set_feature_enabled
-from app.data import cogs as cogs_data
-from app.data.guild import cogs as guild_cogs
+from app.core.threads import to_thread
+from app.data import data
 from app.exceptions import ErrorContext
 from app.settings.form.copy import normalize_locale
 from app.settings.form.form_state import Answer
@@ -160,36 +161,8 @@ EVENT_KEY = {
 }
 
 
-async def record_event(
-    key: str, event: str, context: CommitContext, **props: Any
-) -> None:
-    """The permanent audit record of a state change, and its product event."""
-    from app.core import analytics
-
-    data = {
-        "guild_id": context.guild_id,
-        "cog_key": key,
-        "user_id": context.user_id,
-        "datetime": context.when,
-        "event": event,
-    }
-    analytics_event = LIFECYCLE_ANALYTICS_EVENTS.get(event)
-
-    if analytics_event:
-        analytics.emit(
-            analytics_event,
-            guild_id=context.guild_id,
-            user_id=context.user_id,
-            feature=key,
-            source=context.source,
-            session_id=context.session_id,
-            **props,
-        )
-    await cogs_data.insert_cog_event_async(key, data)
-
-
 class GenericCogFeature:
-    """Persistence every feature shares: the cog document and the audit trail."""
+    """Persistence every feature shares: the cog document and its changes."""
 
     def __init__(self, key: str) -> None:
         self.key = key
@@ -202,7 +175,7 @@ class GenericCogFeature:
 
     async def open(self, context: OpenContext) -> Opened:
         """The saved document, read through the cache like the cogs do."""
-        document = await asyncio.to_thread(
+        document = await to_thread(
             get_cog_data_or_populate, context.guild_id, self.key, True
         )
         if not document:
@@ -289,10 +262,8 @@ class GenericCogFeature:
         """The statistics every panel opens, with its last days."""
 
         async def stats(interaction: Any, _responses: Any) -> None:
-            lines = await asyncio.to_thread(
-                self.stats_lines,
-                str(interaction.guild_id),
-                normalize_locale(interaction.locale),
+            lines = await self.stats_lines(
+                str(interaction.guild_id), normalize_locale(interaction.locale)
             )
             await send_feature_stats(interaction, self.key, lines)
 
@@ -302,7 +273,7 @@ class GenericCogFeature:
             )
         }
 
-    def stats_lines(self, guild_id: str, locale: str) -> Sequence[str]:
+    async def stats_lines(self, guild_id: str, locale: str) -> Sequence[str]:
         """The feature's own figures on its statistics, none by default."""
         return ()
 
@@ -314,7 +285,7 @@ class GenericCogFeature:
     async def commit(
         self, kind: str, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """Write what `kind` asks for and record the audit event."""
+        """Write what `kind` asks for and record the change it made."""
         handlers = {
             "setup": self.commit_setup,
             "edit": self.commit_edit,
@@ -329,14 +300,18 @@ class GenericCogFeature:
         try:
             result = await handlers[kind](payload, context)
         except (ListChanged, DuplicateItem):
-            await asyncio.to_thread(
-                remove_cog_cache_by_guild, context.guild_id, self.key
-            )
+            await to_thread(remove_cog_cache_by_guild, context.guild_id, self.key)
             raise
 
-        await record_event(
-            self.key, EVENT_KEY[kind], context, **self.event_props(kind, payload)
+        analytics.record(
+            LIFECYCLE_ANALYTICS_EVENTS[EVENT_KEY[kind]],
+            guild_id=context.guild_id,
+            cog=self.key,
+            actor=analytics.actor("user", context.user_id),
+            props={"source": context.source, **self.event_props(kind, payload)},
+            session_id=context.session_id,
         )
+        await analytics.written()
         return result
 
     def event_props(self, kind: str, payload: Mapping[str, Any]) -> dict[str, Any]:
@@ -358,22 +333,22 @@ class GenericCogFeature:
         updated_by: str | None = None,
     ) -> None:
         """Replace the guild's document, then drop its cache."""
-        data = {**document, "guild_id": str(guild_id)}
-        await guild_cogs.insert_cog_by_guild_id_async(self.key, data, updated_by)
-        await asyncio.to_thread(remove_cog_cache_by_guild, guild_id, self.key)
+        saved = {**document, "guild_id": str(guild_id)}
+        await data().guild_cogs.insert_cog_by_guild_id(self.key, saved, updated_by)
+        await to_thread(remove_cog_cache_by_guild, guild_id, self.key)
 
     async def update_document(
         self,
         guild_id: str,
-        data: Mapping[str, Any],
+        changes: Mapping[str, Any],
         updated_by: str | None = None,
     ) -> None:
-        """Merge `data` into the guild's document, then drop its cache."""
-        payload = {**data, "guild_id": str(guild_id)}
-        await guild_cogs.update_cog_by_guild_async(
+        """Merge `changes` into the guild's document, then drop its cache."""
+        payload = {**changes, "guild_id": str(guild_id)}
+        await data().guild_cogs.update_cog_by_guild(
             guild_id, self.key, payload, updated_by
         )
-        await asyncio.to_thread(remove_cog_cache_by_guild, guild_id, self.key)
+        await to_thread(remove_cog_cache_by_guild, guild_id, self.key)
 
     async def commit_setup(
         self, payload: Mapping[str, Any], context: CommitContext
@@ -382,9 +357,7 @@ class GenericCogFeature:
         document = self.to_document(payload["answers"], context.locale)
         document = await self.before_setup(document, payload["answers"], context)
         await self.write_document(context.guild_id, document, context.user_id)
-        await asyncio.to_thread(
-            set_feature_enabled, context.guild_id, self.key, True, context.user_id
-        )
+        await set_feature_enabled(context.guild_id, self.key, True, context.user_id)
         return CommitResult((self.key,), document=document)
 
     async def before_setup(
@@ -506,7 +479,7 @@ class GenericCogFeature:
 
     async def saved_document(self, context: CommitContext) -> dict[str, Any]:
         """The document as it is saved now; a feature disabled meanwhile has none."""
-        document = await guild_cogs.find_cog_by_guild_id_async(
+        document = await data().guild_cogs.find_cog_by_guild_id(
             context.guild_id, self.key
         )
         if document is None:
@@ -558,13 +531,13 @@ class GenericCogFeature:
         self, context: CommitContext, key: str, saved: Any, value: Any
     ) -> dict[str, Any]:
         """Store `value` under `key` while it is saved as read, then drop the cache."""
-        written = await guild_cogs.update_cog_if_unchanged_async(
+        written = await data().guild_cogs.update_cog_if_unchanged(
             context.guild_id, self.key, key, saved, value, context.user_id
         )
         if not written:
             raise ListChanged(self.key)
 
-        await asyncio.to_thread(remove_cog_cache_by_guild, context.guild_id, self.key)
+        await to_thread(remove_cog_cache_by_guild, context.guild_id, self.key)
         return {**context.document, key: value}
 
     async def best_effort(
@@ -597,9 +570,7 @@ class GenericCogFeature:
     ) -> CommitResult:
         """Record the feature as off, keeping its document, while it is still saved."""
         await self.saved_document(context)
-        await asyncio.to_thread(
-            set_feature_enabled, context.guild_id, self.key, False, context.user_id
-        )
+        await set_feature_enabled(context.guild_id, self.key, False, context.user_id)
         return CommitResult((self.key,))
 
     async def commit_unpause(
@@ -607,9 +578,7 @@ class GenericCogFeature:
     ) -> CommitResult:
         """Record the feature as on again, while its document is still saved."""
         await self.saved_document(context)
-        await asyncio.to_thread(
-            set_feature_enabled, context.guild_id, self.key, True, context.user_id
-        )
+        await set_feature_enabled(context.guild_id, self.key, True, context.user_id)
         return CommitResult((self.key,))
 
     async def commit_disable(
@@ -622,10 +591,10 @@ class GenericCogFeature:
             if items != list(shown):
                 raise ListChanged(self.key)
 
-        dropped = await guild_cogs.delete_cog_by_guild_id_async(
+        dropped = await data().guild_cogs.delete_cog_by_guild_id(
             context.guild_id, self.key
         )
-        await asyncio.to_thread(remove_cog_cache_by_guild, context.guild_id, self.key)
+        await to_thread(remove_cog_cache_by_guild, context.guild_id, self.key)
         await self.best_effort(self.after_disable(dropped or {}, context), context)
         return CommitResult((self.key,))
 

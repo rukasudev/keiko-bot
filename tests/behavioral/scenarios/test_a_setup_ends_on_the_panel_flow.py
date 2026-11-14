@@ -95,7 +95,7 @@ async def test_the_birthday_setup_sends_the_panel_below_its_activation(
         {"guild_id": str(scenario.guild.id), "user_id": "777", "options.reminders_birthday.date": "05-12"},
         {},
     )
-    names = [event["event"] for event in analytics_events]
+    names = [event["type"] for event in analytics_events]
     assert names.count("feature.enabled") == 1
     assert "feature.item_added" in names
     assert "feature.manager_opened" not in names
@@ -112,7 +112,7 @@ async def test_the_panel_left_untouched_is_not_an_abandoned_setup(
 
     await scenario.expire()
 
-    assert [event["event"] for event in analytics_events[recorded:]] == []
+    assert [event["type"] for event in analytics_events[recorded:]] == []
     assert stories == told
     await scenario.finish()
 

@@ -1,7 +1,6 @@
 """The /setup card: its first page, a page per category, the server settings, and
 what each of their buttons opens."""
 import asyncio
-from datetime import datetime, timezone
 from math import ceil
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Tuple
 
@@ -23,12 +22,11 @@ from app.constants import Commands
 from app.constants import KeikoIcons, supported_locales
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
-from app.data.cogs import find_cog_events_by_guild_id_async
-from app.data.guild.cogs import find_cog_by_guild_id_async
+from app.data import data
 from app.exceptions import InvalidServerSetting
 from app.integrations.google_translate import GoogleTranslate
 from app.core import analytics
-from app.core.cogs import feature_spec, insert_cog_event, is_feature_on
+from app.core.cogs import feature_spec, find_changes, is_feature_on
 from app.core.manager import parse_history_data
 from app.core.feature_health import feature_problems
 from app.core.servers import (
@@ -37,7 +35,6 @@ from app.core.servers import (
     server_language,
     server_settings,
 )
-from app.core.trace import as_utc
 from app.core.utils import fill, is_guild_admin, ml
 
 Row = Tuple[Dict[str, Any], str]
@@ -51,13 +48,8 @@ def feature_label(spec: Dict[str, Any], locale: str) -> str:
 
 
 async def guild_history(guild_id: str) -> List[Dict[str, Any]]:
-    """Every feature's audit records for the server, newest first."""
-    records: List[Dict[str, Any]] = []
-    for spec in Commands.SETUP_FEATURES:
-        records.extend(
-            await find_cog_events_by_guild_id_async(guild_id, spec["command_key"])
-        )
-    return sorted(records, key=lambda record: as_utc(record["datetime"]), reverse=True)
+    """The server's changes, every feature's and its settings', newest first."""
+    return await find_changes(guild_id)
 
 
 def history_fields(
@@ -66,6 +58,8 @@ def history_fields(
     """The records as history fields, every line led by the feature it happened in."""
 
     def label_for(cog_key: str) -> str:
+        if cog_key == Commands.SERVER_SETTINGS_KEY:
+            return ml("commands.commands.setup.settings.row", locale)
         spec = feature_spec(cog_key)
         return f"**{feature_label(spec, locale)}**" if spec else f"`{cog_key}`"
 
@@ -77,9 +71,8 @@ async def send_history(interaction: discord.Interaction) -> None:
     from app.views.records import RecordsBrowser
 
     locale = await interaction_language(interaction)
-    records = await guild_history(str(interaction.guild.id))
     browser = RecordsBrowser(
-        fetch=lambda _interaction, _user: records,
+        fetch=lambda _interaction, _user: guild_history(str(interaction.guild.id)),
         to_fields=lambda shown, clicked: history_fields(shown, clicked, locale),
         title=ml("buttons.changes-history.label", locale),
         description=ml("commands.commands.setup.history.desc", locale),
@@ -132,7 +125,7 @@ def _translated_command(command_key: str, locale: str) -> str:
 
 
 async def _state(guild_id: str, command_key: str) -> str:
-    document = await find_cog_by_guild_id_async(guild_id, command_key)
+    document = await data().guild_cogs.find_cog_by_guild_id(guild_id, command_key)
     if not document:
         return "pending"
     return "configured" if is_feature_on(document) else "paused"
@@ -329,11 +322,11 @@ async def open_setup_dashboard(interaction: discord.Interaction, source: str) ->
         embed = response_embed("buttons.setup.admin-only", await interaction_language(interaction))
         await interaction.response.send_message(embed=embed, ephemeral=True)
         return
-    analytics.emit(
+    analytics.record(
         "dashboard.opened",
         guild_id=interaction.guild_id,
-        user_id=interaction.user.id,
-        source=source,
+        actor=analytics.actor("user", interaction.user.id),
+        props={"source": source},
     )
     view = await setup_dashboard(str(interaction.guild.id))
     await interaction.response.send_message(view=view, ephemeral=True)
@@ -483,7 +476,7 @@ async def settings_screen(guild_id: str) -> discord.ui.LayoutView:
     """The server settings in the server's language, one row per value with what
     changes it, then Voltar."""
     base = "commands.commands.setup.settings"
-    settings = await asyncio.to_thread(server_settings, guild_id)
+    settings = await server_settings(guild_id)
     locale = settings[Commands.SERVER_LANGUAGE_KEY]
     languages = {value.lower(): _language_label(value) for value in supported_locales}
     zones = {value: _timezone_label(value, locale) for value in Commands.SERVER_TIMEZONES}
@@ -516,21 +509,18 @@ async def change_setting(interaction: discord.Interaction, key: str, value: str)
     guild_id = str(interaction.guild.id)
     await interaction.response.defer()
     try:
-        await asyncio.to_thread(save_server_setting, guild_id, key, value)
+        await save_server_setting(guild_id, key, value)
     except InvalidServerSetting as refused:
         embed = response_error_embed(f"server-setting-refused.{refused.key}", locale)
         await interaction.followup.send(embed=embed, ephemeral=True)
         return
 
-    await asyncio.to_thread(
-        insert_cog_event,
-        guild_id,
-        Commands.SERVER_SETTINGS_KEY,
-        Commands.EDITED_KEY,
-        date=datetime.now(timezone.utc),
-        user_id=str(interaction.user.id),
-        source="setup_dashboard",
-        changed_keys=[key],
-        changed_count=1,
+    analytics.record(
+        "config.changed",
+        guild_id=guild_id,
+        cog=Commands.SERVER_SETTINGS_KEY,
+        actor=analytics.actor("user", interaction.user.id),
+        props={"source": "setup_dashboard", "changed_keys": [key], "changed_count": 1},
     )
+    await analytics.written()
     await interaction.edit_original_response(view=await settings_screen(guild_id))

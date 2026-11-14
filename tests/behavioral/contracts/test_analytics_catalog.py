@@ -19,16 +19,16 @@ pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("analytics")]
 APP_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))), "app")
 
-REQUIRED_DECLARATION_KEYS = {"version", "class", "description", "emitted_at", "actor"}
-VALID_CLASSES = {"event", "counter", "audit"}
-VALID_ACTORS = {"user", "system", "job"}
+REQUIRED_DECLARATION_KEYS = {"version", "collection", "description", "emitted_at", "actor"}
+VALID_COLLECTIONS = {"changes", "activity", "interactions", "none"}
+VALID_ACTORS = {"user", "bot", "job"}
 
 
 def _emit_literals():
-    """Every string literal handed to an emit call under app/.
+    """Every string literal handed to a record or emit call under app/.
 
-    `emit` is the service entry point; `emit_event` is the form-engine mixin
-    that fills the session context in before calling it.
+    `record` is the service entry point; `emit` and `emit_event` are the form
+    engine's, whose events the adapter hands to `record` with the session.
     """
     literals = []
     for root, _, files in os.walk(APP_ROOT):
@@ -43,7 +43,7 @@ def _emit_literals():
                     continue
                 func = node.func
                 called = func.attr if isinstance(func, ast.Attribute) else getattr(func, "id", None)
-                if called not in ("emit", "emit_event"):
+                if called not in ("record", "emit", "emit_event"):
                     continue
                 first = node.args[0]
                 if isinstance(first, ast.Constant) and isinstance(first.value, str):
@@ -55,14 +55,17 @@ def test_every_declaration_carries_the_required_schema():
     for name, declaration in analytics.events_catalog().items():
         missing = REQUIRED_DECLARATION_KEYS - set(declaration)
         assert not missing, f"{name} is missing {sorted(missing)} in catalog.yml"
-        assert set(declaration["class"]) <= VALID_CLASSES, name
+        assert declaration["collection"] in VALID_COLLECTIONS, name
         assert declaration["actor"] in VALID_ACTORS, name
+        assert "retention_days" not in declaration, (
+            f"{name}: retention is its collection's TTL, not a field of the event"
+        )
         assert declaration["description"].strip(), name
 
 
 def test_event_names_follow_the_domain_dot_fact_convention():
     domains = {"command", "feature", "setup", "config", "guild", "value", "help",
-               "dashboard", "report"}
+               "dashboard", "report", "link", "keiko"}
     for name in analytics.events_catalog():
         domain, _, fact = name.partition(".")
         assert fact, f"{name} must be <domain>.<fact>"
@@ -75,7 +78,7 @@ def test_every_emit_in_the_code_uses_a_catalog_name():
     unknown = [
         (event, path) for event, path in _emit_literals() if event not in declared
     ]
-    assert not unknown, f"emit() calls outside the catalog: {unknown}"
+    assert not unknown, f"record() calls outside the catalog: {unknown}"
 
 
 def test_every_declared_event_is_actually_emitted_somewhere():
@@ -112,61 +115,98 @@ def test_every_file_a_declaration_cites_exists():
 
 
 def _lifecycle_events():
-    """Lifecycle events reach `emit` through insert_cog_event, not literally."""
+    """Lifecycle events reach `record` through the commit's map, not literally."""
     from app.core.cogs import LIFECYCLE_ANALYTICS_EVENTS
 
     return LIFECYCLE_ANALYTICS_EVENTS.values()
 
 
-def test_lifecycle_events_are_emitted_through_the_audit_facade():
-    """The state changes already flowed through insert_cog_event, so the
-    product view costs no new call sites — the point of section 9.3."""
+def test_lifecycle_events_are_changes_kept_for_good():
+    """A lifecycle event is the history a panel lists, so it is a change: written at
+    once, never in a batch that can be lost, and kept with no TTL."""
     from app.core.cogs import LIFECYCLE_ANALYTICS_EVENTS
 
     declared = analytics.events_catalog()
-    for audit_key, event in LIFECYCLE_ANALYTICS_EVENTS.items():
-        assert event in declared, f"{audit_key} maps to an undeclared event"
-        assert declared[event].get("audit"), f"{event} must also be an audit record"
-
-
-def test_audit_events_declare_the_audit_class():
-    for name, declaration in analytics.events_catalog().items():
-        if declaration.get("audit"):
-            assert "audit" in declaration["class"], name
+    for lifecycle_key, event in LIFECYCLE_ANALYTICS_EVENTS.items():
+        assert event in declared, f"{lifecycle_key} maps to an undeclared event"
+        assert declared[event]["collection"] == "changes", event
 
 
 def test_high_volume_events_never_become_documents():
-    """value.delivered and feature.action_performed are the volume drivers;
-    keeping them out of the `event` class is what keeps storage bounded."""
-    for name in ("value.delivered", "feature.action_performed"):
-        declaration = analytics.events_catalog()[name]
-        assert declaration["class"] == ["counter"], (
-            f"{name} would create one document per delivery"
+    """value.delivered is the volume driver (D2 of database PR 2); counting it with
+    no document is what keeps storage bounded."""
+    declaration = analytics.events_catalog()["value.delivered"]
+    assert declaration["collection"] == "none", (
+        "value.delivered would create one document per delivery"
+    )
+
+
+def test_private_props_are_props_the_event_declares():
+    for name, declaration in analytics.events_catalog().items():
+        declared = set(declaration.get("required") or []) | set(
+            declaration.get("optional") or []
         )
+        assert set(declaration.get("private") or []) <= declared, name
 
 
-def test_profile_rules_only_reference_catalog_events():
+def test_each_collection_keeps_its_events_as_long_as_its_ttl_says():
+    """Broke as: `retention_days` was declared on every event and read by nothing,
+    while one TTL index decided. Guaranteed: the retention of an event is the TTL of
+    its collection, the schema's index and the constant agree, and a change has none."""
+    from app.migrations import runner
+
+    events = runner.declared_structure()["events"]
+
+    assert events["activity"]["ts_1"]["expireAfterSeconds"] == (
+        constants.EVENTS_ACTIVITY_TTL_SECONDS
+    )
+    assert events["interactions"]["ts_1"]["expireAfterSeconds"] == (
+        constants.EVENTS_INTERACTIONS_TTL_SECONDS
+    )
+    assert not any("expireAfterSeconds" in spec for spec in events["changes"].values())
+
+
+def test_the_sink_rules_only_reference_catalog_events():
     declared = analytics.events_catalog()
-    unknown = [name for name in analytics_sink.PROFILE_RULES if name not in declared]
-    assert not unknown, f"PROFILE_RULES references undeclared events: {unknown}"
+    named = [*analytics_sink.LIFETIME_RULES, *analytics_sink.COMMAND_TALLIES]
+    unknown = [name for name in named if name not in declared]
+    assert not unknown, f"the sink's rules reference undeclared events: {unknown}"
+
+
+def test_the_value_and_the_tallies_the_sink_reads_are_declared_on_their_events():
+    """The sink names no event of one command (rule 22): an event that is value says
+    so with `counts_as_value`, a tally of Keiko's own with `keiko_tally`, and the prop
+    a tally reads is one the event declares."""
+    declared = analytics.events_catalog()
+
+    assert "value.delivered" in analytics.value_events()
+    for name, declaration in declared.items():
+        tally = declaration.get("keiko_tally")
+        if tally is None:
+            continue
+        assert set(tally) == {"name", "kind", "prop"}, name
+        props = set(declaration.get("required") or [])
+        assert tally["prop"] in props, f"{name} tallies a prop it may not carry"
 
 
 def test_unknown_events_are_dropped_instead_of_stored():
     analytics.reset()
-    assert analytics.emit("totally.made_up", value=1) is None
+    assert analytics.record("totally.made_up", props={"value": 1}) is None
     assert analytics.stats()["unknown"] == 1
     assert analytics.drain() == []
 
 
-def test_emit_never_raises_when_the_envelope_is_hostile():
+def test_record_never_raises_when_the_envelope_is_hostile():
     analytics.reset()
 
     class Exploding:
         def __str__(self):
             raise RuntimeError("boom")
 
-    assert analytics.emit("command.invoked", command=Exploding(), source="slash")
-    assert analytics.emit("command.invoked", command="ping", source="slash")
+    assert analytics.record(
+        "command.invoked", props={"command": Exploding(), "source": "slash"}
+    )
+    assert analytics.record("command.invoked", props={"command": "ping", "source": "slash"})
 
 
 def test_free_text_never_survives_sanitization():
@@ -222,11 +262,13 @@ def test_no_free_text_or_id_field_of_any_form_is_ever_tabulated():
             ), f"{feature}.{field['key']} ({field['action']}) must not expose values"
 
 
-def test_disabling_analytics_makes_emit_a_no_op():
+def test_disabling_analytics_makes_record_a_no_op():
     analytics.reset()
     analytics.configure(_FakeConfig(enabled=False))
     try:
-        assert analytics.emit("command.invoked", command="ping", source="slash") is None
+        assert analytics.record(
+            "command.invoked", props={"command": "ping", "source": "slash"}
+        ) is None
         assert analytics.drain() == []
     finally:
         analytics.configure(_FakeConfig(enabled=True))

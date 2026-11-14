@@ -1,7 +1,6 @@
 """The /help command list, for the slash command and the buttons that open it, Keiko's
 own prefix commands, and the hint a prefixed message gets when no feature answers the
 prefix."""
-import asyncio
 from typing import Any, Dict, List, Optional, Tuple
 
 import discord
@@ -22,6 +21,7 @@ from app.core.utils import (
     parse_valid_locale,
 )
 from app.views.pagination import PaginationView
+from app.core.threads import to_thread
 
 
 def _is_guild_command(interaction: discord.Interaction, command: Command) -> bool:
@@ -88,11 +88,11 @@ async def send_help(
     ephemeral: bool = False,
 ) -> None:
     """Open the paginated command list with its command select."""
-    analytics.emit(
+    analytics.record(
         "help.opened",
         guild_id=interaction.guild_id,
-        user_id=interaction.user.id,
-        source=source or analytics.resolve_source(interaction),
+        actor=analytics.actor("user", interaction.user.id),
+        props={"source": source or analytics.resolve_source(interaction)},
     )
     fields, select_data = command_list(interaction)
     base = "commands.commands.help.embed"
@@ -124,7 +124,7 @@ def prefix_features() -> List[Dict[str, Any]]:
 async def any_prefix_feature_on(guild_id: str) -> bool:
     """Whether a feature that answers the prefix is on in the guild, read off the loop."""
     for spec in prefix_features():
-        if await asyncio.to_thread(
+        if await to_thread(
             cache.get_cog_data_or_populate, guild_id, spec["command_key"]
         ):
             return True

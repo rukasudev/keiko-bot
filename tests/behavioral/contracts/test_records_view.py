@@ -29,7 +29,12 @@ def _browser(**overrides) -> RecordsBrowser:
         description="Tudo que aconteceu",
     )
     config.update(overrides)
-    return RecordsBrowser(**config)
+    listed = config["fetch"]
+
+    async def fetch(interaction, user_id):
+        return listed(interaction, user_id)
+
+    return RecordsBrowser(**{**config, "fetch": fetch})
 
 
 async def test_records_render_paginated_and_ephemeral(scenario_factory):
@@ -119,11 +124,15 @@ async def test_filtered_empty_resolves_the_namespace_copy(scenario_factory):
 
 
 async def test_a_consumer_needs_nothing_command_shaped(scenario_factory):
-    """The minimal consumer: plain strings and a closure fetch — no i18n
+    """The minimal consumer: plain strings and a coroutine fetch — no i18n
     namespace, no filter, no service in sight."""
     scenario = scenario_factory(locale="pt-br")
+
+    async def fetch(_interaction, _user_id):
+        return [{"name": "any"}]
+
     browser = RecordsBrowser(
-        fetch=lambda i, uid: [{"name": "any"}],
+        fetch=fetch,
         to_fields=lambda records, i: {r["name"]: "value" for r in records},
         title="Qualquer coisa",
     )

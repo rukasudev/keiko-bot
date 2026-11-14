@@ -14,8 +14,8 @@ from datetime import datetime, timezone
 
 import pytest
 
+from app.data import data
 from app.core.servers import leave_guild
-from app.data.guild.cogs import set_cog_state_async, update_cog_if_unchanged_async
 from app.settings.features import feature_for
 from app.settings.features.feature import CommitContext
 from app.settings.form.form_state import Answer
@@ -55,7 +55,7 @@ async def test_every_change_a_member_makes_names_them(deps):
 async def test_a_list_change_names_who_made_it(deps):
     await feature_for("default_roles").commit("setup", {"answers": ROLES}, context("555"))
 
-    written = await update_cog_if_unchanged_async(
+    written = await data().guild_cogs.update_cog_if_unchanged(
         GUILD_ID, "default_roles", "default_roles", {"style": "role", "values": "201"},
         {"style": "role", "values": "204"}, "559",
     )
@@ -67,9 +67,9 @@ async def test_keikos_own_writes_leave_the_last_person_in_place(deps):
     recorded_server(deps.mongo_client, GUILD_ID)
     await feature_for("default_roles").commit("setup", {"answers": ROLES}, context("555"))
 
-    await set_cog_state_async(GUILD_ID, "default_roles", {"schema_version": 1})
+    await data().guild_cogs.set_cog_state(GUILD_ID, "default_roles", {"schema_version": 1})
     assert saved_by(deps, "default_roles") == "555"
-    leave_guild(GUILD_ID, "99")
+    await leave_guild(GUILD_ID, "99")
 
     stored = deps.mongo_client.guild.cogs.find_one({"_id": f"{GUILD_ID}:default_roles"})
     assert stored["enabled"] is False, "leaving paused the feature"

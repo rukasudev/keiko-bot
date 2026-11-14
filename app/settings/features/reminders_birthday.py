@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 from collections.abc import Callable, Mapping, Sequence
 from datetime import date
 from typing import Any
@@ -14,6 +13,7 @@ from app.core.cache import remove_cog_cache_by_guild
 from app.core.cogs import is_feature_on
 from app.core.dates import utc_today
 from app.core.servers import set_feature_enabled
+from app.core.threads import to_thread
 from app.services.reminders_birthdays import (
     birthday_config,
     birthday_found_members,
@@ -54,22 +54,16 @@ class BirthdayFeature(GenericCogFeature):
     async def open(self, context: OpenContext) -> Opened:
         """The synthetic document the panel reads, paused or not, or nothing saved."""
         guild_id = context.guild_id
-        config = await asyncio.to_thread(birthday_config, guild_id)
+        config = await birthday_config(guild_id)
         if not config:
             return Opened()
 
         enabled = is_feature_on(config)
-        document = await asyncio.to_thread(birthday_manager_cog_data, guild_id)
+        document = await birthday_manager_cog_data(guild_id)
         today = self.today()
-        rows = await asyncio.to_thread(
-            birthday_settings_rows, guild_id, context.locale, today
-        )
-        pages = await asyncio.to_thread(
-            birthday_month_pages, guild_id, context.locale, today
-        )
-        found = await asyncio.to_thread(
-            birthday_found_members, guild_id, context.locale
-        )
+        rows = await birthday_settings_rows(guild_id, context.locale, today)
+        pages = await birthday_month_pages(guild_id, context.locale, today)
+        found = await birthday_found_members(guild_id, context.locale)
         return Opened(
             document=document,
             panel=PanelExtras(
@@ -106,9 +100,9 @@ class BirthdayFeature(GenericCogFeature):
             ),
         }
 
-    def stats_lines(self, guild_id: str, locale: str) -> Sequence[str]:
+    async def stats_lines(self, guild_id: str, locale: str) -> Sequence[str]:
         """How many birthdays, this month's, and the busiest and quietest dates."""
-        return birthday_stats_lines(guild_id, locale, self.today())
+        return await birthday_stats_lines(guild_id, locale, self.today())
 
     async def commit_setup(
         self, payload: Mapping[str, Any], context: CommitContext
@@ -119,12 +113,8 @@ class BirthdayFeature(GenericCogFeature):
             user_id: await members.display_name(context.guild, user_id)
             for user_id in form_birthday_users(list(responses))
         }
-        await asyncio.to_thread(
-            save_setup_form, context.guild_id, responses, context.user_id, names
-        )
-        await asyncio.to_thread(
-            set_feature_enabled, context.guild_id, self.key, True, context.user_id
-        )
+        await save_setup_form(context.guild_id, responses, context.user_id, names)
+        await set_feature_enabled(context.guild_id, self.key, True, context.user_id)
         return CommitResult(("reminders_birthday", "birthdays"))
 
     async def commit_edit(
@@ -132,9 +122,7 @@ class BirthdayFeature(GenericCogFeature):
     ) -> CommitResult:
         """Edited settings land on the config document."""
         changes = self.to_document(payload["answers"], context.locale)
-        await asyncio.to_thread(
-            save_birthday_config_changes, context.guild_id, changes, context.user_id
-        )
+        await save_birthday_config_changes(context.guild_id, changes, context.user_id)
         return CommitResult(("reminders_birthday",))
 
     async def commit_edit_item(
@@ -145,7 +133,7 @@ class BirthdayFeature(GenericCogFeature):
         name = await members.display_name(
             context.guild, str(_value(item.get("user")) or "")
         )
-        await asyncio.to_thread(save_form_birthday_item, context.guild_id, item, name)
+        await save_form_birthday_item(context.guild_id, item, name)
         return CommitResult(("birthdays",))
 
     async def commit_add_item(
@@ -154,12 +142,12 @@ class BirthdayFeature(GenericCogFeature):
         """A new member's birthday, refused when the member is already listed."""
         item = self.item_document(payload["answers"], context.locale)
         user_id = str(_value(item.get("user")) or "")
-        existing = await asyncio.to_thread(find_birthday, context.guild_id, user_id)
+        existing = await find_birthday(context.guild_id, user_id)
 
         if existing:
             raise DuplicateItem(user_id)
         name = await members.display_name(context.guild, user_id)
-        await asyncio.to_thread(save_form_birthday_item, context.guild_id, item, name)
+        await save_form_birthday_item(context.guild_id, item, name)
         return CommitResult(("birthdays",))
 
     async def commit_remove_item(
@@ -168,20 +156,20 @@ class BirthdayFeature(GenericCogFeature):
         """Every chosen member's birthday goes while all are saved, or none does."""
         user_ids = [str(_value(item.get("user")) or "") for item in payload["items"]]
         for user_id in user_ids:
-            saved = await asyncio.to_thread(find_birthday, context.guild_id, user_id)
+            saved = await find_birthday(context.guild_id, user_id)
             if not user_id or saved is None:
                 raise ListChanged(self.key)
 
         for user_id in user_ids:
-            await asyncio.to_thread(remove_birthday, context.guild_id, user_id)
+            await remove_birthday(context.guild_id, user_id)
         return CommitResult(("birthdays",))
 
     async def commit_disable(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
         """Every birthday, reminder and the config go; the feature is off."""
-        await asyncio.to_thread(disable_birthdays, context.guild_id)
-        await asyncio.to_thread(remove_cog_cache_by_guild, context.guild_id, self.key)
+        await disable_birthdays(context.guild_id)
+        await to_thread(remove_cog_cache_by_guild, context.guild_id, self.key)
         return CommitResult(("reminders_birthday", "birthdays"))
 
 

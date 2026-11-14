@@ -167,11 +167,13 @@ class GreetingsView(_PersistentGreeting):
 
     def _emit_greeting_sent(self, guild: discord.Guild, channel_found: bool) -> None:
         """A greeting nobody could receive is the quietest onboarding failure."""
-        analytics.emit(
+        analytics.record(
             "guild.greeting_sent",
             guild_id=guild.id,
-            features_offered=len(commands_constants.SETUP_FEATURES),
-            channel_found=channel_found,
+            props={
+                "features_offered": len(commands_constants.SETUP_FEATURES),
+                "channel_found": channel_found,
+            },
         )
 
     async def language_callback(self, interaction: discord.Interaction):

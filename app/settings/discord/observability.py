@@ -119,14 +119,13 @@ def emit(
             extra.update(friction.props())
         if name in OPENED and is_admin is not None:
             extra["is_admin"] = is_admin
-        analytics.emit(
+        analytics.record(
             name,
             guild_id=session.origin.guild_id,
-            user_id=session.origin.user_id,
-            feature=session.key,
-            source=source,
+            cog=session.key,
+            actor=analytics.actor("user", session.origin.user_id),
+            props={"source": source, **extra},
             session_id=root,
-            **extra,
         )
 
 

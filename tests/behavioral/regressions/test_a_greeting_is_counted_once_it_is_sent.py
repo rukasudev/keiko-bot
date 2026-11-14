@@ -44,7 +44,7 @@ def _greetings(recorded):
     return [
         event["props"]["channel_found"]
         for event in recorded
-        if event["event"] == "guild.greeting_sent"
+        if event["type"] == "guild.greeting_sent"
     ]
 
 

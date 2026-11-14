@@ -11,7 +11,8 @@ entry from any button into a feature: the /setup cards, the greeting, /help and
 the activation panels.
 
 Guaranteed: the feature opens before the counter is answered, a counter that
-fails never fails the click, and the count is still made when Redis answers.
+fails never fails the click, and the click is still counted, as the
+`command.invoked` event the analytics sink counts.
 """
 import threading
 from types import SimpleNamespace
@@ -19,13 +20,9 @@ from types import SimpleNamespace
 import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
 
-from app.constants import LogTypes
 from tests.mocks.discord import MockInteraction, create_guild, create_member
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
-
-COUNTER = f"{LogTypes.COMMAND_CALL_TYPE}:block_links:button"
-
 
 def interaction_in(guild):
     interaction = MockInteraction(user=create_member(guild), guild=guild)
@@ -76,7 +73,7 @@ async def test_a_feature_button_opens_before_a_redis_that_does_not_answer(
     interaction.assert_response_sent("send_message")
 
 
-async def test_a_feature_button_still_counts_the_click(deps, opened):
+async def test_a_feature_button_still_counts_the_click(deps, opened, analytics_events):
     from app.components import buttons
 
     await buttons.run_feature_command(
@@ -84,4 +81,8 @@ async def test_a_feature_button_still_counts_the_click(deps, opened):
     )
 
     assert opened == ["block_links"]
-    assert deps.redis_client.get(COUNTER) == "1"
+    assert [
+        event["props"]["command"]
+        for event in analytics_events
+        if event["type"] == "command.invoked"
+    ] == ["block_links"]

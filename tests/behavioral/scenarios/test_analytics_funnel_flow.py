@@ -14,11 +14,11 @@ GUILD_ID = "123456789"
 
 
 def events_named(recorded, name):
-    return [event for event in recorded if event["event"] == name]
+    return [event for event in recorded if event["type"] == name]
 
 
 def names(recorded):
-    return [event["event"] for event in recorded]
+    return [event["type"] for event in recorded]
 
 
 async def test_a_completed_setup_reports_the_whole_funnel(
@@ -34,7 +34,7 @@ async def test_a_completed_setup_reports_the_whole_funnel(
 
     completed = events_named(analytics_events, "setup.completed")
     assert len(completed) == 1
-    assert completed[0]["feature"] == "block_links"
+    assert completed[0]["cog"] == "block_links"
     assert completed[0]["guild_id"] == GUILD_ID
     assert completed[0]["props"]["steps_viewed"] > 0
     assert completed[0]["props"]["duration_bucket"] == "<1m"
@@ -53,7 +53,7 @@ async def test_every_event_of_one_attempt_shares_a_session_id(
 
     sessions = {
         event["session_id"] for event in analytics_events
-        if event["event"].startswith(("setup.", "feature.setup"))
+        if event["type"].startswith(("setup.", "feature.setup"))
     }
     assert len(sessions) == 1
     await scenario.finish()
@@ -68,7 +68,7 @@ async def test_the_origin_is_carried_from_the_entry_point_to_the_end(
     await scenario.confirm()
 
     completed = events_named(analytics_events, "setup.completed")[0]
-    assert completed["source"] == "slash"
+    assert completed["props"]["source"] == "slash"
     await scenario.finish()
 
 
@@ -103,7 +103,7 @@ async def test_no_typed_text_ever_reaches_an_event(scenario_factory, analytics_e
 
     for event in analytics_events:
         for value in (event.get("props") or {}).values():
-            assert secret not in str(value), event["event"]
+            assert secret not in str(value), event["type"]
     await scenario.finish()
 
 
@@ -217,7 +217,7 @@ async def test_analytics_failure_never_breaks_the_flow(
     def explode(*args, **kwargs):
         raise RuntimeError("analytics is down")
 
-    monkeypatch.setattr(analytics, "_emit", explode)
+    monkeypatch.setattr(analytics, "_record", explode)
 
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()

@@ -6,30 +6,33 @@ precisely to compare two tiny groups. The guard rails are part of the feature.
 """
 import pytest
 
-from app.data import analytics as analytics_data
+from app.data import data, wait
 from app.services import admin, admin_analytics
-from app.core import analytics, analytics_sink
+from app.core import analytics
+import logging
 import threading
 from datetime import datetime, timedelta
 from types import SimpleNamespace
 import discord
+from tests.mocks.database import answering
 from tests.mocks.discord import create_guild, create_member, MockInteraction
 from app.constants import Commands
 from tests.generators.moderations import seed_cog
+from tests.generators.events import record_event, stored
 
 pytestmark = pytest.mark.unit
 
 
 def flush():
-    analytics.flush()
+    wait(analytics.flush())
 
 
 def complete_setup(guild_id, feature, session="s"):
-    analytics.emit(
+    record_event(
         "feature.setup_opened", guild_id=guild_id, user_id="9", feature=feature,
         source="slash", session_id=session,
     )
-    analytics.emit(
+    record_event(
         "setup.completed", guild_id=guild_id, user_id="9", feature=feature,
         source="slash", session_id=session, duration_ms=1000, steps_viewed=3,
     )
@@ -40,84 +43,84 @@ def test_the_funnel_screen_shows_absolute_numbers_next_to_percentages():
     analytics.record_value("1", "block_links")
     flush()
 
-    embed = admin_analytics.build_funnel_embed("block_links")
+    embed = wait(admin_analytics.build_funnel_embed("block_links"))
     assert "Setup opened** — 1" in embed.description
     assert "Setup completed** — 1 (100%)" in embed.description
     assert "Delivered value** — 1 (100%)" in embed.description
 
 
 def test_the_funnel_screen_survives_a_feature_nobody_touched():
-    embed = admin_analytics.build_funnel_embed("welcome_messages")
+    embed = wait(admin_analytics.build_funnel_embed("welcome_messages"))
     assert "Setup opened** — 0" in embed.description
 
 
 def test_the_friction_screen_ranks_the_steps_that_reject_people():
     for _ in range(3):
-        analytics.emit(
+        record_event(
             "setup.validation_failed", guild_id="2", user_id="9",
             feature="block_links", session_id="s", step_key="custom_link",
             validation="validate_link", error_key="link-not-recognized",
         )
-    analytics.emit(
+    record_event(
         "setup.validation_failed", guild_id="2", user_id="9",
         feature="reminders_birthday", session_id="s2", step_key="date",
         validation="validate_date", error_key="invalid-date",
     )
     flush()
 
-    embed = admin_analytics.build_friction_embed()
+    embed = wait(admin_analytics.build_friction_embed())
     assert embed.description.index("custom_link") < embed.description.index("date")
     assert "link-not-recognized" in embed.description
 
 
 def test_the_churn_screen_refuses_to_read_a_tiny_population_as_a_conclusion():
     complete_setup("3", "block_links")
-    analytics.emit("guild.removed", guild_id="3", days_in_guild=5)
+    record_event("guild.removed", guild_id="3", days_in_guild=5)
     flush()
 
-    embed = admin_analytics.build_churn_embed()
+    embed = wait(admin_analytics.build_churn_embed())
     assert "N=1" in embed.description
     assert "too small" in embed.description
 
 
 def test_the_churn_screen_never_claims_a_cause():
-    embed = admin_analytics.build_churn_embed()
+    embed = wait(admin_analytics.build_churn_embed())
     assert "correlation, never cause" in embed.description
 
 
 def test_the_guild_screen_tells_the_story_in_order():
-    analytics.emit("guild.joined", guild_id="4", returning=False)
-    analytics.emit(
+    record_event("guild.joined", guild_id="4", returning=False)
+    record_event(
         "guild.greeting_sent", guild_id="4", features_offered=4, channel_found=True
     )
     complete_setup("4", "welcome_messages")
     flush()
 
-    embed = admin_analytics.build_guild_journey_embed("4")
+    embed = wait(admin_analytics.build_guild_journey_embed("4"))
     description = embed.description
     assert description.index("guild.joined") < description.index("guild.greeting_sent")
     assert description.index("guild.greeting_sent") < description.index("setup.completed")
 
 
 def test_the_guild_screen_flags_a_greeting_nobody_could_see():
-    analytics.emit(
+    record_event(
         "guild.greeting_sent", guild_id="5", features_offered=4, channel_found=False
     )
     flush()
 
-    embed = admin_analytics.build_guild_journey_embed("5")
+    embed = wait(admin_analytics.build_guild_journey_embed("5"))
     assert "no writable channel" in embed.description
 
 
 def test_the_abandoned_screen_lists_configured_but_dead_features():
     complete_setup("6", "welcome_messages")
     flush()
-    profile = analytics_data.find_profile("6")
+    profile = wait(data().analytics_lifetime.find_lifetime("6"))
     profile["features"]["welcome_messages"]["completed_at"] = (
         profile["features"]["welcome_messages"]["completed_at"].replace(year=2020)
     )
 
-    embed = admin_analytics.build_abandoned_embed()
+    embed = wait(admin_analytics.build_abandoned_embed())
     assert "welcome_messages" in embed.description
 
 
@@ -126,13 +129,41 @@ def test_forgetting_a_guild_removes_every_trace_of_it():
     analytics.record_value("7", "block_links")
     flush()
 
-    assert analytics_data.find_profile("7")
-    deleted = analytics_data.delete_analytics_by_guild("7")
+    assert wait(data().analytics_lifetime.find_lifetime("7"))
+    record_event(
+        "feature.paused", guild_id="7", user_id="9", feature="block_links",
+        source="manager",
+    )
+    deleted = wait(admin.forget_guild("7"))
 
     assert deleted["profile"] == 1
-    assert analytics_data.find_profile("7") is None
-    assert analytics_data.find_events_by_guild("7") == []
-    assert analytics_data.find_month_buckets("7") == []
+    assert deleted["events"] >= 3
+    assert wait(data().analytics_lifetime.find_lifetime("7")) is None
+    assert stored("7") == []
+    assert wait(data().analytics_counts.find_by_guild("7")) == []
+
+
+def test_what_was_still_queued_for_a_forgotten_guild_never_comes_back(deps):
+    """Broke as: /admin forget deleted what Mongo held, and the next flush wrote what
+    the queue still held for the guild, its events, numbers and failed traces, so the
+    guild was back a few seconds after the operator was told it was forgotten.
+
+    Guaranteed: forgetting a guild writes the queued events and traces first, then
+    deletes them with the rest, and the flush after it brings nothing back."""
+    from app.core import trace
+
+    trace.register_sink(trace.keep_run)
+    complete_setup("7", "block_links")
+    with trace.trace_scope("probe", guild_id="7", user_id="9") as unit:
+        unit.add("the probe broke", logging.ERROR)
+
+    wait(admin.forget_guild("7"))
+    flush()
+
+    assert stored("7") == []
+    assert wait(data().analytics_lifetime.find_lifetime("7")) is None
+    assert wait(data().analytics_counts.find_by_guild("7")) == []
+    assert list(deps.mongo_client.traces.runs.find({"guild_id": "7"})) == []
 
 
 def test_forgetting_one_guild_leaves_the_others_alone():
@@ -140,16 +171,16 @@ def test_forgetting_one_guild_leaves_the_others_alone():
     complete_setup("9", "block_links")
     flush()
 
-    analytics_data.delete_analytics_by_guild("8")
+    wait(admin.forget_guild("8"))
 
-    assert analytics_data.find_profile("9")
-    assert analytics_data.find_events_by_guild("9")
+    assert wait(data().analytics_lifetime.find_lifetime("9"))
+    assert stored("9")
 
 
-def test_every_section_of_insights_builds_without_data(deps):
+async def test_every_section_of_insights_builds_without_data(deps):
     """The menu must open on a fresh install, not only once data exists."""
     for section in admin_analytics.insight_sections():
-        embed = section["build"]()
+        embed = await section["build"]()
         assert embed.title
         assert embed.description
 
@@ -165,7 +196,7 @@ def test_the_funnel_section_lists_every_feature_that_had_activity():
     complete_setup("21", "welcome_messages")
     flush()
 
-    description = admin_analytics.build_all_funnels_embed().description
+    description = wait(admin_analytics.build_all_funnels_embed()).description
     assert "block_links" in description
     assert "welcome_messages" in description
     assert "notifications_twitch" not in description
@@ -179,20 +210,20 @@ def test_the_settings_section_names_what_nobody_fills(deps):
             "welcome_custom_image": None,
         })
 
-    description = admin_analytics.build_config_usage_embed().description
+    description = wait(admin_analytics.build_config_usage_embed()).description
     assert "welcome_custom_image" in description
     assert "0** of **6" in description
 
 
 def test_the_timing_section_states_what_the_number_is_not():
-    analytics.emit(
+    record_event(
         "setup.step_completed", guild_id="1", user_id="9", feature="block_links",
         source="slash", session_id="s", step_key="answer", step_action="modal",
         ms_on_step=45000,
     )
     flush()
 
-    embed = admin_analytics.build_step_timing_embed()
+    embed = wait(admin_analytics.build_step_timing_embed())
     assert "My response when blocking" in embed.description, (
         "reports must name the step the user saw, not its YAML key"
     )
@@ -200,8 +231,8 @@ def test_the_timing_section_states_what_the_number_is_not():
 
 
 def test_the_pipeline_screen_reports_what_was_dropped():
-    analytics.emit("nope.not_real", value=1)
-    embed = admin_analytics.build_pipeline_embed()
+    record_event("nope.not_real", value=1)
+    embed = wait(admin_analytics.build_pipeline_embed())
     assert "Unknown events: **1**" in embed.description
 
 
@@ -219,11 +250,9 @@ class Cache(list):
 
 @pytest.fixture
 def stores(monkeypatch):
-    monkeypatch.setattr(admin, "servers_overview", lambda since: {})
-    monkeypatch.setattr(admin, "redis_client", SimpleNamespace(
-        scan_iter=lambda pattern: [], get=lambda key: None, dbsize=lambda: 0
-    ))
-    monkeypatch.setattr(admin, "build_product_summary", lambda: "")
+    monkeypatch.setattr(admin, "servers_overview", answering({}))
+    monkeypatch.setattr("app.core.cache.count_keys", lambda: 0)
+    monkeypatch.setattr(admin, "build_product_summary", answering(""))
 
 
 @pytest.mark.behavioral
@@ -320,11 +349,9 @@ def bot():
 @pytest.fixture
 def adoption_stores(deps, monkeypatch):
     monkeypatch.setattr(
-        admin, "servers_overview", lambda since: FLAGS_AS_MONGO_SUMS_THEM
+        admin, "servers_overview", answering(FLAGS_AS_MONGO_SUMS_THEM)
     )
-    monkeypatch.setattr(admin, "redis_client", SimpleNamespace(
-        scan_iter=lambda pattern: [], get=lambda key: None, dbsize=lambda: 0
-    ))
+    monkeypatch.setattr("app.core.cache.count_keys", lambda: 0)
     db = deps.mongo_client
     seed_cog(db, Commands.BLOCK_LINKS_KEY, {"guild_id": STAYED, "enabled": False})
     seed_cog(db, Commands.DEFAULT_ROLES_KEY, {"guild_id": STAYED})
@@ -362,16 +389,18 @@ async def test_the_overview_reads_two_fields_of_each_feature_document(
     bot, adoption_stores, deps, monkeypatch
 ):
     """A feature document holds whole lists (links, birthdays, messages); the adoption
-    needs to know only whose it is and whether it is on."""
+    reads only the ids of the servers where it is on."""
     asked = []
     collection = deps.mongo_client.guild.cogs
     monkeypatch.setattr(
         collection, "find",
-        lambda query, projection, read=collection.find: (asked.append(projection), read(query))[1],
+        lambda query, projection, read=collection.find: (
+            asked.append((query.get("enabled"), projection)), read(query)
+        )[1],
     )
 
     await admin.get_overview_data(bot)
 
     assert asked and all(
-        projection == {"guild_id": True, "enabled": True} for projection in asked
+        asked_for == (True, {"guild_id": True}) for asked_for in asked
     )

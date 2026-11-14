@@ -141,7 +141,7 @@ async def test_a_birthday_found_by_search_is_removed_from_its_own_screen(
 
     from app.services.reminders_birthdays import find_birthdays_by_guild
 
-    assert [item["user_id"] for item in find_birthdays_by_guild("123456789")] == [
+    assert [item["user_id"] for item in await find_birthdays_by_guild("123456789")] == [
         "555"
     ]
     await scenario.finish()

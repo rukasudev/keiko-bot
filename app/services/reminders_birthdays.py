@@ -1,4 +1,3 @@
-import asyncio
 from collections import Counter
 from datetime import date, datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
@@ -10,8 +9,7 @@ from app.components.embed import default_welcome_embed
 from app.constants import Commands as commands_constants
 from app.constants import KeikoIcons
 from app.constants import LogTypes as logconstants
-from app.data.guild import cogs as guild_cogs
-from app.data.guild import members as members_data
+from app.data import data
 from app.data.keiko import schedules as schedules_data
 from app.core.dates import (
     format_mm_dd_count,
@@ -36,6 +34,7 @@ from app.core.utils import (
     parse_locale,
     values_of,
 )
+from app.core.threads import to_thread
 
 
 async def manager(interaction: discord.Interaction, guild_id: str) -> None:
@@ -47,12 +46,12 @@ def _mb(key: str, locale: str) -> str:
     return ml(f"commands.commands.commons.reminders-birthdays-manager.{key}", locale=locale)
 
 
-def birthday_config(guild_id: str) -> Optional[Dict[str, Any]]:
+async def birthday_config(guild_id: str) -> Optional[Dict[str, Any]]:
     """The saved birthday configuration of a guild, or nothing."""
-    return guild_cogs.find_cog_by_guild_id(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY)
+    return await data().guild_cogs.find_cog_by_guild_id(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY)
 
 
-def save_birthday_config(
+async def save_birthday_config(
     guild_id: str,
     channel_id: str,
     mention_everyone: bool = False,
@@ -71,16 +70,16 @@ def save_birthday_config(
         options["default_message"] = default_message
 
     key = commands_constants.REMINDERS_BIRTHDAY_KEY
-    guild_cogs.insert_cog_by_guild_id(
+    await data().guild_cogs.insert_cog_by_guild_id(
         key, {"guild_id": str(guild_id), **options}, updated_by
     )
-    remove_cog_cache_by_guild(str(guild_id), key)
-    return birthday_config(guild_id) or {}
+    await to_thread(remove_cog_cache_by_guild, str(guild_id), key)
+    return await birthday_config(guild_id) or {}
 
 
-def accepts_birthdays(guild_id: str) -> bool:
+async def accepts_birthdays(guild_id: str) -> bool:
     """Whether a guild takes birthdays: it is configured and its feature is on."""
-    return is_feature_on(birthday_config(guild_id))
+    return is_feature_on(await birthday_config(guild_id))
 
 
 def default_birthday(date: str) -> Dict[str, Any]:
@@ -96,35 +95,35 @@ def default_birthday(date: str) -> Dict[str, Any]:
     }
 
 
-def find_birthday(guild_id: str, user_id: str) -> Optional[Dict[str, Any]]:
+async def find_birthday(guild_id: str, user_id: str) -> Optional[Dict[str, Any]]:
     """The member's birthday, with what Keiko keeps about them under `state`."""
-    return members_data.find_member_option(
+    return await data().guild_members.find_member_option(
         guild_id, user_id, commands_constants.REMINDERS_BIRTHDAY_KEY
     )
 
 
-def find_birthdays_by_guild(guild_id: str) -> List[Dict[str, Any]]:
+async def find_birthdays_by_guild(guild_id: str) -> List[Dict[str, Any]]:
     """Every birthday saved in a server."""
-    return members_data.find_members_by_option(
+    return await data().guild_members.find_members_by_option(
         guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY
     )
 
 
-def find_birthdays_on(guild_id: str, mm_dd: str) -> List[Dict[str, Any]]:
+async def find_birthdays_on(guild_id: str, mm_dd: str) -> List[Dict[str, Any]]:
     """The server's birthdays on one date."""
-    return members_data.find_members_by_option(
+    return await data().guild_members.find_members_by_option(
         guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY, {"date": str(mm_dd)}
     )
 
 
-def count_birthdays_on(guild_id: str, mm_dd: str) -> int:
+async def count_birthdays_on(guild_id: str, mm_dd: str) -> int:
     """How many of the server's birthdays fall on one date."""
-    return members_data.count_members_by_option(
+    return await data().guild_members.count_members_by_option(
         guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY, {"date": str(mm_dd)}
     )
 
 
-def save_birthday(
+async def save_birthday(
     guild_id: str,
     user_id: str,
     date: str,
@@ -134,7 +133,7 @@ def save_birthday(
     display_name: Optional[str] = None,
 ) -> Dict[str, Any]:
     """Save the member's birthday, keeping what was saved before where nothing new is given."""
-    existing = find_birthday(guild_id, user_id) or {}
+    existing = await find_birthday(guild_id, user_id) or {}
     birthday = default_birthday(date)
     birthday["self_edit_count"] = (
         self_edit_count if self_edit_count is not None else existing.get("self_edit_count", 0)
@@ -142,7 +141,7 @@ def save_birthday(
     birthday["message"] = message or existing.get("message") or birthday["message"]
     birthday["image"] = image or existing.get("image") or birthday["image"]
 
-    return members_data.set_member_option(
+    return await data().guild_members.set_member_option(
         guild_id,
         user_id,
         commands_constants.REMINDERS_BIRTHDAY_KEY,
@@ -156,11 +155,11 @@ def last_celebrated_year(item: Dict[str, Any]) -> Any:
     return item["state"].get("last_celebrated_year")
 
 
-def claim_birthday_year(
+async def claim_birthday_year(
     guild_id: str, user_id: str, year: int, display_name: Optional[str] = None
 ) -> bool:
     """Record this year's celebration of a member; False when it was already recorded."""
-    return members_data.claim_member_state(
+    return await data().guild_members.claim_member_state(
         guild_id,
         user_id,
         commands_constants.REMINDERS_BIRTHDAY_KEY,
@@ -170,9 +169,9 @@ def claim_birthday_year(
     )
 
 
-def release_birthday_year(guild_id: str, user_id: str, year: int, previous: Any) -> bool:
+async def release_birthday_year(guild_id: str, user_id: str, year: int, previous: Any) -> bool:
     """Give back this year's claim of a member whose message was not posted."""
-    return members_data.restore_member_state(
+    return await data().guild_members.restore_member_state(
         guild_id,
         user_id,
         commands_constants.REMINDERS_BIRTHDAY_KEY,
@@ -195,7 +194,7 @@ def can_self_edit_birthday(item: Optional[Dict[str, Any]]) -> bool:
     return get_self_edit_count(item) < commands_constants.SELF_BIRTHDAY_EDIT_LIMIT
 
 
-def upsert_birthday(
+async def upsert_birthday(
     guild_id: str,
     user_id: str,
     mm_dd: str,
@@ -204,13 +203,13 @@ def upsert_birthday(
     image: Optional[Dict[str, Any]] = None,
     display_name: Optional[str] = None,
 ) -> Optional[Dict[str, Any]]:
-    existing = find_birthday(guild_id, user_id)
+    existing = await find_birthday(guild_id, user_id)
     old_date = existing.get("date") if existing else None
     self_edit_count = get_self_edit_count(existing) + (1 if existing and increment_self_edit else 0)
 
-    schedule_birthday_date(guild_id, mm_dd)
+    await schedule_birthday_date(guild_id, mm_dd)
     try:
-        item = save_birthday(
+        item = await save_birthday(
             guild_id,
             user_id,
             mm_dd,
@@ -220,11 +219,11 @@ def upsert_birthday(
             display_name=display_name,
         )
     except Exception:
-        release_birthday_date(guild_id, mm_dd)
+        await release_birthday_date(guild_id, mm_dd)
         raise
 
     if old_date and old_date != mm_dd:
-        release_birthday_date(guild_id, old_date)
+        await release_birthday_date(guild_id, old_date)
 
     return item
 
@@ -234,34 +233,35 @@ def birthday_schedule_id(guild_id: str, mm_dd: str) -> str:
     return schedules_data.schedule_id("birthday", guild_id, mm_dd)
 
 
-def birthday_schedules_by_reminder(reminder_id: Any) -> List[Dict[str, Any]]:
+async def birthday_schedules_by_reminder(reminder_id: Any) -> List[Dict[str, Any]]:
     """Every server's birthday schedule one reminder serves."""
-    return schedules_data.find_schedules_by_reminder(reminder_id, "birthday")
+    return await data().keiko_schedules.find_schedules_by_reminder(reminder_id, "birthday")
 
 
-def birthday_schedules_missing_reminder(limit: int) -> List[Dict[str, Any]]:
+async def birthday_schedules_missing_reminder(limit: int) -> List[Dict[str, Any]]:
     """Birthday schedules whose reminder could not be created yet, the soonest due first."""
-    return schedules_data.find_schedules_missing_reminder("birthday", limit)
+    return await data().keiko_schedules.find_schedules_missing_reminder("birthday", limit)
 
 
-def schedule_birthday_date(guild_id: str, mm_dd: str) -> Optional[str]:
+async def schedule_birthday_date(guild_id: str, mm_dd: str) -> Optional[str]:
     """The reminder of a server's birthdays on a date, created when it has none yet."""
     schedule_id = birthday_schedule_id(guild_id, mm_dd)
-    schedule = schedules_data.find_schedule(schedule_id)
+    schedule = await data().keiko_schedules.find_schedule(schedule_id)
     if schedule and schedule.get("reminder_id"):
         return schedule["reminder_id"]
 
-    config = birthday_config(guild_id) or {}
-    zone = _server_zone(guild_id)
+    config = await birthday_config(guild_id) or {}
+    zone = await _server_zone(guild_id)
     notification_time = config.get("notification_time")
-    reminder_id = reminders_service.create_reminder(
+    reminder_id = await to_thread(
+        reminders_service.create_reminder,
         commands_constants.REMINDER_API_TITLE_BIRTHDAY,
         mm_dd,
         notes=mm_dd,
         timezone_name=zone,
         notification_time=notification_time,
     )
-    schedules_data.upsert_schedule(
+    await data().keiko_schedules.upsert_schedule(
         schedule_id,
         "birthday",
         reminder_id,
@@ -270,20 +270,22 @@ def schedule_birthday_date(guild_id: str, mm_dd: str) -> Optional[str]:
     return reminder_id
 
 
-def release_birthday_date(guild_id: str, mm_dd: str) -> None:
+async def release_birthday_date(guild_id: str, mm_dd: str) -> None:
     """Drop a date's schedule once no member of the server has it, and its reminder once
     no server's schedule uses it."""
-    if count_birthdays_on(guild_id, mm_dd) > 0:
+    if await count_birthdays_on(guild_id, mm_dd) > 0:
         return
     schedule_id = birthday_schedule_id(guild_id, mm_dd)
-    schedule = schedules_data.find_schedule(schedule_id)
+    schedule = await data().keiko_schedules.find_schedule(schedule_id)
     if not schedule:
         return
-    schedules_data.delete_schedule(schedule_id)
+    await data().keiko_schedules.delete_schedule(schedule_id)
     reminder_id = schedule.get("reminder_id")
-    reminders_service.cleanup_reminder_if_unused(
-        reminder_id,
-        lambda: len(birthday_schedules_by_reminder(reminder_id)),
+    if not reminder_id:
+        return
+    remaining = len(await birthday_schedules_by_reminder(reminder_id))
+    await to_thread(
+        reminders_service.cleanup_reminder_if_unused, reminder_id, lambda: remaining
     )
 
 
@@ -297,21 +299,22 @@ def next_birthday_due(
     return occurrence.astimezone(timezone.utc)
 
 
-def reconcile_missing_reminders(limit: int = 50) -> int:
+async def reconcile_missing_reminders(limit: int = 50) -> int:
     """Create the reminders that a failed save left behind, releasing the schedules no
     configuration or member needs; how many it created."""
     repaired = 0
 
-    for schedule in birthday_schedules_missing_reminder(limit):
+    for schedule in await birthday_schedules_missing_reminder(limit):
         guild_id, mm_dd = schedules_data.schedule_subject(schedule)
-        config = birthday_config(guild_id)
-        if not config or not count_birthdays_on(guild_id, mm_dd):
-            schedules_data.delete_schedule_without_reminder(schedule["_id"])
+        config = await birthday_config(guild_id)
+        if not config or not await count_birthdays_on(guild_id, mm_dd):
+            await data().keiko_schedules.delete_schedule_without_reminder(schedule["_id"])
             continue
 
-        zone = _server_zone(guild_id)
+        zone = await _server_zone(guild_id)
         try:
-            reminder_id = reminders_service.create_reminder(
+            reminder_id = await to_thread(
+                reminders_service.create_reminder,
                 commands_constants.REMINDER_API_TITLE_BIRTHDAY,
                 mm_dd,
                 notes=mm_dd,
@@ -329,7 +332,7 @@ def reconcile_missing_reminders(limit: int = 50) -> int:
         if not reminder_id:
             continue
 
-        schedules_data.upsert_schedule(
+        await data().keiko_schedules.upsert_schedule(
             schedule["_id"],
             "birthday",
             reminder_id,
@@ -340,24 +343,24 @@ def reconcile_missing_reminders(limit: int = 50) -> int:
     return repaired
 
 
-def remove_birthday(guild_id: str, user_id: str) -> Optional[Dict[str, Any]]:
-    item = members_data.unset_member_option(
+async def remove_birthday(guild_id: str, user_id: str) -> Optional[Dict[str, Any]]:
+    item = await data().guild_members.unset_member_option(
         guild_id, user_id, commands_constants.REMINDERS_BIRTHDAY_KEY
     )
     if item:
-        release_birthday_date(guild_id, item["date"])
+        await release_birthday_date(guild_id, item["date"])
     return item
 
 
-def get_upcoming_birthdays(guild_id: str, limit: int = 3, today: Optional[date] = None) -> List[Dict[str, Any]]:
+async def get_upcoming_birthdays(guild_id: str, limit: int = 3, today: Optional[date] = None) -> List[Dict[str, Any]]:
     today = today or utc_today()
-    items = find_birthdays_by_guild(guild_id)
+    items = await find_birthdays_by_guild(guild_id)
     return sorted(items, key=lambda item: next_mm_dd_occurrence(item["date"], today))[:limit]
 
 
-def get_birthday_stats(guild_id: str, today: Optional[date] = None) -> Dict[str, Any]:
+async def get_birthday_stats(guild_id: str, today: Optional[date] = None) -> Dict[str, Any]:
     today = today or utc_today()
-    items = find_birthdays_by_guild(guild_id)
+    items = await find_birthdays_by_guild(guild_id)
     month_counts = Counter(item.get("month") for item in items)
     date_counts = Counter(item.get("date") for item in items)
     return {
@@ -369,7 +372,7 @@ def get_birthday_stats(guild_id: str, today: Optional[date] = None) -> Dict[str,
     }
 
 
-def birthday_manager_cog_data(guild_id: str, apply_defaults: bool = True) -> Dict[str, Any]:
+async def birthday_manager_cog_data(guild_id: str, apply_defaults: bool = True) -> Dict[str, Any]:
     """The saved configuration, keyed as the form names it.
 
     `apply_defaults` is the difference between drawing and measuring. The card
@@ -378,8 +381,8 @@ def birthday_manager_cog_data(guild_id: str, apply_defaults: bool = True) -> Dic
     choice: it counted three guilds as having configured a message they never
     touched. Absence stays absence when the caller says so.
     """
-    config = birthday_config(guild_id) or {}
-    items = find_birthdays_by_guild(guild_id)
+    config = await birthday_config(guild_id) or {}
+    items = await find_birthdays_by_guild(guild_id)
     message = config.get("default_message") or {}
     return {
         "guild_id": str(guild_id),
@@ -395,7 +398,7 @@ def birthday_manager_cog_data(guild_id: str, apply_defaults: bool = True) -> Dic
                 else config.get("mention_everyone")
             ),
         },
-        commands_constants.BIRTHDAY_CONFIG_TIMEZONE: _server_zone(guild_id, apply_defaults),
+        commands_constants.BIRTHDAY_CONFIG_TIMEZONE: await _server_zone(guild_id, apply_defaults),
         commands_constants.BIRTHDAY_CONFIG_NOTIFICATION_TIME: config.get("notification_time"),
         commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_MODE: (
             message.get("mode", "default") if apply_defaults else message.get("mode")
@@ -409,7 +412,7 @@ def birthday_manager_cog_data(guild_id: str, apply_defaults: bool = True) -> Dic
     }
 
 
-def config_states() -> List[Dict[str, Any]]:
+async def config_states() -> List[Dict[str, Any]]:
     """Every guild's birthday configuration, in the shape the YAML names it.
 
     This feature stores `channel_id`, folds three settings into
@@ -418,13 +421,13 @@ def config_states() -> List[Dict[str, Any]]:
     card's rendering defaults: an unset value must not arrive as a choice.
     """
     return [
-        birthday_manager_cog_data(config["guild_id"], apply_defaults=False)
-        for config in guild_cogs.find_all_cogs(commands_constants.REMINDERS_BIRTHDAY_KEY)
+        await birthday_manager_cog_data(config["guild_id"], apply_defaults=False)
+        for config in await data().guild_cogs.find_all_cogs(commands_constants.REMINDERS_BIRTHDAY_KEY)
         if config.get("guild_id")
     ]
 
 
-def save_birthday_config_changes(
+async def save_birthday_config_changes(
     guild_id: str, data: Dict[str, Any], updated_by: Optional[str] = None
 ) -> None:
     """Apply the edited settings on top of the saved birthday configuration."""
@@ -438,7 +441,7 @@ def save_birthday_config_changes(
         commands_constants.BIRTHDAY_CONFIG_DEFAULT_MESSAGE_CONTENT,
     }
     if config_keys.intersection(data):
-        config = birthday_config(guild_id) or {}
+        config = await birthday_config(guild_id) or {}
         channel_entry = data.get(commands_constants.BIRTHDAY_CONFIG_CHANNEL)
         mention_entry = data.get(commands_constants.BIRTHDAY_CONFIG_MENTION_EVERYONE)
         timezone_entry = data.get(commands_constants.BIRTHDAY_CONFIG_TIMEZONE)
@@ -449,10 +452,10 @@ def save_birthday_config_changes(
             if mention_entry is not None
             else bool(config.get("mention_everyone"))
         )
-        timezone_value = _extract_first(timezone_entry) or _server_zone(guild_id)
+        timezone_value = _extract_first(timezone_entry) or await _server_zone(guild_id)
         notification_time = _extract_first(notification_time_entry) or config.get("notification_time")
         default_message = _default_message_from_data(data, config)
-        setup_birthdays(
+        await setup_birthdays(
             guild_id,
             str(channel_id),
             mention_everyone,
@@ -475,9 +478,9 @@ def _extract_first(entry: Any) -> Any:
     return values
 
 
-def _server_zone(guild_id: str, required: bool = True) -> Optional[str]:
+async def _server_zone(guild_id: str, required: bool = True) -> Optional[str]:
     try:
-        return server_setting(guild_id, commands_constants.SERVER_TIMEZONE_KEY)
+        return await server_setting(guild_id, commands_constants.SERVER_TIMEZONE_KEY)
     except ServerSettingsMissing:
         if required:
             raise
@@ -517,26 +520,27 @@ def _default_message_from_data(data: Dict[str, Any], config: Dict[str, Any]) -> 
     )
 
 
-def reschedule_birthdays(guild_id: str, timezone_value: str, notification_time: str) -> None:
+async def reschedule_birthdays(guild_id: str, timezone_value: str, notification_time: str) -> None:
     """Move every birthday reminder of a guild to `timezone_value` at `notification_time`,
     once per reminder."""
     if not timezone_value or not notification_time:
         return
 
     moved = set()
-    for mm_dd in sorted({item["date"] for item in find_birthdays_by_guild(guild_id)}):
+    for mm_dd in sorted({item["date"] for item in await find_birthdays_by_guild(guild_id)}):
         schedule_id = birthday_schedule_id(guild_id, mm_dd)
-        schedule = schedules_data.find_schedule(schedule_id) or {}
+        schedule = await data().keiko_schedules.find_schedule(schedule_id) or {}
         reminder_id = schedule.get("reminder_id")
         if not reminder_id:
             continue
-        schedules_data.set_schedule_due(
+        await data().keiko_schedules.set_schedule_due(
             schedule_id, next_birthday_due(mm_dd, timezone_value, notification_time)
         )
         if reminder_id in moved:
             continue
         moved.add(reminder_id)
-        reminders_service.update_reminder(
+        await to_thread(
+            reminders_service.update_reminder,
             reminder_id,
             mm_dd,
             timezone_name=timezone_value,
@@ -544,13 +548,13 @@ def reschedule_birthdays(guild_id: str, timezone_value: str, notification_time: 
         )
 
 
-def birthday_settings_rows(
+async def birthday_settings_rows(
     guild_id: str, locale: str, today: Optional[date] = None
 ) -> List[Dict[str, Any]]:
     """The panel rows of the birthday feature, from its own collections, counted from `today`."""
-    config = birthday_config(guild_id) or {}
-    stats = get_birthday_stats(guild_id, today=today)
-    upcoming = get_upcoming_birthdays(guild_id, limit=3, today=today)
+    config = await birthday_config(guild_id) or {}
+    stats = await get_birthday_stats(guild_id, today=today)
+    upcoming = await get_upcoming_birthdays(guild_id, limit=3, today=today)
     upcoming_lines = [
         f"<@{item['user_id']}>: {format_mm_dd_label(item['date'], locale)}"
         for item in upcoming
@@ -572,7 +576,7 @@ def birthday_settings_rows(
         {
             "key": "timezone",
             "title": _mb("settings.timezone", locale),
-            "value": _server_zone(guild_id),
+            "value": await _server_zone(guild_id),
         },
         {
             "key": "notification_time",
@@ -598,14 +602,14 @@ def birthday_settings_rows(
     ]
 
 
-def birthday_month_pages(
+async def birthday_month_pages(
     guild_id: str, locale: str, today: Optional[date] = None
 ) -> List[Tuple[str, str, List[str]]]:
     """The birthdays in date order, a month per page from this one, or one empty page."""
     today = today or utc_today()
     title = _mb("pages.title", locale)
     by_month: Dict[int, List[Dict[str, Any]]] = {}
-    for item in find_birthdays_by_guild(guild_id):
+    for item in await find_birthdays_by_guild(guild_id):
         try:
             month, _day = parse_mm_dd(str(item.get("date")))
         except (TypeError, ValueError):
@@ -625,11 +629,11 @@ def birthday_month_pages(
     return pages or [(title, _mb("pages.empty", locale), [])]
 
 
-def birthday_found_members(guild_id: str, locale: str) -> Dict[str, List[str]]:
+async def birthday_found_members(guild_id: str, locale: str) -> Dict[str, List[str]]:
     """Each listed member's birthday messages, for the screen a search opens."""
-    config = birthday_config(guild_id) or {}
+    config = await birthday_config(guild_id) or {}
     found: Dict[str, List[str]] = {}
-    for item in find_birthdays_by_guild(guild_id):
+    for item in await find_birthdays_by_guild(guild_id):
         source, title, content = message_source(item, config, locale)
         label = _mb(f"found.messages.{source}", locale)
         block = format_value([title, content], "code-block", locale)
@@ -708,7 +712,7 @@ async def send_birthday_preview(
     if user_id and guild:
         member = await members.find(guild, user_id) or member
 
-    config = await asyncio.to_thread(birthday_config, str(guild.id)) or {}
+    config = await birthday_config(str(guild.id)) or {}
     if values.get("default_message_mode"):
         config = {
             "default_message": {
@@ -735,9 +739,9 @@ async def send_birthday_preview(
     await interaction.followup.send(embed=embed, ephemeral=True)
 
 
-def birthday_stats_lines(guild_id: str, locale: str, today: Optional[date] = None) -> List[str]:
+async def birthday_stats_lines(guild_id: str, locale: str, today: Optional[date] = None) -> List[str]:
     """The birthdays' own figures for their statistics, counted from `today`."""
-    stats = get_birthday_stats(guild_id, today)
+    stats = await get_birthday_stats(guild_id, today)
     return [
         f"🎂 **{_mb('stats.fields.total', locale)}:** {stats['total']}",
         f"📅 **{_mb('stats.fields.this-month', locale)}:** {stats['current_month']}",
@@ -747,7 +751,7 @@ def birthday_stats_lines(guild_id: str, locale: str, today: Optional[date] = Non
     ]
 
 
-def setup_birthdays(
+async def setup_birthdays(
     guild_id: str,
     channel_id: str,
     mention_everyone: bool,
@@ -758,21 +762,21 @@ def setup_birthdays(
 ) -> Dict[str, Any]:
     """Save the birthday configuration in the server's zone, a new zone chosen here
     becoming the server's for new reminders; a new hour moves every reminder to it."""
-    previous_config = birthday_config(guild_id) or {}
-    previous_zone = str(_server_zone(guild_id))
+    previous_config = await birthday_config(guild_id) or {}
+    previous_zone = str(await _server_zone(guild_id))
     zone = timezone_value or previous_zone
-    config = save_birthday_config(
+    config = await save_birthday_config(
         guild_id, channel_id, mention_everyone, notification_time, default_message,
         updated_by,
     )
     if zone != previous_zone:
-        save_server_setting(guild_id, commands_constants.SERVER_TIMEZONE_KEY, zone)
+        await save_server_setting(guild_id, commands_constants.SERVER_TIMEZONE_KEY, zone)
     if previous_config.get("notification_time") != config.get("notification_time"):
-        reschedule_birthdays(guild_id, zone, config.get("notification_time"))
+        await reschedule_birthdays(guild_id, zone, config.get("notification_time"))
     return config
 
 
-def save_setup_form(
+async def save_setup_form(
     guild_id: str,
     responses: List[Dict[str, Any]],
     updated_by: Optional[str] = None,
@@ -788,7 +792,7 @@ def save_setup_form(
     if isinstance(items, dict):
         items = [items]
 
-    setup_birthdays(
+    await setup_birthdays(
         guild_id,
         str(channel_id),
         mention_everyone,
@@ -801,7 +805,7 @@ def save_setup_form(
     saved_items = []
     for item in items:
         user_id = str(_nested_value(item, "user") or "")
-        saved_item = save_form_birthday_item(
+        saved_item = await save_form_birthday_item(
             guild_id, item, (display_names or {}).get(user_id)
         )
         if saved_item:
@@ -809,14 +813,14 @@ def save_setup_form(
     return saved_items
 
 
-def save_form_birthday_item(
+async def save_form_birthday_item(
     guild_id: str, item: Dict[str, Any], display_name: Optional[str] = None
 ) -> Optional[Dict[str, Any]]:
     birthday = _parse_form_birthday_item(item)
     if not birthday:
         return None
 
-    return upsert_birthday(
+    return await upsert_birthday(
         guild_id,
         birthday["user_id"],
         birthday["date"],
@@ -878,13 +882,13 @@ def _parse_form_birthday_item(item: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     }
 
 
-def disable_birthdays(guild_id: str) -> None:
+async def disable_birthdays(guild_id: str) -> None:
     """Forget every birthday, reminder and the configuration of the guild."""
-    dates = {item["date"] for item in find_birthdays_by_guild(guild_id)}
-    members_data.unset_option_in_guild(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY)
-    guild_cogs.delete_cog_by_guild_id(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY)
+    dates = {item["date"] for item in await find_birthdays_by_guild(guild_id)}
+    await data().guild_members.unset_option_in_guild(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY)
+    await data().guild_cogs.delete_cog_by_guild_id(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY)
     for mm_dd in sorted(dates):
-        release_birthday_date(guild_id, mm_dd)
+        await release_birthday_date(guild_id, mm_dd)
 
 
 def to_summary_composition(item: Dict[str, Any]) -> Dict[str, Any]:

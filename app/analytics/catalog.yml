@@ -1,13 +1,18 @@
 # Product analytics catalog — the single source of truth for what Keiko records.
 #
-# `emit()` refuses any event name that is not declared here, and
+# `record()` refuses any event name that is not declared here, and
 # tests/behavioral/contracts/test_analytics_catalog.py fails the build when the
 # code and this file disagree. Reference: docs/analytics.md
 #
-# class:  event   -> one document in guild.analytics_events (TTL retention_days)
-#         counter -> incremented in guild.analytics_guild_month (no document)
-#         audit   -> also written to events.<cog_key> by insert_cog_event
-# actor:  user | system | job
+# collection: changes      -> events.changes, written at once, kept
+#             activity     -> events.activity, written in the sink's batch, 90 days
+#             interactions -> events.interactions, written in the sink's batch, 90 days
+#             none         -> no document; the sink still counts it
+# actor:      user | bot | job (the kind of actor.id)
+# private:    props kept in the database and left out of the monthly archive
+# counts_as_value: true when the event is the feature doing its job (lifetime value)
+# keiko_tally: {name, kind, prop} -> analytics.keiko `{name}:total` and `{name}:{kind}:{prop}`
+# keiko_wide: true when the event is about Keiko itself: it names no server, whatever the trace's
 
 sources:
   - slash
@@ -28,133 +33,121 @@ results:
 events:
   command.invoked:
     version: 1
-    class: [event, counter]
+    collection: interactions
     description: An application command reached the bot.
     emitted_at: app/cogs/events.py — Events.on_interaction
     actor: user
     required: [command, source]
-    optional: [feature, is_admin]
-    retention_days: 90
+    optional: [is_admin]
     cardinality_risk: low
 
   command.failed:
     version: 1
-    class: [event, counter]
+    collection: interactions
     description: A command raised an error that reached the error handler.
     emitted_at: app/cogs/errors.py — Errors.on_app_command_error
     actor: user
     required: [command, error_type]
-    optional: [feature, step_key]
-    retention_days: 90
+    optional: [step_key]
     cardinality_risk: low
 
   feature.setup_opened:
     version: 1
-    class: [event]
+    collection: interactions
     description: The first-time configuration form was opened for a feature.
     emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (feature.setup_opened)
     actor: user
-    required: [feature, source, session_id]
+    required: [source]
     optional: [is_admin]
-    retention_days: 90
     cardinality_risk: low
 
   feature.manager_opened:
     version: 1
-    class: [event]
+    collection: interactions
     description: The manager panel of an already configured feature was opened.
     emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (feature.manager_opened)
     actor: user
-    required: [feature, source, session_id]
+    required: [source]
     optional: [enabled, is_admin]
-    retention_days: 90
     cardinality_risk: low
 
   setup.step_viewed:
     version: 1
-    class: [event]
+    collection: interactions
     description: A form step was rendered to the user.
     emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (Engine.show)
     actor: user
-    required: [feature, session_id, step_key, step_action, step_index]
+    required: [step_key, step_action, step_index]
     optional: [ms_since_prev]
-    retention_days: 90
     cardinality_risk: low
 
   setup.step_completed:
     version: 1
-    class: [event]
+    collection: interactions
     description: A step left the screen, with how long it was on it.
     emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (Engine.show)
     actor: user
-    required: [feature, session_id, step_key, step_action]
+    required: [step_key, step_action]
     optional: [ms_on_step, choice]
-    retention_days: 90
     cardinality_risk: low
 
   setup.step_back:
     version: 1
-    class: [event]
+    collection: interactions
     description: The user navigated back to the previous step.
     emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_back)
     actor: user
-    required: [feature, session_id, step_key]
+    required: [step_key]
     optional: []
-    retention_days: 90
     cardinality_risk: low
 
   setup.validation_failed:
     version: 1
-    class: [event, counter]
+    collection: interactions
     description: A YAML validator refused the value submitted in a modal.
     emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (Engine.refuse)
     actor: user
-    required: [feature, session_id, step_key, validation, error_key]
+    required: [step_key, validation, error_key]
     optional: [attempt_n]
-    retention_days: 90
     cardinality_risk: low
 
   setup.required_missing:
     version: 1
-    class: [event, counter]
+    collection: interactions
     description: The configuration card was confirmed with required fields empty.
     emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (Engine.refuse, card done)
     actor: user
-    required: [feature, session_id, card_key, missing_count]
+    required: [card_key, missing_count]
     optional: [missing_keys]
-    retention_days: 90
     cardinality_risk: low
 
   setup.completed:
     version: 1
-    class: [event, audit]
+    collection: interactions
     description: A configuration form was finished and persisted.
     emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_commit_succeeded)
     actor: user
-    required: [feature, session_id, source, duration_ms, steps_viewed]
+    required: [source, duration_ms, steps_viewed]
     optional: [validation_failures, back_count, duration_bucket, configured_steps, item_count]
-    retention_days: 90
-    audit: true
     cardinality_risk: low
 
   feature.commit_failed:
     version: 1
-    class: [event, counter]
+    collection: interactions
     description: A feature's commit raised before finishing and the session closed as a failure (the error, or the duplicate copy when the commit ended the session). A refused change that keeps the session open, or that closes it after another panel's Disable, is not one and emits nothing.
     emitted_at: app/settings/form/form.py — engine.emit, from Decision.analytics (on_commit_failed)
     actor: user
-    required: [feature, session_id, commit_kind, error_type]
+    required: [commit_kind, error_type]
     optional: [step_key]
-    retention_days: 90
     cardinality_risk: low
 
   setup.discarded:
     version: 1
-    class: [event]
+    collection: interactions
     description: The user explicitly discarded a configuration in progress.
     emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_discard_confirmed)
     actor: user
-    required: [feature, session_id]
+    required: []
     optional:
       - step_key
       - steps_viewed
@@ -162,16 +155,15 @@ events:
       - back_count
       - duration_ms
       - duration_bucket
-    retention_days: 90
     cardinality_risk: low
 
   setup.abandoned:
     version: 1
-    class: [event, counter]
+    collection: interactions
     description: The view timed out with the configuration unfinished.
     emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_expired)
     actor: user
-    required: [feature, session_id]
+    required: []
     optional:
       - step_key
       - steps_viewed
@@ -179,16 +171,15 @@ events:
       - back_count
       - duration_ms
       - duration_bucket
-    retention_days: 90
     cardinality_risk: low
 
   setup.discard_recovered:
     version: 1
-    class: [event]
+    collection: interactions
     description: The user opened the discard prompt and chose to keep the setup.
     emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_keep_editing)
     actor: user
-    required: [feature, session_id]
+    required: []
     optional:
       - step_key
       - steps_viewed
@@ -196,155 +187,149 @@ events:
       - back_count
       - duration_ms
       - duration_bucket
-    retention_days: 90
     cardinality_risk: low
 
   config.changed:
     version: 1
-    class: [event, audit]
+    collection: changes
     description: An existing configuration was edited through the manager, or a server setting on the /setup settings screen (feature `settings`).
-    emitted_at: app/settings/features/feature.py — record_event, from the feature commit (edited); app/core/cogs.py — insert_cog_event for state changes made outside a form
+    emitted_at: app/settings/features/feature.py — GenericCogFeature.commit (edit, toggle, edit_item); app/services/setup.py — change_setting, for a server setting
     actor: user
-    required: [feature, source]
-    optional: [session_id, changed_keys, changed_count]
-    retention_days: 90
-    audit: true
+    required: [source]
+    optional: [changed_keys, changed_count]
     cardinality_risk: low
 
   feature.enabled:
     version: 1
-    class: [event, audit]
+    collection: changes
     description: A feature became active for a guild.
-    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_commit_succeeded)
+    emitted_at: app/settings/features/feature.py — GenericCogFeature.commit (setup)
     actor: user
-    required: [feature, source]
-    optional: [session_id]
-    retention_days: 90
-    audit: true
+    required: [source]
+    optional: []
     cardinality_risk: low
 
   feature.paused:
     version: 1
-    class: [event, audit]
+    collection: changes
     description: A feature was paused from the manager.
-    emitted_at: app/settings/features/feature.py — record_event, from the feature commit (paused); app/core/cogs.py — insert_cog_event for state changes made outside a form
+    emitted_at: app/settings/features/feature.py — GenericCogFeature.commit (pause); app/core/servers.py — pause_features, as the bot, when Keiko leaves a server
     actor: user
-    required: [feature, source]
+    required: [source]
     optional: [days_since_enabled, value_events_since_enabled]
-    retention_days: 90
-    audit: true
     cardinality_risk: low
 
   feature.unpaused:
     version: 1
-    class: [event, audit]
+    collection: changes
     description: A paused feature was resumed.
-    emitted_at: app/settings/features/feature.py — record_event, from the feature commit (unpaused); app/core/cogs.py — insert_cog_event for state changes made outside a form
+    emitted_at: app/settings/features/feature.py — GenericCogFeature.commit (unpause)
     actor: user
-    required: [feature, source]
+    required: [source]
     optional: [days_since_enabled]
-    retention_days: 90
-    audit: true
     cardinality_risk: low
 
   feature.disabled:
     version: 1
-    class: [event, audit]
+    collection: changes
     description: A feature was turned off and its configuration removed.
-    emitted_at: app/settings/features/feature.py — record_event, from the feature commit (disabled); app/core/cogs.py — insert_cog_event for state changes made outside a form
+    emitted_at: app/settings/features/feature.py — GenericCogFeature.commit (disable)
     actor: user
-    required: [feature, source]
+    required: [source]
     optional: [days_since_enabled, value_events_since_enabled]
-    retention_days: 90
-    audit: true
     cardinality_risk: low
 
   feature.item_added:
     version: 1
-    class: [event, audit]
+    collection: changes
     description: An item was added to a composition-based feature.
-    emitted_at: app/settings/features/feature.py — record_event, from the feature commit (added); app/core/cogs.py — insert_cog_event for state changes made outside a form
+    emitted_at: app/settings/features/feature.py — GenericCogFeature.commit (add_item)
     actor: user
-    required: [feature, source]
+    required: [source]
     optional: [item_count]
-    retention_days: 90
-    audit: true
     cardinality_risk: low
 
   feature.item_removed:
     version: 1
-    class: [event, audit]
+    collection: changes
     description: An item was removed from a composition-based feature.
-    emitted_at: app/settings/features/feature.py — record_event, from the feature commit (removed); app/core/cogs.py — insert_cog_event for state changes made outside a form
+    emitted_at: app/settings/features/feature.py — GenericCogFeature.commit (remove_item)
     actor: user
-    required: [feature, source]
+    required: [source]
     optional: [item_count]
-    retention_days: 90
-    audit: true
     cardinality_risk: low
 
   value.delivered:
     version: 1
-    class: [counter]
+    collection: none
+    counts_as_value: true
     description: The feature did the thing the user configured it to do.
     emitted_at: the send/assign call site of each feature service
-    actor: system
-    required: [feature]
+    actor: bot
+    required: []
     optional: [outcome]
-    retention_days: 0
     cardinality_risk: low
 
   value.blocked_by_permission:
     version: 1
-    class: [event, counter]
+    collection: activity
     description: Delivery failed because Discord refused the bot's permission.
     emitted_at: the same call sites as value.delivered, failure branch
-    actor: system
-    required: [feature, error_type]
+    actor: bot
+    required: [error_type]
     optional: []
-    retention_days: 90
     cardinality_risk: low
 
-  feature.action_performed:
+  link.blocked:
     version: 1
-    class: [counter]
-    description: A moderation action was taken automatically.
+    collection: activity
+    counts_as_value: true
+    keiko_tally: {name: blocked, kind: site, prop: host}
+    description: A link the server's rules refuse was found in a message, deleted or not; the member who sent it is the actor.
     emitted_at: app/services/block_links.py — record_blocked_links
-    actor: system
-    required: [feature]
-    optional: [mode, reason, deleted]
-    retention_days: 0
-    cardinality_risk: low
+    actor: user
+    required: [host, mode, reason, deleted]
+    optional: [link, rule, match, channel_id]
+    private: [link]
+    cardinality_risk: medium
 
   feature.tested:
     version: 1
-    class: [event]
+    collection: interactions
     description: The user exercised a preview or diagnostic surface.
     emitted_at: the welcome preview aside (app/settings/features/welcome_messages.py) and the block links diagnostic
     actor: user
-    required: [feature, surface]
-    optional: [session_id]
-    retention_days: 90
+    required: [surface]
+    optional: []
+    cardinality_risk: low
+
+  keiko.settings_changed:
+    version: 1
+    collection: changes
+    keiko_wide: true
+    description: An operator changed Keiko's own settings, its presence or its operator ids.
+    emitted_at: app/services/config.py — update_activity, update_description, update_status; app/services/admin.py — update_admin_configs
+    actor: user
+    required: [group, changed_keys]
+    optional: []
     cardinality_risk: low
 
   guild.joined:
     version: 1
-    class: [event, audit]
+    collection: changes
     description: The bot was added to a guild.
     emitted_at: app/cogs/events.py — Events.on_guild_join
-    actor: system
+    actor: bot
     required: [returning]
     optional: [size_bucket, owner_guilds]
-    retention_days: 90
-    audit: true
     cardinality_risk: low
 
   guild.removed:
     version: 1
-    class: [event, audit]
+    collection: changes
     description: The bot was removed from a guild, with the frozen guild profile.
     emitted_at: app/cogs/events.py — Events.on_guild_remove
-    actor: system
+    actor: bot
     required: [days_in_guild]
     optional:
       - features_configured
@@ -357,51 +342,44 @@ events:
       - distinct_admins
       - greeting_sent
       - first_feature
-    retention_days: 90
-    audit: true
     cardinality_risk: low
 
   guild.greeting_sent:
     version: 1
-    class: [event]
+    collection: activity
     description: The onboarding greeting was posted (or could not be posted).
     emitted_at: app/views/greetings.py — GreetingsView.send
-    actor: system
+    actor: bot
     required: [features_offered, channel_found]
     optional: []
-    retention_days: 90
     cardinality_risk: low
 
   help.opened:
     version: 1
-    class: [event, counter]
+    collection: interactions
     description: The /help command was opened.
     emitted_at: app/services/help.py — send_help, from /help and the Commands buttons of /setup and the greeting
     actor: user
     required: [source]
     optional: []
-    retention_days: 90
     cardinality_risk: low
 
   dashboard.opened:
     version: 1
-    class: [event, counter]
+    collection: interactions
     description: The /setup dashboard was opened.
     emitted_at: app/services/setup.py — open_setup_dashboard, from /setup, the greeting's Setup button and the /help Setup button
     actor: user
     required: [source]
     optional: []
-    retention_days: 90
     cardinality_risk: low
 
   report.submitted:
     version: 1
-    class: [event, audit]
+    collection: interactions
     description: A user sent feedback through /report.
     emitted_at: app/cogs/base/report.py — Report.report
     actor: user
     required: []
     optional: [command]
-    retention_days: 90
-    audit: true
     cardinality_risk: low

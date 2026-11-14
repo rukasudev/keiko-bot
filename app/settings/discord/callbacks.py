@@ -232,7 +232,7 @@ class Runtime:
     ) -> None:
         key = opening.key
         feature = feature_for(key)
-        settings = await asyncio.to_thread(server_settings, guild_id)
+        settings = await server_settings(guild_id)
         opened = await feature.open(
             OpenContext(guild_id, str(interaction.user.id), locale, guild, member)
         )
@@ -879,13 +879,13 @@ class Runtime:
     async def _history(
         self, interaction: discord.Interaction, session: FormSession
     ) -> None:
-        from app.core.cogs import find_cog_events_by_guild
+        from app.core.cogs import find_changes
         from app.core.manager import parse_history_data, parse_history_desc
         from app.views.records import RecordsBrowser
 
         locale = session.origin.locale
         browser = RecordsBrowser(
-            fetch=lambda _interaction, _user: find_cog_events_by_guild(
+            fetch=lambda _interaction, _user: find_changes(
                 session.origin.guild_id, session.key
             ),
             to_fields=parse_history_data,

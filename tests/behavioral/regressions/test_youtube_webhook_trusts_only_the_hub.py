@@ -81,6 +81,7 @@ import redis
 import requests
 from botocore.exceptions import ClientError
 
+from app.data import data
 from app import config as config_module
 from app import logger as logger_module
 from app.api import config as api_config
@@ -110,7 +111,7 @@ MRBEAST = "UCX6OQ3DkcsbYNE6H8uQQuVA"
 STRANGER = "UC-stranger-channel-0000"
 TOPIC = "https://www.youtube.com/xml/feeds/videos.xml?channel_id={}"
 VIDEO_LINK = "https://www.youtube.com/watch?v=video-1"
-CLAIM = "youtube:video:video-1:notified"
+CLAIM = "claim:youtube:video:video-1"
 HOSTILE_BODY = (
     "<yt:videoId></yt:videoId><yt:channelId></yt:channelId><published></published>" * 1000
 ).encode()[: 64 * 1024]
@@ -558,7 +559,7 @@ async def test_a_server_that_refuses_the_announcement_is_counted(
 
     assert len(hub.channel._sent_messages) == 1
     refused = [event["guild_id"] for event in analytics_events
-               if event["event"] == "value.blocked_by_permission"]
+               if event["type"] == "value.blocked_by_permission"]
     assert refused == [str(closed.id)]
     assert errors_in(caplog) == [], "a missing permission is a warning, not an error"
 
@@ -906,7 +907,7 @@ async def test_a_renewal_youtube_answers_with_an_error_is_tried_again_in_an_hour
     from app.integrations.reminder_webhook import REMINDER_TIMEZONE
     from app.webhooks.reminder import renew_youtube_subscription
 
-    insert_renewal_reminder(7001, "pewdiepie")
+    await insert_renewal_reminder(7001, "pewdiepie")
     hub.google.errors["channels"] = QUOTA_EXCEEDED
 
     renew_youtube_subscription(7001)
@@ -985,7 +986,6 @@ async def test_the_start_counts_only_the_channels_the_hub_accepted(hub, deps, ca
 
 
 async def test_the_start_stamps_every_youtuber_the_hub_took_again(hub, deps, monkeypatch):
-    from app.data.keiko.subscriptions import subscription_state
     from app.services.notifications_youtube_video import insert_renewal_reminder
     from app.integrations import reminder_webhook
 
@@ -998,15 +998,15 @@ async def test_the_start_stamps_every_youtuber_the_hub_took_again(hub, deps, mon
 
     monkeypatch.setattr(reminder_webhook, "datetime", Clock, raising=False)
     follow(deps, 2002, "mrbeast")
-    insert_renewal_reminder(7001, "pewdiepie")
-    insert_renewal_reminder(7002, "mrbeast")
+    await insert_renewal_reminder(7001, "pewdiepie")
+    await insert_renewal_reminder(7002, "mrbeast")
     hub.google.hub_statuses[TOPIC.format(MRBEAST)] = 503
 
     notifications_youtube_video.resubscribe_followed_channels()
 
-    stamped = subscription_state("youtube", "pewdiepie").get("hub_confirmed_at")
+    stamped = (await data().keiko_subscriptions.subscription_state("youtube", "pewdiepie")).get("hub_confirmed_at")
     assert stamped is not None and stamped.astimezone(timezone.utc) == moment.astimezone(timezone.utc)
-    assert subscription_state("youtube", "mrbeast") == {}, "the hub said 503"
+    assert await data().keiko_subscriptions.subscription_state("youtube", "mrbeast") == {}, "the hub said 503"
 
 
 async def test_an_answer_from_the_hub_keeps_neither_the_exception_nor_the_secrets_it_held(hub):

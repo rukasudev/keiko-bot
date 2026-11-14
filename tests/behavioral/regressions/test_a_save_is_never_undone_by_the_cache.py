@@ -23,6 +23,7 @@ from datetime import datetime, timezone
 
 import pytest
 
+from app.data import data, wait
 from app.core import cache, journey
 from app.settings.features import feature_for
 from app.settings.features.feature import CommitContext
@@ -34,8 +35,8 @@ from tests.behavioral.golden.paths import notifications_twitch as twitch
 from tests.behavioral.golden.paths import notifications_youtube_video as youtube
 from tests.behavioral.golden.paths.common import seed_document
 from tests.mocks.discord import create_guild, create_member
-from app.data.guild.cogs import find_cog_by_guild_id
 from tests.generators.moderations import seed_cog, stored_cog
+from tests.generators.events import lifecycle
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
@@ -168,22 +169,22 @@ def _story_of(story, admin_id):
     return next(item for item in story.values() if str(item.user_id) == admin_id)
 
 
-def _saved(deps, form):
-    return find_cog_by_guild_id(GUILD_ID, form)
+async def _saved(deps, form):
+    return await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, form)
 
 
 def _streamers(deps):
-    document = _saved(deps, twitch.FORM)
+    document = wait(_saved(deps, twitch.FORM))
     return [item["streamer"]["value"] for item in document["notifications"]["values"]]
 
 
 def _youtubers(deps):
-    document = _saved(deps, youtube.FORM)
+    document = wait(_saved(deps, youtube.FORM))
     return [item["youtuber"]["value"] for item in document["notifications"]["values"]]
 
 
 def _links(deps):
-    document = _saved(deps, block_links.FORM)
+    document = wait(_saved(deps, block_links.FORM))
     return [item["link"]["value"] for item in document["custom_links"]["values"]]
 
 
@@ -242,10 +243,7 @@ def _closed_in_place(scenario):
 
 
 def _recorded(deps, form):
-    return [
-        event["event"]
-        for event in deps.mongo_client.events[form].find({"guild_id": GUILD_ID})
-    ]
+    return lifecycle(deps.mongo_client, GUILD_ID, form)
 
 
 async def _two_panels(scenario_factory, form):
@@ -412,7 +410,7 @@ async def test_an_addition_after_another_panel_disabled_the_feature_subscribes_n
     await first.submit_confirmation()
     await _add_streamer(second, "shroud")
 
-    assert _saved(deps, twitch.FORM) is None
+    assert await _saved(deps, twitch.FORM) is None
     assert "shroud" not in _subscribed_streamers(deps)
     told = _story_of(story, HELPER)
     assert told.result == "discarded"
@@ -502,7 +500,7 @@ async def test_two_websites_turned_on_from_two_panels_both_stay_on(
     await first.click("Spotify")
     await second.click("Twitter")
 
-    saved = _saved(deps, block_links.FORM)["allowed_links"]
+    saved = (await _saved(deps, block_links.FORM))["allowed_links"]
     assert saved == {
         "style": "bullet",
         "values": ["youtube.com", "twitch.tv", "spotify.com", "twitter.com"],
@@ -517,7 +515,7 @@ async def test_a_website_turned_on_from_two_panels_stays_on(scenario_factory, de
     await first.click("Spotify")
     await second.click("Spotify")
 
-    saved = _saved(deps, block_links.FORM)["allowed_links"]
+    saved = (await _saved(deps, block_links.FORM))["allowed_links"]
     assert saved["values"] == ["youtube.com", "twitch.tv", "spotify.com"], (
         "each click asks for the state its screen showed, so both turn it on"
     )
@@ -565,7 +563,7 @@ async def test_a_pause_after_another_panel_disabled_the_feature_changes_nothing(
     await second.click(action)
     await second.submit_confirmation()
 
-    assert _saved(deps, block_links.FORM) is None
+    assert await _saved(deps, block_links.FORM) is None
     assert _recorded(deps, block_links.FORM) == ["disabled"]
     assert _closed_in_place(second)
 
@@ -585,7 +583,7 @@ async def test_an_edit_after_another_panel_disabled_the_feature_changes_nothing(
     await second.submit_modal({ANSWER_FIELD: "No links around here!"})
     await second.click("done")
 
-    assert _saved(deps, block_links.FORM) is None
+    assert await _saved(deps, block_links.FORM) is None
     assert _recorded(deps, block_links.FORM) == ["disabled"]
     assert _closed_in_place(second)
 
@@ -655,7 +653,7 @@ async def test_disable_lets_every_streamer_go_even_when_the_flag_write_fails(
     await scenario.click("disable")
     await scenario.submit_confirmation()
 
-    assert _saved(deps, twitch.FORM) is None
+    assert await _saved(deps, twitch.FORM) is None
     assert _subscribed_streamers(deps) == set()
 
 
@@ -670,7 +668,7 @@ async def test_unpausing_subscribes_every_saved_streamer_again(scenario_factory,
     await scenario.click("unpause")
     await scenario.submit_confirmation()
 
-    assert _saved(deps, twitch.FORM)["enabled"] is True
+    assert (await _saved(deps, twitch.FORM))["enabled"] is True
     assert _subscribed_streamers(deps) == {"gaules", "cellbit"}
 
 
@@ -684,7 +682,7 @@ async def test_unpausing_subscribes_every_saved_youtuber_again(scenario_factory,
     await scenario.click("unpause")
     await scenario.submit_confirmation()
 
-    assert _saved(deps, youtube.FORM)["enabled"] is True
+    assert (await _saved(deps, youtube.FORM))["enabled"] is True
     assert deps.youtube.subscribe_calls == ["UC-lHJZR3Gqxm24_Vd_AJ5Yw"]
 
 
@@ -693,23 +691,22 @@ async def test_unpausing_subscribes_every_saved_youtuber_again(scenario_factory,
 async def test_a_list_is_written_only_while_it_is_saved_exactly_as_read(deps):
     """MongoDB compares an embedded document field by field and in order, and
     `{}` matches only an empty one: the compare-and-set must hold under it."""
-    from app.data.guild.cogs import update_cog_if_unchanged_async
 
     seed_document(deps, twitch.FORM, twitch.ENABLED)
-    saved = _saved(deps, twitch.FORM)["notifications"]
+    saved = (await _saved(deps, twitch.FORM))["notifications"]
     emptied = {"style": "composition", "values": []}
     reordered = {"values": saved["values"], "style": saved["style"]}
 
-    assert not await update_cog_if_unchanged_async(
+    assert not await data().guild_cogs.update_cog_if_unchanged(
         GUILD_ID, twitch.FORM, "notifications", reordered, emptied
     )
-    assert not await update_cog_if_unchanged_async(
+    assert not await data().guild_cogs.update_cog_if_unchanged(
         GUILD_ID, twitch.FORM, "notifications", {}, emptied
     )
-    assert await update_cog_if_unchanged_async(
+    assert await data().guild_cogs.update_cog_if_unchanged(
         GUILD_ID, twitch.FORM, "notifications", saved, emptied
     )
-    assert _saved(deps, twitch.FORM)["notifications"] == emptied
+    assert (await _saved(deps, twitch.FORM))["notifications"] == emptied
 
 
 @pytest.mark.usefixtures("outside_dev")
@@ -721,7 +718,7 @@ async def test_an_item_change_keeps_the_shape_the_previous_release_reads(
     _raw_value}` entries, and rebuilds the whole list on its own saves: a change
     may add no key it does not know, at any level, or a rollback would lose it."""
     first, second = await _two_twitch_panels(scenario_factory, deps)
-    seeded = set(_saved(deps, twitch.FORM))
+    seeded = set(await _saved(deps, twitch.FORM))
 
     await _add_streamer(first, "shroud")
     await second.click("section:notifications$0")
@@ -730,7 +727,7 @@ async def test_an_item_change_keeps_the_shape_the_previous_release_reads(
     third = await scenario_factory(locale=LOCALE).start_command(twitch.FORM)
     await _remove(third, "notifications$1")
 
-    document = _saved(deps, twitch.FORM)
+    document = await _saved(deps, twitch.FORM)
     assert set(document) == seeded | {"updated_at"}
     assert set(document["notifications"]) == {"style", "values"}
     assert document["notifications"]["style"] == "composition"

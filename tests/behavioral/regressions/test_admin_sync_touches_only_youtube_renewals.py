@@ -22,8 +22,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from app.data import data, wait
 from app.components.buttons import RemoveDuplicatedReminderButton, SyncronizeRemindersButton
-from app.data.keiko import schedules as schedules_data
 from app.services import subscriptions
 from app.services.notifications_youtube_video import youtube_renewal_id
 from app.services.reminders_birthdays import birthday_schedule_id
@@ -62,13 +62,13 @@ def api(deps, monkeypatch):
     deps.bot.reminder = reminders
     monkeypatch.setattr("app.bot", deps.bot)
     for guild_id, reminder_id in (("1001", "1"), ("1002", "2")):
-        schedules_data.upsert_schedule(
+        wait(data().keiko_schedules.upsert_schedule(
             birthday_schedule_id(guild_id, "05-12"), "birthday", reminder_id
-        )
+        ))
     for youtuber, reminder_id in (("pewdiepie", "3"), ("mrbeast", "4")):
-        schedules_data.upsert_schedule(
+        wait(data().keiko_schedules.upsert_schedule(
             youtube_renewal_id(youtuber), "youtube_renewal", reminder_id
-        )
+        ))
     seed_cog(deps.mongo_client, "notifications_youtube_video", {
         "guild_id": "1001",
         "enabled": True,
@@ -93,8 +93,8 @@ async def test_the_sync_deletes_only_a_renewal_no_server_follows(api):
     await press(await subscriptions.get_reminder_subscriptions(), SyncronizeRemindersButton)
 
     assert api.deleted == ["3"], "the birthdays of 05-12 stay scheduled"
-    assert schedules_data.find_schedule("youtube_renewal:pewdiepie") is None
-    assert schedules_data.find_schedule("birthday:1001:05-12")["reminder_id"] == "1"
+    assert await data().keiko_schedules.find_schedule("youtube_renewal:pewdiepie") is None
+    assert (await data().keiko_schedules.find_schedule("birthday:1001:05-12"))["reminder_id"] == "1"
 
 
 async def test_two_servers_on_one_date_are_not_duplicates(api):

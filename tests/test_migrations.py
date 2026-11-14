@@ -18,7 +18,6 @@ import io
 import json
 import re
 from datetime import datetime
-from types import SimpleNamespace
 
 import pytest
 from bson.son import SON
@@ -538,11 +537,15 @@ def test_the_shipped_files_form_a_clean_plan_from_an_empty_ledger():
         "schema/0002_guild_and_keiko",
         "schema/0003_members_and_schedules",
         "schema/0004_subscriptions_and_messages",
+        "schema/0005_events",
+        "schema/0006_analytics_and_traces",
         "data/0001_bot_defaults",
         "data/0002_server_settings",
         "data/0003_cogs_and_keiko",
         "data/0004_members_and_schedules",
         "data/0005_subscriptions_and_messages",
+        "data/0006_events",
+        "data/0007_analytics",
     ]
 
 
@@ -603,6 +606,21 @@ def test_the_baseline_keeps_the_retention_the_constants_name():
     )
 
 
+def test_the_numbers_and_the_runs_keep_the_retention_the_constants_name():
+    declared = runner.declared_structure()
+    analytics, traces = declared["analytics"], declared["traces"]
+
+    assert analytics["counts"]["updated_at_1"]["expireAfterSeconds"] == (
+        Commands.ANALYTICS_MONTHLY_TTL_SECONDS
+    )
+    assert analytics["lifetime"]["removed_at_1"]["expireAfterSeconds"] == (
+        Commands.ANALYTICS_PROFILE_TTL_SECONDS
+    )
+    assert traces["runs"]["ts_1"]["expireAfterSeconds"] == (
+        Commands.TRACE_RUNS_TTL_SECONDS
+    )
+
+
 def test_the_baseline_configs_hold_no_secret():
     bot_defaults = importlib.import_module("app.migrations.data.0001_bot_defaults")
     defaults = json.dumps([bot_defaults.BOT_DEFAULTS, bot_defaults.NOTION_DEFAULTS])
@@ -619,24 +637,10 @@ def test_no_discord_id_is_written_in_the_migrations():
             assert found == [], path.name
 
 
-class _Ledger:
-    def __init__(self, ids):
-        self.ids = ids
-
-    def find(self, query, projection):
-        return [{"_id": found} for found in self.ids]
-
-
-def _ledger_client(*ids):
-    return SimpleNamespace(migrations=SimpleNamespace(changelog=_Ledger(list(ids))))
-
-
 def test_the_boot_check_names_every_file_the_ledger_lacks_in_both_folders():
-    client = _ledger_client("schema/0001")
-
     with pytest.raises(runner.MigrationsPending) as raised:
-        runner.require_applied(
-            client, [version(1), version(2, "indexes"), data_version(1, "seed")]
+        runner.require_recorded(
+            {"schema/0001"}, [version(1), version(2, "indexes"), data_version(1, "seed")]
         )
 
     assert "schema/0002_indexes, data/0001_seed" in str(raised.value)
@@ -645,26 +649,25 @@ def test_the_boot_check_names_every_file_the_ledger_lacks_in_both_folders():
 
 
 def test_the_boot_check_accepts_a_ledger_newer_than_the_code_in_each_folder():
-    client = _ledger_client("schema/0001", "schema/0002", "data/0001", "data/0002")
+    recorded = {"schema/0001", "schema/0002", "data/0001", "data/0002"}
 
-    runner.require_applied(client, [version(1), data_version(1)])
+    runner.require_recorded(recorded, [version(1), data_version(1)])
 
 
 def test_the_boot_check_refuses_a_misnamed_file(tmp_path):
     write_files(tmp_path, "schema", "0001_first.py", "2_second.py")
 
     with pytest.raises(runner.MigrationsPending) as raised:
-        runner.require_applied(_ledger_client("schema/0001"), root=tmp_path)
+        runner.require_recorded({"schema/0001"}, root=tmp_path)
 
     assert "schema/2_second.py is not named NNNN_slug.py" in str(raised.value)
 
 
 def test_the_boot_check_refuses_two_files_with_one_number():
-    client = _ledger_client("data/0001", "data/0002")
-
     with pytest.raises(runner.MigrationsPending) as raised:
-        runner.require_applied(
-            client, [data_version(1), data_version(2, "a"), data_version(2, "b")]
+        runner.require_recorded(
+            {"data/0001", "data/0002"},
+            [data_version(1), data_version(2, "a"), data_version(2, "b")],
         )
 
     assert "data/0002_a and data/0002_b share the id data/0002" in str(raised.value)

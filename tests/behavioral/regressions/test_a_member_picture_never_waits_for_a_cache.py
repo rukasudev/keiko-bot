@@ -41,7 +41,7 @@ async def test_a_birthday_searched_and_edited_shows_the_members_picture(
     """The gateway cache is empty and the recent members keep nobody: each
     screen finds the member it pictures before it is drawn."""
     monkeypatch.setattr(Commands, "MEMBERS_RECENT_SECONDS", 0)
-    birthdays._seed_config(deps, members=("777",))
+    await birthdays._seed_config(deps, members=("777",))
     guild = create_guild()
     friend = create_member(guild, id=777, name="Amiga", cached=False)
     scenario = await scenario_factory(locale="pt-br", guild=guild).start_command(

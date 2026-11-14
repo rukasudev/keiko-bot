@@ -62,12 +62,12 @@ from zoneinfo import ZoneInfo
 import pytest
 import requests
 
+from app.data import data, wait
 from app import logger as logger_module
 from app.api import create_api
 from app.constants import Commands
 from app.core import trace as trace_service
 from app.core.servers import set_feature_enabled
-from app.data.keiko.subscriptions import subscription_state
 from app.services.notifications_youtube_video import find_reminder_by_id, insert_renewal_reminder
 from tests.generators.birthdays import saved_birthday
 from app.integrations import reminder_webhook
@@ -167,9 +167,9 @@ async def keiko(deps, monkeypatch, traces):
     guild_id = str(deps.guild.id)
     channel = deps.guild.text_channels[0]
     create_member(deps.guild, id=MEMBER_ID, name="Tester")
-    save_birthday_config(guild_id, str(channel.id), True)
+    await save_birthday_config(guild_id, str(channel.id), True)
     saved_birthday(guild_id, str(MEMBER_ID), "05-12", reminder_id=str(BIRTHDAY_REMINDER))
-    set_feature_enabled(guild_id, Commands.REMINDERS_BIRTHDAY_KEY, True)
+    await set_feature_enabled(guild_id, Commands.REMINDERS_BIRTHDAY_KEY, True)
     follow_youtuber(deps, guild_id, "pewdiepie")
 
     return SimpleNamespace(
@@ -265,7 +265,7 @@ async def test_a_birthday_reminder_keiko_did_not_create_does_nothing(keiko):
 
 
 async def test_a_youtube_reminder_keiko_did_not_create_never_reaches_the_reminders_api(keiko):
-    insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
+    await insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
     keiko.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
 
     response = notify(keiko, renewal(reminder_id=BIRTHDAY_REMINDER))
@@ -325,7 +325,7 @@ async def test_a_renewal_whose_channel_is_gone_is_an_error_and_still_moves_ahead
     keiko, caplog, clock,
 ):
     """A one-shot renewal that is not moved ahead never fires again: the chain would end."""
-    insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
+    await insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
 
     with caplog.at_level("INFO"):
         response = notify(keiko, renewal())
@@ -343,7 +343,7 @@ async def test_a_renewal_youtube_or_the_hub_cannot_take_now_is_tried_again_in_an
 ):
     """Keiko owns the retry: whether reminders-api resends a callback that answered 500 is
     not known, and without it one hub 5xx ended the renewal chain for good."""
-    insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
+    await insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
     keiko.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
     if trouble == "timeout":
         def times_out(username):
@@ -373,7 +373,7 @@ async def test_a_renewal_youtube_or_the_hub_cannot_take_now_is_tried_again_in_an
 async def test_a_hub_that_refuses_the_renewal_is_an_error_and_does_not_loop(
     keiko, monkeypatch, caplog, clock,
 ):
-    insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
+    await insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
     keiko.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
     monkeypatch.setattr(
         keiko.youtube, "subscribe_to_new_video_event",
@@ -393,7 +393,7 @@ async def test_a_hub_that_refuses_the_renewal_is_an_error_and_does_not_loop(
 
 async def test_a_renewal_keeps_on_its_schedule_when_it_fires_next(keiko, deps, clock):
     """Each move of the reminder is written on its schedule, a retry an hour ahead."""
-    insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
+    await insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
     keiko.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
 
     notify(keiko, renewal())
@@ -403,7 +403,7 @@ async def test_a_renewal_keeps_on_its_schedule_when_it_fires_next(keiko, deps, c
 
 
 async def test_a_youtube_renewal_renews_the_youtuber_keiko_stored(keiko):
-    insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
+    await insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
     keiko.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
     keiko.youtube.add_channel("UC-stranger", "Stranger", custom_url="@stranger")
 
@@ -417,7 +417,7 @@ async def test_a_youtube_renewal_renews_the_youtuber_keiko_stored(keiko):
 async def test_a_renewal_that_times_out_does_not_stop_the_birthday_after_it(
     keiko, monkeypatch, clock,
 ):
-    insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
+    await insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
 
     def youtube_times_out(username):
         raise requests.Timeout("YouTube did not answer in 10 s")
@@ -434,7 +434,7 @@ async def test_a_renewal_that_times_out_does_not_stop_the_birthday_after_it(
 
 async def test_a_renewal_reminders_api_refuses_to_move_fails_the_callback(keiko, caplog):
     """The one renewal failure Keiko cannot retry by itself: the reminder did not move."""
-    insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
+    await insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
     keiko.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
     keiko.reminders.refusals = 1
 
@@ -456,7 +456,7 @@ async def test_a_renewal_reminders_api_refuses_to_move_fails_the_callback(keiko,
 async def test_a_callback_sent_again_celebrates_no_one_twice_and_renews_again(keiko):
     """If reminders-api sends a callback that answered 500 again (assumed, not verified),
     every reminder in it runs again safely."""
-    insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
+    await insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
     keiko.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
     keiko.reminders.refusals = 1
 
@@ -477,21 +477,21 @@ async def test_a_renewal_for_a_youtuber_no_server_follows_drops_itself(keiko, de
     from app.services.notifications_youtube_video import find_reminder_by_id
 
     deps.mongo_client.guild.cogs.delete_many({"cog": "notifications_youtube_video"})
-    insert_renewal_reminder(given_id, "pewdiepie")
+    await insert_renewal_reminder(given_id, "pewdiepie")
     keiko.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
 
     response = notify(keiko, renewal())
 
     assert response.status_code == 200
     assert keiko.reminders.deleted == [str(RENEWAL_REMINDER)], "the id is kept as text"
-    assert find_reminder_by_id(RENEWAL_REMINDER) is None, "that id stops being Keiko's"
+    assert await find_reminder_by_id(RENEWAL_REMINDER) is None, "that id stops being Keiko's"
     assert keiko.youtube.subscribe_calls == [] and keiko.reminders.updated == []
 
 
 async def test_a_paused_server_keeps_its_youtuber_renewed(keiko, deps, clock):
     deps.mongo_client.guild.cogs.delete_many({"cog": "notifications_youtube_video"})
     follow_youtuber(deps, str(deps.guild.id), "pewdiepie", enabled=False)
-    insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
+    await insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
     keiko.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
 
     response = notify(keiko, renewal())
@@ -502,12 +502,12 @@ async def test_a_paused_server_keeps_its_youtuber_renewed(keiko, deps, clock):
 
 
 async def test_a_renewal_the_hub_takes_stamps_the_youtubers_record(keiko, monkeypatch, clock):
-    insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
+    await insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
     hub_answers(keiko, monkeypatch, {"code": 202})
 
     notify(keiko, renewal())
 
-    stamped = subscription_state("youtube", "pewdiepie")["hub_confirmed_at"]
+    stamped = (await data().keiko_subscriptions.subscription_state("youtube", "pewdiepie"))["hub_confirmed_at"]
     assert stamped.astimezone(timezone.utc) == CLOCK_START.astimezone(timezone.utc)
 
 
@@ -515,8 +515,8 @@ async def test_renewals_that_keep_failing_tell_the_error_channel_once_before_the
     keiko, monkeypatch, caplog, clock,
 ):
     """Hourly retries are warnings; a hub that never comes back would lapse every channel."""
-    insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
-    record_hub_confirmation("pewdiepie", CLOCK_START.astimezone(timezone.utc))
+    await insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
+    await record_hub_confirmation("pewdiepie", CLOCK_START.astimezone(timezone.utc))
     hub_answers(keiko, monkeypatch, {"code": 503})
     reported = []
 
@@ -535,8 +535,8 @@ async def test_renewals_that_keep_failing_tell_the_error_channel_once_before_the
 async def test_the_hub_taking_a_renewal_again_clears_the_lapse_report(
     keiko, monkeypatch, caplog, clock,
 ):
-    insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
-    record_hub_confirmation("pewdiepie", CLOCK_START.astimezone(timezone.utc))
+    await insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
+    await record_hub_confirmation("pewdiepie", CLOCK_START.astimezone(timezone.utc))
     status = {"code": 503}
     hub_answers(keiko, monkeypatch, status)
     reported = []
@@ -773,7 +773,7 @@ STAYED = 4343
 def renewal_api(deps):
     deps.bot.reminder = RecordingReminders()
     deps.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
-    insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
+    wait(insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie"))
     return create_api("dev").test_client()
 
 
@@ -820,7 +820,7 @@ async def test_the_renewal_of_a_youtuber_only_servers_keiko_left_follow_ends(ren
 
     assert response.status_code == 200
     assert deps.bot.reminder.deleted == [str(RENEWAL_REMINDER)]
-    assert find_reminder_by_id(RENEWAL_REMINDER) is None
+    assert await find_reminder_by_id(RENEWAL_REMINDER) is None
     assert deps.youtube.subscribe_calls == [], "nobody Keiko serves follows it any more"
 
 
@@ -902,7 +902,7 @@ def test_a_renewal_reminders_api_already_deleted_is_forgotten_here_too(
     and the callback succeeds. Any other refusal still raises with its status and body.
     """
     deps.mongo_client.guild.cogs.delete_many({"cog": "notifications_youtube_video"})
-    insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie")
+    wait(insert_renewal_reminder(RENEWAL_REMINDER, "pewdiepie"))
 
     response = client.post(
         URL,
@@ -912,7 +912,7 @@ def test_a_renewal_reminders_api_already_deleted_is_forgotten_here_too(
 
     assert reminders_api.deleted == [f"{REMINDER_API_URL}/reminders/{RENEWAL_REMINDER}"]
     assert response.status_code == 200, "a reminder already deleted is not a failure"
-    assert find_reminder_by_id(RENEWAL_REMINDER) is None, "Keiko forgets it too"
+    assert wait(find_reminder_by_id(RENEWAL_REMINDER)) is None, "Keiko forgets it too"
 
 
 def test_any_other_refusal_to_delete_still_raises_with_what_reminders_api_said(
@@ -954,9 +954,9 @@ def test_a_new_renewal_row_expires_once_nothing_has_renewed_it(deps):
     """
     before = datetime.now(timezone.utc)
 
-    insert_renewal_reminder(7001, "pewdiepie")
+    wait(insert_renewal_reminder(7001, "pewdiepie"))
 
-    row = find_reminder_by_id(7001)
+    row = wait(find_reminder_by_id(7001))
     assert before + ROW_SECONDS <= row["expires_at"] <= datetime.now(timezone.utc) + ROW_SECONDS
     assert declared_structure()["keiko"]["schedules"]["expires_at_1"] == {
         "expireAfterSeconds": 0,
@@ -966,13 +966,13 @@ def test_a_new_renewal_row_expires_once_nothing_has_renewed_it(deps):
 
 @pytest.mark.unit
 def test_a_renewal_the_hub_takes_keeps_its_row_alive(deps):
-    insert_renewal_reminder(7001, "pewdiepie")
+    wait(insert_renewal_reminder(7001, "pewdiepie"))
     later = datetime.now(timezone.utc) + timedelta(days=30)
 
-    record_hub_confirmation("pewdiepie", later)
+    wait(record_hub_confirmation("pewdiepie", later))
 
-    row = find_reminder_by_id(7001)
-    assert subscription_state("youtube", "pewdiepie")["hub_confirmed_at"] == later
+    row = wait(find_reminder_by_id(7001))
+    assert wait(data().keiko_subscriptions.subscription_state("youtube", "pewdiepie"))["hub_confirmed_at"] == later
     assert row["expires_at"] == later + ROW_SECONDS
 
 
@@ -983,8 +983,8 @@ def test_a_row_v090_wrote_never_gets_an_expiry(deps):
         {"_id": "youtube_renewal:pewdiepie", "kind": "youtube_renewal", "reminder_id": "6001"}
     )
 
-    record_hub_confirmation("pewdiepie", datetime.now(timezone.utc))
+    wait(record_hub_confirmation("pewdiepie", datetime.now(timezone.utc)))
 
-    row = find_reminder_by_id(6001)
-    assert subscription_state("youtube", "pewdiepie")["hub_confirmed_at"]
+    row = wait(find_reminder_by_id(6001))
+    assert wait(data().keiko_subscriptions.subscription_state("youtube", "pewdiepie"))["hub_confirmed_at"]
     assert "expires_at" not in row, "a row without the field must never expire"

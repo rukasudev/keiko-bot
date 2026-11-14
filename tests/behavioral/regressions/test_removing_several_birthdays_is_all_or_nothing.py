@@ -24,6 +24,7 @@ from datetime import datetime, timezone
 
 import pytest
 
+from app.data import wait
 from app.services.reminders_birthdays import find_birthdays_by_guild, remove_birthday
 from tests.generators.birthdays import saved_birthday
 from app.settings.features import feature_for
@@ -39,8 +40,8 @@ pytestmark = [
 NOW = datetime(2026, 11, 6, tzinfo=timezone.utc)
 
 
-def _saved():
-    return sorted(item["user_id"] for item in find_birthdays_by_guild(GUILD_ID))
+async def _saved():
+    return sorted(item["user_id"] for item in await find_birthdays_by_guild(GUILD_ID))
 
 
 def _removal(*user_ids):
@@ -58,12 +59,12 @@ async def _remove(*user_ids):
 async def test_a_removal_whose_member_went_meanwhile_removes_nobody(deps):
     saved_birthday(GUILD_ID, "555", "05-12")
     saved_birthday(GUILD_ID, "777", "06-12")
-    remove_birthday(GUILD_ID, "777")
+    await remove_birthday(GUILD_ID, "777")
 
     with pytest.raises(ListChanged):
         await _remove("555", "777")
 
-    assert _saved() == ["555"], "the member still saved was deleted anyway"
+    assert await _saved() == ["555"], "the member still saved was deleted anyway"
 
 
 async def test_a_removal_of_members_all_saved_removes_them_all(deps):
@@ -72,5 +73,5 @@ async def test_a_removal_of_members_all_saved_removes_them_all(deps):
 
     await _remove("555", "777")
 
-    assert _saved() == []
+    assert await _saved() == []
 

@@ -43,23 +43,30 @@ literal. Closed vocabularies (enum values stored in documents, i18n key suffixes
 i18n namespaces and similar strings live inline in the helper that uses them, not as
 module-level names in `app/services/*.py`.
 
-## 5. `app/data/` follows the flat pattern, one file per collection
+## 5. `app/data/` is one repository class per collection, reached through `data()`
 
-Plain functions calling `mongo_client.<database>.<collection>` directly — exactly like
-`app/data/guild/settings.py`. No `DATABASE`/`COLLECTION` constants, no `_collection()`
-helper, no alternative database names. A function returns the document the app reads
-and takes what the app writes; the stored shape (`options`, `state`) stays inside the
-file.
+Each collection has one small class, built over its collection by `app.data.build` at
+startup; its methods are the collection's generic operations, all `async`, and a caller
+awaits them through the installed registry: `await data().guild_cogs.find_cogs_by_guild(
+guild_id)`. No module-level client, no `DATABASE`/`COLLECTION` constants, no
+`_collection()` helper, no alternative database names. A method returns the document
+the app reads and takes what the app writes; the stored shape (`options`, `state`) stays
+inside the file. A thread job that cannot be a coroutine waits on a method through the
+client's loop (`wait(...)`, `iterate(...)`); nothing outside `app/migrations` and the
+scripts imports the sync pymongo client.
 
 ## 6. Data-layer files are named after their collection
 
-`app/data/<database>/<collection>.py` holds every query of that one collection
-(`app/data/guild/cogs.py` for `guild.cogs`, `app/data/keiko/settings.py` for
-`keiko.settings`), whichever feature asks. A query that only one feature sends keeps
-its feature's paths in that feature's service, and calls a generic function of the
-collection's file (`find_cogs_by_option`). The files of the collections a later pull
-request moves (`analytics.py`, `logs.py`, `block_links.py`, the events and errors in
-`cogs.py`) keep their old names until then.
+`app/data/<database>/<collection>.py` holds the repository of that one collection
+(`Cogs` in `app/data/guild/cogs.py` for `guild.cogs`, reached as `data().guild_cogs`;
+`Settings` in `app/data/keiko/settings.py` for `keiko.settings`, reached as
+`data().keiko_settings`), whichever feature asks. A query that only one feature sends
+keeps its feature's paths in that feature's service, and calls a generic method of the
+collection's repository (`data().guild_cogs.find_cogs_by_option`). The repositories of
+one database's collections that share their reads inherit them from one base in the
+database's package (`EventCollection` in `app/data/events/__init__.py`). `logs.py`
+(`guild.logs`, `guild.logs_files`) keeps its name until a later pull request moves
+those collections.
 
 ## 7. `app/views/` is generic infrastructure only
 
@@ -73,8 +80,8 @@ views (`PaginationView`, `RecordsBrowser`...). The same holds for `app/component
 When a Redis key template lives in `app/constants.py`, its NAME starts with `REDIS_`
 (or `CACHE_`), and the key starts with the prefix of its role
 (`docs/data-model.md`): `cache:` for a copy of a document, as
-`DBConfigs.CACHE_COG_KEY` (`cache:cog:{guild_id}:{cog}`). Older counters keep
-`guild:{guild_id}:...` until they move.
+`DBConfigs.CACHE_COG_KEY` (`cache:cog:{guild_id}:{cog}`). The `guild:{guild_id}:...`
+keys of before are retired: `python -m app.migrations redis-cleanup` unlinks them.
 
 ## 9. Database changes are versioned in `app/migrations`
 
@@ -155,8 +162,9 @@ boundary test refuses the literal. Rule 22 extends this to every generic layer.
 ## 18. Nothing in `app/settings/` blocks the loop
 
 No `requests`, `pymongo`, `time.sleep` or other synchronous I/O under `app/settings/`.
-Features await the async data layer (`app/data/*_async`) or hand legacy synchronous
-calls to `asyncio.to_thread`.
+Features await the async data layer (`data()`, `app/data/`) or hand legacy synchronous
+calls to `app.core.threads.to_thread`, never `asyncio.to_thread`, whose threads the
+loop keeps for its own host name lookups and TLS handshakes.
 
 ## 19. A name says what it holds
 
@@ -202,18 +210,20 @@ hook of its `FeatureModule` that the shared code calls, never an `if` on its key
 
 ```python
 # WRONG: app/data/guild/members.py
-def find_birthdays_on(guild_id, mm_dd):
-    return mongo_client.guild.members.find(
-        {"guild_id": guild_id, "options.birthday.date": mm_dd}
-    )
+class Members(Repository):
+    async def find_birthdays_on(self, guild_id, mm_dd):
+        return await self._collection.find(
+            {"guild_id": guild_id, "options.birthday.date": mm_dd}
+        ).to_list()
 
 # RIGHT: app/data/guild/members.py takes the key
-def find_members_by_option(guild_id, cog, filters):
-    ...
+class Members(Repository):
+    async def find_members_by_option(self, guild_id, cog, filters):
+        ...
 
 # and app/services/reminders_birthdays.py holds the birthday's rule
-def birthdays_on(guild_id, mm_dd):
-    return members.find_members_by_option(
+async def birthdays_on(guild_id, mm_dd):
+    return await data().guild_members.find_members_by_option(
         guild_id, constants.REMINDERS_BIRTHDAY_KEY, {"date": mm_dd}
     )
 ```

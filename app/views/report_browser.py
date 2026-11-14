@@ -4,7 +4,7 @@ Built for `/admin insights`, but nothing here knows about analytics: any
 command that would otherwise become a handful of sibling commands can compose
 it instead. Reference: docs/analytics.md
 """
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Awaitable, Callable, Dict, List, Optional
 
 import discord
 
@@ -13,13 +13,13 @@ from app.constants import ViewConstants as view_constants
 
 
 class ReportSection:
-    """One screen: a label for the menu and a callable that builds its embed."""
+    """One screen: a label for the menu and a coroutine function that builds its embed."""
 
     def __init__(
         self,
         key: str,
         label: str,
-        build: Callable[[], discord.Embed],
+        build: Callable[[], Awaitable[discord.Embed]],
         emoji: Optional[str] = None,
         description: Optional[str] = None,
     ) -> None:
@@ -59,7 +59,8 @@ class ReportBrowserView(discord.ui.View):
         if not section:
             return await interaction.response.defer()
 
-        await interaction.response.edit_message(embed=section.build(), view=self)
+        embed = await section.build()
+        await interaction.response.edit_message(embed=embed, view=self)
 
 
 class ReportBrowser:
@@ -80,7 +81,7 @@ class ReportBrowser:
             return
 
         view = ReportBrowserView(self.sections, self.placeholder)
-        embed = self.sections[0].build()
+        embed = await self.sections[0].build()
 
         if interaction.response.is_done():
             await interaction.followup.send(

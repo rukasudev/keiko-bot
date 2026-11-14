@@ -135,9 +135,9 @@ async def test_the_birthday_pings_everyone_exactly_when_the_server_asked(
     deps.bot.get_guild = lambda guild_id: guild if int(guild_id) == guild.id else None
     monkeypatch.setattr(birthday_handler, "bot", deps.bot)
     recorded_server(deps.mongo_client, guild.id)
-    save_birthday_config(str(guild.id), str(guild.text_channels[0].id), mention_everyone)
+    await save_birthday_config(str(guild.id), str(guild.text_channels[0].id), mention_everyone)
     saved_birthday(str(guild.id), "555", "05-12", reminder_id="4001")
-    set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
+    await set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
 
     await birthday_handler.process_birthday_webhook("4001", "05-12")
 
