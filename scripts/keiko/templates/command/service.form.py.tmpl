@@ -1,0 +1,10 @@
+"""What /${slash} does: it opens its form, or the panel of what is saved."""
+
+import discord
+
+from app.forms import open_feature
+
+
+async def run(interaction: discord.Interaction) -> None:
+    """Open the form of ${key} for the member who asked."""
+    await open_feature(interaction, "${key}")

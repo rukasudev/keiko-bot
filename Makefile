@@ -27,7 +27,7 @@ docker-up:
 test:
 	$(ACTIVATE_VENV) && python -m pytest tests/ app/ -x -q
 
-.PHONY: logs repair-birthdays soak
+.PHONY: logs repair-birthdays soak command yaml-docs
 
 logs:
 	$(ACTIVATE_VENV) && python -m scripts.keiko logs $(ARGS)
@@ -38,8 +38,14 @@ repair-birthdays:
 soak:
 	$(ACTIVATE_VENV) && python -m scripts.keiko soak $(SOAK_ARGS)
 
+command:
+	$(ACTIVATE_VENV) && python -m scripts.keiko.command $(name) $(if $(filter yes,$(form)),--form)
+
+yaml-docs:
+	$(ACTIVATE_VENV) && python -m scripts.keiko yamldoc $(ARGS)
+
 lint:
-	$(ACTIVATE_VENV) && ruff check app/data app/settings app/migrations tests/forms && ruff check --select F401,F821 app && ruff format --check app/data app/settings app/migrations tests/forms && mypy
+	$(ACTIVATE_VENV) && ruff check app/data app/forms app/core/calendar.py app/core/commands.py app/core/dispatch.py app/core/i18n.py app/core/copy_schema.py app/core/groups.py app/commands app/decorators.py app/types/cogs.py app/ui/pagination.py app/ui/embed.py app/ui/records.py app/migrations tests/forms tests/core && ruff check --select F401,F821 app && ruff format --check app/data app/forms app/core/calendar.py app/core/commands.py app/core/dispatch.py app/core/i18n.py app/core/copy_schema.py app/core/groups.py app/commands app/decorators.py app/types/cogs.py app/ui/pagination.py app/ui/embed.py app/ui/records.py app/migrations tests/forms tests/core && mypy
 
 clean:
 	rm -rf __pycache__

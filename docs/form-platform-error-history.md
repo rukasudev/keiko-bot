@@ -1,5 +1,9 @@
 # Keiko error history vs. the proposed Form-engine re-architecture
 
+> A dated record: the paths below are the ones of its day, before the command-folder
+> tree (`app/commands/<command>/`, `app/core`, `app/forms`, `app/ui`); the current map
+> is `CLAUDE.md`.
+
 Sources: **A** = `~/.keiko/logs.db` (daily log files 2024-07-27 .. 2026-08-20, 2355 ERROR + 676 WARNING). **B** = production Mongo `guild.logs`, 2026-08-21 .. 2026-09-13 (988 ERROR + 2263 WARNING = 3251; the collection has no documents before 2026-08-21).
 
 Signature = exception type + normalized first message line (ids/digits/urls/quoted strings/hex -> placeholders) + last `app/` frame of the traceback. Records whose first line is a generic wrapper ("Task exception was never retrieved", "Ignoring exception in X", "Exception on /webhooks/...") are keyed on the exception line inside the traceback instead.

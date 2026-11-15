@@ -6,7 +6,7 @@ how to add a metric to a new feature (usually: you do not have to).
 
 | Kind | Question it answers | Where it lives | Retention | Lossy |
 |---|---|---|---|---|
-| **Operational** | Is the system healthy? | Prometheus → Grafana (`app/cogs/prometheus.py`) | Grafana's | yes |
+| **Operational** | Is the system healthy? | Prometheus → Grafana (`app/core/monitoring.py`) | Grafana's | yes |
 | **Product analytics** | How do people use Keiko? | `events.activity`, `events.interactions`, `guild.analytics_*` (this document) | 90d raw, counters 13mo | **yes, by design** |
 | **Changes** | Who changed what, when? | `events.changes` (`analytics.record`) | permanent | **no** |
 | **Debug** | Why did it break? | `guild.logs` + the daily file on the logs channel | 30d hot, file 90d | yes |
@@ -53,10 +53,10 @@ The catalog's `collection` decides what happens next:
 | `collection` | written | kept |
 |---|---|---|
 | `changes` | at once, by `record` (a thread of its own; `await analytics.written()` waits for it on the loop) | for good |
-| `activity`, `interactions` | by the sink, in the batch `Analytics` (`app/cogs/analytics.py`) drains every few seconds | 90 days (TTL on `ts`) |
-| `none` | no document | the sink's counts only |
+| `activity`, `interactions` | by the writer, in the batch `Analytics` (`app/core/jobs.py`) drains every few seconds | 90 days (TTL on `ts`) |
+| `none` | no document | the writer's counts only |
 
-Every event, document or not, goes to the queue and is counted by the sink.
+Every event, document or not, goes to the queue and is counted by the writer.
 `value.delivered` is the one `none` event: one per welcome, role or notice, a
 count with no document (D2 of database PR 2).
 
@@ -67,9 +67,9 @@ for you:
 self.emit_event("setup.step_viewed", interaction, step_key=..., step_action=...)
 ```
 
-Inside a form nobody writes that call. `decide` (`app/settings/form/form.py`)
+Inside a form nobody writes that call. `decide` (`app/forms/form/form.py`)
 returns the events of each decision in `Decision.analytics`, and
-`observability.emit` (`app/settings/discord/observability.py`) is the one
+`observability.emit` (`app/forms/discord/observability.py`) is the one
 place that hands them to `analytics.record` with the server, the member, the
 cog, the source and the session of the form. An engine handler names only what
 is specific to it.
@@ -81,13 +81,13 @@ is specific to it.
 
 | Seam | File | Events it produces |
 |---|---|---|
-| `observability.emit`, from `Decision.analytics` | `app/settings/discord/observability.py` | every `setup.*` and `feature.*_opened` event a form produces: `feature.setup_opened`, `feature.manager_opened`, `setup.step_viewed`, `setup.step_completed`, `setup.step_back`, `setup.validation_failed`, `setup.required_missing`, `setup.completed`, `setup.discarded`, `setup.discard_recovered`, `setup.abandoned` |
-| `GenericCogFeature.commit` | `app/settings/features/feature.py` | every lifecycle change a form causes (see below) |
-| `pause_features`, `change_setting` | `app/core/servers.py`, `app/services/setup.py` | the changes made outside a form: Keiko pausing a server's features as it leaves (`actor.kind` `bot`), a server setting on the /setup settings screen |
-| `run_feature_command` | `app/components/buttons.py` | `command.invoked` from any entry button |
-| `Events.on_interaction` / `on_guild_join` / `on_guild_remove` | `app/cogs/events.py` | `command.invoked`, `guild.joined`, `guild.removed` |
-| `Errors.on_app_command_error` | `app/cogs/errors.py` | `command.failed`, with the command and the error type; the traceback stays in the error channel and the logs |
-| `GreetingsView.send` | `app/views/greetings.py` | `guild.greeting_sent` |
+| `observability.emit`, from `Decision.analytics` | `app/forms/discord/observability.py` | every `setup.*` and `feature.*_opened` event a form produces: `feature.setup_opened`, `feature.manager_opened`, `setup.step_viewed`, `setup.step_completed`, `setup.step_back`, `setup.validation_failed`, `setup.required_missing`, `setup.completed`, `setup.discarded`, `setup.discard_recovered`, `setup.abandoned` |
+| `GenericCogFeature.commit` | `app/forms/features/feature.py` | every lifecycle change a form causes (see below) |
+| `pause_features`, `change_setting` | `app/core/servers.py`, `app/commands/setup/service.py` | the changes made outside a form: Keiko pausing a server's features as it leaves (`actor.kind` `bot`), a server setting on the /setup settings screen |
+| `run_feature_command` | `app/forms/discord/callbacks.py` | `command.invoked` from any entry button |
+| `Events.on_interaction` / `on_guild_join` / `on_guild_remove` | `app/core/events.py` | `command.invoked`, `guild.joined`, `guild.removed` |
+| `Errors.on_app_command_error` | `app/core/errors.py` | `command.failed`, with the command and the error type; the traceback stays in the error channel and the logs |
+| `GreetingsView.send` | `app/commands/setup/service.py` | `guild.greeting_sent` |
 
 The engine decides *which* event a decision produces (`Engine.show`,
 `Engine.refuse`, `_on_back`, `_on_commit_succeeded`, `_on_discard_confirmed`,
@@ -95,6 +95,18 @@ The engine decides *which* event a decision produces (`Engine.show`,
 after the session is stored. `ms_on_step` and the friction counters are
 measured by the adapter (`Friction`), never by the engine, because the engine
 has no clock.
+
+A refused value is recorded as `setup.validation_failed`, its `validation` and
+`error_key` the bare name of the error, kebab-case, without the copy path:
+`youtuber-already-registered`, `streamer-not-found`, `invalid-date`,
+`link-not-recognized`, the spelling every released version recorded. The copy
+names the same error by its snake_case block
+(`notifications_youtube_video.errors.youtuber_already_registered`,
+`errors.invalid_date`); `_recorded_error` in `app/forms/form/form.py` is the one
+seam that spells the recorded name, so renaming a copy block never splits the
+series the friction screen, the drop-off sessions (`failed_keys`) and the journey
+read (`test_a_refusal_is_recorded_under_the_name_released_versions_recorded`
+in `tests/forms/form/test_form.py` pins a sample).
 
 ### A lifecycle change is one event
 
@@ -111,15 +123,16 @@ key to the event it records, once, in `events.changes`:
 | `added` / `removed` | `feature.item_added` / `feature.item_removed` |
 
 The same document is the product event and the history line: there is no audit
-row beside it. The panel's History button and the log inspection read one cog's
-changes (`cogs.find_changes(guild_id, cog)`, newest first, at most
-`EVENTS_HISTORY_READ_LIMIT`), and the /setup History reads the whole server's,
-its settings' included, in one query. Either History lists at most
+row beside it. The panel's History button reads one cog's changes
+(`cogs.find_changes(guild_id, cog)`, newest first, at most
+`EVENTS_HISTORY_READ_LIMIT`; its copy is `commands.records.history`), the log
+inspection every feature's (`find_changes(guild_id)`, `commands.records.changes`),
+and the /setup History the whole server's, its settings' included, in one query. Either History lists at most
 `EVENTS_HISTORY_READ_LIMIT` (200) changes, the newest: an older change stays in
 `events.changes`, kept for good, but no History shows it. A server setting changed on the /setup
 settings screen is a `config.changed` with `cog: settings` and
 `changed_keys: [<the key>]`. The history names each line by its lifecycle key
-(`cogs.lifecycle_key(type)` → `commands.command-events.<key>`), and a change
+(`cogs.lifecycle_key(type)` → `commands.records.history.record.<key>`), and a change
 whose actor is the bot reads "by the system".
 
 ## 3. Adding a metric to a new feature
@@ -148,44 +161,78 @@ Work only exists when the feature delivers value in a way only it knows about:
 ## 4. The catalog
 
 `app/analytics/catalog.yml` is the single source of truth for event types,
-their collection and their properties. It also declares the closed
-vocabularies (`sources`, `results`).
+their collection and their properties, and for the closed vocabulary of the
+`source` prop (`sources`). Its schema is `Catalog` in `app/core/analytics.py`:
+pydantic models with `extra="forbid"` at every level, so a misspelled field, a
+field nothing reads or a value outside its vocabulary refuses the file instead
+of being ignored. `catalog()` reads the file once through `strict_yaml` and every
+reader gets the typed declarations (`events_catalog()`, `sources_catalog()`,
+`value_events()`, `lifetime_snapshot()`). Each field's `description` in the schema
+is its reference, generated into `docs/yaml/index.html#catalog-yml`; the file itself
+carries one comment line pointing to it.
 
 ```yaml
 link.blocked:
   version: 1
   collection: activity
   description: A link the server's rules refuse was found in a message, deleted or not.
-  emitted_at: app/services/block_links.py — record_blocked_links
+  recorded_in: app/commands/block_links/service.py — record_blocked_links
   actor: user
-  required: [host, mode, reason, deleted]
-  optional: [link, rule, match, channel_id]
-  private: [link]
-  cardinality_risk: medium
+  props: [host, mode, reason, deleted, link, rule, match, channel_id]
+  private_props: [link]
+  counts_as_value: true
+  tally: {name: blocked, by: host, label: site}
 ```
+
+The layout follows the schema: the closed fields first, in the schema's order, then
+each open block (`events`, and inside a `lifetime` the `when`, `inc`, `set`, `min`,
+`max` and `removed_props` maps), each preceded by one `# open: <keys> -> <child>` line.
 
 - `collection` — `changes`, `activity`, `interactions` or `none` (section 1).
   Retention is the collection's, enforced by its TTL index
   (`EVENTS_ACTIVITY_TTL_SECONDS`, `EVENTS_INTERACTIONS_TTL_SECONDS`; a change
   has none), so an event declares no retention of its own. Every event, document
-  or not, is counted by the sink (`analytics.counts`, `analytics.keiko`) and
+  or not, is counted by the writer (`analytics.counts`, `analytics.keiko`) and
   advances the server's lifetime when a rule names it.
 - `actor` — the kind `record` gives the actor when the call names none:
   `user`, `bot` or `job`.
-- `required`/`optional` — the props. Anything else is dropped and counted in
-  `analytics.stats()["undeclared_props"]`, visible in `/admin pipeline`.
-  `source` (validated against `sources`) and `result` (against `results`) are
-  props, kept on the events a report reads them from.
-- `private` — props kept in the database and left out of the monthly archive
-  (a blocked link's address).
-- `counts_as_value` — the event is a feature doing its job: the sink advances the
-  lifetime's value fields with it, and the reports count it as delivered value
-  (`value.delivered`, `link.blocked`).
-- `keiko_tally` — `{name, kind, prop}`: the sink adds the event to Keiko's own
-  `{name}:total` and `{name}:{kind}:{prop value}` counters (`blocked:site:{host}`).
-- `keiko_wide` — the event is about Keiko itself and names no server, whatever the
-  trace's (`keiko.settings_changed`, written when an operator changes Keiko's
-  presence or its operator ids).
+- `props` — the props the event may carry. Anything else is dropped and counted
+  in `analytics.stats()["undeclared_props"]`, visible in `/admin pipeline`. None is
+  guaranteed present: the form engine and the lifecycle commits build their props
+  at runtime, and a `source` outside `sources` becomes null and is dropped, so a
+  reader of an event's props handles an absent one.
+- `private_props` — props kept in the database and left out of the monthly archive
+  (a blocked link's address); each must be one of `props`, on an event that writes a
+  document.
+- `counts_as_value` — the event is a feature doing its job: the writer advances the
+  lifetime's value fields with it (`VALUE_RULE` in `app/core/analytics_writer.py`:
+  `value_count`, `first_value_at`, `last_value_at`, `totals.value_events`), and the
+  reports count it as delivered value (`value.delivered`, `link.blocked`). Those
+  fields are the lifetime document's own shape (an index and the quiet-server query
+  read `last_value_at`), so the rule stays in the writer and a value event writes no
+  `lifetime` block: the schema refuses both on one event.
+- `tally` — `{name, by, label}`: the writer adds the event to Keiko's own
+  `{name}:total` and `{name}:{label}:{value of by}` counters (`blocked:site:{host}`);
+  `by` is one of the event's `props`.
+- `lifetime` — how the writer advances the server's lifetime with the event:
+  `inc`, `set`, `min` and `max` name the fields (`{feature}` is the event's cog,
+  `$ts` its time), `when` the props it must carry, `counts_admin` keeps its admin in
+  `admins_count`, and `removed_props` names the `guild.removed` prop that reports a field
+  the block writes (a count for an `inc`, whether it is set otherwise):
+
+  ```yaml
+  lifetime:
+    # open: props of the event -> the value each must equal
+    when: {channel_found: true}
+    # open: lifetime paths -> $ts or null
+    set: {greeting_sent_at: $ts}
+    # open: guild.removed props -> a path this block writes
+    removed_props: {greeting_sent: greeting_sent_at}
+  ```
+- `scope` — `server` (the default) or `keiko`: a `keiko` event is about Keiko itself
+  and names no server, whatever the trace's (`keiko.settings_changed`, written when an
+  operator changes Keiko's presence or its operator ids); with no server it writes no
+  `lifetime`.
 
 ### The envelope
 
@@ -211,7 +258,7 @@ or changes meaning.
 The events live in the `events` database (`app/data/events/`, one module per
 collection, every function taking the server, the cog and the types as
 parameters); every number derived from them lives in the `analytics` database,
-and only the sink (`app/core/analytics_sink.py`) writes it. Every index is
+and only the writer (`app/core/analytics_writer.py`) writes it. Every index is
 declared by the migrations in `app/migrations/schema/` (`docs/migrations.md`):
 
 | Collection | Shape | Retention |
@@ -250,9 +297,9 @@ closes a command, by the edges `Commands.COMMAND_LATENCY_EDGES_MS`.
 The lifetime is what every dashboard reads, so a screen costs one document
 instead of a collection scan. It is also the frozen snapshot `guild.removed`
 reports — which is why that event is emitted **before**
-`remove_all_cache_by_guild` runs in `on_guild_remove`. `LIFETIME_RULES` declares
-how each event advances it, and a rule may carry `when`, the props an event must
-have: only a `guild.greeting_sent` with `channel_found: true` stamps
+`remove_all_cache_by_guild` runs in `on_guild_remove`. Each event's `lifetime`
+block in the catalog declares how it advances it, and a block may carry `when`, the
+props an event must have: only a `guild.greeting_sent` with `channel_found: true` stamps
 `greeting_sent_at`, while the event itself is stored either way.
 `feature.enabled` clears `disabled_at` and `paused_at`, so a feature turned off
 and on again is active again. The admins a server had are kept once each, up to
@@ -262,13 +309,13 @@ and on again is active again. The admins a server had are kept once each, up to
 
 `guild.joined` carries the size bucket of the day Keiko joined, and the lifetime
 kept none, so no report could compare large servers with small ones. Once a day
-(`Analytics.measure_guild_sizes`, `app/cogs/analytics.py`, at
+(`Analytics.measure_guild_sizes`, `app/core/jobs.py`, at
 `ANALYTICS_ARCHIVE_HOUR:ANALYTICS_ARCHIVE_MINUTE` UTC) every guild Keiko is in
 that has a lifetime gets `size_bucket` (the same `bucket_size` vocabulary as
 `guild.joined`: `<50`, `50-500`, `500-5k`, `5k+`) and `size_measured_at` on it,
-in one bulk write off the loop (`analytics_sink.record_guild_sizes`). It is a measurement, not an event: nothing goes
+in one bulk write off the loop (`analytics_writer.record_guild_sizes`). It is a measurement, not an event: nothing goes
 to the event collections or the queue, and the lifetime is written through the same
-`lifetime_operation` the sink uses, with `upsert=False`. It never creates a
+`lifetime_operation` the writer uses, with `upsert=False`. It never creates a
 lifetime: a lifetime is still born from a guild's first event, so the reports keep
 counting the guilds they counted, and a guild `/admin forget` erased stays
 erased. A guild whose member count Discord does not report is left as it was.
@@ -283,7 +330,7 @@ same hour and posts, oldest first, every complete month no pass has posted whose
 first day the raw events still reach (`logs_archive.months_to_archive`: a month that
 started less than `EVENTS_INTERACTIONS_TTL_SECONDS` ago), on the logs files
 channel, where the daily log export goes: one message in Keiko's voice
-(`messages.admin-logs.monthly-events`) with the file attached, then marks the
+(`messages.admin_logs.monthly_events`) with the file attached, then marks the
 month in `analytics_archives`. A day the bot was down, a pass that failed, or a
 month that failed alone (it never holds the months after it) is caught up by the
 next pass while the month's first day is inside the 90 days; a month that
@@ -303,7 +350,7 @@ first, it keeps `_id`, `ts`, `type`, `cog`, the actor's `kind` (never its id),
 (`Commands.ANALYTICS_ARCHIVE_FIELDS`), and drops `guild_id`, `trace_id` and any
 other field, so a Discord id added to the envelope later (a channel, a message,
 an interaction, an owner) never reaches the file; it also drops every property
-whose name ends in `_id` and every property the catalog declares `private` (a
+whose name ends in `_id` and every property the catalog lists in `private_props` (a
 blocked link's address). The catalog declares no property that names a person
 or a server: they are closed vocabularies (step keys, error keys, sources,
 commands, a chosen option), buckets (size, duration), counts, booleans and YAML
@@ -345,7 +392,7 @@ age -d -i key.txt keiko_events_2026-09.jsonl.gz.age | gunzip | mongoimport --db 
 
 ### Redis
 
-The sink writes no Redis key. No feature counts in Redis either: command calls and
+The writer writes no Redis key. No feature counts in Redis either: command calls and
 errors are `command.invoked` and `command.failed`, counted in `analytics.keiko`.
 
 ### Keiko's own block links record
@@ -360,8 +407,8 @@ that is no longer named (D5 of database PR 2). Disabling the feature deletes the
 server's block links activity.
 
 Each `link.blocked` also adds one to `analytics.keiko` `blocked:total` and to
-`blocked:site:{host}` (`{_id, host, blocked}`), written by the sink from the
-event's `keiko_tally`. It names no server and no member, so it is kept for good. A
+`blocked:site:{host}` (`{_id, host, blocked}`), written by the writer from the
+event's `tally`. It names no server and no member, so it is kept for good. A
 site is the full host as it was blocked (`www.` dropped, subdomains kept), never a
 path or a link. "Which links Keiko blocks most" is
 `find({"host": {"$exists": true}}).sort("blocked", -1)`. A server's own all-time
@@ -375,7 +422,7 @@ or took longer than `Commands.TRACE_RUNS_SLOW_MS`, unless another trace supersed
 it, and the latency of the trace that closes a command. `journey.finalize` does the
 same for a form session that failed or outlasted
 `Commands.TRACE_RUNS_SLOW_SESSION_MS`. The 5 s flush writes them with the events
-(`analytics_sink.persist_runs`): the run to `traces.runs` with its bounded lines, the
+(`analytics_writer.persist_runs`): the run to `traces.runs` with its bounded lines, the
 latency to `analytics.keiko`.
 
 ## 6. Privacy
@@ -386,7 +433,9 @@ names.
 
 The rule is **structural, not a checklist**: the engine reports a step by its
 `step_key` and `step_action`, both closed vocabularies that come from the YAML,
-and never the answer. `analytics.records_raw_choice(step_action)` is the only
+and never the answer. `step_action` is the step's `type`, except that a `list`
+step is recorded as `composition`, the name every released version recorded
+(`_recorded_action` in `app/forms/form/form.py`), so its series stays one. `analytics.records_raw_choice(step_action)` is the only
 gate through which a chosen value may be recorded, and it only opens for steps
 whose options are written in the YAML.
 
@@ -427,7 +476,7 @@ event is still written, and only the queue and the journey go quiet
 
 # Operational metrics: is it up, is it late, which release
 
-`PrometheusCog` (`app/cogs/prometheus.py`) serves the default Prometheus
+`PrometheusCog` (`app/core/monitoring.py`) serves the default Prometheus
 registry on port 8000 once the bot is ready, so a metric defined anywhere in the
 process is scraped. Keiko's own:
 
@@ -436,10 +485,10 @@ process is scraped. Keiko's own:
 | `keiko_event_loop_lag_seconds` (a histogram, buckets `Commands.HEARTBEAT_LAG_BUCKETS`) | `le` | every heartbeat tick, `metrics.record_loop_lag` |
 | `keiko_build_info` | `version` | the heartbeat cog when it loads, `metrics.record_build_info` |
 | `keiko_interactions_total` | `outcome` (`in_time`, `deferred`, `failed`), `code` (Discord's error code, such as `10062` or `40060`, or empty) | the form adapter (`open_feature`, `handle`, a click on a lost session), `run_feature_command` (a feature a button opens) and `Errors.on_app_command_error` |
-| `keiko_webhook_refusals_total` | `route` (the URL rule, never the path a request typed), `status` (the 4xx it was answered with) | the refusal hook of `app/webhooks/__init__.py` |
+| `keiko_webhook_refusals_total` | `route` (the URL rule, never the path a request typed), `status` (the 4xx it was answered with) | the refusal hook of `app/integrations/http.py` |
 | `keiko_dependency_latency_seconds` (a histogram, buckets `Dependencies.LATENCY_BUCKETS`) | `dependency` (one of `Dependencies.NAMES`: `mongo`, `redis`, `discord`, `twitch`, `youtube`, `reminders`, `notion`, `translate`, `stream_elements`) | every call, answered or not: the shared HTTP client (`app/integrations/__init__.py`) for the HTTP services, `MongoLatency` (a pymongo command listener on the async Mongo client) and `TimedRedis` with its `TimedPipeline`, one call per round trip (`app/__init__.py`), `discord_latency` (the aiohttp trace discord.py sends its requests through, `app/bot.py`), and `metrics.timed("translate")` around the language detection, which brings its own HTTP client |
 | `keiko_form_*` | see `observability.py` | the form adapter |
-| `keiko_held_entries` (a gauge read at every scrape) | `structure` (`form_sessions`, `journeys`, `settings_cache`, `images`, `analytics_queue`, `debug_logs_queue`, `discord_messages`, `discord_members`, `recent_members`) | `watch_held_entries` in `app/cogs/prometheus.py`, when the heartbeat cog loads; a count that cannot be read is NaN |
+| `keiko_held_entries` (a gauge read at every scrape) | `structure` (`form_sessions`, `journeys`, `settings_cache`, `images`, `analytics_queue`, `debug_logs_queue`, `discord_messages`, `discord_members`, `recent_members`) | `watch_held_entries` in `app/core/monitoring.py`, when the heartbeat cog loads; a count that cannot be read is NaN |
 
 `PrometheusCog` adds the library's own, among them `discord_connected{shard}` (1
 while the gateway is up) and `discord_event_on_interaction_total{shard,
@@ -516,7 +565,7 @@ was more than five seconds late (`le="5.0"` is how the client names that bucket)
 
 ## The heartbeat
 
-The `Heartbeat` cog (`app/cogs/prometheus.py`) ticks every `Commands.HEARTBEAT_SECONDS`. Each tick is
+The `Heartbeat` cog (`app/core/monitoring.py`) ticks every `Commands.HEARTBEAT_SECONDS`. Each tick is
 counted with how late it woke up against the time it was scheduled for, the loop
 lag a blocked event loop shows first, then pings `HEARTBEAT_URL` through
 `app.core.threads.to_thread`. A monitor that stops hearing the ping is how a stopped,
@@ -597,7 +646,7 @@ Declared exception, with a boundary, because the two halves were decided a turn
 apart and the inconsistency was the real problem:
 
 - **A sentence in Keiko's voice is localized.** The daily export message
-  ("Here is my structured log for…") lives in `app/languages/messages/` and is
+  ("Here is my structured log for…") lives in `app/languages/messages.yml` and is
   resolved through `ml()`. It reads like Keiko talking, so it follows every rule
   that applies to Keiko talking, in both locales.
 - **A structural label is English, in Python.** `TraceTitles.OUTCOME_LABELS`,
@@ -620,7 +669,7 @@ boundary moves if it ever moves again; this section explains why it exists.
 What happened wins; where it came from is the fallback. The same kind of event
 always renders the same way, which is the point.
 
-Deliberately separate from `commands.command-events.*`: that copy is shipped in
+Deliberately separate from `commands.responses.*`: that copy is shipped in
 two locales and read by server admins, this one is read by whoever is on call,
 and the two are free to move independently.
 
@@ -660,7 +709,7 @@ call left unawaited. A thread job that cannot be a coroutine (the daily backup a
 archives, the YouTube hub calls, the settings cache's fallback read, a Flask webhook)
 waits on a repository through the client's loop with `app.data.wait` or
 `app.data.iterate`. `app.core.threads.to_thread` stays the way through for `requests`, Redis and
-the other synchronous calls, and `app/settings/` never reaches them at all
+the other synchronous calls, and `app/forms/` never reaches them at all
 (`tests/forms/test_boundary.py` refuses `requests`, `pymongo` and `time.sleep` there). Production had
 52 `heartbeat blocked for more than 20 seconds` warnings in a day, every
 traceback ending in a `find_one` reached from `on_message`, and a `10062 Unknown
@@ -761,14 +810,14 @@ Traces are opened at the boundaries:
 | Boundary | Where | Behavior |
 |---|---|---|
 | Slash commands | `keiko_command` (`app/decorators.py`) | one message per invocation, handed to the journey when it opens a form |
-| Command errors | `Errors.on_app_command_error` (`app/cogs/errors.py`) | quiet: the error keeps its own message in the error channel, and the warnings of a refused answer or a slow record stay in `guild.logs`; the handler adds that one message to the trace the failed command posts itself |
-| Form events | `Runtime._apply`, `Runtime.expire_stale` (`app/settings/discord/callbacks.py`) | quiet: never a message of their own, even on failure; the journey tells the story |
-| Webhooks | `webhook_trace`, opened and closed around each request in `app/webhooks/__init__.py` | silent unless the request failed, continued by its first job; `/healthcheck` opens none; a request refused with a 4xx never posts its trace, nor does a 503 without an error (the sender is asked to deliver again later) |
+| Command errors | `Errors.on_app_command_error` (`app/core/errors.py`) | quiet: the error keeps its own message in the error channel, and the warnings of a refused answer or a slow record stay in `guild.logs`; the handler adds that one message to the trace the failed command posts itself |
+| Form events | `Runtime._apply`, `Runtime.expire_stale` (`app/forms/discord/callbacks.py`) | quiet: never a message of their own, even on failure; the journey tells the story |
+| Webhooks | `webhook_trace`, opened and closed around each request in `app/integrations/http.py` | silent unless the request failed, continued by its first job; `/healthcheck` opens none; a request refused with a 4xx never posts its trace, nor does a 503 without an error (the sender is asked to deliver again later) |
 | Deferred work | `schedule_webhook_job` → `Trace.handover` + `trace.run_traced` | the first job continues the request's message, which takes every line the request logs after the hand-over and is posted once both are done; a second job in the same request gets its own, under the same rule |
-| Confirmations | `ConfirmActionView(trace_name=)` (`app/views/confirm_action.py`) | one message for what the confirmation did |
-| Listeners | `trace.listener` (`app/core/trace.py`) for every listener of `app/cogs/events.py` | silent unless it fails or reports an event; each part runs on its own (a feature of `on_message` or `on_member_join`; the report, the snapshot and the pause of a server leaving; the record and the greeting of a server joining), so one that fails is an error with the listener's context, nothing is raised to discord.py, and the next one still runs |
+| Confirmations | `ConfirmActionView(trace_name=)` (`app/ui/confirm_action.py`) | one message for what the confirmation did |
+| Listeners | `trace.listener` (`app/core/trace.py`) for every listener of `app/core/events.py` | silent unless it fails or reports an event; each part runs on its own (a feature of `on_message` or `on_member_join`; the report, the snapshot and the pause of a server leaving; the record and the greeting of a server joining), so one that fails is an error with the listener's context, nothing is raised to discord.py, and the next one still runs |
 | Fan-outs | `trace.fan_out` (`app/core/trace.py`), behind the Twitch and YouTube notices and the birthday job | inside the trace of the job that runs it; each server is served on its own: one Keiko cannot reach (`DestinationNotFound`, a 403) is a warning, any other failure an error with the server's context, and neither stops the next; `destination` (`app/core/utils.py`) finds the server and its channel, `server_language` (`app/core/servers.py`) its saved language |
-| Heartbeat | `Heartbeat.beat` (`app/cogs/prometheus.py`) | silent unless it fails; a failed ping is a warning, so it stays in `guild.logs` and the monitor is what alerts |
+| Heartbeat | `Heartbeat.beat` (`app/core/monitoring.py`) | silent unless it fails; a failed ping is a warning, so it stays in `guild.logs` and the monitor is what alerts |
 
 `silent_when_clean` is what keeps `on_message` from flooding the channel: a
 routine check that succeeds stays in the log file, and only surfaces in Discord
@@ -837,7 +886,7 @@ channel, once per store per
 `DBConfigs.COG_CACHE_WARN_SECONDS`, and its `guild.logs` record carries no trace
 id. A StreamElements outage follows the same rule for the same reason: it is news
 about a streamer, not about the member who typed `ke!commands`, so
-`warn_unavailable` (`app/services/stream_elements.py`) logs it outside any trace,
+`warn_unavailable` (`app/commands/stream_elements/service.py`) logs it outside any trace,
 only when it is the call that claims the streamer's warning mark in Redis
 (`Commands.REDIS_STREAM_ELEMENTS_WARNED_THROTTLE`, set if absent for
 `Commands.STREAM_ELEMENTS_FAILURE_SECONDS`), whichever path met it (a command in
@@ -998,7 +1047,7 @@ Every line of a journey came from an event that is already stored, so
 interactions (`{session_id, ts}`) and the server's changes since its first one —
 no new storage was needed for this.
 
-`JourneyRefreshButton` (`app/components/buttons.py`) is a `DynamicItem` whose
+`JourneyRefreshButton` (`app/core/journey.py`) is a `DynamicItem` whose
 custom id carries the session, registered once in `DiscordBot.setup_hook`. It
 therefore keeps working across restarts, and it **repairs a stale message**: a
 session interrupted by a restart is stuck showing `⏳ in progress`, and
@@ -1017,8 +1066,8 @@ a second time is why every session message used to begin with `started` twice.
 
 ### Closing an abandoned session
 
-The events cog runs `Runtime.sweep` every `ViewConstants.FORM_SWEEP_SECONDS`
-(`Events.sweep_forms`). A pass hands every due session to `decide` as `Expired`
+The shared listeners run `Runtime.sweep` every `ViewConstants.FORM_SWEEP_SECONDS`
+(`Events.sweep_forms`, `app/core/events.py`). A pass hands every due session to `decide` as `Expired`
 through `Runtime.expire_stale`, under a quiet trace; the decision emits
 `setup.abandoned`, and the adapter closes the journey and, while Discord still
 honours the interaction token, takes the controls off the message with the
@@ -1082,7 +1131,7 @@ finalizes it again without opening anything.
 
 The `session_id` that groups a configuration attempt in analytics is the same
 identity the log uses to group a journey. One concept, two consumers:
-`FormSession` (`app/settings/form/form_state.py`) lives in the session store for
+`FormSession` (`app/forms/form/form_state.py`) lives in the session store for
 the whole attempt; a child session reports under its parent's id.
 
 ## Contracts
@@ -1107,7 +1156,7 @@ ordered by how little effort they need from you:
 
 ### 1. The weekly digest — arrives on its own
 
-`app/services/admin_digest.py`, posted to the admin channel every Monday by a
+`app/commands/admin/digest.py`, posted to the admin channel every Monday by a
 second `@tasks.loop(time=...)` in the `Analytics` cog. It leads with what needs
 a decision and keeps the rest short:
 
@@ -1157,7 +1206,7 @@ Tunables live in `Commands.ANALYTICS_DIGEST_*`.
 
 ### 2. `/admin insights` — one command, eight reports
 
-Built on `ReportBrowser` (`app/views/report_browser.py`), a generic primitive:
+Built on `ReportBrowser` (`app/ui/report_browser.py`), a generic primitive:
 a select swaps which section is on screen and **edits** the message rather than
 sending another one. Sections are built lazily, so an expensive report only
 runs when you ask for it.
@@ -1200,7 +1249,7 @@ does nobody touch" by reading what is already stored:
 
 1. `parse_form_yaml_to_dict(feature)` enumerates every configurable key, and the
    `defaults:` its step declares for them;
-2. `config_state.feature_config_states(feature)` reads every guild's stored
+2. `feature_config_states(feature)` (`app/core/cogs.py`) reads every guild's stored
    configuration **in the shape the form names it**;
 3. each field gets a fill rate, and a field whose **YAML declares its options**
    also gets the distribution of chosen values.
@@ -1211,7 +1260,7 @@ configured long before analytics existed — it works retroactively, today.
 ### Step 2 is a registry, not a collection read
 
 A YAML-driven cog stores exactly the keys its form names, so its document *is*
-that shape and `feature_config_states` just reads the collection. A feature that owns its
+that shape and `GenericCogFeature.config_states` just reads the collection. A feature that owns its
 persistence is the exception, and it is not hypothetical: birthdays store the
 channel as `channel_id`, fold three settings into a nested `default_message`,
 and keep the birthdays themselves in the `reminders` database. Walking the raw
@@ -1219,12 +1268,15 @@ document found none of those keys, so the first weekly digest reported five
 settings as used by nobody while every guild was using them — including the list
 of birthdays, at 100%.
 
-`app/services/config_state.py` maps such a feature to the translation the
-**manager already renders** (`birthday_manager_cog_data`), imported by name at
-call time so the report can depend on a feature service without the service
-importing the report back. One mapping, two consumers: a report cannot disagree
-with the screen. A new feature with its own storage adds one line there — or,
-better, keeps the form's keys and needs nothing.
+Such a command overrides `config_states` on the `FeatureModule` its own
+`service.py` declares (`BirthdayFeature.config_states` in
+`app/commands/birthdays/service.py`), with the translation the **manager already
+renders** (`birthday_manager_cog_data`), and `feature_config_states` reaches it
+through `feature_for(feature)` (`app/forms/features/`), which reads the registry
+(`app/core/commands.py`), never by importing the command, so the report depends on
+no command and no command imports the report. One mapping, two consumers: a report
+cannot disagree with the screen. A new command with its own storage overrides that
+one method the same way — or, better, keeps the form's keys and needs nothing.
 
 ### A default is not silence
 
@@ -1236,7 +1288,7 @@ as a list of settings to delete.
 
 The privacy line is the same one the engine uses, and it is structural:
 `analytics.records_raw_choice(node)` returns true only when the YAML itself
-declares where the value comes from (`options:`, `designs:`, a boolean toggle).
+declares where the value comes from (`options:`, a boolean toggle).
 A typed answer, a channel id and a role id never qualify, whatever the step
 type is called. `test_no_free_text_or_id_field_of_any_form_is_ever_tabulated`
 sweeps every real form to keep that true as forms change.

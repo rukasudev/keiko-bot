@@ -60,8 +60,8 @@ YAML, localization keys, and tests as context.
 into patterns instead of listing every occurrence; distinguish the current architecture
 from historical or isolated code; surface the biggest reuse and standardization
 opportunities rather than an unstructured list of minor style issues. You MAY launch
-parallel Explore agents, one per area (cogs+services, views+components, languages+data,
-tests); give each the required-reading paths and the finding format below, then
+parallel Explore agents, one per area (`app/commands`, `app/core`+`app/integrations`,
+`app/forms`+`app/ui`, `app/languages`+`app/data`, tests); give each the required-reading paths and the finding format below, then
 dedupe, classify severity, and assemble the single report yourself.
 
 ## Required reading
@@ -71,30 +71,42 @@ contents in the report beyond what a finding needs):
 
 - `CLAUDE.md` — the core principle and the mandatory decision order.
 - `docs/form-configuration.md` — the form-platform map. Read §3 (the schema and step
-  kinds) and §5 (extension points/registries) before claiming a capability does or
+  types) and §5 (extension points/registries) before claiming a capability does or
   doesn't exist; §6 says what a feature module may and may not do; §7 the adapter's
   choreography; §9 the decision order for a change; §10 names the enforcement suites.
-  Anything in `app/settings/` that names a command key, imports `discord` outside
-  `app/settings/discord/`, blocks the event loop, or reaches another feature's document is
-  a Blocking finding (`tests/forms/test_boundary.py`).
+  Anything in `app/forms/` that names a command key, imports `discord` outside
+  `app/forms/discord/`, blocks the event loop, or reaches another feature's document is
+  a Blocking finding (`tests/forms/test_boundary.py`, `tests/test_generic_layers.py`).
 - `.claude/rules/implementation-planning.md` — decision order details and the anti-patterns
   list findings should cite.
 - `.claude/rules/code-style.md` — maintainer-reviewed code patterns (comments, constants,
-  data-layer shape, views scope, Redis key naming, unversioned migrations, generic
-  orchestration extracted to generic views, generic helpers in `utils.py` not in feature
-  services, global UI tunables in `ViewConstants`; rules 13 to 18 for `app/settings/`:
-  typed and linted, one-sentence docstrings, no reflection, typed boundaries, no command
-  key, nothing blocking; rules 19 to 21: a name says what it holds, a blank line between
-  the blocks of a function and no section markers, functions that tell a story in files
-  that hold one context). Audit the scope against every rule in it; these came from real
-  review comments and repeat findings.
+  data-layer shape, `app/ui/` scope, Redis key naming, versioned migrations, generic
+  orchestration extracted to generic views, generic helpers in `app/core/` not in a
+  command's folder, global UI tunables in `ViewConstants`; rule 13: the layers `make
+  lint` types and lints; rules 14 to 18 for `app/forms/`: one-sentence docstrings, no
+  reflection, typed boundaries, no command key, nothing blocking; rules 19 to 21: a
+  name says what it holds, a blank line between the blocks of a function and no section
+  markers, functions that tell a story in files that hold one context; rules 22 to 26:
+  shared layers never name a command, a command folder never imports another, shared
+  layers reach a command only through the registry, a command's copy and form live in
+  its folder's bilingual `copy.yml` and `form.yml`, a command is declared once; rule 27:
+  every YAML type is its own schema, every field described, open nodes `Open[T]` under
+  one `# open:` line, the reference `docs/yaml/index.html` regenerated). Audit the scope
+  against every rule in it; these came from real review comments and repeat findings.
+- `docs/commands.md`, "The copy schema and the primitives that read it" — read whenever
+  the scope touches copy: each text belongs to the block of the primitive that draws it
+  (`responses.<name>` for `response_embed`, `errors.<name>`, `records.<name>` for
+  `RecordsBrowser`, `panel`, `stats`, `announcement`, `buttons`, `cards`, and
+  `messages` only for what no primitive draws), snake_case keys, `$name` for a value
+  the code fills. A text a primitive draws filed under `messages`, a hand-built embed
+  that a primitive draws, or a `{name}` in copy is a finding.
 - `docs/testing-strategy.md` — read whenever the scope touches shared
-  infrastructure (the form platform, its step kinds and extensions, the Discord
+  infrastructure (the form platform, its step types and extensions, the Discord
   adapter, components, formatters, i18n helpers) or test code: it defines the
   regression workflow, the consumer contracts, the golden transcripts and the
   change→suite impact map the review must check against.
 - `.claude/skills/keiko-writing-style/SKILL.md` — MANDATORY read whenever the scope touches
-  user-facing text, `app/languages/`, embeds, forms, modals, buttons, notifications,
+  user-facing text, `app/languages/`, a command's `copy.yml` or `form.yml`, `app/forms/vocabulary.yml`, embeds, forms, modals, buttons, notifications,
   errors, or any visual presentation. It is the source of truth for personality, voice,
   Discord UI conventions, form structure, and localization. Read the current file each
   time; never rely on a summary, and never copy its rules into this skill or the report.
@@ -195,8 +207,12 @@ executing them.
 - Every scope: run the architectural contract suite once,
   `.venv/bin/python -m pytest tests/forms -q` (boundary, invariants, compiler, engine,
   adapter). A failure caused by the reviewed code is a Blocking finding. When the scope
-  touches `app/settings/`, also run `make lint` (ruff and `mypy --strict` over the
-  platform).
+  touches a layer `make lint` checks (`app/forms/`, `app/data/`, `app/commands/`,
+  `app/migrations/`, the registry, dispatch, groups, copy loader and copy schema of
+  `app/core/`, the pagination, embeds and records browser of `app/ui/`), also run
+  `make lint` (ruff and `mypy --strict`, code-style rule 13). When it touches a YAML
+  file or a schema, also run `tests/test_yaml_layout.py` and
+  `tests/test_yaml_reference.py` (a stale reference means `make yaml-docs` was not run).
 - File/directory: also run the matching tests (`tests/test_<module>.py`, else
   `git grep -l <symbol> tests/`). If none exist, record
   `Relevant tests executed: none found for <target>` and consider a test-coverage finding.
@@ -256,7 +272,7 @@ Requires architectural adjustments | Conflicts with the current architecture
 ## Restrictions
 
 - Do not ask for more formalism than the platform has: the definition schema
-  (`app/settings/form/form_yaml.py`), the compiler and the `when` grammar are the whole
+  (`app/forms/form/form_yaml.py`), the compiler and the `when` grammar are the whole
   contract; do not require a new DSL, a parser or an AST on top of them.
 - Do not suggest a large refactor when a small reuse change solves the issue.
 - Do not recommend YAML-only implementation when the behavior genuinely requires runtime code.

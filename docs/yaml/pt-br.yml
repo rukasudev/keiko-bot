@@ -1,0 +1,2227 @@
+# The Portuguese of the YAML reference (docs/yaml/index.html), read by make yaml-docs.
+# Each key names the text it translates: <type> (the purpose of a YAML type),
+# <type>/<Model> (a model) or <type>/<Model>.<field> (a field). `en-us` is the English
+# the entry translated: when the schema's English changes, the entry is stale and the
+# page shows the English until it is translated again (tests/test_yaml_reference.py).
+form.yml:
+  en-us: 'The settings flow of one command: the screens /setup and the manager panel walk
+    (the intro, the cards and their sections, the lists, the review), what each screen asks
+    and the answer key it writes. A command with settings writes one beside its package.'
+  pt-br: 'O fluxo de configuração de um comando: as telas que o /setup e o painel de gerenciamento
+    percorrem (a intro, os cards e suas seções, as listas, a revisão), o que cada tela pergunta
+    e a chave de resposta que ela grava. Um comando com configurações escreve um ao lado do
+    pacote dele.'
+form.yml/FormFile:
+  en-us: What a command's form.yml declares.
+  pt-br: O que o form.yml de um comando declara.
+form.yml/FormFile.version:
+  en-us: The definition version a session is pinned to; every form is at 1 until one needs
+    two live versions.
+  pt-br: A versão da definição em que uma sessão fica presa; todo form está na 1 até algum
+    precisar de duas versões ativas.
+form.yml/FormFile.steps:
+  en-us: The form's screens in order, the intro first and the review last.
+  pt-br: 'As telas do form em ordem: a intro primeiro e a revisão por último.'
+form.yml/FormFile.groups:
+  en-us: Headings that steps and card fields name with `group` to share them on the panel
+    and the review.
+  pt-br: Títulos que etapas e campos de card citam com `group` para ficarem juntos sob eles
+    no painel e na revisão.
+form.yml/PanelGroupSpec:
+  en-us: A heading several settings share on the panel and the review.
+  pt-br: Um título que várias configurações dividem no painel e na revisão.
+form.yml/PanelGroupSpec.title:
+  en-us: The heading over the group's rows.
+  pt-br: O título acima das linhas do grupo.
+form.yml/PanelGroupSpec.emoji:
+  en-us: The emoji before the heading.
+  pt-br: O emoji antes do título.
+form.yml/PanelGroupSpec.screen:
+  en-us: The intro of the group's own screen under `description`; the screen is titled by
+    the group's `title`.
+  pt-br: A introdução da tela própria do grupo, em `description`; a tela leva o `title` do
+    grupo como título.
+form.yml/PanelGroupSpec.variants:
+  en-us: Headings and screen intros that replace `title` and `screen.description` while their
+    rule holds, for a group named after the mode in force.
+  pt-br: Títulos e introduções de tela que substituem `title` e `screen.description` enquanto
+    a regra deles vale, para um grupo cujo nome depende do modo ativo.
+form.yml/PanelGroupSpec.opens:
+  en-us: 'Where the group''s rows are edited: listed on the panel, on a screen of their own
+    behind one Edit, or on that screen opened from a button on the panel''s last row, for
+    settings that stay out of a list''s way.'
+  pt-br: 'Onde as linhas do grupo são editadas: listadas no painel, numa tela própria atrás
+    de um único Editar, ou nessa tela aberta por um botão na última linha do painel, para
+    configurações que não devem atrapalhar uma lista.'
+form.yml/PanelGroupSpec.button:
+  en-us: 'The button that opens the group, with `opens: button`.'
+  pt-br: 'O botão que abre o grupo, com `opens: button`.'
+form.yml/PanelGroupSpec.order:
+  en-us: Where the heading sorts among the panel's headings, lowest first.
+  pt-br: A posição do título entre os títulos do painel, do menor para o maior.
+form.yml/IntroStep:
+  en-us: 'The first screen: what the feature does, then Confirm.'
+  pt-br: 'A primeira tela: o que a funcionalidade faz, depois Confirmar.'
+form.yml/IntroStep.type:
+  en-us: 'Draws the first screen: what the feature does, then Confirm.'
+  pt-br: 'Desenha a primeira tela: o que a funcionalidade faz, depois Confirmar.'
+form.yml/IntroStep.key:
+  en-us: The answer key the step produces, unique among the form's top-level steps.
+  pt-br: A chave de resposta que a etapa produz, única entre as etapas de primeiro nível do
+    form.
+form.yml/IntroStep.title:
+  en-us: The step's heading on its screen, its summary rows and the pickers.
+  pt-br: O título da etapa na tela dela, nas linhas de resumo e nos seletores.
+form.yml/IntroStep.description:
+  en-us: The body under the title, with `{answer:}`, `{plural:}` and `{context:}` tokens.
+  pt-br: O corpo abaixo do título, com os tokens `{answer:}`, `{plural:}` e `{context:}`.
+form.yml/IntroStep.footer:
+  en-us: The footer of the step's screen; the shared footer when left out, none when `null`.
+  pt-br: O rodapé da tela da etapa; o rodapé compartilhado quando omitido, nenhum quando `null`.
+form.yml/IntroStep.emoji:
+  en-us: 'The step''s emoji: leads its title, its rows on summaries and, on a card, its header.'
+  pt-br: 'O emoji da etapa: vem antes do título, das linhas nos resumos e, num card, do cabeçalho.'
+form.yml/IntroStep.panel:
+  en-us: How the intro reads on the panel; the step's description when left out.
+  pt-br: Como a intro aparece no painel; a descrição da etapa quando omitido.
+form.yml/TextStep:
+  en-us: A modal with one text input, checked before it is answered.
+  pt-br: Um modal com um campo de texto, validado antes de virar resposta.
+form.yml/TextStep.type:
+  en-us: Draws a modal with one text input, checked before it is answered.
+  pt-br: Desenha um modal com um campo de texto, validado antes de virar resposta.
+form.yml/TextStep.key:
+  en-us: The answer key the step produces, unique among the form's top-level steps.
+  pt-br: A chave de resposta que a etapa produz, única entre as etapas de primeiro nível do
+    form.
+form.yml/TextStep.title:
+  en-us: The step's heading on its screen, its summary rows and the pickers.
+  pt-br: O título da etapa na tela dela, nas linhas de resumo e nos seletores.
+form.yml/TextStep.description:
+  en-us: The body under the title, with `{answer:}`, `{plural:}` and `{context:}` tokens.
+  pt-br: O corpo abaixo do título, com os tokens `{answer:}`, `{plural:}` e `{context:}`.
+form.yml/TextStep.footer:
+  en-us: The footer of the step's screen; the shared footer when left out, none when `null`.
+  pt-br: O rodapé da tela da etapa; o rodapé compartilhado quando omitido, nenhum quando `null`.
+form.yml/TextStep.emoji:
+  en-us: 'The step''s emoji: leads its title, its rows on summaries and, on a card, its header.'
+  pt-br: 'O emoji da etapa: vem antes do título, das linhas nos resumos e, num card, do cabeçalho.'
+form.yml/TextStep.hidden:
+  en-us: Keeps the answer off the review, the panel and the intro, for a question that only
+    steers the flow.
+  pt-br: Deixa a resposta fora da revisão, do painel e da intro, para uma pergunta que só
+    direciona o fluxo.
+form.yml/TextStep.appears_in:
+  en-us: 'Where the step is asked: in the setup and on the panel, or only on the panel (`panel`,
+    for a list filled after saving, left out of the setup and the intro); `setup` is refused,
+    the panel edits every step.'
+  pt-br: 'Onde a etapa é perguntada: no setup e no painel, ou só no painel (`panel`, para
+    uma lista preenchida depois de salvar, fora do setup e da intro); `setup` é recusado,
+    porque o painel edita toda etapa.'
+form.yml/TextStep.when:
+  en-us: Asks the step only while the rule holds.
+  pt-br: Só pergunta a etapa enquanto a regra vale.
+form.yml/TextStep.variants:
+  en-us: Titles and descriptions that replace the step's own while their rule holds, for a
+    step worded after the mode in force; the rule of a variant that writes a description names
+    only earlier answers, one that writes only a title may name the step's own.
+  pt-br: Títulos e descrições que substituem os da etapa enquanto a regra deles vale, para
+    uma etapa cujo texto depende do modo ativo; a regra de uma variante que escreve uma descrição
+    só cita respostas anteriores, e a de uma que só escreve um título pode citar a da própria
+    etapa.
+form.yml/TextStep.label:
+  en-us: The label of the input, the step title when left out.
+  pt-br: O rótulo do campo; o título da etapa quando omitido.
+form.yml/TextStep.placeholder:
+  en-us: The grey hint inside the empty input.
+  pt-br: A dica cinza dentro do campo vazio.
+form.yml/TextStep.max_length:
+  en-us: The most characters the input accepts.
+  pt-br: O máximo de caracteres que o campo aceita.
+form.yml/TextStep.normalize:
+  en-us: The registered normalizer the typed value goes through before it is checked, looked
+    up and kept.
+  pt-br: O normalizador registrado pelo qual o valor digitado passa antes de ser validado,
+    buscado e guardado.
+form.yml/TextStep.validation:
+  en-us: Runs a registered validator on submit, with any lookup it needs.
+  pt-br: Roda um validador registrado no envio, com a busca que ele precisar.
+form.yml/TextStep.transform:
+  en-us: Stores the typed value through a registered transform, such as a normalized link.
+  pt-br: Guarda o valor digitado através de uma transformação registrada, como um link normalizado.
+form.yml/TextStep.format:
+  en-us: How summaries format the answer, such as a link shown as code.
+  pt-br: Como os resumos formatam a resposta, por exemplo um link mostrado como código.
+form.yml/TextStep.image:
+  en-us: The lookup answer whose picture the review draws under the step's line, such as the
+    avatar of the account the lookup found.
+  pt-br: A resposta da busca cuja imagem a revisão desenha abaixo da linha da etapa, como
+    o avatar da conta que a busca encontrou.
+form.yml/TextStep.lookup_answers:
+  en-us: Keeps values the validator's lookup found as answers a later description, line or
+    picture reads.
+  pt-br: Guarda valores que a busca do validador encontrou como respostas que uma descrição,
+    linha ou imagem posterior lê.
+form.yml/SingleChoiceStep:
+  en-us: Buttons to pick one option from.
+  pt-br: Botões para escolher uma opção.
+form.yml/SingleChoiceStep.type:
+  en-us: Draws buttons to pick one option from.
+  pt-br: Desenha botões para escolher uma opção.
+form.yml/SingleChoiceStep.key:
+  en-us: The answer key the step produces, unique among the form's top-level steps.
+  pt-br: A chave de resposta que a etapa produz, única entre as etapas de primeiro nível do
+    form.
+form.yml/SingleChoiceStep.title:
+  en-us: The step's heading on its screen, its summary rows and the pickers.
+  pt-br: O título da etapa na tela dela, nas linhas de resumo e nos seletores.
+form.yml/SingleChoiceStep.description:
+  en-us: The body under the title, with `{answer:}`, `{plural:}` and `{context:}` tokens.
+  pt-br: O corpo abaixo do título, com os tokens `{answer:}`, `{plural:}` e `{context:}`.
+form.yml/SingleChoiceStep.footer:
+  en-us: The footer of the step's screen; the shared footer when left out, none when `null`.
+  pt-br: O rodapé da tela da etapa; o rodapé compartilhado quando omitido, nenhum quando `null`.
+form.yml/SingleChoiceStep.emoji:
+  en-us: 'The step''s emoji: leads its title, its rows on summaries and, on a card, its header.'
+  pt-br: 'O emoji da etapa: vem antes do título, das linhas nos resumos e, num card, do cabeçalho.'
+form.yml/SingleChoiceStep.hidden:
+  en-us: Keeps the answer off the review, the panel and the intro, for a question that only
+    steers the flow.
+  pt-br: Deixa a resposta fora da revisão, do painel e da intro, para uma pergunta que só
+    direciona o fluxo.
+form.yml/SingleChoiceStep.appears_in:
+  en-us: 'Where the step is asked: in the setup and on the panel, or only on the panel (`panel`,
+    for a list filled after saving, left out of the setup and the intro); `setup` is refused,
+    the panel edits every step.'
+  pt-br: 'Onde a etapa é perguntada: no setup e no painel, ou só no painel (`panel`, para
+    uma lista preenchida depois de salvar, fora do setup e da intro); `setup` é recusado,
+    porque o painel edita toda etapa.'
+form.yml/SingleChoiceStep.when:
+  en-us: Asks the step only while the rule holds.
+  pt-br: Só pergunta a etapa enquanto a regra vale.
+form.yml/SingleChoiceStep.variants:
+  en-us: Titles and descriptions that replace the step's own while their rule holds, for a
+    step worded after the mode in force; the rule of a variant that writes a description names
+    only earlier answers, one that writes only a title may name the step's own.
+  pt-br: Títulos e descrições que substituem os da etapa enquanto a regra deles vale, para
+    uma etapa cujo texto depende do modo ativo; a regra de uma variante que escreve uma descrição
+    só cita respostas anteriores, e a de uma que só escreve um título pode citar a da própria
+    etapa.
+form.yml/SingleChoiceStep.options:
+  en-us: One button per option.
+  pt-br: Um botão por opção.
+form.yml/SingleChoiceStep.required:
+  en-us: Refuses Confirm while nothing is chosen.
+  pt-br: Recusa o Confirmar enquanto nada foi escolhido.
+form.yml/SingleChoiceStep.auto_confirm:
+  en-us: A press answers at once, with no Confirm button.
+  pt-br: Um clique já responde, sem botão Confirmar.
+form.yml/SingleChoiceStep.format:
+  en-us: How summaries format the answer; the chosen option's label when left out.
+  pt-br: Como os resumos formatam a resposta; o rótulo da opção escolhida quando omitido.
+form.yml/CardStep:
+  en-us: A Components V2 card whose sections each edit part of the answer.
+  pt-br: Um card Components V2 em que cada seção edita uma parte da resposta.
+form.yml/CardStep.type:
+  en-us: Draws a card whose sections each edit part of the answer.
+  pt-br: Desenha um card em que cada seção edita uma parte da resposta.
+form.yml/CardStep.key:
+  en-us: The answer key the step produces, unique among the form's top-level steps.
+  pt-br: A chave de resposta que a etapa produz, única entre as etapas de primeiro nível do
+    form.
+form.yml/CardStep.title:
+  en-us: The card's heading on its screen, its summary rows and the pickers; a top-level card
+    left without one reads the intro's, a card inside a list writes it.
+  pt-br: O título do card na tela dele, nas linhas de resumo e nos seletores; um card de primeiro
+    nível sem título usa o da intro, e um card dentro de uma lista precisa escrever o seu.
+form.yml/CardStep.description:
+  en-us: The body under the title, with `{answer:}`, `{plural:}` and `{context:}` tokens.
+  pt-br: O corpo abaixo do título, com os tokens `{answer:}`, `{plural:}` e `{context:}`.
+form.yml/CardStep.footer:
+  en-us: The footer of the step's screen; the shared footer when left out, none when `null`.
+  pt-br: O rodapé da tela da etapa; o rodapé compartilhado quando omitido, nenhum quando `null`.
+form.yml/CardStep.emoji:
+  en-us: 'The step''s emoji: leads its title, its rows on summaries and, on a card, its header.'
+  pt-br: 'O emoji da etapa: vem antes do título, das linhas nos resumos e, num card, do cabeçalho.'
+form.yml/CardStep.hidden:
+  en-us: Keeps the answer off the review, the panel and the intro, for a question that only
+    steers the flow.
+  pt-br: Deixa a resposta fora da revisão, do painel e da intro, para uma pergunta que só
+    direciona o fluxo.
+form.yml/CardStep.appears_in:
+  en-us: 'Where the step is asked: in the setup and on the panel, or only on the panel (`panel`,
+    for a list filled after saving, left out of the setup and the intro); `setup` is refused,
+    the panel edits every step.'
+  pt-br: 'Onde a etapa é perguntada: no setup e no painel, ou só no painel (`panel`, para
+    uma lista preenchida depois de salvar, fora do setup e da intro); `setup` é recusado,
+    porque o painel edita toda etapa.'
+form.yml/CardStep.when:
+  en-us: Asks the step only while the rule holds.
+  pt-br: Só pergunta a etapa enquanto a regra vale.
+form.yml/CardStep.variants:
+  en-us: Titles and descriptions that replace the step's own while their rule holds, for a
+    step worded after the mode in force; the rule of a variant that writes a description names
+    only earlier answers, one that writes only a title may name the step's own.
+  pt-br: Títulos e descrições que substituem os da etapa enquanto a regra deles vale, para
+    uma etapa cujo texto depende do modo ativo; a regra de uma variante que escreve uma descrição
+    só cita respostas anteriores, e a de uma que só escreve um título pode citar a da própria
+    etapa.
+form.yml/CardStep.header:
+  en-us: The card's title and the picture of Keiko beside it.
+  pt-br: O título do card e a imagem do Keiko ao lado.
+form.yml/CardStep.edit:
+  en-us: 'What one Edit opens on the panel and the review: the whole card, or only the section
+    of each line (`field`, refused inside a list).'
+  pt-br: 'O que um Editar abre no painel e na revisão: o card inteiro, ou só a seção de cada
+    linha (`field`, recusado dentro de uma lista).'
+form.yml/CardStep.preview:
+  en-us: '`true` draws a Preview first under the card, and beside each item of a list for
+    an item card; the object for a preview that waits on keys or fills tokens.'
+  pt-br: '`true` desenha um Pré-visualizar primeiro abaixo do card, e ao lado de cada item
+    de uma lista num card de item; o objeto, para uma prévia que espera chaves ou preenche
+    tokens.'
+form.yml/CardStep.required:
+  en-us: Keys that refuse Done while they are empty.
+  pt-br: Chaves que recusam o Avançar enquanto estiverem vazias.
+form.yml/CardStep.transform:
+  en-us: Writes a value derived from the card's state on Done and seeds its parts back on
+    an edit, such as a date from a day and a month.
+  pt-br: Grava no Avançar um valor derivado do estado do card e devolve as partes numa edição,
+    como uma data feita de dia e mês.
+form.yml/CardStep.group:
+  en-us: The `groups` entry whose heading lists the card's rows.
+  pt-br: A entrada de `groups` cujo título lista as linhas do card.
+form.yml/CardStep.fields:
+  en-us: The keys Done saves, and how summaries and the intro show them.
+  pt-br: As chaves que o Avançar salva, e como os resumos e a intro as mostram.
+form.yml/CardStep.sections:
+  en-us: The card's editable parts.
+  pt-br: As partes editáveis do card.
+form.yml/CardStep.defaults:
+  en-us: Seeds the card's state with these values while nothing is answered or saved.
+  pt-br: Preenche o estado do card com estes valores enquanto nada foi respondido ou salvo.
+form.yml/ListStep:
+  en-us: A list of items, each built by a child session over `steps`.
+  pt-br: Uma lista de itens, cada um montado por uma sessão filha sobre `steps`.
+form.yml/ListStep.type:
+  en-us: Draws a list of items, each built by a child session over `steps`.
+  pt-br: Desenha uma lista de itens, cada um montado por uma sessão filha sobre `steps`.
+form.yml/ListStep.key:
+  en-us: The answer key the step produces, unique among the form's top-level steps.
+  pt-br: A chave de resposta que a etapa produz, única entre as etapas de primeiro nível do
+    form.
+form.yml/ListStep.title:
+  en-us: The step's heading on its screen, its summary rows and the pickers.
+  pt-br: O título da etapa na tela dela, nas linhas de resumo e nos seletores.
+form.yml/ListStep.description:
+  en-us: The body under the title, with `{answer:}`, `{plural:}` and `{context:}` tokens.
+  pt-br: O corpo abaixo do título, com os tokens `{answer:}`, `{plural:}` e `{context:}`.
+form.yml/ListStep.footer:
+  en-us: The footer of the step's screen; the shared footer when left out, none when `null`.
+  pt-br: O rodapé da tela da etapa; o rodapé compartilhado quando omitido, nenhum quando `null`.
+form.yml/ListStep.emoji:
+  en-us: 'The step''s emoji: leads its title, its rows on summaries and, on a card, its header.'
+  pt-br: 'O emoji da etapa: vem antes do título, das linhas nos resumos e, num card, do cabeçalho.'
+form.yml/ListStep.hidden:
+  en-us: Keeps the answer off the review, the panel and the intro, for a question that only
+    steers the flow.
+  pt-br: Deixa a resposta fora da revisão, do painel e da intro, para uma pergunta que só
+    direciona o fluxo.
+form.yml/ListStep.appears_in:
+  en-us: 'Where the step is asked: in the setup and on the panel, or only on the panel (`panel`,
+    for a list filled after saving, left out of the setup and the intro); `setup` is refused,
+    the panel edits every step.'
+  pt-br: 'Onde a etapa é perguntada: no setup e no painel, ou só no painel (`panel`, para
+    uma lista preenchida depois de salvar, fora do setup e da intro); `setup` é recusado,
+    porque o painel edita toda etapa.'
+form.yml/ListStep.when:
+  en-us: Asks the step only while the rule holds.
+  pt-br: Só pergunta a etapa enquanto a regra vale.
+form.yml/ListStep.variants:
+  en-us: Titles and descriptions that replace the step's own while their rule holds, for a
+    step worded after the mode in force; the rule of a variant that writes a description names
+    only earlier answers, one that writes only a title may name the step's own.
+  pt-br: Títulos e descrições que substituem os da etapa enquanto a regra deles vale, para
+    uma etapa cujo texto depende do modo ativo; a regra de uma variante que escreve uma descrição
+    só cita respostas anteriores, e a de uma que só escreve um título pode citar a da própria
+    etapa.
+form.yml/ListStep.items:
+  en-us: How many items the list holds and how.
+  pt-br: Quantos itens a lista comporta e como.
+form.yml/ListStep.edit:
+  en-us: 'What one Edit opens on the panel and the review: the whole list, or one item, each
+    drawn as its own block with Edit and Preview (`item`).'
+  pt-br: 'O que um Editar abre no painel e na revisão: a lista inteira, ou um item, cada um
+    desenhado como um bloco próprio com Editar e Pré-visualizar (`item`).'
+form.yml/ListStep.remove:
+  en-us: 'Where items are removed: on the list''s own screen, or with a red Remove beside
+    each item on the panel (`item`, needs `edit: item`).'
+  pt-br: 'Onde os itens são removidos: na tela própria da lista, ou por um Remover vermelho
+    ao lado de cada item no painel (`item`, precisa de `edit: item`).'
+form.yml/ListStep.search:
+  en-us: Adds a Search that finds an item by the member its `unique.key` picks, for a list
+    keyed by members.
+  pt-br: Adiciona um Pesquisar que acha um item pelo membro que a `unique.key` dele escolhe,
+    para uma lista indexada por membros.
+form.yml/ListStep.counter:
+  en-us: The value beside the list's title on the panel and the review, with `$count` and
+    `$max`.
+  pt-br: O valor ao lado do título da lista no painel e na revisão, com `$count` e `$max`.
+form.yml/ListStep.last_item_warning:
+  en-us: 'The warning before removing the last item of a list with `items.min: 1`, with `$item`
+    and `$feature`.'
+  pt-br: 'O aviso antes de remover o último item de uma lista com `items.min: 1`, com `$item`
+    e `$feature`.'
+form.yml/ListStep.group:
+  en-us: The `groups` entry whose heading lists the list's rows.
+  pt-br: A entrada de `groups` cujo título lista as linhas da lista.
+form.yml/ListStep.steps:
+  en-us: The item's own steps, run as a child session for each item.
+  pt-br: As etapas do próprio item, rodadas como uma sessão filha para cada item.
+form.yml/ReviewStep:
+  en-us: 'The last screen: the summary and the final Confirm.'
+  pt-br: 'A última tela: o resumo e o Confirmar final.'
+form.yml/ReviewStep.type:
+  en-us: 'Draws the last screen: the summary and the final Confirm.'
+  pt-br: 'Desenha a última tela: o resumo e o Confirmar final.'
+form.yml/ReviewStep.key:
+  en-us: The answer key the step produces, unique among the form's top-level steps.
+  pt-br: A chave de resposta que a etapa produz, única entre as etapas de primeiro nível do
+    form.
+form.yml/ReviewStep.title:
+  en-us: The review's heading; the intro's title when left out.
+  pt-br: O título da revisão; o título da intro quando omitido.
+form.yml/ReviewStep.description:
+  en-us: The body under the title, with `{answer:}`, `{plural:}` and `{context:}` tokens;
+    the shared `fallbacks.review_description` when left out.
+  pt-br: O corpo abaixo do título, com os tokens `{answer:}`, `{plural:}` e `{context:}`;
+    o `fallbacks.review_description` compartilhado quando omitido.
+form.yml/ReviewStep.footer:
+  en-us: The footer of the step's screen; the shared footer when left out, none when `null`.
+  pt-br: O rodapé da tela da etapa; o rodapé compartilhado quando omitido, nenhum quando `null`.
+form.yml/ReviewStep.emoji:
+  en-us: 'The step''s emoji: leads its title, its rows on summaries and, on a card, its header.'
+  pt-br: 'O emoji da etapa: vem antes do título, das linhas nos resumos e, num card, do cabeçalho.'
+form.yml/ReviewStep.preview:
+  en-us: Shows a Preview on the review while no list item previews itself.
+  pt-br: Mostra um Pré-visualizar na revisão enquanto nenhum item de lista tiver prévia própria.
+form.yml/ReviewStep.info:
+  en-us: A closing note above the footer, such as how members add their own items.
+  pt-br: Uma nota de fechamento acima do rodapé, como explicar que os membros cadastram os
+    próprios itens.
+form.yml/ReviewStep.lines:
+  en-us: Lines read from answers the document never keeps, such as what a lookup found.
+  pt-br: Linhas lidas de respostas que o documento nunca guarda, como o que uma busca encontrou.
+form.yml/Text:
+  en-us: One text in both locales Keiko speaks, the node every form and copy file writes.
+  pt-br: Um texto nos dois idiomas que o Keiko fala, o nó que todo arquivo de form e de copy
+    escreve.
+form.yml/Text.en-us:
+  en-us: What Keiko writes to an English-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala inglês.
+form.yml/Text.pt-br:
+  en-us: What Keiko writes to a Portuguese-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala português.
+form.yml/Screen:
+  en-us: 'The texts of a screen of its own: its title and the intro under it.'
+  pt-br: 'Os textos de uma tela própria: o título e a introdução abaixo dele.'
+form.yml/Screen.title:
+  en-us: The screen's title; its owner's label when left out.
+  pt-br: O título da tela; o rótulo do dono dela quando omitido.
+form.yml/Screen.description:
+  en-us: The intro under the screen's title; none when left out.
+  pt-br: A introdução abaixo do título da tela; nenhuma quando omitida.
+form.yml/Variant:
+  en-us: Texts that replace the default ones while the rule holds, first match wins.
+  pt-br: Textos que substituem os padrões enquanto a regra vale; vence o primeiro que bater.
+form.yml/Variant.when:
+  en-us: The rule under which these texts are shown.
+  pt-br: A regra sob a qual estes textos aparecem.
+form.yml/Variant.title:
+  en-us: The title shown while the rule holds.
+  pt-br: O título mostrado enquanto a regra vale.
+form.yml/Variant.description:
+  en-us: The description shown while the rule holds.
+  pt-br: A descrição mostrada enquanto a regra vale.
+form.yml/ButtonSpec:
+  en-us: A button the form labels.
+  pt-br: Um botão que o form rotula.
+form.yml/ButtonSpec.label:
+  en-us: The text on the button.
+  pt-br: O texto no botão.
+form.yml/IntroPanel:
+  en-us: How the intro reads on the panel.
+  pt-br: Como a intro aparece no painel.
+form.yml/IntroPanel.description:
+  en-us: The intro of the panel, written as what the feature is doing.
+  pt-br: A introdução do painel, escrita como o que a funcionalidade está fazendo.
+form.yml/Leaf:
+  en-us: One test on one key of the scope chain, with exactly one operator.
+  pt-br: Um teste sobre uma chave do escopo, com exatamente um operador.
+form.yml/Leaf.key:
+  en-us: 'The value the rule tests: an answer key, behind `parent.` or `item.` for an outer
+    session or a list item, or `items.count`.'
+  pt-br: 'O valor que a regra testa: uma chave de resposta, com `parent.` ou `item.` na frente
+    para uma sessão de fora ou um item de lista, ou `items.count`.'
+form.yml/Leaf.is:
+  en-us: Holds while the value equals this one.
+  pt-br: Vale enquanto o valor for igual a este.
+form.yml/Leaf.in:
+  en-us: Holds while the value is one of these.
+  pt-br: Vale enquanto o valor for um destes.
+form.yml/Leaf.not_in:
+  en-us: Holds while the value is none of these.
+  pt-br: Vale enquanto o valor não for nenhum destes.
+form.yml/Leaf.matches:
+  en-us: Holds while the value matches this regular expression.
+  pt-br: Vale enquanto o valor casar com esta expressão regular.
+form.yml/Leaf.present:
+  en-us: Holds while the value is filled, or while it is empty when `false`.
+  pt-br: Vale enquanto o valor estiver preenchido, ou vazio quando `false`.
+form.yml/Leaf.count:
+  en-us: Holds while the number of values is within these bounds.
+  pt-br: Vale enquanto a quantidade de valores estiver dentro destes limites.
+form.yml/All:
+  en-us: True when every rule holds.
+  pt-br: Verdadeira quando todas as regras valem.
+form.yml/All.all:
+  en-us: The rules that must all hold.
+  pt-br: As regras que precisam valer todas.
+form.yml/AnyOf:
+  en-us: True when at least one rule holds.
+  pt-br: Verdadeira quando pelo menos uma regra vale.
+form.yml/AnyOf.any:
+  en-us: The rules one of which must hold.
+  pt-br: As regras das quais pelo menos uma precisa valer.
+form.yml/Not:
+  en-us: True when the rule does not hold.
+  pt-br: Verdadeira quando a regra não vale.
+form.yml/Not.not:
+  en-us: The rule that must not hold.
+  pt-br: A regra que não pode valer.
+form.yml/Extension:
+  en-us: A registered validator, transform or normalizer and the params it takes.
+  pt-br: Um validador, transformação ou normalizador registrado e os parâmetros que ele recebe.
+form.yml/Extension.name:
+  en-us: 'The registered name the bot runs the value through: a validator under `validation`,
+    a transform under `transform`, a normalizer under `normalize`.'
+  pt-br: 'O nome registrado pelo qual o bot passa o valor: um validador em `validation`, uma
+    transformação em `transform`, um normalizador em `normalize`.'
+form.yml/Extension.params:
+  en-us: What the extension reads besides the typed value; the compiler asks for exactly the
+    params its declaration names, none for a transform or a normalizer.
+  pt-br: O que a extensão lê além do valor digitado; o compilador exige exatamente os parâmetros
+    que a declaração dela cita, e nenhum para uma transformação ou um normalizador.
+form.yml/Option:
+  en-us: One choice of a single-choice step or a card section.
+  pt-br: Uma opção de uma etapa de escolha única ou de uma seção de card.
+form.yml/Option.label:
+  en-us: The text of the choice's button or select row.
+  pt-br: O texto do botão ou da linha do select da opção.
+form.yml/Option.value:
+  en-us: The value stored when the choice is picked; rules compare with it.
+  pt-br: O valor guardado quando a opção é escolhida; as regras comparam com ele.
+form.yml/Option.style:
+  en-us: The colour of the choice's button, grey when left out.
+  pt-br: A cor do botão da opção; cinza quando omitida.
+form.yml/Option.description:
+  en-us: A line under the choice on its select and on its section's screen, for choices such
+    as modes that need a sentence each.
+  pt-br: Uma linha abaixo da opção no select e na tela da seção, para opções como modos que
+    precisam de uma frase cada.
+form.yml/Header:
+  en-us: 'The card header: its title and the picture of Keiko beside it.'
+  pt-br: 'O cabeçalho do card: o título e a imagem do Keiko ao lado.'
+form.yml/Header.title:
+  en-us: The header title, after the card's emoji; the card's title when left out.
+  pt-br: O título do cabeçalho, depois do emoji do card; o título do card quando omitido.
+form.yml/Header.thumbnail:
+  en-us: The picture of Keiko drawn beside the header; none when left out.
+  pt-br: A imagem do Keiko desenhada ao lado do cabeçalho; nenhuma quando omitida.
+form.yml/CardPreview:
+  en-us: The Preview of a card that waits on keys or fills tokens.
+  pt-br: O Pré-visualizar de um card que espera chaves ou preenche tokens.
+form.yml/CardPreview.required:
+  en-us: 'Keys the preview is drawn from: while they are empty, Preview answers `error` instead.'
+  pt-br: 'As chaves de onde a prévia é desenhada: enquanto elas estiverem vazias, o Pré-visualizar
+    responde com `error` no lugar.'
+form.yml/CardPreview.error:
+  en-us: The error block whose message Preview answers while a key it requires is empty.
+  pt-br: O bloco de erro cuja mensagem o Pré-visualizar mostra enquanto uma chave que ele
+    exige estiver vazia.
+form.yml/CardPreview.tokens:
+  en-us: Fills these `{token}` names in the previews of the messages the admin types, such
+    as the member, the server and the date.
+  pt-br: Preenche estes nomes `{token}` nas prévias das mensagens que o admin digita, como
+    o membro, o servidor e a data.
+form.yml/Required:
+  en-us: 'Keys that must hold a value: every one of some, or any one of others.'
+  pt-br: 'Chaves que precisam ter um valor: todas de um grupo, ou qualquer uma de outro.'
+form.yml/Required.all:
+  en-us: Refuses while one of these keys is shown and empty.
+  pt-br: Recusa enquanto uma destas chaves estiver visível e vazia.
+form.yml/Required.any:
+  en-us: Refuses while every one of these shown keys is empty, for settings any one of which
+    is enough.
+  pt-br: Recusa enquanto todas estas chaves visíveis estiverem vazias, para configurações
+    em que qualquer uma basta.
+form.yml/CardField:
+  en-us: A persisted key of a card and how summaries show it.
+  pt-br: Uma chave salva de um card e como os resumos a mostram.
+form.yml/CardField.key:
+  en-us: A key the card's Done saves; a state key no field names stays in the draft.
+  pt-br: Uma chave que o Avançar do card salva; uma chave de estado que nenhum campo cita
+    fica só no rascunho.
+form.yml/CardField.label:
+  en-us: The key's name on summaries, the panel and the intro; the label of the section, select
+    or input that owns the key when left out.
+  pt-br: O nome da chave nos resumos, no painel e na intro; o rótulo da seção, select ou campo
+    dono da chave quando omitido.
+form.yml/CardField.emoji:
+  en-us: The emoji of the key's line when no section owns the key, for a value a transform
+    writes.
+  pt-br: O emoji da linha da chave quando nenhuma seção é dona dela, para um valor que uma
+    transformação grava.
+form.yml/CardField.description:
+  en-us: The line the intro lists for this setting.
+  pt-br: A linha que a intro lista para esta configuração.
+form.yml/CardField.format:
+  en-us: How summaries format the value; the format of the section or select that owns the
+    key when left out.
+  pt-br: Como os resumos formatam o valor; o formato da seção ou do select dono da chave quando
+    omitido.
+form.yml/CardField.hidden:
+  en-us: Keeps the key off the review, the panel and the intro, for bookkeeping keys such
+    as a mode or an image url.
+  pt-br: Deixa a chave fora da revisão, do painel e da intro, para chaves de controle como
+    um modo ou a url de uma imagem.
+form.yml/CardField.button:
+  en-us: The Edit beside the key's row, for a row whose Edit only adds; Edit when left out.
+  pt-br: O Editar ao lado da linha da chave, para uma linha cujo Editar só adiciona; Editar
+    quando omitido.
+form.yml/CardField.group:
+  en-us: The `groups` entry whose heading lists the key's row with an Edit of its own, for
+    a key that belongs with another step's rows.
+  pt-br: A entrada de `groups` cujo título lista a linha da chave com um Editar próprio, para
+    uma chave que pertence às linhas de outra etapa.
+form.yml/ItemsSpec:
+  en-us: How many items a list holds and what tells them apart.
+  pt-br: Quantos itens uma lista comporta e o que diferencia um do outro.
+form.yml/ItemsSpec.max:
+  en-us: The most items the list holds; Add is off when full.
+  pt-br: O máximo de itens da lista; o Adicionar fica desligado quando ela enche.
+form.yml/ItemsSpec.min:
+  en-us: '`1` keeps the list from being emptied: Remove leaves the last item, or warns that
+    the feature turns off with it.'
+  pt-br: '`1` impede que a lista fique vazia: o Remover mantém o último item, ou avisa que
+    a funcionalidade desliga junto.'
+form.yml/ItemsSpec.unique:
+  en-us: The item key two items may not share.
+  pt-br: A chave do item que dois itens não podem repetir.
+form.yml/Search:
+  en-us: How an admin finds an item of a list by its member.
+  pt-br: Como um admin acha um item de uma lista pelo membro.
+form.yml/Search.screen:
+  en-us: The title of a found item's screen, with `$item`; the list's emoji and the item's
+    name when left out.
+  pt-br: O título da tela de um item encontrado, com `$item`; o emoji da lista e o nome do
+    item quando omitido.
+form.yml/ReviewLine:
+  en-us: A line of the review read from an answer the document never keeps.
+  pt-br: Uma linha da revisão lida de uma resposta que o documento nunca guarda.
+form.yml/ReviewLine.emoji:
+  en-us: Leads the line.
+  pt-br: Vem no começo da linha.
+form.yml/ReviewLine.label:
+  en-us: The line's label.
+  pt-br: O rótulo da linha.
+form.yml/ReviewLine.answer:
+  en-us: The answer the line shows; the line is left out while it is empty.
+  pt-br: A resposta que a linha mostra; a linha some enquanto ela estiver vazia.
+form.yml/Count:
+  en-us: Bounds on how many values an answer holds.
+  pt-br: Limites de quantos valores uma resposta tem.
+form.yml/Count.min:
+  en-us: The fewest values the rule accepts.
+  pt-br: O mínimo de valores que a regra aceita.
+form.yml/Count.max:
+  en-us: The most values the rule accepts.
+  pt-br: O máximo de valores que a regra aceita.
+form.yml/PreviewAnswer:
+  en-us: A preview token filled with an answer.
+  pt-br: Um token da prévia preenchido com uma resposta.
+form.yml/PreviewAnswer.answer:
+  en-us: The answer whose value replaces the token.
+  pt-br: A resposta cujo valor substitui o token.
+form.yml/PreviewAnswer.format:
+  en-us: How the value is formatted before it replaces it.
+  pt-br: Como o valor é formatado antes de substituir o token.
+form.yml/PreviewContext:
+  en-us: A preview token filled with a value of the interaction.
+  pt-br: Um token da prévia preenchido com um valor da interação.
+form.yml/PreviewContext.context:
+  en-us: 'The interaction value that replaces the token: the server''s name.'
+  pt-br: 'O valor da interação que substitui o token: o nome do servidor.'
+form.yml/TitleContentSection:
+  en-us: A title plus a body, default or custom.
+  pt-br: Um título e um corpo, padrão ou personalizados.
+form.yml/TitleContentSection.type:
+  en-us: Draws a title and a body the admin keeps default or customizes.
+  pt-br: Desenha um título e um corpo que o admin mantém no padrão ou personaliza.
+form.yml/TitleContentSection.key:
+  en-us: The section's id, unique in its card, named by groups and edits.
+  pt-br: O id da seção, único no card, citado por grupos e edições.
+form.yml/TitleContentSection.emoji:
+  en-us: Leads the section's heading and lines.
+  pt-br: Vem antes do título e das linhas da seção.
+form.yml/TitleContentSection.label:
+  en-us: The section's heading on the card.
+  pt-br: O título da seção no card.
+form.yml/TitleContentSection.description:
+  en-us: Lines under the heading while the card is edited.
+  pt-br: Linhas abaixo do título enquanto o card é editado.
+form.yml/TitleContentSection.keys:
+  en-us: The state keys the section writes.
+  pt-br: As chaves de estado que a seção grava.
+form.yml/TitleContentSection.image:
+  en-us: Draws the picture held by that state key or lookup answer under the section's lines.
+  pt-br: Desenha, abaixo das linhas da seção, a imagem guardada nessa chave de estado ou resposta
+    de busca.
+form.yml/TitleContentSection.when:
+  en-us: Shows the section only while the rule over the card's state holds; a hidden section
+    is never required.
+  pt-br: Só mostra a seção enquanto a regra sobre o estado do card vale; uma seção escondida
+    nunca é obrigatória.
+form.yml/TitleContentSection.appears_in:
+  en-us: 'Where the card draws the section: always, only while nothing is saved (`setup`,
+    for what a first setup offers once), or only once something is (`panel`).'
+  pt-br: 'Onde o card desenha a seção: sempre, só enquanto nada foi salvo (`setup`, para o
+    que o primeiro setup oferece uma vez só), ou só depois que algo foi salvo (`panel`).'
+form.yml/TitleContentSection.button:
+  en-us: The button that opens the section, Edit when left out.
+  pt-br: O botão que abre a seção; Editar quando omitido.
+form.yml/TitleContentSection.modal:
+  en-us: The modal the title and body are typed in.
+  pt-br: O modal onde o título e o corpo são digitados.
+form.yml/TitleContentSection.default:
+  en-us: 'The copy block whose `title` and `description` the section shows, and its modal
+    starts from, until the admin customizes them: the text the command posts while nobody
+    did.'
+  pt-br: 'O bloco de copy cujos `title` e `description` a seção mostra, e de onde o modal
+    começa, até o admin personalizar: o texto que o comando publica enquanto ninguém mudou.'
+form.yml/FileUploadSection:
+  en-us: An image, default or uploaded.
+  pt-br: Uma imagem, padrão ou enviada.
+form.yml/FileUploadSection.type:
+  en-us: Draws an image the admin keeps default or uploads.
+  pt-br: Desenha uma imagem que o admin mantém no padrão ou envia.
+form.yml/FileUploadSection.key:
+  en-us: The section's id, unique in its card, named by groups and edits.
+  pt-br: O id da seção, único no card, citado por grupos e edições.
+form.yml/FileUploadSection.emoji:
+  en-us: Leads the section's heading and lines.
+  pt-br: Vem antes do título e das linhas da seção.
+form.yml/FileUploadSection.label:
+  en-us: The section's heading on the card.
+  pt-br: O título da seção no card.
+form.yml/FileUploadSection.description:
+  en-us: Lines under the heading while the card is edited.
+  pt-br: Linhas abaixo do título enquanto o card é editado.
+form.yml/FileUploadSection.keys:
+  en-us: The state keys the section writes.
+  pt-br: As chaves de estado que a seção grava.
+form.yml/FileUploadSection.image:
+  en-us: Draws the picture held by that state key or lookup answer under the section's lines.
+  pt-br: Desenha, abaixo das linhas da seção, a imagem guardada nessa chave de estado ou resposta
+    de busca.
+form.yml/FileUploadSection.when:
+  en-us: Shows the section only while the rule over the card's state holds; a hidden section
+    is never required.
+  pt-br: Só mostra a seção enquanto a regra sobre o estado do card vale; uma seção escondida
+    nunca é obrigatória.
+form.yml/FileUploadSection.appears_in:
+  en-us: 'Where the card draws the section: always, only while nothing is saved (`setup`,
+    for what a first setup offers once), or only once something is (`panel`).'
+  pt-br: 'Onde o card desenha a seção: sempre, só enquanto nada foi salvo (`setup`, para o
+    que o primeiro setup oferece uma vez só), ou só depois que algo foi salvo (`panel`).'
+form.yml/FileUploadSection.button:
+  en-us: The button that opens the section, Edit when left out.
+  pt-br: O botão que abre a seção; Editar quando omitido.
+form.yml/FileUploadSection.modal:
+  en-us: The modal the image is uploaded on.
+  pt-br: O modal onde a imagem é enviada.
+form.yml/ChannelSelectSection:
+  en-us: One channel chosen on a native select.
+  pt-br: Um canal escolhido num select nativo.
+form.yml/ChannelSelectSection.type:
+  en-us: Draws one channel picked on a native select.
+  pt-br: Desenha um canal escolhido num select nativo.
+form.yml/ChannelSelectSection.key:
+  en-us: The section's id, unique in its card, named by groups and edits.
+  pt-br: O id da seção, único no card, citado por grupos e edições.
+form.yml/ChannelSelectSection.emoji:
+  en-us: Leads the section's heading and lines.
+  pt-br: Vem antes do título e das linhas da seção.
+form.yml/ChannelSelectSection.label:
+  en-us: The section's heading on the card.
+  pt-br: O título da seção no card.
+form.yml/ChannelSelectSection.description:
+  en-us: Lines under the heading while the card is edited.
+  pt-br: Linhas abaixo do título enquanto o card é editado.
+form.yml/ChannelSelectSection.keys:
+  en-us: The state keys the section writes.
+  pt-br: As chaves de estado que a seção grava.
+form.yml/ChannelSelectSection.image:
+  en-us: Draws the picture held by that state key or lookup answer under the section's lines.
+  pt-br: Desenha, abaixo das linhas da seção, a imagem guardada nessa chave de estado ou resposta
+    de busca.
+form.yml/ChannelSelectSection.when:
+  en-us: Shows the section only while the rule over the card's state holds; a hidden section
+    is never required.
+  pt-br: Só mostra a seção enquanto a regra sobre o estado do card vale; uma seção escondida
+    nunca é obrigatória.
+form.yml/ChannelSelectSection.appears_in:
+  en-us: 'Where the card draws the section: always, only while nothing is saved (`setup`,
+    for what a first setup offers once), or only once something is (`panel`).'
+  pt-br: 'Onde o card desenha a seção: sempre, só enquanto nada foi salvo (`setup`, para o
+    que o primeiro setup oferece uma vez só), ou só depois que algo foi salvo (`panel`).'
+form.yml/ChannelSelectSection.screen:
+  en-us: The title and the intro of the section's own screen; its label and no intro when
+    left out.
+  pt-br: O título e a introdução da tela própria da seção; o rótulo dela e nenhuma introdução
+    quando omitido.
+form.yml/UserSelectSection:
+  en-us: One member chosen on a native member select, the member's picture under it.
+  pt-br: Um membro escolhido num select nativo de membros, com a foto dele embaixo.
+form.yml/UserSelectSection.type:
+  en-us: Draws one member picked on a native member select.
+  pt-br: Desenha um membro escolhido num select nativo de membros.
+form.yml/UserSelectSection.key:
+  en-us: The section's id, unique in its card, named by groups and edits.
+  pt-br: O id da seção, único no card, citado por grupos e edições.
+form.yml/UserSelectSection.emoji:
+  en-us: Leads the section's heading and lines.
+  pt-br: Vem antes do título e das linhas da seção.
+form.yml/UserSelectSection.label:
+  en-us: The section's heading on the card.
+  pt-br: O título da seção no card.
+form.yml/UserSelectSection.description:
+  en-us: Lines under the heading while the card is edited.
+  pt-br: Linhas abaixo do título enquanto o card é editado.
+form.yml/UserSelectSection.keys:
+  en-us: The state keys the section writes.
+  pt-br: As chaves de estado que a seção grava.
+form.yml/UserSelectSection.image:
+  en-us: Draws the picture held by that state key or lookup answer under the section's lines.
+  pt-br: Desenha, abaixo das linhas da seção, a imagem guardada nessa chave de estado ou resposta
+    de busca.
+form.yml/UserSelectSection.when:
+  en-us: Shows the section only while the rule over the card's state holds; a hidden section
+    is never required.
+  pt-br: Só mostra a seção enquanto a regra sobre o estado do card vale; uma seção escondida
+    nunca é obrigatória.
+form.yml/UserSelectSection.appears_in:
+  en-us: 'Where the card draws the section: always, only while nothing is saved (`setup`,
+    for what a first setup offers once), or only once something is (`panel`).'
+  pt-br: 'Onde o card desenha a seção: sempre, só enquanto nada foi salvo (`setup`, para o
+    que o primeiro setup oferece uma vez só), ou só depois que algo foi salvo (`panel`).'
+form.yml/UserSelectSection.screen:
+  en-us: The title and the intro of the section's own screen; its label and no intro when
+    left out.
+  pt-br: O título e a introdução da tela própria da seção; o rótulo dela e nenhuma introdução
+    quando omitido.
+form.yml/UserSelectSection.avatar:
+  en-us: Draws the picked member's avatar under the select, for an item that is about a member.
+  pt-br: Desenha o avatar do membro escolhido abaixo do select, para um item que é sobre um
+    membro.
+form.yml/ValueSelectSection:
+  en-us: One value chosen on a select of declared options.
+  pt-br: Um valor escolhido num select de opções declaradas.
+form.yml/ValueSelectSection.type:
+  en-us: Draws one value picked on a select of the declared options.
+  pt-br: Desenha um valor escolhido num select das opções declaradas.
+form.yml/ValueSelectSection.key:
+  en-us: The section's id, unique in its card, named by groups and edits.
+  pt-br: O id da seção, único no card, citado por grupos e edições.
+form.yml/ValueSelectSection.emoji:
+  en-us: Leads the section's heading and lines.
+  pt-br: Vem antes do título e das linhas da seção.
+form.yml/ValueSelectSection.label:
+  en-us: The section's heading on the card.
+  pt-br: O título da seção no card.
+form.yml/ValueSelectSection.description:
+  en-us: Lines under the heading while the card is edited.
+  pt-br: Linhas abaixo do título enquanto o card é editado.
+form.yml/ValueSelectSection.keys:
+  en-us: The state keys the section writes.
+  pt-br: As chaves de estado que a seção grava.
+form.yml/ValueSelectSection.image:
+  en-us: Draws the picture held by that state key or lookup answer under the section's lines.
+  pt-br: Desenha, abaixo das linhas da seção, a imagem guardada nessa chave de estado ou resposta
+    de busca.
+form.yml/ValueSelectSection.when:
+  en-us: Shows the section only while the rule over the card's state holds; a hidden section
+    is never required.
+  pt-br: Só mostra a seção enquanto a regra sobre o estado do card vale; uma seção escondida
+    nunca é obrigatória.
+form.yml/ValueSelectSection.appears_in:
+  en-us: 'Where the card draws the section: always, only while nothing is saved (`setup`,
+    for what a first setup offers once), or only once something is (`panel`).'
+  pt-br: 'Onde o card desenha a seção: sempre, só enquanto nada foi salvo (`setup`, para o
+    que o primeiro setup oferece uma vez só), ou só depois que algo foi salvo (`panel`).'
+form.yml/ValueSelectSection.screen:
+  en-us: The title and the intro of the section's own screen; its label and no intro when
+    left out.
+  pt-br: O título e a introdução da tela própria da seção; o rótulo dela e nenhuma introdução
+    quando omitido.
+form.yml/ValueSelectSection.placeholder:
+  en-us: The grey hint of the section's select on the card; the title of its own screen, or
+    its label, when left out.
+  pt-br: A dica cinza do select da seção no card; o título da tela própria, ou o rótulo, quando
+    omitida.
+form.yml/ValueSelectSection.options:
+  en-us: The values to pick among.
+  pt-br: Os valores para escolher.
+form.yml/ValueSelectSection.dependents:
+  en-us: Keys a change clears when their check fails with the new value, such as a day the
+    new month does not have.
+  pt-br: Chaves que uma mudança limpa quando a validação delas falha com o novo valor, como
+    um dia que o novo mês não tem.
+form.yml/ButtonOptionsSection:
+  en-us: One value chosen on a row of buttons.
+  pt-br: Um valor escolhido numa fileira de botões.
+form.yml/ButtonOptionsSection.type:
+  en-us: Draws one value picked on a row of buttons.
+  pt-br: Desenha um valor escolhido numa fileira de botões.
+form.yml/ButtonOptionsSection.key:
+  en-us: The section's id, unique in its card, named by groups and edits.
+  pt-br: O id da seção, único no card, citado por grupos e edições.
+form.yml/ButtonOptionsSection.emoji:
+  en-us: Leads the section's heading and lines.
+  pt-br: Vem antes do título e das linhas da seção.
+form.yml/ButtonOptionsSection.label:
+  en-us: The section's heading on the card.
+  pt-br: O título da seção no card.
+form.yml/ButtonOptionsSection.description:
+  en-us: Lines under the heading while the card is edited.
+  pt-br: Linhas abaixo do título enquanto o card é editado.
+form.yml/ButtonOptionsSection.keys:
+  en-us: The state keys the section writes.
+  pt-br: As chaves de estado que a seção grava.
+form.yml/ButtonOptionsSection.image:
+  en-us: Draws the picture held by that state key or lookup answer under the section's lines.
+  pt-br: Desenha, abaixo das linhas da seção, a imagem guardada nessa chave de estado ou resposta
+    de busca.
+form.yml/ButtonOptionsSection.when:
+  en-us: Shows the section only while the rule over the card's state holds; a hidden section
+    is never required.
+  pt-br: Só mostra a seção enquanto a regra sobre o estado do card vale; uma seção escondida
+    nunca é obrigatória.
+form.yml/ButtonOptionsSection.appears_in:
+  en-us: 'Where the card draws the section: always, only while nothing is saved (`setup`,
+    for what a first setup offers once), or only once something is (`panel`).'
+  pt-br: 'Onde o card desenha a seção: sempre, só enquanto nada foi salvo (`setup`, para o
+    que o primeiro setup oferece uma vez só), ou só depois que algo foi salvo (`panel`).'
+form.yml/ButtonOptionsSection.screen:
+  en-us: The title and the intro of the section's own screen; its label and no intro when
+    left out.
+  pt-br: O título e a introdução da tela própria da seção; o rótulo dela e nenhuma introdução
+    quando omitido.
+form.yml/ButtonOptionsSection.placeholder:
+  en-us: The grey hint of the section's select on the card; the title of its own screen, or
+    its label, when left out.
+  pt-br: A dica cinza do select da seção no card; o título da tela própria, ou o rótulo, quando
+    omitida.
+form.yml/ButtonOptionsSection.options:
+  en-us: The values to pick among.
+  pt-br: Os valores para escolher.
+form.yml/BooleanToggleSection:
+  en-us: A yes or no chosen on two buttons.
+  pt-br: Um sim ou não escolhido em dois botões.
+form.yml/BooleanToggleSection.type:
+  en-us: Draws a yes or no picked on two buttons.
+  pt-br: Desenha um sim ou não escolhido em dois botões.
+form.yml/BooleanToggleSection.key:
+  en-us: The section's id, unique in its card, named by groups and edits.
+  pt-br: O id da seção, único no card, citado por grupos e edições.
+form.yml/BooleanToggleSection.emoji:
+  en-us: Leads the section's heading and lines.
+  pt-br: Vem antes do título e das linhas da seção.
+form.yml/BooleanToggleSection.label:
+  en-us: The section's heading on the card.
+  pt-br: O título da seção no card.
+form.yml/BooleanToggleSection.description:
+  en-us: Lines under the heading while the card is edited.
+  pt-br: Linhas abaixo do título enquanto o card é editado.
+form.yml/BooleanToggleSection.keys:
+  en-us: The state keys the section writes.
+  pt-br: As chaves de estado que a seção grava.
+form.yml/BooleanToggleSection.image:
+  en-us: Draws the picture held by that state key or lookup answer under the section's lines.
+  pt-br: Desenha, abaixo das linhas da seção, a imagem guardada nessa chave de estado ou resposta
+    de busca.
+form.yml/BooleanToggleSection.when:
+  en-us: Shows the section only while the rule over the card's state holds; a hidden section
+    is never required.
+  pt-br: Só mostra a seção enquanto a regra sobre o estado do card vale; uma seção escondida
+    nunca é obrigatória.
+form.yml/BooleanToggleSection.appears_in:
+  en-us: 'Where the card draws the section: always, only while nothing is saved (`setup`,
+    for what a first setup offers once), or only once something is (`panel`).'
+  pt-br: 'Onde o card desenha a seção: sempre, só enquanto nada foi salvo (`setup`, para o
+    que o primeiro setup oferece uma vez só), ou só depois que algo foi salvo (`panel`).'
+form.yml/ModalInputSection:
+  en-us: One text typed into a modal.
+  pt-br: Um texto digitado num modal.
+form.yml/ModalInputSection.type:
+  en-us: Draws a text the admin types into a modal.
+  pt-br: Desenha um texto que o admin digita num modal.
+form.yml/ModalInputSection.key:
+  en-us: The section's id, unique in its card, named by groups and edits.
+  pt-br: O id da seção, único no card, citado por grupos e edições.
+form.yml/ModalInputSection.emoji:
+  en-us: Leads the section's heading and lines.
+  pt-br: Vem antes do título e das linhas da seção.
+form.yml/ModalInputSection.label:
+  en-us: The section's heading on the card.
+  pt-br: O título da seção no card.
+form.yml/ModalInputSection.description:
+  en-us: Lines under the heading while the card is edited.
+  pt-br: Linhas abaixo do título enquanto o card é editado.
+form.yml/ModalInputSection.keys:
+  en-us: The state keys the section writes.
+  pt-br: As chaves de estado que a seção grava.
+form.yml/ModalInputSection.image:
+  en-us: Draws the picture held by that state key or lookup answer under the section's lines.
+  pt-br: Desenha, abaixo das linhas da seção, a imagem guardada nessa chave de estado ou resposta
+    de busca.
+form.yml/ModalInputSection.when:
+  en-us: Shows the section only while the rule over the card's state holds; a hidden section
+    is never required.
+  pt-br: Só mostra a seção enquanto a regra sobre o estado do card vale; uma seção escondida
+    nunca é obrigatória.
+form.yml/ModalInputSection.appears_in:
+  en-us: 'Where the card draws the section: always, only while nothing is saved (`setup`,
+    for what a first setup offers once), or only once something is (`panel`).'
+  pt-br: 'Onde o card desenha a seção: sempre, só enquanto nada foi salvo (`setup`, para o
+    que o primeiro setup oferece uma vez só), ou só depois que algo foi salvo (`panel`).'
+form.yml/ModalInputSection.button:
+  en-us: The button that opens the section, Edit when left out.
+  pt-br: O botão que abre a seção; Editar quando omitido.
+form.yml/ModalInputSection.format:
+  en-us: How the typed value reads on the card and on summaries, as it was typed when left
+    out.
+  pt-br: Como o valor digitado aparece no card e nos resumos; do jeito que foi digitado quando
+    omitido.
+form.yml/ModalInputSection.modal:
+  en-us: The modal the value is typed in.
+  pt-br: O modal onde o valor é digitado.
+form.yml/ModalInputSection.fills:
+  en-us: Writes the accepted value into another key's text, for a name typed once that the
+    messages repeat.
+  pt-br: Escreve o valor aceito no texto de outra chave, para um nome digitado uma vez que
+    as mensagens repetem.
+form.yml/ModalInputSection.lookup_answers:
+  en-us: Keeps values the modal's lookup found as answers a later line or picture reads.
+  pt-br: Guarda valores que a busca do modal encontrou como respostas que uma linha ou imagem
+    posterior lê.
+form.yml/MultiSelectSection:
+  en-us: Several values chosen on a select of declared options.
+  pt-br: Vários valores escolhidos num select de opções declaradas.
+form.yml/MultiSelectSection.type:
+  en-us: Draws several values picked on a select of the declared options.
+  pt-br: Desenha vários valores escolhidos num select das opções declaradas.
+form.yml/MultiSelectSection.key:
+  en-us: The section's id, unique in its card, named by groups and edits.
+  pt-br: O id da seção, único no card, citado por grupos e edições.
+form.yml/MultiSelectSection.emoji:
+  en-us: Leads the section's heading and lines.
+  pt-br: Vem antes do título e das linhas da seção.
+form.yml/MultiSelectSection.label:
+  en-us: The section's heading on the card.
+  pt-br: O título da seção no card.
+form.yml/MultiSelectSection.description:
+  en-us: Lines under the heading while the card is edited.
+  pt-br: Linhas abaixo do título enquanto o card é editado.
+form.yml/MultiSelectSection.keys:
+  en-us: The state keys the section writes.
+  pt-br: As chaves de estado que a seção grava.
+form.yml/MultiSelectSection.image:
+  en-us: Draws the picture held by that state key or lookup answer under the section's lines.
+  pt-br: Desenha, abaixo das linhas da seção, a imagem guardada nessa chave de estado ou resposta
+    de busca.
+form.yml/MultiSelectSection.when:
+  en-us: Shows the section only while the rule over the card's state holds; a hidden section
+    is never required.
+  pt-br: Só mostra a seção enquanto a regra sobre o estado do card vale; uma seção escondida
+    nunca é obrigatória.
+form.yml/MultiSelectSection.appears_in:
+  en-us: 'Where the card draws the section: always, only while nothing is saved (`setup`,
+    for what a first setup offers once), or only once something is (`panel`).'
+  pt-br: 'Onde o card desenha a seção: sempre, só enquanto nada foi salvo (`setup`, para o
+    que o primeiro setup oferece uma vez só), ou só depois que algo foi salvo (`panel`).'
+form.yml/MultiSelectSection.screen:
+  en-us: The title and the intro of the section's own screen; its label and no intro when
+    left out.
+  pt-br: O título e a introdução da tela própria da seção; o rótulo dela e nenhuma introdução
+    quando omitido.
+form.yml/MultiSelectSection.placeholder:
+  en-us: The grey hint of the section's select on the card; the title of its own screen, or
+    its label, when left out.
+  pt-br: A dica cinza do select da seção no card; o título da tela própria, ou o rótulo, quando
+    omitida.
+form.yml/MultiSelectSection.options:
+  en-us: The values to pick among.
+  pt-br: Os valores para escolher.
+form.yml/SelectsSection:
+  en-us: Channels or roles picked on native selects, every select on one screen.
+  pt-br: Canais ou cargos escolhidos em selects nativos, todos os selects numa tela só.
+form.yml/SelectsSection.type:
+  en-us: Draws channels or roles picked on native selects on one screen.
+  pt-br: Desenha canais ou cargos escolhidos em selects nativos numa tela só.
+form.yml/SelectsSection.key:
+  en-us: The section's id, unique in its card, named by groups and edits.
+  pt-br: O id da seção, único no card, citado por grupos e edições.
+form.yml/SelectsSection.emoji:
+  en-us: Leads the section's heading and lines.
+  pt-br: Vem antes do título e das linhas da seção.
+form.yml/SelectsSection.label:
+  en-us: The section's heading on the card.
+  pt-br: O título da seção no card.
+form.yml/SelectsSection.description:
+  en-us: Lines under the heading while the card is edited.
+  pt-br: Linhas abaixo do título enquanto o card é editado.
+form.yml/SelectsSection.keys:
+  en-us: The state keys the section writes.
+  pt-br: As chaves de estado que a seção grava.
+form.yml/SelectsSection.image:
+  en-us: Draws the picture held by that state key or lookup answer under the section's lines.
+  pt-br: Desenha, abaixo das linhas da seção, a imagem guardada nessa chave de estado ou resposta
+    de busca.
+form.yml/SelectsSection.when:
+  en-us: Shows the section only while the rule over the card's state holds; a hidden section
+    is never required.
+  pt-br: Só mostra a seção enquanto a regra sobre o estado do card vale; uma seção escondida
+    nunca é obrigatória.
+form.yml/SelectsSection.appears_in:
+  en-us: 'Where the card draws the section: always, only while nothing is saved (`setup`,
+    for what a first setup offers once), or only once something is (`panel`).'
+  pt-br: 'Onde o card desenha a seção: sempre, só enquanto nada foi salvo (`setup`, para o
+    que o primeiro setup oferece uma vez só), ou só depois que algo foi salvo (`panel`).'
+form.yml/SelectsSection.screen:
+  en-us: The title and the intro of the section's own screen; its label and no intro when
+    left out.
+  pt-br: O título e a introdução da tela própria da seção; o rótulo dela e nenhuma introdução
+    quando omitido.
+form.yml/SelectsSection.selects:
+  en-us: The native selects, each writing its own key.
+  pt-br: Os selects nativos, cada um gravando a própria chave.
+form.yml/ListSection:
+  en-us: 'A list of the form drawn on the card: its items, Add and Remove.'
+  pt-br: 'Uma lista do form desenhada no card: os itens, Adicionar e Remover.'
+form.yml/ListSection.type:
+  en-us: Draws a list of the form on the card, with Add and Remove.
+  pt-br: Desenha uma lista do form no card, com Adicionar e Remover.
+form.yml/ListSection.key:
+  en-us: The section's id, unique in its card, named by groups and edits.
+  pt-br: O id da seção, único no card, citado por grupos e edições.
+form.yml/ListSection.emoji:
+  en-us: Leads the section's heading and lines.
+  pt-br: Vem antes do título e das linhas da seção.
+form.yml/ListSection.label:
+  en-us: The section's heading on the card.
+  pt-br: O título da seção no card.
+form.yml/ListSection.description:
+  en-us: Lines under the heading while the card is edited.
+  pt-br: Linhas abaixo do título enquanto o card é editado.
+form.yml/ListSection.keys:
+  en-us: The state keys the section writes.
+  pt-br: As chaves de estado que a seção grava.
+form.yml/ListSection.image:
+  en-us: Draws the picture held by that state key or lookup answer under the section's lines.
+  pt-br: Desenha, abaixo das linhas da seção, a imagem guardada nessa chave de estado ou resposta
+    de busca.
+form.yml/ListSection.when:
+  en-us: Shows the section only while the rule over the card's state holds; a hidden section
+    is never required.
+  pt-br: Só mostra a seção enquanto a regra sobre o estado do card vale; uma seção escondida
+    nunca é obrigatória.
+form.yml/ListSection.appears_in:
+  en-us: 'Where the card draws the section: always, only while nothing is saved (`setup`,
+    for what a first setup offers once), or only once something is (`panel`).'
+  pt-br: 'Onde o card desenha a seção: sempre, só enquanto nada foi salvo (`setup`, para o
+    que o primeiro setup oferece uma vez só), ou só depois que algo foi salvo (`panel`).'
+form.yml/ListSection.list:
+  en-us: The list step whose items the card draws, adds and removes, for a list that belongs
+    on the card of its settings.
+  pt-br: A etapa de lista cujos itens o card desenha, adiciona e remove, para uma lista que
+    pertence ao card das configurações dela.
+form.yml/GroupSection:
+  en-us: Other sections of the card, drawn on a screen of their own behind a button.
+  pt-br: Outras seções do card, desenhadas numa tela própria atrás de um botão.
+form.yml/GroupSection.type:
+  en-us: Draws a button that opens other sections on a screen of their own.
+  pt-br: Desenha um botão que abre outras seções numa tela própria.
+form.yml/GroupSection.key:
+  en-us: The section's id, unique in its card, named by groups and edits.
+  pt-br: O id da seção, único no card, citado por grupos e edições.
+form.yml/GroupSection.emoji:
+  en-us: Leads the section's heading and lines.
+  pt-br: Vem antes do título e das linhas da seção.
+form.yml/GroupSection.label:
+  en-us: The section's heading on the card.
+  pt-br: O título da seção no card.
+form.yml/GroupSection.description:
+  en-us: Lines under the heading while the card is edited.
+  pt-br: Linhas abaixo do título enquanto o card é editado.
+form.yml/GroupSection.keys:
+  en-us: The state keys the section writes.
+  pt-br: As chaves de estado que a seção grava.
+form.yml/GroupSection.image:
+  en-us: Draws the picture held by that state key or lookup answer under the section's lines.
+  pt-br: Desenha, abaixo das linhas da seção, a imagem guardada nessa chave de estado ou resposta
+    de busca.
+form.yml/GroupSection.when:
+  en-us: Shows the section only while the rule over the card's state holds; a hidden section
+    is never required.
+  pt-br: Só mostra a seção enquanto a regra sobre o estado do card vale; uma seção escondida
+    nunca é obrigatória.
+form.yml/GroupSection.appears_in:
+  en-us: 'Where the card draws the section: always, only while nothing is saved (`setup`,
+    for what a first setup offers once), or only once something is (`panel`).'
+  pt-br: 'Onde o card desenha a seção: sempre, só enquanto nada foi salvo (`setup`, para o
+    que o primeiro setup oferece uma vez só), ou só depois que algo foi salvo (`panel`).'
+form.yml/GroupSection.screen:
+  en-us: The title and the intro of the section's own screen; its label and no intro when
+    left out.
+  pt-br: O título e a introdução da tela própria da seção; o rótulo dela e nenhuma introdução
+    quando omitido.
+form.yml/GroupSection.button:
+  en-us: The button that opens the section, Edit when left out.
+  pt-br: O botão que abre a seção; Editar quando omitido.
+form.yml/GroupSection.sections:
+  en-us: The keys of the sections the group's screen draws instead of the card, no group among
+    them.
+  pt-br: As chaves das seções que a tela do grupo desenha no lugar do card, sem nenhum grupo
+    entre elas.
+form.yml/DesignSection:
+  en-us: One design chosen on a gallery of previews.
+  pt-br: Um design escolhido numa galeria de prévias.
+form.yml/DesignSection.type:
+  en-us: Draws a design picked on a gallery of previews.
+  pt-br: Desenha um design escolhido numa galeria de prévias.
+form.yml/DesignSection.key:
+  en-us: The section's id, unique in its card, named by groups and edits.
+  pt-br: O id da seção, único no card, citado por grupos e edições.
+form.yml/DesignSection.emoji:
+  en-us: Leads the section's heading and lines.
+  pt-br: Vem antes do título e das linhas da seção.
+form.yml/DesignSection.label:
+  en-us: The section's heading on the card.
+  pt-br: O título da seção no card.
+form.yml/DesignSection.description:
+  en-us: Lines under the heading while the card is edited.
+  pt-br: Linhas abaixo do título enquanto o card é editado.
+form.yml/DesignSection.keys:
+  en-us: The state keys the section writes.
+  pt-br: As chaves de estado que a seção grava.
+form.yml/DesignSection.image:
+  en-us: Draws the picture held by that state key or lookup answer under the section's lines.
+  pt-br: Desenha, abaixo das linhas da seção, a imagem guardada nessa chave de estado ou resposta
+    de busca.
+form.yml/DesignSection.when:
+  en-us: Shows the section only while the rule over the card's state holds; a hidden section
+    is never required.
+  pt-br: Só mostra a seção enquanto a regra sobre o estado do card vale; uma seção escondida
+    nunca é obrigatória.
+form.yml/DesignSection.appears_in:
+  en-us: 'Where the card draws the section: always, only while nothing is saved (`setup`,
+    for what a first setup offers once), or only once something is (`panel`).'
+  pt-br: 'Onde o card desenha a seção: sempre, só enquanto nada foi salvo (`setup`, para o
+    que o primeiro setup oferece uma vez só), ou só depois que algo foi salvo (`panel`).'
+form.yml/DesignSection.placeholder:
+  en-us: The grey hint of the section's select on the card; the title of its own screen, or
+    its label, when left out.
+  pt-br: A dica cinza do select da seção no card; o título da tela própria, ou o rótulo, quando
+    omitida.
+form.yml/DesignSection.options:
+  en-us: The designs to pick among, with their previews.
+  pt-br: Os designs para escolher, com as prévias.
+form.yml/DesignSection.background:
+  en-us: The answer the design previews are drawn over; the previews are drawn again when
+    it changes.
+  pt-br: A resposta sobre a qual as prévias dos designs são desenhadas; as prévias são redesenhadas
+    quando ela muda.
+form.yml/Unique:
+  en-us: The item key two items of a list may not share.
+  pt-br: A chave do item que dois itens de uma lista não podem repetir.
+form.yml/Unique.key:
+  en-us: The item key two items may not share, which also names an item.
+  pt-br: A chave do item que dois itens não podem repetir, e que também dá nome ao item.
+form.yml/Unique.immutable:
+  en-us: Draws the key's value of an edited item as a line with no control, so the member
+    an item is about stays fixed.
+  pt-br: Mostra o valor da chave de um item em edição como uma linha sem controle, para o
+    membro do item não mudar.
+form.yml/SectionKeys:
+  en-us: The state keys a card section owns.
+  pt-br: As chaves de estado que uma seção de card controla.
+form.yml/SectionKeys.value:
+  en-us: The key the section's value is written to.
+  pt-br: A chave onde o valor da seção é gravado.
+form.yml/SectionKeys.mode:
+  en-us: The key holding `default` or `custom` for a section that keeps a default until it
+    is customized.
+  pt-br: A chave que guarda `default` ou `custom`, para uma seção que mantém um padrão até
+    ser personalizada.
+form.yml/SectionKeys.title:
+  en-us: The key a `title_content` section writes its title to.
+  pt-br: A chave onde uma seção `title_content` grava o título.
+form.yml/SectionKeys.description:
+  en-us: The key a `title_content` section writes its body to.
+  pt-br: A chave onde uma seção `title_content` grava o corpo.
+form.yml/SectionKeys.image:
+  en-us: The key a `file_upload` section writes the image url to.
+  pt-br: A chave onde uma seção `file_upload` grava a url da imagem.
+form.yml/TitleContentModal:
+  en-us: 'The modal a `title_content` section opens: a title input and a body input.'
+  pt-br: 'O modal que uma seção `title_content` abre: um campo de título e um campo de corpo.'
+form.yml/TitleContentModal.title:
+  en-us: The modal's title, after the section's emoji.
+  pt-br: O título do modal, depois do emoji da seção.
+form.yml/TitleContentModal.labels:
+  en-us: The labels of the title and the body inputs.
+  pt-br: Os rótulos dos campos de título e de corpo.
+form.yml/ModalSpec:
+  en-us: The modal a section opens.
+  pt-br: O modal que uma seção abre.
+form.yml/ModalSpec.title:
+  en-us: The modal's title, after the section's emoji.
+  pt-br: O título do modal, depois do emoji da seção.
+form.yml/ResetRule:
+  en-us: A dependent key a change clears when the validator rejects it with the change.
+  pt-br: Uma chave dependente que uma mudança limpa quando o validador a recusa com a mudança.
+form.yml/ResetRule.key:
+  en-us: The state key the change clears.
+  pt-br: A chave de estado que a mudança limpa.
+form.yml/ResetRule.validation:
+  en-us: The validator that checks the dependent key against the new value.
+  pt-br: O validador que checa a chave dependente contra o novo valor.
+form.yml/InputsModal:
+  en-us: 'The modal a `modal_input` section opens: its inputs and their check.'
+  pt-br: 'O modal que uma seção `modal_input` abre: os campos dele e a validação deles.'
+form.yml/InputsModal.title:
+  en-us: The modal's title, after the section's emoji.
+  pt-br: O título do modal, depois do emoji da seção.
+form.yml/InputsModal.validation:
+  en-us: Runs a registered validator on submit, with any lookup it needs.
+  pt-br: Roda um validador registrado no envio, com a busca que ele precisar.
+form.yml/InputsModal.inputs:
+  en-us: The modal's inputs, five at most.
+  pt-br: Os campos do modal, no máximo cinco.
+form.yml/Fills:
+  en-us: Copy a typed value writes into another key of its card.
+  pt-br: Texto que um valor digitado escreve em outra chave do card.
+form.yml/Fills.into:
+  en-us: The state key whose text the value is written into.
+  pt-br: A chave de estado em cujo texto o valor é escrito.
+form.yml/Fills.tokens:
+  en-us: Each `{token}` of the text becomes its template with the typed value, and a value
+    typed earlier is rewritten.
+  pt-br: Cada `{token}` do texto vira o seu modelo com o valor digitado, e um valor digitado
+    antes é reescrito.
+form.yml/Select:
+  en-us: One native select of a selects section.
+  pt-br: Um select nativo de uma seção selects.
+form.yml/Select.type:
+  en-us: 'What the select picks: channels, roles, or only the roles Keiko can assign.'
+  pt-br: 'O que o select escolhe: canais, cargos, ou só os cargos que o Keiko consegue dar.'
+form.yml/Select.key:
+  en-us: The state key the picked ids are written to.
+  pt-br: A chave de estado onde os ids escolhidos são gravados.
+form.yml/Select.emoji:
+  en-us: Leads the select's line on the card, the section's emoji when left out.
+  pt-br: Vem antes da linha do select no card; o emoji da seção quando omitido.
+form.yml/Select.label:
+  en-us: The name of the picked values on summaries.
+  pt-br: O nome dos valores escolhidos nos resumos.
+form.yml/Select.placeholder:
+  en-us: The grey hint inside the empty select.
+  pt-br: A dica cinza dentro do select vazio.
+form.yml/Design:
+  en-us: One entry of a design gallery.
+  pt-br: Uma entrada de uma galeria de designs.
+form.yml/Design.value:
+  en-us: The design id the bot stores and draws a preview of.
+  pt-br: O id do design que o bot guarda e do qual desenha uma prévia.
+form.yml/Design.label:
+  en-us: The design's name on the gallery and summaries.
+  pt-br: O nome do design na galeria e nos resumos.
+form.yml/Design.description:
+  en-us: What the design looks like, on the gallery.
+  pt-br: Como o design é, na galeria.
+form.yml/TitleContentLabels:
+  en-us: The labels of a `title_content` modal's two inputs.
+  pt-br: Os rótulos dos dois campos de um modal de `title_content`.
+form.yml/TitleContentLabels.title:
+  en-us: The label of the title input.
+  pt-br: O rótulo do campo de título.
+form.yml/TitleContentLabels.description:
+  en-us: The label of the body input.
+  pt-br: O rótulo do campo de corpo.
+form.yml/TextField:
+  en-us: One input of a `modal_input` section's modal.
+  pt-br: Um campo do modal de uma seção `modal_input`.
+form.yml/TextField.key:
+  en-us: The state key the input writes; inputs without one are joined with `;` into the section's
+    `keys.value`.
+  pt-br: A chave de estado que o campo grava; campos sem chave são juntados com `;` no `keys.value`
+    da seção.
+form.yml/TextField.label:
+  en-us: The input's label on the modal.
+  pt-br: O rótulo do campo no modal.
+form.yml/TextField.placeholder:
+  en-us: The grey hint inside the empty input.
+  pt-br: A dica cinza dentro do campo vazio.
+form.yml/TextField.max_length:
+  en-us: The most characters the input accepts.
+  pt-br: O máximo de caracteres que o campo aceita.
+form.yml/TextField.required:
+  en-us: Refuses the modal while it is empty.
+  pt-br: Recusa o modal enquanto o campo estiver vazio.
+form.yml/TextField.multiline:
+  en-us: Draws a paragraph input instead of a one-line one.
+  pt-br: Desenha um campo de parágrafo em vez de um de uma linha.
+form.yml/TextField.normalize:
+  en-us: The registered normalizer the typed value goes through before it is checked and kept.
+  pt-br: O normalizador registrado pelo qual o valor digitado passa antes de ser validado
+    e guardado.
+vocabulary.yml:
+  en-us: 'The copy every form shares: the defaults a step reads when it leaves a field out
+    (the report footer, the review description) and the texts a form or a copy file names
+    with {ref: name}.'
+  pt-br: 'Os textos que todo form compartilha: os padrões que uma etapa lê quando omite um
+    campo (o rodapé do report, a descrição da revisão) e os textos que um form ou um arquivo
+    de copy cita com {ref: name}.'
+vocabulary.yml/Vocabulary:
+  en-us: 'The copy every form shares: its fallbacks and the texts `{ref: name}` names.'
+  pt-br: 'Os textos que todo form compartilha: os padrões dele e os textos que `{ref: name}`
+    cita.'
+vocabulary.yml/Vocabulary.fallbacks:
+  en-us: The texts every form falls back to when a step leaves one out.
+  pt-br: Os textos que todo form usa quando uma etapa omite um deles.
+vocabulary.yml/Vocabulary.texts:
+  en-us: 'The texts a form or a copy file names with `{ref: name}` wherever a text is allowed.'
+  pt-br: 'Os textos que um form ou um arquivo de copy cita com `{ref: name}` onde quer que
+    um texto seja aceito.'
+vocabulary.yml/Fallbacks:
+  en-us: The copy a step reads in place of a field it leaves out.
+  pt-br: Os textos que uma etapa lê no lugar de um campo que ela omite.
+vocabulary.yml/Fallbacks.footer:
+  en-us: The footer of every step that writes no `footer`, at any depth, and the closing line
+    of every embed and card that writes none.
+  pt-br: O rodapé de toda etapa que não escreve `footer`, em qualquer nível, e a linha final
+    de todo embed e card que não escreve nenhum.
+vocabulary.yml/Fallbacks.review_description:
+  en-us: The description of every review that writes none, naming the command it turns on
+    with `{context:command}`.
+  pt-br: A descrição de toda revisão que não escreve nenhuma, citando o comando que ela ativa
+    com `{context:command}`.
+vocabulary.yml/Text:
+  en-us: One text in both locales Keiko speaks, the node every form and copy file writes.
+  pt-br: Um texto nos dois idiomas que o Keiko fala, o nó que todo arquivo de form e de copy
+    escreve.
+vocabulary.yml/Text.en-us:
+  en-us: What Keiko writes to an English-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala inglês.
+vocabulary.yml/Text.pt-br:
+  en-us: What Keiko writes to a Portuguese-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala português.
+copy.yml:
+  en-us: 'The copy of one command: its slash names and descriptions, its /setup row, its stats
+    and every text its screens show, each a {en-us, pt-br} node under a key relative to the
+    command.'
+  pt-br: 'Os textos de um comando: os nomes e descrições dos slash commands, a linha no /setup,
+    as estatísticas e todo texto que as telas mostram, cada um num nó {en-us, pt-br} sob uma
+    chave relativa ao comando.'
+copy.yml/CommandCopy:
+  en-us: 'A command''s `copy.yml`: one block per primitive that draws its texts, under keys
+    relative to the command; `slash` is required for a command with cogs, `setup` and `stats`
+    for one /setup offers.'
+  pt-br: 'O `copy.yml` de um comando: um bloco por primitiva que desenha os textos dele, sob
+    chaves relativas ao comando; `slash` é obrigatório para um comando com cogs, e `setup`
+    e `stats` para um que o /setup oferece.'
+copy.yml/CommandCopy.slash:
+  en-us: The names and captions of the command's app commands.
+  pt-br: Os nomes e legendas dos app commands do comando.
+copy.yml/CommandCopy.setup:
+  en-us: The command's row on /setup and on the first message.
+  pt-br: A linha do comando no /setup e na primeira mensagem.
+copy.yml/CommandCopy.stats:
+  en-us: The command's statistics and its recent-activity line.
+  pt-br: As estatísticas do comando e a linha de atividade recente.
+copy.yml/CommandCopy.panel:
+  en-us: What the command's feature adds to its manager panel.
+  pt-br: O que a funcionalidade do comando acrescenta ao painel de gerenciamento.
+copy.yml/CommandCopy.announcement:
+  en-us: What the command posts in a server channel.
+  pt-br: O que o comando publica num canal do servidor.
+copy.yml/CommandCopy.errors:
+  en-us: The command's errors, each named `<key>.errors.<name>` by the code, a form or a validator.
+  pt-br: Os erros do comando, cada um citado como `<key>.errors.<name>` pelo código, por um
+    form ou por um validador.
+copy.yml/CommandCopy.responses:
+  en-us: The embeds the command answers with, each named `<key>.responses.<name>`.
+  pt-br: Os embeds com que o comando responde, cada um citado como `<key>.responses.<name>`.
+copy.yml/CommandCopy.records:
+  en-us: The command's browsable lists, each named `<key>.records.<name>`.
+  pt-br: As listas navegáveis do comando, cada uma citada como `<key>.records.<name>`.
+copy.yml/CommandCopy.buttons:
+  en-us: The command's own buttons, keyed by the aside a panel button runs or by what the
+    button does.
+  pt-br: Os botões próprios do comando, pela ação do painel que o botão roda ou pelo que ele
+    faz.
+copy.yml/CommandCopy.cards:
+  en-us: The Components V2 cards the command draws, keyed by the screen.
+  pt-br: Os cards Components V2 que o comando desenha, por tela.
+copy.yml/CommandCopy.messages:
+  en-us: Texts no primitive draws, read by the command's own code.
+  pt-br: Textos que nenhuma primitiva desenha, lidos pelo próprio código do comando.
+copy.yml/Slash:
+  en-us: The names and captions of a command's app commands, read by the `Translator` through
+    `locale_str(namespace="<key>.slash")`.
+  pt-br: Os nomes e legendas dos app commands de um comando, lidos pelo `Translator` via `locale_str(namespace="<key>.slash")`.
+copy.yml/Slash.subgroup:
+  en-us: The subgroup under the parent group, written when the command declares a `group`;
+    /setup quotes it on the row.
+  pt-br: O subgrupo abaixo do grupo pai, escrito quando o comando declara um `group`; o /setup
+    o cita na linha.
+copy.yml/Slash.name:
+  en-us: The slash command's name, or the label of a context menu.
+  pt-br: O nome do slash command, ou o rótulo de um menu de contexto.
+copy.yml/Slash.description:
+  en-us: The slash command's caption, in the third person; a context menu has none.
+  pt-br: A legenda do slash command, em terceira pessoa; um menu de contexto não tem.
+copy.yml/Slash.params:
+  en-us: The parameters, keyed by the parameter name in Python; read under `<key>.slash` with
+    the type `params.<name>.name`.
+  pt-br: Os parâmetros, pelo nome do parâmetro no Python; lidos sob `<key>.slash` com o tipo
+    `params.<name>.name`.
+copy.yml/Slash.commands:
+  en-us: The folder's other app commands, keyed by what each does; read with the namespace
+    `<key>.slash.commands.<name>`.
+  pt-br: Os outros app commands da pasta, pelo que cada um faz; lidos com o namespace `<key>.slash.commands.<name>`.
+copy.yml/SetupRow:
+  en-us: A command's row on /setup and on the greeting, read through `command_text`.
+  pt-br: A linha de um comando no /setup e na saudação, lida via `command_text`.
+copy.yml/SetupRow.label:
+  en-us: 'The feature''s one name: its /setup row, its line on the first message, its buttons
+    and its History.'
+  pt-br: 'O nome único da funcionalidade: a linha no /setup, a linha na primeira mensagem,
+    os botões e o Histórico.'
+copy.yml/SetupRow.description:
+  en-us: The row's one-line pitch, drawn under the name.
+  pt-br: A frase de apresentação da linha, desenhada abaixo do nome.
+copy.yml/Stats:
+  en-us: 'A feature''s statistics: the embed its panel opens and its line on the recent activity,
+    drawn by `send_feature_stats`, `health_line` and `figure_lines`.'
+  pt-br: 'As estatísticas de uma funcionalidade: o embed que o painel abre e a linha na atividade
+    recente, desenhados por `send_feature_stats`, `health_line` e `figure_lines`.'
+copy.yml/Stats.title:
+  en-us: The statistics embed's title, with one leading emoji.
+  pt-br: O título do embed de estatísticas, com um emoji no começo.
+copy.yml/Stats.delivered:
+  en-us: The recent-activity line after the deliveries of the last days, by how many there
+    were; $count, $days.
+  pt-br: A linha de atividade recente depois das entregas dos últimos dias, conforme quantas
+    foram; $count, $days.
+copy.yml/Stats.empty:
+  en-us: The only line `figure_lines` draws while the feature has no figure yet (the link
+    blocker before its first block).
+  pt-br: A única linha que `figure_lines` desenha enquanto a funcionalidade ainda não tem
+    nenhum número (o bloqueio de links antes do primeiro bloqueio).
+copy.yml/Stats.figures:
+  en-us: The label of each figure, keyed by the figure `figure_lines` draws as `emoji **label:**
+    value`.
+  pt-br: O rótulo de cada número, pelo número que `figure_lines` desenha como `emoji **label:**
+    value`.
+copy.yml/Panel:
+  en-us: What a feature adds to its manager panel through `PanelExtras`; the panel's own steps,
+    headings and intro stay in its `form.yml`.
+  pt-br: O que uma funcionalidade acrescenta ao painel de gerenciamento via `PanelExtras`;
+    as etapas, títulos e intro do painel ficam no `form.yml` dela.
+copy.yml/Panel.info:
+  en-us: The closing paragraph, which `GenericCogFeature.panel_info` draws on every panel
+    of the feature.
+  pt-br: O parágrafo de fechamento, que `GenericCogFeature.panel_info` desenha em todo painel
+    da funcionalidade.
+copy.yml/Panel.pages:
+  en-us: The pages of a long list (one page per month).
+  pt-br: As páginas de uma lista longa (uma página por mês).
+copy.yml/Panel.rows:
+  en-us: A `PanelRow` title, keyed by the row; only for a panel whose document is built by
+    the feature, not read from a step.
+  pt-br: Um título de `PanelRow`, pela linha; só para um painel cujo documento é montado pela
+    funcionalidade, e não lido de uma etapa.
+copy.yml/Panel.authors:
+  en-us: The label over the messages the screen of a found item shows, keyed by who wrote
+    them (the member, the server, Keiko).
+  pt-br: O rótulo acima das mensagens que a tela de um item encontrado mostra, por quem as
+    escreveu (o membro, o servidor, o Keiko).
+copy.yml/Announcement:
+  en-us: 'What a command posts in a server channel through `announcement_embed`: the labels
+    around the content, and Keiko''s own content where the admin wrote none.'
+  pt-br: 'O que um comando publica num canal do servidor via `announcement_embed`: os rótulos
+    em volta do conteúdo, e o conteúdo do próprio Keiko quando o admin não escreveu nenhum.'
+copy.yml/Announcement.fields:
+  en-us: The label of each inline field, keyed by the value the code gives it (a live's game,
+    a video's tags).
+  pt-br: O rótulo de cada campo inline, pelo valor que o código dá a ele (o jogo de uma live,
+    as tags de um vídeo).
+copy.yml/Announcement.states:
+  en-us: 'The footer line of each state the announcement goes through (a live: online, offline,
+    and its duration once over).'
+  pt-br: 'A linha de rodapé de cada estado pelo qual o anúncio passa (uma live: online, offline
+    e a duração quando acaba).'
+copy.yml/Announcement.samples:
+  en-us: The sample a preview draws while there is no real content yet, keyed by the part
+    it stands for (title, game, description).
+  pt-br: O exemplo que uma prévia desenha enquanto ainda não há conteúdo real, pela parte
+    que ele representa (título, jogo, descrição).
+copy.yml/Announcement.defaults:
+  en-us: Keiko's own title and description, posted while the admin wrote none (a celebration).
+  pt-br: O título e a descrição do próprio Keiko, publicados enquanto o admin não escreveu
+    nenhum (uma comemoração).
+copy.yml/ErrorBlock:
+  en-us: 'One error, named by its block: a red embed through `response_error_embed`, or the
+    plain line of the forms'' `error_message`.'
+  pt-br: 'Um erro, citado pelo bloco: um embed vermelho via `response_error_embed`, ou a linha
+    simples do `error_message` dos forms.'
+copy.yml/ErrorBlock.title:
+  en-us: 'The error''s title, without an emoji: the embed adds 🚨.'
+  pt-br: 'O título do erro, sem emoji: o embed acrescenta 🚨.'
+copy.yml/ErrorBlock.message:
+  en-us: What went wrong and how to recover; `$name` marks a value the code fills.
+  pt-br: O que deu errado e como resolver; `$name` marca um valor que o código preenche.
+copy.yml/Response:
+  en-us: 'One embed Keiko answers with, drawn by `response_embed`: an answer, a `ConfirmActionView`
+    question or the confirmation of a panel aside.'
+  pt-br: 'Um embed com que o Keiko responde, desenhado por `response_embed`: uma resposta,
+    uma pergunta de `ConfirmActionView` ou a confirmação de uma ação do painel.'
+copy.yml/Response.title:
+  en-us: The embed's title, with one leading emoji; `$name` marks a value the code fills.
+  pt-br: O título do embed, com um emoji no começo; `$name` marca um valor que o código preenche.
+copy.yml/Response.description:
+  en-us: The embed's body; `$name` marks a value the code fills; absent, the embed has no
+    body (the /report ticket, whose fields say it all).
+  pt-br: O corpo do embed; `$name` marca um valor que o código preenche; se ausente, o embed
+    não tem corpo (o ticket do /report, cujos campos já dizem tudo).
+copy.yml/Response.footer:
+  en-us: 'The closing subtext line: absent draws the standard /report line, null draws none,
+    a text draws that text.'
+  pt-br: 'A linha final em letra pequena: ausente desenha a linha padrão do /report, null
+    não desenha nenhuma, um texto desenha esse texto.'
+copy.yml/Response.empty:
+  en-us: The body drawn instead of `description` while there is nothing to list (the /setup
+    permissions report).
+  pt-br: O corpo desenhado no lugar de `description` enquanto não há nada para listar (o relatório
+    de permissões do /setup).
+copy.yml/Response.variants:
+  en-us: 'The title or description drawn in a state the code picks, keyed by the state (the
+    link check: blocked, allowed).'
+  pt-br: 'O título ou a descrição desenhados num estado que o código escolhe, pelo estado
+    (a checagem de link: bloqueado, liberado).'
+copy.yml/Response.lines:
+  en-us: Line templates the code repeats into the body, keyed by what each says (one line
+    per category).
+  pt-br: Modelos de linha que o código repete no corpo, pelo que cada um diz (uma linha por
+    categoria).
+copy.yml/Response.fields:
+  en-us: The stacked fields below the body, drawn in the order written, keyed by the value
+    the code gives each.
+  pt-br: Os campos empilhados abaixo do corpo, desenhados na ordem escrita, pelo valor que
+    o código dá a cada um.
+copy.yml/Records:
+  en-us: One browsable list, drawn by `RecordsBrowser(copy=...)` or a command's own `PaginationView`.
+  pt-br: Uma lista navegável, desenhada por `RecordsBrowser(copy=...)` ou pelo `PaginationView`
+    próprio de um comando.
+copy.yml/Records.title:
+  en-us: The list's title, with one leading emoji; `$name` marks a value the code fills.
+  pt-br: O título da lista, com um emoji no começo; `$name` marca um valor que o código preenche.
+copy.yml/Records.description:
+  en-us: The line above the records; `$name` marks a value the code fills.
+  pt-br: A linha acima dos registros; `$name` marca um valor que o código preenche.
+copy.yml/Records.empty:
+  en-us: Drawn alone when nothing is found; absent, an empty page is drawn.
+  pt-br: Desenhado sozinho quando nada é encontrado; se ausente, desenha uma página vazia.
+copy.yml/Records.placeholder:
+  en-us: The placeholder of the select that follows the page and opens a record (/help).
+  pt-br: O placeholder do select que vem depois da página e abre um registro (/help).
+copy.yml/Records.detail:
+  en-us: The screen that select opens (/help).
+  pt-br: A tela que esse select abre (/help).
+copy.yml/Records.filter:
+  en-us: The member filter; absent, the list has no filter button.
+  pt-br: O filtro por membro; se ausente, a lista não tem botão de filtro.
+copy.yml/Records.lines:
+  en-us: Line templates the formatter fills once per record ($user, $channel, $date), keyed
+    by the part of the record each draws.
+  pt-br: Modelos de linha que o formatador preenche uma vez por registro ($user, $channel,
+    $date), pela parte do registro que cada um desenha.
+copy.yml/ButtonCopy:
+  en-us: 'One button''s copy: its label, and the caption the panel''s Help screen lists.'
+  pt-br: 'O texto de um botão: o rótulo, e a legenda que a tela de Ajuda do painel lista.'
+copy.yml/ButtonCopy.label:
+  en-us: The text on the button.
+  pt-br: O texto no botão.
+copy.yml/ButtonCopy.description:
+  en-us: The caption the panel's Help screen lists beside the button, in the third person;
+    a button a form panel draws writes it.
+  pt-br: A legenda que a tela de Ajuda do painel lista ao lado do botão, em terceira pessoa;
+    um botão desenhado por um painel de form a escreve.
+copy.yml/Card:
+  en-us: One Components V2 card a command draws through `card_header`, `card_row` and `card_footer`.
+  pt-br: Um card Components V2 que um comando desenha via `card_header`, `card_row` e `card_footer`.
+copy.yml/Card.title:
+  en-us: The card's `## title`, with one emoji.
+  pt-br: O `## title` do card, com um emoji.
+copy.yml/Card.description:
+  en-us: The intro under the title.
+  pt-br: A introdução abaixo do título.
+copy.yml/Card.note:
+  en-us: The subtext line under the intro; `$name` marks a value the code fills ($page, $pages).
+  pt-br: A linha em letra pequena abaixo da introdução; `$name` marca um valor que o código
+    preenche ($page, $pages).
+copy.yml/Card.footer:
+  en-us: 'The card''s closing subtext line: absent draws the standard /report line, null draws
+    none, a text draws that text.'
+  pt-br: 'A linha final em letra pequena do card: ausente desenha a linha padrão do /report,
+    null não desenha nenhuma, um texto desenha esse texto.'
+copy.yml/Card.variants:
+  en-us: The title or description drawn in a state the code picks (the dashboard once everything
+    is configured).
+  pt-br: O título ou a descrição desenhados num estado que o código escolhe (o painel quando
+    tudo já está configurado).
+copy.yml/Card.rows:
+  en-us: The card's rows, keyed by what each row shows.
+  pt-br: As linhas do card, pelo que cada linha mostra.
+copy.yml/Text:
+  en-us: One text in both locales Keiko speaks, the node every form and copy file writes.
+  pt-br: Um texto nos dois idiomas que o Keiko fala, o nó que todo arquivo de form e de copy
+    escreve.
+copy.yml/Text.en-us:
+  en-us: What Keiko writes to an English-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala inglês.
+copy.yml/Text.pt-br:
+  en-us: What Keiko writes to a Portuguese-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala português.
+copy.yml/SlashParam:
+  en-us: One parameter of a command's slash commands, shared by every command of the folder
+    that takes it.
+  pt-br: Um parâmetro dos slash commands de um comando, compartilhado por todo comando da
+    pasta que o recebe.
+copy.yml/SlashParam.name:
+  en-us: 'The parameter''s name Discord shows: lowercase, no spaces.'
+  pt-br: 'O nome do parâmetro que o Discord mostra: minúsculo, sem espaços.'
+copy.yml/SlashParam.description:
+  en-us: The parameter's caption Discord shows.
+  pt-br: A legenda do parâmetro que o Discord mostra.
+copy.yml/SlashCommand:
+  en-us: One more app command of the folder, besides the one `slash` names.
+  pt-br: Mais um app command da pasta, além do que `slash` nomeia.
+copy.yml/SlashCommand.name:
+  en-us: 'The command''s name Discord shows: lowercase, no spaces, or the label of a context
+    menu.'
+  pt-br: 'O nome do comando que o Discord mostra: minúsculo, sem espaços, ou o rótulo de um
+    menu de contexto.'
+copy.yml/SlashCommand.description:
+  en-us: The command's caption, in the third person; a context menu has none.
+  pt-br: A legenda do comando, em terceira pessoa; um menu de contexto não tem.
+copy.yml/Plural:
+  en-us: 'One text per plural form of a count the code fills: `one` for a count of one, `other`
+    for every other count.'
+  pt-br: 'Um texto para cada forma de plural de um número que o código preenche: `one` para
+    o número um, `other` para qualquer outro.'
+copy.yml/Plural.one:
+  en-us: The text for a count of exactly one.
+  pt-br: O texto para exatamente um.
+copy.yml/Plural.other:
+  en-us: The text for every other count.
+  pt-br: O texto para qualquer outro número.
+copy.yml/PanelInfo:
+  en-us: The closing paragraph of a feature's manager panel.
+  pt-br: O parágrafo de fechamento do painel de gerenciamento de uma funcionalidade.
+copy.yml/PanelInfo.title:
+  en-us: The paragraph's bold title; absent, the paragraph has none.
+  pt-br: O título em negrito do parágrafo; se ausente, o parágrafo fica sem título.
+copy.yml/PanelInfo.description:
+  en-us: The paragraph; `$name` marks a value the code fills ($count).
+  pt-br: O parágrafo; `$name` marca um valor que o código preenche ($count).
+copy.yml/PanelInfo.variants:
+  en-us: The title or description drawn in a state the feature picks (while it cannot tell
+    what it counts).
+  pt-br: O título ou a descrição desenhados num estado que a funcionalidade escolhe (enquanto
+    ela não consegue dizer o que conta).
+copy.yml/PanelPages:
+  en-us: The pages a panel turns through over a long list, each a `PanelPage`.
+  pt-br: As páginas que um painel percorre numa lista longa, cada uma um `PanelPage`.
+copy.yml/PanelPages.title:
+  en-us: Each page's title.
+  pt-br: O título de cada página.
+copy.yml/PanelPages.description:
+  en-us: The line under each page's title.
+  pt-br: A linha abaixo do título de cada página.
+copy.yml/PanelPages.empty:
+  en-us: Drawn while the list has nothing to page.
+  pt-br: Desenhado enquanto a lista não tem nada para paginar.
+copy.yml/AnnouncementDefaults:
+  en-us: Keiko's own announcement, posted where the admin wrote none.
+  pt-br: O anúncio do próprio Keiko, publicado quando o admin não escreveu nenhum.
+copy.yml/AnnouncementDefaults.title:
+  en-us: 'The announcement''s title, an admin template: `{user}`, `{server}` and `{date}`
+    are filled like in what the admin writes.'
+  pt-br: 'O título do anúncio, um modelo de admin: `{user}`, `{server}` e `{date}` são preenchidos
+    como no que o admin escreve.'
+copy.yml/AnnouncementDefaults.description:
+  en-us: The announcement's body, an admin template like the title.
+  pt-br: O corpo do anúncio, um modelo de admin como o título.
+copy.yml/Variant:
+  en-us: What a block writes in one state the code picks, in place of its own title or description.
+  pt-br: O que um bloco escreve num estado que o código escolhe, no lugar do próprio título
+    ou descrição.
+copy.yml/Variant.title:
+  en-us: The title drawn in this variant instead of the block's; absent keeps the block's
+    title.
+  pt-br: O título desenhado nesta variante no lugar do título do bloco; se ausente, mantém
+    o do bloco.
+copy.yml/Variant.description:
+  en-us: The description drawn in this variant instead of the block's; absent keeps the block's
+    description.
+  pt-br: A descrição desenhada nesta variante no lugar da descrição do bloco; se ausente,
+    mantém a do bloco.
+copy.yml/ResponseField:
+  en-us: 'One stacked field of a response embed: its title, and its value when the copy writes
+    it.'
+  pt-br: 'Um campo empilhado de um embed de resposta: o título, e o valor quando o copy o
+    escreve.'
+copy.yml/ResponseField.title:
+  en-us: The field's name, drawn in bold above its value.
+  pt-br: O nome do campo, desenhado em negrito acima do valor.
+copy.yml/ResponseField.value:
+  en-us: A value the copy writes itself, drawn whenever the code gives none (the how-to field
+    of /support); absent, the code gives the value.
+  pt-br: Um valor que o próprio copy escreve, desenhado sempre que o código não der nenhum
+    (o campo de passo a passo do /support); se ausente, o código dá o valor.
+copy.yml/ResponseField.empty:
+  en-us: The value drawn while the code has none to give (a /report ticket without attachments);
+    absent, such a field is left out.
+  pt-br: O valor desenhado enquanto o código não tem nenhum para dar (um ticket do /report
+    sem anexos); se ausente, esse campo some.
+copy.yml/ResponseField.lines:
+  en-us: Line templates the code picks from to compose the value, keyed by what each says
+    (the reasons of the link check).
+  pt-br: Modelos de linha que o código escolhe para montar o valor, pelo que cada um diz (os
+    motivos da checagem de link).
+copy.yml/RecordsDetail:
+  en-us: The screen a record's select opens, with a way back to the list.
+  pt-br: A tela que o select de um registro abre, com um jeito de voltar para a lista.
+copy.yml/RecordsDetail.title:
+  en-us: The detail's title; `$name` marks a value the code fills.
+  pt-br: O título do detalhe; `$name` marca um valor que o código preenche.
+copy.yml/RecordsDetail.description:
+  en-us: The detail's body; `$name` marks a value the code fills.
+  pt-br: O corpo do detalhe; `$name` marca um valor que o código preenche.
+copy.yml/RecordsFilter:
+  en-us: 'The member filter of a records list: its button, its picker and its empty state.'
+  pt-br: 'O filtro por membro de uma lista de registros: o botão, o seletor e o estado vazio.'
+copy.yml/RecordsFilter.label:
+  en-us: The filter button while the whole list shows.
+  pt-br: O botão do filtro enquanto a lista inteira aparece.
+copy.yml/RecordsFilter.clear_label:
+  en-us: The same button once the list shows one member, which brings every record back.
+  pt-br: O mesmo botão quando a lista mostra um membro só, que traz todos os registros de
+    volta.
+copy.yml/RecordsFilter.title:
+  en-us: The member picker's title.
+  pt-br: O título do seletor de membro.
+copy.yml/RecordsFilter.description:
+  en-us: The member picker's intro.
+  pt-br: A introdução do seletor de membro.
+copy.yml/RecordsFilter.empty:
+  en-us: Drawn alone when the member picked has no record.
+  pt-br: Desenhado sozinho quando o membro escolhido não tem registro.
+copy.yml/CardRow:
+  en-us: 'One row of a card: a block of text with its control beside or under it.'
+  pt-br: 'Uma linha de um card: um bloco de texto com o controle ao lado ou embaixo.'
+copy.yml/CardRow.title:
+  en-us: The row's heading, drawn above its body (a setting's name).
+  pt-br: O título da linha, desenhado acima do corpo (o nome de uma configuração).
+copy.yml/CardRow.description:
+  en-us: The row's body; `$name` marks a value the code fills ($value, $prefix).
+  pt-br: O corpo da linha; `$name` marca um valor que o código preenche ($value, $prefix).
+copy.yml/CardRow.placeholder:
+  en-us: The placeholder of the select drawn under the row.
+  pt-br: O placeholder do select desenhado abaixo da linha.
+languages/buttons.yml:
+  en-us: Every button the shared layers draw (the form steps, the manager panel, the cards),
+    each its label and the caption the panel's Help lists, read under `buttons.<name>`.
+  pt-br: Todo botão que as camadas compartilhadas desenham (as etapas dos forms, o painel
+    de gerenciamento, os cards), cada um com o rótulo e a legenda que a Ajuda do painel lista,
+    lido em `buttons.<name>`.
+languages/buttons.yml/ButtonCopy:
+  en-us: 'One button''s copy: its label, and the caption the panel''s Help screen lists.'
+  pt-br: 'O texto de um botão: o rótulo, e a legenda que a tela de Ajuda do painel lista.'
+languages/buttons.yml/ButtonCopy.label:
+  en-us: The text on the button.
+  pt-br: O texto no botão.
+languages/buttons.yml/ButtonCopy.description:
+  en-us: The caption the panel's Help screen lists beside the button, in the third person;
+    a button a form panel draws writes it.
+  pt-br: A legenda que a tela de Ajuda do painel lista ao lado do botão, em terceira pessoa;
+    um botão desenhado por um painel de form a escreve.
+languages/buttons.yml/Text:
+  en-us: One text in both locales Keiko speaks, the node every form and copy file writes.
+  pt-br: Um texto nos dois idiomas que o Keiko fala, o nó que todo arquivo de form e de copy
+    escreve.
+languages/buttons.yml/Text.en-us:
+  en-us: What Keiko writes to an English-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala inglês.
+languages/buttons.yml/Text.pt-br:
+  en-us: What Keiko writes to a Portuguese-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala português.
+languages/commands.yml:
+  en-us: 'The screens the shared layers draw for every command, under `commands.`: the shared
+    answers and questions (admin only, cooldown, Help, the lifecycle final messages, the member
+    pickers, the removal and discard questions) and the History list.'
+  pt-br: 'As telas que as camadas compartilhadas desenham para todo comando, em `commands.`:
+    as respostas e perguntas compartilhadas (só para admins, cooldown, Ajuda, as mensagens
+    finais do ciclo de vida, os seletores de membro, as perguntas de remover e de descartar)
+    e a lista do Histórico.'
+languages/commands.yml/SharedCommands:
+  en-us: '`app/languages/commands.yml`: the screens the shared layers draw for every command,
+    under `commands.`; their plain lines and tables live in `messages.yml`.'
+  pt-br: '`app/languages/commands.yml`: as telas que as camadas compartilhadas desenham para
+    todo comando, em `commands.`; as linhas simples e tabelas delas ficam em `messages.yml`.'
+languages/commands.yml/SharedCommands.responses:
+  en-us: The shared embeds and questions, each named `commands.responses.<name>` (the admin-only
+    answer, the cooldown, the Help screen, the lifecycle final messages, the member pickers,
+    the removal and discard questions).
+  pt-br: Os embeds e perguntas compartilhados, cada um chamado `commands.responses.<name>`
+    (a resposta de só para admins, o cooldown, a tela de Ajuda, as mensagens finais do ciclo
+    de vida, os seletores de membro, as perguntas de remover e de descartar).
+languages/commands.yml/SharedCommands.records:
+  en-us: The shared lists, each named `commands.records.<name>` (a feature's History and its
+    line per event, every change of a server).
+  pt-br: As listas compartilhadas, cada uma chamada `commands.records.<name>` (o Histórico
+    de uma funcionalidade e a linha dele por evento, toda mudança de um servidor).
+languages/commands.yml/Response:
+  en-us: 'One embed Keiko answers with, drawn by `response_embed`: an answer, a `ConfirmActionView`
+    question or the confirmation of a panel aside.'
+  pt-br: 'Um embed com que o Keiko responde, desenhado por `response_embed`: uma resposta,
+    uma pergunta de `ConfirmActionView` ou a confirmação de uma ação do painel.'
+languages/commands.yml/Response.title:
+  en-us: The embed's title, with one leading emoji; `$name` marks a value the code fills.
+  pt-br: O título do embed, com um emoji no começo; `$name` marca um valor que o código preenche.
+languages/commands.yml/Response.description:
+  en-us: The embed's body; `$name` marks a value the code fills; absent, the embed has no
+    body (the /report ticket, whose fields say it all).
+  pt-br: O corpo do embed; `$name` marca um valor que o código preenche; se ausente, o embed
+    não tem corpo (o ticket do /report, cujos campos já dizem tudo).
+languages/commands.yml/Response.footer:
+  en-us: 'The closing subtext line: absent draws the standard /report line, null draws none,
+    a text draws that text.'
+  pt-br: 'A linha final em letra pequena: ausente desenha a linha padrão do /report, null
+    não desenha nenhuma, um texto desenha esse texto.'
+languages/commands.yml/Response.empty:
+  en-us: The body drawn instead of `description` while there is nothing to list (the /setup
+    permissions report).
+  pt-br: O corpo desenhado no lugar de `description` enquanto não há nada para listar (o relatório
+    de permissões do /setup).
+languages/commands.yml/Response.variants:
+  en-us: 'The title or description drawn in a state the code picks, keyed by the state (the
+    link check: blocked, allowed).'
+  pt-br: 'O título ou a descrição desenhados num estado que o código escolhe, pelo estado
+    (a checagem de link: bloqueado, liberado).'
+languages/commands.yml/Response.lines:
+  en-us: Line templates the code repeats into the body, keyed by what each says (one line
+    per category).
+  pt-br: Modelos de linha que o código repete no corpo, pelo que cada um diz (uma linha por
+    categoria).
+languages/commands.yml/Response.fields:
+  en-us: The stacked fields below the body, drawn in the order written, keyed by the value
+    the code gives each.
+  pt-br: Os campos empilhados abaixo do corpo, desenhados na ordem escrita, pelo valor que
+    o código dá a cada um.
+languages/commands.yml/Records:
+  en-us: One browsable list, drawn by `RecordsBrowser(copy=...)` or a command's own `PaginationView`.
+  pt-br: Uma lista navegável, desenhada por `RecordsBrowser(copy=...)` ou pelo `PaginationView`
+    próprio de um comando.
+languages/commands.yml/Records.title:
+  en-us: The list's title, with one leading emoji; `$name` marks a value the code fills.
+  pt-br: O título da lista, com um emoji no começo; `$name` marca um valor que o código preenche.
+languages/commands.yml/Records.description:
+  en-us: The line above the records; `$name` marks a value the code fills.
+  pt-br: A linha acima dos registros; `$name` marca um valor que o código preenche.
+languages/commands.yml/Records.empty:
+  en-us: Drawn alone when nothing is found; absent, an empty page is drawn.
+  pt-br: Desenhado sozinho quando nada é encontrado; se ausente, desenha uma página vazia.
+languages/commands.yml/Records.placeholder:
+  en-us: The placeholder of the select that follows the page and opens a record (/help).
+  pt-br: O placeholder do select que vem depois da página e abre um registro (/help).
+languages/commands.yml/Records.detail:
+  en-us: The screen that select opens (/help).
+  pt-br: A tela que esse select abre (/help).
+languages/commands.yml/Records.filter:
+  en-us: The member filter; absent, the list has no filter button.
+  pt-br: O filtro por membro; se ausente, a lista não tem botão de filtro.
+languages/commands.yml/Records.lines:
+  en-us: Line templates the formatter fills once per record ($user, $channel, $date), keyed
+    by the part of the record each draws.
+  pt-br: Modelos de linha que o formatador preenche uma vez por registro ($user, $channel,
+    $date), pela parte do registro que cada um desenha.
+languages/commands.yml/Text:
+  en-us: One text in both locales Keiko speaks, the node every form and copy file writes.
+  pt-br: Um texto nos dois idiomas que o Keiko fala, o nó que todo arquivo de form e de copy
+    escreve.
+languages/commands.yml/Text.en-us:
+  en-us: What Keiko writes to an English-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala inglês.
+languages/commands.yml/Text.pt-br:
+  en-us: What Keiko writes to a Portuguese-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala português.
+languages/commands.yml/Variant:
+  en-us: What a block writes in one state the code picks, in place of its own title or description.
+  pt-br: O que um bloco escreve num estado que o código escolhe, no lugar do próprio título
+    ou descrição.
+languages/commands.yml/Variant.title:
+  en-us: The title drawn in this variant instead of the block's; absent keeps the block's
+    title.
+  pt-br: O título desenhado nesta variante no lugar do título do bloco; se ausente, mantém
+    o do bloco.
+languages/commands.yml/Variant.description:
+  en-us: The description drawn in this variant instead of the block's; absent keeps the block's
+    description.
+  pt-br: A descrição desenhada nesta variante no lugar da descrição do bloco; se ausente,
+    mantém a do bloco.
+languages/commands.yml/ResponseField:
+  en-us: 'One stacked field of a response embed: its title, and its value when the copy writes
+    it.'
+  pt-br: 'Um campo empilhado de um embed de resposta: o título, e o valor quando o copy o
+    escreve.'
+languages/commands.yml/ResponseField.title:
+  en-us: The field's name, drawn in bold above its value.
+  pt-br: O nome do campo, desenhado em negrito acima do valor.
+languages/commands.yml/ResponseField.value:
+  en-us: A value the copy writes itself, drawn whenever the code gives none (the how-to field
+    of /support); absent, the code gives the value.
+  pt-br: Um valor que o próprio copy escreve, desenhado sempre que o código não der nenhum
+    (o campo de passo a passo do /support); se ausente, o código dá o valor.
+languages/commands.yml/ResponseField.empty:
+  en-us: The value drawn while the code has none to give (a /report ticket without attachments);
+    absent, such a field is left out.
+  pt-br: O valor desenhado enquanto o código não tem nenhum para dar (um ticket do /report
+    sem anexos); se ausente, esse campo some.
+languages/commands.yml/ResponseField.lines:
+  en-us: Line templates the code picks from to compose the value, keyed by what each says
+    (the reasons of the link check).
+  pt-br: Modelos de linha que o código escolhe para montar o valor, pelo que cada um diz (os
+    motivos da checagem de link).
+languages/commands.yml/RecordsDetail:
+  en-us: The screen a record's select opens, with a way back to the list.
+  pt-br: A tela que o select de um registro abre, com um jeito de voltar para a lista.
+languages/commands.yml/RecordsDetail.title:
+  en-us: The detail's title; `$name` marks a value the code fills.
+  pt-br: O título do detalhe; `$name` marca um valor que o código preenche.
+languages/commands.yml/RecordsDetail.description:
+  en-us: The detail's body; `$name` marks a value the code fills.
+  pt-br: O corpo do detalhe; `$name` marca um valor que o código preenche.
+languages/commands.yml/RecordsFilter:
+  en-us: 'The member filter of a records list: its button, its picker and its empty state.'
+  pt-br: 'O filtro por membro de uma lista de registros: o botão, o seletor e o estado vazio.'
+languages/commands.yml/RecordsFilter.label:
+  en-us: The filter button while the whole list shows.
+  pt-br: O botão do filtro enquanto a lista inteira aparece.
+languages/commands.yml/RecordsFilter.clear_label:
+  en-us: The same button once the list shows one member, which brings every record back.
+  pt-br: O mesmo botão quando a lista mostra um membro só, que traz todos os registros de
+    volta.
+languages/commands.yml/RecordsFilter.title:
+  en-us: The member picker's title.
+  pt-br: O título do seletor de membro.
+languages/commands.yml/RecordsFilter.description:
+  en-us: The member picker's intro.
+  pt-br: A introdução do seletor de membro.
+languages/commands.yml/RecordsFilter.empty:
+  en-us: Drawn alone when the member picked has no record.
+  pt-br: Desenhado sozinho quando o membro escolhido não tem registro.
+languages/errors.yml:
+  en-us: Every error a shared layer names by its block (a validator, the form engine, the
+    error handler), read under `errors.<name>`.
+  pt-br: Todo erro que uma camada compartilhada cita pelo bloco (um validador, o motor de
+    forms, o tratador de erros), lido em `errors.<name>`.
+languages/errors.yml/ErrorBlock:
+  en-us: 'One error, named by its block: a red embed through `response_error_embed`, or the
+    plain line of the forms'' `error_message`.'
+  pt-br: 'Um erro, citado pelo bloco: um embed vermelho via `response_error_embed`, ou a linha
+    simples do `error_message` dos forms.'
+languages/errors.yml/ErrorBlock.title:
+  en-us: 'The error''s title, without an emoji: the embed adds 🚨.'
+  pt-br: 'O título do erro, sem emoji: o embed acrescenta 🚨.'
+languages/errors.yml/ErrorBlock.message:
+  en-us: What went wrong and how to recover; `$name` marks a value the code fills.
+  pt-br: O que deu errado e como resolver; `$name` marca um valor que o código preenche.
+languages/errors.yml/Text:
+  en-us: One text in both locales Keiko speaks, the node every form and copy file writes.
+  pt-br: Um texto nos dois idiomas que o Keiko fala, o nó que todo arquivo de form e de copy
+    escreve.
+languages/errors.yml/Text.en-us:
+  en-us: What Keiko writes to an English-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala inglês.
+languages/errors.yml/Text.pt-br:
+  en-us: What Keiko writes to a Portuguese-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala português.
+languages/messages.yml:
+  en-us: 'The plain lines and tables the shared layers read, under `messages.`: months, parent
+    groups, notices, permission lines, placeholders, and the page and value words.'
+  pt-br: 'As linhas simples e tabelas que as camadas compartilhadas leem, em `messages.`:
+    meses, grupos pai, avisos, linhas de permissão, placeholders e as palavras de página e
+    de valor.'
+languages/messages.yml/Text:
+  en-us: One text in both locales Keiko speaks, the node every form and copy file writes.
+  pt-br: Um texto nos dois idiomas que o Keiko fala, o nó que todo arquivo de form e de copy
+    escreve.
+languages/messages.yml/Text.en-us:
+  en-us: What Keiko writes to an English-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala inglês.
+languages/messages.yml/Text.pt-br:
+  en-us: What Keiko writes to a Portuguese-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala português.
+languages/locales.yml:
+  en-us: The name of each language Keiko speaks, keyed by its language code, read under `locales.<code>`.
+  pt-br: O nome de cada idioma que o Keiko fala, pelo código do idioma, lido em `locales.<code>`.
+languages/locales.yml/Text:
+  en-us: One text in both locales Keiko speaks, the node every form and copy file writes.
+  pt-br: Um texto nos dois idiomas que o Keiko fala, o nó que todo arquivo de form e de copy
+    escreve.
+languages/locales.yml/Text.en-us:
+  en-us: What Keiko writes to an English-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala inglês.
+languages/locales.yml/Text.pt-br:
+  en-us: What Keiko writes to a Portuguese-speaking server or member.
+  pt-br: O que o Keiko escreve para um servidor ou membro que fala português.
+catalog.yml:
+  en-us: 'Every analytics event Keiko records: its collection, its actor, the props it may
+    carry and how it advances a server''s lifetime counters.'
+  pt-br: 'Todo evento de analytics que o Keiko registra: a coleção, o ator, as props que ele
+    pode levar e como ele avança os contadores acumulados de um servidor.'
+catalog.yml/Catalog:
+  en-us: 'What app/analytics/catalog.yml declares: every event `record` accepts.'
+  pt-br: 'O que o app/analytics/catalog.yml declara: todo evento que o `record` aceita.'
+catalog.yml/Catalog.sources:
+  en-us: Lists every value the `source` prop may take; any other becomes null, and an interaction
+    no entry button stamped reads as `slash`.
+  pt-br: Lista todo valor que a prop `source` pode ter; qualquer outro vira null, e uma interação
+    que nenhum botão de entrada marcou conta como `slash`.
+catalog.yml/Catalog.events:
+  en-us: Declares every event `record` accepts under its `<domain>.<fact>` name; `record`
+    drops any other name and counts it in `unknown`.
+  pt-br: Declara todo evento que o `record` aceita, pelo nome `<domain>.<fact>`; o `record`
+    descarta qualquer outro nome e o conta em `unknown`.
+catalog.yml/EventDeclaration:
+  en-us: 'One event `record` accepts: where it lands, who causes it and what it carries.'
+  pt-br: 'Um evento que o `record` aceita: onde ele vai parar, quem o causa e o que ele leva.'
+catalog.yml/EventDeclaration.version:
+  en-us: Versions the event's props; every envelope carries it as `v`.
+  pt-br: Versiona as props do evento; todo envelope leva a versão como `v`.
+catalog.yml/EventDeclaration.collection:
+  en-us: 'Says where the event lands: `changes` written at once and kept, `activity` and `interactions`
+    in the writer''s batch for their TTL, `none` counted with no document.'
+  pt-br: 'Diz onde o evento vai parar: `changes` é gravado na hora e guardado, `activity`
+    e `interactions` vão no lote do writer pelo TTL delas, e `none` é contado sem documento.'
+catalog.yml/EventDeclaration.description:
+  en-us: Says what happened, for whoever reads the data; no code reads it.
+  pt-br: Diz o que aconteceu, para quem lê os dados; nenhum código lê isto.
+catalog.yml/EventDeclaration.recorded_in:
+  en-us: Points to where the code records the event; every `app/...` path it cites must be
+    a file of the repository.
+  pt-br: Aponta onde o código registra o evento; todo caminho `app/...` citado precisa ser
+    um arquivo do repositório.
+catalog.yml/EventDeclaration.actor:
+  en-us: Gives the actor kind when the call names none; a `user` actor gets the trace's user
+    id.
+  pt-br: Dá o tipo de ator quando a chamada não cita nenhum; um ator `user` recebe o id de
+    usuário do trace.
+catalog.yml/EventDeclaration.props:
+  en-us: Lists the props the event may carry; `record` drops any other and counts it in `undeclared_props`,
+    and none of them is guaranteed present.
+  pt-br: Lista as props que o evento pode levar; o `record` descarta qualquer outra e a conta
+    em `undeclared_props`, e nenhuma delas tem presença garantida.
+catalog.yml/EventDeclaration.private_props:
+  en-us: Keeps these props in the database and out of the monthly archive; the edge case it
+    serves is a value a member wrote, such as a link's address.
+  pt-br: Guarda estas props no banco e fora do arquivo mensal; o caso que isso cobre é um
+    valor que um membro escreveu, como o endereço de um link.
+catalog.yml/EventDeclaration.counts_as_value:
+  en-us: 'Marks the feature doing its job: the reports count the event as delivered value
+    and the writer advances the server''s value fields with it, so the event writes no `lifetime`
+    of its own.'
+  pt-br: 'Marca a funcionalidade fazendo o trabalho dela: os relatórios contam o evento como
+    valor entregue e o writer avança com ele os campos de valor do servidor, então o evento
+    não escreve um `lifetime` próprio.'
+catalog.yml/EventDeclaration.scope:
+  en-us: 'Says what the event is about: `server` names the call''s or the trace''s server,
+    `keiko` is Keiko itself and names no server whatever the trace''s; only `keiko.settings_changed`
+    is `keiko`.'
+  pt-br: 'Diz do que o evento trata: `server` aponta o servidor da chamada ou do trace, `keiko`
+    é o próprio Keiko e não aponta servidor nenhum, seja qual for o do trace; só `keiko.settings_changed`
+    é `keiko`.'
+catalog.yml/EventDeclaration.tally:
+  en-us: Adds the event to a tally of Keiko's own in `analytics.keiko`; only `link.blocked`
+    keeps one, by site.
+  pt-br: Soma o evento a uma contagem do próprio Keiko em `analytics.keiko`; só o `link.blocked`
+    tem uma, por site.
+catalog.yml/EventDeclaration.lifetime:
+  en-us: Says how the writer advances the server's `analytics.lifetime` with the event.
+  pt-br: Diz como o writer avança o `analytics.lifetime` do servidor com o evento.
+catalog.yml/Tally:
+  en-us: A tally of Keiko's own the event adds to, split by the value of one prop.
+  pt-br: Uma contagem do próprio Keiko à qual o evento soma, separada pelo valor de uma prop.
+catalog.yml/Tally.name:
+  en-us: 'Names the tally: the field it counts and the first part of its `{name}:total` and
+    `{name}:{label}:{value}` counter ids.'
+  pt-br: 'Dá o nome da contagem: o campo que ela conta e a primeira parte dos ids de contador
+    `{name}:total` e `{name}:{label}:{value}`.'
+catalog.yml/Tally.by:
+  en-us: Names the prop, one the event declares, whose value gets its own counter.
+  pt-br: Dá o nome da prop, uma que o evento declara, cujo valor ganha um contador próprio.
+catalog.yml/Tally.label:
+  en-us: Says what the prop's value is inside the per-value counter id.
+  pt-br: Diz o que o valor da prop é dentro do id do contador por valor.
+catalog.yml/Lifetime:
+  en-us: How one event advances its server's `analytics.lifetime` document.
+  pt-br: Como um evento avança o documento `analytics.lifetime` do servidor dele.
+catalog.yml/Lifetime.counts_admin:
+  en-us: Keeps the event's actor among the server's admins, counted in `admins_count`.
+  pt-br: Mantém o ator do evento entre os admins do servidor, contados em `admins_count`.
+catalog.yml/Lifetime.when:
+  en-us: Applies the block only when every listed prop of the event equals its value.
+  pt-br: Só aplica o bloco quando cada prop listada do evento é igual ao valor dela.
+catalog.yml/Lifetime.inc:
+  en-us: Adds the step to each counter path; `{feature}` is the event's cog, and a path naming
+    it is skipped for an event with none.
+  pt-br: Soma o incremento a cada caminho de contador; `{feature}` é o cog do evento, e um
+    caminho que o cita é pulado num evento sem cog.
+catalog.yml/Lifetime.set:
+  en-us: 'Writes each path: `$ts` the event''s time, `null` clears the field.'
+  pt-br: 'Grava cada caminho: `$ts` é o horário do evento, `null` limpa o campo.'
+catalog.yml/Lifetime.min:
+  en-us: Keeps the earliest event time at each path.
+  pt-br: Guarda o horário mais antigo do evento em cada caminho.
+catalog.yml/Lifetime.max:
+  en-us: Keeps the latest event time at each path.
+  pt-br: Guarda o horário mais recente do evento em cada caminho.
+catalog.yml/Lifetime.removed_props:
+  en-us: 'Names the `guild.removed` prop that reports a path this block writes: its count
+    for an `inc` path, whether it is set for any other.'
+  pt-br: 'Dá o nome da prop do `guild.removed` que informa um caminho que este bloco grava:
+    a contagem dele num caminho de `inc`, e se ele está preenchido em qualquer outro.'

@@ -1,0 +1,30 @@
+"""The /${slash} slash command; its rule lives in the service."""
+
+import discord
+
+from app.bot import DiscordBot
+from app.commands.${name} import service
+from app.decorators import keiko_command
+from app.translator import locale_str
+from app.types.cogs import Cog
+
+
+class ${cls}(Cog, name="${key}"):
+    """The /${slash} slash command."""
+
+    def __init__(self, bot: DiscordBot) -> None:
+        self.bot = bot
+        super().__init__()
+
+    @keiko_command(
+        name=locale_str("${slash}", type="name", namespace="${key}.slash"),
+        description=locale_str("${slash}", type="description", namespace="${key}.slash"),
+    )
+    async def ${name}(self, interaction: discord.Interaction) -> None:
+        """Run /${slash}."""
+        await service.run(interaction)
+
+
+async def setup(bot: DiscordBot) -> None:
+    """Load the /${slash} cog."""
+    await bot.add_cog(${cls}(bot))
