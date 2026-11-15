@@ -1,3 +1,5 @@
+from typing import Any
+
 from app.constants import Commands
 from app.integrations import http_get, http_post
 
@@ -5,7 +7,7 @@ STREAMELEMENTS_API_URL = "https://api.streamelements.com/kappa/v2"
 
 
 class StreamElementsClient:
-    def get_channel_info(channel_name: str) -> dict:
+    def get_channel_info(channel_name: str) -> Any:
         url = f"{STREAMELEMENTS_API_URL}/channels/{channel_name}"
         response = http_get(
             "stream_elements", url, timeout=Commands.STREAM_ELEMENTS_TIMEOUT_SECONDS
@@ -27,7 +29,7 @@ class StreamElementsClient:
         )
         return response.json()
 
-    def get_chat_commands(channel_id: str) -> dict:
+    def get_chat_commands(channel_id: str) -> Any:
         url = f"{STREAMELEMENTS_API_URL}/bot/commands/{channel_id}/public"
         response = http_get(
             "stream_elements", url, timeout=Commands.STREAM_ELEMENTS_TIMEOUT_SECONDS

@@ -4,6 +4,9 @@ Testes unitarios para utils.py.
 Estes testes NAO fazem I/O - apenas testam logica pura.
 """
 
+import hashlib
+import hmac
+
 import discord
 import pytest
 from unittest.mock import MagicMock, patch
@@ -13,13 +16,14 @@ from app.core.utils import (
     check_two_lists_intersection,
     fill,
     fill_placeholders,
+    verify_hmac_sha256,
     list_roles_id,
-    parse_welcome_messages,
     format_datetime_output,
     split_messages,
 )
-from app.services import reminders_birthdays
-from app.services.reminders_birthdays import (
+from app.commands.birthdays import service as reminders_birthdays
+from app.commands.welcome.service import parse_welcome_messages
+from app.commands.birthdays.service import (
     can_self_edit_birthday,
     default_birthday,
     get_self_edit_count,
@@ -282,7 +286,7 @@ class TestBirthdayItemDefaults:
         assert get_self_edit_count({"self_edit_count": "invalid"}) == 0
 
     def test_birthday_stats_from_items(self):
-        from app.services.reminders_birthdays import get_birthday_stats
+        from app.commands.birthdays.service import get_birthday_stats
 
         items = [
             {"guild_id": "1", "user_id": "1", "date": "05-15", "month": 5},
@@ -290,14 +294,14 @@ class TestBirthdayItemDefaults:
             {"guild_id": "1", "user_id": "3", "date": "06-01", "month": 6},
         ]
 
-        with patch("app.services.reminders_birthdays.find_birthdays_by_guild", return_value=items):
+        with patch("app.commands.birthdays.service.find_birthdays_by_guild", return_value=items):
             stats = wait(get_birthday_stats("1", today=date(2026, 5, 2)))
 
-        assert stats["total"] == 3
-        assert stats["current_month"] == 2
-        assert stats["max_month"] == (5, 2)
-        assert stats["min_month"] == (6, 1)
-        assert stats["max_date"] == ("05-15", 2)
+        assert stats.total == 3
+        assert stats.this_month == 2
+        assert stats.busiest_month == (5, 2)
+        assert stats.quietest_month == (6, 1)
+        assert stats.most_common_date == ("05-15", 2)
 
     def test_reuses_existing_reminder_for_date(self):
         with patch.object(
@@ -306,11 +310,11 @@ class TestBirthdayItemDefaults:
         ), patch.object(
             data().keiko_schedules, "upsert_schedule",
         ) as upsert_schedule, patch(
-            "app.services.reminders_birthdays.find_birthday", return_value=None
+            "app.commands.birthdays.service.find_birthday", return_value=None
         ), patch(
-            "app.services.reminders_birthdays.save_birthday",
+            "app.commands.birthdays.service.save_birthday",
             return_value={"date": "05-15"},
-        ), patch("app.services.reminders_birthdays.reminders_service.create_reminder") as create:
+        ), patch("app.commands.birthdays.service.reminders_service.create_reminder") as create:
             assert wait(reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15")) == {
                 "date": "05-15"
             }
@@ -319,7 +323,7 @@ class TestBirthdayItemDefaults:
         upsert_schedule.assert_not_called()
 
     def test_save_setup_form_writes_config_and_items(self):
-        from app.services.reminders_birthdays import save_setup_form
+        from app.commands.birthdays.service import save_setup_form
 
         responses = [
             {"key": "channel", "value": "111", "style": "channel"},
@@ -339,8 +343,8 @@ class TestBirthdayItemDefaults:
             },
         ]
 
-        with patch("app.services.reminders_birthdays.setup_birthdays") as setup:
-            with patch("app.services.reminders_birthdays.upsert_birthday", return_value={"user_id": "222"}) as upsert:
+        with patch("app.commands.birthdays.service.setup_birthdays") as setup:
+            with patch("app.commands.birthdays.service.upsert_birthday", return_value={"user_id": "222"}) as upsert:
                 saved = wait(save_setup_form("guild-1", responses))
 
         setup.assert_called_once_with(
@@ -367,7 +371,7 @@ class TestBirthdayItemDefaults:
         assert saved == [{"user_id": "222"}]
 
     def test_save_setup_form_writes_schedule_and_default_message(self):
-        from app.services.reminders_birthdays import save_setup_form
+        from app.commands.birthdays.service import save_setup_form
 
         responses = [
             {"key": "channel", "value": "111", "style": "channel"},
@@ -379,7 +383,7 @@ class TestBirthdayItemDefaults:
             {"key": "default_message_content", "value": "Hoje tem festa no {server}."},
         ]
 
-        with patch("app.services.reminders_birthdays.setup_birthdays") as setup:
+        with patch("app.commands.birthdays.service.setup_birthdays") as setup:
             saved = wait(save_setup_form("guild-1", responses))
 
         setup.assert_called_once_with(
@@ -399,22 +403,22 @@ class TestBirthdayItemDefaults:
 
     def test_upsert_birthday_creates_reminder_with_guild_schedule(self):
         with patch(
-            "app.services.reminders_birthdays.birthday_config",
+            "app.commands.birthdays.service.birthday_config",
             return_value={"timezone": "UTC", "notification_time": "12:00"},
         ), patch.object(
             data().keiko_schedules, "find_schedule", return_value=None
         ), patch.object(
             data().keiko_schedules, "upsert_schedule",
         ) as upsert_schedule, patch(
-            "app.services.reminders_birthdays.find_birthday", return_value=None
+            "app.commands.birthdays.service.find_birthday", return_value=None
         ), patch(
-            "app.services.reminders_birthdays.save_birthday",
+            "app.commands.birthdays.service.save_birthday",
             return_value={"date": "05-15"},
         ), patch(
-            "app.services.reminders_birthdays.reminders_service.create_reminder",
+            "app.commands.birthdays.service.reminders_service.create_reminder",
             return_value="rem-1",
         ) as create, patch(
-            "app.services.reminders_birthdays.server_setting",
+            "app.commands.birthdays.service.server_setting",
             return_value="America/Sao_Paulo",
         ):
             wait(reminders_birthdays.upsert_birthday("guild-1", "user-1", "05-15"))
@@ -429,7 +433,7 @@ class TestBirthdayItemDefaults:
         )
 
     def test_birthday_message_uses_server_default_before_keiko_default(self):
-        from app.services.reminders_birthdays import resolve_message
+        from app.commands.birthdays.service import resolve_message
 
         title, content = resolve_message(
             {"message": {"mode": "default", "title": None, "content": None}},
@@ -763,6 +767,15 @@ class TestFill:
         assert fill("$count of $total", count=2) == "2 of $total"
 
 
+class TestVerifyHmacSha256:
+    def test_accepts_the_prefixed_digest_and_refuses_any_other(self):
+        signature = "sha256=" + hmac.new(b"secret", b"body", hashlib.sha256).hexdigest()
+
+        assert verify_hmac_sha256("secret", "body", signature, prefix="sha256=")
+        assert not verify_hmac_sha256("other", "body", signature, prefix="sha256=")
+        assert not verify_hmac_sha256("secret", "body", signature)
+
+
 class TestFillPlaceholders:
     """The one filler behind the notification templates an admin writes."""
 
@@ -806,18 +819,18 @@ class TestLocaleCopyAgreesWithThePlatform:
     ])
     def test_parse_locale_maps_a_locale_the_way_the_platform_does(self, locale):
         from app.core.utils import parse_locale
-        from app.settings.form.copy import normalize_locale
+        from app.forms.form.copy import normalize_locale
 
         assert parse_locale(locale) == normalize_locale(locale)
 
     @pytest.mark.parametrize("key", [
-        "commands.form-notices.closed",
-        "messages.admin-logs.daily-export",
+        "messages.notices.closed",
+        "messages.admin_logs.daily_export",
         "messages.no-such-key",
     ])
     @pytest.mark.parametrize("locale", ["en-us", "pt-br", "pt", "fr"])
     def test_ml_reads_a_key_the_way_the_platform_does(self, key, locale):
         from app.core.utils import ml
-        from app.settings.form.copy import text
+        from app.forms.form.copy import text
 
         assert ml(key, locale) == text(key, locale)

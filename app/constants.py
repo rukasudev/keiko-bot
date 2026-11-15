@@ -1,6 +1,4 @@
-from dataclasses import dataclass
-from enum import Enum
-from typing import Any, Dict, Final, FrozenSet, List, Optional, Tuple
+from typing import Dict, Final, FrozenSet, List, Optional, Tuple
 
 import discord
 
@@ -8,6 +6,7 @@ import discord
 class Style:
     RED_COLOR: Final[str] = "ff0000"
     BACKGROUND_COLOR: Final[str] = "4F97F9"
+    BLANK_FIELD_NAME: Final[str] = "\u200b"
 
 
 class DBConfigs:
@@ -141,122 +140,6 @@ class FeaturePermissions:
     SENDS_TO_A_CHANNEL: Final[Tuple[str, ...]] = ("view_channel", "send_messages", "embed_links")
 
 
-@dataclass(frozen=True)
-class FeatureSpec:
-    """One feature, declared once: its key, its command, its row on /setup, what it needs.
-    `group` builds its slash command; `category` places it on /setup and the
-    greeting, and is the group unless declared."""
-
-    key: str
-    group: str
-    namespace: str
-    button_key: str
-    emoji: str
-    module: Optional[str]
-    channel_permissions: Tuple[str, ...] = ()
-    server_permissions: Tuple[str, ...] = ()
-    assigns_roles: bool = False
-    answers_prefix: bool = False
-    category: str = ""
-
-    def __post_init__(self) -> None:
-        if not self.category:
-            object.__setattr__(self, "category", self.group)
-
-    def setup_entry(self) -> Dict[str, Any]:
-        """The feature as `Commands.SETUP_FEATURES` lists it."""
-        entry: Dict[str, Any] = {
-            "command_key": self.key,
-            "group": self.group,
-            "category": self.category,
-            "button_key": self.button_key,
-            "emoji": self.emoji,
-        }
-        if self.channel_permissions:
-            entry["channel_permissions"] = list(self.channel_permissions)
-        if self.server_permissions:
-            entry["server_permissions"] = list(self.server_permissions)
-        if self.assigns_roles:
-            entry["assigns_roles"] = True
-        if self.answers_prefix:
-            entry["answers_prefix"] = True
-        return entry
-
-
-class Feature(Enum):
-    """Every feature Keiko offers, in the order /setup lists them: the one table every
-    feature list derives from.
-    `module` names the feature's module under `app/settings/features/`, or is
-    None when the generic feature saves it."""
-
-    WELCOME_MESSAGES = FeatureSpec(
-        key="welcome_messages",
-        group="moderations",
-        namespace="welcome-messages",
-        button_key="welcome-messages",
-        emoji="🎉",
-        module="welcome_messages",
-        channel_permissions=(*FeaturePermissions.SENDS_TO_A_CHANNEL, "attach_files"),
-    )
-    DEFAULT_ROLES = FeatureSpec(
-        key="default_roles",
-        group="moderations",
-        namespace="default-roles",
-        button_key="default-roles",
-        emoji="👩‍🎓",
-        module="default_roles",
-        server_permissions=("manage_roles",),
-        assigns_roles=True,
-    )
-    BLOCK_LINKS = FeatureSpec(
-        key="block_links",
-        group="moderations",
-        namespace="block-links",
-        button_key="block-links",
-        emoji="🚫",
-        module="block_links",
-        server_permissions=("manage_messages",),
-    )
-    NOTIFICATIONS_TWITCH = FeatureSpec(
-        key="notifications_twitch",
-        group="notifications",
-        namespace="notifications-twitch",
-        button_key="twitch",
-        emoji="📡",
-        module="notifications_twitch",
-        channel_permissions=FeaturePermissions.SENDS_TO_A_CHANNEL,
-    )
-    NOTIFICATIONS_YOUTUBE_VIDEO = FeatureSpec(
-        key="notifications_youtube_video",
-        group="notifications",
-        namespace="notifications-youtube",
-        button_key="youtube",
-        emoji="▶️",
-        module="notifications_youtube_video",
-        channel_permissions=FeaturePermissions.SENDS_TO_A_CHANNEL,
-    )
-    REMINDERS_BIRTHDAY = FeatureSpec(
-        key="reminders_birthday",
-        group="moderations",
-        namespace="moderations-birthdays",
-        button_key="birthdays",
-        emoji="🎂",
-        module="reminders_birthday",
-        channel_permissions=FeaturePermissions.SENDS_TO_A_CHANNEL,
-        category="notifications",
-    )
-    INTEGRATIONS_STREAM_ELEMENTS_COMMANDS = FeatureSpec(
-        key="stream_elements_commands",
-        group="integrations",
-        namespace="stream-elements",
-        button_key="stream-elements",
-        emoji="🎮",
-        module="stream_elements_commands",
-        server_permissions=("send_messages",),
-        answers_prefix=True,
-    )
-
-
 class Commands:
     ENABLED_KEY: Final[str] = "enabled"
     EDITED_KEY: Final[str] = "edited"
@@ -270,7 +153,6 @@ class Commands:
     MEMBERS_RECENT_SECONDS: Final[float] = 10 * 60
 
     # block links
-    BLOCK_LINKS_KEY: Final[str] = Feature.BLOCK_LINKS.value.key
     BLOCK_LINKS_ALLOWED_CHATS_KEY: Final[str] = "allowed_chats"
     BLOCK_LINKS_ALLOWED_ROLES_KEY: Final[str] = "allowed_roles"
     BLOCK_LINKS_ALLOWED_LINKS_KEY: Final[str] = "allowed_links"
@@ -282,7 +164,6 @@ class Commands:
     BLOCK_LINKS_ADD_CUSTOM_KEY: Final[str] = "add_custom"
 
     BLOCK_LINKS_DIAGNOSTIC_MAX_LINKS: Final[int] = 5
-    BLOCK_LINKS_EVENTS_TTL_SECONDS: Final[int] = 60 * 60 * 24 * 90
     BLOCK_LINKS_EVENTS_MAX_PER_MESSAGE: Final[int] = 3
     BLOCK_LINKS_EVENTS_READ_LIMIT: Final[int] = 200
 
@@ -364,25 +245,20 @@ class Commands:
     REDIS_YOUTUBE_VIDEO_CLAIM: Final[str] = "claim:youtube:video:{video_id}"
 
     # moderations
-    WELCOME_MESSAGES_KEY: Final[str] = Feature.WELCOME_MESSAGES.value.key
-    DEFAULT_ROLES_KEY: Final[str] = Feature.DEFAULT_ROLES.value.key
+    WELCOME_BANNER_SIZE: Final[Tuple[int, int]] = (800, 400)
+    WELCOME_BANNER_FILENAME: Final[str] = "banner.png"
+    WELCOME_AVATAR_SIZE: Final[int] = 256
     DEFAULT_ROLES_BOT_KEY: Final[str] = "default_roles_bot"
     DEFAULT_ROLES_COUNTED_MEMBERS_MAX: Final[int] = 5000
 
     # notifications
     NOTIFICATIONS_KEY: Final[str] = "notifications"
-    NOTIFICATIONS_TWITCH_KEY: Final[str] = Feature.NOTIFICATIONS_TWITCH.value.key
 
     NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE: Final[str] = "online"
     NOTIFICATIONS_TWITCH_STREAM_STATUS_OFFLINE: Final[str] = "offline"
     TWITCH_NOTIFIED_STREAM_TTL_SECONDS: Final[int] = 60 * 60 * 24
     REDIS_TWITCH_LIVE_CLAIM: Final[str] = "claim:twitch:live:{streamer}:{started_at}"
 
-    NOTIFICATIONS_YOUTUBE_VIDEO_KEY: Final[str] = Feature.NOTIFICATIONS_YOUTUBE_VIDEO.value.key
-
-    INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: Final[str] = (
-        Feature.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS.value.key
-    )
     CACHE_STREAM_ELEMENTS_COMMANDS: Final[str] = (
         "cache:stream_elements:commands:{channel_id}"
     )
@@ -397,22 +273,10 @@ class Commands:
     STREAM_ELEMENTS_CHANNEL_FAILED_SECONDS: Final[int] = 60 * 5
     STREAM_ELEMENTS_FAILURE_SECONDS: Final[int] = 60 * 30
 
-    REMINDERS_BIRTHDAY_KEY: Final[str] = Feature.REMINDERS_BIRTHDAY.value.key
     REMINDERS_BIRTHDAY_REACTION: Final[str] = "🎉"
-    REMINDER_TYPE_BIRTHDAY: Final[str] = "reminders_birthday"
     REMINDER_API_TITLE_BIRTHDAY: Final[str] = "birthday_reminder"
 
-    BIRTHDAY_CONFIG_CHANNEL: Final[str] = "channel"
-    BIRTHDAY_CONFIG_MENTION_EVERYONE: Final[str] = "mention_everyone"
-    BIRTHDAY_CONFIG_TIMEZONE: Final[str] = "timezone"
-    BIRTHDAY_CONFIG_NOTIFICATION_TIME: Final[str] = "notification_time"
-    BIRTHDAY_CONFIG_DEFAULT_MESSAGE_MODE: Final[str] = "default_message_mode"
-    BIRTHDAY_CONFIG_DEFAULT_MESSAGE_TITLE: Final[str] = "default_message_title"
-    BIRTHDAY_CONFIG_DEFAULT_MESSAGE_CONTENT: Final[str] = "default_message_content"
-
     SELF_BIRTHDAY_EDIT_LIMIT: Final[int] = 1
-
-    COMMANDS_LIST: Final[List[str]] = [feature.value.key for feature in Feature]
 
     SERVER_SETTINGS_KEY: Final[str] = "settings"
     SERVER_LANGUAGE_KEY: Final[str] = "language"
@@ -432,21 +296,13 @@ class Commands:
         discord.Locale.british_english.value: "Europe/London",
     }
 
-    SETUP_FEATURES: Final[List[Dict[str, Any]]] = [
-        feature.value.setup_entry() for feature in Feature
-    ]
-    SETUP_CATEGORIES: Final[Dict[str, str]] = {
-        "moderations": "🛡️",
-        "notifications": "🔔",
-        "integrations": "🔌",
-    }
     FEATURE_STATS_DAYS: Final[int] = 7
     SERVER_TIMEZONES: Final[Dict[str, str]] = {
         "America/Sao_Paulo": "brazil",
         "America/Argentina/Buenos_Aires": "argentina",
-        "America/New_York": "united-states",
+        "America/New_York": "united_states",
         "Europe/Lisbon": "portugal",
-        "Europe/London": "united-kingdom",
+        "Europe/London": "united_kingdom",
         "Europe/Madrid": "spain",
         "Europe/Berlin": "germany",
         "Asia/Tokyo": "japan",
@@ -454,38 +310,9 @@ class Commands:
     }
     SUPPORT_SERVER_URL: Final[str] = "https://discord.gg/Hdg239Cvbd"
 
-    FEATURE_COMMANDS: Final[Dict[str, Dict[str, str]]] = {
-        feature.value.key: {"group": feature.value.group, "namespace": feature.value.namespace}
-        for feature in Feature
-    }
-
 
 class CogsConstants:
-    ADMIN_COGS: Final[str] = "admin"
-    MODERATIONS_COGS: Final[str] = "moderations"
-    NOTIFICATIONS_COGS: Final[str] = "notifications"
-    CONFIG_COGS: Final[str] = "config"
-    PROMETHEUS_COGS: Final[str] = "prometheus"
-    EVENTS_COGS: Final[str] = "events"
-    ERRORS_COGS: Final[str] = "errors"
-    HELP_COGS: Final[str] = "help"
-
-    COGS_LIST: Final[List[str]] = [
-        ADMIN_COGS,
-        MODERATIONS_COGS,
-        PROMETHEUS_COGS,
-        CONFIG_COGS,
-        EVENTS_COGS,
-        ERRORS_COGS,
-        HELP_COGS,
-    ]
-    LAZY_LOAD_COGS: Final[List[str]] = [ADMIN_COGS, CONFIG_COGS]
-
-    INTERACTION_COGS: Final[List[str]] = [
-        NOTIFICATIONS_COGS,
-        MODERATIONS_COGS,
-        HELP_COGS,
-    ]
+    CORE_COGS: Final[List[str]] = ["events", "errors", "jobs", "monitoring", "groups"]
 
 
 class FormConstants:
@@ -517,6 +344,7 @@ class ViewConstants:
     LONG_TIMEOUT_SECONDS: Final[int] = 1800
     SHORT_TIMEOUT_SECONDS: Final[int] = 300
     ACTION_COOLDOWN_SECONDS: Final[int] = 10
+    SYNC_COOLDOWN_SECONDS: Final[int] = 60
     ACTION_NOTICE_SECONDS: Final[int] = 5
     COMPOSITION_PREVIEW_LIMIT: Final[int] = 10
     COMMANDS_PREVIEW_LIMIT: Final[int] = 5
@@ -532,22 +360,6 @@ class ViewConstants:
     GALLERY_WAIT_SECONDS: Final[int] = 8  # a gallery is the picture, so it waits longer
 
 
-class WelcomeDesign:
-    BANNER_SIZE: Final[Tuple[int, int]] = (800, 400)
-    BANNER_FILENAME: Final[str] = "banner.png"
-    AVATAR_SIZE: Final[int] = 256
-    CUSTOM_BLUR_PREVIEW: Final[str] = "app/assets/welcome/custom_blur_preview.jpg"
-    CUSTOM_ONLY_PREVIEW: Final[str] = "app/assets/welcome/custom_only_preview.gif"
-
-    PREVIEW_DATA_KEYS: Final[List[str]] = [
-        "welcome_messages_title",
-        "welcome_messages",
-        "welcome_messages_footer",
-        "welcome_design",
-        "welcome_custom_image",
-    ]
-
-
 class DiscordLimits:
     """Hard API limits. Exceeding one makes Discord reject the whole message,
     which only shows up at runtime, so the renderers guard against them."""
@@ -560,6 +372,7 @@ class DiscordLimits:
     EMBED_FIELD_NAME: Final[int] = 256
     EMBED_FIELD_VALUE: Final[int] = 1024
     SELECT_OPTION_TEXT: Final[int] = 100
+    AUTOCOMPLETE_CHOICES: Final[int] = 25
     BUTTONS_PER_ROW: Final[int] = 5
     INTERACTION_TOKEN_SECONDS: Final[int] = 900
     ATTACHMENT_URL_SECONDS: Final[int] = 86400
@@ -567,19 +380,7 @@ class DiscordLimits:
 
 
 class TraceTitles:
-    """What the admin log channel calls each kind of event.
-
-    The emoji names the event, so two runs of the same kind never look
-    different: every plain command run is `▶️`, every webhook is `🔔`.
-
-    Only the *labels* live here. The emoji for an outcome comes from
-    `journey.OUTCOME_ICONS`, which already owned that vocabulary — keeping a
-    second copy is how `edited` ended up as 📝 in one place and 🔧 in another.
-
-    Deliberately separate from the user-facing `commands.command-events.*` copy:
-    that is shipped in two locales and read by server admins, this is read by
-    whoever is on call, and the two are free to diverge.
-    """
+    """What the admin log channel calls each kind of event."""
 
     OUTCOME_LABELS: Final[Dict[str, str]] = {
         "added": "Item Added",
@@ -602,8 +403,6 @@ class TraceTitles:
         "internal": "👂 Listener Event",
     }
 
-    # Results that say nothing about what was done, so the last action gets to
-    # name the message instead.
     GENERIC_RESULTS: Final[frozenset] = frozenset({"in progress", "success"})
 
     DEFAULT: Final[str] = "▶️ Command Run"
@@ -619,9 +418,13 @@ class KeikoIcons:
     IMAGE_03: Final[str] = (
         "https://cdn.discordapp.com/attachments/927208560360820766/1246698992000307280/KEIKO_BOLO.png?ex=665d566a&is=665c04ea&hm=387e5a325c03d564fb8594db3dcc492980cb8357c345e9b1e1756df9184d0dde&"
     )
-    BIRTHDAY_GIF: Final[str] = IMAGE_03
 
     ICONS_LIST: List[str] = [IMAGE_01, IMAGE_02, IMAGE_03]
+    BY_NAME: Dict[str, str] = {
+        "default": IMAGE_01,
+        "nerd": IMAGE_02,
+        "cake": IMAGE_03,
+    }
     ACTION_IMAGE: Dict[str, str] = {
         FormConstants.RESUME_ACTION_KEY: IMAGE_03,
     }
@@ -659,11 +462,7 @@ class LogTypes:
     TRACE_TITLE: Final[str] = "🧵 Trace"
     JOURNEY_TITLE: Final[str] = "🧭"
 
-    # Log types that exist to be read. A listener runs under a trace that stays
-    # silent unless something failed — the rule that keeps `on_message` from
-    # flooding the channel — and that silence swallowed the two lines the log
-    # exists for: a server adding or removing Keiko. A line of one of these
-    # types is never routine, so it publishes the trace that carries it.
+    # A line of one of these types publishes the trace that carries it.
     REPORTED_EVENT_TYPES: Final[frozenset] = frozenset({
         EVENT_JOIN_GUILD_TYPE,
         EVENT_LEFT_GUILD_TYPE,
@@ -724,35 +523,7 @@ class LogTypes:
 class Emojis:
     FRISBEE_EMOJI: Final[str] = ":flying_disc:"
     EDIT_EMOJI: Final[str] = ":pencil:"
-
-# Quick-pick domains offered in the block_links card, with the extra hosts
-# each one also covers. Keys must stay in sync with the card options in
-# app/languages/form/block_links.yml (pinned by the YAML contract suite).
-BLOCK_LINKS_QUICK_PICK_DOMAINS: Final[Dict[str, List[str]]] = {
-    "facebook.com": [],
-    "instagram.com": [],
-    "twitter.com": ["x.com"],
-    "twitch.tv": [],
-    "youtube.com": ["youtu.be"],
-    "discord.gg": ["discord.com"],
-    "spotify.com": ["open.spotify.com"],
-    "tiktok.com": [],
-    "reddit.com": [],
-}
-
-# Legacy saved configs stored the option LABELS ("Youtube"); translated to
-# domains at read time by normalize_block_links_config.
-BLOCK_LINKS_LEGACY_LABEL_TO_DOMAIN: Final[Dict[str, str]] = {
-    "facebook": "facebook.com",
-    "instagram": "instagram.com",
-    "twitter": "twitter.com",
-    "twitch": "twitch.tv",
-    "youtube": "youtube.com",
-    "discord": "discord.gg",
-    "spotify": "spotify.com",
-    "tiktok": "tiktok.com",
-    "reddit": "reddit.com",
-}
+    STATUS_ICONS: Final[Dict[bool, str]] = {True: "\u2705", False: "\u274c"}
 
 supported_locales = [
     discord.Locale.american_english.value,

@@ -1,4 +1,7 @@
 from datetime import datetime
+from typing import Optional
+
+import requests
 
 from app.config import AppConfig
 from app.integrations import check_integration_enabled, http_post
@@ -13,8 +16,13 @@ class NotionIntegration(IntegrationBase):
 
     @check_integration_enabled
     def create_report(
-        self, title: str, description: str, command: str, author: str, attachment_url: str
-    ) -> None:
+        self,
+        title: str,
+        description: str,
+        command: str,
+        author: str,
+        attachment_url: Optional[str],
+    ) -> requests.Response:
         url = "https://api.notion.com/v1/pages"
 
         headers = {

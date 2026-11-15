@@ -1,10 +1,10 @@
 """Dates a guild lives by: its time zone, and the birthday a reminder celebrates."""
-from datetime import date, timezone
+from datetime import date, datetime, timezone
 from zoneinfo import ZoneInfo
 
 import pytest
 
-from app.core.dates import nearest_mm_dd_occurrence, zone_or_utc
+from app.core.dates import nearest_mm_dd_occurrence, parse_if_time, zone_or_utc
 
 pytestmark = pytest.mark.unit
 
@@ -31,3 +31,10 @@ def test_a_missing_or_unusable_zone_is_utc(name):
         "early-before-new-year", "leap-day-in-a-common-year", "leap-day-in-a-leap-year"])
 def test_the_birthday_celebrated_is_the_nearest_one_either_side_of_today(mm_dd, today, expected):
     assert nearest_mm_dd_occurrence(mm_dd, today) == expected
+
+
+def test_a_time_reads_as_its_date_and_how_long_ago_and_anything_else_as_it_is():
+    moment = datetime(2026, 5, 12, 9, 30, 0, tzinfo=timezone.utc)
+
+    assert parse_if_time(moment).startswith("2026-05-12 09:30:00 (")
+    assert parse_if_time("777") == "777"

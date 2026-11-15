@@ -2,21 +2,24 @@ import datetime
 import functools
 import hashlib
 import hmac
-import os
-import random
-from pathlib import Path
+from importlib import import_module
 from re import escape, finditer, sub
 from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
 
 import discord
-import yaml
 from i18n import t
+from pydantic import Field
 
 from app.constants import CogsConstants as cogconstants
-from app.constants import Commands as commandconstants
-from app.constants import FormConstants as formconstants
 from app.constants import LogTypes as logconstants
 from app.constants import supported_locales
+from app.core.commands import (
+    Command,
+    command_for,
+    commands,
+    setup_feature,
+)
+from app.core.i18n import CopyBlock, CopyText
 from app.exceptions import DestinationNotFound
 
 T = TypeVar("T")
@@ -87,24 +90,12 @@ def get_message_links(message: str) -> List[str]:
 
     return links
 
-def verify_twitch_signature(request, twitch_secret_key: str):
-    message = request.headers['Twitch-Eventsub-Message-Id'] + request.headers['Twitch-Eventsub-Message-Timestamp'] + request.get_data(as_text=True)
-    secret = twitch_secret_key.encode('utf-8')
-    signature = hmac.new(secret, message.encode('utf-8'), hashlib.sha256).hexdigest()
-    expected_signature = request.headers['Twitch-Eventsub-Message-Signature'].split('=')[1]
 
-    return hmac.compare_digest(signature, expected_signature)
-
-# Loads app/languages/form/<key>.yml (cached: restart to pick up YAML edits).
-# Schema reference: docs/form-configuration.md
-@functools.cache
-def parse_form_yaml_to_dict(key: str) -> Dict[str, str]:
-    file = Path.joinpath(
-        Path().absolute(), "app", "languages", "form", key.lower()
-    )
-    with open(f"{file}.yml", "r") as f:
-        yaml_object = yaml.safe_load(f)
-        return yaml_object.get("steps")
+def verify_hmac_sha256(secret: str, message: str, signature: str, prefix: str = "") -> bool:
+    """Whether `signature` is the prefixed SHA-256 HMAC of `message` under `secret`."""
+    digest = hmac.new(secret.encode("utf-8"), message.encode("utf-8"), hashlib.sha256)
+    expected = prefix + digest.hexdigest()
+    return hmac.compare_digest(expected.encode("utf-8"), signature.encode("utf-8"))
 
 
 def get_available_roles_by_guild(guild: discord.Guild) -> Dict[str, str]:
@@ -139,49 +130,28 @@ def check_two_lists_intersection(x: list, y: list) -> bool:
 def step_titles(command_key: str, locale: str = "en-us") -> Dict[str, str]:
     """Every step key of a form mapped to the title a human reads.
 
-    Goes deeper than `parse_form_steps_titles`: a composition runs its own
-    sub-steps and a card owns fields, and those keys are the ones that show up
-    in reports as `custom_link` — meaningless to anyone who has not read the
-    YAML. Cached because a form's copy cannot change at runtime.
+    Goes into what a step owns: a composition runs its own sub-steps and a card
+    owns fields and sections, and those keys are the ones that show up in
+    reports as `custom_link` — meaningless to anyone who has not read the YAML.
+    Read from the compiled form, so a label left to its default reads as the
+    label it defaults to. Cached because a form's copy cannot change at runtime.
     """
+    from app.forms.form.form_yaml import CardStep, ListStep, registry
+
     titles: Dict[str, str] = {}
 
-    def label(node: Dict[str, Any]) -> Optional[str]:
-        for holder in (node.get("title"), node.get("label"), (node.get("header") or {}).get("title")):
-            if isinstance(holder, dict):
-                text = holder.get(locale) or holder.get("en-us")
-                if text:
-                    return text
-        return None
-
-    def children(step: Dict[str, Any]) -> List[Any]:
-        """`fields:` is a list on a card and a locale map on a button step."""
-        found = []
-        for name in ("fields", "selects", "sections"):
-            value = step.get(name)
-            if isinstance(value, list):
-                found += value
-        return found
-
-    def walk(steps: Any) -> None:
-        if not isinstance(steps, list):
-            return
+    def walk(steps: Iterable[Any]) -> None:
         for step in steps:
-            if not isinstance(step, dict):
-                continue
-            key, text = step.get("key"), label(step)
-            if key and text:
-                titles.setdefault(key, text)
+            titles.setdefault(step.key, step.title.get(locale))
+            if isinstance(step, CardStep):
+                for field in step.fields:
+                    titles.setdefault(field.key, step.label_of(field).get(locale))
+                for section in step.sections:
+                    titles.setdefault(section.key, section.label.get(locale))
+            if isinstance(step, ListStep):
+                walk(step.steps)
 
-            for child in children(step):
-                if isinstance(child, dict) and child.get("key"):
-                    child_text = label(child)
-                    if child_text:
-                        titles.setdefault(child["key"], child_text)
-
-            walk(step.get("steps"))
-
-    walk(list(parse_form_yaml_to_dict(command_key)))
+    walk(registry.get(command_key).steps)
     return titles
 
 
@@ -193,25 +163,10 @@ def describe_step(command_key: str, step_key: str, locale: str = "en-us") -> str
 
 
 def describe_default(row: Dict[str, Any]) -> str:
-    """Zero filled plus a declared default is not the same as zero used.
-
-    Nobody stores `block_links / mode`, and every guild runs `block_all` because
-    that is what the YAML says an unset value means. Read without this, the line
-    proposes deleting the setting that decides how the feature behaves. Lives
-    next to `describe_step` because both admin surfaces render through it and
-    neither owns it.
-    """
+    """The note that every guild runs a setting's declared default, or nothing."""
     if row.get("filled") or not row.get("default"):
         return ""
     return f" · all on the default `{row['default']}`"
-
-
-def parse_form_steps_titles(form_steps: List[Dict[str, str]], locale: str) -> Dict[str, str]:
-    return {
-        item["key"]: item["title"][locale]
-        for item in form_steps
-        if not item.get("hidden") and item["action"] not in formconstants.NO_ACTION_LIST
-    }
 
 
 async def get_translated_qualified_name(
@@ -236,7 +191,7 @@ async def get_translated_qualified_name(
     return " ".join(reversed(names))
 
 
-def parse_locale(locale: str) -> str:
+def parse_locale(locale: str | discord.Locale) -> str:
     locale_str = str(locale).lower()
     lowered_supported = [s.lower() for s in supported_locales]
     if locale_str in lowered_supported:
@@ -281,11 +236,31 @@ def speak(interaction: Any, language: str) -> str:
     return language
 
 
-def ml(key: str, locale: str):
+def ml(key: str, locale: str | discord.Locale) -> str:
     try:
         return t(key, locale=parse_locale(locale), default=t(key, locale="en-us"))
     except Exception:
         return t(key, locale="en-us")
+
+
+class SetupRow(CopyBlock):
+    """A command's row on /setup and on the greeting, read through `command_text`."""
+
+    label: CopyText = Field(
+        description="The feature's one name: its /setup row, its line on the first "
+        "message, its buttons and its History.",
+        examples=[{"en-us": "Link Blocker", "pt-br": "Bloqueio de Links"}],
+        json_schema_extra={"role": "copy"},
+    )
+    description: CopyText = Field(
+        description="The row's one-line pitch, drawn under the name.",
+        json_schema_extra={"role": "copy"},
+    )
+
+
+def command_text(command: Command, path: str, locale: str | discord.Locale) -> str:
+    """The text a command writes under `path` of its own copy, as `ml` resolves it."""
+    return ml(f"{command.key}.{path}", locale)
 
 
 def get_command_by_key(bot, key: str) -> discord.app_commands.Command:
@@ -296,7 +271,7 @@ def get_command_by_key(bot, key: str) -> discord.app_commands.Command:
     return None
 
 
-def get_command_display_name(bot, key: str, locale: discord.Locale) -> str:
+def get_command_display_name(bot: Any, key: str, locale: str | discord.Locale) -> str:
     command = get_command_by_key(bot, key)
     valid_locale = parse_valid_locale(locale)
     valid_locale_value = getattr(valid_locale, "value", str(valid_locale))
@@ -307,12 +282,11 @@ def get_command_display_name(bot, key: str, locale: discord.Locale) -> str:
         if command_name:
             return command_name
 
-    feature_command = commandconstants.FEATURE_COMMANDS.get(key)
+    feature_command = setup_feature(key)
     if feature_command:
-        group = ml(f"commands.groups.{feature_command['group']}", locale=valid_locale_value)
-        namespace = feature_command["namespace"]
-        subgroup = ml(f"commands.commands.{namespace}.subgroup", locale=valid_locale_value)
-        name = ml(f"commands.commands.{namespace}.name", locale=valid_locale_value)
+        group = ml(f"messages.groups.{feature_command.group}", locale=valid_locale_value)
+        subgroup = command_text(feature_command, "slash.subgroup", valid_locale_value)
+        name = command_text(feature_command, "slash.name", valid_locale_value)
         return " ".join(part for part in (group, subgroup, name) if part)
 
     return str(key).replace("_", " ")
@@ -325,9 +299,15 @@ def stored_value(entry: Dict[str, Any]) -> Any:
 
 def fill(text: str, **values: Any) -> str:
     """Replace every `$name` in a localized line with the value given for it, in one
-    pass and the longest name first, so `$page` never eats the start of `$pages`."""
+    pass and the longest name first, so `$page` never eats the start of `$pages`;
+    a line that writes a given name as `{name}` is refused."""
     if not values:
         return text
+    braced = [name for name in values if f"{{{name}}}" in text and f"${name}" not in text]
+    if braced:
+        raise ValueError(
+            f"{text!r} writes {{{braced[0]}}}: copy names a value as ${braced[0]}"
+        )
     names = "|".join(escape(name) for name in sorted(values, key=len, reverse=True))
     return sub(r"\$(" + names + r")", lambda match: str(values[match.group(1)]), text)
 
@@ -336,13 +316,13 @@ def join_names(names: List[str], locale: str) -> str:
     """The names as one phrase in `locale`: "A, B e C", "A, B and C"."""
     if len(names) <= 1:
         return "".join(names)
-    return f"{', '.join(names[:-1])}{ml('messages.list-and', locale)}{names[-1]}"
+    return f"{', '.join(names[:-1])}{ml('messages.list_and', locale)}{names[-1]}"
 
 
 def at_least(count: int, locale: str) -> str:
     """A count Keiko stopped at, read as a floor: "5,000+", "5 mil+"."""
     return fill(
-        ml("messages.count-at-least", locale),
+        ml("messages.count_at_least", locale),
         count=f"{count:,}",
         thousands=f"{count // 1000:,}".replace(",", "."),
     )
@@ -368,9 +348,7 @@ def parse_command_event_description(
     cog_key: str,
 ) -> str:
     command_name = get_command_display_name(interaction.client, cog_key, interaction.locale)
-    setup_command = ml("commands.commands.setup.name", locale=interaction.locale)
     description = description.replace("$command_name", command_name)
-    description = description.replace("$setup_command", setup_command)
     description = description.replace(
         "$date", event_date.strftime("%Y-%m-%d %H:%M:%S") + " UTC"
     )
@@ -392,50 +370,73 @@ def format_traceback_message(traceback: str) -> str:
     return tb
 
 
-def get_cogs_folder(directory: str = "app/cogs") -> List[str]:
-    cogs = []
-
-    for filename in os.listdir(directory):
-        if filename.startswith("_"):
+def command_extensions(command: Command) -> List[str]:
+    """The modules of a command's cogs that load as extensions: every cog that is no
+    slash subgroup, in the declared order; a module without `setup(bot)` is refused."""
+    found: List[str] = []
+    for cog in command.cogs:
+        module = cog.__module__
+        if issubclass(cog, discord.app_commands.Group) or module in found:
             continue
+        if not callable(getattr(import_module(module), "setup", None)):
+            raise ValueError(
+                f"{command.key!r} declares the cog {cog.__name__}, whose module {module} "
+                "has no `async def setup(bot)` to add it"
+            )
+        found.append(module)
+    return found
 
-        if filename.endswith(".py"):
-            filename = filename[:-3]
 
-        if filename in cogconstants.LAZY_LOAD_COGS:
-            continue
+def extension_paths(name: str) -> List[str]:
+    """The modules of the cog extension `name`: a module, a core cog or a command."""
+    if name.startswith("app."):
+        return [name]
+    if name in cogconstants.CORE_COGS:
+        return [f"app.core.{name}"]
+    return command_extensions(command_for(name))
 
-        # base cogs is a special case
-        if "base" in directory:
-            filename = f"base.{filename}"
 
-        if filename == "base":
-            cogs = cogs + get_cogs_folder(f"{directory}/{filename}")
-            continue
+def extension_names() -> List[str]:
+    """The names `extension_paths` turns into modules: the core cogs, then the key of
+    every command with a cog that loads as an extension, in the declared order."""
+    keys = [command.key for command in commands() if command_extensions(command)]
+    return [*cogconstants.CORE_COGS, *keys]
 
-        cogs.append(filename)
 
-    return cogs
+def startup_extensions() -> List[str]:
+    """The core cogs, then the extensions of every command that is not lazy, in the
+    declared order."""
+    found = [f"app.core.{name}" for name in cogconstants.CORE_COGS]
+    for command in commands():
+        if not command.lazy:
+            found.extend(
+                module for module in command_extensions(command) if module not in found
+            )
+    return found
+
+
+def lazy_commands() -> List[str]:
+    """The keys of the commands whose cogs load once Keiko is ready."""
+    return [command.key for command in commands() if command.lazy]
 
 
 async def cogs_manager(bot, mode: str, cogs: list[str], sync: bool = False) -> None:
     from app import logger
 
     for cog in cogs:
-        cog = f"app.cogs.{cog}" if "app" not in cog else cog
+        for extension in extension_paths(cog):
+            if mode == "unload":
+                await bot.unload_extension(extension)
 
-        if mode == "unload":
-            await bot.unload_extension(cog)
+            elif mode == "load":
+                await bot.load_extension(extension)
 
-        elif mode == "load":
-            await bot.load_extension(cog)
+            elif mode == "reload":
+                await bot.reload_extension(extension)
+            else:
+                raise ValueError("Invalid mode.")
 
-        elif mode == "reload":
-            await bot.reload_extension(cog)
-        else:
-            raise ValueError("Invalid mode.")
-
-    cogs_list = ", ".join(cogs).replace("base.", "")
+    cogs_list = ", ".join(cogs)
     logger.info(f"Cogs {cogs_list} {mode}ed.", log_type=logconstants.COMMAND_INFO_TYPE)
 
     if sync:
@@ -462,7 +463,7 @@ def format_datetime_output(datetime) -> str:
 
 
 def parse_log_filename_with_date(
-    filename: str, year: str, month: str, day: str
+    filename: str, year: Optional[int], month: Optional[int], day: Optional[int]
 ) -> Tuple[str, str]:
     if not (day and month and year):
         return filename, ""
@@ -475,25 +476,6 @@ def split_messages(stored: Any) -> List[str]:
     """The messages a saved value holds, as a list or `;`-joined, blanks left out."""
     entries = stored if isinstance(stored, (list, tuple)) else str(stored or "").split(";")
     return [str(entry).lstrip() for entry in entries if str(entry).strip()]
-
-
-def render_welcome_message(welcome_message: str, member: discord.Member) -> str:
-    """A welcome template filled for a member, the mention added when `{user}` is missing."""
-    return fill_placeholders(
-        welcome_message,
-        {
-            "server": member.guild.name,
-            "member_count": str(member.guild.member_count),
-            "user": f"<@!{member._user.id}>",
-        },
-        required="user",
-    )
-
-def parse_welcome_messages(welcome_messages: Any, member: discord.Member) -> str:
-    """One of the saved welcome messages, picked at random and filled for `member`."""
-    messages = split_messages(welcome_messages) or [""]
-
-    return render_welcome_message(random.choice(messages), member)
 
 
 def values_of(

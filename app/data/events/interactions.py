@@ -1,6 +1,6 @@
 """What someone asked for: a command, a button, a setup and its steps, a failure.
 
-Written in the analytics sink's batch and kept 90 days.
+Written in the analytics writer's batch and kept 90 days.
 """
 
 from datetime import datetime

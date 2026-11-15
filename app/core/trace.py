@@ -325,32 +325,13 @@ class trace_scope:
 async def run_traced(
     coroutine: Any, name: str, *, trace: Optional[Trace] = None, **kwargs: Any
 ) -> None:
-    """Await work that outlives whatever scheduled it, under a trace of its own.
-
-    A task inherits the context it was created in, so background work started
-    from a request keeps pointing at that request's trace — which its scope
-    closed, and posted, before the work ever ran. Every line the work logs then
-    lands on a message nobody will look at again: that is why a Twitch
-    `stream.online` fan-out produced a webhook message with an empty timeline.
-
-    `trace_scope` is deliberately not reused here: it joins the surrounding
-    trace so a fan-out does not fragment its timeline, which is the right rule
-    inside one unit of work and the wrong one across two.
-
-    A failure is recorded and swallowed. This is fire-and-forget work — there is
-    no caller left to raise to, and an exception escaping into a task nobody
-    awaits is only a warning on stderr.
-
-    A `trace` handed over by the caller continues the caller's message.
-    """
+    """Await background work under its own trace, or `trace`, recording a failure."""
     trace = trace or Trace(name, **kwargs)
     token = _current_trace.set(trace)
     try:
         await coroutine
     except Exception:
-        # Through `logging`, never `trace.add`: the traceback belongs in the
-        # error channel and in the debug sink, and the timeline gets its line
-        # from that same call.
+        # Through `logging`, never `trace.add`: the traceback reaches the error channel.
         _logger.exception(f"{name} failed")
     finally:
         _current_trace.reset(token)
@@ -439,19 +420,7 @@ def add_line(
     log_type: Optional[str] = None,
     guild_id: Optional[Any] = None,
 ) -> bool:
-    """Record a line on the active trace, if there is one.
-
-    A trace also learns its subject here when it could not know it: a listener
-    receives a `discord.Guild`, which carries no `.guild` for the decorator to
-    read, so `on_guild_remove` had a message that never said which guild left.
-    The record knows — it was given `guild_id`.
-
-    Only a reported event may settle it, which is narrower than it looks. Any
-    line would work for a listener, and be wrong for a fan-out: one birthday job
-    walks several guilds in a single trace, and the first line to mention one
-    would label the whole message with it. An event is about exactly one guild
-    by definition.
-    """
+    """Record a line on the active trace, if any; a reported event names its guild."""
     trace = _current_trace.get()
     if not trace:
         return False

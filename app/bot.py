@@ -8,6 +8,7 @@ import os
 import signal
 import threading
 import time
+from datetime import datetime
 from types import FrameType, SimpleNamespace
 from typing import Any, Optional
 
@@ -21,12 +22,12 @@ from app import logger
 from app.config import AppConfig
 from app.constants import DBConfigs, Dependencies, LogTypes
 from app.integrations.notion import NotionIntegration
-from app.integrations.reminder_webhook import ReminderWebhook
-from app.integrations.twitch import TwitchClient
-from app.integrations.youtube import YoutubeClient
+from app.integrations.reminders.client import ReminderWebhook
+from app.integrations.twitch.client import TwitchClient
+from app.integrations.youtube.client import YoutubeClient
 from app.core import analytics, debug_logs, metrics, threads
 from app.core.trace import trace_scope
-from app.core.utils import cogs_manager, get_cogs_folder
+from app.core.utils import cogs_manager, startup_extensions
 from app.data import bind_loop, data
 from app.translator import Translator
 
@@ -117,7 +118,9 @@ class DiscordBot(Bot):
         self.twitch = TwitchClient(self)
         self.youtube = YoutubeClient(self)
         self.reminder = ReminderWebhook(self)
-        self.all_cogs = {}
+        self.all_cogs: dict[str, list[dict[str, Any]]] = {}
+        self.app_commands: list[app_commands.Command[Any, ..., Any] | app_commands.Group] = []
+        self.ready_time: Optional[datetime] = None
         intents = gateway_intents()
         super().__init__(
             command_prefix=server_command_prefix,
@@ -139,7 +142,7 @@ class DiscordBot(Bot):
         )
 
     async def setup_hook(self) -> None:
-        from app.components.buttons import JourneyRefreshButton
+        from app.core.journey import JourneyRefreshButton
 
         threads.install()
         bind_loop(asyncio.get_running_loop())
@@ -149,7 +152,7 @@ class DiscordBot(Bot):
         # keeps working across restarts because its id carries the session.
         self.add_dynamic_items(JourneyRefreshButton)
 
-        await cogs_manager(self, "load", get_cogs_folder())
+        await cogs_manager(self, "load", startup_extensions())
         await self.tree.set_translator(Translator(self))
 
     async def close(self) -> None:

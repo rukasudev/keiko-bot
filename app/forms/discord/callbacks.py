@@ -1,0 +1,1114 @@
+"""Where cogs and buttons enter the platform, and where every click comes back.
+
+`open_feature` replaces the seven `service.manager` functions: it asks the
+feature what is saved, opens a setup or a manage session, and draws the first
+screen. `handle` is the single callback of every component the renderer
+built: decode, lock, prefetch, decide, run.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import time
+from collections.abc import Iterator, Mapping, Sequence
+from dataclasses import dataclass, field, replace
+from datetime import datetime, timezone
+from typing import Any
+
+import discord
+
+from app import logger
+from app.constants import Commands as commands_constants
+from app.constants import LogTypes as logconstants
+from app.constants import ViewConstants as view_constants
+from app.core import analytics, members, metrics
+from app.core.servers import interaction_language, server_settings
+from app.core.trace import trace_scope
+from app.core.utils import (
+    fill,
+    get_command_by_key,
+    get_command_display_name,
+    is_guild_admin,
+    speak,
+)
+from app.forms.discord import observability
+from app.forms.discord.interactions import ComponentId, decode, to_event
+from app.forms.discord.transitions import (
+    Answering,
+    EffectFailed,
+    Ending,
+    Executor,
+    Surface,
+    expire_surface,
+    hold,
+    release,
+)
+from app.forms.discord.views import Dispatcher, walk
+from app.forms.features import feature_for
+from app.forms.features.feature import (
+    AsideAction,
+    CommitContext,
+    DuplicateItem,
+    FeatureModule,
+    ListChanged,
+    OpenContext,
+    Opened,
+)
+from app.forms.form import events as ev
+from app.forms.form import manager
+from app.forms.form.actions.action import Context
+from app.forms.form.components import Card, Gallery
+from app.forms.form.copy import text
+from app.forms.form.effects import (
+    OpenChild,
+    OpenPanel,
+    Render,
+    ResumeChild,
+    ResumeParent,
+)
+from app.forms.form.form import Decision, decide, shown_answers
+from app.forms.form.form_state import (
+    FormSession,
+    InMemorySessionStore,
+    Manage,
+    Origin,
+    Setup,
+    Status,
+    new_session,
+)
+from app.forms.form.form_yaml import registry
+from app.forms.form.lookups import Lookup, lookup_for
+from app.ui.embed import response_embed, response_error_embed
+
+
+@dataclass
+class Session:
+    """Everything the adapter keeps beside a session: feature, document, message."""
+
+    feature: FeatureModule
+    opened: Opened
+    surface: Surface
+    source: str
+    command_name: str
+    guild: Any
+    member: Any
+    is_admin: bool = False
+    command_label: str = ""
+    friction: observability.Friction = field(default_factory=observability.Friction)
+    lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    cooldowns: dict[str, float] = field(default_factory=dict)
+    previews: asyncio.Task[Mapping[str, str]] | None = None
+    drawn_from: str = ""
+    journey_waits: bool = False
+    settings: Mapping[str, Any] = field(default_factory=dict)
+    ending: Ending | None = None
+    back: Ending | None = None
+
+    async def ready_previews(
+        self, wait: bool, budget: float = view_constants.PREVIEW_WAIT_SECONDS
+    ) -> Mapping[str, str]:
+        """The previews drawn in the background, waiting for them when `wait`.
+
+        The wait is taken while this session's lock is held, so it is always
+        bounded; a drawing that outlasts its budget keeps going for the next
+        screen to pick up.
+        """
+        if self.previews is None:
+            return self.opened.previews
+        if not self.previews.done() and not wait:
+            return {}
+
+        try:
+            return dict(await asyncio.wait_for(asyncio.shield(self.previews), budget))
+        except (Exception, asyncio.TimeoutError):
+            return {}
+
+    def previews_pending(self) -> bool:
+        """Whether the previews are still being drawn in the background."""
+        return self.previews is not None and not self.previews.done()
+
+    def forget(self) -> None:
+        """Stop what still runs for this session."""
+        if self.previews is not None and not self.previews.done():
+            self.previews.cancel()
+
+
+def _draws_a_gallery(decision: Decision) -> bool:
+    return any(
+        isinstance(effect, Render)
+        and any(isinstance(item, Gallery) for item in effect.screen.components)
+        for effect in decision.effects
+    )
+
+
+def _draws_previews(decision: Decision, definition: Any) -> bool:
+    """True when a screen of the decision shows a design drawn in the background.
+
+    The gallery is the previews themselves and waits for them; a card only
+    carries the chosen one beside its line, so it waits within a budget.
+    """
+    if not definition.designs():
+        return _draws_a_gallery(decision)
+    return any(
+        isinstance(effect, Render)
+        and any(isinstance(item, (Gallery, Card)) for item in effect.screen.components)
+        for effect in decision.effects
+    )
+
+
+class MemberPictures(Mapping[str, str]):
+    """Each member's picture by id: the ones found for this screen, else a cache's."""
+
+    def __init__(self, guild: Any, found: Mapping[str, str] | None = None) -> None:
+        self.guild = guild
+        self.found = dict(found or {})
+
+    def __getitem__(self, member_id: str) -> str:
+        if member_id in self.found:
+            return self.found[member_id]
+        member = members.known(self.guild, member_id)
+        if member is None:
+            raise KeyError(member_id)
+        return str(member.display_avatar.url)
+
+    def __iter__(self) -> Iterator[str]:
+        return iter(sorted({*self.found, *members.known_ids(self.guild)}))
+
+    def __len__(self) -> int:
+        return sum(1 for _ in self)
+
+
+async def pictures_for(guild: Any, member_ids: Sequence[str]) -> MemberPictures:
+    """The pictures of `member_ids`, from the API for a member no cache holds."""
+    found: dict[str, str] = {}
+    for member_id in member_ids:
+        member = await members.find(guild, member_id)
+        if member is not None:
+            found[member_id] = str(member.display_avatar.url)
+    return MemberPictures(guild, found)
+
+
+class Runtime:
+    """The sessions of this process and what the adapter knows about each."""
+
+    def __init__(self) -> None:
+        self.store = InMemorySessionStore()
+        self.sessions: dict[str, Session] = {}
+        self.answering: dict[int, Answering] = {}
+        self.dispatcher = Dispatcher(self.handle)
+
+    def reset(self) -> None:
+        """Forget every session (tests)."""
+        for state in self.sessions.values():
+            state.forget()
+        self.store = InMemorySessionStore()
+        self.sessions.clear()
+
+    async def open_feature(
+        self,
+        interaction: discord.Interaction,
+        key: str,
+        source: str | None = None,
+        ending: Ending | None = None,
+        back: Ending | None = None,
+    ) -> None:
+        """Open `key` as its setup or its manager."""
+        locale = await interaction_language(interaction)
+        guild = interaction.guild
+        member = interaction.user
+        guild_id = str(getattr(guild, "id", interaction.guild_id))
+        answering = self._clocked(interaction)
+        opening = Opening(key, source, ending, back)
+
+        try:
+            await self._open(interaction, opening, locale, guild, member, guild_id)
+        finally:
+            self._unclocked(answering)
+
+        metrics.record_interaction(*answering.outcome())
+
+    async def _open(
+        self,
+        interaction: discord.Interaction,
+        opening: Opening,
+        locale: str,
+        guild: Any,
+        member: Any,
+        guild_id: str,
+    ) -> None:
+        key = opening.key
+        feature = feature_for(key)
+        settings = await server_settings(guild_id)
+        opened = await feature.open(
+            OpenContext(guild_id, str(interaction.user.id), locale, guild, member)
+        )
+
+        if opened.refusal:
+            embed = response_error_embed(opened.refusal, locale)
+            await _answer_with(self._answering(interaction), embed)
+            return
+        definition = registry.get(key)
+        mode = Manage() if opened.document is not None else Setup()
+        ending = opening.ending if isinstance(mode, Setup) else None
+        back = opening.back if isinstance(mode, Setup) else None
+        launched = ending is not None or back is not None
+        origin = Origin(guild_id, str(interaction.user.id), locale)
+        session = new_session(
+            (definition.key, definition.version),
+            mode,
+            origin,
+            ttl_seconds=view_constants.LONG_TIMEOUT_SECONDS,
+        )
+        self.store.create(session)
+        self.sessions[session.id] = Session(
+            feature=feature,
+            opened=opened,
+            surface=_surface(interaction) if launched else Surface(),
+            source=opening.source or analytics.resolve_source(interaction),
+            command_name=_command_label(interaction, key),
+            guild=guild,
+            member=member,
+            is_admin=is_guild_admin(member),
+            command_label=get_command_display_name(
+                interaction.client, key, interaction.locale
+            ),
+            settings=settings,
+            ending=ending,
+            back=back,
+        )
+        state = self.sessions[session.id]
+
+        if opened.pending_previews is not None:
+            state.previews = asyncio.ensure_future(opened.pending_previews)
+        observability.open_journey(
+            session, state.command_name, state.source, state.is_admin
+        )
+        try:
+            await self._apply(interaction, session, ev.Started(str(interaction.id)))
+        except EffectFailed as failed:
+            raise failed.error from None
+
+    async def handle(
+        self, interaction: discord.Interaction, custom_id: str, payload: Any
+    ) -> None:
+        """The callback of every component: decode, lock, decide, run."""
+        component = decode(custom_id)
+        if component is None:
+            return
+        session = self.store.get(component.session_id)
+        if session is None:
+            await self._unknown(interaction)
+            return
+        state = self.sessions[session.id]
+        speak(interaction, session.origin.locale)
+        answering = self._clocked(interaction)
+        try:
+            await self._handle_locked(interaction, component, session, payload, state)
+        except EffectFailed as failed:
+            metrics.record_interaction("failed", failed.error)
+            return
+        except Exception as error:
+            metrics.record_interaction("failed", error)
+            raise
+        finally:
+            self._unclocked(answering)
+
+        metrics.record_interaction(*answering.outcome())
+
+    def _clocked(self, interaction: discord.Interaction) -> Answering:
+        answering = Answering(interaction)
+        answering.start_clock()
+        self.answering[interaction.id] = answering
+        return answering
+
+    def _unclocked(self, answering: Answering) -> None:
+        answering.stop()
+        self.answering.pop(answering.interaction.id, None)
+
+    def _answering(self, interaction: discord.Interaction) -> Answering:
+        return self.answering.get(interaction.id) or Answering(interaction)
+
+    async def _handle_locked(
+        self,
+        interaction: discord.Interaction,
+        component: ComponentId,
+        session: FormSession,
+        payload: Any,
+        state: Session,
+    ) -> None:
+        async with state.lock:
+            current = self.store.get(session.id) or session
+            if not current.is_closed and self._due(current, _now()):
+                await self._apply(
+                    interaction, current, ev.Expired(f"expire:{interaction.id}")
+                )
+                return
+            awaiting = current.awaiting or ""
+            section = awaiting if awaiting.startswith("section:") else None
+            event = to_event(interaction, component, payload, current.cursor, section)
+            try:
+                await self._apply(interaction, current, event)
+            finally:
+                await release(state.surface, self._answering(interaction))
+
+    async def _unknown(self, interaction: discord.Interaction) -> None:
+        """A click on a message whose session this process no longer has."""
+        notice = text(
+            "messages.notices.expired", await interaction_language(interaction)
+        )
+        message = interaction.message
+
+        try:
+            if message is not None and message.flags.components_v2:
+                await interaction.response.defer()
+                await interaction.followup.send(content=notice, ephemeral=True)
+            else:
+                embed = message.embeds[0] if message and message.embeds else None
+                if embed is not None:
+                    embed.description = f"{embed.description or ''}\n\n{notice}".strip()
+                    await interaction.response.edit_message(embed=embed, view=None)
+                else:
+                    await interaction.response.send_message(
+                        content=notice, ephemeral=True
+                    )
+        except discord.HTTPException as error:
+            metrics.record_interaction("failed", error)
+            logger.warn(
+                f"Could not finalize an unknown session: "
+                f"{type(error).__name__}: {error}",
+                log_type=logconstants.COMMAND_WARN_TYPE,
+            )
+        else:
+            metrics.record_interaction("in_time")
+
+    async def _context(
+        self,
+        session: FormSession,
+        lookup: Lookup | None = None,
+        event: ev.Event | None = None,
+    ) -> Context:
+        state = self.sessions[session.id]
+        opened = state.opened
+        document = opened.document or {}
+        external: Mapping[str, Mapping[str, Any]] = {}
+        settings = state.settings
+        prefix = str(settings[commands_constants.SERVER_PREFIX_KEY])
+
+        if lookup is not None:
+            external = await state.feature.prefetch(
+                lookup,
+                OpenContext(
+                    session.origin.guild_id,
+                    session.origin.user_id,
+                    session.origin.locale,
+                    state.guild,
+                    state.member,
+                    prefix=prefix,
+                ),
+            )
+        parent_values: Mapping[str, Any] = {}
+        parent = self.store.get(session.parent_id) if session.parent_id else None
+
+        if parent is not None:
+            from app.forms.form.responses.responses import document_values
+
+            shown = shown_answers(
+                registry.get(*parent.definition), parent, Context(document=document)
+            )
+            parent_values = {**document_values(document), **_flat(shown)}
+        items = _items(session, parent, document)
+        context = Context(
+            now=_now(),
+            ttl_seconds=view_constants.LONG_TIMEOUT_SECONDS,
+            document=document,
+            parent_values=parent_values,
+            items=items,
+            external=external,
+            server_name=str(getattr(state.guild, "name", "")),
+            prefix=prefix,
+            server_language=str(settings[commands_constants.SERVER_LANGUAGE_KEY]),
+            server_timezone=str(settings[commands_constants.SERVER_TIMEZONE_KEY]),
+            command=state.command_label,
+            values=opened.values,
+            previews=await state.ready_previews(False),
+            member_pictures=MemberPictures(state.guild),
+            back_to_opener=state.back is not None,
+        )
+        definition = registry.get(*session.definition)
+        pictured = manager.pictured_members(definition, session, context, event)
+        return replace(
+            context, member_pictures=await pictures_for(state.guild, pictured)
+        )
+
+    async def _apply(
+        self, interaction: discord.Interaction, session: FormSession, event: ev.Event
+    ) -> None:
+        state = self.sessions[session.id]
+        definition = registry.get(*session.definition)
+
+        async with trace_scope(
+            f"{state.command_name}:{type(event).__name__}",
+            guild_id=session.origin.guild_id,
+            user_id=session.origin.user_id,
+            feature=session.key,
+            source=state.source,
+            session_id=session.id if session.parent_id is None else session.parent_id,
+            quiet=True,
+            is_admin=state.is_admin,
+        ):
+            lookup = lookup_for(definition, session, event)
+            if lookup is not None:
+                await self._hold(interaction, state)
+            context = await self._context(session, lookup, event)
+            decision = self._decide(definition, session, event, context)
+            if state.previews_pending() and _draws_previews(decision, definition):
+                await self._hold(interaction, state)
+                budget = (
+                    view_constants.GALLERY_WAIT_SECONDS
+                    if _draws_a_gallery(decision)
+                    else view_constants.PREVIEW_WAIT_SECONDS
+                )
+                previews = await state.ready_previews(True, budget)
+                context = replace(context, previews=previews, now=_now())
+                decision = self._decide(definition, session, event, context)
+            decision = await self._redrawn(
+                interaction, definition, session, event, context, decision
+            )
+
+            observability.log_decision(decision, event, session)
+
+            if decision.session.revision > session.revision:
+                self.store.put(decision.session)
+            elif decision.session is not session:
+                self.store.remember(decision.session)
+            observability.emit(
+                decision, decision.session, state.source, state.friction, state.is_admin
+            )
+            await self._run(interaction, decision)
+
+    async def _redrawn(
+        self,
+        interaction: discord.Interaction,
+        definition: Any,
+        session: FormSession,
+        event: ev.Event,
+        context: Context,
+        decision: Decision,
+    ) -> Decision:
+        """Draw the designs again when the picture they are drawn over changed."""
+        state = self.sessions[session.id]
+        key = definition.background()
+        if not key or not _draws_previews(decision, definition):
+            return decision
+        values = _flat(shown_answers(definition, decision.session, context))
+        background = str(values.get(key) or "")
+        if not background or background == state.drawn_from:
+            return decision
+        await self._hold(interaction, state)
+        state.drawn_from = background
+        state.previews = asyncio.ensure_future(
+            state.feature.previews_for(values, self._open_context(session))
+        )
+        previews = await state.ready_previews(True, view_constants.PREVIEW_WAIT_SECONDS)
+        return self._decide(
+            definition, session, event, replace(context, previews=previews)
+        )
+
+    async def _hold(self, interaction: discord.Interaction, state: Session) -> None:
+        if not interaction.response.is_done():
+            await hold(state.surface, self._answering(interaction))
+
+    def _decide(
+        self,
+        definition: Any,
+        session: FormSession,
+        event: ev.Event,
+        context: Context,
+    ) -> Decision:
+        """The manager decides a manage session, the form engine every other one."""
+        if isinstance(session.mode, Manage):
+            panel = self.sessions[session.id].opened.panel
+            return manager.decide(definition, session, event, context, panel)
+        return decide(definition, session, event, context)
+
+    def _open_context(self, session: FormSession) -> OpenContext:
+        """Who is on the other side of this session, for the feature."""
+        state = self.sessions[session.id]
+        return OpenContext(
+            session.origin.guild_id,
+            session.origin.user_id,
+            session.origin.locale,
+            state.guild,
+            state.member,
+        )
+
+    async def _run(self, interaction: discord.Interaction, decision: Decision) -> None:
+        session = decision.session
+        state = self.sessions[session.id]
+        executor = Executor(
+            interaction=interaction,
+            session=session,
+            surface=state.surface,
+            dispatcher=self.dispatcher,
+            locale=session.origin.locale,
+            key=session.key,
+            commit=self._commit,
+            aside=self._aside,
+            continue_with=self._continue,
+            answering=self._answering(interaction),
+            ending=state.ending,
+            back=state.back,
+        )
+
+        try:
+            await executor.run(decision.effects)
+        except EffectFailed:
+            raise
+        except Exception as error:
+            raise EffectFailed(error) from error
+        finally:
+            observability.log_effects(session, executor.outcomes)
+        if session.is_closed and session.parent_id is None:
+            self._close(session, decision)
+
+    def _close(self, session: FormSession, decision: Decision) -> None:
+        self.sessions[session.id].forget()
+        outcomes = {
+            Status.CANCELLED: "discarded",
+            Status.EXPIRED: "abandoned",
+            Status.FAILED: "failure",
+        }
+
+        if session.status in outcomes:
+            observability.close_journey(session, outcomes[session.status])
+        elif session.status is Status.COMPLETED:
+            ending = observability.completed_as(decision)
+            observability.close_journey(
+                session, observability.ended_as(session, ending)
+            )
+
+    async def _continue(
+        self, interaction: discord.Interaction, session: FormSession, effect: Any
+    ) -> None:
+        """Open a child on the same message, hand a child's result to its parent, or
+        send the panel a setup saved."""
+        state = self.sessions[session.id]
+        if isinstance(effect, OpenPanel):
+            await self._open_panel(interaction, session)
+            return
+        if isinstance(effect, OpenChild):
+            child = effect.session
+            self.store.create(child)
+            self.sessions[child.id] = Session(
+                feature=state.feature,
+                opened=state.opened,
+                surface=state.surface,
+                source=state.source,
+                command_name=state.command_name,
+                guild=state.guild,
+                member=state.member,
+                command_label=state.command_label,
+                friction=state.friction,
+                lock=state.lock,
+                previews=state.previews,
+                settings=state.settings,
+            )
+            state.surface.replace_next = (
+                isinstance(session.mode, Manage) and state.surface.is_layout
+            )
+            await self._apply(interaction, child, ev.Started(f"child:{child.id}"))
+
+            return
+        if isinstance(effect, ResumeChild):
+            open_children = [
+                child
+                for child in self.store.children(session.id)
+                if not child.is_closed
+            ]
+            if open_children:
+                child = open_children[-1]
+                await self._apply(
+                    interaction, child, ev.ScreenRequested(f"again:{interaction.id}")
+                )
+            return
+        assert isinstance(effect, ResumeParent)
+        parent = self.store.get(effect.parent_id)
+        if parent is None:
+            return
+        self.sessions[effect.parent_id].surface = state.surface
+        event = ev.ChildFinished(
+            f"resume:{session.id}",
+            None,
+            effect.child_mode,
+            effect.answers,
+            effect.index,
+            effect.cancelled,
+            effect.discarded,
+        )
+        await self._apply(interaction, parent, event)
+
+    async def _commit(
+        self,
+        interaction: discord.Interaction,
+        kind: str,
+        payload: Mapping[str, Any],
+        session: FormSession,
+    ) -> None:
+        """Run the feature's commit and feed its outcome back to the engine."""
+        state = self.sessions[session.id]
+        outcome_id = f"commit:{session.id}:{session.revision}"
+        if state.journey_waits:
+            state.journey_waits = False
+            observability.open_journey(
+                session, state.command_name, state.source, state.is_admin
+            )
+        message = interaction.message
+        when = (
+            (message.edited_at or message.created_at) if message is not None else _now()
+        )
+        context = CommitContext(
+            guild_id=session.origin.guild_id,
+            user_id=session.origin.user_id,
+            locale=session.origin.locale,
+            document=state.opened.document or {},
+            when=when,
+            source=state.source,
+            session_id=session.id if session.parent_id is None else session.parent_id,
+            guild=state.guild,
+        )
+
+        try:
+            result = await state.feature.commit(kind, payload, context)
+        except Exception as error:
+            reason = _failure_reason(error, session, kind)
+            if reason in ("stale", "duplicate"):
+                await self._reopen(session)
+            await self._apply(
+                interaction,
+                session,
+                ev.CommitFailed(outcome_id, None, kind, reason),
+            )
+            return
+        if result.document is not None:
+            state.opened = Opened(document=result.document, panel=state.opened.panel)
+        if isinstance(session.mode, Manage):
+            await self._reopen(session)
+        await self._apply(
+            interaction,
+            session,
+            ev.CommitSucceeded(outcome_id, None, kind, result.written),
+        )
+
+    async def _reopen(self, session: FormSession) -> None:
+        """Read the feature again, so the next screen shows what is saved now."""
+        state = self.sessions[session.id]
+        reopened = await self._read_again(session)
+
+        if reopened is not None:
+            state.opened = reopened
+
+    async def _read_again(self, session: FormSession) -> Opened | None:
+        """What the feature has saved now, None when it cannot be read."""
+        state = self.sessions[session.id]
+        try:
+            reopened = await state.feature.open(self._open_context(session))
+        except Exception as error:
+            logger.error(
+                f"form {session.key} could not read the feature again: {error!r}",
+                log_type=logconstants.COMMAND_ERROR_TYPE,
+                context=observability.error_context(session),
+                exc_info=True,
+            )
+            return None
+        if asyncio.iscoroutine(reopened.pending_previews):
+            reopened.pending_previews.close()
+
+        return replace(reopened, previews=state.opened.previews, pending_previews=None)
+
+    async def _open_panel(
+        self, interaction: discord.Interaction, session: FormSession
+    ) -> None:
+        """Send the panel of what the setup saved as a new message, a new session."""
+        state = self.sessions[session.id]
+        opened = await self._read_again(session)
+
+        if opened is None or opened.document is None or opened.refusal:
+            return
+        panel = new_session(
+            session.definition,
+            Manage(),
+            session.origin,
+            ttl_seconds=view_constants.LONG_TIMEOUT_SECONDS,
+        )
+        self.store.create(panel)
+        self.sessions[panel.id] = replace(
+            state,
+            opened=opened,
+            surface=Surface(),
+            friction=observability.Friction(),
+            lock=asyncio.Lock(),
+            cooldowns={},
+            journey_waits=True,
+        )
+        state.previews = None
+        await self._apply(interaction, panel, manager.FromSetup(f"panel:{panel.id}"))
+
+    async def _aside(
+        self,
+        interaction: discord.Interaction,
+        name: str,
+        session: FormSession,
+        target: str = "",
+    ) -> None:
+        """Help, history, or a feature's own side action, over one item if named."""
+        state = self.sessions[session.id]
+        locale = session.origin.locale
+        answering = self._answering(interaction)
+        cooled = f"{name}:{target}" if target else name
+
+        if name == "help":
+            await self._help(interaction, session)
+            return
+        if name == "history":
+            await answering.hand_over()
+            await self._history(interaction, session)
+            return
+        action = state.feature.asides().get(name)
+        if action is None:
+            await answering.first(interaction.response.defer)
+            return
+        if action.cooldown and _cooling(state, cooled, action.cooldown):
+            await _answer_with(answering, _cooldown_embed(locale))
+            return
+        if action.confirm:
+            await self._ask_before(
+                interaction, session, cooled, action, action.confirm, target
+            )
+            return
+        if action.cooldown:
+            _cool(state, cooled)
+        if action.defer and not action.own_response:
+            await answering.first(interaction.response.defer)
+        else:
+            await answering.hand_over()
+        responses = await self._shown(session, locale, target)
+        await action.handler(interaction, responses)
+
+    async def _shown(
+        self, session: FormSession, locale: str, target: str = ""
+    ) -> list[dict[str, Any]]:
+        """What the screen shows, narrowed to the item a `key$index` target names."""
+        state = self.sessions[session.id]
+        definition = registry.get(*session.definition)
+        context = await self._context(session)
+        answers: Mapping[str, Any]
+        if isinstance(session.mode, Manage) and target:
+            answers = state.feature.from_document(state.opened.document or {})
+        else:
+            answers = shown_answers(definition, session, context)
+        _, _, number = target.partition("$")
+        index = int(number) if number.isdigit() else None
+        return state.feature.responses_for_aside(answers, locale, index)
+
+    async def _ask_before(
+        self,
+        interaction: discord.Interaction,
+        session: FormSession,
+        name: str,
+        action: AsideAction,
+        question: str,
+        target: str = "",
+    ) -> None:
+        """Run a side action only once the admin confirms what it will do."""
+        from app.ui.confirm_action import ConfirmActionView
+
+        state = self.sessions[session.id]
+        locale = session.origin.locale
+
+        async def confirmed(answer: discord.Interaction) -> None:
+            if action.cooldown and _cooling(state, name, action.cooldown):
+                await answer.response.edit_message(
+                    embed=_cooldown_embed(locale), view=None
+                )
+                return
+            if action.cooldown:
+                _cool(state, name)
+            await answer.response.edit_message(view=None)
+            await action.handler(answer, await self._shown(session, locale, target))
+
+        embed = response_embed(question, locale, image=True)
+        if action.confirm_values and embed.description:
+            values = await action.confirm_values(
+                state.opened.document or {}, locale, state.guild
+            )
+            embed.description = fill(embed.description, **values)
+        view = ConfirmActionView(confirmed, locale)
+
+        if await self._answering(interaction).first(
+            lambda: interaction.response.send_message(
+                embed=embed, view=view, ephemeral=True
+            )
+        ):
+            return
+        await interaction.followup.send(embed=embed, view=view, ephemeral=True)
+
+    async def _help(
+        self, interaction: discord.Interaction, session: FormSession
+    ) -> None:
+        from app.constants import KeikoIcons
+
+        locale = session.origin.locale
+        view = self.sessions[session.id].surface.view
+        embed = response_embed(
+            "commands.responses.help", locale, thumbnail=KeikoIcons.IMAGE_02
+        )
+
+        for item in walk(view):
+            if not isinstance(item, discord.ui.Button) or not item.label:
+                continue
+            desc = getattr(item, "desc", None)
+            component = decode(item.custom_id or "")
+
+            if not desc or (component and component.target == "aside:help"):
+                continue
+            embed.add_field(
+                name=f"{item.emoji} {item.label}" if item.emoji else item.label,
+                value=desc,
+                inline=False,
+            )
+        await _answer_with(self._answering(interaction), embed)
+
+    async def _history(
+        self, interaction: discord.Interaction, session: FormSession
+    ) -> None:
+        from app.core.cogs import find_changes
+        from app.core.manager import parse_history_data
+        from app.ui.records import RecordsBrowser
+
+        locale = session.origin.locale
+        name = get_command_display_name(interaction.client, session.key, locale)
+        browser = RecordsBrowser(
+            fetch=lambda _interaction, _user: find_changes(
+                session.origin.guild_id, session.key
+            ),
+            to_fields=parse_history_data,
+            copy="commands.records.history",
+            values={"cog_key": name},
+            locale=locale,
+        )
+        await browser.send(interaction)
+
+    async def expire_stale(
+        self, now: datetime | None = None
+    ) -> tuple[FormSession, ...]:
+        """Close every session past its deadline, on screen and in the store."""
+        expired: list[FormSession] = []
+        moment = now or _now()
+
+        for session in self.store.due(moment):
+            if not self._due(session, moment):
+                continue
+            state = self.sessions[session.id]
+            root = session.id if session.parent_id is None else session.parent_id
+
+            async with (
+                state.lock,
+                trace_scope(
+                    f"{state.command_name}:Expired",
+                    guild_id=session.origin.guild_id,
+                    user_id=session.origin.user_id,
+                    feature=session.key,
+                    source=state.source,
+                    session_id=root,
+                    quiet=True,
+                ),
+            ):
+                event = ev.Expired(f"expire:{session.id}")
+                definition = registry.get(*session.definition)
+                context = await self._context(session)
+                decision = self._decide(definition, session, event, context)
+                observability.log_decision(decision, event, session)
+                self.store.put(decision.session)
+                observability.emit(
+                    decision,
+                    decision.session,
+                    state.source,
+                    state.friction,
+                    state.is_admin,
+                )
+                await expire_surface(state.surface, session.origin.locale)
+            if session.parent_id is None:
+                ended = observability.ended_as(decision.session, "abandoned")
+                observability.close_journey(decision.session, ended)
+            expired.append(decision.session)
+        return tuple(expired)
+
+    def _due(self, session: FormSession, now: datetime) -> bool:
+        """Past its deadline, with no open child still inside its own."""
+        if session.expires_at > now:
+            return False
+        return not any(
+            not child.is_closed and child.expires_at > now
+            for child in self.store.children(session.id)
+        )
+
+    async def sweep(self, now: datetime | None = None) -> None:
+        """Expire what nobody finished and forget what already ended."""
+        moment = now or _now()
+        await self.expire_stale(moment)
+        for session_id in self.store.forget_closed(moment):
+            state = self.sessions.pop(session_id, None)
+            if state is not None:
+                state.forget()
+
+
+def _failure_reason(error: Exception, session: FormSession, kind: str) -> str:
+    if isinstance(error, DuplicateItem):
+        return "duplicate"
+    if isinstance(error, ListChanged):
+        return "stale"
+
+    logger.error(
+        f"form {session.key} commit {kind} failed: {error!r}",
+        log_type=logconstants.COMMAND_ERROR_TYPE,
+        context=observability.error_context(session, commit=kind),
+        exc_info=True,
+    )
+    return type(error).__name__
+
+
+def _cooling(state: Session, name: str, seconds: int) -> bool:
+    last = state.cooldowns.get(name)
+    return last is not None and time.monotonic() - last < seconds
+
+
+def _cool(state: Session, name: str) -> None:
+    state.cooldowns[name] = time.monotonic()
+
+
+def _cooldown_embed(locale: str) -> discord.Embed:
+    return response_embed("commands.responses.cooldown", locale)
+
+
+def _items(
+    session: FormSession, parent: FormSession | None, document: Mapping[str, Any]
+) -> tuple[Mapping[str, Any], ...]:
+    """The composition's items: saved ones on the manager, answered ones in a setup."""
+    from app.forms.form.responses.responses import list_values
+
+    definition = registry.get(*session.definition)
+    composition = definition.composition
+
+    if composition is None:
+        return ()
+    root = parent or session
+    if isinstance(root.mode, Manage):
+        return tuple(list_values(document, composition.key))
+    answered = root.answers.get(composition.key)
+    if answered is None or not answered.raw:
+        return ()
+    return tuple(
+        {key: value.raw for key, value in item.items()} for item in answered.raw
+    )
+
+
+@dataclass(frozen=True)
+class Opening:
+    """What a caller asked of an open: the feature, its source, its ending, its back."""
+
+    key: str
+    source: str | None = None
+    ending: Ending | None = None
+    back: Ending | None = None
+
+
+def _surface(interaction: discord.Interaction) -> Surface:
+    """The message the click came from, as the surface a session draws over."""
+    message = interaction.message
+    if message is None:
+        return Surface()
+    return Surface(
+        message=message,
+        message_id=message.id,
+        is_layout=bool(message.flags.components_v2),
+    )
+
+
+def _command_label(interaction: Any, key: str) -> str:
+    command = getattr(interaction, "command", None)
+    return str(getattr(command, "qualified_name", None) or key)
+
+
+async def _answer_with(answering: Answering, embed: discord.Embed) -> None:
+    """Send `embed` as the answer, or as a followup when one was deferred."""
+    interaction = answering.interaction
+    if await answering.first(
+        lambda: interaction.response.send_message(embed=embed, ephemeral=True)
+    ):
+        return
+    await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+def _flat(answers: Mapping[str, Any]) -> dict[str, Any]:
+    """Every answer as a value, a card's draft expanded into its own keys."""
+    values: dict[str, Any] = {}
+    for key, answer in answers.items():
+        if answer.parts:
+            values.update(answer.parts)
+            continue
+        values[key] = answer.raw
+    return values
+
+
+def _now() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+RUNTIME = Runtime()
+
+
+async def open_feature(
+    interaction: discord.Interaction,
+    key: str,
+    source: str | None = None,
+    ending: Ending | None = None,
+    back: Ending | None = None,
+) -> None:
+    """Open the feature `key` for the interaction, on the process runtime."""
+    await RUNTIME.open_feature(interaction, key, source, ending, back)
+
+
+async def run_feature_command(
+    interaction: discord.Interaction,
+    command_key: str,
+    source: str,
+    ending: Ending | None = None,
+    back: Ending | None = None,
+) -> None:
+    """Open a feature from a button under its own trace, recording its source."""
+    analytics.mark_source(interaction, source)
+    command = get_command_by_key(interaction.client, command_key)
+    command_name = command.qualified_name if command else command_key
+
+    async with (
+        trace_scope(
+            command_name,
+            opening=f"`/{command_name}` started",
+            guild_id=interaction.guild_id,
+            user_id=interaction.user.id,
+            source=source,
+            feature=command_key,
+            is_admin=is_guild_admin(interaction.user),
+            command=command_name,
+        ) as trace,
+        analytics.counting_attempt(trace, interaction.guild_id, command_key),
+    ):
+        analytics.record("command.invoked", props={"command": command_name})
+
+        try:
+            await open_feature(
+                interaction, command_key, source, ending=ending, back=back
+            )
+        except Exception as error:
+            metrics.record_interaction("failed", error)
+            raise

@@ -84,7 +84,7 @@ class EventCollection(Repository):
 
 
 class BatchedEvents(EventCollection):
-    """An event collection the analytics sink writes in batches and the monthly
+    """An event collection the analytics writer writes in batches and the monthly
     archive streams."""
 
     async def insert_many(self, documents: List[Document]) -> Any:
