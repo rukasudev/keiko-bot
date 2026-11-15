@@ -61,14 +61,14 @@ GREETING = {
     ],
 )
 async def test_the_greeting_is_sent_in_the_servers_language(deps, preferred_locale, locale):
-    from app.views.greetings import GreetingsView
+    from app.commands.setup.service import GreetingsView
 
     guild, channel = _guild(deps.mongo_client, preferred_locale)
 
     await GreetingsView().send(guild)
 
     sent = channel.send.await_args.kwargs
-    assert sent["embed"].title == ml("messages.greetings-message.title", locale)
+    assert sent["embed"].title == ml("setup.responses.greeting.title", locale)
     assert f"\n{GREETING[locale]['category']}\n" in sent["embed"].description
     view = sent["view"]
     buttons = [item for item in view.children if isinstance(item, discord.ui.Button)]

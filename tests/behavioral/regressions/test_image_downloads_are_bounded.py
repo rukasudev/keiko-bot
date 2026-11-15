@@ -29,8 +29,8 @@ import requests
 import yaml
 from PIL import Image, ImageFile, UnidentifiedImageError
 
-from app.constants import DBConfigs, WelcomeDesign
-from app.services import welcome_messages
+from app.constants import Commands, DBConfigs
+from app.commands.welcome import service as welcome_messages
 from app.core import images
 from tests.mocks import create_member
 from tests.mocks.web import FakeWeb, png
@@ -169,8 +169,8 @@ async def test_a_banner_asks_for_the_avatar_at_the_size_it_draws(
 
     [avatar] = web.requested
     assert urlparse(avatar).path == "/avatars/7201/fake.png"
-    assert parse_qs(urlparse(avatar).query)["size"] == [str(WelcomeDesign.AVATAR_SIZE)]
-    assert WelcomeDesign.AVATAR_SIZE >= min(WelcomeDesign.BANNER_SIZE) // 2, (
+    assert parse_qs(urlparse(avatar).query)["size"] == [str(Commands.WELCOME_AVATAR_SIZE)]
+    assert Commands.WELCOME_AVATAR_SIZE >= min(Commands.WELCOME_BANNER_SIZE) // 2, (
         "the banner draws the avatar on a circle half its height wide"
     )
 

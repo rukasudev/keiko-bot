@@ -6,13 +6,13 @@ Redis outage every feature button waited for the socket timeout, up to five
 seconds, past Discord's three-second answer window, and then raised, so the
 feature never opened.
 
-Shared behaviour: `run_feature_command` (app/components/buttons.py), the single
+Shared behaviour: `run_feature_command` (app/forms/discord/callbacks.py), the single
 entry from any button into a feature: the /setup cards, the greeting, /help and
 the activation panels.
 
 Guaranteed: the feature opens before the counter is answered, a counter that
 fails never fails the click, and the click is still counted, as the
-`command.invoked` event the analytics sink counts.
+`command.invoked` event the analytics writer counts.
 """
 import threading
 from types import SimpleNamespace
@@ -38,14 +38,14 @@ def opened(monkeypatch):
         seen.append(command_key)
         await interaction.response.send_message(command_key)
 
-    monkeypatch.setattr("app.settings.open_feature", open_feature)
+    monkeypatch.setattr("app.forms.discord.callbacks.open_feature", open_feature)
     return seen
 
 
 async def test_a_feature_button_opens_before_a_redis_that_does_not_answer(
     deps, monkeypatch
 ):
-    from app.components import buttons
+    from app import forms as settings
 
     happened = []
     feature_open = threading.Event()
@@ -63,9 +63,9 @@ async def test_a_feature_button_opens_before_a_redis_that_does_not_answer(
         feature_open.set()
         await interaction.response.send_message(command_key)
 
-    monkeypatch.setattr("app.settings.open_feature", open_feature)
+    monkeypatch.setattr("app.forms.discord.callbacks.open_feature", open_feature)
 
-    await buttons.run_feature_command(interaction, "block_links", "setup_dashboard")
+    await settings.run_feature_command(interaction, "block_links", "setup_dashboard")
 
     assert happened[0] == "feature opened", (
         f"the button waited on Redis before opening the feature: {happened}"
@@ -74,9 +74,9 @@ async def test_a_feature_button_opens_before_a_redis_that_does_not_answer(
 
 
 async def test_a_feature_button_still_counts_the_click(deps, opened, analytics_events):
-    from app.components import buttons
+    from app import forms as settings
 
-    await buttons.run_feature_command(
+    await settings.run_feature_command(
         interaction_in(create_guild()), "block_links", "setup_dashboard"
     )
 

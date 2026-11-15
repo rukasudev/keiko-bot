@@ -64,14 +64,14 @@ import requests
 
 from app.data import data, wait
 from app import logger as logger_module
-from app.api import create_api
+from app.integrations.http import create_api
 from app.constants import Commands
 from app.core import trace as trace_service
 from app.core.servers import set_feature_enabled
-from app.services.notifications_youtube_video import find_reminder_by_id, insert_renewal_reminder
+from app.commands.youtube.service import find_reminder_by_id, insert_renewal_reminder
 from tests.generators.birthdays import saved_birthday
-from app.integrations import reminder_webhook
-from app.integrations.reminder_webhook import (
+from app.integrations.reminders import client as reminder_webhook
+from app.integrations.reminders.client import (
     REMINDER_API_URL,
     REMINDER_AUTH_USER,
     REMINDER_TIMEZONE,
@@ -79,13 +79,13 @@ from app.integrations.reminder_webhook import (
     ReminderWebhook,
 )
 from app.migrations.runner import declared_structure
-from app.services import notifications_youtube_video
-from app.services.notifications_youtube_video import (
+from app.commands.youtube import service as notifications_youtube_video
+from app.commands.youtube.service import (
     record_hub_confirmation,
     unsubscribe_youtube_new_video,
 )
-from app.services.reminders_birthdays import save_birthday_config
-from app.webhooks import birthday_handler
+from app.commands.birthdays.service import save_birthday_config
+from app.commands.birthdays import celebration as birthday_handler
 from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks.discord import create_member
 
@@ -169,7 +169,7 @@ async def keiko(deps, monkeypatch, traces):
     create_member(deps.guild, id=MEMBER_ID, name="Tester")
     await save_birthday_config(guild_id, str(channel.id), True)
     saved_birthday(guild_id, str(MEMBER_ID), "05-12", reminder_id=str(BIRTHDAY_REMINDER))
-    await set_feature_enabled(guild_id, Commands.REMINDERS_BIRTHDAY_KEY, True)
+    await set_feature_enabled(guild_id, "reminders_birthday", True)
     follow_youtuber(deps, guild_id, "pewdiepie")
 
     return SimpleNamespace(
@@ -474,13 +474,13 @@ async def test_a_callback_sent_again_celebrates_no_one_twice_and_renews_again(ke
                          ids=["given-as-a-number", "given-as-text"])
 async def test_a_renewal_for_a_youtuber_no_server_follows_drops_itself(keiko, deps, given_id):
     """The one place a renewal is deleted: the unsubscribe leaves it, and it ends here."""
-    from app.services.notifications_youtube_video import find_reminder_by_id
+    from app.commands.youtube.service import find_reminder_by_id
 
     deps.mongo_client.guild.cogs.delete_many({"cog": "notifications_youtube_video"})
     await insert_renewal_reminder(given_id, "pewdiepie")
     keiko.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
 
-    response = notify(keiko, renewal())
+    response = await asyncio.to_thread(notify, keiko, renewal())
 
     assert response.status_code == 200
     assert keiko.reminders.deleted == [str(RENEWAL_REMINDER)], "the id is kept as text"
@@ -588,7 +588,7 @@ def test_the_webhooks_import_before_the_databases_connect():
     `app.mongo_client` before it exists, and the bot does not start.
     """
     result = subprocess.run(
-        [sys.executable, "-c", "import app.webhooks"],
+        [sys.executable, "-c", "import app.integrations.http"],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -649,8 +649,8 @@ def renewals_of(deps, youtuber):
     )
 
 
-def a_server_adds(youtuber):
-    notifications_youtube_video.subscribe_youtube_new_video(
+async def a_server_adds(youtuber):
+    await notifications_youtube_video.subscribe_youtube_new_video(
         None, {"youtuber": {"value": youtuber}}
     )
 
@@ -666,7 +666,7 @@ async def test_a_followed_youtuber_without_a_renewal_gets_one_when_a_server_adds
     60-day expiry removed after renewals kept failing was lost the same way.
 
     Shared behaviour: `subscribe_youtube_new_video` and `resubscribe_followed_channels`
-    (`app/services/notifications_youtube_video.py`), through `ensure_renewal`. Exposed by:
+    (`app/commands/youtube/service.py`), through `ensure_renewal`. Exposed by:
     the review of the renewal that lets a youtuber go.
 
     The next review found the renewal that ends itself counting the followers and deleting
@@ -681,7 +681,7 @@ async def test_a_followed_youtuber_without_a_renewal_gets_one_when_a_server_adds
     """
     follow_youtuber(youtube, "4343", "pewdiepie")
 
-    a_server_adds("pewdiepie")
+    await a_server_adds("pewdiepie")
 
     assert renewals_of(youtube, "pewdiepie") == 1
     assert youtube.bot.reminder.created == ["pewdiepie"]
@@ -692,7 +692,7 @@ async def test_a_followed_youtuber_with_its_renewal_is_already_subscribed(youtub
     follow_youtuber(youtube, "4343", "pewdiepie")
     a_renewal(youtube, 7001, "pewdiepie")
 
-    a_server_adds("pewdiepie")
+    await a_server_adds("pewdiepie")
 
     assert renewals_of(youtube, "pewdiepie") == 1
     assert youtube.bot.reminder.created == []
@@ -702,7 +702,7 @@ async def test_a_followed_youtuber_with_its_renewal_is_already_subscribed(youtub
 async def test_a_youtuber_nobody_follows_keeps_the_renewal_it_still_has(youtube):
     a_renewal(youtube, 7001, "pewdiepie")
 
-    a_server_adds("pewdiepie")
+    await a_server_adds("pewdiepie")
 
     assert renewals_of(youtube, "pewdiepie") == 1, "the renewal still running is the one"
     assert youtube.youtube.subscribe_calls == ["UC-pewdiepie"]
@@ -713,7 +713,7 @@ async def test_the_start_gives_every_followed_youtuber_without_a_renewal_its_ren
     follow_youtuber(youtube, "4444", "mrbeast")
     a_renewal(youtube, 7001, "mrbeast")
 
-    notifications_youtube_video.resubscribe_followed_channels()
+    await notifications_youtube_video.resubscribe_followed_channels()
 
     assert renewals_of(youtube, "pewdiepie") == 1
     assert renewals_of(youtube, "mrbeast") == 1
@@ -721,46 +721,86 @@ async def test_the_start_gives_every_followed_youtuber_without_a_renewal_its_ren
 
 
 async def test_a_youtuber_asked_for_from_everywhere_at_once_gets_one_renewal(youtube):
-    callers = [threading.Thread(target=a_server_adds, args=("pewdiepie",)) for _ in range(3)]
+    callers = [a_server_adds("pewdiepie") for _ in range(3)]
     follow_youtuber(youtube, "4343", "mrbeast")
-    callers += [threading.Thread(target=a_server_adds, args=("mrbeast",)) for _ in range(2)]
-    callers.append(threading.Thread(
-        target=notifications_youtube_video.resubscribe_followed_channels
-    ))
+    callers += [a_server_adds("mrbeast") for _ in range(2)]
+    callers.append(notifications_youtube_video.resubscribe_followed_channels())
 
-    for caller in callers:
-        caller.start()
-    for caller in callers:
-        caller.join(timeout=10)
+    await asyncio.wait_for(asyncio.gather(*callers), timeout=10)
 
     assert renewals_of(youtube, "pewdiepie") == 1
     assert renewals_of(youtube, "mrbeast") == 1
     assert sorted(youtube.bot.reminder.created) == ["mrbeast", "pewdiepie"]
 
 
-async def test_a_server_adding_a_youtuber_while_its_renewal_ends_gets_one(youtube):
-    from app.webhooks.reminder import renew_youtube_subscription
+async def test_a_server_adding_a_youtuber_while_its_renewal_ends_gets_one(youtube, monkeypatch):
+    from app.commands.youtube.service import renew_youtube_subscription
 
+    monkeypatch.setattr("app.data._LOOP", asyncio.get_running_loop())
     youtube.mongo_client.guild.settings.insert_one({"_id": "4242", "state": {"present": False}})
     follow_youtuber(youtube, "4242", "pewdiepie")
     a_renewal(youtube, 7001, "pewdiepie")
     reminders = youtube.bot.reminder
     reminders.release.clear()
 
-    ending = threading.Thread(target=renew_youtube_subscription, args=(7001,))
-    ending.start()
-    assert reminders.deleting.wait(5), "the renewal found nobody following and is deleting itself"
-    adding = threading.Thread(target=a_server_adds, args=("pewdiepie",))
-    adding.start()
-    adding.join(timeout=0.3)
+    ending = asyncio.ensure_future(asyncio.to_thread(renew_youtube_subscription, 7001))
+    deleting = await asyncio.to_thread(reminders.deleting.wait, 5)
+    assert deleting, "the renewal found nobody following and is deleting itself"
+    adding = asyncio.ensure_future(a_server_adds("pewdiepie"))
+    await asyncio.wait([adding], timeout=0.3)
     reminders.release.set()
-    ending.join(timeout=5)
-    adding.join(timeout=5)
+    await asyncio.wait_for(asyncio.gather(ending, adding), timeout=5)
     follow_youtuber(youtube, "4343", "pewdiepie")
 
     assert reminders.deleted == ["7001"]
     assert renewals_of(youtube, "pewdiepie") == 1, "the adding server made its own"
     assert reminders.created == ["pewdiepie"]
+
+
+
+async def test_renewals_of_one_youtuber_take_turns_on_the_loop_without_a_thread_lock(youtube):
+    """Renewals asked for at once take turns on the event loop, never on a thread lock.
+
+    Reported in the design pass of v1: the renewals of a youtuber were serialized by a
+    `threading.Lock`, so every subscribe, renewal and start ran as a thread job that
+    waited on the loop for each Mongo read while holding it.
+
+    Shared behaviour: `ensure_renewal` and `drop_unfollowed_renewal`
+    (`app/commands/youtube/service.py`), reached by the settings of
+    notifications_youtube_video, the start's resubscribe and the reminder webhook.
+
+    Guaranteed: the module holds no thread lock; while one renewal waits on
+    reminders-api the loop keeps running; and however many renewals of one youtuber
+    run at once, it gets one reminder.
+    """
+    thread_locks = (type(threading.Lock()), type(threading.RLock()))
+    assert not [
+        name for name, value in vars(notifications_youtube_video).items()
+        if isinstance(value, thread_locks)
+    ], "the renewals take turns on an asyncio lock"
+
+    beats = 0
+    renewing = True
+
+    async def heartbeat():
+        nonlocal beats
+        while renewing:
+            await asyncio.sleep(0.005)
+            beats += 1
+
+    beat = asyncio.ensure_future(heartbeat())
+    taken = notifications_youtube_video.HubAnswer(
+        notifications_youtube_video.HubOutcome.DONE, "the hub answered 202", 202
+    )
+    await asyncio.wait_for(asyncio.gather(*(
+        notifications_youtube_video.ensure_renewal("pewdiepie", taken) for _ in range(3)
+    )), timeout=5)
+    renewing = False
+    await beat
+
+    assert youtube.bot.reminder.created == ["pewdiepie"], "one reminder, made once"
+    assert renewals_of(youtube, "pewdiepie") == 1
+    assert beats >= 3, "the loop kept running while reminders-api was asked"
 
 
 LEFT = 4242
@@ -779,7 +819,7 @@ def renewal_api(deps):
 
 async def in_a_server_keiko_left(deps, guild_id=LEFT):
     """A server that followed the youtuber, then removed Keiko."""
-    from app.cogs.events import Events
+    from app.core.events import Events
 
     recorded_server(deps.mongo_client, str(guild_id))
     follow_youtuber(deps, str(guild_id), "pewdiepie")
@@ -805,8 +845,8 @@ async def test_the_renewal_of_a_youtuber_only_servers_keiko_left_follow_ends(ren
     so the renewal of a youtuber only such servers followed went on forever, every four
     days, and the hub kept sending notices nobody would receive.
 
-    Shared behaviour: `count_servers_following` (`app/services/notifications_youtube_video.py`),
-    read by the renewal (`app/webhooks/reminder.py`) and by the unsubscribe of a youtuber a
+    Shared behaviour: `count_servers_following` (`app/commands/youtube/service.py`),
+    read by the renewal (`renew_youtube_subscription` in `app/commands/youtube/service.py`) and by the unsubscribe of a youtuber a
     server stops following. Exposed by: renewals of servers Keiko left in production.
 
     Guaranteed: a server counts as following only while Keiko is in it (its settings do
@@ -816,7 +856,7 @@ async def test_the_renewal_of_a_youtuber_only_servers_keiko_left_follow_ends(ren
     """
     await in_a_server_keiko_left(deps)
 
-    response = notify_renewal(renewal_api)
+    response = await asyncio.to_thread(notify_renewal, renewal_api)
 
     assert response.status_code == 200
     assert deps.bot.reminder.deleted == [str(RENEWAL_REMINDER)]
@@ -841,7 +881,7 @@ async def test_a_server_keiko_left_does_not_keep_a_youtuber_subscribed_for_anoth
     await in_a_server_keiko_left(deps)
     follow_youtuber(deps, str(STAYED), "pewdiepie")
 
-    unsubscribe_youtube_new_video(None, {"youtuber": {"value": "pewdiepie"}})
+    await unsubscribe_youtube_new_video(None, {"youtuber": {"value": "pewdiepie"}})
 
     assert deps.youtube.unsubscribe_calls == ["UC-pewdiepie"], (
         "the last server Keiko is in let it go, so the hub stops sending it"
@@ -957,7 +997,7 @@ def test_a_new_renewal_row_expires_once_nothing_has_renewed_it(deps):
     wait(insert_renewal_reminder(7001, "pewdiepie"))
 
     row = wait(find_reminder_by_id(7001))
-    assert before + ROW_SECONDS <= row["expires_at"] <= datetime.now(timezone.utc) + ROW_SECONDS
+    assert before + ROW_SECONDS <= row.expires_at <= datetime.now(timezone.utc) + ROW_SECONDS
     assert declared_structure()["keiko"]["schedules"]["expires_at_1"] == {
         "expireAfterSeconds": 0,
         "key": [["expires_at", 1]],
@@ -973,7 +1013,7 @@ def test_a_renewal_the_hub_takes_keeps_its_row_alive(deps):
 
     row = wait(find_reminder_by_id(7001))
     assert wait(data().keiko_subscriptions.subscription_state("youtube", "pewdiepie"))["hub_confirmed_at"] == later
-    assert row["expires_at"] == later + ROW_SECONDS
+    assert row.expires_at == later + ROW_SECONDS
 
 
 @pytest.mark.unit
@@ -987,4 +1027,4 @@ def test_a_row_v090_wrote_never_gets_an_expiry(deps):
 
     row = wait(find_reminder_by_id(6001))
     assert wait(data().keiko_subscriptions.subscription_state("youtube", "pewdiepie"))["hub_confirmed_at"]
-    assert "expires_at" not in row, "a row without the field must never expire"
+    assert row.expires_at is None, "a row without the field must never expire"

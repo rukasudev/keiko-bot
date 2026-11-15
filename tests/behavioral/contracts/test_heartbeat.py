@@ -31,7 +31,7 @@ import requests
 from prometheus_client import REGISTRY
 
 from app import logger as logger_module
-from app.cogs import prometheus as prometheus_cog
+from app.core import monitoring as prometheus_cog
 from app.constants import Commands
 from app.core import debug_logs, metrics
 

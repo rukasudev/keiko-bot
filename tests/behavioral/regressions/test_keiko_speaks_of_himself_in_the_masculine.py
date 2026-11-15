@@ -13,9 +13,11 @@ from pathlib import Path
 import pytest
 import yaml
 
+from app.core import i18n
+
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
-LANGUAGES = Path(__file__).resolve().parents[3] / "app" / "languages"
+COMMANDS = Path(__file__).resolve().parents[3] / "app" / "commands"
 FIRST_PERSON_FEMININE = re.compile(
     r"\b(?:estou|fico|fui|sou|estarei|ficarei|serei)\s+(?:\w+\s+)?"
     r"(?:pronta|ativa|sozinha|\w+ada)\b|\bobrigada\b",
@@ -37,11 +39,13 @@ def _pt_br_strings(node, path=""):
 
 
 def _files():
-    yield from sorted(LANGUAGES.glob("*/*.pt-br.yml"))
-    yield from sorted((LANGUAGES / "form").glob("*.yml"))
+    yield from (path for path, _ in i18n.files())
+    yield COMMANDS.parent / "forms" / "vocabulary.yml"
 
 
-@pytest.mark.parametrize("path", list(_files()), ids=lambda path: path.name)
+@pytest.mark.parametrize(
+    "path", list(_files()), ids=lambda path: f"{path.parent.name}/{path.name}"
+)
 def test_no_pt_br_string_calls_keiko_feminine(path):
     document = yaml.safe_load(path.read_text(encoding="utf-8"))
     found = [

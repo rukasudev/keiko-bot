@@ -176,7 +176,7 @@ LIVE_MESSAGES = [
 async def test_a_new_video_is_announced_with_one_saved_message(
     deps, monkeypatch, stored, count
 ):
-    from app.services.notifications_youtube_video import VideoAnnouncement, deliver_video
+    from app.commands.youtube.service import VideoAnnouncement, deliver_video
 
     guild, channel = _destination(deps, "videos")
     announcement = VideoAnnouncement(
@@ -205,7 +205,7 @@ async def test_a_new_video_is_announced_with_one_saved_message(
 async def test_a_live_is_announced_with_one_saved_message(
     deps, monkeypatch, stored, count
 ):
-    from app.services.notifications_twitch import handle_send_streamer_notification
+    from app.commands.twitch.service import handle_send_streamer_notification
 
     guild, channel = _destination(deps, "lives")
     deps.twitch.add_user("gaules", user_id="123")
@@ -261,13 +261,13 @@ async def test_the_welcome_panel_previews_each_saved_message(
     assert len(sent) == 1, scenario.transcript
     assert sent[0]["embed"]["description"] == "<@!555> chegou ao Test Server!"
     pages = [item["label"] for item in sent[0]["components"]]
-    assert pages == [ml("buttons.preview.next", locale="pt-br")], pages
+    assert pages == [ml("buttons.next_message.label", locale="pt-br")], pages
     await scenario.finish()
 
 
 @WELCOME_SHAPES
 async def test_a_new_member_is_welcomed_with_one_saved_message(deps, stored):
-    from app.services.welcome_messages import send_welcome_message
+    from app.commands.welcome.service import send_welcome_message
 
     guild, channel = _destination(deps, "boas-vindas")
     member = create_member(guild, id=999, name="Novata")
@@ -280,7 +280,7 @@ async def test_a_new_member_is_welcomed_with_one_saved_message(deps, stored):
     })
 
     with patch(
-        "app.services.welcome_messages.create_banner",
+        "app.commands.welcome.service.create_banner",
         new=AsyncMock(return_value=welcome.PREVIEW_URL),
     ):
         await send_welcome_message(member)

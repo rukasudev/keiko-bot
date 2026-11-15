@@ -13,8 +13,8 @@ member was last celebrated, so turning them back on never celebrates twice in a 
 import pytest
 
 from app.data import data, wait
-from app.services.reminders_birthdays import save_birthday_config
-from app.services import reminders_birthdays as birthdays_service
+from app.commands.birthdays.service import save_birthday_config
+from app.commands.birthdays import service as birthdays_service
 from tests.generators.birthdays import saved_birthday
 from tests.generators.moderations import recorded_server
 

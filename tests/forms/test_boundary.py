@@ -1,7 +1,9 @@
 """The lines the form platform never crosses.
 
-`app/settings/` imports `discord` only under `discord/`, the form engine
-imports nothing else from `app` except `app.settings` and `app.constants`, no
+`app/forms/` imports `discord` only under `discord/`, the form engine
+imports nothing else from `app` except `app.forms`, `app.constants`, the
+pure calendar of `app.core.calendar` and the pure command registry of
+`app.core.commands`, no
 module names a command key, no module blocks the event loop, and no comment
 tells a story.
 """
@@ -15,9 +17,9 @@ import pytest
 pytestmark = pytest.mark.unit
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-SETTINGS = os.path.join(ROOT, "app", "settings")
-ADAPTER = os.path.join("app", "settings", "discord")
-PLATFORM = (os.path.join("app", "settings", "form"),)
+SETTINGS = os.path.join(ROOT, "app", "forms")
+ADAPTER = os.path.join("app", "forms", "discord")
+PLATFORM = (os.path.join("app", "forms", "form"),)
 
 IMPORTS_DISCORD = re.compile(r"^\s*(?:from|import)\s+discord\b", re.MULTILINE)
 IMPORTS_APP = re.compile(r"^\s*(?:from|import)\s+(app(?:\.[\w.]+)?)\b", re.MULTILINE)
@@ -29,8 +31,16 @@ REFLECTION = re.compile(r"\b(?:hasattr|getattr)\(")
 COMMENT_BLOCK = re.compile(r"^[ \t]*#(?!!).*\n(?:[ \t]*#.*\n)+", re.MULTILINE)
 DEFINITION = re.compile(r"^(?:def|class) ([A-Za-z_][\w]*)", re.MULTILINE)
 SECTION_MARKER = re.compile(r"^[ \t]*#\s*(?:-{3,}|={3,})", re.MULTILINE)
-MANAGER = "app.settings.form.manager"
+MANAGER = "app.forms.form.manager"
+PLATFORM_READS = (
+    "app.forms",
+    "app.constants",
+    "app.core.calendar",
+    "app.core.commands",
+)
 FORM_YAML = os.path.join(SETTINGS, "form", "form_yaml.py")
+CALENDAR = os.path.join(ROOT, "app", "core", "calendar.py")
+REGISTRY = os.path.join(ROOT, "app", "core", "commands.py")
 WORDS = {"id"}
 
 
@@ -74,9 +84,22 @@ def test_the_platform_imports_nothing_internal_but_itself_and_constants():
     offenders = []
     for path in _platform_files():
         for module in IMPORTS_APP.findall(_source(path)):
-            if not module.startswith(("app.settings", "app.constants")):
+            if not module.startswith(PLATFORM_READS):
                 offenders.append((_relative(path), module))
     assert offenders == []
+
+
+def test_the_calendar_the_platform_reads_imports_only_the_standard_library():
+    source = _source(CALENDAR)
+    assert IMPORTS_APP.findall(source) == []
+    assert not IMPORTS_DISCORD.search(source)
+
+
+def test_the_registry_the_platform_reads_imports_only_the_platform_for_its_types():
+    source = _source(REGISTRY)
+    assert all(module.startswith("app.forms") for module in IMPORTS_APP.findall(source))
+    assert "if TYPE_CHECKING:" in source
+    assert not IMPORTS_DISCORD.search(source)
 
 
 def test_the_platform_never_names_a_command_key():
@@ -249,7 +272,7 @@ def test_the_checks_see_what_a_regular_expression_would_miss(tmp_path):
     """Parenthesized imports, a manager among other names, `type(x) is`, aliases."""
     sample = tmp_path / "sample.py"
     sample.write_text(
-        "from app.settings.form import (\n    conditions,\n    manager,\n)\n"
+        "from app.forms.form import (\n    conditions,\n    manager,\n)\n"
         "WITH_MODE = (TitleContentSection, FileUploadSection)\n"
         "def pick(section):\n"
         "    if type(section) is ValueSelectSection:\n"
@@ -261,12 +284,12 @@ def test_the_checks_see_what_a_regular_expression_would_miss(tmp_path):
 
 
 def _response_helper_files():
-    return python_files(os.path.join(ROOT, "app", "settings", "form", "responses"))
+    return python_files(os.path.join(ROOT, "app", "forms", "form", "responses"))
 
 
 def _service_files():
     paths = []
-    for part in ("core", "services", "views", "components", "cogs", "webhooks", "api"):
+    for part in ("core", "commands", "ui", "integrations"):
         paths += [
             path
             for path in python_files(os.path.join(ROOT, "app", part))

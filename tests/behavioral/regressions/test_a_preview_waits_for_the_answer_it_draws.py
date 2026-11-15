@@ -6,8 +6,8 @@ same with no youtuber. It must answer "você precisa escolher o streamer"
 instead, on a message of its own like every other refusal, and draw nothing.
 
 Shared behaviour: the card's Preview aside (`aside:preview`, the engine's
-`Aside` handler in `app/settings/form/form.py`) and the card's
-`preview_needs` declaration. Consumers that exposed it: notifications_twitch
+`Aside` handler in `app/forms/form/form.py`) and the `required` keys of the
+card's `preview` declaration. Consumers that exposed it: notifications_twitch
 and notifications_youtube_video, whose item card previews the announcement.
 Guaranteed: while a key the preview needs is empty, Preview sends that
 declared error alone and the card on screen stays as it was; once it is

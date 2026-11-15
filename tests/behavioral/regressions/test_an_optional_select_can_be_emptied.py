@@ -6,8 +6,8 @@ one value (`min_values=1`), because the renderer read "several values" as
 "at least one". An admin who had freed a channel could never free none again.
 
 Shared behaviour: the native selects the renderer draws for a `Picker`
-(`app/settings/discord/views.py`, `_select_item`) and the pickers of the
-`selects` section (`app/settings/form/actions/configuration_card.py`).
+(`app/forms/discord/views.py`, `_select_item`) and the pickers of the
+`selects` section (`app/forms/form/actions/configuration_card.py`).
 Exposed by block links' "Canais e cargos liberados".
 
 Guaranteed: a select whose field the card does not require takes zero

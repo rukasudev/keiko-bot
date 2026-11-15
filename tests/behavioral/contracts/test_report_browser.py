@@ -12,7 +12,7 @@ import discord
 import pytest
 
 from app.constants import DiscordLimits as limits
-from app.views.report_browser import ReportBrowser, ReportBrowserView
+from app.ui.report_browser import ReportBrowser, ReportBrowserView
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("report_browser")]
 
@@ -124,7 +124,7 @@ def test_one_choice_at_a_time():
 
 
 def _as_sections():
-    from app.views.report_browser import ReportSection
+    from app.ui.report_browser import ReportSection
     return [ReportSection(**section) for section in sections()]
 
 
@@ -135,7 +135,7 @@ def _built(shown):
 
 
 def _long_section():
-    from app.views.report_browser import ReportSection
+    from app.ui.report_browser import ReportSection
     return [ReportSection(
         key="long", label="L" * 200, build=_built(embed("long")),
         description="D" * 200,

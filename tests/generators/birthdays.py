@@ -3,7 +3,7 @@
 from typing import Any, Dict, Optional
 
 from app.data import data, wait
-from app.services import reminders_birthdays as birthdays_service
+from app.commands.birthdays import service as birthdays_service
 
 
 def saved_birthday(

@@ -48,7 +48,7 @@ def blocked_link(row: Mapping[str, Any]) -> Dict[str, Any]:
 
 
 def insert_blocked_link(row: Mapping[str, Any]) -> None:
-    """Seed one blocked link the way the sink writes it."""
+    """Seed one blocked link the way the analytics writer writes it."""
     wait(data().events_activity.insert_many([blocked_link(row)]))
 
 

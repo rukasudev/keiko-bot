@@ -265,7 +265,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagem:** 📌 Padrão do Keiko\n> **🎂 Feliz Aniversário !**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
+            "content": "💬 **Mensagem:** 📌 Padrão do Keiko\n> **🎂 É aniversário do !**\n> Feliz aniversário, ! 🎉 Que seu dia seja cheio de alegria e mimos! ✨",
             "type": "text"
           },
           {
@@ -483,7 +483,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagem:** 📌 Padrão do Keiko\n> **🎂 Feliz Aniversário <@777>!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
+            "content": "💬 **Mensagem:** 📌 Padrão do Keiko\n> **🎂 É aniversário do <@777>!**\n> Feliz aniversário, <@777>! 🎉 Que seu dia seja cheio de alegria e mimos! ✨",
             "type": "text"
           },
           {
@@ -695,7 +695,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagem:** 📌 Padrão do Keiko\n> **🎂 Feliz Aniversário <@777>!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
+            "content": "💬 **Mensagem:** 📌 Padrão do Keiko\n> **🎂 É aniversário do <@777>!**\n> Feliz aniversário, <@777>! 🎉 Que seu dia seja cheio de alegria e mimos! ✨",
             "type": "text"
           },
           {
@@ -931,7 +931,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagem:** 📌 Padrão do Keiko\n> **🎂 Feliz Aniversário <@777>!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
+            "content": "💬 **Mensagem:** 📌 Padrão do Keiko\n> **🎂 É aniversário do <@777>!**\n> Feliz aniversário, <@777>! 🎉 Que seu dia seja cheio de alegria e mimos! ✨",
             "type": "text"
           },
           {
@@ -1186,7 +1186,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagem:** 📌 Padrão do Keiko\n> **🎂 Feliz Aniversário <@777>!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
+            "content": "💬 **Mensagem:** 📌 Padrão do Keiko\n> **🎂 É aniversário do <@777>!**\n> Feliz aniversário, <@777>! 🎉 Que seu dia seja cheio de alegria e mimos! ✨",
             "type": "text"
           },
           {

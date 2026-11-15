@@ -35,7 +35,7 @@ def _repo_root_cwd(monkeypatch):
 @pytest.fixture(autouse=True)
 def _fresh_runtime():
     """Every test starts with no open form session, like a freshly started bot."""
-    from app.settings.discord.callbacks import RUNTIME
+    from app.forms.discord.callbacks import RUNTIME
 
     RUNTIME.reset()
     yield

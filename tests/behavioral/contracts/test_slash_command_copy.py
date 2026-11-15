@@ -1,79 +1,151 @@
-"""Contract: slash-command copy in commands.*.yml must satisfy Discord's
-API limits, which are only enforced at tree-sync time (bot startup).
+"""Contract: the slash-command copy Discord receives satisfies Discord's API limits,
+which are only enforced at tree-sync time (bot startup).
 
 Incident (2026-07-27): the block-links `desc:` was rewritten past 100
 characters; every test stayed green because the suites enter at the
 service seam and never build the command tree — the bot then failed to
 start with "description_localizations.*: Must be between 1 and 100 in
 length" for every Discord locale.
+
+The contract builds the tree the bot syncs at startup, with
+`app/translator.py` set, and checks each name and description of every
+command, group, option and choice in every locale it is sent in. The copy
+lives in each command's `copy.yml` (`slash.*` and the blocks its cogs name) and in
+`app/languages/commands.yml` (`groups.*`, the months).
 """
+import asyncio
+from importlib import import_module
+from unittest.mock import MagicMock
+
+import discord
 import pytest
-import yaml
+from discord.ext import commands as ext
+from discord.ext import tasks
+
+from app.core.utils import startup_extensions
+from app.translator import Translator
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("command_copy")]
 
-LOCALES = ["en-us", "pt-br"]
-DESCRIPTION_LIMIT = 100   # Discord: command/group descriptions are 1..100
-NAME_LIMIT = 32           # Discord: command/group names are 1..32, no spaces
-# Context-menu commands (see app/cogs/base/translate.py, log.py): Discord
-# allows mixed case and spaces in THEIR names, unlike slash commands.
-CONTEXT_MENU_NAMESPACES = {
-    "translate-message", "log-inspection", "user-inspect", "block-links-check",
-}
+DESCRIPTION_LIMIT = 100   # Discord: command/group/option descriptions are 1..100
+NAME_LIMIT = 32           # Discord: command/group/option names are 1..32, no spaces
+CHOICE_LIMIT = 100        # Discord: choice names are 1..100
+# Context-menu commands (see app/commands/translate/cog.py, block_links/cog.py):
+# Discord allows mixed case and spaces in THEIR names, and no description.
+CONTEXT_MENUS = {discord.AppCommandType.user.value, discord.AppCommandType.message.value}
 
 
-def _commands_yaml(locale: str) -> dict:
-    path = f"app/languages/commands/commands.{locale}.yml"
-    with open(path, "r") as handle:
-        return yaml.safe_load(handle)[locale]
+async def _payloads(loops=None):
+    async with ext.Bot(
+        command_prefix="!", intents=discord.Intents.default(), help_command=None
+    ) as bot:
+        return await _translated(bot, [] if loops is None else loops)
 
 
-def _walk(node, path=""):
-    if isinstance(node, dict):
-        for key, value in node.items():
-            yield from _walk(value, f"{path}.{key}" if path else str(key))
-    else:
-        yield path, node
+async def _translated(bot, loops):
+    bot.all_cogs = {}
+    bot.app_commands = []
+    for name in ("twitch", "youtube", "reminder", "notion", "config"):
+        setattr(bot, name, MagicMock())
+    for extension in startup_extensions():
+        await import_module(extension).setup(bot)
+    translator = Translator(bot)
+    await bot.tree.set_translator(translator)
+    try:
+        return [
+            await command.get_translated_payload(bot.tree, translator)
+            for command in bot.tree.get_commands()
+        ]
+    finally:
+        loops += [
+            value
+            for cog in bot.cogs.values()
+            for value in vars(cog).values()
+            if isinstance(value, tasks.Loop)
+        ]
+        for name in list(bot.cogs):
+            await bot.remove_cog(name)
+        for _ in range(3):
+            await asyncio.sleep(0)
 
 
-@pytest.mark.parametrize("locale", LOCALES)
-def test_command_descriptions_fit_discord_limit(locale):
-    data = _commands_yaml(locale)
-    tree_copy = {"commands": data.get("commands", {}), "groups": data.get("groups", {})}
-    # Only `commands.<ns>.desc` feeds slash-command descriptions (see
-    # app/translator.py); deeper `.desc` keys are embed/UI copy.
-    violations = [
-        (path, len(str(value)))
-        for path, value in _walk(tree_copy)
-        if path.startswith("commands.") and path.endswith(".desc")
-        and path.count(".") == 2
-        and not (1 <= len(str(value)) <= DESCRIPTION_LIMIT)
+def _localized(node, field):
+    yield "default", node.get(field) or ""
+    yield from (node.get(f"{field}_localizations") or {}).items()
+
+
+def _entries(node, path, menu):
+    """Every (where, kind, text) of a payload node and of the nodes below it."""
+    here = f"{path} {node['name']}".strip()
+    for locale, name in _localized(node, "name"):
+        yield f"{here} [{locale}]", "menu" if menu else "name", name
+    if not menu:
+        for locale, description in _localized(node, "description"):
+            yield f"{here} [{locale}]", "description", description
+    for option in node.get("options") or []:
+        yield from _entries(option, here, False)
+    for choice in node.get("choices") or []:
+        for locale, name in _localized(choice, "name"):
+            yield f"{here} choice [{locale}]", "choice", name
+
+
+def _broken(kind, text):
+    if kind == "description":
+        return not 1 <= len(text) <= DESCRIPTION_LIMIT
+    if kind == "choice":
+        return not 1 <= len(text) <= CHOICE_LIMIT
+    too_long = not 1 <= len(text) <= NAME_LIMIT
+    return too_long or (kind == "name" and " " in text)
+
+
+@pytest.fixture
+async def payloads():
+    return await _payloads()
+
+
+async def test_the_tree_carries_every_command_in_both_locales(payloads):
+    localized = [
+        payload["name"]
+        for payload in payloads
+        if {"en-US", "pt-BR"} <= set(payload.get("name_localizations") or {})
     ]
+
+    assert payloads and len(localized) == len(payloads)
+
+
+async def test_every_name_and_description_fits_discord_limits(payloads):
+    violations = [
+        (where, kind, text)
+        for payload in payloads
+        for where, kind, text in _entries(payload, "", payload.get("type") in CONTEXT_MENUS)
+        if _broken(kind, text)
+    ]
+
     assert not violations, (
-        f"commands.{locale}.yml has descs outside Discord's 1..{DESCRIPTION_LIMIT} "
-        f"char limit (the bot will fail to start on sync): {violations}"
+        "slash copy breaking Discord's limits (the bot will fail to start on sync): "
+        f"{violations}"
     )
 
 
-@pytest.mark.parametrize("locale", LOCALES)
-def test_command_names_fit_discord_limit(locale):
-    data = _commands_yaml(locale)
-    tree_copy = {"commands": data.get("commands", {}), "groups": data.get("groups", {})}
-    violations = []
-    for path, value in _walk(tree_copy):
-        leaf = path.rsplit(".", 1)[-1]
-        is_command_name = (
-            path.startswith("commands.") and path.count(".") == 2
-            and leaf in ("name", "subgroup")
-        )
-        is_group_name = path.startswith("groups.") and path.count(".") == 1
-        if is_command_name or is_group_name:
-            namespace = path.split(".")[1]
-            allow_spaces = namespace in CONTEXT_MENU_NAMESPACES
-            text = str(value)
-            if not (1 <= len(text) <= NAME_LIMIT) or (" " in text and not allow_spaces):
-                violations.append((path, text))
-    assert not violations, (
-        f"commands.{locale}.yml has command names breaking Discord's "
-        f"1..{NAME_LIMIT}-chars/no-spaces rule: {violations}"
-    )
+async def test_building_the_tree_leaves_no_background_task_failing():
+    """The cogs' loops wait for a ready that never comes and stop with their cogs.
+
+    Broke as: the tree was built on a bot that was never initialised, so the
+    `before_loop` of every loop the cogs started (`wait_until_ready`) raised "Client
+    has not been properly initialised"; the failure was never retrieved and asyncio
+    logged it when the garbage collector ran, inside whatever test ran then (the Twitch
+    fan-out tests assert no ERROR in their caplog and failed now and then).
+    """
+    loops = []
+    await _payloads(loops)
+
+    failed = [
+        loop.coro.__qualname__
+        for loop in loops
+        if (task := loop.get_task()) is not None
+        and task.done()
+        and not task.cancelled()
+        and task.exception() is not None
+    ]
+
+    assert loops and failed == []

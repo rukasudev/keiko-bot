@@ -2,17 +2,17 @@
 
 import pytest
 
-from app.settings.form import events as ev
-from app.settings.form.actions.action import Context
-from app.settings.form.components import Card, Gallery, OptionSelect, Panel, Picker
-from app.settings.form.effects import (
+from app.forms.form import events as ev
+from app.forms.form.actions.action import Context
+from app.forms.form.components import Card, Gallery, OptionSelect, Panel, Picker
+from app.forms.form.effects import (
     Commit,
     Finalize,
     Notice,
     ResumeParent,
     ShowError,
 )
-from app.settings.form.form_state import (
+from app.forms.form.form_state import (
     Edit,
     EditItem,
     Manage,
@@ -20,7 +20,7 @@ from app.settings.form.form_state import (
     Status,
     new_session,
 )
-from app.settings.form.manager import (
+from app.forms.form.manager import (
     FoundItem,
     FromSetup,
     ItemRemovalRequested,
@@ -32,8 +32,8 @@ from app.settings.form.manager import (
     PanelPage,
     SearchRequested,
 )
-from app.settings.form.responses.styles import empty_value, format_value
-from app.settings.form.responses.summary import (
+from app.forms.form.responses.styles import empty_value, format_value
+from app.forms.form.responses.summary import (
     PanelRow,
     panel_groups,
     row_value,
@@ -134,7 +134,7 @@ def test_an_empty_list_of_a_declared_group_offers_add_instead_of_edit():
 
 
 def _block_links_list():
-    from app.settings.form.form_yaml import registry
+    from app.forms.form.form_yaml import registry
 
     return registry.get("block_links").composition
 
@@ -172,8 +172,8 @@ def _links_document(count):
 
 
 def _reachable(count):
-    from app.settings.form.form_yaml import registry
-    from app.settings.form.responses.summary import (
+    from app.forms.form.form_yaml import registry
+    from app.forms.form.responses.summary import (
         every_setting_has_a_button,
         panel_groups,
         panel_rows,
@@ -325,8 +325,8 @@ def test_the_block_links_lists_are_named_after_the_mode_in_force():
     """bl-4 (beta.2): blocking all, the custom links are the allowed ones under
     "Exceções"; blocking some, they are the blocked ones under "Links
     bloqueados", and the edit and remove pickers name them the same way."""
-    from app.settings.form.manager import group_screen
-    from app.settings.form.responses.summary import edit_options, remove_options
+    from app.forms.form.manager import group_screen
+    from app.forms.form.responses.summary import edit_options, remove_options
 
     blocking_some = {**BLOCK_LINKS_DOC, "mode": "allow_all"}
     definition, decision = start(
@@ -534,17 +534,19 @@ def test_asides_never_touch_the_session():
     assert aside.session.revision == decision.session.revision
 
 
-def test_the_panel_intro_prefers_the_manager_description():
+def test_the_panel_intro_prefers_the_panel_description():
     """Broke as: the panel read "Enabling this feature allows me to..." on a
     feature that was already on."""
     import copy
 
-    from app.settings.form.form_yaml import DiskSource, compile_form
+    from app.forms.form.form_yaml import DiskSource, compile_form
 
     raw = copy.deepcopy(DiskSource().load("block_links"))
-    raw["steps"][0]["manager_description"] = {
-        "en-us": "I keep an eye on links.",
-        "pt-br": "Estou de olho nos links.",
+    raw["steps"][0]["panel"] = {
+        "description": {
+            "en-us": "I keep an eye on links.",
+            "pt-br": "Estou de olho nos links.",
+        }
     }
     definition = compile_form("block_links", raw)
 
@@ -657,7 +659,7 @@ def test_a_one_line_group_has_no_heading():
 
 
 def test_feature_rows_group_by_the_step_that_owns_their_key():
-    from app.settings.form.responses.summary import PanelRow
+    from app.forms.form.responses.summary import PanelRow
 
     rows = (
         PanelRow(key="channel", title="Canal", value="100", style="channel"),
@@ -687,7 +689,7 @@ def test_feature_rows_group_by_the_step_that_owns_their_key():
 def test_an_empty_list_offers_no_search():
     """Round 3 B: Pesquisar has nothing to find while the list is empty, the
     way Editar is hidden over an empty list (bd-4); Configurar stays."""
-    from app.settings.form.responses.summary import PanelRow
+    from app.forms.form.responses.summary import PanelRow
 
     rows = (PanelRow(key="channel", title="Canal", value="100", style="channel"),)
     drawn, panel = _panel("reminders_birthday", {"guild_id": "1"}, rows)
@@ -700,7 +702,7 @@ def test_an_empty_list_offers_no_search():
 
 
 def test_feature_rows_without_keys_keep_the_global_edit():
-    from app.settings.form.responses.summary import PanelRow
+    from app.forms.form.responses.summary import PanelRow
 
     rows = (PanelRow(key="", title="Total", value="3"),)
     drawn, _panel_component = _panel("reminders_birthday", {"guild_id": "1"}, rows)
@@ -710,7 +712,7 @@ def test_feature_rows_without_keys_keep_the_global_edit():
 def _part_manager():
     from tests.forms.form.card_fixtures import WELCOME_LIKE_DOC, welcome_like_card
 
-    definition = welcome_like_card(edit_by_field=True)
+    definition = welcome_like_card(by_field=True)
     session = new_session(
         (definition.key, definition.version), Manage(), ORIGIN, ttl_seconds=60, now=NOW
     )
@@ -876,8 +878,8 @@ def _refused_on_the_exceptions_screen(error, document=BLOCK_LINKS_DOC):
     "error, answer",
     [
         ("stale", Notice("stale")),
-        ("duplicate", ShowError("item-already-registered")),
-        ("RuntimeError", ShowError("command-generic-error")),
+        ("duplicate", ShowError("item_already_registered")),
+        ("RuntimeError", ShowError("generic")),
     ],
 )
 def test_a_refused_change_on_a_heading_screen_answers_in_copy_and_redraws_it(
@@ -944,7 +946,7 @@ def test_the_edit_beside_a_declared_group_opens_that_part():
     """Broke as: the two buttons of the block links "Exceptions" heading did
     nothing at all. The panel gives a card field its own Edit whenever the
     field declares a panel group of its own, but the engine only honoured a
-    part target on a card that also declares `edit_by_field`, so the click
+    part target on a card that also declares `edit: field`, so the click
     answered a stale notice and redrew the panel."""
     from tests.behavioral.golden.paths.block_links import ENABLED
 
@@ -1039,7 +1041,7 @@ def test_a_part_edit_that_leaves_the_card_incomplete_shows_the_whole_card():
 def test_a_card_edited_from_the_panel_confirms_and_a_setup_card_moves_on():
     """C3 (beta.2 round 2): a card's Done that saves, with nothing after it,
     reads Confirmar; in the setup, where the summary follows, it reads Avançar."""
-    from app.settings.form.form_state import Setup
+    from app.forms.form.form_state import Setup
     from tests.forms.form.card_fixtures import welcome_like_card
 
     definition, parent, context = _part_manager()
@@ -1065,11 +1067,11 @@ def test_a_card_edited_from_the_panel_confirms_and_a_setup_card_moves_on():
 def test_a_part_edit_of_a_multi_select_shows_only_that_select():
     import copy
 
-    from app.settings.form.form_yaml import DiskSource, compile_form
+    from app.forms.form.form_yaml import DiskSource, compile_form
     from tests.behavioral.golden.paths.default_roles import ENABLED
 
     raw = copy.deepcopy(DiskSource().load("default_roles"))
-    raw["steps"][1]["edit_by_field"] = True
+    raw["steps"][1]["edit"] = "field"
     definition = compile_form("default_roles", raw)
     session = new_session(
         (definition.key, definition.version), Manage(), ORIGIN, ttl_seconds=60, now=NOW
@@ -1105,10 +1107,10 @@ def test_a_second_edit_after_a_dismissed_modal_opens_a_fresh_child():
 def _twitch_by_item():
     import copy
 
-    from app.settings.form.form_yaml import DiskSource, compile_form
+    from app.forms.form.form_yaml import DiskSource, compile_form
 
     raw = copy.deepcopy(DiskSource().load("notifications_twitch"))
-    raw["steps"][1]["edit_by_item"] = True
+    raw["steps"][1]["edit"] = "item"
     return compile_form("notifications_twitch", raw)
 
 
@@ -1316,7 +1318,7 @@ def test_removing_the_only_item_warns_with_the_item_and_disables_it(
 def test_the_review_keeps_the_list_remove():
     """The item controls belong to the saved list: the setup review keeps the
     list's own Remove, never one beside each item."""
-    from app.settings.form.form_state import Answer
+    from app.forms.form.form_state import Answer
 
     item = {
         "channel": Answer("100"),
@@ -1401,7 +1403,7 @@ def test_the_list_title_counts_its_items_of_its_most_on_the_panel(form, locale, 
 @pytest.mark.parametrize("form,locale,line", TITLE_COUNTS)
 def test_the_setup_summary_counts_the_list_like_the_panel(form, locale, line):
     """A2 (round 4): the setup's summary draws the same title line, no quote."""
-    from app.settings.form.form_state import Answer
+    from app.forms.form.form_state import Answer
 
     item_key = "streamer" if form == "notifications_twitch" else "youtuber"
     item = {
@@ -1745,8 +1747,8 @@ def test_configurar_opens_the_reminder_settings_with_one_edit():
 def test_a_list_saved_empty_draws_its_rows_without_an_edit():
     """bd-4: rows a feature builds about its list keep no Edit while the
     saved list has no item, since there is nothing it could open."""
-    from app.settings.form.manager import panel_screen
-    from app.settings.form.responses.summary import panel_groups, placed
+    from app.forms.form.manager import panel_screen
+    from app.forms.form.responses.summary import panel_groups, placed
 
     definition = REGISTRY.get("notifications_twitch")
     rows = placed(
@@ -1754,7 +1756,7 @@ def test_a_list_saved_empty_draws_its_rows_without_an_edit():
             PanelRow(key="notifications", title="Total", value="0"),
             PanelRow(key="notifications", title="Últimos", value="-"),
         ),
-        definition.steps,
+        definition,
         "pt-br",
     )
     assert panel_groups(rows, "x", "pt-br")[0].key == "notifications"
@@ -1818,7 +1820,7 @@ def test_an_add_button_on_the_review_always_carries_the_plus(popular):
     edit. An Add label carries ➕ whatever the setting holds."""
     from dataclasses import replace
 
-    from app.settings.form.responses.summary import panel_rows
+    from app.forms.form.responses.summary import panel_rows
     from tests.forms.replay import REGISTRY
 
     definition = REGISTRY.get("block_links")

@@ -23,14 +23,14 @@ Discord, because the quiet trace kept its line and the exception surfaced only
 as asyncio's "Task exception was never retrieved", which is muted there.
 
 Database PR 2 folded `audit.errors` into `command.failed`: the failure is one
-interaction, written by the analytics sink, carrying the command and the error
+interaction, written by the analytics writer, carrying the command and the error
 type and never the traceback, which stays in the error channel and the logs; the
 `command.error:*` counter the handler waited for went with it, so nothing is stored
 beside the event.
 
 Guaranteed: a failed command puts a message with its traceback in the error
 channel and a `command.failed` event carrying the error type before the person
-is answered, and that event is what the sink stores, with no traceback; the
+is answered, and that event is what the analytics writer stores, with no traceback; the
 person is answered even when the answer fails, while the record is still being
 written, and when recording itself
 raises, which reaches the error channel too; a Mongo stall holds no thread of
@@ -48,7 +48,7 @@ import pytest
 from discord import app_commands
 
 from app.data import wait
-from app.cogs.errors import Errors
+from app.core.errors import Errors
 from tests.behavioral.harness.fake_interaction import FakeInteraction, FakeResponse
 from tests.behavioral.harness.message_store import MessageStore
 from tests.mocks.discord import create_guild, create_member, MockInteraction
@@ -88,7 +88,7 @@ def expired():
 
 
 async def stored_failures(deps):
-    """The `command.failed` interactions once the sink wrote its batch."""
+    """The `command.failed` interactions once the analytics writer wrote its batch."""
     await analytics.flush()
     return list(deps.mongo_client.events.interactions.find({"type": "command.failed"}))
 
@@ -265,7 +265,7 @@ async def test_a_failure_while_recording_still_answers_and_reaches_the_error_cha
         raise RuntimeError("the record could not be built")
 
     monkeypatch.setattr(
-        "app.cogs.errors.ErrorContext", SimpleNamespace(from_interaction=broken)
+        "app.core.errors.ErrorContext", SimpleNamespace(from_interaction=broken)
     )
     interaction, error = failing_command()
 
@@ -364,7 +364,7 @@ async def test_a_slash_command_that_raises_keeps_its_footnote(deps, guild, secon
 
 
 async def test_a_feature_button_that_raises_keeps_its_footnote(deps, guild, second_run, monkeypatch):
-    from app.components import buttons
+    from app import forms as settings
 
     traces = []
 
@@ -372,10 +372,10 @@ async def test_a_feature_button_that_raises_keeps_its_footnote(deps, guild, seco
         traces.append(current_trace())
         raise RuntimeError("the feature broke")
 
-    monkeypatch.setattr("app.settings.open_feature", open_feature)
+    monkeypatch.setattr("app.forms.discord.callbacks.open_feature", open_feature)
 
     with pytest.raises(RuntimeError):
-        await buttons.run_feature_command(interaction_in(guild), "block_links", "setup_dashboard")
+        await settings.run_feature_command(interaction_in(guild), "block_links", "setup_dashboard")
 
     [trace] = traces
     assert trace.footnote == SECOND_RUN

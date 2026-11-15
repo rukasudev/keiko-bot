@@ -13,8 +13,8 @@ no migration and no one-off script is needed for them.
 import pytest
 
 from app.data import data, wait
-from app.services import reminders_birthdays as birthdays_service
-from app.services.reminders_birthdays import (
+from app.commands.birthdays import service as birthdays_service
+from app.commands.birthdays.service import (
     birthday_schedule_id,
     birthday_schedules_missing_reminder,
     find_birthday,
@@ -181,7 +181,7 @@ def run_loop(monkeypatch, outcome):
     import asyncio
     from types import SimpleNamespace
 
-    from app.cogs.birthdays import Birthday
+    from app.commands.birthdays.cog import Birthday
 
     async def reconcile(limit):
         return outcome(limit)

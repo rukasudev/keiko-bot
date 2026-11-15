@@ -11,7 +11,7 @@ helper that sets an interaction's locale to the language Keiko answers it in, an
 the locale: `KeikoTree.interaction_check` (`app/bot.py`) for every app command,
 slash or context menu, which keeps the reader's own language for the translation;
 the form adapter's opening, clicks and expired sessions
-(`app/settings/discord/callbacks.py`), `GenericButton`, `Select`, the greeting's
+(`app/forms/discord/callbacks.py`), `GenericButton`, `Select`, the greeting's
 buttons and `ConfirmActionView`. Consumers: every slash command, every form and
 panel, the records browser, the greeting.
 
@@ -30,7 +30,7 @@ import pytest
 from app.decorators import keiko_admin_only
 from app.core.servers import interaction_language
 from app.core.utils import ml
-from app.settings.form.form_yaml import registry
+from app.forms.form.form_yaml import registry
 from tests.generators.moderations import recorded_server
 from tests.mocks.discord import (
     MockInteraction,
@@ -85,7 +85,7 @@ async def test_a_panel_and_its_side_actions_speak_the_servers_language(
 
     await scenario.click(ml("buttons.stats.label", server))
     stats = scenario.expect_message(
-        title_contains=ml("commands.commands.commons.stats.title.default-roles", server)
+        title_contains=ml("default_roles.stats.title", server)
     )
     await scenario.click(ml("buttons.help.label", server))
     help_screen = scenario.expect_message(title_contains=ml("buttons.help.label", server))
@@ -111,12 +111,12 @@ async def test_an_error_speaks_the_servers_language(deps, server):
 
     answer = interaction.get_last_response()
     assert answer["ephemeral"] is True
-    assert answer["embed"].title == ml("buttons.setup.admin-only.title", server)
+    assert answer["embed"].title == ml("commands.responses.admin_only.title", server)
 
 
 @LANGUAGES
 async def test_the_help_speaks_the_servers_language(deps, server):
-    from app.views.greetings import CommandsButton
+    from app.commands.setup.service import CommandsButton
 
     guild = create_guild(id=4242)
     recorded_server(deps.mongo_client, guild.id, language=server)
@@ -142,7 +142,7 @@ async def test_a_direct_message_keeps_the_persons_own_language(server):
 
 
 def _ping(deps):
-    from app.cogs.base.ping import Ping
+    from app.commands.help.ping import Ping
 
     deps.bot.latency = 0.0421
     return Ping.ping.callback, Ping(deps.bot)
@@ -199,7 +199,7 @@ async def test_a_server_whose_settings_are_not_saved_yet_hears_the_persons_langu
 async def test_a_translation_goes_into_the_readers_language_told_in_the_servers(
     deps, monkeypatch, server
 ):
-    from app.cogs.base.translate import Translate
+    from app.commands.translate.cog import Translate
     from app.integrations.google_translate import GoogleTranslate
 
     guild = create_guild(id=4242)
@@ -223,7 +223,7 @@ async def test_a_translation_goes_into_the_readers_language_told_in_the_servers(
 
     assert asked == [reader]
     title = interaction.get_last_response()["embed"].title
-    assert title == ml("commands.commands.translate-message.response.title", server)
+    assert title == ml("translate.responses.translation.title", server)
 
 
 def _member_interaction(deps, server):
@@ -240,7 +240,7 @@ async def _answer_in_its_locale(interaction):
 
 @LANGUAGES
 async def test_a_generic_button_answers_in_the_servers_language(deps, server):
-    from app.components.buttons import GenericButton
+    from app.ui.buttons import GenericButton
 
     interaction = _member_interaction(deps, server)
     button = GenericButton("Go", _answer_in_its_locale, discord.ButtonStyle.grey)
@@ -252,7 +252,7 @@ async def test_a_generic_button_answers_in_the_servers_language(deps, server):
 
 @LANGUAGES
 async def test_a_select_answers_in_the_servers_language(deps, server):
-    from app.components.select import Select
+    from app.ui.select import Select
 
     interaction = _member_interaction(deps, server)
     select = Select("Pick", {"first": "First"}, custom_callback=_answer_in_its_locale)
@@ -266,7 +266,7 @@ async def test_a_select_answers_in_the_servers_language(deps, server):
 
 @LANGUAGES
 async def test_a_confirmation_answers_in_the_language_its_screen_was_drawn_in(deps, server):
-    from app.views.confirm_action import ConfirmActionView
+    from app.ui.confirm_action import ConfirmActionView
 
     interaction = _member_interaction(deps, server)
     view = ConfirmActionView(_answer_in_its_locale, server)

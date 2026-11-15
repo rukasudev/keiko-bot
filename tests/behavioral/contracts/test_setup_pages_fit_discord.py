@@ -11,11 +11,13 @@ page of that category and the first page stay under forty components and four
 thousand characters, in both locales; the page size leaves room to spare; and
 every category a feature declares is one /configurar lists, with its emoji.
 """
+from dataclasses import replace
 from itertools import cycle, islice
 
 import pytest
 
-from app.constants import Commands, Feature, ViewConstants
+from app.constants import ViewConstants
+from app.core.commands import PARENT_GROUPS, setup_features
 from tests.behavioral.contracts.test_components_v2_limits import (
     MAX_COMPONENTS,
     _assert_within_limits,
@@ -40,11 +42,11 @@ def speaks(deps, locale):
 @pytest.fixture
 def crowded(monkeypatch):
     """Thirteen features in the moderations category, every one paused."""
-    from app.services import setup
+    from app.commands.setup import service as setup
 
     rows = [
-        ({**spec, "category": "moderations"}, "paused")
-        for spec in islice(cycle(Commands.SETUP_FEATURES), CROWDED)
+        (replace(spec, category="moderations"), "paused")
+        for spec in islice(cycle(setup_features()), CROWDED)
     ]
 
     async def states(guild_id):
@@ -56,7 +58,7 @@ def crowded(monkeypatch):
 
 @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
 async def test_every_page_of_a_crowded_category_fits_discord(crowded, deps, locale):
-    from app.services.setup import category_page
+    from app.commands.setup.service import category_page
 
     speaks(deps, locale)
     pages = -(-CROWDED // ViewConstants.SETUP_PAGE_SIZE)
@@ -71,7 +73,7 @@ async def test_every_page_of_a_crowded_category_fits_discord(crowded, deps, loca
 
 @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
 async def test_the_first_page_of_a_crowded_server_fits_discord(crowded, deps, locale):
-    from app.services.setup import setup_dashboard
+    from app.commands.setup.service import setup_dashboard
 
     speaks(deps, locale)
     _assert_within_limits(await setup_dashboard(GUILD_ID), f"first page {locale}")
@@ -79,11 +81,11 @@ async def test_the_first_page_of_a_crowded_server_fits_discord(crowded, deps, lo
 
 @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
 async def test_the_category_page_a_setup_ends_on_fits_discord(crowded, deps, locale):
-    from app.services.setup import category_page
+    from app.commands.setup.service import category_page
 
     speaks(deps, locale)
     view = await category_page(
-        GUILD_ID, "moderations", activated=Commands.REMINDERS_BIRTHDAY_KEY
+        GUILD_ID, "moderations", activated="reminders_birthday"
     )
 
     _assert_within_limits(view, f"category page after a setup {locale}")
@@ -92,14 +94,14 @@ async def test_the_category_page_a_setup_ends_on_fits_discord(crowded, deps, loc
 
 @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
 async def test_the_settings_screen_fits_discord(deps, locale):
-    from app.services.setup import settings_screen
+    from app.commands.setup.service import settings_screen
 
     speaks(deps, locale)
     _assert_within_limits(await settings_screen(GUILD_ID), f"settings {locale}")
 
 
 def test_every_category_a_feature_declares_is_listed_with_its_emoji():
-    declared = {feature.value.group for feature in Feature}
+    declared = {command.group for command in setup_features()}
 
-    assert declared <= set(Commands.SETUP_CATEGORIES)
-    assert all(Commands.SETUP_CATEGORIES.values())
+    assert declared <= set(PARENT_GROUPS)
+    assert all(PARENT_GROUPS.values())

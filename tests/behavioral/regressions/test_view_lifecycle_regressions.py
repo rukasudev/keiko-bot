@@ -15,7 +15,7 @@ the modal (Discord tells the bot nothing) and clicking Adicionar again hit the
 cleared view. The HelpButton had the same divorced mutation and also crashed
 on the panel (`interaction.message.embeds[0]` on a message with no embeds).
 
-Shared behavior affected: `app/components/buttons.py` (EditButton,
+Shared behavior affected: `app/ui/buttons.py` (EditButton,
 AddItemButton, RemoveItemButton, HelpButton), consumed by every command's
 manager panel.
 
@@ -51,7 +51,7 @@ ADD = ml("buttons.add.label", locale="pt-br")
 
 
 async def _panel(scenario_factory, deps):
-    from app.services.block_links import normalize_block_links_config
+    from app.commands.block_links.service import normalize_block_links_config
 
     seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS_COG))
     return await scenario_factory(locale="pt-br").start_manager(
@@ -96,14 +96,14 @@ async def test_duplicate_add_says_item_and_the_manager_still_works(
     await scenario.submit_modal({"Digite o link ou site": "twitch.tv/jway"})
     await scenario.click("option:🌐 Todos os links desse site")
 
-    scenario.expect_error(ml("errors.item-already-registered.message", locale="pt-br"))
+    scenario.expect_error(ml("errors.item_already_registered.message", locale="pt-br"))
     assert "membro" not in (scenario.outputs[-1].get("embed") or {}).get(
         "description", ""
     ), "the shared add flow must not talk about 'member': the item can be anything"
 
     # The panel was legitimately replaced during the flow; reopening the
     # manager must yield a fully working panel again.
-    from app.services.block_links import normalize_block_links_config
+    from app.commands.block_links.service import normalize_block_links_config
 
     await scenario.start_manager(
         "block_links", normalize_block_links_config(dict(BLOCK_LINKS_COG))
@@ -114,11 +114,11 @@ async def test_duplicate_add_says_item_and_the_manager_still_works(
 
 @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
 def test_duplicate_feedback_copy_exists_in_both_languages(locale):
-    for key in ("errors.item-already-registered.title",
-                "errors.item-already-registered.message"):
+    for key in ("errors.item_already_registered.title",
+                "errors.item_already_registered.message"):
         text = ml(key, locale=locale)
         assert text and not text.startswith("errors."), f"{key} missing for {locale}"
-    message = ml("errors.item-already-registered.message", locale=locale)
+    message = ml("errors.item_already_registered.message", locale=locale)
     assert "membro" not in message and "member" not in message, \
         "the duplicate feedback is shared by every composition command"
 

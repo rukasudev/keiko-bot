@@ -147,7 +147,7 @@ async def test_a_validation_failure_shows_the_field_not_what_was_typed(
 async def test_editing_through_the_manager_lists_the_changed_fields(
     scenario_factory, deps, story
 ):
-    from app.services.block_links import normalize_block_links_config
+    from app.commands.block_links.service import normalize_block_links_config
 
     legacy = {"guild_id": GUILD_ID, "enabled": True, "mode": "block_all",
               "answer": "Resposta antiga"}

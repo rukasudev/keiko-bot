@@ -84,7 +84,7 @@ async def test_a_recent_member_is_asked_again_once_its_time_is_over(monkeypatch)
 
 async def test_the_events_keep_their_member_at_hand(deps):
     """A message author, a joiner and whoever interacts are what later screens ask for."""
-    from app.cogs.events import Events
+    from app.core.events import Events
 
     guild = create_guild()
     author, joiner, clicker = (uncached(guild, 800 + index) for index in range(3))
@@ -126,7 +126,7 @@ def test_the_history_names_its_actors_without_a_lookup():
 
 
 async def test_the_birthday_preview_draws_a_member_nobody_cached(deps):
-    from app.services.reminders_birthdays import send_birthday_preview
+    from app.commands.birthdays.service import send_birthday_preview
 
     guild = create_guild()
     friend = uncached(guild)
@@ -145,7 +145,7 @@ async def test_the_birthday_preview_draws_a_member_nobody_cached(deps):
 
 
 async def test_the_welcome_preview_finds_the_member_behind_a_plain_user(deps):
-    from app.services.welcome_messages import send_welcome_message_preview
+    from app.commands.welcome.service import send_welcome_message_preview
 
     guild = create_guild()
     member = uncached(guild, 555, "Tester")
@@ -177,9 +177,9 @@ async def test_the_welcome_preview_finds_the_member_behind_a_plain_user(deps):
 async def test_a_picked_member_has_a_picture_without_a_request():
     """The member select hands its members; the card and the found screen draw
     their pictures from them synchronously."""
-    from app.settings.discord.callbacks import MemberPictures
-    from app.settings.discord.views import UserPicker
-    from app.settings.form.components import Picker
+    from app.forms.discord.callbacks import MemberPictures
+    from app.forms.discord.views import UserPicker
+    from app.forms.form.components import Picker
 
     guild = create_guild()
     friend = uncached(guild)
@@ -206,10 +206,10 @@ async def test_a_picked_member_has_a_picture_without_a_request():
 
 
 async def test_a_birthday_of_a_member_nobody_cached_is_celebrated(deps, monkeypatch):
-    from app.services.reminders_birthdays import save_birthday_config
+    from app.commands.birthdays.service import save_birthday_config
     from app.core.servers import set_feature_enabled
     from tests.generators.birthdays import saved_birthday
-    from app.webhooks import birthday_handler
+    from app.commands.birthdays import celebration as birthday_handler
     from tests.generators.moderations import recorded_server
 
     guild = create_guild(id=1001, channels=["birthdays"])
@@ -220,7 +220,7 @@ async def test_a_birthday_of_a_member_nobody_cached_is_celebrated(deps, monkeypa
     await save_birthday_config(str(guild.id), str(guild.text_channels[0].id), False)
     for member_id in ("777", "404"):
         saved_birthday(str(guild.id), member_id, "05-12", reminder_id="4001")
-    await set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
+    await set_feature_enabled(str(guild.id), "reminders_birthday", True)
 
     await birthday_handler.process_birthday_webhook("4001", "05-12")
 
@@ -242,7 +242,7 @@ def _roles_server(**counted):
 
 
 async def test_the_default_roles_counts_read_the_server_page_by_page(monkeypatch):
-    from app.services import default_roles
+    from app.commands.roles import service as default_roles
 
     monkeypatch.setattr(
         default_roles, "get_available_roles_by_guild", lambda guild: {"Member": "202"}
@@ -258,7 +258,7 @@ async def test_the_default_roles_counts_read_the_server_page_by_page(monkeypatch
 async def test_past_the_counted_bound_no_count_is_guessed(monkeypatch):
     """A server too big to read for a question is never counted nor estimated:
     a kind that gets a role reads as more than the bound, and no member is asked."""
-    from app.services import default_roles
+    from app.commands.roles import service as default_roles
 
     monkeypatch.setattr(Commands, "DEFAULT_ROLES_COUNTED_MEMBERS_MAX", 1)
     monkeypatch.setattr(
@@ -278,8 +278,8 @@ async def test_past_the_counted_bound_the_screens_say_more_than_the_bound(
 ):
     """The setup step and the Sync question show the bound as a floor, in the
     admin's language, built from `DEFAULT_ROLES_COUNTED_MEMBERS_MAX`."""
-    from app.services import default_roles as service
-    from app.settings.features import default_roles
+    from app.commands.roles import service
+    from app.commands.roles import service as default_roles
 
     monkeypatch.setattr(
         service, "get_available_roles_by_guild", lambda guild: {"Member": "202"}
@@ -310,7 +310,7 @@ def test_the_floor_label_follows_its_number(bound, locale, label):
 async def test_the_sync_gives_the_roles_page_by_page_and_caches_nobody(
     deps, mock_cache, monkeypatch
 ):
-    from app.services import default_roles
+    from app.commands.roles import service as default_roles
 
     guild = _roles_server()
     member_role = next(role for role in guild.roles if role.name == "Member")
@@ -334,7 +334,7 @@ async def test_the_sync_gives_the_roles_page_by_page_and_caches_nobody(
 
 
 async def test_a_joiner_gets_the_roles_without_any_request(deps, mock_cache, monkeypatch):
-    from app.services import default_roles
+    from app.commands.roles import service as default_roles
 
     guild = _roles_server()
     member_role = next(role for role in guild.roles if role.name == "Member")
@@ -353,7 +353,7 @@ async def test_a_joiner_gets_the_roles_without_any_request(deps, mock_cache, mon
 
 
 async def test_a_logged_user_discord_py_never_cached_is_asked_to_the_api(monkeypatch):
-    from app.services import log_inspection
+    from app.commands.admin import log_inspection
 
     user = SimpleNamespace(id=777, name="Amiga")
     bot = SimpleNamespace(get_user=lambda _id: None, fetch_user=AsyncMock(return_value=user))
@@ -370,7 +370,7 @@ async def test_a_logged_user_discord_py_never_cached_is_asked_to_the_api(monkeyp
 async def test_an_edit_by_an_exempt_member_nobody_cached_stays(deps, mock_cache):
     """A message fetched from the API names its author as a user, without roles;
     the edit check reads the member behind it, so an exempt role still exempts."""
-    from app.services.block_links import check_edited_message
+    from app.commands.block_links.service import check_edited_message
 
     guild = create_guild(roles=["Admin", "Moderator", "Member"])
     channel = guild.text_channels[0]

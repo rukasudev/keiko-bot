@@ -30,8 +30,9 @@ from app.core import debug_logs, logs_archive
 from app.core.trace import trace_scope
 import asyncio
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
-from app.services.admin import send_log_file_from_channel_by_date
+from unittest.mock import AsyncMock, MagicMock
+import discord
+from app.commands.admin.service import send_log_file_from_channel_by_date
 import os
 import pyrage
 from pyrage import x25519
@@ -42,9 +43,9 @@ import base64
 import io
 import zipfile
 from bson import json_util, ObjectId
-from app.cogs.analytics import Analytics
-from app.core.utils import ml
-from app.cogs import analytics as analytics_cog
+from app.core.jobs import Analytics
+from app.core.utils import fill, ml
+from app.core import jobs as analytics_cog
 from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
     blocking,
     blocking_rows,
@@ -129,7 +130,7 @@ def test_disabling_the_sink_stops_recording():
 def test_a_failing_write_never_produces_another_log(monkeypatch):
     """A logger call here would be recorded, fail, and log again — forever.
 
-    Broke as: the analytics sink reports failures with `logger.warn`. Copying
+    Broke as: the analytics writer reports failures with `logger.warn`. Copying
     that into a sink that *drains the logger* turns one dead connection into an
     unbounded write storm. The failure has to leave the logging tree entirely.
     """
@@ -455,7 +456,7 @@ def run_export(channel, day=None):
     import asyncio
     from types import SimpleNamespace
 
-    from app.cogs.analytics import Analytics
+    from app.core.jobs import Analytics
 
     bot = SimpleNamespace(
         config=SimpleNamespace(ADMIN_LOGS_FILES_CHANNEL_ID=7),
@@ -532,7 +533,7 @@ def test_the_export_message_exists_in_both_locales():
     assert "5" in english and "5" in portuguese
     assert english != portuguese
     for rendered in (english, portuguese):
-        assert "messages.admin-logs" not in rendered
+        assert "messages.admin_logs" not in rendered
         assert "—" not in rendered and "–" not in rendered
 
 
@@ -687,7 +688,7 @@ async def test_admin_logs_finds_the_file_and_names_its_day_without_a_colon():
     async def history(limit=None):
         yield posted
 
-    channel = SimpleNamespace(history=history)
+    channel = MagicMock(spec=discord.TextChannel, history=history)
     interaction = SimpleNamespace(
         client=SimpleNamespace(
             get_channel=lambda channel_id: channel,
@@ -711,7 +712,7 @@ def files_channel_answering(*messages):
 
     return SimpleNamespace(
         client=SimpleNamespace(
-            get_channel=lambda channel_id: SimpleNamespace(history=history),
+            get_channel=lambda channel_id: MagicMock(spec=discord.TextChannel, history=history),
             config=SimpleNamespace(ADMIN_LOGS_FILES_CHANNEL_ID=1),
         ),
         followup=SimpleNamespace(send=AsyncMock()),
@@ -724,7 +725,7 @@ async def test_admin_logs_answers_with_the_daily_log_never_the_backup_of_that_da
     Broke as: the lookup answered with the first message whose text held the date, and
     the daily backup's message names its date too, so for today it answered with the
     sealed backup's link. Shared behaviour: `send_log_file_from_channel_by_date`
-    (`app/services/admin.py`) over the logs files channel the backup and the archive share.
+    (`app/commands/admin/service.py`) over the logs files channel the backup and the archive share.
     Guaranteed: only a file named like a daily log is an answer.
     """
     interaction = files_channel_answering(
@@ -1016,8 +1017,11 @@ async def test_one_file_holds_every_collection(stored_databases):
         "keiko.settings": 1,
         "reminders.birthdays": 1,
     }
-    assert content == ml("messages.admin-logs.daily-backup", "en-us").format(
-        date=today(), collections=8, documents=9
+    assert content == fill(
+        ml("messages.admin_logs.daily_backup", "en-us"),
+        date=today(),
+        collections=8,
+        documents=9,
     )
 
 
@@ -1440,11 +1444,11 @@ async def test_each_months_events_go_out_in_one_file_with_one_message(deps):
     ], "October is still running and is not posted"
     (august, first), (content, sent) = channel.sends
     assert [line["_id"] for line in lines_of(first)] == [before["_id"]]
-    assert august == ml("messages.admin-logs.monthly-events", "en-us").format(
-        month="2026-08", count=1
+    assert august == fill(
+        ml("messages.admin_logs.monthly_events", "en-us"), month="2026-08", count=1
     )
-    assert content == ml("messages.admin-logs.monthly-events", "en-us").format(
-        month=label(), count=3
+    assert content == fill(
+        ml("messages.admin_logs.monthly_events", "en-us"), month=label(), count=3
     )
     assert [line["_id"] for line in lines_of(sent)] == [event["_id"] for event in inside]
     assert "link" not in lines_of(sent)[1]["props"], "a private prop left in the archive"
@@ -1649,7 +1653,7 @@ async def test_a_month_over_the_upload_limit_goes_in_files_under_it(deps):
         f"keiko_events_{label()}_{index}-of-{len(parts)}.jsonl.gz.age"
         for index in range(1, len(parts) + 1)
     ]
-    assert ml("messages.admin-logs.files-parts", "en-us").format(files=len(parts)) in (
+    assert fill(ml("messages.admin_logs.files_parts", "en-us"), files=len(parts)) in (
         channel.sends[0][0]
     )
     assert [content for content, _part in channel.sends[1:]] == [None] * (len(parts) - 1)

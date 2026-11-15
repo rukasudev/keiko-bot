@@ -20,11 +20,11 @@ gave every document saved before `enabled` its old flag once (data/0003), and
 nothing reads or writes the flag since.
 
 Shared behaviour: every lifecycle commit of the feature document layer
-(app/settings/features/feature.py, and the birthday module's own commits), the
+(app/forms/features/feature.py, and the birthday module's own commits), the
 one reading (`is_feature_on`, app/core/cogs.py), the flag writers of
 app/core/servers.py (`set_feature_enabled` for pause, unpause and the
 first save), the guild leave (`leave_guild`, `pause_features`), the /setup card
-and its permissions report (app/services/setup.py), and guild.cogs keyed
+and its permissions report (app/commands/setup/service.py), and guild.cogs keyed
 `{guild}:{cog}` (app/data/guild/cogs.py).
 
 Guaranteed: the document decides (absent is off, `enabled: false` is paused,
@@ -39,6 +39,8 @@ from types import SimpleNamespace
 
 import discord
 import pytest
+
+from app.core.commands import setup_features
 from pymongo.errors import AutoReconnect
 from redis.exceptions import ConnectionError as RedisConnectionError
 
@@ -47,11 +49,11 @@ from app.constants import Commands
 from app.core import cache
 from app.core.servers import set_feature_enabled
 from app.core.utils import ml
-from app.services.reminders_birthdays import save_birthday_config
-from app.services.setup import category_page, permission_report
-from app.settings.features import feature_for
-from app.settings.features.feature import CommitContext, OpenContext
-from app.settings.form.form_state import Answer
+from app.commands.birthdays.service import save_birthday_config
+from app.commands.setup.service import category_page, permission_report
+from app.forms.features import feature_for
+from app.forms.features.feature import CommitContext, OpenContext
+from app.forms.form.form_state import Answer
 from tests.behavioral.contracts.test_setup_dashboard import EVERYTHING
 from tests.behavioral.contracts.test_setup_dashboard import guild as server
 from tests.behavioral.harness.locators import walk_items
@@ -63,8 +65,8 @@ GUILD_ID = "123456789"
 UNRECORDED_GUILD_ID = "987654321"
 LEFT_GUILD_ID = "4242"
 NOW = datetime(2026, 1, 1, 12, tzinfo=timezone.utc)
-FEATURES = [spec["command_key"] for spec in Commands.SETUP_FEATURES]
-BIRTHDAYS = Commands.REMINDERS_BIRTHDAY_KEY
+FEATURES = [spec.key for spec in setup_features()]
+BIRTHDAYS = "reminders_birthday"
 
 BLOCK_LINKS = {
     "guild_id": GUILD_ID,
@@ -97,9 +99,9 @@ def context(document=None):
 async def setup_row(command_key):
     """The row of `command_key` on the /setup page that lists it, its category's."""
     spec = next(
-        feature for feature in Commands.SETUP_FEATURES if feature["command_key"] == command_key
+        feature for feature in setup_features() if feature.key == command_key
     )
-    page = await category_page(GUILD_ID, spec["category"])
+    page = await category_page(GUILD_ID, spec.category)
     return row_of(page, command_key)
 
 
@@ -124,22 +126,22 @@ def subtext_of(row):
 def saved_without_enabled(deps):
     """A block links document with no `enabled`, which the migration never leaves."""
     document = {key: value for key, value in BLOCK_LINKS.items() if key != "enabled"}
-    seed_cog(deps.mongo_client, Commands.BLOCK_LINKS_KEY, document)
+    seed_cog(deps.mongo_client, "block_links", document)
 
 
-SET_UP = ml("buttons.setup.start.label", "pt-br")
-MANAGE = ml("buttons.setup.manage.label", "pt-br")
+SET_UP = ml("setup.buttons.start.label", "pt-br")
+MANAGE = ml("setup.buttons.manage.label", "pt-br")
 PAUSED = " ⏸️**"
 
 
 async def test_after_disable_setup_offers_the_feature_again(scenario_factory):
     scenario = await scenario_factory(locale="pt-br").start_manager(
-        Commands.BLOCK_LINKS_KEY, dict(BLOCK_LINKS)
+        "block_links", dict(BLOCK_LINKS)
     )
     await scenario.click(ml("buttons.disable.label", locale="pt-br"))
     await scenario.submit_confirmation()
 
-    row = await setup_row(Commands.BLOCK_LINKS_KEY)
+    row = await setup_row("block_links")
 
     assert row.accessory.label == SET_UP, (
         "block links was disabled and /setup still said it was configured"
@@ -150,31 +152,31 @@ async def test_after_pause_setup_shows_the_feature_paused_not_to_set_up(
     scenario_factory,
 ):
     scenario = await scenario_factory(locale="pt-br").start_manager(
-        Commands.BLOCK_LINKS_KEY, dict(BLOCK_LINKS)
+        "block_links", dict(BLOCK_LINKS)
     )
     await scenario.click(ml("buttons.pause.label", locale="pt-br"))
     await scenario.submit_confirmation()
 
-    row = await setup_row(Commands.BLOCK_LINKS_KEY)
+    row = await setup_row("block_links")
 
     assert row.accessory.label == MANAGE, "a paused feature is still set up"
     assert PAUSED in subtext_of(row), "and the card says it is paused"
 
 
 async def test_a_feature_saved_without_the_old_flag_is_set_up(deps):
-    seed_cog(deps.mongo_client, Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY, {"guild_id": GUILD_ID, "enabled": True, "streamer": "shroud"})
+    seed_cog(deps.mongo_client, "stream_elements_commands", {"guild_id": GUILD_ID, "enabled": True, "streamer": "shroud"})
 
-    row = await setup_row(Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY)
+    row = await setup_row("stream_elements_commands")
 
     assert row.accessory.label == MANAGE, (
         "StreamElements answers `ks!` commands and /setup offered to set it up"
     )
 
 
-def test_the_runtime_reads_a_document_without_enabled_as_off(deps):
+async def test_the_runtime_reads_a_document_without_enabled_as_off(deps):
     saved_without_enabled(deps)
 
-    settings = cache.get_cog_data_or_populate(GUILD_ID, Commands.BLOCK_LINKS_KEY)
+    settings = await cache.read_cog_data(GUILD_ID, "block_links")
 
     assert settings == {}, "a document that never said on blocked links"
 
@@ -182,7 +184,7 @@ def test_the_runtime_reads_a_document_without_enabled_as_off(deps):
 async def test_the_panel_reads_a_document_without_enabled_as_paused(deps):
     saved_without_enabled(deps)
 
-    opened = await feature_for(Commands.BLOCK_LINKS_KEY).open(
+    opened = await feature_for("block_links").open(
         OpenContext(GUILD_ID, "555", "pt-br")
     )
 
@@ -192,15 +194,15 @@ async def test_the_panel_reads_a_document_without_enabled_as_paused(deps):
 async def test_setup_reads_a_document_without_enabled_as_paused(deps):
     saved_without_enabled(deps)
 
-    row = await setup_row(Commands.BLOCK_LINKS_KEY)
+    row = await setup_row("block_links")
 
     assert PAUSED in subtext_of(row), "the document said nothing and /setup said on"
 
 
 async def test_every_change_writes_only_the_document(deps):
-    feature = feature_for(Commands.DEFAULT_ROLES_KEY)
+    feature = feature_for("default_roles")
     answers = {"default_roles_bot": Answer(["202"]), "default_roles": Answer("201")}
-    key = Commands.DEFAULT_ROLES_KEY
+    key = "default_roles"
 
     await feature.commit("setup", {"answers": answers}, context())
     assert (await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, key))["enabled"] is True
@@ -219,8 +221,8 @@ async def test_a_failed_pause_leaves_the_cache_agreeing_with_the_document(
     deps, monkeypatch
 ):
 
-    seed_cog(deps.mongo_client, Commands.BLOCK_LINKS_KEY, dict(BLOCK_LINKS))
-    cache.get_cog_data_or_populate(GUILD_ID, Commands.BLOCK_LINKS_KEY)
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
+    await cache.read_cog_data(GUILD_ID, "block_links")
 
     async def refused(*args, **kwargs):
         raise AutoReconnect("connection closed")
@@ -228,12 +230,12 @@ async def test_a_failed_pause_leaves_the_cache_agreeing_with_the_document(
     monkeypatch.setattr(deps.data.guild_cogs, "update_cog_by_guild", refused)
 
     with pytest.raises(AutoReconnect):
-        await feature_for(Commands.BLOCK_LINKS_KEY).commit(
+        await feature_for("block_links").commit(
             "pause", {}, context(BLOCK_LINKS)
         )
 
-    assert (await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, Commands.BLOCK_LINKS_KEY))["enabled"] is True
-    assert cache.get_cog_data_or_populate(GUILD_ID, Commands.BLOCK_LINKS_KEY)["answer"], (
+    assert (await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "block_links"))["enabled"] is True
+    assert (await cache.read_cog_data(GUILD_ID, "block_links"))["answer"], (
         "the pause was not saved and the cache said block links was off"
     )
 
@@ -293,15 +295,15 @@ async def test_a_setup_records_birthdays_as_on_over_a_paused_document(deps):
 
 
 async def test_the_permissions_report_checks_the_features_that_are_on(deps):
-    seed_cog(deps.mongo_client, Commands.DEFAULT_ROLES_KEY, dict(AUTO_ROLES))
-    seed_cog(deps.mongo_client, Commands.BLOCK_LINKS_KEY, {**BLOCK_LINKS, "enabled": False})
+    seed_cog(deps.mongo_client, "default_roles", dict(AUTO_ROLES))
+    seed_cog(deps.mongo_client, "block_links", {**BLOCK_LINKS, "enabled": False})
 
     embed = await permission_report(
         server({100: EVERYTHING}, {201: 1, 202: 2}), GUILD_ID, "555", "pt-br"
     )
 
     checked = [field.name for field in embed.fields]
-    assert checked == ["👩‍🎓 " + ml("buttons.setup.default-roles.label", "pt-br")], (
+    assert checked == ["👩‍🎓 " + ml("default_roles.setup.label", "pt-br")], (
         "the report must check what is on, and not a paused feature"
     )
 
@@ -309,11 +311,10 @@ async def test_the_permissions_report_checks_the_features_that_are_on(deps):
 @pytest.fixture
 def events(monkeypatch):
     """The real cog's guild-leave listener, with only the greeting stubbed out."""
-    from app.cogs import events as events_module
+    from app.core import events as events_module
 
     monkeypatch.setattr(
-        events_module,
-        "GreetingsView",
+        "app.commands.setup.service.GreetingsView",
         lambda *args, **kwargs: SimpleNamespace(send=lambda guild: None),
     )
     bot = SimpleNamespace(user=SimpleNamespace(id=99), guilds=[])
@@ -325,12 +326,12 @@ def seed_left_guild(deps):
     recorded_server(deps.mongo_client, LEFT_GUILD_ID)
     on = {"guild_id": LEFT_GUILD_ID, "enabled": True}
     for key in (
-        Commands.BLOCK_LINKS_KEY,
-        Commands.WELCOME_MESSAGES_KEY,
-        Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
+        "block_links",
+        "welcome_messages",
+        "stream_elements_commands",
     ):
         seed_cog(deps.mongo_client, key, dict(on))
-    seed_cog(deps.mongo_client, Commands.NOTIFICATIONS_TWITCH_KEY, {**on, "enabled": False})
+    seed_cog(deps.mongo_client, "notifications_twitch", {**on, "enabled": False})
     return SimpleNamespace(
         id=int(LEFT_GUILD_ID),
         member_count=12,
@@ -371,9 +372,9 @@ async def test_a_guild_keiko_left_has_nothing_on(deps, events):
     )
     assert paused == sorted(
         [
-            Commands.BLOCK_LINKS_KEY,
-            Commands.WELCOME_MESSAGES_KEY,
-            Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
+            "block_links",
+            "welcome_messages",
+            "stream_elements_commands",
         ]
     ), "the audit trail names what was on, and only that"
 
@@ -402,7 +403,7 @@ async def test_leaving_a_guild_is_one_awaited_call(deps):
     from app.core.servers import leave_guild
 
     seed_left_guild(deps)
-    cache.get_cog_data_or_populate(LEFT_GUILD_ID, Commands.BLOCK_LINKS_KEY)
+    await cache.read_cog_data(LEFT_GUILD_ID, "block_links")
 
     await leave_guild(LEFT_GUILD_ID, "99")
 
@@ -412,14 +413,14 @@ async def test_leaving_a_guild_is_one_awaited_call(deps):
 
 def test_a_server_holds_one_document_per_cog_by_its_id(deps):
     for _attempt in range(2):
-        wait(data().guild_cogs.insert_cog_by_guild_id(Commands.BLOCK_LINKS_KEY, dict(BLOCK_LINKS)))
+        wait(data().guild_cogs.insert_cog_by_guild_id("block_links", dict(BLOCK_LINKS)))
 
     saved = list(deps.mongo_client.guild.cogs.find({"guild_id": GUILD_ID}))
     assert [document["_id"] for document in saved] == [f"{GUILD_ID}:block_links"]
 
 
 def test_turning_on_a_feature_a_server_never_saved_creates_nothing(deps):
-    wait(set_feature_enabled(UNRECORDED_GUILD_ID, Commands.BLOCK_LINKS_KEY, True))
+    wait(set_feature_enabled(UNRECORDED_GUILD_ID, "block_links", True))
 
-    assert wait(data().guild_cogs.find_cog_by_guild_id(UNRECORDED_GUILD_ID, Commands.BLOCK_LINKS_KEY)) is None
+    assert wait(data().guild_cogs.find_cog_by_guild_id(UNRECORDED_GUILD_ID, "block_links")) is None
     assert deps.mongo_client.guild.moderations.count_documents({}) == 0

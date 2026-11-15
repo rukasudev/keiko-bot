@@ -234,7 +234,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Default member message:** 📌 Keiko's default\n> **🎂 Happy Birthday {user}!**\n> May your day be full of joy and treats! 🎉✨",
+            "content": "💬 **Default member message:** 📌 Keiko's default\n> **🎂 It's {user}'s birthday!**\n> Happy birthday {user}! 🎉 Hope your day is full of joy and treats! ✨",
             "type": "text"
           },
           {
@@ -476,7 +476,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Default member message:** 📌 Keiko's default\n> **🎂 Happy Birthday {user}!**\n> May your day be full of joy and treats! 🎉✨",
+            "content": "💬 **Default member message:** 📌 Keiko's default\n> **🎂 It's {user}'s birthday!**\n> Happy birthday {user}! 🎉 Hope your day is full of joy and treats! ✨",
             "type": "text"
           },
           {
@@ -712,7 +712,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Default member message:** 📌 Keiko's default\n> **🎂 Happy Birthday {user}!**\n> May your day be full of joy and treats! 🎉✨",
+            "content": "💬 **Default member message:** 📌 Keiko's default\n> **🎂 It's {user}'s birthday!**\n> Happy birthday {user}! 🎉 Hope your day is full of joy and treats! ✨",
             "type": "text"
           },
           {
@@ -948,7 +948,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Default member message:** 📌 Keiko's default\n> **🎂 Happy Birthday {user}!**\n> May your day be full of joy and treats! 🎉✨",
+            "content": "💬 **Default member message:** 📌 Keiko's default\n> **🎂 It's {user}'s birthday!**\n> Happy birthday {user}! 🎉 Hope your day is full of joy and treats! ✨",
             "type": "text"
           },
           {

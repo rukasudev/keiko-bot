@@ -1,7 +1,7 @@
-"""The operator screens read numbers the sink already added up, and those agree with
+"""The operator screens read numbers the analytics writer already added up, and those agree with
 what happened.
 
-Each test drives the events through `analytics.record` and the sink, then reads the
+Each test drives the events through `analytics.record` and the analytics writer, then reads the
 screen an operator opens (`/admin insights`, `/admin guild`, `/admin overview`, the
 weekly digest, `/admin forget`), so it asserts what the operator sees.
 
@@ -23,7 +23,7 @@ Broke as (the inventory of database PR 2):
 - `/admin forget` erased three old collections and left the numbers, the traces and
   the block records of the server behind.
 
-Shared behaviour: the analytics sink (`app/core/analytics_sink.py`), the reports
+Shared behaviour: the analytics writer (`app/core/analytics_writer.py`), the reports
 (`app/core/analytics_reports.py`), the admin services and the report browser.
 """
 import re
@@ -34,8 +34,10 @@ import discord
 import pytest
 
 from app.data import wait
-from app.core import analytics, analytics_sink
-from app.services import admin, admin_analytics, admin_digest
+from app.core import analytics, analytics_writer
+from app.commands.admin import service as admin
+from app.commands.admin import analytics as admin_analytics
+from app.commands.admin import digest as admin_digest
 from tests.mocks.database import answering
 from tests.generators.events import record_event
 from tests.mocks.discord import MockInteraction, create_guild, create_member
@@ -51,7 +53,7 @@ def flush_as_of(days):
     batch = analytics.drain()
     for envelope in batch:
         envelope["ts"] = moment
-    wait(analytics_sink.persist(batch))
+    wait(analytics_writer.persist(batch))
 
 
 def opened_and_completed(guild_id, session):
@@ -221,7 +223,7 @@ def test_a_servers_story_reads_only_the_events_it_shows(deps, monkeypatch):
 
 
 async def test_forgetting_a_server_erases_its_events_numbers_traces_and_records(deps):
-    from app.cogs.admin import Admin
+    from app.commands.admin.cog import Admin
 
     opened_and_completed("171", "s171")
     analytics.record_value("171", FEATURE)

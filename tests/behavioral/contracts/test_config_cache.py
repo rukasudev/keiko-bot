@@ -1,6 +1,6 @@
 """The config cache: what every runtime reader of a feature's settings goes through.
 
-`get_cog_data_or_populate` (app/core/cache.py) answers block links on every
+`read_cog_data` (app/core/cache.py) answers block links on every
 message, welcome messages and auto roles on every member join, StreamElements on
 every `ks!` command, and every manager panel when it opens.
 
@@ -52,8 +52,8 @@ from app.constants import DBConfigs
 from app.core import cache
 from app.core import servers
 from app.core import trace as trace_service
-from app.settings.features import feature_for
-from app.settings.features.feature import CommitContext
+from app.forms.features import feature_for
+from app.forms.features.feature import CommitContext
 from tests.generators.moderations import recorded_server, seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("config_cache")]
@@ -71,7 +71,12 @@ BLOCK_LINKS = {
 
 
 def read(guild_id=GUILD_ID, manager=False):
-    return cache.get_cog_data_or_populate(guild_id, "block_links", manager)
+    """The read a caller with no loop of its own makes, on a loop of its own."""
+    return asyncio.run(cache.read_cog_data(guild_id, "block_links", manager))
+
+
+async def read_on_the_loop(guild_id=GUILD_ID, manager=False):
+    return await cache.read_cog_data(guild_id, "block_links", manager)
 
 
 def counted(monkeypatch, owner, method):
@@ -169,7 +174,7 @@ async def test_a_server_without_settings_reads_mongo_once_not_on_every_message(
 ):
     reads = counted(monkeypatch, deps.mongo_client.guild.cogs, "find_one")
 
-    answers = [read() for _message in range(5)]
+    answers = [await read_on_the_loop() for _message in range(5)]
 
     assert answers == [None] * 5
     assert len(reads) == 1, f"five messages, {len(reads)} Mongo reads"
@@ -185,11 +190,11 @@ def test_nothing_saved_reads_as_a_miss_to_v0_9_0(deps):
 
 
 async def test_a_setup_replaces_nothing_saved_at_once(deps):
-    read()
+    await read_on_the_loop()
 
     await feature_for("block_links").write_document(GUILD_ID, BLOCK_LINKS)
 
-    assert read()["answer"] == BLOCK_LINKS["answer"]
+    assert (await read_on_the_loop())["answer"] == BLOCK_LINKS["answer"]
 
 
 def test_a_redis_outage_still_answers_from_mongo(deps, monkeypatch):

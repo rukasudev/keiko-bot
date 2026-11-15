@@ -1,0 +1,20 @@
+steps:
+  - type: intro
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - type: card
+    key: card
+    title: {en-us: Card, pt-br: Card}
+    description: {en-us: card, pt-br: card}
+    sections:
+      - type: channel_select
+        key: channel
+        emoji: "📺"
+        label: {en-us: Channel, pt-br: Canal}
+        keys: {value: channel}
+        button: {label: {en-us: Choose, pt-br: Escolher}}
+  - type: review
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

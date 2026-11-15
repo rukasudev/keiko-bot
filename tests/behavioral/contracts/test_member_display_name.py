@@ -15,11 +15,10 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from app.data import wait
-from app.constants import Commands
 from app.core.servers import set_feature_enabled
-from app.services.reminders_birthdays import find_birthday, save_birthday_config
-from app.services import reminders_birthdays as birthdays_service
-from app.webhooks import birthday_handler
+from app.commands.birthdays.service import find_birthday, save_birthday_config
+from app.commands.birthdays import service as birthdays_service
+from app.commands.birthdays import celebration as birthday_handler
 from tests.behavioral.golden.paths.reminders_birthday import (
     _complete_member_card,
     _guild,
@@ -86,7 +85,7 @@ def birthday_server(deps, monkeypatch):
     monkeypatch.setattr(birthday_handler, "bot", deps.bot)
     monkeypatch.setattr(birthday_handler, "datetime", Clock)
     wait(save_birthday_config(str(GUILD), str(guild.text_channels[0].id), False))
-    wait(set_feature_enabled(str(GUILD), Commands.REMINDERS_BIRTHDAY_KEY, True))
+    wait(set_feature_enabled(str(GUILD), "reminders_birthday", True))
     return guild
 
 

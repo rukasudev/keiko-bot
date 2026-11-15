@@ -1,23 +1,21 @@
 steps:
-  - action: form
+  - type: intro
     key: form
     title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
     description: {en-us: intro, pt-br: intro}
-  - action: composition
+  - type: list
     key: items
-    parent_key: fixture
-    max: 3
-    unique_by: name
-    search: true
+    items: {max: 3, unique: {key: name}}
+    search: {}
     title: {en-us: Items, pt-br: Itens}
     description: {en-us: list, pt-br: lista}
     steps:
-      - action: modal
+      - type: text
         key: name
         title: {en-us: Name, pt-br: Nome}
         description: {en-us: type, pt-br: digite}
         label: {en-us: Name, pt-br: Nome}
-  - action: resume
+  - type: review
     key: confirm
     title: {en-us: "ok?", pt-br: "ok?"}
     description: {en-us: review, pt-br: review}

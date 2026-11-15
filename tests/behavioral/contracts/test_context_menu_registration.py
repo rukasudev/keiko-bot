@@ -13,16 +13,18 @@ pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("command_copy"
 
 
 def test_block_links_check_context_menu_builds_with_its_real_callback(deps):
-    from app.cogs.moderations.block import Block
+    from app.commands.block_links.cog import LinkCheck
     from app.translator import locale_str
 
-    block = Block(bot=deps.bot)
+    check = LinkCheck(bot=deps.bot)
 
     menu = app_commands.ContextMenu(
         name=locale_str(
-            "block-links-check", type="context-menu", namespace="block-links-check"
+            "block-links-check",
+            type="context-menu",
+            namespace="block_links.slash.commands.check",
         ),
-        callback=block.validate_block_link,
+        callback=check.validate_block_link,
         type=discord.AppCommandType.message,
     )
 

@@ -11,7 +11,7 @@ the lifecycle records its Unpause (ux-80).
 """
 
 from app.data import wait
-from app.services.reminders_birthdays import save_birthday_config
+from app.commands.birthdays.service import save_birthday_config
 from app.core.servers import set_feature_enabled
 from tests.generators.birthdays import saved_birthday
 from tests.behavioral.golden.paths import golden_path

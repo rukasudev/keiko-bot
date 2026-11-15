@@ -12,7 +12,7 @@ from typing import Any, Iterator, List, Optional
 
 import discord
 
-from app.settings.discord.interactions import decode
+from app.forms.discord.interactions import decode
 from app.core.utils import ml
 from tests.behavioral.harness.errors import LocatorError
 

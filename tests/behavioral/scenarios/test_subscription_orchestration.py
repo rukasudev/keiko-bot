@@ -4,7 +4,7 @@ Runs the full notifications_twitch setup with the production is_dev gate
 OPEN (config.is_dev() -> False), so `Form.pre_finish_step` executes the
 real subscription orchestration against the recording MockTwitchAPI.
 Only the Twitch HTTP boundary is fake; the YAML validator
-(validate_streamer_name) also hits the mock for real.
+(validate_registered_and_found) also hits the mock for real.
 """
 
 import pytest
@@ -89,7 +89,7 @@ async def test_the_message_preview_walks_through_every_text():
     """The preview shows one written message per click, and wraps around."""
     from unittest.mock import AsyncMock, MagicMock
 
-    from app.views.message_preview import MessagePreviewView
+    from app.ui.message_preview import MessagePreviewView
 
     view = MessagePreviewView(["está ao vivo!", "chegou na live", "bora?"], "pt-br")
 
@@ -138,7 +138,7 @@ async def test_unknown_streamer_is_rejected_by_real_validator(
 
     await scenario.submit_modal({scenario.pending_modal_fields()[0]: "naoexiste"})
 
-    error_message = ml("errors.streamer-not-found.message", locale="pt-br")
+    error_message = ml("errors.streamer_not_found.message", locale="pt-br")
     scenario.expect_error(error_message.split(".")[0])
     assert not deps.twitch.subscribe_calls
     await scenario.finish()

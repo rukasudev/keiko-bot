@@ -26,6 +26,7 @@ keeps its renewal. Once the channel is found, the hub's answer no longer decides
 the change is saved: a hub that cannot take it now gets Keiko's renewal an hour later, with
 a warning, and one that refuses it is an error with its context.
 """
+import asyncio
 import logging
 from datetime import date, datetime, time, timedelta
 from types import SimpleNamespace
@@ -35,9 +36,9 @@ import pytest
 import requests
 
 from app.data import data, wait
-from app.services.notifications_youtube_video import find_reminder_by_value, insert_renewal_reminder
-from app.integrations import reminder_webhook
-from app.integrations import youtube as youtube_integration
+from app.commands.youtube.service import find_reminder_by_value, insert_renewal_reminder
+from app.integrations.reminders import client as reminder_webhook
+from app.integrations.youtube import client as youtube_integration
 from app.core.utils import ml
 from tests.behavioral.golden.paths.common import GUILD_ID, open_manager
 from tests.behavioral.golden.paths.notifications_youtube_video import (
@@ -103,7 +104,7 @@ def unsubscribe_errors(caplog):
 
 
 def told_it_could_not_be_processed(scenario):
-    title = ml("errors.command-generic-error.title", locale="en-us")
+    title = ml("errors.generic.title", locale="en-us")
     return any(title in (embed.title or "") for embed in scenario.current_message.embeds or [])
 
 
@@ -129,8 +130,8 @@ async def test_the_renewal_an_unsubscribe_leaves_behind_drops_itself(
     scenario_factory, deps, trouble,
 ):
     """The unsubscribe never deletes the renewal, whatever the hub says; the renewal does."""
-    from app.services.notifications_youtube_video import find_reminder_by_id
-    from app.webhooks.reminder import renew_youtube_subscription
+    from app.commands.youtube.service import find_reminder_by_id
+    from app.commands.youtube.service import renew_youtube_subscription
 
     scenario = await open_manager(scenario_factory, deps, "en-us", FORM, _seed_two_entries)
     await insert_renewal_reminder(7001, "pewdiepie")
@@ -140,7 +141,7 @@ async def test_the_renewal_an_unsubscribe_leaves_behind_drops_itself(
     await scenario.click("remove_items")
 
     assert await find_reminder_by_value("pewdiepie") is not None, "the unsubscribe leaves it"
-    renew_youtube_subscription(7001)
+    await asyncio.to_thread(renew_youtube_subscription, 7001)
 
     assert await find_reminder_by_id(7001) is None
     deps.bot.reminder.delete_reminder.assert_called_once_with("7001")

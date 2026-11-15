@@ -157,7 +157,7 @@ async def test_a_confirmation_view_can_run_its_callback_under_a_trace_of_its_own
     trace, so what it did never reached the log channel."""
     from types import SimpleNamespace
 
-    from app.views.confirm_action import ConfirmActionView
+    from app.ui.confirm_action import ConfirmActionView
 
     seen = []
     closed = []

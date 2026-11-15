@@ -86,9 +86,9 @@ async def test_manager_form_renders_birthday_via_real_settings_provider(
     """Birthday is the one consumer with a custom settings_provider; seed the
     DB through the real data layer and build cog_data with the real provider
     input function."""
-    from app.services.reminders_birthdays import save_birthday_config
+    from app.commands.birthdays.service import save_birthday_config
     from tests.generators.birthdays import saved_birthday
-    from app.services.reminders_birthdays import birthday_manager_cog_data
+    from app.commands.birthdays.service import birthday_manager_cog_data
 
     await save_birthday_config(
         GUILD_ID, "100", False, notification_time="08:00",
@@ -109,7 +109,7 @@ async def test_manager_form_renders_legacy_block_links_through_normalize(
         scenario_factory):
     """Legacy (pre-redesign) block_links documents reach the manager through
     normalize_block_links_config — the real read seam in the service."""
-    from app.services.block_links import normalize_block_links_config
+    from app.commands.block_links.service import normalize_block_links_config
 
     legacy = {
         "guild_id": GUILD_ID, "enabled": True,

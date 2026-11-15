@@ -15,11 +15,11 @@ from typing import Any, Dict, List, Optional, Sequence, Union
 import discord
 
 from app.data import data, wait
-from app.settings.discord.callbacks import RUNTIME
-from app.settings.discord.interactions import decode as decode_component_id
-from app.settings.form.manager import confirmation_word
+from app.forms.discord.callbacks import RUNTIME
+from app.forms.discord.interactions import decode as decode_component_id
+from app.forms.form.manager import confirmation_word
 from tests.behavioral.harness import locators
-from app.constants import Commands
+from app.core.commands import setup_features
 from tests.generators.moderations import recorded_server, seed_cog
 from tests.behavioral.harness.errors import (
     LocatorError,
@@ -40,7 +40,7 @@ _CONTENT_KINDS = ("send", "edit", "followup_send", "followup_edit", "edit_origin
 _ANSWERED_AS = {"followup_send": "send", "followup_edit": "edit"}
 
 
-FEATURE_KEYS = {spec["command_key"] for spec in Commands.SETUP_FEATURES}
+FEATURE_KEYS = {spec.key for spec in setup_features()}
 
 
 class FormScenario:
@@ -397,12 +397,12 @@ class FormScenario:
     @property
     def card_state(self) -> Dict[str, Any]:
         """The state the card on screen is drawn from (defaults included)."""
-        from app.settings.form.form_yaml import registry
-        from app.settings.form.form_yaml import CardStep
-        from app.settings.form.form import steps_for
-        from app.settings.form.conditions import Scope
-        from app.settings.form.actions.configuration_card import state_of
-        from app.settings.form.actions.action import Context
+        from app.forms.form.form_yaml import registry
+        from app.forms.form.form_yaml import CardStep
+        from app.forms.form.form import steps_for
+        from app.forms.form.conditions import Scope
+        from app.forms.form.actions.configuration_card import state_of
+        from app.forms.form.actions.action import Context
 
         session = self.session
         if session is None:

@@ -10,8 +10,8 @@ own, and when the feature cannot be read again only the activation embed stays.
 import pytest
 
 from app.core.utils import ml
-from app.settings.features import feature_for
-from app.settings.form.form_state import Manage
+from app.forms.features import feature_for
+from app.forms.form.form_state import Manage
 from tests.behavioral.golden.paths.reminders_birthday import (
     _complete_member_card,
     _complete_settings_card,
@@ -22,7 +22,7 @@ pytestmark = pytest.mark.behavioral
 
 FORM = "reminders_birthday"
 LOCALE = "pt-br"
-ACTIVATED = ml("commands.command-events.enabled.title", locale=LOCALE)
+ACTIVATED = ml("commands.responses.enabled.title", locale=LOCALE)
 PANEL_INTRO = "Comemoro o aniversário dos membros com as configurações abaixo."
 
 

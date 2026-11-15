@@ -10,7 +10,7 @@ from unittest.mock import AsyncMock, MagicMock
 import discord
 import pytest
 
-from app.views.message_preview import MessagePreviewView
+from app.ui.message_preview import MessagePreviewView
 
 pytestmark = pytest.mark.behavioral
 
@@ -33,7 +33,7 @@ async def test_a_preview_with_one_message_never_sends_a_none_view():
 
 
 async def test_the_welcome_preview_with_one_message_never_sends_a_none_view():
-    from app.services.welcome_messages import send_welcome_message_preview
+    from app.commands.welcome.service import send_welcome_message_preview
     from tests.mocks.discord import create_guild, create_member
 
     guild = create_guild()
@@ -74,7 +74,7 @@ async def test_a_preview_with_nothing_written_still_says_something():
 async def test_the_twitch_preview_carries_the_embed_the_notification_sends(deps):
     """Lucas: the preview should be the very embed the server gets, not the
     text alone. The live's own title and category fill it when there is one."""
-    from app.services.notifications_twitch import send_notification_preview
+    from app.commands.twitch.service import send_notification_preview
 
     deps.twitch.add_user("gaules", user_id="111")
     deps.twitch.set_stream_online("gaules", game="CS2", title="Bom dia!")
@@ -99,7 +99,7 @@ async def test_the_twitch_preview_shows_an_example_when_nobody_is_live(deps):
     """Lucas: show something where the live picture goes, so the space it takes
     is visible. A streamer who is offline has no title, category or picture of
     the moment, so the example lines and the last stream's picture stand in."""
-    from app.services.notifications_twitch import send_notification_preview
+    from app.commands.twitch.service import send_notification_preview
     from app.core.utils import ml
 
     deps.twitch.add_user("gaules", user_id="111")
@@ -118,7 +118,7 @@ async def test_the_twitch_preview_shows_an_example_when_nobody_is_live(deps):
 
     embed = interaction.followup.send.await_args.kwargs["embed"]
     example = ml(
-        "commands.commands.commons.notifications-preview.twitch.title", locale="pt-br"
+        "notifications_twitch.announcement.samples.title", locale="pt-br"
     )
     assert embed.title == example
     assert embed.image.url == "https://static-cdn.jtvnw.net/vod/1280x720.jpg"
@@ -135,7 +135,7 @@ async def test_the_youtube_preview_carries_the_embed_the_notification_sends(
     channel with its snippet and uploads playlist, then the newest playlist
     item's snippet. Two calls, two quota units.
     """
-    from app.services import notifications_youtube_video as youtube
+    from app.commands.youtube import service as youtube
     from app.core.utils import ml
 
     channel = {
@@ -168,7 +168,7 @@ async def test_the_youtube_preview_carries_the_embed_the_notification_sends(
 
     embed = interaction.followup.send.await_args.kwargs["embed"]
     example = ml(
-        "commands.commands.commons.notifications-preview.youtube.title", locale="pt-br"
+        "notifications_youtube_video.announcement.samples.title", locale="pt-br"
     )
     assert embed.title == example
     assert embed.thumbnail.url == "https://yt3.ggpht.com/avatar.jpg"

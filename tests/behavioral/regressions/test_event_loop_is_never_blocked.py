@@ -28,18 +28,15 @@ import pytest
 import redis
 import requests
 
-from app.constants import Commands as commands_constants
 from app.data import data
-from app.services import (
-    block_links,
-    default_roles,
-    notifications_twitch,
-    stream_elements,
-    welcome_messages,
-)
+from app.commands.block_links import service as block_links
+from app.commands.roles import service as default_roles
+from app.commands.twitch import service as notifications_twitch
+from app.commands.stream_elements import service as stream_elements
+from app.commands.welcome import service as welcome_messages
 from app.core import (
     analytics,
-    analytics_sink,
+    analytics_writer,
     debug_logs,
     logs_archive,
 )
@@ -54,7 +51,7 @@ import ast
 import os
 from typing import Dict, Iterator, List, NamedTuple, Optional, Set, Tuple
 from pyrage import x25519
-from app.cogs.analytics import Analytics
+from app.core.jobs import Analytics
 from tests.generators.moderations import seed_cog
 from tests.generators.events import record_event
 
@@ -116,11 +113,38 @@ def blocking_rows(rows):
     return stream
 
 
+@pytest.fixture
+def slow_settings(deps, monkeypatch):
+    """The real settings read over a Redis that blocks and a Mongo that is slow, so a
+    miss costs both; the feature it finds is off."""
+    monkeypatch.setattr(deps.redis_client, "get", blocking(None))
+    monkeypatch.setattr(
+        data().guild_cogs, "find_cog_by_guild_id", slow({"enabled": False})
+    )
+
+
+async def test_a_settings_miss_reads_mongo_on_the_callers_loop(deps, monkeypatch):
+    """A miss sent a worker thread to wait on the loop for Mongo; it is awaited where
+    it is asked now, with no thread in between."""
+    from app.core import cache
+
+    asked_from = (asyncio.get_running_loop(), threading.current_thread())
+    read_from = []
+
+    async def find(guild_id, cog):
+        read_from.append((asyncio.get_running_loop(), threading.current_thread()))
+        return None
+
+    monkeypatch.setattr(data().guild_cogs, "find_cog_by_guild_id", find)
+
+    assert await cache.read_cog_data("4242", "block_links") is None
+    assert read_from == [asked_from], "the Mongo read ran on another thread's loop"
+
+
 async def test_checking_a_message_never_freezes_the_bot(
-    deps, mock_cache, guild, bot, channel, member, monkeypatch
+    deps, slow_settings, guild, bot, channel, member, monkeypatch
 ):
     """`on_message` runs for every message in every guild, and it reads Mongo."""
-    mock_cache.side_effect = blocking({})
     message = create_message(content="hello", author=member, channel=channel)
 
     ticks = await ticks_while(block_links.check_message(str(guild.id), message))
@@ -132,14 +156,13 @@ async def test_checking_a_message_never_freezes_the_bot(
 
 
 async def test_a_prefixed_message_no_command_matches_never_freezes_the_bot(
-    deps, mock_cache, guild, bot, channel, member
+    deps, slow_settings, guild, bot, channel, member
 ):
     """`Events.on_message` reads the server's features before it hints."""
     import discord
 
-    from app.cogs.events import Events
+    from app.core.events import Events
 
-    mock_cache.side_effect = blocking({})
     guild.preferred_locale = discord.Locale.american_english
     message = create_message(content="ks!mouse", author=member, channel=channel)
 
@@ -149,9 +172,8 @@ async def test_a_prefixed_message_no_command_matches_never_freezes_the_bot(
 
 
 async def test_a_stream_elements_command_never_freezes_the_bot(
-    deps, mock_cache, guild, bot, channel, member, monkeypatch
+    deps, slow_settings, guild, bot, channel, member, monkeypatch
 ):
-    mock_cache.side_effect = blocking({})
     message = create_message(content="ks!mouse", author=member, channel=channel)
 
     ticks = await ticks_while(
@@ -171,7 +193,7 @@ async def test_answering_a_stream_elements_command_never_freezes_the_bot(
     """
     mock_cache.return_value = {"streamer": "gaules", "channel_id": "c1", "enabled": True}
     monkeypatch.setattr(
-        "app.services.stream_elements.get_reply_in_cache_or_populate", blocking(None)
+        "app.commands.stream_elements.service.get_reply_in_cache_or_populate", blocking(None)
     )
     message = create_message(content="ks!mouse", author=member, channel=channel)
 
@@ -190,7 +212,7 @@ async def test_listing_stream_elements_commands_never_freezes_the_bot(
 ):
     mock_cache.return_value = {"streamer": "gaules", "channel_id": "c1", "enabled": True}
     monkeypatch.setattr(
-        "app.services.stream_elements.get_commands_in_cache_or_populate", blocking([])
+        "app.commands.stream_elements.service.get_commands_in_cache_or_populate", blocking([])
     )
     message = create_message(content="ks!commands", author=member, channel=channel)
 
@@ -203,7 +225,7 @@ async def test_listing_stream_elements_commands_never_freezes_the_bot(
 
 async def test_the_heartbeat_ping_never_freezes_the_bot(monkeypatch):
     """The ping says the bot is alive; waiting for it on the loop would make it a lie."""
-    from app.cogs.prometheus import Heartbeat
+    from app.core.monitoring import Heartbeat
 
     monkeypatch.setattr(
         requests, "get", blocking(SimpleNamespace(raise_for_status=lambda: None))
@@ -219,15 +241,15 @@ async def test_the_heartbeat_ping_never_freezes_the_bot(monkeypatch):
 
 async def test_a_birthday_reminder_never_freezes_the_bot(deps, monkeypatch):
     """The webhook job runs on the loop: reading the birthdays and claiming each one block."""
-    from app.services.reminders_birthdays import save_birthday_config
+    from app.commands.birthdays.service import save_birthday_config
     from app.core.servers import set_feature_enabled
-    from app.webhooks import birthday_handler
+    from app.commands.birthdays import celebration as birthday_handler
 
     guild_id = str(deps.guild.id)
     channel = deps.guild.text_channels[0]
     create_member(deps.guild, id=555, name="Tester")
     await save_birthday_config(guild_id, str(channel.id), False)
-    await set_feature_enabled(guild_id, commands_constants.REMINDERS_BIRTHDAY_KEY, True)
+    await set_feature_enabled(guild_id, "reminders_birthday", True)
     monkeypatch.setattr(birthday_handler, "bot", deps.bot)
     birthday = {"guild_id": guild_id, "user_id": "555", "date": "03-15", "state": {}}
     schedule = {"_id": f"birthday:{guild_id}:03-15", "kind": "birthday"}
@@ -249,17 +271,17 @@ async def test_renewing_the_youtube_subscriptions_at_start_never_freezes_the_bot
     deps, monkeypatch
 ):
     """The start renews every followed channel: one Mongo read and two calls to Google each."""
-    from app.cogs.notifications import Notifications
+    from app.commands.youtube.cog import YoutubeRenewals
 
     deps.bot.config.is_dev = lambda: False
     deps.bot.config.YOUTUBE_HUB_SECRET = "hub-secret"
     deps.youtube.add_channel("UC-pewdiepie", "PewDiePie", custom_url="@pewdiepie")
     monkeypatch.setattr(
-        "app.services.notifications_youtube_video.find_followed_youtubers",
+        "app.commands.youtube.service.find_followed_youtubers",
         slow(["pewdiepie"]),
     )
 
-    ticks = await ticks_while(Notifications(deps.bot).resubscribe_youtube())
+    ticks = await ticks_while(YoutubeRenewals(deps.bot).resubscribe_youtube())
 
     assert ticks >= MIN_TICKS
     assert deps.youtube.subscribe_calls == ["UC-pewdiepie"], "the renewal reached the hub"
@@ -268,7 +290,7 @@ async def test_renewing_the_youtube_subscriptions_at_start_never_freezes_the_bot
 async def test_waiting_for_a_stream_never_freezes_the_bot(deps, monkeypatch):
     """The retry loop sleeps 15 seconds at a time, twice, between Twitch calls."""
     monkeypatch.setattr(
-        "app.services.notifications_twitch.wait_for_stream_info", blocking(None)
+        "app.commands.twitch.service.wait_for_stream_info", blocking(None)
     )
 
     ticks = await ticks_while(
@@ -284,21 +306,24 @@ async def test_waiting_for_a_stream_never_freezes_the_bot(deps, monkeypatch):
 async def test_subscribing_a_youtuber_never_freezes_the_bot(deps, monkeypatch):
     """The reported bug: two blocking POSTs between the click and the ack.
 
-    The platform commits an added item through its feature module, which
-    runs the subscription in a worker thread; a blocking subscribe must
-    still leave the loop free to acknowledge the interaction.
+    The platform commits an added item through its feature module, whose
+    subscribe sends its calls to YouTube to a worker thread; a blocking
+    lookup and hub POST must still leave the loop free to acknowledge it.
     """
     from datetime import datetime, timezone
 
-    from app.settings.form.form_state import Answer
-    from app.settings.features import feature_for
-    from app.settings.features.feature import CommitContext
+    from app.forms.form.form_state import Answer
+    from app.forms.features import feature_for
+    from app.forms.features.feature import CommitContext
 
     deps.bot.config.is_dev = lambda: False
-    seed_cog(deps.mongo_client, commands_constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY, {"guild_id": "123456789", "enabled": True,
+    seed_cog(deps.mongo_client, "notifications_youtube_video", {"guild_id": "123456789", "enabled": True,
          "notifications": {"style": "composition", "values": []}})
-    feature = feature_for(commands_constants.NOTIFICATIONS_YOUTUBE_VIDEO_KEY)
-    monkeypatch.setattr(feature, "subscribe", blocking())
+    feature = feature_for("notifications_youtube_video")
+    monkeypatch.setattr(deps.youtube, "get_channel_id_from_username", blocking("UC-sondure"))
+    monkeypatch.setattr(
+        deps.youtube, "subscribe_to_new_video_event", blocking(SimpleNamespace(status_code=202))
+    )
     context = CommitContext(
         "123456789", "555", "pt-br", {}, datetime.now(timezone.utc), "slash", "s1"
     )
@@ -314,10 +339,9 @@ async def test_subscribing_a_youtuber_never_freezes_the_bot(deps, monkeypatch):
 
 
 async def test_a_member_joining_a_welcome_server_never_freezes_the_bot(
-    deps, mock_cache, guild, bot, member
+    deps, slow_settings, guild, bot, member
 ):
     """`on_member_join` reads the welcome configuration for every new member."""
-    mock_cache.side_effect = blocking({})
 
     ticks = await ticks_while(welcome_messages.send_welcome_message(member))
 
@@ -328,9 +352,8 @@ async def test_a_member_joining_a_welcome_server_never_freezes_the_bot(
 
 
 async def test_a_member_joining_a_default_roles_server_never_freezes_the_bot(
-    deps, mock_cache, guild, bot, member
+    deps, slow_settings, guild, bot, member
 ):
-    mock_cache.side_effect = blocking({})
 
     ticks = await ticks_while(default_roles.set_on_member_join(member))
 
@@ -338,9 +361,8 @@ async def test_a_member_joining_a_default_roles_server_never_freezes_the_bot(
 
 
 async def test_syncing_default_roles_never_freezes_the_bot(
-    deps, mock_cache, guild, bot, interaction
+    deps, slow_settings, guild, bot, interaction
 ):
-    mock_cache.side_effect = blocking({})
 
     ticks = await ticks_while(default_roles.set_on_default_roles_sync(interaction))
 
@@ -348,9 +370,8 @@ async def test_syncing_default_roles_never_freezes_the_bot(
 
 
 async def test_previewing_a_welcome_message_never_freezes_the_bot(
-    deps, mock_cache, guild, bot, interaction
+    deps, slow_settings, guild, bot, interaction
 ):
-    mock_cache.side_effect = blocking({})
 
     ticks = await ticks_while(
         welcome_messages.send_welcome_message_preview(interaction, [])
@@ -360,9 +381,8 @@ async def test_previewing_a_welcome_message_never_freezes_the_bot(
 
 
 async def test_checking_why_a_link_passed_never_freezes_the_bot(
-    deps, mock_cache, guild, bot, channel, member, interaction
+    deps, slow_settings, guild, bot, channel, member, interaction
 ):
-    mock_cache.side_effect = blocking({})
     message = create_message(content="https://example.com", author=member, channel=channel)
 
     ticks = await ticks_while(block_links.send_link_check_message(interaction, message))
@@ -435,7 +455,7 @@ TRANSLATED = {"src": "🇧🇷", "dest": "🇺🇸", "original": "bom dia", "tra
 
 @pytest.fixture
 def translate(deps, guild, monkeypatch):
-    from app.cogs.base.translate import Translate
+    from app.commands.translate.cog import Translate
     from app.integrations.google_translate import GoogleTranslate
 
     interaction = MockInteraction(user=create_member(guild), guild=guild)
@@ -530,7 +550,7 @@ async def test_translating_a_message_never_freezes_the_bot(deps, guild, monkeypa
     Guaranteed, the way `test_event_loop_is_never_blocked.py` measures it: while each of
     these waits on its call, the loop keeps getting control back.
     """
-    from app.cogs.base.translate import Translate
+    from app.commands.translate.cog import Translate
     from app.integrations.google_translate import GoogleTranslate
 
     monkeypatch.setattr(GoogleTranslate, "translate", staticmethod(blocking(None)))
@@ -545,7 +565,7 @@ async def test_translating_a_message_never_freezes_the_bot(deps, guild, monkeypa
 
 
 async def test_reporting_a_bug_never_freezes_the_bot(deps, guild, monkeypatch):
-    from app.cogs.base.report import Report
+    from app.commands.report.cog import Report
 
     reports = MagicMock()
     reports.send = AsyncMock()
@@ -569,15 +589,15 @@ async def test_reporting_a_bug_never_freezes_the_bot(deps, guild, monkeypatch):
 def birthdays_on(monkeypatch):
     """A guild whose birthday feature is on, every read and the save blocking."""
     monkeypatch.setattr(
-        "app.services.reminders_birthdays.birthday_config",
+        "app.commands.birthdays.service.birthday_config",
         slow({"channel": "1", "enabled": True}),
     )
     monkeypatch.setattr(data().guild_members, "find_member_option", slow(None))
-    monkeypatch.setattr("app.services.reminders_birthdays.upsert_birthday", slow(None))
+    monkeypatch.setattr("app.commands.birthdays.service.upsert_birthday", slow(None))
 
 
 async def test_registering_a_birthday_never_freezes_the_bot(deps, guild, birthdays_on):
-    from app.cogs.birthdays import Birthday
+    from app.commands.birthdays.cog import Birthday
 
     interaction = interaction_in(
         guild, command=SimpleNamespace(qualified_name="birthday")
@@ -592,7 +612,7 @@ async def test_registering_a_birthday_never_freezes_the_bot(deps, guild, birthda
 
 
 async def test_adding_a_members_birthday_never_freezes_the_bot(deps, guild, birthdays_on):
-    from app.cogs.moderations.birthdays import Birthdays
+    from app.commands.birthdays.moderations import Birthdays
 
     admin = create_member(guild, id=222, name="Admin")
     admin.guild_permissions = SimpleNamespace(administrator=True)
@@ -610,10 +630,10 @@ async def test_adding_a_members_birthday_never_freezes_the_bot(deps, guild, birt
 
 
 async def test_finishing_the_pending_birthday_reminders_never_freezes_the_bot(monkeypatch):
-    from app.cogs.birthdays import Birthday
+    from app.commands.birthdays.cog import Birthday
 
     monkeypatch.setattr(
-        "app.services.reminders_birthdays.reconcile_missing_reminders", slow(0)
+        "app.commands.birthdays.service.reconcile_missing_reminders", slow(0)
     )
 
     ticks = await ticks_while(Birthday.reconcile_reminders.coro(SimpleNamespace()))
@@ -630,7 +650,7 @@ def slow_storage(monkeypatch):
         await asyncio.sleep(BLOCKING_SECONDS)
         written.extend(batch)
 
-    monkeypatch.setattr(analytics_sink, "persist", write)
+    monkeypatch.setattr(analytics_writer, "persist", write)
     monkeypatch.setattr(data().guild_logs, "insert_logs", write)
     record_event("guild.joined", guild_id=1, returning=False)
     debug_logs.record(debug_logs.build_document(level="INFO", message="queued"))
@@ -638,7 +658,7 @@ def slow_storage(monkeypatch):
 
 
 async def test_flushing_the_queues_never_freezes_the_bot(slow_storage):
-    from app.cogs.analytics import Analytics
+    from app.core.jobs import Analytics
 
     ticks = await ticks_while(Analytics.flush_events.coro(SimpleNamespace()))
 
@@ -647,7 +667,7 @@ async def test_flushing_the_queues_never_freezes_the_bot(slow_storage):
 
 
 async def test_unloading_the_analytics_cog_never_freezes_the_bot(slow_storage):
-    from app.cogs.analytics import Analytics
+    from app.core.jobs import Analytics
 
     loops = SimpleNamespace(
         flush_events=MagicMock(get_task=lambda: None), send_weekly_digest=MagicMock(),
@@ -686,15 +706,15 @@ async def test_a_slash_command_never_waits_on_its_attempt_counter(deps, guild, m
 
 
 async def test_opening_a_feature_from_a_button_never_freezes_the_bot(deps, guild, monkeypatch):
-    from app.components import buttons
+    from app import forms as settings
 
     monkeypatch.setattr(analytics, "count_attempt", blocking(2))
     opened = AsyncMock()
-    monkeypatch.setattr("app.settings.open_feature", opened)
+    monkeypatch.setattr("app.forms.discord.callbacks.open_feature", opened)
     interaction = interaction_in(guild)
 
     ticks = await ticks_while(
-        buttons.run_feature_command(interaction, "block_links", "setup_dashboard")
+        settings.run_feature_command(interaction, "block_links", "setup_dashboard")
     )
 
     assert ticks >= MIN_TICKS, f"the loop only came back {ticks} times"
@@ -702,7 +722,7 @@ async def test_opening_a_feature_from_a_button_never_freezes_the_bot(deps, guild
 
 
 async def test_refreshing_a_session_message_never_freezes_the_bot(deps, guild, monkeypatch):
-    from app.components.buttons import JourneyRefreshButton
+    from app.core.journey import JourneyRefreshButton
 
     monkeypatch.setattr("app.core.journey.rebuild", slow(None))
     interaction = interaction_in(guild)
@@ -724,10 +744,10 @@ def guild_double(guild_id=4242, owner_id=313):
 
 @pytest.fixture
 def events(monkeypatch):
-    from app.cogs import events as events_module
+    from app.core import events as events_module
 
     monkeypatch.setattr(
-        events_module, "GreetingsView",
+        "app.commands.setup.service.GreetingsView",
         lambda *args, **kwargs: SimpleNamespace(send=AsyncMock()),
     )
     return events_module.Events(
@@ -759,7 +779,7 @@ async def test_a_guild_adding_keiko_never_freezes_the_bot(deps, events, monkeypa
 
 
 async def test_a_live_notice_never_waits_on_the_database_on_the_loop(deps, guild, monkeypatch):
-    from app.services import notifications_twitch
+    from app.commands.twitch import service as notifications_twitch
 
     deps.twitch.add_user("gaules", user_id="123")
     deps.twitch.set_stream_online("gaules", game="CS2")
@@ -1161,7 +1181,7 @@ def test_no_coroutine_calls_a_blocking_function():
     listener and job. `requests`, the Redis client, `time.sleep`, the language
     detection and every synchronous function that reaches one of them block it, so a
     coroutine hands them to a thread (`asyncio.to_thread`) instead of calling them. Rule 18
-    of `.claude/rules/code-style.md` says it for `app/settings/`, where
+    of `.claude/rules/code-style.md` says it for `app/forms/`, where
     `tests/forms/test_boundary.py` refuses the imports; here the whole app is read call by
     call, because a coroutine may import a module that blocks and still only hand its
     functions to a thread.

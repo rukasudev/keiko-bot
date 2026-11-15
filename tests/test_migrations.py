@@ -589,9 +589,7 @@ def test_the_import_rule_allows_the_standard_library_and_refuses_the_app():
 def test_the_baseline_keeps_the_retention_the_constants_name():
     guild = runner.declared_structure()["guild"]
 
-    assert guild["blocked_links"]["created_at_1"]["expireAfterSeconds"] == (
-        Commands.BLOCK_LINKS_EVENTS_TTL_SECONDS
-    )
+    assert guild["blocked_links"]["created_at_1"]["expireAfterSeconds"] == 60 * 60 * 24 * 90
     assert guild["analytics_events"]["ts_1"]["expireAfterSeconds"] == (
         Commands.ANALYTICS_EVENTS_TTL_SECONDS
     )

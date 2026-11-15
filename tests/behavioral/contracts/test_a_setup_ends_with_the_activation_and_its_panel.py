@@ -11,9 +11,9 @@ that sent no panel.
 import pytest
 
 from app.core.utils import ml
-from app.settings.discord.callbacks import Runtime
-from app.settings.form.form_state import Manage
-from app.settings.form.form_yaml import DiskSource
+from app.forms.discord.callbacks import Runtime
+from app.forms.form.form_state import Manage
+from app.forms.form.form_yaml import DiskSource
 from tests.behavioral.golden.paths import all_paths
 from tests.behavioral.harness import locators
 from tests.mocks.discord import create_guild
@@ -47,7 +47,7 @@ def _drawn(scenario):
 
 
 def _activation_embeds(scenario, locale):
-    title = ml("commands.command-events.enabled.title", locale=locale)
+    title = ml("commands.responses.enabled.title", locale=locale)
     return [
         event
         for event in scenario.outputs
@@ -118,7 +118,7 @@ async def test_a_setup_ends_with_the_activation_embed_and_then_its_panel(
     await scenario.finish()
 
     *_, activation, panel = _drawn(scenario)
-    title = ml("commands.command-events.enabled.title", locale=locale)
+    title = ml("commands.responses.enabled.title", locale=locale)
     assert (activation.get("embed") or {}).get("title") == title
     assert not activation.get("components"), "the closed message keeps no controls"
     assert panel["components_v2"] and panel["kind"] == "followup_send"

@@ -23,7 +23,8 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.data import wait
-from app.services import admin_analytics, admin_digest
+from app.commands.admin import analytics as admin_analytics
+from app.commands.admin import digest as admin_digest
 from app.core import analytics, analytics_reports
 from tests.generators.moderations import seed_cog
 from tests.generators.events import age_events, record_event

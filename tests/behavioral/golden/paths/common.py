@@ -27,11 +27,11 @@ def label(key: str, locale: str) -> str:
 
 
 def keep_label(locale: str) -> str:
-    return ml("buttons.cancel.keep", locale=locale)
+    return ml("buttons.keep.label", locale=locale)
 
 
 def discard_label(locale: str) -> str:
-    return ml("buttons.cancel.discard", locale=locale)
+    return ml("buttons.discard.label", locale=locale)
 
 
 def seed_document(deps, form: str, document: Dict[str, Any]) -> None:

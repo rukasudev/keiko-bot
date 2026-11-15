@@ -1,7 +1,7 @@
 """A feature document says who last saved it, and Keiko's own writes never claim it.
 
 Shared behaviour: the commits of the feature document layer
-(`GenericCogFeature`, app/settings/features/feature.py, and the birthday module),
+(`GenericCogFeature`, app/forms/features/feature.py, and the birthday module),
 `set_feature_enabled` (app/core/servers.py) and the writes of guild.cogs
 (app/data/guild/cogs.py), which take `updated_by` from the commit context.
 
@@ -16,9 +16,9 @@ import pytest
 
 from app.data import data
 from app.core.servers import leave_guild
-from app.settings.features import feature_for
-from app.settings.features.feature import CommitContext
-from app.settings.form.form_state import Answer
+from app.forms.features import feature_for
+from app.forms.features.feature import CommitContext
+from app.forms.form.form_state import Answer
 from tests.generators.moderations import recorded_server
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]

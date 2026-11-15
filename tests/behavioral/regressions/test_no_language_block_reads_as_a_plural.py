@@ -2,22 +2,26 @@
 
 Broke as: the /configurar health line showed
 `commands.commands.setup.health.delivered.block-links.many` instead of "✅ Bloqueei 3
-links nos últimos 7 dias". python-i18n stores a block with two or more of the keys
-`zero`, `one`, `few`, `many`, `other` as one plural value, so `ml("....one")` finds
-nothing and returns its key. Shared behaviour: every language file, read through
-`ml`. Consumer that exposed it: the health line of a /configurar category page,
-which now closes each panel's statistics, its counts under
-`commands.commands.commons.stats.recent.delivered-one` and `delivered-many`.
-Guaranteed: no block in `app/languages` has two plural-named keys.
+links nos últimos 7 dias". python-i18n's file loader stored a block with two or more
+of the keys `zero`, `one`, `few`, `many`, `other` as one plural value, so
+`ml("....one")` found nothing and returned its key. Shared behaviour: every language
+file, read through `ml`. Consumer that exposed it: the health line of a /configurar
+category page, which now closes each panel's statistics, its counts under each
+command's `stats.delivered`, a `{one, other}` block.
+Guaranteed: every text of a copy file resolves through `ml` to its own words in each
+locale, the keys of a `{one, other}` block included, since the copy loader adds each
+text under its full key; and no block of a `form.yml` has two plural-named keys.
 """
-from pathlib import Path
 
 import pytest
 import yaml
 
+from app.core import i18n
+from app.core.commands import form_files
+from app.core.utils import ml
+
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
-LANGUAGES = Path(__file__).resolve().parents[3] / "app" / "languages"
 PLURAL_FORMS = {"zero", "one", "few", "many", "other"}
 
 
@@ -31,9 +35,39 @@ def _plural_blocks(node, path=""):
 
 
 @pytest.mark.parametrize(
-    "path", sorted(LANGUAGES.glob("**/*.yml")), ids=lambda path: path.name
+    "path,prefix",
+    [
+        pytest.param(path, prefix, id=f"{path.parent.name}/{path.name}")
+        for path, prefix in i18n.files()
+    ],
 )
-def test_no_language_block_has_two_plural_named_keys(path):
+def test_every_text_of_a_copy_file_resolves_to_its_own_words(path, prefix):
+    unresolved = [
+        f"{key} ({locale})"
+        for key, words in i18n.written(path, prefix)
+        for locale in i18n.locales()
+        if ml(key, locale) != words[locale]
+    ]
+
+    assert unresolved == []
+
+
+def test_a_plural_block_of_the_copy_resolves_each_of_its_forms():
+    document = yaml.safe_load(
+        (i18n.APP / "commands/block_links/copy.yml").read_text(encoding="utf-8")
+    )
+
+    assert list(_plural_blocks(document)) == [".stats.delivered"]
+    assert ml("block_links.stats.delivered.one", "pt-br").startswith("✅ Bloqueei 1")
+    assert "$count links" in ml("block_links.stats.delivered.other", "en-us")
+
+
+@pytest.mark.parametrize(
+    "path",
+    sorted(form_files().values()),
+    ids=lambda path: f"{path.parent.name}/{path.name}",
+)
+def test_no_form_block_has_two_plural_named_keys(path):
     document = yaml.safe_load(path.read_text(encoding="utf-8"))
 
     assert list(_plural_blocks(document)) == []

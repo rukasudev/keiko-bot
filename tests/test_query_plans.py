@@ -22,17 +22,19 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterator, List, Set, Tuple
 
 import pytest
+
+from app.core.commands import setup_features
 from pymongo import AsyncMongoClient, MongoClient, monitoring
 
 import app.data as data_layer
-from app.constants import Commands, DBConfigs, Migrations
+from app.constants import DBConfigs, Migrations
 from app.core import analytics_reports
 from app.data import Data, build, data
 from app.data.analytics.counts import count_id
 from app.data.analytics.lifetime import admin_operation, lifetime_operation
 from app.data.keiko.schedules import schedule_id
 from app.migrations import runner
-from app.services import admin as admin_service
+from app.commands.admin import service as admin_service
 
 MARKER = "keiko_query_plans_test"
 THROWAWAY_MARKERS = {MARKER, "keiko_migrations_test"}
@@ -45,10 +47,10 @@ pytestmark = [
     ),
 ]
 
-FEATURE_KEYS = [spec["command_key"] for spec in Commands.SETUP_FEATURES]
+FEATURE_KEYS = [spec.key for spec in setup_features()]
 FOLLOWED = {
-    Commands.NOTIFICATIONS_TWITCH_KEY: "notifications.values.streamer.value",
-    Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY: "notifications.values.youtuber.value",
+    "notifications_twitch": "notifications.values.streamer.value",
+    "notifications_youtube_video": "notifications.values.youtuber.value",
 }
 
 GUILD = "111"

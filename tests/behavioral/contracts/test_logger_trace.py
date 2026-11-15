@@ -107,7 +107,7 @@ def rendered(embed):
 
 def make_record(message, level=logging.INFO, **extra):
     record = logging.LogRecord(
-        name="keiko", level=level, pathname="app/webhooks/reminder.py",
+        name="keiko", level=level, pathname="app/integrations/reminders/webhook.py",
         lineno=1, msg=message, args=(), exc_info=None,
     )
     for key, value in extra.items():
@@ -479,7 +479,7 @@ BLOCK_ALL = {
 
 @pytest.fixture
 def events(deps, guild):
-    from app.cogs.events import Events
+    from app.core.events import Events
 
     guild.owner = create_member(guild, id=313, name="Owner")
     guild.preferred_locale = discord.Locale.american_english
@@ -518,7 +518,7 @@ async def test_a_new_member_is_welcomed_when_giving_roles_fails(
     listener context that raised where `trace.listener` logs.
 
     Shared behaviour: the unit of work a listener runs for one server (`trace.listener`,
-    `app/core/trace.py`), behind all six listeners of `app/cogs/events.py`. Exposed by:
+    `app/core/trace.py`), behind all six listeners of `app/core/events.py`. Exposed by:
     the reviews of the listeners.
 
     Guaranteed: each part of a listener runs on its own; a failure is an error with the
@@ -534,9 +534,9 @@ async def test_a_new_member_is_welcomed_when_giving_roles_fails(
         "welcome_messages_title": "Welcome!",
         "welcome_messages_footer": "Enjoy your stay!",
     }
-    monkeypatch.setattr("app.cogs.events.get_available_roles_by_guild", lambda guild: ["Member"])
+    monkeypatch.setattr("app.commands.roles.service.get_available_roles_by_guild", lambda guild: ["Member"])
     monkeypatch.setattr(
-        "app.services.default_roles.set_on_member_join",
+        "app.commands.roles.service.set_on_member_join",
         AsyncMock(side_effect=RuntimeError("Missing Permissions")),
     )
 
@@ -558,7 +558,7 @@ async def test_a_message_is_checked_for_blocked_links_when_the_reply_fails(
     message = create_message(channel, author, "ke!mouse https://blocked.example")
     mock_cache.return_value = dict(BLOCK_ALL)
     monkeypatch.setattr(
-        "app.services.stream_elements.check_message",
+        "app.commands.stream_elements.service.check_message",
         AsyncMock(side_effect=RuntimeError("StreamElements did not answer")),
     )
 
@@ -581,7 +581,7 @@ async def test_a_server_keiko_left_is_paused_whatever_failed_before(
         {"_id": str(guild.id), "state": {"present": True}}
     )
     if failing == "report":
-        monkeypatch.setattr("app.cogs.events.features_on", broken(RuntimeError("Mongo hung up")))
+        monkeypatch.setattr("app.core.events.features_on", broken(RuntimeError("Mongo hung up")))
     else:
         monkeypatch.setattr(
             "app.core.analytics_reports.guild_snapshot", broken(RuntimeError("Mongo hung up"))
@@ -601,7 +601,7 @@ async def test_a_server_keiko_left_is_paused_whatever_failed_before(
 async def test_a_new_server_is_greeted_when_recording_it_fails(
     events, guild, channel, monkeypatch, caplog
 ):
-    monkeypatch.setattr("app.cogs.events.join_guild", broken(RuntimeError("Mongo hung up")))
+    monkeypatch.setattr("app.core.events.join_guild", broken(RuntimeError("Mongo hung up")))
 
     with caplog.at_level("INFO"):
         await events.on_guild_join(guild)
@@ -616,7 +616,7 @@ async def test_an_edited_message_check_that_fails_is_an_error_with_its_context(
     events, guild, channel, monkeypatch, caplog
 ):
     monkeypatch.setattr(
-        "app.services.block_links.check_edited_message",
+        "app.commands.block_links.service.check_edited_message",
         AsyncMock(side_effect=RuntimeError("Discord is down")),
     )
     payload = SimpleNamespace(guild_id=guild.id, channel_id=channel.id, message_id=7)
@@ -633,7 +633,7 @@ async def test_an_edited_message_check_that_fails_is_an_error_with_its_context(
 async def test_a_command_count_that_fails_is_an_error_with_its_context(
     events, guild, channel, monkeypatch, caplog
 ):
-    monkeypatch.setattr("app.cogs.events.is_guild_admin", broken(RuntimeError("no member")))
+    monkeypatch.setattr("app.core.events.is_guild_admin", broken(RuntimeError("no member")))
     interaction = SimpleNamespace(
         type=discord.InteractionType.application_command,
         command=SimpleNamespace(_attr="block_links", qualified_name="moderations block links"),

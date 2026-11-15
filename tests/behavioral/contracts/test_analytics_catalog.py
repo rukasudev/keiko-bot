@@ -10,18 +10,26 @@ import os
 import re
 
 import pytest
+import yaml
+from pydantic import ValidationError
 
 from app.constants import Commands as constants
-from app.core import analytics, analytics_sink
+from app.core import analytics, analytics_writer
+from app.forms.features import feature_keys
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("analytics")]
 
 APP_ROOT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))))), "app")
 
-REQUIRED_DECLARATION_KEYS = {"version", "collection", "description", "emitted_at", "actor"}
-VALID_COLLECTIONS = {"changes", "activity", "interactions", "none"}
-VALID_ACTORS = {"user", "bot", "job"}
+MINIMAL_DECLARATION = {
+    "version": 1,
+    "collection": "activity",
+    "description": "Something happened.",
+    "recorded_in": "app/core/events.py",
+    "actor": "user",
+    "props": ["host"],
+}
 
 
 def _emit_literals():
@@ -51,16 +59,92 @@ def _emit_literals():
     return literals
 
 
-def test_every_declaration_carries_the_required_schema():
-    for name, declaration in analytics.events_catalog().items():
-        missing = REQUIRED_DECLARATION_KEYS - set(declaration)
-        assert not missing, f"{name} is missing {sorted(missing)} in catalog.yml"
-        assert declaration["collection"] in VALID_COLLECTIONS, name
-        assert declaration["actor"] in VALID_ACTORS, name
-        assert "retention_days" not in declaration, (
-            f"{name}: retention is its collection's TTL, not a field of the event"
+def test_the_catalog_file_is_read_through_its_schema():
+    """Broke as: the catalog was read as a plain dict, so a misspelled `lifetim:` or a
+    field nothing reads (`cardinality_risk`, `results`) sat in the file without a trace.
+    Guaranteed: every field the file writes is one the schema declares, and the readers
+    hand out the typed declarations."""
+    raw = yaml.safe_load(analytics.CATALOG_FILE.read_text(encoding="utf-8"))
+
+    assert set(raw) == set(analytics.Catalog.model_fields)
+    for name, declaration in raw["events"].items():
+        assert set(declaration) <= set(analytics.EventDeclaration.model_fields), name
+    assert all(
+        isinstance(declaration, analytics.EventDeclaration)
+        for declaration in analytics.events_catalog().values()
+    )
+    assert analytics.catalog() is analytics.catalog(), "the file is read once"
+
+
+@pytest.mark.parametrize(
+    "change, refusal",
+    [
+        ({"lifetim": {"inc": {"totals.errors": 1}}}, "extra_forbidden"),
+        ({"cardinality_risk": "low"}, "extra_forbidden"),
+        ({"required": ["host"]}, "extra_forbidden"),
+        ({"collection": "audit"}, "literal_error"),
+        ({"actor": "member"}, "literal_error"),
+        ({"description": "  "}, "string_too_short"),
+        ({"version": 0}, "greater_than_equal"),
+        ({"private_props": ["link"]}, "keeps private a prop it does not declare"),
+        ({"collection": "none", "props": ["link"], "private_props": ["link"]},
+         "keeps a prop private but writes no document"),
+        ({"tally": {"name": "blocked", "by": "link", "label": "site"}},
+         "tallies a prop it does not declare"),
+        ({"tally": {"name": "blocked", "label": "site"}}, "missing"),
+        ({"scope": "guild"}, "literal_error"),
+        ({"lifetime": {"when": {"found": True}, "inc": {"totals.errors": 1}}},
+         "advances its lifetime on a prop it does not declare"),
+        ({"counts_as_value": True, "lifetime": {"inc": {"totals.errors": 1}}},
+         "writes a lifetime and counts as value"),
+        ({"scope": "keiko", "lifetime": {"inc": {"totals.errors": 1}}},
+         "writes a lifetime but names no server"),
+        ({"lifetime": {"inc": {"totals.errors": 0}}}, "greater_than"),
+        ({"lifetime": {"inc": {"totals.errors": True}}}, "int_type"),
+        ({"lifetime": {"set": {"removed_at": "now"}}}, "literal_error"),
+        ({"lifetime": {"min": {"joined_at": None}}}, "literal_error"),
+        ({"lifetime": {"counts_admin": "yes"}}, "bool_type"),
+        ({"lifetime": {"removed_props": {"setups_completed": "totals.setups_completed"}}},
+         "which this block does not write once per server"),
+        ({"lifetime": {"inc": {"features.{feature}.reports": 1},
+                       "removed_props": {"reports": "features.{feature}.reports"}}},
+         "which this block does not write once per server"),
+        ({"lifetime": {"inc": {"totals.errors": 1}, "every": {"x": 1}}}, "extra_forbidden"),
+    ],
+)
+def test_the_schema_refuses_a_declaration_it_cannot_honour(change, refusal):
+    """Guaranteed: a field nothing reads, a value outside its vocabulary, a reference to
+    a prop the event does not declare and two fields that would silently override each
+    other are refused when the catalog is read, never ignored."""
+    analytics.EventDeclaration.model_validate(MINIMAL_DECLARATION)
+
+    with pytest.raises(ValidationError) as refused:
+        analytics.EventDeclaration.model_validate({**MINIMAL_DECLARATION, **change})
+
+    assert refusal in str(refused.value) or refusal in {
+        error["type"] for error in refused.value.errors()
+    }
+
+
+def test_the_root_refuses_a_vocabulary_no_event_reads():
+    """Broke as: `results` listed three values for a `result` prop no event declares,
+    so every `result` was dropped anyway. Guaranteed: the root holds only what a reader
+    reads."""
+    with pytest.raises(ValidationError, match="results"):
+        analytics.Catalog.model_validate(
+            {"sources": ["slash"], "results": ["success"], "events": {}}
         )
-        assert declaration["description"].strip(), name
+
+
+def test_a_result_prop_is_dropped_as_undeclared_like_any_other():
+    analytics.reset()
+
+    envelope = analytics.record(
+        "command.invoked", props={"command": "ping", "source": "slash", "result": "success"}
+    )
+
+    assert envelope is not None and "result" not in envelope["props"]
+    assert analytics.stats()["undeclared_props"] == 1
 
 
 def test_event_names_follow_the_domain_dot_fact_convention():
@@ -94,15 +178,15 @@ def test_every_declared_event_is_actually_emitted_somewhere():
 
 
 def test_every_file_a_declaration_cites_exists():
-    """Broke as: the lifecycle events cited app/settings/features/generic.py and
-    report.submitted cited app/services/report.py, two files that do not exist, so
-    whoever followed `emitted_at` to an event landed nowhere. Guaranteed: every path
-    an `emitted_at` names is a file of the repository."""
+    """Broke as: the lifecycle events cited app/forms/features/generic.py and
+    report.submitted cited app/commands/report/service.py, two files that do not exist, so
+    whoever followed `recorded_in` to an event landed nowhere. Guaranteed: every path
+    a `recorded_in` names is a file of the repository."""
     repository = os.path.dirname(APP_ROOT)
     cited = {
         (name, path)
         for name, declaration in analytics.events_catalog().items()
-        for path in re.findall(r"app/[\w/]+\.\w+", declaration["emitted_at"])
+        for path in re.findall(r"app/[\w/]+\.\w+", declaration.recorded_in)
     }
 
     missing = sorted(
@@ -111,7 +195,7 @@ def test_every_file_a_declaration_cites_exists():
         if not os.path.isfile(os.path.join(repository, path))
     )
     assert cited, "no declaration cites a file, so the pattern no longer matches"
-    assert not missing, f"emitted_at cites files that do not exist: {missing}"
+    assert not missing, f"recorded_in cites files that do not exist: {missing}"
 
 
 def _lifecycle_events():
@@ -129,24 +213,16 @@ def test_lifecycle_events_are_changes_kept_for_good():
     declared = analytics.events_catalog()
     for lifecycle_key, event in LIFECYCLE_ANALYTICS_EVENTS.items():
         assert event in declared, f"{lifecycle_key} maps to an undeclared event"
-        assert declared[event]["collection"] == "changes", event
+        assert declared[event].collection == "changes", event
 
 
 def test_high_volume_events_never_become_documents():
     """value.delivered is the volume driver (D2 of database PR 2); counting it with
     no document is what keeps storage bounded."""
     declaration = analytics.events_catalog()["value.delivered"]
-    assert declaration["collection"] == "none", (
+    assert declaration.collection == "none", (
         "value.delivered would create one document per delivery"
     )
-
-
-def test_private_props_are_props_the_event_declares():
-    for name, declaration in analytics.events_catalog().items():
-        declared = set(declaration.get("required") or []) | set(
-            declaration.get("optional") or []
-        )
-        assert set(declaration.get("private") or []) <= declared, name
 
 
 def test_each_collection_keeps_its_events_as_long_as_its_ttl_says():
@@ -166,27 +242,48 @@ def test_each_collection_keeps_its_events_as_long_as_its_ttl_says():
     assert not any("expireAfterSeconds" in spec for spec in events["changes"].values())
 
 
-def test_the_sink_rules_only_reference_catalog_events():
+def test_the_analytics_writer_rules_only_reference_catalog_events():
     declared = analytics.events_catalog()
-    named = [*analytics_sink.LIFETIME_RULES, *analytics_sink.COMMAND_TALLIES]
-    unknown = [name for name in named if name not in declared]
-    assert not unknown, f"the sink's rules reference undeclared events: {unknown}"
+    unknown = [name for name in analytics_writer.COMMAND_TALLIES if name not in declared]
+    assert not unknown, f"the analytics writer's rules reference undeclared events: {unknown}"
+
+
+def test_every_removed_prop_is_one_guild_removed_declares():
+    """The analytics writer names no event (rule 22): how an event advances the lifetime is its
+    `lifetime` block, and the schema checks each block on its own. What it cannot see from
+    one event is the other: every `removed_props` key is a prop `guild.removed` declares."""
+    declared = analytics.events_catalog()
+    removal_props = set(declared["guild.removed"].props)
+    blocks = {
+        name: declaration.lifetime
+        for name, declaration in declared.items()
+        if declaration.lifetime is not None
+    }
+
+    assert "guild.joined" in blocks and "report.submitted" in blocks
+    for name, block in blocks.items():
+        for prop in block.removed_props:
+            assert prop in removal_props, f"{name} reports {prop}, which guild.removed lacks"
 
 
 def test_the_value_and_the_tallies_the_sink_reads_are_declared_on_their_events():
-    """The sink names no event of one command (rule 22): an event that is value says
-    so with `counts_as_value`, a tally of Keiko's own with `keiko_tally`, and the prop
-    a tally reads is one the event declares."""
+    """The analytics writer names no event of one command (rule 22): an event that is value says
+    so with `counts_as_value`, whose lifetime is the writer's value rule and no block of
+    its own, and a tally of Keiko's own with `tally`."""
     declared = analytics.events_catalog()
 
-    assert "value.delivered" in analytics.value_events()
-    for name, declaration in declared.items():
-        tally = declaration.get("keiko_tally")
-        if tally is None:
-            continue
-        assert set(tally) == {"name", "kind", "prop"}, name
-        props = set(declaration.get("required") or [])
-        assert tally["prop"] in props, f"{name} tallies a prop it may not carry"
+    assert set(analytics.value_events()) == {"value.delivered", "link.blocked"}
+    assert all(declared[name].lifetime is None for name in analytics.value_events())
+    assert declared["link.blocked"].tally == analytics.Tally(
+        name="blocked", by="host", label="site"
+    )
+    assert analytics_writer.VALUE_RULE.written() == {
+        "features.{feature}.value_count",
+        "totals.value_events",
+        "features.{feature}.first_value_at",
+        "features.{feature}.last_value_at",
+        "last_value_at",
+    }
 
 
 def test_unknown_events_are_dropped_instead_of_stored():
@@ -236,14 +333,14 @@ def test_only_values_the_yaml_itself_lists_may_be_recorded():
     field is safe to tabulate exactly when the YAML declares where its value
     comes from. Channels and roles resolve to ids at runtime and never qualify.
     """
-    assert analytics.records_raw_choice({"type": "button-options", "options": [{"value": "block_all"}]})
-    assert analytics.records_raw_choice({"designs": [{"key": "server_blur"}]})
-    assert analytics.records_raw_choice({"type": "boolean-toggle"})
+    assert analytics.records_raw_choice({"type": "button_options", "options": [{"value": "block_all"}]})
+    assert analytics.records_raw_choice({"type": "design_select", "options": [{"value": "server_blur"}]})
+    assert analytics.records_raw_choice({"type": "boolean_toggle"})
 
-    assert not analytics.records_raw_choice({"type": "modal-input"})
+    assert not analytics.records_raw_choice({"type": "modal_input"})
     assert not analytics.records_raw_choice({"type": "channels", "key": "allowed_chats"})
-    assert not analytics.records_raw_choice({"type": "available_roles"})
-    assert not analytics.records_raw_choice({"action": "file_upload"})
+    assert not analytics.records_raw_choice({"type": "assignable_roles"})
+    assert not analytics.records_raw_choice({"type": "text"})
     assert not analytics.records_raw_choice(None)
 
 
@@ -251,15 +348,14 @@ def test_no_free_text_or_id_field_of_any_form_is_ever_tabulated():
     """Swept across every real form, so a new field cannot opt itself in."""
     from app.core.analytics_reports import configurable_fields
 
-    for feature in constants.COMMANDS_LIST:
+    for feature in list(feature_keys()):
         for field in configurable_fields(feature):
             if not field["closed_vocabulary"]:
                 continue
-            assert field["action"] not in (
-                "modal", "modal-input", "title-content", "file_upload",
-                "channels", "channel-select", "roles", "available_roles",
-                "user_select", "composition",
-            ), f"{feature}.{field['key']} ({field['action']}) must not expose values"
+            assert field["kind"] not in (
+                "text", "modal-input", "title-content", "file-upload",
+                "channel-select", "user-select", "selects", "composition",
+            ), f"{feature}.{field['key']} ({field['kind']}) must not expose values"
 
 
 def test_disabling_analytics_makes_record_a_no_op():

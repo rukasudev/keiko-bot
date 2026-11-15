@@ -51,7 +51,7 @@ import app.data as data_layer
 from app.constants import DBConfigs, Dependencies, LogTypes
 from app.data import data, wait
 from app.data import logs as logs_data
-from app.core import analytics, analytics_sink, debug_logs, threads
+from app.core import analytics, analytics_writer, debug_logs, threads
 from tests.behavioral.contracts.test_logger_trace import discord_logs  # noqa: F401
 from app.bot import DiscordBot
 from tests.generators.events import record_event
@@ -275,7 +275,7 @@ def stored(deps, monkeypatch):
     async def insert_logs(logs):
         written.logs.extend(logs)
 
-    monkeypatch.setattr(analytics_sink, "persist", persist)
+    monkeypatch.setattr(analytics_writer, "persist", persist)
     monkeypatch.setattr(deps.data.guild_logs, "insert_logs", insert_logs)
 
     def end_process(code):
@@ -333,13 +333,13 @@ def slow_batch(stored, monkeypatch):
         await asyncio.sleep(batch.seconds)
         stored.events.extend(events)
 
-    monkeypatch.setattr(analytics_sink, "persist", persist)
+    monkeypatch.setattr(analytics_writer, "persist", persist)
     return batch
 
 
 def flushing_cog(task):
     """The Analytics cog's loops, its flush loop running `task` as its iteration."""
-    from app.cogs.analytics import Analytics
+    from app.core.jobs import Analytics
 
     loops = SimpleNamespace(
         flush_events=SimpleNamespace(
@@ -383,7 +383,7 @@ def test_a_sigterm_closes_the_bot_and_writes_both_queues_before_the_process_ends
 async def test_closing_the_bot_lets_a_batch_being_written_finish_first(stored, slow_batch):
     """The flush loop writes on the bot's loop; closing the bot unloads the cog, which
     lets the batch under way end before the last flush and the Mongo client close."""
-    from app.cogs.analytics import Analytics
+    from app.core.jobs import Analytics
 
     record_event("guild.joined", guild_id=1, returning=False)
     under_way = asyncio.ensure_future(analytics.flush())
@@ -398,7 +398,7 @@ async def test_closing_the_bot_lets_a_batch_being_written_finish_first(stored, s
 async def test_a_batch_that_outlasts_the_wait_never_holds_the_close_past_it(
     stored, slow_batch, monkeypatch
 ):
-    from app.cogs.analytics import Analytics
+    from app.core.jobs import Analytics
 
     monkeypatch.setattr(Dependencies, "BLOCKING_IO_STOP_WAIT_SECONDS", 0.05)
     slow_batch.seconds = 5
@@ -453,7 +453,7 @@ def test_a_sigterm_during_the_final_writes_waits_for_them(sigterm, stored, monke
         stored.events.extend(batch)
         _sigterm_without_interrupting("during the final writes")
 
-    monkeypatch.setattr(analytics_sink, "persist", persist)
+    monkeypatch.setattr(analytics_writer, "persist", persist)
 
     with pytest.raises(ProcessEnded):
         bot_module.run(SelfClosingBot(), "token")
@@ -583,7 +583,7 @@ def test_a_sigterm_during_the_write_after_the_backoff_lets_it_finish_and_exits_w
             _sigterm_without_interrupting("during the write after the backoff")
 
     backoff.during = logged_during_the_wait
-    monkeypatch.setattr(analytics_sink, "persist", persist)
+    monkeypatch.setattr(analytics_writer, "persist", persist)
 
     with pytest.raises(ProcessEnded):
         bot_module.run(FailingBot(discord.PrivilegedIntentsRequired(None)), "token")
@@ -720,7 +720,7 @@ def test_a_sigterm_just_after_the_bot_returns_still_writes(sigterm, stored):
 
 
 async def test_unloading_the_analytics_cog_writes_both_queues(stored):
-    from app.cogs.analytics import Analytics
+    from app.core.jobs import Analytics
 
     _queue_one_of_each()
 

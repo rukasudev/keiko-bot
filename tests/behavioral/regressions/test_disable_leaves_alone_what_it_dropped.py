@@ -8,8 +8,8 @@ Disable paid a second Redis round trip. The birthday module's Disable did the
 same over its own config.
 
 Shared behaviour: the Disable commit of the feature document layer
-(`GenericCogFeature.commit_disable`, app/settings/features/feature.py), the
-birthday module's Disable (app/settings/features/reminders_birthday.py), over
+(`GenericCogFeature.commit_disable`, app/forms/features/feature.py), the
+birthday module's Disable (app/commands/birthdays/service.py), over
 guild.cogs (app/data/guild/cogs.py). Exposed by the v1 review of the Disable path.
 
 Guaranteed: Disable never writes the collection it deleted from, so a document
@@ -21,8 +21,8 @@ import pytest
 
 from app.data import data
 from app.core import cache
-from app.settings.features import feature_for
-from app.settings.features.feature import CommitContext
+from app.forms.features import feature_for
+from app.forms.features.feature import CommitContext
 from tests.generators.moderations import seed_cog, stored_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
@@ -86,7 +86,7 @@ async def test_a_birthday_setup_saved_right_after_a_disable_stays_on(deps, monke
 
 async def test_disable_drops_the_cached_settings_once(deps, monkeypatch):
     seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
-    cache.get_cog_data_or_populate(GUILD_ID, "block_links")
+    await cache.read_cog_data(GUILD_ID, "block_links")
     dropped = []
     original = deps.redis_client.delete
 
@@ -99,4 +99,4 @@ async def test_disable_drops_the_cached_settings_once(deps, monkeypatch):
     await feature_for("block_links").commit("disable", {}, context(BLOCK_LINKS))
 
     assert len(dropped) == 1, f"Disable dropped the block links cache {len(dropped)} times"
-    assert cache.get_cog_data_or_populate(GUILD_ID, "block_links") is None
+    assert await cache.read_cog_data(GUILD_ID, "block_links") is None

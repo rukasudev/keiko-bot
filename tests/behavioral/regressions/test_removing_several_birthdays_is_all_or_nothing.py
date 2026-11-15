@@ -7,9 +7,9 @@ deleted anyway and the panel never heard the list had changed. Every other
 list feature refuses the whole removal (`ListChanged`) in that case.
 
 Shared behavior affected: the all-or-nothing contract of a multi-item removal
-(`RemovalConfirmed` in app/settings/form/manager.py, the `ListChanged` refusal
+(`RemovalConfirmed` in app/forms/form/manager.py, the `ListChanged` refusal
 the adapter turns into the stale notice), here implemented by
-`BirthdayFeature.commit_remove_item` (app/settings/features/reminders_birthday.py)
+`BirthdayFeature.commit_remove_item` (app/commands/birthdays/service.py)
 on its own collection.
 
 Exposed by: the review of reminders_birthday (beta.2 corrections, K2): the
@@ -25,10 +25,10 @@ from datetime import datetime, timezone
 import pytest
 
 from app.data import wait
-from app.services.reminders_birthdays import find_birthdays_by_guild, remove_birthday
+from app.commands.birthdays.service import find_birthdays_by_guild, remove_birthday
 from tests.generators.birthdays import saved_birthday
-from app.settings.features import feature_for
-from app.settings.features.feature import CommitContext, ListChanged
+from app.forms.features import feature_for
+from app.forms.features.feature import CommitContext, ListChanged
 from tests.behavioral.golden.paths.common import GUILD_ID
 
 pytestmark = [

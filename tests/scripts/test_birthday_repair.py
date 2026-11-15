@@ -87,7 +87,7 @@ def test_missing_reminder_secrets_are_named_before_anything_opens(monkeypatch):
 @pytest.fixture
 def orphans(monkeypatch):
     from app.data.guild import members as members_data
-    from app.services.reminders_birthdays import save_birthday_config
+    from app.commands.birthdays.service import save_birthday_config
     from tests.generators.birthdays import saved_birthday
     from tests.generators.moderations import recorded_server
 
@@ -137,7 +137,7 @@ def test_an_empty_plan_says_so_rather_than_printing_a_header(orphans, capsys):
 
 
 def test_the_printed_plan_flags_what_will_be_released(orphans, capsys):
-    from app.services.reminders_birthdays import birthday_schedule_id
+    from app.commands.birthdays.service import birthday_schedule_id
 
     wait(data().keiko_schedules.upsert_schedule(
         birthday_schedule_id("g1", "05-05"), "birthday", None

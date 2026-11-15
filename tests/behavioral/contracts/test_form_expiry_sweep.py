@@ -17,7 +17,7 @@ import pytest
 
 from app import logger as logger_module
 from app.constants import ViewConstants
-from app.settings.discord.callbacks import RUNTIME
+from app.forms.discord.callbacks import RUNTIME
 from app.core import journey
 from app.core import trace as trace_service
 from tests.behavioral.harness.driver import FormScenario
@@ -35,7 +35,7 @@ def scenario(deps):
 
 @pytest.fixture
 def events_cog():
-    from app.cogs import events as events_module
+    from app.core import events as events_module
 
     return events_module.Events(SimpleNamespace())
 
@@ -70,7 +70,7 @@ def past_every_deadline():
 
 
 def test_the_events_cog_sweeps_forms_on_a_loop():
-    from app.cogs import events as events_module
+    from app.core import events as events_module
 
     assert events_module.Events.sweep_forms.seconds == ViewConstants.FORM_SWEEP_SECONDS
 

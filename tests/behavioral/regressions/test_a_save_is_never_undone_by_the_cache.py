@@ -9,8 +9,8 @@ back on (`enabled: True`) right before deleting it, so a paused feature woke up
 for whoever read it in that window.
 
 Shared behaviour: the document layer every feature commits through
-(`GenericCogFeature`, app/settings/features/feature.py) and the config cache
-every runtime reader goes through (`get_cog_data_or_populate`,
+(`GenericCogFeature`, app/forms/features/feature.py) and the config cache
+every runtime reader goes through (`read_cog_data`,
 app/core/cache.py). Exposed by block links (`on_message`) and default roles
 (`on_member_join`), which read on every event.
 
@@ -19,15 +19,17 @@ is running, never after it; Disable is seen by the next reader; a paused feature
 being disabled is never on in between; and a cache entry lives minutes, not a
 month.
 """
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
 import pytest
 
 from app.data import data, wait
 from app.core import cache, journey
-from app.settings.features import feature_for
-from app.settings.features.feature import CommitContext
-from app.settings.form.form_state import Answer
+from app.forms.features import feature_for
+from app.forms.features.feature import CommitContext
+from app.forms.form.form_state import Answer
 import json
 from app.core.utils import ml
 from tests.behavioral.golden.paths import block_links
@@ -63,13 +65,19 @@ def context(document):
     return CommitContext(GUILD_ID, "555", "pt-br", document, NOW, "slash", "s1")
 
 
+def read_elsewhere(key):
+    """A runtime read another reader makes meanwhile, on a thread and a loop of its own."""
+    with ThreadPoolExecutor(1) as pool:
+        return pool.submit(asyncio.run, cache.read_cog_data(GUILD_ID, key)).result()
+
+
 def a_reader_arrives_during(collection, operation, monkeypatch, key):
     """Every call to `operation` lets one runtime read in before it applies."""
     original = getattr(collection, operation)
     seen = []
 
     def racing(*args, **kwargs):
-        seen.append(cache.get_cog_data_or_populate(GUILD_ID, key))
+        seen.append(read_elsewhere(key))
         return original(*args, **kwargs)
 
     monkeypatch.setattr(collection, operation, racing)
@@ -81,14 +89,14 @@ async def test_a_member_joining_during_an_edit_never_brings_the_old_roles_back(
 ):
     collection = deps.mongo_client.guild.cogs
     collection.insert_one(stored_cog("default_roles", AUTO_ROLES))
-    cache.get_cog_data_or_populate(GUILD_ID, "default_roles")
+    await cache.read_cog_data(GUILD_ID, "default_roles")
     a_reader_arrives_during(collection, "update_one", monkeypatch, "default_roles")
 
     await feature_for("default_roles").commit(
         "edit", {"answers": {"default_roles": Answer("203")}}, context(AUTO_ROLES)
     )
 
-    after = cache.get_cog_data_or_populate(GUILD_ID, "default_roles")
+    after = await cache.read_cog_data(GUILD_ID, "default_roles")
     assert after["default_roles"]["values"] == "203", (
         "the member who joined during the save cached the old roles, and every "
         "member after them got the old roles too"
@@ -98,12 +106,12 @@ async def test_a_member_joining_during_an_edit_never_brings_the_old_roles_back(
 async def test_disable_is_seen_by_the_next_message(deps, monkeypatch):
     collection = deps.mongo_client.guild.cogs
     collection.insert_one(stored_cog("block_links", BLOCK_LINKS))
-    cache.get_cog_data_or_populate(GUILD_ID, "block_links")
+    await cache.read_cog_data(GUILD_ID, "block_links")
     a_reader_arrives_during(collection, "find_one_and_delete", monkeypatch, "block_links")
 
     await feature_for("block_links").commit("disable", {}, context(BLOCK_LINKS))
 
-    assert cache.get_cog_data_or_populate(GUILD_ID, "block_links") is None, (
+    assert await cache.read_cog_data(GUILD_ID, "block_links") is None, (
         "block links was disabled and the next message still found it on"
     )
 
@@ -126,7 +134,7 @@ async def test_a_paused_feature_is_never_on_while_it_is_being_disabled(
 async def test_a_cached_setting_lives_minutes_not_a_month(deps):
     seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
 
-    cache.get_cog_data_or_populate(GUILD_ID, "block_links")
+    await cache.read_cog_data(GUILD_ID, "block_links")
 
     ttl = deps.redis_client.ttl(f"cache:cog:{GUILD_ID}:block_links")
     assert 0 < ttl <= 15 * 60, f"the entry lives {ttl} seconds"
@@ -203,7 +211,7 @@ def _said(scenario, key):
 
 
 def _told_it_could_not_be_processed(scenario):
-    title = ml("errors.command-generic-error.title", locale=LOCALE)
+    title = ml("errors.generic.title", locale=LOCALE)
     return any(
         title in ((event.get("embed") or {}).get("title") or "")
         for event in scenario.outputs
@@ -211,7 +219,7 @@ def _told_it_could_not_be_processed(scenario):
 
 
 def _told_it_is_already_registered(scenario):
-    title = ml("errors.item-already-registered.title", locale=LOCALE)
+    title = ml("errors.item_already_registered.title", locale=LOCALE)
     return any(
         title in ((event.get("embed") or {}).get("title") or "")
         for event in scenario.outputs
@@ -238,7 +246,7 @@ def _closed_in_place(scenario):
         and (event.get("components_v2") or event.get("embed"))
     ]
     last = json.dumps(drawn[-1], ensure_ascii=False)
-    closed = ml("commands.form-notices.closed", locale=LOCALE)
+    closed = ml("messages.notices.closed", locale=LOCALE)
     return closed in last and '"actionrow"' not in last
 
 
@@ -388,7 +396,7 @@ async def test_an_edit_of_a_streamer_another_panel_removed_redraws_the_saved_lis
     await second.click("done")
 
     assert _streamers(deps) == ["gaules"]
-    assert _said(second, "commands.form-notices.stale")
+    assert _said(second, "messages.notices.stale")
     assert "cellbit" not in _last_screen(second) and "gaules" in _last_screen(second)
     told = _story_of(story, HELPER)
     assert not told.finished_at, "a refused change is not the end of the session"
@@ -452,7 +460,7 @@ async def test_a_link_removed_on_both_exceptions_screens_redraws_the_saved_list(
 
     assert _links(deps) == ["docs.example.org"]
     assert _never_showed_a_copy_key(second)
-    assert _said(second, "commands.form-notices.stale")
+    assert _said(second, "messages.notices.stale")
     assert "meusite.com.br" not in _last_screen(second)
     assert "docs.example.org" in _last_screen(second)
 
@@ -526,7 +534,7 @@ async def test_a_website_turned_on_from_two_panels_stays_on(scenario_factory, de
 async def test_a_refusal_whose_new_read_fails_keeps_the_panel_answering(
     scenario_factory, deps,
 ):
-    from app.settings.features.notifications_twitch import FEATURE
+    from app.commands.twitch.service import FEATURE
 
     first, second = await _two_twitch_panels(scenario_factory, deps)
     await _remove(first, "notifications$1")
@@ -540,7 +548,7 @@ async def test_a_refusal_whose_new_read_fails_keeps_the_panel_answering(
     await second.click("done")
     del FEATURE.open
 
-    assert _said(second, "commands.form-notices.stale")
+    assert _said(second, "messages.notices.stale")
     await _add_streamer(second, "shroud")
     assert _streamers(deps) == ["gaules", "shroud"], "the panel never stays saving"
 
@@ -638,7 +646,7 @@ async def test_an_edit_whose_new_youtuber_fails_never_unsubscribes_the_old_one(
 async def test_disable_lets_every_streamer_go_even_when_the_flag_write_fails(
     scenario_factory, deps, monkeypatch,
 ):
-    from app.settings.features import feature as feature_module
+    from app.forms.features import feature as feature_module
 
     twitch._known_streamers(deps)
     seed_document(deps, twitch.FORM, twitch.ENABLED)
@@ -771,6 +779,6 @@ async def test_removing_several_links_after_another_panel_removed_one_saves_none
     await second.click("remove_items")
 
     assert _links(deps) == ["docs.example.org"]
-    assert _said(second, "commands.form-notices.stale")
+    assert _said(second, "messages.notices.stale")
     assert "meusite.com.br" not in _last_screen(second)
     assert "docs.example.org" in _last_screen(second)

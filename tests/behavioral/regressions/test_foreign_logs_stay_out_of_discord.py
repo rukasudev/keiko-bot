@@ -203,11 +203,11 @@ def test_an_error_about_a_message_names_its_length_never_its_text(log_channels):
 async def test_a_listener_that_fails_on_a_message_never_shows_its_text(
     log_channels, deps, monkeypatch
 ):
-    from app.cogs.events import Events
+    from app.core.events import Events
 
     deps.bot.config.PREFIX = "ke!"
     monkeypatch.setattr(
-        "app.services.block_links.check_message",
+        "app.commands.block_links.service.check_message",
         AsyncMock(side_effect=RuntimeError("Discord is down")),
     )
 
@@ -223,7 +223,7 @@ async def test_a_listener_that_fails_on_a_message_never_shows_its_text(
 async def test_a_prefix_command_that_fails_never_shows_its_message(deps, caplog):
     from discord.ext import commands
 
-    from app.cogs.errors import Errors
+    from app.core.errors import Errors
 
     deps.bot.config.is_prod = lambda: False
     message = a_message()
@@ -266,7 +266,7 @@ async def test_a_direct_message_reaches_no_admin_channel(
     Guaranteed: nothing reads the guild of a DM: no error, no message in any admin
     channel, and no feature looks at it; a prefixed one gets only the slash hint.
     """
-    from app.cogs import events as events_module
+    from app.core import events as events_module
 
     await events_module.Events(SimpleNamespace()).on_message(direct_message(content))
 
