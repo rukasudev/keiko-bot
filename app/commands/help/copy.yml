@@ -1,0 +1,73 @@
+slash:
+  name:
+    en-us: help
+    pt-br: ajuda
+  description:
+    en-us: Keiko helps you understand how to use the available commands
+    pt-br: Keiko ajuda você a entender como usar os comandos disponíveis
+  # open: the folder's other app commands -> a SlashCommand
+  commands:
+    ping:
+      name:
+        en-us: ping
+        pt-br: ping
+      description:
+        en-us: Keiko shows you what your current response time is
+        pt-br: Keiko mostra qual o seu tempo de resposta atual
+
+# open: response names -> a Response
+responses:
+  ping:
+    title:
+      en-us: 🏓 Pong!
+      pt-br: 🏓 Pong!
+    description:
+      en-us: My current latency is **$ping ms** 🐾
+      pt-br: Minha latência atual é de **$ping ms** 🐾
+    footer: null
+
+# open: list names -> a Records list
+records:
+  commands:
+    title:
+      en-us: 📚 Available commands
+      pt-br: 📚 Comandos disponíveis
+    description:
+      en-us: "Here are my commands that will help you make your server more cozy! ✨\n\n Taking care of this server? Use `/setup` to turn on and adjust my features! ⚙️\n\n Select a command below to see its description and run it directly ⬇️\n\n"
+      pt-br: "Aqui estão meus comandos que irão te ajudar a deixar seu servidor mais aconchegante! ✨\n\n Cuida deste servidor? Use `/configurar` para ativar e ajustar minhas funcionalidades! ⚙️\n\n Selecione um comando abaixo para ver sua descrição e executá-lo diretamente ⬇️\n\n"
+    placeholder:
+      en-us: Select a command
+      pt-br: Selecione um comando
+    detail:
+      title:
+        en-us: 📚 Command description
+        pt-br: 📚 Descrição do comando
+      description:
+        en-us: "If you need more information about a specific command, don't hesitate to send us a message on my official server with the `/support` command! 💌\n\n"
+        pt-br: "Se você precisar de mais informações sobre um comando específico, é só me chamar no meu servidor oficial com o comando `/suporte`! 💌\n\n"
+    # open: record parts -> a line template
+    lines:
+      base_commands:
+        en-us: Base commands
+        pt-br: Comandos base
+
+# open: button names -> a ButtonCopy
+buttons:
+  execute:
+    label:
+      en-us: Execute
+      pt-br: Executar
+
+# open: text names -> a text, or a table of texts
+messages:
+  # open: the hint's parts -> a text
+  prefix_hint:
+    guild:
+      en-us: "🐾 Woof! Looking for one of my **$prefix** commands? They're not turned on in this server yet.\n\nAsk a moderator to set one up in `/setup` or with its own command:\n$commands\n\nMy other commands start with `/`! Try `/help` to see everything I can do :heart:"
+      pt-br: "🐾 Au au! Procurando um dos meus comandos com **$prefix**? Eles ainda não estão ativados neste servidor.\n\nPeça para um moderador configurar um deles no `/configurar` ou pelo próprio comando:\n$commands\n\nOs meus outros comandos começam com `/`! Experimente `/ajuda` para ver tudo o que eu sei fazer :heart:"
+    feature:
+      en-us: "- `/$command`"
+      pt-br: "- `/$command`"
+    direct:
+      en-us: 🇺🇸 Woof! I don't answer prefix commands here in DMs. My commands start with `/`! Try `/help` to see everything I can do.
+      pt-br: 🇧🇷 Au au! Aqui no privado eu não respondo comandos com prefixo. Os meus comandos começam com `/`! Experimente `/ajuda` para ver tudo o que eu sei fazer.

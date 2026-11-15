@@ -1,0 +1,39 @@
+slash:
+  name:
+    en-us: Translate Message
+    pt-br: Traduzir Mensagem
+
+# open: error names -> an ErrorBlock
+errors:
+  generic:
+    title:
+      en-us: Translation Error
+      pt-br: Erro ao Traduzir
+    message:
+      en-us: I'm sorry, but I couldn't translate the message correctly. Please try again later.
+      pt-br: Desculpe, mas não consegui traduzir a mensagem corretamente. Por favor, tente novamente mais tarde.
+  invalid_message:
+    title:
+      en-us: Invalid Message
+      pt-br: Mensagem Inválida
+    message:
+      en-us: Oops! That message can't be translated. Please pick a valid message and try again 🐾
+      pt-br: Ops! Essa mensagem não pode ser traduzida. Escolha uma mensagem válida e tente novamente 🐾
+  only_link:
+    title:
+      en-us: Message Contains Only a Link
+      pt-br: Mensagem Contém Apenas um Link
+    message:
+      en-us: Oops! I can't translate a message that's just a link. Please pick a message with text and try again 🐾
+      pt-br: Ops! Não consigo traduzir uma mensagem que tem só um link. Escolha uma com texto e tente novamente 🐾
+
+# open: response names -> a Response
+responses:
+  translation:
+    title:
+      en-us: 🌐 Translate Message
+      pt-br: 🌐 Traduzir Mensagem
+    description:
+      en-us: "I used my polyglot skills to translate the message you sent: $message_url!\n\n**Original ($src_lang)**\n$original_message\n\n**Translated ($dest_lang)**\n$translated_message"
+      pt-br: "Usei meus dotes poliglotas para traduzir a mensagem que você pediu: $message_url!\n\n**Original ($src_lang)**\n$original_message\n\n**Tradução ($dest_lang)**\n$translated_message"
+    footer: {ref: support_footer}

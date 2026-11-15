@@ -1,0 +1,458 @@
+"""The English operator screens of /admin insights, each number beside its base."""
+
+from typing import Any, Awaitable, Callable, Dict, List, Mapping, Optional, TypedDict
+
+import discord
+
+from app.constants import Commands as constants
+from app.core import analytics, analytics_reports
+from app.core.utils import describe_default, describe_step
+from app.data import data
+from app.forms.features import feature_keys
+from app.ui.embed import base_embed
+
+
+class InsightSection(TypedDict):
+    """One screen /admin insights offers: its menu entry and what builds its embed."""
+
+    key: str
+    label: str
+    emoji: str
+    description: str
+    build: Callable[[], Awaitable[discord.Embed]]
+
+
+EVENT_ICONS = {
+    "guild.joined": "➡️",
+    "guild.greeting_sent": "👋",
+    "feature.setup_opened": "🔵",
+    "feature.manager_opened": "🛠️",
+    "setup.step_viewed": "▫️",
+    "setup.validation_failed": "⚠️",
+    "setup.required_missing": "⚠️",
+    "setup.discarded": "🚫",
+    "setup.discard_recovered": "↩️",
+    "setup.completed": "✅",
+    "config.changed": "🔧",
+    "feature.paused": "⏸️",
+    "feature.unpaused": "▶️",
+    "feature.disabled": "🛑",
+    "value.blocked_by_permission": "🚷",
+    "feature.tested": "👁️",
+    "command.failed": "❌",
+    "guild.removed": "🚪",
+}
+
+
+async def build_funnel_embed(feature: str) -> discord.Embed:
+    """One feature's funnel, from a setup opened to value delivered on a second day."""
+    steps = await analytics_reports.funnel(feature)
+    opened = steps["setup_opened"]
+
+    lines = [
+        _funnel_line("Setup opened", steps["setup_opened"], opened),
+        _funnel_line("Setup completed", steps["setup_completed"], opened),
+        _funnel_line("Delivered value", steps["activated"], opened),
+        _funnel_line("Value on a 2nd day", steps["recurring"], opened),
+        "",
+        f"Discarded explicitly: **{steps['setup_discarded']}**",
+    ]
+
+    return base_embed(
+        f"📉 Funnel — {feature}",
+        "\n".join(lines),
+        footer="percentages are of setups opened; N is absolute",
+    )
+
+
+def _funnel_line(label: str, value: int, total: int) -> str:
+    share = f" ({round(100 * value / total)}%)" if total else ""
+    return f"**{label}** — {value}{share}"
+
+
+async def build_friction_embed(feature: Optional[str] = None) -> discord.Embed:
+    """The steps that reject people the most, ranked by failures."""
+    rows = (await analytics_reports.friction(feature))[:10]
+    if not rows:
+        return base_embed("🧱 Friction", "No validation failures recorded yet.")
+
+    lines = [
+        f"`{row['failures']}x` **{row['feature']}** / "
+        f"`{describe_step(row['feature'], row['step_key'])}` — "
+        f"`{row['error_key']}` ({row['failures_per_session']} per session)"
+        for row in rows
+    ]
+    return base_embed(
+        "🧱 Friction",
+        "\n".join(lines),
+        footer="steps ranked by how often they reject a user",
+    )
+
+
+DROPOFF_REASONS = {
+    "repeated-validation-failure": "tried the same field again and again",
+    "validation-failure": "a value was rejected",
+    "required-field-missing": "confirmed with a required field empty",
+    "navigated-back-repeatedly": "went back more than once",
+    "discarded-without-error": "discarded it with nothing failing",
+    "left-without-a-recorded-problem": "left, nothing failed",
+}
+
+
+async def build_dropoff_embed(feature: Optional[str] = None) -> discord.Embed:
+    """The steps where unfinished setups stopped, with what most likely stopped them."""
+    rows = await analytics_reports.dropoff(feature)
+    if not rows:
+        return base_embed(
+            "🛑 Where setups die",
+            "No abandoned attempt recorded — every session either finished or "
+            "is still open.",
+        )
+
+    lines = []
+    for row in rows[:10]:
+        reasons = sorted(row["reasons"].items(), key=lambda item: item[1], reverse=True)
+        top = ", ".join(
+            f"{DROPOFF_REASONS.get(reason, reason)} ({count})"
+            for reason, count in reasons[:2]
+        )
+        step = describe_step(row["feature"], row["step_key"])
+        lines.append(
+            f"`{row['lost']}x` **{row['feature']}** / `{step}` — "
+            f"{row['discarded']} discarded, {row['expired']} expired\n"
+            f"⤷ {top}"
+        )
+
+    return base_embed(
+        "🛑 Where setups die",
+        "\n".join(lines),
+        footer="expired = the view timed out, so the attempt can never finish",
+    )
+
+
+def build_session_embed(session: Dict[str, Any]) -> discord.Embed:
+    """One setup session: how it ended, where, and what went wrong on the way."""
+    outcome_icons = {
+        "completed": "✅",
+        "discarded": "🚫",
+        "expired": "⌛",
+        "open": "⏳",
+    }
+    icon = outcome_icons.get(session["outcome"], "•")
+    lines = [
+        f"{icon} **{session['outcome']}** at step "
+        f"`{describe_step(session['feature'], session['last_step'])}`",
+        f"Guild `{session['guild_id']}` · <@{session['user_id']}> · "
+        f"via `{session['source']}`",
+        "",
+        f"Validation failures: **{session['validation_failures']}**",
+        f"Required fields missed: **{session['required_misses']}**",
+        f"Went back: **{session['back_count']}**",
+    ]
+    if session["failed_keys"]:
+        lines.append(f"Rejected with: `{'`, `'.join(session['failed_keys'][:5])}`")
+    if session["reason"]:
+        lines.append("")
+        lines.append(
+            f"Reading: {DROPOFF_REASONS.get(session['reason'], session['reason'])}"
+        )
+
+    return base_embed(
+        f"🧭 Session {session['session_id']} — {session['feature']}",
+        "\n".join(lines),
+    )
+
+
+async def build_guild_journey_embed(guild_id: str) -> discord.Embed:
+    """One guild's numbers and its latest events, oldest first."""
+    profile = await analytics_reports.guild_snapshot(guild_id)
+    timeline = await analytics_reports.guild_timeline(guild_id)
+
+    header = (
+        f"**{profile['days_in_guild']}** days · "
+        f"**{profile['features_active']}** active of "
+        f"**{profile['features_configured']}** configured · "
+        f"**{profile['value_events']}** deliveries"
+    )
+    if profile["days_since_last_value"] is not None:
+        header += f" · last delivery **{profile['days_since_last_value']}d** ago"
+
+    lines = [header, ""]
+    for event in reversed(timeline):
+        lines.append(_timeline_line(event))
+
+    if not timeline:
+        lines.append("No events recorded in the retention window.")
+
+    return base_embed(
+        f"🏠 Guild {guild_id}",
+        "\n".join(lines),
+        footer=(
+            "detailed timeline covers the last "
+            f"{constants.EVENTS_INTERACTIONS_TTL_SECONDS // 86400} days"
+        ),
+    )
+
+
+def _timeline_line(event: Mapping[str, Any]) -> str:
+    icon = EVENT_ICONS.get(event["type"], "•")
+    stamp = event["ts"].strftime("%d/%m %H:%M") if event.get("ts") else "--/--"
+    cog = event.get("cog") or ""
+    detail = cog
+    props = event.get("props") or {}
+
+    step_key = props.get("step_key")
+    step = describe_step(cog, step_key) if step_key else None
+
+    if event["type"] == "setup.validation_failed":
+        detail = f"{detail} / {step} ({props.get('error_key')})"
+    elif event["type"] == "setup.completed":
+        detail = (
+            f"{detail} ({props.get('duration_bucket')}, "
+            f"{props.get('steps_viewed')} steps)"
+        )
+    elif event["type"] == "setup.discarded":
+        detail = f"{detail} at {step}"
+    elif event["type"] == "guild.greeting_sent":
+        detail = f"{props.get('features_offered')} features offered"
+        if not props.get("channel_found"):
+            detail += " — no writable channel"
+
+    source = f" · via {props['source']}" if props.get("source") else ""
+    return f"`{stamp}` {icon} {event['type']} — {detail}{source}"
+
+
+async def build_churn_embed() -> discord.Embed:
+    """The guilds that removed Keiko beside those that kept it, and the quiet ones."""
+    comparison = await analytics_reports.churn_comparison()
+    removed, retained = comparison["removed"], comparison["retained"]
+
+    lines = [
+        _population_line("Removed", removed),
+        _population_line("Retained", retained),
+    ]
+
+    if removed.get("count", 0) < 30 or retained.get("count", 0) < 30:
+        lines.append("")
+        lines.append("⚠️ Populations are too small to read as a conclusion.")
+
+    at_risk = await analytics_reports.guilds_at_risk()
+    if at_risk:
+        lines.append("")
+        lines.append(f"**At risk** ({len(at_risk)} guilds quiet for 14+ days):")
+        lines.extend(_at_risk_line(row) for row in at_risk[:5])
+
+    return base_embed(
+        "🚪 Churn",
+        "\n".join(lines),
+        footer=(
+            "correlation, never cause — Discord does not report why a bot is removed"
+        ),
+    )
+
+
+def _at_risk_line(row: Dict[str, Any]) -> str:
+    quiet = (
+        f"quiet **{row['days_quiet']}d**"
+        if row["days_quiet"] is not None
+        else "quiet since before its arrival was recorded"
+    )
+    deliveries = (
+        "never delivered"
+        if row["never_delivered"]
+        else f"{row['value_events']} lifetime deliveries"
+    )
+    return f"`{row['guild_id']}` — {quiet}, {deliveries}"
+
+
+def _population_line(label: str, population: Dict[str, Any]) -> str:
+    count = population.get("count", 0)
+    if not count:
+        return f"**{label}** — N=0"
+    return (
+        f"**{label}** — N={count} · "
+        f"{population['pct_with_value']}% ever delivered value · "
+        f"{population['avg_setups_completed']} setups on average"
+    )
+
+
+async def build_abandoned_embed() -> discord.Embed:
+    """The features configured that never delivered anything."""
+    rows = (await analytics_reports.abandoned_features())[:15]
+    if not rows:
+        return base_embed(
+            "🧊 Abandoned features",
+            "Every configured feature has delivered value at least once.",
+        )
+
+    lines = [
+        f"`{row['guild_id']}` — **{row['feature']}** configured "
+        f"**{row['days_since_setup']}d** ago, never delivered"
+        for row in rows
+    ]
+    return base_embed(
+        "🧊 Abandoned features",
+        "\n".join(lines),
+        footer="configured and never delivered — the most actionable failure",
+    )
+
+
+async def build_pipeline_embed() -> discord.Embed:
+    """The analytics pipeline's own counters."""
+    stats = analytics.stats()
+    lines = [
+        f"Emitted: **{stats['emitted']}**",
+        f"Flushed: **{stats['flushed']}**",
+        f"Queue depth: **{stats['queue_depth']}**",
+        f"Dropped: **{stats['dropped']}**",
+        f"Unknown events: **{stats['unknown']}**",
+        f"Undeclared props: **{stats['undeclared_props']}**",
+        f"Enabled: **{analytics.is_enabled()}**",
+    ]
+    return base_embed("🩺 Analytics pipeline", "\n".join(lines))
+
+
+async def build_config_usage_embed(feature: Optional[str] = None) -> discord.Embed:
+    """Settings nobody fills in — read from what is stored, so it needs no event."""
+    rows = await analytics_reports.unused_settings()
+    if feature:
+        rows = [row for row in rows if row["feature"] == feature]
+
+    if not rows:
+        return base_embed(
+            "🧮 Settings nobody uses",
+            "Every setting of every configured feature is used by someone.",
+        )
+
+    lines = [
+        f"**{row['feature']}** / `{row['key']}` — **{row['filled']}** of "
+        f"**{row['total']}** guilds ({row['share']}%){describe_default(row)}"
+        for row in rows[:15]
+    ]
+    return base_embed(
+        "🧮 Settings nobody uses",
+        "\n".join(lines),
+        footer="candidates for removal, a better default, or clearer copy",
+    )
+
+
+async def build_step_timing_embed(feature: Optional[str] = None) -> discord.Embed:
+    """The slowest steps by median time, and what people picked on them."""
+    rows = await analytics_reports.step_durations(feature)
+    if not rows:
+        return base_embed("⏱️ Slowest steps", "No step time recorded yet.")
+
+    lines = [
+        f"**{row['feature']}** / "
+        f"`{describe_step(row['feature'], row['step_key'])}` — median "
+        f"**{_seconds(row['median_ms'])}** (n={row['samples']}, "
+        f"slowest {_seconds(row['slowest_ms'])})"
+        for row in rows[:10]
+    ]
+
+    distribution = await analytics_reports.choice_distribution(feature)
+    if distribution:
+        lines.append("")
+        lines.append("**What people picked**")
+        for key, counts in list(distribution.items())[:5]:
+            picks = ", ".join(f"`{value}` {count}" for value, count in counts.items())
+            lines.append(f"{key} — {picks}")
+
+    return base_embed(
+        "⏱️ Slowest steps",
+        "\n".join(lines),
+        footer="time between interactions, not attention — a pause can be anything",
+    )
+
+
+def _seconds(milliseconds: int) -> str:
+    seconds = milliseconds / 1000
+    if seconds < 60:
+        return f"{seconds:.0f}s"
+    return f"{seconds / 60:.1f}min"
+
+
+def insight_sections() -> List[InsightSection]:
+    """The screens /admin insights offers, ordered by how often they matter."""
+    return [
+        {
+            "key": "dropoff",
+            "label": "Where setups die",
+            "emoji": "🛑",
+            "description": "the step people give up on, and what failed",
+            "build": build_dropoff_embed,
+        },
+        {
+            "key": "friction",
+            "label": "Friction",
+            "emoji": "🧱",
+            "description": "validations that reject people the most",
+            "build": build_friction_embed,
+        },
+        {
+            "key": "abandoned",
+            "label": "Abandoned features",
+            "emoji": "🧊",
+            "description": "configured and never delivered anything",
+            "build": build_abandoned_embed,
+        },
+        {
+            "key": "config",
+            "label": "Settings nobody uses",
+            "emoji": "🧮",
+            "description": "read from stored configuration, no events needed",
+            "build": build_config_usage_embed,
+        },
+        {
+            "key": "timing",
+            "label": "Slowest steps",
+            "emoji": "⏱️",
+            "description": "median time on each step, and what people picked",
+            "build": build_step_timing_embed,
+        },
+        {
+            "key": "funnel",
+            "label": "Funnel",
+            "emoji": "📉",
+            "description": "opened, completed, delivered, delivered again",
+            "build": build_all_funnels_embed,
+        },
+        {
+            "key": "churn",
+            "label": "Churn",
+            "emoji": "🚪",
+            "description": "removed versus retained, always with N",
+            "build": build_churn_embed,
+        },
+        {
+            "key": "pipeline",
+            "label": "Pipeline health",
+            "emoji": "🩺",
+            "description": "the analytics pipeline itself",
+            "build": build_pipeline_embed,
+        },
+    ]
+
+
+async def build_all_funnels_embed() -> discord.Embed:
+    """Every feature side by side — one funnel per line instead of per command."""
+    lifetimes = await data().analytics_lifetime.find_lifetimes()
+    lines = []
+    for feature in feature_keys():
+        steps = await analytics_reports.funnel(feature, lifetimes)
+        if not steps["setup_opened"]:
+            continue
+        lines.append(
+            f"**{feature}** — opened {steps['setup_opened']} · "
+            f"completed {steps['setup_completed']} · "
+            f"delivered {steps['activated']} · recurring {steps['recurring']}"
+        )
+
+    if not lines:
+        return base_embed("📉 Funnel", "No setup has been opened yet.")
+
+    return base_embed(
+        "📉 Funnel",
+        "\n".join(lines),
+        footer="absolute counts; percentages hide how small the numbers still are",
+    )

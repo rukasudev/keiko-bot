@@ -1,0 +1,87 @@
+slash:
+  subgroup:
+    en-us: default
+    pt-br: cargos
+  name:
+    en-us: roles
+    pt-br: padrão
+  description:
+    en-us: Keiko warmly welcomes new members by automatically assigning roles when they join the server
+    pt-br: Keiko recebe calorosamente novos membros atribuindo cargos automaticamente ao entrarem no servidor
+
+setup:
+  label:
+    en-us: Default Roles
+    pt-br: Cargos Padrão
+  description:
+    en-us: Roles given to new members automatically
+    pt-br: Cargos automáticos para novos membros
+
+stats:
+  title:
+    en-us: 📊 Default Roles Statistics
+    pt-br: 📊 Estatísticas de Cargos Padrão
+  delivered:
+    one:
+      en-us: ✅ I gave roles to 1 member in the last $days days!
+      pt-br: ✅ Dei cargos para 1 membro nos últimos $days dias!
+    other:
+      en-us: ✅ I gave roles to $count members in the last $days days!
+      pt-br: ✅ Dei cargos para $count membros nos últimos $days dias!
+
+panel:
+  info:
+    description:
+      en-us: "I no longer have permission to assign the following roles: **$roles**\n\nIn the server's role hierarchy, please give me a role **above** these 🧑‍⚖️"
+      pt-br: "Não tenho mais permissão para atribuir os seguintes cargos: **$roles**\n\nNa hierarquia de cargos do servidor, me dê um cargo **acima** desses 🧑‍⚖️"
+
+# open: error names -> an error embed
+errors:
+  low_permissions:
+    title:
+      en-us: Insufficient Role Permissions
+      pt-br: Permissões de Cargo Insuficientes
+    message:
+      en-us: "I don't have permission to assign roles on this server :/\n\nIn the server's role hierarchy, please give me a role **above** the ones you want me to assign 🧑‍⚖️"
+      pt-br: "Eu não tenho permissão para atribuir cargos neste servidor :/\n\nNa hierarquia de cargos do servidor, me dê um cargo **acima** dos que você quer que eu atribua 🧑‍⚖️"
+  deactivated:
+    title:
+      en-us: Default Roles Disabled
+      pt-br: Cargos Padrão Desativados
+    message:
+      en-us: The role assignment feature is currently disabled. To activate and configure this feature, just run the `/default roles` command 🐶
+      pt-br: A funcionalidade de atribuir cargos automaticamente está desabilitada. Para ativar e configurá-la, é só rodar o comando `/cargos padrão` 🐶
+
+# open: response names -> a response embed
+responses:
+  sync_confirm:
+    title:
+      en-us: 🔄 Sync roles?
+      pt-br: 🔄 Sincronizar cargos?
+    description:
+      en-us: "I'll sync the default roles now for **every member and bot** already in the server, not only for whoever joins from now on. Here is how it turns out:\n\n👥 **Members**\n- How many: **$members_count**\n- Roles: $members\n\n🤖 **Bots**\n- How many: **$bots_count**\n- Roles: $bots\n\nThis may take a few minutes. Do you want to continue?"
+      pt-br: "Vou sincronizar agora os cargos padrão para **todos os membros e bots** que já estão no servidor, não só para quem entrar daqui pra frente. Veja como fica:\n\n👥 **Membros**\n- Quantidade: **$members_count**\n- Cargos: $members\n\n🤖 **Bots**\n- Quantidade: **$bots_count**\n- Cargos: $bots\n\nIsso pode levar alguns minutos. Quer continuar?"
+  syncing:
+    title:
+      en-us: 🔄 Syncing roles...
+      pt-br: 🔄 Sincronizando cargos...
+    description:
+      en-us: I'm assigning the default roles to all members of the server! This may take a few minutes...
+      pt-br: Estou atribuindo os cargos padrão a todos os membros do servidor! Isso pode levar alguns minutos...
+  synced:
+    title:
+      en-us: ✨ Roles synced successfully!
+      pt-br: ✨ Cargos sincronizados com sucesso!
+    description:
+      en-us: "Done! I gave the default roles to everyone who was already in the server. Now everyone is even cuter! 🐶\n\n👥 Members: **$members**\n🤖 Bots: **$bots**"
+      pt-br: "Pronto! Dei os cargos padrão para todo mundo que já estava no servidor. Agora todos estão ainda mais fofos! 🐶\n\n👥 Membros: **$members**\n🤖 Bots: **$bots**"
+
+# open: the panel asides -> the button that runs each
+buttons:
+  sync:
+    label:
+      en-us: Sync
+      pt-br: Sincronizar
+    description:
+      en-us: Keiko immediately assigns the default roles to all server users
+      pt-br: Keiko atribui imediatamente os cargos padrão a todos os usuários do servidor

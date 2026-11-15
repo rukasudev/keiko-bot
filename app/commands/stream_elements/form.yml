@@ -1,0 +1,69 @@
+steps:
+  - type: intro
+    key: form
+    title:
+      en-us: 🎮 StreamElements Commands
+      pt-br: 🎮 Comandos do StreamElements
+    description:
+      en-us: "Whenever someone uses a command with the **{context:prefix}** prefix, I fetch the response from StreamElements!\n\n**Example:** `{context:prefix}mouse` -> \"The streamer uses a Logitech G Pro!\"\n"
+      pt-br: "Sempre que alguém usar um comando com o prefixo **{context:prefix}**, eu busco a resposta no StreamElements!\n\n**Exemplo:** `{context:prefix}mouse` -> \"O streamer usa um Logitech G Pro!\"\n"
+    panel:
+      description:
+        en-us: I answer this streamer's StreamElements commands here on Discord.
+        pt-br: Respondo aos comandos do StreamElements deste streamer aqui no Discord.
+
+  - type: text
+    key: streamer
+    title: {ref: streamer}
+    description:
+      en-us: Which streamer should I fetch commands from?
+      pt-br: De qual streamer devo buscar os comandos?
+    footer: null
+    emoji: 🎮
+    label:
+      en-us: Streamer username
+      pt-br: Username do streamer
+    placeholder:
+      en-us: e.g. @shroud
+      pt-br: "ex: @shroud"
+    max_length: 30
+    normalize:
+      name: handle
+    validation:
+      name: registered_and_found
+      # open: the validator's params -> an answer key or a value
+      params:
+        item: streamer
+        service: twitch
+        id: user_id
+        error: streamer
+    image: streamer_image
+    # open: hidden answer keys -> service.field of the lookup
+    lookup_answers:
+      stream_elements_channel_id: stream_elements.channel_id
+      stream_elements_commands_count: stream_elements.enabled_commands
+      stream_elements_top_commands: stream_elements.top_commands
+      stream_elements_keiko_commands: stream_elements.keiko_commands
+      streamer_image: twitch.profile_image
+
+  - type: review
+    key: confirm
+    description:
+      en-us: Whenever someone uses a command with the **{context:prefix}** prefix, I fetch the response in `{answer:streamer}`'s StreamElements and send it in chat!
+      pt-br: Sempre que alguém usar um comando com o prefixo **{context:prefix}**, eu busco a resposta no StreamElements de `{answer:streamer}` e envio no chat!
+    lines:
+      - emoji: 💡
+        label:
+          en-us: Active commands
+          pt-br: Comandos ativos
+        answer: stream_elements_commands_count
+      - emoji: ✨
+        label:
+          en-us: Some of them
+          pt-br: Alguns deles
+        answer: stream_elements_top_commands
+      - emoji: 🐶
+        label:
+          en-us: My version
+          pt-br: Versão do Keiko
+        answer: stream_elements_keiko_commands

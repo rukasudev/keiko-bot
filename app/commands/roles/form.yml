@@ -1,0 +1,97 @@
+steps:
+  - type: intro
+    key: form
+    title:
+      en-us: 👩‍🎓 Default Roles
+      pt-br: 👩‍🎓 Cargos Padrão
+    description:
+      en-us: Enabling this feature allows me to automatically assign roles to new members when they join your server
+      pt-br: Ativar esta função faz com que eu atribua cargos automaticamente quando alguém entrar no seu servidor
+    panel:
+      description:
+        en-us: I give these roles automatically to everyone who joins the server.
+        pt-br: Dou estes cargos automaticamente para quem entra no servidor.
+
+  - type: card
+    key: default_roles_config
+    title:
+      en-us: Default Roles
+      pt-br: Cargos Padrão
+    description:
+      en-us: Choose the roles I'll give automatically to whoever joins the server.
+      pt-br: Escolha os cargos que eu vou dar automaticamente para quem entrar no servidor.
+    emoji: 👩‍🎓
+    header:
+      thumbnail: default
+    edit: field
+    required:
+      any: [default_roles_bot, default_roles]
+    fields:
+      - key: default_roles_bot
+        description:
+          en-us: The roles I give to every bot that joins.
+          pt-br: Os cargos que eu dou para cada bot que entrar.
+      - key: default_roles
+        description:
+          en-us: The roles I give to every person that joins.
+          pt-br: Os cargos que eu dou para cada pessoa que entrar.
+    sections:
+      - type: selects
+        key: default_roles_bot
+        emoji: 🤖
+        label: {ref: roles_for_bots}
+        screen:
+          description:
+            en-us: I give these roles to every bot that joins the server.
+            pt-br: Eu dou estes cargos para cada bot que entrar no servidor.
+        selects:
+          - type: assignable_roles
+            key: default_roles_bot
+            emoji: 🤖
+            label: {ref: roles_for_bots}
+            placeholder:
+              en-us: Roles for bots
+              pt-br: Cargos para bots
+      - type: selects
+        key: default_roles
+        emoji: 👥
+        label: {ref: roles_for_members}
+        screen:
+          description:
+            en-us: I give these roles to every person that joins the server.
+            pt-br: Eu dou estes cargos para cada pessoa que entrar no servidor.
+        selects:
+          - type: assignable_roles
+            key: default_roles
+            emoji: 👥
+            label: {ref: roles_for_members}
+            placeholder:
+              en-us: Roles for members
+              pt-br: Cargos para membros
+
+  - type: single_choice
+    key: sync_existing
+    title:
+      en-us: Give the roles to everyone already in the server today?
+      pt-br: Dar os cargos para quem já está no servidor hoje?
+    description:
+      en-us: "These current members will get the roles:\n\n👥 **Members**\n- How many: **{context:members_count}**\n- {plural:default_roles|Role to give these members|Roles to give these members}: {answer:default_roles:role|Empty}\n\n🤖 **Bots**\n- How many: **{context:bots_count}**\n- {plural:default_roles_bot|Role to give these bots|Roles to give these bots}: {answer:default_roles_bot:role|Empty}"
+      pt-br: "Os seguintes membros atuais irão receber os cargos:\n\n👥 **Membros**\n- Quantidade: **{context:members_count}**\n- {plural:default_roles|Cargo a ser atribuído a esses membros|Cargos a serem atribuídos a esses membros}: {answer:default_roles:role|Em branco}\n\n🤖 **Bots**\n- Quantidade: **{context:bots_count}**\n- {plural:default_roles_bot|Cargo a ser atribuído a esses bots|Cargos a serem atribuídos a esses bots}: {answer:default_roles_bot:role|Em branco}"
+    emoji: 🔄
+    hidden: true
+    options:
+      - label:
+          en-us: "Yes"
+          pt-br: Sim
+        value: true
+        style: primary
+      - label:
+          en-us: "No"
+          pt-br: Não
+        value: false
+        style: secondary
+    required: true
+    auto_confirm: true
+
+  - type: review
+    key: confirm

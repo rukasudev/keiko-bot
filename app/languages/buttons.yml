@@ -1,0 +1,140 @@
+# open: what each button does -> its label and its Help caption
+confirm:
+  label:
+    en-us: Confirm
+    pt-br: Confirmar
+
+cancel:
+  label:
+    en-us: Cancel
+    pt-br: Cancelar
+
+keep:
+  label:
+    en-us: Continue configuring
+    pt-br: Continuar configurando
+
+discard:
+  label:
+    en-us: Discard everything
+    pt-br: Descartar tudo
+
+edit:
+  label:
+    en-us: Edit
+    pt-br: Editar
+  description:
+    en-us: Edit the feature settings
+    pt-br: Edita as configurações da funcionalidade
+
+disable:
+  label:
+    en-us: Disable
+    pt-br: Desativar
+  description:
+    en-us: Disable the feature and reset the settings
+    pt-br: Desativa a funcionalidade e reseta as configurações
+
+add:
+  label:
+    en-us: Add
+    pt-br: Adicionar
+  description:
+    en-us: Add a new item
+    pt-br: Adiciona um novo item
+
+remove:
+  label:
+    en-us: Remove
+    pt-br: Remover
+  description:
+    en-us: Remove one of the items
+    pt-br: Remove um dos itens
+
+remove_item:
+  label:
+    en-us: Remove this
+    pt-br: Remover este
+
+search:
+  label:
+    en-us: Search
+    pt-br: Pesquisar
+  description:
+    en-us: Find a member on the list
+    pt-br: Encontra um membro da lista
+
+preview:
+  label:
+    en-us: Preview
+    pt-br: Pré-visualizar
+  description:
+    en-us: Preview the feature settings
+    pt-br: Pré-visualiza as configurações da funcionalidade
+
+next_message:
+  label:
+    en-us: Next message
+    pt-br: Próxima mensagem
+
+help:
+  label:
+    en-us: Help
+    pt-br: Ajuda
+
+back:
+  label:
+    en-us: Back
+    pt-br: Voltar
+
+pause:
+  label:
+    en-us: Pause
+    pt-br: Pausar
+  description:
+    en-us: Pause the feature
+    pt-br: Pausa a funcionalidade
+
+unpause:
+  label:
+    en-us: Unpause
+    pt-br: Despausar
+  description:
+    en-us: Unpause the feature
+    pt-br: Despausa a funcionalidade
+
+history:
+  label:
+    en-us: History
+    pt-br: Histórico
+  description:
+    en-us: See the history of changes made to the feature settings
+    pt-br: Veja o histórico de alterações feitas nas configurações da funcionalidade
+
+stats:
+  label:
+    en-us: Statistics
+    pt-br: Estatísticas
+  description:
+    en-us: See the numbers of the feature
+    pt-br: Veja os números da funcionalidade
+
+select:
+  label:
+    en-us: Select
+    pt-br: Selecionar
+
+choose:
+  label:
+    en-us: Choose
+    pt-br: Escolher
+
+reset:
+  label:
+    en-us: Reset to default
+    pt-br: Voltar ao padrão
+
+done:
+  label:
+    en-us: Next
+    pt-br: Avançar

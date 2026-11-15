@@ -1,0 +1,84 @@
+slash:
+  subgroup:
+    en-us: streamelements
+    pt-br: comandos
+  name:
+    en-us: commands
+    pt-br: streamelements
+  description:
+    en-us: Keiko responds to StreamElements commands here in Discord chat
+    pt-br: Keiko responde a comandos do StreamElements aqui no chat do Discord
+
+setup:
+  label:
+    en-us: StreamElements Commands
+    pt-br: Comandos do StreamElements
+  description:
+    en-us: Answers StreamElements commands in chat
+    pt-br: Responde aos comandos do StreamElements no chat
+
+stats:
+  title:
+    en-us: 📊 StreamElements Commands Statistics
+    pt-br: 📊 Estatísticas de Comandos do StreamElements
+  delivered:
+    one:
+      en-us: ✅ I answered 1 command in the last $days days!
+      pt-br: ✅ Respondi 1 comando nos últimos $days dias!
+    other:
+      en-us: ✅ I answered $count commands in the last $days days!
+      pt-br: ✅ Respondi $count comandos nos últimos $days dias!
+
+panel:
+  info:
+    title:
+      en-us: 💡 Commands loaded
+      pt-br: 💡 Comandos carregados
+    description:
+      en-us: I answer **$count** commands from `$streamer`.
+      pt-br: Respondo a **$count** comandos de `$streamer`.
+    # open: states the panel tells apart -> the paragraph drawn in that state
+    variants:
+      unknown:
+        description:
+          en-us: I couldn't reach StreamElements right now, but I'll fetch each response as soon as someone uses a command.
+          pt-br: Não consegui falar com o StreamElements agora, mas busco a resposta assim que alguém usar um comando.
+
+# open: error names -> an error block
+errors:
+  unavailable:
+    title:
+      en-us: StreamElements Unavailable
+      pt-br: StreamElements Indisponível
+    message:
+      en-us: I'm sorry, but I couldn't reach StreamElements right now to fetch the commands. Please try again later.
+      pt-br: Desculpe, mas não consegui falar com o StreamElements agora para buscar os comandos. Por favor, tente de novo mais tarde.
+
+# open: list names -> a browsable list
+records:
+  commands:
+    title:
+      en-us: 🎮 StreamElements Commands
+      pt-br: 🎮 Comandos do StreamElements
+    description:
+      en-us: Commands from `$streamer` I answer here on Discord
+      pt-br: Comandos de `$streamer` que eu respondo aqui no Discord
+    empty:
+      en-us: I found no active commands in `$streamer`'s StreamElements! 🐶
+      pt-br: Não encontrei nenhum comando ativo no StreamElements de `$streamer`! 🐶
+
+# open: panel asides -> the button that runs it
+buttons:
+  commands:
+    label:
+      en-us: Commands
+      pt-br: Comandos
+    description:
+      en-us: See the list of commands I answer
+      pt-br: Ver a lista de comandos que eu respondo
+
+# open: plain lines -> a text the service fills
+messages:
+  reply_footer:
+    en-us: Type $command to see every command from $streamer I answer here!
+    pt-br: Digite $command para ver todos os comandos de $streamer que eu respondo aqui!

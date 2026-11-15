@@ -1,0 +1,72 @@
+slash:
+  subgroup:
+    en-us: youtube
+    pt-br: youtube
+  name:
+    en-us: videos
+    pt-br: vídeos
+  description:
+    en-us: Keiko will notify you whenever your favorite YouTubers uploads a new video on YouTube
+    pt-br: Keiko notificará você sempre que seus youtubers favoritos postarem um novo vídeo no YouTube
+
+setup:
+  label:
+    en-us: YouTube Videos
+    pt-br: YouTube Vídeos
+  description:
+    en-us: Notifies you when a new video is out
+    pt-br: Avisa quando sai um vídeo novo no canal
+
+stats:
+  title:
+    en-us: 📊 YouTube Videos Statistics
+    pt-br: 📊 Estatísticas de YouTube Vídeos
+  delivered:
+    one:
+      en-us: ✅ I sent 1 new video notification in the last $days days!
+      pt-br: ✅ Enviei 1 aviso de vídeo novo nos últimos $days dias!
+    other:
+      en-us: ✅ I sent $count new video notifications in the last $days days!
+      pt-br: ✅ Enviei $count avisos de vídeo novo nos últimos $days dias!
+
+announcement:
+  # open: the value the code gives each field -> its label
+  fields:
+    description:
+      en-us: Description
+      pt-br: Descrição
+    tags:
+      en-us: Tags
+      pt-br: Tags
+  # open: the part each sample stands for -> the sample a preview draws
+  samples:
+    title:
+      en-us: The video title shows up here
+      pt-br: O título do vídeo aparece aqui
+    description:
+      en-us: Video description here
+      pt-br: Descrição do vídeo aqui
+
+# open: error names -> an error block
+errors:
+  youtuber_already_registered:
+    title:
+      en-us: Youtuber Already Registered
+      pt-br: Youtuber Já Registrado
+    message:
+      en-us: The notification of this youtuber's videos is already set up on this server. Please select another youtuber and try again.
+      pt-br: A notificação dos vídeos desse youtuber já está configurada nesse servidor. Por favor, selecione outro youtuber e tente novamente.
+  youtuber_not_found:
+    title:
+      en-us: Youtuber Not Found
+      pt-br: Youtuber Não Encontrado
+    message:
+      en-us: I'm sorry, but I couldn't find the youtuber you're looking for. Please check the name and try again.
+      pt-br: Desculpe, mas não consegui encontrar o youtuber que você está procurando. Por favor, verifique o nome e tente novamente.
+  preview_needs_youtuber:
+    title:
+      en-us: YouTuber Required
+      pt-br: YouTuber Obrigatório
+    message:
+      en-us: Oops! You need to pick the YouTuber before I can show the preview. Pick one on the card and try again! 🐶
+      pt-br: Ops! Você precisa escolher o youtuber antes de eu mostrar a pré-visualização. Escolha um no card e tente de novo! 🐶

@@ -1,0 +1,88 @@
+# open: the error a layer names -> its title and message
+generic:
+  title:
+    en-us: Command Processing Error
+    pt-br: Erro ao Processar Comando
+  message:
+    en-us: "I'm sorry, but I couldn't process your command correctly. Please try again later.\n\nIf you'd like, send me a report using the `/report` command, or reach out on my official server with the `/support` command 💌"
+    pt-br: "Desculpe, mas não consegui processar seu comando corretamente. Por favor, tente novamente mais tarde.\n\nSe quiser, me envie um report com o comando `/reportar`, ou fale comigo no meu servidor oficial usando o comando `/suporte` 💌"
+
+command_required_interaction:
+  title:
+    en-us: Interaction Required
+    pt-br: Interação Necessária
+  message:
+    en-us: Please select any option to proceed! :)
+    pt-br: Por favor, selecione qualquer opção para prosseguir! :)
+
+streamer_not_found:
+  title:
+    en-us: Streamer Not Found
+    pt-br: Streamer Não Encontrado
+  message:
+    en-us: I'm sorry, but I couldn't find the streamer you're looking for. Please check the name and try again.
+    pt-br: Desculpe, mas não consegui encontrar o streamer que você está procurando. Por favor, verifique o nome e tente novamente.
+
+streamer_already_registered:
+  title:
+    en-us: Streamer Already Registered
+    pt-br: Streamer Já Registrado
+  message:
+    en-us: The notification of this streamer's lives is already set up on this server. Please select another streamer and try again.
+    pt-br: A notificação das lives desse streamer já está configurada nesse servidor. Por favor, selecione outro streamer e tente novamente.
+
+item_already_registered:
+  title:
+    en-us: Item Already Registered
+    pt-br: Item Já Cadastrado
+  message:
+    en-us: Oops! That item is already on my list! If you want to change something about it, just use the **Edit** button 🐶
+    pt-br: Opa! Esse item já está na minha lista! Se quiser mudar algo nele, é só usar o botão **Editar** 🐶
+
+member_not_found:
+  title:
+    en-us: Member Not Found
+    pt-br: Membro Não Encontrado
+  message:
+    en-us: Hmm, I don't have anything saved for that member yet. Pick someone already on the list.
+    pt-br: Hmm, eu ainda não tenho nada salvo para esse membro. Escolha alguém que já esteja na lista.
+
+selection_required:
+  title:
+    en-us: Selection Required
+    pt-br: Seleção Obrigatória
+  message:
+    en-us: Oops! Please pick an option before confirming :)
+    pt-br: Ops! Selecione uma opção antes de confirmar :)
+
+fill_one_field:
+  title:
+    en-us: Field Required
+    pt-br: Campo Obrigatório
+  message:
+    en-us: Oops! Please fill one of the fields before confirming :)
+    pt-br: Ops! Preencha um dos campos antes de confirmar :)
+
+required_fields:
+  title:
+    en-us: Fields Required
+    pt-br: Campos Obrigatórios
+  message:
+    en-us: "I still need you to configure: $fields."
+    pt-br: "Ainda preciso que você configure: $fields."
+
+invalid_date:
+  title:
+    en-us: Invalid Date
+    pt-br: Data Inválida
+  message:
+    en-us: Oops! That date doesn't exist. Pick a valid day for the selected month.
+    pt-br: Ops! Essa data não existe. Escolha um dia válido para o mês selecionado.
+
+link_not_recognized:
+  title:
+    en-us: Link Not Recognized
+    pt-br: Link Não Reconhecido
+  message:
+    en-us: Oops! I couldn't understand that link. Try something like `youtube.com` or `youtube.com/watch?v=abc123` and send it again!
+    pt-br: Ops! Não consegui entender esse link. Tente algo como `youtube.com` ou `youtube.com/watch?v=abc123` e envie de novo!

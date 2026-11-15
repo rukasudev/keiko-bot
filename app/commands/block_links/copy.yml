@@ -1,0 +1,196 @@
+slash:
+  subgroup:
+    en-us: block
+    pt-br: bloquear
+  name:
+    en-us: links
+    pt-br: links
+  description:
+    en-us: Keiko blocks links your way, everything with exceptions or only the links you choose
+    pt-br: Keiko bloqueia links do seu jeito, tudo com exceções ou só os links que você escolher
+  # open: the folder's other app commands -> their name and caption
+  commands:
+    check:
+      name:
+        en-us: Check Link Blocking
+        pt-br: Validar Bloqueio de Link
+
+setup:
+  label:
+    en-us: Block Links
+    pt-br: Bloquear Links
+  description:
+    en-us: Keeps unwanted links out of your server
+    pt-br: Bloqueia links indesejados no servidor
+
+stats:
+  title:
+    en-us: 📊 Block Links Statistics
+    pt-br: 📊 Estatísticas de Bloquear Links
+  delivered:
+    one:
+      en-us: ✅ I blocked 1 link in the last $days days!
+      pt-br: ✅ Bloqueei 1 link nos últimos $days dias!
+    other:
+      en-us: ✅ I blocked $count links in the last $days days!
+      pt-br: ✅ Bloqueei $count links nos últimos $days dias!
+  empty:
+    en-us: I haven't blocked any link here yet! 🐶
+    pt-br: Ainda não bloqueei nenhum link por aqui! 🐶
+  # open: figure names -> the figure's label
+  figures:
+    total:
+      en-us: Blocks of all time
+      pt-br: Bloqueios desde sempre
+    recent:
+      en-us: Blocks in the last 90 days
+      pt-br: Bloqueios nos últimos 90 dias
+    top_websites:
+      en-us: Most blocked websites
+      pt-br: Sites mais bloqueados
+    top_member:
+      en-us: Member with most blocks
+      pt-br: Membro com mais bloqueios
+    not_deleted:
+      en-us: Messages I could not delete
+      pt-br: Mensagens que eu não consegui apagar
+
+panel:
+  info:
+    title:
+      en-us: 🔎 Why did a link get through?
+      pt-br: 🔎 Por que um link passou?
+    description:
+      en-us: "Right click the message, pick **Apps** and then **Check Link Blocking**: I show you which rule allowed or blocked every link in it!"
+      pt-br: "Clique com o botão direito na mensagem, escolha **Apps** e depois **Validar Bloqueio de Link**: eu te mostro qual regra liberou ou bloqueou cada link dela!"
+
+# open: response names -> a response embed
+responses:
+  check:
+    title:
+      en-us: ✅ I would let this message through
+      pt-br: ✅ Eu deixaria essa mensagem passar
+    # open: states the check picks -> the title drawn in that state
+    variants:
+      blocked:
+        title:
+          en-us: 🚫 I would block this message
+          pt-br: 🚫 Eu bloquearia essa mensagem
+    # open: the three steps of the check -> a stacked field
+    fields:
+      feature:
+        title:
+          en-us: 1️⃣ Is the feature active?
+          pt-br: 1️⃣ A função está ativa?
+        # open: the feature's states -> the line the step shows
+        lines:
+          not_configured:
+            en-us: ❌ I'm not set up here yet, so I block no links at all. Use `/moderations block links` to get started!
+            pt-br: ❌ Ainda não fui configurado aqui, então não bloqueio link nenhum. Use `/moderações bloquear links` para começar!
+          paused:
+            en-us: ⏸️ I'm paused here, so I let every link through. Bring me back with `/moderations block links`!
+            pt-br: ⏸️ Estou pausado por aqui, então deixo todos os links passarem. Me reative com `/moderações bloquear links`!
+          active:
+            en-us: ✅ I'm active, in **$mode** mode.
+            pt-br: ✅ Estou ativo, no modo **$mode**.
+      exemptions:
+        title:
+          en-us: 2️⃣ Are the author or the channel exempt?
+          pt-br: 2️⃣ O autor ou o canal estão liberados?
+        # open: the role and channel verdicts -> the line each shows
+        lines:
+          role_exempt:
+            en-us: 🔓 The role $roles is exempt, so I never block links from this member.
+            pt-br: 🔓 O cargo $roles é liberado, então eu nunca bloqueio links desse membro.
+          role_not_exempt:
+            en-us: 🔒 No role of this member is on the exempt list.
+            pt-br: 🔒 Nenhum cargo desse membro está na lista de liberados.
+          channel_exempt:
+            en-us: 🔓 The channel $channel is exempt, so I never block links there.
+            pt-br: 🔓 O canal $channel é liberado, então eu nunca bloqueio links por lá.
+          channel_not_exempt:
+            en-us: 🔒 This channel is not on the exempt list.
+            pt-br: 🔒 Esse canal não está na lista de liberados.
+      links:
+        title:
+          en-us: 3️⃣ What about the links?
+          pt-br: 3️⃣ E os links da mensagem?
+        # open: the fate of each link, and the lines around them -> the line shown
+        lines:
+          none:
+            en-us: I found no link in this message.
+            pt-br: Não encontrei nenhum link nessa mensagem.
+          more:
+            en-us: And $count more links.
+            pt-br: E mais $count links.
+          allowed_by_popular:
+            en-us: "✅ `$link`: allowed because **$rule** is on your popular websites list."
+            pt-br: "✅ `$link`: liberado porque **$rule** está nos sites populares permitidos."
+          allowed_by_custom_domain:
+            en-us: "✅ `$link`: allowed by your website rule **$rule**."
+            pt-br: "✅ `$link`: liberado pela sua regra de site **$rule**."
+          allowed_by_custom_exact:
+            en-us: "✅ `$link`: allowed by your exact link rule **$rule**."
+            pt-br: "✅ `$link`: liberado pela sua regra de link exato **$rule**."
+          allowed_by_default:
+            en-us: "✅ `$link`: allowed because the mode allows everything and no rule of yours blocks it."
+            pt-br: "✅ `$link`: liberado porque o modo permite todos e nenhuma regra sua bloqueia ele."
+          blocked_by_custom_domain:
+            en-us: "🚫 `$link`: blocked by your website rule **$rule**."
+            pt-br: "🚫 `$link`: bloqueado pela sua regra de site **$rule**."
+          blocked_by_custom_exact:
+            en-us: "🚫 `$link`: blocked by your exact link rule **$rule**."
+            pt-br: "🚫 `$link`: bloqueado pela sua regra de link exato **$rule**."
+          blocked_no_rule:
+            en-us: "🚫 `$link`: blocked because nothing on your list allows it."
+            pt-br: "🚫 `$link`: bloqueado porque nada na sua lista libera ele."
+
+# open: list names -> a records list
+records:
+  blocked_list:
+    title:
+      en-us: 🔎 Links I blocked
+      pt-br: 🔎 Links que eu bloqueei
+    description:
+      en-us: The most recent blocks of this server! I keep these details for 90 days.
+      pt-br: Os bloqueios mais recentes deste servidor! Eu guardo esses detalhes por 90 dias.
+    empty:
+      en-us: I haven't blocked any link here yet! 🐶
+      pt-br: Ainda não bloqueei nenhum link por aqui! 🐶
+    filter:
+      label:
+        en-us: Filter by member
+        pt-br: Filtrar por membro
+      clear_label:
+        en-us: See everyone
+        pt-br: Ver todos
+      title:
+        en-us: 🔎 Filter by member
+        pt-br: 🔎 Filtrar por membro
+      description:
+        en-us: Pick the member and I'll show you only their blocks!
+        pt-br: Escolha o membro e eu te mostro só os bloqueios dele!
+      empty:
+        en-us: I haven't blocked any link from this member yet! 🐶
+        pt-br: Ainda não bloqueei nenhum link desse membro! 🐶
+    # open: the parts of a blocked link -> a line template
+    lines:
+      line:
+        en-us: $user · $channel · $date
+        pt-br: $user · $channel · $date
+      rule:
+        en-us: "Rule: $rule"
+        pt-br: "Regra: $rule"
+      not_deleted:
+        en-us: ⚠️ I could not delete this message. Check if I have the manage messages permission!
+        pt-br: ⚠️ Eu não consegui apagar essa mensagem. Confira se eu tenho a permissão de gerenciar mensagens!
+
+# open: the panel asides -> the button that runs each
+buttons:
+  blocked_list:
+    label:
+      en-us: Blocks
+      pt-br: Bloqueios
+    description:
+      en-us: See the links I blocked and filter them by member
+      pt-br: Veja os links que eu bloqueei e filtre por membro

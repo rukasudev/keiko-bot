@@ -1,0 +1,170 @@
+steps:
+  - type: intro
+    key: form
+    title:
+      en-us: 🎉 Welcome Messages
+      pt-br: 🎉 Mensagens de Boas-Vindas
+    description:
+      en-us: Enabling this feature allows me to send a personalized welcome message to new members when they join your server
+      pt-br: Ativar essa função me permitirá enviar uma mensagem de boas-vindas personalizada para novos membros quando eles entrarem no seu servidor
+    panel:
+      description:
+        en-us: I welcome everyone who joins the server with the message below.
+        pt-br: Dou boas-vindas a quem entra no servidor com a mensagem abaixo.
+
+  - type: card
+    key: welcome_config
+    description:
+      en-us: "Choose the channel and I'm ready to welcome new members! The design and the messages already come set, change them if you want.\n\nYou can use these variables in the messages:\n- `{user}`: the new member's mention\n- `{server}`: the server name\n- `{member_count}`: how many members the server has"
+      pt-br: "Escolha o canal e eu já fico pronto para receber os novos membros! O design e as mensagens já vêm configurados, mude se quiser.\n\nVocê pode usar estas variáveis nas mensagens:\n- `{user}`: a menção do novo membro\n- `{server}`: o nome do servidor\n- `{member_count}`: quantos membros o servidor tem"
+    emoji: 🎉
+    header:
+      title:
+        en-us: Welcome Messages
+        pt-br: Mensagens de Boas-Vindas
+      thumbnail: default
+    edit: field
+    preview: true
+    required:
+      all: [welcome_messages_channel, welcome_custom_image]
+    fields:
+      - key: welcome_messages_channel
+        description:
+          en-us: Where I'll send the welcome message.
+          pt-br: Onde vou enviar a mensagem de boas-vindas.
+      - key: welcome_messages_title
+        description:
+          en-us: The title of the welcome message.
+          pt-br: O título da mensagem de boas-vindas.
+      - key: welcome_messages
+        description:
+          en-us: Up to three greetings, I pick one at random each time.
+          pt-br: Até três saudações, eu sorteio uma a cada vez.
+      - key: welcome_messages_footer
+        description:
+          en-us: The small line that closes the message.
+          pt-br: A linha pequena que fecha a mensagem.
+      - key: welcome_design
+        description:
+          en-us: The look of the banner I draw for each new member.
+          pt-br: O visual do banner que eu desenho para cada novo membro.
+      - key: welcome_custom_image
+        description:
+          en-us: The picture I put on the banner when you pick a custom design.
+          pt-br: A imagem que eu coloco no banner quando você escolhe um design personalizado.
+    sections:
+      - type: channel_select
+        key: channel
+        emoji: 📺
+        label: {ref: channel}
+        keys:
+          value: welcome_messages_channel
+        screen:
+          title:
+            en-us: Where should I welcome new members?
+            pt-br: Onde devo dar boas-vindas aos novos membros?
+      - type: modal_input
+        key: messages
+        emoji: 💬
+        label:
+          en-us: Messages
+          pt-br: Mensagens
+        keys:
+          value: welcome_messages
+        button:
+          label: {ref: edit_messages}
+        format: code_block
+        modal:
+          title:
+            en-us: Welcome Messages
+            pt-br: Mensagens de Boas-Vindas
+          inputs:
+            - key: welcome_messages_title
+              label: {ref: title}
+              max_length: 50
+              multiline: true
+            - label: {ref: random_message_1}
+              max_length: 100
+              multiline: true
+            - label: {ref: random_message_2}
+              max_length: 100
+              required: false
+              multiline: true
+            - label: {ref: random_message_3}
+              max_length: 100
+              required: false
+              multiline: true
+            - key: welcome_messages_footer
+              label:
+                en-us: Footer
+                pt-br: Rodapé
+              max_length: 50
+              required: false
+              multiline: true
+      - type: design_select
+        key: design
+        emoji: 🎨
+        label:
+          en-us: Banner design
+          pt-br: Design do banner
+        keys:
+          value: welcome_design
+        placeholder:
+          en-us: Choose design
+          pt-br: Escolher design
+        options:
+          - value: server_blur
+            label:
+              en-us: Server Image Background
+              pt-br: Imagem do Servidor de fundo
+            description:
+              en-us: The server icon as the background with a blur effect and the new member's profile picture centered
+              pt-br: Ícone do servidor de fundo com efeito blur e foto de perfil do novo membro centralizada
+          - value: custom_blur
+            label:
+              en-us: Custom Image Background
+              pt-br: Imagem personalizada de fundo
+            description:
+              en-us: A custom background (you choose it) with a blur effect and the new member's profile picture centered
+              pt-br: Fundo personalizado (você escolhe) com efeito blur e foto de perfil do novo membro centralizada
+          - value: custom_only
+            label:
+              en-us: Custom Banner Only
+              pt-br: Somente banner personalizado
+            description:
+              en-us: Your own image (or GIF) as the banner, with no profile picture in the middle. See the example below :)
+              pt-br: Sua imagem (ou GIF) personalizada como banner, sem foto de perfil no centro. Veja o exemplo abaixo :)
+        background: welcome_custom_image
+      - type: file_upload
+        key: image
+        emoji: 🖼️
+        label: {ref: custom_image}
+        keys:
+          image: welcome_custom_image
+        when:
+          key: welcome_design
+          not_in: [server_blur]
+        button:
+          label:
+            en-us: Upload image
+            pt-br: Enviar imagem
+        modal:
+          title:
+            en-us: 📷 Upload Custom Image
+            pt-br: 📷 Enviar Imagem Personalizada
+    # open: state keys of the card -> a value or a text
+    defaults:
+      welcome_design: server_blur
+      welcome_messages_title:
+        en-us: A new member has joined! 🎉
+        pt-br: Um novo membro chegou! 🎉
+      welcome_messages:
+        en-us: Welcome {user} to {server}!;Look who just arrived! {user};{user} just arrived!
+        pt-br: "{user} bem-vindo ao {server}!;Olha quem chegou! {user};{user} acabou de chegar!"
+      welcome_messages_footer:
+        en-us: Have fun!
+        pt-br: Divirta-se!
+
+  - type: review
+    key: confirm
+    preview: true

@@ -1,18 +1,4 @@
-# Product analytics catalog — the single source of truth for what Keiko records.
-#
-# `record()` refuses any event name that is not declared here, and
-# tests/behavioral/contracts/test_analytics_catalog.py fails the build when the
-# code and this file disagree. Reference: docs/analytics.md
-#
-# collection: changes      -> events.changes, written at once, kept
-#             activity     -> events.activity, written in the sink's batch, 90 days
-#             interactions -> events.interactions, written in the sink's batch, 90 days
-#             none         -> no document; the sink still counts it
-# actor:      user | bot | job (the kind of actor.id)
-# private:    props kept in the database and left out of the monthly archive
-# counts_as_value: true when the event is the feature doing its job (lifetime value)
-# keiko_tally: {name, kind, prop} -> analytics.keiko `{name}:total` and `{name}:{kind}:{prop}`
-# keiko_wide: true when the event is about Keiko itself: it names no server, whatever the trace's
+# Every event Keiko records; reference docs/yaml/index.html#catalog-yml, from Catalog in app/core/analytics.py
 
 sources:
   - slash
@@ -25,313 +11,313 @@ sources:
   - job
   - internal
 
-results:
-  - success
-  - failure
-  - abandoned
-
+# open: event names, <domain>.<fact> -> an event declaration
 events:
   command.invoked:
     version: 1
     collection: interactions
     description: An application command reached the bot.
-    emitted_at: app/cogs/events.py — Events.on_interaction
+    recorded_in: app/core/events.py — Events.on_interaction
     actor: user
-    required: [command, source]
-    optional: [is_admin]
-    cardinality_risk: low
+    props: [command, source, is_admin]
 
   command.failed:
     version: 1
     collection: interactions
     description: A command raised an error that reached the error handler.
-    emitted_at: app/cogs/errors.py — Errors.on_app_command_error
+    recorded_in: app/core/errors.py — Errors.on_app_command_error
     actor: user
-    required: [command, error_type]
-    optional: [step_key]
-    cardinality_risk: low
+    props: [command, error_type, step_key]
+    lifetime:
+      # open: lifetime paths -> the step added
+      inc: {totals.errors: 1}
 
   feature.setup_opened:
     version: 1
     collection: interactions
     description: The first-time configuration form was opened for a feature.
-    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (feature.setup_opened)
+    recorded_in: app/forms/discord/observability.py — emit, from Decision.analytics (feature.setup_opened)
     actor: user
-    required: [source]
-    optional: [is_admin]
-    cardinality_risk: low
+    props: [source, is_admin]
+    lifetime:
+      # open: lifetime paths -> the step added
+      inc: {"features.{feature}.setup_attempts": 1}
+      # open: lifetime paths -> $ts, the earliest kept
+      min: {"features.{feature}.opened_at": $ts}
 
   feature.manager_opened:
     version: 1
     collection: interactions
     description: The manager panel of an already configured feature was opened.
-    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (feature.manager_opened)
+    recorded_in: app/forms/discord/observability.py — emit, from Decision.analytics (feature.manager_opened)
     actor: user
-    required: [source]
-    optional: [enabled, is_admin]
-    cardinality_risk: low
+    props: [source, enabled, is_admin]
 
   setup.step_viewed:
     version: 1
     collection: interactions
     description: A form step was rendered to the user.
-    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (Engine.show)
+    recorded_in: app/forms/discord/observability.py — emit, from Decision.analytics (Engine.show)
     actor: user
-    required: [step_key, step_action, step_index]
-    optional: [ms_since_prev]
-    cardinality_risk: low
+    props: [step_key, step_action, step_index, ms_since_prev]
 
   setup.step_completed:
     version: 1
     collection: interactions
     description: A step left the screen, with how long it was on it.
-    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (Engine.show)
+    recorded_in: app/forms/discord/observability.py — emit, from Decision.analytics (Engine.show)
     actor: user
-    required: [step_key, step_action]
-    optional: [ms_on_step, choice]
-    cardinality_risk: low
+    props: [step_key, step_action, ms_on_step, choice]
 
   setup.step_back:
     version: 1
     collection: interactions
     description: The user navigated back to the previous step.
-    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_back)
+    recorded_in: app/forms/discord/observability.py — emit, from Decision.analytics (_on_back)
     actor: user
-    required: [step_key]
-    optional: []
-    cardinality_risk: low
+    props: [step_key]
 
   setup.validation_failed:
     version: 1
     collection: interactions
     description: A YAML validator refused the value submitted in a modal.
-    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (Engine.refuse)
+    recorded_in: app/forms/discord/observability.py — emit, from Decision.analytics (Engine.refuse)
     actor: user
-    required: [step_key, validation, error_key]
-    optional: [attempt_n]
-    cardinality_risk: low
+    props: [step_key, validation, error_key, attempt_n]
+    lifetime:
+      # open: lifetime paths -> the step added
+      inc: {"features.{feature}.validation_failures": 1}
 
   setup.required_missing:
     version: 1
     collection: interactions
     description: The configuration card was confirmed with required fields empty.
-    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (Engine.refuse, card done)
+    recorded_in: app/forms/discord/observability.py — emit, from Decision.analytics (Engine.refuse, card done)
     actor: user
-    required: [card_key, missing_count]
-    optional: [missing_keys]
-    cardinality_risk: low
+    props: [card_key, missing_count, missing_keys]
 
   setup.completed:
     version: 1
     collection: interactions
     description: A configuration form was finished and persisted.
-    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_commit_succeeded)
+    recorded_in: app/forms/discord/observability.py — emit, from Decision.analytics (_on_commit_succeeded)
     actor: user
-    required: [source, duration_ms, steps_viewed]
-    optional: [validation_failures, back_count, duration_bucket, configured_steps, item_count]
-    cardinality_risk: low
+    props:
+      - source
+      - duration_ms
+      - steps_viewed
+      - validation_failures
+      - back_count
+      - duration_bucket
+      - configured_steps
+      - item_count
+    lifetime:
+      counts_admin: true
+      # open: lifetime paths -> the step added
+      inc: {totals.setups_completed: 1}
+      # open: lifetime paths -> $ts, the earliest kept
+      min: {"features.{feature}.completed_at": $ts}
+      # open: guild.removed props -> a path this block writes
+      removed_props: {setups_completed: totals.setups_completed}
 
   feature.commit_failed:
     version: 1
     collection: interactions
     description: A feature's commit raised before finishing and the session closed as a failure (the error, or the duplicate copy when the commit ended the session). A refused change that keeps the session open, or that closes it after another panel's Disable, is not one and emits nothing.
-    emitted_at: app/settings/form/form.py — engine.emit, from Decision.analytics (on_commit_failed)
+    recorded_in: app/forms/form/form.py — engine.emit, from Decision.analytics (on_commit_failed)
     actor: user
-    required: [commit_kind, error_type]
-    optional: [step_key]
-    cardinality_risk: low
+    props: [commit_kind, error_type, step_key]
 
   setup.discarded:
     version: 1
     collection: interactions
     description: The user explicitly discarded a configuration in progress.
-    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_discard_confirmed)
+    recorded_in: app/forms/discord/observability.py — emit, from Decision.analytics (_on_discard_confirmed)
     actor: user
-    required: []
-    optional:
+    props:
       - step_key
       - steps_viewed
       - validation_failures
       - back_count
       - duration_ms
       - duration_bucket
-    cardinality_risk: low
+    lifetime:
+      # open: lifetime paths -> the step added
+      inc: {totals.setups_discarded: 1, "features.{feature}.setups_discarded": 1}
+      # open: guild.removed props -> a path this block writes
+      removed_props: {setups_discarded: totals.setups_discarded}
 
   setup.abandoned:
     version: 1
     collection: interactions
     description: The view timed out with the configuration unfinished.
-    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_expired)
+    recorded_in: app/forms/discord/observability.py — emit, from Decision.analytics (_on_expired)
     actor: user
-    required: []
-    optional:
+    props:
       - step_key
       - steps_viewed
       - validation_failures
       - back_count
       - duration_ms
       - duration_bucket
-    cardinality_risk: low
 
   setup.discard_recovered:
     version: 1
     collection: interactions
     description: The user opened the discard prompt and chose to keep the setup.
-    emitted_at: app/settings/discord/observability.py — emit, from Decision.analytics (_on_keep_editing)
+    recorded_in: app/forms/discord/observability.py — emit, from Decision.analytics (_on_keep_editing)
     actor: user
-    required: []
-    optional:
+    props:
       - step_key
       - steps_viewed
       - validation_failures
       - back_count
       - duration_ms
       - duration_bucket
-    cardinality_risk: low
 
   config.changed:
     version: 1
     collection: changes
     description: An existing configuration was edited through the manager, or a server setting on the /setup settings screen (feature `settings`).
-    emitted_at: app/settings/features/feature.py — GenericCogFeature.commit (edit, toggle, edit_item); app/services/setup.py — change_setting, for a server setting
+    recorded_in: app/forms/features/feature.py — GenericCogFeature.commit (edit, toggle, edit_item); app/commands/setup/service.py — change_setting, for a server setting
     actor: user
-    required: [source]
-    optional: [changed_keys, changed_count]
-    cardinality_risk: low
+    props: [source, changed_keys, changed_count]
+    lifetime:
+      counts_admin: true
+      # open: lifetime paths -> the step added
+      inc: {"features.{feature}.config_changes": 1}
 
   feature.enabled:
     version: 1
     collection: changes
     description: A feature became active for a guild.
-    emitted_at: app/settings/features/feature.py — GenericCogFeature.commit (setup)
+    recorded_in: app/forms/features/feature.py — GenericCogFeature.commit (setup)
     actor: user
-    required: [source]
-    optional: []
-    cardinality_risk: low
+    props: [source]
+    lifetime:
+      # open: lifetime paths -> $ts or null
+      set: {"features.{feature}.disabled_at": null, "features.{feature}.paused_at": null}
 
   feature.paused:
     version: 1
     collection: changes
     description: A feature was paused from the manager.
-    emitted_at: app/settings/features/feature.py — GenericCogFeature.commit (pause); app/core/servers.py — pause_features, as the bot, when Keiko leaves a server
+    recorded_in: app/forms/features/feature.py — GenericCogFeature.commit (pause); app/core/servers.py — pause_features, as the bot, when Keiko leaves a server
     actor: user
-    required: [source]
-    optional: [days_since_enabled, value_events_since_enabled]
-    cardinality_risk: low
+    props: [source, days_since_enabled, value_events_since_enabled]
+    lifetime:
+      # open: lifetime paths -> $ts or null
+      set: {"features.{feature}.paused_at": $ts}
 
   feature.unpaused:
     version: 1
     collection: changes
     description: A paused feature was resumed.
-    emitted_at: app/settings/features/feature.py — GenericCogFeature.commit (unpause)
+    recorded_in: app/forms/features/feature.py — GenericCogFeature.commit (unpause)
     actor: user
-    required: [source]
-    optional: [days_since_enabled]
-    cardinality_risk: low
+    props: [source, days_since_enabled]
+    lifetime:
+      # open: lifetime paths -> $ts or null
+      set: {"features.{feature}.paused_at": null}
 
   feature.disabled:
     version: 1
     collection: changes
     description: A feature was turned off and its configuration removed.
-    emitted_at: app/settings/features/feature.py — GenericCogFeature.commit (disable)
+    recorded_in: app/forms/features/feature.py — GenericCogFeature.commit (disable)
     actor: user
-    required: [source]
-    optional: [days_since_enabled, value_events_since_enabled]
-    cardinality_risk: low
+    props: [source, days_since_enabled, value_events_since_enabled]
+    lifetime:
+      # open: lifetime paths -> $ts or null
+      set: {"features.{feature}.disabled_at": $ts}
 
   feature.item_added:
     version: 1
     collection: changes
     description: An item was added to a composition-based feature.
-    emitted_at: app/settings/features/feature.py — GenericCogFeature.commit (add_item)
+    recorded_in: app/forms/features/feature.py — GenericCogFeature.commit (add_item)
     actor: user
-    required: [source]
-    optional: [item_count]
-    cardinality_risk: low
+    props: [source, item_count]
 
   feature.item_removed:
     version: 1
     collection: changes
     description: An item was removed from a composition-based feature.
-    emitted_at: app/settings/features/feature.py — GenericCogFeature.commit (remove_item)
+    recorded_in: app/forms/features/feature.py — GenericCogFeature.commit (remove_item)
     actor: user
-    required: [source]
-    optional: [item_count]
-    cardinality_risk: low
+    props: [source, item_count]
 
   value.delivered:
     version: 1
     collection: none
-    counts_as_value: true
     description: The feature did the thing the user configured it to do.
-    emitted_at: the send/assign call site of each feature service
+    recorded_in: the send/assign call site of each feature service
     actor: bot
-    required: []
-    optional: [outcome]
-    cardinality_risk: low
+    props: [outcome]
+    counts_as_value: true
 
   value.blocked_by_permission:
     version: 1
     collection: activity
     description: Delivery failed because Discord refused the bot's permission.
-    emitted_at: the same call sites as value.delivered, failure branch
+    recorded_in: the same call sites as value.delivered, failure branch
     actor: bot
-    required: [error_type]
-    optional: []
-    cardinality_risk: low
+    props: [error_type]
+    lifetime:
+      # open: lifetime paths -> the step added
+      inc: {"features.{feature}.permission_failures": 1, totals.permission_failures: 1}
+      # open: guild.removed props -> a path this block writes
+      removed_props: {permission_failures: totals.permission_failures}
 
   link.blocked:
     version: 1
     collection: activity
-    counts_as_value: true
-    keiko_tally: {name: blocked, kind: site, prop: host}
     description: A link the server's rules refuse was found in a message, deleted or not; the member who sent it is the actor.
-    emitted_at: app/services/block_links.py — record_blocked_links
+    recorded_in: app/commands/block_links/service.py — record_blocked_links
     actor: user
-    required: [host, mode, reason, deleted]
-    optional: [link, rule, match, channel_id]
-    private: [link]
-    cardinality_risk: medium
+    props: [host, mode, reason, deleted, link, rule, match, channel_id]
+    private_props: [link]
+    counts_as_value: true
+    tally: {name: blocked, by: host, label: site}
 
   feature.tested:
     version: 1
     collection: interactions
     description: The user exercised a preview or diagnostic surface.
-    emitted_at: the welcome preview aside (app/settings/features/welcome_messages.py) and the block links diagnostic
+    recorded_in: the welcome preview aside (app/commands/welcome/service.py) and the block links diagnostic
     actor: user
-    required: [surface]
-    optional: []
-    cardinality_risk: low
+    props: [surface]
 
   keiko.settings_changed:
     version: 1
     collection: changes
-    keiko_wide: true
     description: An operator changed Keiko's own settings, its presence or its operator ids.
-    emitted_at: app/services/config.py — update_activity, update_description, update_status; app/services/admin.py — update_admin_configs
+    recorded_in: app/commands/config/service.py — update_activity, update_description, update_status; app/commands/admin/service.py — update_admin_configs
     actor: user
-    required: [group, changed_keys]
-    optional: []
-    cardinality_risk: low
+    props: [group, changed_keys]
+    scope: keiko
 
   guild.joined:
     version: 1
     collection: changes
     description: The bot was added to a guild.
-    emitted_at: app/cogs/events.py — Events.on_guild_join
+    recorded_in: app/core/events.py — Events.on_guild_join
     actor: bot
-    required: [returning]
-    optional: [size_bucket, owner_guilds]
-    cardinality_risk: low
+    props: [returning, size_bucket, owner_guilds]
+    lifetime:
+      # open: lifetime paths -> $ts or null
+      set: {removed_at: null}
+      # open: lifetime paths -> $ts, the earliest kept
+      min: {joined_at: $ts}
 
   guild.removed:
     version: 1
     collection: changes
     description: The bot was removed from a guild, with the frozen guild profile.
-    emitted_at: app/cogs/events.py — Events.on_guild_remove
+    recorded_in: app/core/events.py — Events.on_guild_remove
     actor: bot
-    required: [days_in_guild]
-    optional:
+    props:
+      - days_in_guild
       - features_configured
       - features_active
       - days_since_last_value
@@ -342,44 +328,48 @@ events:
       - distinct_admins
       - greeting_sent
       - first_feature
-    cardinality_risk: low
+    lifetime:
+      # open: lifetime paths -> $ts or null
+      set: {removed_at: $ts}
 
   guild.greeting_sent:
     version: 1
     collection: activity
     description: The onboarding greeting was posted (or could not be posted).
-    emitted_at: app/views/greetings.py — GreetingsView.send
+    recorded_in: app/commands/setup/service.py — GreetingsView.send
     actor: bot
-    required: [features_offered, channel_found]
-    optional: []
-    cardinality_risk: low
+    props: [features_offered, channel_found]
+    lifetime:
+      # open: props of the event -> the value each must equal
+      when: {channel_found: true}
+      # open: lifetime paths -> $ts or null
+      set: {greeting_sent_at: $ts}
+      # open: guild.removed props -> a path this block writes
+      removed_props: {greeting_sent: greeting_sent_at}
 
   help.opened:
     version: 1
     collection: interactions
     description: The /help command was opened.
-    emitted_at: app/services/help.py — send_help, from /help and the Commands buttons of /setup and the greeting
+    recorded_in: app/commands/help/service.py — send_help, from /help and the Commands buttons of /setup and the greeting
     actor: user
-    required: [source]
-    optional: []
-    cardinality_risk: low
+    props: [source]
 
   dashboard.opened:
     version: 1
     collection: interactions
     description: The /setup dashboard was opened.
-    emitted_at: app/services/setup.py — open_setup_dashboard, from /setup, the greeting's Setup button and the /help Setup button
+    recorded_in: app/commands/setup/service.py — open_setup_dashboard, from /setup, the greeting's Setup button and the /help Setup button
     actor: user
-    required: [source]
-    optional: []
-    cardinality_risk: low
+    props: [source]
 
   report.submitted:
     version: 1
     collection: interactions
     description: A user sent feedback through /report.
-    emitted_at: app/cogs/base/report.py — Report.report
+    recorded_in: app/commands/report/cog.py — Report.report
     actor: user
-    required: []
-    optional: [command]
-    cardinality_risk: low
+    props: [command]
+    lifetime:
+      # open: lifetime paths -> the step added
+      inc: {totals.reports: 1}

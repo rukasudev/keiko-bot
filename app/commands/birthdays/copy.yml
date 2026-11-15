@@ -1,0 +1,174 @@
+slash:
+  subgroup:
+    en-us: birthdays
+    pt-br: aniversários
+  name:
+    en-us: reminders
+    pt-br: lembretes
+  description:
+    en-us: Keiko warmly celebrates your members' birthdays with personalized messages
+    pt-br: Keiko comemora calorosamente o aniversário dos seus membros com mensagens personalizadas
+  # open: parameter names in Python -> the parameter Discord shows
+  params:
+    member:
+      name:
+        en-us: member
+        pt-br: membro
+      description:
+        en-us: Member whose birthday will be registered
+        pt-br: Membro que terá o aniversário cadastrado
+    day:
+      name:
+        en-us: day
+        pt-br: dia
+      description:
+        en-us: Birthday day (1-31)
+        pt-br: Dia do aniversário (1-31)
+    month:
+      name:
+        en-us: month
+        pt-br: mes
+      description:
+        en-us: Birthday month
+        pt-br: Mês do aniversário
+  # open: the folder's other app commands -> the command Discord shows
+  commands:
+    add:
+      name:
+        en-us: add
+        pt-br: adicionar
+      description:
+        en-us: Quickly register a member birthday
+        pt-br: Cadastre rapidamente o aniversário de um membro
+    personal:
+      name:
+        en-us: birthday
+        pt-br: aniversário
+      description:
+        en-us: Keiko remembers your birthday and celebrates it on your server
+        pt-br: Keiko lembra seu aniversário e comemora ele no seu servidor
+
+setup:
+  label:
+    en-us: Birthday Reminders
+    pt-br: Lembretes de Aniversário
+  description:
+    en-us: Birthday wishes for your members
+    pt-br: Parabéns no aniversário dos membros
+
+stats:
+  title:
+    en-us: 📊 Birthday Reminders Statistics
+    pt-br: 📊 Estatísticas de Lembretes de Aniversário
+  delivered:
+    one:
+      en-us: ✅ I celebrated 1 birthday in the last $days days!
+      pt-br: ✅ Comemorei 1 aniversário nos últimos $days dias!
+    other:
+      en-us: ✅ I celebrated $count birthdays in the last $days days!
+      pt-br: ✅ Comemorei $count aniversários nos últimos $days dias!
+  # open: figures of the statistics -> the label drawn before its value
+  figures:
+    total:
+      en-us: Total birthdays
+      pt-br: Total de aniversários
+    this_month:
+      en-us: Birthdays this month
+      pt-br: Aniversários neste mês
+    top:
+      en-us: Top month
+      pt-br: Mês com mais aniversários
+    quietest:
+      en-us: Quietest month
+      pt-br: Mês com menos aniversários
+    most_common:
+      en-us: Most common date
+      pt-br: Data com mais aniversários
+
+panel:
+  pages:
+    title:
+      en-us: Birthdays
+      pt-br: Aniversários
+    description:
+      en-us: Listing below all the saved birthdays, in date order.
+      pt-br: Listando abaixo todos os aniversários cadastrados, em ordem de data.
+    empty:
+      en-us: I don't have any birthday written down yet. Use the **Add** button right next to this to include the first one!
+      pt-br: Ainda não tenho nenhum aniversário anotado. Use o botão **Adicionar** aqui ao lado para incluir o primeiro!
+  # open: panel rows no form label names -> the row's title
+  rows:
+    channel:
+      en-us: Birthday Channel
+      pt-br: Canal de aniversário
+    next:
+      en-us: Next birthdays
+      pt-br: Próximos aniversários
+  # open: who wrote the messages a found member shows -> the label above them
+  authors:
+    member:
+      en-us: "Birthday messages:"
+      pt-br: "Mensagens de parabéns:"
+    server:
+      en-us: "Birthday messages (server default):"
+      pt-br: "Mensagens de parabéns (padrão do servidor):"
+    keiko:
+      en-us: "Birthday messages (Keiko's default):"
+      pt-br: "Mensagens de parabéns (padrão do Keiko):"
+
+announcement:
+  defaults:
+    title:
+      en-us: 🎂 It's {user}'s birthday!
+      pt-br: 🎂 É aniversário do {user}!
+    description:
+      en-us: Happy birthday {user}! 🎉 Hope your day is full of joy and treats! ✨
+      pt-br: Feliz aniversário, {user}! 🎉 Que seu dia seja cheio de alegria e mimos! ✨
+
+# open: error names -> an error block
+errors:
+  disabled:
+    title:
+      en-us: Birthday Reminders Not Set Up
+      pt-br: Lembretes de Aniversário Não Configurados
+    message:
+      en-us: Sorry, this server hasn't set up birthday reminders yet! Ask an admin to run `/moderations birthdays reminders` first 🎂
+      pt-br: Desculpe, esse servidor ainda não configurou os lembretes de aniversário! Peça pra um admin rodar o comando `/moderações aniversários lembretes` antes 🎂
+  self_edit_limit:
+    title:
+      en-us: Birthday Edit Blocked
+      pt-br: Edição de Aniversário Bloqueada
+    message:
+      en-us: You've already used your birthday edit in this server. Ask a moderator if you need another correction.
+      pt-br: Você já usou sua edição de aniversário neste servidor. Se precisar corrigir de novo, fale com um moderador.
+
+# open: response names -> the embed the command answers with
+responses:
+  add:
+    title:
+      en-us: 🎂 Birthday registered!
+      pt-br: 🎂 Aniversário cadastrado!
+    description:
+      en-us: "I saved $member's birthday for **$date**.\n\nTo review all reminders, use `/moderations birthdays reminders`."
+      pt-br: "Anotei o aniversário de $member para **$date**.\n\nPara revisar todos os lembretes, use `/moderações aniversários lembretes`."
+  personal:
+    title:
+      en-us: 🎂 Birthday saved!
+      pt-br: 🎂 Aniversário salvo!
+    description:
+      en-us: All set! I'll keep **$date** safe and get ready to celebrate when the day arrives.
+      pt-br: Prontinho! Vou guardar **$date** com carinho e preparar uma comemoração especial quando esse dia chegar.
+  overwrite_confirm:
+    title:
+      en-us: 🎂 Update birthday?
+      pt-br: 🎂 Atualizar aniversário?
+    description:
+      en-us: You already have a birthday saved on **$current_date**. Do you want to overwrite it with **$new_date**? This is your last edit.
+      pt-br: Você já tem aniversário cadastrado em **$current_date**. Deseja sobrescrever para **$new_date**? Essa é sua última edição.
+  overwrite:
+    title:
+      en-us: 🎂 Birthday updated!
+      pt-br: 🎂 Aniversário atualizado!
+    description:
+      en-us: I updated your birthday to **$date**. I'll use this new date from now on.
+      pt-br: Atualizei seu aniversário para **$date**. Vou lembrar dessa nova data daqui pra frente.

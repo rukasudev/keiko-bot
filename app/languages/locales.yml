@@ -1,0 +1,8 @@
+# open: a language code -> the language's name
+en:
+  en-us: English
+  pt-br: Inglês
+
+pt:
+  en-us: Portuguese
+  pt-br: Português
