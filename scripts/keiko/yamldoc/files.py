@@ -127,11 +127,15 @@ class _Walk:
         expected = sorted(known, key=lambda name: model.position(name, tag))
         if known != expected:
             first = f"`{tag}` first, then " if tag else ""
+            rule = (
+                "every key in schema order"
+                if model.in_order
+                else "the closed keys in schema order, then the open ones"
+            )
             self.problem(
                 node,
                 f"{model.name} writes {', '.join(known)}; the standard order is "
-                f"{', '.join(expected)} ({first}the closed keys in schema order, "
-                "then the open ones)",
+                f"{', '.join(expected)} ({first}{rule})",
             )
         for key, value in node.value:
             found = model.field(str(key.value))

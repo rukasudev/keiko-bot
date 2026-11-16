@@ -5,82 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Keiko YAML Reference</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<meta name="generator" content="make yaml-docs (scripts/keiko/yamldoc)">
+<meta name="generator" content="make docs (scripts/keiko/yamldoc)">
 <style>
 /* Layout: a sticky bar picks the type, the view and the language; the Reference reads one object at a time with its children opening in place beside a real file, the Tree shows the whole file at once beside a detail panel. */
-:root {
-  --bg: #f5f6f8;
-  --surface: #ffffff;
-  --surface-2: #eef1f5;
-  --fg: #172030;
-  --fg-2: #46536a;
-  --muted: #637083;
-  --line: #dde2ea;
-  --line-2: #c7cfdb;
-  --accent: #2b6fd6;
-  --accent-soft: #e4edfc;
-  --on-accent: #ffffff;
-  --ink: #172030;
-  --on-ink: #ffffff;
-  --code-bg: #f2f4f8;
-  --val: #8a4b12;
-  --hl: #fff1bf;
-  --warn: #8a5a00;
-  --warn-soft: #fbf1d9;
-  --ex-bg: #111826;
-  --ex-fg: #d7deea;
-  --ex-muted: #7d8a9f;
-  --ex-key: #8fc1ff;
-  --ex-val: #f2c58b;
-  --ex-hl: #24314a;
-  --ex-hl-line: #f2c94c;
-  --shadow: 0 1px 2px rgba(20, 30, 50, .06), 0 6px 20px rgba(20, 30, 50, .06);
-  --r-identity: #586477;
-  --r-copy: #6448d3;
-  --r-visual: #bd317f;
-  --r-behavior: #c24914;
-  --r-conditions: #8e6c00;
-  --r-structure: #08806f;
-  --r-data: #36861b;
-  --r-other: #7a8496;
-  --font-body: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-  --top: 64px;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #0e1218; --surface: #151a22; --surface-2: #1c232e; --fg: #e5e9f0; --fg-2: #b3bdca; --muted: #8893a3;
-    --line: #283140; --line-2: #384354; --accent: #6ea8ff; --accent-soft: #1b2a43; --on-accent: #0e1218;
-    --ink: #e5e9f0; --on-ink: #0e1218; --code-bg: #11161d; --val: #f0b27a; --hl: #3a3317; --warn: #f0c35a; --warn-soft: #362a0c;
-    --ex-bg: #0a0e14; --ex-fg: #d7deea; --ex-muted: #6f7c91; --ex-key: #8fc1ff; --ex-val: #f2c58b; --ex-hl: #1f2b40; --ex-hl-line: #f2c94c;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 24px rgba(0, 0, 0, .3);
-    --r-identity: #a7b2c4; --r-copy: #ab9bff; --r-visual: #f28fc7; --r-behavior: #ff9b68; --r-conditions: #e3c352; --r-structure: #4fd0bf; --r-data: #91d56c; --r-other: #8f99aa;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #0e1218; --surface: #151a22; --surface-2: #1c232e; --fg: #e5e9f0; --fg-2: #b3bdca; --muted: #8893a3;
-  --line: #283140; --line-2: #384354; --accent: #6ea8ff; --accent-soft: #1b2a43; --on-accent: #0e1218;
-  --ink: #e5e9f0; --on-ink: #0e1218; --code-bg: #11161d; --val: #f0b27a; --hl: #3a3317; --warn: #f0c35a; --warn-soft: #362a0c;
-  --ex-bg: #0a0e14; --ex-fg: #d7deea; --ex-muted: #6f7c91; --ex-key: #8fc1ff; --ex-val: #f2c58b; --ex-hl: #1f2b40; --ex-hl-line: #f2c94c;
-  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 6px 24px rgba(0, 0, 0, .3);
-  --r-identity: #a7b2c4; --r-copy: #ab9bff; --r-visual: #f28fc7; --r-behavior: #ff9b68; --r-conditions: #e3c352; --r-structure: #4fd0bf; --r-data: #91d56c; --r-other: #8f99aa;
-  color-scheme: dark;
-}
-
-* { box-sizing: border-box; }
-[hidden] { display: none !important; }
-html { -webkit-text-size-adjust: 100%; }
-body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.55 var(--font-body); -webkit-font-smoothing: antialiased; }
-body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 30; background: var(--bg); }
-.wrap { max-width: 1480px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-button, select, input { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-code, kbd, pre { font-family: var(--font-mono); }
-.d code, .ic { font-family: var(--font-mono); font-size: .86em; background: var(--code-bg); border: 1px solid var(--line); padding: 0 .3em; border-radius: 4px; overflow-wrap: anywhere; }
-a { color: var(--accent); }
-h1, h2, h3, h4 { text-wrap: balance; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; scroll-behavior: auto !important; } }
+/*theme*/
 
 .role-identity { --rc: var(--r-identity); }
 .role-copy { --rc: var(--r-copy); }
@@ -123,40 +51,25 @@ button.rc.off { opacity: .45; }
 .code-snip { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: 12px/1.6 var(--font-mono); overflow-x: auto; white-space: pre; color: var(--fg-2); max-width: 100%; }
 .src { font: 11.5px/1.4 var(--font-mono); color: var(--muted); margin: 4px 0 0; overflow-wrap: anywhere; }
 .note { font-size: 13px; color: var(--muted); }
-.eyebrow { font: 600 11.5px/1 var(--font-body); letter-spacing: .09em; text-transform: uppercase; color: var(--muted); margin: 0; }
 .btn { border: 1px solid var(--line-2); background: var(--surface); border-radius: 8px; padding: 6px 11px; font: 600 12.5px var(--font-body); cursor: pointer; color: var(--fg-2); display: inline-flex; align-items: center; gap: 6px; }
 .btn:hover { border-color: var(--accent); color: var(--accent); }
 .btn svg { width: 14px; height: 14px; }
 .pend { color: var(--warn); }
 
-/* bar */
-.bar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); border-bottom: 1px solid var(--line); }
-.bar-in { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-block: 10px; }
-.brand { display: flex; align-items: baseline; gap: 8px; margin-right: auto; min-width: 0; text-decoration: none; color: var(--fg); }
-.brand b { font: 700 17px/1.2 var(--font-body); letter-spacing: -.01em; white-space: nowrap; }
-.brand span { font: 12.5px var(--font-mono); color: var(--muted); white-space: nowrap; }
 .ctl { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); min-width: 0; }
 .ctl select { padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface); font: 600 12.5px var(--font-mono); color: var(--fg); max-width: 220px; min-width: 0; }
 .segc { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; background: var(--surface); }
 .segc button { border: 0; background: none; padding: 5px 11px; font: 600 12.5px var(--font-body); cursor: pointer; color: var(--fg-2); }
 .segc button + button { border-left: 1px solid var(--line-2); }
 .segc button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+.up { font: 600 12.5px var(--font-body); color: var(--fg-2); text-decoration: none; white-space: nowrap; }
+.up::before { content: "\2190"; margin-right: 6px; color: var(--muted); }
+.up:hover { color: var(--accent); }
 .legend { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; padding-block: 12px 4px; }
 .legend .grp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .legend .lab { font: 600 11px/1 var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
 #stage { padding-block: 18px 72px; min-height: 60vh; }
 
-/* overview */
-.ov h1 { font: 700 clamp(26px, 3.2vw, 36px)/1.1 var(--font-body); letter-spacing: -.015em; margin: 10px 0 8px; }
-.ov .lede { color: var(--fg-2); max-width: 72ch; margin: 0 0 20px; font-size: 15.5px; }
-.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: 12px; }
-.card { display: flex; flex-direction: column; gap: 6px; text-align: left; border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 14px 16px; cursor: pointer; color: var(--fg); min-width: 0; }
-.card:hover { border-color: var(--accent); box-shadow: var(--shadow); }
-.card b { font: 600 15px var(--font-mono); }
-.card code { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
-.card .d { color: var(--fg-2); font-size: 13.5px; margin: 0; }
-.card .st { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); margin-top: auto; }
-.ov h2 { font: 700 13px/1 var(--font-body); letter-spacing: .06em; text-transform: uppercase; margin: 32px 0 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line-2); }
 .mean { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 8px 20px; margin: 0; }
 .mean div { display: flex; gap: 10px; align-items: baseline; min-width: 0; }
 .mean dt { flex: none; }
@@ -307,6 +220,7 @@ button.rc.off { opacity: .45; }
 <body>
 <header class="bar" id="bar">
   <div class="wrap bar-in">
+    <a class="up" href="index.html" id="t-docs">All docs</a>
     <a class="brand" href="#" id="brand"><b>Keiko</b><span id="t-brand">YAML reference</span></a>
     <label class="ctl"><span id="t-file">File</span><select id="type"></select></label>
     <div class="ctl"><span id="t-view">View</span><div class="segc" role="group" aria-labelledby="t-view"><button data-view="ref" aria-pressed="false" id="t-ref">Reference</button><button data-view="tree" aria-pressed="false" id="t-tree">Tree</button></div></div>
@@ -359,7 +273,7 @@ const RULE = {
   uniqueItems: ['no item twice', 'no item twice', 'nenhum item repetido', 'nenhum item repetido'],
 };
 const UI = {
-  brand: ['YAML reference', 'referência do YAML'],
+  brand: ['YAML reference', 'referência do YAML'], docs: ['All docs', 'Todas as docs'],
   file: ['File', 'Arquivo'], view: ['View', 'Visão'], lang: ['Language', 'Idioma'],
   reference: ['Reference', 'Referência'], tree: ['Tree', 'Árvore'], overview: ['Overview: every type', 'Visão geral: todos os tipos'],
   roles: ['Field roles', 'Papéis dos campos'], types: ['Data types', 'Tipos de dado'],
@@ -401,11 +315,11 @@ const UI = {
   files: ['Files', 'Arquivos'], schema: ['Schema', 'Schema'], readBy: ['Read by', 'Lido por'],
   nFiles: ['{n} files', '{n} arquivos'], oneFile: ['1 file', '1 arquivo'], nObjects: ['{n} objects', '{n} objetos'], oneObject: ['1 object', '1 objeto'], nKeys: ['{n} keys', '{n} chaves'], oneKey: ['1 key', '1 chave'],
   pending: ['schema pending', 'schema pendente'],
-  noSchema: ['No schema yet. This type is still read as a plain mapping: name its root model in YAML_TYPES (app/core/commands.py) and run make yaml-docs.', 'Ainda sem schema. Este tipo ainda é lido como um mapeamento simples: indique o model raiz dele em YAML_TYPES (app/core/commands.py) e rode make yaml-docs.'],
-  untranslated: ['Not translated yet: add it to docs/yaml/pt-br.yml.', 'Ainda não traduzido: adicione em docs/yaml/pt-br.yml.'],
+  noSchema: ['No schema yet. This type is still read as a plain mapping: name its root model in YAML_TYPES (app/core/commands.py) and run make docs.', 'Ainda sem schema. Este tipo ainda é lido como um mapeamento simples: indique o model raiz dele em YAML_TYPES (app/core/commands.py) e rode make docs.'],
+  untranslated: ['Not translated yet: add it to scripts/keiko/yamldoc/translations.yml.', 'Ainda não traduzido: adicione em scripts/keiko/yamldoc/translations.yml.'],
   noDesc: ['No description yet.', 'Ainda sem descrição.'],
   ovEyebrow: ['Keiko bot', 'Keiko bot'], ovTitle: ['YAML reference', 'Referência do YAML'],
-  ovLede: ['Every YAML file Keiko reads has one schema: a pydantic model whose keys are the keys you write. This page is generated from those models and from the files themselves by make yaml-docs, and tests/test_yaml_reference.py fails when it is out of date. Pick a type to read it as a reference, one object at a time, or as one tree.', 'Todo arquivo YAML que o Keiko lê tem um schema: um model pydantic cujas chaves são as chaves que você escreve. Esta página é gerada desses models e dos próprios arquivos pelo make yaml-docs, e o tests/test_yaml_reference.py falha quando ela está desatualizada. Escolha um tipo para ler como referência, um objeto por vez, ou como uma árvore.'],
+  ovLede: ['Every YAML file Keiko reads has one schema: a pydantic model whose keys are the keys you write. This page is generated from those models and from the files themselves by make docs, and tests/test_yaml_reference.py fails when it is out of date. Pick a type to read it as a reference, one object at a time, or as one tree.', 'Todo arquivo YAML que o Keiko lê tem um schema: um model pydantic cujas chaves são as chaves que você escreve. Esta página é gerada desses models e dos próprios arquivos pelo make docs, e o tests/test_yaml_reference.py falha quando ela está desatualizada. Escolha um tipo para ler como referência, um objeto por vez, ou como uma árvore.'],
   ovTypes: ['YAML types', 'Tipos de YAML'], ovRoles: ['What each role means', 'O que cada papel significa'], ovMarks: ['What each type mark means', 'O que cada marca de tipo significa'],
   ovLayout: ['Layout of a file', 'Layout de um arquivo'],
   layout1: ['A union item writes its kind (or type) first.', 'Um item de união escreve o kind (ou type) primeiro.'],
@@ -621,7 +535,7 @@ function navigated() {
 }
 function renderChrome() {
   document.documentElement.lang = S.lang === 'pt' ? 'pt-BR' : 'en';
-  [['t-brand', 'brand'], ['t-file', 'file'], ['t-view', 'view'], ['t-lang', 'lang'], ['t-ref', 'reference'], ['t-tree', 'tree']].forEach(([id, k]) => { document.getElementById(id).textContent = u(k); });
+  [['t-docs', 'docs'], ['t-brand', 'brand'], ['t-file', 'file'], ['t-view', 'view'], ['t-lang', 'lang'], ['t-ref', 'reference'], ['t-tree', 'tree']].forEach(([id, k]) => { document.getElementById(id).textContent = u(k); });
   const sel = document.getElementById('type');
   sel.setAttribute('aria-label', u('file'));
   sel.innerHTML = `<option value="">${esc(u('overview'))}</option>` + TYPES.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');

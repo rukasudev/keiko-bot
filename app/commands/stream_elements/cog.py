@@ -12,7 +12,9 @@ from app.types.cogs import Group
 class StreamElementsCommands(  # noqa: D101 - discord.py sends a Group's docstring as its description
     Group,
     name=locale_str(
-        "streamelements", type="subgroup", namespace="stream_elements_commands.slash"
+        "streamelements",
+        type="subgroup",
+        namespace="stream_elements_commands.command.slash",
     ),
 ):
     def __init__(self, bot: DiscordBot) -> None:
@@ -21,10 +23,12 @@ class StreamElementsCommands(  # noqa: D101 - discord.py sends a Group's docstri
 
     @keiko_command(
         name=locale_str(
-            "commands", type="name", namespace="stream_elements_commands.slash"
+            "commands", type="name", namespace="stream_elements_commands.command.slash"
         ),
         description=locale_str(
-            "desc", type="description", namespace="stream_elements_commands.slash"
+            "desc",
+            type="description",
+            namespace="stream_elements_commands.command.slash",
         ),
     )
     @keiko_admin_only

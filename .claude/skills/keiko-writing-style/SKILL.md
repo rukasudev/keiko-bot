@@ -75,8 +75,11 @@ card is two buttons, **Sim** / **Não** (**Yes** / **No**), the current one prim
 other secondary.
 
 When the same step means different things depending on an earlier answer, do not write one
-sentence covering both cases: give it `variants:` that replace its `description` (see
-`docs/form-configuration.md`), so each case reads as if it were the only one.
+sentence covering both cases: give it `overrides:` that replace its `description` (see
+`docs/form-configuration.md`), so each case reads as if it were the only one. The same
+holds for copy: a text that changes with the state is the block's default plus
+`overrides` on the facts that pick it (`docs/commands.md`, "Overrides and facts"), never
+a second key the code chooses by name.
 
 Pinned by `test_mode_picker_explains_each_mode_in_its_own_line`
 (`tests/behavioral/scenarios/test_block_links_flow.py`, the mode options) and by the
@@ -127,16 +130,16 @@ of text is a bug, not a style choice.
 - Every step has `title` and `description` in both `en-us` and `pt-br`; the summary, and a card titled exactly like the intro, take the intro's title from the defaults.
 - A text the shared vocabulary holds (`texts` in `app/forms/vocabulary.yml`: "Channel", "Choose channel", "Title"...) is named with `{ref: name}`, never written again; a text three fields would write goes there first, in both locales.
 - No YAML anchors or aliases (`&name`, `*name`) in a `copy.yml` or a `form.yml`: a command must be able to live as a database document, and the two files are already its two halves.
-- Step types: `intro`, `text`, `single_choice`, `card`, `list`, `review` (every key a form may write is in `docs/yaml/index.html`).
+- Step types: `intro`, `text`, `single_choice`, `card`, `list`, `review` (every key a form may write is in `docs/yaml-reference.html`).
 
 ## Formatting rules
 
-- Slash commands → backticks: `` `/setup` ``, `` `/report` ``, `` `/support` ``.
+- Slash commands → backticks around their context entry, never the name typed in: `` `{context:commands.setup}` `` (reads `/setup` or `/configurar`), `` `{context:commands.report}` ``, `` `{context:commands.block_links}` `` (`/moderations block links`), a parent group `` `{context:groups.moderations}` ``.
 - Bot name and emphasized nouns → bold: `**Keiko**`, `**#support**`, `**$command_name**`.
 - Stressed words → italics: `*help*`.
 - Examples / values → backticks: `` `ks!mouse` ``.
 - Variables shown to the user (welcome / notification message templates) → curly braces: `{user}`, `{server}`, `{member_count}`, `{streamer}`, `{stream_link}`, `{youtuber}`, `{video_link}`.
-- Variables the code fills in copy (a `copy.yml` or `app/languages/*.yml`) → dollar prefix, and only that: `$user`, `$command_name`, `$date`, `$cog_name`, `$cog_key`, `$ping`, `$action`, `$roles`. The loader refuses a `{name}` in copy and `fill` refuses a line that names a given value in braces; braces belong to the templates an admin writes (and Keiko's own defaults of them, `announcement.defaults`). A line that points to another command writes its localized name literally (`/setup` in en-us, `/configurar` in pt-br).
+- Variables the code fills in copy (a `copy.yml` or `app/languages/*.yml`) → dollar prefix, and only that: `$user`, `$command_name`, `$date`, `$cog_name`, `$cog_key`, `$ping`, `$action`, `$roles`. Each is a declared fact: the command's own in the `facts:` of its `copy.yml`, or a global one in `app/core/global.yml` (a shared file reads only global ones); the loader refuses an undeclared `$name`, a `{name}` in copy, and `fill` refuses a line that names a given value in braces; braces belong to the templates an admin writes (and Keiko's own defaults of them, `announcement.defaults`). A line that points to another command writes its context entry, `{context:commands.<key>}`, which the loader writes in as its localized name (`/setup` in en-us, `/configurar` in pt-br).
 - Earlier form answers echoed in step descriptions → `{answer:<key>|<fallback>}` (substituted by the form engine; always provide the fallback).
 - Never mix `{}` and `$` in the same string.
 - Footer prefix: `"• "` (bullet + space). Never use `•` as an inline bullet in body copy.
@@ -152,9 +155,9 @@ of text is a bug, not a style choice.
 
 ## Localization
 
-- Every new user-facing string MUST exist in BOTH locales, as one node with its `en-us` and its `pt-br`: a command's own string in its folder's `copy.yml` (`app/commands/<command>/`, snake_case keys relative to the command; the /setup row under the fixed `setup.label`, `setup.description`, `stats.title`, `stats.delivered.one`, `stats.delivered.other`, `slash.subgroup` and `slash.name`), a shared one in `app/languages/<namespace>.yml`. The loader refuses a text missing a locale, and a file its schema refuses.
-- A string goes in the block of the primitive that draws it: `responses.<name>` for `response_embed`, `errors.<name>` for an error, `records.<name>` for `RecordsBrowser`, `buttons.<name>`, `cards.<name>`, `panel`, `stats`, `announcement`, and `messages` only for what no primitive draws (the table in `docs/commands.md`). `description` names a block's body (an embed's, a list's, a card's) or a caption Discord shows (a slash command's, a button's Help line), `value` the text a field shows, and an error's text keeps `message`.
-- Python code must NEVER hardcode user-facing strings. Always: the primitive that reads the block (`response_embed("<command-key>.responses.<name>", locale)`), or `ml("<command-key>.<path>", locale)` for a command's copy and `ml("<namespace>.<key>", locale)` for shared copy.
+- Every new user-facing string MUST exist in BOTH locales, as one node with its `en-us` and its `pt-br`: a command's own string in its folder's `copy.yml` (`app/commands/<command>/`, snake_case keys relative to the command; the /setup row under the fixed `command.setup.label`, `command.setup.description`, `command.stats.title`, `command.stats.delivered.one`, `command.stats.delivered.other`, `command.slash.subgroup` and `command.slash.name`), a shared one in `app/languages/<namespace>.yml`. The loader refuses a text missing a locale, and a file its schema refuses.
+- A string goes in the block of the primitive that draws it: under `command`, the fixed places the shared screens fill (`slash`, `setup`, `stats`, `panel`); under `ui`, what the command draws itself (`cards.<name>`, `records.<name>` for `RecordsBrowser`, `responses.<name>` for `response_embed`, `errors.<name>` for an error, `buttons.<name>`, `announcement`, and `texts` only for what no primitive draws; the table in `docs/commands.md`). `description` names a block's body (an embed's, a list's, a card's) or a caption Discord shows (a slash command's, a button's Help line), `value` the text a field shows, and an error's text keeps `message`.
+- Python code must NEVER hardcode user-facing strings. Always: the primitive that reads the block (`response_embed("<command-key>.ui.responses.<name>", locale)`), or `ml("<command-key>.<path>", locale)` for a command's copy and `ml("<namespace>.<key>", locale)` for shared copy.
 - pt-br tone matches en-us exactly: same warmth, same emoji, same 1st person, same `**Keiko**` bolding, same `"• "` footer prefix.
 
 ## Where these rules do NOT apply: operator surfaces
@@ -180,7 +183,7 @@ Every rule below is about what a user sees; on the two operator surfaces named a
 - ALWAYS use 1st person elsewhere.
 - ALWAYS prefix footer text with `"• "`.
 - ALWAYS bold `**Keiko**` and `**$command_name**` when referenced inline.
-- ALWAYS backtick slash commands.
+- ALWAYS backtick slash commands, written as their context entry (`{context:commands.<key>}`).
 - ALWAYS provide both `en-us` and `pt-br` for new strings.
 - ALWAYS reuse `commands.responses.{enabled,paused,unpaused,disabled}` for state changes; do not invent new state-change copy.
 - ALWAYS reuse generic button keys from `app/languages/buttons.yml` when an existing label fits.
@@ -196,7 +199,7 @@ Every rule below is about what a user sees; on the two operator surfaces named a
 - NEVER write a value the code fills as `{var}` in copy: `$var` only (braces are for the templates an admin writes).
 - NEVER use ALL CAPS, slang, memes, or sarcasm.
 - NEVER drop the standard form footer (`"• Use the `/report` command to tell me a bug"`): leave `footer` out of a step and the engine draws it from `app/forms/vocabulary.yml`; never write it out again, and never write `footer: null` without a reason.
-- IF writing an error → red embed (`Style.RED_COLOR`) + apology + recovery hint + use `response_error_embed("<command-key>.errors.<name>", locale)` (a shared one by its bare name).
+- IF writing an error → red embed (`Style.RED_COLOR`) + apology + recovery hint + use `response_error_embed("<command-key>.ui.errors.<name>", locale)` (a shared one by its bare name).
 - IF writing a success → reuse `commands.responses.*` keys.
 - IF documenting the variables of an admin template for the user → use a `-` bullet list: `\n- ` `` `{var}` ``: {meaning}". Never `•` here.
 - IF the message describes an async/in-progress state → trailing `...` is allowed and expected (e.g., `🔄 Syncing roles...`).
@@ -229,7 +232,7 @@ responses:
       pt-br: {frase em 1ª pessoa, $value onde o código preenche}
     footer: {ref: support_footer}
 ```
-Render: `response_embed("{command-key}.responses.{response_name}", locale, image=True, values={...})`. Leave `footer` out for the standard `/report` line, write `footer: null` for none, or a text (here the shared `support_footer` of `app/forms/vocabulary.yml`) for another.
+Render: `response_embed("{command-key}.responses.{response_name}", locale, image=True, facts=command_facts(...))`. Leave `footer` out for the standard `/report` line, write `footer: null` for none, or a text (here the shared `support_footer` of `app/forms/vocabulary.yml`) for another.
 
 ### Error message (in the command's `copy.yml`, or `app/languages/errors.yml` when shared)
 ```yaml

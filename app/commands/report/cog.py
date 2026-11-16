@@ -42,8 +42,10 @@ class Report(Cog, name="report"):
         super().__init__()
 
     @keiko_command(
-        name=locale_str("report", type="name", namespace="report.slash"),
-        description=locale_str("report", type="description", namespace="report.slash"),
+        name=locale_str("report", type="name", namespace="report.command.slash"),
+        description=locale_str(
+            "report", type="description", namespace="report.command.slash"
+        ),
     )
     @app_commands.autocomplete(command=report_autocomplete)
     async def report(
@@ -85,7 +87,7 @@ class Report(Cog, name="report"):
         await log_channel.send(embed=embed)
 
         response = response_embed(
-            "report.responses.sent", interaction.locale, discord.Color.green()
+            "report.ui.responses.sent", interaction.locale, discord.Color.green()
         )
         await interaction.followup.send(embed=response, ephemeral=True)
 

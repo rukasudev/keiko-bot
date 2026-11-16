@@ -18,8 +18,10 @@ from app.core import analytics, i18n
 from app.core.cache import read_cog_data, remove_cog_cache_by_guild
 from app.core.cogs import LIFECYCLE_ANALYTICS_EVENTS, is_feature_on
 from app.core.commands import Open
+from app.core.conditions import Override
+from app.core.facts import Facts
 from app.core.feature_health import send_feature_stats
-from app.core.i18n import CopyBlock, CopyError, CopyText, Variant
+from app.core.i18n import CopyBlock, CopyText
 from app.core.servers import set_feature_enabled
 from app.core.threads import to_thread
 from app.core.utils import fill
@@ -47,6 +49,23 @@ from app.forms.form.responses.summary import (
 )
 
 
+class PanelInfoOverride(Override):
+    """What the panel's closing paragraph draws while a rule holds, in place of its own
+    title or paragraph."""
+
+    title: CopyText | None = Field(
+        None,
+        description="The title drawn while the rule holds; absent keeps the block's.",
+        json_schema_extra={"role": "copy"},
+    )
+    description: CopyText | None = Field(
+        None,
+        description="The paragraph drawn while the rule holds; absent keeps the "
+        "block's.",
+        json_schema_extra={"role": "copy"},
+    )
+
+
 class PanelInfo(CopyBlock):
     """The closing paragraph of a feature's manager panel."""
 
@@ -59,10 +78,11 @@ class PanelInfo(CopyBlock):
         description="The paragraph; `$name` marks a value the code fills ($count).",
         json_schema_extra={"role": "copy"},
     )
-    variants: Open[Variant] = Field(
-        default_factory=dict,
-        description="The title or description drawn in a state the feature picks "
-        "(while it cannot tell what it counts).",
+    overrides: tuple[PanelInfoOverride, ...] = Field(
+        (),
+        description="The title or paragraph drawn while a rule on the facts holds, "
+        "the first item whose rule holds winning (while the feature cannot tell what "
+        "it counts).",
         json_schema_extra={"role": "conditions"},
     )
 
@@ -283,16 +303,20 @@ class GenericCogFeature:
 
     panel_asides: ClassVar[Mapping[str, str]] = {}
     """The asides the panel offers a button for, each with its emoji; the button's
-    copy is `buttons.<aside>` of the feature's copy."""
+    copy is `ui.buttons.<aside>` of the feature's copy."""
+
+    fills_panel_info: ClassVar[bool] = False
+    """Whether the feature draws `command.panel.info` itself, with the facts it reads;
+    the generic panel then leaves the paragraph to it."""
 
     def panel_info(self, context: OpenContext) -> str:
-        """The closing paragraph of the panel: `panel.info` of the feature's copy,
-        empty while the copy writes none."""
-        return self.panel_info_copy(context.locale)[1]
+        """The closing paragraph of the panel: `command.panel.info` of the feature's
+        copy, empty while the copy writes none or the feature fills it."""
+        return "" if self.fills_panel_info else self.panel_info_copy(context.locale)[1]
 
     def panel_info_title(self, context: OpenContext) -> str:
-        """The title of the closing paragraph, from the same `panel.info`."""
-        return self.panel_info_copy(context.locale)[0]
+        """The title of the closing paragraph, from the same `command.panel.info`."""
+        return "" if self.fills_panel_info else self.panel_info_copy(context.locale)[0]
 
     def extra_buttons(self, context: OpenContext) -> tuple[Any, ...]:
         """One panel button per aside of `panel_asides`, none by default."""
@@ -305,8 +329,9 @@ class GenericCogFeature:
         self, aside: str, emoji: str, locale: str, copy: str = ""
     ) -> Button:
         """The panel button that runs `aside`, its label and caption read from
-        `buttons.<aside>` of the feature's copy, or from the ButtonCopy block `copy`."""
-        block = copy or f"{self.key}.buttons.{aside}"
+        `ui.buttons.<aside>` of the feature's copy, or from the ButtonCopy block
+        `copy`."""
+        block = copy or f"{self.key}.ui.buttons.{aside}"
         return Button(
             text(f"{block}.label", locale),
             f"aside:{aside}",
@@ -316,24 +341,17 @@ class GenericCogFeature:
         )
 
     def panel_info_copy(
-        self, locale: str, variant: str = "", values: Mapping[str, Any] | None = None
+        self, locale: str, facts: Facts | None = None
     ) -> tuple[str, str]:
-        """The title and description of `panel.info` in the feature's copy, the
-        variant `variant` drawn in their place, filled from `values`; empty without
-        one."""
-        panel = i18n.block(f"{self.key}.panel", Panel, required=False)
-        info = panel.info if panel else None
-        if info is None:
+        """The title and description of `command.panel.info` in the feature's copy,
+        with the overrides `facts` choose and its `$name`s filled; empty without one."""
+        panel = i18n.block(f"{self.key}.command.panel", Panel, required=False)
+        if panel is None or panel.info is None:
             return "", ""
-        chosen = info.variants.get(variant) if variant else None
-        if variant and chosen is None:
-            raise CopyError(f"{self.key}.panel.info.variants writes no {variant}")
-        title = chosen.title if chosen and chosen.title else info.title
-        body = chosen.description if chosen and chosen.description else info.description
+        info, values = i18n.resolved(f"{self.key}.command.panel.info", PanelInfo, facts)
         language = normalize_locale(locale)
-        filled = dict(values or {})
-        heading = fill(title.get(language), **filled) if title else ""
-        return heading, fill(body.get(language), **filled)
+        heading = fill(info.title.get(language), **values) if info.title else ""
+        return heading, fill(info.description.get(language), **values)
 
     async def prefetch(
         self, lookup: Lookup, context: OpenContext

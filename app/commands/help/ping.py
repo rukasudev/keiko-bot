@@ -17,9 +17,11 @@ class Ping(Cog, name="ping"):
         super().__init__()
 
     @keiko_command(
-        name=locale_str("ping", type="name", namespace="help.slash.commands.ping"),
+        name=locale_str(
+            "ping", type="name", namespace="help.command.slash.commands.ping"
+        ),
         description=locale_str(
-            "ping", type="description", namespace="help.slash.commands.ping"
+            "ping", type="description", namespace="help.command.slash.commands.ping"
         ),
     )
     async def ping(self, interaction: discord.Interaction) -> None:

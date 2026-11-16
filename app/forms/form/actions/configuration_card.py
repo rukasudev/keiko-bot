@@ -14,6 +14,7 @@ from dataclasses import dataclass, replace
 from typing import Any
 
 from app.constants import KeikoIcons
+from app.core.conditions import Scope, evaluate
 from app.forms.form.actions import Refusal
 from app.forms.form.actions.action import (
     Context,
@@ -39,7 +40,6 @@ from app.forms.form.components import (
     SectionView,
     TextInputs,
 )
-from app.forms.form.conditions import Scope, evaluate
 from app.forms.form.copy import text
 from app.forms.form.form_state import Answer, FormSession, Refused
 from app.forms.form.form_yaml import (
@@ -264,7 +264,7 @@ def _section_view(
     if custom is not None and section.keys.mode:
         customized = custom(section, state)
         shown = "custom" if customized else "default"
-        badge = text(f"messages.badges.{shown}", locale)
+        badge = text(f"texts.badges.{shown}", locale)
         heading = f"{section.emoji} **{label}:** {badge}"
         buttons: tuple[Button, ...]
 
@@ -647,7 +647,7 @@ def _join_labels(labels: Sequence[str], locale: str) -> str:
     emphasized = [f"**{label}**" for label in labels]
     if len(emphasized) <= 1:
         return emphasized[0] if emphasized else ""
-    conjunction = text("messages.list_and", locale)
+    conjunction = text("texts.list_and", locale)
     if len(emphasized) == 2:
         return conjunction.join(emphasized)
     return f"{', '.join(emphasized[:-1])}{conjunction}{emphasized[-1]}"
@@ -931,7 +931,7 @@ def _image_modal(
     locale = context.locale
     component = FileInput(
         card.key,
-        text("messages.file_upload", locale) or "Image",
+        text("texts.file_upload", locale) or "Image",
         slot=section.key,
     )
     return Screen(
@@ -1002,7 +1002,7 @@ def _channel_select(
     return Picker(
         card.key,
         "channel",
-        text("messages.placeholders.channel", locale),
+        text("texts.placeholders.channel", locale),
         selected=selected,
         unique=True,
         slot=section.keys.value or "",
@@ -1040,7 +1040,7 @@ def _member_select(
     return Picker(
         card.key,
         "user",
-        text("messages.placeholders.user", locale),
+        text("texts.placeholders.user", locale),
         selected=selected,
         unique=True,
         slot=section.keys.value or "",

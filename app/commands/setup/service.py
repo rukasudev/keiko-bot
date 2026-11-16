@@ -11,7 +11,7 @@ from app import logger
 from app.constants import Commands, KeikoIcons, supported_locales
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
-from app.core import analytics, i18n
+from app.core import analytics
 from app.core.cogs import find_changes, is_feature_on
 from app.core.commands import (
     PARENT_GROUPS,
@@ -23,6 +23,7 @@ from app.core.commands import (
     setup_feature,
     setup_features,
 )
+from app.core.facts import Facts, facts
 from app.core.feature_health import feature_problems
 from app.core.manager import parse_history_data
 from app.core.servers import (
@@ -44,9 +45,8 @@ from app.exceptions import InvalidServerSetting
 from app.integrations.google_translate import GoogleTranslate
 from app.ui.buttons import GenericButton
 from app.ui.embed import (
-    Card,
+    card_copy,
     card_footer,
-    card_footer_text,
     card_frame,
     card_header,
     card_row,
@@ -60,9 +60,14 @@ Opens = Callable[[discord.Interaction], Awaitable[None]]
 Page = Callable[[], Awaitable[discord.ui.LayoutView]]
 
 
+def command_facts(**values: Any) -> Facts:
+    """The facts this command's code passes its copy, each under its address."""
+    return facts("setup", **values)
+
+
 def feature_label(spec: Command, locale: str) -> str:
     """A feature's emoji and name, as the /setup card shows it."""
-    name = command_text(spec, "setup.label", locale)
+    name = command_text(spec, "command.setup.label", locale)
     return f"{spec.emoji} {name}"
 
 
@@ -78,7 +83,7 @@ def history_fields(
 
     def label_for(cog_key: str) -> str:
         if cog_key == Commands.SERVER_SETTINGS_KEY:
-            settings: str = ml("setup.cards.dashboard.rows.settings.title", locale)
+            settings: str = ml("setup.ui.cards.dashboard.rows.settings.title", locale)
             return settings
         spec = setup_feature(cog_key)
         return f"**{feature_label(spec, locale)}**" if spec else f"`{cog_key}`"
@@ -94,7 +99,7 @@ async def send_history(interaction: discord.Interaction) -> None:
     browser = RecordsBrowser(
         fetch=lambda _interaction, _user: guild_history(_guild_id(interaction)),
         to_fields=lambda shown, clicked: history_fields(shown, clicked, locale),
-        copy="setup.records.history",
+        copy="setup.ui.records.history",
     )
     await browser.send(interaction)
 
@@ -109,7 +114,7 @@ async def permission_report(
         spec for spec, state in await _states(guild_id) if state == "configured"
     ]
     embed = response_embed(
-        "setup.responses.permissions",
+        "setup.ui.responses.permissions",
         locale,
         empty=not configured,
         thumbnail=KeikoIcons.IMAGE_02,
@@ -120,7 +125,7 @@ async def permission_report(
         embed.add_field(
             name=feature_label(spec, locale),
             value="\n".join(problems)
-            or ml("setup.responses.permissions.lines.ok", locale),
+            or ml("setup.ui.responses.permissions.lines.ok", locale),
             inline=False,
         )
     return embed
@@ -137,9 +142,9 @@ async def send_permissions(interaction: discord.Interaction) -> None:
 
 def _translated_command(command_key: str, locale: str) -> str:
     command = command_for(command_key)
-    group = ml(f"messages.groups.{command.group}", locale)
-    subgroup = command_text(command, "slash.subgroup", locale)
-    name = command_text(command, "slash.name", locale)
+    group = ml(f"texts.groups.{command.group}", locale)
+    subgroup = command_text(command, "command.slash.subgroup", locale)
+    name = command_text(command, "command.slash.name", locale)
     return f"/{group} {subgroup} {name}"
 
 
@@ -170,16 +175,19 @@ def _categories(states: List[Row]) -> List[Tuple[ParentGroup, List[Row]]]:
 
 
 def _row_text(feature: Command, state: str, locale: str) -> str:
-    name = command_text(feature, "setup.label", locale)
+    name = command_text(feature, "command.setup.label", locale)
     command = _translated_command(feature.key, locale)
     if state != "pending":
-        name = f"{name} {ml(f'setup.messages.states.{state}', locale)}"
-    details = [command_text(feature, "setup.description", locale), f"`{command}`"]
+        name = f"{name} {ml(f'setup.ui.texts.states.{state}', locale)}"
+    details = [
+        command_text(feature, "command.setup.description", locale),
+        f"`{command}`",
+    ]
     return f"{feature.emoji} **{name}**\n-# " + " · ".join(details)
 
 
 def _category_text(category: ParentGroup, members: List[Row], locale: str) -> str:
-    base = "setup.messages"
+    base = "setup.ui.texts"
     emoji = PARENT_GROUPS[category]
     name = ml(f"{base}.categories.{category}", locale)
     shown = view_constants.SETUP_CATEGORY_EXAMPLES
@@ -189,7 +197,7 @@ def _category_text(category: ParentGroup, members: List[Row], locale: str) -> st
     ]
     hidden = len(members) - len(examples)
     if hidden:
-        examples.append(f"- {fill(ml('messages.and_more', locale), count=hidden)}")
+        examples.append(f"- {fill(ml('texts.and_more', locale), count=hidden)}")
     brief = ml(f"{base}.briefs.{category}", locale)
     heading = ml(f"{base}.top_commands", locale)
     return "\n".join([f"{emoji} **{name}**", brief, "", heading, *examples])
@@ -204,12 +212,12 @@ def _timezone_label(zone: str, locale: str) -> str:
     if slug is None:
         return zone
 
-    label: str = ml(f"setup.messages.timezones.{slug}", locale)
+    label: str = ml(f"setup.ui.texts.timezones.{slug}", locale)
     return label
 
 
 def _settings_text(locale: str) -> str:
-    base = "setup.cards.dashboard.rows.settings"
+    base = "setup.ui.cards.dashboard.rows.settings"
     return f"{ml(f'{base}.title', locale)}\n{ml(f'{base}.description', locale)}"
 
 
@@ -233,13 +241,13 @@ def _card_buttons(locale: str) -> List[discord.ui.Item[Any]]:
             ml("buttons.history.label", locale), send_history, grey, emoji="📜"
         ),
         GenericButton(
-            ml("setup.buttons.permissions.label", locale),
+            ml("setup.ui.buttons.permissions.label", locale),
             send_permissions,
             grey,
             emoji="🩺",
         ),
         discord.ui.Button(
-            label=ml("setup.buttons.support.label", locale),
+            label=ml("setup.ui.buttons.support.label", locale),
             emoji="💬",
             style=discord.ButtonStyle.link,
             url=Commands.SUPPORT_SERVER_URL,
@@ -262,9 +270,7 @@ def _back(locale: str) -> GenericButton:
     return _navigation("buttons.back.label", show_first_page, locale, grey)
 
 
-def _footer(card: discord.ui.Container[Any], screen: str, locale: str) -> None:
-    written = i18n.block(f"setup.cards.{screen}", Card)
-    line = card_footer_text(written, locale)
+def _footer(card: discord.ui.Container[Any], line: str) -> None:
     if line:
         card_footer(card, line)
 
@@ -330,9 +336,9 @@ def _feature_button(
     feature: Command, state: str, locale: str, category: ParentGroup, page: int
 ) -> SetupFeatureButton:
     label_key = (
-        "setup.buttons.start.label"
+        "setup.ui.buttons.start.label"
         if state == "pending"
-        else "setup.buttons.manage.label"
+        else "setup.ui.buttons.manage.label"
     )
     configured = state != "pending"
     return SetupFeatureButton(
@@ -389,28 +395,24 @@ async def open_setup_dashboard(interaction: discord.Interaction, source: str) ->
 async def setup_dashboard(guild_id: str) -> discord.ui.LayoutView:
     """The /setup first page for this guild in its language: its server settings and
     its categories."""
-    base = "setup.cards.dashboard"
     states, locale = await asyncio.gather(_states(guild_id), server_language(guild_id))
     pending = any(state == "pending" for _feature, state in states)
-    intro = ml(
-        f"{base}.description"
-        if pending
-        else f"{base}.variants.all_configured.description",
-        locale,
+    copy = card_copy(
+        "setup.ui.cards.dashboard", locale, command_facts(all_configured=not pending)
     )
 
     card = card_frame()
-    card_header(card, ml(f"{base}.title", locale), intro, KeikoIcons.IMAGE_01)
-    settings = _navigation("setup.buttons.start.label", open_settings, locale)
+    card_header(card, copy.title, copy.description, KeikoIcons.IMAGE_01)
+    settings = _navigation("setup.ui.buttons.start.label", open_settings, locale)
     card_row(card, _settings_text(locale), settings)
     for category, members in _categories(states):
         opens = _category_opener(category, 0)
         card_row(
             card,
             _category_text(category, members, locale),
-            _navigation("setup.buttons.start.label", opens, locale),
+            _navigation("setup.ui.buttons.start.label", opens, locale),
         )
-    _footer(card, "dashboard", locale)
+    _footer(card, copy.footer)
     return _view(card, *_card_buttons(locale))
 
 
@@ -465,34 +467,36 @@ def category_view(
     locale: str,
 ) -> discord.ui.LayoutView:
     """The page drawn: the category header, its features, the page turns and Voltar."""
-    base = "setup.cards.category"
-    note = ""
-    if pages > 1:
-        note = fill(ml(f"{base}.note", locale), page=page + 1, pages=pages)
-    name = ml(f"setup.messages.categories.{category}", locale)
-    title = fill(ml(f"{base}.title", locale), emoji=PARENT_GROUPS[category], name=name)
+    name = ml(f"setup.ui.texts.categories.{category}", locale)
+    copy = card_copy(
+        "setup.ui.cards.category",
+        locale,
+        command_facts(
+            emoji=PARENT_GROUPS[category], name=name, page=page + 1, pages=pages
+        ),
+    )
 
     card = card_frame()
-    intro = ml(f"{base}.description", locale)
-    card_header(card, title, intro, KeikoIcons.IMAGE_01, note)
+    note = copy.note if pages > 1 else ""
+    card_header(card, copy.title, copy.description, KeikoIcons.IMAGE_01, note)
     card.add_item(discord.ui.Separator())
     for feature, state in rows:
         button = _feature_button(feature, state, locale, category, page)
         card_row(card, _row_text(feature, state, locale), button, separated=False)
-    _footer(card, "category", locale)
+    _footer(card, copy.footer)
 
     buttons = []
     if pages > 1:
         buttons += [
             _navigation(
-                "setup.buttons.previous.label",
+                "setup.ui.buttons.previous.label",
                 _category_opener(category, page - 1),
                 locale,
                 emoji="◀️",
                 disabled=page == 0,
             ),
             _navigation(
-                "setup.buttons.next.label",
+                "setup.ui.buttons.next.label",
                 _category_opener(category, page + 1),
                 locale,
                 emoji="▶️",
@@ -524,7 +528,7 @@ def _setting_select(
 async def settings_screen(guild_id: str) -> discord.ui.LayoutView:
     """The server settings in the server's language, one row per value with what
     changes it, then Voltar."""
-    base = "setup.cards.settings"
+    base = "setup.ui.cards.settings"
     settings = await server_settings(guild_id)
     locale = settings[Commands.SERVER_LANGUAGE_KEY]
     languages = {value.lower(): _language_label(value) for value in supported_locales}
@@ -533,13 +537,9 @@ async def settings_screen(guild_id: str) -> discord.ui.LayoutView:
     }
     prefixes = {value: value for value in Commands.SERVER_PREFIXES}
 
+    copy = card_copy("setup.ui.cards.settings", locale)
     card = card_frame()
-    card_header(
-        card,
-        ml(f"{base}.title", locale),
-        ml(f"{base}.description", locale),
-        KeikoIcons.IMAGE_01,
-    )
+    card_header(card, copy.title, copy.description, KeikoIcons.IMAGE_01)
     language, zone, prefix = (settings[key] for key in Commands.SERVER_SETTING_KEYS)
     rows = (
         (
@@ -562,7 +562,7 @@ async def settings_screen(guild_id: str) -> discord.ui.LayoutView:
         card_row(card, body)
         placeholder = ml(f"{row}.placeholder", locale)
         card.add_item(discord.ui.ActionRow(_setting_select(key, placeholder, options)))
-    _footer(card, "settings", locale)
+    _footer(card, copy.footer)
     return _view(card, _back(locale))
 
 
@@ -581,7 +581,7 @@ async def change_setting(
     try:
         await save_server_setting(guild_id, key, value)
     except InvalidServerSetting as refused:
-        embed = response_error_embed(f"setup.errors.refused_{refused.key}", locale)
+        embed = response_error_embed(f"setup.ui.errors.refused_{refused.key}", locale)
         await interaction.followup.send(embed=embed, ephemeral=True)
         return
 
@@ -663,7 +663,7 @@ class CommandsButton(discord.ui.Button[Any]):
 def _build_setup_buttons(locale: str) -> List[SetupButton]:
     buttons = []
     for feature in setup_features():
-        label = command_text(feature, "setup.label", locale)
+        label = command_text(feature, "command.setup.label", locale)
         custom_id = f"greetings:setup:{feature.key}"
         buttons.append(
             SetupButton(
@@ -692,15 +692,15 @@ def _build_language_select(locale: str, callback: Opens) -> Select[discord.ui.Vi
 
 
 def _category_lines(locale: str) -> str:
-    line = ml("setup.responses.greeting.lines.category", locale)
+    line = ml("setup.ui.responses.greeting.lines.category", locale)
     lines = []
     for category, emoji in PARENT_GROUPS.items():
         names = [
-            command_text(feature, "setup.label", locale)
+            command_text(feature, "command.setup.label", locale)
             for feature in setup_features()
             if feature.category == category
         ]
-        name = ml(f"setup.messages.categories.{category}", locale)
+        name = ml(f"setup.ui.texts.categories.{category}", locale)
         lines.append(
             fill(line, emoji=emoji, name=name, features=join_names(names, locale))
         )
@@ -711,10 +711,10 @@ def greeting_embed(locale: str) -> discord.Embed:
     """The greeting a server gets when Keiko joins, in `locale`, each category
     naming the features /setup places in it."""
     return response_embed(
-        "setup.responses.greeting",
+        "setup.ui.responses.greeting",
         locale,
         image=True,
-        values={"categories": _category_lines(locale)},
+        facts=command_facts(categories=_category_lines(locale)),
     )
 
 
@@ -745,7 +745,7 @@ class GreetingsView(_PersistentGreeting):
     def _build(self, locale: str) -> None:
         self.add_item(_build_language_select(locale, self.language_callback))
 
-        dashboard_label = ml("setup.buttons.dashboard.label", locale)
+        dashboard_label = ml("setup.ui.buttons.dashboard.label", locale)
         self.add_item(DashboardButton(label=dashboard_label, locale=locale))
         self.add_item(CommandsButton(ml("buttons.help.label", locale)))
 

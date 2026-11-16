@@ -12,6 +12,7 @@ from app.constants import ViewConstants as view_constants
 from app.core import analytics, cache
 from app.core.commands import Command as KeikoCommand
 from app.core.commands import MessageSent, opener, setup_features
+from app.core.facts import Facts, facts
 from app.core.servers import (
     default_prefix,
     interaction_language,
@@ -33,6 +34,11 @@ from app.ui.embed import response_embed
 from app.ui.pagination import PageSelect, PaginationView
 
 AppCommand = app_commands.Command[Any, ..., Any] | app_commands.Group
+
+
+def command_facts(**values: Any) -> Facts:
+    """The facts this command's code passes its copy, each under its address."""
+    return facts("help", **values)
 
 
 class CommandInfo(TypedDict):
@@ -86,7 +92,7 @@ def command_list(
     interaction: discord.Interaction[DiscordBot],
 ) -> Tuple[Dict[str, str], Dict[str, List[CommandInfo]]]:
     """The commands grouped by title, as pagination fields and as select data."""
-    base_title = ml("help.records.commands.lines.base_commands", interaction.locale)
+    base_title = ml("help.ui.records.commands.lines.base_commands", interaction.locale)
     locale = parse_valid_locale(interaction.locale).value
     lines: Dict[str, List[str]] = {}
     select_data: Dict[str, List[CommandInfo]] = {}
@@ -111,7 +117,7 @@ class ExecuteCommandButton(discord.ui.Button[discord.ui.View]):
 
     def __init__(self, command_key: str, locale: str) -> None:
         self.command_key = command_key
-        label = ml("help.buttons.execute.label", locale=locale)
+        label = ml("help.ui.buttons.execute.label", locale=locale)
         super().__init__(
             label=label,
             style=discord.ButtonStyle.primary,
@@ -157,8 +163,8 @@ class HelpSelect(PageSelect):
         embed = interaction.message.embeds[0]
 
         detail = view.describe(
-            ml("help.records.commands.detail.title", interaction.locale),
-            ml("help.records.commands.detail.description", interaction.locale),
+            ml("help.ui.records.commands.detail.title", interaction.locale),
+            ml("help.ui.records.commands.detail.description", interaction.locale),
         )
 
         selected = self.values[0]
@@ -196,7 +202,7 @@ async def send_help(
         props={"source": source or analytics.resolve_source(interaction)},
     )
     fields, select_data = command_list(interaction)
-    base = "help.records.commands"
+    base = "help.ui.records.commands"
     view = PaginationView(
         interaction,
         ml(f"{base}.title", locale=interaction.locale),
@@ -221,7 +227,7 @@ def _setup_button(locale: str) -> GenericButton:
         await opener("setup")(interaction, "help_button")
 
     return GenericButton(
-        ml("setup.buttons.dashboard.label", locale),
+        ml("setup.ui.buttons.dashboard.label", locale),
         open_dashboard,
         discord.ButtonStyle.primary,
         emoji="🔧",
@@ -245,7 +251,7 @@ async def prefix_hint(bot: DiscordBot, guild: Optional[discord.Guild]) -> Option
     """What Keiko answers a prefixed message no text command matched, if anything."""
     if guild is None:
         return "\n\n".join(
-            ml("help.messages.prefix_hint.direct", locale)
+            ml("help.ui.texts.prefix_hint.direct", locale)
             for locale in (
                 discord.Locale.brazil_portuguese,
                 discord.Locale.american_english,
@@ -257,13 +263,13 @@ async def prefix_hint(bot: DiscordBot, guild: Optional[discord.Guild]) -> Option
     locale = await server_language(str(guild.id))
     activations = "\n".join(
         fill(
-            ml("help.messages.prefix_hint.feature", locale),
+            ml("help.ui.texts.prefix_hint.feature", locale),
             command=get_command_display_name(bot, spec.key, locale),
         )
         for spec in prefix_features()
     )
     return fill(
-        ml("help.messages.prefix_hint.guild", locale),
+        ml("help.ui.texts.prefix_hint.guild", locale),
         prefix=await server_prefix(str(guild.id)),
         commands=activations,
     )
@@ -272,7 +278,9 @@ async def prefix_hint(bot: DiscordBot, guild: Optional[discord.Guild]) -> Option
 def ping_embed(bot: DiscordBot, locale: str | discord.Locale) -> discord.Embed:
     """The /ping answer: Pong and Keiko's gateway latency in ms."""
     return response_embed(
-        "help.responses.ping", locale, values={"ping": round(bot.latency * 1000)}
+        "help.ui.responses.ping",
+        locale,
+        facts=command_facts(ping=round(bot.latency * 1000)),
     )
 
 

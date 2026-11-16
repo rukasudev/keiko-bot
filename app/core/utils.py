@@ -19,6 +19,7 @@ from app.core.commands import (
     commands,
     setup_feature,
 )
+from app.core.facts import filled
 from app.core.i18n import CopyBlock, CopyText
 from app.exceptions import DestinationNotFound
 
@@ -284,9 +285,9 @@ def get_command_display_name(bot: Any, key: str, locale: str | discord.Locale) -
 
     feature_command = setup_feature(key)
     if feature_command:
-        group = ml(f"messages.groups.{feature_command.group}", locale=valid_locale_value)
-        subgroup = command_text(feature_command, "slash.subgroup", valid_locale_value)
-        name = command_text(feature_command, "slash.name", valid_locale_value)
+        group = ml(f"texts.groups.{feature_command.group}", locale=valid_locale_value)
+        subgroup = command_text(feature_command, "command.slash.subgroup", valid_locale_value)
+        name = command_text(feature_command, "command.slash.name", valid_locale_value)
         return " ".join(part for part in (group, subgroup, name) if part)
 
     return str(key).replace("_", " ")
@@ -301,28 +302,25 @@ def fill(text: str, **values: Any) -> str:
     """Replace every `$name` in a localized line with the value given for it, in one
     pass and the longest name first, so `$page` never eats the start of `$pages`;
     a line that writes a given name as `{name}` is refused."""
-    if not values:
-        return text
     braced = [name for name in values if f"{{{name}}}" in text and f"${name}" not in text]
     if braced:
         raise ValueError(
             f"{text!r} writes {{{braced[0]}}}: copy names a value as ${braced[0]}"
         )
-    names = "|".join(escape(name) for name in sorted(values, key=len, reverse=True))
-    return sub(r"\$(" + names + r")", lambda match: str(values[match.group(1)]), text)
+    return filled(text, values)
 
 
 def join_names(names: List[str], locale: str) -> str:
     """The names as one phrase in `locale`: "A, B e C", "A, B and C"."""
     if len(names) <= 1:
         return "".join(names)
-    return f"{', '.join(names[:-1])}{ml('messages.list_and', locale)}{names[-1]}"
+    return f"{', '.join(names[:-1])}{ml('texts.list_and', locale)}{names[-1]}"
 
 
 def at_least(count: int, locale: str) -> str:
     """A count Keiko stopped at, read as a floor: "5,000+", "5 mil+"."""
     return fill(
-        ml("messages.count_at_least", locale),
+        ml("texts.count_at_least", locale),
         count=f"{count:,}",
         thousands=f"{count // 1000:,}".replace(",", "."),
     )

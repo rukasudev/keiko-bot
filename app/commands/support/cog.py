@@ -17,15 +17,15 @@ class Support(Cog, name="support"):
         super().__init__()
 
     @keiko_command(
-        name=locale_str("support", type="name", namespace="support.slash"),
+        name=locale_str("support", type="name", namespace="support.command.slash"),
         description=locale_str(
-            "support", type="description", namespace="support.slash"
+            "support", type="description", namespace="support.command.slash"
         ),
     )
     async def support(self, interaction: discord.Interaction) -> None:
         """Send the support server's invitation."""
         embed = response_embed(
-            "support.responses.support", interaction.locale, image=True
+            "support.ui.responses.support", interaction.locale, image=True
         )
         await interaction.response.send_message(embed=embed)
 

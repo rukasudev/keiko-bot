@@ -24,7 +24,7 @@ class MessagePreviewView(discord.ui.View):
     ):
         super().__init__(timeout=view_constants.LONG_TIMEOUT_SECONDS)
         self.pages: List[Page] = [page for page in pages if page] or [
-            ml("messages.preview_empty", locale=locale)
+            ml("texts.preview_empty", locale=locale)
         ]
         self.index = 0
         self.embed = embed

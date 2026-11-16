@@ -4,22 +4,18 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from app.forms.form.conditions import Scope, chosen_text, evaluate, explain
+from app.core.conditions import All, AnyOf, Count, Leaf, Not, Scope, evaluate, explain
 from app.forms.form.form_yaml import (
-    All,
-    AnyOf,
     CardStep,
     ContentStep,
-    Count,
     DiskSource,
-    Leaf,
     ListStep,
-    Not,
     SingleChoiceStep,
     Text,
-    Variant,
+    TextOverride,
     compile_form,
     options_for,
+    overridden_text,
     produced_keys,
 )
 
@@ -144,38 +140,41 @@ def _text(word):
     return Text.model_validate({"en-us": word, "pt-br": word})
 
 
-def test_the_first_variant_whose_rule_holds_is_the_text_shown():
+def test_the_first_override_whose_rule_holds_is_the_text_shown():
     """Titles and descriptions picked their variant in four places, and the panel's
     group description kept the last match while the others kept the first."""
-    variants = (
-        Variant(when=_leaf("mode", is_="a"), title=_text("first")),
-        Variant(when=_leaf("mode", in_=("a", "b")), title=_text("second")),
+    overrides = (
+        TextOverride(when=_leaf("mode", is_="a"), title=_text("first")),
+        TextOverride(when=_leaf("mode", in_=("a", "b")), title=_text("second")),
     )
 
     def shown(scope):
-        return chosen_text(_text("default"), variants, "title", scope).en_us
+        return overridden_text(_text("default"), overrides, "title", scope).en_us
 
     assert shown(Scope({"mode": "a"})) == "first"
     assert shown(Scope({"mode": "b"})) == "second"
     assert shown(Scope({"mode": "c"})) == "default"
     assert shown(None) == "default"
-    assert chosen_text(None, (), "title", Scope({})) is None
+    assert overridden_text(None, (), "title", Scope({})) is None
 
 
-def test_a_variant_replaces_only_the_texts_it_writes():
-    """One variant list holds a step's titles and descriptions: the title skips a
-    variant that writes only a description, and the description reads the first
-    variant that writes one."""
-    variants = (
-        Variant(when=_leaf("mode", is_="a"), description=_text("described")),
-        Variant(when=_leaf("mode", is_="a"), title=_text("titled")),
+def test_the_override_that_wins_replaces_only_the_texts_it_writes():
+    """One list holds a step's titles and descriptions, as a copy block's overrides
+    do: the first item whose rule holds wins, and a text it does not write stays the
+    step's own, even when a later item that also holds writes it."""
+    overrides = (
+        TextOverride(when=_leaf("mode", is_="a"), description=_text("described")),
+        TextOverride(when=_leaf("mode", is_="a"), title=_text("titled")),
     )
     scope = Scope({"mode": "a"})
 
-    assert chosen_text(_text("t"), variants, "title", scope).en_us == "titled"
-    assert chosen_text(_text("d"), variants, "description", scope).en_us == "described"
+    assert overridden_text(_text("t"), overrides, "title", scope).en_us == "t"
+    assert (
+        overridden_text(_text("d"), overrides, "description", scope).en_us
+        == "described"
+    )
 
 
-def test_a_variant_that_replaces_nothing_is_refused():
-    with pytest.raises(ValueError, match="replaces a title, a description or both"):
-        Variant(when=_leaf("mode", is_="a"))
+def test_an_override_that_replaces_nothing_is_refused():
+    with pytest.raises(ValueError, match="replaces at least one field"):
+        TextOverride(when=_leaf("mode", is_="a"))

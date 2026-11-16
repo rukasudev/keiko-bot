@@ -400,7 +400,7 @@ class FormScenario:
         from app.forms.form.form_yaml import registry
         from app.forms.form.form_yaml import CardStep
         from app.forms.form.form import steps_for
-        from app.forms.form.conditions import Scope
+        from app.core.conditions import Scope
         from app.forms.form.actions.configuration_card import state_of
         from app.forms.form.actions.action import Context
 

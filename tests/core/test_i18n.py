@@ -15,6 +15,8 @@ from app.core.commands import Text
 from app.ui.embed import Response
 from tests.helpers.copy import SAMPLE
 
+ONE = SAMPLE.replace("sample.facts.", "one.facts.")
+
 LOCALES = i18n.locales()
 OK = "ok:\n  en-us: Ok\n  pt-br: Ok\n"
 Files = Callable[..., None]
@@ -48,23 +50,23 @@ def test_no_key_is_defined_twice_in_the_real_copy(locale: str) -> None:
 
 
 def test_a_command_copy_loads_under_its_key(copy_files: Files) -> None:
-    text = "messages:\n  hint:\n    en-us: Hint\n    pt-br: Dica\n"
+    text = "ui:\n  texts:\n    hint:\n      en-us: Hint\n      pt-br: Dica\n"
     copy_files((COMMAND, "one", text))
 
-    assert i18n.collect("pt-br") == {"one.messages.hint": "Dica"}
-    assert i18n.collect("en-us") == {"one.messages.hint": "Hint"}
+    assert i18n.collect("pt-br") == {"one.ui.texts.hint": "Dica"}
+    assert i18n.collect("en-us") == {"one.ui.texts.hint": "Hint"}
 
 
 def test_a_key_defined_in_two_files_names_both(copy_files: Files) -> None:
     copy_files(
-        ("app/languages/messages.yml", "messages", OK),
-        (COMMAND, "messages", OK),
+        ("app/languages/texts.yml", "texts", OK),
+        (COMMAND, "texts", OK),
     )
 
     with pytest.raises(i18n.CopyError) as error:
         i18n.collect("en-us")
 
-    assert "app/languages/messages.yml" in str(error.value)
+    assert "app/languages/texts.yml" in str(error.value)
     assert COMMAND in str(error.value)
 
 
@@ -73,15 +75,15 @@ def test_a_key_in_one_file_and_a_block_in_another_names_both(
 ) -> None:
     block = "ok:\n  label:\n    en-us: Ok\n    pt-br: Ok\n"
     copy_files(
-        ("app/languages/messages.yml", "messages", OK),
-        (COMMAND, "messages", block),
+        ("app/languages/texts.yml", "texts", OK),
+        (COMMAND, "texts", block),
     )
 
     with pytest.raises(i18n.CopyError) as error:
         i18n.collect("en-us")
 
-    assert "messages.ok" in str(error.value)
-    assert "app/languages/messages.yml" in str(error.value)
+    assert "texts.ok" in str(error.value)
+    assert "app/languages/texts.yml" in str(error.value)
     assert COMMAND in str(error.value)
 
 
@@ -207,41 +209,47 @@ def test_every_copy_file_is_read_against_its_schema() -> None:
 
 
 def test_a_copy_loads_its_texts_and_its_typed_blocks(copy_files: Files) -> None:
-    copy_files((COMMAND, "one", SAMPLE))
+    copy_files((COMMAND, "one", ONE))
 
     flat = i18n.collect("pt-br")
-    response = i18n.block("one.responses.quiet", Response)
+    response = i18n.block("one.ui.responses.quiet", Response)
 
-    assert flat["one.responses.saved.description"] == "Salvei $item."
-    assert "one.responses.quiet.footer" not in flat, "a null text loads no key"
+    assert flat["one.ui.responses.saved.description"] == "Salvei $item."
+    assert "one.ui.responses.quiet.footer" not in flat, "a null text loads no key"
     assert response is not None and response.footer is None
     assert "footer" in response.model_fields_set
 
 
 def test_a_typed_block_is_found_by_its_key_or_refused(copy_files: Files) -> None:
-    copy_files((COMMAND, "one", SAMPLE))
+    copy_files((COMMAND, "one", ONE))
 
-    assert i18n.block("one.buttons.sync.label", Text) == Text.model_validate(
+    assert i18n.block("one.ui.buttons.sync.label", Text) == Text.model_validate(
         {"en-us": "Sync", "pt-br": "Sincronizar"}
     )
-    assert i18n.block("one.responses.missing", Response, required=False) is None
+    assert i18n.block("one.ui.responses.missing", Response, required=False) is None
     with pytest.raises(i18n.CopyError, match="no copy file writes it"):
-        i18n.block("one.responses.missing", Response)
+        i18n.block("one.ui.responses.missing", Response)
     with pytest.raises(i18n.CopyError, match="not a Response"):
-        i18n.block("one.errors.not_found", Response)
+        i18n.block("one.ui.errors.not_found", Response)
 
 
 @pytest.mark.parametrize(
     "text,refusal",
     [
         ("response:\n  title:\n    en-us: x\n    pt-br: x\n", "response: unknown key"),
-        ("errors:\n  not-found:\n    title: {en-us: x, pt-br: x}\n", "snake_case"),
         (
-            "errors:\n  gone:\n    title: {en-us: x, pt-br: x}\n"
-            "    message: {en-us: '{item} is gone', pt-br: x}\n",
+            "ui:\n  errors:\n    not-found:\n      title: {en-us: x, pt-br: x}\n",
+            "snake_case",
+        ),
+        (
+            "ui:\n  errors:\n    gone:\n      title: {en-us: x, pt-br: x}\n"
+            "      message: {en-us: '{item} is gone', pt-br: x}\n",
             r"copy names a value as \$item",
         ),
-        ("messages:\n  hint: {ref: nowhere}\n", "is no text of app/forms/vocabulary"),
+        (
+            "ui:\n  texts:\n    hint: {ref: nowhere}\n",
+            "is no text of app/forms/vocabulary",
+        ),
     ],
     ids=["unknown block", "kebab key", "braced value", "unknown ref"],
 )
@@ -255,8 +263,109 @@ def test_a_copy_its_schema_refuses_names_the_reason(
     assert COMMAND in str(error.value)
 
 
-def test_a_ref_in_copy_is_the_text_of_the_shared_vocabulary(copy_files: Files) -> None:
-    copy_files((COMMAND, "one", "messages:\n  hint: {ref: channel}\n"))
+FACTS = (
+    "facts:\n"
+    "  seen: {type: boolean, description: Whether it was seen.}\n"
+    "  shape: {type: enum, values: [round, square], description: The shape.}\n"
+)
+SAW = (
+    "ui:\n  responses:\n    saw:\n      title: {en-us: x, pt-br: x}\n"
+    "      overrides:\n        - when: %s\n          title: {en-us: y, pt-br: y}\n"
+)
 
-    assert i18n.collect("pt-br")["one.messages.hint"] == "Canal"
-    assert i18n.collect("en-us")["one.messages.hint"] == "Channel"
+
+@pytest.mark.parametrize(
+    "text,refusal",
+    [
+        (
+            FACTS + SAW % "{key: one.facts.gone, is: true}",
+            r"ui.responses.saw.overrides\[0\].when: one.facts.gone: "
+            "no such fact in one",
+        ),
+        (
+            FACTS + SAW % "{key: other.facts.seen, is: true}",
+            "a copy rule reads a fact of one or global",
+        ),
+        (
+            FACTS + SAW % "{key: one.facts.shape, is: oval}",
+            r"'oval' is none of \['round', 'square'\]",
+        ),
+        (FACTS + SAW % "{key: one.facts.seen, is: maybe}", "'maybe' is no boolean"),
+        (
+            FACTS + SAW % "{key: one.facts.seen, matches: x}",
+            "a boolean fact is tested with",
+        ),
+        (
+            FACTS + "ui:\n  texts:\n    hint: {en-us: 'Hi $who', pt-br: 'Oi $who'}\n",
+            r"ui.texts.hint: \$who is no fact of one or global",
+        ),
+        (
+            "facts:\n  count: {type: number, description: A count.}\n",
+            "facts.count: app/core/global.yml declares it too",
+        ),
+        (
+            "ui:\n  texts:\n"
+            "    hint: {en-us: 'Run {context:commands.nope}', pt-br: x}\n",
+            "commands has no nope",
+        ),
+        (
+            "ui:\n  texts:\n    hint: {en-us: 'On {context:server_name}', pt-br: x}\n",
+            "is no context a copy reads",
+        ),
+    ],
+    ids=[
+        "unknown fact",
+        "another command's fact",
+        "enum value",
+        "boolean value",
+        "boolean operator",
+        "undeclared dollar",
+        "fact twice",
+        "unknown command",
+        "context filled at render",
+    ],
+)
+def test_a_fact_or_a_context_the_catalogs_do_not_allow_is_refused_at_load(
+    copy_files: Files, text: str, refusal: str
+) -> None:
+    copy_files((COMMAND, "one", text))
+
+    with pytest.raises(i18n.CopyError, match=refusal) as error:
+        i18n.collect("en-us")
+    assert COMMAND in str(error.value)
+
+
+def test_a_shared_file_reads_only_global_facts(copy_files: Files) -> None:
+    shared = "app/languages/texts.yml"
+    copy_files((shared, "texts", "hint: {en-us: 'Hi $who', pt-br: 'Oi $who'}\n"))
+
+    with pytest.raises(i18n.CopyError, match=r"\$who is no fact of app/core/global"):
+        i18n.collect("en-us")
+
+
+def test_a_command_name_in_copy_is_its_slash_command_in_each_language(
+    copy_files: Files,
+) -> None:
+    command, group = "{context:commands.block_links}", "{context:groups.moderations}"
+    hint = (
+        "ui:\n  texts:\n    hint:\n"
+        f"      en-us: 'Run `{command}` or `{group}`'\n"
+        f"      pt-br: 'Rode `{command}` ou `{group}`'\n"
+    )
+    copy_files((COMMAND, "one", hint))
+
+    assert (
+        i18n.collect("en-us")["one.ui.texts.hint"]
+        == "Run `/moderations block links` or `/moderations`"
+    )
+    assert (
+        i18n.collect("pt-br")["one.ui.texts.hint"]
+        == "Rode `/moderações bloquear links` ou `/moderações`"
+    )
+
+
+def test_a_ref_in_copy_is_the_text_of_the_shared_vocabulary(copy_files: Files) -> None:
+    copy_files((COMMAND, "one", "ui:\n  texts:\n    hint: {ref: channel}\n"))
+
+    assert i18n.collect("pt-br")["one.ui.texts.hint"] == "Canal"
+    assert i18n.collect("en-us")["one.ui.texts.hint"] == "Channel"

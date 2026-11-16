@@ -28,7 +28,7 @@ from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
 
-RECENT = "messages.recent"
+RECENT = "texts.recent"
 DAYS = Commands.FEATURE_STATS_DAYS
 
 
@@ -89,7 +89,7 @@ async def test_every_panel_draws_the_statistics_and_its_feature_answers_them(dep
 async def test_a_quiet_feature_says_so_under_its_own_title(deps):
     embed = await _stats("default_roles", create_guild(id=777))
 
-    assert embed.title == ml("default_roles.stats.title", "pt-br")
+    assert embed.title == ml("default_roles.command.stats.title", "pt-br")
     assert _paragraphs(embed) == [fill(ml(f"{RECENT}.quiet", "pt-br"), days=DAYS)]
 
 
@@ -99,7 +99,7 @@ async def test_the_deliveries_of_the_last_days_are_counted(deps):
     embed = await _stats("default_roles", create_guild(id=777))
 
     assert _paragraphs(embed) == [
-        fill(ml("default_roles.stats.delivered.other", "pt-br"), count=3, days=DAYS)
+        fill(ml("default_roles.command.stats.delivered.other", "pt-br"), count=3, days=DAYS)
     ]
 
 
@@ -111,7 +111,7 @@ async def test_a_missing_permission_comes_before_the_deliveries(deps):
 
     embed = await _stats("default_roles", guild)
 
-    assert ml("messages.permission_names.manage_roles", "pt-br") in (
+    assert ml("texts.permission_names.manage_roles", "pt-br") in (
         embed.description
     )
     assert "✅" not in embed.description
@@ -121,9 +121,9 @@ async def test_block_links_keep_their_figures_above_the_last_days(deps):
     embed = await _stats("block_links", create_guild(id=777))
 
     figures, recent = _paragraphs(embed)
-    assert embed.title == ml("block_links.stats.title", "pt-br")
+    assert embed.title == ml("block_links.command.stats.title", "pt-br")
     assert figures == ml(
-        "block_links.stats.empty", "pt-br"
+        "block_links.command.stats.empty", "pt-br"
     )
     assert recent == fill(ml(f"{RECENT}.quiet", "pt-br"), days=DAYS)
 
@@ -132,9 +132,9 @@ async def test_birthdays_keep_their_figures_above_the_last_days(deps):
     embed = await _stats("reminders_birthday", create_guild(id=777))
 
     figures, recent = _paragraphs(embed)
-    assert embed.title == ml("reminders_birthday.stats.title", "pt-br")
+    assert embed.title == ml("reminders_birthday.command.stats.title", "pt-br")
     assert figures.startswith("🎂 **" + ml(
-        "reminders_birthday.stats.figures.total", "pt-br"
+        "reminders_birthday.command.stats.figures.total", "pt-br"
     ))
     assert recent == fill(ml(f"{RECENT}.quiet", "pt-br"), days=DAYS)
 

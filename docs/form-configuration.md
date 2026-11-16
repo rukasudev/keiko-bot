@@ -26,12 +26,16 @@ files are the two halves of the document a command made from data will store
 The engine splits a session in layers with a fixed dependency direction
 (features depend on the engine; the adapter depends on the engine and the
 features; the engine depends on nothing internal but itself, `app/constants.py`,
-the pure calendar `app/core/calendar.py` and the pure registry `app/core/commands.py`):
+the pure calendar `app/core/calendar.py`, the pure registry `app/core/commands.py`,
+the `when` grammar and its evaluator `app/core/conditions.py`, the facts and the
+context `app/core/facts.py`, and the copy loader `app/core/i18n.py`, through which it
+reads a shared block's overrides (`block_texts` in `app/forms/form/copy.py`; the
+removal question)):
 
 | Layer | Package | Owns |
 |---|---|---|
 | What a form declares | `app/forms/form/form_yaml.py`, `app/forms/vocabulary.yml` | the typed schema the YAML is written in, the compiler, the registry and the source of definitions; the shared vocabulary every form reads its fallbacks and its `{ref:}` texts from (3.5) |
-| The engine | `app/forms/form/` | the frozen session and its store (`form_state.py`), events (`events.py`), effects (`effects.py`), the `when` evaluator (`conditions.py`), the screen model (`components.py`), the form: navigation and what each click does in a form, decided by `decide` (`form.py`), and the manager: the panel over a saved document, decided by its own `decide` (`manager.py`), which opens the form as a child session and which the form never imports |
+| The engine | `app/forms/form/` | the frozen session and its store (`form_state.py`), events (`events.py`), effects (`effects.py`), the screen model (`components.py`), the form: navigation and what each click does in a form, decided by `decide` (`form.py`), and the manager: the panel over a saved document, decided by its own `decide` (`manager.py`), which opens the form as a child session and which the form never imports |
 | Actions and responses | `app/forms/form/actions/`, `app/forms/form/responses/` | one render and parse pair per step `type`; a response saved, validated, transformed, styled and summarised |
 | Features | `app/forms/features/`, and the `FEATURE` at the end of a command's `service.py` | the `FeatureModule` contract, `GenericCogFeature`, `feature_for` and the subscription base Twitch and YouTube share; a command's own module turns answers into its document and back, commits, and adds side actions |
 | Discord | `app/forms/discord/` | where sessions open and every click lands (`callbacks.py`), the description turned into Discord (`views.py`), the message replaced (`transitions.py`), click to event and the `custom_id` codec (`interactions.py`), observability (`observability.py`) |
@@ -155,7 +159,7 @@ child must be; in a file it comes after the closed fields of its block,
 preceded by one `# open: <keys> -> <child>` line, the text the field declares
 in its schema (`json_schema_extra["open"]`). Every key of a `form.yml` and of the
 vocabulary, with its type, default, description and an example from the real
-files, is in the generated reference `docs/yaml/index.html` (`make yaml-docs`
+files, is in the generated reference `docs/yaml-reference.html` (`make docs`
 after a change; code-style rule 27).
 
 The root of a form.yml is closed: `version` (the definition version a
@@ -168,7 +172,7 @@ key is its command's folder, never a field.
 |---|---|
 | `type` | the step type (3.2), the discriminator of the step: each type declares only the fields it reads |
 | `key` | the answer key this step produces |
-| `title`, `description`, `footer` | copy in `en-us` and `pt-br`, or a `{ref: name}` of the shared vocabulary (3.5); a step without `footer` reads the bug-report line and `footer: null` draws none, and a review without `title` or `description` and a top-level card without `title` read theirs from the fallbacks (3.5); `description` accepts `{answer:key:format|fallback}` tokens resolved from earlier answers (inside a card section, from the card's own draft first), where the format is `host` or any value format of this section, by its `snake_case` name (`{answer:default_roles:role|Empty}` reads `<@&1>, <@&2>`, `{answer:date:month_day}` reads `May 12`), `{plural:key\|one\|several}` tokens, which read the second text only while the answer holds more than one value and the first otherwise, none included, counted from the card's own draft first like `{answer:...}` (`{plural:default_roles\|Role to give these members\|Roles to give these members}`), and `{context:name}` tokens filled by the adapter: `server_name`, `prefix` (the server's chat prefix), `server_language` (`pt-br` or `en-us`), `server_timezone` (an IANA zone), all three read once per opened feature from the server's `settings`, `command` (the feature's slash command in the server's language, without the `/`) and every value the feature's `open` returned in `Opened.values` (`members_count`, `bots_count` for default roles); trailing whitespace is dropped, so a YAML block text adds no blank line |
+| `title`, `description`, `footer` | copy in `en-us` and `pt-br`, or a `{ref: name}` of the shared vocabulary (3.5); a step without `footer` reads the bug-report line and `footer: null` draws none, and a review without `title` or `description` and a top-level card without `title` read theirs from the fallbacks (3.5); `description` accepts `{answer:key:format|fallback}` tokens resolved from earlier answers (inside a card section, from the card's own draft first), where the format is `host` or any value format of this section, by its `snake_case` name (`{answer:default_roles:role|Empty}` reads `<@&1>, <@&2>`, `{answer:date:month_day}` reads `May 12`), `{plural:key\|one\|several}` tokens, which read the second text only while the answer holds more than one value and the first otherwise, none included, counted from the card's own draft first like `{answer:...}` (`{plural:default_roles\|Role to give these members\|Roles to give these members}`), and `{context:name}` tokens, each an entry the `context:` of `app/core/global.yml` declares (the compiler refuses any other, naming the form): `{context:commands.<key>}` (a command's slash command, `/setup` or `/configurar`) and `{context:groups.<group>}` (a parent group's, `/moderations`) are written in at load, in each locale, and the adapter fills the rest: `server_name`, `prefix` (the server's chat prefix), `server_language` (`pt-br` or `en-us`), `server_timezone` (an IANA zone), all three read once per opened feature from the server's `settings`, `command` (the feature's slash command in the server's language, without the `/`) and every value the feature's `open` returned in `Opened.values` (`members_count`, `bots_count` for default roles); trailing whitespace is dropped, so a YAML block text adds no blank line |
 | `emoji` | the step's emoji: it leads the step's title, and on summaries and the manager panel each line the step owns (a card section's or a select's `emoji` wins for its keys, the frisbee stands in when nothing is declared); on a card it also leads the header's title and the card's group |
 
 Every step between the intro and the review (`ContentStep`: text,
@@ -179,7 +183,7 @@ single_choice, card, list) also declares:
 | `hidden` | the answer is a gate: never listed on the review or the panel |
 | `appears_in` | `everywhere` (the default) or `panel`: `panel` keeps the step out of the setup (and its dry run): the setup walks past it, its intro does not list it, and its review neither lists it nor offers Add for it; the step stays in the definition, so the panel lists and edits it and the saved document keeps its key (the birthday list is filled from the panel after saving); `setup` is refused at compile, since the panel edits every step |
 | `when` | the step is shown only while the rule holds (section 4) |
-| `variants` | texts that replace the step's own while their rule holds, each `{when, title, description}` writing one or both (a variant that writes neither is refused); of the variants that write a text, the first whose rule holds wins. A variant's description is chosen before the step is answered, so the compiler checks a variant that writes one against the answers before the step; a variant that writes only a title is checked against the answers saved so far (this step's included): the title on the step's screen, its panel and review rows, the heading of a group it does not share, and the edit and remove pickers ("#1") follow the variant in force |
+| `overrides` | texts that replace the step's own while their rule holds, each `{when, title, description}` writing one or both (an item that writes neither is refused); the first item whose rule holds wins and replaces only the texts it writes, the step's own stay for the rest (`overridden_text` in `form_yaml.py`, over `winner` in `app/core/conditions.py`), the same rule a copy block's `overrides` follow. A description is chosen before the step is answered, so the compiler checks the rule of an item that writes one, and of every item before it, against the answers before the step; an item after the last one that writes a description is checked against the answers saved so far (this step's included): the title on the step's screen, its panel and review rows, the heading of a group it does not share, and the edit and remove pickers ("#1") follow the item in force |
 
 A value format (a text or single-choice step's `format`, a card field's, a
 modal_input section's, a preview token's `format`) is one of `channel`,
@@ -258,7 +262,7 @@ preview waits for nothing and fills no token, and the object
 `{all, any}` as the card's own, names the state keys the preview is drawn from:
 while one key of `all` is empty, or every key of `any` (a hidden one never
 counts), Preview draws nothing and answers with the message of its `error`
-block (`<key>.errors.<name>`) on a message of its own (`ShowError`, plain, like
+block (`<key>.ui.errors.<name>`) on a message of its own (`ShowError`, plain, like
 Done's "I still need"), and the card stays as it was; the Twitch and YouTube
 cards require the streamer and the youtuber
 (`tests/behavioral/regressions/test_a_preview_waits_for_the_answer_it_draws.py`).
@@ -292,7 +296,7 @@ banner drawn.
 
 | `type` | Section model | What the admin does |
 |---|---|---|
-| `title_content` | `TitleContentSection` | keeps the default title and body or types both in the `modal` (`labels: {title, description}` names its two inputs); `default` names the copy block they are read from, the `title` and `description` the command posts while nobody customized them (`reminders_birthday.announcement.defaults`), so the card, its modal and what the members get say one text |
+| `title_content` | `TitleContentSection` | keeps the default title and body or types both in the `modal` (`labels: {title, description}` names its two inputs); `default` names the copy block they are read from, the `title` and `description` the command posts while nobody customized them (`reminders_birthday.ui.announcement.defaults`), so the card, its modal and what the members get say one text |
 | `file_upload` | `FileUploadSection` | keeps the default image or uploads one; without a `mode` in its `keys` it only holds the uploaded image, and counts as set once it has one |
 | `channel_select` | `ChannelSelectSection` | picks one channel on a native select drawn on the card |
 | `user_select` | `UserSelectSection` | picks one member on a native member select drawn on the card, with no line of its own (the select shows the member); `avatar: true` draws the member's picture under the select once one is picked, read from the server the session runs in (`Context.member_pictures`, which the adapter fills from the guild's members); a list whose `unique.key` is such a section's is keyed by a member (the birthday's member) |
@@ -303,7 +307,7 @@ banner drawn.
 | `design_select` | `DesignSection` | picks one of the declared `options` (each a design: `value`, `label`, `description`) on a select drawn on the card (each design's description under its name), the chosen design's preview drawn under its line, over the answer `background` names (the previews are drawn again when it changes); the gallery of every design, with the feature's previews, opens only for a part edit |
 | `multi_select` | `MultiSelectSection` | picks several of the declared `options` on a select drawn on the card, which can be emptied |
 | `selects` | `SelectsSection` | picks channels or roles on one or more native `selects` (the model refuses none; each a `Select`: `type` in `channels`, `roles`, `assignable_roles` (the roles Keiko can assign), `key`, `emoji`, `label`, `placeholder`; a channel reads as a channel and a role as a role), every select on one screen; the section owns each select's `key` (no `keys` needed), its lines are one `emoji **label:** value` per select (the value alone when it holds one), and every select is drawn on the card under them; a select nothing was picked on holds an empty list, and one id is stored as itself, several as a list; on the screen of an `edit: field` part edit the first pick saves; a select whose key is not in the card's `required.all` takes no value, so an optional select can be emptied again |
-| `list` | `ListSection` | draws a list of the form on the card (`list` names the list step): its heading is the list's own title (with its `variants`), its items the bullets of their names, with "➕ Adicionar" (off once full) and the list's "🗑️ Remover" beside them (3.4); Add opens the list step's `AddItem` child and the card shows again when it finishes, its draft kept; the setup never walks a list a card draws (`listed_on_cards(steps)` in `form_yaml.py`, the one derivation the setup walk and the intro both read; the compiler refuses a `list` naming no list step), Back to the card keeps its items, and the list's child reads the card's draft through `parent.` (the card's state, defaults included); the review and the panel keep drawing the list as their own block. Declare it `appears_in: setup` when an edit of the card must not add to the list |
+| `list` | `ListSection` | draws a list of the form on the card (`list` names the list step): its heading is the list's own title (with its `overrides`), its items the bullets of their names, with "➕ Adicionar" (off once full) and the list's "🗑️ Remover" beside them (3.4); Add opens the list step's `AddItem` child and the card shows again when it finishes, its draft kept; the setup never walks a list a card draws (`listed_on_cards(steps)` in `form_yaml.py`, the one derivation the setup walk and the intro both read; the compiler refuses a `list` naming no list step), Back to the card keeps its items, and the list's child reads the card's draft through `parent.` (the card's state, defaults included); the review and the panel keep drawing the list as their own block. Declare it `appears_in: setup` when an edit of the card must not add to the list |
 | `group` | `GroupSection` | names other sections of the same card in `sections`; on the card it draws its heading, its `description`, one line per section it holds that the state shows (`emoji **label:** value`, one per select of a `selects` section, a `list` by its title and its items' names, "Em branco" when empty) and its `button` as a button; the button opens a screen of its own on the same message, in place of the card, headed by its `screen.title` (the section's `emoji` before it) over its `screen.description`, or the `description` when none is declared, with those sections drawn exactly as on the card (their selects, buttons and lists) and one Back (`picker_back`) below, no Done and no Cancel; every pick there is a draft of the card, saved only by the card's Done, and the screen stays after a pick, after an item added from a list it holds and after a removal (`FormSession.opened_group`, which `opening` sets and `at` keeps only on the same step), and Back draws the card again with the new lines; a visible group takes its sections off the card, so a section held only by groups their rules hide is drawn on the card itself (block links: `exceptions` holds the channels and roles, the popular websites and the custom links in "Bloquear todos", `channel_exceptions` only the channels and roles in "Bloquear alguns", where the blocked links stay on the card); the compiler refuses a key that names no section of the card and a group inside a group; a group owns no state key, so the review and the panel list what its sections hold as before |
 
 A hidden section (`when` false) does not count as required. Card
@@ -311,7 +315,7 @@ selections are drafts until Done: the card keeps its values on Back and on
 a failed validation. A refused value is told on an ephemeral message of its
 own, below the card (`ShowError`), never as a line inside it, so a phone shows
 it without scrolling up: a section's validator answers with the message of the
-error block it names (`<key>.errors.<name>`, or a shared `errors.<name>`) and its
+error block it names (`<key>.ui.errors.<name>`, or a shared `errors.<name>`) and its
 modal opens again with what the admin typed;
 Done with required fields empty answers with the "I still need" sentence. What
 was typed stays until the next change of the session (`FormSession.refused`).
@@ -389,7 +393,7 @@ compiler without `edit: item`, puts a red "🗑️ Remover" beside each item
 (`remove_this:<key>$<index>`, `ItemRemovalRequested`) and drops the list's
 Remove picker: the confirmation names the item (`confirm_removal`, the
 removal screen of the picker). On the only item of a list with `items.min: 1` it asks
-to wait first ("⚠️ Ei, espere! Leia abaixo primeiro", `commands.responses.remove.variants.last`)
+to wait first ("⚠️ Ei, espere! Leia abaixo primeiro", the item of `commands.responses.remove` whose rule is `global.facts.removing` `is: last`)
 and reads the list's `last_item_warning`, its `$item` replaced by the
 item's block as the panel draws it (`item_heading` and its lines) and its
 `$feature` by the intro's title without its emoji; the compiler refuses a
@@ -418,8 +422,8 @@ step's `panel.description`.
 A heading several steps share is declared once, in the root `groups`
 (group id -> `title`, `emoji`, `screen: {description}` (the intro of the
 group's own screen, which the group's `title` titles, so a `screen.title` is
-refused), `variants` (each `{when, title, description}`, replacing `title` and
-`screen.description` while its rule holds), `opens`, `button`, `order`), and a
+refused), `overrides` (each `{when, title, description}`, replacing `title` and
+`screen.description` while its rule holds, the first that holds winning), `opens`, `button`, `order`), and a
 card, a list or a card field joins it with `group: <id>` (the compiler refuses
 an id the root does not declare, a group no step names, and a `group` inside a
 list's items, whose rows are no panel rows). `opens: inline`, the default,
@@ -488,13 +492,18 @@ and the refs solve repetition the same way in a file and in a document
 
 ## 4. The `when` grammar
 
-One grammar serves `when` on a step and on a card section, and the `when` of
-each of the `variants` of a step or a group. Of a list of variants the first
-that writes the text and whose rule holds wins, the default text otherwise
-(`chosen_text`, beside `evaluate`), for a step's title and description and a
-group's alike. Evaluation lives in
-`app/forms/form/conditions.py`; the compiler checks every rule before the form
-exists.
+One grammar serves `when` on a step and on a card section, the `when` of each
+of the `overrides` of a step or a group, and the `when` of each of the
+`overrides` of a copy block (`docs/commands.md`, "Overrides and facts"). Of a list
+of overrides the first whose rule holds wins and replaces only the texts it
+writes, the default text otherwise (`winner` in `app/core/conditions.py`,
+`overridden_text` in `form_yaml.py`), for a step's title and description and a
+group's alike. The grammar and its evaluator live in `app/core/conditions.py`,
+pure (no Discord, nothing of the app), so the form engine and the copy
+primitives of `app/ui` read the same one; the compiler checks every rule of a
+form before the form exists, and the copy loader every rule of a copy file. In a
+form a key reads the form's own answers, as below; in a copy file a key is a
+fact's address, `<owner>.facts.<name>`.
 
 A leaf tests one key with exactly one operator (the compiler refuses a leaf
 with none or with two): `is`, `in`, `not_in`, `matches` (a regular expression),
@@ -530,12 +539,12 @@ nothing is looked up by reflection.
 |---|---|---|
 | Step types | `registry()` in `app/forms/form/actions/__init__.py`, one `Kind(render, parse)` per name | the six types of 3.2 |
 | Card section types | `SECTION_KINDS` in `app/forms/form/actions/configuration_card.py`, one `SectionKind(press, change, preview, reset, custom, controls)` per YAML `type` (`controls` are the selects or buttons the section draws on the card; a kind without them draws the button whose `press` opens its modal); what a section declares (`choices`, `holds_several`, `adds_to`, `opened_modal`, `inputs`, `checked_by`, `validators`, `offered_designs`, `drawn_over`, `looked_up`, `filled`, `picks`, `controls_drawn`, `pictured`, `picks_members`, `holds`, `value_style`, `pressed_label`, `select_placeholder`, `own_screen_title`, `own_screen_description`) is asked of the section model, never by `isinstance` | the thirteen types of 3.3 |
-| Validators | `VALIDATORS` in `app/forms/form/responses/validations.py`; each declares `needs` (`answers`, `items`, `external:<service>`, where `{param}` is filled from the declaration) so the adapter prefetches before `decide`, and the `params` its declaration must give: `validation: {name, params}`, an `Extension` like every reference to a validator, a transform or a normalizer, the params reaching the check in `ValidationContext.params` (the compiler refuses a declaration that does not give exactly the params the validator takes) | `registered_and_found` (`item` the saved items a name must not repeat, `service` the lookup that must find it, `id` the field of the lookup that proves it, `error` the prefix of the two errors: `<error>_already_registered` and `<error>_not_found` when it names a block of a command's copy (`<key>.errors.<noun>`, the YouTube channel), `<error>-already-registered` and `<error>-not-found` when it names a shared error of `errors.yml` (the Twitch and the StreamElements streamer)), `link_or_domain`, `date` (`month` the answer key of the month the day is checked against) |
+| Validators | `VALIDATORS` in `app/forms/form/responses/validations.py`; each declares `needs` (`answers`, `items`, `external:<service>`, where `{param}` is filled from the declaration) so the adapter prefetches before `decide`, and the `params` its declaration must give: `validation: {name, params}`, an `Extension` like every reference to a validator, a transform or a normalizer, the params reaching the check in `ValidationContext.params` (the compiler refuses a declaration that does not give exactly the params the validator takes) | `registered_and_found` (`item` the saved items a name must not repeat, `service` the lookup that must find it, `id` the field of the lookup that proves it, `error` the prefix of the two errors: `<error>_already_registered` and `<error>_not_found` when it names a block of a command's copy (`<key>.ui.errors.<noun>`, the YouTube channel), `<error>-already-registered` and `<error>-not-found` when it names a shared error of `errors.yml` (the Twitch and the StreamElements streamer)), `link_or_domain`, `date` (`month` the answer key of the month the day is checked against) |
 | Transforms | `TRANSFORMS` in `app/forms/form/responses/transforms.py`; a `Transform` names its `part_keys` (each read from and seeded into the answer key of its own name), `value_key`, `style`, `serialize` and `hydrate`; `transform: {name}`, which takes no `params` (the compiler refuses any) | `mm_dd_date_parts`, `normalize_link` |
 | Normalizers | `NORMALIZERS` in `app/forms/form/responses/transforms.py`, named by `normalize: {name}` on a text step or a modal input, which takes no `params` either | `handle`, `lowercase` |
 | Formatters | `STYLES` and `format_value` in `app/forms/form/responses/styles.py`; `stored_style` maps a declared `format` to the style it reads and is saved in | the formats of 3.1 |
-| Copy tokens | `TOKEN_FORMATTERS` in `app/forms/form/actions/action.py`, then every value format (read through `stored_style`); `PLURAL_TOKEN` there picks one of its two texts by `count_of` (`conditions.py`, the count the `when` grammar's `count` leaf reads); the `{context:name}` values are fields of `Context` and its `values`, filled in `Runtime._context` (`callbacks.py`) from `Opened.values` and from the server's settings `Runtime._open` read (`server_settings`, `app/core/servers.py`) | `host` and the formats, `plural`; context `server_name`, `prefix`, `server_language`, `server_timezone`, `command` and the feature's own values |
-| Copy resolution | `text(key, locale)` and `normalize_locale` in `app/forms/form/copy.py` | reads the copy `ml` reads (`app/core/i18n.py`): the shared files of `app/languages/` and each command's `copy.yml`, under its key; a form names an error of its command by its full block, `error: <key>.errors.<name>`, and `error_message` reads its `message` (a key that names a text and not a block is read as it is); the copy blocks and the primitives that read them are in `docs/commands.md` |
+| Copy tokens | `TOKEN_FORMATTERS` in `app/forms/form/actions/action.py`, then every value format (read through `stored_style`); `PLURAL_TOKEN` there picks one of its two texts by `count_of` (`app/core/conditions.py`, the count the `when` grammar's `count` leaf reads); the `{context:name}` values are declared in the `context:` of `app/core/global.yml` (`compile_form` refuses an undeclared one): the families known at load (`commands`, `groups`) are written in by `with_context` (`app/core/facts.py`) before the form compiles, and the rest are fields of `Context` and its `values`, filled in `Runtime._context` (`callbacks.py`) from `Opened.values` and from the server's settings `Runtime._open` read (`server_settings`, `app/core/servers.py`) | `host` and the formats, `plural`; context `commands.<key>`, `groups.<group>`, `server_name`, `prefix`, `server_language`, `server_timezone`, `command` and the feature's own values (`members_count`, `bots_count`) |
+| Copy resolution | `text(key, locale)` and `normalize_locale` in `app/forms/form/copy.py` | reads the copy `ml` reads (`app/core/i18n.py`): the shared files of `app/languages/` and each command's `copy.yml`, under its key; a form names an error of its command by its full block, `error: <key>.ui.errors.<name>`, and `error_message` reads its `message` (a key that names a text and not a block is read as it is); the copy blocks and the primitives that read them are in `docs/commands.md` |
 | Definitions | `DefinitionSource` (`load`, `list`) in `app/forms/form/form_yaml.py` | `DiskSource` over each command's `form.yml`, found by `form_file(key)` (`app/core/commands.py`) and read whole through `strict_yaml` |
 | Shared vocabulary | `shared_vocabulary()` in `app/forms/form/form_yaml.py`, over `app/forms/vocabulary.yml` (3.5) | `fallbacks` (`footer`, `review_description`) and the `texts` a `{ref: name}` names |
 | Features | the `feature` of each `Command` (`app/core/commands.py`); `feature_for(key)` in `app/forms/features/__init__.py` asks the registry for it | the seven feature modules of the command folders; a command with a form and no `feature` gets `GenericCogFeature`, and a key no command declares is refused |
@@ -557,7 +566,7 @@ confirmed empty) only sends the message.
 `setup.required_missing` is emitted only for missing fields, every other
 refusal emits `setup.validation_failed`, whose `error_key` is the error's bare
 name in kebab-case, without its copy path (`youtuber-not-found` for the block
-`notifications_youtube_video.errors.youtuber_not_found`), the spelling released
+`notifications_youtube_video.ui.errors.youtuber_not_found`), the spelling released
 versions recorded (`_recorded_error` in `form.py`; `docs/analytics.md`), so a copy
 that names the error in snake_case keeps its series.
 
@@ -569,7 +578,7 @@ contributes, and nothing more:
 | Member | Role |
 |---|---|
 | `key` | the form key |
-| `open(context) -> Opened` | the saved document and its `PanelExtras` (`rows`, `pages`, `found`, `info`, `info_title`, `info_action` (one button drawn beside the info block, inside the card, such as StreamElements' command list), `extra_buttons` (the panel's last row), `enabled`; `GenericCogFeature` fills `info` and `info_title` from `panel.info` of its copy and `extra_buttons` from its `panel_asides`, one button per aside read from `buttons.<aside>`), `previews` or `pending_previews`, or an empty `Opened` for setup; `refusal` names an error key when the feature cannot open; `values` are the `{context:name}` tokens its copy reads (default roles: the server's members and bots, which the setup's own step asking whether to give the roles to who is already there shows; a `hidden` options step after the card, so the summary and the panel never list it) |
+| `open(context) -> Opened` | the saved document and its `PanelExtras` (`rows`, `pages`, `found`, `info`, `info_title`, `info_action` (one button drawn beside the info block, inside the card, such as StreamElements' command list), `extra_buttons` (the panel's last row), `enabled`; `GenericCogFeature` fills `info` and `info_title` from `panel.info` of its copy, unless the feature declares `fills_panel_info` because its `panel.info` reads facts only it can pass (default roles, StreamElements), and `extra_buttons` from its `panel_asides`, one button per aside read from `buttons.<aside>`), `previews` or `pending_previews`, or an empty `Opened` for setup; `refusal` names an error key when the feature cannot open; `values` are the `{context:name}` tokens its copy reads (default roles: the server's members and bots, which the setup's own step asking whether to give the roles to who is already there shows; a `hidden` options step after the card, so the summary and the panel never list it) |
 | `prefetch(lookup, context)` | the external data a submitted modal asks for: `lookup.services` are the `external:<service>` needs of its validator (a text step's or a card section's modal) and `lookup.value` is the typed value after its `normalize`; the adapter defers the interaction before running it |
 | `to_document(answers, locale)` / `from_document(document)` | answers to the persisted document and back, any schema version |
 | `commit(kind, payload, context) -> CommitResult` | writes what `kind` asks (`setup`, `edit`, `toggle`, `edit_item`, `add_item`, `remove_item`, `pause`, `unpause`, `disable`), records the audit event, and reports `written` and `external` so a failure midway can say what happened. The list and choice commits apply each change to the settings as they are saved when the admin confirms (`saved_document`, `saved_list`, read through the feature's `normalized`): `toggle` sets one option to the state its button asked for (`turned_on`), so the same click from two screens gives the same choice, and the item commits find the edited or removed items by the content the panel showed (a removal names `indexes` and the `items` they held, and takes every one of them or none, never leaving a `required` list empty), refuse a `unique.key` value already listed (`DuplicateItem`), and write only while nobody changed the value meanwhile (`data().guild_cogs.update_cog_if_unchanged`); otherwise `ListChanged` saves nothing. `pause`, `unpause` and `edit` first check that the document is still saved (`saved_document`). A refusal drops the cached document, the adapter reads the feature again (`Runtime._reopen`, which keeps the document it had and logs the error when that read fails) and the manager answers: the out-of-date notice and the screen redrawn from the saved list, the duplicate copy once over the screen drawn again, or, once the feature is gone, `Finalize("closed")`, which takes the rows of buttons off the message and writes the closed notice inside it. A refusal keeps the session open (a duplicate included), or closes it after another panel's Disable, and emits no event: only a commit that fails the session emits `feature.commit_failed`. What a change needs outside runs before the write (`before_item_added`, `before_item_replaced`) and is let go when the write fails (`save_or_let_go`); what it leaves outside runs after it (`after_item_replaced`, `after_item_removed`, `after_disable`), best-effort and logged when it fails (`best_effort`); what may take long (default roles giving the saved roles to every member already in the server) starts after the commit through `in_background`, best-effort too, and the commit never waits for it, so the answer to the click stays in time. `CommitContext.guild` is the guild the session runs in. Disable deletes the document and lets go of what it listed before it records the flag; a `disable` that names `items` (the removal of a list's only item) first checks the list is saved as them |
@@ -721,14 +730,14 @@ a form that compiles; then:
 2. **The cog**, `app/commands/<x>/cog.py`: the slash command's body calls
    `open_feature(interaction, key)` (through the service's `manager`, the
    convention every feature follows), in a subgroup whose `namespace` is the
-   command's `<key>.slash` block, under the group the declaration names.
+   command's `<key>.command.slash` block, under the group the declaration names.
 3. **The copy**, `app/commands/<x>/copy.yml` beside it, every text in `en-us` and
    `pt-br` under a key relative to the command (its `slash` name and
    description, its /setup row under `setup` and `stats`, and every string
    only it shows), each in the block of the primitive that draws it
    (`docs/commands.md`), snake_case, a filled value written `$name`; an error a
    shared validator answers with is named by its block in the form
-   (`error: <key>.errors.<name>`), or goes to `app/languages/errors.yml` when
+   (`error: <key>.ui.errors.<name>`), or goes to `app/languages/errors.yml` when
    several commands share it. Reuse `buttons.*` labels and `commands.responses.*`
    state messages before adding keys.
 

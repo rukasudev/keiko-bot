@@ -7,7 +7,7 @@ of the keys `zero`, `one`, `few`, `many`, `other` as one plural value, so
 `ml("....one")` found nothing and returned its key. Shared behaviour: every language
 file, read through `ml`. Consumer that exposed it: the health line of a /configurar
 category page, which now closes each panel's statistics, its counts under each
-command's `stats.delivered`, a `{one, other}` block.
+command's `command.stats.delivered`, a `{one, other}` block.
 Guaranteed: every text of a copy file resolves through `ml` to its own words in each
 locale, the keys of a `{one, other}` block included, since the copy loader adds each
 text under its full key; and no block of a `form.yml` has two plural-named keys.
@@ -57,9 +57,9 @@ def test_a_plural_block_of_the_copy_resolves_each_of_its_forms():
         (i18n.APP / "commands/block_links/copy.yml").read_text(encoding="utf-8")
     )
 
-    assert list(_plural_blocks(document)) == [".stats.delivered"]
-    assert ml("block_links.stats.delivered.one", "pt-br").startswith("✅ Bloqueei 1")
-    assert "$count links" in ml("block_links.stats.delivered.other", "en-us")
+    assert list(_plural_blocks(document)) == [".command.stats.delivered"]
+    assert ml("block_links.command.stats.delivered.one", "pt-br").startswith("✅ Bloqueei 1")
+    assert "$count links" in ml("block_links.command.stats.delivered.other", "en-us")
 
 
 @pytest.mark.parametrize(

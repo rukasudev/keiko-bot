@@ -73,8 +73,8 @@ def test_every_file_is_filled_and_reads(tmp_path, form):
             ast.parse(text)
         elif path.name == "copy.yml":
             copy = yaml.safe_load(text)
-            assert set(copy["slash"]["description"]) == {"en-us", "pt-br"}
-            assert all(copy["slash"]["description"].values())
+            assert set(copy["command"]["slash"]["description"]) == {"en-us", "pt-br"}
+            assert all(copy["command"]["slash"]["description"].values())
             CommandCopy.model_validate(copy)
 
 

@@ -48,7 +48,7 @@ class SlashCommand(CopyBlock):
 
 class Slash(CopyBlock):
     """The names and captions of a command's app commands, read by the `Translator`
-    through `locale_str(namespace="<key>.slash")`."""
+    through `locale_str(namespace="<key>.command.slash")`."""
 
     subgroup: CopyText | None = Field(
         None,
@@ -70,13 +70,13 @@ class Slash(CopyBlock):
     params: Open[SlashParam] = Field(
         default_factory=dict,
         description="The parameters, keyed by the parameter name in Python; read "
-        "under `<key>.slash` with the type `params.<name>.name`.",
+        "under `<key>.command.slash` with the type `params.<name>.name`.",
         json_schema_extra={"role": "structure"},
     )
     commands: Open[SlashCommand] = Field(
         default_factory=dict,
         description="The folder's other app commands, keyed by what each does; read "
-        "with the namespace `<key>.slash.commands.<name>`.",
+        "with the namespace `<key>.command.slash.commands.<name>`.",
         json_schema_extra={"role": "structure"},
     )
 
@@ -122,7 +122,7 @@ class Translator(app_commands.Translator):
             return command
 
         if tp == "groups":
-            return ml(f"messages.groups.{command}", locale=locale)
+            return ml(f"texts.groups.{command}", locale=locale)
 
         if tp == "context-menu":
             return ml(f"{ns}.name", locale=locale)

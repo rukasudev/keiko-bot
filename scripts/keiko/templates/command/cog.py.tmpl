@@ -17,8 +17,8 @@ class ${cls}(Cog, name="${key}"):
         super().__init__()
 
     @keiko_command(
-        name=locale_str("${slash}", type="name", namespace="${key}.slash"),
-        description=locale_str("${slash}", type="description", namespace="${key}.slash"),
+        name=locale_str("${slash}", type="name", namespace="${key}.command.slash"),
+        description=locale_str("${slash}", type="description", namespace="${key}.command.slash"),
     )
     async def ${name}(self, interaction: discord.Interaction) -> None:
         """Run /${slash}."""

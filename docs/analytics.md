@@ -101,7 +101,7 @@ A refused value is recorded as `setup.validation_failed`, its `validation` and
 `youtuber-already-registered`, `streamer-not-found`, `invalid-date`,
 `link-not-recognized`, the spelling every released version recorded. The copy
 names the same error by its snake_case block
-(`notifications_youtube_video.errors.youtuber_already_registered`,
+(`notifications_youtube_video.ui.errors.youtuber_already_registered`,
 `errors.invalid_date`); `_recorded_error` in `app/forms/form/form.py` is the one
 seam that spells the recorded name, so renaming a copy block never splits the
 series the friction screen, the drop-off sessions (`failed_keys`) and the journey
@@ -168,8 +168,8 @@ field nothing reads or a value outside its vocabulary refuses the file instead
 of being ignored. `catalog()` reads the file once through `strict_yaml` and every
 reader gets the typed declarations (`events_catalog()`, `sources_catalog()`,
 `value_events()`, `lifetime_snapshot()`). Each field's `description` in the schema
-is its reference, generated into `docs/yaml/index.html#catalog-yml`; the file itself
-carries one comment line pointing to it.
+is its reference, generated into `docs/yaml-reference.html#catalog-yml`; the file
+itself carries one comment line pointing to it.
 
 ```yaml
 link.blocked:
@@ -330,7 +330,7 @@ same hour and posts, oldest first, every complete month no pass has posted whose
 first day the raw events still reach (`logs_archive.months_to_archive`: a month that
 started less than `EVENTS_INTERACTIONS_TTL_SECONDS` ago), on the logs files
 channel, where the daily log export goes: one message in Keiko's voice
-(`messages.admin_logs.monthly_events`) with the file attached, then marks the
+(`texts.admin_logs.monthly_events`) with the file attached, then marks the
 month in `analytics_archives`. A day the bot was down, a pass that failed, or a
 month that failed alone (it never holds the months after it) is caught up by the
 next pass while the month's first day is inside the 90 days; a month that
@@ -646,7 +646,7 @@ Declared exception, with a boundary, because the two halves were decided a turn
 apart and the inconsistency was the real problem:
 
 - **A sentence in Keiko's voice is localized.** The daily export message
-  ("Here is my structured log for…") lives in `app/languages/messages.yml` and is
+  ("Here is my structured log for…") lives in `app/languages/texts.yml` and is
   resolved through `ml()`. It reads like Keiko talking, so it follows every rule
   that applies to Keiko talking, in both locales.
 - **A structural label is English, in Python.** `TraceTitles.OUTCOME_LABELS`,

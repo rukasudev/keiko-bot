@@ -9,6 +9,8 @@ from typing import Any, cast
 from i18n import t, translations
 
 from app.constants import supported_locales
+from app.core.facts import Facts
+from app.core.i18n import resolved_texts
 
 
 def normalize_locale(locale: Any) -> str:
@@ -32,6 +34,12 @@ def error_message(block: str, args: Mapping[str, str], locale: str) -> str:
     for name in sorted(args, key=len, reverse=True):
         message = message.replace(f"${name}", args[name])
     return message
+
+
+def block_texts(key: str, facts: Facts, locale: str) -> Mapping[str, str]:
+    """The texts of the copy block under `key` in `locale`, with the overrides `facts`
+    choose and its `$name`s filled."""
+    return resolved_texts(key, facts, normalize_locale(locale))
 
 
 def optional_text(key: str, locale: str) -> str:

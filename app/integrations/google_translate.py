@@ -102,7 +102,7 @@ class GoogleTranslate:
             full_src = languages_with_flags.get(src, "🌐")
         except (Exception, detectlanguage.DetectLanguageError) as error:
             logger.error(f"Error while detecting language: {error}", log_type=logconstants.COMMAND_ERROR_TYPE,)
-            full_src = ml("messages.unknown_language", dest_locale)
+            full_src = ml("texts.unknown_language", dest_locale)
 
         translated_message = GoogleTranslate.google_translate(content, dest)
         if not translated_message:

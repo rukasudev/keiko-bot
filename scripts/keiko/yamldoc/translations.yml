@@ -1,4 +1,4 @@
-# The Portuguese of the YAML reference (docs/yaml/index.html), read by make yaml-docs.
+# The Portuguese of the YAML reference (docs/yaml-reference.html), read by make docs.
 # Each key names the text it translates: <type> (the purpose of a YAML type),
 # <type>/<Model> (a model) or <type>/<Model>.<field> (a field). `en-us` is the English
 # the entry translated: when the schema's English changes, the entry is stale and the
@@ -41,11 +41,12 @@ form.yml/PanelGroupSpec.screen:
     the group's `title`.
   pt-br: A introdução da tela própria do grupo, em `description`; a tela leva o `title` do
     grupo como título.
-form.yml/PanelGroupSpec.variants:
-  en-us: Headings and screen intros that replace `title` and `screen.description` while their
-    rule holds, for a group named after the mode in force.
-  pt-br: Títulos e introduções de tela que substituem `title` e `screen.description` enquanto
-    a regra deles vale, para um grupo cujo nome depende do modo ativo.
+form.yml/PanelGroupSpec.overrides:
+  en-us: A heading and a screen intro that replace `title` and `screen.description` while a
+    rule holds, for a group named after the mode in force; the first item whose rule holds wins.
+  pt-br: Um título e uma introdução de tela que substituem `title` e `screen.description` enquanto
+    uma regra vale, para um grupo cujo nome depende do modo ativo; vence o primeiro item cuja
+    regra vale.
 form.yml/PanelGroupSpec.opens:
   en-us: 'Where the group''s rows are edited: listed on the panel, on a screen of their own
     behind one Edit, or on that screen opened from a button on the panel''s last row, for
@@ -121,14 +122,15 @@ form.yml/TextStep.appears_in:
 form.yml/TextStep.when:
   en-us: Asks the step only while the rule holds.
   pt-br: Só pergunta a etapa enquanto a regra vale.
-form.yml/TextStep.variants:
-  en-us: Titles and descriptions that replace the step's own while their rule holds, for a
-    step worded after the mode in force; the rule of a variant that writes a description names
-    only earlier answers, one that writes only a title may name the step's own.
-  pt-br: Títulos e descrições que substituem os da etapa enquanto a regra deles vale, para
-    uma etapa cujo texto depende do modo ativo; a regra de uma variante que escreve uma descrição
-    só cita respostas anteriores, e a de uma que só escreve um título pode citar a da própria
-    etapa.
+form.yml/TextStep.overrides:
+  en-us: A title and a description that replace the step's own while a rule holds, for a step
+    worded after the mode in force; the first item whose rule holds wins, so an item that writes
+    a description, and every item before it, names only earlier answers, and a later one may
+    name the step's own.
+  pt-br: Um título e uma descrição que substituem os da etapa enquanto uma regra vale, para
+    uma etapa escrita conforme o modo ativo; vence o primeiro item cuja regra vale, então um
+    item que escreve uma descrição, e todo item antes dele, cita só respostas anteriores, e
+    um item depois pode citar a resposta da própria etapa.
 form.yml/TextStep.label:
   en-us: The label of the input, the step title when left out.
   pt-br: O rótulo do campo; o título da etapa quando omitido.
@@ -199,14 +201,15 @@ form.yml/SingleChoiceStep.appears_in:
 form.yml/SingleChoiceStep.when:
   en-us: Asks the step only while the rule holds.
   pt-br: Só pergunta a etapa enquanto a regra vale.
-form.yml/SingleChoiceStep.variants:
-  en-us: Titles and descriptions that replace the step's own while their rule holds, for a
-    step worded after the mode in force; the rule of a variant that writes a description names
-    only earlier answers, one that writes only a title may name the step's own.
-  pt-br: Títulos e descrições que substituem os da etapa enquanto a regra deles vale, para
-    uma etapa cujo texto depende do modo ativo; a regra de uma variante que escreve uma descrição
-    só cita respostas anteriores, e a de uma que só escreve um título pode citar a da própria
-    etapa.
+form.yml/SingleChoiceStep.overrides:
+  en-us: A title and a description that replace the step's own while a rule holds, for a step
+    worded after the mode in force; the first item whose rule holds wins, so an item that writes
+    a description, and every item before it, names only earlier answers, and a later one may
+    name the step's own.
+  pt-br: Um título e uma descrição que substituem os da etapa enquanto uma regra vale, para
+    uma etapa escrita conforme o modo ativo; vence o primeiro item cuja regra vale, então um
+    item que escreve uma descrição, e todo item antes dele, cita só respostas anteriores, e
+    um item depois pode citar a resposta da própria etapa.
 form.yml/SingleChoiceStep.options:
   en-us: One button per option.
   pt-br: Um botão por opção.
@@ -258,14 +261,15 @@ form.yml/CardStep.appears_in:
 form.yml/CardStep.when:
   en-us: Asks the step only while the rule holds.
   pt-br: Só pergunta a etapa enquanto a regra vale.
-form.yml/CardStep.variants:
-  en-us: Titles and descriptions that replace the step's own while their rule holds, for a
-    step worded after the mode in force; the rule of a variant that writes a description names
-    only earlier answers, one that writes only a title may name the step's own.
-  pt-br: Títulos e descrições que substituem os da etapa enquanto a regra deles vale, para
-    uma etapa cujo texto depende do modo ativo; a regra de uma variante que escreve uma descrição
-    só cita respostas anteriores, e a de uma que só escreve um título pode citar a da própria
-    etapa.
+form.yml/CardStep.overrides:
+  en-us: A title and a description that replace the step's own while a rule holds, for a step
+    worded after the mode in force; the first item whose rule holds wins, so an item that writes
+    a description, and every item before it, names only earlier answers, and a later one may
+    name the step's own.
+  pt-br: Um título e uma descrição que substituem os da etapa enquanto uma regra vale, para
+    uma etapa escrita conforme o modo ativo; vence o primeiro item cuja regra vale, então um
+    item que escreve uma descrição, e todo item antes dele, cita só respostas anteriores, e
+    um item depois pode citar a resposta da própria etapa.
 form.yml/CardStep.header:
   en-us: The card's title and the picture of Keiko beside it.
   pt-br: O título do card e a imagem do Keiko ao lado.
@@ -337,14 +341,15 @@ form.yml/ListStep.appears_in:
 form.yml/ListStep.when:
   en-us: Asks the step only while the rule holds.
   pt-br: Só pergunta a etapa enquanto a regra vale.
-form.yml/ListStep.variants:
-  en-us: Titles and descriptions that replace the step's own while their rule holds, for a
-    step worded after the mode in force; the rule of a variant that writes a description names
-    only earlier answers, one that writes only a title may name the step's own.
-  pt-br: Títulos e descrições que substituem os da etapa enquanto a regra deles vale, para
-    uma etapa cujo texto depende do modo ativo; a regra de uma variante que escreve uma descrição
-    só cita respostas anteriores, e a de uma que só escreve um título pode citar a da própria
-    etapa.
+form.yml/ListStep.overrides:
+  en-us: A title and a description that replace the step's own while a rule holds, for a step
+    worded after the mode in force; the first item whose rule holds wins, so an item that writes
+    a description, and every item before it, names only earlier answers, and a later one may
+    name the step's own.
+  pt-br: Um título e uma descrição que substituem os da etapa enquanto uma regra vale, para
+    uma etapa escrita conforme o modo ativo; vence o primeiro item cuja regra vale, então um
+    item que escreve uma descrição, e todo item antes dele, cita só respostas anteriores, e
+    um item depois pode citar a resposta da própria etapa.
 form.yml/ListStep.items:
   en-us: How many items the list holds and how.
   pt-br: Quantos itens a lista comporta e como.
@@ -431,16 +436,18 @@ form.yml/Screen.title:
 form.yml/Screen.description:
   en-us: The intro under the screen's title; none when left out.
   pt-br: A introdução abaixo do título da tela; nenhuma quando omitida.
-form.yml/Variant:
-  en-us: Texts that replace the default ones while the rule holds, first match wins.
-  pt-br: Textos que substituem os padrões enquanto a regra vale; vence o primeiro que bater.
-form.yml/Variant.when:
-  en-us: The rule under which these texts are shown.
-  pt-br: A regra sob a qual estes textos aparecem.
-form.yml/Variant.title:
+form.yml/TextOverride:
+  en-us: Texts that replace the default ones while the rule holds; the first item whose rule
+    holds wins and replaces only the texts it writes.
+  pt-br: Textos que substituem os padrões enquanto a regra vale; vence o primeiro item cuja
+    regra vale, e ele substitui só os textos que escreve.
+form.yml/TextOverride.when:
+  en-us: The rule under which this item's fields replace the block's.
+  pt-br: A regra sob a qual os campos deste item substituem os do bloco.
+form.yml/TextOverride.title:
   en-us: The title shown while the rule holds.
   pt-br: O título mostrado enquanto a regra vale.
-form.yml/Variant.description:
+form.yml/TextOverride.description:
   en-us: The description shown while the rule holds.
   pt-br: A descrição mostrada enquanto a regra vale.
 form.yml/ButtonSpec:
@@ -459,10 +466,12 @@ form.yml/Leaf:
   en-us: One test on one key of the scope chain, with exactly one operator.
   pt-br: Um teste sobre uma chave do escopo, com exatamente um operador.
 form.yml/Leaf.key:
-  en-us: 'The value the rule tests: an answer key, behind `parent.` or `item.` for an outer
-    session or a list item, or `items.count`.'
-  pt-br: 'O valor que a regra testa: uma chave de resposta, com `parent.` ou `item.` na frente
-    para uma sessão de fora ou um item de lista, ou `items.count`.'
+  en-us: 'The value the rule tests: in a form, an answer key, behind `parent.` or `item.` for
+    an outer session or a list item, or `items.count`; in a copy file, a fact by its address
+    (`<owner>.facts.<name>`).'
+  pt-br: 'O valor que a regra testa: num form, uma chave de resposta, atrás de `parent.` ou
+    `item.` para uma sessão externa ou um item de lista, ou `items.count`; num arquivo de copy,
+    um fato pelo endereço dele (`<owner>.facts.<name>`).'
 form.yml/Leaf.is:
   en-us: Holds while the value equals this one.
   pt-br: Vale enquanto o valor for igual a este.
@@ -1438,59 +1447,87 @@ vocabulary.yml/Text.pt-br:
   en-us: What Keiko writes to a Portuguese-speaking server or member.
   pt-br: O que o Keiko escreve para um servidor ou membro que fala português.
 copy.yml:
-  en-us: 'The copy of one command: its slash names and descriptions, its /setup row, its stats
-    and every text its screens show, each a {en-us, pt-br} node under a key relative to the
-    command.'
-  pt-br: 'Os textos de um comando: os nomes e descrições dos slash commands, a linha no /setup,
-    as estatísticas e todo texto que as telas mostram, cada um num nó {en-us, pt-br} sob uma
-    chave relativa ao comando.'
+  en-us: 'The copy of one command: the facts its texts read, the fixed places the shared
+    screens fill (its slash names, its /setup row, its stats, its panel) under `command`, and
+    every text it draws itself under `ui`, each a {en-us, pt-br} node under a key relative to
+    the command.'
+  pt-br: 'Os textos de um comando: os fatos que os textos dele leem, os lugares fixos que as
+    telas compartilhadas preenchem (os nomes dos slash commands, a linha no /setup, as
+    estatísticas, o painel) em `command`, e todo texto que ele mesmo desenha em `ui`, cada um
+    num nó {en-us, pt-br} sob uma chave relativa ao comando.'
 copy.yml/CommandCopy:
-  en-us: 'A command''s `copy.yml`: one block per primitive that draws its texts, under keys
-    relative to the command; `slash` is required for a command with cogs, `setup` and `stats`
-    for one /setup offers.'
-  pt-br: 'O `copy.yml` de um comando: um bloco por primitiva que desenha os textos dele, sob
-    chaves relativas ao comando; `slash` é obrigatório para um comando com cogs, e `setup`
-    e `stats` para um que o /setup oferece.'
-copy.yml/CommandCopy.slash:
+  en-us: 'A command''s `copy.yml`: the facts its texts read, then the fixed places the shared
+    screens fill, then what it draws itself, under keys relative to the command.'
+  pt-br: 'O `copy.yml` de um comando: os fatos que os textos dele leem, depois os lugares
+    fixos que as telas compartilhadas preenchem, depois o que ele mesmo desenha, sob chaves
+    relativas ao comando.'
+copy.yml/CommandCopy.facts:
+  en-us: The facts only this command's code passes, each read as `<key>.facts.<name>` by a rule
+    and as `$<name>` by a text; a fact a second command needs moves to app/core/global.yml.
+  pt-br: Os fatos que só o código deste comando passa, cada um lido como `<key>.facts.<name>`
+    por uma regra e como `$<name>` por um texto; um fato que um segundo comando precisa vai
+    para app/core/global.yml.
+copy.yml/CommandCopy.command:
+  en-us: 'The fixed places Keiko''s shared screens fill, each read under `<key>.command.`;
+    `slash` is required for a command with cogs, `setup` and `stats` for one /setup offers.'
+  pt-br: 'Os lugares fixos que as telas compartilhadas do Keiko preenchem, cada um lido em
+    `<key>.command.`; `slash` é obrigatório para um comando com cogs, e `setup` e `stats` para
+    um que o /setup oferece.'
+copy.yml/CommandCopy.ui:
+  en-us: 'What the command draws itself, each block read under `<key>.ui.` by the one
+    primitive that draws it.'
+  pt-br: 'O que o comando mesmo desenha, cada bloco lido em `<key>.ui.` pela única primitiva
+    que o desenha.'
+copy.yml/CommandPlaces:
+  en-us: 'The fixed places of a command that Keiko''s shared screens fill: its app commands,
+    its /setup row, its statistics and its manager panel.'
+  pt-br: 'Os lugares fixos de um comando que as telas compartilhadas do Keiko preenchem: os
+    app commands dele, a linha no /setup, as estatísticas e o painel de gerenciamento.'
+copy.yml/CommandPlaces.slash:
   en-us: The names and captions of the command's app commands.
   pt-br: Os nomes e legendas dos app commands do comando.
-copy.yml/CommandCopy.setup:
+copy.yml/CommandPlaces.setup:
   en-us: The command's row on /setup and on the first message.
   pt-br: A linha do comando no /setup e na primeira mensagem.
-copy.yml/CommandCopy.stats:
+copy.yml/CommandPlaces.stats:
   en-us: The command's statistics and its recent-activity line.
   pt-br: As estatísticas do comando e a linha de atividade recente.
-copy.yml/CommandCopy.panel:
+copy.yml/CommandPlaces.panel:
   en-us: What the command's feature adds to its manager panel.
   pt-br: O que a funcionalidade do comando acrescenta ao painel de gerenciamento.
-copy.yml/CommandCopy.announcement:
-  en-us: What the command posts in a server channel.
-  pt-br: O que o comando publica num canal do servidor.
-copy.yml/CommandCopy.errors:
-  en-us: The command's errors, each named `<key>.errors.<name>` by the code, a form or a validator.
-  pt-br: Os erros do comando, cada um citado como `<key>.errors.<name>` pelo código, por um
-    form ou por um validador.
-copy.yml/CommandCopy.responses:
-  en-us: The embeds the command answers with, each named `<key>.responses.<name>`.
-  pt-br: Os embeds com que o comando responde, cada um citado como `<key>.responses.<name>`.
-copy.yml/CommandCopy.records:
-  en-us: The command's browsable lists, each named `<key>.records.<name>`.
-  pt-br: As listas navegáveis do comando, cada uma citada como `<key>.records.<name>`.
-copy.yml/CommandCopy.buttons:
+copy.yml/CommandUi:
+  en-us: 'What a command draws itself, one block per primitive that draws it.'
+  pt-br: 'O que um comando mesmo desenha, um bloco por primitiva que o desenha.'
+copy.yml/CommandUi.cards:
+  en-us: The Components V2 cards the command draws, keyed by the screen.
+  pt-br: Os cards Components V2 que o comando desenha, por tela.
+copy.yml/CommandUi.texts:
+  en-us: Texts no primitive draws, read by the command's own code.
+  pt-br: Textos que nenhuma primitiva desenha, lidos pelo próprio código do comando.
+copy.yml/CommandUi.records:
+  en-us: 'The command''s browsable lists, each named `<key>.ui.records.<name>`.'
+  pt-br: 'As listas navegáveis do comando, cada uma citada como `<key>.ui.records.<name>`.'
+copy.yml/CommandUi.responses:
+  en-us: 'The embeds the command answers with, each named `<key>.ui.responses.<name>`.'
+  pt-br: 'Os embeds com que o comando responde, cada um citado como
+    `<key>.ui.responses.<name>`.'
+copy.yml/CommandUi.errors:
+  en-us: 'The command''s errors, each named `<key>.ui.errors.<name>` by the code, a form or a
+    validator.'
+  pt-br: 'Os erros do comando, cada um citado como `<key>.ui.errors.<name>` pelo código, por
+    um form ou por um validador.'
+copy.yml/CommandUi.buttons:
   en-us: The command's own buttons, keyed by the aside a panel button runs or by what the
     button does.
   pt-br: Os botões próprios do comando, pela ação do painel que o botão roda ou pelo que ele
     faz.
-copy.yml/CommandCopy.cards:
-  en-us: The Components V2 cards the command draws, keyed by the screen.
-  pt-br: Os cards Components V2 que o comando desenha, por tela.
-copy.yml/CommandCopy.messages:
-  en-us: Texts no primitive draws, read by the command's own code.
-  pt-br: Textos que nenhuma primitiva desenha, lidos pelo próprio código do comando.
+copy.yml/CommandUi.announcement:
+  en-us: What the command posts in a server channel.
+  pt-br: O que o comando publica num canal do servidor.
 copy.yml/Slash:
   en-us: The names and captions of a command's app commands, read by the `Translator` through
-    `locale_str(namespace="<key>.slash")`.
-  pt-br: Os nomes e legendas dos app commands de um comando, lidos pelo `Translator` via `locale_str(namespace="<key>.slash")`.
+    `locale_str(namespace="<key>.command.slash")`.
+  pt-br: Os nomes e legendas dos app commands de um comando, lidos pelo `Translator` via `locale_str(namespace="<key>.command.slash")`.
 copy.yml/Slash.subgroup:
   en-us: The subgroup under the parent group, written when the command declares a `group`;
     /setup quotes it on the row.
@@ -1503,14 +1540,14 @@ copy.yml/Slash.description:
   en-us: The slash command's caption, in the third person; a context menu has none.
   pt-br: A legenda do slash command, em terceira pessoa; um menu de contexto não tem.
 copy.yml/Slash.params:
-  en-us: The parameters, keyed by the parameter name in Python; read under `<key>.slash` with
+  en-us: The parameters, keyed by the parameter name in Python; read under `<key>.command.slash` with
     the type `params.<name>.name`.
-  pt-br: Os parâmetros, pelo nome do parâmetro no Python; lidos sob `<key>.slash` com o tipo
+  pt-br: Os parâmetros, pelo nome do parâmetro no Python; lidos sob `<key>.command.slash` com o tipo
     `params.<name>.name`.
 copy.yml/Slash.commands:
   en-us: The folder's other app commands, keyed by what each does; read with the namespace
-    `<key>.slash.commands.<name>`.
-  pt-br: Os outros app commands da pasta, pelo que cada um faz; lidos com o namespace `<key>.slash.commands.<name>`.
+    `<key>.command.slash.commands.<name>`.
+  pt-br: Os outros app commands da pasta, pelo que cada um faz; lidos com o namespace `<key>.command.slash.commands.<name>`.
 copy.yml/SetupRow:
   en-us: A command's row on /setup and on the greeting, read through `command_text`.
   pt-br: A linha de um comando no /setup e na saudação, lida via `command_text`.
@@ -1592,6 +1629,22 @@ copy.yml/Announcement.defaults:
   en-us: Keiko's own title and description, posted while the admin wrote none (a celebration).
   pt-br: O título e a descrição do próprio Keiko, publicados enquanto o admin não escreveu
     nenhum (uma comemoração).
+copy.yml/FactSpec:
+  en-us: 'One fact: what a rule or a `$name` of copy reads, of one type.'
+  pt-br: 'Um fato: o que uma regra ou um `$name` de copy lê, de um tipo só.'
+copy.yml/FactSpec.type:
+  en-us: 'The kind of value the code passes: `boolean`, `enum` (one of `values`), `number` or
+    `text`.'
+  pt-br: 'O tipo de valor que o código passa: `boolean`, `enum` (um dos `values`), `number`
+    ou `text`.'
+copy.yml/FactSpec.values:
+  en-us: The values an `enum` fact takes, the only ones a rule may compare it with.
+  pt-br: Os valores que um fato `enum` assume, os únicos com que uma regra pode compará-lo.
+copy.yml/FactSpec.description:
+  en-us: One sentence saying what the fact holds, for whoever writes a rule or a text that reads
+    it.
+  pt-br: Uma frase dizendo o que o fato guarda, para quem escreve uma regra ou um texto que
+    o lê.
 copy.yml/ErrorBlock:
   en-us: 'One error, named by its block: a red embed through `response_error_embed`, or the
     plain line of the forms'' `error_message`.'
@@ -1626,11 +1679,11 @@ copy.yml/Response.empty:
     permissions report).
   pt-br: O corpo desenhado no lugar de `description` enquanto não há nada para listar (o relatório
     de permissões do /setup).
-copy.yml/Response.variants:
-  en-us: 'The title or description drawn in a state the code picks, keyed by the state (the
-    link check: blocked, allowed).'
-  pt-br: 'O título ou a descrição desenhados num estado que o código escolhe, pelo estado
-    (a checagem de link: bloqueado, liberado).'
+copy.yml/Response.overrides:
+  en-us: The title or description drawn while a rule on the facts holds, the first item whose
+    rule holds winning (the link check, once it would block the message).
+  pt-br: O título ou a descrição desenhados enquanto uma regra sobre os fatos vale, vencendo
+    o primeiro item cuja regra vale (a verificação de link, quando ela bloquearia a mensagem).
 copy.yml/Response.lines:
   en-us: Line templates the code repeats into the body, keyed by what each says (one line
     per category).
@@ -1697,11 +1750,11 @@ copy.yml/Card.footer:
     none, a text draws that text.'
   pt-br: 'A linha final em letra pequena do card: ausente desenha a linha padrão do /report,
     null não desenha nenhuma, um texto desenha esse texto.'
-copy.yml/Card.variants:
-  en-us: The title or description drawn in a state the code picks (the dashboard once everything
-    is configured).
-  pt-br: O título ou a descrição desenhados num estado que o código escolhe (o painel quando
-    tudo já está configurado).
+copy.yml/Card.overrides:
+  en-us: The title, intro or note drawn while a rule on the facts holds, the first item whose
+    rule holds winning (the dashboard once everything is configured).
+  pt-br: O título, a introdução ou a nota desenhados enquanto uma regra sobre os fatos vale,
+    vencendo o primeiro item cuja regra vale (o painel inicial depois que tudo está configurado).
 copy.yml/Card.rows:
   en-us: The card's rows, keyed by what each row shows.
   pt-br: As linhas do card, pelo que cada linha mostra.
@@ -1757,11 +1810,11 @@ copy.yml/PanelInfo.title:
 copy.yml/PanelInfo.description:
   en-us: The paragraph; `$name` marks a value the code fills ($count).
   pt-br: O parágrafo; `$name` marca um valor que o código preenche ($count).
-copy.yml/PanelInfo.variants:
-  en-us: The title or description drawn in a state the feature picks (while it cannot tell
-    what it counts).
-  pt-br: O título ou a descrição desenhados num estado que a funcionalidade escolhe (enquanto
-    ela não consegue dizer o que conta).
+copy.yml/PanelInfo.overrides:
+  en-us: The title or paragraph drawn while a rule on the facts holds, the first item whose
+    rule holds winning (while the feature cannot tell what it counts).
+  pt-br: O título ou o parágrafo desenhados enquanto uma regra sobre os fatos vale, vencendo
+    o primeiro item cuja regra vale (enquanto a funcionalidade não consegue saber o que conta).
 copy.yml/PanelPages:
   en-us: The pages a panel turns through over a long list, each a `PanelPage`.
   pt-br: As páginas que um painel percorre numa lista longa, cada uma um `PanelPage`.
@@ -1785,20 +1838,18 @@ copy.yml/AnnouncementDefaults.title:
 copy.yml/AnnouncementDefaults.description:
   en-us: The announcement's body, an admin template like the title.
   pt-br: O corpo do anúncio, um modelo de admin como o título.
-copy.yml/Variant:
-  en-us: What a block writes in one state the code picks, in place of its own title or description.
-  pt-br: O que um bloco escreve num estado que o código escolhe, no lugar do próprio título
-    ou descrição.
-copy.yml/Variant.title:
-  en-us: The title drawn in this variant instead of the block's; absent keeps the block's
-    title.
-  pt-br: O título desenhado nesta variante no lugar do título do bloco; se ausente, mantém
-    o do bloco.
-copy.yml/Variant.description:
-  en-us: The description drawn in this variant instead of the block's; absent keeps the block's
-    description.
-  pt-br: A descrição desenhada nesta variante no lugar da descrição do bloco; se ausente,
-    mantém a do bloco.
+copy.yml/ResponseOverride:
+  en-us: What a response draws while a rule holds, in place of its own title or description.
+  pt-br: O que uma resposta desenha enquanto uma regra vale, no lugar do próprio título ou descrição.
+copy.yml/ResponseOverride.when:
+  en-us: The rule under which this item's fields replace the block's.
+  pt-br: A regra sob a qual os campos deste item substituem os do bloco.
+copy.yml/ResponseOverride.title:
+  en-us: The title drawn while the rule holds; absent keeps the block's.
+  pt-br: O título desenhado enquanto a regra vale; se ausente, mantém o do bloco.
+copy.yml/ResponseOverride.description:
+  en-us: The description drawn while the rule holds; absent keeps the block's.
+  pt-br: A descrição desenhada enquanto a regra vale; se ausente, mantém a do bloco.
 copy.yml/ResponseField:
   en-us: 'One stacked field of a response embed: its title, and its value when the copy writes
     it.'
@@ -1817,6 +1868,11 @@ copy.yml/ResponseField.empty:
     absent, such a field is left out.
   pt-br: O valor desenhado enquanto o código não tem nenhum para dar (um ticket do /report
     sem anexos); se ausente, esse campo some.
+copy.yml/ResponseField.overrides:
+  en-us: The value drawn while a rule on the facts holds, the first item whose rule holds winning
+    (the link check's feature line in each state of the feature).
+  pt-br: O valor desenhado enquanto uma regra sobre os fatos vale, vencendo o primeiro item
+    cuja regra vale (a linha da funcionalidade na verificação de link, em cada estado da funcionalidade).
 copy.yml/ResponseField.lines:
   en-us: Line templates the code picks from to compose the value, keyed by what each says
     (the reasons of the link check).
@@ -1850,6 +1906,22 @@ copy.yml/RecordsFilter.description:
 copy.yml/RecordsFilter.empty:
   en-us: Drawn alone when the member picked has no record.
   pt-br: Desenhado sozinho quando o membro escolhido não tem registro.
+copy.yml/CardOverride:
+  en-us: What a card draws while a rule holds, in place of its own title, intro or note.
+  pt-br: O que um card desenha enquanto uma regra vale, no lugar do próprio título, introdução
+    ou nota.
+copy.yml/CardOverride.when:
+  en-us: The rule under which this item's fields replace the block's.
+  pt-br: A regra sob a qual os campos deste item substituem os do bloco.
+copy.yml/CardOverride.title:
+  en-us: The title drawn while the rule holds; absent keeps the card's.
+  pt-br: O título desenhado enquanto a regra vale; se ausente, mantém o do card.
+copy.yml/CardOverride.description:
+  en-us: The intro drawn while the rule holds; absent keeps the card's.
+  pt-br: A introdução desenhada enquanto a regra vale; se ausente, mantém a do card.
+copy.yml/CardOverride.note:
+  en-us: The note drawn while the rule holds; absent keeps the card's.
+  pt-br: A nota desenhada enquanto a regra vale; se ausente, mantém a do card.
 copy.yml/CardRow:
   en-us: 'One row of a card: a block of text with its control beside or under it.'
   pt-br: 'Uma linha de um card: um bloco de texto com o controle ao lado ou embaixo.'
@@ -1862,6 +1934,84 @@ copy.yml/CardRow.description:
 copy.yml/CardRow.placeholder:
   en-us: The placeholder of the select drawn under the row.
   pt-br: O placeholder do select desenhado abaixo da linha.
+copy.yml/PanelInfoOverride:
+  en-us: What the panel's closing paragraph draws while a rule holds, in place of its own title
+    or paragraph.
+  pt-br: O que o parágrafo final do painel desenha enquanto uma regra vale, no lugar do próprio
+    título ou parágrafo.
+copy.yml/PanelInfoOverride.when:
+  en-us: The rule under which this item's fields replace the block's.
+  pt-br: A regra sob a qual os campos deste item substituem os do bloco.
+copy.yml/PanelInfoOverride.title:
+  en-us: The title drawn while the rule holds; absent keeps the block's.
+  pt-br: O título desenhado enquanto a regra vale; se ausente, mantém o do bloco.
+copy.yml/PanelInfoOverride.description:
+  en-us: The paragraph drawn while the rule holds; absent keeps the block's.
+  pt-br: O parágrafo desenhado enquanto a regra vale; se ausente, mantém o do bloco.
+copy.yml/Leaf:
+  en-us: One test on one key of the scope chain, with exactly one operator.
+  pt-br: Um teste sobre uma chave da cadeia de escopos, com exatamente um operador.
+copy.yml/Leaf.key:
+  en-us: 'The value the rule tests: in a form, an answer key, behind `parent.` or `item.` for
+    an outer session or a list item, or `items.count`; in a copy file, a fact by its address
+    (`<owner>.facts.<name>`).'
+  pt-br: 'O valor que a regra testa: num form, uma chave de resposta, atrás de `parent.` ou
+    `item.` para uma sessão externa ou um item de lista, ou `items.count`; num arquivo de copy,
+    um fato pelo endereço dele (`<owner>.facts.<name>`).'
+copy.yml/Leaf.is:
+  en-us: Holds while the value equals this one.
+  pt-br: Vale enquanto o valor é igual a este.
+copy.yml/Leaf.in:
+  en-us: Holds while the value is one of these.
+  pt-br: Vale enquanto o valor é um destes.
+copy.yml/Leaf.not_in:
+  en-us: Holds while the value is none of these.
+  pt-br: Vale enquanto o valor não é nenhum destes.
+copy.yml/Leaf.matches:
+  en-us: Holds while the value matches this regular expression.
+  pt-br: Vale enquanto o valor bate com esta expressão regular.
+copy.yml/Leaf.present:
+  en-us: Holds while the value is filled, or while it is empty when `false`.
+  pt-br: Vale enquanto o valor está preenchido, ou enquanto está vazio quando `false`.
+copy.yml/Leaf.count:
+  en-us: Holds while the number of values is within these bounds.
+  pt-br: Vale enquanto o número de valores está dentro destes limites.
+copy.yml/All:
+  en-us: True when every rule holds.
+  pt-br: Vale quando todas as regras valem.
+copy.yml/All.all:
+  en-us: The rules that must all hold.
+  pt-br: As regras que precisam valer todas.
+copy.yml/AnyOf:
+  en-us: True when at least one rule holds.
+  pt-br: Vale quando pelo menos uma regra vale.
+copy.yml/AnyOf.any:
+  en-us: The rules one of which must hold.
+  pt-br: As regras das quais uma precisa valer.
+copy.yml/Not:
+  en-us: True when the rule does not hold.
+  pt-br: Vale quando a regra não vale.
+copy.yml/Not.not:
+  en-us: The rule that must not hold.
+  pt-br: A regra que não pode valer.
+copy.yml/FieldOverride:
+  en-us: The value a stacked field draws while a rule holds, in place of its own.
+  pt-br: O valor que um campo empilhado desenha enquanto uma regra vale, no lugar do próprio.
+copy.yml/FieldOverride.when:
+  en-us: The rule under which this item's fields replace the block's.
+  pt-br: A regra sob a qual os campos deste item substituem os do bloco.
+copy.yml/FieldOverride.value:
+  en-us: The value drawn while the rule holds; `$name` marks a fact the code passes.
+  pt-br: O valor desenhado enquanto a regra vale; `$name` marca um fato que o código passa.
+copy.yml/Count:
+  en-us: Bounds on how many values an answer holds.
+  pt-br: Limites de quantos valores uma resposta guarda.
+copy.yml/Count.min:
+  en-us: The fewest values the rule accepts.
+  pt-br: O mínimo de valores que a regra aceita.
+copy.yml/Count.max:
+  en-us: The most values the rule accepts.
+  pt-br: O máximo de valores que a regra aceita.
 languages/buttons.yml:
   en-us: Every button the shared layers draw (the form steps, the manager panel, the cards),
     each its label and the caption the panel's Help lists, read under `buttons.<name>`.
@@ -1899,9 +2049,9 @@ languages/commands.yml:
     e a lista do Histórico.'
 languages/commands.yml/SharedCommands:
   en-us: '`app/languages/commands.yml`: the screens the shared layers draw for every command,
-    under `commands.`; their plain lines and tables live in `messages.yml`.'
+    under `commands.`; their plain lines and tables live in `texts.yml`.'
   pt-br: '`app/languages/commands.yml`: as telas que as camadas compartilhadas desenham para
-    todo comando, em `commands.`; as linhas simples e tabelas delas ficam em `messages.yml`.'
+    todo comando, em `commands.`; as linhas simples e tabelas delas ficam em `texts.yml`.'
 languages/commands.yml/SharedCommands.responses:
   en-us: The shared embeds and questions, each named `commands.responses.<name>` (the admin-only
     answer, the cooldown, the Help screen, the lifecycle final messages, the member pickers,
@@ -1937,11 +2087,11 @@ languages/commands.yml/Response.empty:
     permissions report).
   pt-br: O corpo desenhado no lugar de `description` enquanto não há nada para listar (o relatório
     de permissões do /setup).
-languages/commands.yml/Response.variants:
-  en-us: 'The title or description drawn in a state the code picks, keyed by the state (the
-    link check: blocked, allowed).'
-  pt-br: 'O título ou a descrição desenhados num estado que o código escolhe, pelo estado
-    (a checagem de link: bloqueado, liberado).'
+languages/commands.yml/Response.overrides:
+  en-us: The title or description drawn while a rule on the facts holds, the first item whose
+    rule holds winning (the link check, once it would block the message).
+  pt-br: O título ou a descrição desenhados enquanto uma regra sobre os fatos vale, vencendo
+    o primeiro item cuja regra vale (a verificação de link, quando ela bloquearia a mensagem).
 languages/commands.yml/Response.lines:
   en-us: Line templates the code repeats into the body, keyed by what each says (one line
     per category).
@@ -1989,20 +2139,18 @@ languages/commands.yml/Text.en-us:
 languages/commands.yml/Text.pt-br:
   en-us: What Keiko writes to a Portuguese-speaking server or member.
   pt-br: O que o Keiko escreve para um servidor ou membro que fala português.
-languages/commands.yml/Variant:
-  en-us: What a block writes in one state the code picks, in place of its own title or description.
-  pt-br: O que um bloco escreve num estado que o código escolhe, no lugar do próprio título
-    ou descrição.
-languages/commands.yml/Variant.title:
-  en-us: The title drawn in this variant instead of the block's; absent keeps the block's
-    title.
-  pt-br: O título desenhado nesta variante no lugar do título do bloco; se ausente, mantém
-    o do bloco.
-languages/commands.yml/Variant.description:
-  en-us: The description drawn in this variant instead of the block's; absent keeps the block's
-    description.
-  pt-br: A descrição desenhada nesta variante no lugar da descrição do bloco; se ausente,
-    mantém a do bloco.
+languages/commands.yml/ResponseOverride:
+  en-us: What a response draws while a rule holds, in place of its own title or description.
+  pt-br: O que uma resposta desenha enquanto uma regra vale, no lugar do próprio título ou descrição.
+languages/commands.yml/ResponseOverride.when:
+  en-us: The rule under which this item's fields replace the block's.
+  pt-br: A regra sob a qual os campos deste item substituem os do bloco.
+languages/commands.yml/ResponseOverride.title:
+  en-us: The title drawn while the rule holds; absent keeps the block's.
+  pt-br: O título desenhado enquanto a regra vale; se ausente, mantém o do bloco.
+languages/commands.yml/ResponseOverride.description:
+  en-us: The description drawn while the rule holds; absent keeps the block's.
+  pt-br: A descrição desenhada enquanto a regra vale; se ausente, mantém a do bloco.
 languages/commands.yml/ResponseField:
   en-us: 'One stacked field of a response embed: its title, and its value when the copy writes
     it.'
@@ -2021,6 +2169,11 @@ languages/commands.yml/ResponseField.empty:
     absent, such a field is left out.
   pt-br: O valor desenhado enquanto o código não tem nenhum para dar (um ticket do /report
     sem anexos); se ausente, esse campo some.
+languages/commands.yml/ResponseField.overrides:
+  en-us: The value drawn while a rule on the facts holds, the first item whose rule holds winning
+    (the link check's feature line in each state of the feature).
+  pt-br: O valor desenhado enquanto uma regra sobre os fatos vale, vencendo o primeiro item
+    cuja regra vale (a linha da funcionalidade na verificação de link, em cada estado da funcionalidade).
 languages/commands.yml/ResponseField.lines:
   en-us: Line templates the code picks from to compose the value, keyed by what each says
     (the reasons of the link check).
@@ -2054,6 +2207,70 @@ languages/commands.yml/RecordsFilter.description:
 languages/commands.yml/RecordsFilter.empty:
   en-us: Drawn alone when the member picked has no record.
   pt-br: Desenhado sozinho quando o membro escolhido não tem registro.
+languages/commands.yml/Leaf:
+  en-us: One test on one key of the scope chain, with exactly one operator.
+  pt-br: Um teste sobre uma chave da cadeia de escopos, com exatamente um operador.
+languages/commands.yml/Leaf.key:
+  en-us: 'The value the rule tests: in a form, an answer key, behind `parent.` or `item.` for
+    an outer session or a list item, or `items.count`; in a copy file, a fact by its address
+    (`<owner>.facts.<name>`).'
+  pt-br: 'O valor que a regra testa: num form, uma chave de resposta, atrás de `parent.` ou
+    `item.` para uma sessão externa ou um item de lista, ou `items.count`; num arquivo de copy,
+    um fato pelo endereço dele (`<owner>.facts.<name>`).'
+languages/commands.yml/Leaf.is:
+  en-us: Holds while the value equals this one.
+  pt-br: Vale enquanto o valor é igual a este.
+languages/commands.yml/Leaf.in:
+  en-us: Holds while the value is one of these.
+  pt-br: Vale enquanto o valor é um destes.
+languages/commands.yml/Leaf.not_in:
+  en-us: Holds while the value is none of these.
+  pt-br: Vale enquanto o valor não é nenhum destes.
+languages/commands.yml/Leaf.matches:
+  en-us: Holds while the value matches this regular expression.
+  pt-br: Vale enquanto o valor bate com esta expressão regular.
+languages/commands.yml/Leaf.present:
+  en-us: Holds while the value is filled, or while it is empty when `false`.
+  pt-br: Vale enquanto o valor está preenchido, ou enquanto está vazio quando `false`.
+languages/commands.yml/Leaf.count:
+  en-us: Holds while the number of values is within these bounds.
+  pt-br: Vale enquanto o número de valores está dentro destes limites.
+languages/commands.yml/All:
+  en-us: True when every rule holds.
+  pt-br: Vale quando todas as regras valem.
+languages/commands.yml/All.all:
+  en-us: The rules that must all hold.
+  pt-br: As regras que precisam valer todas.
+languages/commands.yml/AnyOf:
+  en-us: True when at least one rule holds.
+  pt-br: Vale quando pelo menos uma regra vale.
+languages/commands.yml/AnyOf.any:
+  en-us: The rules one of which must hold.
+  pt-br: As regras das quais uma precisa valer.
+languages/commands.yml/Not:
+  en-us: True when the rule does not hold.
+  pt-br: Vale quando a regra não vale.
+languages/commands.yml/Not.not:
+  en-us: The rule that must not hold.
+  pt-br: A regra que não pode valer.
+languages/commands.yml/FieldOverride:
+  en-us: The value a stacked field draws while a rule holds, in place of its own.
+  pt-br: O valor que um campo empilhado desenha enquanto uma regra vale, no lugar do próprio.
+languages/commands.yml/FieldOverride.when:
+  en-us: The rule under which this item's fields replace the block's.
+  pt-br: A regra sob a qual os campos deste item substituem os do bloco.
+languages/commands.yml/FieldOverride.value:
+  en-us: The value drawn while the rule holds; `$name` marks a fact the code passes.
+  pt-br: O valor desenhado enquanto a regra vale; `$name` marca um fato que o código passa.
+languages/commands.yml/Count:
+  en-us: Bounds on how many values an answer holds.
+  pt-br: Limites de quantos valores uma resposta guarda.
+languages/commands.yml/Count.min:
+  en-us: The fewest values the rule accepts.
+  pt-br: O mínimo de valores que a regra aceita.
+languages/commands.yml/Count.max:
+  en-us: The most values the rule accepts.
+  pt-br: O máximo de valores que a regra aceita.
 languages/errors.yml:
   en-us: Every error a shared layer names by its block (a validator, the form engine, the
     error handler), read under `errors.<name>`.
@@ -2080,20 +2297,20 @@ languages/errors.yml/Text.en-us:
 languages/errors.yml/Text.pt-br:
   en-us: What Keiko writes to a Portuguese-speaking server or member.
   pt-br: O que o Keiko escreve para um servidor ou membro que fala português.
-languages/messages.yml:
-  en-us: 'The plain lines and tables the shared layers read, under `messages.`: months, parent
+languages/texts.yml:
+  en-us: 'The plain lines and tables the shared layers read, under `texts.`: months, parent
     groups, notices, permission lines, placeholders, and the page and value words.'
-  pt-br: 'As linhas simples e tabelas que as camadas compartilhadas leem, em `messages.`:
+  pt-br: 'As linhas simples e tabelas que as camadas compartilhadas leem, em `texts.`:
     meses, grupos pai, avisos, linhas de permissão, placeholders e as palavras de página e
     de valor.'
-languages/messages.yml/Text:
+languages/texts.yml/Text:
   en-us: One text in both locales Keiko speaks, the node every form and copy file writes.
   pt-br: Um texto nos dois idiomas que o Keiko fala, o nó que todo arquivo de form e de copy
     escreve.
-languages/messages.yml/Text.en-us:
+languages/texts.yml/Text.en-us:
   en-us: What Keiko writes to an English-speaking server or member.
   pt-br: O que o Keiko escreve para um servidor ou membro que fala inglês.
-languages/messages.yml/Text.pt-br:
+languages/texts.yml/Text.pt-br:
   en-us: What Keiko writes to a Portuguese-speaking server or member.
   pt-br: O que o Keiko escreve para um servidor ou membro que fala português.
 languages/locales.yml:
@@ -2109,6 +2326,65 @@ languages/locales.yml/Text.en-us:
 languages/locales.yml/Text.pt-br:
   en-us: What Keiko writes to a Portuguese-speaking server or member.
   pt-br: O que o Keiko escreve para um servidor ou membro que fala português.
+global.yml:
+  en-us: 'The facts no single command owns and the context Keiko already holds: each fact a
+    rule reads as `global.facts.<name>` and a text as `$<name>`, with its type and what it holds,
+    and each value a text reads as `{context:<name>}`, with whether a public message may show
+    it.'
+  pt-br: 'Os fatos que nenhum comando sozinho possui e o contexto que o Keiko já guarda: cada
+    fato que uma regra lê como `global.facts.<name>` e um texto como `$<name>`, com o tipo e
+    o que ele guarda, e cada valor que um texto lê como `{context:<name>}`, dizendo se uma mensagem
+    pública pode mostrá-lo.'
+global.yml/GlobalCatalog:
+  en-us: '`app/core/global.yml`: the facts more than one command reads, and the context every
+    copy and form may read.'
+  pt-br: '`app/core/global.yml`: os fatos que mais de um comando lê, e o contexto que todo copy
+    e form pode ler.'
+global.yml/GlobalCatalog.facts:
+  en-us: The facts no single command owns, each read as `global.facts.<name>` by a rule and
+    as `$<name>` by a text.
+  pt-br: Os fatos que nenhum comando sozinho possui, cada um lido como `global.facts.<name>`
+    por uma regra e como `$<name>` por um texto.
+global.yml/GlobalCatalog.context:
+  en-us: The values Keiko already holds, each read as `{context:<name>}`.
+  pt-br: Os valores que o Keiko já guarda, cada um lido como `{context:<name>}`.
+global.yml/FactSpec:
+  en-us: 'One fact: what a rule or a `$name` of copy reads, of one type.'
+  pt-br: 'Um fato: o que uma regra ou um `$name` de copy lê, de um tipo só.'
+global.yml/FactSpec.type:
+  en-us: 'The kind of value the code passes: `boolean`, `enum` (one of `values`), `number` or
+    `text`.'
+  pt-br: 'O tipo de valor que o código passa: `boolean`, `enum` (um dos `values`), `number`
+    ou `text`.'
+global.yml/FactSpec.values:
+  en-us: The values an `enum` fact takes, the only ones a rule may compare it with.
+  pt-br: Os valores que um fato `enum` assume, os únicos com que uma regra pode compará-lo.
+global.yml/FactSpec.description:
+  en-us: One sentence saying what the fact holds, for whoever writes a rule or a text that reads
+    it.
+  pt-br: Uma frase dizendo o que o fato guarda, para quem escreve uma regra ou um texto que
+    o lê.
+global.yml/ContextEntry:
+  en-us: One value Keiko already holds in memory or in its cache, that a copy or a form text
+    reads as `{context:<name>}`.
+  pt-br: Um valor que o Keiko já guarda na memória ou no cache, que um texto de copy ou de form
+    lê como `{context:<name>}`.
+global.yml/ContextEntry.type:
+  en-us: The kind of value the entry holds.
+  pt-br: O tipo de valor que a entrada guarda.
+global.yml/ContextEntry.each:
+  en-us: 'Makes the entry a family read one member at a time, `{context:<name>.<key>}`: one
+    per command key, or one per parent group; known when the copy loads.'
+  pt-br: 'Faz da entrada uma família lida um membro por vez, `{context:<name>.<key>}`: um por
+    chave de comando, ou um por grupo pai; conhecida quando o copy carrega.'
+global.yml/ContextEntry.public:
+  en-us: Whether the value may appear in a message every member of the server sees, not only
+    in an admin's own screens.
+  pt-br: Se o valor pode aparecer numa mensagem que todos os membros do servidor veem, e não
+    só nas telas do próprio admin.
+global.yml/ContextEntry.description:
+  en-us: One sentence saying what the value is and where it comes from.
+  pt-br: Uma frase dizendo o que é o valor e de onde ele vem.
 catalog.yml:
   en-us: 'Every analytics event Keiko records: its collection, its actor, the props it may
     carry and how it advances a server''s lifetime counters.'

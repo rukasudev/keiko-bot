@@ -1,10 +1,11 @@
-"""The YAML reference: `docs/yaml/index.html`, generated from the root model of every
+"""The generated docs pages: `docs/index.html`, the index of every doc, and
+`docs/yaml-reference.html`, the YAML reference, generated from the root model of every
 type in `YAML_TYPES`, from the files of each type and from the Portuguese of
-`docs/yaml/pt-br.yml`.
+`translations.yml`.
 
-    make yaml-docs                                  # writes docs/yaml/index.html
-    python -m scripts.keiko yamldoc --check         # exit 1 when the page is stale
-    python -m scripts.keiko yamldoc --out /tmp/ref  # writes /tmp/ref/index.html
+    make docs                                    # writes both pages into docs/
+    python -m scripts.keiko docs --check         # exit 1 when a page is stale
+    python -m scripts.keiko docs --out /tmp/ref  # writes both pages into /tmp/ref
 """
 
 from __future__ import annotations
@@ -15,14 +16,15 @@ from collections.abc import Sequence
 from pathlib import Path
 
 from scripts.keiko.yamldoc.files import Reading, read_file
+from scripts.keiko.yamldoc.index import REFERENCE, index
 from scripts.keiko.yamldoc.page import Documented, render
 from scripts.keiko.yamldoc.schema import read_schema
 from scripts.keiko.yamldoc.translations import load_translations
 
 from app.core.commands import REPOSITORY, YAML_TYPES, YamlType
 
-PAGE = "index.html"
-DOCS = REPOSITORY / "docs" / "yaml"
+DOCS = REPOSITORY / "docs"
+INDEX = "index.html"
 
 
 def documented(kind: YamlType) -> Documented:
@@ -42,37 +44,64 @@ def documented(kind: YamlType) -> Documented:
 
 
 def reference(kinds: Sequence[YamlType] = YAML_TYPES) -> str:
-    """The reference page of `kinds`, as `make yaml-docs` writes it."""
+    """The reference page of `kinds`, as `make docs` writes it."""
     return render([documented(kind) for kind in kinds], load_translations())
 
 
-def write(folder: Path) -> Path:
-    """Write the reference into `folder` and return the page's path."""
+def docs_index(kinds: Sequence[YamlType] = YAML_TYPES) -> str:
+    """The index of every `docs/*.md` and of the reference of `kinds`, as `make docs`
+    writes it."""
+    docs = {
+        path.name: path.read_text(encoding="utf-8")
+        for path in sorted(DOCS.glob("*.md"))
+    }
+    return index(docs, kinds)
+
+
+def pages() -> dict[str, str]:
+    """Every page `make docs` writes, by its file name in `docs/`."""
+    return {INDEX: docs_index(), REFERENCE: reference()}
+
+
+def write(folder: Path) -> list[Path]:
+    """Write every page into `folder` and return their paths."""
     folder.mkdir(parents=True, exist_ok=True)
-    page = folder / PAGE
-    page.write_text(reference(), encoding="utf-8", newline="\n")
-    return page
+    written = []
+    for name, text in pages().items():
+        page = folder / name
+        page.write_text(text, encoding="utf-8", newline="\n")
+        written.append(page)
+    return written
 
 
 def main(argv: Sequence[str]) -> int:
-    """`python -m scripts.keiko yamldoc [--out DIR] [--check]`."""
-    parser = argparse.ArgumentParser(prog="python -m scripts.keiko yamldoc")
-    parser.add_argument("--out", type=Path, default=DOCS, help="folder of the page")
+    """`python -m scripts.keiko docs [--out DIR] [--check]`."""
+    parser = argparse.ArgumentParser(prog="python -m scripts.keiko docs")
+    parser.add_argument("--out", type=Path, default=DOCS, help="folder of the pages")
     parser.add_argument(
-        "--check", action="store_true", help="exit 1 when the page on disk is stale"
+        "--check", action="store_true", help="exit 1 when a page on disk is stale"
     )
     options = parser.parse_args(list(argv))
     _offline()
-    page = options.out / PAGE
     if options.check:
-        current = page.read_text(encoding="utf-8") if page.exists() else ""
-        if current != reference():
-            print(f"{page} is stale: run make yaml-docs", file=sys.stderr)
-            return 1
-        print(f"{page} is current")
-        return 0
-    print(f"wrote {write(options.out)}")
+        return _check(options.out)
+    for page in write(options.out):
+        print(f"wrote {page}")
     return 0
+
+
+def _check(folder: Path) -> int:
+    stale = [
+        folder / name
+        for name, text in pages().items()
+        if not (folder / name).exists()
+        or (folder / name).read_text(encoding="utf-8") != text
+    ]
+    for page in stale:
+        print(f"{page} is stale: run make docs", file=sys.stderr)
+    if not stale:
+        print(f"{folder} is current")
+    return 1 if stale else 0
 
 
 def _offline() -> None:

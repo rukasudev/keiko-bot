@@ -129,9 +129,9 @@ always "genuinely shared".
 `make lint` runs `ruff` (format plus `E`, `F`, `I`, `D1xx` on public names, `C901`,
 `ARG`, `RET`) at 88 columns, with two blank lines between top-level definitions, over
 `app/forms/`, `app/data/`, `app/migrations/`, the whole of `app/commands/`, the
-registry, dispatch, groups, copy loader, copy schema and calendar of `app/core/`
-(`commands.py`, `dispatch.py`, `groups.py`, `i18n.py`, `copy_schema.py`,
-`calendar.py`), `app/decorators.py`, `app/types/cogs.py`, the pagination, embeds and
+registry, the `when` grammar, the facts, dispatch, groups, copy loader, copy schema and
+calendar of `app/core/` (`commands.py`, `conditions.py`, `facts.py`, `dispatch.py`,
+`groups.py`, `i18n.py`, `copy_schema.py`, `calendar.py`), `app/decorators.py`, `app/types/cogs.py`, the pagination, embeds and
 records browser of `app/ui/` (`pagination.py`, `embed.py`, `records.py`),
 `tests/forms/` and `tests/core/`, and `ruff check --select F401,F821` over all of
 `app/`. `mypy --strict` checks the files listed in `pyproject.toml`: the same app
@@ -292,34 +292,38 @@ whose `COMMAND` it is (`copy_file(key)` and `form_file(key)` in
 source the `form.yml` whole, both through the same `strict_yaml`, and no other YAML
 lives in the folder. Every text in both files is a `{en-us: ..., pt-br: ...}` node. A
 copy key is snake_case and relative to the command, and the loader registers it under
-the command's key (`block_links.stats.title`). A `copy.yml` is a `CommandCopy`
-(`app/core/copy_schema.py`), shaped by the primitive that draws each text: the closed
-blocks `slash`, `setup`, `stats`, `panel` and `announcement` first, in that order,
-then the open ones, `errors`, `responses`, `records`, `buttons`, `cards` and
-`messages` (the texts no primitive draws); `docs/commands.md` maps each block to the
-primitive that reads it. A value the code fills is written `$name`: the loader
+the command's key (`block_links.command.stats.title`). A `copy.yml` is a `CommandCopy`
+(`app/core/copy_schema.py`) of three groups, in this order: `facts` (rule 28);
+`command`, the fixed places Keiko's shared screens fill (`slash`, `setup`, `stats`,
+`panel`); and `ui`, what the command draws itself, one block per primitive (`cards`,
+`texts` for what no primitive draws, `records`, `responses`, `errors`, `buttons`,
+`announcement`). An address follows the file (`<key>.facts.<name>`,
+`<key>.command.stats.title`, `<key>.ui.responses.<name>`); `docs/commands.md` maps
+each block to the primitive that reads it. A value the code fills is written `$name`,
+a declared fact (rule 28): the loader
 refuses a `{name}` in copy, since braces belong to the templates an admin writes
-(Keiko's own, `announcement.defaults`, are the one place they appear). `description`
+(Keiko's own, `ui.announcement.defaults`, are the one place they appear). `description`
 names a block's body of text or a caption Discord shows (a slash command's, a button's
 Help line), `value` the text a field shows, and an error's text keeps `message`. A
 form names an error of its command by its block
-(`error: notifications_twitch.errors.preview_needs_streamer`), never by a `.message`
+(`error: notifications_twitch.ui.errors.preview_needs_streamer`), never by a `.message`
 leaf. `app/languages/<namespace>.yml` keeps only the shared copy, each file on its own
 schema (`buttons.yml`, `commands.yml` with `commands.responses.*` and
-`commands.records.*`, `errors.yml`, `messages.yml`, `locales.yml`), bilingual the same
+`commands.records.*`, `errors.yml`, `texts.yml`, `locales.yml`), bilingual the same
 way; the standard `/report` line is written once, as `fallbacks.footer` of
 `app/forms/vocabulary.yml`, which `standard_footer` reads. The row a command has on
-/setup is its own copy too, under the fixed keys the shared layers read through
-`command_text(command, path, locale)` (`setup.label`, `setup.description`,
-`stats.title`, `stats.delivered.one`, `stats.delivered.other`, `slash.subgroup`,
-`slash.name`; `tests/test_setup_row_copy.py`); a shared layer never
+/setup is its own copy too, under the fixed places the shared layers read through
+`command_text(command, path, locale)` (`command.setup.label`,
+`command.setup.description`, `command.stats.title`, `command.stats.delivered.one`,
+`command.stats.delivered.other`, `command.slash.subgroup`, `command.slash.name`;
+`tests/test_setup_row_copy.py`); a shared layer never
 builds a key from a command's old key path. A text missing a locale or carrying an
 unknown one, a key defined twice, a YAML anchor or alias, and a file its schema
 refuses fail at load (`tests/core/test_i18n.py`, and
 `tests/forms/form/test_form_yaml.py` for a `form.yml`); every `ml("...")` literal of
 a command's folder resolves in both locales (`tests/test_commands.py`). A command's
 slash names and descriptions are its copy too: its cogs pass the block as `namespace`
-(`namespace="block_links.slash"`) and `app/translator.py` reads `<namespace>.<type>`.
+(`namespace="block_links.command.slash"`) and `app/translator.py` reads `<namespace>.<type>`.
 A form writes only what differs from the engine's defaults (the report footer, the
 summary sentence, the intro's title on the summary), and a copy or a form names a text
 of the shared vocabulary with `{ref: name}` (the `texts` of
@@ -350,24 +354,49 @@ command, a cog module without its `setup(bot)` (`docs/commands.md`).
 ## 27. Every YAML type is its own schema, and its reference is generated
 
 Every kind of YAML Keiko reads (`form.yml`, `vocabulary.yml`, `copy.yml`, each file of
-`app/languages/`, `catalog.yml`) has one pydantic root model registered in
-`YAML_TYPES` (`app/core/commands.py`), and the YAML is that model: `extra="forbid"` at
-every level, no alias layer (what an author writes is the field's name), no node
+`app/languages/`, `global.yml`, `catalog.yml`) has one pydantic root model registered
+in `YAML_TYPES` (`app/core/commands.py`), and the YAML is that model: `extra="forbid"`
+at every level, no alias layer (what an author writes is the field's name), no node
 rebuilt from known keys, `type` as the discriminator of step and section types, and
-each field only on the types that read it. Every field carries a
+each field only on the types that read it. A text that changes with the state is a
+block's `overrides`, a list of `{when, <the fields it replaces>}` whose first holding
+item wins (copy and forms alike; `Override` in `app/core/conditions.py` is the base of
+every item, and each block's item type carries only the fields that block has), never
+an open map of states the code picks by name. Every field carries a
 `Field(description=...)` of one sentence saying what it makes the bot do, with an
 `examples=` where the value is not obvious, and its role,
 `json_schema_extra={"role": ...}` (`identity`, `copy`, `visual`, `behavior`,
 `conditions`, `data`, `structure`: `docs/commands.md`); its English has a Portuguese in
-`docs/yaml/pt-br.yml`. A mapping whose keys the author chooses is
-an `Open[T]` (`app/core/commands.py`), never a plain `dict` or `Mapping[str, Any]`,
-and a file writes it under one comment line `# open: <what the keys are> -> <what
-each child is>`; a union item writes its `type` first, then the closed keys in schema
-order, then the open blocks. `docs/yaml/index.html` is generated from the schemas by
-`make yaml-docs`, run after changing a schema or a YAML file:
+`scripts/keiko/yamldoc/translations.yml`. A mapping whose keys the author chooses is an
+`Open[T]` (`app/core/commands.py`), never a plain `dict` or `Mapping[str, Any]`, and a
+file writes it under one comment line `# open: <what the keys are> -> <what each child
+is>`; a union item writes its `type` first, then the closed keys in schema order, then
+the open blocks, and a model that declares `json_schema_extra={"in_order": True}`
+(`CommandCopy` and its groups `command` and `ui`) writes every key in schema order.
+`docs/yaml-reference.html` is generated from the schemas by `make
+docs`, run after changing a schema or a YAML file:
 `tests/test_yaml_reference.py` fails on a stale page, a field without a description
 or a role, and a text without a current Portuguese, and `tests/test_yaml_layout.py` on
 a file out of order or an open block without its line; their `UNDESCRIBED`,
 `UNTRANSLATED` and `EXCEPTIONS` lists are empty and only shrink. Reason: an
 author reads one page to know every key a file may hold, and a key the bot never reads
 cannot be written.
+
+## 28. A value a rule or a text reads is a declared fact
+
+A fact is addressed `<owner>.facts.<name>`, the owner a command's key or `global`.
+A command declares its own in the `facts:` of its `copy.yml`, each with a `type`
+(`boolean`, `enum` with `values`, `number`, `text`) and a one-sentence `description`;
+`app/core/global.yml` declares the facts more than one command reads, and the context
+Keiko already holds (`{context:commands.<key>}`, `{context:groups.<group>}`, and the
+form tokens). A fact starts in its command and moves to `global` when a second command
+needs it; a short name lives in one owner, and no command is keyed `global`. A rule in
+copy names the full address, a `$name` the short one, and a shared file of
+`app/languages` reads only global facts. The code passes facts, never a state or a
+variant name: through its command's `command_facts(**values)` (the first function of
+its `service.py`, `facts("<key>", **values)`), or `facts(GLOBAL, ...)` in a shared
+layer. A slash command or a parent group a text names is its context entry, never typed
+in. Reason: one place to look for every name a text reads, typos caught at load
+(`tests/core/test_i18n.py`), at render (`i18n.resolved`) and in the code
+(`tests/test_facts.py`), and the same shape for the copy a command made from data
+will store.

@@ -21,6 +21,6 @@ steps:
 groups:
   settings:
     title: {en-us: Settings, pt-br: Ajustes}
-    variants:
+    overrides:
       - when: {key: nao_existe, not_in: [block_all]}
         title: {en-us: Other, pt-br: Outro}

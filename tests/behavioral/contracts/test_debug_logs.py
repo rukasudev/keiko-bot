@@ -533,7 +533,7 @@ def test_the_export_message_exists_in_both_locales():
     assert "5" in english and "5" in portuguese
     assert english != portuguese
     for rendered in (english, portuguese):
-        assert "messages.admin_logs" not in rendered
+        assert "texts.admin_logs" not in rendered
         assert "—" not in rendered and "–" not in rendered
 
 
@@ -1018,7 +1018,7 @@ async def test_one_file_holds_every_collection(stored_databases):
         "reminders.birthdays": 1,
     }
     assert content == fill(
-        ml("messages.admin_logs.daily_backup", "en-us"),
+        ml("texts.admin_logs.daily_backup", "en-us"),
         date=today(),
         collections=8,
         documents=9,
@@ -1445,10 +1445,10 @@ async def test_each_months_events_go_out_in_one_file_with_one_message(deps):
     (august, first), (content, sent) = channel.sends
     assert [line["_id"] for line in lines_of(first)] == [before["_id"]]
     assert august == fill(
-        ml("messages.admin_logs.monthly_events", "en-us"), month="2026-08", count=1
+        ml("texts.admin_logs.monthly_events", "en-us"), month="2026-08", count=1
     )
     assert content == fill(
-        ml("messages.admin_logs.monthly_events", "en-us"), month=label(), count=3
+        ml("texts.admin_logs.monthly_events", "en-us"), month=label(), count=3
     )
     assert [line["_id"] for line in lines_of(sent)] == [event["_id"] for event in inside]
     assert "link" not in lines_of(sent)[1]["props"], "a private prop left in the archive"
@@ -1653,7 +1653,7 @@ async def test_a_month_over_the_upload_limit_goes_in_files_under_it(deps):
         f"keiko_events_{label()}_{index}-of-{len(parts)}.jsonl.gz.age"
         for index in range(1, len(parts) + 1)
     ]
-    assert fill(ml("messages.admin_logs.files_parts", "en-us"), files=len(parts)) in (
+    assert fill(ml("texts.admin_logs.files_parts", "en-us"), files=len(parts)) in (
         channel.sends[0][0]
     )
     assert [content for content, _part in channel.sends[1:]] == [None] * (len(parts) - 1)

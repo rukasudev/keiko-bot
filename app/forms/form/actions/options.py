@@ -45,7 +45,7 @@ def render(step: Any, session: FormSession, context: Context) -> Screen:
         )
         for option in step.options
     )
-    selected_word = text("messages.selected", locale)
+    selected_word = text("texts.selected", locale)
     fields = tuple(
         Field(f":flying_disc: {selected_word} #{index}", option.label)
         for index, option in enumerate(

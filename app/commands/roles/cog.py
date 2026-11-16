@@ -11,16 +11,18 @@ from app.types.cogs import Group
 
 class Roles(  # noqa: D101 - discord.py sends a Group's docstring as its description
     Group,
-    name=locale_str("default", type="subgroup", namespace="default_roles.slash"),
+    name=locale_str(
+        "default", type="subgroup", namespace="default_roles.command.slash"
+    ),
 ):
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
         super().__init__()
 
     @keiko_command(
-        name=locale_str("roles", type="name", namespace="default_roles.slash"),
+        name=locale_str("roles", type="name", namespace="default_roles.command.slash"),
         description=locale_str(
-            "desc", type="description", namespace="default_roles.slash"
+            "desc", type="description", namespace="default_roles.command.slash"
         ),
     )
     @keiko_admin_only

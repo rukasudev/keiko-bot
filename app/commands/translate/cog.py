@@ -26,14 +26,14 @@ class Translate(Cog):
         reader = reader_locale(interaction)
         if message.content.strip() == "":
             embed = response_error_embed(
-                "translate.errors.invalid_message", interaction.locale
+                "translate.ui.errors.invalid_message", interaction.locale
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
 
         if GoogleTranslate.is_only_url(message.content):
             embed = response_error_embed(
-                "translate.errors.only_link", interaction.locale
+                "translate.ui.errors.only_link", interaction.locale
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
@@ -42,7 +42,9 @@ class Translate(Cog):
 
         response = await to_thread(GoogleTranslate.translate, message.content, reader)
         if not response:
-            embed = response_error_embed("translate.errors.generic", interaction.locale)
+            embed = response_error_embed(
+                "translate.ui.errors.generic", interaction.locale
+            )
             await interaction.followup.send(embed=embed, ephemeral=True)
             return
 
@@ -57,7 +59,9 @@ async def setup(bot: DiscordBot) -> None:
 
     context_menu = app_commands.ContextMenu(
         name=locale_str(
-            "translate-message", type="context-menu", namespace="translate.slash"
+            "translate-message",
+            type="context-menu",
+            namespace="translate.command.slash",
         ),
         callback=translate.translate_message,
         type=discord.AppCommandType.message,

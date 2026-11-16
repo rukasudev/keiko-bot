@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping, Sequence
 from functools import cache
 from pathlib import Path
-from typing import Annotated, Any, Literal, Protocol, Union
+from typing import Annotated, Any, Literal, Protocol, TypeVar, Union
 
 from pydantic import (
     BaseModel,
@@ -19,16 +19,26 @@ from pydantic import (
 from app.constants import DiscordLimits, ViewConstants
 from app.core.commands import Open, command_for, commands, form_file, strict_yaml
 from app.core.commands import Text as Text
+from app.core.conditions import (
+    Leaf,
+    Override,
+    Scalar,
+    Scope,
+    When,
+    leaves,
+    same_value,
+    winner,
+)
+from app.core.facts import (
+    FactError,
+    context_entry,
+    context_tokens,
+    known_at_load,
+    with_context,
+)
 from app.forms.form.responses.styles import stored_style
 from app.forms.form.responses.transforms import NORMALIZERS, TRANSFORMS
 from app.forms.form.responses.validations import VALIDATORS
-
-
-def same_value(left: Any, right: Any) -> bool:
-    """Equality across the spellings a value takes in YAML and in answers."""
-    if isinstance(left, bool) or isinstance(right, bool):
-        return str(left).lower() == str(right).lower()
-    return str(left) == str(right)
 
 
 class DefinitionSource(Protocol):
@@ -78,7 +88,6 @@ ValueFormat = Literal[
 ]
 ButtonStyle = Literal["primary", "secondary", "success", "danger"]
 Appearance = Literal["everywhere", "setup", "panel"]
-Scalar = Union[str, bool, int]
 
 
 def _open(child: str, description: str, *, role: str, required: bool = False) -> Any:
@@ -121,121 +130,13 @@ class Extension(Node):
     )
 
 
-class Count(Node):
-    """Bounds on how many values an answer holds."""
-
-    min: int | None = Field(
-        None,
-        description="The fewest values the rule accepts.",
-        json_schema_extra={"role": "conditions"},
-    )
-    max: int | None = Field(
-        None,
-        description="The most values the rule accepts.",
-        json_schema_extra={"role": "conditions"},
-    )
+Default = TypeVar("Default", Text, Text | None)
 
 
-class Leaf(Node):
-    """One test on one key of the scope chain, with exactly one operator."""
+class TextOverride(Override):
+    """Texts that replace the default ones while the rule holds; the first item whose
+    rule holds wins and replaces only the texts it writes."""
 
-    key: str = Field(
-        description="The value the rule tests: an answer key, behind `parent.` or "
-        "`item.` for an outer session or a list item, or `items.count`.",
-        examples=["mode", "parent.mode", "item.link", "items.count"],
-        json_schema_extra={"role": "data"},
-    )
-    is_: Scalar | None = Field(
-        None,
-        alias="is",
-        description="Holds while the value equals this one.",
-        json_schema_extra={"role": "conditions"},
-    )
-    in_: tuple[Scalar, ...] | None = Field(
-        None,
-        alias="in",
-        description="Holds while the value is one of these.",
-        json_schema_extra={"role": "conditions"},
-    )
-    not_in: tuple[Scalar, ...] | None = Field(
-        None,
-        description="Holds while the value is none of these.",
-        json_schema_extra={"role": "conditions"},
-    )
-    matches: str | None = Field(
-        None,
-        description="Holds while the value matches this regular expression.",
-        examples=["[/?]"],
-        json_schema_extra={"role": "conditions"},
-    )
-    present: bool | None = Field(
-        None,
-        description="Holds while the value is filled, or while it is empty when "
-        "`false`.",
-        json_schema_extra={"role": "conditions"},
-    )
-    count: Count | None = Field(
-        None,
-        description="Holds while the number of values is within these bounds.",
-        json_schema_extra={"role": "conditions"},
-    )
-
-    @model_validator(mode="after")
-    def _one_operator(self) -> Leaf:
-        operators = {
-            "is": self.is_,
-            "in": self.in_,
-            "not_in": self.not_in,
-            "matches": self.matches,
-            "present": self.present,
-            "count": self.count,
-        }
-        named = [name for name, value in operators.items() if value is not None]
-        if len(named) != 1:
-            raise ValueError(
-                f"a rule on {self.key!r} names exactly one operator, not {named}"
-            )
-        return self
-
-
-class All(Node):
-    """True when every rule holds."""
-
-    all: tuple[When, ...] = Field(
-        description="The rules that must all hold.",
-        json_schema_extra={"role": "conditions"},
-    )
-
-
-class AnyOf(Node):
-    """True when at least one rule holds."""
-
-    any: tuple[When, ...] = Field(
-        description="The rules one of which must hold.",
-        json_schema_extra={"role": "conditions"},
-    )
-
-
-class Not(Node):
-    """True when the rule does not hold."""
-
-    not_: When = Field(
-        alias="not",
-        description="The rule that must not hold.",
-        json_schema_extra={"role": "conditions"},
-    )
-
-
-When = Union[Leaf, All, AnyOf, Not]
-
-
-class Variant(Node):
-    """Texts that replace the default ones while the rule holds, first match wins."""
-
-    when: When = Field(
-        description="The rule under which these texts are shown.",
-        json_schema_extra={"role": "conditions"},
-    )
     title: Text | None = Field(
         None,
         description="The title shown while the rule holds.",
@@ -247,15 +148,21 @@ class Variant(Node):
         json_schema_extra={"role": "copy"},
     )
 
-    @model_validator(mode="after")
-    def _replaces_a_text(self) -> Variant:
-        if self.title is None and self.description is None:
-            raise ValueError("a variant replaces a title, a description or both")
-        return self
-
     def text(self, part: Literal["title", "description"]) -> Text | None:
-        """The variant's title or description, None when it replaces only the other."""
+        """The item's title or description, None when it replaces only the other."""
         return self.title if part == "title" else self.description
+
+
+def overridden_text(
+    default: Default,
+    overrides: Sequence[TextOverride],
+    part: Literal["title", "description"],
+    scope: Scope | None,
+) -> Default | Text:
+    """The `part` the first override whose rule holds writes, else `default`."""
+    chosen = winner(overrides, scope)
+    text = chosen.text(part) if chosen is not None else None
+    return default if text is None else text
 
 
 class ButtonSpec(Node):
@@ -301,11 +208,11 @@ class PanelGroupSpec(Node):
         "screen is titled by the group's `title`.",
         json_schema_extra={"role": "structure"},
     )
-    variants: tuple[Variant, ...] = Field(
+    overrides: tuple[TextOverride, ...] = Field(
         (),
-        description="Headings and screen intros that replace `title` and "
-        "`screen.description` while their rule holds, for a group named after the "
-        "mode in force.",
+        description="A heading and a screen intro that replace `title` and "
+        "`screen.description` while a rule holds, for a group named after the mode "
+        "in force; the first item whose rule holds wins.",
         json_schema_extra={"role": "conditions"},
     )
     opens: Literal["inline", "screen", "button"] = Field(
@@ -901,7 +808,7 @@ class TitleContentSection(PressedSection):
         description="The copy block whose `title` and `description` the section shows, "
         "and its modal starts from, until the admin customizes them: the text the "
         "command posts while nobody did.",
-        examples=["<command>.announcement.defaults"],
+        examples=["<command>.ui.announcement.defaults"],
         json_schema_extra={"role": "copy"},
     )
 
@@ -1309,12 +1216,13 @@ class ContentStep(StepBase):
         description="Asks the step only while the rule holds.",
         json_schema_extra={"role": "conditions"},
     )
-    variants: tuple[Variant, ...] = Field(
+    overrides: tuple[TextOverride, ...] = Field(
         (),
-        description="Titles and descriptions that replace the step's own while their "
-        "rule holds, for a step worded after the mode in force; the rule of a variant "
-        "that writes a description names only earlier answers, one that writes only a "
-        "title may name the step's own.",
+        description="A title and a description that replace the step's own while a "
+        "rule holds, for a step worded after the mode in force; the first item whose "
+        "rule holds wins, so an item that writes a description, and every item "
+        "before it, names only earlier answers, and a later one may name the step's "
+        "own.",
         json_schema_extra={"role": "conditions"},
     )
 
@@ -1490,7 +1398,7 @@ class CardPreview(Node):
         "",
         description="The error block whose message Preview answers while a key it "
         "requires is empty.",
-        examples=["<command>.errors.preview_needs_<key>"],
+        examples=["<command>.ui.errors.preview_needs_<key>"],
         json_schema_extra={"role": "copy"},
     )
     tokens: Open[PreviewToken] = _open(
@@ -1897,10 +1805,7 @@ class FormDefinition(FormFile):
         return composition.items if composition else None
 
 
-All.model_rebuild()
-AnyOf.model_rebuild()
-Not.model_rebuild()
-Variant.model_rebuild()
+TextOverride.model_rebuild()
 SectionBase.model_rebuild()
 ListStep.model_rebuild()
 FormDefinition.model_rebuild()
@@ -1939,7 +1844,7 @@ class Vocabulary(Node):
 def vocabulary_from(path: Path) -> Vocabulary:
     """The vocabulary a file at `path` declares, read as strictly as a form."""
     loaded = strict_yaml(path.read_text(encoding="utf-8"), str(path))
-    return Vocabulary.model_validate(loaded)
+    return Vocabulary.model_validate(with_context(loaded, str(path)))
 
 
 @cache
@@ -1970,6 +1875,7 @@ def compile_form(
     if "key" in raw:
         raise CompileError(key, None, "key", "unknown field, the key is the folder")
     payload = {**written_out(key, raw, vocabulary), "key": key}
+    _check_context(key, payload)
 
     try:
         definition = FormDefinition.model_validate(payload)
@@ -1988,6 +1894,10 @@ def written_out(
 ) -> Mapping[str, Any]:
     """The raw definition of `key` with every `{ref:}` and every fallback written."""
     shared = vocabulary if vocabulary is not None else shared_vocabulary()
+    try:
+        raw = with_context(raw, key)
+    except FactError as error:
+        raise CompileError(key, None, "context", str(error)) from None
     steps = raw.get("steps")
 
     if not isinstance(steps, list) or not steps:
@@ -2004,6 +1914,24 @@ def written_out(
     intro = written[0].get("title") if written[0].get("type") == "intro" else None
     _fill_fallbacks(written, shared.fallbacks, intro)
     return resolved
+
+
+def _check_context(form: str, node: Any) -> None:
+    if isinstance(node, Mapping):
+        for value in node.values():
+            _check_context(form, value)
+    elif isinstance(node, list):
+        for value in node:
+            _check_context(form, value)
+    elif isinstance(node, str):
+        for name in context_tokens(node):
+            if context_entry(name) is None or known_at_load(name):
+                raise CompileError(
+                    form,
+                    None,
+                    "context",
+                    f"{{context:{name}}} is no context entry of app/core/global.yml",
+                )
 
 
 def _as_compile_error(form: str, error: ValidationError) -> CompileError:
@@ -2114,18 +2042,6 @@ def options_for(steps: Sequence[Step], key: str) -> tuple[Option, ...] | None:
     return None
 
 
-def _leaves(rule: When | None) -> list[Leaf]:
-    if rule is None:
-        return []
-    if isinstance(rule, Leaf):
-        return [rule]
-    if isinstance(rule, All):
-        return [leaf for child in rule.all for leaf in _leaves(child)]
-    if isinstance(rule, AnyOf):
-        return [leaf for child in rule.any for leaf in _leaves(child)]
-    return _leaves(rule.not_)
-
-
 def _check_leaf(
     form: str,
     step_key: str | None,
@@ -2187,11 +2103,13 @@ def _check_rules(
     scopes: Sequence[tuple[tuple[str, ...], Sequence[Step]]],
     saved: Sequence[tuple[tuple[str, ...], Sequence[Step]]],
 ) -> None:
-    for leaf in _leaves(step.when):
+    for leaf in leaves(step.when):
         _check_leaf(form, step.key, leaf, scopes)
-    for variant in step.variants:
-        known = scopes if variant.description is not None else saved
-        for leaf in _leaves(variant.when):
+    described = [item.description is not None for item in step.overrides]
+    last = len(described) - described[::-1].index(True) if any(described) else 0
+    for index, item in enumerate(step.overrides):
+        known = scopes if index < last else saved
+        for leaf in leaves(item.when):
             _check_leaf(form, step.key, leaf, known)
 
 
@@ -2234,8 +2152,8 @@ def _check_panel_groups(definition: FormDefinition) -> None:
             raise CompileError(
                 form, None, f"groups.{group_key}", "no step or field names it"
             )
-        for variant in group.variants:
-            for leaf in _leaves(variant.when):
+        for item in group.overrides:
+            for leaf in leaves(item.when):
                 _check_leaf(form, None, leaf, [(produced, definition.steps)])
 
 
@@ -2284,7 +2202,7 @@ def _check_card(definition: FormDefinition, card: CardStep) -> None:
     for section in card.sections:
         _check_modal(definition, card, section)
     for section in card.sections:
-        for leaf in _leaves(section.when):
+        for leaf in leaves(section.when):
             if leaf.key not in state_keys:
                 raise CompileError(
                     definition.key, card.key, "when", f"{leaf.key!r} unknown"

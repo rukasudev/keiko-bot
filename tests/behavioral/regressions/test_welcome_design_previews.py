@@ -361,7 +361,7 @@ async def test_a_banner_drawn_before_the_title_is_written_reads_the_welcome_copy
     drawing (`generate_design_previews`, `create_banner`, `draw_banner`).
     Consumer that exposed it: the welcome setup gallery
     (`WelcomeMessagesFeature.previews`). Guaranteed: a banner drawn without the
-    admin's title paints `messages.banner_title` of the welcome copy, in the
+    admin's title paints `ui.texts.banner_title` of the welcome copy, in the
     admin's language, as the copy words it.
     """
     import i18n as python_i18n
@@ -369,7 +369,7 @@ async def test_a_banner_drawn_before_the_title_is_written_reads_the_welcome_copy
     from app.core import i18n
     from app.forms.features.feature import OpenContext
 
-    key = "welcome_messages.messages.banner_title"
+    key = "welcome_messages.ui.texts.banner_title"
     written = i18n.keys(locale).get(key)
     painted = []
     paint = welcome_messages._paint_banner

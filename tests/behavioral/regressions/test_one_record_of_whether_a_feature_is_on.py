@@ -129,8 +129,8 @@ def saved_without_enabled(deps):
     seed_cog(deps.mongo_client, "block_links", document)
 
 
-SET_UP = ml("setup.buttons.start.label", "pt-br")
-MANAGE = ml("setup.buttons.manage.label", "pt-br")
+SET_UP = ml("setup.ui.buttons.start.label", "pt-br")
+MANAGE = ml("setup.ui.buttons.manage.label", "pt-br")
 PAUSED = " ⏸️**"
 
 
@@ -303,7 +303,7 @@ async def test_the_permissions_report_checks_the_features_that_are_on(deps):
     )
 
     checked = [field.name for field in embed.fields]
-    assert checked == ["👩‍🎓 " + ml("default_roles.setup.label", "pt-br")], (
+    assert checked == ["👩‍🎓 " + ml("default_roles.command.setup.label", "pt-br")], (
         "the report must check what is on, and not a paused feature"
     )
 

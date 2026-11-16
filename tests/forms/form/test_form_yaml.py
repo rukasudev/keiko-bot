@@ -9,8 +9,8 @@ import yaml
 
 from app.core import commands as command_registry
 from app.core.commands import RefusedFile, copy_files, form_files
+from app.core.conditions import Scope
 from app.forms.form.actions.configuration_card import SECTION_KINDS
-from app.forms.form.conditions import Scope, chosen_text
 from app.forms.form.form_yaml import (
     CompileError,
     DefinitionRegistry,
@@ -19,6 +19,7 @@ from app.forms.form.form_yaml import (
     Text,
     Vocabulary,
     compile_form,
+    overridden_text,
     shared_vocabulary,
     written_out,
 )
@@ -44,7 +45,7 @@ REJECTED = [
     ),
     ("unknown_transform.yml", "unknown transform 'unicorn'"),
     ("unknown_normalizer.yml", "unknown normalizer 'unicorn'"),
-    ("group_variant_unknown_key.yml", "'nao_existe' is not produced earlier"),
+    ("group_override_unknown_key.yml", "'nao_existe' is not produced earlier"),
     ("keys_value_names_no_input.yml", "keys.value names none of the inputs"),
     ("modal_with_six_inputs.yml", "a modal holds at most 5 inputs"),
     ("unkeyed_input_without_value.yml", "inputs without a key need keys.value"),
@@ -59,7 +60,7 @@ REJECTED = [
     ("image_unknown.yml", "image: 'avatar' is no state key or lookup answer"),
     ("step_image_unknown.yml", "image: 'avatar' is no lookup answer of the step"),
     ("fills_into_unknown.yml", "fills: 'messages' is no state key of the card"),
-    ("step_variant_unknown_key.yml", "'nao_existe' is not produced earlier"),
+    ("step_override_unknown_key.yml", "'nao_existe' is not produced earlier"),
     ("unique_key_unknown.yml", "unique.key: 'nickname' is no item key"),
     ("search_without_a_member.yml", "unique.key is picked on a member select"),
     (
@@ -98,7 +99,9 @@ REJECTED = [
         "'date' is owned by no section, so it writes its own label",
     ),
     ("default_for_an_unknown_key.yml", "defaults: 'colour' unknown"),
-    ("variant_with_its_text_flat.yml", "variants.0.en-us: unknown field"),
+    ("override_with_its_text_flat.yml", "overrides.0.en-us: unknown field"),
+    ("context_unknown.yml", "{context:server_nickname} is no context entry"),
+    ("override_description_after_its_own_answer.yml", "'name' is not produced earlier"),
     ("single_choice_unique.yml", "unique: unknown field"),
 ]
 
@@ -123,7 +126,34 @@ def test_a_list_item_names_the_mode_of_its_form_through_parent():
     the form writes the scope itself and a bare one is refused."""
     definition = compile_form("block_links", DiskSource().load("block_links"))
     match_type = definition.composition.steps[1]
-    assert match_type.variants[0].when.key == "parent.mode"
+    assert match_type.overrides[0].when.key == "parent.mode"
+
+
+def test_a_title_override_may_read_the_steps_own_answer():
+    """The first override that holds wins, so the rule of every override up to the
+    last one that writes a description is read before the step is answered; a title
+    override after it is read once the step is answered."""
+    raw = yaml.safe_load(
+        (INVALID / "override_description_after_its_own_answer.yml").read_text()
+    )
+    raw["steps"][2]["overrides"].reverse()
+
+    step = compile_form("fixture", raw).steps[2]
+
+    assert [item.title is not None for item in step.overrides] == [False, True]
+
+
+def test_a_form_text_reads_a_command_name_from_the_context():
+    raw = yaml.safe_load((INVALID / "context_unknown.yml").read_text())
+    raw["steps"][0]["description"] = {
+        "en-us": "Run `{context:commands.setup}` on {context:server_name}",
+        "pt-br": "Rode `{context:commands.setup}` em {context:server_name}",
+    }
+
+    intro = compile_form("fixture", raw).steps[0]
+
+    assert intro.description.en_us == "Run `/setup` on {context:server_name}"
+    assert intro.description.pt_br == "Rode `/configurar` em {context:server_name}"
 
 
 def test_composition_limits_come_from_the_yaml():
@@ -178,9 +208,9 @@ def test_the_custom_links_say_what_the_mode_in_force_does_with_them(mode, line):
     composition = compile_form(
         "block_links", DiskSource().load("block_links")
     ).composition
-    described = chosen_text(
+    described = overridden_text(
         composition.description,
-        composition.variants,
+        composition.overrides,
         "description",
         Scope({"mode": mode}),
     )

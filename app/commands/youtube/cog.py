@@ -14,7 +14,9 @@ from app.types.cogs import Cog, Group
 class Youtube(  # noqa: D101 - discord.py sends a Group's docstring as its description
     Group,
     name=locale_str(
-        "youtube", type="subgroup", namespace="notifications_youtube_video.slash"
+        "youtube",
+        type="subgroup",
+        namespace="notifications_youtube_video.command.slash",
     ),
 ):
     def __init__(self, bot: DiscordBot) -> None:
@@ -23,10 +25,12 @@ class Youtube(  # noqa: D101 - discord.py sends a Group's docstring as its descr
 
     @keiko_command(
         name=locale_str(
-            "video", type="name", namespace="notifications_youtube_video.slash"
+            "video", type="name", namespace="notifications_youtube_video.command.slash"
         ),
         description=locale_str(
-            "desc", type="description", namespace="notifications_youtube_video.slash"
+            "desc",
+            type="description",
+            namespace="notifications_youtube_video.command.slash",
         ),
     )
     @keiko_admin_only

@@ -1,15 +1,17 @@
 """Shared contract: the primitives that read a copy block.
 
 `response_embed`, `response_error_embed`, `error_message`, `RecordsBrowser(copy=)`,
-`announcement_embed`, `figure_lines` and the panel helpers of `GenericCogFeature`
-each read one typed block of a copy file (`app/core/i18n.py`). The blocks here come
-from `tests/helpers/copy.py`.
+`card_copy`, `announcement_embed`, `figure_lines` and the panel helpers of
+`GenericCogFeature` each read one typed block of a copy file (`app/core/i18n.py`),
+the overrides its facts choose in place. The blocks here come from
+`tests/helpers/copy.py`.
 """
 
 import discord
 import pytest
 
 from app.constants import KeikoIcons, Style
+from app.core.facts import facts
 from app.core.feature_health import Figure, figure_lines
 from app.core.i18n import CopyError
 from app.core.utils import fill, ml
@@ -18,6 +20,7 @@ from app.forms.form.copy import error_message
 from app.forms.form.form_yaml import shared_vocabulary
 from app.ui.embed import (
     announcement_embed,
+    card_copy,
     response_embed,
     response_error_embed,
     standard_footer,
@@ -28,9 +31,14 @@ from tests.helpers.copy import SAMPLE, checked_copy  # noqa: F401
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("copy_primitives")]
 
+
 @pytest.fixture
 def sample(checked_copy):  # noqa: F811
     checked_copy(SAMPLE)
+
+
+def _facts(**values):
+    return facts("sample", **values)
 
 
 def _subtext(embed: discord.Embed) -> str:
@@ -46,9 +54,7 @@ def test_a_shared_response_draws_its_copy_and_no_line_where_its_footer_is_null(
     embed = response_embed("commands.responses.admin_only", locale)
 
     assert embed.title == ml("commands.responses.admin_only.title", locale)
-    assert embed.description == ml(
-        "commands.responses.admin_only.description", locale
-    )
+    assert embed.description == ml("commands.responses.admin_only.description", locale)
     assert embed.footer.text is None and not _subtext(embed)
     assert embed.thumbnail.url is None
 
@@ -60,7 +66,7 @@ def test_a_shared_response_draws_its_copy_and_no_line_where_its_footer_is_null(
 def test_a_response_fills_its_values_and_closes_with_the_standard_line(
     sample, locale, title, message
 ):
-    embed = response_embed("sample.responses.saved", locale, values={"item": "`a`"})
+    embed = response_embed("sample.ui.responses.saved", locale, facts=_facts(item="`a`"))
 
     assert embed.title == title
     assert embed.description.startswith(f"{message} `a`.")
@@ -70,21 +76,24 @@ def test_a_response_fills_its_values_and_closes_with_the_standard_line(
 
 
 def test_a_null_footer_draws_no_line_and_a_text_draws_itself(sample):
-    quiet = response_embed("sample.responses.quiet", "en-us", values={"ping": 12})
-    signed = response_embed("sample.responses.signed", "pt-br")
+    quiet = response_embed("sample.ui.responses.quiet", "en-us", facts=_facts(ping=12))
+    signed = response_embed("sample.ui.responses.signed", "pt-br")
 
     assert quiet.description == "12 ms"
     assert _subtext(signed) == "-# • Use `/amostra` de novo"
 
 
 BODILESS = """\
-responses:
-  ticket:
-    title: {en-us: "📝 Ticket #$ticket", pt-br: "📝 Chamado #$ticket"}
-    footer: {en-us: "Ask in `/support`", pt-br: "Pergunte em `/suporte`"}
-    fields:
-      title:
-        title: {en-us: Title, pt-br: Título}
+facts:
+  ticket: {type: text, description: The ticket's id.}
+ui:
+  responses:
+    ticket:
+      title: {en-us: "📝 Ticket #$ticket", pt-br: "📝 Chamado #$ticket"}
+      footer: {en-us: "Ask in `/support`", pt-br: "Pergunte em `/suporte`"}
+      fields:
+        title:
+          title: {en-us: Title, pt-br: Título}
 """
 
 
@@ -94,9 +103,9 @@ def test_a_response_that_writes_no_description_closes_its_fields_with_its_line(
     checked_copy(BODILESS, prefix="bodiless")
 
     embed = response_embed(
-        "bodiless.responses.ticket",
+        "bodiless.ui.responses.ticket",
         "pt-br",
-        values={"ticket": "KEIKO-7"},
+        facts=facts("bodiless", ticket="KEIKO-7"),
         fields={"title": "Broken"},
     )
 
@@ -109,30 +118,68 @@ def test_a_response_that_writes_no_description_closes_its_fields_with_its_line(
     assert not embed.fields[-1].inline
 
 
-def test_a_variant_and_the_empty_state_replace_what_the_block_writes(sample):
+def test_an_override_and_the_empty_state_replace_what_the_block_writes(sample):
     blocked = response_embed(
-        "sample.responses.check", "en-us", variant="blocked", values={"item": "x"}
+        "sample.ui.responses.check",
+        "en-us",
+        facts=_facts(blocked=True, item="x", who="a"),
     )
-    empty = response_embed("sample.responses.check", "pt-br", empty=True)
+    allowed = response_embed(
+        "sample.ui.responses.check",
+        "en-us",
+        facts=_facts(blocked=False, item="x", who="a"),
+    )
+    empty = response_embed(
+        "sample.ui.responses.check",
+        "pt-br",
+        facts=_facts(blocked=False, item="x", who="a"),
+        empty=True,
+    )
 
     assert blocked.title == "🚫 Blocked"
-    assert blocked.description.startswith("I checked x.")
+    assert blocked.description.startswith("I checked x."), "it replaces only its title"
+    assert allowed.title == "✅ Allowed"
     assert empty.title == "✅ Permitido"
     assert empty.description.startswith("Nada para verificar.")
 
 
-def test_a_variant_or_a_field_the_copy_does_not_write_is_refused(sample):
-    with pytest.raises(CopyError, match="variants writes no gone"):
-        response_embed("sample.responses.check", "en-us", variant="gone")
+def test_a_fact_the_block_reads_and_the_code_does_not_pass_is_refused(sample):
+    with pytest.raises(
+        CopyError, match="reads sample.facts.blocked, sample.facts.item"
+    ):
+        response_embed("sample.ui.responses.check", "en-us", facts=_facts(who="a"))
+
+
+def test_a_fact_no_catalog_declares_is_refused_at_render(sample):
+    with pytest.raises(CopyError, match="sample.facts.colour is no fact of sample"):
+        response_embed(
+            "sample.ui.responses.saved",
+            "en-us",
+            facts={**_facts(item="x"), "sample.facts.colour": "red"},
+        )
+    with pytest.raises(CopyError, match="report.facts.ticket is no fact of sample"):
+        response_embed(
+            "sample.ui.responses.saved",
+            "en-us",
+            facts={**_facts(item="x"), "report.facts.ticket": "1"},
+        )
+
+
+def test_a_field_the_copy_does_not_write_is_refused(sample):
     with pytest.raises(CopyError, match="fields writes no size"):
-        response_embed("sample.responses.check", "en-us", fields={"size": 1})
+        response_embed(
+            "sample.ui.responses.check",
+            "en-us",
+            facts=_facts(blocked=False, item="x", who="a"),
+            fields={"size": 1},
+        )
 
 
 def test_the_fields_follow_the_copy_order_and_its_own_values(sample):
     embed = response_embed(
-        "sample.responses.check",
+        "sample.ui.responses.check",
         "en-us",
-        values={"item": "x", "who": "Kunal"},
+        facts=_facts(blocked=False, item="x", who="Kunal"),
         fields={"author": "<@1> wrote $who", "files": None},
         image=True,
     )
@@ -148,7 +195,10 @@ def test_the_fields_follow_the_copy_order_and_its_own_values(sample):
 
 def test_a_field_with_no_value_and_no_text_of_its_own_is_left_out(sample):
     embed = response_embed(
-        "sample.responses.check", "en-us", values={"who": "a"}, inline=True
+        "sample.ui.responses.check",
+        "en-us",
+        facts=_facts(blocked=False, item="x", who="a"),
+        inline=True,
     )
 
     assert [field.name for field in embed.fields] == [
@@ -161,7 +211,7 @@ def test_a_field_with_no_value_and_no_text_of_its_own_is_left_out(sample):
 
 def test_an_error_block_fills_its_values(sample):
     embed = response_error_embed(
-        "sample.errors.not_found", "pt-br", values={"item": "o canal"}
+        "sample.ui.errors.not_found", "pt-br", facts=_facts(item="o canal")
     )
 
     assert embed.title == "🚨 Não Encontrado"
@@ -179,7 +229,7 @@ def test_an_error_of_the_shared_file_draws_as_it_always_did():
 
 def test_the_plain_error_reads_the_message_of_the_block_it_names(sample):
     assert (
-        error_message("sample.errors.not_found", {"item": "a"}, "en-us")
+        error_message("sample.ui.errors.not_found", {"item": "a"}, "en-us")
         == "I found no a."
     )
     assert error_message("selection_required", {}, "pt-br") == ml(
@@ -218,8 +268,8 @@ async def test_a_records_block_titles_the_list_and_fills_its_values(
     browser = RecordsBrowser(
         fetch,
         lambda records, _interaction: {record["name"]: "x" for record in records},
-        copy="sample.records.saved",
-        values={"who": "Ana"},
+        copy="sample.ui.records.saved",
+        facts=_facts(who="Ana"),
     )
     await browser.send(scenario._mint())
 
@@ -243,8 +293,8 @@ async def test_a_records_block_draws_its_empty_state_and_its_filter(
     browser = RecordsBrowser(
         fetch,
         lambda records, _interaction: {record["name"]: "x" for record in records},
-        copy="sample.records.saved",
-        values={"who": "Ana"},
+        copy="sample.ui.records.saved",
+        facts=_facts(who="Ana"),
     )
     await browser.send(scenario._mint())
 
@@ -262,7 +312,10 @@ async def test_an_empty_records_block_draws_its_empty_text(sample, scenario_fact
         return []
 
     await RecordsBrowser(
-        fetch, lambda records, _i: {}, copy="sample.records.saved", values={"who": "x"}
+        fetch,
+        lambda records, _i: {},
+        copy="sample.ui.records.saved",
+        facts=_facts(who="x"),
     ).send(scenario._mint())
 
     scenario.expect_message(description_contains="Nothing saved yet!")
@@ -279,8 +332,8 @@ async def test_a_records_block_draws_in_the_language_it_is_given(
     await RecordsBrowser(
         fetch,
         lambda records, _i: {record["name"]: "x" for record in records},
-        copy="sample.records.saved",
-        values={"who": "Ana"},
+        copy="sample.ui.records.saved",
+        facts=_facts(who="Ana"),
         locale="pt-br",
     ).send(scenario._mint())
 
@@ -289,7 +342,7 @@ async def test_a_records_block_draws_in_the_language_it_is_given(
 
 async def test_a_records_block_no_copy_writes_is_refused(scenario_factory):
     scenario = scenario_factory(locale="en-us")
-    browser = RecordsBrowser(None, None, copy="report.records.tickets")
+    browser = RecordsBrowser(None, None, copy="report.ui.records.tickets")
 
     with pytest.raises(CopyError, match="no copy file writes it"):
         await browser.send(scenario._mint())
@@ -326,18 +379,45 @@ def test_a_panel_button_may_read_a_shared_button_block(sample):
 
 
 def test_the_panel_info_comes_from_the_copy(sample):
-    feature = _Sample()
+    class Counting(_Sample):
+        fills_panel_info = True
 
-    assert feature.panel_info_title(_context()) == "About"
-    assert feature.panel_info(_context("pt-br")) == "Eu conto $count amostras."
-    assert feature.panel_info_copy("en-us", values={"count": 3}) == (
+    feature = Counting()
+
+    assert feature.panel_info(_context("pt-br")) == "", "the feature fills it"
+    assert feature.panel_info_title(_context()) == ""
+    assert feature.panel_info_copy("en-us", _facts(count=3, counted=True)) == (
         "About",
         "I count 3 samples.",
     )
-    assert feature.panel_info_copy("pt-br", variant="unknown") == (
+    assert feature.panel_info_copy("pt-br", _facts(count=0, counted=False)) == (
         "Sobre",
         "Não consegui contar.",
     )
+
+
+def test_a_panel_info_that_reads_facts_is_drawn_by_its_feature(sample):
+    """The generic panel passes no facts: a feature whose `panel.info` reads some
+    declares `fills_panel_info` and draws it, or the panel refuses to draw."""
+    with pytest.raises(CopyError, match="sample.command.panel.info reads"):
+        _Sample().panel_info(_context())
+
+
+def test_a_card_draws_its_texts_with_the_overrides_its_facts_choose(sample):
+    pending = card_copy(
+        "sample.ui.cards.dashboard", "en-us", _facts(done=False, page=1, pages=2)
+    )
+    done = card_copy(
+        "sample.ui.cards.dashboard", "pt-br", _facts(done=True, page=2, pages=2)
+    )
+
+    assert (pending.title, pending.description, pending.note) == (
+        "⚙️ Samples",
+        "Everything at a glance",
+        "Page 1 of 2",
+    )
+    assert (done.description, done.note) == ("Tudo pronto!", "Página 2 de 2")
+    assert pending.footer == "", "the card writes footer: null"
 
 
 def test_a_feature_whose_copy_writes_no_panel_keeps_an_empty_panel():
@@ -361,7 +441,7 @@ def test_the_figures_of_a_statistics_embed_read_their_labels(sample):
 
 
 def test_the_figures_need_the_stats_block_of_their_copy():
-    with pytest.raises(CopyError, match="report.stats: no copy file writes it"):
+    with pytest.raises(CopyError, match="report.command.stats: no copy file writes it"):
         figure_lines("report", [], "en-us")
 
 
@@ -380,7 +460,7 @@ def test_an_announcement_labels_its_fields_from_the_copy(sample):
         "Come watch",
         "Online",
         "https://live.png",
-        copy="sample.announcement",
+        copy="sample.ui.announcement",
         locale="pt-br",
         fields={"game": "Chess", "tags": None},
         url="https://watch",
@@ -398,7 +478,7 @@ def test_an_announcement_labels_its_fields_from_the_copy(sample):
 
 def test_an_announcement_field_the_copy_does_not_label_is_refused(sample):
     with pytest.raises(CopyError, match="fields writes no score"):
-        announcement_embed("x", "y", copy="sample.announcement", fields={"score": 1})
+        announcement_embed("x", "y", copy="sample.ui.announcement", fields={"score": 1})
 
 
 def _panel_asides():
@@ -416,8 +496,8 @@ def test_every_panel_aside_a_feature_declares_writes_its_button(key, aside):
     from app.core import i18n
     from app.ui.buttons import ButtonCopy
 
-    button = i18n.block(f"{key}.buttons.{aside}", ButtonCopy)
+    button = i18n.block(f"{key}.ui.buttons.{aside}", ButtonCopy)
 
     assert button.description is not None, (
-        f"write {key}.buttons.{aside}.description for Help"
+        f"write {key}.ui.buttons.{aside}.description for Help"
     )

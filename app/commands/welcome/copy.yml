@@ -1,36 +1,38 @@
-slash:
-  subgroup:
-    en-us: welcome
-    pt-br: mensagens
-  name:
-    en-us: messages
-    pt-br: boas-vindas
-  description:
-    en-us: Keiko warmly welcomes new members with a personalized message
-    pt-br: Keiko recebe calorosamente novos membros com mensagens personalizadas
+command:
+  slash:
+    subgroup:
+      en-us: welcome
+      pt-br: mensagens
+    name:
+      en-us: messages
+      pt-br: boas-vindas
+    description:
+      en-us: Keiko warmly welcomes new members with a personalized message
+      pt-br: Keiko recebe calorosamente novos membros com mensagens personalizadas
 
-setup:
-  label:
-    en-us: Welcome Messages
-    pt-br: Mensagens de Boas-Vindas
-  description:
-    en-us: A warm welcome for new members
-    pt-br: Boas-vindas para novos membros
+  setup:
+    label:
+      en-us: Welcome Messages
+      pt-br: Mensagens de Boas-Vindas
+    description:
+      en-us: A warm welcome for new members
+      pt-br: Boas-vindas para novos membros
 
-stats:
-  title:
-    en-us: 📊 Welcome Messages Statistics
-    pt-br: 📊 Estatísticas de Mensagens de Boas-Vindas
-  delivered:
-    one:
-      en-us: ✅ I sent 1 welcome message in the last $days days!
-      pt-br: ✅ Enviei 1 mensagem de boas-vindas nos últimos $days dias!
-    other:
-      en-us: ✅ I sent $count welcome messages in the last $days days!
-      pt-br: ✅ Enviei $count mensagens de boas-vindas nos últimos $days dias!
+  stats:
+    title:
+      en-us: 📊 Welcome Messages Statistics
+      pt-br: 📊 Estatísticas de Mensagens de Boas-Vindas
+    delivered:
+      one:
+        en-us: ✅ I sent 1 welcome message in the last $days days!
+        pt-br: ✅ Enviei 1 mensagem de boas-vindas nos últimos $days dias!
+      other:
+        en-us: ✅ I sent $count welcome messages in the last $days days!
+        pt-br: ✅ Enviei $count mensagens de boas-vindas nos últimos $days dias!
 
-# open: texts the welcome service draws itself -> a text
-messages:
-  banner_title:
-    en-us: Welcome
-    pt-br: Welcome
+ui:
+  # open: texts the welcome service draws itself -> a text
+  texts:
+    banner_title:
+      en-us: Welcome
+      pt-br: Welcome

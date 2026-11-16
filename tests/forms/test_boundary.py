@@ -2,8 +2,10 @@
 
 `app/forms/` imports `discord` only under `discord/`, the form engine
 imports nothing else from `app` except `app.forms`, `app.constants`, the
-pure calendar of `app.core.calendar` and the pure command registry of
-`app.core.commands`, no
+pure calendar of `app.core.calendar`, the pure command registry of
+`app.core.commands`, the `when` grammar of `app.core.conditions`, the facts
+and the context of `app.core.facts` and the copy loader of `app.core.i18n`
+(a shared block's overrides), no
 module names a command key, no module blocks the event loop, and no comment
 tells a story.
 """
@@ -37,6 +39,9 @@ PLATFORM_READS = (
     "app.constants",
     "app.core.calendar",
     "app.core.commands",
+    "app.core.conditions",
+    "app.core.facts",
+    "app.core.i18n",
 )
 FORM_YAML = os.path.join(SETTINGS, "form", "form_yaml.py")
 CALENDAR = os.path.join(ROOT, "app", "core", "calendar.py")

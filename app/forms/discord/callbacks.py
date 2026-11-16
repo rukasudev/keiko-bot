@@ -22,10 +22,11 @@ from app.constants import Commands as commands_constants
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
 from app.core import analytics, members, metrics
+from app.core.commands import GLOBAL
+from app.core.facts import facts, owner_of
 from app.core.servers import interaction_language, server_settings
 from app.core.trace import trace_scope
 from app.core.utils import (
-    fill,
     get_command_by_key,
     get_command_display_name,
     is_guild_admin,
@@ -353,9 +354,7 @@ class Runtime:
 
     async def _unknown(self, interaction: discord.Interaction) -> None:
         """A click on a message whose session this process no longer has."""
-        notice = text(
-            "messages.notices.expired", await interaction_language(interaction)
-        )
+        notice = text("texts.notices.expired", await interaction_language(interaction))
         message = interaction.message
 
         try:
@@ -836,12 +835,16 @@ class Runtime:
             await answer.response.edit_message(view=None)
             await action.handler(answer, await self._shown(session, locale, target))
 
-        embed = response_embed(question, locale, image=True)
-        if action.confirm_values and embed.description:
-            values = await action.confirm_values(
+        values = (
+            await action.confirm_values(
                 state.opened.document or {}, locale, state.guild
             )
-            embed.description = fill(embed.description, **values)
+            if action.confirm_values
+            else {}
+        )
+        embed = response_embed(
+            question, locale, image=True, facts=facts(owner_of(question), **values)
+        )
         view = ConfirmActionView(confirmed, locale)
 
         if await self._answering(interaction).first(
@@ -893,7 +896,7 @@ class Runtime:
             ),
             to_fields=parse_history_data,
             copy="commands.records.history",
-            values={"cog_key": name},
+            facts=facts(GLOBAL, cog_key=name),
             locale=locale,
         )
         await browser.send(interaction)

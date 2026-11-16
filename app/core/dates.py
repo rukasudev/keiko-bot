@@ -25,11 +25,11 @@ def get_month_label(
     month: int, locale: str | discord.Locale | None = None
 ) -> Optional[str]:
     key = month_key(month)
-    return ml(f"messages.months.{key}", locale=locale) if key else None
+    return ml(f"texts.months.{key}", locale=locale) if key else None
 
 
 def get_month_choices(
-    namespace: str = "messages",
+    namespace: str = "texts",
 ) -> List[app_commands.Choice[int]]:
     return [
         app_commands.Choice(

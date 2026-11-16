@@ -9,6 +9,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from app.constants import KeikoIcons, Style, ViewConstants
+from app.core.conditions import Scope, count_of
 from app.forms.form.components import (
     Button,
     Component,
@@ -17,10 +18,15 @@ from app.forms.form.components import (
     Gallery,
     Screen,
 )
-from app.forms.form.conditions import Scope, chosen_text, count_of
 from app.forms.form.copy import optional_text, text
 from app.forms.form.form_state import EditItem, FormSession
-from app.forms.form.form_yaml import ContentStep, Design, FormDefinition, Step
+from app.forms.form.form_yaml import (
+    ContentStep,
+    Design,
+    FormDefinition,
+    Step,
+    overridden_text,
+)
 from app.forms.form.responses.links import link_host
 from app.forms.form.responses.styles import STYLES, format_value, stored_style
 from app.forms.form.responses.summary import ResponseView, responses, step_title
@@ -155,8 +161,10 @@ def apply_tokens(
 
 def description_of(step: Step, session: FormSession, context: Context) -> str:
     """The step description, its active variant chosen and tokens resolved."""
-    variants = step.variants if isinstance(step, ContentStep) else ()
-    described = chosen_text(step.description, variants, "description", context.scope)
+    overrides = step.overrides if isinstance(step, ContentStep) else ()
+    described = overridden_text(
+        step.description, overrides, "description", context.scope
+    )
     return apply_tokens(described.get(context.locale), session, context).rstrip()
 
 
@@ -216,7 +224,7 @@ def design_gallery(
     locale = context.locale
     return Gallery(
         step_key=step_key,
-        header=text("messages.design_gallery.header", locale),
+        header=text("texts.design_gallery.header", locale),
         designs=tuple(
             DesignCard(
                 key=design.value,
@@ -226,6 +234,6 @@ def design_gallery(
             )
             for design in designs
         ),
-        footer=text("messages.design_gallery.footer", locale),
+        footer=text("texts.design_gallery.footer", locale),
         select_label=label("select", locale),
     )

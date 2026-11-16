@@ -138,6 +138,7 @@ class Text(BaseModel):
 
 COPY_FILE = "copy.yml"
 FORM_FILE = "form.yml"
+GLOBAL = "global"
 
 ParentGroup = Literal["moderations", "notifications", "integrations"]
 PARENT_GROUPS: Mapping[ParentGroup, str] = {
@@ -314,9 +315,10 @@ YAML_TYPES: tuple[YamlType, ...] = (
         files="app/commands/*/copy.yml",
         schema="app.core.copy_schema:CommandCopy",
         purpose=(
-            "The copy of one command: its slash names and descriptions, its /setup "
-            "row, its stats and every text its screens show, each a {en-us, pt-br} "
-            "node under a key relative to the command."
+            "The copy of one command: the facts its texts read, the fixed places the "
+            "shared screens fill (its slash names, its /setup row, its stats, its "
+            "panel) under `command`, and every text it draws itself under `ui`, each "
+            "a {en-us, pt-br} node under a key relative to the command."
         ),
         readers=(
             "app/core/i18n.py: files, read and collect load it under the command key",
@@ -371,11 +373,11 @@ YAML_TYPES: tuple[YamlType, ...] = (
         ),
     ),
     YamlType(
-        name="languages/messages.yml",
-        files="app/languages/messages.yml",
-        schema="app.core.copy_schema:SharedMessages",
+        name="languages/texts.yml",
+        files="app/languages/texts.yml",
+        schema="app.core.copy_schema:SharedTexts",
         purpose=(
-            "The plain lines and tables the shared layers read, under `messages.`: "
+            "The plain lines and tables the shared layers read, under `texts.`: "
             "months, parent groups, notices, permission lines, placeholders, and "
             "the page and value words."
         ),
@@ -393,6 +395,25 @@ YAML_TYPES: tuple[YamlType, ...] = (
             "read under `locales.<code>`."
         ),
         readers=("app/integrations/google_translate.py: get_language_with_flag",),
+    ),
+    YamlType(
+        name="global.yml",
+        files="app/core/global.yml",
+        schema="app.core.facts:GlobalCatalog",
+        purpose=(
+            "The facts no single command owns and the context Keiko already holds: "
+            "each fact a rule reads as `global.facts.<name>` and a text as `$<name>`, "
+            "with its type and what it holds, and each value a text reads as "
+            "`{context:<name>}`, with whether a public message may show it."
+        ),
+        readers=(
+            "app/core/facts.py: global_catalog reads it, address and facts name a "
+            "fact, with_context fills the context known at load",
+            "app/core/i18n.py: the copy loader checks every rule and `$name` against "
+            "it, and resolved refuses a fact it does not declare",
+            "app/forms/form/form_yaml.py: compile_form refuses a `{context:}` it does "
+            "not declare",
+        ),
     ),
     YamlType(
         name="catalog.yml",
@@ -525,6 +546,11 @@ def _webhooks(listed: Iterable[Command]) -> Iterable[tuple[str, WebhookHandler]]
 
 def _placed(listed: Iterable[Command]) -> None:
     for command in listed:
+        if command.key == GLOBAL:
+            raise ValueError(
+                f"no command is keyed {GLOBAL!r}: it is the owner of the facts and "
+                "the context of app/core/global.yml"
+            )
         for name, value in (("group", command.group), ("category", command.category)):
             if value and value not in PARENT_GROUPS:
                 raise ValueError(

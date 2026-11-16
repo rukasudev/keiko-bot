@@ -1,4 +1,4 @@
-# Every event Keiko records; reference docs/yaml/index.html#catalog-yml, from Catalog in app/core/analytics.py
+# Every event Keiko records; reference docs/yaml-reference.html#catalog-yml, from Catalog in app/core/analytics.py
 
 sources:
   - slash

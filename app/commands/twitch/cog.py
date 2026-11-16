@@ -11,16 +11,20 @@ from app.types.cogs import Group
 
 class Twitch(  # noqa: D101 - discord.py sends a Group's docstring as its description
     Group,
-    name=locale_str("twitch", type="subgroup", namespace="notifications_twitch.slash"),
+    name=locale_str(
+        "twitch", type="subgroup", namespace="notifications_twitch.command.slash"
+    ),
 ):
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
         super().__init__()
 
     @keiko_command(
-        name=locale_str("lives", type="name", namespace="notifications_twitch.slash"),
+        name=locale_str(
+            "lives", type="name", namespace="notifications_twitch.command.slash"
+        ),
         description=locale_str(
-            "desc", type="description", namespace="notifications_twitch.slash"
+            "desc", type="description", namespace="notifications_twitch.command.slash"
         ),
     )
     @keiko_admin_only

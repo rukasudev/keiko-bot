@@ -82,7 +82,7 @@ class PaginationView(discord.ui.View):
             self.embed.add_field(name=item, value=self.data[item], inline=False)
 
         locale = self.locale or self._answered().locale
-        footer = ml("messages.page", locale=locale)
+        footer = ml("texts.page", locale=locale)
         self.embed.set_thumbnail(url=self.thumbnail)
         self.embed.set_footer(
             text=f"• {footer} {self.current_page} / {len(self.separated_data)}"

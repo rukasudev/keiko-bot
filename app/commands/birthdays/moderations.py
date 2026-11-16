@@ -16,16 +16,20 @@ from app.ui.embed import response_embed, response_error_embed
 
 class Birthdays(  # noqa: D101 - discord.py sends a Group's docstring as its description
     Group,
-    name=locale_str("birthdays", type="subgroup", namespace="reminders_birthday.slash"),
+    name=locale_str(
+        "birthdays", type="subgroup", namespace="reminders_birthday.command.slash"
+    ),
 ):
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
         super().__init__()
 
     @keiko_command(
-        name=locale_str("reminders", type="name", namespace="reminders_birthday.slash"),
+        name=locale_str(
+            "reminders", type="name", namespace="reminders_birthday.command.slash"
+        ),
         description=locale_str(
-            "desc", type="description", namespace="reminders_birthday.slash"
+            "desc", type="description", namespace="reminders_birthday.command.slash"
         ),
     )
     @keiko_admin_only
@@ -35,40 +39,46 @@ class Birthdays(  # noqa: D101 - discord.py sends a Group's docstring as its des
 
     @keiko_command(
         name=locale_str(
-            "add", type="name", namespace="reminders_birthday.slash.commands.add"
+            "add",
+            type="name",
+            namespace="reminders_birthday.command.slash.commands.add",
         ),
         description=locale_str(
             "desc",
             type="description",
-            namespace="reminders_birthday.slash.commands.add",
+            namespace="reminders_birthday.command.slash.commands.add",
         ),
     )
     @app_commands.rename(
         member=locale_str(
-            "member", type="params.member.name", namespace="reminders_birthday.slash"
+            "member",
+            type="params.member.name",
+            namespace="reminders_birthday.command.slash",
         ),
         month=locale_str(
-            "month", type="params.month.name", namespace="reminders_birthday.slash"
+            "month",
+            type="params.month.name",
+            namespace="reminders_birthday.command.slash",
         ),
         day=locale_str(
-            "day", type="params.day.name", namespace="reminders_birthday.slash"
+            "day", type="params.day.name", namespace="reminders_birthday.command.slash"
         ),
     )
     @app_commands.describe(
         member=locale_str(
             "member-desc",
             type="params.member.description",
-            namespace="reminders_birthday.slash",
+            namespace="reminders_birthday.command.slash",
         ),
         month=locale_str(
             "month-desc",
             type="params.month.description",
-            namespace="reminders_birthday.slash",
+            namespace="reminders_birthday.command.slash",
         ),
         day=locale_str(
             "day-desc",
             type="params.day.description",
-            namespace="reminders_birthday.slash",
+            namespace="reminders_birthday.command.slash",
         ),
     )
     @app_commands.choices(month=get_month_choices())
@@ -92,7 +102,7 @@ class Birthdays(  # noqa: D101 - discord.py sends a Group's docstring as its des
         guild_id = str(interaction.guild_id)
         if not await birthdays_service.accepts_birthdays(guild_id):
             embed = response_error_embed(
-                "reminders_birthday.errors.disabled", interaction.locale, footer=True
+                "reminders_birthday.ui.errors.disabled", interaction.locale, footer=True
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
@@ -104,12 +114,12 @@ class Birthdays(  # noqa: D101 - discord.py sends a Group's docstring as its des
         )
 
         embed = response_embed(
-            "reminders_birthday.responses.add",
+            "reminders_birthday.ui.responses.add",
             interaction.locale,
-            values={
-                "member": member.mention,
-                "date": format_mm_dd_label(date, interaction.locale),
-            },
+            facts=birthdays_service.command_facts(
+                member=member.mention,
+                date=format_mm_dd_label(date, interaction.locale),
+            ),
             thumbnail=KeikoIcons.IMAGE_03,
         )
         await interaction.followup.send(embed=embed, ephemeral=True)

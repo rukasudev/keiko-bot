@@ -22,7 +22,7 @@ def test_block_links_check_context_menu_builds_with_its_real_callback(deps):
         name=locale_str(
             "block-links-check",
             type="context-menu",
-            namespace="block_links.slash.commands.check",
+            namespace="block_links.command.slash.commands.check",
         ),
         callback=check.validate_block_link,
         type=discord.AppCommandType.message,

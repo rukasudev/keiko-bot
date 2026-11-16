@@ -1,7 +1,8 @@
-"""`docs/yaml/index.html` is the YAML reference generated from the schemas: it is
+"""`docs/yaml-reference.html` is the YAML reference generated from the schemas: it is
 current, every field of every schema says what it does and names its role, the
 generator shows what a reader needs of each field (its role, its type, its rules, a
-real example), and every text has a current Portuguese in `docs/yaml/pt-br.yml`.
+real example), and every text has a current Portuguese in
+`scripts/keiko/yamldoc/translations.yml`.
 
 The models still being rewritten are listed in `UNDESCRIBED` by type; a listed model
 whose fields are all described fails, so the list only shrinks. The types not
@@ -22,8 +23,9 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if ROOT not in sys.path:
     sys.path.insert(0, ROOT)
 
-from scripts.keiko.yamldoc import DOCS, PAGE, write  # noqa: E402
+from scripts.keiko.yamldoc import DOCS, reference  # noqa: E402
 from scripts.keiko.yamldoc.files import read_file  # noqa: E402
+from scripts.keiko.yamldoc.index import REFERENCE  # noqa: E402
 from scripts.keiko.yamldoc.page import Documented, payload, render  # noqa: E402
 from scripts.keiko.yamldoc.schema import ROLES, read_schema  # noqa: E402
 from scripts.keiko.yamldoc.translations import (  # noqa: E402
@@ -69,12 +71,11 @@ def _texts():
         )
 
 
-def test_the_yaml_reference_is_current(tmp_path):
-    fresh = write(tmp_path).read_text(encoding="utf-8")
-    page = DOCS / PAGE
+def test_the_yaml_reference_is_current():
+    page = DOCS / REFERENCE
     current = page.read_text(encoding="utf-8") if page.exists() else ""
 
-    assert current == fresh, "docs/yaml/index.html is stale: run make yaml-docs"
+    assert current == reference(), "docs/yaml-reference.html is stale: run make docs"
 
 
 @pytest.mark.parametrize("name, schema", list(_schemas()))
@@ -143,8 +144,8 @@ def test_every_text_has_a_current_portuguese(name, found):
         )
     else:
         assert not gaps, (
-            f"{name}: translate these texts in docs/yaml/pt-br.yml, each with the "
-            "English it translates (stale: the English changed since): "
+            f"{name}: translate these texts in scripts/keiko/yamldoc/translations.yml, "
+            "each with the English it translates (stale: the English changed since): "
             + ", ".join(f"{key} ({gap})" for key, gap in gaps.items())
         )
 
@@ -161,8 +162,8 @@ def test_every_translation_translates_a_text_that_exists():
     orphans = load_translations().orphans(known)
 
     assert not orphans, (
-        "docs/yaml/pt-br.yml translates texts no schema has any more (renamed or "
-        f"removed): re-key or delete {orphans}"
+        "scripts/keiko/yamldoc/translations.yml translates texts no schema has any "
+        f"more (renamed or removed): re-key or delete {orphans}"
     )
 
 

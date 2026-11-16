@@ -24,7 +24,7 @@ from tests.mocks.discord import create_guild, create_member
 pytestmark = pytest.mark.behavioral
 
 BASE = "setup"
-SETTINGS = f"{BASE}.cards.settings"
+SETTINGS = f"{BASE}.ui.cards.settings"
 
 
 def _admin_scenario(scenario_factory, locale="pt-br", denied=()):
@@ -91,12 +91,12 @@ async def _press(scenario, button):
 
 
 def _category(name, locale="pt-br"):
-    return f"**{ml(f'{BASE}.messages.categories.{name}', locale)}**"
+    return f"**{ml(f'{BASE}.ui.texts.categories.{name}', locale)}**"
 
 
 def _feature_name(key, locale="pt-br"):
     spec = next(spec for spec in setup_features() if spec.key == key)
-    return command_text(spec, "setup.label", locale)
+    return command_text(spec, "command.setup.label", locale)
 
 
 def _edits(scenario):
@@ -236,7 +236,7 @@ async def test_a_member_is_told_in_the_server_language_that_configurar_needs_an_
 
 async def _open_settings(scenario):
     message = scenario.current_message
-    await _press(scenario, _beside(message, ml(f"{BASE}.cards.dashboard.rows.settings.title", "pt-br")))
+    await _press(scenario, _beside(message, ml(f"{BASE}.ui.cards.dashboard.rows.settings.title", "pt-br")))
     return message
 
 

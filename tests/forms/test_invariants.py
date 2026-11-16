@@ -11,10 +11,10 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
+from app.core.conditions import Scope
 from app.forms.form import events as ev
 from app.forms.form.actions import registry as kinds
 from app.forms.form.actions.action import Context
-from app.forms.form.conditions import Scope
 from app.forms.form.form import decide
 from app.forms.form.form_state import (
     InMemorySessionStore,

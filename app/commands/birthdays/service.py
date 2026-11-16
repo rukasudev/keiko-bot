@@ -23,6 +23,7 @@ from app.core.dates import (
     next_mm_dd_occurrence,
     utc_today,
 )
+from app.core.facts import Facts, facts
 from app.core.feature_health import Figure, figure_lines
 from app.core.servers import save_server_setting, server_setting, set_feature_enabled
 from app.core.threads import to_thread
@@ -54,6 +55,11 @@ from app.forms.form.responses.summary import PanelRow
 from app.integrations.reminders import schedule as reminders_service
 from app.ui.embed import announcement_embed
 from app.ui.message_preview import MessagePreviewView
+
+
+def command_facts(**values: Any) -> Facts:
+    """The facts this command's code passes its copy, each under its address."""
+    return facts("reminders_birthday", **values)
 
 
 class MessageChoice(TypedDict):
@@ -585,7 +591,7 @@ def _default_message_label(
 ) -> str:
     mode = (default_message or {}).get("mode")
     key = "custom" if mode == "custom" else "default"
-    return str(ml(f"messages.modes.{key}", locale=locale))
+    return str(ml(f"texts.modes.{key}", locale=locale))
 
 
 def _default_message_from_values(mode: Any, title: Any, content: Any) -> MessageChoice:
@@ -660,7 +666,7 @@ async def birthday_settings_rows(
     return [
         PanelRow(
             key="channel",
-            title=_mb("panel.rows.channel", locale),
+            title=_mb("command.panel.rows.channel", locale),
             value=config.get("channel"),
             style="channel",
         ),
@@ -687,12 +693,12 @@ async def birthday_settings_rows(
         ),
         PanelRow(
             key="reminders_birthday",
-            title=_mb("stats.figures.total", locale),
+            title=_mb("command.stats.figures.total", locale),
             value=str(stats.total),
         ),
         PanelRow(
             key="reminders_birthday",
-            title=_mb("panel.rows.next", locale),
+            title=_mb("command.panel.rows.next", locale),
             value=upcoming_lines,
             style="bullet",
         ),
@@ -712,7 +718,7 @@ async def birthday_month_pages(
 ) -> list[PanelPage]:
     """The birthdays in date order, a month per page from this one, or an empty page."""
     today = today or utc_today()
-    title = _mb("panel.pages.title", locale)
+    title = _mb("command.panel.pages.title", locale)
     by_month: dict[int, list[Mapping[str, Any]]] = {}
     for item in await find_birthdays_by_guild(guild_id):
         try:
@@ -731,8 +737,10 @@ async def birthday_month_pages(
             f"- <@{item['user_id']}>: {format_mm_dd_label(item['date'], locale)}"
             for item in sorted(by_month[month], key=lambda item: str(item["date"]))
         )
-        pages.append(PanelPage(title, lines, _mb("panel.pages.description", locale)))
-    return pages or [PanelPage(title, (), _mb("panel.pages.empty", locale))]
+        pages.append(
+            PanelPage(title, lines, _mb("command.panel.pages.description", locale))
+        )
+    return pages or [PanelPage(title, (), _mb("command.panel.pages.empty", locale))]
 
 
 async def birthday_found_members(guild_id: str, locale: str) -> dict[str, FoundItem]:
@@ -741,7 +749,7 @@ async def birthday_found_members(guild_id: str, locale: str) -> dict[str, FoundI
     found: dict[str, FoundItem] = {}
     for item in await find_birthdays_by_guild(guild_id):
         source, title, content = message_source(item, config, locale)
-        label = _mb(f"panel.authors.{source}", locale)
+        label = _mb(f"command.panel.authors.{source}", locale)
         block = format_value([title, content], "code-block", locale)
         found[str(item.get("user_id"))] = FoundItem((f"💬 **{label}**{block}",))
     return found
@@ -766,7 +774,7 @@ def render_birthday_message(
 
 def birthday_default_text(key: str, locale: str) -> str:
     """Keiko's own celebration `title` or `description`, the card's default too."""
-    return _mb(f"announcement.defaults.{key}", locale)
+    return _mb(f"ui.announcement.defaults.{key}", locale)
 
 
 def message_source(

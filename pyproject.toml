@@ -31,6 +31,8 @@ files = [
     "app/ui/records.py",
     "app/core/calendar.py",
     "app/core/commands.py",
+    "app/core/conditions.py",
+    "app/core/facts.py",
     "app/core/dispatch.py",
     "app/core/i18n.py",
     "app/core/copy_schema.py",

@@ -12,6 +12,7 @@ from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
 from app.core import analytics, cache, i18n, members
 from app.core.commands import MessageEdited, MessageSent
+from app.core.facts import Facts, facts
 from app.core.feature_health import Figure, figure_lines
 from app.core.threads import to_thread
 from app.core.utils import (
@@ -37,6 +38,11 @@ from app.forms.form.form_yaml import CardStep, registry
 from app.forms.form.responses.links import ParsedLink, parse_link
 from app.ui.embed import Response, response_embed
 from app.ui.records import Records, RecordsBrowser
+
+
+def command_facts(**values: Any) -> Facts:
+    """The facts this command's code passes its copy, each under its address."""
+    return facts("block_links", **values)
 
 
 @dataclass(frozen=True)
@@ -556,7 +562,7 @@ def _link_reason_key(verdict: LinkVerdict) -> str:
 
 
 def _check_copy() -> Response:
-    return i18n.block("block_links.responses.check", Response)
+    return i18n.block("block_links.ui.responses.check", Response)
 
 
 def _line(copy: Response, field: str, reason: str, locale: str, **values: Any) -> str:
@@ -567,17 +573,9 @@ def _line(copy: Response, field: str, reason: str, locale: str, **values: Any) -
 def parse_evaluation_to_fields(
     evaluation: BlockLinksEvaluation, locale: str
 ) -> Dict[str, str]:
-    """The diagnostic as the value of each of its three fields: the feature, the
-    exemptions, each link's fate."""
+    """The value of the diagnostic's fields the code fills, the exemptions and each
+    link's fate; the feature's field is the copy's, chosen by the facts."""
     copy = _check_copy()
-    feature_text = _line(
-        copy,
-        "feature",
-        evaluation.feature.reason,
-        locale,
-        mode=_mode_label(evaluation.mode, locale),
-    )
-
     exemptions = []
     role = evaluation.gate("role")
     if role:
@@ -622,10 +620,25 @@ def parse_evaluation_to_fields(
         )
 
     return {
-        "feature": feature_text,
         "exemptions": "\n".join(exemptions) or "-",
         "links": "\n".join(link_lines),
     }
+
+
+def link_check_embed(evaluation: BlockLinksEvaluation, locale: str) -> discord.Embed:
+    """The diagnostic of one message: whether it would be blocked, the feature's
+    state, the exemptions and each link's fate."""
+    return response_embed(
+        "block_links.ui.responses.check",
+        locale,
+        image=True,
+        facts=command_facts(
+            would_block=evaluation.would_block,
+            feature_state=evaluation.feature.reason.replace("-", "_"),
+            mode=_mode_label(evaluation.mode, locale),
+        ),
+        fields=parse_evaluation_to_fields(evaluation, locale),
+    )
 
 
 async def send_link_check_message(
@@ -643,13 +656,7 @@ async def send_link_check_message(
     cogs = await cache.read_cog_data(str(interaction.guild_id), "block_links", True)
     evaluation = evaluate_message(MessageSubject.from_message(message), cogs, full=True)
 
-    embed = response_embed(
-        "block_links.responses.check",
-        locale,
-        image=True,
-        variant="blocked" if evaluation.would_block else "",
-        fields=parse_evaluation_to_fields(evaluation, locale),
-    )
+    embed = link_check_embed(evaluation, locale)
     await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
@@ -670,7 +677,7 @@ def parse_blocked_link_records(
     records: Sequence[Mapping[str, Any]], locale: str
 ) -> Dict[str, str]:
     """Records as the {field name: field value} dict PaginationView renders."""
-    record_copy = i18n.block("block_links.records.blocked_list", Records).lines
+    record_copy = i18n.block("block_links.ui.records.blocked_list", Records).lines
     fields = {}
     for index, record in enumerate(records, start=1):
         props = record.get("props") or {}
@@ -759,7 +766,7 @@ async def send_blocked_links_message(
         to_fields=lambda records, pressed: parse_blocked_link_records(
             records, parse_locale(str(pressed.locale))
         ),
-        copy="block_links.records.blocked_list",
+        copy="block_links.ui.records.blocked_list",
     )
     await browser.send(interaction, user_id=user_id)
 

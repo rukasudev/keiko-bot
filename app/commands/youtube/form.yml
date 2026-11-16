@@ -49,7 +49,7 @@ steps:
         preview:
           required:
             all: [youtuber]
-          error: notifications_youtube_video.errors.preview_needs_youtuber
+          error: notifications_youtube_video.ui.errors.preview_needs_youtuber
         required:
           all: [channel, youtuber]
         fields:
@@ -96,7 +96,7 @@ steps:
                   item: youtuber
                   service: youtube
                   id: channel_id
-                  error: notifications_youtube_video.errors.youtuber
+                  error: notifications_youtube_video.ui.errors.youtuber
               inputs:
                 - key: youtuber
                   label:

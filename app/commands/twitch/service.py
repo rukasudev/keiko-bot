@@ -354,10 +354,10 @@ def notices_of(
 
 def stream_status(status: str, locale: str, duration: Optional[str] = None) -> str:
     """The footer of a live notice: whether it is on and, once over, how long it ran."""
-    parts = [ml(f"notifications_twitch.announcement.states.{status}", locale)]
+    parts = [ml(f"notifications_twitch.ui.announcement.states.{status}", locale)]
 
     if duration:
-        line = ml("notifications_twitch.announcement.states.duration", locale)
+        line = ml("notifications_twitch.ui.announcement.states.duration", locale)
         parts.append(fill(line, duration=duration))
     return " | ".join(parts)
 
@@ -441,7 +441,7 @@ def create_stream_notification_embed(
         user_info.get("description"),
         stream_status(constants.NOTIFICATIONS_TWITCH_STREAM_STATUS_ONLINE, locale),
         picture,
-        copy="notifications_twitch.announcement",
+        copy="notifications_twitch.ui.announcement",
         locale=locale,
         fields={"game": stream_info.get("game_name"), "streamer": streamer},
         url=f"https://www.twitch.tv/{streamer}",
@@ -560,14 +560,16 @@ async def build_preview_embed(streamer: str, locale: str) -> Optional[discord.Em
 
     if not stream_info:
         stream_info = {
-            "title": ml("notifications_twitch.announcement.samples.title", locale),
-            "game_name": ml("notifications_twitch.announcement.samples.game", locale),
+            "title": ml("notifications_twitch.ui.announcement.samples.title", locale),
+            "game_name": ml(
+                "notifications_twitch.ui.announcement.samples.game", locale
+            ),
             "thumbnail_url": await last_stream_thumbnail(user_info),
         }
     described = {
         **user_info,
         "description": ml(
-            "notifications_twitch.announcement.samples.description", locale
+            "notifications_twitch.ui.announcement.samples.description", locale
         ),
     }
     return create_stream_notification_embed(streamer, stream_info, described, locale)

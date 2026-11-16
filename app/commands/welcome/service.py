@@ -539,7 +539,7 @@ class WelcomeMessagesFeature(GenericCogFeature):
             drawn = await generate_design_previews(
                 context.member,
                 designs,
-                title or ml("welcome_messages.messages.banner_title", context.locale),
+                title or ml("welcome_messages.ui.texts.banner_title", context.locale),
                 background or None,
             )
             return dict(drawn)

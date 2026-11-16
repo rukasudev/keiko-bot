@@ -48,8 +48,8 @@ class Stats(CopyBlock):
 
 @dataclass(frozen=True)
 class Figure:
-    """One figure of a feature's statistics: the `stats.figures` label it reads, its
-    emoji and its value."""
+    """One figure of a feature's statistics: the `command.stats.figures` label it
+    reads, its emoji and its value."""
 
     name: str
     emoji: str
@@ -79,12 +79,12 @@ def _ids_by_style(views: Any, style: str) -> List[str]:
 
 def feature_problems(spec: Command, views: Any, guild: Any, locale: str) -> List[str]:
     """What Keiko is missing for one feature, one line each."""
-    base = "messages.permissions"
+    base = "texts.permissions"
     me = guild.me
     problems: List[str] = []
 
     def name(permission: str) -> str:
-        return ml(f"messages.permission_names.{permission}", locale)
+        return ml(f"texts.permission_names.{permission}", locale)
 
     for permission in spec.server_permissions:
         if not getattr(me.guild_permissions, permission, False):
@@ -130,14 +130,14 @@ def health_line(
 ) -> str:
     """One feature's last days in a sentence: a problem first, then the deliveries it
     refused, then the ones it made, else a quiet line."""
-    base = "messages.recent"
+    base = "texts.recent"
     days = commands_constants.FEATURE_STATS_DAYS
     if problems:
         return problems[0]
     if refused:
         return fill(ml(f"{base}.refused_{_one_or_many(refused)}", locale), count=refused, days=days)
     if delivered:
-        stats = i18n.block(f"{spec.key}.stats", Stats)
+        stats = i18n.block(f"{spec.key}.command.stats", Stats)
         line = stats.delivered.for_count(delivered).get(parse_locale(locale))
         return fill(line, count=delivered, days=days)
     return fill(ml(f"{base}.quiet", locale), days=days)
@@ -180,7 +180,7 @@ async def send_feature_stats(
     )
     description = "\n\n".join(part for part in ("\n".join(lines), health) if part)
     embed = base_embed(
-        command_text(spec, "stats.title", locale),
+        command_text(spec, "command.stats.title", locale),
         description,
         footer=standard_footer(locale),
     )
@@ -189,15 +189,16 @@ async def send_feature_stats(
 
 def figure_lines(command_key: str, figures: Sequence[Figure], locale: str) -> List[str]:
     """The figures as a feature's statistics draw them, `emoji **label:** value` with
-    the label from its `stats.figures`, or its `stats.empty` alone while there is none."""
-    stats = i18n.block(f"{command_key}.stats", Stats)
+    the label from its `command.stats.figures`, or its `command.stats.empty` alone
+    while there is none."""
+    stats = i18n.block(f"{command_key}.command.stats", Stats)
     language = parse_locale(locale)
     if not figures:
         return [stats.empty.get(language)] if stats.empty else []
     lines = []
     for figure in figures:
         if figure.name not in stats.figures:
-            raise CopyError(f"{command_key}.stats.figures writes no {figure.name}")
+            raise CopyError(f"{command_key}.command.stats.figures writes no {figure.name}")
         label = stats.figures[figure.name].get(language)
         lines.append(f"{figure.emoji} **{label}:** {figure.value}")
     return lines

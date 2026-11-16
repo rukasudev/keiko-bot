@@ -48,7 +48,7 @@ async def test_the_roles_sync_of_a_server_without_the_feature_shows_its_real_tit
     assert embed.title == title
     assert "default_roles" not in embed.title and ".title" not in embed.title
     assert embed.color.value == int(Style.RED_COLOR, 16)
-    message = ml("default_roles.errors.deactivated.message", locale)
+    message = ml("default_roles.ui.errors.deactivated.message", locale)
     assert embed.description.startswith(f"{message}\n")
 
 
@@ -91,8 +91,8 @@ ERROR_KEYS = list(_error_keys())
 
 def test_the_scan_finds_the_error_keys_of_the_commands():
     found = {key for _where, key, _prefixed in ERROR_KEYS}
-    assert "default_roles.errors.deactivated" in found
-    assert "setup.errors.refused_" in found
+    assert "default_roles.ui.errors.deactivated" in found
+    assert "setup.ui.errors.refused_" in found
 
 
 @pytest.mark.parametrize("locale", LOCALES)
@@ -120,7 +120,7 @@ def _command_error_blocks():
 
     loaded = i18n.keys("en-us")
     for command in commands():
-        prefix = f"{command.key}.errors."
+        prefix = f"{command.key}.ui.errors."
         blocks = {key.rsplit(".", 1)[0] for key in loaded if key.startswith(prefix)}
         for block in sorted(blocks):
             yield block

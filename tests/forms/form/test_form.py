@@ -1048,7 +1048,7 @@ def test_a_preview_waits_for_the_keys_its_card_declares_it_needs():
 
     assert kinds(empty) == ["ShowError"]
     assert (empty.effects[0].key, empty.effects[0].plain) == (
-        "notifications_twitch.errors.preview_needs_streamer",
+        "notifications_twitch.ui.errors.preview_needs_streamer",
         True,
     )
     assert empty.session.answers == at_card.answers
@@ -1521,7 +1521,7 @@ def test_a_youtube_refusal_names_the_error_block_of_its_copy():
         {"youtube": {"channel_id": "UC1"}}, ({"youtuber": {"value": "ghost"}},)
     )
 
-    block = "notifications_youtube_video.errors.youtuber"
+    block = "notifications_youtube_video.ui.errors.youtuber"
     assert missing.effects[-1].key == f"{block}_not_found"
     assert taken.effects[-1].key == f"{block}_already_registered"
 

@@ -16,13 +16,13 @@ pytestmark = pytest.mark.unit
 
 LOCALES = ("en-us", "pt-br")
 ROW_KEYS = (
-    "setup.label",
-    "setup.description",
-    "stats.title",
-    "stats.delivered.one",
-    "stats.delivered.other",
-    "slash.subgroup",
-    "slash.name",
+    "command.setup.label",
+    "command.setup.description",
+    "command.stats.title",
+    "command.stats.delivered.one",
+    "command.stats.delivered.other",
+    "command.slash.subgroup",
+    "command.slash.name",
 )
 
 

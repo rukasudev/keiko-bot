@@ -1,7 +1,7 @@
 fallbacks:
   footer:
-    en-us: • Use the `/report` command to tell me a bug
-    pt-br: • Use o comando `/reportar` para me contar um bug
+    en-us: • Use the `{context:commands.report}` command to tell me a bug
+    pt-br: • Use o comando `{context:commands.report}` para me contar um bug
   review_description:
     en-us: Here's a summary of your choices so far. All set for me to turn on the `/{context:command}` command with the settings below? ✅
     pt-br: Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/{context:command}` com as configurações abaixo? ✅
@@ -51,8 +51,8 @@ texts:
     en-us: Streamer
     pt-br: Streamer
   support_footer:
-    en-us: If you need help, don't hesitate to call us on my official server with the `/support` command.
-    pt-br: Se precisar de ajuda, é só me chamar no meu servidor oficial com o comando `/suporte`.
+    en-us: If you need help, don't hesitate to call us on my official server with the `{context:commands.support}` command.
+    pt-br: Se precisar de ajuda, é só me chamar no meu servidor oficial com o comando `{context:commands.support}`.
   text_channel:
     en-us: Text Channel
     pt-br: Canal de Texto

@@ -14,7 +14,7 @@ steps:
     key: name
     title: {en-us: Name, pt-br: Nome}
     description: {en-us: type, pt-br: digite}
-    variants:
+    overrides:
       - when: {key: mode, is: a}
         en-us: Other
         pt-br: Outro

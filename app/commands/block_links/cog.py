@@ -12,16 +12,16 @@ from app.types.cogs import Cog, Group
 
 class Block(  # noqa: D101 - discord.py sends a Group's docstring as its description
     Group,
-    name=locale_str("block", type="subgroup", namespace="block_links.slash"),
+    name=locale_str("block", type="subgroup", namespace="block_links.command.slash"),
 ):
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
         super().__init__()
 
     @keiko_command(
-        name=locale_str("links", type="name", namespace="block_links.slash"),
+        name=locale_str("links", type="name", namespace="block_links.command.slash"),
         description=locale_str(
-            "desc", type="description", namespace="block_links.slash"
+            "desc", type="description", namespace="block_links.command.slash"
         ),
     )
     @keiko_admin_only
@@ -54,7 +54,7 @@ async def setup(bot: DiscordBot) -> None:
             name=locale_str(
                 "block-links-check",
                 type="context-menu",
-                namespace="block_links.slash.commands.check",
+                namespace="block_links.command.slash.commands.check",
             ),
             callback=check.validate_block_link,
             type=discord.AppCommandType.message,

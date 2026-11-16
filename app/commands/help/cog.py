@@ -9,7 +9,7 @@ from app.translator import locale_str
 from app.types.cogs import Cog
 
 
-class Help(Cog, name=locale_str("help", type="name", namespace="help.slash")):
+class Help(Cog, name=locale_str("help", type="name", namespace="help.command.slash")):
     """The /help slash command."""
 
     def __init__(self, bot: DiscordBot) -> None:
@@ -17,8 +17,10 @@ class Help(Cog, name=locale_str("help", type="name", namespace="help.slash")):
         super().__init__()
 
     @keiko_command(
-        name=locale_str("help", type="name", namespace="help.slash"),
-        description=locale_str("help", type="description", namespace="help.slash"),
+        name=locale_str("help", type="name", namespace="help.command.slash"),
+        description=locale_str(
+            "help", type="description", namespace="help.command.slash"
+        ),
     )
     async def help(self, interaction: discord.Interaction[DiscordBot]) -> None:
         """Open the command list."""

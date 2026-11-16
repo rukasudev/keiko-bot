@@ -28,7 +28,9 @@ from app.ui.embed import response_embed, response_error_embed
 class Birthday(
     Cog,
     name=locale_str(
-        "birthday", type="name", namespace="reminders_birthday.slash.commands.personal"
+        "birthday",
+        type="name",
+        namespace="reminders_birthday.command.slash.commands.personal",
     ),
 ):
     """The cog of /birthday and of the reminder reconciliation."""
@@ -75,32 +77,34 @@ class Birthday(
         name=locale_str(
             "birthday",
             type="name",
-            namespace="reminders_birthday.slash.commands.personal",
+            namespace="reminders_birthday.command.slash.commands.personal",
         ),
         description=locale_str(
             "desc",
             type="description",
-            namespace="reminders_birthday.slash.commands.personal",
+            namespace="reminders_birthday.command.slash.commands.personal",
         ),
     )
     @app_commands.rename(
         month=locale_str(
-            "month", type="params.month.name", namespace="reminders_birthday.slash"
+            "month",
+            type="params.month.name",
+            namespace="reminders_birthday.command.slash",
         ),
         day=locale_str(
-            "day", type="params.day.name", namespace="reminders_birthday.slash"
+            "day", type="params.day.name", namespace="reminders_birthday.command.slash"
         ),
     )
     @app_commands.describe(
         month=locale_str(
             "month-desc",
             type="params.month.description",
-            namespace="reminders_birthday.slash",
+            namespace="reminders_birthday.command.slash",
         ),
         day=locale_str(
             "day-desc",
             type="params.day.description",
-            namespace="reminders_birthday.slash",
+            namespace="reminders_birthday.command.slash",
         ),
     )
     @app_commands.choices(month=get_month_choices())
@@ -121,7 +125,7 @@ class Birthday(
         if not await birthdays_service.accepts_birthdays(guild_id):
             _refused("reminders-birthdays-disabled")
             embed = response_error_embed(
-                "reminders_birthday.errors.disabled", interaction.locale, footer=True
+                "reminders_birthday.ui.errors.disabled", interaction.locale, footer=True
             )
             await interaction.response.send_message(embed=embed, ephemeral=True)
             return
@@ -145,9 +149,11 @@ class Birthday(
         logger.info("🎂 birthday registered", log_type=logconstants.COMMAND_INFO_TYPE)
 
         embed = response_embed(
-            "reminders_birthday.responses.personal",
+            "reminders_birthday.ui.responses.personal",
             interaction.locale,
-            values={"date": format_mm_dd_label(date, interaction.locale)},
+            facts=birthdays_service.command_facts(
+                date=format_mm_dd_label(date, interaction.locale)
+            ),
             thumbnail=KeikoIcons.IMAGE_03,
         )
         await interaction.followup.send(embed=embed, ephemeral=True)
@@ -162,7 +168,7 @@ async def _ask_to_replace(
     if not birthdays_service.can_self_edit_birthday(existing):
         _refused("reminders-birthdays-self-edit-limit")
         embed = response_error_embed(
-            "reminders_birthday.errors.self_edit_limit",
+            "reminders_birthday.ui.errors.self_edit_limit",
             interaction.locale,
             footer=True,
         )
@@ -176,13 +182,13 @@ async def _ask_to_replace(
         else ""
     ) or "-"
     embed = response_embed(
-        "reminders_birthday.responses.overwrite_confirm",
+        "reminders_birthday.ui.responses.overwrite_confirm",
         interaction.locale,
         image=True,
-        values={
-            "current_date": current_date_text,
-            "new_date": format_mm_dd_label(date, interaction.locale),
-        },
+        facts=birthdays_service.command_facts(
+            current_date=current_date_text,
+            new_date=format_mm_dd_label(date, interaction.locale),
+        ),
     )
 
     async def confirm_overwrite(confirm_interaction: discord.Interaction) -> None:
@@ -196,9 +202,11 @@ async def _ask_to_replace(
         settle("replaced")
         logger.info("🎂 birthday replaced", log_type=logconstants.COMMAND_INFO_TYPE)
         response = response_embed(
-            "reminders_birthday.responses.overwrite",
+            "reminders_birthday.ui.responses.overwrite",
             interaction.locale,
-            values={"date": format_mm_dd_label(date, interaction.locale)},
+            facts=birthdays_service.command_facts(
+                date=format_mm_dd_label(date, interaction.locale)
+            ),
             thumbnail=KeikoIcons.IMAGE_03,
         )
         await confirm_interaction.response.edit_message(embed=response, view=None)

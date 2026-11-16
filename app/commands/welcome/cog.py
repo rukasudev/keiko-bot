@@ -11,16 +11,20 @@ from app.types.cogs import Group
 
 class Welcome(  # noqa: D101 - discord.py sends a Group's docstring as its description
     Group,
-    name=locale_str("welcome", type="subgroup", namespace="welcome_messages.slash"),
+    name=locale_str(
+        "welcome", type="subgroup", namespace="welcome_messages.command.slash"
+    ),
 ):
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
         super().__init__()
 
     @keiko_command(
-        name=locale_str("messages", type="name", namespace="welcome_messages.slash"),
+        name=locale_str(
+            "messages", type="name", namespace="welcome_messages.command.slash"
+        ),
         description=locale_str(
-            "messages", type="description", namespace="welcome_messages.slash"
+            "messages", type="description", namespace="welcome_messages.command.slash"
         ),
     )
     @keiko_admin_only

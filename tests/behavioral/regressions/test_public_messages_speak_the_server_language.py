@@ -97,7 +97,7 @@ async def twitch_live(deps, guild):
     channel, *notice = twitch_notice(guild)
     await announce_live(*notice)
     return channel.get_last_embed().fields[0].name, (
-        "notifications_twitch.announcement.fields.game"
+        "notifications_twitch.ui.announcement.fields.game"
     )
 
 
@@ -108,7 +108,7 @@ async def twitch_status(deps, guild):
     await announce_live(guild_data, notification, stream_info, user_info)
     await show_status(guild_data, notification, "gaules", "offline", "2h")
     return channel.get_last_embed().footer.text, (
-        "notifications_twitch.announcement.states.offline"
+        "notifications_twitch.ui.announcement.states.offline"
     )
 
 
@@ -129,7 +129,7 @@ async def youtube_video(deps, guild):
     }
     await deliver_video(announcement, {"guild_id": str(guild.id)}, notification)
     return channel.get_last_embed().fields[0].name, (
-        "notifications_youtube_video.announcement.fields.description"
+        "notifications_youtube_video.ui.announcement.fields.description"
     )
 
 
@@ -148,7 +148,7 @@ async def birthday(deps, guild):
     await celebrate_in_guild(
         str(guild.id), [{"user_id": "555", "date": "05-12"}], "05-12", Counter()
     )
-    return channel.get_last_embed().title, "reminders_birthday.announcement.defaults.title"
+    return channel.get_last_embed().title, "reminders_birthday.ui.announcement.defaults.title"
 
 
 async def stream_elements_reply(deps, guild):
@@ -158,7 +158,7 @@ async def stream_elements_reply(deps, guild):
     message = create_message(content="ks!mouse", author=member, channel=guild.text_channels[0])
     await check_message(str(guild.id), message, "ks!")
     embed = message._reply.await_args.kwargs["embed"]
-    return embed.footer.text, f"{STREAM_ELEMENTS}.messages.reply_footer"
+    return embed.footer.text, f"{STREAM_ELEMENTS}.ui.texts.reply_footer"
 
 
 async def stream_elements_list(deps, guild):
@@ -170,7 +170,7 @@ async def stream_elements_list(deps, guild):
     )
     await check_message(str(guild.id), message, "ks!")
     embed = message._reply.await_args.kwargs["embed"]
-    return embed.title, f"{STREAM_ELEMENTS}.records.commands.title"
+    return embed.title, f"{STREAM_ELEMENTS}.ui.records.commands.title"
 
 
 async def stream_elements_list_page(deps, guild):
@@ -182,14 +182,14 @@ async def stream_elements_list_page(deps, guild):
     )
     await check_message(str(guild.id), message, "ks!")
     footer = message._reply.await_args.kwargs["embed"].footer.text
-    return footer, "messages.page"
+    return footer, "texts.page"
 
 
 async def prefix_hint(deps, guild):
     from app.commands.help.service import prefix_hint as hint
 
     guild.cache.side_effect = lambda *args, **kwargs: {}
-    return await hint(deps.bot, guild), "help.messages.prefix_hint.guild"
+    return await hint(deps.bot, guild), "help.ui.texts.prefix_hint.guild"
 
 
 async def greeting(deps, guild):
@@ -197,7 +197,7 @@ async def greeting(deps, guild):
 
     guild.me = SimpleNamespace()
     await GreetingsView().send(guild)
-    return guild.text_channels[0].get_last_embed().title, "setup.responses.greeting.title"
+    return guild.text_channels[0].get_last_embed().title, "setup.ui.responses.greeting.title"
 
 
 SITES = [
@@ -237,7 +237,7 @@ def test_the_page_footer_follows_the_locale_its_view_was_built_with(language):
 
     footer = view.create_embed(view.get_current_page_data()).footer.text
 
-    assert footer == f"• {ml('messages.page', language)} 1 / 1"
+    assert footer == f"• {ml('texts.page', language)} 1 / 1"
 
 
 async def test_an_answer_only_the_clicker_sees_speaks_the_saved_language(

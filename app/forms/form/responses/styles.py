@@ -45,7 +45,7 @@ def _truthy(value: Any) -> bool:
 
 def format_boolean(value: Any, locale: str) -> str:
     """Yes or no in the locale's words."""
-    key = "messages.boolean.yes" if _truthy(value) else "messages.boolean.no"
+    key = "texts.boolean.yes" if _truthy(value) else "texts.boolean.no"
     return text(key, locale)
 
 
@@ -71,7 +71,7 @@ def format_single(value: Any, style: str | None, locale: str) -> str:
     if style == "boolean-mode":
         return format_boolean(value == "custom", locale)
     if value in ("default", "custom"):
-        return text(f"messages.modes.{value}", locale) or str(value)
+        return text(f"texts.modes.{value}", locale) or str(value)
     if style == "boolean":
         return format_boolean(value, locale)
     if style == "mm_dd":
@@ -103,7 +103,7 @@ def format_list(values: Sequence[Any], style: str | None) -> str:
 
 def empty_value(locale: str) -> str:
     """What a setting with nothing in it reads as, wherever it is shown."""
-    return text("messages.empty_value", locale) or "-"
+    return text("texts.empty_value", locale) or "-"
 
 
 def format_value(value: Any, style: str | None, locale: str) -> str:

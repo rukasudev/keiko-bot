@@ -246,7 +246,7 @@ def _closed_in_place(scenario):
         and (event.get("components_v2") or event.get("embed"))
     ]
     last = json.dumps(drawn[-1], ensure_ascii=False)
-    closed = ml("messages.notices.closed", locale=LOCALE)
+    closed = ml("texts.notices.closed", locale=LOCALE)
     return closed in last and '"actionrow"' not in last
 
 
@@ -396,7 +396,7 @@ async def test_an_edit_of_a_streamer_another_panel_removed_redraws_the_saved_lis
     await second.click("done")
 
     assert _streamers(deps) == ["gaules"]
-    assert _said(second, "messages.notices.stale")
+    assert _said(second, "texts.notices.stale")
     assert "cellbit" not in _last_screen(second) and "gaules" in _last_screen(second)
     told = _story_of(story, HELPER)
     assert not told.finished_at, "a refused change is not the end of the session"
@@ -460,7 +460,7 @@ async def test_a_link_removed_on_both_exceptions_screens_redraws_the_saved_list(
 
     assert _links(deps) == ["docs.example.org"]
     assert _never_showed_a_copy_key(second)
-    assert _said(second, "messages.notices.stale")
+    assert _said(second, "texts.notices.stale")
     assert "meusite.com.br" not in _last_screen(second)
     assert "docs.example.org" in _last_screen(second)
 
@@ -548,7 +548,7 @@ async def test_a_refusal_whose_new_read_fails_keeps_the_panel_answering(
     await second.click("done")
     del FEATURE.open
 
-    assert _said(second, "messages.notices.stale")
+    assert _said(second, "texts.notices.stale")
     await _add_streamer(second, "shroud")
     assert _streamers(deps) == ["gaules", "shroud"], "the panel never stays saving"
 
@@ -779,6 +779,6 @@ async def test_removing_several_links_after_another_panel_removed_one_saves_none
     await second.click("remove_items")
 
     assert _links(deps) == ["docs.example.org"]
-    assert _said(second, "messages.notices.stale")
+    assert _said(second, "texts.notices.stale")
     assert "meusite.com.br" not in _last_screen(second)
     assert "docs.example.org" in _last_screen(second)

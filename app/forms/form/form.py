@@ -13,6 +13,9 @@ from dataclasses import dataclass, replace
 from typing import Any, TypeVar
 
 from app.constants import KeikoIcons, Style
+from app.core.commands import GLOBAL
+from app.core.conditions import Scope, evaluate, explain, leaves
+from app.core.facts import facts
 from app.forms.form import events as ev
 from app.forms.form.actions import (
     Refusal,
@@ -33,8 +36,7 @@ from app.forms.form.components import (
     Picker,
     Screen,
 )
-from app.forms.form.conditions import Scope, evaluate, explain
-from app.forms.form.copy import text
+from app.forms.form.copy import block_texts, text
 from app.forms.form.effects import (
     Ack,
     Commit,
@@ -139,10 +141,8 @@ def steps_for(definition: FormDefinition, mode: Mode) -> tuple[Step, ...]:
 
 
 def _depends_on(step: Step, keys: set[str]) -> bool:
-    from app.forms.form.form_yaml import _leaves
-
     rule = step.when if isinstance(step, ContentStep) else None
-    return any(leaf.key in keys for leaf in _leaves(rule))
+    return any(leaf.key in keys for leaf in leaves(rule))
 
 
 class Engine(ABC):
@@ -705,7 +705,7 @@ def member_picker_screen(
             Picker(
                 "",
                 "user",
-                text("messages.placeholders.user", locale),
+                text("texts.placeholders.user", locale),
                 unique=not several,
                 slot="member",
                 action="member" if at_once else "draft",
@@ -716,24 +716,22 @@ def member_picker_screen(
     )
 
 
-def _removal_copy(names: Sequence[str], locale: str) -> tuple[str, str]:
-    copy = "commands.responses.remove"
-    if len(names) > 1:
-        copy = f"{copy}.variants.many"
-    listed = "\n".join(f"- {name}" for name in names)
-    message = text(f"{copy}.description", locale).replace("$items", listed)
-    return text(f"{copy}.title", locale), message
-
-
 def removal_screen(locale: str, names: Sequence[str], warning: str = "") -> Screen:
     """Remove the chosen items of a list, or go back; a `warning` asks to wait first."""
-    title, message = _removal_copy(names, locale)
-    if warning:
-        last = "commands.responses.remove.variants.last.title"
-        title, message = text(last, locale), warning
+    removing = "last" if warning else "many" if len(names) > 1 else "one"
+    copy = block_texts(
+        "commands.responses.remove",
+        facts(
+            GLOBAL,
+            removing=removing,
+            items="\n".join(f"- {name}" for name in names),
+            warning=warning,
+        ),
+        locale,
+    )
     return Screen(
-        title=title,
-        description=message,
+        title=copy["title"],
+        description=copy["description"],
         color=Style.RED_COLOR,
         buttons=(
             Button(label("remove", locale), "remove_items", "danger", "🗑️"),
@@ -847,7 +845,7 @@ def _pick(
         return
 
     base = panel_embed(engine.definition, engine.locale)
-    placeholder = text(f"messages.placeholders.{awaiting}", engine.locale)
+    placeholder = text(f"texts.placeholders.{awaiting}", engine.locale)
     engine.session = engine.session.with_status(Status.AWAITING, awaiting=awaiting)
     engine.effects.append(
         Render(picker_screen(base, placeholder, options, most, engine.locale, select))

@@ -202,7 +202,7 @@ steps:
             description:
               en-us: Content
               pt-br: Conteúdo
-        default: reminders_birthday.announcement.defaults
+        default: reminders_birthday.ui.announcement.defaults
     # open: state keys of the card -> a value or a text
     defaults:
       mention_everyone: false
@@ -430,7 +430,7 @@ steps:
                 description:
                   en-us: Content
                   pt-br: Conteúdo
-            default: reminders_birthday.announcement.defaults
+            default: reminders_birthday.ui.announcement.defaults
           - type: file_upload
             key: image
             emoji: 🖼️

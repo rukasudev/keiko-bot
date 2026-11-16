@@ -139,7 +139,7 @@ def build_daily_file(day: datetime) -> Tuple[Optional[discord.File], int]:
 def build_message(day: datetime, written: int, locale: str = ADMIN_LOCALE) -> str:
     """The admin channel has no user, so the bot's own locale is the one used."""
     return fill(
-        ml("messages.admin_logs.daily_export", locale),
+        ml("texts.admin_logs.daily_export", locale),
         date=day.strftime("%Y-%m-%d"),
         count=written,
     )
@@ -222,13 +222,13 @@ def build_month_message(
     """The month in one message: what it holds, and in how many files."""
     lines = [
         fill(
-            ml("messages.admin_logs.monthly_events", locale),
+            ml("texts.admin_logs.monthly_events", locale),
             month=month.strftime("%Y-%m"),
             count=sum(part.count for part in files),
         )
     ]
     if len(files) > 1:
-        lines.append(fill(ml("messages.admin_logs.files_parts", locale), files=len(files)))
+        lines.append(fill(ml("texts.admin_logs.files_parts", locale), files=len(files)))
     return "\n".join(lines)
 
 
@@ -378,7 +378,7 @@ def build_summary(
     counts = {name: count for part in files for name, count in part.counts.items()}
     lines = [
         fill(
-            ml("messages.admin_logs.daily_backup", locale),
+            ml("texts.admin_logs.daily_backup", locale),
             date=now.strftime("%Y-%m-%d"),
             collections=len(counts),
             documents=sum(counts.values()),
@@ -387,12 +387,12 @@ def build_summary(
 
     if len(files) > 1:
         lines.append(
-            fill(ml("messages.admin_logs.files_parts", locale), files=len(files))
+            fill(ml("texts.admin_logs.files_parts", locale), files=len(files))
         )
     if skipped:
         names = ", ".join(f"`{name}`" for name in skipped)
         lines.append(
-            fill(ml("messages.admin_logs.daily_backup_skipped", locale), collections=names)
+            fill(ml("texts.admin_logs.daily_backup_skipped", locale), collections=names)
         )
 
     return "\n".join(lines)

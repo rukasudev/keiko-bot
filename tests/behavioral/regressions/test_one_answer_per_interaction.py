@@ -153,7 +153,7 @@ async def test_a_click_that_arrived_during_the_lookup_is_answered_quietly(
     released.set()
     await asyncio.gather(submit, click)
 
-    stale = ml("messages.notices.stale", locale="pt-br")
+    stale = ml("texts.notices.stale", locale="pt-br")
     notices = [event for event in scenario.outputs if event.get("content") == stale]
     assert notices == [], "a click that arrived while loading gets no notice"
     scenario.expect_step("confirm")

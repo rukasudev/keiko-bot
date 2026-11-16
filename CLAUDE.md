@@ -20,14 +20,14 @@ make logs ARGS="errors --since 7d"         # the log reader in scripts/keiko/log
 make repair-birthdays                      # dry run of scripts/keiko/birthdays/repair.py; ARGS="--apply" writes
 make soak         # the memory soak, through scripts/keiko/soak.py
 make command name=x [form=yes]   # scaffold a command folder (docs/commands.md)
-make yaml-docs    # regenerate docs/yaml/index.html, the YAML reference
+make docs         # regenerate docs/index.html (every doc) and docs/yaml-reference.html
 make clean        # clean cache and venv
 ```
 
 Every YAML type (`form.yml`, `copy.yml`, `app/languages/*.yml`, `vocabulary.yml`,
-`catalog.yml`) is its own schema, registered in `YAML_TYPES` (`app/core/commands.py`),
-and is documented in `docs/yaml/index.html`, generated from those schemas: read it
-before writing a YAML key, and run `make yaml-docs` after changing a schema or a YAML
+`global.yml`, `catalog.yml`) is its own schema, registered in `YAML_TYPES` (`app/core/commands.py`),
+and is documented in `docs/yaml-reference.html`, generated from those schemas: read it
+before writing a YAML key, and run `make docs` after changing a schema or a YAML
 file (`docs/commands.md`, "The YAML reference"; code-style rule 27).
 
 ## Repo map
@@ -37,10 +37,14 @@ file (`docs/commands.md`, "The YAML reference"; code-style rule 27).
   commands and context menus (thin, they call the service), `service.py` its rule,
   `async manager(interaction)` and, at its end, `FEATURE`, its `FeatureModule`, when
   the generic save of a form is not enough; `copy.yml` its copy, a `CommandCopy`
-  shaped by the primitive that draws each text (`slash`, `setup`, `stats`, `panel`,
-  `announcement`, then `errors`, `responses`, `records`, `buttons`, `cards`,
-  `messages`; snake_case keys relative to the command, `$name` for a value the code
-  fills; the block per primitive in `docs/commands.md`) and, when it has a form,
+  of three groups in this order: `facts`, then `command` (`slash`, `setup`, `stats`,
+  `panel`: the fixed places Keiko's shared screens fill), then `ui` (`cards`, `texts`,
+  `records`, `responses`, `errors`, `buttons`, `announcement`: what the command draws
+  itself), each block read by one primitive and addressed as the file nests it
+  (`<key>.ui.responses.<name>`, `<key>.command.stats.title`); snake_case keys relative
+  to the command, `$name` for a fact the code
+  passes, declared in its `facts:` or in `app/core/global.yml`; the block per primitive
+  in `docs/commands.md`) and, when it has a form,
   `form.yml` its form, every text a `{en-us, pt-br}` node, both found by convention
   beside the package (no path to declare). The two
   files are the two halves of the document a command made from data will store.
@@ -55,12 +59,16 @@ file (`docs/commands.md`, "The YAML reference"; code-style rule 27).
   and attaches each command's subgroup under its `group`; `dispatch.py` runs the
   commands' hooks, reminders and webhooks; `events.py`, `errors.py`, `jobs.py` and
   `monitoring.py` are the shared listeners, error handlers, loops and metrics endpoint;
+  `conditions.py` is the `when` grammar, its evaluator and the `overrides` it picks
+  (pure, read by the form engine and the copy primitives alike); `facts.py` and
+  `global.yml` are the facts and the context (`global.facts.<name>`,
+  `{context:<name>}`: below, "User-facing text");
   then `cache.py` (Redis, `read_cog_data`), `i18n.py` (the copy loader),
   `analytics.py`, `analytics_writer.py`, `trace.py`, `journey.py`, `servers.py`,
   `cogs.py`, `dates.py`, `calendar.py`, `members.py`, `utils.py` (`ml(key, locale)`)...
 - `app/forms/` — the form engine. `form/` is the engine: what a form YAML may declare
-  (`form_yaml.py`), the frozen session (`form_state.py`), events, effects, the `when`
-  evaluator (`conditions.py`), the screen model (`components.py`), what each click does
+  (`form_yaml.py`), the frozen session (`form_state.py`), events, effects, the screen
+  model (`components.py`), what each click does
   (`form.py`), the manager (`manager.py`), one file per YAML action (`actions/`) and
   everything about one response (`responses/`). `features/` holds the `FeatureModule`
   contract, `GenericCogFeature` and the shared subscription base of Twitch and YouTube.
@@ -81,9 +89,9 @@ file (`docs/commands.md`, "The YAML reference"; code-style rule 27).
   the runner and its CLI (`python -m app.migrations status|migrate [--dry-run]|verify|snapshot`).
   Where data lives: `docs/data-model.md`; how a migration is written and run:
   `docs/migrations.md`.
-- `app/languages/{buttons,commands,errors,messages,locales}.yml` — the shared copy
+- `app/languages/{buttons,commands,errors,texts,locales}.yml` — the shared copy
   only (generic buttons, `commands.responses.*`, `commands.records.*`, shared errors
-  and messages; the standard `/report` footer is `fallbacks.footer` of
+  and texts; the standard `/report` footer is `fallbacks.footer` of
   `app/forms/vocabulary.yml`), each file on its own schema and
   each text a `{en-us, pt-br}` node under the file's namespace; a command's own copy
   is its `copy.yml`. A text missing a locale, a key defined twice, a YAML anchor and a
@@ -109,7 +117,8 @@ fields, the hooks, where its data goes, and the two commands to copy from.
 ## Before planning or writing code
 
 - An agent starting a change reads `docs/agent-guide.md` first: what to read for each kind
-  of change, where things live, the gate.
+  of change, where things live, the gate. `docs/index.html` lists every doc by group; a
+  new doc goes in `GROUPS` (`scripts/keiko/yamldoc/index.py`), then `make docs`.
 - Investigate first. Trace the real execution path of the command you are touching and
   search for existing capabilities (actions, components, validators, transforms, formatters,
   services, localization keys) before proposing anything new. Never claim something doesn't
@@ -165,5 +174,15 @@ modals, buttons, errors, notifications, placeholders, footers), read
 `.claude/skills/keiko-writing-style/SKILL.md` — it is the source of truth for Keiko's
 personality, writing style, localization, and UI conventions. Every string must exist in
 both `en-us` and `pt-br`; never hardcode user-facing text in Python; write a value the
-code fills as `$name`, in the copy block of the primitive that draws it; reuse existing
-generic button labels and `commands.responses.*` state messages before creating new keys.
+code fills as `$name`, in the copy block of the primitive that draws it, and declare it
+as a fact; reuse existing generic button labels and `commands.responses.*` state
+messages before creating new keys.
+
+A text that changes with the state is written in the YAML, never picked in code: the
+block keeps its default fields and an `overrides` list, each item a `when` rule (the
+forms' grammar, on facts addressed `<owner>.facts.<name>`) and the fields it replaces;
+the first item whose rule holds wins. The code passes facts (its command's
+`command_facts(...)`, or `facts(GLOBAL, ...)` in a shared layer), never a variant name.
+A slash command or a parent group named in a text is `{context:commands.<key>}` or
+`{context:groups.<group>}`, never typed in (`docs/commands.md`, "Overrides and facts";
+code-style rule 28).

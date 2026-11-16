@@ -277,7 +277,7 @@ def create_video_notification_embed(
         video_info.get("title"),
         description.split("\n")[0],
         image=(video_thumbnail or {}).get("url") or None,
-        copy="notifications_youtube_video.announcement",
+        copy="notifications_youtube_video.ui.announcement",
         locale=locale,
         fields={
             "description": (video_info.get("description") or "").split("\n")[0],
@@ -329,9 +329,11 @@ async def build_preview_embed(youtuber: str, locale: str) -> Optional[discord.Em
         return None
 
     video_info = {
-        "title": ml("notifications_youtube_video.announcement.samples.title", locale),
+        "title": ml(
+            "notifications_youtube_video.ui.announcement.samples.title", locale
+        ),
         "description": ml(
-            "notifications_youtube_video.announcement.samples.description", locale
+            "notifications_youtube_video.ui.announcement.samples.description", locale
         ),
         "thumbnails": (latest or {}).get("thumbnails") or {},
     }

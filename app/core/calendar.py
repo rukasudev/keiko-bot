@@ -135,9 +135,9 @@ def mm_dd_label(value: str, copy: Callable[[str], str]) -> str:
     except (TypeError, ValueError, IndexError):
         return value
     key = month_key(month)
-    label = copy(f"messages.months.{key}") if key else None
+    label = copy(f"texts.months.{key}") if key else None
     if not label:
         return value
-    return Template(copy("messages.date_label")).safe_substitute(
+    return Template(copy("texts.date_label")).safe_substitute(
         month_name=label, month_lower=label.lower(), day=day
     )

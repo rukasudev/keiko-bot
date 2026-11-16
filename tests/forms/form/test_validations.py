@@ -35,14 +35,14 @@ def test_a_name_the_declared_service_cannot_find_is_refused():
 
 
 def test_a_prefix_that_names_a_command_block_is_refused_in_snake_case():
-    params = {**YOUTUBE, "error": "notifications_youtube_video.errors.youtuber"}
+    params = {**YOUTUBE, "error": "notifications_youtube_video.ui.errors.youtuber"}
     saved = [{"youtuber": {"value": "PewDiePie"}}]
 
     assert _registered("pewdiepie", items=saved, params=params) == (
-        "notifications_youtube_video.errors.youtuber_already_registered"
+        "notifications_youtube_video.ui.errors.youtuber_already_registered"
     )
     assert _registered("ghost", external={"youtube": {}}, params=params) == (
-        "notifications_youtube_video.errors.youtuber_not_found"
+        "notifications_youtube_video.ui.errors.youtuber_not_found"
     )
 
 

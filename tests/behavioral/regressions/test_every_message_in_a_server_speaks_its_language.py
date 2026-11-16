@@ -85,7 +85,7 @@ async def test_a_panel_and_its_side_actions_speak_the_servers_language(
 
     await scenario.click(ml("buttons.stats.label", server))
     stats = scenario.expect_message(
-        title_contains=ml("default_roles.stats.title", server)
+        title_contains=ml("default_roles.command.stats.title", server)
     )
     await scenario.click(ml("buttons.help.label", server))
     help_screen = scenario.expect_message(title_contains=ml("buttons.help.label", server))
@@ -223,7 +223,7 @@ async def test_a_translation_goes_into_the_readers_language_told_in_the_servers(
 
     assert asked == [reader]
     title = interaction.get_last_response()["embed"].title
-    assert title == ml("translate.responses.translation.title", server)
+    assert title == ml("translate.ui.responses.translation.title", server)
 
 
 def _member_interaction(deps, server):

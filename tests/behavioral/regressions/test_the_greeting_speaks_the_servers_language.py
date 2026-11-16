@@ -68,7 +68,7 @@ async def test_the_greeting_is_sent_in_the_servers_language(deps, preferred_loca
     await GreetingsView().send(guild)
 
     sent = channel.send.await_args.kwargs
-    assert sent["embed"].title == ml("setup.responses.greeting.title", locale)
+    assert sent["embed"].title == ml("setup.ui.responses.greeting.title", locale)
     assert f"\n{GREETING[locale]['category']}\n" in sent["embed"].description
     view = sent["view"]
     buttons = [item for item in view.children if isinstance(item, discord.ui.Button)]

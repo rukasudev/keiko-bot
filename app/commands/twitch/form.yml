@@ -49,7 +49,7 @@ steps:
         preview:
           required:
             all: [streamer]
-          error: notifications_twitch.errors.preview_needs_streamer
+          error: notifications_twitch.ui.errors.preview_needs_streamer
         required:
           all: [channel, streamer]
         fields:

@@ -10,7 +10,9 @@ from app.translator import locale_str
 from app.types.cogs import Cog
 
 
-class Setup(Cog, name=locale_str("setup", type="name", namespace="setup.slash")):
+class Setup(
+    Cog, name=locale_str("setup", type="name", namespace="setup.command.slash")
+):
     """The cog of /setup."""
 
     def __init__(self, bot: DiscordBot) -> None:
@@ -18,8 +20,10 @@ class Setup(Cog, name=locale_str("setup", type="name", namespace="setup.slash"))
         super().__init__()
 
     @keiko_command(
-        name=locale_str("setup", type="name", namespace="setup.slash"),
-        description=locale_str("setup", type="description", namespace="setup.slash"),
+        name=locale_str("setup", type="name", namespace="setup.command.slash"),
+        description=locale_str(
+            "setup", type="description", namespace="setup.command.slash"
+        ),
     )
     @discord.app_commands.default_permissions(administrator=True)
     async def setup(self, interaction: discord.Interaction) -> None:

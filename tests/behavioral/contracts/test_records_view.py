@@ -15,17 +15,18 @@ from tests.helpers.copy import checked_copy  # noqa: F401
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
 
-FILTERED = "block_links.records.blocked_list"
+FILTERED = "block_links.ui.records.blocked_list"
 LISTS = """\
-records:
-  listed:
-    title: {en-us: Records, pt-br: Registros}
-    description: {en-us: Everything that happened, pt-br: Tudo que aconteceu}
-  quiet:
-    title: {en-us: Records, pt-br: Registros}
-    empty: {en-us: Nothing here yet!, pt-br: Nada por aqui ainda!}
-  bare:
-    title: {en-us: Anything, pt-br: Qualquer coisa}
+ui:
+  records:
+    listed:
+      title: {en-us: Records, pt-br: Registros}
+      description: {en-us: Everything that happened, pt-br: Tudo que aconteceu}
+    quiet:
+      title: {en-us: Records, pt-br: Registros}
+      empty: {en-us: Nothing here yet!, pt-br: Nada por aqui ainda!}
+    bare:
+      title: {en-us: Anything, pt-br: Qualquer coisa}
 """
 
 
@@ -46,7 +47,7 @@ def _browser(**overrides) -> RecordsBrowser:
     config = dict(
         fetch=lambda i, uid: [{"name": f"record-{n}"} for n in range(1, 7)],
         to_fields=lambda records, i: {r["name"]: "details" for r in records},
-        copy="lists.records.listed",
+        copy="lists.ui.records.listed",
     )
     config.update(overrides)
     listed = config["fetch"]
@@ -97,7 +98,7 @@ async def test_no_records_without_empty_copy_still_sends_the_pagination(
 async def test_empty_state_replaces_the_pagination_when_copy_is_provided(
         lists, scenario_factory):
     scenario = scenario_factory(locale="pt-br")
-    await _browser(fetch=lambda i, uid: [], copy="lists.records.quiet").send(
+    await _browser(fetch=lambda i, uid: [], copy="lists.ui.records.quiet").send(
         scenario._mint()
     )
 
@@ -163,7 +164,7 @@ async def test_a_consumer_needs_nothing_command_shaped(lists, scenario_factory):
     browser = RecordsBrowser(
         fetch=fetch,
         to_fields=lambda records, i: {r["name"]: "value" for r in records},
-        copy="lists.records.bare",
+        copy="lists.ui.records.bare",
     )
     await browser.send(scenario._mint())
 

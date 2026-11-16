@@ -11,6 +11,7 @@ from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
 from app.core import analytics, cache, members
 from app.core.commands import MemberJoined
+from app.core.facts import Facts, facts
 from app.core.members import every_member
 from app.core.utils import at_least, ensure_list, get_available_roles_by_guild
 from app.exceptions import ErrorContext
@@ -28,6 +29,11 @@ from app.forms.form.responses.styles import empty_value
 from app.ui.embed import response_embed, response_error_embed
 
 SavedRoles = Union[List[str], str, None]
+
+
+def command_facts(**values: Any) -> Facts:
+    """The facts this command's code passes its copy, each under its address."""
+    return facts("default_roles", **values)
 
 
 @dataclass(frozen=True)
@@ -91,11 +97,11 @@ async def set_on_default_roles_sync(interaction: discord.Interaction) -> None:
     cogs = await cache.read_cog_data(guild.id, "default_roles")
 
     if not cogs:
-        embed = response_error_embed("default_roles.errors.deactivated", locale)
+        embed = response_error_embed("default_roles.ui.errors.deactivated", locale)
         await interaction.followup.send(embed=embed, ephemeral=True)
         return
 
-    embed = response_embed("default_roles.responses.syncing", locale, image=True)
+    embed = response_embed("default_roles.ui.responses.syncing", locale, image=True)
     message = await interaction.followup.send(embed=embed, ephemeral=True, wait=True)
 
     context = ErrorContext.from_interaction(
@@ -108,10 +114,10 @@ async def set_on_default_roles_sync(interaction: discord.Interaction) -> None:
         given = await set_default_roles(cogs, guild, every_member(guild))
 
         embed = response_embed(
-            "default_roles.responses.synced",
+            "default_roles.ui.responses.synced",
             locale,
             image=True,
-            values={"members": given.members, "bots": given.bots},
+            facts=command_facts(members=given.members, bots=given.bots),
         )
         await message.edit(embed=embed)
     except Exception as error:
@@ -265,14 +271,15 @@ def get_not_available_roles(
     if not not_available_roles:
         return ""
 
-    values = {"roles": ", ".join(not_available_roles)}
-    return FEATURE.panel_info_copy(locale, values=values)[1]
+    roles = ", ".join(not_available_roles)
+    return FEATURE.panel_info_copy(locale, command_facts(roles=roles))[1]
 
 
 class DefaultRolesFeature(GenericCogFeature):
     """Roles for new members and bots, with a sync button on the panel."""
 
     panel_asides = {"sync": "🔄"}
+    fills_panel_info = True
 
     def __init__(self) -> None:
         super().__init__("default_roles")
@@ -284,7 +291,7 @@ class DefaultRolesFeature(GenericCogFeature):
 
         if opened.document is None:
             if not available:
-                return Opened(refusal="default_roles.errors.low_permissions")
+                return Opened(refusal="default_roles.ui.errors.low_permissions")
             return replace(
                 opened, values=await _server_totals(context.guild, context.locale)
             )
@@ -327,7 +334,7 @@ class DefaultRolesFeature(GenericCogFeature):
                 sync,
                 defer=True,
                 cooldown=view_constants.SYNC_COOLDOWN_SECONDS,
-                confirm="default_roles.responses.sync_confirm",
+                confirm="default_roles.ui.responses.sync_confirm",
                 confirm_values=_roles_of,
             ),
         }

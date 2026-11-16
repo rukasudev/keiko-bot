@@ -110,6 +110,15 @@ def test_a_key_declared_twice_is_refused(declare):
         commands()
 
 
+def test_no_command_is_keyed_global(declare):
+    """`global` owns the facts and the context every command shares, so a command
+    under that key would read as the catalog."""
+    declare(Command("global"))
+
+    with pytest.raises(ValueError, match="no command is keyed 'global'"):
+        commands()
+
+
 def test_a_reminder_title_owned_by_two_commands_is_refused(declare):
     declare(
         Command("first", reminders={"renewal": lambda _reminder: None}),

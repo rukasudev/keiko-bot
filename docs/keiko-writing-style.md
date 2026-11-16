@@ -2,7 +2,7 @@
 
 A reusable writing/style system extracted from the existing Keiko Discord bot codebase. Use it whenever you write or edit user-facing text — slash command descriptions, embeds, modals, buttons, forms, error/success messages, and notification copy.
 
-All user-facing strings live in YAML and are routed through `ml(key, locale)` (`app/core/utils.py`), loaded by `app/core/i18n.py`: a command's own copy in `app/commands/<command>/copy.yml` (snake_case keys relative to the command, loaded under its key, each text in the block of the primitive that draws it: `docs/commands.md`), the shared copy (buttons, shared responses and lists, generic messages and errors) in `app/languages/*.yml`; every text is one node with its `en-us` and its `pt-br`, and every file is read against its schema (`docs/yaml/index.html`). Embed and button construction is centralized in `app/ui/embed.py` and `app/ui/buttons.py`; the form screens, modals and cards are drawn by `app/forms/discord/views.py` from each command's `form.yml`, beside its `copy.yml`; the two files are the two halves of the document a command made from data will store.
+All user-facing strings live in YAML and are routed through `ml(key, locale)` (`app/core/utils.py`), loaded by `app/core/i18n.py`: a command's own copy in `app/commands/<command>/copy.yml` (snake_case keys relative to the command, loaded under its key, each text in the block of the primitive that draws it: `docs/commands.md`), the shared copy (buttons, shared responses and lists, generic texts and errors) in `app/languages/*.yml`; every text is one node with its `en-us` and its `pt-br`, and every file is read against its schema (`docs/yaml-reference.html`). Embed and button construction is centralized in `app/ui/embed.py` and `app/ui/buttons.py`; the form screens, modals and cards are drawn by `app/forms/discord/views.py` from each command's `form.yml`, beside its `copy.yml`; the two files are the two halves of the document a command made from data will store.
 
 ---
 
@@ -62,7 +62,7 @@ Keiko is a friendly, loyal dog companion. Two voices coexist depending on **wher
 | Edit, Pause, Preview, Help, Disable, Add, Remove, History, Sync | `ButtonStyle.gray` / `grey` | `buttons.py:108,134,268` |
 | Form back button | `ButtonStyle.secondary` | `buttons.py:253` |
 
-Button labels live in `app/languages/buttons.yml` under generic keys (`confirm`, `cancel`, `edit`, `add`, `remove`, `preview`, `back`, `pause`, `unpause`, `select`, `choose`, `history`, `done`), each a `label` and, for a button the Help screen lists, a `description`. UI-component-specific copy (e.g., select placeholders) lives in `app/languages/messages.yml` under `placeholders.*`.
+Button labels live in `app/languages/buttons.yml` under generic keys (`confirm`, `cancel`, `edit`, `add`, `remove`, `preview`, `back`, `pause`, `unpause`, `select`, `choose`, `history`, `done`), each a `label` and, for a button the Help screen lists, a `description`. UI-component-specific copy (e.g., select placeholders) lives in `app/languages/texts.yml` under `placeholders.*`.
 
 ### Modals
 Drawn by `app/forms/discord/views.py` from the step or section definition.
@@ -74,7 +74,7 @@ Drawn by `app/forms/discord/views.py` from the step or section definition.
 - The lifecycle confirmation modal (pause, unpause, disable) asks the user to type the action verb back.
 
 ### Forms (YAML schema)
-Each step has: `type`, `key`, `title.{en-us,pt-br}`, `description.{en-us,pt-br}`, and `footer` only to replace the standard one (or `footer: null` for none). A text of the shared vocabulary (`texts` in `app/forms/vocabulary.yml`) is named with `{ref: name}`; no YAML anchors or aliases. Step types: `intro`, `text`, `single_choice`, `card`, `list`, `review`; every key a form may write is in `docs/yaml/index.html`.
+Each step has: `type`, `key`, `title.{en-us,pt-br}`, `description.{en-us,pt-br}`, and `footer` only to replace the standard one (or `footer: null` for none). A text of the shared vocabulary (`texts` in `app/forms/vocabulary.yml`) is named with `{ref: name}`; no YAML anchors or aliases. Step types: `intro`, `text`, `single_choice`, `card`, `list`, `review`; every key a form may write is in `docs/yaml-reference.html`.
 
 - Every form **starts** with a `type: intro` intro step (title + emoji + 1-sentence description).
 - Every form **ends** with `type: review`, the summary: titled like the intro (the feature's emoji and name), its description naming the command it turns on with `{context:command}`, closed by its green **Confirm** / **Confirmar** button. The title and the summary sentence are the engine's defaults, so the step writes neither.
@@ -95,7 +95,7 @@ Each step has: `type`, `key`, `title.{en-us,pt-br}`, `description.{en-us,pt-br}`
 ### Instructions
 - Address the user directly (`"Choose which channel..."`, `"Use the buttons below..."`).
 - When introducing variables, list them last with bullets and inline-code keys: `` "- `{user}`: User mention" ``.
-- Always backtick slash-command names: `` `/help` ``, `` `/setup` ``, `` `/report` ``, `` `/support` ``.
+- Always backtick slash-command names, written as their context entry so the loader writes in the localized name: `` `{context:commands.help}` `` reads `` `/help` `` or `` `/ajuda` ``, and so `` `{context:commands.setup}` ``, `` `{context:commands.report}` ``, `` `{context:commands.support}` ``.
 
 ### Feedback / state changes
 - Use the `commands.responses.{enabled,paused,unpaused,disabled}` keys; never invent new state-change copy.
@@ -207,7 +207,7 @@ responses:
       pt-br: {frase em 1ª pessoa terminando com emoji ou ., $value onde o código preenche}
     footer: {ref: support_footer}
 ```
-Render via `response_embed("{command-key}.responses.{response_name}", locale, image=True, values={...})`. Without `footer` the embed closes with the standard `/report` line; `footer: null` draws none; a text (here the shared `support_footer` of `app/forms/vocabulary.yml`) draws that text.
+Render via `response_embed("{command-key}.responses.{response_name}", locale, image=True, facts=command_facts(...))`. Without `footer` the embed closes with the standard `/report` line; `footer: null` draws none; a text (here the shared `support_footer` of `app/forms/vocabulary.yml`) draws that text.
 
 ### 3.3 Error message (YAML)
 ```yaml
@@ -291,14 +291,14 @@ The summary reads the intro's title, and the summary sentence (`fallbacks.review
 
 **Formatting**
 13. ALWAYS bold `**Keiko**` and `**$command_name**` when referenced inline.
-14. ALWAYS backtick slash commands: `` `/setup` ``, `` `/report` ``, `` `/support` ``.
+14. ALWAYS backtick slash commands, as their context entry: `` `{context:commands.setup}` ``, `` `{context:commands.report}` ``, `` `{context:commands.support}` ``.
 15. ALWAYS prefix footer text with `"• "`.
 16. NEVER use `•` as inline bullets in body copy — use `-` or numbered lists.
 17. USE `\n\n` between paragraphs, `\n- ` to start a list item inside a string.
 
 **Variables**
 18. USE `{user}`, `{server}`, `{member_count}`, `{streamer}`, `{stream_link}`, `{youtuber}`, `{video_link}` for user-customized message templates (welcome, notification messages).
-19. USE `$user`, `$command_name`, `$date`, `$cog_name`, `$cog_key`, `$ping`, `$action`, `$roles` for every value the code fills in copy; a line that points to another command writes its localized name literally (`/setup`, `/configurar`).
+19. USE `$user`, `$command_name`, `$date`, `$cog_name`, `$cog_key`, `$ping`, `$action`, `$roles` for every value the code fills in copy, each a declared fact (the command's `facts:` or `app/core/global.yml`); a line that points to another command writes its context entry (`{context:commands.setup}` reads `/setup` or `/configurar`).
 20. NEVER write a code-filled value as `{name}` in copy: the loader refuses it, and braces stay for the templates an admin writes (and Keiko's own defaults of them, `announcement.defaults`).
 
 **Localization**

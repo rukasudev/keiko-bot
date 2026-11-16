@@ -367,7 +367,7 @@ class Executor:
     async def notice(self, key: str) -> None:
         """A short self-deleting note, for a click that changed nothing."""
         await self._send(
-            content=text(f"messages.notices.{key}", self.locale),
+            content=text(f"texts.notices.{key}", self.locale),
             delete_after=view_constants.ACTION_NOTICE_SECONDS,
         )
 
@@ -500,7 +500,7 @@ async def release(surface: Surface, answering: Answering) -> None:
 
 def closed_payload(surface: Surface, key: str, locale: str) -> dict[str, Any]:
     """The message as it looks once its session closed: no controls, its notice."""
-    notice = text(f"messages.notices.{key}", locale)
+    notice = text(f"texts.notices.{key}", locale)
     if surface.is_layout and surface.view is not None:
         view = views.finalized_layout(surface.view)
         container = cast(Any, view.children[0]) if view.children else None

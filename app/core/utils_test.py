@@ -824,9 +824,9 @@ class TestLocaleCopyAgreesWithThePlatform:
         assert parse_locale(locale) == normalize_locale(locale)
 
     @pytest.mark.parametrize("key", [
-        "messages.notices.closed",
-        "messages.admin_logs.daily_export",
-        "messages.no-such-key",
+        "texts.notices.closed",
+        "texts.admin_logs.daily_export",
+        "texts.no-such-key",
     ])
     @pytest.mark.parametrize("locale", ["en-us", "pt-br", "pt", "fr"])
     def test_ml_reads_a_key_the_way_the_platform_does(self, key, locale):

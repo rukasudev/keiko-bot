@@ -106,6 +106,7 @@ class Model:
     description: str
     fields: tuple[Field, ...]
     closed: bool
+    in_order: bool = False
 
     def field(self, name: str) -> Field | None:
         """The field the YAML key `name` writes, None when the model has none."""
@@ -113,12 +114,13 @@ class Model:
 
     def position(self, name: str, first: str = "") -> tuple[int, int]:
         """Where the key `name` belongs: the key `first` names (a kind's tag) before
-        all, then the closed keys in schema order, then the open ones."""
+        all, then the closed keys in schema order, then the open ones; a model
+        `in_order` keeps every key in schema order."""
         if name == first:
             return (-1, 0)
         for index, field in enumerate(self.fields):
             if field.name == name:
-                return (int(field.shape.opens()), index)
+                return (0 if self.in_order else int(field.shape.opens()), index)
         return (1, len(self.fields))
 
     def ordered(self, first: str = "") -> tuple[Field, ...]:
@@ -346,6 +348,7 @@ class _Builder:
             description=str(node.get("description", "")),
             fields=tuple(fields),
             closed=node.get("additionalProperties") is False,
+            in_order=node.get("in_order") is True,
         )
         self._building.discard(name)
         return Shape("model", name=name)

@@ -5,8 +5,8 @@ responses:
       en-us: ⚠️ Admin Only
       pt-br: ⚠️ Apenas Admins
     description:
-      en-us: "Sorry, commands like `/moderations` and `/notifications` need admin permissions! 🔧\n\nAsk a server admin to set them up. They can also use `/setup` to manage everything in one place ✨"
-      pt-br: "Desculpe, comandos como `/moderações` e `/notificações` precisam de permissão de admin! 🔧\n\nPeça para um admin do servidor configurar. Ele também pode usar `/configurar` para gerenciar tudo em um só lugar ✨"
+      en-us: "Sorry, commands like `{context:groups.moderations}` and `{context:groups.notifications}` need admin permissions! 🔧\n\nAsk a server admin to set them up. They can also use `{context:commands.setup}` to manage everything in one place ✨"
+      pt-br: "Desculpe, comandos como `{context:groups.moderations}` e `{context:groups.notifications}` precisam de permissão de admin! 🔧\n\nPeça para um admin do servidor configurar. Ele também pode usar `{context:commands.setup}` para gerenciar tudo em um só lugar ✨"
     footer: null
   cooldown:
     title:
@@ -29,8 +29,8 @@ responses:
       en-us: 🎉 Command enabled successfully!
       pt-br: 🎉 Funcionalidade ativada com sucesso!
     description:
-      en-us: "Command **$command_name** enabled on $date by $user 🚀\n\n To make changes or disable it, use the command `/$command_name` or `/setup` 🔄"
-      pt-br: "Comando **$command_name** ativado as $date por $user 🚀\n\n Para fazer alterações ou desativar, use o comando `/$command_name` ou `/configurar` 🔄"
+      en-us: "Command **$command_name** enabled on $date by $user 🚀\n\n To make changes or disable it, use the command `/$command_name` or `{context:commands.setup}` 🔄"
+      pt-br: "Comando **$command_name** ativado as $date por $user 🚀\n\n Para fazer alterações ou desativar, use o comando `/$command_name` ou `{context:commands.setup}` 🔄"
   paused:
     title:
       en-us: ⏸️ Command paused successfully!
@@ -81,19 +81,25 @@ responses:
       en-us: "$items\n\nIf I remove it, it leaves the list right away. You can add it again later, just ask me!"
       pt-br: "$items\n\nSe eu remover, ele sai da lista na hora. Você pode adicionar de novo depois, é só me pedir!"
     footer: null
-    # open: the removal asked -> a title or a description
-    variants:
-      many:
+    overrides:
+      - when:
+          key: global.facts.removing
+          is: many
         title:
           en-us: 🗑️ Remove these items?
           pt-br: 🗑️ Remover estes itens?
         description:
           en-us: "$items\n\nIf I remove them, they leave the list right away. You can add them again later, just ask me!"
           pt-br: "$items\n\nSe eu remover, eles saem da lista na hora. Você pode adicionar de novo depois, é só me pedir!"
-      last:
+      - when:
+          key: global.facts.removing
+          is: last
         title:
           en-us: ⚠️ Hey, wait! Read this first
           pt-br: ⚠️ Ei, espere! Leia abaixo primeiro
+        description:
+          en-us: $warning
+          pt-br: $warning
   discard:
     title:
       en-us: 🚨 Discard Settings?

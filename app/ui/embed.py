@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any
 
 import discord
@@ -12,8 +13,38 @@ from app.constants import KeikoIcons as icons
 from app.constants import Style as constants
 from app.core import i18n
 from app.core.commands import Open, Text
-from app.core.i18n import CopyBlock, CopyError, CopyText, Variant
-from app.core.utils import fill, ml, parse_locale
+from app.core.conditions import Override
+from app.core.facts import Facts
+from app.core.i18n import CopyBlock, CopyError, CopyText
+from app.core.utils import fill, parse_locale
+
+
+class FieldOverride(Override):
+    """The value a stacked field draws while a rule holds, in place of its own."""
+
+    value: CopyText | None = Field(
+        None,
+        description="The value drawn while the rule holds; `$name` marks a fact the "
+        "code passes.",
+        json_schema_extra={"role": "copy"},
+    )
+
+
+class ResponseOverride(Override):
+    """What a response draws while a rule holds, in place of its own title or
+    description."""
+
+    title: CopyText | None = Field(
+        None,
+        description="The title drawn while the rule holds; absent keeps the block's.",
+        json_schema_extra={"role": "copy"},
+    )
+    description: CopyText | None = Field(
+        None,
+        description="The description drawn while the rule holds; absent keeps the "
+        "block's.",
+        json_schema_extra={"role": "copy"},
+    )
 
 
 class ResponseField(CopyBlock):
@@ -36,6 +67,13 @@ class ResponseField(CopyBlock):
         description="The value drawn while the code has none to give (a /report "
         "ticket without attachments); absent, such a field is left out.",
         json_schema_extra={"role": "copy"},
+    )
+    overrides: tuple[FieldOverride, ...] = Field(
+        (),
+        description="The value drawn while a rule on the facts holds, the first item "
+        "whose rule holds winning (the link check's feature line in each state of "
+        "the feature).",
+        json_schema_extra={"role": "conditions"},
     )
     lines: Open[CopyText] = Field(
         default_factory=dict,
@@ -76,10 +114,11 @@ class Response(CopyBlock):
         "to list (the /setup permissions report).",
         json_schema_extra={"role": "copy"},
     )
-    variants: Open[Variant] = Field(
-        default_factory=dict,
-        description="The title or description drawn in a state the code picks, keyed "
-        "by the state (the link check: blocked, allowed).",
+    overrides: tuple[ResponseOverride, ...] = Field(
+        (),
+        description="The title or description drawn while a rule on the facts holds, "
+        "the first item whose rule holds winning (the link check, once it would block "
+        "the message).",
         json_schema_extra={"role": "conditions"},
     )
     lines: Open[CopyText] = Field(
@@ -177,6 +216,27 @@ class CardRow(CopyBlock):
     )
 
 
+class CardOverride(Override):
+    """What a card draws while a rule holds, in place of its own title, intro or
+    note."""
+
+    title: CopyText | None = Field(
+        None,
+        description="The title drawn while the rule holds; absent keeps the card's.",
+        json_schema_extra={"role": "copy"},
+    )
+    description: CopyText | None = Field(
+        None,
+        description="The intro drawn while the rule holds; absent keeps the card's.",
+        json_schema_extra={"role": "copy"},
+    )
+    note: CopyText | None = Field(
+        None,
+        description="The note drawn while the rule holds; absent keeps the card's.",
+        json_schema_extra={"role": "copy"},
+    )
+
+
 class Card(CopyBlock):
     """One Components V2 card a command draws through `card_header`, `card_row` and
     `card_footer`."""
@@ -201,10 +261,11 @@ class Card(CopyBlock):
         "/report line, null draws none, a text draws that text.",
         json_schema_extra={"role": "copy"},
     )
-    variants: Open[Variant] = Field(
-        default_factory=dict,
-        description="The title or description drawn in a state the code picks (the "
-        "dashboard once everything is configured).",
+    overrides: tuple[CardOverride, ...] = Field(
+        (),
+        description="The title, intro or note drawn while a rule on the facts holds, "
+        "the first item whose rule holds winning (the dashboard once everything is "
+        "configured).",
         json_schema_extra={"role": "conditions"},
     )
     rows: Open[CardRow] = Field(
@@ -256,27 +317,24 @@ def response_embed(
     color: int | discord.Colour | None = None,
     image: bool = False,
     *,
-    values: Mapping[str, Any] | None = None,
+    facts: Facts | None = None,
     fields: Mapping[str, Any] | None = None,
-    variant: str = "",
     empty: bool = False,
     thumbnail: str = "",
     inline: bool = False,
 ) -> discord.Embed:
-    """The embed of the Response block `multilang_key`: its `$name`s filled from
-    `values`, its fields from `fields`, closed by the footer its copy decides."""
-    copy = i18n.block(multilang_key, Response)
+    """The embed of the Response block `multilang_key`: the overrides its `facts`
+    choose in place, its `$name`s filled from them, its fields from `fields`, closed
+    by the footer its copy decides."""
+    copy, values = i18n.resolved(multilang_key, Response, facts)
     language = parse_locale(locale)
-    filled = dict(values or {})
-    chosen = _variant(copy.variants, variant, multilang_key)
-    title = chosen.title if chosen and chosen.title else copy.title
-    body = _description(copy, chosen, empty, multilang_key)
+    body = _description(copy, empty, multilang_key)
     embed = discord.Embed(
         color=color or int(constants.BACKGROUND_COLOR, base=16),
-        title=fill(title.get(language), **filled),
-        description=fill(body.get(language), **filled) if body else None,
+        title=fill(copy.title.get(language), **values),
+        description=fill(body.get(language), **values) if body else None,
     )
-    _add_fields(embed, copy, fields or {}, language, filled, inline, multilang_key)
+    _add_fields(embed, copy, fields or {}, language, values, inline, multilang_key)
 
     if thumbnail or image:
         embed.set_thumbnail(url=thumbnail or icons.IMAGE_01)
@@ -329,23 +387,50 @@ def response_error_embed(
     locale: str | discord.Locale,
     footer: bool = True,
     *,
-    values: Mapping[str, Any] | None = None,
+    facts: Facts | None = None,
 ) -> discord.Embed:
-    """The red embed of an error block: a command's `<key>.errors.<name>`, or the name
-    of a shared one; its `$name`s filled from `values`."""
-    block = error_key if "." in error_key else f"errors.{error_key}"
-    filled = dict(values or {})
-    title = ml(f"{block}.title", locale=locale)
+    """The red embed of an error block: a command's `<key>.ui.errors.<name>`, or the
+    name of a shared one; its `$name`s filled from `facts`."""
+    named = error_key if "." in error_key else f"errors.{error_key}"
+    block, values = i18n.resolved(named, ErrorBlock, facts)
+    language = parse_locale(locale)
 
     embed = discord.Embed(
         color=int(constants.RED_COLOR, base=16),
-        title=f"🚨 {fill(title, **filled)}",
-        description=fill(ml(f"{block}.message", locale=locale), **filled),
+        title=f"🚨 {fill(block.title.get(language), **values)}",
+        description=fill(block.message.get(language), **values),
     )
     if footer:
         with_footer(embed, standard_footer(locale))
 
     return embed
+
+
+@dataclass(frozen=True)
+class CardCopy:
+    """The texts of one Card block in one language: its overrides chosen, its `$name`s
+    filled, and the closing line its footer decides."""
+
+    title: str
+    description: str
+    note: str
+    footer: str
+
+
+def card_copy(
+    key: str, locale: str | discord.Locale, facts: Facts | None = None
+) -> CardCopy:
+    """The texts of the Card block `key`, with the overrides `facts` choose and its
+    `$name`s filled from them."""
+    card, values = i18n.resolved(key, Card, facts)
+    language = parse_locale(locale)
+    note = fill(card.note.get(language), **values) if card.note else ""
+    return CardCopy(
+        title=fill(card.title.get(language), **values),
+        description=fill(card.description.get(language), **values),
+        note=note,
+        footer=card_footer_text(card, locale),
+    )
 
 
 def card_frame(accent: discord.Colour | None = None) -> discord.ui.Container[Any]:
@@ -409,22 +494,12 @@ def _bulleted(line: str) -> str:
     return line if line.lstrip().startswith("•") else f"• {line}"
 
 
-def _variant(variants: Mapping[str, Variant], variant: str, key: str) -> Variant | None:
-    if not variant:
-        return None
-    if variant not in variants:
-        raise CopyError(f"{key}.variants writes no {variant}")
-    return variants[variant]
-
-
-def _description(
-    copy: Response, chosen: Variant | None, empty: bool, key: str
-) -> Text | None:
+def _description(copy: Response, empty: bool, key: str) -> Text | None:
     if empty:
         if copy.empty is None:
             raise CopyError(f"{key} writes no empty")
         return copy.empty
-    return chosen.description if chosen and chosen.description else copy.description
+    return copy.description
 
 
 def _add_fields(

@@ -13,6 +13,7 @@ from typing import Any
 
 from app.constants import Emojis, KeikoIcons
 from app.constants import ViewConstants as view_constants
+from app.core.conditions import Scope
 from app.forms.form import events as ev
 from app.forms.form.actions.action import Context, caption, label
 from app.forms.form.actions.configuration_card import pictured_members as on_card
@@ -26,7 +27,6 @@ from app.forms.form.components import (
     Screen,
     TextInputs,
 )
-from app.forms.form.conditions import Scope, chosen_text
 from app.forms.form.copy import text
 from app.forms.form.effects import (
     Ack,
@@ -69,6 +69,7 @@ from app.forms.form.form_yaml import (
     ListStep,
     PanelGroupSpec,
     options_for,
+    overridden_text,
     produced_keys,
 )
 from app.forms.form.responses.responses import (
@@ -384,7 +385,7 @@ def panel_screen(
     title = first.title.get(locale)
 
     if not panel.enabled:
-        title += f" ({text('messages.paused_suffix', locale)})"
+        title += f" ({text('texts.paused_suffix', locale)})"
     rows = (
         placed(panel.rows, definition, locale)
         if panel.rows is not None
@@ -659,7 +660,7 @@ def _group_intro(
     intro = group.screen_description() if group is not None else None
     if group is None or intro is None:
         return ""
-    return chosen_text(intro, group.variants, "description", scope).get(locale)
+    return overridden_text(intro, group.overrides, "description", scope).get(locale)
 
 
 def _group_blocks(
@@ -739,8 +740,8 @@ def found_screen(
 def confirmation_modal(action: str, locale: str) -> Screen:
     """The typed confirmation a lifecycle action asks for."""
     word = confirmation_word(action, locale)
-    title = text("messages.confirmation_modal.title", locale)
-    prompt = text("messages.confirmation_modal.label", locale).replace(
+    title = text("texts.confirmation_modal.title", locale)
+    prompt = text("texts.confirmation_modal.label", locale).replace(
         "$action", word.lower()
     )
 

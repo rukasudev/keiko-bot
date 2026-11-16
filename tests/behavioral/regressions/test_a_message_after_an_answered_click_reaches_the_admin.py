@@ -49,7 +49,7 @@ async def test_a_notice_sent_after_the_click_was_answered_reaches_the_admin(
     await twitch._channel(second, "announcements")
     await second.click("done")
 
-    stale = ml("messages.notices.stale", locale="en-us")
+    stale = ml("texts.notices.stale", locale="en-us")
     notices = [event for event in second.outputs if event.get("content") == stale]
     assert notices, "the admin never read why the edit was not saved"
     assert notices[-1]["delete_after"] == ViewConstants.ACTION_NOTICE_SECONDS

@@ -127,13 +127,13 @@ async def test_the_reply_footer_speaks_the_language_of_the_server(deps, streamer
     message = await ask(deps.bot, guild, member_without_a_picture(guild))
 
     footer = ml(
-        "stream_elements_commands.messages.reply_footer",
+        "stream_elements_commands.ui.texts.reply_footer",
         "pt-br",
     )
     expected = footer.replace("$command", "ks!commands").replace("$streamer", "gaules")
     assert reply_of(message).footer.text == f"• {expected}"
     assert expected != ml(
-        "stream_elements_commands.messages.reply_footer",
+        "stream_elements_commands.ui.texts.reply_footer",
         "en-us",
     ).replace("$command", "ks!commands").replace("$streamer", "gaules")
 
@@ -667,8 +667,8 @@ async def test_a_direct_message_gets_the_slash_hint_from_the_language_files(
 
     await handle(deps.bot, message)
 
-    halves = [ml("help.messages.prefix_hint.direct", locale) for locale in ("pt-br", "en-us")]
-    assert "help.messages.prefix_hint.direct" not in halves, "the hint lives in the language files"
+    halves = [ml("help.ui.texts.prefix_hint.direct", locale) for locale in ("pt-br", "en-us")]
+    assert "help.ui.texts.prefix_hint.direct" not in halves, "the hint lives in the language files"
     [hint] = sent(message)
     assert hint == "\n\n".join(halves)
     assert "`/ajuda`" in hint and "`/help`" in hint
@@ -846,7 +846,7 @@ async def _open_the_command_list(scenario_factory, locale="pt-br"):
         "stream_elements_commands", PANEL
     )
     await scenario.click(ml(
-        "stream_elements_commands.buttons.commands.label", locale
+        "stream_elements_commands.ui.buttons.commands.label", locale
     ))
     return [event for event in scenario.outputs if event.get("kind") == "send"][-1]
 
@@ -864,10 +864,10 @@ async def test_the_commands_button_sits_beside_the_loaded_commands(
         "stream_elements_commands", PANEL
     )
     label = ml(
-        "stream_elements_commands.buttons.commands.label",
+        "stream_elements_commands.ui.buttons.commands.label",
         "pt-br",
     )
-    title = ml("stream_elements_commands.panel.info.title", "pt-br")
+    title = ml("stream_elements_commands.command.panel.info.title", "pt-br")
     card, *rows = scenario.current_message.view.children
 
     beside = [
@@ -916,7 +916,7 @@ async def test_a_streamer_without_commands_gets_an_embed_not_raw_text(
     sent = await _open_the_command_list(scenario_factory)
 
     embed = sent.get("embed") or {}
-    empty = ml("stream_elements_commands.records.commands.empty", "pt-br")
+    empty = ml("stream_elements_commands.ui.records.commands.empty", "pt-br")
     assert not sent.get("content"), f"the empty list was raw text: {sent.get('content')!r}"
     assert str(embed.get("description")).startswith(empty.replace("$streamer", "gaules"))
     assert embed.get("color") != 0xFF0000

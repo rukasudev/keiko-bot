@@ -1,6 +1,6 @@
-"""The Portuguese of the YAML reference: one file, `docs/yaml/pt-br.yml`, keyed by
-what each entry translates, holding the English it translated beside it so a changed
-English reads as stale.
+"""The Portuguese of the YAML reference: one file, `translations.yml` beside this
+module, keyed by what each entry translates, holding the English it translated beside
+it so a changed English reads as stale.
 
     form.yml                     the purpose of the type
     form.yml/FormFile            the description of a model
@@ -11,14 +11,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Literal
 
 import yaml
 from scripts.keiko.yamldoc.schema import Schema
 
-from app.core.commands import REPOSITORY
-
-TRANSLATIONS = REPOSITORY / "docs" / "yaml" / "pt-br.yml"
+TRANSLATIONS = Path(__file__).with_name("translations.yml")
 ENGLISH = "en-us"
 PORTUGUESE = "pt-br"
 
@@ -78,7 +77,7 @@ def texts(name: str, purpose: str, schema: Schema | None) -> dict[str, str]:
 
 
 def read_translations(text: str) -> Translations:
-    """The translations a `pt-br.yml` holding `text` declares."""
+    """The translations a `translations.yml` holding `text` declares."""
     document = yaml.safe_load(text) or {}
     if not isinstance(document, dict):
         raise ValueError("the translations are one mapping of key -> en-us, pt-br")
@@ -94,7 +93,7 @@ def read_translations(text: str) -> Translations:
 
 
 def load_translations() -> Translations:
-    """The translations of `docs/yaml/pt-br.yml`, none when the file is missing."""
+    """The translations of `translations.yml`, none when the file is missing."""
     if not TRANSLATIONS.exists():
         return Translations()
     return read_translations(TRANSLATIONS.read_text(encoding="utf-8"))

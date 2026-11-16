@@ -22,9 +22,10 @@ their hooks run in it, and their cogs load in it.
 The form suites read every form from the registry. A command with a form needs one
 golden module, `tests/behavioral/golden/paths/<key>.py`, with its `setup_happy` path.
 To offer it on /setup, give it `on_setup=True` and an `emoji`, and write its row's copy
-in its own `copy.yml`, at the fixed keys the shared layers read: `setup.label`,
-`setup.description`, `stats.title`, `stats.delivered.one`, `stats.delivered.other`,
-and `slash.subgroup` and `slash.name` of its slash command
+in its own `copy.yml`, at the fixed places the shared layers read under `command`:
+`command.setup.label`, `command.setup.description`, `command.stats.title`,
+`command.stats.delivered.one`, `command.stats.delivered.other`, and
+`command.slash.subgroup` and `command.slash.name` of its slash command
 (`tests/test_setup_row_copy.py` checks them).
 
 ## One command folder
@@ -51,13 +52,14 @@ is a flow the engine compiles, so they are different edits and different diffs:
 
 ```yaml
 # app/commands/greet/copy.yml
-slash:
-  name:
-    en-us: greet
-    pt-br: saudar
-  description:
-    en-us: Keiko greets the server
-    pt-br: O Keiko cumprimenta o servidor
+command:
+  slash:
+    name:
+      en-us: greet
+      pt-br: saudar
+    description:
+      en-us: Keiko greets the server
+      pt-br: O Keiko cumprimenta o servidor
 ```
 
 ```yaml
@@ -184,13 +186,14 @@ reads them through the repositories of `app/data/`, passing its key.
 
 - The command's copy is its `copy.yml`: every text is a node with its
   `en-us` and its `pt-br`, under a key relative to the command, read with
-  `ml("<key>.<path>", locale)` (`ml("block_links.stats.empty", locale)`); a shared
-  layer reads a command's fixed keys with `command_text(command, path, locale)`. The
-  slash names and descriptions live there too, under `slash` (`slash.name`,
-  `slash.description`, `slash.subgroup`), and the cog names the block:
-  `locale_str("links", type="name", namespace="block_links.slash")`. An error of
-  the command is shown by its block: `response_error_embed("<key>.errors.<name>",
-  locale)`. Generic copy (buttons, shared responses, lists, messages and errors) stays
+  `ml("<key>.<path>", locale)` (`ml("block_links.command.stats.empty", locale)`); a shared
+  layer reads a command's fixed places with `command_text(command, path, locale)`. The
+  slash names and descriptions live there too, under `command.slash`
+  (`command.slash.name`, `command.slash.description`, `command.slash.subgroup`), and
+  the cog names the block:
+  `locale_str("links", type="name", namespace="block_links.command.slash")`. An error of
+  the command is shown by its block: `response_error_embed("<key>.ui.errors.<name>",
+  locale)`. Generic copy (buttons, shared responses, lists, texts and errors) stays
   in `app/languages/<namespace>.yml`, bilingual the same way. A text missing a locale,
   a key defined twice, a YAML anchor or alias and a file its schema refuses fail at
   load, in a `copy.yml` and a `form.yml` alike.
@@ -205,9 +208,9 @@ reads them through the repositories of `app/data/`, passing its key.
 
 ## The YAML reference
 
-`docs/yaml/index.html` documents every YAML type Keiko reads, the way an API reference
-does (`form.yml`, `vocabulary.yml`, `copy.yml`, each file of `app/languages/` and
-`catalog.yml`), in two views of one page, linked both ways. The Reference reads one
+`docs/yaml-reference.html` documents every YAML type Keiko reads, the way an API
+reference does (`form.yml`, `vocabulary.yml`, `copy.yml`, each file of `app/languages/`,
+`global.yml` and `catalog.yml`), in two views of one page, linked both ways. The Reference reads one
 object at a time: its keys grouped by role, a child object or kind opening in place
 under its parent with the path above it (`form.yml › steps[] › type: card ›
 sections[]`), and a real file beside it that marks the key under the pointer. The Tree
@@ -216,9 +219,10 @@ type, default, rules, open keys, a real example and the child keys of the node p
 Open the file in a browser; EN / PT switches every text.
 
 - It is generated from the pydantic root model each type names in `YAML_TYPES`
-  (`app/core/commands.py`) and from the files of the type: run `make yaml-docs` after
-  changing a schema or a YAML file. `tests/test_yaml_reference.py` fails when the page
-  is stale, and when a field has no `Field(description=...)`.
+  (`app/core/commands.py`) and from the files of the type: run `make docs` after
+  changing a schema or a YAML file (it writes `docs/index.html`, the index of every doc,
+  with it). `tests/test_yaml_reference.py` fails when the page is stale, and when a field
+  has no `Field(description=...)`.
 - A field names its role in the schema, which the page groups and colors it by:
   `Field(description="...", json_schema_extra={"role": "copy"})`. `identity` names the
   item and its kind, `copy` is words Keiko shows, `visual` how and where it looks,
@@ -226,15 +230,19 @@ Open the file in a browser; EN / PT switches every text.
   the answer and state keys it reads or writes, and `structure` the nested parts it
   holds (a child list, a screen, a button, a modal). The test fails on a field with no
   role (the page draws it under Other until then); an unknown role fails the generator.
-- The Portuguese of every text is `docs/yaml/pt-br.yml`, keyed by what it translates
-  (`<type>` for the purpose, `<type>/<Model>`, `<type>/<Model>.<field>`) with the
-  English it translated beside it. The test fails on a text with no translation, on a
+- The Portuguese of every text is `scripts/keiko/yamldoc/translations.yml`, the
+  generator's input beside its code, keyed by what it translates (`<type>` for the
+  purpose, `<type>/<Model>`, `<type>/<Model>.<field>`) with the English it translated
+  beside it. The test fails on a text with no translation, on a
   stale one (the English changed since) and on one whose field is gone; the page shows
   the English, marked, until the translation is current.
 - The layout standard: a union item writes its `type` first, then the closed keys in
   schema order, then the open blocks (`Open[T]`), each under one comment line
-  `# open: <what the keys are> -> <what each child is>`. `tests/test_yaml_layout.py`
-  checks every file of every type with a schema.
+  `# open: <what the keys are> -> <what each child is>`. A model whose keys are the
+  blocks of a file in a chosen order declares `json_schema_extra={"in_order": True}`
+  and writes every key in schema order, open or closed (`CommandCopy`, `CommandPlaces`,
+  `CommandUi`). `tests/test_yaml_layout.py` checks every file of every type with a
+  schema.
 - The tests carry a list of what is not converted yet (`UNDESCRIBED`, `EXCEPTIONS`,
   and `UNTRANSLATED` for the types without Portuguese yet); all three are empty, and an
   entry that already passes fails the test, so they only shrink: a new file or field
@@ -242,19 +250,44 @@ Open the file in a browser; EN / PT switches every text.
 
 ## The copy schema and the primitives that read it
 
-A `copy.yml` is `CommandCopy` (`app/core/copy_schema.py`): a closed top level of one
-block per primitive that draws its texts, `slash`, `setup`, `stats`, `panel` and
-`announcement` (closed blocks, written first, in that order), then the open ones,
-`errors`, `responses`, `records`, `buttons`, `cards` and `messages`, whose keys the
-command chooses. Each block's model lives beside the primitive that reads it, and every
+A `copy.yml` is `CommandCopy` (`app/core/copy_schema.py`), three closed groups in this
+order: `facts` (below, "Overrides and facts"), the values its texts read; `command`
+(`CommandPlaces`), the fixed places Keiko's shared screens fill, `slash`, `setup`,
+`stats` and `panel`; and `ui` (`CommandUi`), what the command draws itself, one block
+per primitive in the order `cards`, `texts`, `records`, `responses`, `errors`,
+`buttons` and `announcement`, the open ones keyed as the command chooses. An address
+follows the file: `<key>.facts.<name>`, `<key>.command.<place>...` and
+`<key>.ui.<block>.<name>`.
+
+```yaml
+# app/commands/<key>/copy.yml
+facts: ...        # the values a rule or a $name reads
+command:          # the fixed places the shared screens fill
+  slash: ...
+  setup: ...
+  stats: ...
+  panel: ...
+ui:               # what the command draws itself
+  cards: ...
+  texts: ...
+  records: ...
+  responses: ...
+  errors: ...
+  buttons: ...
+  announcement: ...
+```
+
+Each block's model lives beside the primitive that reads it, and every
 field says in its description what it makes the bot do. Every key is snake_case, every
 text is a `Text` (`app/core/commands.py`, the one `{en-us, pt-br}` node forms use too),
-a value the code fills is written `$name` (a `{name}` is refused, braces belong to the
+a value the code fills is written `$name`, a fact the command's `facts:` or
+`app/core/global.yml` declares (a `{name}` is refused, braces belong to the
 templates an admin writes; `fill` refuses a line that names a given value in braces),
 and `{ref: name}` writes a text of `app/forms/vocabulary.yml`, as in a form. A command
-with cogs writes `slash`; one /setup offers writes `setup` and `stats`. The shared files
+with cogs writes `command.slash`; one /setup offers writes `command.setup` and
+`command.stats`. The shared files
 of `app/languages` have their own schemas (`SHARED_FILES`): `buttons.yml` holds only
-buttons (`ButtonCopy`), `errors.yml` only error blocks, `messages.yml` the shared lines
+buttons (`ButtonCopy`), `errors.yml` only error blocks, `texts.yml` the shared lines
 and tables (months, parent groups, notices, permission lines), `locales.yml` one name
 per language code, and `commands.yml` the shared `responses`
 (`commands.responses.admin_only`, `cooldown`, `help`, the lifecycle answers `enabled`,
@@ -271,33 +304,34 @@ that writes no footer, as every form step does.
 
 | Block | Model | Read by | What it draws |
 | --- | --- | --- | --- |
-| `slash` | `Slash` | the `Translator` (`app/translator.py`) | the app commands' names, captions and parameters |
-| `setup` | `SetupRow` | `command_text(command, "setup.label")` | the row on /setup and the greeting |
-| `stats` | `Stats` | `send_feature_stats`, `figure_lines`, `health_line` | the statistics embed and the recent-activity line (`stats.delivered.one`, `stats.delivered.other`) |
-| `panel` | `Panel` | `GenericCogFeature` (`panel_info`, `panel_info_copy`) and the feature's own panel | `panel.info`, `panel.pages`, `panel.rows`, `panel.authors` |
-| `announcement` | `Announcement` | `announcement_embed` and the command | `fields`, `states`, `samples`, `defaults` of what it posts in a channel |
-| `errors.<name>` | `ErrorBlock` | `response_error_embed`, `error_message`, a form's `error:` | a red error embed, or the plain line of a form |
-| `responses.<name>` | `Response` | `response_embed` | an answer, a confirmation question, an aside's result |
-| `records.<name>` | `Records` | `RecordsBrowser(copy=...)` | a browsable list, its empty state and its member filter |
-| `buttons.<name>` | `ButtonCopy` | `panel_asides`, `panel_button`, the command's views | a button's label and its Help caption (`description`) |
-| `cards.<name>` | `Card` | `card_header`, `card_row`, `card_footer_text` | a Components V2 card |
-| `messages.<name>` | `CopyText`, or one level of table | the command's own code | what no primitive draws |
+| `facts.<name>` | `FactSpec` | the copy loader, `resolved` (`app/core/i18n.py`) | nothing: what a rule or a `$name` of the command reads, with its type |
+| `command.slash` | `Slash` | the `Translator` (`app/translator.py`) | the app commands' names, captions and parameters |
+| `command.setup` | `SetupRow` | `command_text(command, "command.setup.label")` | the row on /setup and the greeting |
+| `command.stats` | `Stats` | `send_feature_stats`, `figure_lines`, `health_line` | the statistics embed and the recent-activity line (`command.stats.delivered.one`, `command.stats.delivered.other`) |
+| `command.panel` | `Panel` | `GenericCogFeature` (`panel_info`, `panel_info_copy`) and the feature's own panel | `command.panel.info`, `.pages`, `.rows`, `.authors` |
+| `ui.cards.<name>` | `Card` | `card_copy`, then `card_header`, `card_row`, `card_footer` | a Components V2 card |
+| `ui.texts.<name>` | `CopyText`, or one level of table | the command's own code | what no primitive draws |
+| `ui.records.<name>` | `Records` | `RecordsBrowser(copy=...)` | a browsable list, its empty state and its member filter |
+| `ui.responses.<name>` | `Response` | `response_embed`, `block_texts` (the form engine) | an answer, a confirmation question, an aside's result |
+| `ui.errors.<name>` | `ErrorBlock` | `response_error_embed`, `error_message`, a form's `error:` | a red error embed, or the plain line of a form |
+| `ui.buttons.<name>` | `ButtonCopy` | `panel_asides`, `panel_button`, the command's views | a button's label and its Help caption (`description`) |
+| `ui.announcement` | `Announcement` | `announcement_embed` and the command | `fields`, `states`, `samples`, `defaults` of what it posts in a channel |
 
-- `response_embed("<key>.responses.<name>", locale, values=..., fields=...,
-  variant=..., empty=..., thumbnail=..., inline=...)` reads a `Response` block: `$name`s
-  are filled from `values`, `variant` draws `variants.<variant>` in place of the title
-  or description, `empty` draws `empty`, and `fields` gives the value of each
-  `fields.<field>` (drawn in the order the copy writes them; one with no value draws its
-  own `value` or `empty`, or is left out). An absent `footer` closes the embed with the standard `/report` line, a
+- `response_embed("<key>.ui.responses.<name>", locale, facts=..., fields=...,
+  empty=..., thumbnail=..., inline=...)` reads a `Response` block: the item of its
+  `overrides` (and of each field's) the `facts` choose replaces what it writes, its
+  `$name`s are filled from the `facts`, `empty` draws `empty`, and `fields` gives the
+  value of each `fields.<field>` (drawn in the order the copy writes them; one with no
+  value draws its own `value`, as its overrides choose it, or `empty`, or is left out). An absent `footer` closes the embed with the standard `/report` line, a
   `footer: null` with none, a text with that text, always as `-# • ` subtext so its
   markdown renders, and always as the last line: `with_footer` draws it at the end of
   the description, or in a full-width field of its own under the fields when the embed
   has some. The copy decides the footer; the call has no flag for it.
-- `response_error_embed("<key>.errors.<name>", locale, values=...)` and, on the forms'
-  plain path, `error_message("<key>.errors.<name>", args, locale)` both take the
+- `response_error_embed("<key>.ui.errors.<name>", locale, facts=...)` and, on the forms'
+  plain path, `error_message("<key>.ui.errors.<name>", args, locale)` both take the
   `ErrorBlock` key, never its `.message` leaf (a short name is a block of
   `errors.yml`); the embed adds 🚨 and the standard line.
-- `RecordsBrowser(fetch, to_fields, copy="<key>.records.<name>", values=...,
+- `RecordsBrowser(fetch, to_fields, copy="<key>.ui.records.<name>", facts=...,
   locale=...)` reads one `Records` block: its `title` and `description` above the
   page, `empty` alone when nothing is found (without one, the empty page is sent), and
   `filter` for the member filter button and its picker; `lines` holds the line
@@ -305,32 +339,124 @@ that writes no footer, as every form step does.
   speaks the session's language), else the language of each interaction. `copy` is
   required: the browser takes no title or description of its own.
 - A feature's panel: `GenericCogFeature.panel_asides = {"<aside>": "<emoji>"}` draws one
-  panel button per aside from `buttons.<aside>` (`ButtonCopy`, label and caption);
+  panel button per aside from `ui.buttons.<aside>` (`ButtonCopy`, label and caption);
   `panel_button(aside, emoji, locale, copy="buttons.preview")` reads a shared button
-  block instead. `panel_info` and `panel_info_title` read `panel.info` of the `Panel`
-  block on every panel, and `panel_info_copy(locale, variant=..., values=...)` gives
-  the title and description with a variant and values for a feature that fills them
-  itself.
-- `announcement_embed(title, message, footer, image, copy="<key>.announcement",
+  block instead. `panel_info` and `panel_info_title` read `command.panel.info` of the `Panel`
+  block on every panel, and `panel_info_copy(locale, facts)` gives the title and
+  description with the overrides its facts choose and its `$name`s filled, for a feature
+  that fills them itself: one whose `command.panel.info` reads facts declares
+  `fills_panel_info = True`, and the generic panel leaves the paragraph to it (default
+  roles, StreamElements).
+- `announcement_embed(title, message, footer, image, copy="<key>.ui.announcement",
   locale=..., fields=..., url=..., colour=..., thumbnail=...)` posts what a command
   announces: each of `fields` is an inline field labelled by `fields.<name>` of the
   `Announcement` block, left out while its value is empty; its `states`, `samples` and
   `defaults` (an admin template, braces allowed) are read by the command.
 - Statistics: `figure_lines(key, [Figure(name, emoji, value), ...], locale)` draws each
-  figure as `emoji **label:** value` with the label from `stats.figures.<name>` of the
-  `Stats` block, or `stats.empty` alone while there is no figure; a feature's
-  `stats_lines` returns them. `send_feature_stats` titles the embed with `stats.title`
-  and `health_line` reads `stats.delivered`, a `Plural` (`one` for a single delivery,
+  figure as `emoji **label:** value` with the label from `command.stats.figures.<name>`
+  of the `Stats` block, or `command.stats.empty` alone while there is no figure; a
+  feature's `stats_lines` returns them. `send_feature_stats` titles the embed with
+  `command.stats.title` and `health_line` reads `command.stats.delivered`, a `Plural`
+  (`one` for a single delivery,
   `other` for any other count).
-- `slash` (`Slash`) is read by the `Translator` through `locale_str(namespace=
-  "<key>.slash")`; the folder's other app commands use the namespace
-  `<key>.slash.commands.<name>` and its parameters the type `params.<name>.name`.
-- `setup` (`SetupRow`) is read through `command_text(command, "setup.label")`.
-- `cards` (`Card`) are drawn by the command through `card_header`, `card_row` and
+- `command.slash` (`Slash`) is read by the `Translator` through `locale_str(namespace=
+  "<key>.command.slash")`; the folder's other app commands use the namespace
+  `<key>.command.slash.commands.<name>` and its parameters the type `params.<name>.name`.
+- `command.setup` (`SetupRow`) is read through
+  `command_text(command, "command.setup.label")`.
+- `ui.cards` (`Card`) are drawn by the command through `card_copy("<key>.ui.cards.<name>",
+  locale, facts)`, which gives the title, intro, note and closing line of the block
+  with its overrides chosen and its `$name`s filled, then `card_header`, `card_row` and
   `card_footer`; `card_footer_text(card, locale)` applies the same footer rule as a
-  response.
-- `messages` holds the texts no primitive draws, read by the command's own code: a
+  response. A card's `rows`, like a block's `lines`, are templates the command fills
+  one by one.
+- `ui.texts` holds the texts no primitive draws, read by the command's own code: a
   plain chat line, a badge, or one level of table keyed by a closed vocabulary in code.
+
+## Overrides and facts
+
+A text that changes with the state is written in the YAML, never picked in code. The
+block keeps its default fields and an `overrides` list; each item is a `when` rule
+(the grammar of the forms, `docs/form-configuration.md` section 4: `is`, `in`,
+`not_in`, `matches`, `present`, `count`, `all`, `any`, `not`) and the fields it
+replaces. The first item whose rule holds wins and replaces only the fields it writes;
+when none holds, the block draws its defaults. A `Response` (and each of its
+`fields`), a `Card` and a `PanelInfo` take `overrides`, and a form's steps and groups
+take the same list for their title and description. `lines` that are templates
+repeated or shown together (a category line of the greeting, a History line, the link
+check's exemption and link lines) stay `lines`, filled one by one by the code.
+
+```yaml
+# app/commands/block_links/copy.yml
+ui:
+  responses:
+    check:
+      title:
+        en-us: ✅ I would let this message through
+        pt-br: ✅ Eu deixaria essa mensagem passar
+      overrides:
+        - when:
+            key: block_links.facts.would_block
+            is: true
+          title:
+            en-us: 🚫 I would block this message
+            pt-br: 🚫 Eu bloquearia essa mensagem
+```
+
+A value a rule or a text reads is a **fact**, addressed `<owner>.facts.<name>`: the
+owner is a command's key (`block_links.facts.would_block`) or `global`
+(`global.facts.feature_state`). A command's facts are declared in the `facts:` of its
+`copy.yml`, each with its `type` (`boolean`, `enum` with its `values`, `number`,
+`text`) and a one-sentence `description`; the facts no single command owns live in
+`app/core/global.yml` (`GlobalCatalog` in `app/core/facts.py`, registered in
+`YAML_TYPES`). A fact starts in its command and moves to `global` only when a second
+command needs it, and no command is keyed `global` (the registry refuses it).
+
+```yaml
+# open: fact names -> a fact the code passes
+facts:
+  would_block:
+    type: boolean
+    description: Whether Keiko would block the checked message.
+```
+
+- A rule in copy names a fact by its full address, of its own command or `global`;
+  a rule in a form keeps reading the form's own answers.
+- A `$name` in copy is a fact too: the command's own or a global one by its short
+  name (a `$token` reads as the longest declared name it starts with, the way `fill`
+  replaces it: `$prefixping` is `$prefix` then `ping`), and a shared file of
+  `app/languages` reads only global facts. A short name declared by a command and by
+  `global` is refused.
+- At load, the copy loader refuses a rule on an unknown fact or on another command's,
+  a value its type refuses (`'oval' is none of ['round', 'square']`), an operator a
+  boolean has no use for, an undeclared `$name` and a fact declared twice, naming the
+  file, the block and the key (`app/commands/x/copy.yml:
+  ui.responses.check.overrides[0].when: x.facts.gone: no such fact in x`).
+- At render, the primitive (`response_embed`, `response_error_embed`, `card_copy`,
+  `panel_info_copy`, `RecordsBrowser(copy=)`, `block_texts`) checks that every fact
+  the block reads (the keys of its rules and its `$name`s, its `lines` and `rows` left
+  out) was passed and that no fact neither its command nor `global` declares was
+  passed (`i18n.resolved`).
+- The code passes facts through its command's helper, `command_facts(**values)` at
+  the top of its `service.py` (`facts("<key>", **values)`, which addresses a global
+  name to `global` on its own), or `facts(GLOBAL, ...)` in a shared layer; never a
+  state name. `tests/test_facts.py` walks every call of the primitives and of those
+  helpers and refuses a name no catalog declares, and a call on a literal block that
+  does not pass every fact the block reads.
+
+### Context
+
+Values Keiko already holds in memory or in its cache are the **context**, declared
+once in the `context:` of `app/core/global.yml` (`type`, `description`, and `public`:
+whether a message every member sees may show it), and read in a copy or a form text as
+`{context:<name>}`. A family (`each: command` or `each: group`) is written in when the
+file loads, in each locale: `{context:commands.setup}` reads `/setup` or
+`/configurar`, `{context:commands.block_links}` `/moderations block links`, and
+`{context:groups.moderations}` `/moderations`, from the command's own `command.slash` copy and
+`texts.groups`. Copy reads only those families for now; a form also reads the
+entries the adapter fills (`server_name`, `prefix`, `server_language`,
+`server_timezone`, `command`, and a feature's `Opened.values`), and its compiler
+refuses an undeclared one. A command or a group a text names is never typed in.
 
 ## Rule 22: the shared layers never name a command
 
@@ -356,6 +482,7 @@ folder (`.claude/rules/code-style.md`, rule 22).
 | `tests/forms/features/test_features.py` | a folder holds a `feature.py`, or the `FEATURE` of a service is not the `feature` its command declares |
 | `tests/test_structure.py` | a command imports another command or a module outside the shared layers, a shared layer imports a command, the form engine imports `discord` outside `app/forms/discord`, `app/data` imports more than itself and the constants |
 | `tests/test_generic_layers.py` | a shared layer names a command (rule 22) |
+| `tests/test_facts.py` | a call passes a fact no catalog declares, or calls a primitive on a literal block without every fact the block reads (rule 28) |
 | `tests/commands/<name>/` | the command's own behaviour |
 
 Each failure names the file, the line and what to add or move. An exception to the

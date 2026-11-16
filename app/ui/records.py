@@ -14,6 +14,7 @@ from app.constants import KeikoIcons as icons
 from app.constants import ViewConstants as view_constants
 from app.core import i18n
 from app.core.commands import Open
+from app.core.facts import Facts
 from app.core.i18n import CopyBlock, CopyText
 from app.core.utils import fill, ml, parse_locale
 from app.ui.buttons import GenericButton
@@ -129,7 +130,7 @@ class RecordsBrowser:
 
     `fetch(interaction, user_id)` is awaited for the raw records and `to_fields`
     turns them into the `{name: value}` dict `PaginationView` renders. `copy` names
-    the Records block every text comes from, its `$name`s filled from `values`, in
+    the Records block every text comes from, its `$name`s filled from `facts`, in
     `locale` when given, else in the language of each interaction.
     """
 
@@ -141,7 +142,7 @@ class RecordsBrowser:
         ephemeral: bool = True,
         *,
         copy: str,
-        values: Optional[Mapping[str, Any]] = None,
+        facts: Optional[Facts] = None,
         locale: str = "",
     ) -> None:
         self.fetch = fetch
@@ -149,7 +150,7 @@ class RecordsBrowser:
         self.sep = sep
         self.ephemeral = ephemeral
         self.copy = copy
-        self.values = dict(values or {})
+        self.facts = dict(facts or {})
         self.locale = locale
 
     async def send(
@@ -205,10 +206,10 @@ class RecordsBrowser:
 
     def _shown(self, locale: Any) -> _Shown:
         language = parse_locale(self.locale or locale)
-        records = i18n.block(self.copy, Records)
+        records, values = i18n.resolved(self.copy, Records, self.facts)
 
         def said(text: Any) -> str:
-            return fill(text.get(language), **self.values) if text else ""
+            return fill(text.get(language), **values) if text else ""
 
         written = records.filter
         found = (
@@ -266,7 +267,7 @@ class MemberPicker(discord.ui.View):
         self.chosen: Callable[[discord.Interaction], Any] = callback
         self.response: Dict[str, str] = {}
         self.user_select: discord.ui.UserSelect[Any] = discord.ui.UserSelect(
-            placeholder=ml("messages.placeholders.user", locale=locale),
+            placeholder=ml("texts.placeholders.user", locale=locale),
             min_values=0,
             max_values=1,
         )

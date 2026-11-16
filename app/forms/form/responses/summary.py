@@ -13,8 +13,8 @@ from typing import Any
 
 from app.constants import Emojis
 from app.constants import ViewConstants as view_constants
+from app.core.conditions import EMPTY, Scope, When, evaluate
 from app.forms.form.components import Button, ChoiceOption, PanelGroup, PanelPart
-from app.forms.form.conditions import EMPTY, Scope, chosen_text, evaluate
 from app.forms.form.copy import text
 from app.forms.form.form_state import Answer
 from app.forms.form.form_yaml import (
@@ -28,7 +28,7 @@ from app.forms.form.form_yaml import (
     SingleChoiceStep,
     Step,
     TextStep,
-    When,
+    overridden_text,
     owned_keys,
     panel_group_of,
     picks_a_member,
@@ -281,8 +281,8 @@ class PanelRow:
 
 def step_title(step: Step, locale: str, scope: Scope | None = None) -> str:
     """The step title, with its variant's title chosen for the scope."""
-    variants = step.variants if isinstance(step, ContentStep) else ()
-    return chosen_text(step.title, variants, "title", scope).get(locale)
+    overrides = step.overrides if isinstance(step, ContentStep) else ()
+    return overridden_text(step.title, overrides, "title", scope).get(locale)
 
 
 def _step_titles(
@@ -377,7 +377,7 @@ def groups(
 
 
 def _group_title(group: PanelGroupSpec, locale: str, scope: Scope | None) -> str | None:
-    title = chosen_text(group.title, group.variants, "title", scope)
+    title = overridden_text(group.title, group.overrides, "title", scope)
     return title.get(locale) if title else None
 
 
@@ -826,7 +826,7 @@ def item_groups(
         )
     if len(items) > len(shown):
         hidden = str(len(items) - len(shown))
-        more = text("messages.and_more", locale).replace("$count", hidden)
+        more = text("texts.and_more", locale).replace("$count", hidden)
         blocks.append(PanelGroup(None, "", (more,)))
 
     each = managed and composition.remove == "item"
@@ -844,7 +844,7 @@ def _composition_lines(values: Sequence[Mapping[str, Any]], locale: str) -> list
         lines.append(f"**#{index}**")
         lines += item_lines(item, locale)
     if len(values) > limit:
-        more = text("messages.and_more", locale).replace(
+        more = text("texts.and_more", locale).replace(
             "$count", str(len(values) - limit)
         )
         lines.append(more)

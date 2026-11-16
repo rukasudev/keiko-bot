@@ -54,7 +54,7 @@ def settings_list(steps: Sequence[Step], locale: str) -> dict[str, str]:
 
 def settings_text(steps: Sequence[Step], locale: str) -> str:
     """The settings list as the intro appends it to its description."""
-    heading = text("messages.settings_heading", locale)
+    heading = text("texts.settings_heading", locale)
     body = f"\n\n:pencil: **{heading}**\n"
     for title, description in settings_list(steps, locale).items():
         body += f"\n{Emojis.FRISBEE_EMOJI} {labelled(title, description)}"

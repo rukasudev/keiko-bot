@@ -21,6 +21,7 @@ from app.forms.features.feature import (
     GenericCogFeature,
     ListChanged,
     OpenContext,
+    PanelInfo,
 )
 from app.forms.form.form_state import Answer
 from app.forms.form.form_yaml import DefinitionRegistry, DiskSource
@@ -882,10 +883,11 @@ async def test_the_stream_elements_panel_tells_no_commands_from_a_failure(
     monkeypatch.setattr(client, "get_chat_commands", staticmethod(down))
     failed = await panel_line()
 
-    assert empty == ml(f"{namespace}.records.commands.empty", "pt-br").replace(
+    assert empty == ml(f"{namespace}.ui.records.commands.empty", "pt-br").replace(
         "$streamer", "shroud"
     )
-    assert failed == ml(f"{namespace}.panel.info.variants.unknown.description", "pt-br")
+    unreachable = i18n.block(f"{namespace}.command.panel.info", PanelInfo).overrides[0]
+    assert failed == unreachable.description.get("pt-br")
 
 
 async def test_a_stream_elements_outage_leaves_no_count(deps, monkeypatch):
@@ -978,7 +980,7 @@ def test_no_command_folder_holds_a_feature_module_of_its_own():
 
 
 async def test_every_feature_command_is_registered_where_its_spec_says(deps):
-    declared = {(spec.group, f"{spec.key}.slash") for spec in _specs()}
+    declared = {(spec.group, f"{spec.key}.command.slash") for spec in _specs()}
     assert await _registered_subgroups() == declared
 
 
@@ -1001,12 +1003,12 @@ def test_setup_lists_the_features_in_the_order_it_always_did():
 def test_every_feature_has_its_command_and_setup_copy(locale):
     copy = i18n.keys(locale)
     for spec in _specs():
-        assert copy[f"messages.groups.{spec.group}"]
+        assert copy[f"texts.groups.{spec.group}"]
         for path in (
-            "slash.name",
-            "slash.subgroup",
-            "setup.label",
-            "setup.description",
+            "command.slash.name",
+            "command.slash.subgroup",
+            "command.setup.label",
+            "command.setup.description",
         ):
             assert copy[f"{spec.key}.{path}"]
 

@@ -91,14 +91,17 @@ contents in the report beyond what a finding needs):
   layers reach a command only through the registry, a command's copy and form live in
   its folder's bilingual `copy.yml` and `form.yml`, a command is declared once; rule 27:
   every YAML type is its own schema, every field described, open nodes `Open[T]` under
-  one `# open:` line, the reference `docs/yaml/index.html` regenerated). Audit the scope
-  against every rule in it; these came from real review comments and repeat findings.
+  one `# open:` line, the reference `docs/yaml-reference.html` regenerated). Audit the
+  scope against every rule in it; these came from real review comments and repeat
+  findings.
 - `docs/commands.md`, "The copy schema and the primitives that read it" — read whenever
   the scope touches copy: each text belongs to the block of the primitive that draws it
-  (`responses.<name>` for `response_embed`, `errors.<name>`, `records.<name>` for
-  `RecordsBrowser`, `panel`, `stats`, `announcement`, `buttons`, `cards`, and
-  `messages` only for what no primitive draws), snake_case keys, `$name` for a value
-  the code fills. A text a primitive draws filed under `messages`, a hand-built embed
+  (under `command` the fixed places `slash`, `setup`, `stats`, `panel`; under `ui`
+  `cards`, `texts` only for what no primitive draws, `records.<name>` for
+  `RecordsBrowser`, `responses.<name>` for `response_embed`, `errors.<name>`,
+  `buttons`, `announcement`), snake_case keys, `$name` for a value the code fills, and
+  an address that follows the file (`<key>.ui.responses.<name>`). A text a primitive
+  draws filed under `ui.texts`, a hand-built embed
   that a primitive draws, or a `{name}` in copy is a finding.
 - `docs/testing-strategy.md` — read whenever the scope touches shared
   infrastructure (the form platform, its step types and extensions, the Discord
@@ -212,7 +215,7 @@ executing them.
   `app/core/`, the pagination, embeds and records browser of `app/ui/`), also run
   `make lint` (ruff and `mypy --strict`, code-style rule 13). When it touches a YAML
   file or a schema, also run `tests/test_yaml_layout.py` and
-  `tests/test_yaml_reference.py` (a stale reference means `make yaml-docs` was not run).
+  `tests/test_yaml_reference.py` (a stale reference means `make docs` was not run).
 - File/directory: also run the matching tests (`tests/test_<module>.py`, else
   `git grep -l <symbol> tests/`). If none exist, record
   `Relevant tests executed: none found for <target>` and consider a test-coverage finding.

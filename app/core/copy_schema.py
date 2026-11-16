@@ -6,9 +6,10 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from pydantic import BaseModel, Field, RootModel
+from pydantic import BaseModel, ConfigDict, Field, RootModel
 
 from app.core.commands import Command, Open, commands
+from app.core.facts import FactSpec
 from app.core.feature_health import Stats
 from app.core.i18n import CopyBlock, CopyText
 from app.core.utils import SetupRow
@@ -18,15 +19,16 @@ from app.ui.buttons import ButtonCopy
 from app.ui.embed import Announcement, Card, ErrorBlock, Response
 from app.ui.records import Records
 
-Messages = Open[CopyText | Open[CopyText]]
+Texts = Open[CopyText | Open[CopyText]]
 """Texts no primitive draws, each read by its owner's own code: a plain chat line, a
 badge, or a table keyed by a closed vocabulary in code (one level, no deeper)."""
 
 
-class CommandCopy(CopyBlock):
-    """A command's `copy.yml`: one block per primitive that draws its texts, under keys
-    relative to the command; `slash` is required for a command with cogs, `setup` and
-    `stats` for one /setup offers."""
+class CommandPlaces(CopyBlock):
+    """The fixed places of a command that Keiko's shared screens fill: its app
+    commands, its /setup row, its statistics and its manager panel."""
+
+    model_config = ConfigDict(json_schema_extra={"in_order": True})
 
     slash: Slash | None = Field(
         None,
@@ -48,26 +50,39 @@ class CommandCopy(CopyBlock):
         description="What the command's feature adds to its manager panel.",
         json_schema_extra={"role": "structure"},
     )
-    announcement: Announcement | None = Field(
-        None,
-        description="What the command posts in a server channel.",
+
+
+class CommandUi(CopyBlock):
+    """What a command draws itself, one block per primitive that draws it."""
+
+    model_config = ConfigDict(json_schema_extra={"in_order": True})
+
+    cards: Open[Card] = Field(
+        default_factory=dict,
+        description="The Components V2 cards the command draws, keyed by the screen.",
         json_schema_extra={"role": "structure"},
     )
-    errors: Open[ErrorBlock] = Field(
+    texts: Texts = Field(
         default_factory=dict,
-        description="The command's errors, each named `<key>.errors.<name>` by the "
-        "code, a form or a validator.",
+        description="Texts no primitive draws, read by the command's own code.",
+        json_schema_extra={"role": "structure"},
+    )
+    records: Open[Records] = Field(
+        default_factory=dict,
+        description="The command's browsable lists, each named "
+        "`<key>.ui.records.<name>`.",
         json_schema_extra={"role": "structure"},
     )
     responses: Open[Response] = Field(
         default_factory=dict,
         description="The embeds the command answers with, each named "
-        "`<key>.responses.<name>`.",
+        "`<key>.ui.responses.<name>`.",
         json_schema_extra={"role": "structure"},
     )
-    records: Open[Records] = Field(
+    errors: Open[ErrorBlock] = Field(
         default_factory=dict,
-        description="The command's browsable lists, each named `<key>.records.<name>`.",
+        description="The command's errors, each named `<key>.ui.errors.<name>` by "
+        "the code, a form or a validator.",
         json_schema_extra={"role": "structure"},
     )
     buttons: Open[ButtonCopy] = Field(
@@ -76,21 +91,45 @@ class CommandCopy(CopyBlock):
         "runs or by what the button does.",
         json_schema_extra={"role": "structure"},
     )
-    cards: Open[Card] = Field(
-        default_factory=dict,
-        description="The Components V2 cards the command draws, keyed by the screen.",
+    announcement: Announcement | None = Field(
+        None,
+        description="What the command posts in a server channel.",
         json_schema_extra={"role": "structure"},
     )
-    messages: Messages = Field(
+
+
+class CommandCopy(CopyBlock):
+    """A command's `copy.yml`: the facts its texts read, then the fixed places the
+    shared screens fill, then what it draws itself, under keys relative to the
+    command."""
+
+    model_config = ConfigDict(json_schema_extra={"in_order": True})
+
+    facts: Open[FactSpec] = Field(
         default_factory=dict,
-        description="Texts no primitive draws, read by the command's own code.",
+        description="The facts only this command's code passes, each read as "
+        "`<key>.facts.<name>` by a rule and as `$<name>` by a text; a fact a second "
+        "command needs moves to app/core/global.yml.",
+        json_schema_extra={"role": "structure"},
+    )
+    command: CommandPlaces = Field(
+        default_factory=CommandPlaces,
+        description="The fixed places Keiko's shared screens fill, each read under "
+        "`<key>.command.`; `slash` is required for a command with cogs, `setup` and "
+        "`stats` for one /setup offers.",
+        json_schema_extra={"role": "structure"},
+    )
+    ui: CommandUi = Field(
+        default_factory=CommandUi,
+        description="What the command draws itself, each block read under "
+        "`<key>.ui.` by the one primitive that draws it.",
         json_schema_extra={"role": "structure"},
     )
 
 
 class SharedCommands(CopyBlock):
     """`app/languages/commands.yml`: the screens the shared layers draw for every
-    command, under `commands.`; their plain lines and tables live in `messages.yml`."""
+    command, under `commands.`; their plain lines and tables live in `texts.yml`."""
 
     responses: Open[Response] = Field(
         default_factory=dict,
@@ -118,8 +157,8 @@ class SharedErrors(RootModel[Open[ErrorBlock]]):
     nothing but errors."""
 
 
-class SharedMessages(RootModel[Messages]):
-    """`app/languages/messages.yml`: the plain lines and tables the shared layers read
+class SharedTexts(RootModel[Texts]):
+    """`app/languages/texts.yml`: the plain lines and tables the shared layers read
     (months, parent groups, notices, permission lines, placeholders, page and value
     words)."""
 
@@ -134,7 +173,7 @@ SHARED_FILES: Mapping[str, type[BaseModel]] = {
     "commands": SharedCommands,
     "errors": SharedErrors,
     "locales": LocaleNames,
-    "messages": SharedMessages,
+    "texts": SharedTexts,
 }
 """The schema of each shared copy file, by the stem its keys load under."""
 
@@ -156,8 +195,8 @@ def validated(document: Mapping[str, Any], prefix: str, shared: bool) -> BaseMod
 
 def _missing(command: Command, copy: CommandCopy) -> list[str]:
     needed: list[tuple[str, BaseModel | None, bool]] = [
-        ("slash", copy.slash, bool(command.cogs)),
-        ("setup", copy.setup, command.on_setup),
-        ("stats", copy.stats, command.on_setup),
+        ("command.slash", copy.command.slash, bool(command.cogs)),
+        ("command.setup", copy.command.setup, command.on_setup),
+        ("command.stats", copy.command.stats, command.on_setup),
     ]
     return [name for name, written, wanted in needed if wanted and written is None]

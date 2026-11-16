@@ -80,7 +80,7 @@ def _first_answer(events):
 
 
 def _notices(scenario, key):
-    text = ml(f"messages.notices.{key}", locale=scenario.locale_str)
+    text = ml(f"texts.notices.{key}", locale=scenario.locale_str)
     return [e for e in scenario.outputs if e.get("content") == text]
 
 
@@ -242,7 +242,7 @@ async def test_expiry_takes_the_buttons_off_an_embed_screen(v2):
     await scenario.expire()
     message = scenario.current_message
     assert message.view is None
-    expired = ml("messages.notices.expired", locale="pt-br")
+    expired = ml("texts.notices.expired", locale="pt-br")
     assert expired in message.embeds[0].description
     assert _session_of(scenario) is None or True
     assert all(s.status is Status.EXPIRED for s in RUNTIME.store._sessions.values())
@@ -256,7 +256,7 @@ async def test_expiry_takes_the_buttons_off_a_card(v2):
     items = list(locators.walk_items(scenario.current_message.view))
     assert not any(isinstance(item, discord.ui.Button) for item in items)
     texts = [i.content for i in items if isinstance(i, discord.ui.TextDisplay)]
-    assert ml("messages.notices.expired", locale="pt-br") in texts
+    assert ml("texts.notices.expired", locale="pt-br") in texts
 
 
 async def test_a_click_after_expiry_finalizes_the_message_again(v2):
@@ -274,9 +274,7 @@ async def test_a_click_on_a_forgotten_session_closes_the_message(v2):
     RUNTIME.reset()
     await button.callback(scenario._mint(message=message, custom_id=button.custom_id))
     assert message.view is None
-    assert (
-        ml("messages.notices.expired", locale="pt-br") in message.embeds[0].description
-    )
+    assert ml("texts.notices.expired", locale="pt-br") in message.embeds[0].description
 
 
 # ------------------------------------------------------------- choreography

@@ -208,7 +208,7 @@ async def test_two_changes_in_a_row_on_the_same_screen_both_save(
     ], "every click on the screen must save, not only the first"
 
     await scenario.click("back")
-    busy = ml("messages.notices.busy", locale="pt-br")
+    busy = ml("texts.notices.busy", locale="pt-br")
     said_busy = [
         event for event in scenario.outputs
         if busy and busy in (event.get("content") or "")
@@ -311,7 +311,7 @@ async def stats_description(scenario_factory):
         "block_links", dict(COG)
     )
     await scenario.click(ml("buttons.stats.label", locale="pt-br"))
-    stats = scenario.expect_message(title_contains=ml("block_links.stats.title", locale="pt-br"))
+    stats = scenario.expect_message(title_contains=ml("block_links.command.stats.title", locale="pt-br"))
     await scenario.finish()
     return (stats.get("embed") or {}).get("description") or ""
 
@@ -359,7 +359,7 @@ async def test_the_stats_total_is_the_servers_lifetime_and_redis_holds_no_count(
     assert walks == [], f"the Stats walked the keyspace: {walks}"
     assert deps.redis_client.keys(f"guild:{GUILD_ID}:block_links:*") == []
     assert "block_links_totals" not in deps.mongo_client.guild.list_collection_names()
-    assert f"**{_bm('stats.figures.total')}:** 7" in description
+    assert f"**{_bm('command.stats.figures.total')}:** 7" in description
     assert "`spam-site.com` (1)" in description and "`old.com` (1)" in description
 
 
@@ -384,7 +384,7 @@ async def test_the_sites_and_the_member_come_from_the_last_90_days_of_blocks(
     assert "ancient.com" not in description and "<@999>" not in description
     assert "`spam-site.com` (3)" in description
     assert "<@111> (2)" in description
-    assert f"**{_bm('stats.figures.recent')}:** 3" in description
+    assert f"**{_bm('command.stats.figures.recent')}:** 3" in description
 
 
 @pytest.mark.shared_contract("config_cache")
@@ -440,7 +440,7 @@ async def test_the_stats_never_freeze_the_bot(deps, monkeypatch):
     ticks = await ticks_while(stats.handler(interaction, []))
 
     assert ticks >= MIN_TICKS
-    assert sent and _bm("stats.empty") in sent[0]["embed"].description
+    assert sent and _bm("command.stats.empty") in sent[0]["embed"].description
 
 
 PINGING_COG = {

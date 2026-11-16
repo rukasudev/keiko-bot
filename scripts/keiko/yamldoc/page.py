@@ -18,7 +18,10 @@ from scripts.keiko.yamldoc.translations import Translations, plain
 
 from app.core.commands import YamlType
 
-TEMPLATE = Path(__file__).resolve().parents[1] / "templates" / "yamldoc" / "page.html"
+TEMPLATES = Path(__file__).resolve().parents[1] / "templates" / "yamldoc"
+TEMPLATE = TEMPLATES / "page.html"
+THEME = TEMPLATES / "theme.css"
+THEMED = "/*theme*/"
 DATA = "<!--data-->"
 SLUG = re.compile(r"[^a-z0-9]+")
 SCALARS = {
@@ -51,8 +54,13 @@ def render(documents: Sequence[Documented], translations: Translations) -> str:
         sort_keys=True,
         separators=(",", ":"),
     )
-    template = TEMPLATE.read_text(encoding="utf-8")
-    return template.replace(DATA, data.replace("</", "<\\/"))
+    return styled(TEMPLATE).replace(DATA, data.replace("</", "<\\/"))
+
+
+def styled(template: Path) -> str:
+    """The page template at `template` with the theme every docs page shares."""
+    theme = THEME.read_text(encoding="utf-8").rstrip("\n")
+    return template.read_text(encoding="utf-8").replace(THEMED, theme)
 
 
 def payload(documents: Sequence[Documented], translations: Translations) -> Payload:

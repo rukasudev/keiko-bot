@@ -16,6 +16,7 @@ from app.constants import Style as style_constants
 from app.constants import ViewConstants as view_constants
 from app.core import analytics, cache
 from app.core.commands import MessageSent
+from app.core.facts import Facts, facts
 from app.core.servers import server_language
 from app.core.threads import to_thread
 from app.core.trace import outside_any_trace
@@ -38,6 +39,11 @@ from app.forms.form.responses.summary import unwrap
 from app.integrations.stream_elements import StreamElementsClient
 from app.ui.embed import response_error_embed
 from app.ui.records import RecordsBrowser
+
+
+def command_facts(**values: Any) -> Facts:
+    """The facts the StreamElements commands pass their copy, each under its address."""
+    return facts("stream_elements_commands", **values)
 
 
 async def manager(interaction: discord.Interaction) -> None:
@@ -100,7 +106,7 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
         if command == "commands":
             await message.reply(
                 embed=response_error_embed(
-                    "stream_elements_commands.errors.unavailable", locale
+                    "stream_elements_commands.ui.errors.unavailable", locale
                 )
             )
     except Exception as e:
@@ -223,7 +229,8 @@ async def send_commands_view(interaction: discord.Interaction) -> None:
         await to_thread(warn_unavailable, streamer, unavailable)
         await interaction.response.send_message(
             embed=response_error_embed(
-                "stream_elements_commands.errors.unavailable", str(interaction.locale)
+                "stream_elements_commands.ui.errors.unavailable",
+                str(interaction.locale),
             ),
             ephemeral=True,
         )
@@ -244,8 +251,8 @@ def command_list(streamer: str, commands: Mapping[str, str]) -> RecordsBrowser:
         fetch,
         _as_fields,
         sep=view_constants.COMMANDS_PAGE_SIZE,
-        copy="stream_elements_commands.records.commands",
-        values={"streamer": streamer},
+        copy="stream_elements_commands.ui.records.commands",
+        facts=command_facts(streamer=streamer),
     )
 
 
@@ -270,7 +277,7 @@ def create_response_embed(
     )
     embed.set_author(name=f"!{command}", icon_url=user.display_avatar.url)
     footer = fill(
-        ml("stream_elements_commands.messages.reply_footer", locale),
+        ml("stream_elements_commands.ui.texts.reply_footer", locale),
         command=f"{prefix}commands",
         streamer=streamer,
     )
@@ -356,6 +363,8 @@ def _channel_commands(channel_id: str) -> Dict[str, str]:
 class StreamElementsFeature(GenericCogFeature):
     """Commands fetched from a streamer's StreamElements channel."""
 
+    fills_panel_info = True
+
     def __init__(self) -> None:
         super().__init__("stream_elements_commands")
 
@@ -379,7 +388,7 @@ class StreamElementsFeature(GenericCogFeature):
         self, document: Mapping[str, Any], context: OpenContext
     ) -> tuple[str, str]:
         """How many commands the panel says it answers, none, or that it could not
-        tell, as the title and the paragraph of its `panel.info`."""
+        tell, as the title and the paragraph of its `command.panel.info`."""
         locale = context.locale
         streamer = str(unwrap(document.get("streamer")) or "")
         try:
@@ -393,14 +402,20 @@ class StreamElementsFeature(GenericCogFeature):
             )
         except StreamElementsUnavailable as unavailable:
             await to_thread(warn_unavailable, streamer, unavailable)
-            return self.panel_info_copy(locale, variant="unknown")
+            return self._info(locale, streamer, None)
         except Exception:
-            return self.panel_info_copy(locale, variant="unknown")
+            return self._info(locale, streamer, None)
         if not commands:
-            title, _count = self.panel_info_copy(locale)
+            title, _count = self._info(locale, streamer, 0)
             return title, command_list(streamer, commands).empty_text(locale)
+        return self._info(locale, streamer, len(commands))
+
+    def _info(self, locale: str, streamer: str, count: int | None) -> tuple[str, str]:
         return self.panel_info_copy(
-            locale, values={"count": len(commands), "streamer": streamer}
+            locale,
+            command_facts(
+                api_reachable=count is not None, count=count or 0, streamer=streamer
+            ),
         )
 
     def asides(self) -> Mapping[str, AsideAction]:

@@ -118,7 +118,7 @@ async def test_the_twitch_preview_shows_an_example_when_nobody_is_live(deps):
 
     embed = interaction.followup.send.await_args.kwargs["embed"]
     example = ml(
-        "notifications_twitch.announcement.samples.title", locale="pt-br"
+        "notifications_twitch.ui.announcement.samples.title", locale="pt-br"
     )
     assert embed.title == example
     assert embed.image.url == "https://static-cdn.jtvnw.net/vod/1280x720.jpg"
@@ -168,7 +168,7 @@ async def test_the_youtube_preview_carries_the_embed_the_notification_sends(
 
     embed = interaction.followup.send.await_args.kwargs["embed"]
     example = ml(
-        "notifications_youtube_video.announcement.samples.title", locale="pt-br"
+        "notifications_youtube_video.ui.announcement.samples.title", locale="pt-br"
     )
     assert embed.title == example
     assert embed.thumbnail.url == "https://yt3.ggpht.com/avatar.jpg"

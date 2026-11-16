@@ -242,7 +242,7 @@ async def test_a_category_row_says_how_many_more_commands_it_has(
     """Lucas (PR15 round 4): "e mais" alone did not say how many commands
     were left out, and it closed even a category whose commands were all listed;
     since round 7 (ux-556) it reads as plain text with the words of
-    `messages.and_more`."""
+    `texts.and_more`."""
     _moderations(monkeypatch, count)
 
     assert text_of(rows(await dashboard(locale))[1]) == expected
@@ -328,9 +328,9 @@ async def test_every_row_is_its_name_and_one_subtext_line_with_its_command(confi
         for section in rows(await page(category)):
             spec = feature(section.accessory.command_key)
             name_line, subtext, *rest = text_of(section).split("\n")
-            assert command_text(spec, "setup.label", "pt-br") in name_line
+            assert command_text(spec, "command.setup.label", "pt-br") in name_line
             assert subtext.startswith("-# "), "what it does reads as quiet subtext"
-            assert command_text(spec, "setup.description", "pt-br") in subtext
+            assert command_text(spec, "command.setup.description", "pt-br") in subtext
             assert "`/" in subtext, "the command still teaches the shortcut"
             assert rest == [], "no health line on the row"
 
@@ -584,7 +584,7 @@ async def _help_setup_button(monkeypatch):
     await help_service.send_help(interaction)
     view = interaction.response.send_message.await_args.kwargs["view"]
     embed = interaction.edit_original_response.await_args.kwargs["embed"]
-    label = ml("setup.buttons.dashboard.label", "pt-br")
+    label = ml("setup.ui.buttons.dashboard.label", "pt-br")
     buttons = [
         child
         for child in view.children
@@ -674,11 +674,11 @@ async def test_the_history_lists_the_server_settings_changed_on_the_settings_scr
         locale="pt-br", guild=None, client=SimpleNamespace(user=SimpleNamespace(id=999))
     )
     lines = list(history_fields(records, interaction, "pt-br").values())
-    assert lines[0].startswith(ml("setup.cards.dashboard.rows.settings.title", "pt-br"))
+    assert lines[0].startswith(ml("setup.ui.cards.dashboard.rows.settings.title", "pt-br"))
     assert "<@555>" in lines[0]
 
 
-PERMISSIONS_BASE = "setup.responses.permissions"
+PERMISSIONS_BASE = "setup.ui.responses.permissions"
 
 
 EVERYTHING = {
@@ -740,13 +740,13 @@ async def report(server, locale="pt-br"):
 
 def field_of(embed, command_key, locale="pt-br"):
     spec = next(f for f in setup_features() if f.key == command_key)
-    label = command_text(spec, "setup.label", locale)
+    label = command_text(spec, "command.setup.label", locale)
     name = f"{spec.emoji} {label}"
     return next(field.value for field in embed.fields if field.name == name)
 
 
 def names(permission, locale="pt-br"):
-    return ml(f"messages.permission_names.{permission}", locale)
+    return ml(f"texts.permission_names.{permission}", locale)
 
 
 @pytest.fixture
@@ -883,7 +883,7 @@ def test_the_greeting_offers_the_language_then_setup_and_help(locale, labels):
 def test_the_greeting_points_at_its_buttons_by_their_labels(locale, sentence):
     message = _greeting_text(locale)
 
-    assert f"**{ml('setup.buttons.dashboard.label', locale)}**" in message
+    assert f"**{ml('setup.ui.buttons.dashboard.label', locale)}**" in message
     assert f"**{ml('buttons.help.label', locale)}**" in message
     assert sentence in message
 
@@ -922,7 +922,7 @@ def test_the_greeting_lists_each_category_with_its_configurar_features(locale, t
 @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
 def test_a_refused_setting_has_a_message_for_each_server_setting_only(locale):
     """The mention left the server settings, and its refusal stayed behind."""
-    prefix = "setup.errors.refused_"
+    prefix = "setup.ui.errors.refused_"
     refused = {
         key[len(prefix) :].split(".")[0] for key in i18n.keys(locale) if key.startswith(prefix)
     }

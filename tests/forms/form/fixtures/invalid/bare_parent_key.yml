@@ -20,7 +20,7 @@ steps:
         key: link
         title: {en-us: Link, pt-br: Link}
         description: {en-us: type, pt-br: digite}
-        variants:
+        overrides:
           - when: {key: mode, not_in: [a]}
             description: {en-us: Other, pt-br: Outro}
   - type: review

@@ -9,11 +9,18 @@ from pydantic import BaseModel, RootModel, ValidationError
 
 from app.core import copy_schema, i18n
 from app.core.commands import Text, command_for
-from app.core.copy_schema import SHARED_FILES, CommandCopy, validated
+from app.core.copy_schema import (
+    SHARED_FILES,
+    CommandCopy,
+    CommandPlaces,
+    CommandUi,
+    validated,
+)
+from app.core.facts import ContextEntry, FactSpec, GlobalCatalog
 from app.core.feature_health import Stats
-from app.core.i18n import Plural, Variant
+from app.core.i18n import Plural
 from app.core.utils import SetupRow
-from app.forms.features.feature import Panel, PanelInfo, PanelPages
+from app.forms.features.feature import Panel, PanelInfo, PanelInfoOverride, PanelPages
 from app.forms.form.form_yaml import shared_vocabulary
 from app.translator import Slash, SlashCommand, SlashParam
 from app.ui.buttons import ButtonCopy
@@ -21,10 +28,13 @@ from app.ui.embed import (
     Announcement,
     AnnouncementDefaults,
     Card,
+    CardOverride,
     CardRow,
     ErrorBlock,
+    FieldOverride,
     Response,
     ResponseField,
+    ResponseOverride,
 )
 from app.ui.records import Records, RecordsDetail, RecordsFilter
 from tests.helpers.copy import SAMPLE
@@ -32,7 +42,13 @@ from tests.helpers.copy import SAMPLE
 pytestmark = pytest.mark.unit
 
 MODELS: tuple[type[BaseModel], ...] = (
-    Variant,
+    ResponseOverride,
+    FieldOverride,
+    CardOverride,
+    PanelInfoOverride,
+    FactSpec,
+    ContextEntry,
+    GlobalCatalog,
     Plural,
     Slash,
     SlashParam,
@@ -53,6 +69,8 @@ MODELS: tuple[type[BaseModel], ...] = (
     AnnouncementDefaults,
     Card,
     CardRow,
+    CommandPlaces,
+    CommandUi,
     CommandCopy,
     copy_schema.SharedCommands,
 )
@@ -90,22 +108,40 @@ def test_every_key_of_a_copy_model_is_snake_case(model: type[BaseModel]):
 def test_a_copy_that_writes_every_block_validates():
     copy = CommandCopy.model_validate(_sample())
 
-    assert copy.responses["check"].variants["blocked"].title == Text.model_validate(
+    assert copy.ui.responses["check"].overrides[0].title == Text.model_validate(
         {"en-us": "🚫 Blocked", "pt-br": "🚫 Bloqueado"}
     )
-    assert copy.records["saved"].filter is not None
-    assert copy.announcement and copy.announcement.defaults
-    assert list(copy.responses["check"].fields) == ["how", "files", "author"]
+    assert copy.facts["shape"].values == ("round", "square")
+    assert copy.ui.records["saved"].filter is not None
+    assert copy.ui.announcement and copy.ui.announcement.defaults
+    assert list(copy.ui.responses["check"].fields) == ["how", "files", "author"]
+    assert copy.command.slash and copy.command.panel
 
 
-def test_the_top_level_of_a_copy_is_closed():
+@pytest.mark.parametrize("where", ["", "command", "ui"])
+def test_every_level_of_a_copy_is_closed(where: str):
+    sample = _sample()
+    if where:
+        sample[where] = {**sample[where], "response": {"title": TEXT}}
+    else:
+        sample["response"] = {"title": TEXT}
+
     with pytest.raises(ValidationError, match="Extra inputs are not permitted"):
-        CommandCopy.model_validate({**_sample(), "response": {"title": TEXT}})
+        CommandCopy.model_validate(sample)
 
 
-def test_the_blocks_closed_by_the_schema_come_before_the_open_ones():
-    closed = ["slash", "setup", "stats", "panel", "announcement"]
-    assert list(CommandCopy.model_fields)[: len(closed)] == closed
+def test_a_copy_writes_its_facts_then_the_fixed_places_then_what_it_draws():
+    assert list(CommandCopy.model_fields) == ["facts", "command", "ui"]
+    assert list(CommandPlaces.model_fields) == ["slash", "setup", "stats", "panel"]
+    assert list(CommandUi.model_fields) == [
+        "cards",
+        "texts",
+        "records",
+        "responses",
+        "errors",
+        "buttons",
+        "announcement",
+    ]
 
 
 @pytest.mark.parametrize(
@@ -126,15 +162,29 @@ def test_a_copy_text_names_a_value_with_a_dollar():
 
 
 def test_the_announcement_defaults_are_admin_templates_with_braces():
-    defaults = Announcement.model_validate(_sample()["announcement"]).defaults
+    defaults = Announcement.model_validate(_sample()["ui"]["announcement"]).defaults
 
     assert defaults is not None and defaults.title.en_us == "Hello {user}!"
 
 
-def test_a_variant_writes_its_title_its_description_or_both():
-    with pytest.raises(ValidationError, match="a variant writes"):
-        Variant.model_validate({})
-    assert Variant.model_validate({"description": TEXT}).title is None
+def test_an_override_writes_its_rule_and_at_least_one_field():
+    rule = {"key": "global.facts.feature_state", "is": "paused"}
+
+    with pytest.raises(ValidationError, match="replaces at least one field"):
+        ResponseOverride.model_validate({"when": rule})
+    with pytest.raises(ValidationError, match="when"):
+        ResponseOverride.model_validate({"title": TEXT})
+    assert (
+        ResponseOverride.model_validate({"when": rule, "description": TEXT}).title
+        is None
+    )
+
+
+def test_an_enum_fact_names_its_values_and_no_other_fact_does():
+    with pytest.raises(ValidationError, match="an enum fact names its `values`"):
+        FactSpec.model_validate({"type": "enum", "description": "x"})
+    with pytest.raises(ValidationError, match="a text fact names no `values`"):
+        FactSpec.model_validate({"type": "text", "values": ["a"], "description": "x"})
 
 
 def test_a_plural_reads_one_for_a_single_count_and_other_for_the_rest():
@@ -166,8 +216,12 @@ def test_a_context_menu_writes_no_caption():
 @pytest.mark.parametrize(
     "key,document,missing",
     [
-        ("welcome_messages", {"slash": {"name": TEXT}}, "setup, stats"),
-        ("translate", {"messages": {"hint": TEXT}}, "slash"),
+        (
+            "welcome_messages",
+            {"command": {"slash": {"name": TEXT}}},
+            "command.setup, command.stats",
+        ),
+        ("translate", {"ui": {"texts": {"hint": TEXT}}}, "command.slash"),
     ],
     ids=["on setup", "with cogs"],
 )
