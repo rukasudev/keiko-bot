@@ -20,11 +20,10 @@ import inspect
 import discord
 import pytest
 
-from app.components.buttons import run_feature_command
-from app.constants import Commands
-from app.settings import open_feature
-from app.settings.discord.callbacks import RUNTIME
-from app.settings.form.form_state import Manage
+from app.forms import run_feature_command
+from app.forms import open_feature
+from app.forms.discord.callbacks import RUNTIME
+from app.forms.form.form_state import Manage
 from tests.behavioral.contracts.test_a_setup_ends_with_the_activation_and_its_panel import (  # noqa: E501
     SETUPS,
     _activation_embeds,
@@ -134,10 +133,10 @@ async def test_a_manager_opened_with_an_ending_draws_its_panel_as_ever(deps):
     from tests.behavioral.golden.paths.default_roles import ENABLED
     from tests.behavioral.golden.paths.common import seed_document
 
-    seed_document(deps, Commands.DEFAULT_ROLES_KEY, ENABLED)
+    seed_document(deps, "default_roles", ENABLED)
     scenario = _launched(deps, int(GUILD_ID))()
 
-    await scenario.start_command(Commands.DEFAULT_ROLES_KEY)
+    await scenario.start_command("default_roles")
 
     assert isinstance(scenario.session.mode, Manage)
     assert not scenario.launcher.deleted

@@ -1,6 +1,6 @@
 """What a command did on its own: a blocked link, a refused delivery, a greeting.
 
-Written in the analytics sink's batch and kept 90 days.
+Written in the analytics writer's batch and kept 90 days.
 """
 
 from datetime import datetime

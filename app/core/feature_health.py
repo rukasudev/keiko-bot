@@ -1,19 +1,59 @@
 """How each feature did in its last days: what Keiko is missing for it, the deliveries
 it refused or made, and the statistics embed every manager panel opens."""
-import asyncio
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Sequence
+from typing import Any, List, Sequence
 
 import discord
+from pydantic import Field
 
-from app.components.embed import base_embed
+from app.ui.embed import base_embed, standard_footer
 from app.constants import Commands as commands_constants
-from app.core import analytics
+from app.core import analytics, i18n
 from app.core.analytics_reports import window_months, window_totals
-from app.core.analytics_sink import metric_key
+from app.core.analytics_writer import metric_key
+from app.core.i18n import CopyBlock, CopyError, CopyText, Plural
 from app.data import data
-from app.core.cogs import feature_spec
-from app.core.utils import fill, ml, parse_locale, stored_value
+from app.core.commands import Command, Open, setup_feature
+from app.core.utils import command_text, fill, ml, parse_locale, stored_value
+
+
+class Stats(CopyBlock):
+    """A feature's statistics: the embed its panel opens and its line on the recent
+    activity, drawn by `send_feature_stats`, `health_line` and `figure_lines`."""
+
+    title: CopyText = Field(
+        description="The statistics embed's title, with one leading emoji.",
+        examples=[{"en-us": "📊 Statistics", "pt-br": "📊 Estatísticas"}],
+        json_schema_extra={"role": "copy"},
+    )
+    delivered: Plural = Field(
+        description="The recent-activity line after the deliveries of the last days, "
+        "by how many there were; $count, $days.",
+        json_schema_extra={"role": "copy"},
+    )
+    empty: CopyText | None = Field(
+        None,
+        description="The only line `figure_lines` draws while the feature has no "
+        "figure yet (the link blocker before its first block).",
+        json_schema_extra={"role": "copy"},
+    )
+    figures: Open[CopyText] = Field(
+        default_factory=dict,
+        description="The label of each figure, keyed by the figure `figure_lines` "
+        "draws as `emoji **label:** value`.",
+        json_schema_extra={"role": "copy"},
+    )
+
+
+@dataclass(frozen=True)
+class Figure:
+    """One figure of a feature's statistics: the `command.stats.figures` label it
+    reads, its emoji and its value."""
+
+    name: str
+    emoji: str
+    value: Any
 
 
 def _ids(value: Any) -> List[str]:
@@ -37,27 +77,27 @@ def _ids_by_style(views: Any, style: str) -> List[str]:
     return list(dict.fromkeys(found))
 
 
-def feature_problems(spec: Dict[str, Any], views: Any, guild: Any, locale: str) -> List[str]:
+def feature_problems(spec: Command, views: Any, guild: Any, locale: str) -> List[str]:
     """What Keiko is missing for one feature, one line each."""
-    base = "commands.commands.setup.permissions"
+    base = "texts.permissions"
     me = guild.me
     problems: List[str] = []
 
     def name(permission: str) -> str:
-        return ml(f"{base}.names.{permission}", locale)
+        return ml(f"texts.permission_names.{permission}", locale)
 
-    for permission in spec.get("server_permissions", ()):
+    for permission in spec.server_permissions:
         if not getattr(me.guild_permissions, permission, False):
             problems.append(
                 fill(ml(f"{base}.server", locale), permission=name(permission))
             )
 
-    channel_permissions = spec.get("channel_permissions", ())
+    channel_permissions = spec.channel_permissions
     if channel_permissions:
         for channel_id in _ids_by_style(views, "channel"):
             channel = guild.get_channel(int(channel_id)) if channel_id.isdigit() else None
             if channel is None:
-                problems.append(ml(f"{base}.channel-gone", locale))
+                problems.append(ml(f"{base}.channel_gone", locale))
                 continue
             granted = channel.permissions_for(me)
             for permission in channel_permissions:
@@ -70,12 +110,12 @@ def feature_problems(spec: Dict[str, Any], views: Any, guild: Any, locale: str) 
                         )
                     )
 
-    if spec.get("assigns_roles"):
+    if spec.assigns_roles:
         for role_id in _ids_by_style(views, "role"):
             role = guild.get_role(int(role_id)) if role_id.isdigit() else None
             if role is not None and role.position >= me.top_role.position:
                 problems.append(
-                    fill(ml(f"{base}.role-above", locale), role=role_id)
+                    fill(ml(f"{base}.role_above", locale), role=role_id)
                 )
 
     return problems
@@ -86,34 +126,30 @@ def _one_or_many(count: int) -> str:
 
 
 def health_line(
-    spec: Dict[str, Any], problems: List[str], refused: int, delivered: int, locale: str
+    spec: Command, problems: List[str], refused: int, delivered: int, locale: str
 ) -> str:
     """One feature's last days in a sentence: a problem first, then the deliveries it
     refused, then the ones it made, else a quiet line."""
-    base = "commands.commands.commons.stats.recent"
+    base = "texts.recent"
     days = commands_constants.FEATURE_STATS_DAYS
     if problems:
         return problems[0]
     if refused:
-        return fill(ml(f"{base}.refused-{_one_or_many(refused)}", locale), count=refused, days=days)
+        return fill(ml(f"{base}.refused_{_one_or_many(refused)}", locale), count=refused, days=days)
     if delivered:
-        key = f"{base}.delivered-{_one_or_many(delivered)}.{spec['button_key']}"
-        return fill(ml(key, locale), count=delivered, days=days)
+        stats = i18n.block(f"{spec.key}.command.stats", Stats)
+        line = stats.delivered.for_count(delivered).get(parse_locale(locale))
+        return fill(line, count=delivered, days=days)
     return fill(ml(f"{base}.quiet", locale), days=days)
 
 
 async def feature_health(
-    guild: Any, guild_id: str, user_id: str, locale: str, spec: Dict[str, Any]
+    guild: Any, guild_id: str, locale: str, spec: Command, views: Sequence[Any]
 ) -> str:
-    """How one feature did in its last days, in a sentence: the problem first."""
-    from app.settings.features import saved_settings
-
-    key = spec["command_key"]
+    """How one feature did in its last days over what it saved, the problem first."""
+    key = spec.key
     since = datetime.now(timezone.utc) - timedelta(days=commands_constants.FEATURE_STATS_DAYS)
-    months, views = await asyncio.gather(
-        data().analytics_counts.find_by_guild(guild_id, window_months(since)[0]),
-        saved_settings(key, guild_id, user_id, locale, guild),
-    )
+    months = await data().analytics_counts.find_by_guild(guild_id, window_months(since)[0])
     totals = window_totals(months, since, {
         metric_key("value.blocked_by_permission", key): "refused",
         **{metric_key(event, key): "delivered" for event in analytics.value_events()},
@@ -129,19 +165,40 @@ async def feature_health(
 
 
 async def send_feature_stats(
-    interaction: discord.Interaction, command_key: str, lines: Sequence[str]
+    interaction: discord.Interaction,
+    command_key: str,
+    lines: Sequence[str],
+    views: Sequence[Any],
 ) -> None:
-    """A feature's statistics, privately: its own lines, then its last days."""
+    """A feature's statistics, privately: its own lines, then its last days over `views`."""
     locale = parse_locale(interaction.locale)
-    spec = feature_spec(command_key)
-    guild_id = str(interaction.guild_id)
+    spec = setup_feature(command_key)
+    if spec is None:
+        raise KeyError(f"{command_key!r} is no command /setup offers")
     health = await feature_health(
-        interaction.guild, guild_id, str(interaction.user.id), locale, spec
+        interaction.guild, str(interaction.guild_id), locale, spec, views
     )
     description = "\n\n".join(part for part in ("\n".join(lines), health) if part)
     embed = base_embed(
-        ml(f"commands.commands.commons.stats.title.{spec['button_key']}", locale),
+        command_text(spec, "command.stats.title", locale),
         description,
-        footer=ml("commands.commands.commons.embed.footer", locale=locale),
+        footer=standard_footer(locale),
     )
     await interaction.followup.send(embed=embed, ephemeral=True)
+
+
+def figure_lines(command_key: str, figures: Sequence[Figure], locale: str) -> List[str]:
+    """The figures as a feature's statistics draw them, `emoji **label:** value` with
+    the label from its `command.stats.figures`, or its `command.stats.empty` alone
+    while there is none."""
+    stats = i18n.block(f"{command_key}.command.stats", Stats)
+    language = parse_locale(locale)
+    if not figures:
+        return [stats.empty.get(language)] if stats.empty else []
+    lines = []
+    for figure in figures:
+        if figure.name not in stats.figures:
+            raise CopyError(f"{command_key}.command.stats.figures writes no {figure.name}")
+        label = stats.figures[figure.name].get(language)
+        lines.append(f"{figure.emoji} **{label}:** {figure.value}")
+    return lines

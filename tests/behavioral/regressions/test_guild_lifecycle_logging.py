@@ -21,7 +21,7 @@ import pytest
 
 from app.data import data
 from app import logger as logger_module
-from app.constants import Commands, LogTypes as logconstants
+from app.constants import LogTypes as logconstants
 from app.core import analytics, trace as trace_service
 from tests.generators.moderations import seed_cog
 
@@ -74,10 +74,10 @@ def log_channel():
 @pytest.fixture
 def events(log_channel, monkeypatch):
     """The real cog, with only the Discord round trips stubbed out."""
-    from app.cogs import events as events_module
+    from app.core import events as events_module
 
     monkeypatch.setattr(
-        events_module, "GreetingsView",
+        "app.commands.setup.service.GreetingsView",
         lambda *args, **kwargs: SimpleNamespace(send=lambda guild: _NoopCoroutine()),
     )
     return events_module.Events(log_channel.bot)
@@ -237,21 +237,21 @@ async def test_the_left_guild_line_names_what_was_on_by_its_saved_settings(
     Guaranteed: the line lists exactly the features `is_feature_on` calls on before Keiko
     pauses them, and says "none" when nothing was.
     """
-    seed_cog(deps.mongo_client, Commands.BLOCK_LINKS_KEY, {"guild_id": GUILD_ID, "enabled": False})
-    seed_cog(deps.mongo_client, Commands.WELCOME_MESSAGES_KEY, {"guild_id": GUILD_ID, "enabled": True})
-    seed_cog(deps.mongo_client, Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY, {"guild_id": GUILD_ID, "enabled": True})
+    seed_cog(deps.mongo_client, "block_links", {"guild_id": GUILD_ID, "enabled": False})
+    seed_cog(deps.mongo_client, "welcome_messages", {"guild_id": GUILD_ID, "enabled": True})
+    seed_cog(deps.mongo_client, "stream_elements_commands", {"guild_id": GUILD_ID, "enabled": True})
 
     await events.on_guild_remove(guild_double(guild_id=int(GUILD_ID)))
 
     line = left_line(log_channel)
-    assert Commands.WELCOME_MESSAGES_KEY in line
-    assert Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY in line
-    assert Commands.BLOCK_LINKS_KEY not in line, "paused, so not on"
+    assert "welcome_messages" in line
+    assert "stream_elements_commands" in line
+    assert "block_links" not in line, "paused, so not on"
 
 
 @pytest.mark.regression
 async def test_a_guild_with_nothing_on_says_none(deps, events, log_channel):
-    seed_cog(deps.mongo_client, Commands.BLOCK_LINKS_KEY, {"guild_id": GUILD_ID, "enabled": False})
+    seed_cog(deps.mongo_client, "block_links", {"guild_id": GUILD_ID, "enabled": False})
 
     await events.on_guild_remove(guild_double(guild_id=int(GUILD_ID)))
 

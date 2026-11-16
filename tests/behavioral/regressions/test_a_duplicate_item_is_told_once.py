@@ -11,12 +11,12 @@ gone and the command had to be run again.
 
 Shared behavior affected: the manager's answer to an addition its saved list
 already holds (`Manager.item_finished` and the refused commit in
-`_on_commit_failed`, app/settings/form/manager.py), and the final duplicate
-message of the executor (`Executor.finalize`, app/settings/discord/transitions.py),
-used by every list keyed by `unique_by`.
+`_on_commit_failed`, app/forms/form/manager.py), and the final duplicate
+message of the executor (`Executor.finalize`, app/forms/discord/transitions.py),
+used by every list keyed by `unique.key`.
 
-Exposed by: reminders_birthday (`unique_by: user`); notifications_twitch
-(`unique_by: streamer`) is covered too, where the nick's validator refuses the
+Exposed by: reminders_birthday (`unique.key: user`); notifications_twitch
+(`unique.key: streamer`) is covered too, where the nick's validator refuses the
 streamer on the card before the list does.
 
 Must remain guaranteed: each duplicate attempt sends exactly one error, the
@@ -66,7 +66,7 @@ async def test_each_duplicate_birthday_is_told_once_and_the_next_member_is_not(
     scenario = await scenario_factory(locale=LOCALE, guild=_guild()).start_command(
         "reminders_birthday"
     )
-    duplicate = ml("errors.item-already-registered.title", locale=LOCALE)
+    duplicate = ml("errors.item_already_registered.title", locale=LOCALE)
 
     for attempt in range(3):
         start = len(scenario.outputs)

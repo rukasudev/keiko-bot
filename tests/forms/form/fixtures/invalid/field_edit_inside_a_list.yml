@@ -1,0 +1,30 @@
+steps:
+  - type: intro
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - type: list
+    key: items
+    items: {max: 3}
+    title: {en-us: Items, pt-br: Itens}
+    description: {en-us: items, pt-br: itens}
+    steps:
+      - type: card
+        key: pick
+        edit: field
+        title: {en-us: Pick, pt-br: Escolha}
+        description: {en-us: pick, pt-br: escolha}
+        sections:
+          - type: selects
+            key: roles
+            emoji: "🏷️"
+            label: {en-us: Roles, pt-br: Cargos}
+            selects:
+              - type: assignable_roles
+                key: roles
+                label: {en-us: Roles, pt-br: Cargos}
+                placeholder: {en-us: Roles, pt-br: Cargos}
+  - type: review
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

@@ -2,7 +2,7 @@
 
 import copy
 
-from app.settings.form.form_yaml import compile_form
+from app.forms.form.form_yaml import compile_form
 
 
 def text(value):
@@ -12,49 +12,49 @@ def text(value):
 WELCOME_LIKE_CARD_FORM = {
     "steps": [
         {
-            "action": "form",
+            "type": "intro",
             "key": "form",
             "title": text("🧪 Fixture"),
             "description": text("intro"),
         },
         {
-            "action": "configuration_card",
+            "type": "card",
             "key": "welcome_card",
             "title": text("Card"),
             "description": text("card"),
-            "required": ["channel", "image"],
+            "required": {"all": ["channel", "image"]},
             "defaults": {"design": "server_blur"},
             "header": {"title": text("Card")},
             "fields": [
-                {"key": "channel", "label": text("Channel"), "style": "channel"},
+                {"key": "channel", "label": text("Channel"), "format": "channel"},
                 {"key": "design", "label": text("Design")},
                 {"key": "image", "label": text("Image"), "hidden": True},
                 {"key": "title", "label": text("Title")},
-                {"key": "messages", "label": text("Messages"), "style": "bullet"},
+                {"key": "messages", "label": text("Messages"), "format": "bullet"},
                 {"key": "footer", "label": text("Footer")},
             ],
             "sections": [
                 {
                     "key": "channel",
-                    "icon": "#️⃣",
-                    "type": "channel-select",
+                    "emoji": "#️⃣",
+                    "type": "channel_select",
                     "label": text("Channel"),
-                    "state": {"value": "channel"},
+                    "keys": {"value": "channel"},
                 },
                 {
                     "key": "design",
-                    "icon": "🎨",
-                    "type": "design-select",
+                    "emoji": "🎨",
+                    "type": "design_select",
                     "label": text("Design"),
-                    "state": {"value": "design"},
-                    "designs": [
+                    "keys": {"value": "design"},
+                    "options": [
                         {
-                            "key": "server_blur",
+                            "value": "server_blur",
                             "label": text("Server"),
                             "description": text("server picture"),
                         },
                         {
-                            "key": "custom_only",
+                            "value": "custom_only",
                             "label": text("Your image"),
                             "description": text("your picture"),
                         },
@@ -62,32 +62,25 @@ WELCOME_LIKE_CARD_FORM = {
                 },
                 {
                     "key": "image",
-                    "icon": "🖼️",
-                    "type": "file-upload",
+                    "emoji": "🖼️",
+                    "type": "file_upload",
                     "label": text("Image"),
-                    "state": {"url": "image"},
-                    "visible-when": {"key": "design", "not_in": ["server_blur"]},
+                    "keys": {"image": "image"},
+                    "when": {"key": "design", "not_in": ["server_blur"]},
                     "modal": {"title": text("Image")},
                 },
                 {
                     "key": "messages",
-                    "icon": "💬",
-                    "type": "modal-input",
+                    "emoji": "💬",
+                    "type": "modal_input",
                     "label": text("Messages"),
-                    "state": {"value": "messages"},
-                    "style": "bullet",
+                    "keys": {"value": "messages"},
+                    "format": "bullet",
                     "modal": {
                         "title": text("Messages"),
-                        "fields": [
-                            {
-                                "key": "title",
-                                "label": text("Title"),
-                                "default": text("Hello!"),
-                            },
-                            {
-                                "label": text("Message"),
-                                "default": text("Welcome {user}"),
-                            },
+                        "inputs": [
+                            {"key": "title", "label": text("Title")},
+                            {"label": text("Message")},
                             {"label": text("Message"), "required": False},
                             {
                                 "key": "footer",
@@ -100,7 +93,7 @@ WELCOME_LIKE_CARD_FORM = {
             ],
         },
         {
-            "action": "resume",
+            "type": "review",
             "key": "confirm",
             "title": text("ok?"),
             "description": text("review"),
@@ -109,10 +102,10 @@ WELCOME_LIKE_CARD_FORM = {
 }
 
 
-def welcome_like_card(edit_by_field=False):
+def welcome_like_card(by_field=False):
     raw = copy.deepcopy(WELCOME_LIKE_CARD_FORM)
-    if edit_by_field:
-        raw["steps"][1]["edit_by_field"] = True
+    if by_field:
+        raw["steps"][1]["edit"] = "field"
     return compile_form("welcome_like_card", raw)
 
 
@@ -127,16 +120,16 @@ WELCOME_LIKE_DOC = {
 }
 
 
-RESET_ON_CHANGE_CARD_FORM = {
+DEPENDENTS_CARD_FORM = {
     "steps": [
         {
-            "action": "form",
+            "type": "intro",
             "key": "form",
             "title": text("🧪 Fixture"),
             "description": text("intro"),
         },
         {
-            "action": "configuration_card",
+            "type": "card",
             "key": "site_card",
             "title": text("Card"),
             "description": text("card"),
@@ -148,14 +141,17 @@ RESET_ON_CHANGE_CARD_FORM = {
             "sections": [
                 {
                     "key": "mode",
-                    "icon": "🚦",
-                    "type": "value-select",
-                    "state": {"value": "mode"},
+                    "emoji": "🚦",
+                    "type": "value_select",
+                    "keys": {"value": "mode"},
                     "label": text("Mode"),
-                    "picker-title": text("Choose the mode"),
-                    "customize-label": text("Choose mode"),
-                    "reset-on-change": [
-                        {"key": "link", "validation": "validate_link_or_domain"}
+                    "screen": {"title": text("Choose the mode")},
+                    "placeholder": text("Choose mode"),
+                    "dependents": [
+                        {
+                            "key": "link",
+                            "validation": {"name": "link_or_domain"},
+                        }
                     ],
                     "options": [
                         {"label": text("Block"), "value": "block"},
@@ -164,19 +160,19 @@ RESET_ON_CHANGE_CARD_FORM = {
                 },
                 {
                     "key": "link",
-                    "icon": "🔗",
-                    "type": "modal-input",
-                    "state": {"value": "link"},
+                    "emoji": "🔗",
+                    "type": "modal_input",
+                    "keys": {"value": "link"},
                     "label": text("Link"),
                     "modal": {
                         "title": text("Link"),
-                        "fields": [{"key": "link", "label": text("Link")}],
+                        "inputs": [{"key": "link", "label": text("Link")}],
                     },
                 },
             ],
         },
         {
-            "action": "resume",
+            "type": "review",
             "key": "confirm",
             "title": text("ok?"),
             "description": text("review"),
@@ -185,5 +181,5 @@ RESET_ON_CHANGE_CARD_FORM = {
 }
 
 
-def reset_on_change_card():
-    return compile_form("site_card", copy.deepcopy(RESET_ON_CHANGE_CARD_FORM))
+def dependents_card():
+    return compile_form("site_card", copy.deepcopy(DEPENDENTS_CARD_FORM))

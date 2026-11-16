@@ -6,10 +6,10 @@ places that still do are listed in EXCEPTIONS until the design-pattern pull requ
 moves them, and a listed place that no longer matches fails as stale. The scan reads
 the syntax tree, so comments and docstrings are prose and do not count.
 
-A command key is every key `Commands.SETUP_FEATURES` lists plus admin, config,
-log_inspection, subscriptions and translate, the commands with a module of their own
-whose key is no platform word (help, setup and report also name the form's help
-aside, its setup mode and a listener step, and their modules are refused as imports).
+A command key is every key the registry declares except the platform words help,
+setup, report and support, which also name the form's help aside, its setup mode, a
+listener step and the API's route to the support server (their modules are refused as
+imports).
 A feature word is matched inside snake case, camel case and hyphenated text alike;
 `greeting_sent` is the server's own record that Keiko greeted it, not the greeting.
 """
@@ -22,7 +22,8 @@ from typing import Dict, Iterator, List, Set, Tuple
 
 import pytest
 
-from app.constants import Commands, Feature
+from app.constants import Commands
+from app.core.commands import commands
 
 pytestmark = pytest.mark.unit
 
@@ -35,34 +36,26 @@ GENERIC_LAYERS = (
     "app/data/traces",
     "app/data/util.py",
     "app/core",
-    "app/views",
-    "app/components",
-    "app/settings/form",
-    "app/settings/discord",
-    "app/settings/features/__init__.py",
-    "app/settings/features/feature.py",
-    "app/cogs/events.py",
-    "app/webhooks/reminder.py",
-    "app/webhooks/jobs.py",
+    "app/ui",
+    "app/forms/form",
+    "app/forms/discord",
+    "app/forms/features/__init__.py",
+    "app/forms/features/feature.py",
+    "app/forms/features/subscriptions.py",
+    "app/integrations/reminders/webhook.py",
+    "app/integrations/http.py",
     "app/migrations/runner.py",
     "app/migrations/helpers.py",
     "app/migrations/__main__.py",
 )
-FEATURE_KEYS = frozenset(feature["command_key"] for feature in Commands.SETUP_FEATURES)
-COMMAND_KEYS = FEATURE_KEYS | {
-    "admin",
-    "config",
-    "log_inspection",
-    "subscriptions",
-    "translate",
-}
+PLATFORM_WORDS = frozenset({"help", "setup", "report", "support"})
+COMMAND_KEYS = frozenset(command.key for command in commands()) - PLATFORM_WORDS
 KEY_CONSTANTS = frozenset(
     {
         name
         for name, value in vars(Commands).items()
-        if isinstance(value, str) and value in FEATURE_KEYS
+        if isinstance(value, str) and value in COMMAND_KEYS
     }
-    | set(Feature.__members__)
 )
 FEATURE_WORDS = (
     "birthday",
@@ -77,12 +70,7 @@ FEATURE_WORDS = (
     "greeting",
     "inspection",
 )
-COMMAND_MODULE = re.compile(
-    r"app\.services\.\w+"
-    r"|app\.cogs\.(?!events\b)\w+"
-    r"|app\.settings\.features\.(?!feature\b)\w+"
-    r"|app\.webhooks\.birthday_handler\b"
-)
+COMMAND_MODULE = re.compile(r"app\.commands\.\w+")
 CAMEL_HUMP = re.compile(r"(?<=[a-z0-9])(?=[A-Z])")
 SEPARATOR = re.compile(r"[\s\-]+")
 NOT_A_FEATURE = re.compile(r"greeting_sent")
@@ -99,50 +87,6 @@ def _listed(path: str, *tokens: str) -> Dict[Tuple[str, str], str]:
 
 
 EXCEPTIONS: Dict[Tuple[str, str], str] = {
-    **_listed(
-        "app/core/cogs.py", "REMINDERS_BIRTHDAY_KEY", "app.services.reminders_birthdays"
-    ),
-    **_listed("app/core/utils.py", "twitch", "welcome"),
-    **_listed(
-        "app/views/greetings.py", "greeting", "app.services.help", "app.services.setup"
-    ),
-    **_listed("app/views/log_inspection.py", "inspection"),
-    **_listed("app/views/user_inspection.py", "inspection"),
-    **_listed(
-        "app/components/buttons.py",
-        "streamer",
-        "app.services.notifications_twitch",
-        "app.services.subscriptions",
-    ),
-    **_listed("app/components/embed.py", "welcome"),
-    **_listed("app/settings/form/actions/configuration_card.py", "birthday"),
-    **_listed(
-        "app/settings/form/responses/validations.py", "streamer", "twitch", "youtube"
-    ),
-    **_listed(
-        "app/cogs/events.py",
-        "block_links",
-        "default_roles",
-        "greeting",
-        "stream_elements",
-        "welcome",
-        "BLOCK_LINKS_KEY",
-        "DEFAULT_ROLES_KEY",
-        "WELCOME_MESSAGES_KEY",
-        "app.services.block_links",
-        "app.services.default_roles",
-        "app.services.help",
-        "app.services.stream_elements",
-        "app.services.welcome_messages",
-    ),
-    **_listed(
-        "app/webhooks/reminder.py",
-        "birthday",
-        "youtube",
-        "app.services.notifications_youtube_video",
-        "app.services.reminders_birthdays",
-        "app.webhooks.birthday_handler",
-    ),
 }
 
 
@@ -274,30 +218,31 @@ def test_every_exception_still_matches():
     )
 
 
-def test_the_scan_reads_names_literals_constants_and_imports(tmp_path):
+def test_the_scan_reads_names_literals_constants_and_imports(tmp_path, monkeypatch):
     """Camel case, a hyphen, a key constant, a lazy import; never prose or a name."""
-    for package in ("core", "services", "settings/features"):
+    monkeypatch.setitem(globals(), "KEY_CONSTANTS", frozenset({"GREET_KEY"}))
+    for package in ("core", "commands/help", "forms/features"):
         (tmp_path / "app" / package).mkdir(parents=True)
-    (tmp_path / "app" / "services" / "help.py").write_text("")
-    (tmp_path / "app" / "settings" / "features" / "__init__.py").write_text("")
+    (tmp_path / "app" / "commands" / "help" / "service.py").write_text("")
+    (tmp_path / "app" / "forms" / "features" / "__init__.py").write_text("")
     (tmp_path / "app" / "core" / "sample.py").write_text(
         '"""Sends the birthday."""\n'
-        "from app.services import help\n"
-        "from app.settings.features import feature_keys\n"
+        "from app.commands.help import service\n"
+        "from app.forms.features import feature_keys\n"
         "class DefaultRolesView:\n"
         "    def pick(self):\n"
         "        # a twitch comment\n"
-        "        from app.services.setup import open_setup\n"
-        "        key = Commands.REMINDERS_BIRTHDAY_KEY\n"
+        "        from app.commands.setup.service import open_setup\n"
+        "        key = Commands.GREET_KEY\n"
         '        return ["block-links", "translate", key, feature_keys]\n'
     )
     found = scan("app/core/sample.py", str(tmp_path))
 
     assert [(line, token) for _path, line, token in found] == [
-        (2, "app.services.help"),
+        (2, "app.commands.help"),
         (4, "default_roles"),
-        (7, "app.services.setup"),
-        (8, "REMINDERS_BIRTHDAY_KEY"),
+        (7, "app.commands.setup"),
+        (8, "GREET_KEY"),
         (9, "block_links"),
         (9, "translate"),
     ]

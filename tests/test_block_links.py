@@ -7,14 +7,14 @@ desde a deteccao ate a acao de moderacao.
 
 import pytest
 from app.data import wait
-from app.services.block_links import check_message
+from app.commands.block_links.service import check_message
 from tests.mocks import create_message, create_member
 from tests.generators import moderations
 from tests.generators.events import blocked_links
 
 
 async def _blocks(guild_id):
-    """The blocked links once the sink wrote its batch."""
+    """The blocked links once the analytics writer wrote its batch."""
     from app.core import analytics
 
     await analytics.flush()
@@ -404,7 +404,7 @@ class TestBlockLinksEditedMessages:
         """
         from unittest.mock import MagicMock
 
-        from app.services.block_links import check_edited_message
+        from app.commands.block_links.service import check_edited_message
 
         msg = create_message(channel, member, "Agora vai https://spam-site.com")
         channel.register_message(msg)
@@ -438,7 +438,7 @@ class TestBlockLinksEditedMessages:
         """
         from unittest.mock import MagicMock
 
-        from app.services.block_links import check_edited_message
+        from app.commands.block_links.service import check_edited_message
 
         bot.get_channel = MagicMock(return_value=channel)
 
@@ -459,7 +459,7 @@ class TestBlockLinksEditedMessages:
         """
         from unittest.mock import MagicMock
 
-        from app.services.block_links import check_edited_message
+        from app.commands.block_links.service import check_edited_message
 
         bot.get_channel = MagicMock(return_value=channel)
 
@@ -480,7 +480,7 @@ class TestBlockLinksEditedMessages:
         """
         from unittest.mock import MagicMock
 
-        from app.services.block_links import check_edited_message
+        from app.commands.block_links.service import check_edited_message
 
         msg = create_message(channel, bot_member, "https://spam-site.com")
         channel.register_message(msg)

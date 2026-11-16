@@ -44,7 +44,7 @@ FOOTER_FIELD = {"pt-br": "Rodapé", "en-us": "Footer"}
 
 def _banner_stub():
     return patch(
-        "app.services.welcome_messages.create_banner",
+        "app.commands.welcome.service.create_banner",
         new=AsyncMock(return_value=PREVIEW_URL),
     )
 

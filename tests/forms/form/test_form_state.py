@@ -6,7 +6,7 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from app.settings.form.form_state import (
+from app.forms.form.form_state import (
     Answer,
     FormSession,
     InMemorySessionStore,

@@ -38,7 +38,7 @@ On failure, the assertion message carries the full transcript:
 
 Every scenario enters through the real seam every cog goes through:
 `RUNTIME.open_feature(interaction, key)`
-(`app/settings/discord/callbacks.py`). The platform decides what
+(`app/forms/discord/callbacks.py`). The platform decides what
 opens from what is saved in the mock Mongo, exactly as in production.
 
 - `await scenario_factory(locale=...).start(command_key)` — nothing saved:
@@ -107,7 +107,7 @@ to the `action[:arg]` part, so a target is locale-independent:
 | `help` / `preview` / `history` | `aside:<action>` |
 | `customize:N` / `edit:N` / `reset:N` | the N-th card section's customize, edit or reset button |
 | `option:<label>` | an options-grid button by label |
-| `design:<key>` | the design gallery entry `<key>` |
+| `design:<value>` | the design gallery entry whose `value` is `<value>` |
 | `section:<step_key>` | the manager panel section that edits `<step_key>` (they all share the "Edit" label) |
 
 Unknown targets raise `LocatorError` listing everything clickable on
@@ -146,11 +146,11 @@ Typical interaction:
 await scenario.click("customize:0")        # opens the section picker/modal
 await scenario.select_option("general")    # picker select -> back on the card
 await scenario.click("customize:1")
-await scenario.submit_modal({"Dia": "12"}) # modal-input section
-await scenario.click("done")               # validates `required_keys` and advances
+await scenario.submit_modal({"Dia": "12"}) # modal_input section
+await scenario.click("done")               # validates the card's `required` and advances
 ```
 
-A failed validation (e.g. `validate_date`) answers with an error message of
+A failed validation (e.g. the `date` validator) answers with an error message of
 its own below the card; assert it with `expect_error(...)`, which reads the
 last error message sent, and retry by clicking the section again: its modal
 opens with what was typed. A refused modal step becomes a one-field card with

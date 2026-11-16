@@ -1,0 +1,24 @@
+steps:
+  - type: intro
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - type: card
+    key: card
+    title: {en-us: Card, pt-br: Card}
+    description: {en-us: card, pt-br: card}
+    sections:
+      - type: modal_input
+        key: answer
+        emoji: "💬"
+        label: {en-us: Answer, pt-br: Resposta}
+        keys: {value: answer}
+        customize-label: {en-us: Edit, pt-br: Editar}
+        modal:
+          title: {en-us: Answer, pt-br: Resposta}
+          inputs:
+            - {key: answer, label: {en-us: Answer, pt-br: Resposta}}
+  - type: review
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

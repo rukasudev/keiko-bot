@@ -62,7 +62,7 @@ async def test_block_all_full_flow_persists_domains_and_custom_entry(scenario_fa
     await scenario.submit_modal({"Digite o link ou site": "https://Meusite.com.br/promo/"})
 
     # The match-type step explains the choice using the link the user JUST
-    # typed ({response:link} token), normalized (no scheme/www/trailing /).
+    # typed ({answer:link} token), normalized (no scheme/www/trailing /).
     match_step = scenario.expect_message()
     match_text = (match_step.get("embed") or {}).get("description") or ""
     assert "meusite.com.br/promo" in match_text
@@ -160,7 +160,7 @@ async def test_mode_picker_explains_each_mode_in_its_own_line(scenario_factory):
 
 
 async def test_allow_all_hides_popular_websites_and_requires_entries(scenario_factory):
-    """visible-when: switching the mode removes the popular-websites section
+    """A section's when: switching the mode removes the popular-websites section
     from the card, and the blocked links are added from the card's own list."""
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
@@ -210,7 +210,7 @@ async def test_invalid_link_shows_error_and_recovers(scenario_factory):
     await scenario.click(CUSTOM_LINKS)
 
     await scenario.submit_modal({"Digite o link ou site": "isso nao e um link"})
-    expected = ml("errors.link-not-recognized.message", locale="pt-br")
+    expected = ml("errors.link_not_recognized.message", locale="pt-br")
     scenario.expect_error(expected.split(".")[0])
 
     # The form stays on the same step; the refusal's Edit re-opens the modal.
@@ -241,7 +241,7 @@ async def test_a_link_added_from_the_card_keeps_the_card_state(scenario_factory)
 
 
 async def test_custom_links_copy_says_what_the_list_does_in_each_mode(scenario_factory):
-    """description-when: the very same composition step must tell the user
+    """variants: the very same list step must tell the user
     whether the links being typed are the ones I always ALLOW (block-all mode)
     or the ones I always BLOCK (allow-all mode).
 

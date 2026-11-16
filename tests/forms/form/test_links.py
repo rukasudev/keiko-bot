@@ -2,7 +2,7 @@
 
 import pytest
 
-from app.settings.form.responses.links import link_host, parse_link
+from app.forms.form.responses.links import link_host, parse_link
 
 pytestmark = pytest.mark.unit
 

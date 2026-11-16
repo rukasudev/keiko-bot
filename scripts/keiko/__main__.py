@@ -7,6 +7,11 @@ def main(argv):
 
         return soak_main(argv[1:])
 
+    if argv and argv[0] in ("docs", "yamldoc"):
+        from scripts.keiko.yamldoc import main as docs_main
+
+        return docs_main(argv[1:])
+
     if argv and argv[0] == "birthdays":
         from scripts.keiko.birthdays.repair import main as repair_main
 

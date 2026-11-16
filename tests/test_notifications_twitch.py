@@ -9,7 +9,7 @@ import pytest
 import discord
 from datetime import datetime, timedelta, timezone
 from app.data import data
-from app.services.notifications_twitch import (
+from app.commands.twitch.service import (
     compose_notification_message,
     create_stream_notification_embed,
     handle_send_streamer_notification,
@@ -430,7 +430,7 @@ async def test_two_deliveries_of_one_live_at_once_post_it_once(deps, servers):
     the notice in every following server.
 
     Shared behaviour: `handle_send_streamer_notification`
-    (`app/services/notifications_twitch.py`), behind the Twitch webhook. Exposed by: the
+    (`app/commands/twitch/service.py`), behind the Twitch webhook. Exposed by: the
     review, next to the claim the YouTube announcement already takes on its video.
 
     Guaranteed: before the fan-out, the notice claims the stream (its streamer and when it
@@ -458,7 +458,7 @@ async def test_two_deliveries_of_one_live_at_once_post_it_once(deps, servers):
 async def test_a_delivery_that_could_not_read_its_followers_leaves_the_live_to_the_next(
     deps, servers, monkeypatch
 ):
-    from app.services import notifications_twitch
+    from app.commands.twitch import service as notifications_twitch
 
     follow(deps, servers.first.id, servers.first.text_channels[0].id)
     read = notifications_twitch.following_guilds
@@ -514,13 +514,13 @@ async def test_a_live_already_claimed_never_reads_who_follows_the_streamer(
     the followers only to find the live already announced.
 
     Shared behaviour: `handle_send_streamer_notification`
-    (`app/services/notifications_twitch.py`), behind the Twitch webhook. Exposed by: the
+    (`app/commands/twitch/service.py`), behind the Twitch webhook. Exposed by: the
     query review of the database plan, on the fan-out query.
 
     Guaranteed: the claim comes first; a delivery that finds it taken sends no query for
     the followers and posts nothing.
     """
-    from app.services import notifications_twitch
+    from app.commands.twitch import service as notifications_twitch
 
     follow(deps, servers.first.id, servers.first.text_channels[0].id)
     started_at = deps.twitch.get_stream_info("gaules")["started_at"]
@@ -753,7 +753,7 @@ def test_a_live_notice_names_its_fields_in_the_servers_language(twitch, locale, 
     from the language files, four field names were still English written in Python: the
     Twitch notice's "Game" and "Streamer", the YouTube notice's "Description" and "Tags".
 
-    Guaranteed: the field names come from `commands.commons.notifications-fields` in the
+    Guaranteed: the field names come from the `announcement.fields` of its copy in the
     locale the notice is written in, both locales carry them, and English reads as before.
     """
     twitch.add_user("gaules", user_id="123")
@@ -787,3 +787,29 @@ async def test_a_streamer_saved_by_the_old_pause_is_still_announced(deps, server
     assert all(
         len(channel._sent_messages) == 1 for channel in servers.second.text_channels
     )
+
+
+@pytest.mark.behavioral
+@pytest.mark.regression
+@pytest.mark.parametrize("game", [None, ""], ids=["no-category", "empty-category"])
+async def test_a_live_without_a_category_announces_no_category_field(deps, servers, game):
+    """A live with no category is announced without a category field.
+
+    Broke as: a live Twitch sent with no category (`game_name` missing, or empty) was
+    announced with a "Game" / "Categoria" field reading "None", since the notice wrote
+    its fields by hand and added every one whatever its value. Shared behaviour:
+    `announcement_embed` (`app/ui/embed.py`), which leaves out a field whose value is
+    empty. Consumer that exposed it: the Twitch live announcement. Guaranteed: such a
+    live is announced with the streamer field alone, and a live with a category keeps
+    both fields.
+    """
+    follow(deps, servers.first.id, servers.first.text_channels[0].id)
+    deps.twitch.set_stream_online(
+        "gaules", game=game, started_at=datetime.now(timezone.utc) - timedelta(hours=2)
+    )
+
+    await handle_send_streamer_notification("gaules")
+
+    [notice] = notices(servers.first)
+    fields = [(field.name, field.value) for field in notice.embeds[0].fields]
+    assert fields == [("Streamer", "gaules")]

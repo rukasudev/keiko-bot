@@ -84,13 +84,13 @@ from botocore.exceptions import ClientError
 from app.data import data
 from app import config as config_module
 from app import logger as logger_module
-from app.api import config as api_config
-from app.api import create_api
+from app.integrations import http as api_config
+from app.integrations.http import create_api
 from app.constants import Commands
 from app import integrations
-from app.integrations import youtube as youtube_integration
-from app.integrations.youtube import YoutubeClient
-from app.services import notifications_youtube_video
+from app.integrations.youtube import client as youtube_integration
+from app.integrations.youtube.client import YoutubeClient
+from app.commands.youtube import service as notifications_youtube_video
 from app.core import trace as trace_service
 from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks.discord import create_guild
@@ -903,9 +903,9 @@ async def test_a_channel_or_video_youtube_does_not_have_is_not_an_error(hub):
 async def test_a_renewal_youtube_answers_with_an_error_is_tried_again_in_an_hour(hub, deps):
     """Read as a missing channel, a quota error moved the renewal four days on without
     subscribing; Keiko now tries again itself an hour later."""
-    from app.services.notifications_youtube_video import insert_renewal_reminder
-    from app.integrations.reminder_webhook import REMINDER_TIMEZONE
-    from app.webhooks.reminder import renew_youtube_subscription
+    from app.commands.youtube.service import insert_renewal_reminder
+    from app.integrations.reminders.client import REMINDER_TIMEZONE
+    from app.commands.youtube.service import renew_youtube_subscription
 
     await insert_renewal_reminder(7001, "pewdiepie")
     hub.google.errors["channels"] = QUOTA_EXCEEDED
@@ -958,10 +958,10 @@ async def test_the_start_subscribes_every_followed_channel_again_with_the_secret
     follow(deps, 2002, "pewdiepie", "mrbeast")
     follow(deps, 3003, "stranger", enabled=False)
     follow(deps, 4004, "ghost")
-    from app.cogs.notifications import Notifications
+    from app.commands.youtube.cog import YoutubeRenewals
 
     with caplog.at_level("INFO"):
-        await Notifications(deps.bot).resubscribe_youtube()
+        await YoutubeRenewals(deps.bot).resubscribe_youtube()
 
     assert sorted(post["hub.topic"] for post in hub.google.hub_posts) == sorted([
         TOPIC.format(MRBEAST), TOPIC.format(PEWDIEPIE),
@@ -979,15 +979,15 @@ async def test_the_start_counts_only_the_channels_the_hub_accepted(hub, deps, ca
     hub.google.hub_statuses[TOPIC.format(MRBEAST)] = 503
 
     with caplog.at_level("INFO"):
-        renewed = notifications_youtube_video.resubscribe_followed_channels()
+        renewed = await notifications_youtube_video.resubscribe_followed_channels()
 
     assert renewed == 1
     assert "renewed — 1 of 2" in caplog.text
 
 
 async def test_the_start_stamps_every_youtuber_the_hub_took_again(hub, deps, monkeypatch):
-    from app.services.notifications_youtube_video import insert_renewal_reminder
-    from app.integrations import reminder_webhook
+    from app.commands.youtube.service import insert_renewal_reminder
+    from app.integrations.reminders import client as reminder_webhook
 
     moment = datetime(2026, 10, 1, 15, 0, tzinfo=timezone(timedelta(hours=-3)))
 
@@ -1002,7 +1002,7 @@ async def test_the_start_stamps_every_youtuber_the_hub_took_again(hub, deps, mon
     await insert_renewal_reminder(7002, "mrbeast")
     hub.google.hub_statuses[TOPIC.format(MRBEAST)] = 503
 
-    notifications_youtube_video.resubscribe_followed_channels()
+    await notifications_youtube_video.resubscribe_followed_channels()
 
     stamped = (await data().keiko_subscriptions.subscription_state("youtube", "pewdiepie")).get("hub_confirmed_at")
     assert stamped is not None and stamped.astimezone(timezone.utc) == moment.astimezone(timezone.utc)
@@ -1012,7 +1012,7 @@ async def test_the_start_stamps_every_youtuber_the_hub_took_again(hub, deps, mon
 async def test_an_answer_from_the_hub_keeps_neither_the_exception_nor_the_secrets_it_held(hub):
     """`requests` keeps the request on its exceptions, and the request's body holds the hub
     secret and the callback token."""
-    from app.services.notifications_youtube_video import HubOutcome, ask_the_hub
+    from app.commands.youtube.service import HubOutcome, ask_the_hub
 
     hub.google.outages["hub"] = 1
 
@@ -1025,11 +1025,11 @@ async def test_an_answer_from_the_hub_keeps_neither_the_exception_nor_the_secret
         assert secret not in repr(answer)
 
 
-async def test_the_notifications_cog_renews_the_subscriptions_once_when_it_loads(hub, deps):
-    from app.cogs.notifications import Notifications
+async def test_the_youtube_renewals_cog_renews_the_subscriptions_once_when_it_loads(hub, deps):
+    from app.commands.youtube.cog import YoutubeRenewals
 
     deps.bot.wait_until_ready = AsyncMock()
-    cog = Notifications(deps.bot)
+    cog = YoutubeRenewals(deps.bot)
 
     await cog.cog_load()
     for _ in range(100):
@@ -1044,7 +1044,7 @@ async def test_the_notifications_cog_renews_the_subscriptions_once_when_it_loads
 async def test_nothing_subscribes_at_start_in_dev(hub, deps):
     deps.bot.config.is_dev = lambda: True
 
-    assert notifications_youtube_video.resubscribe_followed_channels() == 0
+    assert await notifications_youtube_video.resubscribe_followed_channels() == 0
     assert hub.google.hub_posts == []
 
 
@@ -1100,7 +1100,7 @@ async def test_without_a_hub_secret_keiko_asks_the_hub_for_nothing(hub):
 
     hub.youtube.subscribe_to_new_video_event(PEWDIEPIE)
     hub.youtube.unsubscribe_from_new_video_event(PEWDIEPIE)
-    renewed = notifications_youtube_video.resubscribe_followed_channels()
+    renewed = await notifications_youtube_video.resubscribe_followed_channels()
 
     assert hub.google.hub_posts == []
     assert renewed == 0

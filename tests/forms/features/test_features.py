@@ -2,31 +2,36 @@
 
 import copy
 import os
+import sys
 from datetime import date, datetime, timezone
 from importlib import import_module
+from pathlib import Path
+from types import ModuleType
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-import yaml
 
-from app.constants import Commands, Feature
+from app.core import commands as command_registry
+from app.core import i18n
+from app.core.commands import Command, commands, form_file, setup_features
 from app.data import data
-from app.settings.features import feature_for, feature_keys
-from app.settings.features.feature import (
+from app.forms.features import feature_for, feature_keys
+from app.forms.features.feature import (
     CommitContext,
     GenericCogFeature,
     ListChanged,
     OpenContext,
+    PanelInfo,
 )
-from app.settings.form.form_state import Answer
-from app.settings.form.form_yaml import DefinitionRegistry, DiskSource
-from app.settings.form.responses.responses import (
+from app.forms.form.form_state import Answer
+from app.forms.form.form_yaml import DefinitionRegistry, DiskSource
+from app.forms.form.responses.responses import (
     document_values,
     item_values,
     items_of,
     list_values,
 )
-from app.settings.form.responses.summary import unwrap
+from app.forms.form.responses.summary import unwrap
 from tests.generators.events import lifecycle
 from tests.generators.moderations import seed_cog
 
@@ -135,36 +140,21 @@ def test_a_document_survives_the_round_trip_through_answers(form):
     assert "schema_version" not in document and document["enabled"] is True
 
 
-def test_a_feature_declared_without_a_module_gets_the_generic_feature(
+def test_a_command_with_a_form_and_no_feature_gets_the_generic_feature(
     tmp_path, monkeypatch
 ):
-    from enum import Enum
-
-    from app.constants import FeatureSpec
-    from app.settings import features
-    from app.settings.form.form_yaml import registry
-
-    class Declared(Enum):
-        PLAIN_FORM = FeatureSpec(
-            key="plain_form",
-            group="moderations",
-            namespace="plain-form",
-            button_key="plain-form",
-            emoji="🧪",
-            module=None,
-        )
-
-    source = registry.source
-    (tmp_path / "plain_form.yml").write_text(
-        (source.root / "default_roles.yml").read_text(encoding="utf-8"),
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(features, "Feature", Declared)
-    registry.source = type(source)(tmp_path)
+    roles = Path(COMMANDS_FOLDER, "roles", "form.yml").read_text(encoding="utf-8")
+    written = tmp_path / "form.yml"
+    written.write_text(roles, encoding="utf-8")
+    listed = ModuleType("app.commands")
+    listed.COMMANDS = (Command("plain_form"),)
+    monkeypatch.setitem(sys.modules, "app.commands", listed)
+    monkeypatch.setattr(command_registry, "form_files", lambda: {"plain_form": written})
+    commands.cache_clear()
     try:
         feature = feature_for("plain_form")
     finally:
-        registry.source = source
+        commands.cache_clear()
     assert isinstance(feature, GenericCogFeature) and feature.key == "plain_form"
 
 
@@ -248,7 +238,7 @@ async def test_a_default_roles_setup_gives_the_roles_out_after_the_commit(
     import asyncio
     from types import SimpleNamespace
 
-    from app.settings.features import default_roles
+    from app.commands.roles import service as default_roles
 
     released, given = asyncio.Event(), []
 
@@ -279,7 +269,7 @@ async def test_a_default_roles_setup_gives_the_roles_out_after_the_commit(
 async def test_a_default_roles_setup_without_the_toggle_gives_nothing_out(
     deps, monkeypatch
 ):
-    from app.settings.features import default_roles
+    from app.commands.roles import service as default_roles
 
     give = AsyncMock()
     monkeypatch.setattr(default_roles, "set_default_roles", give)
@@ -296,14 +286,14 @@ async def test_a_default_roles_setup_without_the_toggle_gives_nothing_out(
 async def test_a_default_roles_sync_that_fails_is_logged_not_raised(deps, monkeypatch):
     import asyncio
 
-    from app.settings.features import default_roles
+    from app.commands.roles import service as default_roles
 
     async def refuse(document, guild, members):
         raise RuntimeError("Missing Permissions")
 
     errors = MagicMock()
     monkeypatch.setattr(default_roles, "set_default_roles", refuse)
-    monkeypatch.setattr("app.settings.features.feature.logger.error", errors)
+    monkeypatch.setattr("app.forms.features.feature.logger.error", errors)
     answers = {"default_roles": Answer("202"), "sync_existing": Answer(True)}
     context = CommitContext(
         GUILD_ID, "555", "pt-br", {}, NOW, "slash", "s1", _guild_with([])
@@ -320,7 +310,7 @@ async def test_a_default_roles_sync_that_fails_is_logged_not_raised(deps, monkey
 async def test_a_default_roles_setup_opens_with_the_server_totals(deps, monkeypatch):
     from types import SimpleNamespace
 
-    from app.settings.features import default_roles
+    from app.commands.roles import service as default_roles
 
     monkeypatch.setattr(
         default_roles, "get_available_roles_by_guild", lambda guild: {"Member": "202"}
@@ -493,7 +483,7 @@ async def test_a_website_turns_on_or_off_in_the_choice_as_it_is_saved(
 
 async def test_the_youtuber_picture_is_the_medium_thumbnail(deps, monkeypatch):
     """P3 (beta.2): the 88 px default thumbnail blurs under the card section."""
-    from app.settings.form.lookups import Lookup
+    from app.forms.form.lookups import Lookup
 
     deps.youtube.add_channel("UC1", "Gaules", custom_url="@gaules")
     thumbnails = {"default": {"url": "small.jpg"}, "medium": {"url": "medium.jpg"}}
@@ -510,7 +500,7 @@ async def test_the_youtuber_picture_is_the_medium_thumbnail(deps, monkeypatch):
 
 async def test_the_streamer_lookup_is_prefetched_for_the_validator(deps):
     deps.twitch.add_user("gaules", user_id="111")
-    from app.settings.form.lookups import Lookup
+    from app.forms.form.lookups import Lookup
 
     feature = feature_for("notifications_twitch")
     context = OpenContext(GUILD_ID, "555", "pt-br")
@@ -554,8 +544,8 @@ async def test_the_birthday_setup_writes_the_config_and_the_first_member(deps):
 
 
 async def test_the_birthday_panel_opens_with_its_own_rows(deps):
+    from app.commands.birthdays.service import save_birthday_config
     from app.core.servers import set_feature_enabled
-    from app.services.reminders_birthdays import save_birthday_config
     from tests.generators.birthdays import saved_birthday
 
     await save_birthday_config(GUILD_ID, "100", False, notification_time="08:00")
@@ -638,9 +628,7 @@ async def test_editing_the_streamer_refreshes_the_stream_elements_channel(
 ):
     """Broke as: an edited streamer kept the old streamer's StreamElements channel,
     so the chat went on answering with the old streamer's commands."""
-    from app.settings.features import (
-        stream_elements_commands as stream_elements_feature,
-    )
+    from app.commands.stream_elements import service as stream_elements_feature
 
     deps.bot.config.is_dev = lambda: False
     monkeypatch.setattr(
@@ -672,9 +660,7 @@ async def test_editing_the_streamer_refreshes_the_stream_elements_channel(
 async def test_a_setup_saves_the_stream_elements_channel_in_dev(deps, monkeypatch):
     """Broke as: the setup skipped the StreamElements channel when `is_dev()`, so
     the dev bot saved a streamer without a channel and answered no command."""
-    from app.settings.features import (
-        stream_elements_commands as stream_elements_feature,
-    )
+    from app.commands.stream_elements import service as stream_elements_feature
 
     deps.bot.config.is_dev = lambda: True
     asked = []
@@ -740,11 +726,11 @@ def test_the_welcome_card_saves_the_document_the_welcome_service_reads():
     """The welcome card must save the keys and shapes send_welcome_message reads:
     the channel as {style, values}, the design key, the title and footer, and the
     messages as one ;-joined text the service splits."""
-    from app.settings.form import events as ev
-    from app.settings.form.actions.action import Context
-    from app.settings.form.form import decide
-    from app.settings.form.form_state import Origin, Setup, new_session
-    from app.settings.form.responses.responses import to_document
+    from app.forms.form import events as ev
+    from app.forms.form.actions.action import Context
+    from app.forms.form.form import decide
+    from app.forms.form.form_state import Origin, Setup, new_session
+    from app.forms.form.responses.responses import to_document
 
     definition = REGISTRY.get("welcome_messages")
     session = new_session(
@@ -787,10 +773,8 @@ def test_the_welcome_card_saves_the_document_the_welcome_service_reads():
 async def test_the_stream_elements_lookup_counts_enabled_commands(deps, monkeypatch):
     """The review shows how many commands will load, so the streamer lookup also
     asks StreamElements for the channel and counts its enabled commands."""
-    from app.settings.features import (
-        stream_elements_commands as stream_elements_feature,
-    )
-    from app.settings.form.lookups import Lookup
+    from app.commands.stream_elements import service as stream_elements_feature
+    from app.forms.form.lookups import Lookup
 
     client = stream_elements_feature.StreamElementsClient
     monkeypatch.setattr(
@@ -835,9 +819,7 @@ async def test_the_stream_elements_panel_says_how_many_commands_it_answers(
     deps, monkeypatch
 ):
     """The panel says how many commands are loaded and offers to list them."""
-    from app.settings.features import (
-        stream_elements_commands as stream_elements_feature,
-    )
+    from app.commands.stream_elements import service as stream_elements_feature
 
     seed_cog(
         deps.mongo_client,
@@ -869,8 +851,8 @@ async def test_the_stream_elements_panel_tells_no_commands_from_a_failure(
 ):
     """Broke as: the panel's count read a streamer with no active command and a
     StreamElements failure alike, as "I couldn't reach StreamElements"."""
+    from app.commands.stream_elements import service as stream_elements_service
     from app.core.utils import ml
-    from app.services import stream_elements as stream_elements_service
 
     seed_cog(
         deps.mongo_client,
@@ -883,7 +865,7 @@ async def test_the_stream_elements_panel_tells_no_commands_from_a_failure(
         },
     )
     client = stream_elements_service.StreamElementsClient
-    namespace = "commands.commands.commons.stream-elements-manager"
+    namespace = "stream_elements_commands"
 
     async def panel_line():
         opened = await feature_for("stream_elements_commands").open(
@@ -901,17 +883,16 @@ async def test_the_stream_elements_panel_tells_no_commands_from_a_failure(
     monkeypatch.setattr(client, "get_chat_commands", staticmethod(down))
     failed = await panel_line()
 
-    assert empty == ml(f"{namespace}.commands.empty", "pt-br").replace(
+    assert empty == ml(f"{namespace}.ui.records.commands.empty", "pt-br").replace(
         "$streamer", "shroud"
     )
-    assert failed == ml(f"{namespace}.loaded.unknown", "pt-br")
+    unreachable = i18n.block(f"{namespace}.command.panel.info", PanelInfo).overrides[0]
+    assert failed == unreachable.description.get("pt-br")
 
 
 async def test_a_stream_elements_outage_leaves_no_count(deps, monkeypatch):
-    from app.settings.features import (
-        stream_elements_commands as stream_elements_feature,
-    )
-    from app.settings.form.lookups import Lookup
+    from app.commands.stream_elements import service as stream_elements_feature
+    from app.forms.form.lookups import Lookup
 
     def unreachable(name):
         raise ConnectionError("StreamElements is down")
@@ -938,27 +919,23 @@ async def test_a_stream_elements_outage_leaves_no_count(deps, monkeypatch):
     }
 
 
-FEATURES_FOLDER = os.path.join("app", "settings", "features")
-
-
-SHARED_MODULES = {"__init__", "feature", "subscriptions"}
+COMMANDS_FOLDER = os.path.join("app", "commands")
 
 
 LOCALES = ("en-us", "pt-br")
 
 
 def _specs():
-    return [feature.value for feature in Feature]
+    return list(setup_features())
 
 
 async def _registered_subgroups():
-    from app.cogs import integrations, moderations, notifications
+    from app.core import groups
 
     bot = MagicMock()
     cogs = []
     bot.add_cog = AsyncMock(side_effect=cogs.append)
-    for package in (moderations, notifications, integrations):
-        await package.setup(bot)
+    await groups.setup(bot)
 
     return {
         (cog.app_command.name, subgroup._locale_name.extras["namespace"])
@@ -968,71 +945,72 @@ async def _registered_subgroups():
 
 
 def test_every_form_on_disk_is_a_declared_feature_and_back():
-    """Each feature is declared once, and its form, its module and its command agree.
+    """Each feature is declared once, in its command folder, and its form, its module
+    and its slash command agree with that declaration: the `form.yml` beside it, the
+    `FEATURE` its service holds, the subgroup the slash groups register with its
+    namespace, and the copy."""
+    on_disk = {
+        folder
+        for folder in os.listdir(COMMANDS_FOLDER)
+        if Path(COMMANDS_FOLDER, folder, "form.yml").is_file()
+    }
+    with_a_form = set(DiskSource().list())
+    assert with_a_form <= {command.key for command in commands()}
+    assert {form_file(key).parent.name for key in with_a_form} == on_disk
 
-    `Feature` in `app/constants.py` is the one table every feature list derives
-    from: the key, the slash command's group and namespace, the /setup row, what
-    the feature needs and the module that saves it. `SETUP_FEATURES`,
-    `FEATURE_COMMANDS`, `COMMANDS_LIST`, the moderation defaults, `feature_keys`
-    and the module `feature_for` imports come from it;
-    what cannot be derived must agree with it: the form YAML named after the key,
-    the module the spec names, the subgroup the cogs register under the group with
-    the namespace, and the copy.
-    """
-    assert set(DiskSource().list()) == set(feature_keys())
 
-
-def test_every_module_a_feature_names_exists_and_saves_that_feature():
+def test_every_feature_module_lives_in_the_service_of_its_command():
     for spec in _specs():
-        if spec.module is None:
+        if spec.feature is None:
             continue
-        module = import_module(f"app.settings.features.{spec.module}")
+        folder = form_file(spec.key).parent.name
+        module = import_module(f"app.commands.{folder}.service")
+        assert module.FEATURE is spec.feature
         assert module.FEATURE.key == spec.key
         assert feature_for(spec.key) is module.FEATURE
 
 
-def test_every_feature_module_is_named_by_a_declared_feature():
-    modules = {
-        filename.removesuffix(".py")
-        for filename in os.listdir(FEATURES_FOLDER)
-        if filename.endswith(".py")
-    }
-    named = {spec.module for spec in _specs() if spec.module is not None}
-    assert modules - SHARED_MODULES == named
+def test_no_command_folder_holds_a_feature_module_of_its_own():
+    stray = sorted(
+        folder
+        for folder in os.listdir(COMMANDS_FOLDER)
+        if os.path.isfile(os.path.join(COMMANDS_FOLDER, folder, "feature.py"))
+    )
+    assert stray == [], f"move the FeatureModule of {stray} into its service.py"
 
 
 async def test_every_feature_command_is_registered_where_its_spec_says(deps):
-    declared = {(spec.group, spec.namespace) for spec in _specs()}
+    declared = {(spec.group, f"{spec.key}.command.slash") for spec in _specs()}
     assert await _registered_subgroups() == declared
 
 
-def test_the_lists_the_bot_reads_are_derived_from_the_declaration():
-    keys = [spec.key for spec in _specs()]
-    assert [entry["command_key"] for entry in Commands.SETUP_FEATURES] == keys
-    assert Commands.COMMANDS_LIST == keys
-    assert list(Commands.FEATURE_COMMANDS) == keys
-    assert len({entry["command_key"] for entry in Commands.SETUP_FEATURES}) == len(keys)
-    assert [
-        entry["command_key"]
-        for entry in Commands.SETUP_FEATURES
-        if entry.get("answers_prefix")
-    ] == [spec.key for spec in _specs() if spec.answers_prefix]
+def test_setup_lists_the_features_in_the_order_it_always_did():
+    assert list(feature_keys()) == [
+        "welcome_messages",
+        "default_roles",
+        "block_links",
+        "notifications_twitch",
+        "notifications_youtube_video",
+        "reminders_birthday",
+        "stream_elements_commands",
+    ]
+    assert [spec.key for spec in _specs() if spec.answers_prefix] == [
+        "stream_elements_commands"
+    ]
 
 
 @pytest.mark.parametrize("locale", LOCALES)
 def test_every_feature_has_its_command_and_setup_copy(locale):
-    def copy(folder):
-        path = os.path.join("app", "languages", folder, f"{folder}.{locale}.yml")
-        with open(path, encoding="utf-8") as handle:
-            return yaml.safe_load(handle)[locale]
-
-    commands, buttons = copy("commands"), copy("buttons")
+    copy = i18n.keys(locale)
     for spec in _specs():
-        assert commands["groups"][spec.group]
-        assert commands["commands"][spec.namespace]["name"]
-        assert commands["commands"][spec.namespace]["subgroup"]
-        assert buttons["setup"][spec.button_key]["label"]
-        assert commands["commands"]["setup"]["embed"]["features"][spec.button_key]
+        assert copy[f"texts.groups.{spec.group}"]
+        for path in (
+            "command.slash.name",
+            "command.slash.subgroup",
+            "command.setup.label",
+            "command.setup.description",
+        ):
+            assert copy[f"{spec.key}.{path}"]
 
 
 DOCUMENT = {
@@ -1095,8 +1073,7 @@ async def test_the_birthday_panel_counts_from_the_day_its_clock_gives(
 ):
     """The panel's next birthdays and the month it opens on follow the
     feature's clock (`BirthdayFeature.today`), never the machine's date."""
-    from app.services.reminders_birthdays import save_birthday_config
-    from app.settings.features.reminders_birthday import FEATURE
+    from app.commands.birthdays.service import FEATURE, save_birthday_config
     from tests.generators.birthdays import saved_birthday
 
     await save_birthday_config(GUILD_ID, "100", False, notification_time="08:00")
@@ -1115,8 +1092,7 @@ async def test_the_birthday_panel_counts_from_the_day_its_clock_gives(
 async def test_the_birthday_panel_shows_its_list_even_with_no_birthday(deps):
     """N2: with no birthday the panel kept no block for the list, so its Add
     sat alone in the bottom row; the list keeps its title and says it is empty."""
-    from app.services.reminders_birthdays import save_birthday_config
-    from app.settings.features.reminders_birthday import FEATURE
+    from app.commands.birthdays.service import FEATURE, save_birthday_config
 
     await save_birthday_config(GUILD_ID, "100", False)
 
@@ -1132,8 +1108,7 @@ async def test_a_found_member_shows_whose_messages_greet_them(deps):
     labelled by whose they are: the member's own, the server's default, or
     Keiko's default when nobody wrote one; the picture is the platform's, read
     from the server's members (review fixes K2)."""
-    from app.services.reminders_birthdays import save_birthday_config
-    from app.settings.features.reminders_birthday import FEATURE
+    from app.commands.birthdays.service import FEATURE, save_birthday_config
     from tests.generators.birthdays import saved_birthday
     from tests.mocks.discord import create_guild, create_member
 

@@ -6,9 +6,9 @@ again it expired like a panel nobody used: `setup.abandoned` fired, its story
 closed as `⌛ abandoned` and `keiko_form_sessions_total` counted it `expired`.
 Before, the commit closed the session as `completed` and nothing was abandoned.
 
-Shared behavior affected: `on_expired` (app/settings/form/form.py), the
+Shared behavior affected: `on_expired` (app/forms/form/form.py), the
 manager's saved-change bookkeeping (`FormSession.changes_saved`, set by
-`_on_commit_succeeded` in app/settings/form/manager.py), and the adapter's
+`_on_commit_succeeded` in app/forms/form/manager.py), and the adapter's
 journey closing (`Runtime.expire_stale`, `Runtime._close`,
 `observability.ended_as`), shared by every manager panel.
 

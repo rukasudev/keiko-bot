@@ -24,7 +24,7 @@ import discord
 from app import logger
 from app.exceptions import ErrorContext
 from app.core import analytics, debug_logs, trace
-from app.settings.discord.callbacks import RUNTIME
+from app.forms.discord.callbacks import RUNTIME
 from tests.behavioral.golden.paths import all_paths
 from tests.behavioral.golden.paths import block_links as block_links_path
 from tests.behavioral.golden.paths import default_roles as default_roles_path
@@ -160,7 +160,7 @@ class Traffic:
                 self.failures.append(f"{key} on {guild.id}: {failure}")
 
     async def _listeners(self, guild: Any, member_id: int) -> None:
-        from app.cogs.events import Events
+        from app.core.events import Events
 
         events = Events(self.deps.bot)
         author = create_member(guild, id=member_id, name=f"Member{member_id}")
@@ -240,7 +240,7 @@ class Traffic:
         redis._expirations.clear()
 
     def _forget_mock_calls(self) -> None:
-        from app.services import welcome_messages
+        from app.commands.welcome import service as welcome_messages
         from app.core import images
 
         for holder in (

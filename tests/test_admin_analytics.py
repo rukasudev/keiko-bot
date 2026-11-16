@@ -7,7 +7,8 @@ precisely to compare two tiny groups. The guard rails are part of the feature.
 import pytest
 
 from app.data import data, wait
-from app.services import admin, admin_analytics
+from app.commands.admin import service as admin
+from app.commands.admin import analytics as admin_analytics
 from app.core import analytics
 import logging
 import threading
@@ -16,7 +17,6 @@ from types import SimpleNamespace
 import discord
 from tests.mocks.database import answering
 from tests.mocks.discord import create_guild, create_member, MockInteraction
-from app.constants import Commands
 from tests.generators.moderations import seed_cog
 from tests.generators.events import record_event, stored
 
@@ -266,13 +266,13 @@ async def test_the_overview_walks_discords_cache_only_on_the_loop(deps, stores):
     joining or a channel created during the walk could stop it with "dictionary changed size
     during iteration".
 
-    Shared behaviour: `get_overview_data` (`app/services/admin.py`), behind `/admin overview`.
+    Shared behaviour: `get_overview_data` (`app/commands/admin/service.py`), behind `/admin overview`.
     Exposed by: the review of what moved to a thread.
 
     Guaranteed: the overview counts servers, members and channels on the loop, and hands only
     the Mongo, Redis and Twitch reads to a thread.
     """
-    from app.cogs.admin import Admin
+    from app.commands.admin.cog import Admin
 
     walkers = []
     guild = create_guild(id=4242, name="Busy server")
@@ -313,9 +313,9 @@ FLAGS_AS_MONGO_SUMS_THEM = {
     "top_owner": [],
     "feature_adoption": [{
         "_id": None,
-        Commands.BLOCK_LINKS_KEY: 1,
-        Commands.DEFAULT_ROLES_KEY: 1,
-        Commands.WELCOME_MESSAGES_KEY: 0,
+        "block_links": 1,
+        "default_roles": 1,
+        "welcome_messages": 0,
     }],
     "newest_guild": [],
     "monthly_growth": [],
@@ -353,10 +353,10 @@ def adoption_stores(deps, monkeypatch):
     )
     monkeypatch.setattr("app.core.cache.count_keys", lambda: 0)
     db = deps.mongo_client
-    seed_cog(db, Commands.BLOCK_LINKS_KEY, {"guild_id": STAYED, "enabled": False})
-    seed_cog(db, Commands.DEFAULT_ROLES_KEY, {"guild_id": STAYED})
-    seed_cog(db, Commands.WELCOME_MESSAGES_KEY, {"guild_id": STAYED, "enabled": True})
-    seed_cog(db, Commands.WELCOME_MESSAGES_KEY, {"guild_id": LEFT, "enabled": True})
+    seed_cog(db, "block_links", {"guild_id": STAYED, "enabled": False})
+    seed_cog(db, "default_roles", {"guild_id": STAYED})
+    seed_cog(db, "welcome_messages", {"guild_id": STAYED, "enabled": True})
+    seed_cog(db, "welcome_messages", {"guild_id": LEFT, "enabled": True})
 
 
 async def test_a_feature_counts_where_its_saved_settings_say_on_in_a_server_keiko_is_in(
@@ -370,7 +370,7 @@ async def test_a_feature_counts_where_its_saved_settings_say_on_in_a_server_keik
     flag (StreamElements, welcome after the v1 migration) was not, and a server Keiko had
     left but whose record still said online counted too.
 
-    Shared behaviour: `get_overview_data` (`app/services/admin.py`). Exposed by: the wave 1
+    Shared behaviour: `get_overview_data` (`app/commands/admin/service.py`). Exposed by: the wave 1
     review of every reader of the old flags.
 
     Guaranteed: each feature counts the servers Keiko is in whose saved settings
@@ -378,11 +378,11 @@ async def test_a_feature_counts_where_its_saved_settings_say_on_in_a_server_keik
     the overview runs cannot run offline, so the test answers it the way Mongo would and
     checks the adoption does not come from it.
     """
-    adoption = (await admin.get_overview_data(bot))["feature_adoption"]
+    adoption = (await admin.get_overview_data(bot)).stored.feature_adoption
 
-    assert adoption[Commands.WELCOME_MESSAGES_KEY] == 1, "on without the old flag, once"
-    assert adoption[Commands.BLOCK_LINKS_KEY] == 0, "disabled while its flag stayed on"
-    assert adoption[Commands.DEFAULT_ROLES_KEY] == 0, "a document without `enabled` is off"
+    assert adoption["welcome_messages"] == 1, "on without the old flag, once"
+    assert adoption["block_links"] == 0, "disabled while its flag stayed on"
+    assert adoption["default_roles"] == 0, "a document without `enabled` is off"
 
 
 async def test_the_overview_reads_two_fields_of_each_feature_document(

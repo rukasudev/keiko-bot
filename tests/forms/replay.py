@@ -9,15 +9,15 @@ from __future__ import annotations
 from collections.abc import Sequence
 from datetime import datetime, timezone
 
-from app.settings.form import events as ev
-from app.settings.form import manager
-from app.settings.form.actions.action import Context
-from app.settings.form.effects import OpenModal, Render
-from app.settings.form.events import Event
-from app.settings.form.form import Decision, decide
-from app.settings.form.form_state import FormSession, Manage, Origin, Setup, new_session
-from app.settings.form.form_yaml import DefinitionRegistry, FormDefinition
-from app.settings.form.manager import PanelExtras
+from app.forms.form import events as ev
+from app.forms.form import manager
+from app.forms.form.actions.action import Context
+from app.forms.form.effects import OpenModal, Render
+from app.forms.form.events import Event
+from app.forms.form.form import Decision, decide
+from app.forms.form.form_state import FormSession, Manage, Origin, Setup, new_session
+from app.forms.form.form_yaml import DefinitionRegistry, FormDefinition
+from app.forms.form.manager import PanelExtras
 
 REGISTRY = DefinitionRegistry()
 ORIGIN = Origin(guild_id="123456789", user_id="555", locale="pt-br")

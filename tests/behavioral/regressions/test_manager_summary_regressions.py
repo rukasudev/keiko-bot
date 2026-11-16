@@ -20,7 +20,7 @@ async def test_manager_form_keeps_rendering_existing_config_for_all_consumers(
         scenario_factory):
     """What broke: while developing the birthday-reminder flow, shared
     summary rendering (then `parse_settings_with_database_values` in
-    app/core/utils.py, today `panel_rows` in app/settings/form/actions/manage.py)
+    app/core/utils.py, today `panel_rows` in app/forms/form/actions/manage.py)
     was changed and stopped resolving titles for keys nested inside
     `multi_select.selects[]`. The birthday flow kept
     working; commands like /moderations default roles silently lost their
@@ -55,7 +55,7 @@ async def test_adding_a_new_consumer_must_not_drop_other_forms_saved_values(
     render their saved values side by side in one process, so a change that
     helps one consumer but breaks another fails here immediately.
     """
-    from app.services.block_links import normalize_block_links_config
+    from app.commands.block_links.service import normalize_block_links_config
 
     roles = await scenario_factory(locale="pt-br").start_manager(
         "default_roles",
@@ -203,13 +203,13 @@ async def test_a_link_added_again_in_a_setup_takes_the_place_of_the_one_listed(
 
     Broke as: the form engine's merge of a finished item compared `index != index`, a
     loop variable shadowing the parameter it meant, so the check for an item already
-    listed under the same `unique_by` value never matched. Adding a link the setup
+    listed under the same `unique.key` value never matched. Adding a link the setup
     already listed appended it again, and the review and the saved document showed
     it twice.
 
     Shared behaviour: the merge of a child session's item into its parent's list
     (`merge_item` in the form engine), used by the review's Add and Edit of every
-    form whose list declares `unique_by` (block_links by link, reminders_birthday by
+    form whose list declares `unique.key` (block_links by link, reminders_birthday by
     member). Exposed by: block_links, adding the same website twice before
     confirming.
 
@@ -288,7 +288,7 @@ async def test_pressing_preview_on_the_review_announces_the_item_it_lists(
     called `responses_for_aside` directly and went on passing when the adapter
     stopped calling it.
     """
-    from app.settings.features import feature_for
+    from app.forms.features import feature_for
 
     seen: dict = {}
 
@@ -347,7 +347,7 @@ async def test_a_custom_design_puts_the_image_on_the_panel_with_its_own_edit(
 ):
     """The panel shows what the card shows, and nothing the card hides.
 
-    A card section can declare `visible-when`, and the card obeys it. The panel
+    A card section can declare `when`, and the card obeys it. The panel
     did not: it listed every field of the card, so a section the card hides kept a
     line on the panel, and a field marked hidden to keep that line away lost its
     Edit with it. On the local bot (2026-09-22) that left the welcome banner's

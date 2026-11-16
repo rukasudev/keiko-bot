@@ -5,15 +5,17 @@ category turns its pages and goes back, the server settings save each value
 and draw themselves again, and a setup
 started here ends back on the category page that holds the feature.
 """
+from dataclasses import replace
 from itertools import cycle, islice
 
 import discord
 import pytest
 
+from app.core.commands import setup_features
 from app.data import data
 from app.constants import Commands
-from app.core.utils import ml
-from app.settings.form.form_state import Manage
+from app.core.utils import command_text, ml
+from app.forms.form.form_state import Manage
 from tests.behavioral.golden.paths.common import GUILD_ID
 from tests.behavioral.harness import locators
 from tests.generators.moderations import recorded_server, seed_cog
@@ -21,8 +23,8 @@ from tests.mocks.discord import create_guild, create_member
 
 pytestmark = pytest.mark.behavioral
 
-BASE = "commands.commands.setup"
-SETTINGS = f"{BASE}.settings"
+BASE = "setup"
+SETTINGS = f"{BASE}.ui.cards.settings"
 
 
 def _admin_scenario(scenario_factory, locale="pt-br", denied=()):
@@ -35,7 +37,7 @@ def _admin_scenario(scenario_factory, locale="pt-br", denied=()):
 
 
 async def _configurar(scenario):
-    from app.services.setup import open_setup_dashboard
+    from app.commands.setup.service import open_setup_dashboard
 
     scenario.store.record("start", actor="user", target="/configurar")
     await open_setup_dashboard(scenario._mint(), "slash")
@@ -89,12 +91,12 @@ async def _press(scenario, button):
 
 
 def _category(name, locale="pt-br"):
-    return f"**{ml(f'{BASE}.embed.categories.{name}', locale)}**"
+    return f"**{ml(f'{BASE}.ui.texts.categories.{name}', locale)}**"
 
 
 def _feature_name(key, locale="pt-br"):
-    spec = next(spec for spec in Commands.SETUP_FEATURES if spec["command_key"] == key)
-    return ml(f"buttons.setup.{spec['button_key']}.label", locale)
+    spec = next(spec for spec in setup_features() if spec.key == key)
+    return command_text(spec, "command.setup.label", locale)
 
 
 def _edits(scenario):
@@ -107,11 +109,11 @@ def _edits(scenario):
 @pytest.fixture
 def six_moderations(monkeypatch):
     """Six features in moderations: one page and a second one with two rows."""
-    from app.services import setup
+    from app.commands.setup import service as setup
 
     rows = [
-        ({**spec, "category": "moderations"}, "pending")
-        for spec in islice(cycle(Commands.SETUP_FEATURES), 6)
+        (replace(spec, category="moderations"), "pending")
+        for spec in islice(cycle(setup_features()), 6)
     ]
 
     async def states(guild_id):
@@ -234,7 +236,7 @@ async def test_a_member_is_told_in_the_server_language_that_configurar_needs_an_
 
 async def _open_settings(scenario):
     message = scenario.current_message
-    await _press(scenario, _beside(message, ml(f"{SETTINGS}.row", "pt-br")))
+    await _press(scenario, _beside(message, ml(f"{BASE}.ui.cards.dashboard.rows.settings.title", "pt-br")))
     return message
 
 
@@ -279,7 +281,7 @@ async def test_the_settings_screen_quotes_each_value_under_its_name(scenario_fac
 ])
 async def test_the_prefix_line_names_the_servers_own_prefix(scenario_factory, deps, locale, line):
     from app.core import cache
-    from app.services.setup import settings_screen
+    from app.commands.setup.service import settings_screen
 
     recorded_server(deps.mongo_client, GUILD_ID, language=locale, prefix="k?")
     cache.reset()
@@ -322,9 +324,9 @@ async def test_the_prefix_is_picked_from_the_closed_list_in_order(scenario_facto
 
 
 @pytest.mark.parametrize("target,value,key,shown", [
-    ("language-placeholder", "en-us", Commands.SERVER_LANGUAGE_KEY, "> 🇺🇸 English"),
-    ("timezone-placeholder", "Asia/Tokyo", Commands.SERVER_TIMEZONE_KEY, "> 🇯🇵 Japão (UTC+9)"),
-    ("prefix-placeholder", "ke?", Commands.SERVER_PREFIX_KEY, "> `ke?`"),
+    ("language", "en-us", Commands.SERVER_LANGUAGE_KEY, "> 🇺🇸 English"),
+    ("timezone", "Asia/Tokyo", Commands.SERVER_TIMEZONE_KEY, "> 🇯🇵 Japão (UTC+9)"),
+    ("prefix", "ke?", Commands.SERVER_PREFIX_KEY, "> `ke?`"),
 ])
 async def test_the_settings_screen_saves_a_value_and_draws_it_again(
     scenario_factory, deps, analytics_events, target, value, key, shown
@@ -332,7 +334,7 @@ async def test_the_settings_screen_saves_a_value_and_draws_it_again(
     scenario = await _configurar(_admin_scenario(scenario_factory))
     message = await _open_settings(scenario)
 
-    await scenario.select_option(value, target=ml(f"{SETTINGS}.{target}", "pt-br"))
+    await scenario.select_option(value, target=ml(f"{SETTINGS}.rows.{target}.placeholder", "pt-br"))
 
     assert _saved(deps)[key] == value
     assert scenario.current_message is message
@@ -383,7 +385,7 @@ async def test_only_an_admin_changes_a_setting(scenario_factory, deps):
     message = await _open_settings(scenario)
     scenario.user.guild_permissions = discord.Permissions.none()
 
-    await scenario.select_option("en-us", target=ml(f"{SETTINGS}.language-placeholder", "pt-br"))
+    await scenario.select_option("en-us", target=ml(f"{SETTINGS}.rows.language.placeholder", "pt-br"))
 
     assert _saved(deps)[Commands.SERVER_LANGUAGE_KEY] == "pt-br"
     assert scenario.outputs[-1]["embed"]["title"] == "⚠️ Apenas Admins"
@@ -414,13 +416,13 @@ async def test_a_category_row_is_its_name_and_what_it_does_without_a_health_line
 ):
     """Lucas (PR15 round 2, e10): the health line crowded the rows; how a
     feature did in the last days moves to its manager's statistics."""
-    _configure(deps, Commands.BLOCK_LINKS_KEY)
+    _configure(deps, "block_links")
     scenario = await _configurar(_admin_scenario(scenario_factory))
     message = scenario.current_message
 
     await _press(scenario, _beside(message, _category("moderations")))
 
-    row = _text(_beside_section(message, _feature_name(Commands.BLOCK_LINKS_KEY)))
+    row = _text(_beside_section(message, _feature_name("block_links")))
     assert row == (
         "🚫 **Bloquear Links ✅**\n"
         "-# Bloqueia links indesejados no servidor · `/moderações bloquear links`"
@@ -432,7 +434,7 @@ async def test_a_paused_feature_offers_no_despausar_on_its_category_page(
 ):
     """Lucas (PR15 round 2, e10): pausing and unpausing live on the feature's
     panel only; the category page keeps Gerenciar beside a paused feature."""
-    _configure(deps, Commands.BLOCK_LINKS_KEY, enabled=False)
+    _configure(deps, "block_links", enabled=False)
     scenario = await _configurar(_admin_scenario(scenario_factory))
     message = scenario.current_message
 
@@ -443,7 +445,7 @@ async def test_a_paused_feature_offers_no_despausar_on_its_category_page(
         if isinstance(item, discord.ui.Button)
     ]
     assert "Despausar" not in labels
-    assert _beside(message, _feature_name(Commands.BLOCK_LINKS_KEY)).label == "Gerenciar"
+    assert _beside(message, _feature_name("block_links")).label == "Gerenciar"
 
 
 async def _set_up_default_roles(scenario):
@@ -493,10 +495,10 @@ async def test_a_setup_from_configurar_ends_on_its_category_marked_just_turned_o
 async def test_the_ending_opens_the_page_of_its_category_that_holds_the_feature(
     scenario_factory, six_moderations
 ):
-    from app.services.setup import category_page
+    from app.commands.setup.service import category_page
 
     view = await category_page(
-        GUILD_ID, "moderations", activated=Commands.REMINDERS_BIRTHDAY_KEY
+        GUILD_ID, "moderations", activated="reminders_birthday"
     )
 
     texts = [
@@ -512,9 +514,9 @@ async def test_the_last_setup_left_ends_on_its_category_then_the_first_page_cong
 ):
     """Lucas (PR15 round 3): the last feature set up ends on its category page
     like the others, and Voltar shows the first page congratulating the admin."""
-    for spec in Commands.SETUP_FEATURES:
-        if spec["command_key"] != "default_roles":
-            _configure(deps, spec["command_key"])
+    for spec in setup_features():
+        if spec.key != "default_roles":
+            _configure(deps, spec.key)
     scenario = await _configurar(_admin_scenario(scenario_factory))
     await _press(scenario, _beside(scenario.current_message, _category("moderations")))
     await _press(scenario, _beside(scenario.current_message, _feature_name("default_roles")))

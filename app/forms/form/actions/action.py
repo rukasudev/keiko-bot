@@ -1,0 +1,239 @@
+"""What every action shares: the context it renders in and its common parts."""
+
+from __future__ import annotations
+
+import re
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from typing import Any
+
+from app.constants import KeikoIcons, Style, ViewConstants
+from app.core.conditions import Scope, count_of
+from app.forms.form.components import (
+    Button,
+    Component,
+    DesignCard,
+    Field,
+    Gallery,
+    Screen,
+)
+from app.forms.form.copy import optional_text, text
+from app.forms.form.form_state import EditItem, FormSession
+from app.forms.form.form_yaml import (
+    ContentStep,
+    Design,
+    FormDefinition,
+    Step,
+    overridden_text,
+)
+from app.forms.form.responses.links import link_host
+from app.forms.form.responses.styles import STYLES, format_value, stored_style
+from app.forms.form.responses.summary import ResponseView, responses, step_title
+
+NO_FORM = FormDefinition(key="", steps=())
+
+
+@dataclass(frozen=True)
+class Context:
+    """What a decision reads besides its session: the form, what was fetched for it."""
+
+    definition: FormDefinition = NO_FORM
+    steps: Sequence[Step] = ()
+    locale: str = "en-us"
+    scope: Scope = field(default_factory=lambda: Scope({}))
+    now: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
+    ttl_seconds: int = ViewConstants.LONG_TIMEOUT_SECONDS
+    document: Mapping[str, Any] = field(default_factory=dict)
+    parent_values: Mapping[str, Any] = field(default_factory=dict)
+    items: Sequence[Mapping[str, Any]] = ()
+    external: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
+    server_name: str = ""
+    prefix: str = ""
+    server_language: str = ""
+    server_timezone: str = ""
+    command: str = ""
+    values: Mapping[str, str] = field(default_factory=dict)
+    previews: Mapping[str, str] = field(default_factory=dict)
+    member_pictures: Mapping[str, str] = field(default_factory=dict)
+    can_go_back: bool = False
+    back_to_opener: bool = False
+    done_saves: bool = False
+    item_index: int | None = None
+
+
+TOKEN = re.compile(r"\{answer:([A-Za-z0-9_]+)(?::([a-z_]+))?(?:\|([^}]*))?\}")
+CONTEXT_TOKEN = re.compile(r"\{context:([a-z_]+)\}")
+PLURAL_TOKEN = re.compile(r"\{plural:([A-Za-z0-9_]+)\|([^|}]*)\|([^}]*)\}")
+TOKEN_FORMATTERS = {"host": link_host}
+
+THUMBNAILS: dict[str, str] = {
+    "review": KeikoIcons.IMAGE_03,
+}
+
+
+def label(key: str, locale: str) -> str:
+    """A button label from the language files."""
+    return text(f"buttons.{key}.label", locale)
+
+
+def caption(key: str, locale: str) -> str:
+    """A button's caption on the panel's Help screen, or nothing when it has none."""
+    return optional_text(f"buttons.{key}.description", locale)
+
+
+def confirm_button(locale: str) -> Button:
+    """The green Confirm."""
+    return Button(label("confirm", locale), "confirm", "success")
+
+
+def cancel_button(locale: str) -> Button:
+    """The red Cancel, always last."""
+    return Button(label("cancel", locale), "cancel", "danger")
+
+
+def back_button(locale: str) -> Button:
+    """The grey Back."""
+    return Button(label("back", locale), "back", "secondary")
+
+
+def step_buttons(locale: str, context: Context, *extra: Button) -> tuple[Button, ...]:
+    """The step's own buttons, then Back when possible, then Cancel."""
+    buttons: list[Button] = list(extra)
+    if context.can_go_back:
+        buttons.append(back_button(locale))
+    buttons.append(cancel_button(locale))
+    return tuple(buttons)
+
+
+def views(session: FormSession, context: Context) -> tuple[ResponseView, ...]:
+    """The session's answers as the summary lists them."""
+    return responses(context.steps, session.answers, context.locale)
+
+
+def apply_tokens(
+    body: str,
+    session: FormSession,
+    context: Context,
+    state: Mapping[str, Any] | None = None,
+) -> str:
+    """The `{answer:...}`, `{plural:...}` and `{context:...}` tokens filled in."""
+    by_key = {view.key: view for view in views(session, context)}
+    drafted = state or {}
+    around = {
+        **context.values,
+        "server_name": context.server_name,
+        "prefix": context.prefix,
+        "command": context.command,
+        "server_language": context.server_language,
+        "server_timezone": context.server_timezone,
+    }
+
+    def replace(match: re.Match[str]) -> str:
+        key, formatter, fallback = match.group(1), match.group(2), match.group(3) or ""
+        view = by_key.get(key)
+        value: Any = view.value if view else session.raw(key)
+
+        if key in drafted:
+            value = drafted[key]
+        if value in (None, "", [], ()):
+            return fallback
+        style = stored_style(formatter)
+        if style in STYLES:
+            return format_value(value, style, context.locale)
+        if isinstance(value, (list, tuple)):
+            value = ", ".join(str(item) for item in value)
+        if formatter in TOKEN_FORMATTERS:
+            return TOKEN_FORMATTERS[formatter](str(value))
+        return str(value)
+
+    def counted(match: re.Match[str]) -> str:
+        key, one, several = match.group(1), match.group(2), match.group(3)
+        value = drafted[key] if key in drafted else session.raw(key)
+        return several if count_of(value) > 1 else one
+
+    def surroundings(match: re.Match[str]) -> str:
+        return str(around.get(match.group(1), ""))
+
+    resolved = TOKEN.sub(replace, PLURAL_TOKEN.sub(counted, body))
+    return CONTEXT_TOKEN.sub(surroundings, resolved)
+
+
+def description_of(step: Step, session: FormSession, context: Context) -> str:
+    """The step description, its active variant chosen and tokens resolved."""
+    overrides = step.overrides if isinstance(step, ContentStep) else ()
+    described = overridden_text(
+        step.description, overrides, "description", context.scope
+    )
+    return apply_tokens(described.get(context.locale), session, context).rstrip()
+
+
+def title_of(step: Step, locale: str, scope: Scope | None = None) -> str:
+    """The step title for the scope, with its emoji in front."""
+    title = step_title(step, locale, scope)
+    return f"{step.emoji} {title}" if step.emoji else title
+
+
+def footer_of(step: Step, locale: str) -> str:
+    """The step footer, empty when the step has none."""
+    return step.footer.get(locale) if step.footer else ""
+
+
+def step_screen(
+    step: Step,
+    session: FormSession,
+    context: Context,
+    *,
+    buttons: Sequence[Button],
+    components: Sequence[Component] = (),
+    fields: Sequence[Field] = (),
+    description: str | None = None,
+) -> Screen:
+    """The embed screen of a step: title, description, footer, thumbnail."""
+    return Screen(
+        title=title_of(step, context.locale, context.scope),
+        description=(
+            description_of(step, session, context)
+            if description is None
+            else description
+        ),
+        footer=footer_of(step, context.locale),
+        fields=tuple(fields),
+        components=tuple(components),
+        buttons=tuple(buttons),
+        flavour="embed",
+        thumbnail=THUMBNAILS.get(step.type, KeikoIcons.IMAGE_01),
+        color=Style.BACKGROUND_COLOR,
+    )
+
+
+def other_items(
+    session: FormSession, items: Sequence[Mapping[str, Any]]
+) -> tuple[Mapping[str, Any], ...]:
+    """The composition's items except the one this session edits."""
+    mode = session.mode
+    if isinstance(mode, EditItem):
+        return tuple(item for index, item in enumerate(items) if index != mode.index)
+    return tuple(items)
+
+
+def design_gallery(
+    step_key: str, designs: Sequence[Design], context: Context
+) -> Gallery:
+    """A gallery of `designs` with their previews, header, footer and Select."""
+    locale = context.locale
+    return Gallery(
+        step_key=step_key,
+        header=text("texts.design_gallery.header", locale),
+        designs=tuple(
+            DesignCard(
+                key=design.value,
+                label=design.label.get(locale),
+                description=design.description.get(locale),
+                preview_url=context.previews.get(design.value),
+            )
+            for design in designs
+        ),
+        footer=text("texts.design_gallery.footer", locale),
+        select_label=label("select", locale),
+    )

@@ -1,0 +1,270 @@
+# open: fact names -> a fact the code passes
+facts:
+  all_configured:
+    type: boolean
+    description: Whether every feature /setup offers is set up in the server.
+  categories:
+    type: text
+    description: The greeting's line per category, joined.
+  emoji:
+    type: text
+    description: The emoji of the category a line or a card names.
+  features:
+    type: text
+    description: The features of a category, joined in one phrase.
+  name:
+    type: text
+    description: The name of the category a line or a card names.
+  page:
+    type: number
+    description: The page of a category shown, counted from one.
+  pages:
+    type: number
+    description: How many pages a category takes.
+  value:
+    type: text
+    description: The value a server setting holds, as the card shows it.
+
+command:
+  slash:
+    name:
+      en-us: setup
+      pt-br: configurar
+    description:
+      en-us: Keiko shows you all features available and helps you set them up
+      pt-br: Keiko mostra todas as funcionalidades disponíveis e te ajuda a configurá-las
+
+ui:
+  # open: screen names -> a Card
+  cards:
+    dashboard:
+      title:
+        en-us: 🐶 Server Setup
+        pt-br: 🐶 Configuração do Servidor
+      description:
+        en-us: Pick what you want to set up and I'll guide you step by step!
+        pt-br: Escolha o que você quer ajustar e eu te guio passo a passo!
+      overrides:
+        - when:
+            key: setup.facts.all_configured
+            is: true
+          description:
+            en-us: Congratulations, everything is set up around here! Use the buttons to fine-tune whatever you like ✨
+            pt-br: Parabéns, tudo configurado por aqui! Use os botões para ajustar o que quiser ✨
+      # open: row names -> a CardRow
+      rows:
+        settings:
+          title:
+            en-us: ⚙️ **Server Settings**
+            pt-br: ⚙️ **Configurações do Servidor**
+          description:
+            en-us: Here you pick the language, the time zone and the prefix I use in this server
+            pt-br: Aqui você escolhe o idioma, o fuso horário e o prefixo que eu uso neste servidor
+    category:
+      title:
+        en-us: $emoji $name
+        pt-br: $emoji $name
+      description:
+        en-us: Pick a feature to set up or manage!
+        pt-br: Escolha uma funcionalidade para configurar ou gerenciar!
+      note:
+        en-us: Page $page of $pages
+        pt-br: Página $page de $pages
+    settings:
+      title:
+        en-us: ⚙️ Server Settings
+        pt-br: ⚙️ Configurações do Servidor
+      description:
+        en-us: These are the defaults I use in messages for the whole server. Change anything you like!
+        pt-br: Esses são os padrões que eu uso nas mensagens para o servidor inteiro. Mude o que quiser!
+      # open: setting names -> a CardRow
+      rows:
+        language:
+          description:
+            en-us: "🌐 **Language**\n> $value\n-# The language I speak in this server"
+            pt-br: "🌐 **Idioma**\n> $value\n-# A língua que eu falo neste servidor"
+          placeholder:
+            en-us: Change language
+            pt-br: Alterar idioma
+        timezone:
+          description:
+            en-us: "🕒 **Time zone**\n> $value\n-# The time zone I follow in new reminders, like birthday ones"
+            pt-br: "🕒 **Fuso horário**\n> $value\n-# O fuso que eu sigo nos novos lembretes, como os de aniversário"
+          placeholder:
+            en-us: Change time zone
+            pt-br: Alterar fuso horário
+        prefix:
+          description:
+            en-us: "⌨️ **Prefix**\n> $value\n-# With this prefix I answer commands like `$prefixping` in the chat. Everything else lives in the slash (/) commands."
+            pt-br: "⌨️ **Prefixo**\n> $value\n-# Com esse prefixo eu respondo no chat a comandos como `$prefixping`. O resto fica nos comandos com barra (/)."
+          placeholder:
+            en-us: Change prefix
+            pt-br: Alterar prefixo
+
+  # open: text names -> a text, or a table of texts
+  texts:
+    top_commands:
+      en-us: "Most used commands:"
+      pt-br: "Comandos mais usados:"
+    # open: parent groups -> the group's name
+    categories:
+      moderations:
+        en-us: Moderation
+        pt-br: Moderação
+      notifications:
+        en-us: Notifications
+        pt-br: Notificações
+      integrations:
+        en-us: Integrations
+        pt-br: Integrações
+    # open: parent groups -> what the group does, in one line
+    briefs:
+      moderations:
+        en-us: I welcome new members, give them roles and keep an eye on links in the server
+        pt-br: Recebo novos membros, dou cargos a eles e cuido dos links do servidor
+      notifications:
+        en-us: I let the server know when your favorite creators go live or post, and when it's a member's birthday
+        pt-br: Aviso o servidor quando seus criadores favoritos entram ao vivo ou postam, e quando é aniversário de algum membro
+      integrations:
+        en-us: I connect the server to other platforms, like StreamElements
+        pt-br: Conecto o servidor a outras plataformas, como o StreamElements
+    # open: a feature's state on its row -> the mark after its name
+    states:
+      activated:
+        en-us: (Just Turned On 🎉)
+        pt-br: (Recentemente Ativado 🎉)
+      configured:
+        en-us: ✅
+        pt-br: ✅
+      paused:
+        en-us: ⏸️
+        pt-br: ⏸️
+    # open: time zone slugs of Commands.SERVER_TIMEZONES -> the zone's label
+    timezones:
+      brazil:
+        en-us: 🇧🇷 Brazil (UTC-3)
+        pt-br: 🇧🇷 Brasil (UTC-3)
+      argentina:
+        en-us: 🇦🇷 Argentina (UTC-3)
+        pt-br: 🇦🇷 Argentina (UTC-3)
+      united_states:
+        en-us: 🇺🇸 United States (UTC-5/UTC-4)
+        pt-br: 🇺🇸 Estados Unidos (UTC-5/UTC-4)
+      portugal:
+        en-us: 🇵🇹 Portugal (UTC+0/UTC+1)
+        pt-br: 🇵🇹 Portugal (UTC+0/UTC+1)
+      united_kingdom:
+        en-us: 🇬🇧 United Kingdom (UTC+0/UTC+1)
+        pt-br: 🇬🇧 Reino Unido (UTC+0/UTC+1)
+      spain:
+        en-us: 🇪🇸 Spain (UTC+1/UTC+2)
+        pt-br: 🇪🇸 Espanha (UTC+1/UTC+2)
+      germany:
+        en-us: 🇩🇪 Germany (UTC+1/UTC+2)
+        pt-br: 🇩🇪 Alemanha (UTC+1/UTC+2)
+      japan:
+        en-us: 🇯🇵 Japan (UTC+9)
+        pt-br: 🇯🇵 Japão (UTC+9)
+      utc:
+        en-us: 🌐 UTC (UTC+0)
+        pt-br: 🌐 UTC (UTC+0)
+
+  # open: list names -> a Records list
+  records:
+    history:
+      title:
+        en-us: 📜 Changes history
+        pt-br: 📜 Histórico de alterações
+      description:
+        en-us: "The latest changes across all my features in this server:"
+        pt-br: "As últimas mudanças em todas as minhas funcionalidades neste servidor:"
+      empty:
+        en-us: No changes recorded here yet. Set up a feature and it shows up in this list!
+        pt-br: Ainda não tem nenhuma mudança registrada por aqui. Configure uma funcionalidade e ela aparece nesta lista!
+
+  # open: response names -> a Response
+  responses:
+    greeting:
+      title:
+        en-us: "Hello, I'm Keiko, your loyal Discord companion! :dog:"
+        pt-br: "Olá, eu sou o Keiko, o seu leal companheiro do Discord! :dog:"
+      description:
+        en-us: "I'm super excited to make new friends and help make your server even more awesome! ✨\n\nHere are some tricks I know how to do:\n$categories\n🌐 **Utility:** Message translation to any language.\n\nYou can use the **Setup** button below to get started 🚀 or run `{context:commands.setup}` at any time to see and manage all my features!\n\nAll of this is easy to manage with Discord buttons, so you can edit, pause or turn off whatever you want ✏️\n\nTo see every command I have, just tap **Help**. And if you ever get stuck, just call me with `{context:commands.support}` ❤️"
+        pt-br: "Estou super animado para fazer novos amigos e ajudar a deixar o seu servidor ainda mais incrível! ✨\n\nAqui estão alguns truques que eu sei fazer:\n$categories\n🌐 **Utilitário:** Tradução de mensagens para qualquer idioma.\n\nVocê pode usar o botão **Configurar** abaixo para começar 🚀 ou rodar `{context:commands.setup}` a qualquer momento para ver e gerenciar todas as minhas funcionalidades!\n\nTudo isso você gerencia de um jeito fácil pelos botões do Discord, editando, pausando ou desativando o que quiser ✏️\n\nPara ver todos os meus comandos, toque em **Ajuda**. E se precisar de *aujuda*, é só chamar com `{context:commands.support}` ❤️"
+      footer: null
+      # open: line names -> a line template
+      lines:
+        category:
+          en-us: $emoji **$name:** $features.
+          pt-br: $emoji **$name:** $features.
+    permissions:
+      title:
+        en-us: 🩺 Keiko's Permissions
+        pt-br: 🩺 Permissões do Keiko
+      description:
+        en-us: "I checked what I need for each configured feature:"
+        pt-br: "Conferi o que eu preciso para cada funcionalidade configurada:"
+      footer: null
+      empty:
+        en-us: No feature is set up yet, so there is nothing for me to check. Set one up and come back!
+        pt-br: Nenhuma funcionalidade configurada ainda, então não tenho o que conferir. Configure uma e volte aqui!
+      # open: line names -> a line template
+      lines:
+        ok:
+          en-us: ✅ All good here
+          pt-br: ✅ Tudo certo por aqui
+
+  # open: error names -> an ErrorBlock
+  errors:
+    refused_prefix:
+      title:
+        en-us: Prefix Not Saved
+        pt-br: Prefixo Não Salvo
+      message:
+        en-us: I'm sorry, but I couldn't save that prefix. Please pick it again in the menu!
+        pt-br: Desculpe, mas não consegui salvar esse prefixo. Escolha de novo no menu, por favor!
+    refused_language:
+      title:
+        en-us: Language Not Saved
+        pt-br: Idioma Não Salvo
+      message:
+        en-us: I'm sorry, but I couldn't save that language. Please pick it again in the menu!
+        pt-br: Desculpe, mas não consegui salvar esse idioma. Escolha de novo no menu, por favor!
+    refused_timezone:
+      title:
+        en-us: Time Zone Not Saved
+        pt-br: Fuso Horário Não Salvo
+      message:
+        en-us: I'm sorry, but I couldn't save that time zone. Please pick it again in the menu!
+        pt-br: Desculpe, mas não consegui salvar esse fuso horário. Escolha de novo no menu, por favor!
+
+  # open: button names -> a ButtonCopy
+  buttons:
+    previous:
+      label:
+        en-us: Previous
+        pt-br: Anterior
+    next:
+      label:
+        en-us: Next
+        pt-br: Próxima
+    start:
+      label:
+        en-us: Set up
+        pt-br: Configurar
+    manage:
+      label:
+        en-us: Manage
+        pt-br: Gerenciar
+    permissions:
+      label:
+        en-us: Permissions
+        pt-br: Permissões
+    support:
+      label:
+        en-us: Support
+        pt-br: Suporte
+    dashboard:
+      label:
+        en-us: Setup
+        pt-br: Configurar

@@ -7,7 +7,7 @@ scroll up to find why the value was refused ("ficou ruim, volte pra mensagem
 separada"). The error is a separate ephemeral message again, as before beta.2,
 and what round 1 got right stays: the modal opens again with what was typed.
 
-Shared behaviour: `Form.refuse` (`app/settings/form/form.py`), the answer of
+Shared behaviour: `Form.refuse` (`app/forms/form/form.py`), the answer of
 every form to a refusal, and the card and modal renderers that no longer draw
 it. Exposed by: notifications_twitch (a streamer Twitch does not know),
 stream_elements_commands (a modal step), reminders_birthday (Done with fields
@@ -62,7 +62,7 @@ async def test_an_unknown_streamer_is_told_apart_from_the_card(scenario_factory,
 
     await twitch._submit_streamer(scenario, "naoexiste")
 
-    message = ml("errors.streamer-not-found.message", locale="pt-br")
+    message = ml("errors.streamer_not_found.message", locale="pt-br")
     errors = _sent(scenario, message)
     assert errors, "the admin never read why the name was refused"
     assert (errors[-1].get("embed") or {}).get("color") == 0xFF0000
@@ -83,7 +83,7 @@ async def test_a_refused_modal_step_is_told_apart_and_reopens_prefilled(
     await scenario.confirm()
     await streamelements._submit_streamer(scenario, "naoexiste")
 
-    assert _sent(scenario, ml("errors.streamer-not-found.message", locale="pt-br"))
+    assert _sent(scenario, ml("errors.streamer_not_found.message", locale="pt-br"))
     texts = _screen_texts(scenario)
     assert any("naoexiste" in text for text in texts), texts
     assert not any("🚨" in text for text in texts), texts
@@ -97,7 +97,7 @@ async def test_done_with_fields_missing_is_told_apart_from_the_card(scenario_fac
     await scenario.confirm()
     await scenario.click("done")
 
-    required = ml("buttons.summary-card.required", "pt-br").split(":")[0]
+    required = ml("errors.required_fields.message", "pt-br").split(":")[0]
     errors = _sent(scenario, required)
     assert errors and errors[-1].get("content"), "a plain sentence of its own"
     assert not any("🚨" in text for text in _screen_texts(scenario))

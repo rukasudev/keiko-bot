@@ -1,0 +1,22 @@
+"""What /${slash} answers, checked offline."""
+
+import pytest
+
+from app.commands import COMMANDS
+from app.commands.${name} import COMMAND
+from app.commands.${name}.service import run
+from app.core.utils import ml
+
+pytestmark = pytest.mark.unit
+
+
+def test_the_command_is_in_the_list():
+    assert COMMAND in COMMANDS
+
+
+async def test_the_command_answers_in_the_member_language(interaction):
+    await run(interaction)
+
+    sent = interaction.get_last_response()
+    assert sent["content"] == ml("${key}.ui.texts.reply", "en-us")
+    assert sent["ephemeral"] is True

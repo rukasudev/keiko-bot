@@ -1,45 +1,36 @@
+"""Calendar dates: the `MM-DD` a yearly date is stored as, month names and time zones."""
+
+from __future__ import annotations
+
 from datetime import date, datetime, timezone, tzinfo
-from typing import List, Optional, Tuple
+from typing import Any, List, Optional
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+import discord
 from discord import app_commands
 
 from app import logger
 from app.constants import LogTypes as logconstants
-from app.settings.form.responses.dates import MONTH_KEYS, is_valid_mm_dd, parse_date_parts
-from app.core.utils import ml
+from app.core.calendar import MONTH_KEYS, mm_dd_label, month_key, parse_mm_dd
+from app.core.utils import format_relative_time, ml
 from app.translator import locale_str
-
-__all__ = [
-    "MONTH_KEYS",
-    "is_valid_mm_dd",
-    "parse_date_parts",
-    "get_month_label",
-    "get_month_choices",
-    "parse_mm_dd",
-    "next_mm_dd_occurrence",
-    "nearest_mm_dd_occurrence",
-    "format_mm_dd_label",
-    "format_month_count",
-    "format_mm_dd_count",
-    "zone_or_utc",
-    "utc_today",
-]
 
 
 def utc_today() -> date:
-    """Today's date in UTC, the day a birthday count starts from."""
+    """Today's date in UTC."""
     return datetime.now(timezone.utc).date()
 
 
-def get_month_label(month: int, locale: str = None) -> Optional[str]:
-    if not 1 <= month <= 12:
-        return None
-    key = MONTH_KEYS[month - 1]
-    return ml(f"commands.commands.commons.months.{key}", locale=locale)
+def get_month_label(
+    month: int, locale: str | discord.Locale | None = None
+) -> Optional[str]:
+    key = month_key(month)
+    return ml(f"texts.months.{key}", locale=locale) if key else None
 
 
-def get_month_choices(namespace: str = "commons") -> List[app_commands.Choice[int]]:
+def get_month_choices(
+    namespace: str = "texts",
+) -> List[app_commands.Choice[int]]:
     return [
         app_commands.Choice(
             name=locale_str(key, type=f"months.{key}", namespace=namespace),
@@ -47,10 +38,6 @@ def get_month_choices(namespace: str = "commons") -> List[app_commands.Choice[in
         )
         for index, key in enumerate(MONTH_KEYS, start=1)
     ]
-
-
-def parse_mm_dd(value: str) -> Tuple[int, int]:
-    return int(value.split("-")[0]), int(value.split("-")[1])
 
 
 def next_mm_dd_occurrence(mm_dd: str, today: Optional[date] = None) -> datetime:
@@ -87,29 +74,14 @@ def zone_or_utc(name: Optional[str]) -> tzinfo:
         return timezone.utc
 
 
-def format_mm_dd_label(value: str, locale: str = None) -> str:
+def format_mm_dd_label(value: str, locale: str | discord.Locale | None = None) -> str:
+    return mm_dd_label(value, lambda key: ml(key, locale))
+
+
+def parse_if_time(value: Any) -> Any:
+    """A datetime as its date and how long ago it was; any other value as it is."""
     try:
-        month, day = parse_mm_dd(str(value))
-    except (TypeError, ValueError):
+        formatted = value.strftime("%Y-%m-%d %H:%M:%S")
+        return f"{formatted} ({format_relative_time(value)})"
+    except AttributeError:
         return value
-
-    label = get_month_label(month, locale)
-    if not label:
-        return value
-
-    if str(locale).lower() == "pt-br":
-        return f"{day} de {label.lower()}"
-    return f"{label} {day}"
-
-
-def format_month_count(value: Optional[Tuple[int, int]], locale: str = None) -> str:
-    if not value:
-        return "-"
-    label = get_month_label(int(value[0]), locale) or str(value[0])
-    return f"{label} ({value[1]})"
-
-
-def format_mm_dd_count(value: Optional[Tuple[str, int]], locale: str = None) -> str:
-    if not value:
-        return "-"
-    return f"{format_mm_dd_label(value[0], locale)} ({value[1]})"

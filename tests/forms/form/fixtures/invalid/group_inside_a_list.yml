@@ -1,0 +1,29 @@
+steps:
+  - type: intro
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - type: list
+    key: items
+    title: {en-us: Items, pt-br: Itens}
+    description: {en-us: list, pt-br: lista}
+    items: {max: 3}
+    steps:
+      - type: card
+        key: item
+        title: {en-us: Item, pt-br: Item}
+        description: {en-us: item, pt-br: item}
+        group: settings
+        sections:
+          - type: channel_select
+            key: channel
+            emoji: "📺"
+            label: {en-us: Channel, pt-br: Canal}
+            keys: {value: channel}
+  - type: review
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}
+groups:
+  settings:
+    title: {en-us: Settings, pt-br: Ajustes}

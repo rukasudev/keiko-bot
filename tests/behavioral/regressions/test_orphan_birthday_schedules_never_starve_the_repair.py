@@ -7,7 +7,7 @@ pass's worth of them piled up a real birthday behind them never got its reminder
 A birthday whose save failed after its date was scheduled left one more of them.
 
 Shared behaviour: `reconcile_missing_reminders` and `upsert_birthday`
-(`app/services/reminders_birthdays.py`) over `keiko.schedules`, run by the birthday
+(`app/commands/birthdays/service.py`) over `keiko.schedules`, run by the birthday
 cog's loop and by `make repair-birthdays`. Consumer that exposed it: the review of
 the new database.
 
@@ -20,8 +20,8 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from app.data import data, wait
-from app.services import reminders_birthdays as birthdays_service
-from app.services.reminders_birthdays import save_birthday_config
+from app.commands.birthdays import service as birthdays_service
+from app.commands.birthdays.service import save_birthday_config
 from tests.generators.birthdays import saved_birthday
 from tests.generators.moderations import recorded_server
 

@@ -1,0 +1,15 @@
+steps:
+  - type: intro
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - type: text
+    key: name
+    transform: {name: unicorn}
+    title: {en-us: Name, pt-br: Nome}
+    description: {en-us: type, pt-br: digite}
+    label: {en-us: Name, pt-br: Nome}
+  - type: review
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

@@ -1,0 +1,11 @@
+"""What /${slash} does."""
+
+import discord
+
+from app.core.utils import ml
+
+
+async def run(interaction: discord.Interaction) -> None:
+    """Answer the slash command in the member's language."""
+    reply = ml("${key}.ui.texts.reply", locale=interaction.locale)
+    await interaction.response.send_message(reply, ephemeral=True)

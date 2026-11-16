@@ -24,12 +24,13 @@ import discord
 import pytest
 
 from app.data import data
-from app.cogs import events as events_module
+from app.core import events as events_module
 from app.constants import Commands, DBConfigs
 from app.exceptions import InvalidServerSetting, ServerSettingsMissing
 from app.core import cache
 from app.core import servers as moderations_service
-from app.settings.discord.callbacks import RUNTIME
+from app.forms.discord.callbacks import RUNTIME
+from app.forms.features import feature_keys
 from tests.behavioral.harness.driver import FormScenario
 from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks.discord import create_guild, create_member
@@ -56,7 +57,7 @@ def guild_double(guild_id=777, owner_id=313, locale="pt-BR"):
 @pytest.fixture
 def events(deps, monkeypatch):
     monkeypatch.setattr(
-        events_module, "GreetingsView",
+        "app.commands.setup.service.GreetingsView",
         lambda *args, **kwargs: SimpleNamespace(send=AsyncMock()),
     )
     deps.bot.config.PREFIX = "ke!"
@@ -353,7 +354,7 @@ async def test_a_form_on_a_server_missing_one_setting_raises_settings_missing(de
 
 
 def test_the_operator_lists_are_every_declared_feature():
-    assert Commands.COMMANDS_LIST == [
+    assert list(feature_keys()) == [
         "welcome_messages",
         "default_roles",
         "block_links",
@@ -362,11 +363,11 @@ def test_the_operator_lists_are_every_declared_feature():
         "reminders_birthday",
         "stream_elements_commands",
     ]
-    assert Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY in Commands.COMMANDS_LIST
+    assert "stream_elements_commands" in list(feature_keys())
 
 
 async def test_the_guild_inspection_prints_the_settings_as_one_line(deps):
-    from app.views.log_inspection import LogInspectionView
+    from app.commands.admin.log_inspection import LogInspectionView
 
     view = LogInspectionView(None, None, "777")
     embed = discord.Embed()

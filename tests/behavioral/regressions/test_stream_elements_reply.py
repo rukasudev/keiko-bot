@@ -25,8 +25,8 @@ from types import SimpleNamespace
 import discord
 import pytest
 
+
 from app.data import data, wait
-from app.data.guild import settings as guild_settings
 from app.exceptions import StreamElementsUnavailable
 from app.integrations.stream_elements import StreamElementsClient
 from app.core.utils import ml, parse_locale
@@ -40,7 +40,7 @@ from tests.mocks.discord import (
     MockChannel,
     MockMessage,
 )
-from app.services import stream_elements
+from app.commands.stream_elements import service as stream_elements
 from tests.behavioral.harness.locators import walk_items
 from discord.ext import commands
 
@@ -78,7 +78,7 @@ def member_without_a_picture(guild):
 
 
 async def ask(bot, guild, author, content="ks!mouse"):
-    from app.cogs import events as events_module
+    from app.core import events as events_module
 
     message = create_message(content=content, author=author, channel=guild.text_channels[0])
     await events_module.Events(bot).on_message(message)
@@ -127,13 +127,13 @@ async def test_the_reply_footer_speaks_the_language_of_the_server(deps, streamer
     message = await ask(deps.bot, guild, member_without_a_picture(guild))
 
     footer = ml(
-        "commands.commands.commons.stream-elements-manager.commands.reply-footer",
+        "stream_elements_commands.ui.texts.reply_footer",
         "pt-br",
     )
     expected = footer.replace("$command", "ks!commands").replace("$streamer", "gaules")
     assert reply_of(message).footer.text == f"• {expected}"
     assert expected != ml(
-        "commands.commands.commons.stream-elements-manager.commands.reply-footer",
+        "stream_elements_commands.ui.texts.reply_footer",
         "en-us",
     ).replace("$command", "ks!commands").replace("$streamer", "gaules")
 
@@ -426,13 +426,13 @@ async def test_an_unreachable_stream_elements_leaves_no_count_on_the_review(
     exposed it: stream_elements_commands. Guaranteed: an unreachable service
     leaves no count on the screen, and a reachable one shows the count it found.
     """
-    from app.settings.features import stream_elements_commands as feature
+    from app.commands.stream_elements import service
 
     def unreachable(name):
         raise ConnectionError("StreamElements is down")
 
     monkeypatch.setattr(
-        feature.StreamElementsClient, "get_channel_info", staticmethod(unreachable)
+        service.StreamElementsClient, "get_channel_info", staticmethod(unreachable)
     )
 
     scenario = await _review_after_naming(scenario_factory, deps)
@@ -496,7 +496,7 @@ def direct_message(content):
 
 async def look_up_the_command(bot, message):
     """What discord.py does when no text command matches the prefixed message."""
-    from app.cogs.errors import Errors
+    from app.core.errors import Errors
 
     context = SimpleNamespace(guild=message.guild, message=message, send=message.channel.send)
     await Errors(bot).on_command_error(context, NOT_A_COMMAND)
@@ -504,7 +504,7 @@ async def look_up_the_command(bot, message):
 
 async def handle(bot, message):
     """Everything discord.py does with a server message: the listeners, then the lookup."""
-    from app.cogs.events import Events
+    from app.core.events import Events
 
     await Events(bot).on_message(message)
     await look_up_the_command(bot, message)
@@ -528,9 +528,9 @@ async def test_a_stream_elements_command_gets_only_its_reply(deps, stream_elemen
     one prefix for both, every StreamElements command would have been answered twice,
     by the reply and by the hint. The hint never said how to turn a prefix feature on.
 
-    Shared behaviour: `Events._answer_the_prefix` (`app/cogs/events.py`), which
-    decides every prefixed message since PR15 round 3, the `answers_prefix` mark on
-    `Commands.SETUP_FEATURES` and `prefix_hint` (`app/services/help.py`). Consumer
+    Shared behaviour: `dispatch.message_sent` (`app/core/dispatch.py`), which
+    hands every prefixed message to the prefix hooks, `Command.answers_prefix` of
+    `setup_features()` and `prefix_hint` (`app/commands/help/service.py`). Consumer
     that exposed it: stream_elements_commands, the first feature that answers the
     prefix.
 
@@ -598,14 +598,14 @@ async def test_the_hint_names_the_configured_prefix(deps, nothing_on):
 async def test_ping_on_the_default_prefix_gets_only_the_pong(deps, nothing_on):
     """A server still on Keiko's default prefix gets one answer to `ke!ping`.
 
-    Broke as: `Events._answer_the_prefix` answered `ke!ping` with the Pong, then
+    Broke as: Keiko's prefix answer (today help's prefix hook) answered `ke!ping` with the Pong, then
     discord.py found no text command `ping` and handed the message to
     `Errors.on_command_error`, which answered every `CommandNotFound` that started
     with the default prefix with the prefix hint. A server whose prefix is the
     default, every new server, got the Pong and the hint.
 
-    Shared behaviour: `Events._answer_the_prefix` (`app/cogs/events.py`), which now
-    decides every prefixed message, and `Errors.on_command_error`, silent on
+    Shared behaviour: `dispatch.message_sent` (`app/core/dispatch.py`), which now
+    decides every prefixed message through help's hooks, and `Errors.on_command_error`, silent on
     `CommandNotFound`. Consumer that exposed it: the prefix `ping` (ux-493, ux-525).
 
     Guaranteed: on the default prefix, `ke!ping` gets the Pong and nothing else.
@@ -625,7 +625,7 @@ async def test_ping_on_the_default_prefix_gets_only_the_pong(deps, nothing_on):
 async def as_discord_reads(bot, message):
     """The listeners, then the lookup only for a message with the prefix the bot reads it with."""
     from app.bot import server_command_prefix
-    from app.cogs.events import Events
+    from app.core.events import Events
 
     await Events(bot).on_message(message)
     if message.content.startswith(await server_command_prefix(bot, message)):
@@ -667,8 +667,8 @@ async def test_a_direct_message_gets_the_slash_hint_from_the_language_files(
 
     await handle(deps.bot, message)
 
-    halves = [ml("messages.prefix-hint.direct", locale) for locale in ("pt-br", "en-us")]
-    assert "messages.prefix-hint.direct" not in halves, "the hint lives in the language files"
+    halves = [ml("help.ui.texts.prefix_hint.direct", locale) for locale in ("pt-br", "en-us")]
+    assert "help.ui.texts.prefix_hint.direct" not in halves, "the hint lives in the language files"
     [hint] = sent(message)
     assert hint == "\n\n".join(halves)
     assert "`/ajuda`" in hint and "`/help`" in hint
@@ -680,7 +680,7 @@ async def test_a_setup_in_dev_saves_the_channel_the_streamer_lookup_found(
 ):
     """A dev setup saves the StreamElements channel the streamer lookup found.
 
-    Broke as: `_with_channel` (`app/settings/features/stream_elements_commands.py`)
+    Broke as: `_with_channel` (`app/commands/stream_elements/service.py`)
     returned the document untouched when `is_dev()`, so a setup on the dev bot saved
     no `channel_id`. The panel then asked StreamElements for `/bot/commands//public`
     and found no command, and every `ke!` command got no answer. The streamer modal's
@@ -754,7 +754,7 @@ async def test_an_old_document_without_its_channel_still_answers_ke_commands(
     `channel_id` straight from the document: None, so StreamElements was asked for
     `/bot/commands/None/public`, answered 404, and nobody got an answer.
 
-    Shared behaviour: `channel_of` (`app/services/stream_elements.py`), the one way
+    Shared behaviour: `channel_of` (`app/commands/stream_elements/service.py`), the one way
     the read paths learn the channel. Consumer that exposed it: stream_elements_commands
     on the dev bot.
 
@@ -787,7 +787,7 @@ async def test_a_channel_lookup_that_failed_is_not_asked_again_on_every_message(
 ):
     """A failed lookup of the streamer's channel waits before StreamElements is asked again.
 
-    Broke as: `channel_of` (`app/services/stream_elements.py`) looks the channel up
+    Broke as: `channel_of` (`app/commands/stream_elements/service.py`) looks the channel up
     through `find_channel` for a document saved without it, and a lookup that failed
     (StreamElements down, or a streamer it does not know) was never remembered, so
     every message with the prefix asked StreamElements again for the same channel.
@@ -846,7 +846,7 @@ async def _open_the_command_list(scenario_factory, locale="pt-br"):
         "stream_elements_commands", PANEL
     )
     await scenario.click(ml(
-        "commands.commands.commons.stream-elements-manager.commands.button.label", locale
+        "stream_elements_commands.ui.buttons.commands.label", locale
     ))
     return [event for event in scenario.outputs if event.get("kind") == "send"][-1]
 
@@ -864,10 +864,10 @@ async def test_the_commands_button_sits_beside_the_loaded_commands(
         "stream_elements_commands", PANEL
     )
     label = ml(
-        "commands.commands.commons.stream-elements-manager.commands.button.label",
+        "stream_elements_commands.ui.buttons.commands.label",
         "pt-br",
     )
-    title = ml("commands.commands.commons.stream-elements-manager.loaded.title", "pt-br")
+    title = ml("stream_elements_commands.command.panel.info.title", "pt-br")
     card, *rows = scenario.current_message.view.children
 
     beside = [
@@ -886,7 +886,7 @@ async def test_a_stream_elements_failure_answers_the_panel_in_the_error_format(
 ):
     """The panel's command list tells a StreamElements failure from a streamer without commands.
 
-    Broke as: `_channel_commands` (`app/services/stream_elements.py`) answered `{}`
+    Broke as: `_channel_commands` (`app/commands/stream_elements/service.py`) answered `{}`
     for a payload that was not a list (a 404) and let a connection error through,
     so the panel's Commands button said "no active commands" while StreamElements
     was down, or failed outright; and "no active commands" itself was raw plain
@@ -916,7 +916,7 @@ async def test_a_streamer_without_commands_gets_an_embed_not_raw_text(
     sent = await _open_the_command_list(scenario_factory)
 
     embed = sent.get("embed") or {}
-    empty = ml("commands.commands.commons.stream-elements-manager.commands.empty", "pt-br")
+    empty = ml("stream_elements_commands.ui.records.commands.empty", "pt-br")
     assert not sent.get("content"), f"the empty list was raw text: {sent.get('content')!r}"
     assert str(embed.get("description")).startswith(empty.replace("$streamer", "gaules"))
     assert embed.get("color") != 0xFF0000
@@ -966,7 +966,7 @@ async def test_an_outage_warns_again_only_once_its_mark_in_redis_is_gone(
 ):
     """The warning of an outage follows a mark claimed in Redis, not a process.
 
-    Broke as: `warn_unavailable` (`app/services/stream_elements.py`) remembered
+    Broke as: `warn_unavailable` (`app/commands/stream_elements/service.py`) remembered
     when it last warned in a module-level dict, so every process (and every
     restart) warned again on its own clock, and the channel lookup's failure mark
     borrowed its TTL from "no commands".

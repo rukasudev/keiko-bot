@@ -6,9 +6,9 @@ channel override the permission check does not see, an outage) was still counted
 as delivered, and the guild profile stamped `greeting_sent_at` for a server that
 never saw it.
 
-Shared behaviour: the onboarding greeting (app/views/greetings.py), sent by
+Shared behaviour: the onboarding greeting (app/commands/setup/service.py), sent by
 `Events.on_guild_join`, and the guild profile and admin digest that read its
-event (app/core/analytics_sink.py, app/services/admin_analytics.py).
+event (app/core/analytics_writer.py, app/commands/admin/analytics.py).
 
 Guaranteed: a greeting that reached a channel is counted once with
 `channel_found=True`; a greeting whose send failed is never counted as sent; a
@@ -49,7 +49,7 @@ def _greetings(recorded):
 
 
 async def test_a_greeting_discord_refused_is_never_counted_as_sent(deps, analytics_events):
-    from app.views.greetings import GreetingsView
+    from app.commands.setup.service import GreetingsView
 
     refused = discord.Forbidden(SimpleNamespace(status=403, reason="Forbidden"), "Missing Access")
     guild = _guild(deps.mongo_client, _channel(send=AsyncMock(side_effect=refused)))
@@ -63,7 +63,7 @@ async def test_a_greeting_discord_refused_is_never_counted_as_sent(deps, analyti
 
 
 async def test_a_greeting_on_a_channel_is_counted_once(deps, analytics_events):
-    from app.views.greetings import GreetingsView
+    from app.commands.setup.service import GreetingsView
 
     channel = _channel()
     guild = _guild(deps.mongo_client, _channel(writable=False), channel)
@@ -77,7 +77,7 @@ async def test_a_greeting_on_a_channel_is_counted_once(deps, analytics_events):
 async def test_a_server_without_a_writable_channel_is_counted_as_not_found(
     deps, analytics_events
 ):
-    from app.views.greetings import GreetingsView
+    from app.commands.setup.service import GreetingsView
 
     guild = _guild(deps.mongo_client, _channel(writable=False))
 

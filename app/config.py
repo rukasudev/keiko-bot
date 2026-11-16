@@ -135,7 +135,7 @@ class AppConfig:
         except ClientError:
             return ""
 
-    def get_admin_db_configs(self):
+    def get_admin_db_configs(self) -> dict[str, Any]:
         """The operator ids the running Keiko uses, by attribute name."""
         names = [key.upper() for key in constants.ADMIN_CONFIGS_LIST]
         return {name: getattr(self, name) for name in names}

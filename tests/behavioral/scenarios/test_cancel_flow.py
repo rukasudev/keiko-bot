@@ -10,8 +10,8 @@ import pytest
 
 from app.core import analytics
 from app.core.utils import ml
-from app.settings.discord.callbacks import RUNTIME
-from app.settings.form.form_state import Status
+from app.forms.discord.callbacks import RUNTIME
+from app.forms.form.form_state import Status
 from tests.behavioral.harness import locators
 
 pytestmark = pytest.mark.behavioral
@@ -27,7 +27,7 @@ def analytics_events(monkeypatch):
 
 
 def _confirmations(scenario, locale):
-    title = ml("errors.discard-settings-confirmation.title", locale)
+    title = ml("commands.responses.discard.title", locale)
     return [
         event
         for event in scenario.outputs
@@ -74,14 +74,15 @@ async def test_cancel_after_an_answer_asks_to_keep_or_discard(
 
     assert _confirmations(scenario, "pt-br")
     assert RUNTIME.store.get(session_id).status is Status.AWAITING
-    await scenario.click(ml("buttons.cancel.discard", "pt-br"))
+    await scenario.click(ml("buttons.discard.label", "pt-br"))
     assert RUNTIME.store.get(session_id).status is Status.CANCELLED
     assert "setup.discarded" in analytics_events
     await scenario.finish()
 
 
 @pytest.mark.parametrize(
-    "locale,title", [("pt-br", "Descartar Configurações?"), ("en-us", "Discard Settings?")]
+    "locale,title",
+    [("pt-br", "🚨 Descartar Configurações?"), ("en-us", "🚨 Discard Settings?")],
 )
 async def test_the_confirmation_asks_to_discard_and_keeps_editing_in_grey(
     scenario_factory, locale, title
@@ -95,17 +96,17 @@ async def test_the_confirmation_asks_to_discard_and_keeps_editing_in_grey(
     await scenario.cancel()
 
     assert _confirmations(scenario, locale)
-    assert ml("errors.discard-settings-confirmation.title", locale) == title
-    keep = next(b for b in _buttons(scenario) if b.label == ml("buttons.cancel.keep", locale))
+    assert ml("commands.responses.discard.title", locale) == title
+    keep = next(b for b in _buttons(scenario) if b.label == ml("buttons.keep.label", locale))
     assert keep.style == discord.ButtonStyle.secondary
-    await scenario.click(ml("buttons.cancel.discard", locale))
+    await scenario.click(ml("buttons.discard.label", locale))
     await scenario.finish()
 
 
 def test_the_help_runs_a_command_from_a_blue_button_without_an_emoji():
     """A blue ▶️ inside a green button looked broken; the run button is blue with its label
     only (PR15 rounds 6 and 7, m03)."""
-    from app.components.buttons import ExecuteCommandButton
+    from app.commands.help.service import ExecuteCommandButton
 
     button = ExecuteCommandButton("block_links", "pt-br")
 

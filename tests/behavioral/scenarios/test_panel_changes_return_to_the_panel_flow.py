@@ -2,9 +2,9 @@
 
 Adicionar, Editar (of an item or of a card) and Remover end on the panel drawn
 again over what is saved now, on the message the admin was using, instead of a
-closed "Item adicionado" / "editado" / "removido" embed. What the feature
-records about the change (its product events, the session's story) is the
-same as when the message closed.
+closed embed with a final message (the copy no longer holds one for these
+changes). What the feature records about the change (its product events, the
+session's story) is the same as when the message closed.
 """
 import pytest
 
@@ -21,8 +21,8 @@ pytestmark = pytest.mark.behavioral
 
 LOCALE = "pt-br"
 CLOSED_TITLES = [
-    ml(f"commands.command-events.{kind}.title", locale=LOCALE)
-    for kind in ("added", "edited", "removed")
+    ml(f"commands.responses.{kind}.title", locale=LOCALE)
+    for kind in ("enabled", "paused", "unpaused", "disabled")
 ]
 
 

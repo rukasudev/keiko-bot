@@ -30,7 +30,7 @@ async def test_edit_card_updates_answer_and_upgrades_legacy_shape(
     """A legacy (pre-redesign) document is edited through the new card: the
     card hydrates from the translated config, only the edited field changes
     meaningfully, and untouched keys survive."""
-    from app.services.block_links import normalize_block_links_config
+    from app.commands.block_links.service import normalize_block_links_config
 
     seed_cog(deps.mongo_client, "block_links", dict(LEGACY_COG))
     scenario = await scenario_factory(locale="pt-br").start_manager(
@@ -69,7 +69,7 @@ async def test_edit_conditional_step_is_hidden_when_condition_unmet(
 ):
     """The edit picker leaves out steps whose `when` the saved document does
     not satisfy (a "later" gate hides the list it gates)."""
-    from app.settings.form.responses.summary import edit_options
+    from app.forms.form.responses.summary import edit_options
     from tests.forms.form.gate_fixtures import gated_list
 
     options = edit_options(

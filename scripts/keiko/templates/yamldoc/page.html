@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Keiko YAML Reference</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="generator" content="make docs (scripts/keiko/yamldoc)">
+<style>
+/* Layout: a sticky bar picks the type, the view and the language; the Reference reads one object at a time with its children opening in place beside a real file, the Tree shows the whole file at once beside a detail panel. */
+/*theme*/
+
+.role-identity { --rc: var(--r-identity); }
+.role-copy { --rc: var(--r-copy); }
+.role-visual { --rc: var(--r-visual); }
+.role-behavior { --rc: var(--r-behavior); }
+.role-conditions { --rc: var(--r-conditions); }
+.role-data { --rc: var(--r-data); }
+.role-structure { --rc: var(--r-structure); }
+.role-other { --rc: var(--r-other); }
+.role-none { --rc: var(--muted); }
+
+.rc { display: inline-flex; align-items: center; gap: 5px; font: 600 11.5px/1 var(--font-body); letter-spacing: .01em; color: var(--rc); background: color-mix(in srgb, var(--rc) 12%, transparent); padding: 4px 8px 4px 7px; border-radius: 999px; white-space: nowrap; }
+.rc i { width: 7px; height: 7px; border-radius: 50%; background: var(--rc); flex: none; }
+button.rc { border: 1px solid transparent; cursor: pointer; }
+button.rc[aria-pressed="true"] { border-color: var(--rc); background: color-mix(in srgb, var(--rc) 22%, transparent); }
+button.rc.off { opacity: .45; }
+.tm { display: inline-flex; align-items: center; gap: 5px; font: 500 11px/1 var(--font-mono); color: var(--fg-2); border: 1px solid var(--line-2); border-radius: 5px; padding: 3px 6px; white-space: nowrap; background: var(--surface); }
+.tm b { font-weight: 700; color: var(--muted); }
+.rq { display: inline-block; font: 700 10.5px/1 var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--on-ink); background: var(--ink); padding: 3px 6px; border-radius: 4px; white-space: nowrap; }
+.op { font: 600 10.5px/1 var(--font-body); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.sh { font: 600 10.5px/1 var(--font-body); letter-spacing: .04em; text-transform: uppercase; color: var(--accent); border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 4px; padding: 2px 5px; white-space: nowrap; }
+.untr { font: 700 9.5px/1 var(--font-body); letter-spacing: .05em; color: var(--warn); background: var(--warn-soft); border-radius: 3px; padding: 2px 4px; vertical-align: 1px; margin-left: 6px; }
+.missing { color: var(--warn); font-style: italic; }
+.df { font-size: 12.5px; color: var(--muted); }
+.df code { color: var(--fg-2); }
+.tl { font: 12.5px/1.5 var(--font-mono); color: var(--muted); overflow-wrap: anywhere; }
+.lk { color: var(--accent); text-decoration: underline; text-decoration-style: dotted; text-underline-offset: 3px; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; font-family: var(--font-mono); }
+.tl .lk { color: var(--fg-2); }
+.tl .lk:hover { color: var(--accent); }
+.tl .lit { color: var(--val); }
+.tl .sep { opacity: .5; margin: 0 .25em; }
+.tl .by, .tl .nul { opacity: .75; }
+.crumb { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; font: 12.5px/1.5 var(--font-mono); color: var(--muted); min-width: 0; }
+.crumb .s { color: var(--fg-2); overflow-wrap: anywhere; }
+.crumb .s.k { color: var(--accent); }
+.crumb .s.f { color: var(--fg); font-weight: 600; }
+.crumb .x { opacity: .5; }
+.crumb button.s { background: none; border: 0; padding: 0; cursor: pointer; font: inherit; }
+.crumb button.s:hover { text-decoration: underline; }
+.code-snip { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; font: 12px/1.6 var(--font-mono); overflow-x: auto; white-space: pre; color: var(--fg-2); max-width: 100%; }
+.src { font: 11.5px/1.4 var(--font-mono); color: var(--muted); margin: 4px 0 0; overflow-wrap: anywhere; }
+.note { font-size: 13px; color: var(--muted); }
+.btn { border: 1px solid var(--line-2); background: var(--surface); border-radius: 8px; padding: 6px 11px; font: 600 12.5px var(--font-body); cursor: pointer; color: var(--fg-2); display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--accent); color: var(--accent); }
+.btn svg { width: 14px; height: 14px; }
+.pend { color: var(--warn); }
+
+.ctl { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); min-width: 0; }
+.ctl select { padding: 5px 8px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface); font: 600 12.5px var(--font-mono); color: var(--fg); max-width: 220px; min-width: 0; }
+.segc { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.segc button { border: 0; background: none; padding: 5px 11px; font: 600 12.5px var(--font-body); cursor: pointer; color: var(--fg-2); }
+.segc button + button { border-left: 1px solid var(--line-2); }
+.segc button[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); }
+.up { font: 600 12.5px var(--font-body); color: var(--fg-2); text-decoration: none; white-space: nowrap; }
+.up::before { content: "\2190"; margin-right: 6px; color: var(--muted); }
+.up:hover { color: var(--accent); }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; padding-block: 12px 4px; }
+.legend .grp { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.legend .lab { font: 600 11px/1 var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 4px; }
+#stage { padding-block: 18px 72px; min-height: 60vh; }
+
+.mean { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr)); gap: 8px 20px; margin: 0; }
+.mean div { display: flex; gap: 10px; align-items: baseline; min-width: 0; }
+.mean dt { flex: none; }
+.mean dd { margin: 0; color: var(--fg-2); font-size: 13.5px; min-width: 0; }
+.rules { margin: 0; padding-left: 20px; color: var(--fg-2); max-width: 72ch; }
+.rules li { margin: 4px 0; }
+
+/* Reference */
+.A { display: grid; grid-template-columns: 210px minmax(0, 1fr) minmax(0, 430px); gap: 32px; align-items: start; }
+.A-nav { position: sticky; top: var(--top); max-height: calc(100vh - var(--top) - 16px); overflow: auto; font-size: 13.5px; padding: 0 4px 16px 0; }
+.A-nav h4 { font: 600 11px/1.3 var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 18px 0 6px 8px; }
+.A-nav h4:first-child { margin-top: 2px; }
+.A-nav button { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; width: 100%; border: 0; background: none; padding: 4px 8px; border-radius: 6px; cursor: pointer; text-align: left; color: var(--fg-2); font: 13px/1.35 var(--font-mono); }
+.A-nav button span { flex: 0 0 auto; max-width: 100%; overflow-wrap: anywhere; }
+.A-nav button small { flex: 1 1 0; min-width: 0; font: 11px var(--font-body); color: var(--muted); text-align: right; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.A-nav button:hover { background: var(--surface-2); }
+.A-nav button[aria-current="page"] { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+.A-navsel { display: none; width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface); font: 13px var(--font-mono); color: var(--fg); margin-bottom: 12px; }
+.A-main { min-width: 0; }
+.A-main h2 { font: 700 28px/1.15 var(--font-body); letter-spacing: -.01em; margin: 8px 0 6px; display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 12px; overflow-wrap: anywhere; min-width: 0; }
+.A-main h2 .tagk { font: 600 13px var(--font-mono); color: var(--accent); background: var(--accent-soft); padding: 3px 8px; border-radius: 6px; }
+.A-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 12px; }
+.A-lede { color: var(--fg-2); font-size: 16px; margin: 0 0 10px; max-width: 66ch; }
+.A-facts { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); margin-bottom: 6px; }
+.facts { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; font-size: 13.5px; margin: 14px 0 4px; }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; min-width: 0; overflow-wrap: anywhere; color: var(--fg-2); }
+.facts ul { margin: 0; padding: 0; list-style: none; }
+.facts li + li { margin-top: 4px; }
+.callout { border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); background: var(--warn-soft); border-radius: 10px; padding: 12px 14px; margin-top: 18px; color: var(--fg); }
+.A-h3 { font: 700 13px/1 var(--font-body); letter-spacing: .06em; text-transform: uppercase; margin: 26px 0 0; padding-bottom: 10px; border-bottom: 1px solid var(--line-2); display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 6px 12px; }
+.A-h3 span { font-weight: 500; text-transform: none; letter-spacing: 0; color: var(--muted); font-size: 12.5px; }
+.A-grp-h { display: flex; align-items: center; gap: 8px; margin: 18px 0 0; padding: 0 0 8px; font: 700 11px/1 var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--rc); border-bottom: 1px solid var(--line); }
+.A-grp-h i { width: 8px; height: 8px; border-radius: 2px; background: var(--rc); }
+.A-grp-h em { font-style: normal; color: var(--muted); font-weight: 600; letter-spacing: 0; }
+.A-row { padding: 14px 10px 14px 12px; border-bottom: 1px solid var(--line); position: relative; }
+.A-row::before { content: ""; position: absolute; left: 0; top: 16px; width: 3px; height: 16px; border-radius: 2px; background: var(--rc); opacity: .9; }
+.A-row.hot { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.A-row.flash { animation: flash 1.6s ease-out; }
+@keyframes flash { 0%, 40% { background: var(--hl); } 100% { background: transparent; } }
+.A-h { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; }
+.A-n { font: 600 14.5px var(--font-mono); color: var(--fg); overflow-wrap: anywhere; }
+.A-row.hot > .A-h .A-n { color: var(--accent); }
+.A-tree { margin-left: auto; border: 1px solid transparent; background: none; color: var(--muted); border-radius: 6px; padding: 2px 4px; cursor: pointer; display: inline-grid; place-items: center; }
+.A-tree svg { width: 15px; height: 15px; }
+.A-tree:hover { color: var(--accent); border-color: var(--line-2); }
+.A-d { margin: 6px 0 0; color: var(--fg-2); font-size: 14.5px; max-width: 68ch; }
+.A-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+.A-meta code { font-size: 12px; color: var(--fg-2); overflow-wrap: anywhere; }
+.A-tog { margin-top: 10px; border: 1px solid var(--line-2); background: var(--surface); border-radius: 999px; padding: 4px 12px 4px 9px; font: 600 12.5px var(--font-body); cursor: pointer; color: var(--fg-2); display: inline-flex; gap: 6px; align-items: center; }
+.A-tog:hover { border-color: var(--accent); color: var(--accent); }
+.A-tog::before { content: "+"; font: 700 13px var(--font-mono); width: 12px; text-align: center; }
+.A-tog[aria-expanded="true"]::before { content: "\2212"; }
+.A-kids { margin: 12px 0 0 1px; padding: 10px 0 0 16px; border-left: 2px solid var(--line-2); }
+.A-kcrumb { padding: 2px 0 4px; font-size: 12px; }
+.A-picks { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.A-pick { border: 1px solid var(--line-2); background: var(--surface); border-radius: 6px; padding: 3px 8px; font: 12.5px var(--font-mono); cursor: pointer; color: var(--fg-2); }
+.A-pick:hover { border-color: var(--accent); }
+.A-pick[aria-pressed="true"] { background: var(--ink); color: var(--on-ink); border-color: var(--ink); }
+.A-mdesc { font-size: 13.5px; color: var(--muted); margin: 6px 0 0; }
+.A-rec { font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+.A-rec button { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font: inherit; text-decoration: underline; }
+.A-kids .A-grp-h { margin-top: 10px; font-size: 10.5px; }
+.A-kids .A-row { padding-block: 11px; }
+.A-kids .A-d { font-size: 14px; }
+.A-ex { position: sticky; top: var(--top); min-width: 0; }
+.A-ex-in { background: var(--ex-bg); color: var(--ex-fg); border-radius: 12px; overflow: hidden; display: flex; flex-direction: column; max-height: calc(100vh - var(--top) - 16px); box-shadow: var(--shadow); }
+.A-ex-h { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,.08); font: 600 12px var(--font-body); color: var(--ex-fg); }
+.A-ex-h code { font: 11.5px var(--font-mono); color: var(--ex-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.A-note { padding: 10px 14px; border-bottom: 1px solid rgba(255,255,255,.08); font-size: 12.5px; color: var(--ex-fg); background: rgba(255,255,255,.03); }
+.A-note pre { margin: 8px 0 0; font: 11.5px/1.55 var(--font-mono); color: var(--ex-val); white-space: pre; overflow-x: auto; }
+.A-note .src { color: var(--ex-muted); }
+.A-code { margin: 0; overflow: auto; font: 12px/1.62 var(--font-mono); padding: 8px 0 12px; flex: 1 1 auto; min-height: 120px; }
+.cl { display: block; padding-right: 14px; white-space: pre; color: var(--ex-fg); }
+.cl i { display: inline-block; width: 4.2ch; text-align: right; color: var(--ex-muted); margin-right: 14px; font-style: normal; user-select: none; }
+.cl .k { color: var(--ex-key); }
+.cl .v { color: var(--ex-val); }
+.cl .cm { color: var(--ex-muted); font-style: italic; }
+.cl.hl { background: var(--ex-hl); }
+.cl.hl0 { box-shadow: inset 3px 0 var(--ex-hl-line); }
+.A-hint { padding: 8px 14px; font-size: 12px; color: var(--ex-muted); border-top: 1px solid rgba(255,255,255,.08); }
+@media (max-width: 1200px) {
+  .A { grid-template-columns: minmax(0, 1fr) minmax(0, 380px); gap: 24px; }
+  .A-nav { display: none; }
+  .A-navsel { display: block; }
+}
+@media (max-width: 820px) {
+  .A { grid-template-columns: minmax(0, 1fr); }
+  .A-ex { position: static; }
+  .A-ex-in { max-height: 60vh; }
+  .A-main h2 { font-size: 24px; }
+  .bar { position: static; }
+}
+
+/* Tree */
+.C { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 18px; align-items: start; }
+.C-tools { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.C-search { flex: 1 1 220px; max-width: 340px; min-width: 0; }
+.C-search input { width: 100%; padding: 7px 10px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--surface); color: var(--fg); font: 13px var(--font-mono); }
+.C-roles { display: flex; flex-wrap: wrap; gap: 5px; }
+.C-results { grid-column: 1 / -1; background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px; max-height: 240px; overflow: auto; }
+.C-results button { display: block; width: 100%; text-align: left; border: 0; background: none; padding: 4px 8px; border-radius: 6px; font: 12.5px/1.4 var(--font-mono); color: var(--fg-2); cursor: pointer; overflow-wrap: anywhere; }
+.C-results button:hover { background: var(--surface-2); }
+.C-results mark { background: var(--hl); color: inherit; border-radius: 2px; }
+.C-tree { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 6px 0; max-height: calc(100vh - var(--top) - 120px); min-height: 360px; overflow: auto; font: 13px/1 var(--font-mono); }
+.C-row { display: flex; align-items: center; gap: 7px; min-height: 28px; padding: 0 10px 0 calc(8px + var(--d) * 18px); cursor: pointer; white-space: nowrap; background-image: repeating-linear-gradient(90deg, var(--line-2) 0 1px, transparent 1px 18px); background-size: calc(var(--d) * 18px) 100%; background-position: 16px 0; background-repeat: no-repeat; min-width: max-content; }
+.C-row:hover { background-color: var(--surface-2); }
+.C-row.sel { background-color: var(--accent-soft); }
+.C-row.sel .C-k { color: var(--accent); }
+.C-row.dim { opacity: .3; }
+.C-car { flex: 0 0 16px; height: 16px; border: 0; background: none; padding: 0; color: var(--muted); cursor: pointer; display: grid; place-items: center; font: 10px var(--font-mono); transition: transform .12s; }
+.C-car[aria-expanded="true"] { transform: rotate(90deg); }
+.C-car.leaf { visibility: hidden; }
+.C-dot { flex: 0 0 8px; height: 8px; border-radius: 2px; background: var(--rc); }
+.C-k { color: var(--fg); font-weight: 600; }
+.C-k.mem { color: var(--accent); }
+.C-k.rec { color: var(--muted); font-weight: 500; font-style: italic; }
+.C-req { color: var(--r-behavior); font-weight: 700; margin-left: -4px; }
+.C-ty { color: var(--muted); font-size: 11.5px; }
+.C-row .tm { padding: 2px 5px; font-size: 10.5px; }
+.C-detail { position: sticky; top: var(--top); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px 22px 24px; max-height: calc(100vh - var(--top) - 16px); overflow: auto; min-width: 0; }
+.C-detail h3 { font: 600 24px/1.2 var(--font-mono); margin: 10px 0 10px; overflow-wrap: anywhere; }
+.C-detail h3.mem { color: var(--accent); }
+.C-chips { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.C-detail .d { color: var(--fg-2); margin: 14px 0 0; max-width: 64ch; }
+.C-sec { margin-top: 20px; }
+.C-sec h4 { font: 700 11px/1 var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 0 0 8px; }
+.C-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 14px; font-size: 13.5px; margin: 0; }
+.C-kv dt { color: var(--muted); }
+.C-kv dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
+.C-bar { display: flex; height: 10px; border-radius: 5px; overflow: hidden; background: var(--surface-2); margin-bottom: 10px; }
+.C-bar span { background: var(--rc); }
+.C-kids { display: grid; gap: 10px; }
+.C-kg { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px; align-items: start; }
+.C-kg > span:first-child { font: 700 11px/1.9 var(--font-body); letter-spacing: .06em; text-transform: uppercase; color: var(--rc); }
+.C-kg div { display: flex; flex-wrap: wrap; gap: 5px; }
+.C-kb { border: 1px solid color-mix(in srgb, var(--rc) 35%, var(--line)); background: color-mix(in srgb, var(--rc) 7%, var(--surface)); color: var(--fg); border-radius: 6px; padding: 2px 7px; font: 12.5px var(--font-mono); cursor: pointer; }
+.C-kb:hover { border-color: var(--rc); }
+.C-kb.q::after { content: "*"; color: var(--r-behavior); font-weight: 700; margin-left: 1px; }
+@media (max-width: 900px) {
+  .C { grid-template-columns: minmax(0, 1fr); }
+  .C-tree { max-height: 55vh; min-height: 0; }
+  .C-detail { position: static; max-height: none; padding: 16px; }
+  .C-kg { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+}
+</style>
+</head>
+<body>
+<header class="bar" id="bar">
+  <div class="wrap bar-in">
+    <a class="up" href="index.html" id="t-docs">All docs</a>
+    <a class="brand" href="#" id="brand"><b>Keiko</b><span id="t-brand">YAML reference</span></a>
+    <label class="ctl"><span id="t-file">File</span><select id="type"></select></label>
+    <div class="ctl"><span id="t-view">View</span><div class="segc" role="group" aria-labelledby="t-view"><button data-view="ref" aria-pressed="false" id="t-ref">Reference</button><button data-view="tree" aria-pressed="false" id="t-tree">Tree</button></div></div>
+    <div class="ctl"><span id="t-lang">Language</span><div class="segc" role="group" aria-labelledby="t-lang"><button data-lang="en" aria-pressed="true">EN</button><button data-lang="pt" aria-pressed="false">PT</button></div></div>
+  </div>
+</header>
+<div class="wrap legend" id="legend"></div>
+<main class="wrap" id="stage"><noscript>This reference is drawn by JavaScript: open it in a browser with JavaScript on.</noscript></main>
+<script id="data" type="application/json"><!--data--></script>
+<script>
+(function () {
+'use strict';
+const DATA = JSON.parse(document.getElementById('data').textContent);
+const ROLES = ['identity', 'copy', 'visual', 'behavior', 'conditions', 'data', 'structure'];
+const GROUPS = ROLES.concat(['other']);
+const ROLE_TXT = {
+  identity: [['Identity', 'Identidade'], ['Names the item and its kind.', 'Dá nome ao item e diz qual é o tipo dele.']],
+  copy: [['Copy', 'Textos'], ['Words Keiko shows.', 'Palavras que o Keiko mostra.']],
+  visual: [['Visual', 'Visual'], ['How it looks and where it sits on screen.', 'Como aparece e onde fica na tela.']],
+  behavior: [['Behavior', 'Comportamento'], ['What the bot checks or does with the answer.', 'O que o bot valida ou faz com a resposta.']],
+  conditions: [['Conditions', 'Condições'], ['When and where it shows.', 'Quando e onde aparece.']],
+  data: [['Data', 'Dados'], ['Answer and state keys it reads or writes.', 'Chaves de resposta e de estado que lê ou grava.']],
+  structure: [['Structure', 'Estrutura'], ['The nested parts it holds.', 'As partes aninhadas que ele contém.']],
+  other: [['Other', 'Outros'], ['The schema declares no role for it yet.', 'O schema ainda não declara um papel para ele.']],
+};
+const TM = {
+  text: ['abc', ['text', 'texto'], ['A plain string.', 'Uma string simples.']],
+  i18n: ['en·pt', ['bilingual', 'bilíngue'], ['One text in each language: en-us and pt-br.', 'Um texto em cada idioma: en-us e pt-br.']],
+  boolean: ['y/n', ['boolean', 'booleano'], ['true or false.', 'true ou false.']],
+  number: ['123', ['number', 'número'], ['A number.', 'Um número.']],
+  enum: ['a|b', ['enum', 'enum'], ['One of a fixed set of values.', 'Um valor de uma lista fixa.']],
+  list: ['[ ]', ['list', 'lista'], ['Items in order.', 'Itens em ordem.']],
+  object: ['{ }', ['object', 'objeto'], ['A block with fixed keys.', 'Um bloco com chaves fixas.']],
+  map: ['{k:}', ['open map', 'mapa aberto'], ['A block whose keys you choose.', 'Um bloco cujas chaves você escolhe.']],
+  value: ['any', ['value', 'valor'], ['One of several shapes of value.', 'Um entre vários formatos de valor.']],
+};
+const RULE = {
+  minLength: ['at least {n} character', 'at least {n} characters', 'pelo menos {n} caractere', 'pelo menos {n} caracteres'],
+  maxLength: ['at most {n} character', 'at most {n} characters', 'no máximo {n} caractere', 'no máximo {n} caracteres'],
+  minItems: ['at least {n} item', 'at least {n} items', 'pelo menos {n} item', 'pelo menos {n} itens'],
+  maxItems: ['at most {n} item', 'at most {n} items', 'no máximo {n} item', 'no máximo {n} itens'],
+  minProperties: ['at least {n} key', 'at least {n} keys', 'pelo menos {n} chave', 'pelo menos {n} chaves'],
+  maxProperties: ['at most {n} key', 'at most {n} keys', 'no máximo {n} chave', 'no máximo {n} chaves'],
+  minimum: ['at least {n}', 'at least {n}', 'pelo menos {n}', 'pelo menos {n}'],
+  maximum: ['at most {n}', 'at most {n}', 'no máximo {n}', 'no máximo {n}'],
+  exclusiveMinimum: ['more than {n}', 'more than {n}', 'mais de {n}', 'mais de {n}'],
+  exclusiveMaximum: ['less than {n}', 'less than {n}', 'menos de {n}', 'menos de {n}'],
+  multipleOf: ['a multiple of {n}', 'a multiple of {n}', 'um múltiplo de {n}', 'um múltiplo de {n}'],
+  pattern: ['matches {c}', 'matches {c}', 'segue {c}', 'segue {c}'],
+  uniqueItems: ['no item twice', 'no item twice', 'nenhum item repetido', 'nenhum item repetido'],
+};
+const UI = {
+  brand: ['YAML reference', 'referência do YAML'], docs: ['All docs', 'Todas as docs'],
+  file: ['File', 'Arquivo'], view: ['View', 'Visão'], lang: ['Language', 'Idioma'],
+  reference: ['Reference', 'Referência'], tree: ['Tree', 'Árvore'], overview: ['Overview: every type', 'Visão geral: todos os tipos'],
+  roles: ['Field roles', 'Papéis dos campos'], types: ['Data types', 'Tipos de dado'],
+  required: ['required', 'obrigatório'], optional: ['optional', 'opcional'], shared: ['shared', 'compartilhada'],
+  default: ['Default', 'Padrão'], type: ['Type', 'Tipo'], role: ['Role', 'Papel'], example: ['Example', 'Exemplo'],
+  rules: ['Rules', 'Regras'], path: ['Path', 'Caminho'], values: ['Example values', 'Valores de exemplo'],
+  reqcount: ['{n} required', '{n} obrigatórias'],
+  closed: ['Closed: a key it does not list is refused.', 'Fechado: uma chave que ele não lista é recusada.'],
+  loose: ['Open to unknown keys: a key it does not list is ignored.', 'Aceita chaves desconhecidas: uma chave que ele não lista é ignorada.'],
+  openKeys: ['Keys', 'Chaves'], youChoose: ['you choose them', 'você escolhe'], eachValue: ['Each value', 'Cada valor'],
+  usedBy: ['Written', 'Escrita'], usedCount: ['{u} times in {f} files', '{u} vezes em {f} arquivos'], usedOne: ['{u} times in 1 file', '{u} vezes em 1 arquivo'],
+  showChild: ['Show child attributes', 'Mostrar atributos filhos'], hideChild: ['Hide child attributes', 'Esconder atributos filhos'],
+  showKinds: ['Show the {n} kinds', 'Mostrar as {n} variantes'], hideKinds: ['Hide the kinds', 'Esconder as variantes'],
+  showShapes: ['Show the {n} shapes', 'Mostrar os {n} formatos'], hideShapes: ['Hide the shapes', 'Esconder os formatos'],
+  attributes: ['Attributes', 'Atributos'], byRole: ['grouped by role', 'agrupados por papel'],
+  oneOf: ['One of these kinds', 'Uma destas variantes'], pickedBy: ['picked by', 'escolhida por'],
+  sharedKeys: ['Keys every kind shares', 'Chaves que toda variante divide'],
+  kindsLede: ['One of {n} kinds: an item writes {k} first, and the kind decides which other keys it takes.', 'Uma de {n} variantes: um item escreve {k} primeiro, e a variante decide quais outras chaves ele aceita.'],
+  kindOf: ['The {v} kind of {u}. Keys marked shared come with every kind.', 'A variante {v} de {u}. As chaves marcadas como compartilhadas vêm em toda variante.'],
+  shapeOf: ['One shape of {u}: the keys a file writes tell the shapes apart.', 'Um formato de {u}: as chaves que o arquivo escreve diferenciam os formatos.'],
+  sameAs: ['Each item is the same {n} as above, so the nesting repeats here.', 'Cada item é o mesmo {n} de cima, então o aninhamento se repete aqui.'],
+  goTo: ['Go to {n}', 'Ir para {n}'],
+  hoverHint: ['Hover a field (or tap it) to find it in this real file.', 'Passe o mouse num campo (ou toque) para achá-lo neste arquivo real.'],
+  exampleFile: ['Example', 'Exemplo'], noSample: ['No file of this type yet.', 'Ainda não há arquivo deste tipo.'],
+  notUsed: ['Not written in any file yet.', 'Ainda não aparece em nenhum arquivo.'],
+  notInSample: ['Not in this example file. Real use elsewhere:', 'Não aparece neste arquivo. Uso real em outro lugar:'],
+  elsewhere: ['Same key in another block of this file.', 'A mesma chave em outro bloco deste arquivo.'],
+  search: ['Find a path, e.g. sections appears_in', 'Achar um caminho, ex.: sections appears_in'], expandAll: ['Expand all', 'Expandir tudo'], collapse: ['Collapse', 'Recolher'],
+  filterRoles: ['Show roles', 'Mostrar papéis'], allRoles: ['All', 'Todos'], results: ['{n} matches', '{n} resultados'],
+  each: ['Each item', 'Cada item'], mapOf: ['Each entry', 'Cada entrada'],
+  recNode: ['repeats {n}', 'repete {n}'],
+  unionOf: ['One of the {n} kinds of {u}, picked by {k}.', 'Uma das {n} variantes de {u}, escolhida por {k}.'],
+  shapeUnion: ['One of {n} shapes; the keys you write tell them apart.', 'Um de {n} formatos; as chaves que você escreve diferenciam.'],
+  kids: ['{n} keys inside, by role', '{n} chaves dentro, por papel'], kindsInside: ['{n} kinds to pick from', '{n} variantes para escolher'], shapesInside: ['{n} shapes to pick from', '{n} formatos para escolher'],
+  showInTree: ['Show in the tree', 'Mostrar na árvore'], openInRef: ['Open in the reference', 'Abrir na referência'],
+  theFile: ['The file', 'O arquivo'], byKey: ['{u} · by {k}', '{u} · por {k}'], inside: ['Inside a {u}', 'Dentro de um {u}'], sharedGroup: ['Shared', 'Compartilhado'],
+  allKinds: ['all kinds', 'todas as variantes'], root: ['root', 'raiz'], wholeFile: ['the whole file', 'o arquivo inteiro'],
+  wholeFileIs: ['The whole file is {t}: you choose its keys.', 'O arquivo inteiro é {t}: você escolhe as chaves.'],
+  files: ['Files', 'Arquivos'], schema: ['Schema', 'Schema'], readBy: ['Read by', 'Lido por'],
+  nFiles: ['{n} files', '{n} arquivos'], oneFile: ['1 file', '1 arquivo'], nObjects: ['{n} objects', '{n} objetos'], oneObject: ['1 object', '1 objeto'], nKeys: ['{n} keys', '{n} chaves'], oneKey: ['1 key', '1 chave'],
+  pending: ['schema pending', 'schema pendente'],
+  noSchema: ['No schema yet. This type is still read as a plain mapping: name its root model in YAML_TYPES (app/core/commands.py) and run make docs.', 'Ainda sem schema. Este tipo ainda é lido como um mapeamento simples: indique o model raiz dele em YAML_TYPES (app/core/commands.py) e rode make docs.'],
+  untranslated: ['Not translated yet: add it to scripts/keiko/yamldoc/translations.yml.', 'Ainda não traduzido: adicione em scripts/keiko/yamldoc/translations.yml.'],
+  noDesc: ['No description yet.', 'Ainda sem descrição.'],
+  ovEyebrow: ['Keiko bot', 'Keiko bot'], ovTitle: ['YAML reference', 'Referência do YAML'],
+  ovLede: ['Every YAML file Keiko reads has one schema: a pydantic model whose keys are the keys you write. This page is generated from those models and from the files themselves by make docs, and tests/test_yaml_reference.py fails when it is out of date. Pick a type to read it as a reference, one object at a time, or as one tree.', 'Todo arquivo YAML que o Keiko lê tem um schema: um model pydantic cujas chaves são as chaves que você escreve. Esta página é gerada desses models e dos próprios arquivos pelo make docs, e o tests/test_yaml_reference.py falha quando ela está desatualizada. Escolha um tipo para ler como referência, um objeto por vez, ou como uma árvore.'],
+  ovTypes: ['YAML types', 'Tipos de YAML'], ovRoles: ['What each role means', 'O que cada papel significa'], ovMarks: ['What each type mark means', 'O que cada marca de tipo significa'],
+  ovLayout: ['Layout of a file', 'Layout de um arquivo'],
+  layout1: ['A union item writes its kind (or type) first.', 'Um item de união escreve o kind (ou type) primeiro.'],
+  layout2: ['Then the closed keys, in the order the schema declares them.', 'Depois as chaves fechadas, na ordem em que o schema as declara.'],
+  layout3: ['Then the open blocks, each under one comment line: # open: <what the keys are> -> <what each child is>.', 'Depois os blocos abertos, cada um sob uma linha de comentário: # open: <o que são as chaves> -> <o que é cada filho>.'],
+  layoutTest: ['tests/test_yaml_layout.py checks every file of every type with a schema.', 'O tests/test_yaml_layout.py confere todo arquivo de todo tipo com schema.'],
+  eachItem: ['each item:', 'cada item:'], by: ['by', 'por'], listOf: ['list of', 'lista de'], mapOfT: ['map of', 'mapa de'], anyValue: ['any value', 'qualquer valor'],
+  noTree: ['This type has no schema yet, so there is no tree.', 'Este tipo ainda não tem schema, então não há árvore.'],
+  leafFile: ['Each value of this file is a leaf: there are no keys inside.', 'Cada valor deste arquivo é uma folha: não há chaves dentro.'],
+  objects: ['Objects', 'Objetos'],
+};
+const SCALAR = { string: ['string', 'string'], boolean: ['boolean', 'booleano'], integer: ['integer', 'inteiro'], number: ['number', 'número'], null: ['null', 'null'] };
+const TREE_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><rect x="1.5" y="1.5" width="5" height="4" rx="1"/><rect x="9.5" y="6" width="5" height="4" rx="1"/><rect x="9.5" y="11" width="5" height="4" rx="1"/><path d="M4 5.5v7.5h5.5M4 8h5.5"/></svg>';
+const REF_ICON = '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><path d="M3 2.5h7l3 3v8H3z"/><path d="M5.5 7h5M5.5 9.5h5M5.5 12h3"/></svg>';
+const STORE_KEY = 'keiko-yaml-reference:v1';
+const TYPES = DATA.types;
+const BYID = {};
+TYPES.forEach(t => { BYID[t.id] = t; });
+const S = { lang: 'en', view: 'ref', type: null, page: '@', node: '#' };
+try { const saved = JSON.parse(localStorage.getItem(STORE_KEY) || '{}'); if (saved.lang === 'pt' || saved.lang === 'en') S.lang = saved.lang; } catch (e) { /* storage unavailable */ }
+function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify({ lang: S.lang })); } catch (e) { /* storage unavailable */ } }
+
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const L = p => Array.isArray(p) ? (S.lang === 'pt' ? p[1] : p[0]) : p;
+const u = (k, vars) => { let s = L(UI[k] || [k, k]); if (vars) for (const a in vars) s = s.split('{' + a + '}').join(vars[a]); return s; };
+const md = s => esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
+const said = d => !d || !d.length ? '' : S.lang === 'pt' && d[1] ? d[1] : d[0];
+function desc(d) {
+  if (!d || !d.length) return '';
+  if (S.lang !== 'pt' || d[1]) return md(said(d));
+  return md(d[0]) + `<span class="untr" title="${esc(u('untranslated'))}">EN</span>`;
+}
+const lit = v => typeof v === 'string' ? v : v === null ? 'null' : String(v);
+const roleOf = f => f.r || 'other';
+const roleName = r => L(ROLE_TXT[r][0]);
+const roleChip = r => `<span class="rc role-${r}" title="${esc(L(ROLE_TXT[r][1]))}"><i></i>${esc(roleName(r))}</span>`;
+const typeChip = m => `<span class="tm" title="${esc(L(TM[m][2]))}"><b>${esc(TM[m][0])}</b>${esc(L(TM[m][1]))}</span>`;
+const reqChip = () => `<span class="rq">${esc(u('required'))}</span>`;
+const optChip = () => `<span class="op">${esc(u('optional'))}</span>`;
+const sharedChip = () => `<span class="sh">${esc(u('shared'))}</span>`;
+const plural = (n, one, many) => n === 1 ? u(one) : u(many, { n });
+const files = n => plural(n, 'oneFile', 'nFiles');
+
+/* the current type and its indexes */
+const CT = () => BYID[S.type];
+function prep(t) {
+  if (t._p) return t._p;
+  const models = {}, kinds = {}, member = {};
+  (t.models || []).forEach(m => { models[m.n] = m; });
+  (t.kinds || []).forEach(k => { kinds[k.n] = k; k.m.forEach(m => { member[m.model] = { k, m }; }); });
+  const rootModel = t.root && t.root.k === 'model' ? t.root.n : '';
+  return (t._p = { models, kinds, member, rootModel });
+}
+const P = () => prep(CT());
+const obj = n => P().models[n];
+const uni = n => P().kinds[n];
+function isShared(owner, name) { const x = P().member[owner]; return !!(x && x.k.shared.includes(name)); }
+function rulesOf(f) {
+  return (f.ru || []).map(([kw, v, each]) => {
+    const t = RULE[kw];
+    const base = S.lang === 'pt' ? 2 : 0;
+    let s = t ? t[base + (v === 1 ? 0 : 1)] : kw + ' {n}';
+    s = esc(s).replace('{n}', esc(lit(v))).replace('{c}', `<code>${esc(lit(v))}</code>`);
+    return (each ? esc(u('eachItem')) + ' ' : '') + s;
+  });
+}
+function label(sh, link, short) {
+  link = link || ((n, txt) => esc(txt));
+  const kids = sh.c || [{ k: 'any' }];
+  let s;
+  if (sh.k === 'model') s = link(sh.n, sh.n);
+  else if (sh.k === 'kinds') s = `${link(sh.n, sh.n)} <span class="by">${esc(u('by'))} ${esc(uni(sh.n).key)}</span>`;
+  else if (sh.k === 'one_of') s = kids.map(c => label(c, link, short)).join(' <span class="sep">|</span> ');
+  else if (sh.k === 'list') s = esc(u('listOf')) + ' ' + label(kids[0], link, short);
+  else if (sh.k === 'open') s = esc(u('mapOfT')) + ' ' + label(kids[0], link, short);
+  else if (sh.k === 'const') s = `<span class="lit">"${esc(lit(sh.v[0]))}"</span>`;
+  else if (sh.k === 'enum') {
+    const vals = short && sh.v.length > 4 ? sh.v.slice(0, 3) : sh.v;
+    s = vals.map(v => `<span class="lit">${esc(lit(v))}</span>`).join('<span class="sep">·</span>') + (vals.length < sh.v.length ? `<span class="sep">·</span>+${sh.v.length - vals.length}` : '');
+  } else if (sh.k === 'scalar') s = esc(SCALAR[sh.n] ? L(SCALAR[sh.n]) : sh.n);
+  else s = esc(u('anyValue'));
+  if (sh.null) s += ' <span class="nul">| null</span>';
+  return s;
+}
+const rootMark = sh => sh.k === 'list' ? 'list' : sh.k === 'open' ? 'map' : sh.k === 'model' || sh.k === 'kinds' ? 'object' : 'value';
+const segText = s => s.charAt(0) === '@' ? s.slice(1) : s.replace('=', ': ');
+const pathText = path => path.map(segText).join(' › ');
+function crumb(path, cls) {
+  const segs = path.map(s => `<span class="x">›</span><span class="s${s.includes('=') || s.charAt(0) === '@' ? ' k' : ''}">${esc(segText(s))}</span>`).join('');
+  return `<div class="crumb${cls ? ' ' + cls : ''}"><span class="s">${esc(CT().name)}</span>${segs}</div>`;
+}
+
+/* the tree both views walk */
+function fieldNode(f, owner, path, anc) { return { k: 'f', f, owner, path: path.concat(f.s), anc }; }
+function targetKids(to, path, anc) {
+  if (!to) return [];
+  if (anc.has(to.n)) return [{ k: 'rec', name: to.n, path, anc }];
+  const a2 = new Set(anc); a2.add(to.n);
+  if (to.k === 'model') return obj(to.n).f.map(f => fieldNode(f, to.n, path, a2));
+  if (to.k === 'kinds') {
+    const un = uni(to.n);
+    return un.m.map(m => ({ k: 'm', union: to.n, key: un.key, v: m.tag, mem: m, model: m.model, path: path.concat(`${un.key}=${m.tag}`), anc: new Set([...a2, m.model]) }));
+  }
+  return to.m.map(m => ({ k: 'm', union: null, shapes: to, key: null, v: null, model: m, path: path.concat('@' + m), anc: new Set([...a2, m]) }));
+}
+function kids(n) {
+  if (n.k === 'root') return targetKids(CT().to, [], n.anc);
+  if (n.k === 'f') return targetKids(n.f.to, n.path, n.anc);
+  if (n.k === 'm') return obj(n.model).f.map(f => fieldNode(f, n.model, n.path, n.anc));
+  return [];
+}
+const hasKids = n => n.k === 'root' ? !!CT().to : n.k === 'm' || (n.k === 'f' && !!n.f.to);
+const nodeId = n => n.k === 'root' ? '#' : n.path.join('/') + (n.k === 'rec' ? '/~' : '');
+const nodeName = n => n.k === 'root' ? CT().name : n.k === 'm' ? (n.key ? `${n.key}: ${n.v}` : n.model) : n.k === 'rec' ? '↻' : n.f.s;
+function IX() {
+  const p = P();
+  if (p.ix) return p.ix;
+  const t = CT();
+  const root = { k: 'root', path: [], anc: new Set() };
+  const canon = {}, byId = { '#': [root] }, all = [];
+  if (t.to) canon[t.to.n] = [root];
+  if (p.rootModel) canon[p.rootModel] = [root];
+  const q = [[root, [root]]];
+  for (let i = 0; i < q.length; i++) {
+    const [n, chain] = q[i];
+    for (const c of kids(n)) {
+      const ch = chain.concat([c]);
+      const id = nodeId(c);
+      if (!byId[id]) byId[id] = ch;
+      all.push(ch);
+      if (c.k === 'f' && c.f.to && !canon[c.f.to.n]) canon[c.f.to.n] = ch;
+      if (c.k === 'm' && !canon[c.model]) canon[c.model] = ch;
+      if (c.k !== 'rec') q.push([c, ch]);
+    }
+  }
+  const byTrail = {}, byOM = {};
+  (t.sample ? t.sample.marks : []).forEach((m, i) => { if (!(m[2] in byTrail)) byTrail[m[2]] = i; if (!(m[3] in byOM)) byOM[m[3]] = i; });
+  return (p.ix = { root, canon, byId, all, byTrail, byOM });
+}
+const canonPath = name => { const ch = IX().canon[name]; return ch ? ch[ch.length - 1].path : null; };
+const canonId = name => { const ch = IX().canon[name]; return ch ? nodeId(ch[ch.length - 1]) : null; };
+function navGroups() {
+  const t = CT(), p = P(), ix = IX();
+  const file = ['@'], inside = {}, shared = [];
+  for (const m of t.models || []) {
+    if (m.n === p.rootModel || p.member[m.n]) continue;
+    const ch = ix.canon[m.n];
+    if (!ch) { shared.push(m.n); continue; }
+    let owner = null;
+    for (let i = ch.length - 1; i >= 0 && !owner; i--) if (ch[i].k === 'm' && ch[i].union) owner = ch[i].union;
+    if (owner) (inside[owner] = inside[owner] || []).push(m.n); else file.push(m.n);
+  }
+  const groups = [[u('theFile'), file]];
+  for (const k of t.kinds || []) {
+    groups.push([u('byKey', { u: k.n, k: k.key }), [k.n].concat(k.m.map(m => m.model))]);
+    if (inside[k.n]) groups.push([u('inside', { u: k.n }), inside[k.n]]);
+  }
+  if (shared.length) groups.push([u('sharedGroup'), shared]);
+  return groups;
+}
+function navLabel(n) {
+  const p = P();
+  if (n === '@') return [p.rootModel || u('wholeFile'), u('root')];
+  if (uni(n)) return [n, u('allKinds')];
+  const x = p.member[n];
+  return x ? [x.m.tag, n] : [n, ''];
+}
+
+/* chrome and routing */
+const $stage = document.getElementById('stage');
+let focusAt = null;
+let handled = location.hash;
+function parseHash() {
+  const parts = location.hash.replace(/^#/, '').split('/').map(x => { try { return decodeURIComponent(x); } catch (e) { return x; } });
+  const out = { view: 'ref', type: null, page: '@', node: '#', at: null };
+  if (!BYID[parts[0]]) return out;
+  out.type = parts[0];
+  for (let i = 1; i < parts.length; i += 2) {
+    const k = parts[i], v = parts[i + 1];
+    if (k === 'ref') { out.view = 'ref'; if (v) out.page = v; }
+    else if (k === 'at' && v) out.at = v;
+    else if (k === 'tree') { out.view = 'tree'; if (v) out.node = v; }
+  }
+  return out;
+}
+function hashOf(at) {
+  if (!S.type) return '#';
+  if (S.view === 'tree') return '#' + S.type + '/tree' + (S.node && S.node !== '#' ? '/' + encodeURIComponent(S.node) : '');
+  let h = '#' + S.type;
+  if (S.page !== '@' || at) h += '/ref/' + encodeURIComponent(S.page);
+  if (at) h += '/at/' + encodeURIComponent(at);
+  return h;
+}
+function writeHash(push, at) {
+  const h = hashOf(at);
+  if ((location.hash || '#') === h) return;
+  handled = h === '#' ? '' : h;
+  try { if (push) history.pushState(null, '', h); else history.replaceState(null, '', h); } catch (e) { /* history unavailable */ }
+}
+function apply(st) {
+  S.view = st.view; S.type = st.type; S.page = st.page; S.node = st.node;
+  if (!S.type) return;
+  if (S.page !== '@' && !obj(S.page) && !uni(S.page)) S.page = '@';
+  if (S.page === P().rootModel) S.page = '@';
+}
+function navigated() {
+  if (location.hash === handled) return;
+  handled = location.hash;
+  const st = parseHash();
+  apply(st);
+  if (st.at && S.type) focusAt = openAt(st.at);
+  render();
+}
+function renderChrome() {
+  document.documentElement.lang = S.lang === 'pt' ? 'pt-BR' : 'en';
+  [['t-docs', 'docs'], ['t-brand', 'brand'], ['t-file', 'file'], ['t-view', 'view'], ['t-lang', 'lang'], ['t-ref', 'reference'], ['t-tree', 'tree']].forEach(([id, k]) => { document.getElementById(id).textContent = u(k); });
+  const sel = document.getElementById('type');
+  sel.setAttribute('aria-label', u('file'));
+  sel.innerHTML = `<option value="">${esc(u('overview'))}</option>` + TYPES.map(t => `<option value="${esc(t.id)}">${esc(t.name)}</option>`).join('');
+  sel.value = S.type || '';
+  document.querySelectorAll('[data-view]').forEach(b => b.setAttribute('aria-pressed', String(!!S.type && b.dataset.view === S.view)));
+  document.querySelectorAll('[data-lang]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.lang === S.lang)));
+  const used = new Set();
+  if (S.type) (CT().models || []).forEach(m => m.f.forEach(f => used.add(roleOf(f))));
+  const shown = ROLES.concat(used.has('other') ? ['other'] : []);
+  document.getElementById('legend').innerHTML =
+    `<div class="grp"><span class="lab">${esc(u('roles'))}</span>${shown.map(roleChip).join('')}</div>` +
+    `<div class="grp"><span class="lab">${esc(u('types'))}</span>${Object.keys(TM).map(typeChip).join('')}</div>`;
+  document.title = (S.type ? CT().name + ' · ' : '') + 'Keiko ' + u('brand');
+  measure();
+}
+function measure() {
+  const bar = document.getElementById('bar');
+  const sticky = getComputedStyle(bar).position === 'sticky';
+  document.documentElement.style.setProperty('--top', (sticky ? bar.offsetHeight + 12 : 16) + 'px');
+}
+function render() {
+  renderChrome();
+  if (!S.type) { overview($stage); return; }
+  if (S.view === 'tree') C($stage); else A($stage);
+  if (focusAt) { const at = focusAt; focusAt = null; requestAnimationFrame(() => focusRow(at)); }
+}
+function go(st, at) {
+  apply(Object.assign({ view: S.view, type: S.type, page: S.page, node: S.node }, st));
+  writeHash(true, at);
+  window.scrollTo(0, 0);
+  render();
+}
+window.addEventListener('hashchange', navigated);
+window.addEventListener('popstate', navigated);
+window.addEventListener('resize', measure);
+document.getElementById('type').addEventListener('change', e => {
+  const id = e.target.value;
+  go(id ? { type: id, page: '@', node: '#' } : { type: null, view: 'ref' });
+});
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => go({ type: S.type || TYPES[0].id, view: b.dataset.view })));
+document.querySelectorAll('[data-lang]').forEach(b => b.addEventListener('click', () => { S.lang = b.dataset.lang; save(); render(); }));
+document.getElementById('brand').addEventListener('click', e => { e.preventDefault(); go({ type: null, view: 'ref' }); });
+
+/* overview */
+function overview(el) {
+  const cards = TYPES.map(t => {
+    const nm = (t.models || []).length, nk = (t.models || []).reduce((a, m) => a + m.f.length, 0);
+    const stats = [esc(files(t.files.length))].concat(t.root ? [esc(plural(nm, 'oneObject', 'nObjects')), esc(plural(nk, 'oneKey', 'nKeys'))] : [`<span class="pend">${esc(u('pending'))}</span>`]);
+    return `<button class="card" data-type="${esc(t.id)}"><b>${esc(t.name)}</b><code>${esc(t.glob)}</code><span class="d">${desc(t.purpose)}</span><span class="st">${stats.map(x => `<span>${x}</span>`).join('')}</span></button>`;
+  }).join('');
+  const roles = GROUPS.map(r => `<div><dt>${roleChip(r)}</dt><dd>${esc(L(ROLE_TXT[r][1]))}</dd></div>`).join('');
+  const marks = Object.keys(TM).map(m => `<div><dt>${typeChip(m)}</dt><dd>${esc(L(TM[m][2]))}</dd></div>`).join('');
+  el.innerHTML = `<section class="ov"><p class="eyebrow">${esc(u('ovEyebrow'))}</p><h1>${esc(u('ovTitle'))}</h1><p class="lede">${esc(u('ovLede'))}</p>
+    <h2>${esc(u('ovTypes'))}</h2><div class="cards">${cards}</div>
+    <h2>${esc(u('ovRoles'))}</h2><dl class="mean">${roles}</dl>
+    <h2>${esc(u('ovMarks'))}</h2><dl class="mean">${marks}</dl>
+    <h2>${esc(u('ovLayout'))}</h2><ol class="rules"><li>${esc(u('layout1'))}</li><li>${esc(u('layout2'))}</li><li>${esc(u('layout3'))}</li></ol><p class="note">${esc(u('layoutTest'))}</p></section>`;
+  el.querySelector('.cards').addEventListener('click', e => { const b = e.target.closest('[data-type]'); if (b) go({ type: b.dataset.type, view: 'ref', page: '@', node: '#' }); });
+}
+
+/* Reference: one object at a time, its children open in place, a real file beside it */
+const SUB = {};
+function sub(view) {
+  const key = S.type + ':' + view;
+  if (SUB[key]) return SUB[key];
+  if (view === 'C') return (SUB[key] = { open: new Set(['#']), sel: '#', roles: new Set(), q: '' });
+  const st = { open: new Set(), pick: {} };
+  const t = CT();
+  const first = t.to && t.to.k === 'model' ? obj(t.to.n).f.find(f => f.to && f.to.k === 'kinds') : null;
+  if (first) {
+    st.open.add(first.s);
+    const richest = uni(first.to.n).m.reduce((a, m) => obj(m.model).f.length > obj(a.model).f.length ? m : a);
+    st.pick[first.s] = richest.model;
+  }
+  return (SUB[key] = st);
+}
+function hlLine(line) {
+  const m = line.match(/^(\s*)(- )?(.*)$/);
+  const ind = m[1], dash = m[2] || '', rest = m[3];
+  if (rest.startsWith('#')) return esc(ind + dash) + `<span class="cm">${esc(rest)}</span>`;
+  const km = rest.match(/^([A-Za-z0-9_\-]+):(\s?)(.*)$/);
+  if (!km) return esc(ind + dash) + `<span class="v">${esc(rest)}</span>`;
+  return esc(ind + dash) + `<span class="k">${esc(km[1])}</span>:${km[2]}${km[3] ? `<span class="v">${esc(km[3])}</span>` : ''}`;
+}
+function A(el) {
+  const st = sub('A');
+  const t = CT();
+  const groups = t.root ? navGroups() : [[u('theFile'), ['@']]];
+  const navItem = n => { const [a, b] = navLabel(n); return `<button data-goto="${esc(n)}"${n === S.page ? ' aria-current="page"' : ''}><span>${esc(a)}</span>${b ? `<small>${esc(b)}</small>` : ''}</button>`; };
+  const nav = groups.map(([title, names]) => `<h4>${esc(title)}</h4>` + names.map(navItem).join('')).join('');
+  const sel = `<select class="A-navsel" id="A-navsel" aria-label="${esc(u('objects'))}">` + groups.map(([title, names]) =>
+    `<optgroup label="${esc(title)}">` + names.map(n => { const [a, b] = navLabel(n); return `<option value="${esc(n)}"${n === S.page ? ' selected' : ''}>${esc(a)}${b ? ' · ' + esc(b) : ''}</option>`; }).join('') + '</optgroup>').join('') + '</select>';
+  const sample = t.sample;
+  const lines = sample ? sample.lines.map((l, i) => `<span class="cl" data-l="${i + 1}"><i>${i + 1}</i>${hlLine(l)}</span>`).join('') : '';
+  el.innerHTML = `<div class="A">
+    <nav class="A-nav" aria-label="${esc(u('objects'))}">${nav}</nav>
+    <section class="A-main" id="A-main">${sel}${page(st)}</section>
+    <aside class="A-ex"><div class="A-ex-in">
+      <div class="A-ex-h"><span>${esc(u('exampleFile'))}</span><code>${esc(sample ? sample.file : '')}</code></div>
+      <div class="A-note" id="A-note" hidden></div>
+      ${sample ? `<pre class="A-code" id="A-code">${lines}</pre><div class="A-hint">${esc(u('hoverHint'))}</div>` : `<div class="A-hint">${esc(u('noSample'))}</div>`}
+    </div></aside></div>`;
+  const main = el.querySelector('#A-main');
+  const bindSel = () => main.querySelector('#A-navsel').addEventListener('change', e => go({ page: e.target.value }));
+  bindSel();
+  el.querySelector('.A-nav').addEventListener('click', e => { const b = e.target.closest('[data-goto]'); if (b) go({ page: b.dataset.goto }); });
+  const refresh = () => { const y = window.scrollY; main.innerHTML = sel + page(st); bindSel(); window.scrollTo(0, y); };
+  main.addEventListener('click', e => {
+    const tr = e.target.closest('[data-tree]'); if (tr) { showInTree(tr.dataset.tree); return; }
+    const g = e.target.closest('[data-goto]'); if (g) { go({ page: g.dataset.goto }); return; }
+    const at = e.target.closest('[data-at]'); if (at) { toRef(at.dataset.at); return; }
+    const tg = e.target.closest('.A-tog');
+    if (tg) { const pk = tg.dataset.pk; if (st.open.has(pk)) st.open.delete(pk); else st.open.add(pk); refresh(); return; }
+    const p = e.target.closest('.A-pick[data-pk]');
+    if (p) { st.pick[p.dataset.pk] = p.dataset.m; refresh(); return; }
+    const row = e.target.closest('.A-row'); if (row) hot(row);
+  });
+  let last = null;
+  main.addEventListener('mouseover', e => { const row = e.target.closest('.A-row'); if (row && row !== last) { last = row; hot(row); } });
+  main.addEventListener('focusin', e => { const row = e.target.closest('.A-row'); if (row) hot(row); });
+  function hot(row) {
+    main.querySelectorAll('.A-row.hot').forEach(r => r.classList.remove('hot'));
+    row.classList.add('hot');
+    if (!sample) return;
+    const ix = IX();
+    const pk = row.dataset.pk, om = row.dataset.om;
+    let i = ix.byTrail[pk], how = 'exact';
+    if (i === undefined) { i = ix.byOM[om]; how = 'om'; }
+    const code = el.querySelector('#A-code'), note = el.querySelector('#A-note');
+    code.querySelectorAll('.hl,.hl0').forEach(x => x.classList.remove('hl', 'hl0'));
+    if (i !== undefined) {
+      const [start, end] = sample.marks[i];
+      for (let j = start; j <= end; j++) { const x = code.querySelector(`[data-l="${j}"]`); if (x) x.classList.add('hl'); }
+      const first = code.querySelector(`[data-l="${start}"]`);
+      if (first) { first.classList.add('hl0'); code.scrollTo({ top: Math.max(0, first.offsetTop - code.clientHeight / 3), behavior: 'smooth' }); }
+      if (how === 'om') { note.hidden = false; note.textContent = u('elsewhere'); } else note.hidden = true;
+    } else {
+      const dot = om.indexOf('.');
+      const o = obj(om.slice(0, dot));
+      const f = o ? o.f.find(x => x.n === om.slice(dot + 1)) : null;
+      note.hidden = false;
+      note.innerHTML = f && f.x ? `${esc(u('notInSample'))}<pre>${esc(f.x.c)}</pre><p class="src">${esc(f.x.f)}:${f.x.l}</p>` : esc(u('notUsed'));
+    }
+  }
+}
+const goLink = (n, txt) => (obj(n) || uni(n)) ? `<button class="lk" data-goto="${esc(n)}">${esc(txt)}</button>` : esc(txt);
+const treeBtn = id => id && IX().byId[id] ? `<button class="A-tree" data-tree="${esc(id)}" title="${esc(u('showInTree'))}" aria-label="${esc(u('showInTree'))}">${TREE_ICON}</button>` : '';
+function page(st) {
+  if (S.page === '@') return pageFile(st);
+  const n = S.page;
+  if (uni(n)) {
+    const un = uni(n);
+    const path = canonPath(n) || [];
+    const members = un.m.map(m => `<button class="A-pick" data-goto="${esc(m.model)}">${esc(un.key)}: ${esc(m.tag)}</button>`).join('');
+    const first = obj(un.m[0].model);
+    const shared = first.f.filter(f => un.shared.includes(f.n));
+    const mpath = path.concat(`${un.key}=${un.m[0].tag}`);
+    return `${crumb(path)}<div class="A-head"><h2>${esc(n)}</h2>${treeBtn(canonId(n))}</div>
+      <p class="A-lede">${md(u('kindsLede', { n: un.m.length, k: '`' + un.key + '`' }))}</p>
+      <h3 class="A-h3">${esc(u('oneOf'))} <span>${esc(u('pickedBy'))} <code>${esc(un.key)}</code></span></h3>
+      <div class="A-picks">${members}</div>
+      ${shared.length ? `<h3 class="A-h3">${esc(u('sharedKeys'))} <span>${esc(u('byRole'))}</span></h3>${attrList(shared, first.n, mpath, new Set([n, first.n]), st)}` : ''}`;
+  }
+  const o = obj(n);
+  const path = canonPath(n) || [];
+  const x = P().member[n];
+  const ch = IX().canon[n];
+  const at = ch ? ch[ch.length - 1] : null;
+  const anc = new Set(at ? [...at.anc, n] : [n]);
+  const facts = [plural(o.f.length, 'oneKey', 'nKeys'), u('reqcount', { n: o.f.filter(f => f.q).length }), o.closed ? u('closed') : u('loose')];
+  if (x) facts.push(u('kindOf', { v: x.m.tag, u: x.k.n }));
+  if (at && at.k === 'm' && !at.union) facts.push(u('shapeOf', { u: at.shapes.m.join(' | ') }));
+  return `${crumb(path)}
+    <div class="A-head"><h2>${esc(n)}${x ? `<span class="tagk">${esc(x.k.key)}: ${esc(x.m.tag)}</span>` : ''}</h2>${treeBtn(canonId(n))}</div>
+    <p class="A-lede">${desc(o.d)}</p>
+    <div class="A-facts">${facts.map(f => `<span>${esc(f)}</span>`).join('')}</div>
+    <h3 class="A-h3">${esc(u('attributes'))} <span>${esc(u('byRole'))}</span></h3>
+    ${attrList(o.f, n, path, anc, st)}`;
+}
+function pageFile(st) {
+  const t = CT(), p = P();
+  const readers = t.readers.map(r => { const i = r.indexOf(': '); return `<li>${i > 0 ? `<code class="ic">${esc(r.slice(0, i))}</code> ${esc(r.slice(i + 2))}` : esc(r)}</li>`; }).join('');
+  const head = `${crumb([])}<div class="A-head"><h2>${esc(t.name)}</h2>${t.root ? treeBtn('#') : ''}</div>
+    <p class="A-lede">${desc(t.purpose)}</p>
+    <dl class="facts"><dt>${esc(u('files'))}</dt><dd><code class="ic">${esc(t.glob)}</code> · ${esc(files(t.files.length))}</dd>
+    <dt>${esc(u('schema'))}</dt><dd>${t.schema ? `<code class="ic">${esc(t.schema)}</code>` : `<span class="pend">${esc(u('pending'))}</span>`}</dd>
+    <dt>${esc(u('readBy'))}</dt><dd><ul>${readers}</ul></dd></dl>`;
+  if (!t.root) return head + `<div class="callout">${esc(u('noSchema'))}</div>`;
+  const title = `<h3 class="A-h3">${esc(u('attributes'))} <span>${esc(u('byRole'))}</span></h3>`;
+  if (p.rootModel) {
+    const o = obj(p.rootModel);
+    return head + title + `<p class="A-mdesc">${goLink(p.rootModel, p.rootModel)} · ${desc(o.d)}</p>${attrList(o.f, p.rootModel, [], new Set([p.rootModel]), st)}`;
+  }
+  const whole = `<p class="A-mdesc">${u('wholeFileIs', { t: `<span class="tl">${label(t.root, goLink)}</span>` })}</p>`;
+  return head + title + whole + (t.to ? expansion(t.to, [], '@', new Set(), st) : `<p class="note">${esc(u('leafFile'))}</p>`);
+}
+function attrList(fields, owner, base, anc, st) {
+  const g = {};
+  for (const f of fields) (g[roleOf(f)] = g[roleOf(f)] || []).push(f);
+  return GROUPS.filter(r => g[r]).map(r =>
+    `<div class="role-${r}"><div class="A-grp-h"><i></i>${esc(roleName(r))} <em>${g[r].length}</em></div>${g[r].map(f => attrRow(f, owner, base, anc, st)).join('')}</div>`).join('');
+}
+function attrRow(f, owner, base, anc, st) {
+  const path = base.concat(f.s);
+  const pk = path.join('/');
+  let more = '';
+  if (f.to) {
+    const open = st.open.has(pk);
+    const n = f.to.k === 'kinds' ? uni(f.to.n).m.length : f.to.k === 'shapes' ? f.to.m.length : 0;
+    const lab = f.to.k === 'model' ? u(open ? 'hideChild' : 'showChild') : f.to.k === 'kinds' ? u(open ? 'hideKinds' : 'showKinds', { n }) : u(open ? 'hideShapes' : 'showShapes', { n });
+    more = `<button class="A-tog" data-pk="${esc(pk)}" aria-expanded="${open}">${esc(lab)}</button>${open ? `<div class="A-kids">${expansion(f.to, path, pk, anc, st)}</div>` : ''}`;
+  }
+  const meta = [];
+  if (f.df !== undefined) meta.push(`<span class="df">${esc(u('default'))} <code>${esc(f.df)}</code></span>`);
+  rulesOf(f).forEach(r => meta.push(`<span class="df">${r}</span>`));
+  if (f.mk === 'map') meta.push(`<span class="df">${esc(u('openKeys'))}: ${esc(u('youChoose'))}${(f.o || []).map(c => ` <code>${esc(c)}</code>`).join('')}</span>`);
+  if (f.ex) meta.push(`<span class="df">${esc(u('values'))} ${f.ex.map(v => `<code>${esc(v)}</code>`).join(' ')}</span>`);
+  const d = desc(f.d) || `<span class="missing">${esc(u('noDesc'))}</span>`;
+  return `<div class="A-row role-${roleOf(f)}" data-pk="${esc(pk)}" data-om="${esc(owner + '.' + f.n)}" tabindex="-1">
+    <div class="A-h"><code class="A-n">${esc(f.n)}</code><span class="tl">${label(f.t, goLink)}</span>${typeChip(f.mk)}${f.q ? reqChip() : ''}${isShared(owner, f.n) ? sharedChip() : ''}${treeBtn(pk)}</div>
+    <p class="A-d d">${d}</p>${meta.length ? `<div class="A-meta">${meta.join('')}</div>` : ''}${more}</div>`;
+}
+function expansion(to, path, pk, anc, st) {
+  if (anc.has(to.n)) {
+    const name = to.k === 'shapes' ? to.m.join(' | ') : to.n;
+    const target = to.k === 'shapes' ? `data-at="${esc(canonId(to.n) || '#')}"` : `data-goto="${esc(to.n)}"`;
+    return `<p class="A-rec">${esc(u('sameAs', { n: name }))} <button ${target}>${esc(u('goTo', { n: name }))}</button></p>`;
+  }
+  const a2 = new Set(anc); a2.add(to.n);
+  if (to.k === 'model') return crumb(path, 'A-kcrumb') + attrList(obj(to.n).f, to.n, path, a2, st);
+  const key = to.k === 'kinds' ? uni(to.n).key : null;
+  const members = to.k === 'kinds' ? uni(to.n).m.map(m => [m.tag, m.model]) : to.m.map(m => [m, m]);
+  const mv = members.find(m => m[1] === st.pick[pk]) || members[0];
+  const mpath = path.concat(key ? `${key}=${mv[0]}` : '@' + mv[1]);
+  a2.add(mv[1]);
+  const group = key ? `${u('pickedBy')} ${key}` : u('shapesInside', { n: members.length });
+  return `${crumb(mpath, 'A-kcrumb')}
+    <div class="A-picks" role="group" aria-label="${esc(group)}">${members.map(([v, m]) => `<button class="A-pick" data-pk="${esc(pk)}" data-m="${esc(m)}" aria-pressed="${m === mv[1]}">${esc(v)}</button>`).join('')}</div>
+    <p class="A-mdesc">${desc(obj(mv[1]).d)} ${goLink(mv[1], mv[1])}</p>
+    ${attrList(obj(mv[1]).f, mv[1], mpath, a2, st)}`;
+}
+function openAt(id) {
+  const ix = IX();
+  let ch = ix.byId[id];
+  if (!ch) return null;
+  const last = ch[ch.length - 1];
+  if (last.k === 'rec') ch = ix.canon[last.name] || ch;
+  const st = sub('A');
+  let focus = null;
+  ch.forEach((n, i) => {
+    if (n.k !== 'f') return;
+    focus = n.path.join('/');
+    if (n.f.to && i + 1 < ch.length) {
+      st.open.add(focus);
+      if (ch[i + 1].k === 'm') st.pick[focus] = ch[i + 1].model;
+    }
+  });
+  return focus;
+}
+function focusRow(pk) {
+  const row = [...document.querySelectorAll('.A-row')].find(r => r.dataset.pk === pk);
+  if (!row) return;
+  row.scrollIntoView({ block: 'center' });
+  row.classList.remove('flash'); void row.offsetWidth; row.classList.add('flash');
+  row.dispatchEvent(new MouseEvent('mouseover', { bubbles: true }));
+}
+function toRef(id) {
+  const focus = openAt(id);
+  focusAt = focus;
+  go({ view: 'ref', page: '@' }, focus);
+}
+function showInTree(id) {
+  reveal(sub('C'), id);
+  go({ view: 'tree', node: id });
+}
+
+/* Tree: the whole file at once, details on click */
+function reveal(st, id) {
+  const ch = IX().byId[id]; if (!ch) return;
+  st.open.add('#'); ch.slice(0, -1).forEach(n => st.open.add(nodeId(n)));
+  st.sel = id;
+}
+function C(el) {
+  const t = CT();
+  if (!t.root) { el.innerHTML = `<div class="callout">${esc(u('noTree'))}</div>`; return; }
+  const st = sub('C');
+  if (S.node !== st.sel && IX().byId[S.node]) reveal(st, S.node);
+  const used = new Set();
+  (t.models || []).forEach(m => m.f.forEach(f => used.add(roleOf(f))));
+  const chips = GROUPS.filter(r => r !== 'other' || used.has(r));
+  el.innerHTML = `<div class="C">
+    <div class="C-tools">
+      <div class="C-search"><input id="C-q" type="search" placeholder="${esc(u('search'))}" value="${esc(st.q)}" aria-label="${esc(u('search'))}" autocomplete="off"></div>
+      <button class="btn" id="C-exp">${esc(u('expandAll'))}</button><button class="btn" id="C-col">${esc(u('collapse'))}</button>
+      <div class="C-roles" role="group" aria-label="${esc(u('filterRoles'))}"><button class="rc role-none" data-role="" aria-pressed="${st.roles.size === 0}"><i></i>${esc(u('allRoles'))}</button>${chips.map(r => `<button class="rc role-${r}${st.roles.size && !st.roles.has(r) ? ' off' : ''}" data-role="${r}" aria-pressed="${st.roles.has(r)}"><i></i>${esc(roleName(r))}</button>`).join('')}</div>
+    </div>
+    <div class="C-results" id="C-res" hidden></div>
+    <div class="C-tree" id="C-tree" role="tree" aria-label="${esc(t.name)}"></div>
+    <aside class="C-detail" id="C-detail"></aside></div>`;
+  const tree = el.querySelector('#C-tree');
+  const draw = () => { tree.innerHTML = treeRows(IX().root, 0, st); };
+  const detail = () => { el.querySelector('#C-detail').innerHTML = detailC(st); S.node = st.sel; writeHash(false); };
+  const toSel = mode => { const r = tree.querySelector('.C-row.sel'); if (!r) return; const top = r.offsetTop - tree.offsetTop; if (mode === 'center' || top < tree.scrollTop || top > tree.scrollTop + tree.clientHeight - 30) tree.scrollTop = Math.max(0, top - tree.clientHeight / 2); };
+  draw(); detail(); search(el, st); toSel('center');
+  tree.addEventListener('click', e => {
+    const row = e.target.closest('.C-row'); if (!row) return;
+    const id = row.dataset.id;
+    if (e.target.closest('.C-car')) { if (st.open.has(id)) st.open.delete(id); else st.open.add(id); draw(); return; }
+    if (row.dataset.rec) { reveal(st, row.dataset.rec); draw(); detail(); toSel('center'); return; }
+    st.sel = id; if (row.dataset.kids === '1' && !st.open.has(id)) st.open.add(id);
+    draw(); detail();
+  });
+  tree.addEventListener('keydown', e => {
+    const rows = [...tree.querySelectorAll('.C-row')];
+    const i = rows.findIndex(r => r.dataset.id === st.sel);
+    const refocus = () => { const s = tree.querySelector('.C-row.sel'); if (s) { s.focus({ preventScroll: true }); toSel('nearest'); } };
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const r = rows[Math.min(rows.length - 1, Math.max(0, i + (e.key === 'ArrowDown' ? 1 : -1)))]; if (r) { st.sel = r.dataset.id; draw(); detail(); refocus(); } }
+    if (e.key === 'ArrowRight' && i >= 0) { e.preventDefault(); st.open.add(st.sel); draw(); refocus(); }
+    if (e.key === 'ArrowLeft' && i >= 0) { e.preventDefault(); st.open.delete(st.sel); draw(); refocus(); }
+    if (e.key === 'Enter' && i >= 0) { e.preventDefault(); toRef(st.sel); }
+  });
+  el.querySelector('#C-detail').addEventListener('click', e => {
+    const r = e.target.closest('[data-ref]'); if (r) { toRef(r.dataset.ref); return; }
+    const b = e.target.closest('[data-sel]'); if (!b) return;
+    reveal(st, b.dataset.sel); draw(); detail(); toSel('nearest');
+  });
+  el.querySelector('#C-exp').addEventListener('click', () => { IX().all.forEach(ch => { const n = ch[ch.length - 1]; if (ch.length < 8 && hasKids(n)) st.open.add(nodeId(n)); }); st.open.add('#'); draw(); });
+  el.querySelector('#C-col').addEventListener('click', () => { st.open = new Set(['#']); st.sel = '#'; draw(); detail(); });
+  el.querySelector('.C-roles').addEventListener('click', e => {
+    const b = e.target.closest('[data-role]'); if (!b) return;
+    const r = b.dataset.role;
+    if (!r) st.roles.clear(); else if (st.roles.has(r)) st.roles.delete(r); else st.roles.add(r);
+    C(el);
+  });
+  el.querySelector('#C-q').addEventListener('input', e => { st.q = e.target.value; search(el, st); });
+  el.querySelector('#C-res').addEventListener('click', e => { const b = e.target.closest('[data-sel]'); if (!b) return; reveal(st, b.dataset.sel); draw(); detail(); toSel('center'); });
+}
+function search(el, st) {
+  const box = el.querySelector('#C-res');
+  const terms = st.q.trim().toLowerCase().split(/\s+/).filter(x => x.length > 1);
+  if (!terms.length) { box.hidden = true; return; }
+  const hits = IX().all.filter(ch => { const n = ch[ch.length - 1]; if (n.k === 'rec') return false; const p = pathText(n.path).toLowerCase(); return terms.every(x => p.includes(x)); });
+  box.hidden = false;
+  const rx = new RegExp(terms.map(x => x.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gi');
+  box.innerHTML = `<p class="note" style="margin:2px 8px 6px">${esc(u('results', { n: hits.length }))}</p>` + hits.slice(0, 80).map(ch => {
+    const n = ch[ch.length - 1];
+    return `<button data-sel="${esc(nodeId(n))}">${esc(pathText(n.path)).replace(rx, m => `<mark>${m}</mark>`)}</button>`;
+  }).join('');
+}
+function treeRows(n, d, st) {
+  const id = nodeId(n);
+  const has = hasKids(n);
+  const open = st.open.has(id);
+  const dim = st.roles.size && n.k === 'f' && !st.roles.has(roleOf(n.f));
+  let lab;
+  if (n.k === 'root') lab = `<code class="C-k">${esc(CT().name)}</code>${typeChip(rootMark(CT().root))}<span class="C-ty">${label(CT().root, null, true)}</span>`;
+  else if (n.k === 'm') lab = `<code class="C-k mem">${esc(nodeName(n))}</code><span class="C-ty">${n.key ? esc(n.model) : ''}</span>`;
+  else if (n.k === 'rec') lab = `<code class="C-k rec">↻ ${esc(u('recNode', { n: n.name }))}</code>`;
+  else lab = `<code class="C-k">${esc(n.f.s)}</code>${n.f.q ? `<span class="C-req" title="${esc(u('required'))}">*</span>` : ''}${typeChip(n.f.mk)}<span class="C-ty">${label(n.f.t, null, true)}</span>`;
+  const role = n.k === 'f' ? roleOf(n.f) : 'none';
+  let html = `<div class="C-row role-${role}${st.sel === id ? ' sel' : ''}${dim ? ' dim' : ''}" style="--d:${d}" data-id="${esc(id)}" data-kids="${has ? 1 : 0}"${n.k === 'rec' ? ` data-rec="${esc(canonId(n.name) || '#')}"` : ''} role="treeitem"${has ? ` aria-expanded="${open}"` : ''} aria-selected="${st.sel === id}" tabindex="${st.sel === id ? 0 : -1}">
+    <button class="C-car${has ? '' : ' leaf'}" aria-expanded="${open}" tabindex="-1" aria-label="${esc(nodeName(n))}">▶</button>${n.k === 'f' ? '<span class="C-dot"></span>' : ''}${lab}</div>`;
+  if (has && open) html += kids(n).map(c => treeRows(c, d + 1, st)).join('');
+  return html;
+}
+function kidsBlock(fields, base) {
+  const counts = {};
+  fields.forEach(f => { counts[roleOf(f)] = (counts[roleOf(f)] || 0) + 1; });
+  const order = GROUPS.filter(r => counts[r]);
+  const bar = order.map(r => `<span class="role-${r}" style="flex:${counts[r]}" title="${esc(roleName(r))}: ${counts[r]}"></span>`).join('');
+  const groups = order.map(r => `<div class="C-kg role-${r}"><span>${esc(roleName(r))} · ${counts[r]}</span><div>${fields.filter(f => roleOf(f) === r).map(f => `<button class="C-kb${f.q ? ' q' : ''}" data-sel="${esc(base.concat(f.s).join('/'))}" title="${esc(said(f.d))}">${esc(f.n)}</button>`).join('')}</div></div>`).join('');
+  return `<div class="C-sec"><h4>${esc(u('kids', { n: fields.length }))}</h4><div class="C-bar">${bar}</div><div class="C-kids">${groups}</div></div>`;
+}
+function exampleBlock(x) {
+  if (!x) return `<p class="note">${esc(u('notUsed'))}</p>`;
+  return `<pre class="code-snip">${esc(x.c)}</pre><p class="src">${esc(x.f)}:${x.l}</p>`;
+}
+function kindChips(to, path) {
+  const items = to.k === 'kinds' ? uni(to.n).m.map(m => [m.tag, path.concat(`${uni(to.n).key}=${m.tag}`)]) : to.m.map(m => [m, path.concat('@' + m)]);
+  const title = to.k === 'kinds' ? u('kindsInside', { n: items.length }) : u('shapesInside', { n: items.length });
+  return `<div class="C-sec"><h4>${esc(title)}</h4><div class="C-chips">${items.map(([v, p]) => `<button class="C-kb role-none" data-sel="${esc(p.join('/'))}">${esc(v)}</button>`).join('')}</div></div>`;
+}
+function detailC(st) {
+  const t = CT(), ix = IX();
+  const chain = ix.byId[st.sel] || [ix.root];
+  const n = chain[chain.length - 1];
+  const crumbs = `<div class="crumb">` + chain.map((c, i) =>
+    (i ? '<span class="x">›</span>' : '') + `<button class="s${c.k === 'm' ? ' k' : ''}${i === chain.length - 1 ? ' f' : ''}" data-sel="${esc(nodeId(c))}">${esc(nodeName(c))}</button>`).join('') + `</div>`;
+  const ref = n.k === 'rec' ? '' : `<div class="C-sec" style="margin-top:14px"><button class="btn" data-ref="${esc(nodeId(n))}">${REF_ICON}${esc(u('openInRef'))}</button></div>`;
+  let head = '', body = '', inside = null;
+  if (n.k === 'root') {
+    head = `<h3>${esc(t.name)}</h3><div class="C-chips">${typeChip(rootMark(t.root))}<span class="tl">${label(t.root)}</span></div><p class="d">${desc(t.purpose)}</p>`;
+    body = `<div class="C-sec"><p class="src" style="margin:0">${esc(t.glob)} · ${esc(files(t.files.length))}</p></div>`;
+    if (t.to && t.to.k === 'model') inside = { fields: obj(t.to.n).f, base: [] };
+    else if (t.to) body += kindChips(t.to, []);
+  } else if (n.k === 'm') {
+    const o = obj(n.model);
+    head = `<h3 class="mem">${esc(nodeName(n))}</h3><div class="C-chips">${typeChip('object')}<span class="tl">${esc(n.model)}</span></div><p class="d">${desc(o.d)}</p>`;
+    const note = n.union ? u('unionOf', { n: uni(n.union).m.length, u: n.union, k: n.key }) : u('shapeUnion', { n: n.shapes.m.length });
+    body = `<div class="C-sec"><p class="note" style="margin:0">${esc(note)}</p></div>`;
+    if (n.mem) body += `<div class="C-sec"><h4>${esc(u('example'))}</h4>${exampleBlock(n.mem.x)}</div>`;
+    inside = { fields: o.f, base: n.path };
+  } else if (n.k === 'rec') {
+    head = `<h3>↻ ${esc(n.name)}</h3><p class="d">${esc(u('sameAs', { n: n.name }))}</p>`;
+    const target = canonId(n.name);
+    if (target) body = `<div class="C-sec"><button class="btn" data-sel="${esc(target)}">${esc(u('goTo', { n: n.name }))}</button></div>`;
+  } else {
+    const f = n.f, to = f.to;
+    head = `<h3>${esc(f.n)}</h3><div class="C-chips">${roleChip(roleOf(f))}${typeChip(f.mk)}${f.q ? reqChip() : optChip()}${isShared(n.owner, f.n) ? sharedChip() : ''}</div><p class="d">${desc(f.d) || `<span class="missing">${esc(u('noDesc'))}</span>`}</p>`;
+    const kv = [[u('type'), `<span class="tl">${label(f.t)}</span>`], [u('path'), `<code class="ic">${esc(pathText(n.path))}</code>`]];
+    if (f.df !== undefined) kv.push([u('default'), `<code class="ic">${esc(f.df)}</code>`]);
+    const rules = rulesOf(f);
+    if (rules.length) kv.push([u('rules'), rules.join(', ')]);
+    if (f.mk === 'map') {
+      const child = f.t.k === 'open' ? (f.t.c || [{ k: 'any' }])[0] : f.t;
+      kv.push([u('openKeys'), esc(u('youChoose')) + (f.o || []).map(c => `<br><code class="ic">${esc(c)}</code>`).join('')], [u('eachValue'), `<span class="tl">${label(child)}</span>`]);
+    }
+    if (f.ex) kv.push([u('values'), f.ex.map(v => `<code class="ic">${esc(v)}</code>`).join(' ')]);
+    if (f.u) kv.push([u('usedBy'), esc(u(f.u[1] === 1 ? 'usedOne' : 'usedCount', { u: f.u[0], f: f.u[1] }))]);
+    kv.push([u('role'), esc(L(ROLE_TXT[roleOf(f)][1]))]);
+    body = `<div class="C-sec"><dl class="C-kv">${kv.map(([a, b]) => `<dt>${esc(a)}</dt><dd>${b}</dd>`).join('')}</dl></div>`;
+    const fresh = to && !n.anc.has(to.n);
+    if (fresh && to.k === 'model') {
+      const wrap = f.t.k === 'list' ? u('each') + ': ' : f.t.k === 'open' ? u('mapOf') + ': ' : '';
+      body += `<div class="C-sec"><h4>${esc(wrap + to.n)}</h4><p class="d" style="margin:0">${desc(obj(to.n).d)}</p></div>`;
+      inside = { fields: obj(to.n).f, base: n.path };
+    }
+    body += `<div class="C-sec"><h4>${esc(u('example'))}</h4>${exampleBlock(f.x)}</div>`;
+    if (fresh && to.k !== 'model') body += kindChips(to, n.path);
+  }
+  if (inside) body += kidsBlock(inside.fields, inside.base);
+  return crumbs + head + ref + body;
+}
+
+const first = parseHash();
+apply(first);
+if (first.at && S.type) focusAt = openAt(first.at);
+render();
+})();
+</script>
+</body>
+</html>

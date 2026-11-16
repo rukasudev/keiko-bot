@@ -15,6 +15,7 @@ Uso:
         # ... rest of test
 """
 
+import asyncio
 import os
 import threading
 import pytest
@@ -22,23 +23,16 @@ import pytest_asyncio
 from types import SimpleNamespace
 from unittest.mock import patch, AsyncMock, MagicMock
 
-import i18n
-
 # Os clientes boto3 nunca perguntam ao endereco de metadados da AWS nos testes.
 os.environ.setdefault("AWS_EC2_METADATA_DISABLED", "true")
-
-_LANGUAGES_ROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "app", "languages")
-if os.path.isdir(_LANGUAGES_ROOT):
-    for folder in os.listdir(_LANGUAGES_ROOT):
-        path = os.path.join(_LANGUAGES_ROOT, folder)
-        if os.path.isdir(path) and path not in i18n.load_path:
-            i18n.load_path.append(path)
-    i18n.set("fallback", "en")
 
 # Early patching happens as side-effect of this import
 from tests.mocks.database import FakeAsyncMongoClient, MockRedisClient, MockMongoClient, SettlingLoop
 from tests.generators.moderations import recorded_server
 from app.data import build as build_data, install as install_data
+from app.core import i18n
+
+i18n.load()
 
 from tests.mocks import (
     create_guild,
@@ -160,11 +154,12 @@ def auto_inject_dependencies(deps):
     """
     patches = [
         patch('app.bot', deps.bot),
-        patch('app.services.notifications_twitch.bot', deps.bot),
-        patch('app.services.notifications_youtube_video.bot', deps.bot),
-        patch('app.services.stream_elements.bot', deps.bot),
-        patch('app.services.default_roles.bot', deps.bot),
-        patch('app.services.subscriptions.bot', deps.bot),
+        patch('app.commands.twitch.service.bot', deps.bot),
+        patch('app.commands.youtube.service.bot', deps.bot),
+        patch('app.commands.youtube.service._RENEWALS', new_callable=asyncio.Lock),
+        patch('app.commands.stream_elements.service.bot', deps.bot),
+        patch('app.commands.roles.service.bot', deps.bot),
+        patch('app.commands.admin.subscriptions.bot', deps.bot),
         patch('app.core.cache.redis_client', deps.redis_client),
         patch('app.data._own_loop', SettlingLoop),
         patch('app.data._LOOP', None),
@@ -208,10 +203,10 @@ def _no_banner_rendering():
     from tests.mocks.web import png
 
     with patch(
-        "app.services.welcome_messages.create_banner",
+        "app.commands.welcome.service.create_banner",
         new=AsyncMock(return_value="https://cdn.example.com/previews/welcome-preview.png"),
     ), patch(
-        "app.services.welcome_messages.draw_banner",
+        "app.commands.welcome.service.draw_banner",
         new=AsyncMock(side_effect=lambda *args, **kwargs: BytesIO(png())),
     ), patch(
         "app.core.images.upload_asset",
@@ -243,7 +238,7 @@ def birthday_today(monkeypatch):
     calendar. A test that needs another day sets `FEATURE.today` itself."""
     from datetime import date
 
-    from app.settings.features.reminders_birthday import FEATURE
+    from app.commands.birthdays.service import FEATURE
 
     monkeypatch.setattr(FEATURE, "today", lambda: date(2026, 1, 1))
     yield
@@ -357,8 +352,8 @@ def admin_interaction(admin_member, guild, channel) -> MockInteraction:
 
 @pytest.fixture
 def mock_cache():
-    """Mock do cache.get_cog_data_or_populate."""
-    with patch('app.core.cache.get_cog_data_or_populate') as mock:
+    """Mock do cache.read_cog_data."""
+    with patch("app.core.cache.read_cog_data") as mock:
         yield mock
 
 
@@ -369,7 +364,7 @@ def mock_banner():
 
     from tests.mocks.web import png
 
-    with patch('app.services.welcome_messages.draw_banner') as mock:
+    with patch('app.commands.welcome.service.draw_banner') as mock:
         mock.side_effect = lambda *args, **kwargs: BytesIO(png())
         yield mock
 
@@ -377,14 +372,7 @@ def mock_banner():
 @pytest.fixture
 def mock_available_roles():
     """Mock do get_available_roles_by_guild em default_roles."""
-    with patch('app.services.default_roles.get_available_roles_by_guild') as mock:
-        yield mock
-
-
-@pytest.fixture
-def mock_ml():
-    """Mock da funcao ml (i18n) em default_roles."""
-    with patch('app.services.default_roles.ml') as mock:
+    with patch('app.commands.roles.service.get_available_roles_by_guild') as mock:
         yield mock
 
 
@@ -393,10 +381,10 @@ def twitch_data(deps):
     """Mocks da camada de dados e helpers de notificacoes Twitch."""
     mocks = SimpleNamespace()
     targets = {
-        'find_guilds': 'app.services.notifications_twitch.find_guilds_by_streamer_name',
-        'count_guilds': 'app.services.notifications_twitch.count_streamers_guilds',
-        'wait_for_stream_info': 'app.services.notifications_twitch.wait_for_stream_info',
-        'is_more_than_one_hour': 'app.services.notifications_twitch.is_more_than_one_hour',
+        'find_guilds': 'app.commands.twitch.service.find_guilds_by_streamer_name',
+        'count_guilds': 'app.commands.twitch.service.count_streamers_guilds',
+        'wait_for_stream_info': 'app.commands.twitch.service.wait_for_stream_info',
+        'is_more_than_one_hour': 'app.commands.twitch.service.is_more_than_one_hour',
     }
     repositories = {
         'subscription_state': (deps.data.keiko_subscriptions, 'subscription_state'),

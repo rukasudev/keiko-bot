@@ -38,7 +38,7 @@ from app.constants import DBConfigs
 from app.constants import LogTypes as logconstants
 from app.core.analytics import events_catalog
 from app.core.trace import as_utc
-from app.core.utils import ml
+from app.core.utils import fill, ml
 from app.data import data, iterate, wait
 from app.migrations.runner import declared_structure
 
@@ -138,8 +138,10 @@ def build_daily_file(day: datetime) -> Tuple[Optional[discord.File], int]:
 
 def build_message(day: datetime, written: int, locale: str = ADMIN_LOCALE) -> str:
     """The admin channel has no user, so the bot's own locale is the one used."""
-    return ml("messages.admin-logs.daily-export", locale).format(
-        date=day.strftime("%Y-%m-%d"), count=written
+    return fill(
+        ml("texts.admin_logs.daily_export", locale),
+        date=day.strftime("%Y-%m-%d"),
+        count=written,
     )
 
 
@@ -219,12 +221,14 @@ def build_month_message(
 ) -> str:
     """The month in one message: what it holds, and in how many files."""
     lines = [
-        ml("messages.admin-logs.monthly-events", locale).format(
-            month=month.strftime("%Y-%m"), count=sum(part.count for part in files)
+        fill(
+            ml("texts.admin_logs.monthly_events", locale),
+            month=month.strftime("%Y-%m"),
+            count=sum(part.count for part in files),
         )
     ]
     if len(files) > 1:
-        lines.append(ml("messages.admin-logs.files-parts", locale).format(files=len(files)))
+        lines.append(fill(ml("texts.admin_logs.files_parts", locale), files=len(files)))
     return "\n".join(lines)
 
 
@@ -252,7 +256,8 @@ def without_identity(event: Mapping[str, Any], key: bytes) -> Dict[str, Any]:
         kept["actor"] = {"kind": (kept["actor"] or {}).get("kind")}
 
     if "props" in kept:
-        private = set((events_catalog().get(event.get("type")) or {}).get("private") or [])
+        declaration = events_catalog().get(event.get("type"))
+        private = set(declaration.private_props if declaration else ())
         kept["props"] = {
             name: value for name, value in (kept["props"] or {}).items()
             if not name.endswith("_id") and name not in private
@@ -372,7 +377,8 @@ def build_summary(
     """The pass in one message: what went, in how many files, and what was left out."""
     counts = {name: count for part in files for name, count in part.counts.items()}
     lines = [
-        ml("messages.admin-logs.daily-backup", locale).format(
+        fill(
+            ml("texts.admin_logs.daily_backup", locale),
             date=now.strftime("%Y-%m-%d"),
             collections=len(counts),
             documents=sum(counts.values()),
@@ -381,12 +387,12 @@ def build_summary(
 
     if len(files) > 1:
         lines.append(
-            ml("messages.admin-logs.files-parts", locale).format(files=len(files))
+            fill(ml("texts.admin_logs.files_parts", locale), files=len(files))
         )
     if skipped:
         names = ", ".join(f"`{name}`" for name in skipped)
         lines.append(
-            ml("messages.admin-logs.daily-backup-skipped", locale).format(collections=names)
+            fill(ml("texts.admin_logs.daily_backup_skipped", locale), collections=names)
         )
 
     return "\n".join(lines)

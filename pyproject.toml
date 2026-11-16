@@ -15,20 +15,35 @@ known-first-party = ["app", "tests"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["D1", "ARG"]
-"app/settings/form/actions/*.py" = ["ARG001"]
-"app/settings/features/*.py" = ["ARG002"]
+"app/forms/form/actions/*.py" = ["ARG001"]
+"app/forms/features/*.py" = ["ARG002"]
 
 [tool.mypy]
 python_version = "3.12"
 files = [
     "app/data",
-    "app/settings",
+    "app/forms",
+    "app/commands",
+    "app/decorators.py",
+    "app/types/cogs.py",
+    "app/ui/pagination.py",
+    "app/ui/embed.py",
+    "app/ui/records.py",
+    "app/core/calendar.py",
+    "app/core/commands.py",
+    "app/core/conditions.py",
+    "app/core/facts.py",
+    "app/core/dispatch.py",
+    "app/core/i18n.py",
+    "app/core/copy_schema.py",
+    "app/core/groups.py",
     "app/migrations/__init__.py",
     "app/migrations/__main__.py",
     "app/migrations/helpers.py",
     "app/migrations/redis_keys.py",
     "app/migrations/runner.py",
 ]
+untyped_calls_exclude = ["app.logger"]
 explicit_package_bases = true
 strict = true
 follow_imports = "silent"
@@ -36,9 +51,14 @@ plugins = ["pydantic.mypy"]
 warn_unreachable = true
 
 [[tool.mypy.overrides]]
-module = ["app.settings.discord.*", "app.settings.features.*"]
-disallow_untyped_calls = false
-
-[[tool.mypy.overrides]]
-module = ["discord.*", "i18n.*", "yaml.*", "bson.*", "redis.*", "prometheus_client.*"]
+module = [
+    "discord.*",
+    "i18n.*",
+    "yaml.*",
+    "bson.*",
+    "redis.*",
+    "prometheus_client.*",
+    "requests.*",
+    "dateutil.*",
+]
 ignore_missing_imports = true

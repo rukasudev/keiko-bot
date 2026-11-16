@@ -1,0 +1,19 @@
+"""What /${slash} declares, checked offline."""
+
+import pytest
+
+from app.commands import COMMANDS
+from app.commands.${name} import COMMAND
+from app.core.commands import form_file
+from app.forms.form.form_yaml import DiskSource
+
+pytestmark = pytest.mark.unit
+
+
+def test_the_command_is_in_the_list():
+    assert COMMAND in COMMANDS
+
+
+def test_the_command_opens_the_form_of_its_folder():
+    assert form_file(COMMAND.key).parent.name == "${name}"
+    assert COMMAND.key in DiskSource().list()

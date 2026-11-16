@@ -3,7 +3,7 @@
 Two kinds of read, and only the first one is cheap by construction:
 
 - **behavior** — a server's lifetime and its monthly counts, so a funnel or a
-  churn screen reads documents the sink already added up; the setup reports
+  churn screen reads documents the analytics writer already added up; the setup reports
   (drop-off, friction, step times) still rebuild sessions from the raw events of
   the last 90 days;
 - **configuration** — `config_usage` reads what guilds actually saved, through
@@ -18,39 +18,43 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional, Set, Tuple
 
 from app.constants import Commands as constants
-from app.constants import FormConstants as form_constants
 from app.constants import ViewConstants as view_constants
 from app.data import data
 from app.core import analytics
 from app.core import cogs as cogs_service
-from app.core.analytics_sink import metric_key
+from app.core.analytics_writer import metric_key
+from app.core.commands import setup_features
 from app.core.trace import as_utc
-from app.core.utils import ensure_list, parse_form_yaml_to_dict
+from app.core.utils import ensure_list
 
 
 def configurable_fields(feature: str) -> List[Dict[str, Any]]:
-    """Every key a form can store, with the step action that produced it.
+    """Every key a form can store, with the kind of the step or section that
+    produces it.
 
-    Read straight from the YAML, so a field added to a form shows up here
+    Read from the compiled form, so a field added to a form shows up here
     without anyone registering it anywhere.
     """
+    from app.forms.form.form_yaml import CardStep, ContentStep, registry
+
     fields: List[Dict[str, Any]] = []
 
-    for step in parse_form_yaml_to_dict(feature):
-        action = step.get("action")
-        if action in form_constants.NO_ACTION_LIST or step.get("hidden"):
+    for step in registry.get(feature).steps:
+        if not isinstance(step, ContentStep) or step.hidden:
             continue
 
-        defaults = step.get("defaults") or {}
+        defaults = step.defaults if isinstance(step, CardStep) else {}
 
-        for key, node in _value_nodes(step):
+        for key, node, kind in _value_nodes(step):
             if any(field["key"] == key for field in fields):
                 continue
             fields.append({
                 "key": key,
-                "step_key": step.get("key"),
-                "action": node.get("type") or action,
-                "closed_vocabulary": analytics.records_raw_choice(node),
+                "step_key": step.key,
+                "kind": kind,
+                "closed_vocabulary": analytics.records_raw_choice(
+                    node.model_dump(by_alias=True)
+                ),
                 # What an unset field means. A setting the YAML gives a default
                 # is *in effect* everywhere, whether or not a document stores
                 # it, so a fill rate of zero is "nobody changed it", not
@@ -71,37 +75,28 @@ def _default_label(value: Any) -> Optional[str]:
     return None
 
 
-def _value_nodes(step: Dict[str, Any]):
-    """(key, the YAML node that declares it) for every value a step stores.
+def _value_nodes(step: Any):
+    """(key, the node that declares it, its kind) for every value a step stores.
 
     A card lists its keys in `fields:` but declares their type and options in
     `sections:`, so the node that decides whether a value is safe to tabulate
     is not always the one that names it.
     """
-    sections: Dict[str, Dict[str, Any]] = {}
-    for section in step.get("sections") or []:
-        if section.get("key"):
-            sections[section["key"]] = section
-        for state_key in (section.get("state") or {}).values():
+    from app.forms.form.form_yaml import CardStep
+
+    if not isinstance(step, CardStep) or not step.fields:
+        yield step.key, step, step.type
+        return
+
+    sections: Dict[str, Any] = {}
+    for section in step.sections:
+        sections[section.key] = section
+        for state_key in section.keys.written():
             sections.setdefault(state_key, section)
 
-    named = False
-    for item in step.get("fields") or []:
-        if isinstance(item, dict) and item.get("key"):
-            named = True
-            yield item["key"], sections.get(item["key"], item)
-
-    for select in step.get("selects") or []:
-        if select.get("key"):
-            named = True
-            yield select["key"], select
-
-    unnamed_inputs = any(
-        not isinstance(item, dict) or not item.get("key")
-        for item in (step.get("fields") or [])
-    )
-    if (not named or unnamed_inputs) and step.get("key"):
-        yield step["key"], step
+    for field in step.fields:
+        node = sections.get(field.key)
+        yield field.key, node or field, node.type if node else step.type
 
 
 def is_filled(value: Any) -> bool:
@@ -165,7 +160,8 @@ async def config_usage(feature: str) -> Dict[str, Any]:
 async def unused_settings(threshold: int = 10) -> List[Dict[str, Any]]:
     """Settings almost nobody fills in — candidates for removal or better copy."""
     rows = []
-    for feature in constants.COMMANDS_LIST:
+    for command in setup_features():
+        feature = command.key
         usage = await config_usage(feature)
         if not usage["guilds"]:
             continue
@@ -192,8 +188,8 @@ def days_since(moment: Optional[datetime]) -> Optional[int]:
 def value_metrics() -> Dict[str, str]:
     """Every counter that means "the feature did its job", mapped to its feature."""
     return {
-        metric_key(event, feature): feature
-        for feature in constants.COMMANDS_LIST
+        metric_key(event, command.key): command.key
+        for command in setup_features()
         for event in analytics.value_events()
     }
 
@@ -269,7 +265,6 @@ async def guild_snapshot(guild_id: str) -> Dict[str, Any]:
     """The frozen lifetime a removal event reports, read as one document."""
     profile = await data().analytics_lifetime.find_lifetime(guild_id) or {}
     features = profile.get("features") or {}
-    totals = profile.get("totals") or {}
 
     active = [
         key for key, stats in features.items()
@@ -281,19 +276,27 @@ async def guild_snapshot(guild_id: str) -> Dict[str, Any]:
         default=None,
     )
 
+    declared = {
+        prop: (_at_path(profile, path) or 0) if counted else bool(_at_path(profile, path))
+        for prop, (path, counted) in analytics.lifetime_snapshot().items()
+    }
     return {
         "days_in_guild": days_since(profile.get("joined_at")) or 0,
         "features_configured": len(features),
         "features_active": len(active),
         "days_since_last_value": days_since(profile.get("last_value_at")),
-        "setups_completed": totals.get("setups_completed") or 0,
-        "setups_discarded": totals.get("setups_discarded") or 0,
-        "value_events": totals.get("value_events") or 0,
-        "permission_failures": totals.get("permission_failures") or 0,
+        "value_events": (profile.get("totals") or {}).get("value_events") or 0,
         "distinct_admins": profile.get("admins_count") or 0,
-        "greeting_sent": bool(profile.get("greeting_sent_at")),
         "first_feature": first_feature,
+        **declared,
     }
+
+
+def _at_path(document: Dict[str, Any], path: str) -> Any:
+    value: Any = document
+    for part in path.split("."):
+        value = value.get(part) if isinstance(value, dict) else None
+    return value
 
 
 async def funnel(

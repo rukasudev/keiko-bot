@@ -15,6 +15,7 @@ from app.core.cache import (
 )
 from app.core import analytics
 from app.core.cogs import is_feature_on
+from app.core.commands import setup_features
 from app.core.utils import parse_locale, speak
 from app.core.threads import to_thread
 
@@ -63,8 +64,8 @@ async def pause_features(guild_id: str, bot_user_id: str) -> List[str]:
 
     documents = await data().guild_cogs.find_cogs_by_guild(guild_id)
 
-    for spec in commands_constants.SETUP_FEATURES:
-        key = spec["command_key"]
+    for command in setup_features():
+        key = command.key
         if not is_feature_on(documents.get(key)):
             continue
 

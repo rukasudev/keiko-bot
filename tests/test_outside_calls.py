@@ -32,10 +32,10 @@ from app.bot import DiscordBot, discord_latency
 from app.constants import DBConfigs, Dependencies
 from app.core import metrics
 from app.integrations.notion import NotionIntegration
-from app.integrations.reminder_webhook import ReminderWebhook
+from app.integrations.reminders.client import ReminderWebhook
 from app.integrations.stream_elements import StreamElementsClient
-from app.integrations.twitch import TwitchClient
-from app.integrations.youtube import YoutubeClient
+from app.integrations.twitch.client import TwitchClient
+from app.integrations.youtube.client import YoutubeClient
 from app.migrations import runner
 
 pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("outside_calls")]
@@ -46,7 +46,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 APP = os.path.join(ROOT, "app")
 OWN_REQUESTS = {
     "app/integrations/__init__.py": "the shared client itself",
-    "app/cogs/prometheus.py": (
+    "app/core/monitoring.py": (
         "the ping to the uptime monitor: not a dependency a feature waits on, its URL "
         "carries the monitor's token, and it keeps HEARTBEAT_TIMEOUT_SECONDS"
     ),

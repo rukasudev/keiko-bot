@@ -10,12 +10,11 @@ from urllib.parse import urlparse
 
 import pytest
 from unittest.mock import AsyncMock, MagicMock
-from app.services import welcome_messages
+from app.commands.welcome import service as welcome_messages
 from app.core import images
-from app.services.welcome_messages import send_welcome_message
+from app.commands.welcome.service import parse_welcome_messages, send_welcome_message
 from tests.mocks import create_guild, create_member
 from tests.generators import moderations
-from app.core.utils import parse_welcome_messages
 
 REAL_CREATE_BANNER = welcome_messages.create_banner
 REAL_UPLOAD_ASSET = images.upload_asset
@@ -345,24 +344,20 @@ class TestGenerateDesignPreviews:
         Input: Lista de 3 designs
         Output: Dict com preview URL para cada design
         """
-        from app.services.welcome_messages import generate_design_previews
+        from app.commands.welcome.service import generate_design_previews
 
         # Arrange
         monkeypatch.setattr(welcome_messages, "create_banner", REAL_CREATE_BANNER)
         monkeypatch.setattr(images, "upload_asset", REAL_UPLOAD_ASSET)
         member = create_member(guild, id=999, name="TestUser")
-        designs = [
-            {"key": "server_blur"},
-            {"key": "custom_blur"},
-            {"key": "custom_only"},
-        ]
+        designs = ["server_blur", "custom_blur", "custom_only"]
         uploaded = "https://cdn.discordapp.com/attachments/1/2/custom_only_preview.gif"
         bot.get_channel.return_value.send = AsyncMock(
             return_value=SimpleNamespace(attachments=[SimpleNamespace(url=uploaded)])
         )
 
         # Act
-        previews = await generate_design_previews(member, designs)
+        previews = await generate_design_previews(member, designs, "Welcome")
 
         # Assert
         assert "server_blur" in previews
@@ -380,16 +375,14 @@ class TestGenerateDesignPreviews:
         Input: Design com key desconhecido
         Output: Preview nao incluido, sem excecao
         """
-        from app.services.welcome_messages import generate_design_previews
+        from app.commands.welcome.service import generate_design_previews
 
         # Arrange
         member = create_member(guild, id=999, name="TestUser")
-        designs = [
-            {"key": "unknown_design"},
-        ]
+        designs = ["unknown_design"]
 
         # Act
-        previews = await generate_design_previews(member, designs)
+        previews = await generate_design_previews(member, designs, "Welcome")
 
         # Assert
         assert "unknown_design" not in previews
@@ -405,18 +398,18 @@ class TestGenerateDesignPreviews:
         Output: Preview nao incluido, sem excecao propagada
         """
         from unittest.mock import patch
-        from app.services.welcome_messages import generate_design_previews
+        from app.commands.welcome.service import generate_design_previews
 
         # Arrange
         member = create_member(guild, id=999, name="TestUser")
-        designs = [{"key": "server_blur"}]
+        designs = ["server_blur"]
 
-        with patch('app.services.welcome_messages.create_banner') as mock_banner, \
-             patch('app.services.welcome_messages.logger') as mock_logger:
+        with patch('app.commands.welcome.service.create_banner') as mock_banner, \
+             patch('app.commands.welcome.service.logger') as mock_logger:
             mock_banner.side_effect = Exception("Banner generation failed")
 
             # Act
-            previews = await generate_design_previews(member, designs)
+            previews = await generate_design_previews(member, designs, "Welcome")
 
             # Assert
             assert "server_blur" not in previews

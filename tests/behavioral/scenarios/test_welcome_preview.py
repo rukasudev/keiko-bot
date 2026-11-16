@@ -1,11 +1,12 @@
 """The welcome preview: every written message, with the chosen design."""
+from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from app.services.welcome_messages import welcome_preview_pages
-from app.views.message_preview import MessagePreviewView
+from app.commands.welcome.service import WelcomeSettings, welcome_preview_pages
+from app.ui.message_preview import MessagePreviewView
 from tests.mocks.discord import create_guild, create_member
 
 pytestmark = pytest.mark.behavioral
@@ -20,19 +21,19 @@ def _pressed():
     return interaction
 
 
-SETTINGS = {
-    "title": "Chegou gente nova!",
-    "footer": "Divirta-se!",
-    "design": "custom_only",
-    "custom_image": "https://cdn.discordapp.com/attachments/1/2/banner.png",
-}
+SETTINGS = WelcomeSettings(
+    title="Chegou gente nova!",
+    footer="Divirta-se!",
+    design="custom_only",
+    custom_image="https://cdn.discordapp.com/attachments/1/2/banner.png",
+)
 
 
 async def test_the_card_shows_the_banner_of_the_chosen_design(scenario_factory):
     """Lucas: the card named the design and showed nothing else. The design line
     now carries the banner it draws, with the select to change it under it."""
     with patch(
-        "app.services.welcome_messages.create_banner",
+        "app.commands.welcome.service.create_banner",
         new=AsyncMock(return_value=PREVIEW_URL),
     ):
         scenario = await scenario_factory(locale="pt-br").start("welcome_messages")
@@ -68,7 +69,7 @@ async def test_a_blurred_design_draws_the_banner_over_the_sent_picture(
         return drawn_over if background == uploaded else PREVIEW_URL
 
     deps.bot.get_channel = lambda _channel_id: SimpleNamespace(send=send)
-    with patch("app.services.welcome_messages.create_banner", new=banner):
+    with patch("app.commands.welcome.service.create_banner", new=banner):
         scenario = await scenario_factory(locale="pt-br").start("welcome_messages")
         await scenario.confirm()
         await scenario.select_option("custom_blur", target="welcome_design")
@@ -103,7 +104,7 @@ async def test_the_card_shows_the_picture_that_was_just_sent(scenario_factory, d
 
     deps.bot.get_channel = lambda _channel_id: SimpleNamespace(send=send)
     with patch(
-        "app.services.welcome_messages.create_banner",
+        "app.commands.welcome.service.create_banner",
         new=AsyncMock(return_value=PREVIEW_URL),
     ):
         scenario = await scenario_factory(locale="pt-br").start("welcome_messages")
@@ -142,17 +143,17 @@ async def test_the_preview_walks_through_every_written_message():
     second = view.page
 
     assert len(pages) == 3
-    assert first.title == SETTINGS["title"]
+    assert first.title == SETTINGS.title
     assert "Oi <@!555>" in first.description
     assert "Olha quem chegou" in second.description
-    assert first.image.url == SETTINGS["custom_image"]
+    assert first.image.url == SETTINGS.custom_image
 
 
 async def test_the_next_button_never_redraws_the_banner(monkeypatch):
     """Broke as: Next awaited create_banner before answering the interaction,
     and Discord gives three seconds while the repo's own PREVIEW_WAIT_SECONDS
     records that the render takes eight."""
-    import app.services.welcome_messages as welcome
+    import app.commands.welcome.service as welcome
 
     guild = create_guild()
     member = create_member(guild, id=555, name="Tester")
@@ -181,15 +182,15 @@ async def test_a_drawn_design_previews_every_message_over_one_banner():
     member._user = MagicMock(id=555)
 
     with patch(
-        "app.services.welcome_messages.create_banner",
+        "app.commands.welcome.service.create_banner",
         new=AsyncMock(return_value=PREVIEW_URL),
     ) as banner:
         pages = await welcome_preview_pages(
             member,
             ["Oi {user}!", "Olha quem chegou", "Chegou mais alguém!"],
-            {**SETTINGS, "design": "server_blur"},
+            replace(SETTINGS, design="server_blur"),
         )
 
     assert [page.image.url for page in pages] == [PREVIEW_URL] * 3
     assert banner.await_count == 1
-    assert pages[0].title == SETTINGS["title"]
+    assert pages[0].title == SETTINGS.title

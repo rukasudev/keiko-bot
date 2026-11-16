@@ -1,6 +1,7 @@
-from typing import Any, Awaitable, Callable, Dict, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 from app.constants import Commands as constants
+from app.core.commands import setup_features
 from app.data import data
 
 LIFECYCLE_ANALYTICS_EVENTS = {
@@ -13,26 +14,12 @@ LIFECYCLE_ANALYTICS_EVENTS = {
     constants.REMOVED_KEY: "feature.item_removed",
 }
 
-async def feature_config_states(feature: str) -> List[Dict[str, Any]]:
-    """Every guild's saved configuration, keyed as the feature's form names it.
+async def feature_config_states(feature: str) -> List[Mapping[str, Any]]:
+    """Every guild's saved configuration, keyed as the feature's form names it: what
+    the feature module's `config_states` reads."""
+    from app.forms.features import feature_for
 
-    A feature whose storage shape differs from its form defines `config_states`
-    in its service; everything else is a plain read of the collection.
-    """
-    provider = config_states_provider(feature)
-    if provider:
-        return await provider()
-    return await data().guild_cogs.find_all_cogs(feature)
-
-
-def config_states_provider(
-    feature: str,
-) -> Optional[Callable[[], Awaitable[List[Dict[str, Any]]]]]:
-    if feature != constants.REMINDERS_BIRTHDAY_KEY:
-        return None
-    from app.services.reminders_birthdays import config_states
-
-    return config_states
+    return list(await feature_for(feature).config_states())
 
 
 def is_feature_on(document: Optional[Mapping[str, Any]]) -> bool:
@@ -40,21 +27,13 @@ def is_feature_on(document: Optional[Mapping[str, Any]]) -> bool:
     return bool(document and document.get(constants.ENABLED_KEY))
 
 
-def feature_spec(command_key: str) -> Dict[str, Any]:
-    """A feature as `Commands.SETUP_FEATURES` lists it, or nothing for an unknown key."""
-    return next(
-        (spec for spec in constants.SETUP_FEATURES if spec["command_key"] == command_key),
-        {},
-    )
-
-
 async def features_on(guild_id: str) -> List[str]:
     """The setup features that are on in a server, by `is_feature_on`."""
     documents = await data().guild_cogs.find_cogs_by_guild(guild_id)
     return [
-        spec["command_key"]
-        for spec in constants.SETUP_FEATURES
-        if is_feature_on(documents.get(spec["command_key"]))
+        command.key
+        for command in setup_features()
+        if is_feature_on(documents.get(command.key))
     ]
 
 

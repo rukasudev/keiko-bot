@@ -8,7 +8,7 @@ no close of its own: its story was closed only by the `feature.paused` /
 so with the events off (`ANALYTICS_ENABLED=false`) every such story stayed
 `⏳ in progress` and its journey was kept in memory for the life of the process.
 
-Shared behavior affected: `Runtime._close` (app/settings/discord/callbacks.py)
+Shared behavior affected: `Runtime._close` (app/forms/discord/callbacks.py)
 and `observability.ended_as` / `observability.completed_as`, the one place
 every root session's story ends, shared by every manager panel.
 

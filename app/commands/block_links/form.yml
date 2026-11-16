@@ -1,0 +1,356 @@
+steps:
+  - type: intro
+    key: form
+    title:
+      en-us: ":no_entry_sign: Block Links"
+      pt-br: ":no_entry_sign: Bloquear Links"
+    description:
+      en-us: "Enabling this feature allows me to watch every message and delete the links you don't want here! You choose how I do it: block all links with your exceptions, or allow links and block only the ones you pick."
+      pt-br: "Ativar esta função faz com que eu fique de olho em cada mensagem e exclua os links que você não quer por aqui! Você escolhe como eu faço isso: bloquear todos os links com as suas exceções, ou permitir links e bloquear só os que você escolher."
+    panel:
+      description:
+        en-us: I'm keeping an eye on links sent in the server, following the rules below.
+        pt-br: Estou de olho nos links enviados no servidor e sigo as regras abaixo.
+
+  - type: card
+    key: link_settings
+    title:
+      en-us: General Settings
+      pt-br: Configurações Gerais
+    description:
+      en-us: Choose how I should treat links in your server
+      pt-br: Escolha como eu devo tratar os links do seu servidor
+    emoji: 🚦
+    header:
+      thumbnail: default
+    required:
+      all: [mode]
+    fields:
+      - key: mode
+        description:
+          en-us: Whether I block every link or only the ones you pick.
+          pt-br: Se eu bloqueio todos os links ou só os que você escolher.
+      - key: answer
+        description:
+          en-us: What I say when I delete a link.
+          pt-br: O que eu digo quando apago um link.
+      - key: allowed_chats
+        description:
+          en-us: The channels where I never delete links.
+          pt-br: Os canais onde eu nunca apago links.
+      - key: allowed_roles
+        description:
+          en-us: Whoever has one of these roles can send links freely.
+          pt-br: Quem tem um desses cargos pode mandar links à vontade.
+      - key: allowed_links
+        description:
+          en-us: Popular websites I always let through.
+          pt-br: Sites populares que eu sempre libero.
+        button:
+          label:
+            en-us: Add
+            pt-br: Adicionar
+        group: exceptions
+    sections:
+      - type: button_options
+        key: mode
+        emoji: 🚦
+        label:
+          en-us: Blocking mode
+          pt-br: Modo de bloqueio
+        keys:
+          value: mode
+        screen:
+          title:
+            en-us: How should I block links?
+            pt-br: Como devo bloquear os links?
+        placeholder:
+          en-us: Choose mode
+          pt-br: Escolher modo
+        options:
+          - label:
+              en-us: 🔗 Block some
+              pt-br: 🔗 Bloquear alguns
+            value: allow_all
+            style: primary
+            description:
+              en-us: I let links through and block only the websites and links you pick.
+              pt-br: Eu deixo os links passarem e bloqueio só os sites e links que você escolher.
+          - label:
+              en-us: 🚫 Block all
+              pt-br: 🚫 Bloquear todos
+            value: block_all
+            style: primary
+            description:
+              en-us: I delete every link, and you can still allow some websites and links afterwards.
+              pt-br: Eu apago todos os links, mas você ainda pode liberar alguns sites e links depois.
+      - type: modal_input
+        key: answer
+        emoji: 💬
+        label:
+          en-us: My response when blocking
+          pt-br: Minha resposta ao bloquear
+        keys:
+          value: answer
+        button:
+          label:
+            en-us: Customize response
+            pt-br: Personalizar resposta
+        modal:
+          title:
+            en-us: My Response When Blocking Links
+            pt-br: Minha Resposta ao Bloquear Links
+          inputs:
+            - key: answer
+              label:
+                en-us: Type my answer when blocking links
+                pt-br: Digite minha resposta ao bloquear links
+              placeholder:
+                en-us: No links here! :p (use {user} to mention)
+                pt-br: Nada de links por aqui! :p (use {user} para mencionar)
+              max_length: 100
+      - type: group
+        key: exceptions
+        emoji: 🛡️
+        label:
+          en-us: Add exceptions?
+          pt-br: Adicionar exceções?
+        description:
+          en-us: Channels, roles, sites and links I never delete.
+          pt-br: Canais, cargos, sites e links que eu nunca apago.
+        when:
+          key: mode
+          not_in: [allow_all]
+        screen:
+          title: {ref: exceptions}
+        button:
+          label: {ref: configure}
+        sections: [exempt, allowed_links, own_links]
+      - type: group
+        key: channel_exceptions
+        emoji: 🛡️
+        label:
+          en-us: Add exceptions?
+          pt-br: Adicionar exceções?
+        description:
+          en-us: Channels and roles where I never delete links.
+          pt-br: Canais e cargos onde eu nunca apago links.
+        when:
+          key: mode
+          not_in: [block_all]
+        screen:
+          title: {ref: exceptions}
+        button:
+          label: {ref: configure}
+        sections: [exempt]
+      - type: selects
+        key: exempt
+        emoji: 🔓
+        label:
+          en-us: Allowed channels and roles
+          pt-br: Canais e cargos permitidos
+        description:
+          en-us: I **never** delete links sent in these channels or by anyone with these roles.
+          pt-br: Eu **nunca** apago links enviados nesses canais ou por quem tem esses cargos.
+        screen:
+          title:
+            en-us: Where should I never delete links?
+            pt-br: Onde eu nunca devo apagar links?
+          description:
+            en-us: Pick the channels and the roles. I **never** delete links sent in those channels or by anyone with those roles.
+            pt-br: Escolha os canais e os cargos. Eu **nunca** apago links enviados nesses canais ou por quem tem esses cargos.
+        selects:
+          - type: channels
+            key: allowed_chats
+            emoji: "#️⃣"
+            label:
+              en-us: Allowed channels
+              pt-br: Canais permitidos
+            placeholder:
+              en-us: Channels where I never delete links
+              pt-br: Canais onde eu nunca apago links
+          - type: roles
+            key: allowed_roles
+            emoji: 🏷️
+            label:
+              en-us: Allowed roles
+              pt-br: Cargos permitidos
+            placeholder:
+              en-us: Roles whose links I never delete
+              pt-br: Cargos cujos links eu nunca apago
+      - type: multi_select
+        key: allowed_links
+        emoji: 🔗
+        label:
+          en-us: Allowed popular websites
+          pt-br: Sites populares permitidos
+        keys:
+          value: allowed_links
+        when:
+          key: mode
+          not_in: [allow_all]
+        screen:
+          title:
+            en-us: Pick the websites I should always allow
+            pt-br: Escolha os sites que devo sempre permitir
+        placeholder:
+          en-us: Choose websites
+          pt-br: Escolher sites
+        options:
+          - label:
+              en-us: Youtube
+              pt-br: Youtube
+            value: youtube.com
+          - label:
+              en-us: Spotify
+              pt-br: Spotify
+            value: spotify.com
+          - label:
+              en-us: Twitter
+              pt-br: Twitter
+            value: twitter.com
+          - label:
+              en-us: Facebook
+              pt-br: Facebook
+            value: facebook.com
+          - label:
+              en-us: Instagram
+              pt-br: Instagram
+            value: instagram.com
+          - label:
+              en-us: Twitch
+              pt-br: Twitch
+            value: twitch.tv
+          - label:
+              en-us: Tiktok
+              pt-br: Tiktok
+            value: tiktok.com
+          - label:
+              en-us: Reddit
+              pt-br: Reddit
+            value: reddit.com
+          - label:
+              en-us: Discord
+              pt-br: Discord
+            value: discord.gg
+      - type: list
+        key: own_links
+        emoji: 📌
+        label:
+          en-us: Allowed custom links
+          pt-br: Links personalizados permitidos
+        description:
+          en-us: Your own websites or links, one at a time. You can add them later too!
+          pt-br: Seus próprios sites ou links, um de cada vez. Você pode adicionar depois também!
+        appears_in: setup
+        list: custom_links
+    # open: state keys of the card -> a value or a text
+    defaults:
+      mode: block_all
+      answer:
+        en-us: No links here! :p
+        pt-br: Nada de links por aqui! :p
+
+  - type: list
+    key: custom_links
+    title:
+      en-us: Allowed custom links
+      pt-br: Links personalizados permitidos
+    description:
+      en-us: Your own websites or links that I always let through, one at a time!
+      pt-br: Seus próprios sites ou links que eu sempre libero, um de cada vez!
+    emoji: 📌
+    overrides:
+      - when:
+          key: mode
+          not_in: [block_all]
+        title:
+          en-us: Blocked custom links
+          pt-br: Links personalizados bloqueados
+        description:
+          en-us: Your own websites or links that I block, letting every other one through. One at a time!
+          pt-br: Seus próprios sites ou links que eu bloqueio, deixando todos os outros passarem. Um de cada vez!
+    items:
+      max: 25
+      unique:
+        key: link
+    group: exceptions
+    steps:
+      - type: text
+        key: link
+        title:
+          en-us: Link or Website
+          pt-br: Link ou Site
+        description:
+          en-us: "A whole website or one exact link. Example: `twitch.tv` or `youtube.com/watch?v=abc123`"
+          pt-br: "Um site inteiro ou um link exato. Exemplo: `twitch.tv` ou `youtube.com/watch?v=abc123`"
+        emoji: 🔗
+        label:
+          en-us: Type the link or website
+          pt-br: Digite o link ou site
+        placeholder:
+          en-us: twitch.tv
+          pt-br: twitch.tv
+        max_length: 100
+        normalize:
+          name: lowercase
+        validation:
+          name: link_or_domain
+        transform:
+          name: normalize_link
+        format: code
+      - type: single_choice
+        key: match_type
+        title:
+          en-us: How Far Does This Rule Go?
+          pt-br: Qual o Alcance da Regra?
+        description:
+          en-us: "Tell me how far this rule goes!\n\n🌐 **Every link from this website**\nI always allow everything on `{answer:link:host|youtube.com}`, any page or video of it.\n\n🔗 **Only this specific link**\nI always allow only `{answer:link|youtube.com/watch?v=abc123}`, and the rest of the website stays blocked.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
+          pt-br: "Me diga o alcance dessa regra!\n\n🌐 **Todos os links desse site**\nEu sempre libero tudo em `{answer:link:host|youtube.com}`, qualquer página ou vídeo dele.\n\n🔗 **Só esse link específico**\nEu sempre libero só `{answer:link|youtube.com/watch?v=abc123}`, e o resto do site continua bloqueado.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
+        emoji: 🎯
+        when:
+          key: link
+          matches: "[/?]"
+        overrides:
+          - when:
+              key: parent.mode
+              not_in: [block_all]
+            description:
+              en-us: "Tell me how far this rule goes!\n\n🌐 **Every link from this website**\nI always block everything on `{answer:link:host|youtube.com}`, any page or video of it.\n\n🔗 **Only this specific link**\nI always block only `{answer:link|youtube.com/watch?v=abc123}`, and the rest of the website stays allowed.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
+              pt-br: "Me diga o alcance dessa regra!\n\n🌐 **Todos os links desse site**\nEu sempre bloqueio tudo em `{answer:link:host|youtube.com}`, qualquer página ou vídeo dele.\n\n🔗 **Só esse link específico**\nEu sempre bloqueio só `{answer:link|youtube.com/watch?v=abc123}`, e o resto do site continua liberado.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
+        options:
+          - label:
+              en-us: 🌐 Every link from this website
+              pt-br: 🌐 Todos os links desse site
+            value: domain
+          - label:
+              en-us: 🔗 Only this specific link
+              pt-br: 🔗 Só esse link específico
+            value: exact
+        required: true
+        auto_confirm: true
+
+  - type: review
+    key: confirm
+
+# open: group ids -> a panel group
+groups:
+  exceptions:
+    title: {ref: exceptions}
+    emoji: ✅
+    screen:
+      description:
+        en-us: These are the websites and links I always let through, even blocking every other one. Turn a popular website on or off right here, and add your own links below.
+        pt-br: Estes são os sites e links que eu sempre libero, mesmo bloqueando todos os outros. Ligue ou desligue um site popular aqui mesmo, e adicione os seus próprios links abaixo.
+    overrides:
+      - when:
+          key: mode
+          not_in: [block_all]
+        title:
+          en-us: Blocked links
+          pt-br: Links bloqueados
+        description:
+          en-us: These are the only links I block, letting every other one through. Add your own links below.
+          pt-br: Estes são os únicos links que eu bloqueio, deixando todos os outros passarem. Adicione os seus próprios links abaixo.
+    opens: screen
+    order: 1

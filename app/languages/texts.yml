@@ -1,0 +1,240 @@
+# open: what each text says -> a text, or a table of texts keyed by a closed vocabulary in code
+list_and:
+  en-us: " and "
+  pt-br: " e "
+
+count_at_least:
+  en-us: $count+
+  pt-br: $thousands mil+
+
+date_label:
+  en-us: $month_name $day
+  pt-br: $day de $month_lower
+
+page:
+  en-us: Page
+  pt-br: Página
+
+and_more:
+  en-us: and $count more
+  pt-br: e mais $count
+
+empty_value:
+  en-us: Empty
+  pt-br: Em branco
+
+settings_heading:
+  en-us: Settings
+  pt-br: Configurações
+
+paused_suffix:
+  en-us: Paused
+  pt-br: Pausado
+
+selected:
+  en-us: Selected
+  pt-br: Selecionado
+
+file_upload:
+  en-us: Image
+  pt-br: Imagem
+
+preview_empty:
+  en-us: I don't have any message written yet! Write one and I'll show you exactly how it arrives. 🐶
+  pt-br: Ainda não tenho nenhuma mensagem escrita! Escreva uma e eu te mostro exatamente como ela chega. 🐶
+
+unknown_language:
+  en-us: Unknown
+  pt-br: Desconhecido
+
+# open: a boolean value -> the word it reads as
+boolean:
+  "yes":
+    en-us: "Yes"
+    pt-br: Sim
+  "no":
+    en-us: "No"
+    pt-br: Não
+
+# open: a default-or-custom mode -> the word it reads as
+modes:
+  default:
+    en-us: Default
+    pt-br: Padrão
+  custom:
+    en-us: Custom
+    pt-br: Personalizado
+
+# open: a default-or-custom mode -> the badge after a card section's heading
+badges:
+  default:
+    en-us: 📌 Keiko's default
+    pt-br: 📌 Padrão do Keiko
+  custom:
+    en-us: ✨ Custom
+    pt-br: ✨ Personalizado
+
+# open: what a select picks -> its placeholder
+placeholders:
+  channel:
+    en-us: Select a channel...
+    pt-br: Selecione um canal...
+  user:
+    en-us: Select a member...
+    pt-br: Selecione um membro...
+  edit:
+    en-us: Select the settings you want to edit
+    pt-br: Selecione as configurações que deseja editar
+  remove:
+    en-us: Select the items you want to remove
+    pt-br: Selecione os itens que deseja remover
+
+# open: the part of the design gallery -> its line
+design_gallery:
+  header:
+    en-us: "⬇️ Select one of the designs below:"
+    pt-br: "⬇️ Selecione um dos designs abaixo:"
+  footer:
+    en-us: ⬆️ Scroll up to see all options
+    pt-br: ⬆️ Role para cima para ver todas as opções
+
+# open: the part of the typed confirmation -> its text
+confirmation_modal:
+  title:
+    en-us: Are you sure?
+    pt-br: Tem certeza?
+  label:
+    en-us: Type `$action` to confirm.
+    pt-br: Digite `$action` para confirmar.
+
+# open: why a click changed nothing -> the note it gets
+notices:
+  stale:
+    en-us: Oops! That screen is out of date, here's the current one 🐶
+    pt-br: Ops! Essa tela já mudou, aqui está a atual 🐶
+  busy:
+    en-us: One second! I'm still saving what you just confirmed 🐶
+    pt-br: Um segundinho! Ainda estou salvando o que você acabou de confirmar 🐶
+  closed:
+    en-us: This form is already closed! If you need to change something, just call the command again 🐶
+    pt-br: Esse formulário já foi fechado! Se precisar mudar algo, é só chamar o comando de novo 🐶
+  expired:
+    en-us: ⌛ This form expired! If you'd like to continue, just call the command again 🐶
+    pt-br: ⌛ Esse formulário expirou! Se quiser continuar, é só chamar o comando de novo 🐶
+
+# open: a parent slash group -> its name
+groups:
+  moderations:
+    en-us: moderations
+    pt-br: moderações
+  notifications:
+    en-us: notifications
+    pt-br: notificações
+  integrations:
+    en-us: integrations
+    pt-br: integrações
+
+# open: a month key -> its name
+months:
+  january:
+    en-us: January
+    pt-br: Janeiro
+  february:
+    en-us: February
+    pt-br: Fevereiro
+  march:
+    en-us: March
+    pt-br: Março
+  april:
+    en-us: April
+    pt-br: Abril
+  may:
+    en-us: May
+    pt-br: Maio
+  june:
+    en-us: June
+    pt-br: Junho
+  july:
+    en-us: July
+    pt-br: Julho
+  august:
+    en-us: August
+    pt-br: Agosto
+  september:
+    en-us: September
+    pt-br: Setembro
+  october:
+    en-us: October
+    pt-br: Outubro
+  november:
+    en-us: November
+    pt-br: Novembro
+  december:
+    en-us: December
+    pt-br: Dezembro
+
+# open: what Keiko is missing -> the line that says so
+permissions:
+  server:
+    en-us: ⚠️ I need the **$permission** permission in the server
+    pt-br: ⚠️ Preciso da permissão **$permission** no servidor
+  channel:
+    en-us: ⚠️ I need the **$permission** permission in <#$channel>
+    pt-br: ⚠️ Preciso da permissão **$permission** em <#$channel>
+  channel_gone:
+    en-us: ⚠️ A configured channel no longer exists
+    pt-br: ⚠️ Um canal configurado não existe mais
+  role_above:
+    en-us: ⚠️ The <@&$role> role is above mine, so I can't assign it
+    pt-br: ⚠️ O cargo <@&$role> está acima do meu, então não consigo atribuí-lo
+
+# open: a Discord permission flag -> its name
+permission_names:
+  view_channel:
+    en-us: View Channels
+    pt-br: Ver canais
+  send_messages:
+    en-us: Send Messages
+    pt-br: Enviar mensagens
+  embed_links:
+    en-us: Embed Links
+    pt-br: Inserir links
+  attach_files:
+    en-us: Attach Files
+    pt-br: Anexar arquivos
+  manage_roles:
+    en-us: Manage Roles
+    pt-br: Gerenciar cargos
+  manage_messages:
+    en-us: Manage Messages
+    pt-br: Gerenciar mensagens
+
+# open: how a feature's last days went -> the closing line of its statistics
+recent:
+  quiet:
+    en-us: 💤 Nothing new in the last $days days.
+    pt-br: 💤 Nenhuma novidade nos últimos $days dias.
+  refused_one:
+    en-us: ⚠️ In the last $days days, I couldn't do my job once because of a missing permission. Check **Permissions** on `{context:commands.setup}`!
+    pt-br: ⚠️ Nos últimos $days dias, 1 vez eu não consegui fazer meu trabalho por falta de permissão. Confira em **Permissões** no `{context:commands.setup}`!
+  refused_many:
+    en-us: ⚠️ In the last $days days, I couldn't do my job $count times because of a missing permission. Check **Permissions** on `{context:commands.setup}`!
+    pt-br: ⚠️ Nos últimos $days dias, $count vezes eu não consegui fazer meu trabalho por falta de permissão. Confira em **Permissões** no `{context:commands.setup}`!
+
+# open: the message an admin job posts -> its line
+admin_logs:
+  daily_export:
+    en-us: ":card_index_dividers: Here is my structured log for **$date**! ($count records)"
+    pt-br: ":card_index_dividers: Aqui está o meu log estruturado de **$date**! ($count registros)"
+  daily_backup:
+    en-us: ":floppy_disk: Here is my encrypted database backup for **$date**! ($collections collections, $documents documents)"
+    pt-br: ":floppy_disk: Aqui está o meu backup criptografado do banco de dados de **$date**! ($collections coleções, $documents documentos)"
+  daily_backup_skipped:
+    en-us: "I'm sorry, but these were too big for this channel even on their own, so I left them out: $collections. A manual `mongodump` still copies them!"
+    pt-br: "Desculpe, mas estas ficaram grandes demais para este canal, mesmo sozinhas, então deixei de fora: $collections. Um `mongodump` manual ainda copia essas coleções!"
+  monthly_events:
+    en-us: ":card_file_box: Here is my events archive for **$month**! ($count events)"
+    pt-br: ":card_file_box: Aqui está o meu arquivo de eventos de **$month**! ($count eventos)"
+  files_parts:
+    en-us: I sent it in $files files, one per message.
+    pt-br: Enviei em $files arquivos, um por mensagem.

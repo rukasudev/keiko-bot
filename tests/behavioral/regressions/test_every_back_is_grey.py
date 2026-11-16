@@ -7,8 +7,8 @@ that goes back from a command to the list. The maintainer asked (PR15 round 5,
 k02) for every Voltar to be grey (secondary), always, like the form's Back.
 
 Shared behavior affected: the navigation buttons of the /configurar screens
-(`category_view` and `settings_screen`, app/services/setup.py), the help's
-`BackButton` (app/components/buttons.py, drawn by `HelpSelect`) and the form
+(`category_view` and `settings_screen`, app/commands/setup/service.py), the help's
+`BackButton` (app/ui/buttons.py, drawn by help's `HelpSelect`) and the form
 platform's Back (`back_button` and the pickers' `picker_back`).
 
 Exposed by: /configurar, on a category with one page.
@@ -18,8 +18,8 @@ Must remain guaranteed: any Voltar on any of these screens is secondary.
 import discord
 import pytest
 
-from app.components.buttons import BackButton
-from app.constants import Commands
+from app.core.commands import setup_features
+from app.ui.buttons import BackButton
 from app.core.utils import ml
 from tests.mocks.database import fake_store
 from tests.behavioral.golden.paths import block_links
@@ -52,13 +52,13 @@ def _assert_grey(view, locale, where):
 
 
 def _rows(count):
-    return [(spec, "pending") for spec in Commands.SETUP_FEATURES[:count]]
+    return [(spec, "pending") for spec in setup_features()[:count]]
 
 
 @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
 @pytest.mark.parametrize("pages", [1, 2])
 def test_the_voltar_of_a_category_page_is_grey(locale, pages):
-    from app.services.setup import category_view
+    from app.commands.setup.service import category_view
 
     view = category_view("moderations", _rows(2), 0, pages, locale)
 
@@ -67,9 +67,8 @@ def test_the_voltar_of_a_category_page_is_grey(locale, pages):
 
 @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
 async def test_the_voltar_of_the_settings_screen_is_grey(deps, locale):
-    from app.data.guild import settings as guild_settings
     from app.core import cache
-    from app.services.setup import settings_screen
+    from app.commands.setup.service import settings_screen
 
     recorded_server(fake_store(), GUILD_ID, language=locale)
     cache.reset()

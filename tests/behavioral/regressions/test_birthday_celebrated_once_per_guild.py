@@ -39,15 +39,13 @@ from zoneinfo import ZoneInfo
 import discord
 import pytest
 
-from app.data import wait
-from app.constants import Commands
-from app.services.reminders_birthdays import save_birthday_config
+from app.commands.birthdays.service import save_birthday_config
 from app.core.servers import set_feature_enabled
-from app.webhooks import birthday_handler
+from app.commands.birthdays import celebration as birthday_handler
 from tests.generators.birthdays import last_celebrated_year, saved_birthday
 from tests.generators.moderations import recorded_server
 from tests.mocks.discord import create_guild, create_member
-from app.services.reminders_birthdays import build_celebration_embed
+from app.commands.birthdays.service import build_celebration_embed
 
 pytestmark = [
     pytest.mark.behavioral,
@@ -96,7 +94,7 @@ async def register(guild, member_id, reminder_id, mm_dd="05-12"):
         notification_time="08:00",
     )
     saved_birthday(str(guild.id), str(member_id), mm_dd, reminder_id=reminder_id)
-    await set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
+    await set_feature_enabled(str(guild.id), "reminders_birthday", True)
 
 
 def celebrations(guild):

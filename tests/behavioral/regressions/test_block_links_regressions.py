@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from app.constants import Commands
 from app.data.events import activity
-from app.services import block_links
+from app.commands.block_links import service as block_links
 from app.core import analytics, cache
 from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
     blocking,
@@ -35,7 +35,7 @@ async def test_manager_add_works_on_documents_without_the_composition_envelope(
 
     Guaranteed behavior: the manager renders (with the Add button) for any
     composition command whose document lacks the composition envelope."""
-    from app.services.block_links import normalize_block_links_config
+    from app.commands.block_links.service import normalize_block_links_config
 
     legacy = {"guild_id": GUILD_ID, "enabled": True,
               "allowed_links": ["Youtube"], "answer": "x"}
@@ -65,10 +65,10 @@ def test_options_label_mapping_keeps_boolean_gates_untouched():
 
     Guaranteed behavior: a boolean-styled gate answer stays raw, the list it
     gates is skipped, and the review never lists the gate."""
-    from app.settings.form import events as ev
-    from app.settings.form.form import decide
-    from app.settings.form.form_state import Origin, Setup, new_session
-    from app.settings.form.responses.responses import to_document
+    from app.forms.form import events as ev
+    from app.forms.form.form import decide
+    from app.forms.form.form_state import Origin, Setup, new_session
+    from app.forms.form.responses.responses import to_document
     from tests.forms.form.gate_fixtures import gated_list
 
     definition = gated_list()
@@ -124,15 +124,15 @@ async def test_edit_dropdown_names_a_composition_entry_by_its_configuration_titl
     belonged.
 
     Shared behavior affected: the edit picker options
-    (app/settings/form/actions/manage.py, edit_options), consumed by every command with
+    (app/forms/form/actions/manage.py, edit_options), consumed by every command with
     a composition (block_links today, twitch/youtube/birthday through the
     same screen).
 
     Guaranteed behavior: the option label is the configuration title with its
     position, the stored value identifies the entry in the option description,
     and no markdown leaks into either."""
-    from app.settings.form.form_yaml import registry
-    from app.settings.form.responses.summary import edit_options
+    from app.forms.form.form_yaml import registry
+    from app.forms.form.responses.summary import edit_options
 
     cogs = {
         "enabled": True,
@@ -185,7 +185,7 @@ async def test_two_changes_in_a_row_on_the_same_screen_both_save(
     dropped as a duplicate and the session stayed COMMITTING, which rejects
     every later click as busy.
 
-    Shared behavior affected: Runtime._commit (app/settings/discord/
+    Shared behavior affected: Runtime._commit (app/forms/discord/
     entrypoints.py), the single path that feeds a commit's outcome back into
     the engine for every command.
 
@@ -208,7 +208,7 @@ async def test_two_changes_in_a_row_on_the_same_screen_both_save(
     ], "every click on the screen must save, not only the first"
 
     await scenario.click("back")
-    busy = ml("commands.form-notices.busy", locale="pt-br")
+    busy = ml("texts.notices.busy", locale="pt-br")
     said_busy = [
         event for event in scenario.outputs
         if busy and busy in (event.get("content") or "")
@@ -235,7 +235,7 @@ async def test_a_change_that_keeps_its_screen_never_says_it_is_thinking(
     change that keeps its screen writes under the same kind and answers by
     editing the message instead, so nothing ever resolved the thinking state.
 
-    Shared behavior affected: Executor._execute (app/settings/discord/
+    Shared behavior affected: Executor._execute (app/forms/discord/
     executor.py), which runs the Commit effect of every command.
 
     Guaranteed behavior: a quiet commit answers its click without ever
@@ -273,7 +273,7 @@ COG = {
 
 
 def _bm(key, locale="pt-br"):
-    return ml(f"commands.commands.commons.block-links-manager.{key}", locale=locale)
+    return ml(f"block_links.{key}", locale=locale)
 
 
 def keyspace_walks(deps, monkeypatch):
@@ -311,14 +311,14 @@ async def stats_description(scenario_factory):
         "block_links", dict(COG)
     )
     await scenario.click(ml("buttons.stats.label", locale="pt-br"))
-    stats = scenario.expect_message(title_contains=ml("commands.commands.commons.stats.title.block-links", locale="pt-br"))
+    stats = scenario.expect_message(title_contains=ml("block_links.command.stats.title", locale="pt-br"))
     await scenario.finish()
     return (stats.get("embed") or {}).get("description") or ""
 
 
 async def leave(guild_id):
     """Keiko is removed from a server: the gateway event `Events.on_guild_remove` handles."""
-    from app.cogs.events import Events
+    from app.core.events import Events
 
     await Events(SimpleNamespace(user=SimpleNamespace(id=99), guilds=[])).on_guild_remove(
         SimpleNamespace(id=int(guild_id), owner=None, owner_id=313)
@@ -334,12 +334,12 @@ async def test_the_stats_total_is_the_servers_lifetime_and_redis_holds_no_count(
     keys of v0.9.0 the Stats still read, and in `guild.block_links_totals`; the Stats
     summed the hash and the loose keys, and leaving a server deleted them by name.
 
-    Shared behaviour: the analytics sink, the only writer of a number (`analytics.*`),
+    Shared behaviour: the analytics writer, the only writer of a number (`analytics.*`),
     and the Stats aside of block links. Consumer that exposed it: block links (database
     PR 2, "No feature increments a counter").
 
     Guaranteed: a blocked link writes no counter of its own, in Redis or Mongo; the
-    Stats' all-time total is the server's lifetime count the sink keeps, one more for
+    Stats' all-time total is the server's lifetime count the analytics writer keeps, one more for
     the link just blocked; the top sites
     and the top member come from the records of the last 90 days; nothing walks the
     keyspace."""
@@ -359,7 +359,7 @@ async def test_the_stats_total_is_the_servers_lifetime_and_redis_holds_no_count(
     assert walks == [], f"the Stats walked the keyspace: {walks}"
     assert deps.redis_client.keys(f"guild:{GUILD_ID}:block_links:*") == []
     assert "block_links_totals" not in deps.mongo_client.guild.list_collection_names()
-    assert f"**{_bm('stats.fields.total')}:** 7" in description
+    assert f"**{_bm('command.stats.figures.total')}:** 7" in description
     assert "`spam-site.com` (1)" in description and "`old.com` (1)" in description
 
 
@@ -384,14 +384,14 @@ async def test_the_sites_and_the_member_come_from_the_last_90_days_of_blocks(
     assert "ancient.com" not in description and "<@999>" not in description
     assert "`spam-site.com` (3)" in description
     assert "<@111> (2)" in description
-    assert f"**{_bm('stats.fields.recent')}:** 3" in description
+    assert f"**{_bm('command.stats.figures.recent')}:** 3" in description
 
 
 @pytest.mark.shared_contract("config_cache")
 async def test_forgetting_a_servers_settings_never_walks_the_keyspace(deps, monkeypatch):
     """The settings cache forgets its own keys, by name."""
     seed_cog(deps.mongo_client, "block_links", dict(COG))
-    cache.get_cog_data_or_populate(GUILD_ID, Commands.BLOCK_LINKS_KEY)
+    await cache.read_cog_data(GUILD_ID, "block_links")
     walks = keyspace_walks(deps, monkeypatch)
 
     cache.remove_all_cache_by_guild(GUILD_ID)
@@ -424,7 +424,7 @@ async def test_the_stats_never_freeze_the_bot(deps, monkeypatch):
     async def send(**kwargs):
         sent.append(kwargs)
 
-    from app.settings.features import feature_for
+    from app.forms.features import feature_for
     from tests.mocks.discord import create_guild
 
     guild = create_guild(id=int(GUILD_ID))
@@ -435,12 +435,12 @@ async def test_the_stats_never_freeze_the_bot(deps, monkeypatch):
         locale="pt-BR",
         followup=SimpleNamespace(send=send),
     )
-    stats = feature_for(Commands.BLOCK_LINKS_KEY).asides()["stats"]
+    stats = feature_for("block_links").asides()["stats"]
 
     ticks = await ticks_while(stats.handler(interaction, []))
 
     assert ticks >= MIN_TICKS
-    assert sent and _bm("stats.empty") in sent[0]["embed"].description
+    assert sent and _bm("command.stats.empty") in sent[0]["embed"].description
 
 
 PINGING_COG = {
@@ -516,3 +516,39 @@ async def test_a_failed_delete_names_the_websites_never_the_links(
         if key != "message_preview" and "s3cr3t" in str(value)
     }
     assert copied == {}, f"the error context copied a member's link: {copied}"
+
+
+@pytest.mark.parametrize("locale", ["en-US", "pt-BR"])
+async def test_the_link_check_closes_with_the_report_line_where_markdown_renders(
+    mock_cache, guild, channel, member, locale
+):
+    """Broke as: the "Check Link Blocking" answer put the /report line in the
+    embed footer through `set_footer`, which renders no markdown, so the admin
+    read "Use the `/report` command" with its backticks showing; moved into the
+    body, the line then drew under the title, above the three fields. Shared
+    behaviour: the standard closing line of a response embed (`response_embed`
+    and `with_footer` in app/ui/embed.py). Consumer that exposed it: the link
+    check context menu (`send_link_check_message`). Guaranteed: the check has no
+    body, and closes with the standard line as subtext in a last field under its
+    three fields, never in the embed footer, in both locales.
+    """
+    from app.ui.embed import standard_footer
+    from tests.mocks.discord import MockInteraction
+
+    mock_cache.return_value = dict(COG)
+    interaction = MockInteraction(
+        user=member, guild=guild, channel=channel, locale=locale
+    )
+    message = create_message(channel, member, "olha https://spam.com")
+
+    await block_links.send_link_check_message(interaction, message)
+
+    embed = interaction._responses[-1]["embed"]
+    line = standard_footer(locale.lower()).removeprefix("• ")
+    assert "`/report" in line
+    assert embed.footer.text is None, "an embed footer shows backticks raw"
+    assert embed.description is None, "nothing between the title and the fields"
+    *steps, closing = embed.fields
+    assert len(steps) == 3
+    assert (closing.name, closing.value) == ("\u200b", f"-# • {line}")
+    assert not closing.inline

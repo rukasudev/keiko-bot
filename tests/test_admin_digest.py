@@ -10,8 +10,8 @@ from types import SimpleNamespace
 import pytest
 
 from app.data import wait
-from app.services import admin_digest
-from app.core import analytics, analytics_sink
+from app.commands.admin import digest as admin_digest
+from app.core import analytics, analytics_writer
 from tests.generators.moderations import seed_cog
 from tests.generators.events import age_events, record_event
 
@@ -28,7 +28,7 @@ def flush_as_of(days):
     batch = analytics.drain()
     for envelope in batch:
         envelope["ts"] = moment
-    wait(analytics_sink.persist(batch))
+    wait(analytics_writer.persist(batch))
 
 
 def age_everything(deps, days):
@@ -194,7 +194,7 @@ async def test_the_digest_goes_out_on_monday_in_utc_whatever_the_host_clock_says
     checked was the host's local one, so on a host behind UTC a Monday 09:00 UTC run
     read Sunday and the week's digest never went out. Guaranteed: the digest is
     sent when it is Monday in UTC."""
-    from app.cogs import analytics as analytics_cog
+    from app.commands.admin import digest as analytics_cog
 
     monday = datetime(2026, 11, 16, 9, 0, tzinfo=timezone.utc)
 
@@ -205,13 +205,13 @@ async def test_the_digest_goes_out_on_monday_in_utc_whatever_the_host_clock_says
 
     monkeypatch.setattr(analytics_cog, "datetime", HostBehindUtc)
     channel = SentTo()
-    cog = analytics_cog.Analytics.__new__(analytics_cog.Analytics)
+    cog = analytics_cog.WeeklyDigest.__new__(analytics_cog.WeeklyDigest)
     cog.bot = SimpleNamespace(
         get_channel=lambda channel_id: channel,
         config=SimpleNamespace(ADMIN_LOGS_CHANNEL_ID=1),
         guilds=[],
     )
 
-    await analytics_cog.Analytics.send_weekly_digest.coro(cog)
+    await analytics_cog.WeeklyDigest.send_weekly_digest.coro(cog)
 
     assert len(channel.embeds) == 1, "Monday in UTC sent no digest"

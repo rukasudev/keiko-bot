@@ -1,18 +1,18 @@
 steps:
-  - action: form
+  - type: intro
     key: form
     title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
     description: {en-us: intro, pt-br: intro}
-  - action: configuration_card
+  - type: card
     key: card
     title: {en-us: Card, pt-br: Card}
     description: {en-us: card, pt-br: card}
     sections:
       - key: streamer
-        icon: "🎮"
-        type: modal-input
+        emoji: "🎮"
+        type: modal_input
         label: {en-us: Streamer, pt-br: Streamer}
-        state:
+        keys:
           value: streamer
         fills:
           into: messages
@@ -20,10 +20,10 @@ steps:
             streamer: "{value}"
         modal:
           title: {en-us: Streamer, pt-br: Streamer}
-          fields:
+          inputs:
             - key: streamer
               label: {en-us: Nick, pt-br: Nick}
-  - action: resume
+  - type: review
     key: confirm
     title: {en-us: "ok?", pt-br: "ok?"}
     description: {en-us: review, pt-br: review}

@@ -12,7 +12,7 @@ from redis.exceptions import ConnectionError as RedisConnectionError
 
 from app.data import data, wait
 from app.constants import Commands as constants
-from app.core import analytics, analytics_sink
+from app.core import analytics, analytics_writer
 from app.core.trace import trace_scope
 from tests.generators.events import record_event, stored
 
@@ -41,7 +41,7 @@ def test_an_interaction_is_written_in_the_sinks_batch():
 
 def test_a_change_is_written_at_once_and_counted_by_the_sink():
     """A change is the history a panel lists: it is in the database as soon as
-    `record` returns, before any flush, and the sink still counts it."""
+    `record` returns, before any flush, and the analytics writer still counts it."""
     record_event("feature.paused", guild_id="11", feature="block_links", source="manager")
 
     [change] = wait(data().events_changes.find_by_guild("11"))
@@ -49,7 +49,7 @@ def test_a_change_is_written_at_once_and_counted_by_the_sink():
     assert change["cog"] == "block_links"
 
     wait(analytics.flush())
-    assert stored("11") == [change], "the sink wrote the change a second time"
+    assert stored("11") == [change], "the analytics writer wrote the change a second time"
     day = list(wait(data().analytics_counts.find_by_guild("11"))[0]["days"].values())[0]
     assert day["feature_paused|block_links"] == 1
 
@@ -96,7 +96,7 @@ def test_delivery_advances_the_guild_profile_counters():
 
 
 def test_one_batch_keeps_the_first_and_the_last_value_in_time_whatever_their_order():
-    """Broke as: the sink folded every event of a batch into one update by keeping the
+    """Broke as: the analytics writer folded every event of a batch into one update by keeping the
     last event's timestamp, so `$min` and `$max` got the batch's last moment, and a
     server's first value read as a later one and its last value as an earlier one.
 
@@ -186,7 +186,46 @@ def test_only_a_greeting_posted_on_a_channel_stamps_the_profile():
     ] == [False]
 
 
-def test_the_sink_writes_no_counter_to_redis(redis_client):
+def test_the_removal_snapshot_reports_what_the_lifetime_holds():
+    """The snapshot reads its counted fields from the catalog's `lifetime` blocks, and
+    `guild.removed` reports every prop it declares with the numbers the lifetime holds."""
+    from app.core import analytics_reports
+
+    _flush(
+        ("guild.joined", {"guild_id": "67"}),
+        ("guild.greeting_sent", {
+            "guild_id": "67", "features_offered": 7, "channel_found": True,
+        }),
+        ("setup.completed", {
+            "guild_id": "67", "user_id": "1", "feature": "block_links", "source": "slash",
+        }),
+        ("setup.discarded", {"guild_id": "67", "feature": "welcome_messages"}),
+        ("value.blocked_by_permission", {
+            "guild_id": "67", "feature": "welcome_messages", "error_type": "Forbidden",
+        }),
+        ("value.delivered", {"guild_id": "67", "feature": "block_links"}),
+    )
+
+    snapshot = wait(analytics_reports.guild_snapshot("67"))
+
+    assert snapshot == {
+        "days_in_guild": 0,
+        "features_configured": 2,
+        "features_active": 1,
+        "days_since_last_value": 0,
+        "setups_completed": 1,
+        "setups_discarded": 1,
+        "value_events": 1,
+        "permission_failures": 1,
+        "distinct_admins": 1,
+        "greeting_sent": True,
+        "first_feature": "block_links",
+    }
+    assert set(snapshot) == set(analytics.events_catalog()["guild.removed"].props)
+    assert wait(analytics_reports.guild_snapshot("68"))["greeting_sent"] is False
+
+
+def test_the_analytics_writer_writes_no_counter_to_redis(redis_client):
     _flush(("value.delivered", {"guild_id": "70", "feature": "block_links"}))
 
     assert redis_client.keys("guild:70:analytics:*") == [], (
@@ -239,8 +278,8 @@ def test_keiko_sums_every_server_by_day_and_counts_each_command():
         }),
         ("command.failed", {"command": "birthday", "error_type": "Forbidden"}),
     )
-    month = analytics_sink.now().strftime("%Y-%m")
-    day = analytics_sink.now().strftime("%d")
+    month = analytics_writer.now().strftime("%Y-%m")
+    day = analytics_writer.now().strftime("%d")
 
     daily = _keiko(f"day:{month}")
     assert daily["month"] == month
@@ -257,19 +296,19 @@ def test_keiko_sums_every_server_by_day_and_counts_each_command():
 
 def test_a_blocked_link_adds_to_keikos_total_and_its_sites_naming_no_one():
     """Broke as: block links counted Keiko's own total itself, in
-    `guild.block_links_totals`, beside the event it emitted. Guaranteed: the sink
+    `guild.block_links_totals`, beside the event it emitted. Guaranteed: the analytics writer
     derives `blocked:total` and `blocked:site:{host}` from `link.blocked`, and those
     documents name no server and no member."""
     batch = [
         {
-            "type": "link.blocked", "ts": analytics_sink.now(), "guild_id": guild,
+            "type": "link.blocked", "ts": analytics_writer.now(), "guild_id": guild,
             "actor": {"kind": "user", "id": "111"}, "cog": "block_links",
             "props": {"host": host},
         }
         for guild, host in (("74", "spam-site.com"), ("75", "spam-site.com"), ("74", "x.io"))
     ]
 
-    wait(analytics_sink.persist(batch))
+    wait(analytics_writer.persist(batch))
 
     documents = {
         document["_id"]: {
@@ -289,7 +328,7 @@ def test_a_blocked_link_adds_to_keikos_total_and_its_sites_naming_no_one():
 
 
 def test_a_commands_latency_lands_in_its_bucket_and_a_slow_run_is_kept(deps):
-    started = analytics_sink.now()
+    started = analytics_writer.now()
     closed = [
         {"command": "birthday", "ts": started, "duration_ms": 120, "run": None},
         {"command": "birthday", "ts": started, "duration_ms": 2600, "run": {
@@ -300,7 +339,7 @@ def test_a_commands_latency_lands_in_its_bucket_and_a_slow_run_is_kept(deps):
         }},
     ]
 
-    wait(analytics_sink.persist_runs(closed))
+    wait(analytics_writer.persist_runs(closed))
 
     month, day = started.strftime("%Y-%m"), started.strftime("%d")
     assert _keiko(f"commands:{month}")["days"][day]["birthday"]["ms"] == {
@@ -313,9 +352,9 @@ def test_a_commands_latency_lands_in_its_bucket_and_a_slow_run_is_kept(deps):
 def test_the_latency_buckets_follow_the_edges_the_constants_name():
     edges = constants.COMMAND_LATENCY_EDGES_MS
 
-    assert analytics_sink.latency_bucket(0) == f"0-{edges[0]}"
-    assert analytics_sink.latency_bucket(edges[0]) == f"{edges[0]}-{edges[1]}"
-    assert analytics_sink.latency_bucket(edges[-1] * 10) == f"{edges[-1]}+"
+    assert analytics_writer.latency_bucket(0) == f"0-{edges[0]}"
+    assert analytics_writer.latency_bucket(edges[0]) == f"{edges[0]}-{edges[1]}"
+    assert analytics_writer.latency_bucket(edges[-1] * 10) == f"{edges[-1]}+"
 
 
 def test_a_servers_admins_are_counted_once_each_up_to_the_cap(monkeypatch):
@@ -369,7 +408,7 @@ def test_a_counter_never_outlives_its_window_when_redis_drops_midway(
     """Broke as: `increment_redis_key_with_expiration` sent INCRBY and EXPIRE in two
     round trips, so a connection lost between them left an analytics counter with no
     TTL, kept forever. Shared behaviour: every expiring counter (the attempt count of
-    `analytics.count_attempt`, the hot window of `analytics_sink`). Guaranteed: a
+    `analytics.count_attempt`, the hot window of `analytics_writer`). Guaranteed: a
     counter is written with its TTL in one round trip, or not at all."""
     from app.core import cache
 
@@ -385,10 +424,10 @@ def test_a_counter_never_outlives_its_window_when_redis_drops_midway(
 
 
 def test_metric_keys_drop_the_dots_mongo_would_read_as_nesting():
-    assert analytics_sink.metric_key("value.delivered", "block_links") == (
+    assert analytics_writer.metric_key("value.delivered", "block_links") == (
         "value_delivered|block_links"
     )
-    assert analytics_sink.metric_key("guild.joined", None) == "guild_joined"
+    assert analytics_writer.metric_key("guild.joined", None) == "guild_joined"
 
 
 def test_events_without_a_guild_never_reach_the_per_guild_stores():

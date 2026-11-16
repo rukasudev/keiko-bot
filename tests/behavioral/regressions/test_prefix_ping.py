@@ -23,7 +23,7 @@ pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
 
 async def say(bot, guild, content):
-    from app.cogs import events as events_module
+    from app.core import events as events_module
 
     author = create_member(guild, id=111, name="TestUser")
     message = create_message(content=content, author=author, channel=guild.text_channels[0])
@@ -57,7 +57,7 @@ async def test_ping_answers_pong_and_the_latency_in_the_servers_language(
 async def test_the_slash_ping_answers_with_the_same_embed(deps):
     from unittest.mock import AsyncMock, MagicMock
 
-    from app.cogs.base.ping import Ping
+    from app.commands.help.ping import Ping
 
     deps.bot.latency = 0.0421
     interaction = MagicMock()

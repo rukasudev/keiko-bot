@@ -6,16 +6,25 @@ Every call waits at most `Dependencies.HTTP_CONNECT_TIMEOUT_SECONDS` to connect 
 `timeout`, and is counted in `keiko_dependency_latency_seconds` under the dependency
 it names (docs/analytics.md).
 """
-from typing import Any, Dict
+from typing import Any, Callable, Concatenate, Dict, Optional, ParamSpec, TypeVar
 
 import requests
 
 from app.constants import Dependencies
 from app.core import metrics
+from app.types.integration import IntegrationBase
+
+P = ParamSpec("P")
+R = TypeVar("R")
+IntegrationT = TypeVar("IntegrationT", bound=IntegrationBase)
 
 
-def check_integration_enabled(func):
-    def wrapper(self, *args, **kwargs):
+def check_integration_enabled(
+    func: Callable[Concatenate[IntegrationT, P], R],
+) -> Callable[Concatenate[IntegrationT, P], Optional[R]]:
+    """The call, skipped with None while the integration is off."""
+
+    def wrapper(self: IntegrationT, /, *args: P.args, **kwargs: P.kwargs) -> Optional[R]:
         if not self.enabled:
             return None
         return func(self, *args, **kwargs)

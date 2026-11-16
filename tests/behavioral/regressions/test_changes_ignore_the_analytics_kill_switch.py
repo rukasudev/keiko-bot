@@ -26,7 +26,7 @@ GUILD_ID = "123456789"
 async def test_a_pause_with_analytics_off_still_lists_in_the_history(
     scenario_factory, deps, monkeypatch
 ):
-    from app.services.setup import guild_history, history_fields
+    from app.commands.setup.service import guild_history, history_fields
 
     monkeypatch.setattr(analytics, "_ENABLED", False)
 

@@ -14,6 +14,8 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, Optional, Set
 
+import discord
+
 from app.constants import Commands as constants
 from app.core.trace import Trace, keep_run
 
@@ -439,3 +441,43 @@ def install() -> None:
 
 def outcome_icon(outcome: Optional[str]) -> str:
     return OUTCOME_ICONS.get(outcome, "•")
+
+
+class JourneyRefreshButton(
+    discord.ui.DynamicItem[discord.ui.Button],
+    template=r"journey:refresh:(?P<session_id>[A-Za-z0-9_-]+)",
+):
+    """Redraws a session's log message from its stored events, on demand."""
+
+    def __init__(self, session_id: str) -> None:
+        self.session_id = session_id
+        super().__init__(
+            discord.ui.Button(
+                label="Refresh",
+                emoji="🔄",
+                style=discord.ButtonStyle.grey,
+                custom_id=f"journey:refresh:{session_id}",
+            )
+        )
+
+    @classmethod
+    async def from_custom_id(cls, interaction, item, match):
+        return cls(match["session_id"])
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        from app.logger import build_trace_embed
+
+        story = await rebuild(self.session_id)
+        if not story:
+            return await interaction.response.defer()
+
+        await interaction.response.edit_message(
+            embed=build_trace_embed(story), view=self.view
+        )
+
+
+def journey_message_view(session_id: str) -> discord.ui.View:
+    """The refresh control that rides along with a session's log message."""
+    view = discord.ui.View(timeout=None)
+    view.add_item(JourneyRefreshButton(session_id))
+    return view

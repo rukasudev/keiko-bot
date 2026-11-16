@@ -106,8 +106,8 @@ def test_each_structure_that_can_grow_is_a_series_of_its_own():
     the scrape; a structure that cannot be read is NaN and the scrape goes on."""
     import math
 
-    from app.cogs.prometheus import watch_held_entries
-    from app.settings.discord.callbacks import RUNTIME
+    from app.core.monitoring import watch_held_entries
+    from app.forms.discord.callbacks import RUNTIME
 
     bot = SimpleNamespace(
         cached_messages=["one", "two"],

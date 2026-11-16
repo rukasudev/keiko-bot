@@ -8,7 +8,7 @@ the story closed as abandoned. Once Cancel with nothing answered stopped
 asking (ux-552), this became one click.
 
 Shared behavior affected: `_discard` and the child ending
-(`ResumeParent`, `ChildFinished`, app/settings/form/form.py) and the
+(`ResumeParent`, `ChildFinished`, app/forms/form/form.py) and the
 adapter's closing of a root session (`Runtime._run`, `Runtime._close`).
 
 Exposed by: notifications_twitch and notifications_youtube_video, Cancel
@@ -21,8 +21,8 @@ nothing is abandoned afterwards.
 import pytest
 
 from app.core import analytics
-from app.settings.discord.callbacks import RUNTIME
-from app.settings.form.form_state import Status
+from app.forms.discord.callbacks import RUNTIME
+from app.forms.form.form_state import Status
 
 pytestmark = [
     pytest.mark.behavioral,

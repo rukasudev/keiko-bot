@@ -1,0 +1,31 @@
+command:
+  slash:
+    name:
+      en-us: support
+      pt-br: suporte
+    description:
+      en-us: Keiko shows you how you can get help through your official server
+      pt-br: Keiko mostra como você pode obter ajuda atráves do seu servidor oficial
+
+ui:
+  # open: response names -> a Response
+  responses:
+    support:
+      title:
+        en-us: 💌 Support
+        pt-br: 💌 Suporte
+      description:
+        en-us: "[✨ Click here to join my official server ✨](https://discord.gg/Hdg239Cvbd)"
+        pt-br: "[✨ Clique aqui para entrar no meu servidor oficial ✨](https://discord.gg/Hdg239Cvbd)"
+      footer:
+        en-us: Use the `{context:commands.help}` command to better understand how to use the available commands.
+        pt-br: Use o comando `{context:commands.help}` para entender melhor como usar os comandos disponíveis.
+      # open: field names -> a ResponseField
+      fields:
+        how_to:
+          title:
+            en-us: How to ask for help 🙋‍♂️
+            pt-br: Como pedir ajuda 🙋‍♂️
+          value:
+            en-us: "1. Go to the **#support** channel and describe your problem \n2. Wait for a team member to respond \n3. If necessary, a team member will call you to a private support room"
+            pt-br: "1. Vá até o canal **#support** e descreva seu problema \n2. Aguarde um membro da equipe responder \n3. Se necessário, um membro da equipe irá te chamar para uma sala de suporte privada"

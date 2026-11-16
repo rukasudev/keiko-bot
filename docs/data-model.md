@@ -25,7 +25,7 @@ key. How the change then reaches the database is in `docs/migrations.md`.
   `"twitch:{login}"`. A lookup by `_id` needs no other index, and a repeated write
   cannot create a second document.
 - **One fact, one place.** What happens becomes one event, once. Counts and
-  summaries come from it through the analytics sink. No feature increments a
+  summaries come from it through the analytics writer (`app/core/analytics_writer.py`). No feature increments a
   counter.
 - **Redis never holds the truth.** Only four key prefixes, each by role, and every
   key has a TTL: `cache:` (a copy of a document), `claim:` (I already did this),
@@ -60,7 +60,7 @@ contract) and a later schema file drops them.
 | `traces` | `runs` | unit of work that failed or took over 2 s | the trace, written in the batch | new | database PR 2 |
 | `migrations` | `changelog`, `lock` | applied file; the one lock | the ledger and the lock of `docs/migrations.md` | the same | database PR 1 |
 
-Only the analytics sink writes to `analytics`. Log lines (`guild.logs`, 30 days)
+Only the analytics writer writes to `analytics`. Log lines (`guild.logs`, 30 days)
 do not move: they leave Mongo for a log service in a later pull request.
 `guild.analytics_archives` and `guild.logs_files` stay where they are until database
 PR 2 moves them to `keiko.schedules`. The Stream Elements channel id is not a
@@ -131,7 +131,7 @@ is the server's.
 user_id, cog)` returns `{guild_id, user_id, **options[cog], state: {display_name,
 **state[cog]}}`, and the file never names a cog. What a birthday is (its defaults, the
 merge that keeps `self_edit_count`, the year celebrated) lives in
-`app/services/reminders_birthdays.py`. `app/data/keiko/schedules.py` takes the kind:
+`app/commands/birthdays/service.py`. `app/data/keiko/schedules.py` takes the kind:
 `schedule_id(kind, *subject)`, `find_schedules_by_reminder(reminder_id, kind)`,
 `find_schedules_missing_reminder(kind, limit)`; each kind's ids live in the service
 that owns it (`birthday_schedule_id`, `youtube_renewal_id`).
@@ -177,7 +177,7 @@ events.changes | events.activity | events.interactions
 One call writes every event: `analytics.record(type, guild_id=, cog=, actor=,
 props=, session_id=)` (`app/core/analytics.py`, `docs/analytics.md` section 1).
 A change is written at once and kept; activity and interactions are written in
-the analytics sink's batch and expire 90 days after `ts`; a type whose
+the analytics writer's batch and expire 90 days after `ts`; a type whose
 collection is `none` (`value.delivered`) has no document and is only counted.
 `app/data/events/{changes,activity,interactions}.py` read and delete them by
 server, cog, type, time and actor, every read with its Mongo limit, and never

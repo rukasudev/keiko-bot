@@ -30,7 +30,7 @@ LEGACY_COG = {
 async def test_editing_a_never_edited_panel_still_records_a_timestamp(
     scenario_factory, deps
 ):
-    from app.services.block_links import normalize_block_links_config
+    from app.commands.block_links.service import normalize_block_links_config
 
     seed_cog(deps.mongo_client, "block_links", dict(LEGACY_COG))
     scenario = await scenario_factory(locale="pt-br").start_manager(

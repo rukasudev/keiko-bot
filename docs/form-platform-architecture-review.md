@@ -1,5 +1,9 @@
 # Keiko Form Platform — Architecture Review
 
+> A dated record: the paths below are the ones of its day, before the command-folder
+> tree (`app/commands/<command>/`, `app/core`, `app/forms`, `app/ui`); the current map
+> is `CLAUDE.md`.
+
 Date: 2026-09-13. Scope: the Form + YAML + State subsystem (`app/views/form.py`,
 `app/views/form_state.py`, `app/views/manager.py`, `app/views/summary_card.py`,
 `app/views/composition.py`, `app/views/edit.py`, `app/views/remove.py`,

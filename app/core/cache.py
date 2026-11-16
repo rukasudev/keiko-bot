@@ -10,10 +10,12 @@ from pymongo.errors import PyMongoError
 from redis.exceptions import RedisError
 
 from app import logger, redis_client
-from app.constants import Commands, DBConfigs
+from app.constants import DBConfigs
 from app.constants import LogTypes as logconstants
-from app.data import data, wait
+from app.data import data
 from app.core.cogs import is_feature_on
+from app.core.commands import setup_features
+from app.core.threads import to_thread
 from app.core.trace import outside_any_trace
 
 _lock = threading.Lock()
@@ -52,13 +54,14 @@ def count_keys() -> int:
     return redis_client.dbsize()
 
 
-def get_cog_data_or_populate(
-    guild_id: str, key: str, manager: bool = False
+async def read_cog_data(
+    guild_id: Any, key: str, manager: bool = False
 ) -> Optional[Dict[str, Any]]:
-    """A feature's settings for a guild: None when nothing is saved, `{}` when it is off."""
-    raw = _cached(_cog_key(guild_id, key))
+    """A feature's settings for a guild, Redis first and Mongo awaited on a miss: None
+    when nothing is saved, `{}` when it is off."""
+    raw = await to_thread(_cached, _cog_key(guild_id, key))
     if raw is None:
-        raw = _stored(str(guild_id), key)
+        raw = await _stored(str(guild_id), key)
 
     document = json_util.loads(raw) if raw else None
     if document is None:
@@ -79,7 +82,7 @@ def remove_all_cache_by_guild(guild_id: str) -> None:
     """Forget every feature's cached settings for a guild, in this process and in Redis."""
     prefix = _cog_key(guild_id, "")
     with _lock:
-        features = [_cog_key(guild_id, spec["command_key"]) for spec in Commands.SETUP_FEATURES]
+        features = [_cog_key(guild_id, command.key) for command in setup_features()]
         remembered = [known for known in _last_known if known.startswith(prefix)]
         keys = sorted({*features, *remembered})
         for redis_key in keys:
@@ -184,7 +187,7 @@ def _cached(redis_key: str) -> Optional[str]:
     return raw
 
 
-def _stored(guild_id: str, key: str) -> str:
+async def _stored(guild_id: str, key: str) -> str:
     redis_key = _cog_key(guild_id, key)
     with _lock:
         generation = _generations.get(redis_key, 0)
@@ -196,7 +199,7 @@ def _stored(guild_id: str, key: str) -> str:
         raise copy.copy(_errors["mongo"])
 
     try:
-        document = wait(data().guild_cogs.find_cog_by_guild_id(guild_id, key))
+        document = await data().guild_cogs.find_cog_by_guild_id(guild_id, key)
     except PyMongoError as error:
         _fail("mongo", error, warn=known is not None)
         if known is None:
@@ -206,7 +209,7 @@ def _stored(guild_id: str, key: str) -> str:
     _recover("mongo")
     raw = json_util.dumps(document) if document else ""
     if _remember(redis_key, raw, generation):
-        _store(redis_key, raw, generation)
+        await to_thread(_store, redis_key, raw, generation)
     return raw
 
 

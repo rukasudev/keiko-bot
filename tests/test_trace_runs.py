@@ -15,7 +15,7 @@ import pytest
 from app.data import data, wait
 from app.constants import Commands as constants
 from app.core import analytics, journey, trace
-from app.core.analytics_sink import now
+from app.core.analytics_writer import now
 
 pytestmark = pytest.mark.unit
 

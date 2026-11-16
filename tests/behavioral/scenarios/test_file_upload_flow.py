@@ -76,7 +76,7 @@ async def test_a_welcome_custom_image_is_required_only_for_custom_designs(
     await scenario.select_option("custom_only", target="welcome_design")
 
     await scenario.click("done")
-    scenario.expect_error(ml("buttons.summary-card.required", "pt-br").split(":")[0])
+    scenario.expect_error(ml("errors.required_fields.message", "pt-br").split(":")[0])
 
     await scenario.click("customize:3")
     await scenario.submit_file_upload(filename="banner.png", content=b"\x89PNG-fake")

@@ -1,0 +1,20 @@
+steps:
+  - type: intro
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - type: text
+    key: name
+    title: {en-us: Name, pt-br: Nome}
+    description: {en-us: type, pt-br: digite}
+  - type: single_choice
+    key: match_type
+    condition: {key: name, matches: "[/?]"}
+    title: {en-us: Match, pt-br: Alcance}
+    description: {en-us: pick, pt-br: escolha}
+    options:
+      - {label: {en-us: Domain, pt-br: Domínio}, value: domain}
+  - type: review
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

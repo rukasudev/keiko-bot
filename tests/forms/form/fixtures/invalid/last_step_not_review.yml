@@ -1,9 +1,9 @@
 steps:
-  - action: form
+  - type: intro
     key: form
     title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
     description: {en-us: intro, pt-br: intro}
-  - action: modal
+  - type: text
     key: name
     title: {en-us: Name, pt-br: Nome}
     description: {en-us: type, pt-br: digite}

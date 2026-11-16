@@ -36,8 +36,8 @@ import pytest
 import requests
 from PIL import Image
 
-from app.constants import WelcomeDesign
-from app.services import welcome_messages
+from app.constants import Commands
+from app.commands.welcome import service as welcome_messages
 from app.core import images
 from tests.mocks import create_member
 from tests.mocks.web import DISCORD_HOSTS, FakeWeb
@@ -48,7 +48,7 @@ REAL_CREATE_BANNER = welcome_messages.create_banner
 REAL_DRAW_BANNER = welcome_messages.draw_banner
 REAL_UPLOAD_ASSET = images.upload_asset
 UPLOADED_URL = "https://cdn.discordapp.com/attachments/999/1/uploaded.png"
-DESIGNS = [{"key": "server_blur"}, {"key": "custom_blur"}, {"key": "custom_only"}]
+DESIGNS = ["server_blur", "custom_blur", "custom_only"]
 DISCORD_EMBED_LIMIT_BYTES = 8 * 1024 * 1024
 EXPIRED = "https://cdn.discordapp.com/attachments/1/2/background.png?ex=69d5b0af&is=69d45f2f&hm=abc&"
 REFRESHED = "https://cdn.discordapp.com/attachments/1/2/background.png?ex=7fffffff&is=7ffe0000&hm=def&"
@@ -89,7 +89,7 @@ def _attached_banner(channel):
     banner = channel._send.await_args.kwargs.get("file")
     assert banner is not None, "the welcome carried no banner"
     assert channel.get_last_embed().image.url == f"attachment://{banner.filename}"
-    assert Image.open(BytesIO(banner.fp.getvalue())).size == WelcomeDesign.BANNER_SIZE
+    assert Image.open(BytesIO(banner.fp.getvalue())).size == Commands.WELCOME_BANNER_SIZE
     return banner
 
 
@@ -147,12 +147,12 @@ async def test_the_custom_image_example_is_a_light_file_discord_serves_itself(
 ):
     member = _newcomer(guild, 7001)
 
-    first = await welcome_messages.generate_design_previews(member, DESIGNS)
-    second = await welcome_messages.generate_design_previews(member, DESIGNS)
+    first = await welcome_messages.generate_design_previews(member, DESIGNS, "Welcome")
+    second = await welcome_messages.generate_design_previews(member, DESIGNS, "Welcome")
 
     assert urlparse(first["custom_only"]).hostname in DISCORD_HOSTS
     assert second["custom_only"] == first["custom_only"]
-    assert os.path.getsize(WelcomeDesign.CUSTOM_ONLY_PREVIEW) < DISCORD_EMBED_LIMIT_BYTES
+    assert os.path.getsize("app/assets/welcome/custom_only_preview.gif") < DISCORD_EMBED_LIMIT_BYTES
     gif_uploads = [
         call for call in dump_channel.send.await_args_list
         if str(getattr(call.kwargs.get("file"), "filename", "")).endswith(".gif")
@@ -165,7 +165,7 @@ async def test_the_gallery_downloads_nothing_from_outside_discord(
 ):
     member = _newcomer(guild, 7002)
 
-    previews = await welcome_messages.generate_design_previews(member, DESIGNS)
+    previews = await welcome_messages.generate_design_previews(member, DESIGNS, "Welcome")
 
     outside = [url for url in web.requested if urlparse(url).hostname not in DISCORD_HOSTS]
     assert outside == []
@@ -188,7 +188,7 @@ async def test_the_previews_are_drawn_at_the_same_time(
 
     monkeypatch.setattr(welcome_messages, "create_banner", slow_banner)
 
-    await welcome_messages.generate_design_previews(_newcomer(guild, 7003), DESIGNS)
+    await welcome_messages.generate_design_previews(_newcomer(guild, 7003), DESIGNS, "Welcome")
 
     assert peak == 2, "the server and blur banners wait for each other"
 
@@ -202,7 +202,7 @@ async def test_a_server_without_an_icon_still_gets_a_banner(
     await welcome_messages.send_welcome_message(_newcomer(guild, 7004))
 
     channel.assert_message_sent()
-    assert _attached_banner(channel).filename == WelcomeDesign.BANNER_FILENAME
+    assert _attached_banner(channel).filename == Commands.WELCOME_BANNER_FILENAME
 
 
 async def test_an_expired_custom_background_is_refreshed_before_drawing(
@@ -228,7 +228,7 @@ async def test_a_background_that_cannot_be_downloaded_still_gets_a_banner(
     await welcome_messages.send_welcome_message(_newcomer(guild, 7006))
 
     channel.assert_message_sent()
-    assert _attached_banner(channel).filename == WelcomeDesign.BANNER_FILENAME
+    assert _attached_banner(channel).filename == Commands.WELCOME_BANNER_FILENAME
 
 
 async def test_a_banner_drawn_plain_says_so_where_it_can_be_counted(
@@ -263,7 +263,7 @@ async def test_a_welcome_carries_its_banner_as_an_attachment(
 
     banner = channel._send.await_args.kwargs.get("file")
     assert banner is not None, "the banner went through the dump channel"
-    assert _attached_banner(channel).filename == WelcomeDesign.BANNER_FILENAME
+    assert _attached_banner(channel).filename == Commands.WELCOME_BANNER_FILENAME
     assert dump_channel.send.await_count == 0, "a member join posts nothing there"
 
 
@@ -349,3 +349,47 @@ def test_the_downloaded_image_cache_is_bounded(monkeypatch, web):
         images.download_image(f"https://cdn.discordapp.com/avatars/{index}/bounded.png")
 
     assert images.download_image.cache_info().currsize <= DBConfigs.IMAGE_CACHE_SIZE
+
+
+@pytest.mark.parametrize("locale", ["en-us", "pt-br"])
+async def test_a_banner_drawn_before_the_title_is_written_reads_the_welcome_copy(
+    deps, guild, dump_channel, real_banners, web, monkeypatch, locale
+):
+    """Broke as: the design gallery an admin sees before writing a title drew
+    "WELCOME", a word written in `app/commands/welcome/service.py`, so no copy
+    file held it and no locale could word it. Shared behaviour: the banner
+    drawing (`generate_design_previews`, `create_banner`, `draw_banner`).
+    Consumer that exposed it: the welcome setup gallery
+    (`WelcomeMessagesFeature.previews`). Guaranteed: a banner drawn without the
+    admin's title paints `ui.texts.banner_title` of the welcome copy, in the
+    admin's language, as the copy words it.
+    """
+    import i18n as python_i18n
+
+    from app.core import i18n
+    from app.forms.features.feature import OpenContext
+
+    key = "welcome_messages.ui.texts.banner_title"
+    written = i18n.keys(locale).get(key)
+    painted = []
+    paint = welcome_messages._paint_banner
+
+    def recorded(background, overlay, title, username, server):
+        painted.append(title)
+        return paint(background, overlay, title, username, server)
+
+    monkeypatch.setattr(welcome_messages, "_paint_banner", recorded)
+    python_i18n.add_translation(key, "Oi, gente", locale=locale)
+    member = _newcomer(guild, 7013)
+    try:
+        await welcome_messages.FEATURE.previews(
+            OpenContext(str(guild.id), str(member.id), locale, guild, member)
+        )
+    finally:
+        if written is None:
+            python_i18n.translations.container.get(locale, {}).pop(key, None)
+        else:
+            python_i18n.add_translation(key, written, locale=locale)
+
+    assert painted and set(painted) == {"OI, GENTE"}
+    assert isinstance(written, str) and written, f"the welcome copy writes no {key}"

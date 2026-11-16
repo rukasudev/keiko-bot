@@ -1,0 +1,50 @@
+# open: fact names -> a fact the code passes
+facts:
+  ticket:
+    type: text
+    description: The id of the ticket a report opened.
+
+command:
+  slash:
+    name:
+      en-us: report
+      pt-br: reportar
+    description:
+      en-us: Keiko helps you report any bugs or issues you encounter
+      pt-br: Keiko ajuda você a relatar quaisquer bugs ou problemas que encontrar
+
+ui:
+  # open: response names -> a Response
+  responses:
+    sent:
+      title:
+        en-us: 📝 Report sent!
+        pt-br: 📝 Report enviado!
+      description:
+        en-us: I've passed your report to my team! Check your DMs, I just sent you a message with more details 💌
+        pt-br: Passei seu report para a minha equipe! Olha sua DM, acabei de te mandar uma mensagem com mais detalhes 💌
+      footer: {ref: support_footer}
+    ticket:
+      title:
+        en-us: "📝 Your ticket has been created! [Ticket ID: #$ticket]"
+        pt-br: "📝 Seu ticket foi criado! [Ticket ID: #$ticket]"
+      footer: {ref: support_footer}
+      # open: field names -> a ResponseField
+      fields:
+        title:
+          title: {ref: title}
+        command:
+          title:
+            en-us: Command
+            pt-br: Comando
+        attachment:
+          title:
+            en-us: Attachment
+            pt-br: Anexo
+          empty:
+            en-us: Without attachments
+            pt-br: Sem anexos
+        description:
+          title:
+            en-us: Description
+            pt-br: Descrição

@@ -3,6 +3,7 @@
 import html
 import re
 import urllib.parse
+from typing import Optional, TypedDict
 
 import detectlanguage
 import discord
@@ -78,12 +79,21 @@ detectlanguage.configuration.api_key = app.bot.config.DETECT_LANGUAGE_API_KEY
 detectlanguage.configuration.secure = True
 detectlanguage.configuration.timeout = Dependencies.LANGUAGE_DETECTION_TIMEOUT_SECONDS
 
+class Translation(TypedDict):
+    """A message Google translated: both languages with their flags, and both texts."""
+
+    src: str
+    dest: str
+    original: str
+    translated_message: str
+
+
 class GoogleTranslate:
     pattern = r'(?s)class="(?:t0|result-container)">(.*?)<'
     message_validation = r"^(?=.*\S)(?:https?|ftp):\/\/[^\s/$.?#].[^\s]*$"
 
     @staticmethod
-    def translate(content: str, dest_locale: discord.Locale) -> str:
+    def translate(content: str, dest_locale: discord.Locale) -> Optional[Translation]:
         dest = GoogleTranslate.parse_destination_locale(dest_locale.value)
         full_dest = languages_with_flags.get(dest, "🌐")
 
@@ -92,7 +102,7 @@ class GoogleTranslate:
             full_src = languages_with_flags.get(src, "🌐")
         except (Exception, detectlanguage.DetectLanguageError) as error:
             logger.error(f"Error while detecting language: {error}", log_type=logconstants.COMMAND_ERROR_TYPE,)
-            full_src = ml("errors.translate-message.unknown-language", dest_locale)
+            full_src = ml("texts.unknown_language", dest_locale)
 
         translated_message = GoogleTranslate.google_translate(content, dest)
         if not translated_message:

@@ -53,7 +53,7 @@ async def test_pause_requires_typed_confirmation_and_pauses(scenario_factory, de
 
     await scenario.submit_confirmation()  # types the action word
     scenario.expect_message(
-        title_contains=ml("commands.command-events.paused.title", locale="pt-br"),
+        title_contains=ml("commands.responses.paused.title", locale="pt-br"),
     )
     scenario.expect_persisted(
         "guild", "block_links", {"guild_id": GUILD_ID}, {"enabled": False}
@@ -83,7 +83,7 @@ async def test_unpause_reenables_command(scenario_factory, deps):
     await scenario.submit_confirmation()
 
     scenario.expect_message(
-        title_contains=ml("commands.command-events.unpaused.title", locale="pt-br"),
+        title_contains=ml("commands.responses.unpaused.title", locale="pt-br"),
     )
     scenario.expect_persisted(
         "guild", "block_links", {"guild_id": GUILD_ID}, {"enabled": True}
@@ -100,7 +100,7 @@ async def test_disable_deletes_configuration(scenario_factory, deps):
     await scenario.submit_confirmation()
 
     scenario.expect_message(
-        title_contains=ml("commands.command-events.disabled.title", locale="pt-br"),
+        title_contains=ml("commands.responses.disabled.title", locale="pt-br"),
     )
     scenario.expect_not_persisted("guild", "block_links", {"guild_id": GUILD_ID})
 

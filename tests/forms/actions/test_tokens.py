@@ -2,13 +2,13 @@
 
 import pytest
 
-from app.settings.form.actions.action import Context, apply_tokens, description_of
-from app.settings.form.form_state import Answer, Setup, new_session
+from app.forms.form.actions.action import Context, apply_tokens, description_of
+from app.forms.form.form_state import Answer, Setup, new_session
 from tests.forms.replay import NOW, ORIGIN, REGISTRY
 
 pytestmark = pytest.mark.unit
 
-PLURAL = "{plural:roles|Role to give|Roles to give}: {response:roles:role|Empty}"
+PLURAL = "{plural:roles|Role to give|Roles to give}: {answer:roles:role|Empty}"
 
 
 def _session(answers, form="default_roles"):
@@ -108,3 +108,15 @@ def test_the_server_settings_are_context_tokens():
     filled = apply_tokens(body, _session({}), context)
 
     assert filled == "pt-br America/Sao_Paulo ", "the mention is no setting any more"
+
+
+def test_a_token_formats_its_value_by_the_format_names_of_the_form():
+    """`format` values are snake_case in the form; a token's format reads the
+    same names and formats as the saved style it maps to."""
+    from app.forms.form.responses.styles import format_value
+
+    session = _session({"date": Answer("05-12")})
+    filled = apply_tokens("{answer:date:month_day}", session, Context())
+
+    assert filled == format_value("05-12", "mm_dd", "en-us")
+    assert filled != "05-12"

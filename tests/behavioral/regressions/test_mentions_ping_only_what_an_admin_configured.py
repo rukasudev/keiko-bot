@@ -73,7 +73,7 @@ def test_by_default_keiko_pings_no_everyone_here_or_role(default):
 
 
 async def test_a_twitch_notice_still_pings_what_its_template_names(deps, default):
-    from app.services.notifications_twitch import handle_send_streamer_notification
+    from app.commands.twitch.service import handle_send_streamer_notification
 
     guild = create_guild(id=5001, channels=["lives"])
     deps.bot.get_guild = lambda guild_id: guild if int(guild_id) == guild.id else None
@@ -97,7 +97,7 @@ async def test_a_twitch_notice_still_pings_what_its_template_names(deps, default
 
 
 async def test_a_youtube_notice_still_pings_what_its_template_names(deps, default):
-    from app.services.notifications_youtube_video import VideoAnnouncement, deliver_video
+    from app.commands.youtube.service import VideoAnnouncement, deliver_video
 
     guild = create_guild(id=5001, channels=["videos"])
     deps.bot.get_guild = lambda guild_id: guild if int(guild_id) == guild.id else None
@@ -124,11 +124,10 @@ async def test_a_youtube_notice_still_pings_what_its_template_names(deps, defaul
 async def test_the_birthday_pings_everyone_exactly_when_the_server_asked(
     deps, default, monkeypatch, mention_everyone
 ):
-    from app.constants import Commands
-    from app.services.reminders_birthdays import save_birthday_config
+    from app.commands.birthdays.service import save_birthday_config
     from app.core.servers import set_feature_enabled
     from tests.generators.birthdays import saved_birthday
-    from app.webhooks import birthday_handler
+    from app.commands.birthdays import celebration as birthday_handler
 
     guild = create_guild(id=5001, channels=["birthdays"])
     create_member(guild, id=555, name="Tester")
@@ -137,7 +136,7 @@ async def test_the_birthday_pings_everyone_exactly_when_the_server_asked(
     recorded_server(deps.mongo_client, guild.id)
     await save_birthday_config(str(guild.id), str(guild.text_channels[0].id), mention_everyone)
     saved_birthday(str(guild.id), "555", "05-12", reminder_id="4001")
-    await set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
+    await set_feature_enabled(str(guild.id), "reminders_birthday", True)
 
     await birthday_handler.process_birthday_webhook("4001", "05-12")
 
@@ -149,7 +148,7 @@ async def test_the_birthday_pings_everyone_exactly_when_the_server_asked(
 async def test_the_welcome_can_name_its_new_member_and_nobody_else(
     deps, default, mock_cache, mock_banner
 ):
-    from app.services.welcome_messages import send_welcome_message
+    from app.commands.welcome.service import send_welcome_message
 
     guild = create_guild(id=5001, channels=["welcome"])
     member = create_member(guild, id=999, name="Newcomer")

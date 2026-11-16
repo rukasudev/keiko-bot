@@ -6,7 +6,7 @@ nobody reads, so the running Keiko kept logging to the old channel until a resta
 `/admin configs show` called `bot.config.get_db_configs()`, which does not exist, so the
 operator got no answer.
 
-Shared behaviour: `update_admin_configs` and `get_admin_configs` (`app/services/admin.py`)
+Shared behaviour: `update_admin_configs` and `get_admin_configs` (`app/commands/admin/service.py`)
 over keiko.settings (`app/data/keiko/settings.py`), and `AppConfig.load_db_configs`.
 Exposed by: the inventory of the writers of `configs.admin`.
 
@@ -22,6 +22,7 @@ made it as the actor and the keys it changed.
 from types import SimpleNamespace
 
 import pytest
+from discord.app_commands import Choice
 
 from app.data import data, wait
 from app.config import AppConfig
@@ -60,7 +61,7 @@ def keiko(deps):
 
 
 def _cog(bot):
-    from app.cogs.admin.configs import Configs
+    from app.commands.admin.groups.configs import Configs
 
     cog = Configs.__new__(Configs)
     cog.bot = bot
@@ -141,11 +142,11 @@ async def test_an_operator_change_is_recorded_as_a_change_of_keiko_naming_no_ser
 async def test_a_presence_change_is_recorded_as_a_change_of_keiko(keiko, deps):
     from app.core import analytics
     from app.core.trace import trace_scope
-    from app.services.config import update_status
+    from app.commands.config.service import update_status
 
-    bot = SimpleNamespace(change_presence=_presence_changed)
+    bot = SimpleNamespace(activity=None, status=None, change_presence=_presence_changed)
     async with trace_scope("config status", guild_id=4242, user_id=77):
-        await update_status(bot, SimpleNamespace(value="idle"))
+        await update_status(bot, Choice(name="idle", value="idle"))
     await analytics.written()
 
     [change] = _keiko_changes(deps)

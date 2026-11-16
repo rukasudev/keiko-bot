@@ -6,13 +6,16 @@ o que a moderacao realmente faz.
 """
 import pytest
 
-from app.services.block_links import (
+from app.commands.block_links.service import (
     MessageSubject,
     evaluate_message,
-    parse_evaluation_to_fields,
+    link_check_embed,
     send_link_check_message,
 )
+from app.constants import Style
 from tests.mocks import create_message
+
+ITEMS = ("feature", "exemptions", "links")
 
 
 def _cog(**overrides):
@@ -29,6 +32,14 @@ def _cog(**overrides):
     return cog
 
 
+def _drawn(evaluation, locale):
+    """The value of each of the three items as the check draws them."""
+    embed = link_check_embed(evaluation, locale)
+    items = [field for field in embed.fields if field.name != Style.BLANK_FIELD_NAME]
+    assert len(items) == len(ITEMS), "the check draws exactly three items"
+    return dict(zip(ITEMS, (field.value for field in items)))
+
+
 def _evaluate(content, cog=None, roles=(), channel="1"):
     return evaluate_message(
         MessageSubject(author_role_ids=tuple(roles), channel_id=channel, content=content),
@@ -40,22 +51,22 @@ def _evaluate(content, cog=None, roles=(), channel="1"):
 class TestDiagnosticFields:
     @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
     def test_always_answers_with_exactly_three_items(self, locale):
-        fields = parse_evaluation_to_fields(
+        fields = _drawn(
             _evaluate("https://spam.com"), locale
         )
 
-        assert len(fields) == 3
-        for field in fields:
-            assert field["title"] and field["value"]
-            assert "commands.commands" not in field["value"], (
-                f"missing localization key leaked into the copy: {field}"
+        assert list(fields) == ["feature", "exemptions", "links"]
+        for name, value in fields.items():
+            assert value
+            assert "block_links." not in value, (
+                f"missing localization key leaked into the copy: {name}: {value}"
             )
 
     @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
     def test_exemptions_item_reports_role_and_channel_either_way(self, locale):
         """"Quais regras passou e quais nao passou": as duas linhas aparecem
         sempre, isentas ou nao."""
-        exempt = parse_evaluation_to_fields(
+        exempt = _drawn(
             _evaluate(
                 "https://spam.com",
                 cog=_cog(allowed_roles={"values": ["77"]},
@@ -63,44 +74,44 @@ class TestDiagnosticFields:
                 roles=("77",),
             ),
             locale,
-        )[1]["value"]
+        )["exemptions"]
         assert exempt.count("\n") == 1, "uma linha de cargo e uma de canal"
         assert "<@&77>" in exempt
         assert "<#1>" in exempt
 
-        plain = parse_evaluation_to_fields(_evaluate("https://spam.com"), locale)[1]["value"]
+        plain = _drawn(_evaluate("https://spam.com"), locale)["exemptions"]
         assert plain.count("\n") == 1
         assert plain != exempt
 
     def test_link_item_names_the_rule_that_decided_each_link(self):
-        value = parse_evaluation_to_fields(
+        value = _drawn(
             _evaluate("https://youtube.com/watch?v=1 e https://spam.com"), "pt-br"
-        )[2]["value"]
+        )["links"]
 
         assert "youtube.com" in value
         assert "✅" in value and "🚫" in value
 
     def test_link_item_is_capped_and_announces_the_remainder(self):
         links = " ".join(f"https://spam{index}.com" for index in range(9))
-        value = parse_evaluation_to_fields(_evaluate(links), "pt-br")[2]["value"]
+        value = _drawn(_evaluate(links), "pt-br")["links"]
 
         assert value.count("\n") == 5, "5 links + a linha do resto"
         assert "4" in value.split("\n")[-1]
         assert len(value) <= 1024, "limite de um campo de embed"
 
     def test_paused_feature_is_reported_apart_from_missing_configuration(self):
-        paused = parse_evaluation_to_fields(
+        paused = _drawn(
             _evaluate("https://spam.com", cog=_cog(enabled=False)), "pt-br"
-        )[0]["value"]
-        missing = parse_evaluation_to_fields(
+        )["feature"]
+        missing = _drawn(
             _evaluate("https://spam.com", cog={}), "pt-br"
-        )[0]["value"]
+        )["feature"]
 
         assert paused != missing
         assert "⏸️" in paused
 
     def test_mode_is_named_with_the_same_label_the_picker_shows(self):
-        value = parse_evaluation_to_fields(_evaluate("https://spam.com"), "pt-br")[0]["value"]
+        value = _drawn(_evaluate("https://spam.com"), "pt-br")["feature"]
         assert "Bloquear todos" in value
 
 
@@ -117,7 +128,8 @@ class TestSendLinkCheckMessage:
         sent = interaction._responses[-1]
         assert sent["type"] == "send_message"
         assert sent["ephemeral"] is True
-        assert len(sent["embed"].fields) == 3
+        items = [field.name for field in sent["embed"].fields][:-1]
+        assert len(items) == 3, "the three steps, then the closing line"
         assert "🚫" in sent["embed"].title
 
     @pytest.mark.asyncio

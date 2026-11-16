@@ -15,9 +15,9 @@ import pytest
 
 from app.core import analytics
 from app.core.utils import ml
-from app.settings.discord.callbacks import RUNTIME
-from app.settings.form.form_state import Manage, Status
-from app.settings.form.form_yaml import DiskSource
+from app.forms.discord.callbacks import RUNTIME
+from app.forms.form.form_state import Manage, Status
+from app.forms.form.form_yaml import DiskSource
 from tests.behavioral.golden.paths.common import GUILD_ID, seed_document
 from tests.behavioral.golden.paths.default_roles import ENABLED
 from tests.behavioral.harness.driver import FormScenario
@@ -127,7 +127,7 @@ async def test_voltar_draws_the_screen_it_came_from_and_closes_the_setup_quietly
     assert _texts(scenario.current_message) == [CAME_FROM]
     live = [message for message in scenario.store.messages.values() if not message.deleted]
     assert live == [scenario.current_message], "one message, the one it came from"
-    discard = ml("errors.discard-settings-confirmation.title", "pt-br")
+    discard = ml("commands.responses.discard.title", "pt-br")
     assert not [
         event for event in scenario.outputs
         if (event.get("embed") or {}).get("title", "").endswith(discard)

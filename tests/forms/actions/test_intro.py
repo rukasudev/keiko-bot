@@ -2,33 +2,28 @@
 
 import pytest
 
-from app.settings.form.actions.intro import settings_list, settings_text
-from app.settings.form.form_yaml import (
+from app.forms.form.actions.intro import settings_list, settings_text
+from app.forms.form.form_yaml import (
     CardStep,
-    CompositionStep,
+    ContentStep,
     DiskSource,
+    ListStep,
     compile_form,
 )
 
 pytestmark = pytest.mark.unit
 
-FORMS = (
-    "block_links",
-    "default_roles",
-    "notifications_twitch",
-    "notifications_youtube_video",
-    "reminders_birthday",
-    "stream_elements_commands",
-    "welcome_messages",
-)
+FORMS = DiskSource().list()
 
 
 def _walked_cards(steps):
     """The cards the intro reads: top level and unconditioned setup lists."""
     for step in steps:
-        if step.hidden or not step.in_setup:
+        if not isinstance(step, ContentStep) or step.hidden:
             continue
-        if isinstance(step, CompositionStep):
+        if step.appears_in == "panel":
+            continue
+        if isinstance(step, ListStep):
             if step.when is None:
                 yield from _walked_cards(step.steps)
             continue
@@ -49,7 +44,8 @@ def test_the_intro_lists_every_field_of_the_cards_it_reads(form, locale):
         for field in card.fields:
             if field.hidden:
                 continue
-            assert field.label.get(locale) in listed, (form, card.key, field.key)
+            label = card.label_of(field).get(locale)
+            assert label in listed, (form, card.key, field.key)
 
 
 @pytest.mark.parametrize("form", FORMS)

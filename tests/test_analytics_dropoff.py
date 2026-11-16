@@ -12,8 +12,8 @@ import pytest
 from app.data import wait
 from app.constants import ViewConstants as view_constants
 from app.data import analytics as analytics_data
-from app.services import admin_analytics
-from app.core import analytics, analytics_reports, analytics_sink
+from app.commands.admin import analytics as admin_analytics
+from app.core import analytics, analytics_reports, analytics_writer
 from tests.mocks.database import fake_store
 from tests.generators.events import age_events, record_event
 

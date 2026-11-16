@@ -11,9 +11,9 @@ the lock, was refused as stale, and its notice raced its own clock and lost
 with 40060, dropping the redraw that should have followed.
 
 Shared behaviour: the first answer of an interaction (`Answering` in
-`app/settings/discord/transitions.py`, used by the executor and the runtime's
+`app/forms/discord/transitions.py`, used by the executor and the runtime's
 clock in `callbacks.py`), the hold that disables a card while the adapter
-waits, and the stale-click answer of `settle` (`app/settings/form/form.py`).
+waits, and the stale-click answer of `settle` (`app/forms/form/form.py`).
 Exposed by: notifications_twitch (Disable), stream_elements_commands (setup).
 
 Guaranteed: the clock never sends a second first answer, a card's buttons are
@@ -28,8 +28,8 @@ import discord
 import pytest
 
 from app.core.utils import ml
-from app.settings.features.feature import GenericCogFeature
-from app.settings.features.stream_elements_commands import StreamElementsFeature
+from app.forms.features.feature import GenericCogFeature
+from app.commands.stream_elements.service import StreamElementsFeature
 from tests.behavioral.golden.paths import notifications_twitch as twitch
 from tests.behavioral.golden.paths import stream_elements_commands as stream_elements
 from tests.behavioral.golden.paths.common import seed_document
@@ -106,7 +106,7 @@ async def test_a_commit_that_ends_as_the_clock_runs_out_is_answered_once(
 
     assert _interactions("failed", "40060") == refused
     assert "Could not answer in time" not in caplog.text
-    disabled = ml("commands.command-events.disabled.title", locale="pt-br")
+    disabled = ml("commands.responses.disabled.title", locale="pt-br")
     scenario.expect_message(title_contains=disabled.split("$")[0].strip())
 
 
@@ -153,7 +153,7 @@ async def test_a_click_that_arrived_during_the_lookup_is_answered_quietly(
     released.set()
     await asyncio.gather(submit, click)
 
-    stale = ml("commands.form-notices.stale", locale="pt-br")
+    stale = ml("texts.notices.stale", locale="pt-br")
     notices = [event for event in scenario.outputs if event.get("content") == stale]
     assert notices == [], "a click that arrived while loading gets no notice"
     scenario.expect_step("confirm")

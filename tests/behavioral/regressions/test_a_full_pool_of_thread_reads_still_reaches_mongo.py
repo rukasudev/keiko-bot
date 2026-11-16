@@ -26,7 +26,7 @@ import app.data as data_layer
 from app.constants import DBConfigs, Dependencies
 from app.core import threads
 from app.data import wait
-from app.services.block_links import check_message
+from app.commands.block_links.service import check_message
 from tests.generators import moderations
 from tests.mocks import create_message
 

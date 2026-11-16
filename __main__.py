@@ -1,16 +1,10 @@
-import os
-from os import listdir
-from threading import Thread
-
-import i18n
-
 from app import create_app
 from app.bot import run
-from app.api import create_api, run_api
+from app.integrations.http import create_api, run_api
 from app.config import AppConfig
 from app.logger import LoggerHooks
-from app.core import images
-from app.webhooks import handle_webhook_api
+from app.core import i18n, images
+from app.integrations.http import handle_webhook_api
 
 if __name__ == "__main__":
     """Entry async method for starting the bot."""
@@ -24,9 +18,7 @@ if __name__ == "__main__":
     app = create_app(config)
     logs.set_bot(app)
 
-    for folder in listdir("app/languages"):
-        i18n.load_path.append(f"app/languages/{folder}")
-        i18n.set("fallback", "en")
+    i18n.load()
 
     handle_webhook_api(config)
 

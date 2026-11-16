@@ -7,10 +7,13 @@ were reintroduced.
 1. **Reproduce with a failing test.** Translate the reported behavior into an
    automated test at the most realistic appropriate layer:
    - unit test — isolated pure logic;
-   - definition test (`tests/forms/form/`) — a form that must or
+   - command test (`tests/commands/<command>/`, which `make command` scaffolds,
+     or the existing `tests/test_<feature>.py`) — one command's own rule in
+     its `service.py`;
+   - definition test (`tests/forms/form/test_form_yaml.py`) — a form that must or
      must not compile, a rule the compiler must check;
-   - engine test (`tests/forms/form/`) — one event on one session,
-     asserted on the decision's session and effects;
+   - engine test (`tests/forms/form/test_form.py`, `test_manager.py`) — one
+     event on one session, asserted on the decision's session and effects;
    - behavioral scenario (`tests/behavioral/scenarios/`) — user interaction
      flows (see `docs/form-scenario-testing.md`);
    - shared-component contract (`tests/behavioral/contracts/`) — reusable
@@ -29,7 +32,9 @@ were reintroduced.
 
 4. **Fix generically.** When the failure originates in shared behavior, fix
    the shared implementation or the configuration contract. Never
-   `if command_key == "...":` around a shared defect.
+   `if command_key == "...":` around a shared defect: what one command needs
+   from a shared layer is a field or hook of its `Command`
+   (`app/core/commands.py`), and the command's own rule stays in its folder.
 
 5. **Run the related suites.** The new test plus the contract suites of the
    touched shared components (`pytest -m "shared_contract"`, the impact map in

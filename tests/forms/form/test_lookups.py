@@ -5,10 +5,10 @@ from datetime import datetime, timezone
 
 import pytest
 
-from app.settings.form import events as ev
-from app.settings.form.form_state import AddItem, Origin, Setup, new_session
-from app.settings.form.form_yaml import DefinitionRegistry, compile_form
-from app.settings.form.lookups import Lookup, lookup_for
+from app.forms.form import events as ev
+from app.forms.form.form_state import AddItem, Origin, Setup, new_session
+from app.forms.form.form_yaml import DefinitionRegistry, compile_form
+from app.forms.form.lookups import Lookup, lookup_for
 
 pytestmark = pytest.mark.unit
 
@@ -21,36 +21,46 @@ def _text(value):
     return {"en-us": value, "pt-br": value}
 
 
+STREAMER_VALIDATION = {
+    "name": "registered_and_found",
+    "params": {
+        "item": "streamer",
+        "service": "twitch",
+        "id": "user_id",
+        "error": "streamer",
+    },
+}
+
 STREAMER_CARD_FORM = {
     "steps": [
         {
-            "action": "form",
+            "type": "intro",
             "key": "form",
             "title": _text("🧪 Fixture"),
             "description": _text("intro"),
         },
         {
-            "action": "configuration_card",
+            "type": "card",
             "key": "streamer_card",
             "title": _text("Card"),
             "description": _text("card"),
-            "required": ["streamer"],
+            "required": {"all": ["streamer"]},
             "header": {"title": _text("Card")},
             "fields": [{"key": "streamer", "label": _text("Streamer")}],
             "sections": [
                 {
                     "key": "streamer",
-                    "icon": "🎮",
-                    "type": "modal-input",
+                    "emoji": "🎮",
+                    "type": "modal_input",
                     "label": _text("Streamer"),
-                    "state": {"value": "streamer"},
+                    "keys": {"value": "streamer"},
                     "modal": {
                         "title": _text("Streamer"),
-                        "validation": "validate_streamer_name",
-                        "fields": [
+                        "validation": STREAMER_VALIDATION,
+                        "inputs": [
                             {
                                 "key": "streamer",
-                                "normalize": "handle",
+                                "normalize": {"name": "handle"},
                                 "label": _text("Streamer"),
                             }
                         ],
@@ -59,7 +69,7 @@ STREAMER_CARD_FORM = {
             ],
         },
         {
-            "action": "resume",
+            "type": "review",
             "key": "confirm",
             "title": _text("ok?"),
             "description": _text("review"),
@@ -113,22 +123,22 @@ def test_a_text_modal_asks_for_the_services_its_lookup_answers_name():
     raw = {
         "steps": [
             {
-                "action": "form",
+                "type": "intro",
                 "key": "form",
                 "title": _text("🧪"),
                 "description": _text("i"),
             },
             {
-                "action": "modal",
+                "type": "text",
                 "key": "streamer",
-                "validation": "validate_streamer_name",
+                "validation": STREAMER_VALIDATION,
                 "lookup_answers": {"count": "stream_elements.enabled_commands"},
                 "title": _text("Name"),
                 "description": _text("type"),
                 "label": _text("Name"),
             },
             {
-                "action": "resume",
+                "type": "review",
                 "key": "confirm",
                 "title": _text("ok?"),
                 "description": _text("r"),

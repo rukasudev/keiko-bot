@@ -27,11 +27,11 @@ from flask import Flask
 import app as app_module
 from app import logger as logger_module
 from app.core import debug_logs, trace as trace_service
-from app.webhooks import webhooks
-from app.webhooks.jobs import schedule_webhook_job
+from app.integrations.http import webhooks
+from app.integrations.http import schedule_webhook_job
 import logging
 from prometheus_client import REGISTRY
-import app.webhooks as webhooks_package
+import app.integrations.http as webhooks_package
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("logging")]
 
@@ -61,7 +61,7 @@ def twitch_client(monkeypatch):
         coroutine.close()
         scheduled.append(name)
 
-    monkeypatch.setattr("app.webhooks.twitch.schedule_webhook_job", capture, raising=False)
+    monkeypatch.setattr("app.integrations.http.schedule_webhook_job", capture, raising=False)
     monkeypatch.setattr(app_module, "bot", SimpleNamespace(
         twitch=SimpleNamespace(
             verify_twitch_signature=lambda request: True,
@@ -400,7 +400,7 @@ def client(monkeypatch):
         coroutine.close()
         state.scheduled.append(name)
 
-    monkeypatch.setattr("app.webhooks.twitch.schedule_webhook_job", capture)
+    monkeypatch.setattr("app.integrations.http.schedule_webhook_job", capture)
     monkeypatch.setattr(app_module, "bot", SimpleNamespace(
         twitch=SimpleNamespace(
             verify_twitch_signature=lambda request: state.signed,
@@ -408,7 +408,7 @@ def client(monkeypatch):
         ),
         loop=None,
     ), raising=False)
-    flask_app = Flask("app.api")
+    flask_app = Flask("app.integrations.http")
     flask_app.register_blueprint(webhooks_package.webhooks)
     test_client = flask_app.test_client()
     state.app = flask_app
@@ -442,7 +442,7 @@ def test_the_healthcheck_opens_no_trace(client, log_channels):
     Discord's limit of invalid requests.
 
     Shared behaviour: `webhook_trace`, `open_webhook_trace` and
-    `settle_by_status` (`app/webhooks/__init__.py`), `Trace.is_noteworthy`,
+    `settle_by_status` (`app/integrations/http.py`), `Trace.is_noteworthy`,
     `Trace.publishing`, `DiscordLogsHandler.send_trace`, `schedule_webhook_job`.
     Consumers: the Twitch, YouTube and reminder webhooks and the jobs they schedule.
 

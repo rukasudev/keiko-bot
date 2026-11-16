@@ -1,0 +1,17 @@
+steps:
+  - type: intro
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - type: text
+    key: name
+    title: {en-us: Name, pt-br: Nome}
+    overrides:
+      - when: {key: nao_existe, is: x}
+        title: {en-us: Other, pt-br: Outro}
+    description: {en-us: type, pt-br: digite}
+    label: {en-us: Name, pt-br: Nome}
+  - type: review
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

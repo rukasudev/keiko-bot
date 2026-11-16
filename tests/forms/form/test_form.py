@@ -4,21 +4,21 @@ from datetime import timedelta
 
 import pytest
 
-from app.settings.form import events as ev
-from app.settings.form.actions.action import Context
-from app.settings.form.components import (
+from app.forms.form import events as ev
+from app.forms.form.actions.action import Context
+from app.forms.form.components import (
     Card,
     Choice,
     Gallery,
     Panel,
     Picker,
 )
-from app.settings.form.effects import (
+from app.forms.form.effects import (
     Commit,
     ResumeParent,
 )
-from app.settings.form.form import decide
-from app.settings.form.form_state import (
+from app.forms.form.form import decide
+from app.forms.form.form_state import (
     AddItem,
     Answer,
     Edit,
@@ -27,8 +27,8 @@ from app.settings.form.form_state import (
     Status,
     new_session,
 )
-from app.settings.form.form_yaml import DiskSource
-from app.settings.form.responses.responses import to_document
+from app.forms.form.form_yaml import DiskSource
+from app.forms.form.responses.responses import to_document
 from tests.forms.replay import (
     NOW,
     ORIGIN,
@@ -311,7 +311,7 @@ def test_back_to_a_card_keeps_the_list_the_card_draws():
 
 
 def test_back_never_lands_on_a_modal_step():
-    from app.settings.form.form_yaml import compile_form
+    from app.forms.form.form_yaml import compile_form
     from tests.forms.form.card_fixtures import text
 
     options = [
@@ -323,34 +323,34 @@ def test_back_never_lands_on_a_modal_step():
         {
             "steps": [
                 {
-                    "action": "form",
+                    "type": "intro",
                     "key": "form",
                     "title": text("🧪"),
                     "description": text("i"),
                 },
                 {
-                    "action": "options",
+                    "type": "single_choice",
                     "key": "first",
                     "title": text("First"),
                     "description": text("f"),
                     "options": options,
                 },
                 {
-                    "action": "modal",
+                    "type": "text",
                     "key": "name",
                     "title": text("Name"),
                     "description": text("n"),
                     "label": text("Name"),
                 },
                 {
-                    "action": "options",
+                    "type": "single_choice",
                     "key": "second",
                     "title": text("Second"),
                     "description": text("s"),
                     "options": options,
                 },
                 {
-                    "action": "resume",
+                    "type": "review",
                     "key": "confirm",
                     "title": text("ok?"),
                     "description": text("r"),
@@ -552,8 +552,8 @@ def test_a_refused_value_shows_the_error_and_keeps_the_screen():
         Context(external={"twitch": {"user_id": None}}),
     )
     assert kinds(refused) == ["Render", "ShowError"]
-    assert refused.effects[-1].key == "streamer-not-found"
-    assert refused.session.refused.error_key == "streamer-not-found"
+    assert refused.effects[-1].key == "streamer_not_found"
+    assert refused.session.refused.error_key == "streamer_not_found"
     assert refused.session.cursor == "streamer"
     accepted = decide(
         definition,
@@ -957,15 +957,15 @@ def test_an_invalid_day_is_refused_inside_the_card():
     refused = _typed_day(definition, month, "31")
 
     assert kinds(refused) == ["Render", "ShowError"]
-    assert refused.effects[-1].key == "invalid-date"
+    assert refused.effects[-1].key == "invalid_date"
     target = f"section:{_day_section(definition)}"
-    assert refused.session.refused_on(target).error_key == "invalid-date"
+    assert refused.session.refused_on(target).error_key == "invalid_date"
     assert refused.session.answers["birthday_member_config"].part("day") is None
 
 
 def test_a_day_typed_before_the_month_waits_for_the_month():
     """B1 (beta.2 round 4): with no month yet, a day some month has is kept and
-    a month it does not fit clears it (`reset-on-change`); a text that is no
+    a month it does not fit clears it (`dependents`); a text that is no
     day of any month is refused at once."""
     definition, started = _member_card()
     day = _typed_day(definition, started, "31")
@@ -976,11 +976,11 @@ def test_a_day_typed_before_the_month_waits_for_the_month():
     for typed in ("32", "ab", "0"):
         refused = _typed_day(definition, started, typed)
         assert kinds(refused) == ["Render", "ShowError"], typed
-        assert refused.effects[-1].key == "invalid-date"
+        assert refused.effects[-1].key == "invalid_date"
 
 
 def test_an_item_edit_never_changes_the_member_it_belongs_to():
-    """Round 3 B: on a list whose `unique_by` is `unique_locked`, an edit draws
+    """Round 3 B: on a list whose `unique` is `immutable`, an edit draws
     the member as a line, no select, and a pick that still reaches it (an old
     message) changes nothing."""
     definition = REGISTRY.get("reminders_birthday")
@@ -1048,7 +1048,7 @@ def test_a_preview_waits_for_the_keys_its_card_declares_it_needs():
 
     assert kinds(empty) == ["ShowError"]
     assert (empty.effects[0].key, empty.effects[0].plain) == (
-        "preview-needs-streamer",
+        "notifications_twitch.ui.errors.preview_needs_streamer",
         True,
     )
     assert empty.session.answers == at_card.answers
@@ -1201,7 +1201,7 @@ def test_an_unknown_streamer_is_told_apart_and_its_modal_keeps_what_was_typed():
         },
     ) in refused.analytics
     assert kinds(refused) == ["Render", "ShowError"], kinds(refused)
-    assert refused.effects[-1].key == "streamer-not-found"
+    assert refused.effects[-1].key == "streamer_not_found"
     card = screen(refused).components[0]
     lines = "\n".join(next(s for s in card.sections if s.index == 1).preview)
     assert "não consegui encontrar o streamer" not in lines, lines
@@ -1321,7 +1321,7 @@ def test_the_review_removes_items_by_index_and_offers_remove_only_with_two():
 
 
 def test_an_item_edited_onto_another_items_key_leaves_one_item():
-    """The merge looked for another item with the same `unique_by` value but
+    """The merge looked for another item with the same `unique.key` value but
     compared the loop index with itself, so it never found one."""
     links = tuple(
         {"link": Answer(link)} for link in ("meusite.com.br", "docs.example.org")
@@ -1452,7 +1452,7 @@ def test_a_rejected_event_leaves_the_deadline_where_it_was():
 
 def test_a_card_that_needs_one_of_its_selects_refuses_done_when_every_one_is_empty():
     """Broke as: default roles saved with both dropdowns empty. Since beta.2
-    (dr-2) the roles are a card, and `required_any` keeps that refusal: Done
+    (dr-2) the roles are a card, and `required.any` keeps that refusal: Done
     stays on the card and says, on a message of its own, that one is needed."""
     definition, decision = start("default_roles")
     step = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
@@ -1461,7 +1461,7 @@ def test_a_card_that_needs_one_of_its_selects_refuses_done_when_every_one_is_emp
         definition, step.session, evt(ev.Answered, step_key="default_roles_config")
     )
     assert kinds(empty) == ["Render", "ShowError"]
-    assert empty.effects[-1].key == "fill-one-field"
+    assert empty.effects[-1].key == "fill_one_field"
     assert empty.session.refused.missing == ("default_roles_bot", "default_roles")
     header = screen(empty).components[0].header
     assert not any("🚨" in line for line in header.lines)
@@ -1513,6 +1513,90 @@ def test_confirming_the_member_picker_on_the_review_does_not_save():
     assert kinds(confirmed) == ["OpenChild"]
 
 
+def test_a_youtube_refusal_names_the_error_block_of_its_copy():
+    """The YouTube channel errors live in its copy, in snake_case like every key of
+    a schema-checked copy."""
+    missing = _youtube_typed({"youtube": {"channel_id": None}})
+    taken = _youtube_typed(
+        {"youtube": {"channel_id": "UC1"}}, ({"youtuber": {"value": "ghost"}},)
+    )
+
+    block = "notifications_youtube_video.ui.errors.youtuber"
+    assert missing.effects[-1].key == f"{block}_not_found"
+    assert taken.effects[-1].key == f"{block}_already_registered"
+
+
+def _recorded(decision):
+    return [
+        props["error_key"]
+        for name, props in decision.analytics
+        if name == "setup.validation_failed"
+    ]
+
+
+def _twitch_typed(external, items=()):
+    definition, at_card = _twitch_card()
+    typed = evt(ev.Answered, step_key="section:1", payload={"inputs": ["gaules"]})
+    return decide(definition, at_card, typed, Context(external=external, items=items))
+
+
+def _youtube_typed(external, items=()):
+    definition = REGISTRY.get("notifications_youtube_video")
+    child = new_session(
+        (definition.key, 1), AddItem(), ORIGIN, ttl_seconds=60, now=NOW, parent_id="p"
+    )
+    at_card = decide(definition, child, evt(ev.Started)).session
+    typed = evt(ev.Answered, step_key="section:1", payload={"inputs": ["ghost"]})
+    return decide(definition, at_card, typed, Context(external=external, items=items))
+
+
+def _thirty_first_of_february():
+    definition, started = _member_card()
+    return _typed_day(definition, _drafted(definition, started, month=["02"]), "31")
+
+
+@pytest.mark.parametrize(
+    "refused, released",
+    [
+        (lambda: _twitch_typed({"twitch": {"user_id": None}}), "streamer-not-found"),
+        (
+            lambda: _twitch_typed(TWITCH_FOUND, ({"streamer": {"value": "gaules"}},)),
+            "streamer-already-registered",
+        ),
+        (
+            lambda: _youtube_typed({"youtube": {"channel_id": None}}),
+            "youtuber-not-found",
+        ),
+        (
+            lambda: _youtube_typed(
+                {"youtube": {"channel_id": "UC1"}}, ({"youtuber": {"value": "ghost"}},)
+            ),
+            "youtuber-already-registered",
+        ),
+        (_thirty_first_of_february, "invalid-date"),
+    ],
+    ids=[
+        "streamer-missing",
+        "streamer-taken",
+        "youtuber-missing",
+        "youtuber-taken",
+        "day",
+    ],
+)
+def test_a_refusal_is_recorded_under_the_name_released_versions_recorded(
+    refused, released
+):
+    """Broke as: the copy schema renamed the error blocks to snake_case and moved
+    YouTube's into its copy, so `setup.validation_failed` recorded
+    `notifications_youtube_video.errors.youtuber-not-found` where every released
+    version recorded `youtuber-not-found`, splitting the series the friction and
+    drop-off reports count by. Shared behaviour: the one seam that spells a
+    recorded error name (`Form.refuse`). Guaranteed: a refusal is recorded under
+    its bare error name, kebab-case, without its copy path, as released versions
+    recorded it."""
+    assert _recorded(refused()) == [released]
+
+
 def test_a_card_modal_is_validated_with_the_other_items_and_the_lookup():
     """A card modal validated with its answers only: a streamer check that needs
     the Twitch lookup and the other items always refused."""
@@ -1528,7 +1612,7 @@ def test_a_card_modal_is_validated_with_the_other_items_and_the_lookup():
         definition, session, typed, Context(external={"twitch": {"user_id": None}})
     )
     assert kinds(missing) == ["Render", "ShowError"]
-    assert missing.session.refused_on("section:0").error_key == "streamer-not-found"
+    assert missing.session.refused_on("section:0").error_key == "streamer_not_found"
 
     found = decide(
         definition, session, typed, Context(external={"twitch": {"user_id": "1"}})
@@ -1544,7 +1628,7 @@ def test_a_card_modal_is_validated_with_the_other_items_and_the_lookup():
             items=({"streamer": {"value": "shroud"}},),
         ),
     )
-    assert taken.session.refused.error_key == "streamer-already-registered"
+    assert taken.session.refused.error_key == "streamer_already_registered"
 
 
 def _welcome_card_session(answers=None):
@@ -1579,17 +1663,17 @@ def test_a_modal_input_section_keeps_every_field_and_joins_unkeyed_ones():
 
 
 def test_a_dependent_key_survives_a_change_its_validator_accepts():
-    """Broke as: reset-on-change handed the validator the whole card state
+    """Broke as: the dependents handed the validator the whole card state
     instead of the dependent value, so every validator but validate_date read a
     stringified mapping, found a space in it, and cleared the key on any change.
-    Shared behaviour: the Check contract of app/settings/form/responses/
+    Shared behaviour: the Check contract of app/forms/form/responses/
     validations.py. Consumer that exposed it: a card section whose reset rule
     names any validator other than validate_date. What must stay guaranteed: a
     reset rule clears its key only when the validator refuses that key's own
     value."""
-    from tests.forms.form.card_fixtures import reset_on_change_card
+    from tests.forms.form.card_fixtures import dependents_card
 
-    definition = reset_on_change_card()
+    definition = dependents_card()
     session = new_session(
         (definition.key, definition.version),
         Setup(),
@@ -1609,9 +1693,9 @@ def test_a_dependent_key_survives_a_change_its_validator_accepts():
 
 
 def test_a_dependent_key_is_cleared_when_its_own_value_stops_being_valid():
-    from tests.forms.form.card_fixtures import reset_on_change_card
+    from tests.forms.form.card_fixtures import dependents_card
 
-    definition = reset_on_change_card()
+    definition = dependents_card()
     session = new_session(
         (definition.key, definition.version),
         Setup(),
@@ -1631,7 +1715,7 @@ def test_a_dependent_key_is_cleared_when_its_own_value_stops_being_valid():
 def test_a_card_modal_asks_for_the_long_box_its_fields_declare():
     """Broke as: moving the message steps into card sections dropped their
     `multiline`, so a hundred character message typed in a one line box."""
-    from app.settings.form.form_yaml import DiskSource, compile_form
+    from app.forms.form.form_yaml import DiskSource, compile_form
 
     definition = compile_form("welcome_messages", DiskSource().load("welcome_messages"))
     session = new_session(
@@ -1727,7 +1811,7 @@ def test_a_file_upload_section_without_a_mode_counts_as_set_once_it_has_an_image
 def test_a_part_edit_from_the_review_returns_to_the_review():
     from tests.forms.form.card_fixtures import welcome_like_card
 
-    definition = welcome_like_card(edit_by_field=True)
+    definition = welcome_like_card(by_field=True)
     answers = {
         "channel": Answer("100"),
         "design": Answer("server_blur"),
@@ -1839,13 +1923,12 @@ def test_the_review_info_is_the_note_that_closes_it_not_its_description():
 def test_the_review_description_resolves_response_tokens():
     import copy
 
-    from app.settings.form.form_yaml import DiskSource, compile_form
+    from app.forms.form.form_yaml import DiskSource, compile_form
 
     raw = copy.deepcopy(DiskSource().load("stream_elements_commands"))
-    raw["steps"][-1].pop("description-when", None)
     raw["steps"][-1]["description"] = {
-        "en-us": "Commands of {response:streamer|nobody}",
-        "pt-br": "Comandos de {response:streamer|ninguém}",
+        "en-us": "Commands of {answer:streamer|nobody}",
+        "pt-br": "Comandos de {answer:streamer|ninguém}",
     }
     definition = compile_form("stream_elements_commands", raw)
     session = new_session(
@@ -1892,7 +1975,7 @@ def test_edit_beside_a_review_group_returns_to_the_review():
 def _stream_elements_counting():
     import copy
 
-    from app.settings.form.form_yaml import DiskSource, compile_form
+    from app.forms.form.form_yaml import DiskSource, compile_form
 
     raw = copy.deepcopy(DiskSource().load("stream_elements_commands"))
     modal = next(step for step in raw["steps"] if step.get("key") == "streamer")
@@ -1900,12 +1983,11 @@ def _stream_elements_counting():
         "stream_elements_commands_count": "stream_elements.enabled_commands",
         "stream_elements_top_commands": "stream_elements.top_commands",
     }
-    modal.pop("media_key", None)
+    modal.pop("image", None)
     raw["steps"][-1]["description"] = {
-        "en-us": "{response:stream_elements_commands_count|0} commands",
-        "pt-br": "{response:stream_elements_commands_count|0} comandos",
+        "en-us": "{answer:stream_elements_commands_count|0} commands",
+        "pt-br": "{answer:stream_elements_commands_count|0} comandos",
     }
-    raw["steps"][-1].pop("description-when", None)
     return compile_form("stream_elements_commands", raw)
 
 
@@ -1927,7 +2009,7 @@ def test_a_card_nobody_touched_yet_still_shows_its_defaults():
     """Broke as: Preview answered nothing when pressed right after the welcome
     card opened. Until the first change a card has no draft at all, so the
     session held none of the values the admin was reading on the screen."""
-    from app.settings.form.form import shown_answers
+    from app.forms.form.form import shown_answers
 
     definition, opened = start("welcome_messages")
     answered = decide(
@@ -1998,7 +2080,7 @@ def test_the_review_lists_the_commands_it_found_under_the_streamer():
 def test_a_lookup_answer_belongs_to_the_step_that_looked_it_up():
     """Back forgets the answers its steps produce, so a lookup answer goes with
     the modal that ran the lookup."""
-    from app.settings.form.form_yaml import produced_keys
+    from app.forms.form.form_yaml import produced_keys
 
     definition = _stream_elements_counting()
 
@@ -2143,3 +2225,137 @@ def test_the_birthday_card_picks_every_setting_right_on_it():
         option.style for option in redrawn["mention_everyone"].controls[0].options
     ]
     assert styles == ["primary", "secondary"]
+
+
+# ------------------------------------------------------- names of the YAML keys
+
+
+def test_a_list_step_is_recorded_under_the_action_every_release_recorded():
+    """The step type `composition` became `list` in the form; analytics keeps the
+    `step_action` released versions recorded, so a series reads the same."""
+    definition, decision = start("notifications_twitch")
+    listed = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
+    back = decide(
+        definition,
+        listed.session,
+        evt(ev.ChildFinished, answers={}, cancelled=True, child_mode="add"),
+    )
+    passed = decide(
+        definition, back.session, evt(ev.Answered, step_key="notifications")
+    )
+
+    assert (
+        "setup.step_completed",
+        {"step_key": "notifications", "step_action": "composition"},
+    ) in passed.analytics
+
+
+@pytest.mark.parametrize(
+    "declared,saved",
+    [
+        ("code_block", "code-block"),
+        ("month_day", "mm_dd"),
+        ("customized", "boolean-mode"),
+    ],
+)
+def test_a_declared_format_is_saved_in_the_style_spelling_documents_keep(
+    declared, saved
+):
+    """The form's `format` values became snake_case; the `{style, values}` envelope
+    of a saved document keeps the spellings every saved document already holds."""
+    from app.forms.form.form_yaml import compile_form
+
+    text = {"en-us": "x", "pt-br": "x"}
+    definition = compile_form(
+        "fixture",
+        {
+            "steps": [
+                {"type": "intro", "key": "form", "title": text, "description": text},
+                {
+                    "type": "text",
+                    "key": "value",
+                    "title": text,
+                    "description": text,
+                    "format": declared,
+                },
+                {"type": "review", "key": "confirm"},
+            ]
+        },
+    )
+    document = to_document(definition.steps, {"value": Answer("05-12")}, "en-us")
+
+    assert document["value"] == {"style": saved, "values": "05-12"}
+
+
+def _birthday_with(section_update):
+    import copy
+
+    from app.forms.form.form_yaml import compile_form
+
+    raw = copy.deepcopy(DiskSource().load("reminders_birthday"))
+    raw["steps"][1]["sections"][0].update(section_update)
+    return compile_form("reminders_birthday", raw)
+
+
+def test_a_channel_select_draws_the_description_of_its_screen():
+    """Every section with a screen of its own reads `screen: {title, description}`;
+    the channel select drew only a title before."""
+    definition = _birthday_with(
+        {"screen": {"description": {"en-us": "Pick one.", "pt-br": "Escolha um."}}}
+    )
+    session = new_session(
+        (definition.key, definition.version), Setup(), ORIGIN, ttl_seconds=60, now=NOW
+    )
+    started = decide(definition, session, evt(ev.Started))
+    at_card = decide(definition, started.session, evt(ev.Answered, step_key="form"))
+    picker = decide(
+        definition,
+        at_card.session,
+        evt(ev.SectionOpened, step_key="birthday_config", index=0),
+    )
+
+    assert screen(picker).description == "Escolha um."
+
+
+@pytest.mark.parametrize(
+    "appears_in,on_setup,on_panel",
+    [("everywhere", True, True), ("setup", True, False), ("panel", False, True)],
+)
+def test_a_section_appears_where_it_says(appears_in, on_setup, on_panel):
+    from app.forms.form.actions.configuration_card import visible
+
+    definition = _birthday_with({"appears_in": appears_in})
+    section = definition.step("birthday_config").sections[0]
+    saved = Context(definition=definition, document={"enabled": True})
+
+    assert visible(section, {}, Context(definition=definition)) is on_setup
+    assert visible(section, {}, saved) is on_panel
+
+
+def test_a_preview_waits_for_any_one_of_the_keys_it_requires():
+    """`preview.required` is the card's own `{all, any}`: Preview answers its error
+    while every `any` key is empty, and draws once one of them holds a value."""
+    import copy
+
+    from app.forms.form.actions.configuration_card import preview_refusal
+    from app.forms.form.form_yaml import compile_form
+
+    raw = copy.deepcopy(DiskSource().load("notifications_twitch"))
+    card = raw["steps"][1]["steps"][0]
+    card["preview"]["required"] = {"any": ["channel", "streamer"]}
+    definition = compile_form("notifications_twitch", raw)
+    step = definition.composition.steps[0]
+
+    def refused(parts):
+        session = new_session(
+            (definition.key, definition.version),
+            Setup(),
+            ORIGIN,
+            ttl_seconds=60,
+            now=NOW,
+            answers={step.key: Answer(None, parts)},
+        )
+        return preview_refusal(step, session, Context(definition=definition))
+
+    assert refused({}).error_key == step.preview.error
+    assert refused({"channel": "100"}) is None

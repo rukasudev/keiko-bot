@@ -17,10 +17,9 @@ import pytest
 
 from app.data import wait
 from app import logger as logger_module
-from app.constants import Commands
 from app.core.servers import set_feature_enabled
-from app.services.reminders_birthdays import find_birthday, save_birthday_config
-from app.services import reminders_birthdays as birthdays_service
+from app.commands.birthdays.service import find_birthday, save_birthday_config
+from app.commands.birthdays import service as birthdays_service
 from app.core import trace as trace_service
 from tests.generators.moderations import recorded_server
 
@@ -46,7 +45,7 @@ def closed_traces():
 def enabled(deps, monkeypatch):
     recorded_server(deps.mongo_client, GUILD_ID, timezone="UTC")
     wait(save_birthday_config(GUILD_ID, channel_id="99", notification_time="14:00"))
-    wait(set_feature_enabled(GUILD_ID, Commands.REMINDERS_BIRTHDAY_KEY, True))
+    wait(set_feature_enabled(GUILD_ID, "reminders_birthday", True))
     monkeypatch.setattr(
         birthdays_service.reminders_service, "create_reminder", lambda *a, **kw: "1"
     )
@@ -76,7 +75,7 @@ def interaction_for(admin=False):
 
 
 async def run(interaction, month, day):
-    from app.cogs.birthdays import Birthday
+    from app.commands.birthdays.cog import Birthday
 
     await Birthday.birthday_personal.callback(SimpleNamespace(), interaction, month, day)
 

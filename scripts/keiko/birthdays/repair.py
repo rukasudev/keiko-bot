@@ -90,7 +90,7 @@ def load_for_apply(environment: str):
     from types import SimpleNamespace
 
     import app
-    from app.integrations.reminder_webhook import ReminderWebhook
+    from app.integrations.reminders.client import ReminderWebhook
 
     url = mongo_url_from_environment()
     host = mongo_host(url)
@@ -136,7 +136,7 @@ def load_for_apply(environment: str):
 async def plan() -> List[Dict[str, Any]]:
     from app.data import data
     from app.data.keiko import schedules as schedules_data
-    from app.services.reminders_birthdays import (
+    from app.commands.birthdays.service import (
         birthday_config,
         birthday_schedules_missing_reminder,
         count_birthdays_on,
@@ -188,7 +188,7 @@ def repairable(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 
 
 async def apply_repair() -> int:
-    from app.services import reminders_birthdays as birthdays_service
+    from app.commands.birthdays import service as birthdays_service
 
     return await birthdays_service.reconcile_missing_reminders(limit=500)
 

@@ -11,12 +11,12 @@ import pytest
 from hypothesis import given
 from hypothesis import strategies as st
 
-from app.settings.form import events as ev
-from app.settings.form.actions import registry as kinds
-from app.settings.form.actions.action import Context
-from app.settings.form.conditions import Scope
-from app.settings.form.form import decide
-from app.settings.form.form_state import (
+from app.core.conditions import Scope
+from app.forms.form import events as ev
+from app.forms.form.actions import registry as kinds
+from app.forms.form.actions.action import Context
+from app.forms.form.form import decide
+from app.forms.form.form_state import (
     InMemorySessionStore,
     Origin,
     Setup,
@@ -24,7 +24,7 @@ from app.settings.form.form_state import (
     Status,
     new_session,
 )
-from app.settings.form.form_yaml import CompileError, DefinitionRegistry, compile_form
+from app.forms.form.form_yaml import CompileError, DefinitionRegistry, compile_form
 from tests.forms.replay import replay
 
 pytestmark = pytest.mark.unit
@@ -114,7 +114,7 @@ def test_i6_render_is_a_pure_function_of_definition_and_session():
 
 
 def test_i7_a_decision_hands_features_answers_never_the_session():
-    from app.settings.form.effects import Commit
+    from app.forms.form.effects import Commit
 
     definition, session = fresh()
     committing = replay(definition, session, happy_path_events()[:-1])[-1]
@@ -155,7 +155,7 @@ def test_i4_property_a_replayed_event_id_never_moves_the_session(ids):
 
 
 def test_i6_locale_is_normalized_once_at_the_origin():
-    from app.settings.form.copy import normalize_locale
+    from app.forms.form.copy import normalize_locale
 
     assert normalize_locale("en-gb") == "en-us"
     assert normalize_locale("pt-PT") == "pt-br"

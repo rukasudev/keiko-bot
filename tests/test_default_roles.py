@@ -6,7 +6,8 @@ quando um novo membro entra no servidor.
 """
 
 import pytest
-from app.services.default_roles import (
+from app.commands.roles.service import (
+    DefaultRoles,
     set_on_member_join,
     filter_roles,
     get_roles_to_add,
@@ -175,10 +176,7 @@ class TestGetRolesToAdd:
         """
         # Arrange
         member = create_member(guild, id=999, name="NewUser", roles=[])
-        roles_mapping = {
-            "default_roles": ["202"],
-            "default_roles_bot": []
-        }
+        roles_mapping = DefaultRoles(members=("202",), bots=())
 
         # Act
         result = get_roles_to_add(member, guild, roles_mapping)
@@ -196,10 +194,7 @@ class TestGetRolesToAdd:
         """
         # Arrange
         member = create_member(guild, id=999, name="ExistingUser", roles=["Member"])
-        roles_mapping = {
-            "default_roles": ["202"],
-            "default_roles_bot": []
-        }
+        roles_mapping = DefaultRoles(members=("202",), bots=())
 
         # Act
         result = get_roles_to_add(member, guild, roles_mapping)
@@ -219,10 +214,7 @@ class TestGetRolesToAdd:
         guild.roles.append(bot_role)
 
         bot_member = create_member(guild, id=999, name="Bot", roles=[], bot=True)
-        roles_mapping = {
-            "default_roles": ["202"],
-            "default_roles_bot": ["300"]
-        }
+        roles_mapping = DefaultRoles(members=("202",), bots=("300",))
 
         # Act
         result = get_roles_to_add(bot_member, guild, roles_mapping)
@@ -235,7 +227,7 @@ class TestGetRolesToAdd:
 class TestGetNotAvailableRoles:
     """Testes de deteccao de roles indisponiveis."""
 
-    def test_returns_empty_when_all_roles_available(self, mock_ml):
+    def test_returns_empty_when_all_roles_available(self):
         """
         Verifica que retorna string vazia quando todas as roles estao disponiveis.
 
@@ -252,7 +244,7 @@ class TestGetNotAvailableRoles:
         # Assert
         assert result == ""
 
-    def test_returns_message_when_roles_unavailable(self, mock_ml):
+    def test_returns_message_when_roles_unavailable(self):
         """
         Verifica que retorna mensagem quando roles nao estao disponiveis.
 
@@ -262,7 +254,6 @@ class TestGetNotAvailableRoles:
         # Arrange
         roles = ["999"]
         available_roles = {"Member": "202"}
-        mock_ml.return_value = "Missing roles: $roles"
 
         # Act
         result = get_not_available_roles(roles, available_roles, "en-US")
@@ -270,7 +261,7 @@ class TestGetNotAvailableRoles:
         # Assert
         assert "<@&999>" in result
 
-    def test_handles_string_role_input(self, mock_ml):
+    def test_handles_string_role_input(self):
         """
         Verifica que funciona quando roles e string.
 
@@ -280,7 +271,6 @@ class TestGetNotAvailableRoles:
         # Arrange
         roles = "999"
         available_roles = {"Member": "202"}
-        mock_ml.return_value = "Missing: $roles"
 
         # Act
         result = get_not_available_roles(roles, available_roles, "en-US")
@@ -298,7 +288,7 @@ class TestDefaultRolesSync:
         from unittest.mock import AsyncMock, MagicMock
 
         from app.constants import KeikoIcons, Style
-        from app.services import default_roles as service
+        from app.commands.roles import service
 
         guild.members = [
             create_member(guild, id=1, name="Ana"),
@@ -307,7 +297,9 @@ class TestDefaultRolesSync:
         ]
         mock_cache.return_value = {"default_roles": {"values": ["202"]}}
         monkeypatch.setattr(
-            service, "set_default_roles", AsyncMock(return_value={"members": 2, "bots": 0})
+            service,
+            "set_default_roles",
+            AsyncMock(return_value=service.RolesGiven(members=2, bots=0)),
         )
         message = MagicMock()
         message.edit = AsyncMock()
@@ -328,3 +320,92 @@ class TestDefaultRolesSync:
         assert "Bots: **0**" in result.description, (
             "only the member roles are configured, so no bot got one"
         )
+
+
+class TestThePanelWarnsOnlyAboutSavedRoles:
+    """The panel's missing-permission warning names only roles the server saved."""
+
+    @pytest.mark.asyncio
+    async def test_a_server_that_saved_only_bot_roles_sees_no_warning(
+        self, deps, monkeypatch
+    ):
+        """
+        Broke as: a server that gave roles only to bots opened its panel to
+        "I no longer have permission to assign the following roles: <@&None>",
+        because the absent member roles were read as one role named None. The
+        shared behaviour is the default roles panel info; it must stay empty
+        while every saved role is one Keiko can still assign.
+        """
+        from datetime import datetime, timezone
+        from types import SimpleNamespace
+
+        from app.commands.roles import service as default_roles
+        from app.forms.features import feature_for
+        from app.forms.features.feature import CommitContext, OpenContext
+        from app.forms.form.form_state import Answer
+
+        monkeypatch.setattr(
+            default_roles,
+            "get_available_roles_by_guild",
+            lambda guild: {"Member": "202", "Helper": "201"},
+        )
+        feature = feature_for("default_roles")
+        commit = CommitContext(
+            "123", "555", "en-us", {}, datetime.now(timezone.utc), "slash", "s1"
+        )
+        await feature.commit(
+            "setup", {"answers": {"default_roles_bot": Answer(["201"])}}, commit
+        )
+        guild = SimpleNamespace(id=123, members=[], member_count=0, roles=[])
+
+        opened = await feature.open(OpenContext("123", "555", "en-us", guild))
+
+        assert opened.document is not None
+        assert opened.panel.info == ""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "locale,warning",
+        [
+            (
+                "en-us",
+                "I no longer have permission to assign the following roles: "
+                "**<@&999>**\n\nIn the server's role hierarchy, please give me a "
+                "role **above** these 🧑‍⚖️",
+            ),
+            (
+                "pt-br",
+                "Não tenho mais permissão para atribuir os seguintes cargos: "
+                "**<@&999>**\n\nNa hierarquia de cargos do servidor, me dê um cargo "
+                "**acima** desses 🧑‍⚖️",
+            ),
+        ],
+    )
+    async def test_a_role_keiko_lost_is_the_panel_warning_with_no_title(
+        self, deps, monkeypatch, locale, warning
+    ):
+        """The warning is the panel's closing paragraph, worded as it always was."""
+        from datetime import datetime, timezone
+        from types import SimpleNamespace
+
+        from app.commands.roles import service as default_roles
+        from app.forms.features import feature_for
+        from app.forms.features.feature import CommitContext, OpenContext
+        from app.forms.form.form_state import Answer
+
+        monkeypatch.setattr(
+            default_roles, "get_available_roles_by_guild", lambda guild: {"Member": "202"}
+        )
+        feature = feature_for("default_roles")
+        commit = CommitContext(
+            "123", "555", locale, {}, datetime.now(timezone.utc), "slash", "s1"
+        )
+        await feature.commit(
+            "setup", {"answers": {"default_roles": Answer(["999"])}}, commit
+        )
+        guild = SimpleNamespace(id=123, members=[], member_count=0, roles=[])
+
+        opened = await feature.open(OpenContext("123", "555", locale, guild))
+
+        assert opened.panel.info == warning
+        assert opened.panel.info_title == ""

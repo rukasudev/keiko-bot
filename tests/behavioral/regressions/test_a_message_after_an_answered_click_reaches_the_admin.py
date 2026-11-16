@@ -8,7 +8,7 @@ TypeError, the admin never read why the name was refused, and the click was
 logged as a failure. The offline fake accepted the argument, so every test and
 golden stayed green.
 
-Shared behaviour: `Executor._send` (`app/settings/discord/transitions.py`), the
+Shared behaviour: `Executor._send` (`app/forms/discord/transitions.py`), the
 one way every effect sends a new ephemeral message. Exposed by:
 notifications_twitch, a streamer name Twitch does not know (beta.2 drew that
 refusal inside the card for a while, so the out-of-date notice of an item edit
@@ -49,7 +49,7 @@ async def test_a_notice_sent_after_the_click_was_answered_reaches_the_admin(
     await twitch._channel(second, "announcements")
     await second.click("done")
 
-    stale = ml("commands.form-notices.stale", locale="en-us")
+    stale = ml("texts.notices.stale", locale="en-us")
     notices = [event for event in second.outputs if event.get("content") == stale]
     assert notices, "the admin never read why the edit was not saved"
     assert notices[-1]["delete_after"] == ViewConstants.ACTION_NOTICE_SECONDS
@@ -62,7 +62,7 @@ async def test_a_streamer_name_refused_after_its_lookup_reaches_the_admin(
 
     await twitch._submit_streamer(scenario, "naoexiste")
 
-    title = ml("errors.streamer-not-found.title", locale="en-us")
+    title = ml("errors.streamer_not_found.title", locale="en-us")
     refusals = [
         event for event in scenario.outputs
         if title in ((event.get("embed") or {}).get("title") or "")

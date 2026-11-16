@@ -13,10 +13,10 @@ import discord
 import pytest
 
 from app.core.utils import ml
-from app.services.reminders_birthdays import save_birthday_config
+from app.commands.birthdays.service import save_birthday_config
 from app.core.servers import set_feature_enabled
 from tests.generators.birthdays import saved_birthday
-from app.webhooks import birthday_handler
+from app.commands.birthdays import celebration as birthday_handler
 from tests.behavioral.golden.paths.reminders_birthday import _type_day
 from tests.mocks.discord import create_member
 
@@ -189,7 +189,7 @@ async def test_invalid_day_shows_error_and_recovers(scenario_factory):
     await scenario.select_option("02", target="month")   # February
     await _type_day(scenario, "31")                      # invalid: 31/02
 
-    expected_error = ml("errors.invalid-date.message", locale="pt-br")
+    expected_error = ml("errors.invalid_date.message", locale="pt-br")
     scenario.expect_error(expected_error.split(".")[0])
 
     assert scenario.card_state.get("day") in (None, ""), "invalid day must not be stored"
@@ -242,10 +242,10 @@ async def test_cancel_discards_and_persists_nothing(scenario_factory):
     await scenario.select_option("general", target="channel")
 
     await scenario.cancel()                        # card_cancel -> confirmation
-    discard_title = ml("errors.discard-settings-confirmation.title", locale="pt-br")
+    discard_title = ml("commands.responses.discard.title", locale="pt-br")
     scenario.expect_message(title_contains=discard_title.split(" ", 1)[-1])
 
-    discard_label = ml("buttons.cancel.discard", locale="pt-br")
+    discard_label = ml("buttons.discard.label", locale="pt-br")
     await scenario.click(discard_label)
 
     guild_id = str(scenario.guild.id)
@@ -381,7 +381,7 @@ async def test_the_member_is_chosen_on_the_card_with_their_picture_under_it(
     )
     assert scenario.card_state["user"] == "777"
     assert any(
-        "Feliz Aniversário <@777>!" in (getattr(item, "content", "") or "")
+        "É aniversário do <@777>!" in (getattr(item, "content", "") or "")
         for item in drawn
     ), "the message on the card greets the member just picked"
 
@@ -436,7 +436,7 @@ async def test_editing_a_member_keeps_the_member_fixed_on_the_card(
         "guild", "members", {"guild_id": str(scenario.guild.id), "user_id": "777"}
     )["options"]["reminders_birthday"]
     assert item["date"] == "06-30"
-    from app.services.reminders_birthdays import find_birthdays_by_guild
+    from app.commands.birthdays.service import find_birthdays_by_guild
 
     saved = await find_birthdays_by_guild(str(scenario.guild.id))
     assert sorted(saved_item["user_id"] for saved_item in saved) == ["555", "777"]

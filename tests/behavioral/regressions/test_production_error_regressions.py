@@ -12,7 +12,7 @@ import pytest
 from app import logger as logger_module
 from app.constants import DiscordLimits as limits
 from app.constants import LogTypes as logconstants
-from app.services import block_links
+from app.commands.block_links import service as block_links
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 import requests
@@ -138,7 +138,7 @@ def timed_out():
 
 @pytest.fixture
 def report(deps, guild, monkeypatch):
-    from app.cogs.base.report import Report
+    from app.commands.report.cog import Report
 
     reports = MagicMock()
     reports.send = AsyncMock()

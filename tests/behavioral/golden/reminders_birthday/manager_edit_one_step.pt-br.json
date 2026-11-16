@@ -379,7 +379,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagem padrão dos membros:** 📌 Padrão do Keiko\n> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
+            "content": "💬 **Mensagem padrão dos membros:** 📌 Padrão do Keiko\n> **🎂 É aniversário do {user}!**\n> Feliz aniversário, {user}! 🎉 Que seu dia seja cheio de alegria e mimos! ✨",
             "type": "text"
           },
           {
@@ -621,7 +621,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagem padrão dos membros:** 📌 Padrão do Keiko\n> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
+            "content": "💬 **Mensagem padrão dos membros:** 📌 Padrão do Keiko\n> **🎂 É aniversário do {user}!**\n> Feliz aniversário, {user}! 🎉 Que seu dia seja cheio de alegria e mimos! ✨",
             "type": "text"
           },
           {
@@ -854,7 +854,7 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagem padrão dos membros:** 📌 Padrão do Keiko\n> **🎂 Feliz Aniversário {user}!**\n> Que seu dia seja cheio de alegria e mimos! 🎉✨",
+            "content": "💬 **Mensagem padrão dos membros:** 📌 Padrão do Keiko\n> **🎂 É aniversário do {user}!**\n> Feliz aniversário, {user}! 🎉 Que seu dia seja cheio de alegria e mimos! ✨",
             "type": "text"
           },
           {

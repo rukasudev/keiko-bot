@@ -1,0 +1,80 @@
+# open: fact names -> a fact the code passes
+facts:
+  duration:
+    type: text
+    description: How long a live lasted, formatted for the reader.
+
+command:
+  slash:
+    subgroup:
+      en-us: twitch
+      pt-br: twitch
+    name:
+      en-us: lives
+      pt-br: lives
+    description:
+      en-us: Keiko will notify you whenever your favorite streamers is online on Twitch
+      pt-br: Keiko notificará você sempre que seus streamers favoritos estiverem ao vivo na Twitch
+
+  setup:
+    label:
+      en-us: Twitch Lives
+      pt-br: Twitch Lives
+    description:
+      en-us: Notifies you when your streamers go live
+      pt-br: Avisa quando seus streamers entram ao vivo
+
+  stats:
+    title:
+      en-us: 📊 Twitch Lives Statistics
+      pt-br: 📊 Estatísticas de Twitch Lives
+    delivered:
+      one:
+        en-us: ✅ I sent 1 live notification in the last $days days!
+        pt-br: ✅ Enviei 1 aviso de live nos últimos $days dias!
+      other:
+        en-us: ✅ I sent $count live notifications in the last $days days!
+        pt-br: ✅ Enviei $count avisos de live nos últimos $days dias!
+
+ui:
+  # open: error names -> an error block
+  errors:
+    preview_needs_streamer:
+      title:
+        en-us: Streamer Required
+        pt-br: Streamer Obrigatório
+      message:
+        en-us: Oops! You need to pick the streamer before I can show the preview. Pick one on the card and try again! 🐶
+        pt-br: Ops! Você precisa escolher o streamer antes de eu mostrar a pré-visualização. Escolha um no card e tente de novo! 🐶
+
+  announcement:
+    # open: the value the code gives each field -> its label
+    fields:
+      game:
+        en-us: Game
+        pt-br: Categoria
+      streamer:
+        en-us: Streamer
+        pt-br: Streamer
+    # open: the live's states -> its footer line
+    states:
+      online:
+        en-us: 🟢 Online
+        pt-br: 🟢 Ao vivo
+      offline:
+        en-us: 🔴 Offline
+        pt-br: 🔴 Live encerrada
+      duration:
+        en-us: "⌛️ Duration: $duration"
+        pt-br: "⌛️ Duração: $duration"
+    # open: the part each sample stands for -> the sample a preview draws
+    samples:
+      title:
+        en-us: The stream title shows up here
+        pt-br: O título da live aparece aqui
+      game:
+        en-us: The stream category
+        pt-br: A categoria da live
+      description:
+        en-us: Stream description here
+        pt-br: Descrição da live aqui

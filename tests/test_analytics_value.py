@@ -8,8 +8,7 @@ import discord
 import pytest
 
 from app.data import data, wait
-from app.constants import Commands as constants
-from app.core import analytics, analytics_reports, analytics_sink
+from app.core import analytics, analytics_reports
 from tests.generators.events import record_event
 
 pytestmark = pytest.mark.unit
@@ -93,7 +92,7 @@ def test_a_blocked_link_is_one_activity_and_one_value_delivered():
 def test_a_failed_delete_is_reported_as_a_permission_problem():
     record_event(
         "value.blocked_by_permission", guild_id="6",
-        feature=constants.BLOCK_LINKS_KEY, error_type="Forbidden",
+        feature="block_links", error_type="Forbidden",
     )
     flush()
 

@@ -5,8 +5,8 @@ here before anyone opens Discord.
 """
 import pytest
 
-from app.settings.form.form_yaml import registry
-from app.settings.features import feature_keys
+from app.forms.form.form_yaml import registry
+from app.forms.features import feature_keys
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("form_engine")]
 

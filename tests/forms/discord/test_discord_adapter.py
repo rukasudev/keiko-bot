@@ -15,11 +15,11 @@ import discord
 import pytest
 
 from app.core.utils import ml
-from app.settings.discord.callbacks import RUNTIME
-from app.settings.discord.interactions import decode, encode, is_ours
-from app.settings.discord.views import modal_of
-from app.settings.form.components import FileInput, Input, Screen, TextInputs
-from app.settings.form.form_state import Status
+from app.forms.discord.callbacks import RUNTIME
+from app.forms.discord.interactions import decode, encode, is_ours
+from app.forms.discord.views import modal_of
+from app.forms.form.components import FileInput, Input, Screen, TextInputs
+from app.forms.form.form_state import Status
 from tests.behavioral.contracts.test_components_v2_limits import _assert_within_limits
 from tests.behavioral.golden.paths.block_links import _seed as seed_block_links
 from tests.behavioral.golden.paths.common import seed_document
@@ -80,7 +80,7 @@ def _first_answer(events):
 
 
 def _notices(scenario, key):
-    text = ml(f"commands.form-notices.{key}", locale=scenario.locale_str)
+    text = ml(f"texts.notices.{key}", locale=scenario.locale_str)
     return [e for e in scenario.outputs if e.get("content") == text]
 
 
@@ -103,9 +103,9 @@ def test_the_codec_round_trips_and_rejects_foreign_ids():
 def test_the_list_buttons_become_their_events():
     """P4 and tw-8 (beta.2): a remove picker reports every value chosen, its
     confirmation, the pages, the search and a preview naming one item."""
-    from app.settings.discord.interactions import to_event
-    from app.settings.form import events as ev
-    from app.settings.form.manager import PageTurned, SearchRequested
+    from app.forms.discord.interactions import to_event
+    from app.forms.form import events as ev
+    from app.forms.form.manager import PageTurned, SearchRequested
 
     click = SimpleNamespace(id=42)
 
@@ -126,8 +126,8 @@ def test_the_list_buttons_become_their_events():
 def test_a_button_on_the_card_sets_its_value_as_a_select_drafts_one():
     """N4 (beta.2 round 2): Sim and Não on a card report the value they set for
     their key, the same draft a select of the card reports."""
-    from app.settings.discord.interactions import to_event
-    from app.settings.form import events as ev
+    from app.forms.discord.interactions import to_event
+    from app.forms.form import events as ev
 
     click = SimpleNamespace(id=42)
     pressed = to_event(
@@ -144,7 +144,7 @@ def test_a_button_on_the_card_sets_its_value_as_a_select_drafts_one():
 def test_a_member_picture_is_read_from_the_server_the_session_runs_in():
     """B3 (beta.2 round 3): the card reads a picked member's picture by id, and
     a member the server does not know has none."""
-    from app.settings.discord.callbacks import MemberPictures
+    from app.forms.discord.callbacks import MemberPictures
 
     guild = create_guild()
     create_member(guild, id=777, name="Amiga")
@@ -157,8 +157,8 @@ def test_a_member_picture_is_read_from_the_server_the_session_runs_in():
 
 
 def test_the_yes_and_no_of_a_card_are_two_buttons_inside_it():
-    from app.settings.discord.views import layout_of
-    from app.settings.form.components import (
+    from app.forms.discord.views import layout_of
+    from app.forms.form.components import (
         Card,
         CardHeader,
         Choice,
@@ -242,7 +242,7 @@ async def test_expiry_takes_the_buttons_off_an_embed_screen(v2):
     await scenario.expire()
     message = scenario.current_message
     assert message.view is None
-    expired = ml("commands.form-notices.expired", locale="pt-br")
+    expired = ml("texts.notices.expired", locale="pt-br")
     assert expired in message.embeds[0].description
     assert _session_of(scenario) is None or True
     assert all(s.status is Status.EXPIRED for s in RUNTIME.store._sessions.values())
@@ -256,7 +256,7 @@ async def test_expiry_takes_the_buttons_off_a_card(v2):
     items = list(locators.walk_items(scenario.current_message.view))
     assert not any(isinstance(item, discord.ui.Button) for item in items)
     texts = [i.content for i in items if isinstance(i, discord.ui.TextDisplay)]
-    assert ml("commands.form-notices.expired", locale="pt-br") in texts
+    assert ml("texts.notices.expired", locale="pt-br") in texts
 
 
 async def test_a_click_after_expiry_finalizes_the_message_again(v2):
@@ -274,10 +274,7 @@ async def test_a_click_on_a_forgotten_session_closes_the_message(v2):
     RUNTIME.reset()
     await button.callback(scenario._mint(message=message, custom_id=button.custom_id))
     assert message.view is None
-    assert (
-        ml("commands.form-notices.expired", locale="pt-br")
-        in message.embeds[0].description
-    )
+    assert ml("texts.notices.expired", locale="pt-br") in message.embeds[0].description
 
 
 # ------------------------------------------------------------- choreography
@@ -457,7 +454,7 @@ def stories():
 
 
 async def _save_block_links_with_a_failing_commit(v2, monkeypatch):
-    from app.settings.features import block_links
+    from app.commands.block_links import service as block_links
 
     async def boom(self, kind, payload, context):
         raise RuntimeError("secret detail")
@@ -592,14 +589,12 @@ def _slow_previews(monkeypatch):
     async def previews(member, designs, title="WELCOME", background=None):
         await drawn.wait()
         return {
-            design[
-                "key"
-            ]: f"https://cdn.discordapp.com/attachments/1/2/{design['key']}.png"
+            design: f"https://cdn.discordapp.com/attachments/1/2/{design}.png"
             for design in designs
         }
 
     monkeypatch.setattr(
-        "app.settings.features.welcome_messages.generate_design_previews", previews
+        "app.commands.welcome.service.generate_design_previews", previews
     )
     return drawn
 
@@ -674,7 +669,7 @@ async def test_a_finalize_that_fails_inside_a_commit_is_reported_once(
 ):
     """Broke as: one failed finalize logged Finalize failed, a false Commit failed and
     discord.py's Ignoring exception, three error messages for one failure."""
-    from app.settings.discord.transitions import Executor
+    from app.forms.discord.transitions import Executor
 
     async def broken(self, **kwargs):
         raise RuntimeError("drawing failed")
@@ -720,7 +715,7 @@ async def test_a_command_that_runs_late_is_answered_before_the_clock_runs_out(
     with "Unknown interaction" (10062). Discord gives three seconds, and the
     panel was only sent after reading the document, so every slow read lost the
     whole interaction."""
-    from app.settings.features.feature import GenericCogFeature
+    from app.forms.features.feature import GenericCogFeature
 
     seed_document(deps, "welcome_messages", WELCOME_ENABLED)
     monkeypatch.setattr("app.constants.ViewConstants.DEFER_AFTER_SECONDS", 0.01)
@@ -758,7 +753,7 @@ async def test_a_command_answered_in_time_is_counted_in_time(v2):
 
 
 async def test_a_command_the_clock_had_to_defer_is_counted_deferred(v2, monkeypatch):
-    from app.settings.features.feature import GenericCogFeature
+    from app.forms.features.feature import GenericCogFeature
 
     monkeypatch.setattr("app.constants.ViewConstants.DEFER_AFTER_SECONDS", 0.01)
     reading = GenericCogFeature.open
@@ -800,7 +795,7 @@ async def test_a_click_discord_refuses_is_counted_failed_with_its_code(v2, monke
 
 
 async def test_a_click_that_raises_is_counted_failed_and_still_raises(v2, monkeypatch):
-    from app.settings.discord.callbacks import Runtime
+    from app.forms.discord.callbacks import Runtime
 
     scenario = await v2().start_command("default_roles")
     message = scenario.current_message
@@ -823,12 +818,12 @@ async def test_a_click_that_raises_is_counted_failed_and_still_raises(v2, monkey
 
 async def test_a_feature_a_button_opens_that_raises_is_counted_failed(v2, monkeypatch):
     """The /setup and greeting buttons open a feature with no command error handler."""
-    from app.components.buttons import run_feature_command
+    from app.forms import run_feature_command
 
     async def broken(*args, **kwargs):
         raise RuntimeError("the saved document cannot be read")
 
-    monkeypatch.setattr("app.settings.open_feature", broken)
+    monkeypatch.setattr("app.forms.discord.callbacks.open_feature", broken)
     scenario = v2()
     failed = _interactions("failed")
 
@@ -847,7 +842,7 @@ async def test_an_aside_that_asks_first_spends_its_cooldown_only_when_confirmed(
     counting only the ones who do not have it yet (Lucas, 2026-09-16)."""
     from unittest.mock import AsyncMock
 
-    from app.settings.features import default_roles as default_roles_feature
+    from app.commands.roles import service as default_roles_feature
     from tests.behavioral.golden.paths.default_roles import ENABLED as ROLES_ENABLED
     from tests.mocks.discord import create_member
 
@@ -887,7 +882,7 @@ async def test_a_modal_that_needs_a_lookup_is_answered_before_the_lookup_runs(
 ):
     """Discord gives a modal three seconds; a slow Twitch lookup ran before any
     answer."""
-    from app.settings.features import subscriptions
+    from app.forms.features import subscriptions
 
     released = asyncio.Event()
     original = subscriptions.SubscriptionFeature.prefetch
@@ -920,8 +915,8 @@ async def test_a_modal_that_needs_a_lookup_is_answered_before_the_lookup_runs(
 
 
 def test_a_panel_part_has_its_own_edit_beside_its_lines():
-    from app.settings.discord.views import layout_of
-    from app.settings.form.components import Panel, PanelGroup, PanelPart
+    from app.forms.discord.views import layout_of
+    from app.forms.form.components import Panel, PanelGroup, PanelPart
 
     group = PanelGroup(
         "card",
@@ -954,8 +949,8 @@ def test_a_panel_part_has_its_own_edit_beside_its_lines():
 def test_a_section_description_joins_its_heading_and_adds_no_component():
     """P2 (beta.2): a section explains itself under its heading, in the same text,
     and its lines follow in that text too (round 4 C)."""
-    from app.settings.discord.views import layout_of
-    from app.settings.form.components import (
+    from app.forms.discord.views import layout_of
+    from app.forms.form.components import (
         Button,
         Card,
         CardHeader,
@@ -992,8 +987,8 @@ def test_options_with_descriptions_are_blocks_with_their_own_button():
     """bl-5 (beta.2): a picker whose options explain themselves draws each one as
     its name and explanation with the Choose button beside it; plain options
     stay a grid of buttons."""
-    from app.settings.discord.views import layout_of
-    from app.settings.form.components import Choice, ChoiceOption
+    from app.forms.discord.views import layout_of
+    from app.forms.form.components import Choice, ChoiceOption
 
     def drawn(choice):
         return layout_of(
@@ -1049,7 +1044,7 @@ async def test_confirming_a_card_review_replaces_it_with_the_enabled_message(v2,
 
     await scenario.confirm()
 
-    title = ml("commands.command-events.enabled.title", locale="pt-br")
+    title = ml("commands.responses.enabled.title", locale="pt-br")
     [activation] = [
         event
         for event in scenario.outputs
@@ -1083,8 +1078,8 @@ async def test_the_design_picker_opened_from_the_welcome_panel_shows_previews(
 def test_a_card_section_with_controls_draws_them_inside_the_card():
     """bd-1: a section drawn with its select on the card keeps it inside the
     card's frame, in a row of its own, where its button would have been."""
-    from app.settings.discord.views import layout_of
-    from app.settings.form.components import (
+    from app.forms.discord.views import layout_of
+    from app.forms.form.components import (
         Card,
         CardHeader,
         ChoiceOption,

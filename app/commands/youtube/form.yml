@@ -1,0 +1,153 @@
+steps:
+  - type: intro
+    key: form
+    title:
+      en-us: ▶️ YouTube Videos
+      pt-br: ▶️ YouTube Vídeos
+    description:
+      en-us: Enabling this feature allows me to notify when your favorite youtuber posts a new video!
+      pt-br: Ativar esta função faz com que eu notifique quando seu youtuber favorito postar um novo vídeo!
+    panel:
+      description:
+        en-us: I let the server know when these channels post a new video.
+        pt-br: Aviso no servidor quando estes canais postam um vídeo novo.
+
+  - type: list
+    key: notifications
+    title:
+      en-us: Notifications
+      pt-br: Notificações
+    description:
+      en-us: "Do you want to add more youtubers? Add more youtubers to be notified when they post a new video! (Max: 2)"
+      pt-br: "Deseja adicionar mais youtubers? Adicione mais youtubers para ser notificado quando eles postarem um novo vídeo! (Máx: 2)"
+    emoji: ":busts_in_silhouette:"
+    items:
+      max: 2
+      min: 1
+      unique:
+        key: youtuber
+    edit: item
+    remove: item
+    counter:
+      en-us: $count of $max set up
+      pt-br: $count de $max configurados
+    last_item_warning:
+      en-us: "You only have **1** channel set up.\n\n$item\n\nIf you remove it now, **$feature** will be **turned off** and you'll need to set it up again. Are you sure you want to continue?"
+      pt-br: "Você só tem **1** canal configurado.\n\n$item\n\nSe você removê-lo agora, a função **$feature** será **desativada** e você vai precisar configurá-la de novo. Tem certeza de que quer continuar?"
+    steps:
+      - type: card
+        key: notification
+        title:
+          en-us: YouTube Channel
+          pt-br: Canal do YouTube
+        description:
+          en-us: Choose the channel and the youtuber, and I'll let the server know when they post a new video! The message already comes set, change it if you want.
+          pt-br: Escolha o canal e o youtuber, e eu aviso no servidor quando ele postar um vídeo novo! A mensagem já vem configurada, mude se quiser.
+        emoji: ▶️
+        header:
+          thumbnail: default
+        preview:
+          required:
+            all: [youtuber]
+          error: notifications_youtube_video.ui.errors.preview_needs_youtuber
+        required:
+          all: [channel, youtuber]
+        fields:
+          - key: channel
+            description:
+              en-us: Where I'll announce the new video.
+              pt-br: Onde vou avisar do vídeo novo.
+          - key: youtuber
+            description:
+              en-us: The YouTube channel name (with or without @).
+              pt-br: O nome do canal no YouTube (com ou sem @).
+          - key: notification_messages
+            description:
+              en-us: Up to three messages, I pick one at random each video.
+              pt-br: Até três mensagens, eu sorteio uma a cada vídeo.
+        sections:
+          - type: channel_select
+            key: channel
+            emoji: 📺
+            label: {ref: text_channel}
+            keys:
+              value: channel
+            screen:
+              title:
+                en-us: Where should I send the notifications?
+                pt-br: Onde devo enviar as notificações?
+          - type: modal_input
+            key: youtuber
+            emoji: 🎬
+            label: {ref: youtuber}
+            keys:
+              value: youtuber
+            image: youtuber_avatar
+            button:
+              label:
+                en-us: Choose youtuber
+                pt-br: Escolher youtuber
+            modal:
+              title: {ref: youtuber}
+              validation:
+                name: registered_and_found
+                # open: the validator's params -> an answer key or a value
+                params:
+                  item: youtuber
+                  service: youtube
+                  id: channel_id
+                  error: notifications_youtube_video.ui.errors.youtuber
+              inputs:
+                - key: youtuber
+                  label:
+                    en-us: The YouTube channel name (with or without @)
+                    pt-br: O nome do canal no YouTube (com ou sem @)
+                  placeholder:
+                    en-us: e.g. @pewdiepie
+                    pt-br: "ex: @pewdiepie"
+                  max_length: 30
+                  normalize:
+                    name: handle
+            fills:
+              into: notification_messages
+              # open: {token} names in that text -> a template with {value}
+              tokens:
+                youtuber: "{value}"
+            # open: hidden answer keys -> service.field of the lookup
+            lookup_answers:
+              youtuber_avatar: youtube.profile_image
+          - type: modal_input
+            key: messages
+            emoji: 💬
+            label: {ref: notification_messages}
+            description:
+              en-us: "One of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link"
+              pt-br: "Uma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo"
+            keys:
+              value: notification_messages
+            button:
+              label: {ref: edit_messages}
+            format: code_block
+            modal:
+              title: {ref: notification_messages}
+              inputs:
+                - label: {ref: random_message_1}
+                  max_length: 100
+                  multiline: true
+                - label: {ref: random_message_2}
+                  max_length: 100
+                  required: false
+                  multiline: true
+                - label: {ref: random_message_3}
+                  max_length: 100
+                  required: false
+                  multiline: true
+        # open: state keys of the card -> a value or a text
+        defaults:
+          notification_messages:
+            en-us: "@everyone! {youtuber} just posted a new video!"
+            pt-br: "@everyone! {youtuber} acabou de postar um novo vídeo!"
+
+  - type: review
+    key: confirm
+    preview: true

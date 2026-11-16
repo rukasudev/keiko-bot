@@ -2,7 +2,7 @@
 
 A reusable writing/style system extracted from the existing Keiko Discord bot codebase. Use it whenever you write or edit user-facing text — slash command descriptions, embeds, modals, buttons, forms, error/success messages, and notification copy.
 
-All user-facing strings live in `app/languages/**/*.yml` and are routed through `ml()` (`app/core/utils.py:292`). Embed and button construction is centralized in `app/components/embed.py` and `app/components/buttons.py`; the form screens, modals and cards are drawn by `app/settings/discord/views.py` from the definitions in `app/languages/form/`.
+All user-facing strings live in YAML and are routed through `ml(key, locale)` (`app/core/utils.py`), loaded by `app/core/i18n.py`: a command's own copy in `app/commands/<command>/copy.yml` (snake_case keys relative to the command, loaded under its key, each text in the block of the primitive that draws it: `docs/commands.md`), the shared copy (buttons, shared responses and lists, generic texts and errors) in `app/languages/*.yml`; every text is one node with its `en-us` and its `pt-br`, and every file is read against its schema (`docs/yaml-reference.html`). Embed and button construction is centralized in `app/ui/embed.py` and `app/ui/buttons.py`; the form screens, modals and cards are drawn by `app/forms/discord/views.py` from each command's `form.yml`, beside its `copy.yml`; the two files are the two halves of the document a command made from data will store.
 
 ---
 
@@ -14,7 +14,7 @@ Keiko is a friendly, loyal dog companion. Two voices coexist depending on **wher
 
 | Surface | Voice | Example |
 |---|---|---|
-| Slash command `desc` (Discord picker metadata) | **3rd person** ("Keiko {verbs}…") | `Keiko helps you understand how to use the available commands` |
+| Slash command `description` (Discord picker metadata) | **3rd person** ("Keiko {verbs}…") | `Keiko helps you understand how to use the available commands` |
 | Embeds, responses, modals, errors, forms (everything the user sees AS the bot) | **1st person** ("I'll…", "my…", "me") | `I'm sorry, but I couldn't process the command correctly.` |
 
 **Personality markers** (use sparingly, never stack more than one per message):
@@ -50,7 +50,7 @@ Keiko is a friendly, loyal dog companion. Two voices coexist depending on **wher
 - **Description vs fields:**
   - Use `description` for: a single message, a short body with one CTA, instructional copy, error messages.
   - Use `add_field(inline=False)` for: stacked record-style content (report DMs at `embed.py:120-129`), command/button caption lists (`buttons.py:333-347` Help embed), multi-section help.
-- **Footer:** Always prefixed with `"• "` when set (`embed.py:48,73,86,132`). Standard form footer: `"• Use the command /report to tell me a bug"`.
+- **Footer:** Always prefixed with `"• "` when set. The closing line of an embed is `-# • {text}` subtext drawn by `with_footer` (`app/ui/embed.py`), always its last line: at the end of the description, or in a full-width field of its own under the fields when the embed has some; a `Response` block without `footer` draws the standard `/report` line, `footer: null` none. Standard form footer: `"• Use the `/report` command to tell me a bug"`, drawn by the engine from `fallbacks.footer` in `app/forms/vocabulary.yml` on every step that writes none.
 - **Thumbnail:** Use `KeikoIcons.IMAGE_01` for branded responses, or `KeikoIcons.ACTION_IMAGE.get(action)` for action-specific icons (`embed.py:23-24`).
 
 ### Buttons
@@ -62,10 +62,10 @@ Keiko is a friendly, loyal dog companion. Two voices coexist depending on **wher
 | Edit, Pause, Preview, Help, Disable, Add, Remove, History, Sync | `ButtonStyle.gray` / `grey` | `buttons.py:108,134,268` |
 | Form back button | `ButtonStyle.secondary` | `buttons.py:253` |
 
-Button labels live in `buttons.{lang}.yml` under generic keys (`confirm`, `cancel`, `edit`, `add`, `remove`, `preview`, `back`, `pause`, `unpause`, `select`, `continue`, `history`). UI-component-specific copy (e.g., select placeholders) lives under `components.select.*`.
+Button labels live in `app/languages/buttons.yml` under generic keys (`confirm`, `cancel`, `edit`, `add`, `remove`, `preview`, `back`, `pause`, `unpause`, `select`, `choose`, `history`, `done`), each a `label` and, for a button the Help screen lists, a `description`. UI-component-specific copy (e.g., select placeholders) lives in `app/languages/texts.yml` under `placeholders.*`.
 
 ### Modals
-Drawn by `app/settings/discord/views.py` from the step or section definition.
+Drawn by `app/forms/discord/views.py` from the step or section definition.
 - `title` = the step's `modal_title` or `title` in the admin's locale.
 - `max_length` defaults to **40**; override via YAML `max_length`.
 - `placeholder` falls back to `description` when not set explicitly.
@@ -74,11 +74,11 @@ Drawn by `app/settings/discord/views.py` from the step or section definition.
 - The lifecycle confirmation modal (pause, unpause, disable) asks the user to type the action verb back.
 
 ### Forms (YAML schema)
-Each step has: `action`, `key`, optional `emoji`, `title.{en-us,pt-br}`, `description.{en-us,pt-br}`, `footer.{en-us,pt-br}`. Step actions seen: `form`, `channels`, `modal`, `multi_select`, `options`, `button`, `design_select`, `file_upload`, `composition`, `resume`.
+Each step has: `type`, `key`, `title.{en-us,pt-br}`, `description.{en-us,pt-br}`, and `footer` only to replace the standard one (or `footer: null` for none). A text of the shared vocabulary (`texts` in `app/forms/vocabulary.yml`) is named with `{ref: name}`; no YAML anchors or aliases. Step types: `intro`, `text`, `single_choice`, `card`, `list`, `review`; every key a form may write is in `docs/yaml-reference.html`.
 
-- Every form **starts** with an `action: form` intro step (title + emoji + 1-sentence description).
-- Every form **ends** with `action: resume`, the summary: titled like the intro (the feature's emoji and name), its description naming the command it turns on with `{context:command}`, closed by its green **Confirm** / **Confirmar** button.
-- Footer on every step is the **same line**: `"• Use the command /report to tell me a bug"` / `"• Utilize o comando /reportar para me contar um bug"`.
+- Every form **starts** with a `type: intro` intro step (title + emoji + 1-sentence description).
+- Every form **ends** with `type: review`, the summary: titled like the intro (the feature's emoji and name), its description naming the command it turns on with `{context:command}`, closed by its green **Confirm** / **Confirmar** button. The title and the summary sentence are the engine's defaults, so the step writes neither.
+- Footer on every step is the **same line**: `"• Use the `/report` command to tell me a bug"` / `"• Use o comando `/reportar` para me contar um bug"`, the engine's default: a step leaves `footer` out.
 
 ## 1.4 Messaging patterns
 
@@ -95,10 +95,10 @@ Each step has: `action`, `key`, optional `emoji`, `title.{en-us,pt-br}`, `descri
 ### Instructions
 - Address the user directly (`"Choose which channel..."`, `"Use the buttons below..."`).
 - When introducing variables, list them last with bullets and inline-code keys: `` "- `{user}`: User mention" ``.
-- Always backtick slash-command names: `` `/help` ``, `` `/setup` ``, `` `/report` ``, `` `/support` ``.
+- Always backtick slash-command names, written as their context entry so the loader writes in the localized name: `` `{context:commands.help}` `` reads `` `/help` `` or `` `/ajuda` ``, and so `` `{context:commands.setup}` ``, `` `{context:commands.report}` ``, `` `{context:commands.support}` ``.
 
 ### Feedback / state changes
-- Use the `command-events.{enabled,paused,unpaused,disabled,edited,added,removed}` keys; never invent new state-change copy.
+- Use the `commands.responses.{enabled,paused,unpaused,disabled}` keys; never invent new state-change copy.
 
 ## 1.5 Vocabulary
 
@@ -122,8 +122,8 @@ Each step has: `action`, `key`, optional `emoji`, `title.{en-us,pt-br}`, `descri
 | Slash commands | Backticks | `` `/setup` `` |
 | Bot names / important nouns | Bold | `**Keiko**`, `**#support**` |
 | Command names in event copy | Bold + variable | `**$command_name**` |
-| Variables in user-facing strings | Curly braces, inline-code in docs | `{user}`, `{server}`, `{member_count}` |
-| Variables in system/event descriptions | Dollar prefix | `$user`, `$command_name`, `$date` |
+| Variables of an admin's message template | Curly braces, inline-code in docs | `{user}`, `{server}`, `{member_count}` |
+| Variables the code fills in copy | Dollar prefix, the only syntax copy accepts | `$user`, `$command_name`, `$date` |
 | Stressed words | Italics | `*help*` |
 | Examples / values | Backticks | `` `ks!mouse` `` |
 | Footer prefix | `"• "` (bullet + space) | `"• Use the command /report..."` |
@@ -171,7 +171,7 @@ Each step has: `action`, `key`, optional `emoji`, `title.{en-us,pt-br}`, `descri
 ✅ `"Choose which channel I should send the welcome messages"`
 ❌ `"Please select a channel from the dropdown menu in order to proceed."` — verbose, no warmth.
 
-### Slash command desc
+### Slash command description
 
 ✅ `"Keiko helps you report any bugs or issues you encounter"`
 ✅ `"Keiko warmly welcomes new members with a personalized message"`
@@ -182,57 +182,72 @@ Each step has: `action`, `key`, optional `emoji`, `title.{en-us,pt-br}`, `descri
 
 # 3. Reusable Templates
 
-### 3.1 Slash command desc (YAML)
+### 3.1 Slash command description (in the command's `copy.yml`)
 ```yaml
-{command-key}:
-  name: {kebab-name}
-  desc: Keiko {verb}s {what} {how/why}
+slash:
+  name:
+    en-us: {kebab-name}
+    pt-br: {nome-kebab}
+  description:
+    en-us: Keiko {verb}s {what} {how/why}
+    pt-br: Keiko {verbo} {o quê} {como/por quê}
 ```
 Example: `Keiko lovingly protects our server by blocking any suspicious links`.
 
-### 3.2 Standard response embed (YAML)
+### 3.2 Standard response embed (in the command's `copy.yml`)
 ```yaml
-{namespace}:
-  response:
-    title: {EMOJI} {Title}!
-    message: {1st-person sentence ending with emoji or .}
-    footer: {actionable hint, e.g. "If you need help, don't hesitate to call us on our official server, using the /support command."}
+# open: response names -> a Response
+responses:
+  {response_name}:
+    title:
+      en-us: {EMOJI} {Title}!
+      pt-br: {EMOJI} {Título}!
+    description:
+      en-us: {1st-person sentence ending with emoji or ., $value where the code fills one}
+      pt-br: {frase em 1ª pessoa terminando com emoji ou ., $value onde o código preenche}
+    footer: {ref: support_footer}
 ```
-Render via `response_embed("commands.{namespace}.response", locale, footer=True, image=True)`.
+Render via `response_embed("{command-key}.responses.{response_name}", locale, image=True, facts=command_facts(...))`. Without `footer` the embed closes with the standard `/report` line; `footer: null` draws none; a text (here the shared `support_footer` of `app/forms/vocabulary.yml`) draws that text.
 
 ### 3.3 Error message (YAML)
 ```yaml
-{error-key}:
-  title: {Problem Name in Title Case}
-  message: I'm sorry, but {what went wrong}. {How to recover}.
+# open: error names -> an ErrorBlock
+errors:
+  {error_name}:
+    title:
+      en-us: {Problem Name in Title Case}
+      pt-br: {Nome do Problema}
+    message:
+      en-us: I'm sorry, but {what went wrong}. {How to recover}.
+      pt-br: Sinto muito, mas {o que deu errado}. {Como resolver}.
 ```
-Render via `response_error_embed("{error-key}", locale)` — auto-prefixes `🚨`.
+Render via `response_error_embed("{command-key}.errors.{error_name}", locale)`, or `response_error_embed("{error_name}", locale)` for a shared error of `app/languages/errors.yml`; it auto-prefixes `🚨`. A form names it by the block: `error: {command-key}.errors.{error_name}`.
 
 ### 3.4 Success / state-change embed
-Use existing `command-events.{enabled,paused,unpaused,disabled,edited,added,removed}`. Do not invent new state keys; only fill in `$command_name`, `$user`, `$date`.
+Use existing `commands.responses.{enabled,paused,unpaused,disabled}`. Do not invent new state keys; only fill in `$command_name`, `$user`, `$date`.
 
 ### 3.5 Modal (YAML form step)
 ```yaml
-- action: modal
+- type: text
   key: {snake_key}
-  max_length: {<= 100}
   title:
     en-us: {Short Title}
     pt-br: {Título Curto}
-  label:
-    en-us: {Question / what to type}
-    pt-br: {Pergunta}
   description:
     en-us: {1-sentence hint with example: "Only the streamer's username. Example: ninja"}
     pt-br: {dica em pt-br}
+  label:
+    en-us: {Question / what to type}
+    pt-br: {Pergunta}
   placeholder:
     en-us: {realistic example value}
     pt-br: {exemplo}
+  max_length: {<= 100}
 ```
 
 ### 3.6 Form intro / outro
 ```yaml
-- action: form
+- type: intro
   key: form
   title:
     en-us: "{EMOJI} {Feature Name}"
@@ -240,18 +255,11 @@ Use existing `command-events.{enabled,paused,unpaused,disabled,edited,added,remo
   description:
     en-us: Enabling this feature allows me to {what I'll do}!
     pt-br: Ativar esta função faz com que eu {o que farei}!
-  footer:
-    en-us: "• Use the command /report to tell me a bug"
-    pt-br: "• Utilize o comando /reportar para me contar um bug"
 
-- action: resume
+- type: review
   key: confirm
-  title: {same as the form intro title}
-  description:
-    en-us: "Here's a summary of your choices so far. All set for me to turn on the `/{context:command}` command with the settings below? ✅"
-    pt-br: "Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/{context:command}` com as configurações abaixo? ✅"
-  footer: {same standard footer}
 ```
+The summary reads the intro's title, and the summary sentence (`fallbacks.review_description`) and the footer of every step (`fallbacks.footer`) come from `app/forms/vocabulary.yml`.
 
 ### 3.7 Greeting / branded response
 - Use 1st person, open with `"Hello, I'm Keiko, ..."` or analogous.
@@ -263,7 +271,7 @@ Use existing `command-events.{enabled,paused,unpaused,disabled,edited,added,remo
 # 4. Generation Rules (strict checklist)
 
 **Voice & tone**
-1. ALWAYS use 3rd person (`"Keiko {verbs}..."`) in slash command `desc:` fields.
+1. ALWAYS use 3rd person (`"Keiko {verbs}..."`) in slash command `description:` fields.
 2. ALWAYS use 1st person (`I, my, me`) in every other user-facing string.
 3. NEVER mix voices in the same string.
 4. NEVER use slang, memes, irony, sarcasm, or pop-culture references.
@@ -283,15 +291,15 @@ Use existing `command-events.{enabled,paused,unpaused,disabled,edited,added,remo
 
 **Formatting**
 13. ALWAYS bold `**Keiko**` and `**$command_name**` when referenced inline.
-14. ALWAYS backtick slash commands: `` `/setup` ``, `` `/report` ``, `` `/support` ``.
+14. ALWAYS backtick slash commands, as their context entry: `` `{context:commands.setup}` ``, `` `{context:commands.report}` ``, `` `{context:commands.support}` ``.
 15. ALWAYS prefix footer text with `"• "`.
 16. NEVER use `•` as inline bullets in body copy — use `-` or numbered lists.
 17. USE `\n\n` between paragraphs, `\n- ` to start a list item inside a string.
 
 **Variables**
 18. USE `{user}`, `{server}`, `{member_count}`, `{streamer}`, `{stream_link}`, `{youtuber}`, `{video_link}` for user-customized message templates (welcome, notification messages).
-19. USE `$user`, `$command_name`, `$date`, `$setup_command`, `$cog_name`, `$cog_key`, `$ping`, `$action`, `$roles` for system/event descriptions injected by `core/utils.py`.
-20. NEVER mix the two syntaxes in the same key.
+19. USE `$user`, `$command_name`, `$date`, `$cog_name`, `$cog_key`, `$ping`, `$action`, `$roles` for every value the code fills in copy, each a declared fact (the command's `facts:` or `app/core/global.yml`); a line that points to another command writes its context entry (`{context:commands.setup}` reads `/setup` or `/configurar`).
+20. NEVER write a code-filled value as `{name}` in copy: the loader refuses it, and braces stay for the templates an admin writes (and Keiko's own defaults of them, `announcement.defaults`).
 
 **Localization**
 21. EVERY new user-facing string MUST exist in BOTH `en-us` and `pt-br`.
@@ -301,26 +309,26 @@ Use existing `command-events.{enabled,paused,unpaused,disabled,edited,added,remo
 **Embeds**
 24. USE `Style.BACKGROUND_COLOR` (`4F97F9`) by default; `Style.RED_COLOR` (`ff0000`) only for errors.
 25. USE `description` for short bodies; `add_field(inline=False)` only for record-style stacks (DM reports, captions, help indexes).
-26. SET footer via `embed.set_footer(text=f"• {ml(...)}")` — keep the bullet prefix.
+26. CLOSE a response through its copy's `footer` (absent: the standard `/report` line; `null`: none), which `with_footer` draws as the last `-# • ` subtext line; `embed.set_footer(text=f"• ...")` only for a footer with no markdown (an announcement's status), keeping the bullet prefix.
 27. USE `KeikoIcons.IMAGE_01` for branded thumbnails unless an action-specific icon exists in `KeikoIcons.ACTION_IMAGE`.
 
 **Buttons**
 28. Confirm = `green`, Cancel = `red`, Back/selected/primary action = `primary`, everything else = `gray`/`grey`.
-29. REUSE generic labels from `buttons.{lang}.yml` (`confirm`, `cancel`, `edit`, `add`, `remove`, `back`, `select`, `continue`, `pause`, `unpause`, `preview`, `history`); only add a new key when the action is genuinely new.
+29. REUSE generic labels from `app/languages/buttons.yml` (`confirm`, `cancel`, `edit`, `add`, `remove`, `back`, `select`, `choose`, `pause`, `unpause`, `preview`, `history`, `done`); only add a new key when the action is genuinely new.
 
 **Modals**
 30. DEFAULT `max_length` = 40 unless YAML overrides; cap at 100 for free-text fields.
 31. SET `placeholder` to a realistic example value (`"shroud"`, `"pewdiepie"`, `"No links here! :p"`).
 
 **Forms**
-32. ALWAYS open with `action: form` and close with `action: resume`, titled like the intro.
-33. EVERY step has the standard report footer (`"• Use the command /report to tell me a bug"` / pt-br equivalent).
-34. EVERY step has both `en-us` and `pt-br` keys for `title`, `description`, and `footer`.
+32. ALWAYS open with `type: intro` and close with `type: review`, titled like the intro.
+33. EVERY step shows the standard report footer (`"• Use the `/report` command to tell me a bug"` / pt-br equivalent), drawn by the engine from `fallbacks.footer`: a step leaves `footer` out.
+34. EVERY step has both `en-us` and `pt-br` for `title` and `description`, and for a `footer` it writes.
 
 **Conditions**
-35. IF the string is a slash command `desc:` → start with `"Keiko {verb}s..."`.
+35. IF the string is a slash command `description:` → start with `"Keiko {verb}s..."`.
 36. IF the string is an error → red embed + apology + recovery hint.
-37. IF the string is a success/state-change → reuse `command-events.*` keys; do not write new ones.
+37. IF the string is a success/state-change → reuse `commands.responses.*` keys; do not write new ones.
 38. IF showing variables to the user → use `-` bullets: `\n- `` `{var}` ``: {meaning}". Never `•` here.
 39. IF a feature has multiple sub-options (designs, sources) → use a `design_select`-style step with header `"⬇️ Select one of the designs below:"` and footer `"⬆️ Scroll up to see all options"`. Do not hardcode a count.
 40. IF the message describes an async/in-progress state → trailing `...` is allowed and expected.
@@ -335,14 +343,14 @@ Follow the Keiko Writing Style Guide:
 PERSONALITY: Friendly, loyal dog companion. Warm but not childish. One cute beat per message max. Subtle dog puns (e.g., pt-br "au au" wordplay like *aujuda*) are welcome when natural.
 
 VOICE:
-- 3rd person ("Keiko {verbs}...") ONLY in slash command `desc:` fields.
+- 3rd person ("Keiko {verbs}...") ONLY in slash command `description:` fields.
 - 1st person ("I", "my", "me") in every embed, modal, error, response, and form.
 
 FORMAT:
 - Title = "{one-emoji} {Title Case}". Errors auto-prefix 🚨.
 - Footer always starts with "• ".
 - Bold **Keiko**, **$command_name**. Backtick `/commands`.
-- Variables: `{user}` user-facing; `$user` system/event descriptions.
+- Variables: `{user}` in an admin's template; `$user` for every value the code fills in copy.
 - Bullets: `-` or numbers in body; `•` only as footer prefix.
 - NEVER em-dash (`—`) or en-dash (`–`). Use commas, periods, or two sentences. Sounds AI-like.
 - `...` ONLY for async/in-progress states (`🔄 Syncing roles...`); never stylistic.
@@ -353,13 +361,13 @@ INSTRUCTIONS: 1st-person, direct ("Choose which channel I should..."), single tr
 
 VOCABULARY: prefer cozy, warmly, lovingly, loyal, personalized, just call me, don't hesitate. Avoid execute/invoke/initialize, ALL CAPS, slang, memes.
 
-LOCALIZATION: every new string lives in en-us AND pt-br under app/languages/. Never hardcode in Python — go through ml(key, locale).
+LOCALIZATION: every new string lives in en-us AND pt-br, one node with both: in the command's copy.yml, or app/languages/ for shared copy. Never hardcode in Python — go through ml(key, locale).
 
 EMBEDS: default color 0x4F97F9 (Style.BACKGROUND_COLOR), error 0xff0000. Use `description` for short bodies, `add_field(inline=False)` for stacked records. Thumbnail = KeikoIcons.IMAGE_01.
 
-BUTTONS: green=Confirm, red=Cancel, primary=Back/selected, gray=everything else. Reuse generic keys from buttons.{lang}.yml.
+BUTTONS: green=Confirm, red=Cancel, primary=Back/selected, gray=everything else. Reuse generic keys from app/languages/buttons.yml.
 
-FORMS: open with `action: form`, close with `action: resume` (titled like the intro, closed by its green Confirm button). Standard step footer: "• Use the command /report to tell me a bug".
+FORMS: open with `type: intro`, close with `type: review` (titled like the intro, closed by its green Confirm button). Standard step footer: "• Use the command /report to tell me a bug".
 ```
 
 ---

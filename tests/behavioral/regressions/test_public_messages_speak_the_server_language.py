@@ -9,7 +9,7 @@ language kept reading the guess.
 Shared behaviour: `server_language` (`app/core/servers.py`), read off the loop
 by every public site: the Twitch notice and its status, the YouTube notice, the
 birthday celebration, the StreamElements reply and command list (with the page footer
-of `PaginationWithoutInteractionView`), the prefix hint and the greeting. Consumer
+of `PaginationView`'s chat reply), the prefix hint and the greeting. Consumer
 that exposed it: the server settings of PR15.
 
 Guaranteed: each public site speaks the saved language when the server's Discord
@@ -27,11 +27,10 @@ from types import SimpleNamespace
 import discord
 import pytest
 
-from app.constants import Commands
 from app.integrations.stream_elements import StreamElementsClient
 from app.core.utils import ml
 from tests.generators.moderations import recorded_server
-from tests.mocks.discord import MockInteraction, create_guild, create_member, create_message
+from tests.mocks.discord import create_guild, create_member, create_message
 
 pytestmark = [
     pytest.mark.behavioral,
@@ -45,7 +44,7 @@ DISCORD_LOCALE = {
     "pt-br": discord.Locale.brazil_portuguese,
     "en-us": discord.Locale.american_english,
 }
-STREAM_ELEMENTS = "commands.commands.commons.stream-elements-manager.commands"
+STREAM_ELEMENTS = "stream_elements_commands"
 
 
 def opening(key, language):
@@ -61,7 +60,7 @@ def server(deps, mock_cache, monkeypatch):
     deps.twitch.add_user("gaules", user_id="123")
 
     def configured(guild_id, key, *args, **kwargs):
-        if key == Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY:
+        if key == "stream_elements_commands":
             return {"streamer": "gaules", "channel_id": "se-gaules", "enabled": True}
         return {}
 
@@ -93,28 +92,28 @@ def twitch_notice(guild):
 
 
 async def twitch_live(deps, guild):
-    from app.services.notifications_twitch import announce_live
+    from app.commands.twitch.service import announce_live
 
     channel, *notice = twitch_notice(guild)
     await announce_live(*notice)
     return channel.get_last_embed().fields[0].name, (
-        "commands.commands.commons.notifications-fields.twitch.game"
+        "notifications_twitch.ui.announcement.fields.game"
     )
 
 
 async def twitch_status(deps, guild):
-    from app.services.notifications_twitch import announce_live, show_status
+    from app.commands.twitch.service import announce_live, show_status
 
     channel, guild_data, notification, stream_info, user_info = twitch_notice(guild)
     await announce_live(guild_data, notification, stream_info, user_info)
     await show_status(guild_data, notification, "gaules", "offline", "2h")
     return channel.get_last_embed().footer.text, (
-        "commands.commands.commons.notifications-status.twitch.offline"
+        "notifications_twitch.ui.announcement.states.offline"
     )
 
 
 async def youtube_video(deps, guild):
-    from app.services.notifications_youtube_video import VideoAnnouncement, deliver_video
+    from app.commands.youtube.service import VideoAnnouncement, deliver_video
 
     channel = guild.text_channels[0]
     announcement = VideoAnnouncement(
@@ -130,40 +129,40 @@ async def youtube_video(deps, guild):
     }
     await deliver_video(announcement, {"guild_id": str(guild.id)}, notification)
     return channel.get_last_embed().fields[0].name, (
-        "commands.commands.commons.notifications-fields.youtube.description"
+        "notifications_youtube_video.ui.announcement.fields.description"
     )
 
 
 async def birthday(deps, guild):
-    from app.services.reminders_birthdays import save_birthday_config
+    from app.commands.birthdays.service import save_birthday_config
     from app.core.servers import set_feature_enabled
     from tests.generators.birthdays import saved_birthday
-    from app.webhooks.birthday_handler import celebrate_in_guild
+    from app.commands.birthdays.celebration import celebrate_in_guild
 
     channel = guild.text_channels[0]
     create_member(guild, id=555, name="Tester")
     await save_birthday_config(str(guild.id), str(channel.id), False)
     saved_birthday(str(guild.id), "555", "05-12", reminder_id="4001")
-    await set_feature_enabled(str(guild.id), Commands.REMINDERS_BIRTHDAY_KEY, True)
+    await set_feature_enabled(str(guild.id), "reminders_birthday", True)
 
     await celebrate_in_guild(
         str(guild.id), [{"user_id": "555", "date": "05-12"}], "05-12", Counter()
     )
-    return channel.get_last_embed().title, "messages.birthday-defaults.title"
+    return channel.get_last_embed().title, "reminders_birthday.ui.announcement.defaults.title"
 
 
 async def stream_elements_reply(deps, guild):
-    from app.services.stream_elements import check_message
+    from app.commands.stream_elements.service import check_message
 
     member = create_member(guild, id=111, name="Asker")
     message = create_message(content="ks!mouse", author=member, channel=guild.text_channels[0])
     await check_message(str(guild.id), message, "ks!")
     embed = message._reply.await_args.kwargs["embed"]
-    return embed.footer.text, f"{STREAM_ELEMENTS}.reply-footer"
+    return embed.footer.text, f"{STREAM_ELEMENTS}.ui.texts.reply_footer"
 
 
 async def stream_elements_list(deps, guild):
-    from app.services.stream_elements import check_message
+    from app.commands.stream_elements.service import check_message
 
     member = create_member(guild, id=111, name="Asker")
     message = create_message(
@@ -171,11 +170,11 @@ async def stream_elements_list(deps, guild):
     )
     await check_message(str(guild.id), message, "ks!")
     embed = message._reply.await_args.kwargs["embed"]
-    return embed.title, f"{STREAM_ELEMENTS}.embed.title"
+    return embed.title, f"{STREAM_ELEMENTS}.ui.records.commands.title"
 
 
 async def stream_elements_list_page(deps, guild):
-    from app.services.stream_elements import check_message
+    from app.commands.stream_elements.service import check_message
 
     member = create_member(guild, id=111, name="Asker")
     message = create_message(
@@ -183,22 +182,22 @@ async def stream_elements_list_page(deps, guild):
     )
     await check_message(str(guild.id), message, "ks!")
     footer = message._reply.await_args.kwargs["embed"].footer.text
-    return footer, "commands.pagination-view.footer"
+    return footer, "texts.page"
 
 
 async def prefix_hint(deps, guild):
-    from app.services.help import prefix_hint as hint
+    from app.commands.help.service import prefix_hint as hint
 
     guild.cache.side_effect = lambda *args, **kwargs: {}
-    return await hint(deps.bot, guild), "messages.prefix-hint.guild"
+    return await hint(deps.bot, guild), "help.ui.texts.prefix_hint.guild"
 
 
 async def greeting(deps, guild):
-    from app.views.greetings import GreetingsView
+    from app.commands.setup.service import GreetingsView
 
     guild.me = SimpleNamespace()
     await GreetingsView().send(guild)
-    return guild.text_channels[0].get_last_embed().title, "messages.greetings-message.title"
+    return guild.text_channels[0].get_last_embed().title, "setup.ui.responses.greeting.title"
 
 
 SITES = [
@@ -230,15 +229,15 @@ async def test_every_public_site_speaks_the_saved_language_not_the_servers_local
 
 @pytest.mark.parametrize("language", ["pt-br", "en-us"])
 def test_the_page_footer_follows_the_locale_its_view_was_built_with(language):
-    from app.views.pagination_without_interaction import PaginationWithoutInteractionView
+    from app.ui.pagination import PaginationView
 
-    view = PaginationWithoutInteractionView(
-        "Title", "Description", {"!mouse": "G Pro"}, locale=language
+    view = PaginationView(
+        None, "Title", "Description", {"!mouse": "G Pro"}, locale=language
     )
 
     footer = view.create_embed(view.get_current_page_data()).footer.text
 
-    assert footer == f"• {ml('commands.pagination-view.footer', language)} 1 / 1"
+    assert footer == f"• {ml('texts.page', language)} 1 / 1"
 
 
 async def test_an_answer_only_the_clicker_sees_speaks_the_saved_language(
@@ -250,7 +249,7 @@ async def test_an_answer_only_the_clicker_sees_speaks_the_saved_language(
     scenario = scenario_factory(locale="pt-br")
     recorded_server(deps.mongo_client, scenario.guild.id, language="en-us")
     await scenario.start_manager(
-        Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
+        "stream_elements_commands",
         {"streamer": "gaules", "channel_id": "se-gaules", "enabled": True},
     )
 

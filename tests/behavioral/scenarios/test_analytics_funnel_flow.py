@@ -212,7 +212,7 @@ async def test_the_manager_reports_an_opening_not_a_setup(
 async def test_analytics_failure_never_breaks_the_flow(
     scenario_factory, monkeypatch
 ):
-    """The requirement that made the queue lossy: a broken sink costs an
+    """The requirement that made the queue lossy: a broken analytics writer costs an
     event, never a configuration."""
     def explode(*args, **kwargs):
         raise RuntimeError("analytics is down")

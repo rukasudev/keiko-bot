@@ -22,6 +22,8 @@ import os
 from datetime import datetime, timedelta, timezone
 
 import pytest
+
+from app.core.commands import setup_features
 from bson import ObjectId
 from pymongo import MongoClient
 
@@ -246,15 +248,15 @@ def test_the_files_mappings_agree_with_the_catalog_and_the_constants():
 
     assert MIGRATION.LIFECYCLE == LIFECYCLE_ANALYTICS_EVENTS
     for name, collection in MIGRATION.COLLECTIONS.items():
-        expected = "audit" if name in lifecycle else catalog[name]["collection"]
+        expected = "audit" if name in lifecycle else catalog[name].collection
         assert collection == expected, name
     documented = {name for name, declaration in catalog.items()
-                  if declaration["collection"] != "none"
+                  if declaration.collection != "none"
                   and name not in ("link.blocked", "keiko.settings_changed")}
     assert documented <= set(MIGRATION.COLLECTIONS), "an event the file cannot map"
     assert MIGRATION.RETENTION_DAYS * 86400 == Commands.EVENTS_INTERACTIONS_TTL_SECONDS
     assert MIGRATION.AUDIT_COGS == (
-        *sorted(spec["command_key"] for spec in Commands.SETUP_FEATURES),
+        *sorted(spec.key for spec in setup_features()),
         Commands.SERVER_SETTINGS_KEY,
     )
 

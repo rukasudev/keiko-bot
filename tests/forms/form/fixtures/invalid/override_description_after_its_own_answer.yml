@@ -1,0 +1,26 @@
+steps:
+  - type: intro
+    key: form
+    title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
+    description: {en-us: intro, pt-br: intro}
+  - type: single_choice
+    key: mode
+    title: {en-us: Mode, pt-br: Modo}
+    description: {en-us: pick, pt-br: escolha}
+    options:
+      - {label: {en-us: A, pt-br: A}, value: a}
+      - {label: {en-us: B, pt-br: B}, value: b}
+  - type: text
+    key: name
+    title: {en-us: Name, pt-br: Nome}
+    overrides:
+      - when: {key: name, is: x}
+        title: {en-us: Other, pt-br: Outro}
+      - when: {key: mode, is: a}
+        description: {en-us: Typed, pt-br: Digitado}
+    description: {en-us: type, pt-br: digite}
+    label: {en-us: Name, pt-br: Nome}
+  - type: review
+    key: confirm
+    title: {en-us: "ok?", pt-br: "ok?"}
+    description: {en-us: review, pt-br: review}

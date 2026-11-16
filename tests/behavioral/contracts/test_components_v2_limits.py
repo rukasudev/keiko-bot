@@ -153,12 +153,12 @@ async def test_the_birthday_manager_panel_is_within_discord_limits(
 def test_every_setup_review_is_within_discord_limits(form):
     import importlib
 
-    from app.settings.discord.views import layout_of
-    from app.settings.features import feature_for
-    from app.settings.form import events as ev
-    from app.settings.form.form import decide
-    from app.settings.form.form_state import Origin, Setup, new_session
-    from app.settings.form.form_yaml import DefinitionRegistry
+    from app.forms.discord.views import layout_of
+    from app.forms.features import feature_for
+    from app.forms.form import events as ev
+    from app.forms.form.form import decide
+    from app.forms.form.form_state import Origin, Setup, new_session
+    from app.forms.form.form_yaml import DefinitionRegistry
 
     paths = importlib.import_module(MANAGER_SEEDS[form])
     definition = DefinitionRegistry().get(form)
@@ -205,9 +205,9 @@ async def test_a_twitch_notification_card_is_within_discord_limits(scenario_fact
 def test_every_modal_input_label_fits_discord(locale):
     """A label over the limit is truncated by the renderer, silently."""
     from app.constants import DiscordLimits
-    from app.settings.form.form_yaml import (
+    from app.forms.form.form_yaml import (
         CardStep,
-        CompositionStep,
+        ListStep,
         DefinitionRegistry,
         ModalInputSection,
         TextStep,
@@ -216,18 +216,18 @@ def test_every_modal_input_label_fits_discord(locale):
     def every_step(steps):
         for step in steps:
             yield step
-            if isinstance(step, CompositionStep):
+            if isinstance(step, ListStep):
                 yield from every_step(step.steps)
 
     def labels(definition):
         for step in every_step(definition.steps):
-            if isinstance(step, TextStep):
-                yield from (field.label.get(locale) for field in step.fields)
+            if isinstance(step, TextStep) and step.label is not None:
+                yield step.label.get(locale)
             if isinstance(step, CardStep):
                 for section in step.sections:
                     if isinstance(section, ModalInputSection):
                         yield from (
-                            field.label.get(locale) for field in section.modal.fields
+                            field.label.get(locale) for field in section.modal.inputs
                         )
 
     for definition in DefinitionRegistry().load_all():
@@ -266,11 +266,11 @@ async def test_a_panel_with_a_full_list_drawn_in_the_card_is_within_discord_limi
 
 
 def test_a_review_with_a_full_list_is_within_discord_limits():
-    from app.settings.discord.views import layout_of
-    from app.settings.form import events as ev
-    from app.settings.form.form import decide
-    from app.settings.form.form_state import Answer, Origin, Setup, new_session
-    from app.settings.form.form_yaml import DefinitionRegistry
+    from app.forms.discord.views import layout_of
+    from app.forms.form import events as ev
+    from app.forms.form.form import decide
+    from app.forms.form.form_state import Answer, Origin, Setup, new_session
+    from app.forms.form.form_yaml import DefinitionRegistry
 
     definition = DefinitionRegistry().get("block_links")
     links = tuple(
@@ -299,7 +299,7 @@ async def test_a_birthday_panel_with_a_full_list_is_within_discord_limits(
 ):
     """bd-6: twenty-five birthdays, all in one month or spread over the year,
     keep the panel within the limits with its page and its footer row."""
-    from app.services.reminders_birthdays import save_birthday_config
+    from app.commands.birthdays.service import save_birthday_config
     from app.core.servers import set_feature_enabled
     from tests.generators.birthdays import saved_birthday
 
@@ -395,16 +395,16 @@ LARGEST_CARDS = {
 
 
 def _every_step(steps):
-    from app.settings.form.form_yaml import CompositionStep
+    from app.forms.form.form_yaml import ListStep
 
     for step in steps:
         yield step
-        if isinstance(step, CompositionStep):
+        if isinstance(step, ListStep):
             yield from _every_step(step.steps)
 
 
 def test_every_card_of_every_form_is_listed_at_its_largest():
-    from app.settings.form.form_yaml import CardStep, DefinitionRegistry
+    from app.forms.form.form_yaml import CardStep, DefinitionRegistry
 
     cards = {
         (definition.key, step.key)
@@ -423,11 +423,11 @@ def test_every_card_with_its_controls_at_its_largest_fits_discord(
     """N4 (beta.2 round 2): every card draws its selects and buttons on itself;
     with its lists full, every optional part shown and a picture on each part
     that takes one, it still fits Discord, within the compiler's estimate."""
-    from app.settings.discord.views import layout_of
-    from app.settings.form.actions.action import Context
-    from app.settings.form.actions.configuration_card import render
-    from app.settings.form.form_state import Answer, Origin, Setup, new_session
-    from app.settings.form.form_yaml import (
+    from app.forms.discord.views import layout_of
+    from app.forms.form.actions.action import Context
+    from app.forms.form.actions.configuration_card import render
+    from app.forms.form.form_state import Answer, Origin, Setup, new_session
+    from app.forms.form.form_yaml import (
         DefinitionRegistry,
         card_components,
         cards_with_back,
@@ -453,7 +453,7 @@ def test_every_card_with_its_controls_at_its_largest_fits_discord(
             "custom_links": Answer(links),
         },
     ).at(card_key)
-    designs = {design.key: f"https://cdn.example/{design.key}.png"
+    designs = {design.value: f"https://cdn.example/{design.value}.png"
                for design in definition.designs()}
     context = Context(
         definition=definition,
@@ -488,11 +488,11 @@ def test_the_block_links_card_and_its_exceptions_screen_fit_in_each_mode(
     Configurar opens each fit Discord, within the compiler's estimates."""
     from dataclasses import replace
 
-    from app.settings.discord.views import layout_of
-    from app.settings.form.actions.action import Context
-    from app.settings.form.actions.configuration_card import render
-    from app.settings.form.form_state import Answer, Origin, Setup, new_session
-    from app.settings.form.form_yaml import (
+    from app.forms.discord.views import layout_of
+    from app.forms.form.actions.action import Context
+    from app.forms.form.actions.configuration_card import render
+    from app.forms.form.form_state import Answer, Origin, Setup, new_session
+    from app.forms.form.form_yaml import (
         DefinitionRegistry,
         card_components,
         group_components,
@@ -548,7 +548,7 @@ async def test_a_full_notification_panel_with_its_item_buttons_is_within_discord
     title counts its items; a list at its most items still fits."""
     import importlib
 
-    from app.settings.form.form_yaml import registry
+    from app.forms.form.form_yaml import registry
     from tests.behavioral.golden.paths.common import seed_document
 
     paths = importlib.import_module(MANAGER_SEEDS[form])

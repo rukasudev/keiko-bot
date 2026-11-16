@@ -1,0 +1,126 @@
+# open: fact names -> a fact
+facts:
+  action:
+    type: text
+    description: The word an admin types to confirm what a confirmation modal asks.
+  channel:
+    type: text
+    description: A channel a line names, as its mention or as the id a mention wraps.
+  cog_key:
+    type: text
+    description: The name of the feature whose History a list shows.
+  cog_name:
+    type: text
+    description: The name of the feature a History line or a lifecycle message names.
+  collections:
+    type: number
+    description: How many collections a database backup holds.
+  command:
+    type: text
+    description: A command a line names, a slash command without its `/` or a chat command with its prefix.
+  command_name:
+    type: text
+    description: The slash command of the feature a lifecycle message names, in the reader's language, without its `/`.
+  count:
+    type: number
+    description: How many things a line counts, written as the code formats the number.
+  date:
+    type: text
+    description: A date or a moment, already formatted for the reader.
+  day:
+    type: number
+    description: The day of the month a date label writes.
+  days:
+    type: number
+    description: How many days back a recent-activity line looks.
+  documents:
+    type: number
+    description: How many documents a database backup holds.
+  feature_state:
+    type: enum
+    values: [not_configured, paused, active]
+    description: Whether a feature is set up in the server, and whether it is on.
+  fields:
+    type: text
+    description: The settings a form still needs before it can be saved, joined in one line.
+  files:
+    type: number
+    description: How many files an upload was split into.
+  items:
+    type: text
+    description: The items a removal question names, one bullet each.
+  month:
+    type: text
+    description: The month an archive covers, as its label.
+  month_lower:
+    type: text
+    description: The name of a month in lower case, for a Portuguese date label.
+  month_name:
+    type: text
+    description: The name of a month, for an English date label.
+  permission:
+    type: text
+    description: The name of a Discord permission Keiko is missing.
+  prefix:
+    type: text
+    description: The server's chat prefix.
+  removing:
+    type: enum
+    values: [one, many, last]
+    description: What a removal question removes, one item, several items, or the last item of a list that needs one.
+  role:
+    type: text
+    description: The id of a role a permission line mentions.
+  roles:
+    type: text
+    description: The roles a line names, joined in one line.
+  thousands:
+    type: text
+    description: A count in thousands, for a floor written in Portuguese ("5 mil+").
+  user:
+    type: text
+    description: A member a line names, as a mention.
+  warning:
+    type: text
+    description: The warning a list writes before its last item goes, its item and its feature filled in.
+
+# open: context names -> a context value
+context:
+  commands:
+    type: text
+    each: command
+    public: true
+    description: The slash command of each command, in the reader's language and with its `/` (`/setup`, `/configurar`), read from the command's own `slash` copy.
+  groups:
+    type: text
+    each: group
+    public: true
+    description: The slash name of each parent group, in the reader's language and with its `/` (`/moderations`), read from `texts.groups`.
+  server_name:
+    type: text
+    public: true
+    description: The name of the server a form runs in, read from the guild Discord sent.
+  prefix:
+    type: text
+    public: true
+    description: The server's chat prefix, read once per opened feature from the server's settings.
+  server_language:
+    type: text
+    public: false
+    description: The server's language (`pt-br` or `en-us`), read once per opened feature from the server's settings.
+  server_timezone:
+    type: text
+    public: false
+    description: The server's time zone, an IANA zone, read once per opened feature from the server's settings.
+  command:
+    type: text
+    public: true
+    description: The slash command of the feature a form sets up, in the server's language and without its `/`.
+  members_count:
+    type: text
+    public: false
+    description: How many members the server has, bots left out, as the feature that opened the form counted them.
+  bots_count:
+    type: text
+    public: false
+    description: How many bots the server has, as the feature that opened the form counted them.

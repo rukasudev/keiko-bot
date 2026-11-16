@@ -1,0 +1,167 @@
+# open: what each embed answers -> a response
+responses:
+  admin_only:
+    title:
+      en-us: ⚠️ Admin Only
+      pt-br: ⚠️ Apenas Admins
+    description:
+      en-us: "Sorry, commands like `{context:groups.moderations}` and `{context:groups.notifications}` need admin permissions! 🔧\n\nAsk a server admin to set them up. They can also use `{context:commands.setup}` to manage everything in one place ✨"
+      pt-br: "Desculpe, comandos como `{context:groups.moderations}` e `{context:groups.notifications}` precisam de permissão de admin! 🔧\n\nPeça para um admin do servidor configurar. Ele também pode usar `{context:commands.setup}` para gerenciar tudo em um só lugar ✨"
+    footer: null
+  cooldown:
+    title:
+      en-us: ⏳ One Second!
+      pt-br: ⏳ Um segundinho!
+    description:
+      en-us: I just answered you! You can ask me again in a moment 🐶
+      pt-br: Acabei de te responder! Já já você pode me pedir de novo 🐶
+    footer: null
+  help:
+    title:
+      en-us: 🙋 Help
+      pt-br: 🙋 Ajuda
+    description:
+      en-us: Here is a brief description of the buttons and their functionalities
+      pt-br: Aqui está uma breve descrição dos botões e suas funcionalidades
+    footer: null
+  enabled:
+    title:
+      en-us: 🎉 Command enabled successfully!
+      pt-br: 🎉 Funcionalidade ativada com sucesso!
+    description:
+      en-us: "Command **$command_name** enabled on $date by $user 🚀\n\n To make changes or disable it, use the command `/$command_name` or `{context:commands.setup}` 🔄"
+      pt-br: "Comando **$command_name** ativado as $date por $user 🚀\n\n Para fazer alterações ou desativar, use o comando `/$command_name` ou `{context:commands.setup}` 🔄"
+  paused:
+    title:
+      en-us: ⏸️ Command paused successfully!
+      pt-br: ⏸️ Comando pausado com sucesso!
+    description:
+      en-us: Command **$command_name** paused on $date by $user
+      pt-br: Comando **$command_name** pausado as $date por $user
+  unpaused:
+    title:
+      en-us: ▶️ Command unpaused successfully!
+      pt-br: ▶️ Comando despausado com sucesso!
+    description:
+      en-us: Command **$command_name** unpaused on $date by $user
+      pt-br: Comando **$command_name** despausado as $date por $user
+  disabled:
+    title:
+      en-us: 🚫 Command disabled successfully!
+      pt-br: 🚫 Comando desativado com sucesso!
+    description:
+      en-us: Command **$command_name** disabled on $date by $user
+      pt-br: Comando **$command_name** desativado as $date por $user
+  edit_member:
+    title:
+      en-us: 👤 Select a member to edit
+      pt-br: 👤 Selecione um membro para editar
+    description:
+      en-us: Tell me which member you want to update in this list.
+      pt-br: Me diga qual membro você quer atualizar nesta lista.
+  search_member:
+    title:
+      en-us: 🔎 Search for a member
+      pt-br: 🔎 Pesquisar um membro
+    description:
+      en-us: Tell me which member of this list you want to see.
+      pt-br: Me diga qual membro desta lista você quer ver.
+  remove_member:
+    title:
+      en-us: 👤 Select the members to remove
+      pt-br: 👤 Selecione os membros para remover
+    description:
+      en-us: Tell me which members you want to remove from this list. You can pick more than one!
+      pt-br: Me diga quais membros você quer tirar desta lista. Pode escolher mais de um!
+  remove:
+    title:
+      en-us: 🗑️ Remove this item?
+      pt-br: 🗑️ Remover este item?
+    description:
+      en-us: "$items\n\nIf I remove it, it leaves the list right away. You can add it again later, just ask me!"
+      pt-br: "$items\n\nSe eu remover, ele sai da lista na hora. Você pode adicionar de novo depois, é só me pedir!"
+    footer: null
+    overrides:
+      - when:
+          key: global.facts.removing
+          is: many
+        title:
+          en-us: 🗑️ Remove these items?
+          pt-br: 🗑️ Remover estes itens?
+        description:
+          en-us: "$items\n\nIf I remove them, they leave the list right away. You can add them again later, just ask me!"
+          pt-br: "$items\n\nSe eu remover, eles saem da lista na hora. Você pode adicionar de novo depois, é só me pedir!"
+      - when:
+          key: global.facts.removing
+          is: last
+        title:
+          en-us: ⚠️ Hey, wait! Read this first
+          pt-br: ⚠️ Ei, espere! Leia abaixo primeiro
+        description:
+          en-us: $warning
+          pt-br: $warning
+  discard:
+    title:
+      en-us: 🚨 Discard Settings?
+      pt-br: 🚨 Descartar Configurações?
+    description:
+      en-us: If you cancel now, I'll close this message and everything we configured so far will be lost. To configure it again, you'll need to start over. Are you sure you want to discard everything?
+      pt-br: Se você cancelar agora, vou encerrar esta mensagem e tudo o que configuramos até aqui será perdido. Para configurar de novo, você precisará começar do zero. Tem certeza de que quer descartar tudo?
+    footer: null
+
+# open: what each list shows -> a list
+records:
+  changes:
+    title: {ref: changes_history}
+  history:
+    title: {ref: changes_history}
+    description:
+      en-us: "See the history of changes made to the feature **$cog_key**:"
+      pt-br: "Veja o histórico de alterações feitas na funcionalidade **$cog_key**:"
+    # open: the change each line tells -> a line template
+    lines:
+      enabled:
+        en-us: ✅ Enabled by $user
+        pt-br: ✅ Ativado por $user
+      enabled_with_feature:
+        en-us: ✅ **$cog_name** enabled by $user
+        pt-br: ✅ **$cog_name** ativado por $user
+      paused:
+        en-us: ⏸️ Paused by $user
+        pt-br: ⏸️ Pausado por $user
+      paused_with_feature:
+        en-us: ⏸️ **$cog_name** paused by $user
+        pt-br: ⏸️ **$cog_name** pausado por $user
+      unpaused:
+        en-us: ▶️ Unpaused by $user
+        pt-br: ▶️ Despausado por $user
+      unpaused_with_feature:
+        en-us: ▶️ **$cog_name** unpaused by $user
+        pt-br: ▶️ **$cog_name** despausado por $user
+      disabled:
+        en-us: 🚫 Disabled by $user
+        pt-br: 🚫 Desativado por $user
+      disabled_with_feature:
+        en-us: 🚫 **$cog_name** disabled by $user
+        pt-br: 🚫 **$cog_name** desativado por $user
+      edited:
+        en-us: 📝 Edited by $user
+        pt-br: 📝 Editado por $user
+      edited_with_feature:
+        en-us: 📝 **$cog_name** edited by $user
+        pt-br: 📝 **$cog_name** editado por $user
+      added:
+        en-us: ➕ Item added by $user
+        pt-br: ➕ Item adicionado por $user
+      added_with_feature:
+        en-us: ➕ **$cog_name** added by $user
+        pt-br: ➕ Item adicionado em **$cog_name** por $user
+      removed:
+        en-us: 🗑️ Item removed by $user
+        pt-br: 🗑️ Item removido por $user
+      removed_with_feature:
+        en-us: 🗑️ **$cog_name** removed by $user
+        pt-br: 🗑️ Item removido de **$cog_name** por $user
+      system:
+        en-us: That's an automatic action I take when leaving the server
+        pt-br: Essa é uma ação automática que eu faço ao sair do servidor

@@ -23,7 +23,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from app.services.notifications_youtube_video import (
+from app.commands.youtube.service import (
     compose_notification_message,
     create_video_notification_embed,
     parse_streamer_message,
@@ -113,7 +113,7 @@ def test_a_video_notice_names_its_fields_in_the_servers_language(locale, names):
     from the language files, four field names were still English written in Python: the
     Twitch notice's "Game" and "Streamer", the YouTube notice's "Description" and "Tags".
 
-    Guaranteed: the field names come from `commands.commons.notifications-fields` in the
+    Guaranteed: the field names come from the `announcement.fields` of its copy in the
     locale the notice is written in, both locales carry them, and English reads as before.
     """
     embed = create_video_notification_embed("video-1", VIDEO, CHANNEL, locale)
@@ -128,7 +128,7 @@ async def test_a_channel_saved_by_the_old_pause_still_gets_its_video_notice(deps
     `enabled: false` gets the video notice like any other, the field ignored."""
     from tests.mocks import create_guild
 
-    from app.services.notifications_youtube_video import VideoAnnouncement, announce_video
+    from app.commands.youtube.service import VideoAnnouncement, announce_video
 
     from tests.generators.moderations import recorded_server
 

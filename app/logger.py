@@ -638,7 +638,7 @@ class DiscordLogsHandler(logging.Handler):
                 embed = build_trace_embed(journey)
                 message = self._journey_messages.get(journey.id)
                 if message is None:
-                    from app.components.buttons import journey_message_view
+                    from app.core.journey import journey_message_view
 
                     self._journey_messages[journey.id] = await channel.send(
                         embed=embed, view=journey_message_view(journey.session_id)

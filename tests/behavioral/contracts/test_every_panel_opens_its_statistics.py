@@ -1,8 +1,8 @@
 """Every manager panel opens the statistics of its feature, with its last days.
 
 Shared behaviour: the `stats` aside `GenericCogFeature.asides` gives every feature
-(`app/settings/features/feature.py`), the "📊 Estatísticas" button the manager draws
-on every panel (`panel_buttons`, `app/settings/form/manager.py`), and the embed of
+(`app/forms/features/feature.py`), the "📊 Estatísticas" button the manager draws
+on every panel (`panel_buttons`, `app/forms/form/manager.py`), and the embed of
 `send_feature_stats` (`app/core/feature_health.py`): the feature's own lines
 (`stats_lines`, which block links and birthdays fill) and the sentence
 `feature_health` writes about its last `Commands.FEATURE_STATS_DAYS` days, which
@@ -20,15 +20,15 @@ import pytest
 
 from app.constants import Commands
 from app.core.utils import fill, ml
-from app.settings.features import feature_for, feature_keys
-from app.settings.form.form_yaml import registry
-from app.settings.form.manager import PanelExtras, panel_buttons
+from app.forms.features import feature_for, feature_keys
+from app.forms.form.form_yaml import registry
+from app.forms.form.manager import PanelExtras, panel_buttons
 from tests.mocks.discord import create_guild
 from tests.generators.moderations import seed_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
 
-RECENT = "commands.commands.commons.stats.recent"
+RECENT = "texts.recent"
 DAYS = Commands.FEATURE_STATS_DAYS
 
 
@@ -64,13 +64,13 @@ def _paragraphs(embed):
 
 
 PORTUGUESE_TITLES = {
-    Commands.WELCOME_MESSAGES_KEY: "📊 Estatísticas de Mensagens de Boas-Vindas",
-    Commands.DEFAULT_ROLES_KEY: "📊 Estatísticas de Cargos Padrão",
-    Commands.BLOCK_LINKS_KEY: "📊 Estatísticas de Bloquear Links",
-    Commands.NOTIFICATIONS_TWITCH_KEY: "📊 Estatísticas de Twitch Lives",
-    Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY: "📊 Estatísticas de YouTube Vídeos",
-    Commands.REMINDERS_BIRTHDAY_KEY: "📊 Estatísticas de Lembretes de Aniversário",
-    Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY: (
+    "welcome_messages": "📊 Estatísticas de Mensagens de Boas-Vindas",
+    "default_roles": "📊 Estatísticas de Cargos Padrão",
+    "block_links": "📊 Estatísticas de Bloquear Links",
+    "notifications_twitch": "📊 Estatísticas de Twitch Lives",
+    "notifications_youtube_video": "📊 Estatísticas de YouTube Vídeos",
+    "reminders_birthday": "📊 Estatísticas de Lembretes de Aniversário",
+    "stream_elements_commands": (
         "📊 Estatísticas de Comandos do StreamElements"
     ),
 }
@@ -87,54 +87,54 @@ async def test_every_panel_draws_the_statistics_and_its_feature_answers_them(dep
 
 
 async def test_a_quiet_feature_says_so_under_its_own_title(deps):
-    embed = await _stats(Commands.DEFAULT_ROLES_KEY, create_guild(id=777))
+    embed = await _stats("default_roles", create_guild(id=777))
 
-    assert embed.title == ml("commands.commands.commons.stats.title.default-roles", "pt-br")
+    assert embed.title == ml("default_roles.command.stats.title", "pt-br")
     assert _paragraphs(embed) == [fill(ml(f"{RECENT}.quiet", "pt-br"), days=DAYS)]
 
 
 async def test_the_deliveries_of_the_last_days_are_counted(deps):
-    _delivered(deps, Commands.DEFAULT_ROLES_KEY, 3, "value_delivered")
+    _delivered(deps, "default_roles", 3, "value_delivered")
 
-    embed = await _stats(Commands.DEFAULT_ROLES_KEY, create_guild(id=777))
+    embed = await _stats("default_roles", create_guild(id=777))
 
     assert _paragraphs(embed) == [
-        fill(ml(f"{RECENT}.delivered-many.default-roles", "pt-br"), count=3, days=DAYS)
+        fill(ml("default_roles.command.stats.delivered.other", "pt-br"), count=3, days=DAYS)
     ]
 
 
 async def test_a_missing_permission_comes_before_the_deliveries(deps):
-    _delivered(deps, Commands.DEFAULT_ROLES_KEY, 3, "value_delivered")
+    _delivered(deps, "default_roles", 3, "value_delivered")
     guild = create_guild(id=777)
     guild.me.guild_permissions = discord.Permissions.all()
     guild.me.guild_permissions.update(manage_roles=False)
 
-    embed = await _stats(Commands.DEFAULT_ROLES_KEY, guild)
+    embed = await _stats("default_roles", guild)
 
-    assert ml("commands.commands.setup.permissions.names.manage_roles", "pt-br") in (
+    assert ml("texts.permission_names.manage_roles", "pt-br") in (
         embed.description
     )
     assert "✅" not in embed.description
 
 
 async def test_block_links_keep_their_figures_above_the_last_days(deps):
-    embed = await _stats(Commands.BLOCK_LINKS_KEY, create_guild(id=777))
+    embed = await _stats("block_links", create_guild(id=777))
 
     figures, recent = _paragraphs(embed)
-    assert embed.title == ml("commands.commands.commons.stats.title.block-links", "pt-br")
+    assert embed.title == ml("block_links.command.stats.title", "pt-br")
     assert figures == ml(
-        "commands.commands.commons.block-links-manager.stats.empty", "pt-br"
+        "block_links.command.stats.empty", "pt-br"
     )
     assert recent == fill(ml(f"{RECENT}.quiet", "pt-br"), days=DAYS)
 
 
 async def test_birthdays_keep_their_figures_above_the_last_days(deps):
-    embed = await _stats(Commands.REMINDERS_BIRTHDAY_KEY, create_guild(id=777))
+    embed = await _stats("reminders_birthday", create_guild(id=777))
 
     figures, recent = _paragraphs(embed)
-    assert embed.title == ml("commands.commands.commons.stats.title.birthdays", "pt-br")
+    assert embed.title == ml("reminders_birthday.command.stats.title", "pt-br")
     assert figures.startswith("🎂 **" + ml(
-        "commands.commands.commons.reminders-birthdays-manager.stats.fields.total", "pt-br"
+        "reminders_birthday.command.stats.figures.total", "pt-br"
     ))
     assert recent == fill(ml(f"{RECENT}.quiet", "pt-br"), days=DAYS)
 
@@ -148,29 +148,29 @@ async def _stats_in(locale, key, guild):
 
 @pytest.mark.parametrize("key,portuguese,english", [
     (
-        Commands.WELCOME_MESSAGES_KEY,
+        "welcome_messages",
         "📊 Estatísticas de Mensagens de Boas-Vindas",
         "📊 Welcome Messages Statistics",
     ),
-    (Commands.DEFAULT_ROLES_KEY, "📊 Estatísticas de Cargos Padrão", "📊 Default Roles Statistics"),
-    (Commands.BLOCK_LINKS_KEY, "📊 Estatísticas de Bloquear Links", "📊 Block Links Statistics"),
+    ("default_roles", "📊 Estatísticas de Cargos Padrão", "📊 Default Roles Statistics"),
+    ("block_links", "📊 Estatísticas de Bloquear Links", "📊 Block Links Statistics"),
     (
-        Commands.NOTIFICATIONS_TWITCH_KEY,
+        "notifications_twitch",
         "📊 Estatísticas de Twitch Lives",
         "📊 Twitch Lives Statistics",
     ),
     (
-        Commands.NOTIFICATIONS_YOUTUBE_VIDEO_KEY,
+        "notifications_youtube_video",
         "📊 Estatísticas de YouTube Vídeos",
         "📊 YouTube Videos Statistics",
     ),
     (
-        Commands.REMINDERS_BIRTHDAY_KEY,
+        "reminders_birthday",
         "📊 Estatísticas de Lembretes de Aniversário",
         "📊 Birthday Reminders Statistics",
     ),
     (
-        Commands.INTEGRATIONS_STREAM_ELEMENTS_COMMANDS_KEY,
+        "stream_elements_commands",
         "📊 Estatísticas de Comandos do StreamElements",
         "📊 StreamElements Commands Statistics",
     ),
@@ -221,27 +221,27 @@ async def _last_days(key, guild=None):
 
 
 async def test_a_missing_permission_is_told_before_the_refusals_and_the_deliveries(deps):
-    _configure(deps, Commands.BLOCK_LINKS_KEY)
-    _refused(deps, Commands.BLOCK_LINKS_KEY)
-    _delivered(deps, Commands.BLOCK_LINKS_KEY, 3, "link_blocked")
+    _configure(deps, "block_links")
+    _refused(deps, "block_links")
+    _delivered(deps, "block_links", 3, "link_blocked")
     guild = create_guild(id=777)
     guild.me.guild_permissions = discord.Permissions.all()
     guild.me.guild_permissions.update(manage_messages=False)
 
-    line = await _last_days(Commands.BLOCK_LINKS_KEY, guild)
+    line = await _last_days("block_links", guild)
 
     assert line == "⚠️ Preciso da permissão **Gerenciar mensagens** no servidor"
 
 
 async def test_the_refused_deliveries_of_the_last_days_come_before_the_ones_made(deps):
     """Only this feature's refusals of the last seven days count, in plain words."""
-    _configure(deps, Commands.BLOCK_LINKS_KEY)
+    _configure(deps, "block_links")
     for days in (1, 2, 9):
-        _refused(deps, Commands.BLOCK_LINKS_KEY, days=days)
-    _refused(deps, Commands.WELCOME_MESSAGES_KEY)
-    _delivered(deps, Commands.BLOCK_LINKS_KEY, 3, "link_blocked")
+        _refused(deps, "block_links", days=days)
+    _refused(deps, "welcome_messages")
+    _delivered(deps, "block_links", 3, "link_blocked")
 
-    line = await _last_days(Commands.BLOCK_LINKS_KEY)
+    line = await _last_days("block_links")
 
     assert line == (
         "⚠️ Nos últimos 7 dias, 2 vezes eu não consegui fazer meu trabalho por falta de"
@@ -251,19 +251,19 @@ async def test_the_refused_deliveries_of_the_last_days_come_before_the_ones_made
 
 @pytest.mark.parametrize("key,event,count,sentence", [
     (
-        Commands.BLOCK_LINKS_KEY,
+        "block_links",
         "link_blocked",
         3,
         "✅ Bloqueei 3 links nos últimos 7 dias!",
     ),
     (
-        Commands.BLOCK_LINKS_KEY,
+        "block_links",
         "link_blocked",
         1,
         "✅ Bloqueei 1 link nos últimos 7 dias!",
     ),
     (
-        Commands.WELCOME_MESSAGES_KEY,
+        "welcome_messages",
         "value_delivered",
         1,
         "✅ Enviei 1 mensagem de boas-vindas nos últimos 7 dias!",
@@ -296,19 +296,19 @@ async def test_every_features_deliveries_read_as_a_sentence_in_both_languages(
     for key, line in lines.items():
         assert "commands." not in line and "$" not in line, (key, line)
         assert line.startswith("✅ ") and f" {count} " in line, (key, line)
-    assert verb in lines[Commands.WELCOME_MESSAGES_KEY]
+    assert verb in lines["welcome_messages"]
 
 
 async def test_a_feature_whose_deliveries_are_older_than_seven_days_reads_quiet(deps):
-    _configure(deps, Commands.BLOCK_LINKS_KEY)
-    _delivered(deps, Commands.BLOCK_LINKS_KEY, 40, "link_blocked", days=12)
-    _refused(deps, Commands.BLOCK_LINKS_KEY, days=9)
+    _configure(deps, "block_links")
+    _delivered(deps, "block_links", 40, "link_blocked", days=12)
+    _refused(deps, "block_links", days=9)
 
-    assert await _last_days(Commands.BLOCK_LINKS_KEY) == "💤 Nenhuma novidade nos últimos 7 dias."
+    assert await _last_days("block_links") == "💤 Nenhuma novidade nos últimos 7 dias."
 
 
 async def test_the_statistics_read_the_analytics_once(deps, monkeypatch):
-    _configure(deps, Commands.WELCOME_MESSAGES_KEY)
+    _configure(deps, "welcome_messages")
     reads = []
     for name in ("counts",):
         collection = deps.mongo_client.analytics[name]
@@ -321,7 +321,7 @@ async def test_the_statistics_read_the_analytics_once(deps, monkeypatch):
             ),
         )
 
-    await _stats(Commands.WELCOME_MESSAGES_KEY, create_guild(id=777))
+    await _stats("welcome_messages", create_guild(id=777))
 
     assert sorted(reads) == ["counts"]
 
@@ -339,8 +339,8 @@ async def test_the_statistics_read_the_analytics_once(deps, monkeypatch):
     ),
 ])
 async def test_one_refused_delivery_is_told_in_the_singular(deps, locale, sentence):
-    _refused(deps, Commands.DEFAULT_ROLES_KEY)
+    _refused(deps, "default_roles")
 
-    embed = await _stats_in(locale, Commands.DEFAULT_ROLES_KEY, create_guild(id=777))
+    embed = await _stats_in(locale, "default_roles", create_guild(id=777))
 
     assert _paragraphs(embed) == [sentence]
