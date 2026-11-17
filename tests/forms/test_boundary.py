@@ -4,8 +4,8 @@
 imports nothing else from `app` except `app.forms`, `app.constants`, the
 pure calendar of `app.core.calendar`, the pure command registry of
 `app.core.commands`, the `when` grammar of `app.core.conditions`, the facts
-and the context of `app.core.facts` and the copy loader of `app.core.i18n`
-(a shared block's overrides), no
+and the context of `app.core.facts`, the one text syntax of `app.core.tokens`
+and the copy loader of `app.core.i18n` (a shared block's overrides), no
 module names a command key, no module blocks the event loop, and no comment
 tells a story.
 """
@@ -42,9 +42,11 @@ PLATFORM_READS = (
     "app.core.conditions",
     "app.core.facts",
     "app.core.i18n",
+    "app.core.tokens",
 )
 FORM_YAML = os.path.join(SETTINGS, "form", "form_yaml.py")
 CALENDAR = os.path.join(ROOT, "app", "core", "calendar.py")
+TOKENS = os.path.join(ROOT, "app", "core", "tokens.py")
 REGISTRY = os.path.join(ROOT, "app", "core", "commands.py")
 WORDS = {"id"}
 
@@ -94,8 +96,9 @@ def test_the_platform_imports_nothing_internal_but_itself_and_constants():
     assert offenders == []
 
 
-def test_the_calendar_the_platform_reads_imports_only_the_standard_library():
-    source = _source(CALENDAR)
+@pytest.mark.parametrize("path", [CALENDAR, TOKENS], ids=["calendar", "tokens"])
+def test_the_pure_modules_the_platform_reads_import_only_the_standard_library(path):
+    source = _source(path)
     assert IMPORTS_APP.findall(source) == []
     assert not IMPORTS_DISCORD.search(source)
 
