@@ -27,6 +27,9 @@ facts:
   documents:
     type: number
     description: How many documents a database backup holds.
+  feature:
+    type: text
+    description: The name of the feature a list's last-item warning turns off, the intro's title without its emoji.
   feature_key:
     type: text
     description: The key of the feature a line of every server change names, as the change stores it (`block_links`).
@@ -40,9 +43,15 @@ facts:
   files:
     type: number
     description: How many files an upload was split into.
+  item:
+    type: text
+    description: The item a list screen names, as the panel draws it, on the search's screen and in the last-item warning.
   items:
     type: text
     description: The items a removal question names, one bullet each.
+  max:
+    type: number
+    description: The most items a list holds, for the count beside its title.
   month:
     type: text
     description: The month an archive covers, as its label.

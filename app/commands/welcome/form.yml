@@ -56,7 +56,7 @@ steps:
       - type: channel_select
         key: channel
         emoji: 📺
-        label: {ref: channel}
+        label: ${ref.channel}
         keys:
           value: welcome_messages_channel
         screen:
@@ -72,7 +72,7 @@ steps:
         keys:
           value: welcome_messages
         button:
-          label: {ref: edit_messages}
+          label: ${ref.edit_messages}
         format: code_block
         modal:
           title:
@@ -80,17 +80,17 @@ steps:
             pt-br: Mensagens de Boas-Vindas
           inputs:
             - key: welcome_messages_title
-              label: {ref: title}
+              label: ${ref.title}
               max_length: 50
               multiline: true
-            - label: {ref: random_message_1}
+            - label: ${ref.random_message_1}
               max_length: 100
               multiline: true
-            - label: {ref: random_message_2}
+            - label: ${ref.random_message_2}
               max_length: 100
               required: false
               multiline: true
-            - label: {ref: random_message_3}
+            - label: ${ref.random_message_3}
               max_length: 100
               required: false
               multiline: true
@@ -138,7 +138,7 @@ steps:
       - type: file_upload
         key: image
         emoji: 🖼️
-        label: {ref: custom_image}
+        label: ${ref.custom_image}
         keys:
           image: welcome_custom_image
         when:

@@ -62,7 +62,8 @@ file (`docs/commands.md`, "The YAML reference"; code-style rule 27).
   `conditions.py` is the `when` grammar, its evaluator and the `overrides` it picks
   (pure, read by the form engine and the copy primitives alike); `facts.py` and
   `global.yml` are the facts and the context (`global.facts.<name>`,
-  `{context:<name>}`: below, "User-facing text");
+  `${context.<name>}`: below, "User-facing text"); `tokens.py` is the one syntax every
+  text writes a value in, read in one pass;
   then `cache.py` (Redis, `read_cog_data`), `i18n.py` (the copy loader),
   `analytics.py`, `analytics_writer.py`, `trace.py`, `journey.py`, `servers.py`,
   `cogs.py`, `dates.py`, `calendar.py`, `members.py`, `utils.py` (`ml(key, locale)`)...
@@ -74,7 +75,7 @@ file (`docs/commands.md`, "The YAML reference"; code-style rule 27).
   contract, `GenericCogFeature` and the shared subscription base of Twitch and YouTube.
   `discord/` is the only place in `app/forms/` that imports `discord`.
   `vocabulary.yml` holds the engine's defaults (the report footer, the summary
-  sentence) and the shared texts a form names with `{ref: name}`; a form writes only
+  sentence) and the shared texts a form names with `${ref.<name>}`; a form writes only
   what differs, and no form uses a YAML anchor or alias.
 - `app/ui/` — generic Discord UI outside the forms: records browser, pagination, report
   browser, confirm action, buttons, selects, embeds and the card frame.
@@ -176,13 +177,19 @@ personality, writing style, localization, and UI conventions. Every string must 
 both `en-us` and `pt-br`; never hardcode user-facing text in Python; write a value the
 code fills as `$name`, in the copy block of the primitive that draws it, and declare it
 as a fact; reuse existing generic button labels and `commands.responses.*` state
-messages before creating new keys.
+messages before creating new keys. Every value a text does not hold is a token of one
+syntax, in every YAML file: `$count` (a fact, the name read whole), `${prefix}ping`
+(braces glue it to text), `${answer.<key>}` (`:<format>`, `|<fallback>`),
+`${plural.<key>|<one>|<many>}`, `${context.<name>}`, `${ref.<name>}` and `$$` for a
+dollar; `{name}` is only an admin's template variable. The loader and the form compiler
+refuse a typo, naming the closest name (`docs/commands.md`, "The token syntax";
+code-style rule 29).
 
 A text that changes with the state is written in the YAML, never picked in code: the
 block keeps its default fields and an `overrides` list, each item a `when` rule (the
 forms' grammar, on facts addressed `<owner>.facts.<name>`) and the fields it replaces;
 the first item whose rule holds wins. The code passes facts (its command's
 `command_facts(...)`, or `facts(GLOBAL, ...)` in a shared layer), never a variant name.
-A slash command or a parent group named in a text is `{context:commands.<key>}` or
-`{context:groups.<group>}`, never typed in (`docs/commands.md`, "Overrides and facts";
+A slash command or a parent group named in a text is `${context.commands.<key>}` or
+`${context.groups.<group>}`, never typed in (`docs/commands.md`, "Overrides and facts";
 code-style rule 28).

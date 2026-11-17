@@ -97,8 +97,6 @@ class _Walk:
         self.reading = Reading()
 
     def value(self, node: yaml.Node, shape: Shape, trail: Trail) -> None:
-        if _is_ref(node):
-            return
         if shape.kind == "model" and isinstance(node, yaml.MappingNode):
             self.mapping(node, self.schema.models[shape.name], trail)
         elif shape.kind == "kinds" and isinstance(node, yaml.MappingNode):
@@ -155,7 +153,7 @@ class _Walk:
                     max(_line(key), _last_line(value) + 1),
                 )
             )
-            if found.shape.opens() and not _is_ref(value):
+            if found.shape.opens():
                 comment = self.commented(key, f"the open block `{found.name}`")
                 if comment:
                     self.reading.notes.append(Note(model.name, found.name, comment))
@@ -181,7 +179,7 @@ class _Walk:
     def choose(self, node: yaml.Node, options: Sequence[Shape]) -> Shape | None:
         if isinstance(node, yaml.SequenceNode):
             return next((item for item in options if item.kind == "list"), None)
-        if not isinstance(node, yaml.MappingNode) or _is_ref(node):
+        if not isinstance(node, yaml.MappingNode):
             return None
         keys = {str(key.value) for key, _value in node.value}
         models = [item for item in options if item.kind == "model"]
@@ -230,14 +228,6 @@ class _Walk:
             hidden = len(taken) - SNIPPET_LINES + 1
             taken = [*taken[: SNIPPET_LINES - 1], f"# ... {hidden} more lines"]
         return "\n".join(taken)
-
-
-def _is_ref(node: yaml.Node) -> bool:
-    return (
-        isinstance(node, yaml.MappingNode)
-        and len(node.value) == 1
-        and node.value[0][0].value == "ref"
-    )
 
 
 def _line(node: yaml.Node) -> int:

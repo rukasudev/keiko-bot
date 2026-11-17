@@ -2,7 +2,7 @@ steps:
   - type: intro
     key: form
     title: {en-us: "🧪 Fixture", pt-br: "🧪 Fixture"}
-    description: {en-us: "On {context:server_nickname}", pt-br: intro}
+    description: {en-us: "On ${context.server_nickname}", pt-br: intro}
   - type: review
     key: confirm
     title: {en-us: "ok?", pt-br: "ok?"}

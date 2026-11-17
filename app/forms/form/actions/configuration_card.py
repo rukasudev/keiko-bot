@@ -15,6 +15,7 @@ from typing import Any
 
 from app.constants import KeikoIcons
 from app.core.conditions import Scope, evaluate
+from app.core.tokens import templated
 from app.forms.form.actions import Refusal
 from app.forms.form.actions.action import (
     Context,
@@ -805,9 +806,9 @@ def _title_content_preview(
     lines = []
 
     if title:
-        lines.append(f"> **{_fill(title, variables)}**")
+        lines.append(f"> **{templated(title, variables)}**")
     if content:
-        lines.append(f"> {_fill(content, variables)}")
+        lines.append(f"> {templated(content, variables)}")
     return (tuple(lines), None)
 
 
@@ -831,12 +832,6 @@ def _template_vars(
         else:
             resolved[name] = str(value)
     return resolved
-
-
-def _fill(body: str, variables: Mapping[str, str]) -> str:
-    for name, value in variables.items():
-        body = body.replace("{" + name + "}", value)
-    return body
 
 
 def _section_default(section: TitleContentSection, locale: str) -> tuple[str, str]:
@@ -1488,9 +1483,8 @@ def _rewritten(body: Any, tokens: Mapping[str, str], old: str, new: str) -> Any:
             flags=re.IGNORECASE,
         )
         written = bounded.sub(lambda match: renderings[match.group(0).lower()], written)
-    for name, template in tokens.items():
-        written = written.replace("{" + name + "}", template.replace("{value}", new))
-    return written
+    filled = {name: templated(form, {"value": new}) for name, form in tokens.items()}
+    return templated(written, filled)
 
 
 def _selects_preview(

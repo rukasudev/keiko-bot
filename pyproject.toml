@@ -33,6 +33,7 @@ files = [
     "app/core/commands.py",
     "app/core/conditions.py",
     "app/core/facts.py",
+    "app/core/tokens.py",
     "app/core/dispatch.py",
     "app/core/i18n.py",
     "app/core/copy_schema.py",

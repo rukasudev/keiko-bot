@@ -74,8 +74,10 @@ form.yml/IntroStep.title:
   en-us: The step's heading on its screen, its summary rows and the pickers.
   pt-br: O título da etapa na tela dela, nas linhas de resumo e nos seletores.
 form.yml/IntroStep.description:
-  en-us: The body under the title, with `{answer:}`, `{plural:}` and `{context:}` tokens.
-  pt-br: O corpo abaixo do título, com os tokens `{answer:}`, `{plural:}` e `{context:}`.
+  en-us: The body under the title, with `${answer.<key>}`, `${plural.<key>|<one>|<many>}`
+    and `${context.<name>}` tokens.
+  pt-br: O corpo abaixo do título, com os tokens `${answer.<key>}`, `${plural.<key>|<one>|<many>}`
+    e `${context.<name>}`.
 form.yml/IntroStep.footer:
   en-us: The footer of the step's screen; the shared footer when left out, none when `null`.
   pt-br: O rodapé da tela da etapa; o rodapé compartilhado quando omitido, nenhum quando `null`.
@@ -99,8 +101,10 @@ form.yml/TextStep.title:
   en-us: The step's heading on its screen, its summary rows and the pickers.
   pt-br: O título da etapa na tela dela, nas linhas de resumo e nos seletores.
 form.yml/TextStep.description:
-  en-us: The body under the title, with `{answer:}`, `{plural:}` and `{context:}` tokens.
-  pt-br: O corpo abaixo do título, com os tokens `{answer:}`, `{plural:}` e `{context:}`.
+  en-us: The body under the title, with `${answer.<key>}`, `${plural.<key>|<one>|<many>}`
+    and `${context.<name>}` tokens.
+  pt-br: O corpo abaixo do título, com os tokens `${answer.<key>}`, `${plural.<key>|<one>|<many>}`
+    e `${context.<name>}`.
 form.yml/TextStep.footer:
   en-us: The footer of the step's screen; the shared footer when left out, none when `null`.
   pt-br: O rodapé da tela da etapa; o rodapé compartilhado quando omitido, nenhum quando `null`.
@@ -178,8 +182,10 @@ form.yml/SingleChoiceStep.title:
   en-us: The step's heading on its screen, its summary rows and the pickers.
   pt-br: O título da etapa na tela dela, nas linhas de resumo e nos seletores.
 form.yml/SingleChoiceStep.description:
-  en-us: The body under the title, with `{answer:}`, `{plural:}` and `{context:}` tokens.
-  pt-br: O corpo abaixo do título, com os tokens `{answer:}`, `{plural:}` e `{context:}`.
+  en-us: The body under the title, with `${answer.<key>}`, `${plural.<key>|<one>|<many>}`
+    and `${context.<name>}` tokens.
+  pt-br: O corpo abaixo do título, com os tokens `${answer.<key>}`, `${plural.<key>|<one>|<many>}`
+    e `${context.<name>}`.
 form.yml/SingleChoiceStep.footer:
   en-us: The footer of the step's screen; the shared footer when left out, none when `null`.
   pt-br: O rodapé da tela da etapa; o rodapé compartilhado quando omitido, nenhum quando `null`.
@@ -238,8 +244,10 @@ form.yml/CardStep.title:
   pt-br: O título do card na tela dele, nas linhas de resumo e nos seletores; um card de primeiro
     nível sem título usa o da intro, e um card dentro de uma lista precisa escrever o seu.
 form.yml/CardStep.description:
-  en-us: The body under the title, with `{answer:}`, `{plural:}` and `{context:}` tokens.
-  pt-br: O corpo abaixo do título, com os tokens `{answer:}`, `{plural:}` e `{context:}`.
+  en-us: The body under the title, with `${answer.<key>}`, `${plural.<key>|<one>|<many>}`
+    and `${context.<name>}` tokens.
+  pt-br: O corpo abaixo do título, com os tokens `${answer.<key>}`, `${plural.<key>|<one>|<many>}`
+    e `${context.<name>}`.
 form.yml/CardStep.footer:
   en-us: The footer of the step's screen; the shared footer when left out, none when `null`.
   pt-br: O rodapé da tela da etapa; o rodapé compartilhado quando omitido, nenhum quando `null`.
@@ -318,8 +326,10 @@ form.yml/ListStep.title:
   en-us: The step's heading on its screen, its summary rows and the pickers.
   pt-br: O título da etapa na tela dela, nas linhas de resumo e nos seletores.
 form.yml/ListStep.description:
-  en-us: The body under the title, with `{answer:}`, `{plural:}` and `{context:}` tokens.
-  pt-br: O corpo abaixo do título, com os tokens `{answer:}`, `{plural:}` e `{context:}`.
+  en-us: The body under the title, with `${answer.<key>}`, `${plural.<key>|<one>|<many>}`
+    and `${context.<name>}` tokens.
+  pt-br: O corpo abaixo do título, com os tokens `${answer.<key>}`, `${plural.<key>|<one>|<many>}`
+    e `${context.<name>}`.
 form.yml/ListStep.footer:
   en-us: The footer of the step's screen; the shared footer when left out, none when `null`.
   pt-br: O rodapé da tela da etapa; o rodapé compartilhado quando omitido, nenhum quando `null`.
@@ -397,10 +407,10 @@ form.yml/ReviewStep.title:
   en-us: The review's heading; the intro's title when left out.
   pt-br: O título da revisão; o título da intro quando omitido.
 form.yml/ReviewStep.description:
-  en-us: The body under the title, with `{answer:}`, `{plural:}` and `{context:}` tokens;
-    the shared `fallbacks.review_description` when left out.
-  pt-br: O corpo abaixo do título, com os tokens `{answer:}`, `{plural:}` e `{context:}`;
-    o `fallbacks.review_description` compartilhado quando omitido.
+  en-us: The body under the title, with `${answer.<key>}`, `${plural.<key>|<one>|<many>}`
+    and `${context.<name>}` tokens; the shared `fallbacks.review_description` when left out.
+  pt-br: O corpo abaixo do título, com os tokens `${answer.<key>}`, `${plural.<key>|<one>|<many>}`
+    e `${context.<name>}`; o `fallbacks.review_description` compartilhado quando omitido.
 form.yml/ReviewStep.footer:
   en-us: The footer of the step's screen; the shared footer when left out, none when `null`.
   pt-br: O rodapé da tela da etapa; o rodapé compartilhado quando omitido, nenhum quando `null`.
@@ -1408,21 +1418,21 @@ form.yml/TextField.normalize:
 vocabulary.yml:
   en-us: 'The copy every form shares: the defaults a step reads when it leaves a field out
     (the report footer, the review description) and the texts a form or a copy file names
-    with {ref: name}.'
+    with ${ref.<name>}.'
   pt-br: 'Os textos que todo form compartilha: os padrões que uma etapa lê quando omite um
     campo (o rodapé do report, a descrição da revisão) e os textos que um form ou um arquivo
-    de copy cita com {ref: name}.'
+    de copy cita com ${ref.<name>}.'
 vocabulary.yml/Vocabulary:
-  en-us: 'The copy every form shares: its fallbacks and the texts `{ref: name}` names.'
-  pt-br: 'Os textos que todo form compartilha: os padrões dele e os textos que `{ref: name}`
+  en-us: 'The copy every form shares: its fallbacks and the texts `${ref.<name>}` names.'
+  pt-br: 'Os textos que todo form compartilha: os padrões dele e os textos que `${ref.<name>}`
     cita.'
 vocabulary.yml/Vocabulary.fallbacks:
   en-us: The texts every form falls back to when a step leaves one out.
   pt-br: Os textos que todo form usa quando uma etapa omite um deles.
 vocabulary.yml/Vocabulary.texts:
-  en-us: 'The texts a form or a copy file names with `{ref: name}` wherever a text is allowed.'
-  pt-br: 'Os textos que um form ou um arquivo de copy cita com `{ref: name}` onde quer que
-    um texto seja aceito.'
+  en-us: The texts a form or a copy file names with `${ref.<name>}` wherever a text is allowed.
+  pt-br: Os textos que um form ou um arquivo de copy cita com `${ref.<name>}` onde quer que
+    um texto seja aceito.
 vocabulary.yml/Fallbacks:
   en-us: The copy a step reads in place of a field it leaves out.
   pt-br: Os textos que uma etapa lê no lugar de um campo que ela omite.
@@ -1433,9 +1443,9 @@ vocabulary.yml/Fallbacks.footer:
     de todo embed e card que não escreve nenhum.
 vocabulary.yml/Fallbacks.review_description:
   en-us: The description of every review that writes none, naming the command it turns on
-    with `{context:command}`.
+    with `${context.command}`.
   pt-br: A descrição de toda revisão que não escreve nenhuma, citando o comando que ela ativa
-    com `{context:command}`.
+    com `${context.command}`.
 vocabulary.yml/Text:
   en-us: One text in both locales Keiko speaks, the node every form and copy file writes.
   pt-br: Um texto nos dois idiomas que o Keiko fala, o nó que todo arquivo de form e de copy
@@ -1630,8 +1640,8 @@ copy.yml/Announcement.defaults:
   pt-br: O título e a descrição do próprio Keiko, publicados enquanto o admin não escreveu
     nenhum (uma comemoração).
 copy.yml/FactSpec:
-  en-us: 'One fact: what a rule or a `$name` of copy reads, of one type.'
-  pt-br: 'Um fato: o que uma regra ou um `$name` de copy lê, de um tipo só.'
+  en-us: 'One fact: what a rule or a `$name` of a text reads, of one type.'
+  pt-br: 'Um fato: o que uma regra ou um `$name` de um texto lê, de um tipo só.'
 copy.yml/FactSpec.type:
   en-us: 'The kind of value the code passes: `boolean`, `enum` (one of `values`), `number` or
     `text`.'
@@ -2327,14 +2337,14 @@ languages/locales.yml/Text.pt-br:
   en-us: What Keiko writes to a Portuguese-speaking server or member.
   pt-br: O que o Keiko escreve para um servidor ou membro que fala português.
 global.yml:
-  en-us: 'The facts no single command owns and the context Keiko already holds: each fact a
-    rule reads as `global.facts.<name>` and a text as `$<name>`, with its type and what it holds,
-    and each value a text reads as `{context:<name>}`, with whether a public message may show
-    it.'
+  en-us: 'The facts no single command owns and the context Keiko already holds: each fact
+    a rule reads as `global.facts.<name>` and a text as `$<name>`, with its type and what
+    it holds, and each value a text reads as `${context.<name>}`, with whether a public message
+    may show it.'
   pt-br: 'Os fatos que nenhum comando sozinho possui e o contexto que o Keiko já guarda: cada
-    fato que uma regra lê como `global.facts.<name>` e um texto como `$<name>`, com o tipo e
-    o que ele guarda, e cada valor que um texto lê como `{context:<name>}`, dizendo se uma mensagem
-    pública pode mostrá-lo.'
+    fato que uma regra lê como `global.facts.<name>` e um texto como `$<name>`, com o tipo
+    e o que ele guarda, e cada valor que um texto lê como `${context.<name>}`, dizendo se
+    uma mensagem pública pode mostrá-lo.'
 global.yml/GlobalCatalog:
   en-us: '`app/core/global.yml`: the facts more than one command reads, and the context every
     copy and form may read.'
@@ -2342,15 +2352,15 @@ global.yml/GlobalCatalog:
     e form pode ler.'
 global.yml/GlobalCatalog.facts:
   en-us: The facts no single command owns, each read as `global.facts.<name>` by a rule and
-    as `$<name>` by a text.
+    as `$<name>` or `${<name>}` by a text.
   pt-br: Os fatos que nenhum comando sozinho possui, cada um lido como `global.facts.<name>`
-    por uma regra e como `$<name>` por um texto.
+    por uma regra e como `$<name>` ou `${<name>}` por um texto.
 global.yml/GlobalCatalog.context:
-  en-us: The values Keiko already holds, each read as `{context:<name>}`.
-  pt-br: Os valores que o Keiko já guarda, cada um lido como `{context:<name>}`.
+  en-us: The values Keiko already holds, each read as `${context.<name>}`.
+  pt-br: Os valores que o Keiko já guarda, cada um lido como `${context.<name>}`.
 global.yml/FactSpec:
-  en-us: 'One fact: what a rule or a `$name` of copy reads, of one type.'
-  pt-br: 'Um fato: o que uma regra ou um `$name` de copy lê, de um tipo só.'
+  en-us: 'One fact: what a rule or a `$name` of a text reads, of one type.'
+  pt-br: 'Um fato: o que uma regra ou um `$name` de um texto lê, de um tipo só.'
 global.yml/FactSpec.type:
   en-us: 'The kind of value the code passes: `boolean`, `enum` (one of `values`), `number` or
     `text`.'
@@ -2366,17 +2376,17 @@ global.yml/FactSpec.description:
     o lê.
 global.yml/ContextEntry:
   en-us: One value Keiko already holds in memory or in its cache, that a copy or a form text
-    reads as `{context:<name>}`.
-  pt-br: Um valor que o Keiko já guarda na memória ou no cache, que um texto de copy ou de form
-    lê como `{context:<name>}`.
+    reads as `${context.<name>}`.
+  pt-br: Um valor que o Keiko já guarda na memória ou no cache, que um texto de copy ou de
+    form lê como `${context.<name>}`.
 global.yml/ContextEntry.type:
   en-us: The kind of value the entry holds.
   pt-br: O tipo de valor que a entrada guarda.
 global.yml/ContextEntry.each:
-  en-us: 'Makes the entry a family read one member at a time, `{context:<name>.<key>}`: one
+  en-us: 'Makes the entry a family read one member at a time, `${context.<name>.<key>}`: one
     per command key, or one per parent group; known when the copy loads.'
-  pt-br: 'Faz da entrada uma família lida um membro por vez, `{context:<name>.<key>}`: um por
-    chave de comando, ou um por grupo pai; conhecida quando o copy carrega.'
+  pt-br: 'Faz da entrada uma família lida um membro por vez, `${context.<name>.<key>}`: um
+    por chave de comando, ou um por grupo pai; conhecida quando a copy carrega.'
 global.yml/ContextEntry.public:
   en-us: Whether the value may appear in a message every member of the server sees, not only
     in an admin's own screens.

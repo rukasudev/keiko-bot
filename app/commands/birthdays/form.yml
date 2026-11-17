@@ -5,8 +5,8 @@ steps:
       en-us: 🎂 Birthday Reminders
       pt-br: 🎂 Lembretes de Aniversário
     description:
-      en-us: "Set up how I'll celebrate birthdays in this server!\n\nAfter saving, you add the birthdays with the **➕ Add** button of `/{context:command}`, or each member adds their own with `/birthday`."
-      pt-br: "Configure como eu vou comemorar os aniversários deste servidor!\n\nDepois de salvar, você cadastra os aniversários com o botão **➕ Adicionar** do `/{context:command}`, ou cada membro cadastra o seu com `/aniversário`."
+      en-us: "Set up how I'll celebrate birthdays in this server!\n\nAfter saving, you add the birthdays with the **➕ Add** button of `/${context.command}`, or each member adds their own with `/birthday`."
+      pt-br: "Configure como eu vou comemorar os aniversários deste servidor!\n\nDepois de salvar, você cadastra os aniversários com o botão **➕ Adicionar** do `/${context.command}`, ou cada membro cadastra o seu com `/aniversário`."
     panel:
       description:
         en-us: I celebrate the members' birthdays with the settings below.
@@ -64,7 +64,7 @@ steps:
       - type: channel_select
         key: channel
         emoji: 📺
-        label: {ref: channel}
+        label: ${ref.channel}
         keys:
           value: channel
         screen:
@@ -198,7 +198,7 @@ steps:
             en-us: Customize Default Message
             pt-br: Personalizar Mensagem Padrão
           labels:
-            title: {ref: title}
+            title: ${ref.title}
             description:
               en-us: Content
               pt-br: Conteúdo
@@ -287,10 +287,10 @@ steps:
               pt-br: Conteúdo da mensagem
             hidden: true
           - key: use_custom_image
-            label: {ref: custom_image}
+            label: ${ref.custom_image}
             format: customized
           - key: custom_image
-            label: {ref: custom_image}
+            label: ${ref.custom_image}
             hidden: true
         sections:
           - type: user_select
@@ -426,7 +426,7 @@ steps:
                 en-us: Customize Message
                 pt-br: Personalizar Mensagem
               labels:
-                title: {ref: title}
+                title: ${ref.title}
                 description:
                   en-us: Content
                   pt-br: Conteúdo
@@ -469,7 +469,7 @@ groups:
     emoji: ⚙️
     opens: button
     button:
-      label: {ref: configure}
+      label: ${ref.configure}
   summary:
     title:
       en-us: Reminders Summary

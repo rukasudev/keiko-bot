@@ -82,7 +82,8 @@ REJECTED = [
     ("preview_required_unknown_key.yml", "preview.required: 'nick' unknown"),
     (
         "unknown_ref.yml",
-        "unknown_ref.name: label: 'chanel' is no text of the shared vocabulary",
+        "unknown_ref.name: label: ${ref.chanel} is no text of app/forms/vocabulary.yml;"
+        " did you mean ${ref.channel}?",
     ),
     ("legacy_action.yml", "Unable to extract tag using discriminator 'type'"),
     ("legacy_condition.yml", "condition: unknown field"),
@@ -100,7 +101,7 @@ REJECTED = [
     ),
     ("default_for_an_unknown_key.yml", "defaults: 'colour' unknown"),
     ("override_with_its_text_flat.yml", "overrides.0.en-us: unknown field"),
-    ("context_unknown.yml", "{context:server_nickname} is no context entry"),
+    ("context_unknown.yml", "${context.server_nickname} is no context entry"),
     ("override_description_after_its_own_answer.yml", "'name' is not produced earlier"),
     ("single_choice_unique.yml", "unique: unknown field"),
 ]
@@ -146,14 +147,14 @@ def test_a_title_override_may_read_the_steps_own_answer():
 def test_a_form_text_reads_a_command_name_from_the_context():
     raw = yaml.safe_load((INVALID / "context_unknown.yml").read_text())
     raw["steps"][0]["description"] = {
-        "en-us": "Run `{context:commands.setup}` on {context:server_name}",
-        "pt-br": "Rode `{context:commands.setup}` em {context:server_name}",
+        "en-us": "Run `${context.commands.setup}` on ${context.server_name}",
+        "pt-br": "Rode `${context.commands.setup}` em ${context.server_name}",
     }
 
     intro = compile_form("fixture", raw).steps[0]
 
-    assert intro.description.en_us == "Run `/setup` on {context:server_name}"
-    assert intro.description.pt_br == "Rode `/configurar` em {context:server_name}"
+    assert intro.description.en_us == "Run `/setup` on ${context.server_name}"
+    assert intro.description.pt_br == "Rode `/configurar` em ${context.server_name}"
 
 
 def test_composition_limits_come_from_the_yaml():
@@ -242,6 +243,110 @@ def test_invalid_definitions_are_refused_with_the_reason(fixture, message):
     raw = yaml.safe_load((INVALID / fixture).read_text(encoding="utf-8"))
     with pytest.raises(CompileError) as failure:
         compile_form(fixture.removesuffix(".yml"), raw)
+    assert message in str(failure.value)
+
+
+TYPOS = [
+    (
+        "stream_elements_commands",
+        "${answer.streamer}",
+        "${answer.streamr}",
+        "confirm: description.en-us: ${answer.streamr}: 'streamr' is not produced "
+        "earlier; did you mean ${answer.streamer}?",
+    ),
+    (
+        "stream_elements_commands",
+        "${answer.streamer}",
+        "${answr.streamer}",
+        "answr is no kind of token (answer, plural, context, ref); did you mean "
+        "${answer.streamer}?",
+    ),
+    (
+        "stream_elements_commands",
+        "${answer.streamer}",
+        "${answer.streamer",
+        "is never closed by a }",
+    ),
+    (
+        "stream_elements_commands",
+        "${answer.streamer}",
+        "{answer:streamer}",
+        "{answer:streamer} is the old spelling: write ${answer.streamer}",
+    ),
+    (
+        "stream_elements_commands",
+        "${context.prefix}",
+        "${context.prefx}",
+        "${context.prefx} is no context entry of app/core/global.yml; did you mean "
+        "${context.prefix}?",
+    ),
+    (
+        "block_links",
+        "${answer.link:host|",
+        "${answer.link:hots|",
+        "'hots' is no format (channel, role, user, bullet, code_block, numbered, "
+        "code, boolean, customized, month_day, host); did you mean :host?",
+    ),
+    (
+        "default_roles",
+        "${plural.default_roles|",
+        "${plural.default_role|",
+        "'default_role' is not produced earlier; did you mean ${plural.default_roles}?",
+    ),
+    (
+        "default_roles",
+        "${context.members_count}",
+        "${context.members_cont}",
+        "did you mean ${context.members_count}?",
+    ),
+    (
+        "notifications_youtube_video",
+        "$item",
+        "$itme",
+        "$itme is no fact of app/core/global.yml; did you mean $item?",
+    ),
+    (
+        "notifications_youtube_video",
+        "$max",
+        "$maxx",
+        "$maxx is no fact of app/core/global.yml; did you mean ${max}x or $max?",
+    ),
+    (
+        "notifications_youtube_video",
+        "$count",
+        "$counts",
+        "did you mean ${count}s or $count?",
+    ),
+    (
+        "notifications_twitch",
+        "${ref.streamer}",
+        "${ref.stremer}",
+        "${ref.stremer} is no text of app/forms/vocabulary.yml; did you mean "
+        "${ref.streamer}?",
+    ),
+]
+
+
+@pytest.mark.parametrize(
+    "form,written,typo,message",
+    TYPOS,
+    ids=[f"{form}: {typo}" for form, _written, typo, _message in TYPOS],
+)
+def test_a_typo_in_a_token_of_a_shipped_form_fails_its_compile(
+    form, written, typo, message
+):
+    """A probe of the syntax study: each of these compiled and showed wrong before
+    the one syntax (an answer never produced, a format no one knows, a fact the
+    engine never fills); now the compiler names the form, the step, the text and the
+    token, with the closest declared name."""
+    import json
+
+    source = json.dumps(DiskSource().load(form))
+    assert written in source, "the probe edits a token the form writes"
+    raw = json.loads(source.replace(written, typo, 1))
+
+    with pytest.raises(CompileError) as failure:
+        compile_form(form, raw)
     assert message in str(failure.value)
 
 
@@ -385,7 +490,7 @@ def test_the_review_reads_the_intro_title_and_the_standard_description():
 
     assert review.title == definition.steps[0].title
     assert review.description == shared_vocabulary().fallbacks.review_description
-    assert "`/{context:command}`" in review.description.get("en-us")
+    assert "`/${context.command}`" in review.description.get("en-us")
 
 
 def test_a_card_of_the_form_reads_the_intro_title_and_a_list_card_writes_its_own():
@@ -424,7 +529,7 @@ def test_a_ref_reads_its_shared_text_wherever_a_text_is_allowed():
             "texts": {"channel": _text("Channel")},
         }
     )
-    ref = {"ref": "channel"}
+    ref = "${ref.channel}"
     pick = {
         "type": "single_choice",
         "key": "pick",
@@ -447,11 +552,12 @@ def test_a_ref_reads_its_shared_text_wherever_a_text_is_allowed():
 
 
 def test_an_unknown_ref_in_a_list_names_the_item_step_and_the_field():
-    unknown = {**CHANNEL, "label": {"ref": "nope"}}
+    unknown = {**CHANNEL, "label": "${ref.nope}"}
     with pytest.raises(CompileError) as failure:
         _compiled(_list(_card(title=_text("Item"), sections=[unknown])))
     assert str(failure.value) == (
-        "fixture.card: sections[0].label: 'nope' is no text of the shared vocabulary"
+        "fixture.card: sections[0].label: ${ref.nope} is no text of "
+        "app/forms/vocabulary.yml"
     )
 
 
@@ -494,7 +600,7 @@ def test_no_command_and_not_the_shared_vocabulary_writes_a_yaml_anchor_or_alias(
     found = _yaml_only(path.read_text(encoding="utf-8"))
     assert found == [], (
         f"{path.name}: {', '.join(found)}: a database document cannot hold a YAML "
-        "anchor or alias, write a {ref:} or leave the default"
+        "anchor or alias, write a ${ref.<name>} or leave the default"
     )
 
 
@@ -621,6 +727,36 @@ def test_the_vocabulary_is_read_as_strictly_as_a_form_yml(tmp_path):
     )
     with pytest.raises(RefusedFile, match="title twice"):
         vocabulary_from(path)
+
+
+@pytest.mark.parametrize(
+    "written,refusal",
+    [
+        ("Turn on `/${context.comand}`", "did you mean ${context.command}?"),
+        ("For $cout", "$cout is no fact of app/core/global.yml; did you mean $count?"),
+        ("See ${ref.title}", "a shared text names no other shared text"),
+        ("Use {context:commands.report}", "write ${context.commands.report}"),
+    ],
+)
+def test_the_vocabulary_names_only_what_the_catalogs_declare(
+    tmp_path, written, refusal
+):
+    from app.core.facts import TextError
+    from app.forms.form.form_yaml import vocabulary_from
+
+    path = tmp_path / "vocabulary.yml"
+    path.write_text(
+        "fallbacks:\n"
+        f"  footer: {{en-us: '{written}', pt-br: F}}\n"
+        "  review_description: {en-us: S, pt-br: S}\n"
+        "texts:\n"
+        "  title: {en-us: A, pt-br: A}\n",
+        encoding="utf-8",
+    )
+    with pytest.raises(TextError) as failure:
+        vocabulary_from(path)
+    assert "fallbacks.footer.en-us: " in str(failure.value)
+    assert refusal in str(failure.value)
 
 
 @pytest.mark.parametrize("form", ["default_roles", "block_links"])

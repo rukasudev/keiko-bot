@@ -39,7 +39,7 @@ steps:
       - type: selects
         key: default_roles_bot
         emoji: 🤖
-        label: {ref: roles_for_bots}
+        label: ${ref.roles_for_bots}
         screen:
           description:
             en-us: I give these roles to every bot that joins the server.
@@ -48,14 +48,14 @@ steps:
           - type: assignable_roles
             key: default_roles_bot
             emoji: 🤖
-            label: {ref: roles_for_bots}
+            label: ${ref.roles_for_bots}
             placeholder:
               en-us: Roles for bots
               pt-br: Cargos para bots
       - type: selects
         key: default_roles
         emoji: 👥
-        label: {ref: roles_for_members}
+        label: ${ref.roles_for_members}
         screen:
           description:
             en-us: I give these roles to every person that joins the server.
@@ -64,7 +64,7 @@ steps:
           - type: assignable_roles
             key: default_roles
             emoji: 👥
-            label: {ref: roles_for_members}
+            label: ${ref.roles_for_members}
             placeholder:
               en-us: Roles for members
               pt-br: Cargos para membros
@@ -75,8 +75,8 @@ steps:
       en-us: Give the roles to everyone already in the server today?
       pt-br: Dar os cargos para quem já está no servidor hoje?
     description:
-      en-us: "These current members will get the roles:\n\n👥 **Members**\n- How many: **{context:members_count}**\n- {plural:default_roles|Role to give these members|Roles to give these members}: {answer:default_roles:role|Empty}\n\n🤖 **Bots**\n- How many: **{context:bots_count}**\n- {plural:default_roles_bot|Role to give these bots|Roles to give these bots}: {answer:default_roles_bot:role|Empty}"
-      pt-br: "Os seguintes membros atuais irão receber os cargos:\n\n👥 **Membros**\n- Quantidade: **{context:members_count}**\n- {plural:default_roles|Cargo a ser atribuído a esses membros|Cargos a serem atribuídos a esses membros}: {answer:default_roles:role|Em branco}\n\n🤖 **Bots**\n- Quantidade: **{context:bots_count}**\n- {plural:default_roles_bot|Cargo a ser atribuído a esses bots|Cargos a serem atribuídos a esses bots}: {answer:default_roles_bot:role|Em branco}"
+      en-us: "These current members will get the roles:\n\n👥 **Members**\n- How many: **${context.members_count}**\n- ${plural.default_roles|Role to give these members|Roles to give these members}: ${answer.default_roles:role|Empty}\n\n🤖 **Bots**\n- How many: **${context.bots_count}**\n- ${plural.default_roles_bot|Role to give these bots|Roles to give these bots}: ${answer.default_roles_bot:role|Empty}"
+      pt-br: "Os seguintes membros atuais irão receber os cargos:\n\n👥 **Membros**\n- Quantidade: **${context.members_count}**\n- ${plural.default_roles|Cargo a ser atribuído a esses membros|Cargos a serem atribuídos a esses membros}: ${answer.default_roles:role|Em branco}\n\n🤖 **Bots**\n- Quantidade: **${context.bots_count}**\n- ${plural.default_roles_bot|Cargo a ser atribuído a esses bots|Cargos a serem atribuídos a esses bots}: ${answer.default_roles_bot:role|Em branco}"
     emoji: 🔄
     hidden: true
     options:

@@ -215,11 +215,11 @@ recent:
     en-us: 💤 Nothing new in the last $days days.
     pt-br: 💤 Nenhuma novidade nos últimos $days dias.
   refused_one:
-    en-us: ⚠️ In the last $days days, I couldn't do my job once because of a missing permission. Check **Permissions** on `{context:commands.setup}`!
-    pt-br: ⚠️ Nos últimos $days dias, 1 vez eu não consegui fazer meu trabalho por falta de permissão. Confira em **Permissões** no `{context:commands.setup}`!
+    en-us: ⚠️ In the last $days days, I couldn't do my job once because of a missing permission. Check **Permissions** on `${context.commands.setup}`!
+    pt-br: ⚠️ Nos últimos $days dias, 1 vez eu não consegui fazer meu trabalho por falta de permissão. Confira em **Permissões** no `${context.commands.setup}`!
   refused_many:
-    en-us: ⚠️ In the last $days days, I couldn't do my job $count times because of a missing permission. Check **Permissions** on `{context:commands.setup}`!
-    pt-br: ⚠️ Nos últimos $days dias, $count vezes eu não consegui fazer meu trabalho por falta de permissão. Confira em **Permissões** no `{context:commands.setup}`!
+    en-us: ⚠️ In the last $days days, I couldn't do my job $count times because of a missing permission. Check **Permissions** on `${context.commands.setup}`!
+    pt-br: ⚠️ Nos últimos $days dias, $count vezes eu não consegui fazer meu trabalho por falta de permissão. Confira em **Permissões** no `${context.commands.setup}`!
 
 # open: the message an admin job posts -> its line
 admin_logs:

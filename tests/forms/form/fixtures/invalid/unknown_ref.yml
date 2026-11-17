@@ -7,6 +7,6 @@ steps:
     key: name
     title: {en-us: Name, pt-br: Nome}
     description: {en-us: type, pt-br: digite}
-    label: {ref: chanel}
+    label: ${ref.chanel}
   - type: review
     key: confirm

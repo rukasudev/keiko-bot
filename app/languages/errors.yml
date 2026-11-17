@@ -4,8 +4,8 @@ generic:
     en-us: Command Processing Error
     pt-br: Erro ao Processar Comando
   message:
-    en-us: "I'm sorry, but I couldn't process your command correctly. Please try again later.\n\nIf you'd like, send me a report using the `{context:commands.report}` command, or reach out on my official server with the `{context:commands.support}` command 💌"
-    pt-br: "Desculpe, mas não consegui processar seu comando corretamente. Por favor, tente novamente mais tarde.\n\nSe quiser, me envie um report com o comando `{context:commands.report}`, ou fale comigo no meu servidor oficial usando o comando `{context:commands.support}` 💌"
+    en-us: "I'm sorry, but I couldn't process your command correctly. Please try again later.\n\nIf you'd like, send me a report using the `${context.commands.report}` command, or reach out on my official server with the `${context.commands.support}` command 💌"
+    pt-br: "Desculpe, mas não consegui processar seu comando corretamente. Por favor, tente novamente mais tarde.\n\nSe quiser, me envie um report com o comando `${context.commands.report}`, ou fale comigo no meu servidor oficial usando o comando `${context.commands.support}` 💌"
 
 command_required_interaction:
   title:

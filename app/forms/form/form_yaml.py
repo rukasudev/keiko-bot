@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterator, Mapping, Sequence
 from functools import cache
 from pathlib import Path
-from typing import Annotated, Any, Literal, Protocol, TypeVar, Union
+from typing import Annotated, Any, Literal, Protocol, TypeVar, Union, get_args
 
 from pydantic import (
     BaseModel,
@@ -30,13 +30,16 @@ from app.core.conditions import (
     winner,
 )
 from app.core.facts import (
-    FactError,
+    TextError,
     context_entry,
-    context_tokens,
-    known_at_load,
+    fact_hint,
+    finished_texts,
+    global_catalog,
     with_context,
+    written_texts,
 )
-from app.forms.form.responses.styles import stored_style
+from app.core.tokens import Token, TokenError, hint, tokens
+from app.forms.form.responses.styles import TOKEN_FORMATTERS, stored_style
 from app.forms.form.responses.transforms import NORMALIZERS, TRANSFORMS
 from app.forms.form.responses.validations import VALIDATORS
 
@@ -86,6 +89,7 @@ ValueFormat = Literal[
     "customized",
     "month_day",
 ]
+TOKEN_FORMATS: tuple[str, ...] = (*get_args(ValueFormat), *TOKEN_FORMATTERS)
 ButtonStyle = Literal["primary", "secondary", "success", "danger"]
 Appearance = Literal["everywhere", "setup", "panel"]
 
@@ -1177,8 +1181,8 @@ class StepBase(Node):
         json_schema_extra={"role": "copy"},
     )
     description: Text = Field(
-        description="The body under the title, with `{answer:}`, `{plural:}` and "
-        "`{context:}` tokens.",
+        description="The body under the title, with `${answer.<key>}`, "
+        "`${plural.<key>|<one>|<many>}` and `${context.<name>}` tokens.",
         json_schema_extra={"role": "copy"},
     )
     footer: Text | None = Field(
@@ -1622,8 +1626,9 @@ class ReviewStep(StepBase):
         role="copy",
     )
     description: Text = _filled(
-        "The body under the title, with `{answer:}`, `{plural:}` and `{context:}` "
-        "tokens; the shared `fallbacks.review_description` when left out.",
+        "The body under the title, with `${answer.<key>}`, "
+        "`${plural.<key>|<one>|<many>}` and `${context.<name>}` tokens; the shared "
+        "`fallbacks.review_description` when left out.",
         role="copy",
     )
     preview: bool = Field(
@@ -1821,13 +1826,13 @@ class Fallbacks(Node):
     )
     review_description: Text = Field(
         description="The description of every review that writes none, naming the "
-        "command it turns on with `{context:command}`.",
+        "command it turns on with `${context.command}`.",
         json_schema_extra={"role": "copy"},
     )
 
 
 class Vocabulary(Node):
-    """The copy every form shares: its fallbacks and the texts `{ref: name}` names."""
+    """The copy every form shares: its fallbacks and the texts `${ref.<name>}` names."""
 
     fallbacks: Fallbacks = Field(
         description="The texts every form falls back to when a step leaves one out.",
@@ -1835,16 +1840,23 @@ class Vocabulary(Node):
     )
     texts: Open[Text] = _open(
         "ref names -> a text",
-        "The texts a form or a copy file names with `{ref: name}` wherever a text "
+        "The texts a form or a copy file names with `${ref.<name>}` wherever a text "
         "is allowed.",
         role="copy",
     )
 
 
 def vocabulary_from(path: Path) -> Vocabulary:
-    """The vocabulary a file at `path` declares, read as strictly as a form."""
-    loaded = strict_yaml(path.read_text(encoding="utf-8"), str(path))
-    return Vocabulary.model_validate(with_context(loaded, str(path)))
+    """The vocabulary a file at `path` declares, read as strictly as a form, each
+    `$name` and `${context...}` of its texts declared."""
+    name = str(path)
+    loaded = with_context(strict_yaml(path.read_text(encoding="utf-8"), name), name)
+    for where, words in written_texts(loaded):
+        for token in tokens(words):
+            problem = _fact_problem(token) or _context_problem(token)
+            if problem:
+                raise TextError(name, where, problem)
+    return Vocabulary.model_validate(loaded)
 
 
 @cache
@@ -1875,63 +1887,59 @@ def compile_form(
     if "key" in raw:
         raise CompileError(key, None, "key", "unknown field, the key is the folder")
     payload = {**written_out(key, raw, vocabulary), "key": key}
-    _check_context(key, payload)
+    definition = _validated(key, payload)
 
-    try:
-        definition = FormDefinition.model_validate(payload)
-    except ValidationError as error:
-        raise _as_compile_error(key, error) from None
     _check_shape(definition)
     _check_scope(definition, definition.steps, outer=())
+    _check_tokens(key, payload, definition)
     _check_panel_groups(definition)
     _check_registries(definition)
     _check_limits(definition)
-    return definition
+    shown = finished_texts(payload)
+    return definition if shown == payload else _validated(key, shown)
+
+
+def _validated(key: str, payload: Mapping[str, Any]) -> FormDefinition:
+    try:
+        return FormDefinition.model_validate(payload)
+    except ValidationError as error:
+        raise _as_compile_error(key, error) from None
 
 
 def written_out(
     key: str, raw: Mapping[str, Any], vocabulary: Vocabulary | None = None
 ) -> Mapping[str, Any]:
-    """The raw definition of `key` with every `{ref:}` and every fallback written."""
+    """The raw definition of `key` with what its texts read at load written in (each
+    `${ref.<name>}` and each command and group of `${context...}`) and every
+    fallback written."""
     shared = vocabulary if vocabulary is not None else shared_vocabulary()
     try:
-        raw = with_context(raw, key)
-    except FactError as error:
-        raise CompileError(key, None, "context", str(error)) from None
-    steps = raw.get("steps")
+        loaded = with_context(raw, "", shared.texts)
+    except TextError as error:
+        step_key, field = _within_step(raw, error.where)
+        raise CompileError(key, step_key, field, error.problem) from None
+    steps = loaded.get("steps")
 
     if not isinstance(steps, list) or not steps:
         raise CompileError(key, None, "steps", "a form declares a non-empty steps list")
-    resolved = {
-        name: (
-            [_resolved_step(key, step, shared) for step in steps]
-            if name == "steps"
-            else _resolved(key, None, name, value, shared)
-        )
-        for name, value in raw.items()
-    }
-    written = resolved["steps"]
-    intro = written[0].get("title") if written[0].get("type") == "intro" else None
-    _fill_fallbacks(written, shared.fallbacks, intro)
-    return resolved
+    intro = steps[0].get("title") if steps[0].get("type") == "intro" else None
+    _fill_fallbacks(steps, shared.fallbacks, intro)
+    return dict(loaded)
 
 
-def _check_context(form: str, node: Any) -> None:
-    if isinstance(node, Mapping):
-        for value in node.values():
-            _check_context(form, value)
-    elif isinstance(node, list):
-        for value in node:
-            _check_context(form, value)
-    elif isinstance(node, str):
-        for name in context_tokens(node):
-            if context_entry(name) is None or known_at_load(name):
-                raise CompileError(
-                    form,
-                    None,
-                    "context",
-                    f"{{context:{name}}} is no context entry of app/core/global.yml",
-                )
+def _within_step(raw: Mapping[str, Any], where: str) -> tuple[str | None, str]:
+    step_key: str | None = None
+    node: Any = raw
+    while where.startswith("steps[") and isinstance(node, Mapping):
+        index, _bracket, rest = where[len("steps[") :].partition("]")
+        found = node.get("steps")
+        if not index.isdigit() or not isinstance(found, list):
+            break
+        node = found[int(index)] if int(index) < len(found) else {}
+        named = node.get("key") if isinstance(node, Mapping) else None
+        step_key = str(named) if named else step_key
+        where = rest.removeprefix(".")
+    return step_key, where
 
 
 def _as_compile_error(form: str, error: ValidationError) -> CompileError:
@@ -1945,45 +1953,6 @@ def _as_compile_error(form: str, error: ValidationError) -> CompileError:
     if first["type"] == "extra_forbidden":
         reason = "unknown field"
     return CompileError(form, step_key, field, reason)
-
-
-def _resolved_step(
-    form: str, raw: Mapping[str, Any], vocabulary: Vocabulary
-) -> dict[str, Any]:
-    return {
-        name: (
-            [_resolved_step(form, step, vocabulary) for step in value]
-            if name == "steps" and isinstance(value, list)
-            else _resolved(form, raw.get("key"), name, value, vocabulary)
-        )
-        for name, value in raw.items()
-    }
-
-
-def _resolved(
-    form: str, step_key: Any, field: str, value: Any, vocabulary: Vocabulary
-) -> Any:
-    if isinstance(value, list):
-        return [
-            _resolved(form, step_key, f"{field}[{index}]", item, vocabulary)
-            for index, item in enumerate(value)
-        ]
-    if not isinstance(value, Mapping):
-        return value
-    if set(value) == {"ref"}:
-        text = vocabulary.texts.get(str(value["ref"]))
-        if text is None:
-            raise CompileError(
-                form,
-                step_key,
-                field,
-                f"{value['ref']!r} is no text of the shared vocabulary",
-            )
-        return text.model_dump(by_alias=True)
-    return {
-        name: _resolved(form, step_key, f"{field}.{name}", item, vocabulary)
-        for name, item in value.items()
-    }
 
 
 def _fill_fallbacks(
@@ -2111,6 +2080,80 @@ def _check_rules(
         known = scopes if index < last else saved
         for leaf in leaves(item.when):
             _check_leaf(form, step.key, leaf, known)
+
+
+def _check_tokens(
+    form: str, payload: Mapping[str, Any], definition: FormDefinition
+) -> None:
+    every = tuple(key for step in definition.steps for key in produced_keys(step))
+    root = {name: value for name, value in payload.items() if name != "steps"}
+    _check_texts(form, None, root, every)
+    _check_step_texts(form, payload["steps"], definition.steps)
+
+
+def _check_step_texts(
+    form: str, written: Sequence[Mapping[str, Any]], steps: Sequence[Step]
+) -> None:
+    produced: list[str] = []
+    for raw, step in zip(written, steps):
+        nested = isinstance(step, ListStep)
+        own = {
+            name: value for name, value in raw.items() if not nested or name != "steps"
+        }
+        _check_texts(form, step.key, own, (*produced, *produced_keys(step)))
+        if isinstance(step, ListStep):
+            _check_step_texts(form, raw["steps"], step.steps)
+        produced.extend(produced_keys(step))
+
+
+def _check_texts(
+    form: str, step_key: str | None, node: Mapping[str, Any], known: Sequence[str]
+) -> None:
+    for path, words in written_texts(node):
+        try:
+            found = tokens(words)
+        except TokenError as error:
+            raise CompileError(form, step_key, path, str(error)) from None
+        for token in found:
+            problem = _token_problem(token, known)
+            if problem:
+                raise CompileError(form, step_key, path, problem)
+
+
+def _token_problem(token: Token, known: Sequence[str]) -> str:
+    if token.kind == "fact":
+        return _fact_problem(token)
+    if token.kind == "context":
+        return _context_problem(token)
+    if token.name not in known:
+        closest = hint(token.name, known, lambda key: f"${{{token.kind}.{key}}}")
+        return f"{token.written}: {token.name!r} is not produced earlier{closest}"
+    if token.format and token.format not in TOKEN_FORMATS:
+        closest = hint(token.format, TOKEN_FORMATS, lambda name: f":{name}")
+        return (
+            f"{token.written}: {token.format!r} is no format "
+            f"({', '.join(TOKEN_FORMATS)}){closest}"
+        )
+    return ""
+
+
+def _fact_problem(token: Token) -> str:
+    names = global_catalog().facts
+    if token.kind != "fact" or token.name in names:
+        return ""
+    return (
+        f"{token.written} is no fact of app/core/global.yml"
+        f"{fact_hint(token.name, names)}"
+    )
+
+
+def _context_problem(token: Token) -> str:
+    if token.kind != "context" or context_entry(token.name) is not None:
+        return ""
+    closest = hint(
+        token.name, global_catalog().context, lambda name: f"${{context.{name}}}"
+    )
+    return f"{token.written} is no context entry of app/core/global.yml{closest}"
 
 
 def panel_group_of(step: Step) -> str | None:

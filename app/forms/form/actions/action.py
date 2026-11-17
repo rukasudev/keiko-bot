@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -10,6 +9,7 @@ from typing import Any
 
 from app.constants import KeikoIcons, Style, ViewConstants
 from app.core.conditions import Scope, count_of
+from app.core.tokens import Token, resolved
 from app.forms.form.components import (
     Button,
     Component,
@@ -27,8 +27,12 @@ from app.forms.form.form_yaml import (
     Step,
     overridden_text,
 )
-from app.forms.form.responses.links import link_host
-from app.forms.form.responses.styles import STYLES, format_value, stored_style
+from app.forms.form.responses.styles import (
+    STYLES,
+    TOKEN_FORMATTERS,
+    format_value,
+    stored_style,
+)
 from app.forms.form.responses.summary import ResponseView, responses, step_title
 
 NO_FORM = FormDefinition(key="", steps=())
@@ -61,11 +65,6 @@ class Context:
     done_saves: bool = False
     item_index: int | None = None
 
-
-TOKEN = re.compile(r"\{answer:([A-Za-z0-9_]+)(?::([a-z_]+))?(?:\|([^}]*))?\}")
-CONTEXT_TOKEN = re.compile(r"\{context:([a-z_]+)\}")
-PLURAL_TOKEN = re.compile(r"\{plural:([A-Za-z0-9_]+)\|([^|}]*)\|([^}]*)\}")
-TOKEN_FORMATTERS = {"host": link_host}
 
 THUMBNAILS: dict[str, str] = {
     "review": KeikoIcons.IMAGE_03,
@@ -117,7 +116,8 @@ def apply_tokens(
     context: Context,
     state: Mapping[str, Any] | None = None,
 ) -> str:
-    """The `{answer:...}`, `{plural:...}` and `{context:...}` tokens filled in."""
+    """`body` with its `${answer...}`, `${plural...}` and `${context...}` filled in,
+    in one pass: an answer put in is never read again."""
     by_key = {view.key: view for view in views(session, context)}
     drafted = state or {}
     around = {
@@ -129,34 +129,40 @@ def apply_tokens(
         "server_timezone": context.server_timezone,
     }
 
-    def replace(match: re.Match[str]) -> str:
-        key, formatter, fallback = match.group(1), match.group(2), match.group(3) or ""
-        view = by_key.get(key)
-        value: Any = view.value if view else session.raw(key)
+    def saved(token: Token) -> Any:
+        if token.name in drafted:
+            return drafted[token.name]
+        return session.raw(token.name)
 
-        if key in drafted:
-            value = drafted[key]
-        if value in (None, "", [], ()):
-            return fallback
-        style = stored_style(formatter)
-        if style in STYLES:
-            return format_value(value, style, context.locale)
-        if isinstance(value, (list, tuple)):
-            value = ", ".join(str(item) for item in value)
-        if formatter in TOKEN_FORMATTERS:
-            return TOKEN_FORMATTERS[formatter](str(value))
-        return str(value)
+    def shown(token: Token) -> Any:
+        view = by_key.get(token.name)
+        if view is None or token.name in drafted:
+            return saved(token)
+        return view.value
 
-    def counted(match: re.Match[str]) -> str:
-        key, one, several = match.group(1), match.group(2), match.group(3)
-        value = drafted[key] if key in drafted else session.raw(key)
-        return several if count_of(value) > 1 else one
+    def value(token: Token) -> str | None:
+        if token.kind == "answer":
+            return _answer_text(token, shown(token), context.locale)
+        if token.kind == "plural":
+            return token.many if count_of(saved(token)) > 1 else token.one
+        if token.kind == "context":
+            return str(around.get(token.name, ""))
+        return None
 
-    def surroundings(match: re.Match[str]) -> str:
-        return str(around.get(match.group(1), ""))
+    return resolved(body, value)
 
-    resolved = TOKEN.sub(replace, PLURAL_TOKEN.sub(counted, body))
-    return CONTEXT_TOKEN.sub(surroundings, resolved)
+
+def _answer_text(token: Token, value: Any, locale: str) -> str:
+    if value in (None, "", [], ()):
+        return token.fallback
+    style = stored_style(token.format)
+    if style in STYLES:
+        return format_value(value, style, locale)
+    if isinstance(value, (list, tuple)):
+        value = ", ".join(str(item) for item in value)
+    if token.format in TOKEN_FORMATTERS:
+        return TOKEN_FORMATTERS[token.format](str(value))
+    return str(value)
 
 
 def description_of(step: Step, session: FormSession, context: Context) -> str:
