@@ -904,3 +904,16 @@ async def test_the_typed_confirmation_of_a_lifecycle_is_never_shown(
 
     run.check("after the confirmation", shown=False)
     assert run.saved()["enabled"] is True
+
+
+def test_an_account_fill_writes_each_variable_once() -> None:
+    """Broke as: a card's `fills` wrote each variable one after another, so an account
+    typed as `{stream_link}` was read again and both slots showed the link (the Twitch
+    and YouTube account inputs). Guaranteed: each variable is filled once and what
+    was put in stays as typed."""
+    from app.forms.form.actions.configuration_card import _rewritten
+
+    tokens = {"streamer": "{value}", "stream_link": "https://twitch.tv/{value}"}
+    written = _rewritten("{streamer} is live at {stream_link}", tokens, "", "{stream_link}")
+
+    assert written == "{stream_link} is live at https://twitch.tv/{stream_link}"

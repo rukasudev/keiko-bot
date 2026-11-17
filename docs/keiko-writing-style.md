@@ -299,7 +299,7 @@ The summary reads the intro's title, and the summary sentence (`fallbacks.review
 **Variables**
 18. USE `{user}`, `{server}`, `{member_count}`, `{streamer}`, `{stream_link}`, `{youtuber}`, `{video_link}`, `{date}` for the templates an admin writes (welcome, notification, birthday messages), and only the ones the command's code fills; a Keiko text may show them as examples beside its own tokens.
 19. USE a token of the one syntax for every value Keiko fills: `$user`, `$command_name`, `$date`, `$feature_key`, `$ping`, `$action`, `$roles` for a fact the code passes, each declared (the command's `facts:` or `app/core/global.yml`) and read whole (`${prefix}ping` glues text after one); `${answer.<key>|<fallback>}` for an earlier answer, `${plural.<key>|<one>|<many>}`, `${ref.<name>}` for a shared text, `$$` for a dollar; a line that points to another command writes its context entry (`${context.commands.setup}` reads `/setup` or `/configurar`).
-20. NEVER write a value Keiko fills as `{name}`: the loader refuses it in copy, and braces stay for the templates an admin writes (and Keiko's own defaults of them, `announcement.defaults` and a card's `defaults`, which write no `$` token).
+20. NEVER write a value Keiko fills as `{name}`: the loader refuses it in copy, and braces stay for the templates an admin writes (and Keiko's own defaults of them, `announcement.defaults` and a card's `defaults`, which write no `$` token a later pass would fill).
 
 **Localization**
 21. EVERY new user-facing string MUST exist in BOTH `en-us` and `pt-br`.

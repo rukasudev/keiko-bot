@@ -225,11 +225,8 @@ def context_entry(name: str) -> ContextEntry | None:
 
 
 def with_context(node: Any, name: str, shared: Mapping[str, Text] | None = None) -> Any:
-    """A raw YAML tree with what its texts read at load written in, in each locale:
-    each shared text named `${ref.<name>}` (a field written only so becomes that text
-    in both locales), then each `${context.<family>.<member>}`; what a text reads
-    later stays as written. Refuses a token the syntax does not allow, an old
-    `{ref: name}`, and a shared text or a member no one declares."""
+    """A raw YAML tree with its `${ref.<name>}` texts and `${context.<family>.<member>}`
+    names written in at load, refusing what the syntax or the catalogs do not allow."""
     return _written_in(node, name, shared, "")
 
 

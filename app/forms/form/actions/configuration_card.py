@@ -1483,9 +1483,8 @@ def _rewritten(body: Any, tokens: Mapping[str, str], old: str, new: str) -> Any:
             flags=re.IGNORECASE,
         )
         written = bounded.sub(lambda match: renderings[match.group(0).lower()], written)
-    for name, template in tokens.items():
-        written = written.replace("{" + name + "}", template.replace("{value}", new))
-    return written
+    filled = {name: templated(form, {"value": new}) for name, form in tokens.items()}
+    return templated(written, filled)
 
 
 def _selects_preview(

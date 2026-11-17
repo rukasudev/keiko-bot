@@ -92,10 +92,8 @@ def fact_names(text: str) -> list[str]:
 
 
 def resolved(text: str, value: Value, last: bool = True) -> str:
-    """`text` with each token `value` gives a value for replaced by it, in one pass;
-    a token with no value stays as written. The `last` pass writes each `$$` as `$`;
-    an earlier one keeps it and doubles the `$` of each value it puts in, so the
-    passes after it never read that value."""
+    """`text` with each token `value` answers replaced in one pass, the `last` pass
+    writing `$$` as `$` and an earlier one keeping the values it puts in unread."""
     found = list(_scanned(text, strict=False))
     given = [value(piece) if isinstance(piece, Token) else None for piece in found]
 
