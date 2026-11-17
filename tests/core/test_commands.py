@@ -119,6 +119,19 @@ def test_no_command_is_keyed_global(declare):
         commands()
 
 
+@pytest.mark.parametrize("key", ["buttons", "commands", "errors", "locales", "texts"])
+def test_no_command_is_keyed_like_a_shared_copy_file(declare, key):
+    """Each file of `app/languages/` loads its copy under its stem, so a command under
+    that key would load its own copy beside the shared one and read either."""
+    declare(Command(key))
+
+    with pytest.raises(
+        ValueError,
+        match=f"no command is keyed '{key}': app/languages/{key}.yml loads the shared",
+    ):
+        commands()
+
+
 def test_a_reminder_title_owned_by_two_commands_is_refused(declare):
     declare(
         Command("first", reminders={"renewal": lambda _reminder: None}),
