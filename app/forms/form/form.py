@@ -95,8 +95,6 @@ from app.forms.form.responses.summary import (
 
 FINAL_KIND = {
     "setup": "enabled",
-    "pause": "paused",
-    "unpause": "unpaused",
     "disable": "disabled",
 }
 NOT_ON_BACK = ("text",)
@@ -735,6 +733,26 @@ def removal_screen(locale: str, names: Sequence[str], warning: str = "") -> Scre
         color=Style.RED_COLOR,
         buttons=(
             Button(label("remove", locale), "remove_items", "danger", "🗑️"),
+            Button(label("back", locale), "picker_back"),
+        ),
+    )
+
+
+def delete_screen(locale: str, feature: str, state: str) -> Screen:
+    """Delete every setting of the feature, or go back, naming what is lost."""
+    copy = block_texts(
+        "commands.responses.delete",
+        facts(GLOBAL, feature=feature, feature_state=state),
+        locale,
+    )
+    return Screen(
+        title=copy["title"],
+        description=copy["description"],
+        color=Style.RED_COLOR,
+        buttons=(
+            Button(
+                label("delete_all", locale), "confirm_lifecycle:disable", "danger", "🗑️"
+            ),
             Button(label("back", locale), "picker_back"),
         ),
     )

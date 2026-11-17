@@ -3,51 +3,44 @@ from typing import Any, Callable, Dict, List, Optional
 import discord
 
 from app.core.cogs import lifecycle_key
-from app.core.utils import fill, ml
+from app.core.commands import setup_feature
+from app.core.utils import command_text, discord_time, fill, ml
+
+
+def change_label(cog_key: str, locale: Any) -> str:
+    """The feature a change happened in, as /setup names it, else its key."""
+    command = setup_feature(cog_key)
+    if command is None:
+        return f"`{cog_key}`"
+    return f"{command.emoji} {command_text(command, 'command.setup.label', locale)}"
 
 
 def parse_history_data(
     data: List[Dict[str, Any]],
     interaction: discord.Interaction,
-    with_cog: bool = None,
     label_for: Optional[Callable[[str], str]] = None,
 ) -> Dict[str, Any]:
-    """Each change as the line the history lists, the actor named by mention."""
-    system_desc = ml("commands.records.history.lines.system", locale=interaction.locale)
+    """Each change as a numbered field: what changed, then who did it and when."""
+    locale = interaction.locale
+    by = ml("commands.records.history.lines.by", locale=locale)
+    system = ml("commands.records.history.lines.system", locale=locale)
 
-    response = {}
-    for item in data:
-        key = item["ts"].strftime("%Y-%m-%d %H:%M:%S") + " UTC"
+    fields = {}
+    for number, item in enumerate(data, start=1):
         actor = item.get("actor") or {}
-        user_mention = f"<@{actor.get('id')}>"
         is_bot_user = actor.get("kind") == "bot" or str(actor.get("id")) == str(
             interaction.client.user.id
         )
-
-        line = lifecycle_key(item["type"])
-        if with_cog:
-            line = f"{line}_with_feature"
-        desc = fill(
-            ml(f"commands.records.history.lines.{line}", locale=interaction.locale),
-            user=user_mention,
-            feature_key=item["cog"],
+        title = ml(
+            f"commands.records.history.lines.{lifecycle_key(item['type'])}",
+            locale=locale,
         )
-
-        if is_bot_user:
-            desc += f" _({system_desc})_"
-
         if label_for is not None:
-            desc = f"{label_for(item['cog'])} · {desc}"
+            title = f"{label_for(item['cog'])} · {title}"
 
-        if key not in response:
-            response[key] = []
+        value = fill(by, user=f"<@{actor.get('id')}>", date=discord_time(item["ts"]))
+        if is_bot_user:
+            value += f"\n-# {system}"
+        fields[f"{number}. {title}"] = value
 
-        response[key].append(desc)
-
-    return parse_history_data_list(response)
-
-
-def parse_history_data_list(data: List[Dict[str, Any]]) -> Dict[str, Any]:
-    for item in data:
-        data[item] = "\n".join(data[item])
-    return data
+    return fields

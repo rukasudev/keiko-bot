@@ -168,7 +168,7 @@ async def test_disable_unsubscribes_streamers(
     )
 
     await scenario.click(ml("buttons.disable.label", locale="pt-br"))
-    await scenario.submit_confirmation()
+    await scenario.click("delete_all")
 
     assert deps.twitch.unsubscribe_calls, "disable must unsubscribe streamers"
     scenario.expect_not_persisted(

@@ -98,15 +98,6 @@ design_gallery:
     en-us: ⬆️ Scroll up to see all options
     pt-br: ⬆️ Role para cima para ver todas as opções
 
-# open: the part of the typed confirmation -> its text
-confirmation_modal:
-  title:
-    en-us: Are you sure?
-    pt-br: Tem certeza?
-  label:
-    en-us: Type `$action` to confirm.
-    pt-br: Digite `$action` para confirmar.
-
 # open: why a click changed nothing -> the note it gets
 notices:
   stale:

@@ -690,6 +690,7 @@ class Runtime:
             return
         if result.document is not None:
             state.opened = Opened(document=result.document, panel=state.opened.panel)
+        observability.saved_change(session, kind)
         if isinstance(session.mode, Manage):
             await self._reopen(session)
         await self._apply(

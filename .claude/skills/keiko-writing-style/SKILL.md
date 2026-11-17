@@ -104,16 +104,18 @@ of text is a bug, not a style choice.
 
 ### Buttons (`app/ui/buttons.py`)
 - `ButtonStyle.green` → Confirm / positive
-- `ButtonStyle.red` → Cancel / destructive
+- `ButtonStyle.red` → Cancel / destructive (the panel's **🗑️ Apagar configuração** / **Delete settings**, and the **🗑️ Apagar tudo** / **Delete everything** of the question it opens)
 - `ButtonStyle.primary` → Back / selected state / primary navigation
-- `ButtonStyle.gray` / `grey` → Edit, Pause, Unpause, Preview, Help, Disable, Add (the **➕ Add** of every list too, beside its title, on the summary, the panel and a card), Remove, History, Sync
+- `ButtonStyle.gray` / `grey` → Edit, Pause, Resume, Preview, Help, Add (the **➕ Add** of every list too, beside its title, on the summary, the panel and a card), Remove, History, Sync
 - `ButtonStyle.secondary` → form back navigation
-- Reuse generic labels from `app/languages/buttons.yml` (`confirm`, `cancel`, `edit`, `add`, `remove`, `back`, `select`, `choose`, `pause`, `unpause`, `preview`, `history`, `done`), each a `ButtonCopy` with its `label` and, for a button the Help screen lists, its `description`. Only add a new key when the action is genuinely new.
+- Reuse generic labels from `app/languages/buttons.yml` (`confirm`, `cancel`, `edit`, `add`, `remove`, `back`, `select`, `choose`, `pause`, `unpause` (read **Resume** / **Retomar**), `disable` (read **Delete settings** / **Apagar configuração**), `preview`, `history`, `done`), each a `ButtonCopy` with its `label` and, for a button the Help screen lists, its `description`. Only add a new key when the action is genuinely new.
 - **Cancel is ALWAYS the last button in the view.** Order: the step's own actions first
   (options, Confirm, Done, Add/Remove), then Back, then Cancel. Inside a form the engine's
   screen model builds the row in that order by construction
   (`app/forms/form/actions/action.py`, `step_buttons`); a view outside the forms appends Cancel
-  last by hand. Pinned by the golden transcripts.
+  last by hand. The manager panel has no Cancel: its red **🗑️ Apagar configuração** goes last,
+  after Help, and asks first on a red question shaped like an item's removal (**🗑️ Apagar tudo**,
+  then **Voltar**). Pinned by the golden transcripts.
 
 ### Modals (`app/forms/discord/views.py`)
 - Default `max_length` = 40. Cap at 100 for free-text fields.
@@ -140,7 +142,7 @@ of text is a bug, not a style choice.
 - Examples / values → backticks: `` `ks!mouse` ``.
 - Variables of a template an admin writes (welcome / notification / birthday messages) → curly braces, and only those: `{user}`, `{server}`, `{member_count}`, `{streamer}`, `{stream_link}`, `{youtuber}`, `{video_link}`, `{date}`. Keiko's own defaults of those templates and the lines that explain them name only the variables the command's code fills (`tests/test_admin_templates.py`).
 - Every value Keiko fills, in any YAML file → a token of the one syntax (`docs/commands.md`, "The token syntax"):
-  - a fact the code passes → `$name`: `$user`, `$command_name`, `$date`, `$feature_key`, `$ping`, `$action`, `$roles`. Each is a declared fact: the command's own in the `facts:` of its `copy.yml`, or a global one in `app/core/global.yml` (a shared file and a form read only global ones). The name is read whole, so text glued after it needs braces: `` `${prefix}ping` ``, never `$prefixping`;
+  - a fact the code passes → `$name`: `$user`, `$command_name`, `$date`, `$feature`, `$ping`, `$roles`. Each is a declared fact: the command's own in the `facts:` of its `copy.yml`, or a global one in `app/core/global.yml` (a shared file and a form read only global ones). The name is read whole, so text glued after it needs braces: `` `${prefix}ping` ``, never `$prefixping`;
   - an earlier form answer echoed in a step description → `${answer.<key>|<fallback>}`, with the fallback whenever the text can show before the answer exists, and `:<format>` when the value needs one (`${answer.default_roles:role|Empty}`, `${answer.link:host|youtube.com}`);
   - one or many, from an answer → `${plural.<key>|<one>|<many>}`;
   - a slash command or a parent group → its context entry, `${context.commands.<key>}` or `${context.groups.<group>}`, which the loader writes in as its localized name (`/setup` in en-us, `/configurar` in pt-br); on a form screen, the other values Keiko knows (`${context.prefix}`, `${context.server_name}`, `${context.command}`);
@@ -192,7 +194,7 @@ Every rule below is about what a user sees; on the two operator surfaces named a
 - ALWAYS bold `**Keiko**` and `**$command_name**` when referenced inline.
 - ALWAYS backtick slash commands, written as their context entry (`${context.commands.<key>}`).
 - ALWAYS provide both `en-us` and `pt-br` for new strings.
-- ALWAYS reuse `commands.responses.{enabled,paused,unpaused,disabled}` for state changes; do not invent new state-change copy.
+- ALWAYS reuse `commands.responses.{enabled,disabled}` when a setup turns a feature on and when its settings are deleted; a pause and a resume only draw the panel again (its title says "(Pausado)" and its button **Retomar**), so they have no message of their own; do not invent new state-change copy.
 - ALWAYS reuse generic button keys from `app/languages/buttons.yml` when an existing label fits.
 - ALWAYS place the Cancel button last in a view (own actions, then Back, then Cancel).
 - ALWAYS use the choice layout (question, one line per option led by its emoji, closing invitation) when a step asks the user to pick between options.
@@ -257,7 +259,7 @@ Render: `response_error_embed("{command-key}.errors.{error_name}", locale)`, or 
 An error always writes both `title` and `message`: a missing one shows on screen as its own copy key (pinned by `tests/behavioral/regressions/test_an_error_embed_never_shows_a_copy_key.py`).
 
 ### Success / state-change embed
-Reuse `commands.responses.{enabled|paused|unpaused|disabled}`. Substitute `$command_name`, `$user`, `$date` only.
+Reuse `commands.responses.{enabled|disabled}`. Substitute `$command_name`, `$user`, `$date` only (`$date` is a Discord timestamp, so each reader sees their own date and time). A pause and a resume answer with the panel drawn again, never with an embed.
 
 ### Modal step (YAML)
 ```yaml

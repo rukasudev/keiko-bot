@@ -21,20 +21,19 @@ from app.forms.form.actions.configuration_card import pictured_members as on_car
 from app.forms.form.components import (
     Button,
     ChoiceOption,
-    Input,
     Panel,
     PanelGroup,
     PanelPart,
     Screen,
-    TextInputs,
+    Style,
 )
 from app.forms.form.copy import text
 from app.forms.form.effects import (
     Ack,
     Commit,
+    Dismiss,
     Finalize,
     Notice,
-    OpenModal,
     Render,
     ShowError,
 )
@@ -42,6 +41,7 @@ from app.forms.form.form import (
     Decision,
     Engine,
     confirm_removal,
+    delete_screen,
     on_add_requested,
     on_aside,
     on_child_finished,
@@ -165,17 +165,16 @@ class FromSetup(ev.Event):
 
 @dataclass(frozen=True)
 class Lifecycle(ev.Event):
-    """Pause, unpause or disable was pressed on the panel."""
+    """Pause, resume or delete the settings was pressed on the panel."""
 
     action: str = ""
 
 
 @dataclass(frozen=True)
 class LifecycleConfirmed(ev.Event):
-    """The confirmation modal of a lifecycle action was submitted."""
+    """The delete confirmation's red button was pressed."""
 
     action: str = ""
-    word: str = ""
 
 
 class Manager(Engine):
@@ -332,9 +331,16 @@ class Manager(Engine):
         heading = item_heading(step_title(composition, self.locale), index)
         block = "\n".join((heading, *item_lines(item, self.locale)))
 
-        feature = without_leading_emoji(self.definition.steps[0].title.get(self.locale))
         warning = composition.last_item_warning.get(self.locale)
-        return filled(warning, {"item": block, "feature": feature})
+        return filled(warning, {"item": block, "feature": self.feature_name()})
+
+    def feature_name(self) -> str:
+        """The intro's title without its emoji, a character or a shortcode."""
+        title = without_leading_emoji(self.definition.steps[0].title.get(self.locale))
+        shortcode, _, name = title.partition(" ")
+        if name and len(shortcode) > 2 and shortcode[0] == shortcode[-1] == ":":
+            return name
+        return title
 
     def edit_finished(self, answers: Mapping[str, Answer]) -> None:
         """Save the edited settings."""
@@ -547,7 +553,6 @@ def panel_buttons(
         buttons.append(_button("pause", "lifecycle:pause", "⏸️", locale))
     else:
         buttons.append(_button("unpause", "lifecycle:unpause", "▶️", locale))
-    buttons.append(_button("disable", "lifecycle:disable", "🚫", locale))
     composition = definition.composition
 
     if composition is not None and not inline:
@@ -560,13 +565,16 @@ def panel_buttons(
     buttons.extend(panel.extra_buttons)
     buttons.append(_button("stats", "aside:stats", "📊", locale))
     buttons.append(_button("help", "aside:help", "🙋", locale))
+    buttons.append(_button("disable", "lifecycle:disable", "🗑️", locale, "danger"))
 
     return tuple(buttons)
 
 
-def _button(key: str, action: str, emoji: str, locale: str) -> Button:
+def _button(
+    key: str, action: str, emoji: str, locale: str, style: Style = "secondary"
+) -> Button:
     return Button(
-        label(key, locale), action, "secondary", emoji, description=caption(key, locale)
+        label(key, locale), action, style, emoji, description=caption(key, locale)
     )
 
 
@@ -738,28 +746,6 @@ def found_screen(
     )
 
 
-def confirmation_modal(action: str, locale: str) -> Screen:
-    """The typed confirmation a lifecycle action asks for."""
-    word = confirmation_word(action, locale)
-    title = text("texts.confirmation_modal.title", locale)
-    prompt = text("texts.confirmation_modal.label", locale).replace(
-        "$action", word.lower()
-    )
-
-    return Screen(
-        modal_title=title,
-        components=(
-            TextInputs("", (Input(prompt, "word", max_length=len(word)),), slot=action),
-        ),
-        flavour="modal",
-    )
-
-
-def confirmation_word(action: str, locale: str) -> str:
-    """The word the admin must type to confirm `action`."""
-    return label(action, locale)
-
-
 def _on_started(manager: Manager) -> None:
     manager.session = manager.session.at(None)
     manager.effects.append(Render(manager.panel_screen()))
@@ -787,6 +773,17 @@ def _on_picker_closed(manager: Manager) -> None:
         manager.effects.append(Render(manager.panel_screen()))
         return
     manager.session = manager.session.with_status(Status.ACTIVE)
+    manager.rerender()
+
+
+def _on_child_finished(manager: Manager) -> None:
+    event = manager.event
+    assert isinstance(event, ev.ChildFinished)
+    if not event.discarded:
+        on_child_finished(manager)
+        return
+    manager.session = manager.session.with_status(Status.ACTIVE)
+    manager.effects.append(Dismiss())
     manager.rerender()
 
 
@@ -831,27 +828,25 @@ def _on_option_toggled(manager: Manager) -> None:
 def _on_lifecycle(manager: Manager) -> None:
     event = manager.event
     assert isinstance(event, Lifecycle)
-    manager.session = manager.session.with_status(
-        Status.AWAITING, awaiting=event.action
-    )
-    manager.effects.append(
-        OpenModal(
-            confirmation_modal(event.action, manager.locale),
-            "word",
-            event.action,
-        )
-    )
+    if event.action in ("pause", "unpause"):
+        manager.commit_and_return(event.action, {})
+        return
+    if event.action != "disable":
+        manager.redraw()
+        return
+    state = "active" if manager.panel.enabled else "paused"
+    screen = delete_screen(manager.locale, manager.feature_name(), state)
+    manager.session = manager.session.with_status(Status.AWAITING, awaiting="disable")
+    manager.effects.append(Render(screen))
 
 
 def _on_lifecycle_confirmed(manager: Manager) -> None:
     event = manager.event
     assert isinstance(event, LifecycleConfirmed)
-    expected = confirmation_word(event.action, manager.locale)
-    if event.word.strip().lower() != expected.lower():
-        manager.session = manager.session.with_status(Status.ACTIVE)
-        manager.effects.append(Ack())
+    if manager.session.awaiting != "disable" or event.action != "disable":
+        manager.redraw()
         return
-    manager.commit(event.action, {})
+    manager.commit("disable", {})
 
 
 def _on_commit_succeeded(manager: Manager) -> None:
@@ -904,7 +899,7 @@ HANDLERS: dict[type[ev.Event], Callable[[Manager], None]] = {
     ev.RemovalConfirmed: on_removal_confirmed,
     ev.MemberChosen: on_member_chosen,
     ev.ItemRemoved: on_item_removed,
-    ev.ChildFinished: on_child_finished,
+    ev.ChildFinished: _on_child_finished,
     ev.ScreenRequested: on_screen_requested,
     PageTurned: _on_page_turned,
     SearchRequested: _on_search_requested,

@@ -101,7 +101,7 @@ async def test_a_commit_that_ends_as_the_clock_runs_out_is_answered_once(
 
     with caplog.at_level(logging.WARNING):
         await scenario.click("disable")
-        await scenario.submit_confirmation()
+        await scenario.click("delete_all")
         await asyncio.sleep(0.2)
 
     assert _interactions("failed", "40060") == refused

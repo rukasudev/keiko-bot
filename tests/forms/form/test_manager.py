@@ -312,13 +312,16 @@ def test_the_manager_renders_the_panel_with_grouped_settings():
         "add:custom_links",
     ]
     assert "**Modo de bloqueio:** Bloquear todos" in panel.groups[0].lines[1]
-    assert [b.action for b in screen(decision).buttons] == [
+    buttons = screen(decision).buttons
+    assert [b.action for b in buttons] == [
         "lifecycle:pause",
-        "lifecycle:disable",
         "aside:history",
         "aside:stats",
         "aside:help",
+        "lifecycle:disable",
     ], "the list carries its own Add and Remove inside the card"
+    assert [b.style for b in buttons] == ["secondary"] * 4 + ["danger"]
+    assert buttons[-1].label == "Apagar configuração" and buttons[-1].emoji == "🗑️"
 
 
 def test_the_block_links_lists_are_named_after_the_mode_in_force():
@@ -419,27 +422,101 @@ def test_a_section_edit_opens_a_child_over_that_step_seeded_from_the_document():
     )
 
 
-def test_lifecycle_actions_need_the_typed_word():
+@pytest.mark.parametrize("action", ["pause", "unpause"])
+def test_pause_and_resume_save_in_one_click_and_draw_the_panel_again(action):
+    definition, decision = start(
+        "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
+    )
+    asked = decided(definition, decision.session, evt(Lifecycle, action=action))
+
+    assert kinds(asked) == ["Commit"]
+    assert asked.effects[0].kind == action and asked.effects[0].quiet
+    assert asked.session.awaiting == "panel"
+
+    done = decided(
+        definition,
+        asked.session,
+        evt(ev.CommitSucceeded, kind=action),
+        Context(document=BLOCK_LINKS_DOC),
+    )
+    assert kinds(done) == ["Render"]
+    assert isinstance(screen(done).components[0], Panel)
+    assert done.session.status is Status.ACTIVE
+    assert done.session.changes_saved == 1
+
+
+def test_a_pause_that_fails_still_ends_with_the_error():
     definition, decision = start(
         "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
     )
     asked = decided(definition, decision.session, evt(Lifecycle, action="pause"))
-    assert kinds(asked) == ["OpenModal"] and asked.session.status is Status.AWAITING
-    wrong = decided(
+    failed = decided(
         definition,
         asked.session,
-        evt(LifecycleConfirmed, action="pause", word="nope"),
+        evt(ev.CommitFailed, kind="pause", error="RuntimeError"),
+        Context(document=BLOCK_LINKS_DOC),
     )
-    assert kinds(wrong) == ["Ack"] and wrong.session.status is Status.ACTIVE
-    asked = decided(definition, wrong.session, evt(Lifecycle, action="pause"))
-    right = decided(
+
+    assert kinds(failed) == ["Finalize"] and failed.effects[0].kind == "error"
+    assert failed.session.status is Status.FAILED
+    assert [name for name, _props in failed.analytics] == ["feature.commit_failed"]
+
+
+def test_delete_asks_on_a_red_screen_that_goes_back_to_the_panel():
+    definition, decision = start(
+        "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
+    )
+    asked = decided(definition, decision.session, evt(Lifecycle, action="disable"))
+
+    question = screen(asked)
+    assert question.title == "🗑️ Apagar esta configuração?"
+    assert "**Bloquear Links**" in question.description
+    assert [(b.action, b.style) for b in question.buttons] == [
+        ("confirm_lifecycle:disable", "danger"),
+        ("picker_back", "secondary"),
+    ]
+    assert asked.session.awaiting == "disable"
+
+    back = decided(
         definition,
         asked.session,
-        evt(LifecycleConfirmed, action="pause", word="pausar"),
+        evt(ev.PickerClosed),
+        Context(document=BLOCK_LINKS_DOC),
     )
-    assert isinstance(right.effects[0], Commit) and right.effects[0].kind == "pause"
-    done = decided(definition, right.session, evt(ev.CommitSucceeded, kind="pause"))
-    assert done.effects[0].kind == "paused"
+    assert isinstance(screen(back).components[0], Panel)
+    assert back.session.status is Status.ACTIVE
+    assert not [effect for effect in back.effects if isinstance(effect, Commit)]
+
+
+def test_delete_everything_deletes_and_closes_the_panel():
+    definition, decision = start(
+        "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
+    )
+    asked = decided(definition, decision.session, evt(Lifecycle, action="disable"))
+    confirmed = decided(
+        definition, asked.session, evt(LifecycleConfirmed, action="disable")
+    )
+
+    assert kinds(confirmed) == ["Commit"] and confirmed.effects[0].kind == "disable"
+    done = decided(
+        definition, confirmed.session, evt(ev.CommitSucceeded, kind="disable")
+    )
+    assert kinds(done) == ["Finalize"] and done.effects[0].kind == "disabled"
+    assert done.session.status is Status.COMPLETED
+
+
+def test_delete_everything_without_the_question_deletes_nothing():
+    definition, decision = start(
+        "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
+    )
+    stray = decided(
+        definition,
+        decision.session,
+        evt(LifecycleConfirmed, action="disable"),
+        Context(document=BLOCK_LINKS_DOC),
+    )
+
+    assert not [effect for effect in stray.effects if isinstance(effect, Commit)]
 
 
 def test_removing_from_the_manager_commits_the_item():
@@ -1019,6 +1096,23 @@ def test_back_from_a_part_edit_redraws_the_panel_without_committing():
     )
     assert not [e for e in back.effects if isinstance(e, Commit)]
     assert isinstance(screen(back).components[0], Panel)
+
+
+def test_discarding_an_edit_from_the_panel_removes_the_question_and_commits_nothing():
+    definition, parent, context = _part_manager()
+    opened, _started = open_part(definition, parent, context, "welcome_card/channel")
+
+    discarded = decided(
+        definition,
+        opened.session,
+        evt(ev.ChildFinished, child_mode="edit", answers={}, discarded=True),
+        context,
+    )
+
+    assert kinds(discarded) == ["Dismiss", "Render"]
+    assert isinstance(screen(discarded).components[0], Panel)
+    assert discarded.session.status is Status.ACTIVE
+    assert discarded.session.changes_saved == 0
 
 
 def test_a_part_edit_that_leaves_the_card_incomplete_shows_the_whole_card():

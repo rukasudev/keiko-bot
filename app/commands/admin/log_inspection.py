@@ -12,7 +12,7 @@ from app.constants import Emojis
 from app.constants import LogTypes as logconstants
 from app.core.cogs import features_on, find_changes
 from app.core.dates import parse_if_time
-from app.core.manager import parse_history_data
+from app.core.manager import change_label, parse_history_data
 from app.core.utils import format_relative_time
 from app.data import data
 from app.forms.features import feature_keys
@@ -191,7 +191,7 @@ class LogInspectionView(discord.ui.View):
         browser = RecordsBrowser(
             fetch=fetch,
             to_fields=lambda records, asked: parse_history_data(
-                records, asked, with_cog=True
+                records, asked, label_for=lambda key: change_label(key, asked.locale)
             ),
             copy="commands.records.changes",
         )

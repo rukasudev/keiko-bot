@@ -415,7 +415,7 @@ async def test_an_addition_after_another_panel_disabled_the_feature_subscribes_n
     first, second = await _two_twitch_panels(scenario_factory, deps)
 
     await first.click("disable")
-    await first.submit_confirmation()
+    await first.click("delete_all")
     await _add_streamer(second, "shroud")
 
     assert await _saved(deps, twitch.FORM) is None
@@ -567,9 +567,8 @@ async def test_a_pause_after_another_panel_disabled_the_feature_changes_nothing(
     first, second = await _two_panels(scenario_factory, block_links.FORM)
 
     await first.click("disable")
-    await first.submit_confirmation()
+    await first.click("delete_all")
     await second.click(action)
-    await second.submit_confirmation()
 
     assert await _saved(deps, block_links.FORM) is None
     assert _recorded(deps, block_links.FORM) == ["disabled"]
@@ -585,7 +584,7 @@ async def test_an_edit_after_another_panel_disabled_the_feature_changes_nothing(
     first, second = await _two_panels(scenario_factory, block_links.FORM)
 
     await first.click("disable")
-    await first.submit_confirmation()
+    await first.click("delete_all")
     await second.click("section:link_settings")
     await second.click("customize:1")
     await second.submit_modal({ANSWER_FIELD: "No links around here!"})
@@ -659,7 +658,7 @@ async def test_disable_lets_every_streamer_go_even_when_the_flag_write_fails(
 
     monkeypatch.setattr(feature_module, "set_feature_enabled", flag_write_fails)
     await scenario.click("disable")
-    await scenario.submit_confirmation()
+    await scenario.click("delete_all")
 
     assert await _saved(deps, twitch.FORM) is None
     assert _subscribed_streamers(deps) == set()
@@ -674,7 +673,6 @@ async def test_unpausing_subscribes_every_saved_streamer_again(scenario_factory,
     scenario = await scenario_factory(locale=LOCALE).start_command(twitch.FORM)
 
     await scenario.click("unpause")
-    await scenario.submit_confirmation()
 
     assert (await _saved(deps, twitch.FORM))["enabled"] is True
     assert _subscribed_streamers(deps) == {"gaules", "cellbit"}
@@ -688,7 +686,6 @@ async def test_unpausing_subscribes_every_saved_youtuber_again(scenario_factory,
     scenario = await scenario_factory(locale=LOCALE).start_command(youtube.FORM)
 
     await scenario.click("unpause")
-    await scenario.submit_confirmation()
 
     assert (await _saved(deps, youtube.FORM))["enabled"] is True
     assert deps.youtube.subscribe_calls == ["UC-lHJZR3Gqxm24_Vd_AJ5Yw"]

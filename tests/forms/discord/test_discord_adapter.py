@@ -651,17 +651,30 @@ async def test_a_card_never_waits_longer_than_the_preview_budget(v2, monkeypatch
 # ------------------------------------------------------------------ lifecycle
 
 
-async def test_pausing_from_a_card_panel_replaces_it_with_the_paused_message(v2, deps):
-    """Broke as: followup.send(view=None) raised TypeError once the pause saved."""
+async def test_deleting_from_a_card_panel_replaces_it_with_the_final_message(v2, deps):
+    """Broke as: followup.send(view=None) raised TypeError once a lifecycle change
+    saved and its final embed replaced the panel's card."""
     seed_document(deps, "welcome_messages", WELCOME_ENABLED)
     scenario = await v2().start_command("welcome_messages")
     assert scenario.current_message.flags.components_v2
 
-    await scenario.click("pause")
-    await scenario.submit_confirmation()
+    await scenario.click("disable")
+    await scenario.click("delete_all")
 
     assert not scenario.current_message.flags.components_v2
     assert scenario.current_message.embeds
+
+
+async def test_pausing_from_a_card_panel_draws_the_card_again(v2, deps):
+    seed_document(deps, "welcome_messages", WELCOME_ENABLED)
+    scenario = await v2().start_command("welcome_messages")
+    panel = scenario.current_message
+
+    await scenario.click("pause")
+
+    assert scenario.current_message is panel
+    assert panel.flags.components_v2
+    scenario.expect_component(label_or_action="unpause")
 
 
 async def test_a_finalize_that_fails_inside_a_commit_is_reported_once(
@@ -676,13 +689,13 @@ async def test_a_finalize_that_fails_inside_a_commit_is_reported_once(
 
     seed_document(deps, "welcome_messages", WELCOME_ENABLED)
     scenario = await v2().start_command("welcome_messages")
-    await scenario.click("pause")
+    await scenario.click("disable")
     monkeypatch.setattr(Executor, "_replace", broken)
 
     raised = False
     with caplog.at_level(logging.ERROR):
         try:
-            await scenario.submit_confirmation()
+            await scenario.click("delete_all")
         except RuntimeError:
             raised = True
 

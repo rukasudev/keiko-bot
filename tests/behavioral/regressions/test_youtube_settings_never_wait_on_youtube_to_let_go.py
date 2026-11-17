@@ -157,7 +157,7 @@ async def test_turning_youtube_off_completes_whatever_youtube_answers(
 
     with caplog.at_level("INFO"):
         await scenario.click("disable")
-        await scenario.submit_confirmation()
+        await scenario.click("delete_all")
 
     scenario.expect_not_persisted("guild", FORM, {"guild_id": GUILD_ID})
     assert unsubscribe_errors(caplog) == ["pewdiepie"]

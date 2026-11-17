@@ -29,11 +29,16 @@ edit:
 
 disable:
   label:
-    en-us: Disable
-    pt-br: Desativar
+    en-us: Delete settings
+    pt-br: Apagar configuração
   description:
-    en-us: Disable the feature and reset the settings
-    pt-br: Desativa a funcionalidade e reseta as configurações
+    en-us: Turn the feature off and delete its settings
+    pt-br: Desativa a funcionalidade e apaga as configurações
+
+delete_all:
+  label:
+    en-us: Delete everything
+    pt-br: Apagar tudo
 
 add:
   label:
@@ -97,11 +102,11 @@ pause:
 
 unpause:
   label:
-    en-us: Unpause
-    pt-br: Despausar
+    en-us: Resume
+    pt-br: Retomar
   description:
-    en-us: Unpause the feature
-    pt-br: Despausa a funcionalidade
+    en-us: Resume the feature
+    pt-br: Retoma a funcionalidade
 
 history:
   label:

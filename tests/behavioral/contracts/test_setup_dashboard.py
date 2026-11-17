@@ -626,8 +626,8 @@ async def test_the_history_lists_every_feature_newest_first_and_names_each(deps)
 
     Each feature kept its own history behind its own panel, so an admin who wanted
     to know what changed in the server had to open six panels. Guaranteed: the
-    history merges every feature's audit records, newest first, and every line
-    names the feature it happened in.
+    history merges every feature's audit records, newest first, and every change
+    is a numbered field named by the feature it happened in.
     """
     from app.commands.setup.service import guild_history, history_fields
 
@@ -642,9 +642,10 @@ async def test_the_history_lists_every_feature_newest_first_and_names_each(deps)
     interaction = SimpleNamespace(
         locale="pt-br", guild=None, client=SimpleNamespace(user=SimpleNamespace(id=999))
     )
-    rendered = "\n".join(history_fields(records, interaction, "pt-br").values())
-    assert "**🚫 Bloquear Links**" in rendered
-    assert "**🎉 Mensagens de Boas-Vindas**" in rendered
+    names = list(history_fields(records, interaction, "pt-br"))
+    assert names[0] == "1. 🚫 Bloquear Links · ⏸️ Pausado"
+    assert [name.split(". ", 1)[0] for name in names] == ["1", "2", "3"]
+    assert any(name.endswith(". 🎉 Mensagens de Boas-Vindas · ✅ Ativado") for name in names)
 
 
 async def test_the_history_lists_the_server_settings_changed_on_the_settings_screen(deps):
@@ -673,9 +674,11 @@ async def test_the_history_lists_the_server_settings_changed_on_the_settings_scr
     interaction = SimpleNamespace(
         locale="pt-br", guild=None, client=SimpleNamespace(user=SimpleNamespace(id=999))
     )
-    lines = list(history_fields(records, interaction, "pt-br").values())
-    assert lines[0].startswith(ml("setup.ui.cards.dashboard.rows.settings.title", "pt-br"))
-    assert "<@555>" in lines[0]
+    fields = history_fields(records, interaction, "pt-br")
+    assert list(fields)[0].startswith("1. ⚙️ Configurações do Servidor · "), (
+        "the settings row is named in plain text, like every feature's row"
+    )
+    assert list(fields.values())[0].startswith("<@555> · <t:")
 
 
 PERMISSIONS_BASE = "setup.ui.responses.permissions"

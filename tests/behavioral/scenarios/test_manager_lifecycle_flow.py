@@ -1,7 +1,8 @@
 """Behavioral scenarios: Manager lifecycle through the real buttons.
 
-Pause, unpause and disable go through the real ConfirmationModal (the user
-must type the action word). Add/remove item run the real composition
+Pause and Resume save in one click and draw the same panel again with the
+feature's new state. Apagar configuração asks first, on a red screen that says
+what goes, with Apagar tudo and Voltar. Add/remove item run the real composition
 sub-form and the real Select-based remove view.
 """
 
@@ -13,6 +14,7 @@ from tests.generators.moderations import seed_cog
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
 
 GUILD_ID = "123456789"
+LOCALE = "pt-br"
 
 BLOCK_LINKS_COG = {
     "guild_id": GUILD_ID,
@@ -41,66 +43,85 @@ def _twitch_cog(*streamers: str) -> dict:
     }
 
 
-async def test_pause_requires_typed_confirmation_and_pauses(scenario_factory, deps):
-    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS_COG))
-    scenario = await scenario_factory(locale="pt-br").start_manager(
-        "block_links", dict(BLOCK_LINKS_COG)
-    )
-
-    pause_label = ml("buttons.pause.label", locale="pt-br")
-    await scenario.click(pause_label)
-    scenario.expect_modal()  # ConfirmationModal pending
-
-    await scenario.submit_confirmation()  # types the action word
-    scenario.expect_message(
-        title_contains=ml("commands.responses.paused.title", locale="pt-br"),
-    )
-    scenario.expect_persisted(
-        "guild", "block_links", {"guild_id": GUILD_ID}, {"enabled": False}
-    )
+async def _panel(scenario_factory, deps, cog):
+    seed_cog(deps.mongo_client, "block_links", dict(cog))
+    return await scenario_factory(locale=LOCALE).start_manager("block_links", dict(cog))
 
 
-async def test_wrong_confirmation_word_does_not_pause(scenario_factory, deps):
-    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS_COG))
-    scenario = await scenario_factory(locale="pt-br").start_manager(
-        "block_links", dict(BLOCK_LINKS_COG)
-    )
-    await scenario.click(ml("buttons.pause.label", locale="pt-br"))
-    await scenario.submit_confirmation(word="nope")
+def _last_screen(scenario) -> str:
+    return str(next(
+        event for event in reversed(scenario.outputs)
+        if event.get("actor") == "bot" and (event.get("components") or event.get("embed"))
+    ))
 
+
+def _enabled(scenario) -> bool:
     document = scenario.get_persisted("guild", "block_links", {"guild_id": GUILD_ID})
-    assert document["enabled"] is True, "wrong confirmation word must be a no-op"
+    return document["enabled"]
 
 
-async def test_unpause_reenables_command(scenario_factory, deps):
-    paused = {**BLOCK_LINKS_COG, "enabled": False}
-    seed_cog(deps.mongo_client, "block_links", dict(paused))
-    scenario = await scenario_factory(locale="pt-br").start_manager(
-        "block_links", dict(paused)
-    )
+async def test_pause_saves_in_one_click_and_draws_the_panel_paused(scenario_factory, deps):
+    scenario = await _panel(scenario_factory, deps, BLOCK_LINKS_COG)
+    panel = scenario.current_message
 
-    await scenario.click(ml("buttons.unpause.label", locale="pt-br"))
-    await scenario.submit_confirmation()
+    await scenario.click(ml("buttons.pause.label", locale=LOCALE))
+
+    assert scenario.current_message is panel, "the panel stays on its message"
+    assert f"({ml('texts.paused_suffix', locale=LOCALE)})" in _last_screen(scenario)
+    scenario.expect_component(label_or_action="unpause")
+    assert ml("buttons.unpause.label", locale=LOCALE) == "Retomar"
+    assert _enabled(scenario) is False
+
+
+async def test_resume_saves_in_one_click_and_draws_the_panel_running(
+    scenario_factory, deps
+):
+    scenario = await _panel(scenario_factory, deps, {**BLOCK_LINKS_COG, "enabled": False})
+    panel = scenario.current_message
+
+    await scenario.click(ml("buttons.unpause.label", locale=LOCALE))
+
+    assert scenario.current_message is panel
+    assert f"({ml('texts.paused_suffix', locale=LOCALE)})" not in _last_screen(scenario)
+    scenario.expect_component(label_or_action="pause")
+    assert _enabled(scenario) is True
+
+
+async def test_delete_asks_first_and_back_keeps_everything(scenario_factory, deps):
+    scenario = await _panel(scenario_factory, deps, BLOCK_LINKS_COG)
+
+    await scenario.click(ml("buttons.disable.label", locale=LOCALE))
+
+    question = _last_screen(scenario)
+    assert ml("commands.responses.delete.title", locale=LOCALE) in question
+    assert "**Bloquear Links**" in question, "the question names the feature"
+    assert ml("buttons.pause.label", locale=LOCALE) in question, "it offers a pause"
+    scenario.expect_component(label_or_action="delete_all")
+
+    await scenario.go_back()
+
+    scenario.expect_component(label_or_action="pause")
+    assert _enabled(scenario) is True, "Voltar deletes nothing"
+
+
+async def test_a_paused_feature_is_asked_without_the_pause_hint(scenario_factory, deps):
+    scenario = await _panel(scenario_factory, deps, {**BLOCK_LINKS_COG, "enabled": False})
+
+    await scenario.click(ml("buttons.disable.label", locale=LOCALE))
+
+    question = _last_screen(scenario)
+    assert "**Bloquear Links**" in question
+    assert ml("buttons.pause.label", locale=LOCALE) not in question
+
+
+async def test_delete_everything_deletes_the_configuration(scenario_factory, deps):
+    scenario = await _panel(scenario_factory, deps, BLOCK_LINKS_COG)
+
+    await scenario.click(ml("buttons.disable.label", locale=LOCALE))
+    await scenario.click("delete_all")
 
     scenario.expect_message(
-        title_contains=ml("commands.responses.unpaused.title", locale="pt-br"),
-    )
-    scenario.expect_persisted(
-        "guild", "block_links", {"guild_id": GUILD_ID}, {"enabled": True}
-    )
-
-
-async def test_disable_deletes_configuration(scenario_factory, deps):
-    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS_COG))
-    scenario = await scenario_factory(locale="pt-br").start_manager(
-        "block_links", dict(BLOCK_LINKS_COG)
-    )
-
-    await scenario.click(ml("buttons.disable.label", locale="pt-br"))
-    await scenario.submit_confirmation()
-
-    scenario.expect_message(
-        title_contains=ml("commands.responses.disabled.title", locale="pt-br"),
+        title_contains=ml("commands.responses.disabled.title", locale=LOCALE),
     )
     scenario.expect_not_persisted("guild", "block_links", {"guild_id": GUILD_ID})
 

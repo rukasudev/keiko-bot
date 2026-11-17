@@ -33,7 +33,6 @@ async def test_a_pause_with_analytics_off_still_lists_in_the_history(
     seed_document(deps, "block_links", ENABLED)
     scenario = await scenario_factory(locale="pt-br").start_command("block_links")
     await scenario.click("pause")
-    await scenario.submit_confirmation()
     await analytics.written()
     await scenario.finish()
 
@@ -41,10 +40,10 @@ async def test_a_pause_with_analytics_off_still_lists_in_the_history(
     interaction = SimpleNamespace(
         locale="pt-br", guild=None, client=SimpleNamespace(user=SimpleNamespace(id=999))
     )
-    rendered = "\n".join(history_fields(records, interaction, "pt-br").values())
+    rendered = "\n".join(history_fields(records, interaction, "pt-br"))
 
     assert [(record["cog"], record["type"]) for record in records] == [
         ("block_links", "feature.paused")
     ]
-    assert "**🚫 Bloquear Links**" in rendered
+    assert "🚫 Bloquear Links · ⏸️ Pausado" in rendered
     assert analytics.drain() == [], "the queue still took events with analytics off"

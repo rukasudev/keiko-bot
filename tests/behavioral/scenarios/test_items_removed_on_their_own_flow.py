@@ -10,6 +10,7 @@ import pytest
 
 from tests.behavioral.golden.paths import notifications_twitch as twitch
 from tests.behavioral.golden.paths.common import GUILD_ID, seed_document
+from app.core.utils import ml
 from app.data import data, wait
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
@@ -86,7 +87,9 @@ async def test_removing_the_only_streamer_asks_and_turns_twitch_off(
 
     assert await _stored(deps, twitch.FORM) is None
     assert deps.twitch.unsubscribe_calls, "the feature off lets gaules go"
-    scenario.expect_message(title_contains="desativado")
+    scenario.expect_message(
+        title_contains=ml("commands.responses.disabled.title", locale="pt-br")
+    )
 
 
 async def test_removing_the_only_streamer_after_another_panel_added_one_drops_nothing(

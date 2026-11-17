@@ -139,7 +139,7 @@ async def test_after_disable_setup_offers_the_feature_again(scenario_factory):
         "block_links", dict(BLOCK_LINKS)
     )
     await scenario.click(ml("buttons.disable.label", locale="pt-br"))
-    await scenario.submit_confirmation()
+    await scenario.click("delete_all")
 
     row = await setup_row("block_links")
 
@@ -155,7 +155,6 @@ async def test_after_pause_setup_shows_the_feature_paused_not_to_set_up(
         "block_links", dict(BLOCK_LINKS)
     )
     await scenario.click(ml("buttons.pause.label", locale="pt-br"))
-    await scenario.submit_confirmation()
 
     row = await setup_row("block_links")
 

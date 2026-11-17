@@ -419,7 +419,6 @@ async def lifecycle(run: Run) -> None:
     if scenario.current_message is not panel:
         scenario.current_message.deleted = True
     await scenario.click("pause")
-    await scenario.submit_confirmation()
     run.check("paused", shown=False)
 
 
@@ -498,8 +497,7 @@ async def edited(run: Run, *opening: str) -> None:
     await scenario.cancel()
     await scenario.click(ml("buttons.discard.label", locale=LOCALE))
     await scenario.finish()
-    if scenario.current_message is not card:
-        scenario.current_message.deleted = True
+    assert scenario.current_message is card, "Discard leaves the panel on the card"
     run.check("panel", shown=False)
 
 
@@ -881,29 +879,6 @@ async def test_a_typed_answer_shows_as_typed_and_fills_only_its_variables(
             await journey.refused(run)
         print(f"{typed.name} probe {index + 1}/{len(found)}: {run.seen}")
         index += 1
-
-
-async def test_the_typed_confirmation_of_a_lifecycle_is_never_shown(
-    scenario_factory, deps
-):
-    """The word a pause asks for is only compared: a probe typed there pauses
-    nothing and no screen shows it."""
-    guild = create_guild(id=79_000, name=SERVER)
-    scenario = await scenario_factory(locale=LOCALE, guild=guild).start_command(
-        "block_links"
-    )
-    typed = Typed("block_links", "confirmation", None, 0, "word", None, None)
-    probe = Probe(_plain("zz1", KEIKO_TOKENS), "zz1", False)
-    run = Run(scenario, deps, guild, typed, probe=probe)
-    await scenario.confirm()
-    await scenario.click("done")
-    await scenario.confirm()
-    await scenario.finish()
-    await scenario.click("pause")
-    await scenario.submit_confirmation(word=probe.text)
-
-    run.check("after the confirmation", shown=False)
-    assert run.saved()["enabled"] is True
 
 
 def test_an_account_fill_writes_each_variable_once() -> None:

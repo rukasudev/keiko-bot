@@ -103,7 +103,7 @@ def to_event(
         return CHOSEN[action](event_id, revision, _first(payload))
     if action == "targets":
         return ev.TargetsChosen(event_id, revision, _every(payload))
-    return _named(action, arg, payload, event_id, revision)
+    return _named(action, arg, event_id, revision)
 
 
 def _drafted(action: str, arg: str | None, payload: Any) -> dict[str, Any]:
@@ -130,14 +130,14 @@ def _on_one_item(
 
 
 def _named(
-    action: str, arg: str | None, payload: Any, event_id: str, revision: int | None
+    action: str, arg: str | None, event_id: str, revision: int | None
 ) -> ev.Event:
     if action == "edit":
         return ev.EditRequested(event_id, revision, arg)
     if action == "lifecycle":
         return Lifecycle(event_id, revision, arg or "")
-    if action == "word":
-        return LifecycleConfirmed(event_id, revision, arg or "", _typed(payload))
+    if action == "confirm_lifecycle":
+        return LifecycleConfirmed(event_id, revision, arg or "")
     name, _, target = (arg or action).partition(":")
     return ev.Aside(event_id, revision, name, target)
 
@@ -153,13 +153,6 @@ def _every(payload: Any) -> tuple[str, ...]:
     if isinstance(payload, (list, tuple)):
         return tuple(str(value) for value in payload)
     return (str(payload),) if payload else ()
-
-
-def _typed(payload: Any) -> str:
-    """The one text a modal reported."""
-    if isinstance(payload, dict):
-        return _first(payload.get("inputs"))
-    return str(payload or "")
 
 
 SIMPLE: dict[str, type[ev.Event]] = {

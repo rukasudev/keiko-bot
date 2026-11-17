@@ -29,29 +29,30 @@ responses:
       en-us: 🎉 Command enabled successfully!
       pt-br: 🎉 Funcionalidade ativada com sucesso!
     description:
-      en-us: "Command **$command_name** enabled on $date by $user 🚀\n\n To make changes or disable it, use the command `/$command_name` or `${context.commands.setup}` 🔄"
-      pt-br: "Comando **$command_name** ativado as $date por $user 🚀\n\n Para fazer alterações ou desativar, use o comando `/$command_name` ou `${context.commands.setup}` 🔄"
-  paused:
+      en-us: "I turned on the **$command_name** command on $date, as $user asked! 🚀\n\nTo make changes or delete its settings, use the command `/$command_name` or `${context.commands.setup}` 🔄"
+      pt-br: "Ativei o comando **$command_name** em $date, a pedido de $user! 🚀\n\nPara fazer alterações ou apagar a configuração, use o comando `/$command_name` ou `${context.commands.setup}` 🔄"
+  delete:
     title:
-      en-us: ⏸️ Command paused successfully!
-      pt-br: ⏸️ Comando pausado com sucesso!
+      en-us: 🗑️ Delete these settings?
+      pt-br: 🗑️ Apagar esta configuração?
     description:
-      en-us: Command **$command_name** paused on $date by $user
-      pt-br: Comando **$command_name** pausado as $date por $user
-  unpaused:
-    title:
-      en-us: ▶️ Command unpaused successfully!
-      pt-br: ▶️ Comando despausado com sucesso!
-    description:
-      en-us: Command **$command_name** unpaused on $date by $user
-      pt-br: Comando **$command_name** despausado as $date por $user
+      en-us: "If I delete them, **$feature** turns off and everything on this panel is gone for good. To use it again, you'll need to set it up from the start.\n\nJust need a break? Use **⏸️ Pause** and I'll keep everything just as it is!"
+      pt-br: "Se eu apagar, a função **$feature** é desativada e tudo o que está neste painel some de vez. Para usar de novo, você vai precisar configurar do zero.\n\nSó quer dar um tempo? Use o **⏸️ Pausar** e eu guardo tudo do jeitinho que está!"
+    footer: null
+    overrides:
+      - when:
+          key: global.facts.feature_state
+          is: paused
+        description:
+          en-us: If I delete them, **$feature** is gone for good, with everything on this panel. To use it again, you'll need to set it up from the start.
+          pt-br: Se eu apagar, a função **$feature** some de vez, com tudo o que está neste painel. Para usar de novo, você vai precisar configurar do zero.
   disabled:
     title:
-      en-us: 🚫 Command disabled successfully!
-      pt-br: 🚫 Comando desativado com sucesso!
+      en-us: 🗑️ Settings deleted successfully!
+      pt-br: 🗑️ Configuração apagada com sucesso!
     description:
-      en-us: Command **$command_name** disabled on $date by $user
-      pt-br: Comando **$command_name** desativado as $date por $user
+      en-us: I deleted the settings of **$command_name** on $date, as $user asked. To use it again, just run `/$command_name` or `${context.commands.setup}`!
+      pt-br: Apaguei a configuração de **$command_name** em $date, a pedido de $user. Para usar de novo, é só rodar `/$command_name` ou `${context.commands.setup}`!
   edit_member:
     title:
       en-us: 👤 Select a member to edit
@@ -121,47 +122,29 @@ records:
     # open: the change each line tells -> a line template
     lines:
       enabled:
-        en-us: ✅ Enabled by $user
-        pt-br: ✅ Ativado por $user
-      enabled_with_feature:
-        en-us: ✅ **$feature_key** enabled by $user
-        pt-br: ✅ **$feature_key** ativado por $user
+        en-us: ✅ Enabled
+        pt-br: ✅ Ativado
       paused:
-        en-us: ⏸️ Paused by $user
-        pt-br: ⏸️ Pausado por $user
-      paused_with_feature:
-        en-us: ⏸️ **$feature_key** paused by $user
-        pt-br: ⏸️ **$feature_key** pausado por $user
+        en-us: ⏸️ Paused
+        pt-br: ⏸️ Pausado
       unpaused:
-        en-us: ▶️ Unpaused by $user
-        pt-br: ▶️ Despausado por $user
-      unpaused_with_feature:
-        en-us: ▶️ **$feature_key** unpaused by $user
-        pt-br: ▶️ **$feature_key** despausado por $user
+        en-us: ▶️ Resumed
+        pt-br: ▶️ Retomado
       disabled:
-        en-us: 🚫 Disabled by $user
-        pt-br: 🚫 Desativado por $user
-      disabled_with_feature:
-        en-us: 🚫 **$feature_key** disabled by $user
-        pt-br: 🚫 **$feature_key** desativado por $user
+        en-us: 🗑️ Settings deleted
+        pt-br: 🗑️ Configuração apagada
       edited:
-        en-us: 📝 Edited by $user
-        pt-br: 📝 Editado por $user
-      edited_with_feature:
-        en-us: 📝 **$feature_key** edited by $user
-        pt-br: 📝 **$feature_key** editado por $user
+        en-us: 📝 Edited
+        pt-br: 📝 Editado
       added:
-        en-us: ➕ Item added by $user
-        pt-br: ➕ Item adicionado por $user
-      added_with_feature:
-        en-us: ➕ **$feature_key** added by $user
-        pt-br: ➕ Item adicionado em **$feature_key** por $user
+        en-us: ➕ Item added
+        pt-br: ➕ Item adicionado
       removed:
-        en-us: 🗑️ Item removed by $user
-        pt-br: 🗑️ Item removido por $user
-      removed_with_feature:
-        en-us: 🗑️ **$feature_key** removed by $user
-        pt-br: 🗑️ Item removido de **$feature_key** por $user
+        en-us: 🗑️ Item removed
+        pt-br: 🗑️ Item removido
+      by:
+        en-us: $user · $date
+        pt-br: $user · $date
       system:
         en-us: That's an automatic action I take when leaving the server
         pt-br: Essa é uma ação automática que eu faço ao sair do servidor
