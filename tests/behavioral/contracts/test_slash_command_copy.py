@@ -13,17 +13,10 @@ command, group, option and choice in every locale it is sent in. The copy
 lives in each command's `copy.yml` (`slash.*` and the blocks its cogs name) and in
 `app/languages/commands.yml` (`groups.*`, the months).
 """
-import asyncio
-from importlib import import_module
-from unittest.mock import MagicMock
-
 import discord
 import pytest
-from discord.ext import commands as ext
-from discord.ext import tasks
 
-from app.core.utils import startup_extensions
-from app.translator import Translator
+from tests.helpers.slash_tree import built_tree, synced_tree
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("command_copy")]
 
@@ -33,40 +26,6 @@ CHOICE_LIMIT = 100        # Discord: choice names are 1..100
 # Context-menu commands (see app/commands/translate/cog.py, block_links/cog.py):
 # Discord allows mixed case and spaces in THEIR names, and no description.
 CONTEXT_MENUS = {discord.AppCommandType.user.value, discord.AppCommandType.message.value}
-
-
-async def _payloads(loops=None):
-    async with ext.Bot(
-        command_prefix="!", intents=discord.Intents.default(), help_command=None
-    ) as bot:
-        return await _translated(bot, [] if loops is None else loops)
-
-
-async def _translated(bot, loops):
-    bot.all_cogs = {}
-    bot.app_commands = []
-    for name in ("twitch", "youtube", "reminder", "notion", "config"):
-        setattr(bot, name, MagicMock())
-    for extension in startup_extensions():
-        await import_module(extension).setup(bot)
-    translator = Translator(bot)
-    await bot.tree.set_translator(translator)
-    try:
-        return [
-            await command.get_translated_payload(bot.tree, translator)
-            for command in bot.tree.get_commands()
-        ]
-    finally:
-        loops += [
-            value
-            for cog in bot.cogs.values()
-            for value in vars(cog).values()
-            if isinstance(value, tasks.Loop)
-        ]
-        for name in list(bot.cogs):
-            await bot.remove_cog(name)
-        for _ in range(3):
-            await asyncio.sleep(0)
 
 
 def _localized(node, field):
@@ -100,7 +59,7 @@ def _broken(kind, text):
 
 @pytest.fixture
 async def payloads():
-    return await _payloads()
+    return (await synced_tree()).payloads
 
 
 async def test_the_tree_carries_every_command_in_both_locales(payloads):
@@ -137,7 +96,7 @@ async def test_building_the_tree_leaves_no_background_task_failing():
     fan-out tests assert no ERROR in their caplog and failed now and then).
     """
     loops = []
-    await _payloads(loops)
+    await built_tree(loops)
 
     failed = [
         loop.coro.__qualname__
