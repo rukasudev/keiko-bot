@@ -3,6 +3,9 @@ facts:
   api_reachable:
     type: boolean
     description: Whether Keiko could read the streamer's commands from StreamElements just now.
+  list_command:
+    type: text
+    description: The chat command, on the server's prefix, that lists every command Keiko answers for the streamer (`ks!commands`).
   streamer:
     type: text
     description: The StreamElements channel the feature answers for.
@@ -59,8 +62,8 @@ ui:
   # open: plain lines -> a text the service fills
   texts:
     reply_footer:
-      en-us: Type $command to see every command from $streamer I answer here!
-      pt-br: Digite $command para ver todos os comandos de $streamer que eu respondo aqui!
+      en-us: Type $list_command to see every command from $streamer I answer here!
+      pt-br: Digite $list_command para ver todos os comandos de $streamer que eu respondo aqui!
 
   # open: list names -> a browsable list
   records:

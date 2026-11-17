@@ -5,22 +5,13 @@ facts:
     description: The word an admin types to confirm what a confirmation modal asks.
   channel:
     type: text
-    description: A channel a line names, as its mention or as the id a mention wraps.
-  cog_key:
-    type: text
-    description: The name of the feature whose History a list shows.
-  cog_name:
-    type: text
-    description: The name of the feature a History line or a lifecycle message names.
+    description: A channel a line names, as its mention.
   collections:
     type: number
     description: How many collections a database backup holds.
-  command:
-    type: text
-    description: A command a line names, a slash command without its `/` or a chat command with its prefix.
   command_name:
     type: text
-    description: The slash command of the feature a lifecycle message names, in the reader's language, without its `/`.
+    description: The slash command of a feature a line names, in the reader's language, without its `/`.
   count:
     type: number
     description: How many things a line counts, written as the code formats the number.
@@ -36,6 +27,9 @@ facts:
   documents:
     type: number
     description: How many documents a database backup holds.
+  feature_key:
+    type: text
+    description: The key of the feature a line of every server change names, as the change stores it (`block_links`).
   feature_state:
     type: enum
     values: [not_configured, paused, active]
@@ -74,6 +68,9 @@ facts:
   roles:
     type: text
     description: The roles a line names, joined in one line.
+  skipped_collections:
+    type: text
+    description: The collections a database backup left out for their size, each in backticks, joined in one line.
   thousands:
     type: text
     description: A count in thousands, for a floor written in Portuguese ("5 mil+").

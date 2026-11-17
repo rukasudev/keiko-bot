@@ -130,12 +130,12 @@ async def test_the_reply_footer_speaks_the_language_of_the_server(deps, streamer
         "stream_elements_commands.ui.texts.reply_footer",
         "pt-br",
     )
-    expected = footer.replace("$command", "ks!commands").replace("$streamer", "gaules")
+    expected = footer.replace("$list_command", "ks!commands").replace("$streamer", "gaules")
     assert reply_of(message).footer.text == f"• {expected}"
     assert expected != ml(
         "stream_elements_commands.ui.texts.reply_footer",
         "en-us",
-    ).replace("$command", "ks!commands").replace("$streamer", "gaules")
+    ).replace("$list_command", "ks!commands").replace("$streamer", "gaules")
 
 
 async def test_the_listener_answers_the_servers_prefix_and_no_other(

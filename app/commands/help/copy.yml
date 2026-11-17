@@ -34,8 +34,8 @@ ui:
         en-us: "🐾 Woof! Looking for one of my **$prefix** commands? They're not turned on in this server yet.\n\nAsk a moderator to set one up in `{context:commands.setup}` or with its own command:\n$commands\n\nMy other commands start with `/`! Try `{context:commands.help}` to see everything I can do :heart:"
         pt-br: "🐾 Au au! Procurando um dos meus comandos com **$prefix**? Eles ainda não estão ativados neste servidor.\n\nPeça para um moderador configurar um deles no `{context:commands.setup}` ou pelo próprio comando:\n$commands\n\nOs meus outros comandos começam com `/`! Experimente `{context:commands.help}` para ver tudo o que eu sei fazer :heart:"
       feature:
-        en-us: "- `/$command`"
-        pt-br: "- `/$command`"
+        en-us: "- `/$command_name`"
+        pt-br: "- `/$command_name`"
       direct:
         en-us: 🇺🇸 Woof! I don't answer prefix commands here in DMs. My commands start with `/`! Try `{context:commands.help}` to see everything I can do.
         pt-br: 🇧🇷 Au au! Aqui no privado eu não respondo comandos com prefixo. Os meus comandos começam com `/`! Experimente `{context:commands.help}` para ver tudo o que eu sei fazer.

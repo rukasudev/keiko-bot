@@ -896,7 +896,7 @@ class Runtime:
             ),
             to_fields=parse_history_data,
             copy="commands.records.history",
-            facts=facts(GLOBAL, cog_key=name),
+            facts=facts(GLOBAL, command_name=name),
             locale=locale,
         )
         await browser.send(interaction)

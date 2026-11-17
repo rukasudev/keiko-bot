@@ -264,7 +264,7 @@ async def prefix_hint(bot: DiscordBot, guild: Optional[discord.Guild]) -> Option
     activations = "\n".join(
         fill(
             ml("help.ui.texts.prefix_hint.feature", locale),
-            command=get_command_display_name(bot, spec.key, locale),
+            command_name=get_command_display_name(bot, spec.key, locale),
         )
         for spec in prefix_features()
     )

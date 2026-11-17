@@ -278,7 +278,7 @@ def create_response_embed(
     embed.set_author(name=f"!{command}", icon_url=user.display_avatar.url)
     footer = fill(
         ml("stream_elements_commands.ui.texts.reply_footer", locale),
-        command=f"{prefix}commands",
+        list_command=f"{prefix}commands",
         streamer=streamer,
     )
     embed.set_footer(text=f"• {footer}")
