@@ -137,8 +137,8 @@ ui:
         en-us: 🎂 Birthday registered!
         pt-br: 🎂 Aniversário cadastrado!
       description:
-        en-us: "I saved $member's birthday for **$date**.\n\nTo review all reminders, use `{context:commands.reminders_birthday}`."
-        pt-br: "Anotei o aniversário de $member para **$date**.\n\nPara revisar todos os lembretes, use `{context:commands.reminders_birthday}`."
+        en-us: "I saved $member's birthday for **$date**.\n\nTo review all reminders, use `${context.commands.reminders_birthday}`."
+        pt-br: "Anotei o aniversário de $member para **$date**.\n\nPara revisar todos os lembretes, use `${context.commands.reminders_birthday}`."
     personal:
       title:
         en-us: 🎂 Birthday saved!
@@ -168,8 +168,8 @@ ui:
         en-us: Birthday Reminders Not Set Up
         pt-br: Lembretes de Aniversário Não Configurados
       message:
-        en-us: Sorry, this server hasn't set up birthday reminders yet! Ask an admin to run `{context:commands.reminders_birthday}` first 🎂
-        pt-br: Desculpe, esse servidor ainda não configurou os lembretes de aniversário! Peça pra um admin rodar o comando `{context:commands.reminders_birthday}` antes 🎂
+        en-us: Sorry, this server hasn't set up birthday reminders yet! Ask an admin to run `${context.commands.reminders_birthday}` first 🎂
+        pt-br: Desculpe, esse servidor ainda não configurou os lembretes de aniversário! Peça pra um admin rodar o comando `${context.commands.reminders_birthday}` antes 🎂
     self_edit_limit:
       title:
         en-us: Birthday Edit Blocked

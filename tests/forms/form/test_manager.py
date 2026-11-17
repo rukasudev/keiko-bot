@@ -1315,6 +1315,41 @@ def test_removing_the_only_item_warns_with_the_item_and_disables_it(
     assert commit.payload == {"items": document["notifications"]["values"]}
 
 
+def test_the_only_item_warning_never_reads_the_item_it_put_in():
+    """Broke as: the warning filled `$item` with the item's block and then read the
+    whole text again for `$feature`, so a streamer saved as `x$feature` showed the
+    feature's name in its own block. Shared behaviour: `filled`, the one pass every
+    text of the form engine is filled by. Exposed by: the YAML syntax study.
+    Guaranteed: the item shows as it was saved."""
+    import importlib
+
+    paths = importlib.import_module(
+        "tests.behavioral.golden.paths.notifications_twitch"
+    )
+    saved = "x$feature ${context.prefix}"
+    document = {
+        **paths.ENABLED,
+        "notifications": {
+            "style": "composition",
+            "values": [paths.notification("100", saved)],
+        },
+    }
+    context = Context(document=document)
+    definition, panel = _started_in(
+        "en-us", "notifications_twitch", Manage(), context=context
+    )
+
+    asked = decided(
+        definition,
+        panel.session,
+        evt(ItemRemovalRequested, target="notifications$0"),
+        context,
+    )
+
+    assert saved in screen(asked).description
+    assert screen(asked).description.count("Twitch Lives") == 1
+
+
 def test_the_review_keeps_the_list_remove():
     """The item controls belong to the saved list: the setup review keeps the
     list's own Remove, never one beside each item."""

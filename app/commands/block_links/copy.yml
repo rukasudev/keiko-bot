@@ -148,14 +148,14 @@ ui:
                 key: global.facts.feature_state
                 is: not_configured
               value:
-                en-us: ❌ I'm not set up here yet, so I block no links at all. Use `{context:commands.block_links}` to get started!
-                pt-br: ❌ Ainda não fui configurado aqui, então não bloqueio link nenhum. Use `{context:commands.block_links}` para começar!
+                en-us: ❌ I'm not set up here yet, so I block no links at all. Use `${context.commands.block_links}` to get started!
+                pt-br: ❌ Ainda não fui configurado aqui, então não bloqueio link nenhum. Use `${context.commands.block_links}` para começar!
             - when:
                 key: global.facts.feature_state
                 is: paused
               value:
-                en-us: ⏸️ I'm paused here, so I let every link through. Bring me back with `{context:commands.block_links}`!
-                pt-br: ⏸️ Estou pausado por aqui, então deixo todos os links passarem. Me reative com `{context:commands.block_links}`!
+                en-us: ⏸️ I'm paused here, so I let every link through. Bring me back with `${context.commands.block_links}`!
+                pt-br: ⏸️ Estou pausado por aqui, então deixo todos os links passarem. Me reative com `${context.commands.block_links}`!
         exemptions:
           title:
             en-us: 2️⃣ Are the author or the channel exempt?

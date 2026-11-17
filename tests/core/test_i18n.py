@@ -12,6 +12,7 @@ import yaml
 from app.core import commands as command_registry
 from app.core import i18n
 from app.core.commands import Text
+from app.core.facts import filled
 from app.ui.embed import Response
 from tests.helpers.copy import SAMPLE
 
@@ -247,7 +248,7 @@ def test_a_typed_block_is_found_by_its_key_or_refused(copy_files: Files) -> None
             r"copy names a value as \$item",
         ),
         (
-            "ui:\n  texts:\n    hint: {ref: nowhere}\n",
+            "ui:\n  texts:\n    hint: ${ref.nowhere}\n",
             "is no text of app/forms/vocabulary",
         ),
     ],
@@ -297,7 +298,7 @@ SAW = (
         ),
         (
             FACTS + "ui:\n  texts:\n    hint: {en-us: 'Hi $who', pt-br: 'Oi $who'}\n",
-            r"ui.texts.hint: \$who is no fact of one or global",
+            r"ui.texts.hint.en-us: \$who is no fact of one or global",
         ),
         (
             "facts:\n  count: {type: number, description: A count.}\n",
@@ -305,11 +306,11 @@ SAW = (
         ),
         (
             "ui:\n  texts:\n"
-            "    hint: {en-us: 'Run {context:commands.nope}', pt-br: x}\n",
+            "    hint: {en-us: 'Run ${context.commands.nope}', pt-br: x}\n",
             "commands has no nope",
         ),
         (
-            "ui:\n  texts:\n    hint: {en-us: 'On {context:server_name}', pt-br: x}\n",
+            "ui:\n  texts:\n    hint: {en-us: 'On ${context.server_name}', pt-br: x}\n",
             "is no context a copy reads",
         ),
     ],
@@ -335,6 +336,106 @@ def test_a_fact_or_a_context_the_catalogs_do_not_allow_is_refused_at_load(
     assert COMMAND in str(error.value)
 
 
+HINT = "ui:\n  texts:\n    hint: {en-us: '%s', pt-br: x}\n"
+
+
+@pytest.mark.parametrize(
+    "written,refusal",
+    [
+        (
+            "And $counts more",
+            r"\$counts is no fact of one or global; did you mean \$\{count\}s or "
+            r"\$count\?",
+        ),
+        (
+            "And $Count more",
+            r"\$Count is no fact of one or global; did you mean \$count\?",
+        ),
+        (
+            "Use `${contxt.commands.setup}`",
+            r"contxt is no kind of token .*did you mean \$\{context.commands.setup\}\?",
+        ),
+        (
+            "Use `${context.commands.setpu}`",
+            r"commands has no setpu; did you mean \$\{context.commands.setup\}\?",
+        ),
+        (
+            "Use `${context.server_nam}`",
+            r"is no context entry of app/core/global.yml; did you mean "
+            r"\$\{context.server_name\}\?",
+        ),
+        ("Try `${prefix`", "is never closed"),
+        ("Try `$prefixping`", r"did you mean \$\{prefix\}ping or \$prefix\?"),
+        (
+            "Hi ${ref.chanel}",
+            r"is no text of app/forms/vocabulary.yml; did you mean \$\{ref.channel\}\?",
+        ),
+        ("Hi ${answer.link}", "a copy reads no answer, only a form does"),
+        ("Hi ${fact.count}", "fact is no kind of token"),
+        ("Hi {answer:link|x}", r"is the old spelling: write \$\{answer.link\|x\}"),
+        ("Use {context:commands.setup}", r"write \$\{context.commands.setup\}"),
+        ("Hi {plural:a|b|c}", r"write \$\{plural.a\|b\|c\}"),
+        ("Hi {response:a|b}", r"write \$\{answer.a\|b\}"),
+    ],
+    ids=[
+        "a fact read as a longer name",
+        "a fact in capitals",
+        "an unknown kind",
+        "an unknown command",
+        "an unknown context",
+        "a token never closed",
+        "a name glued to text",
+        "an unknown shared text",
+        "an answer in copy",
+        "a fact written as a kind",
+        "an old answer",
+        "an old context",
+        "an old plural",
+        "an old response",
+    ],
+)
+def test_a_token_the_syntax_or_the_catalogs_refuse_names_the_file_text_and_token(
+    copy_files: Files, written: str, refusal: str
+) -> None:
+    """A probe of the syntax study: each of these loaded, or was read as something
+    else, before the one syntax; now each fails at load, naming the file, the text
+    and the token, with the closest declared name when one is close."""
+    copy_files((COMMAND, "one", HINT % written))
+
+    with pytest.raises(i18n.CopyError, match=refusal) as error:
+        i18n.collect("en-us")
+    assert str(error.value).startswith(f"{COMMAND}: ui.texts.hint.en-us: ")
+
+
+def test_an_old_shared_text_node_is_refused_with_its_new_spelling(
+    copy_files: Files,
+) -> None:
+    copy_files((COMMAND, "one", "ui:\n  texts:\n    hint: {ref: channel}\n"))
+
+    with pytest.raises(i18n.CopyError, match=r"write \$\{ref.channel\}") as error:
+        i18n.collect("en-us")
+    assert f"{COMMAND}: ui.texts.hint: {{ref: channel}}" in str(error.value)
+
+
+def test_a_fact_is_glued_to_text_with_braces_and_a_dollar_is_doubled(
+    copy_files: Files,
+) -> None:
+    hint = (
+        "ui:\n  texts:\n"
+        "    hint: {en-us: 'Run ${prefix}ping for $$5', pt-br: 'Rode ${prefix}ping'}\n"
+        "    price: {en-us: 'It costs $$5 or $$USD', pt-br: 'Custa R$ 5'}\n"
+    )
+    copy_files((COMMAND, "one", hint))
+    english = i18n.collect("en-us")
+
+    assert english["one.ui.texts.hint"] == "Run ${prefix}ping for $$5", (
+        "a text the code fills keeps its `$$` for the pass that fills it"
+    )
+    assert filled(english["one.ui.texts.hint"], {"prefix": "!"}) == "Run !ping for $5"
+    assert english["one.ui.texts.price"] == "It costs $5 or $USD"
+    assert i18n.collect("pt-br")["one.ui.texts.price"] == "Custa R$ 5"
+
+
 def test_a_shared_file_reads_only_global_facts(copy_files: Files) -> None:
     shared = "app/languages/texts.yml"
     copy_files((shared, "texts", "hint: {en-us: 'Hi $who', pt-br: 'Oi $who'}\n"))
@@ -346,7 +447,7 @@ def test_a_shared_file_reads_only_global_facts(copy_files: Files) -> None:
 def test_a_command_name_in_copy_is_its_slash_command_in_each_language(
     copy_files: Files,
 ) -> None:
-    command, group = "{context:commands.block_links}", "{context:groups.moderations}"
+    command, group = "${context.commands.block_links}", "${context.groups.moderations}"
     hint = (
         "ui:\n  texts:\n    hint:\n"
         f"      en-us: 'Run `{command}` or `{group}`'\n"
@@ -365,7 +466,7 @@ def test_a_command_name_in_copy_is_its_slash_command_in_each_language(
 
 
 def test_a_ref_in_copy_is_the_text_of_the_shared_vocabulary(copy_files: Files) -> None:
-    copy_files((COMMAND, "one", "ui:\n  texts:\n    hint: {ref: channel}\n"))
+    copy_files((COMMAND, "one", "ui:\n  texts:\n    hint: ${ref.channel}\n"))
 
     assert i18n.collect("pt-br")["one.ui.texts.hint"] == "Canal"
     assert i18n.collect("en-us")["one.ui.texts.hint"] == "Channel"

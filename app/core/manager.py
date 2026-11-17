@@ -3,7 +3,7 @@ from typing import Any, Callable, Dict, List, Optional
 import discord
 
 from app.core.cogs import lifecycle_key
-from app.core.utils import ml
+from app.core.utils import fill, ml
 
 
 def parse_history_data(
@@ -27,9 +27,11 @@ def parse_history_data(
         line = lifecycle_key(item["type"])
         if with_cog:
             line = f"{line}_with_feature"
-        desc = ml(
-            f"commands.records.history.lines.{line}", locale=interaction.locale
-        ).replace("$user", user_mention).replace("$feature_key", item["cog"])
+        desc = fill(
+            ml(f"commands.records.history.lines.{line}", locale=interaction.locale),
+            user=user_mention,
+            feature_key=item["cog"],
+        )
 
         if is_bot_user:
             desc += f" _({system_desc})_"

@@ -95,8 +95,8 @@ ui:
             pt-br: Alterar fuso horário
         prefix:
           description:
-            en-us: "⌨️ **Prefix**\n> $value\n-# With this prefix I answer commands like `$prefixping` in the chat. Everything else lives in the slash (/) commands."
-            pt-br: "⌨️ **Prefixo**\n> $value\n-# Com esse prefixo eu respondo no chat a comandos como `$prefixping`. O resto fica nos comandos com barra (/)."
+            en-us: "⌨️ **Prefix**\n> $value\n-# With this prefix I answer commands like `${prefix}ping` in the chat. Everything else lives in the slash (/) commands."
+            pt-br: "⌨️ **Prefixo**\n> $value\n-# Com esse prefixo eu respondo no chat a comandos como `${prefix}ping`. O resto fica nos comandos com barra (/)."
           placeholder:
             en-us: Change prefix
             pt-br: Alterar prefixo
@@ -189,8 +189,8 @@ ui:
         en-us: "Hello, I'm Keiko, your loyal Discord companion! :dog:"
         pt-br: "Olá, eu sou o Keiko, o seu leal companheiro do Discord! :dog:"
       description:
-        en-us: "I'm super excited to make new friends and help make your server even more awesome! ✨\n\nHere are some tricks I know how to do:\n$categories\n🌐 **Utility:** Message translation to any language.\n\nYou can use the **Setup** button below to get started 🚀 or run `{context:commands.setup}` at any time to see and manage all my features!\n\nAll of this is easy to manage with Discord buttons, so you can edit, pause or turn off whatever you want ✏️\n\nTo see every command I have, just tap **Help**. And if you ever get stuck, just call me with `{context:commands.support}` ❤️"
-        pt-br: "Estou super animado para fazer novos amigos e ajudar a deixar o seu servidor ainda mais incrível! ✨\n\nAqui estão alguns truques que eu sei fazer:\n$categories\n🌐 **Utilitário:** Tradução de mensagens para qualquer idioma.\n\nVocê pode usar o botão **Configurar** abaixo para começar 🚀 ou rodar `{context:commands.setup}` a qualquer momento para ver e gerenciar todas as minhas funcionalidades!\n\nTudo isso você gerencia de um jeito fácil pelos botões do Discord, editando, pausando ou desativando o que quiser ✏️\n\nPara ver todos os meus comandos, toque em **Ajuda**. E se precisar de *aujuda*, é só chamar com `{context:commands.support}` ❤️"
+        en-us: "I'm super excited to make new friends and help make your server even more awesome! ✨\n\nHere are some tricks I know how to do:\n$categories\n🌐 **Utility:** Message translation to any language.\n\nYou can use the **Setup** button below to get started 🚀 or run `${context.commands.setup}` at any time to see and manage all my features!\n\nAll of this is easy to manage with Discord buttons, so you can edit, pause or turn off whatever you want ✏️\n\nTo see every command I have, just tap **Help**. And if you ever get stuck, just call me with `${context.commands.support}` ❤️"
+        pt-br: "Estou super animado para fazer novos amigos e ajudar a deixar o seu servidor ainda mais incrível! ✨\n\nAqui estão alguns truques que eu sei fazer:\n$categories\n🌐 **Utilitário:** Tradução de mensagens para qualquer idioma.\n\nVocê pode usar o botão **Configurar** abaixo para começar 🚀 ou rodar `${context.commands.setup}` a qualquer momento para ver e gerenciar todas as minhas funcionalidades!\n\nTudo isso você gerencia de um jeito fácil pelos botões do Discord, editando, pausando ou desativando o que quiser ✏️\n\nPara ver todos os meus comandos, toque em **Ajuda**. E se precisar de *aujuda*, é só chamar com `${context.commands.support}` ❤️"
       footer: null
       # open: line names -> a line template
       lines:

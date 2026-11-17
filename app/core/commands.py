@@ -301,12 +301,12 @@ YAML_TYPES: tuple[YamlType, ...] = (
         purpose=(
             "The copy every form shares: the defaults a step reads when it leaves a "
             "field out (the report footer, the review description) and the texts a "
-            "form or a copy file names with {ref: name}."
+            "form or a copy file names with ${ref.<name>}."
         ),
         readers=(
             "app/forms/form/form_yaml.py: shared_vocabulary reads it, written_out "
             "applies it before a form compiles",
-            "app/core/i18n.py: read resolves each {ref: name} of a copy file, and "
+            "app/core/i18n.py: read writes in each ${ref.<name>} of a copy file, and "
             "standard_footer reads the footer every embed and card falls back to",
         ),
     ),
@@ -404,15 +404,15 @@ YAML_TYPES: tuple[YamlType, ...] = (
             "The facts no single command owns and the context Keiko already holds: "
             "each fact a rule reads as `global.facts.<name>` and a text as `$<name>`, "
             "with its type and what it holds, and each value a text reads as "
-            "`{context:<name>}`, with whether a public message may show it."
+            "`${context.<name>}`, with whether a public message may show it."
         ),
         readers=(
             "app/core/facts.py: global_catalog reads it, address and facts name a "
             "fact, with_context fills the context known at load",
             "app/core/i18n.py: the copy loader checks every rule and `$name` against "
             "it, and resolved refuses a fact it does not declare",
-            "app/forms/form/form_yaml.py: compile_form refuses a `{context:}` it does "
-            "not declare",
+            "app/forms/form/form_yaml.py: compile_form refuses a `$name` or a "
+            "`${context.<name>}` it does not declare",
         ),
     ),
     YamlType(

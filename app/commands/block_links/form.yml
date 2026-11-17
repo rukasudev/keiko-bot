@@ -122,9 +122,9 @@ steps:
           key: mode
           not_in: [allow_all]
         screen:
-          title: {ref: exceptions}
+          title: ${ref.exceptions}
         button:
-          label: {ref: configure}
+          label: ${ref.configure}
         sections: [exempt, allowed_links, own_links]
       - type: group
         key: channel_exceptions
@@ -139,9 +139,9 @@ steps:
           key: mode
           not_in: [block_all]
         screen:
-          title: {ref: exceptions}
+          title: ${ref.exceptions}
         button:
-          label: {ref: configure}
+          label: ${ref.configure}
         sections: [exempt]
       - type: selects
         key: exempt
@@ -305,8 +305,8 @@ steps:
           en-us: How Far Does This Rule Go?
           pt-br: Qual o Alcance da Regra?
         description:
-          en-us: "Tell me how far this rule goes!\n\n🌐 **Every link from this website**\nI always allow everything on `{answer:link:host|youtube.com}`, any page or video of it.\n\n🔗 **Only this specific link**\nI always allow only `{answer:link|youtube.com/watch?v=abc123}`, and the rest of the website stays blocked.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
-          pt-br: "Me diga o alcance dessa regra!\n\n🌐 **Todos os links desse site**\nEu sempre libero tudo em `{answer:link:host|youtube.com}`, qualquer página ou vídeo dele.\n\n🔗 **Só esse link específico**\nEu sempre libero só `{answer:link|youtube.com/watch?v=abc123}`, e o resto do site continua bloqueado.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
+          en-us: "Tell me how far this rule goes!\n\n🌐 **Every link from this website**\nI always allow everything on `${answer.link:host|youtube.com}`, any page or video of it.\n\n🔗 **Only this specific link**\nI always allow only `${answer.link|youtube.com/watch?v=abc123}`, and the rest of the website stays blocked.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
+          pt-br: "Me diga o alcance dessa regra!\n\n🌐 **Todos os links desse site**\nEu sempre libero tudo em `${answer.link:host|youtube.com}`, qualquer página ou vídeo dele.\n\n🔗 **Só esse link específico**\nEu sempre libero só `${answer.link|youtube.com/watch?v=abc123}`, e o resto do site continua bloqueado.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
         emoji: 🎯
         when:
           key: link
@@ -316,8 +316,8 @@ steps:
               key: parent.mode
               not_in: [block_all]
             description:
-              en-us: "Tell me how far this rule goes!\n\n🌐 **Every link from this website**\nI always block everything on `{answer:link:host|youtube.com}`, any page or video of it.\n\n🔗 **Only this specific link**\nI always block only `{answer:link|youtube.com/watch?v=abc123}`, and the rest of the website stays allowed.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
-              pt-br: "Me diga o alcance dessa regra!\n\n🌐 **Todos os links desse site**\nEu sempre bloqueio tudo em `{answer:link:host|youtube.com}`, qualquer página ou vídeo dele.\n\n🔗 **Só esse link específico**\nEu sempre bloqueio só `{answer:link|youtube.com/watch?v=abc123}`, e o resto do site continua liberado.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
+              en-us: "Tell me how far this rule goes!\n\n🌐 **Every link from this website**\nI always block everything on `${answer.link:host|youtube.com}`, any page or video of it.\n\n🔗 **Only this specific link**\nI always block only `${answer.link|youtube.com/watch?v=abc123}`, and the rest of the website stays allowed.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
+              pt-br: "Me diga o alcance dessa regra!\n\n🌐 **Todos os links desse site**\nEu sempre bloqueio tudo em `${answer.link:host|youtube.com}`, qualquer página ou vídeo dele.\n\n🔗 **Só esse link específico**\nEu sempre bloqueio só `${answer.link|youtube.com/watch?v=abc123}`, e o resto do site continua liberado.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
         options:
           - label:
               en-us: 🌐 Every link from this website
@@ -336,7 +336,7 @@ steps:
 # open: group ids -> a panel group
 groups:
   exceptions:
-    title: {ref: exceptions}
+    title: ${ref.exceptions}
     emoji: ✅
     screen:
       description:

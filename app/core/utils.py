@@ -21,6 +21,7 @@ from app.core.commands import (
 )
 from app.core.facts import filled
 from app.core.i18n import CopyBlock, CopyText
+from app.core.tokens import fact_names, plain
 from app.exceptions import DestinationNotFound
 
 T = TypeVar("T")
@@ -299,10 +300,11 @@ def stored_value(entry: Dict[str, Any]) -> Any:
 
 
 def fill(text: str, **values: Any) -> str:
-    """Replace every `$name` in a localized line with the value given for it, in one
-    pass and the longest name first, so `$page` never eats the start of `$pages`;
-    a line that writes a given name as `{name}` is refused."""
-    braced = [name for name in values if f"{{{name}}}" in text and f"${name}" not in text]
+    """Replace every `$name` (or `${name}`) in a localized line with the value given
+    for it, each name read whole and in one pass, so a value put in is never read
+    again; a line that writes a given name as `{name}` is refused."""
+    written, reads = plain(text), fact_names(text)
+    braced = [name for name in values if f"{{{name}}}" in written and name not in reads]
     if braced:
         raise ValueError(
             f"{text!r} writes {{{braced[0]}}}: copy names a value as ${braced[0]}"
@@ -346,12 +348,12 @@ def parse_command_event_description(
     cog_key: str,
 ) -> str:
     command_name = get_command_display_name(interaction.client, cog_key, interaction.locale)
-    description = description.replace("$command_name", command_name)
-    description = description.replace(
-        "$date", event_date.strftime("%Y-%m-%d %H:%M:%S") + " UTC"
+    return fill(
+        description,
+        command_name=command_name,
+        date=event_date.strftime("%Y-%m-%d %H:%M:%S") + " UTC",
+        user=interaction.user.mention,
     )
-    description = description.replace("$user", interaction.user.mention)
-    return description
 
 
 def format_traceback_message(traceback: str) -> str:

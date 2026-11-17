@@ -14,6 +14,7 @@ from typing import Any
 from app.constants import Emojis, KeikoIcons
 from app.constants import ViewConstants as view_constants
 from app.core.conditions import Scope
+from app.core.facts import filled
 from app.forms.form import events as ev
 from app.forms.form.actions.action import Context, caption, label
 from app.forms.form.actions.configuration_card import pictured_members as on_card
@@ -333,7 +334,7 @@ class Manager(Engine):
 
         feature = without_leading_emoji(self.definition.steps[0].title.get(self.locale))
         warning = composition.last_item_warning.get(self.locale)
-        return warning.replace("$item", block).replace("$feature", feature)
+        return filled(warning, {"item": block, "feature": feature})
 
     def edit_finished(self, answers: Mapping[str, Answer]) -> None:
         """Save the edited settings."""
@@ -711,7 +712,7 @@ def found_screen(
     name = item_name(composition, item, index, locale, styled=True)
     found = composition.search.title() if composition.search is not None else None
     title = (
-        found.get(locale).replace("$item", name)
+        filled(found.get(locale), {"item": name})
         if found
         else f"{composition.emoji or ''} {name}".strip()
     )

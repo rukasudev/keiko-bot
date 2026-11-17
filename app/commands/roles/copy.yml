@@ -90,8 +90,8 @@ ui:
         en-us: Default Roles Disabled
         pt-br: Cargos Padrão Desativados
       message:
-        en-us: The role assignment feature is currently disabled. To activate and configure this feature, just run the `{context:commands.default_roles}` command 🐶
-        pt-br: A funcionalidade de atribuir cargos automaticamente está desabilitada. Para ativar e configurá-la, é só rodar o comando `{context:commands.default_roles}` 🐶
+        en-us: The role assignment feature is currently disabled. To activate and configure this feature, just run the `${context.commands.default_roles}` command 🐶
+        pt-br: A funcionalidade de atribuir cargos automaticamente está desabilitada. Para ativar e configurá-la, é só rodar o comando `${context.commands.default_roles}` 🐶
 
   # open: the panel asides -> the button that runs each
   buttons:

@@ -18,8 +18,8 @@ ui:
         en-us: "[✨ Click here to join my official server ✨](https://discord.gg/Hdg239Cvbd)"
         pt-br: "[✨ Clique aqui para entrar no meu servidor oficial ✨](https://discord.gg/Hdg239Cvbd)"
       footer:
-        en-us: Use the `{context:commands.help}` command to better understand how to use the available commands.
-        pt-br: Use o comando `{context:commands.help}` para entender melhor como usar os comandos disponíveis.
+        en-us: Use the `${context.commands.help}` command to better understand how to use the available commands.
+        pt-br: Use o comando `${context.commands.help}` para entender melhor como usar os comandos disponíveis.
       # open: field names -> a ResponseField
       fields:
         how_to:

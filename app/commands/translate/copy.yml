@@ -32,7 +32,7 @@ ui:
       description:
         en-us: "I used my polyglot skills to translate the message you sent: $message_url!\n\n**Original ($src_lang)**\n$original_message\n\n**Translated ($dest_lang)**\n$translated_message"
         pt-br: "Usei meus dotes poliglotas para traduzir a mensagem que você pediu: $message_url!\n\n**Original ($src_lang)**\n$original_message\n\n**Tradução ($dest_lang)**\n$translated_message"
-      footer: {ref: support_footer}
+      footer: ${ref.support_footer}
 
   # open: error names -> an ErrorBlock
   errors:

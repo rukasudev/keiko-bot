@@ -36,15 +36,18 @@ from app.core.facts import (
     FactSpec,
     address,
     checked_value,
-    context_tokens,
+    context_entry,
+    fact_hint,
     fact_owner,
     filled,
+    finished_texts,
     global_catalog,
     owner_of,
-    placeholders,
     short_name,
     with_context,
+    written_texts,
 )
+from app.core.tokens import Token, TokenError, fact_names, hint, plain, tokens
 
 APP = Path(__file__).resolve().parents[1]
 LOCALE_NAME = re.compile(r"[a-z]{2}-[a-z]{2}")
@@ -62,7 +65,7 @@ class CopyError(Exception):
 
 def _named_by_dollar(text: Text) -> Text:
     for locale, words in (("en-us", text.en_us), ("pt-br", text.pt_br)):
-        found = BRACED.search(words)
+        found = BRACED.search(plain(words))
         if found:
             raise ValueError(
                 f"the {locale} text writes {found.group(0)}: copy names a value "
@@ -118,8 +121,10 @@ def files() -> list[tuple[Path, str]]:
 
 
 def read(path: Path) -> dict[str, Any]:
-    """The copy of one file, strictly parsed: no anchor, no alias, no key written
-    twice; every `{ref: name}` is the text of app/forms/vocabulary.yml it names."""
+    """The copy of one file, strictly parsed (no anchor, no alias, no key written
+    twice), with what its texts read at load written in: each `${ref.<name>}` the
+    text of app/forms/vocabulary.yml it names, each command and group of
+    `${context...}` its slash name."""
     name = _name(path)
     try:
         document = strict_yaml(path.read_text(encoding="utf-8"), name)
@@ -128,11 +133,11 @@ def read(path: Path) -> dict[str, Any]:
     if not isinstance(document, dict):
         raise CopyError(f"{name}: no copy block in it")
     try:
-        resolved = with_context(_resolved(document, name, ""), name)
+        loaded = with_context(document, name, _vocabulary())
     except FactError as error:
         raise CopyError(str(error)) from None
-    assert isinstance(resolved, dict)
-    return resolved
+    assert isinstance(loaded, dict)
+    return loaded
 
 
 def check(path: Path, prefix: str) -> BaseModel:
@@ -142,11 +147,12 @@ def check(path: Path, prefix: str) -> BaseModel:
 
     name = _name(path)
     written(path, prefix)
-    document = read(path)
-    _snake_keys(document, name, "")
+    loaded = read(path)
+    _snake_keys(loaded, name, "")
     shared = path.parent == APP / "languages"
+    _tokens_checked(loaded, GLOBAL if shared else prefix, name)
     try:
-        copy = validated(document, prefix, shared)
+        copy = validated(finished_texts(loaded), prefix, shared)
     except ValidationError as error:
         raise CopyError(f"{name}: {_first(error)}") from None
     except ValueError as error:
@@ -175,7 +181,7 @@ def texts(
 def written(path: Path, prefix: str) -> list[tuple[str, dict[str, str]]]:
     """Every text one file loads under `prefix`, with its words in each locale; a
     null loads no text."""
-    document = _without_nulls(read(path))
+    document = _without_nulls(finished_texts(read(path)))
     document.pop("facts", None)
     return list(texts(document, prefix, _name(path)))
 
@@ -287,11 +293,13 @@ def needs(node: BaseModel, owner: str) -> list[str]:
     """The address of every fact a block reads: the key of each rule of its overrides
     and each `$name` of its texts, its `lines` and `rows` left to the code that fills
     them one by one."""
-    names = [*fact_specs(owner), *global_catalog().facts]
+    names = {*fact_specs(owner), *global_catalog().facts}
     found = [leaf.key for _path, rule in _rules(node) for leaf in leaves(rule)]
     for _path, text in _texts(node, skipped=("lines", "rows")):
         for words in (text.en_us, text.pt_br):
-            found += [address(owner, name) for name in placeholders(words, names)[0]]
+            found += [
+                address(owner, name) for name in fact_names(words) if name in names
+            ]
     return sorted(set(found))
 
 
@@ -329,24 +337,44 @@ def _facts_checked(copy: BaseModel, owner: str, name: str) -> None:
             f"{name}: facts.{twice[0]}: app/core/global.yml declares it too, and a "
             "short name has one owner"
         )
-    names = [*own, *shared]
-    where = "app/core/global.yml" if owner == GLOBAL else f"{owner} or global"
-    for path, text in _texts(copy):
-        for words in (text.en_us, text.pt_br):
-            unknown = placeholders(words, names)[1]
-            if unknown:
-                raise CopyError(f"{name}: {path}: ${unknown[0]} is no fact of {where}")
-            dynamic = list(context_tokens(words))
-            if dynamic:
-                raise CopyError(
-                    f"{name}: {path}: {{context:{dynamic[0]}}} is no context a copy "
-                    "reads (only a family known at load: commands, groups)"
-                )
     for path, rule in _rules(copy):
         for leaf in leaves(rule):
             problem = _leaf_problem(leaf, owner, own)
             if problem:
                 raise CopyError(f"{name}: {path}.when: {leaf.key}: {problem}")
+
+
+def _tokens_checked(document: Mapping[str, Any], owner: str, name: str) -> None:
+    own = {} if owner == GLOBAL else dict(document.get("facts") or {})
+    names = [*own, *global_catalog().facts]
+    where = "app/core/global.yml" if owner == GLOBAL else f"{owner} or global"
+    body = {key: value for key, value in document.items() if key != "facts"}
+    for path, words in written_texts(body):
+        try:
+            found = tokens(words)
+        except TokenError as error:
+            raise CopyError(f"{name}: {path}: {error}") from None
+        for token in found:
+            problem = _token_problem(token, names, where)
+            if problem:
+                raise CopyError(f"{name}: {path}: {problem}")
+
+
+def _token_problem(token: Token, names: list[str], where: str) -> str:
+    if token.kind == "fact" and token.name not in names:
+        return f"{token.written} is no fact of {where}{fact_hint(token.name, names)}"
+    if token.kind == "context" and context_entry(token.name) is None:
+        declared = global_catalog().context
+        closest = hint(token.name, declared, lambda close: f"${{context.{close}}}")
+        return f"{token.written} is no context entry of app/core/global.yml{closest}"
+    if token.kind == "context":
+        return (
+            f"{token.written} is no context a copy reads (only a family known at "
+            "load: commands, groups)"
+        )
+    if token.kind in ("answer", "plural"):
+        return f"{token.written}: a copy reads no answer, only a form does"
+    return ""
 
 
 def _leaf_problem(leaf: Any, owner: str, own: Mapping[str, FactSpec]) -> str:
@@ -399,39 +427,19 @@ def _child(node: Any, part: str, key: str) -> Any:
     raise CopyError(f"{key}: {type(node).__name__} has no {part}")
 
 
-def _resolved(node: Any, name: str, where: str) -> Any:
-    if not isinstance(node, dict):
-        return node
-    if set(node) == {"ref"}:
-        found = _vocabulary().get(str(node["ref"]))
-        if found is None:
-            raise CopyError(
-                f"{name}: {where}: {node['ref']!r} is no text of "
-                "app/forms/vocabulary.yml"
-            )
-        return found
-    return {
-        key: _resolved(value, name, f"{where}.{key}" if where else str(key))
-        for key, value in node.items()
-    }
-
-
 def standard_footer() -> Text:
     """The standard /report line, written once as the footer every form step falls
     back to in app/forms/vocabulary.yml, and closing every embed that writes none."""
     from app.forms.form.form_yaml import shared_vocabulary
 
-    return shared_vocabulary().fallbacks.footer
+    footer = shared_vocabulary().fallbacks.footer
+    return Text.model_validate(finished_texts(footer.model_dump(by_alias=True)))
 
 
-@cache
-def _vocabulary() -> dict[str, dict[str, str]]:
+def _vocabulary() -> Mapping[str, Text]:
     from app.forms.form.form_yaml import shared_vocabulary
 
-    return {
-        name: text.model_dump(by_alias=True)
-        for name, text in shared_vocabulary().texts.items()
-    }
+    return shared_vocabulary().texts
 
 
 def _snake_keys(node: dict[str, Any], name: str, where: str) -> None:

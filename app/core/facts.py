@@ -1,10 +1,10 @@
 """The facts a rule or a text reads, addressed `<owner>.facts.<name>`, and the context
-Keiko already holds: the global catalog, the address of a fact, the `$` names of a
-text, and the context a copy or a form text is resolved with when it is read."""
+Keiko already holds: the global catalog, the address of a fact, the facts a text
+fills, and what a copy or a form text reads when it loads (its shared texts and the
+context known then)."""
 
 from __future__ import annotations
 
-import re
 from collections.abc import Collection, Iterator, Mapping
 from functools import cache
 from pathlib import Path
@@ -17,17 +17,26 @@ from app.core.commands import (
     REPOSITORY,
     Command,
     Open,
+    Text,
     commands,
     copy_file,
     strict_yaml,
 )
 from app.core.conditions import Leaf
+from app.core.tokens import (
+    Token,
+    TokenError,
+    did_you_mean,
+    finished,
+    hint,
+    included,
+    pieces,
+    resolved,
+)
 
 CATALOG = Path(__file__).with_name("global.yml")
 LANGUAGES = REPOSITORY / "app" / "languages"
 LOCALES = ("en-us", "pt-br")
-DOLLAR = re.compile(r"\$([a-z][a-z0-9_]*)")
-CONTEXT = re.compile(r"\{context:([a-z_]+(?:\.[a-z_]+)?)\}")
 
 FactType = Literal["boolean", "enum", "number", "text"]
 Facts = Mapping[str, Any]
@@ -38,6 +47,15 @@ class FactError(ValueError):
     a block reads that the code did not pass."""
 
 
+class TextError(FactError):
+    """A text that cannot load, with where it is in its file and why."""
+
+    def __init__(self, name: str, where: str, problem: str) -> None:
+        self.where = where
+        self.problem = problem
+        super().__init__(": ".join(part for part in (name, where, problem) if part))
+
+
 class Spec(BaseModel):
     """Base of the catalog's models: frozen, strict about unknown fields."""
 
@@ -45,7 +63,7 @@ class Spec(BaseModel):
 
 
 class FactSpec(Spec):
-    """One fact: what a rule or a `$name` of copy reads, of one type."""
+    """One fact: what a rule or a `$name` of a text reads, of one type."""
 
     type: FactType = Field(
         description="The kind of value the code passes: `boolean`, `enum` (one of "
@@ -76,7 +94,7 @@ class FactSpec(Spec):
 
 class ContextEntry(Spec):
     """One value Keiko already holds in memory or in its cache, that a copy or a form
-    text reads as `{context:<name>}`."""
+    text reads as `${context.<name>}`."""
 
     type: Literal["number", "text"] = Field(
         description="The kind of value the entry holds.",
@@ -85,7 +103,7 @@ class ContextEntry(Spec):
     each: Literal["command", "group"] | None = Field(
         None,
         description="Makes the entry a family read one member at a time, "
-        "`{context:<name>.<key>}`: one per command key, or one per parent group; "
+        "`${context.<name>.<key>}`: one per command key, or one per parent group; "
         "known when the copy loads.",
         json_schema_extra={"role": "data"},
     )
@@ -107,12 +125,12 @@ class GlobalCatalog(Spec):
     facts: Open[FactSpec] = Field(
         default_factory=dict,
         description="The facts no single command owns, each read as "
-        "`global.facts.<name>` by a rule and as `$<name>` by a text.",
+        "`global.facts.<name>` by a rule and as `$<name>` or `${<name>}` by a text.",
         json_schema_extra={"role": "structure"},
     )
     context: Open[ContextEntry] = Field(
         default_factory=dict,
-        description="The values Keiko already holds, each read as `{context:<name>}`.",
+        description="The values Keiko already holds, each read as `${context.<name>}`.",
         json_schema_extra={"role": "structure"},
     )
 
@@ -163,29 +181,26 @@ def fact_owner(fact: str) -> str:
 
 
 def filled(words: str, values: Mapping[str, Any]) -> str:
-    """`words` with every `$name` replaced by its value, in one pass and the longest
-    name first, so `$page` never eats the start of `$pages`."""
-    if not values:
-        return words
-    names = "|".join(re.escape(name) for name in sorted(values, key=len, reverse=True))
-    return re.sub(
-        r"\$(" + names + r")", lambda found: str(values[found.group(1)]), words
+    """`words` with each fact it reads replaced by its value in `values`, in one pass,
+    so a value put in is never read again; a fact with no value stays as written."""
+    return resolved(
+        words,
+        lambda token: (
+            str(values[token.name])
+            if token.kind == "fact" and token.name in values
+            else None
+        ),
     )
 
 
-def placeholders(words: str, names: Collection[str]) -> tuple[list[str], list[str]]:
-    """The declared names `words` fills, each `$token` read as the longest declared
-    name it starts with, the way `fill` replaces it, and the tokens no declared name
-    starts."""
-    found: list[str] = []
-    unknown: list[str] = []
-    for token in DOLLAR.findall(words):
-        starts = [name for name in names if token.startswith(name)]
-        if starts:
-            found.append(max(starts, key=len))
-        else:
-            unknown.append(token)
-    return found, unknown
+def fact_hint(name: str, names: Collection[str]) -> str:
+    """`; did you mean ...?` for a fact no catalog declares: the declared name it
+    starts with, glued to the rest, and the closest declared name."""
+    starts = sorted((known for known in names if name.startswith(known)), key=len)
+    glued = [f"${{{starts[-1]}}}{name[len(starts[-1]) :]}"] if starts else []
+    close = did_you_mean(name, names)
+    options = [*glued, *([f"${close}"] if close else [])]
+    return f"; did you mean {' or '.join(options)}?" if options else ""
 
 
 def checked_value(leaf: Leaf, spec: FactSpec) -> str | None:
@@ -205,54 +220,139 @@ def checked_value(leaf: Leaf, spec: FactSpec) -> str | None:
 
 
 def context_entry(name: str) -> ContextEntry | None:
-    """The entry `{context:name}` reads, a family's for `family.member`."""
+    """The entry `${context.name}` reads, a family's for `family.member`."""
     return global_catalog().context.get(name.partition(".")[0])
 
 
-def known_at_load(name: str) -> bool:
-    """Whether `{context:name}` names a member of a family the loader fills."""
-    entry = context_entry(name)
-    return entry is not None and entry.each is not None
+def with_context(node: Any, name: str, shared: Mapping[str, Text] | None = None) -> Any:
+    """A raw YAML tree with what its texts read at load written in, in each locale:
+    each shared text named `${ref.<name>}` (a field written only so becomes that text
+    in both locales), then each `${context.<family>.<member>}`; what a text reads
+    later stays as written. Refuses a token the syntax does not allow, an old
+    `{ref: name}`, and a shared text or a member no one declares."""
+    return _written_in(node, name, shared, "")
 
 
-def with_context(node: Any, name: str) -> Any:
-    """A raw YAML tree with every `{context:<family>.<member>}` of its texts replaced
-    by the value of that locale; the context filled at render stays as written."""
+def finished_texts(node: Any) -> Any:
+    """A loaded tree with each text no later pass reads shown as it is, every `$$` a
+    `$`; a text that still reads a token keeps it for the pass that fills it."""
     if isinstance(node, list):
-        return [with_context(item, name) for item in node]
+        return [finished_texts(item) for item in node]
     if not isinstance(node, dict):
         return node
-    if set(node) <= set(LOCALES) and node:
+    if _is_text(node):
         return {
-            locale: _members_written(text, locale, name)
+            locale: finished(text) if isinstance(text, str) else text
+            for locale, text in node.items()
+        }
+    return {key: finished_texts(value) for key, value in node.items()}
+
+
+def written_texts(node: Any, where: str = "") -> Iterator[tuple[str, str]]:
+    """Every text of a raw tree in each locale, with its path down to the locale."""
+    if isinstance(node, list):
+        for index, item in enumerate(node):
+            yield from written_texts(item, f"{where}[{index}]")
+    elif isinstance(node, dict) and _is_text(node):
+        for locale, text in node.items():
+            if isinstance(text, str):
+                yield _joined(where, locale), text
+    elif isinstance(node, dict):
+        for key, value in node.items():
+            yield from written_texts(value, _joined(where, str(key)))
+
+
+def _written_in(
+    node: Any, name: str, shared: Mapping[str, Text] | None, where: str
+) -> Any:
+    if isinstance(node, list):
+        return [
+            _written_in(item, name, shared, f"{where}[{index}]")
+            for index, item in enumerate(node)
+        ]
+    if isinstance(node, str):
+        return _whole_shared_text(node, name, shared, where)
+    if not isinstance(node, dict):
+        return node
+    if set(node) == {"ref"}:
+        raise TextError(
+            name,
+            where,
+            f"{{ref: {node['ref']}}} is the old spelling: write ${{ref.{node['ref']}}}",
+        )
+    if _is_text(node):
+        return {
+            locale: _loaded(text, locale, name, shared, _joined(where, locale))
             if isinstance(text, str)
             else text
             for locale, text in node.items()
         }
-    return {key: with_context(value, name) for key, value in node.items()}
+    return {
+        key: _written_in(value, name, shared, _joined(where, str(key)))
+        for key, value in node.items()
+    }
 
 
-def context_tokens(words: str) -> Iterator[str]:
-    """The name of every `{context:...}` token a text writes."""
-    yield from CONTEXT.findall(words)
+def _whole_shared_text(
+    value: str, name: str, shared: Mapping[str, Text] | None, where: str
+) -> Any:
+    if not (value.startswith("${ref.") and value.endswith("}")):
+        return value
+    try:
+        found = pieces(value)
+    except TokenError as error:
+        raise TextError(name, where, str(error)) from None
+    token = found[0] if len(found) == 1 else None
+    if not isinstance(token, Token) or token.kind != "ref":
+        return value
+    try:
+        return _shared(token.name, shared).model_dump(by_alias=True)
+    except FactError as error:
+        raise TextError(name, where, str(error)) from None
 
 
-def _members_written(text: str, locale: str, name: str) -> str:
-    def value(found: re.Match[str]) -> str:
-        token = found.group(1)
-        entry = context_entry(token)
-        if entry is None or entry.each is None:
-            return found.group(0)
-        family, _dot, member = token.partition(".")
-        known = _members(entry.each)
-        if member not in known:
-            raise FactError(
-                f"{name}: {{context:{token}}}: {family} has no {member or 'member'} "
-                f"(known: {', '.join(sorted(known))})"
-            )
-        return known[member][locale]
+def _loaded(
+    text: str, locale: str, name: str, shared: Mapping[str, Text] | None, where: str
+) -> str:
+    try:
+        with_shared = included(text, lambda ref: _shared(ref, shared).get(locale))
+        return resolved(with_shared, lambda token: _member(token, locale), last=False)
+    except (TokenError, FactError) as error:
+        raise TextError(name, where, str(error)) from None
 
-    return CONTEXT.sub(value, text)
+
+def _shared(ref: str, shared: Mapping[str, Text] | None) -> Text:
+    written = f"${{ref.{ref}}}"
+    if shared is None:
+        raise FactError(f"{written}: a shared text names no other shared text")
+    found = shared.get(ref)
+    if found is None:
+        closest = hint(ref, shared, lambda known: f"${{ref.{known}}}")
+        raise FactError(f"{written} is no text of app/forms/vocabulary.yml{closest}")
+    return found
+
+
+def _member(token: Token, locale: str) -> str | None:
+    entry = context_entry(token.name) if token.kind == "context" else None
+    if entry is None or entry.each is None:
+        return None
+    family, _dot, member = token.name.partition(".")
+    known = _members(entry.each)
+    if member not in known:
+        listed = f" (known: {', '.join(sorted(known))})"
+        closest = hint(member, known, lambda close: f"${{context.{family}.{close}}}")
+        raise FactError(
+            f"{token.written}: {family} has no {member or 'member'}{closest or listed}"
+        )
+    return known[member][locale]
+
+
+def _is_text(node: Mapping[Any, Any]) -> bool:
+    return bool(node) and set(node) <= set(LOCALES)
+
+
+def _joined(where: str, key: str) -> str:
+    return f"{where}.{key}" if where else key
 
 
 @cache

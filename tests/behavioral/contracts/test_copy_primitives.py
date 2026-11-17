@@ -145,7 +145,7 @@ def test_an_override_and_the_empty_state_replace_what_the_block_writes(sample):
 
 def test_a_fact_the_block_reads_and_the_code_does_not_pass_is_refused(sample):
     with pytest.raises(
-        CopyError, match="reads sample.facts.blocked, sample.facts.item"
+        CopyError, match="reads global.facts.item, sample.facts.blocked"
     ):
         response_embed("sample.ui.responses.check", "en-us", facts=_facts(who="a"))
 

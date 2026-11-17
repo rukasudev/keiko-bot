@@ -11,6 +11,7 @@ from typing import Any
 
 from app.core.calendar import mm_dd_label
 from app.forms.form.copy import text
+from app.forms.form.responses.links import link_host
 
 STYLES: tuple[str, ...] = (
     "channel",
@@ -30,6 +31,7 @@ SAVED_AS: dict[str, str] = {
     "month_day": "mm_dd",
     "customized": "boolean-mode",
 }
+TOKEN_FORMATTERS: dict[str, Callable[[str], str]] = {"host": link_host}
 
 
 def stored_style(declared: str | None) -> str | None:

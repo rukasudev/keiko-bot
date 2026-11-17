@@ -16,7 +16,6 @@ facts:
   blocked: {type: boolean, description: Whether the check would block the sample.}
   counted: {type: boolean, description: Whether the samples could be counted.}
   done: {type: boolean, description: Whether every sample is set up.}
-  item: {type: text, description: The item a line names.}
   page: {type: number, description: The page shown.}
   pages: {type: number, description: How many pages there are.}
   ping: {type: number, description: The latency in milliseconds.}

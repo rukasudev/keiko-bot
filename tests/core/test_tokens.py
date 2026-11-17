@@ -1,10 +1,16 @@
-"""The one syntax of a Keiko text (`app/core/tokens.py`): how each token is read and
-the one pass that fills it."""
+"""The one syntax of a Keiko text (`app/core/tokens.py`): how each token is read, the
+one pass that fills it, and the paths it never reads."""
 
 import re
+from types import SimpleNamespace
 
 import pytest
 
+from app.commands.stream_elements.service import (
+    create_response_embed,
+    parse_placeholders,
+)
+from app.commands.welcome.service import render_welcome_message
 from app.core.tokens import (
     Token,
     TokenError,
@@ -16,8 +22,12 @@ from app.core.tokens import (
     resolved,
     tokens,
 )
+from app.core.utils import fill, fill_placeholders
+from tests.mocks.discord import create_guild, create_member
 
 pytestmark = pytest.mark.unit
+
+ADMIN_TYPED = "$count ${context.prefix} $$ ${prefix}ping ${random.1-10} {context:x}"
 
 
 @pytest.mark.parametrize(
@@ -130,3 +140,43 @@ def test_a_shared_text_is_included_as_written_so_its_tokens_are_read_with_the_re
         "Run ${context.commands.report} for $count!"
     )
     assert included("no ref $$5", shared.__getitem__) == "no ref $$5"
+
+
+def test_fill_reads_a_glued_name_and_refuses_a_given_name_written_in_braces():
+    assert fill("Try `${prefix}ping`", prefix="!") == "Try `!ping`"
+    with pytest.raises(ValueError, match="copy names a value as"):
+        fill("Hi {user}", user="x")
+
+
+def test_an_admin_template_is_filled_by_its_own_braces_and_never_by_keiko_tokens():
+    """The messages an admin writes are filled by `fill_placeholders`, one `{name}`
+    at a time; Keiko's syntax does not run over them, so whatever an admin typed that
+    looks like it stays as typed."""
+    guild = create_guild(id=1, name="Keiko Club")
+    member = create_member(guild, id=111, name="TestUser")
+    member._user = SimpleNamespace(id=111)
+
+    shown = render_welcome_message(f"Hi {{user}} {ADMIN_TYPED}", member)
+
+    assert shown == f"Hi <@!111> {ADMIN_TYPED}"
+    assert fill_placeholders(ADMIN_TYPED, {"count": "1"}) == ADMIN_TYPED
+
+
+def test_a_streamelements_reply_keeps_its_own_variables_out_of_keiko_tokens():
+    """A reply Keiko fetches writes StreamElements' `$(touser)`, `${touser}` and
+    `${random.1-10}`, filled by `parse_placeholders` alone; the embed puts the reply
+    in as it is, and only the footer, Keiko's copy, is filled by the one syntax."""
+    guild = create_guild(id=1, name="Keiko Club")
+    member = create_member(guild, id=111, name="TestUser")
+    reply = parse_placeholders(
+        "Hi ${touser}, $(touser) ${random.1-1} $count ${context.prefix} $$", member
+    )
+
+    embed = create_response_embed("mouse", reply, member, "gaules", "ks!", "en-us")
+
+    assert (
+        reply
+        == f"Hi {member.mention}, {member.mention} 1 $count ${{context.prefix}} $$"
+    )
+    assert embed.description == reply
+    assert "ks!commands" in embed.footer.text and "$" not in embed.footer.text

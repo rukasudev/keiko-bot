@@ -90,7 +90,7 @@ version: 2
 steps:
   - kind: intro
     key: form
-    title: {ref: welcome}
+    title: ${ref.welcome}
     lines: 2
     # open: text names -> Words
     texts:

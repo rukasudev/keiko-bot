@@ -9,7 +9,7 @@ from typing import Any, cast
 from i18n import t, translations
 
 from app.constants import supported_locales
-from app.core.facts import Facts
+from app.core.facts import Facts, filled
 from app.core.i18n import resolved_texts
 
 
@@ -30,10 +30,7 @@ def error_message(block: str, args: Mapping[str, str], locale: str) -> str:
     """The message of the error block `block`, or of `errors.<block>`, its `$name`s
     filled from `args`."""
     named = block if "." in block else f"errors.{block}"
-    message = text(f"{named}.message", locale)
-    for name in sorted(args, key=len, reverse=True):
-        message = message.replace(f"${name}", args[name])
-    return message
+    return filled(text(f"{named}.message", locale), args)
 
 
 def block_texts(key: str, facts: Facts, locale: str) -> Mapping[str, str]:

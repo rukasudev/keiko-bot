@@ -4,15 +4,15 @@ member types in the text's language.
 Incident: the default roles error told the admin to run `/default roles` (pt-br
 `/cargos padrão`), the last two names of `/moderations default roles` typed in; the
 copy loaded, every key resolved, and the command it named did not exist. A text that
-names a command writes its context entry (`{context:commands.<key>}`,
-`{context:groups.<group>}`, code-style rule 28), which the loader fills from the same
+names a command writes its context entry (`${context.commands.<key>}`,
+`${context.groups.<group>}`, code-style rule 28), which the loader fills from the same
 copy the translator sends Discord; this contract checks what each text ends up
 saying, written either way, against the tree the bot syncs.
 
 Swept: every shared file of `app/languages`, every command's `copy.yml` and
 `form.yml`, and `app/forms/vocabulary.yml`, each read as the bot reads it, its known
 context written in. A command in backticks that starts with `/` is checked; one the
-code completes at render (`/$command_name`, `/{context:command}`) is left to the code
+code completes at render (`/$command_name`, `/${context.command}`) is left to the code
 that fills it.
 """
 
@@ -26,6 +26,7 @@ import pytest
 from app.core import i18n
 from app.core.commands import REPOSITORY, form_files, strict_yaml
 from app.core.facts import with_context
+from app.forms.form.form_yaml import shared_vocabulary
 from tests.helpers.slash_tree import DISCORD_LOCALES, synced_tree
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("command_copy")]
@@ -36,7 +37,7 @@ NAMED = re.compile(r"`(/[^`]*)`")
 
 def _loaded(path: Path, name: str) -> Any:
     raw = strict_yaml(path.read_text(encoding="utf-8"), str(path))
-    return with_context(raw, name)
+    return with_context(raw, name, shared_vocabulary().texts)
 
 
 def _documents() -> Iterator[tuple[Path, Any]]:
@@ -89,7 +90,7 @@ async def test_every_slash_command_a_text_names_is_one_discord_registers(tree, l
 
     assert not unknown, (
         f"a text names a slash command Discord does not register in {locale}; write "
-        f"it as its {{context:commands.<key>}}: {unknown}"
+        f"it as its ${{context.commands.<key>}}: {unknown}"
     )
 
 

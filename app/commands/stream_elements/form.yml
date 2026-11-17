@@ -5,8 +5,8 @@ steps:
       en-us: 🎮 StreamElements Commands
       pt-br: 🎮 Comandos do StreamElements
     description:
-      en-us: "Whenever someone uses a command with the **{context:prefix}** prefix, I fetch the response from StreamElements!\n\n**Example:** `{context:prefix}mouse` -> \"The streamer uses a Logitech G Pro!\"\n"
-      pt-br: "Sempre que alguém usar um comando com o prefixo **{context:prefix}**, eu busco a resposta no StreamElements!\n\n**Exemplo:** `{context:prefix}mouse` -> \"O streamer usa um Logitech G Pro!\"\n"
+      en-us: "Whenever someone uses a command with the **${context.prefix}** prefix, I fetch the response from StreamElements!\n\n**Example:** `${context.prefix}mouse` -> \"The streamer uses a Logitech G Pro!\"\n"
+      pt-br: "Sempre que alguém usar um comando com o prefixo **${context.prefix}**, eu busco a resposta no StreamElements!\n\n**Exemplo:** `${context.prefix}mouse` -> \"O streamer usa um Logitech G Pro!\"\n"
     panel:
       description:
         en-us: I answer this streamer's StreamElements commands here on Discord.
@@ -14,7 +14,7 @@ steps:
 
   - type: text
     key: streamer
-    title: {ref: streamer}
+    title: ${ref.streamer}
     description:
       en-us: Which streamer should I fetch commands from?
       pt-br: De qual streamer devo buscar os comandos?
@@ -49,8 +49,8 @@ steps:
   - type: review
     key: confirm
     description:
-      en-us: Whenever someone uses a command with the **{context:prefix}** prefix, I fetch the response in `{answer:streamer}`'s StreamElements and send it in chat!
-      pt-br: Sempre que alguém usar um comando com o prefixo **{context:prefix}**, eu busco a resposta no StreamElements de `{answer:streamer}` e envio no chat!
+      en-us: Whenever someone uses a command with the **${context.prefix}** prefix, I fetch the response in `${answer.streamer}`'s StreamElements and send it in chat!
+      pt-br: Sempre que alguém usar um comando com o prefixo **${context.prefix}**, eu busco a resposta no StreamElements de `${answer.streamer}` e envio no chat!
     lines:
       - emoji: 💡
         label:

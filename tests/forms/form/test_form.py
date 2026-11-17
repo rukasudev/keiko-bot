@@ -1927,8 +1927,8 @@ def test_the_review_description_resolves_response_tokens():
 
     raw = copy.deepcopy(DiskSource().load("stream_elements_commands"))
     raw["steps"][-1]["description"] = {
-        "en-us": "Commands of {answer:streamer|nobody}",
-        "pt-br": "Comandos de {answer:streamer|ninguém}",
+        "en-us": "Commands of ${answer.streamer|nobody}",
+        "pt-br": "Comandos de ${answer.streamer|ninguém}",
     }
     definition = compile_form("stream_elements_commands", raw)
     session = new_session(
@@ -1985,8 +1985,8 @@ def _stream_elements_counting():
     }
     modal.pop("image", None)
     raw["steps"][-1]["description"] = {
-        "en-us": "{answer:stream_elements_commands_count|0} commands",
-        "pt-br": "{answer:stream_elements_commands_count|0} comandos",
+        "en-us": "${answer.stream_elements_commands_count|0} commands",
+        "pt-br": "${answer.stream_elements_commands_count|0} comandos",
     }
     return compile_form("stream_elements_commands", raw)
 

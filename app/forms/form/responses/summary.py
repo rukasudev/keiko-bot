@@ -14,6 +14,7 @@ from typing import Any
 from app.constants import Emojis
 from app.constants import ViewConstants as view_constants
 from app.core.conditions import EMPTY, Scope, When, evaluate
+from app.core.facts import filled
 from app.forms.form.components import Button, ChoiceOption, PanelGroup, PanelPart
 from app.forms.form.copy import text
 from app.forms.form.form_state import Answer
@@ -732,8 +733,8 @@ def _title_value(composition: ListStep, count: int, locale: str) -> str:
     if composition.counter is None:
         return "" if count else empty_value(locale)
 
-    shown = composition.counter.get(locale).replace("$count", str(count))
-    return shown.replace("$max", str(composition.items.max))
+    limit = composition.items.max
+    return filled(composition.counter.get(locale), {"count": count, "max": limit})
 
 
 def list_head(row: PanelRow, composition: ListStep, locale: str) -> PanelPart:
@@ -826,7 +827,7 @@ def item_groups(
         )
     if len(items) > len(shown):
         hidden = str(len(items) - len(shown))
-        more = text("texts.and_more", locale).replace("$count", hidden)
+        more = filled(text("texts.and_more", locale), {"count": hidden})
         blocks.append(PanelGroup(None, "", (more,)))
 
     each = managed and composition.remove == "item"
@@ -844,9 +845,7 @@ def _composition_lines(values: Sequence[Mapping[str, Any]], locale: str) -> list
         lines.append(f"**#{index}**")
         lines += item_lines(item, locale)
     if len(values) > limit:
-        more = text("texts.and_more", locale).replace(
-            "$count", str(len(values) - limit)
-        )
+        more = filled(text("texts.and_more", locale), {"count": len(values) - limit})
         lines.append(more)
     return lines
 

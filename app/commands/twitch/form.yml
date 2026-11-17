@@ -69,7 +69,7 @@ steps:
           - type: channel_select
             key: channel
             emoji: 📺
-            label: {ref: text_channel}
+            label: ${ref.text_channel}
             keys:
               value: channel
             screen:
@@ -79,7 +79,7 @@ steps:
           - type: modal_input
             key: streamer
             emoji: 🎮
-            label: {ref: streamer}
+            label: ${ref.streamer}
             keys:
               value: streamer
             image: streamer_avatar
@@ -88,7 +88,7 @@ steps:
                 en-us: Choose streamer
                 pt-br: Escolher streamer
             modal:
-              title: {ref: streamer}
+              title: ${ref.streamer}
               validation:
                 name: registered_and_found
                 # open: the validator's params -> an answer key or a value
@@ -120,26 +120,26 @@ steps:
           - type: modal_input
             key: messages
             emoji: 💬
-            label: {ref: notification_messages}
+            label: ${ref.notification_messages}
             description:
               en-us: "One of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link"
               pt-br: "Uma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live"
             keys:
               value: notification_messages
             button:
-              label: {ref: edit_messages}
+              label: ${ref.edit_messages}
             format: code_block
             modal:
-              title: {ref: notification_messages}
+              title: ${ref.notification_messages}
               inputs:
-                - label: {ref: random_message_1}
+                - label: ${ref.random_message_1}
                   max_length: 100
                   multiline: true
-                - label: {ref: random_message_2}
+                - label: ${ref.random_message_2}
                   max_length: 100
                   required: false
                   multiline: true
-                - label: {ref: random_message_3}
+                - label: ${ref.random_message_3}
                   max_length: 100
                   required: false
                   multiline: true

@@ -1,4 +1,5 @@
-"""Copy tokens: a `{plural:key|one|several}` reads its plural only past one value."""
+"""Form tokens: a `${plural.key|one|many}` reads its plural only past one value, and
+an answer put in a text is never read again."""
 
 import pytest
 
@@ -8,7 +9,7 @@ from tests.forms.replay import NOW, ORIGIN, REGISTRY
 
 pytestmark = pytest.mark.unit
 
-PLURAL = "{plural:roles|Role to give|Roles to give}: {answer:roles:role|Empty}"
+PLURAL = "${plural.roles|Role to give|Roles to give}: ${answer.roles:role|Empty}"
 
 
 def _session(answers, form="default_roles"):
@@ -102,7 +103,8 @@ def test_the_server_settings_are_context_tokens():
         server_timezone="America/Sao_Paulo",
     )
     body = (
-        "{context:server_language} {context:server_timezone} {context:server_mention}"
+        "${context.server_language} ${context.server_timezone} "
+        "${context.server_mention}"
     )
 
     filled = apply_tokens(body, _session({}), context)
@@ -116,7 +118,36 @@ def test_a_token_formats_its_value_by_the_format_names_of_the_form():
     from app.forms.form.responses.styles import format_value
 
     session = _session({"date": Answer("05-12")})
-    filled = apply_tokens("{answer:date:month_day}", session, Context())
+    filled = apply_tokens("${answer.date:month_day}", session, Context())
 
     assert filled == format_value("05-12", "mm_dd", "en-us")
     assert filled != "05-12"
+
+
+@pytest.mark.parametrize(
+    "typed",
+    ["evil${context.prefix}x", "$count of $$5", "{context:prefix}", "${random.1-10}"],
+)
+def test_an_answer_put_in_a_text_is_never_read_again(typed):
+    """Broke as: `apply_tokens` filled the answers first and the context after, over
+    the whole text, so an answer an admin typed as `evil{context:prefix}x` showed
+    `evil!x`. Shared behaviour: the one pass of `app.core.tokens.resolved` every
+    form text is filled by. Exposed by: the probes of the YAML syntax study.
+    Guaranteed: what an admin typed shows as typed, whatever Keiko's syntax it
+    looks like."""
+    session = _session({"streamer": Answer(typed)})
+    context = Context(prefix="!", server_name="Keiko")
+
+    shown = apply_tokens(
+        "${answer.streamer} on ${context.server_name}", session, context
+    )
+
+    assert shown == f"{typed} on Keiko"
+
+
+def test_a_doubled_dollar_is_one_dollar_once_the_text_is_filled():
+    session = _session({"streamer": Answer("shroud")})
+
+    assert apply_tokens("$$5 for ${answer.streamer}", session, Context()) == (
+        "$5 for shroud"
+    )

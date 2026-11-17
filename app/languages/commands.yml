@@ -5,8 +5,8 @@ responses:
       en-us: ⚠️ Admin Only
       pt-br: ⚠️ Apenas Admins
     description:
-      en-us: "Sorry, commands like `{context:groups.moderations}` and `{context:groups.notifications}` need admin permissions! 🔧\n\nAsk a server admin to set them up. They can also use `{context:commands.setup}` to manage everything in one place ✨"
-      pt-br: "Desculpe, comandos como `{context:groups.moderations}` e `{context:groups.notifications}` precisam de permissão de admin! 🔧\n\nPeça para um admin do servidor configurar. Ele também pode usar `{context:commands.setup}` para gerenciar tudo em um só lugar ✨"
+      en-us: "Sorry, commands like `${context.groups.moderations}` and `${context.groups.notifications}` need admin permissions! 🔧\n\nAsk a server admin to set them up. They can also use `${context.commands.setup}` to manage everything in one place ✨"
+      pt-br: "Desculpe, comandos como `${context.groups.moderations}` e `${context.groups.notifications}` precisam de permissão de admin! 🔧\n\nPeça para um admin do servidor configurar. Ele também pode usar `${context.commands.setup}` para gerenciar tudo em um só lugar ✨"
     footer: null
   cooldown:
     title:
@@ -29,8 +29,8 @@ responses:
       en-us: 🎉 Command enabled successfully!
       pt-br: 🎉 Funcionalidade ativada com sucesso!
     description:
-      en-us: "Command **$command_name** enabled on $date by $user 🚀\n\n To make changes or disable it, use the command `/$command_name` or `{context:commands.setup}` 🔄"
-      pt-br: "Comando **$command_name** ativado as $date por $user 🚀\n\n Para fazer alterações ou desativar, use o comando `/$command_name` ou `{context:commands.setup}` 🔄"
+      en-us: "Command **$command_name** enabled on $date by $user 🚀\n\n To make changes or disable it, use the command `/$command_name` or `${context.commands.setup}` 🔄"
+      pt-br: "Comando **$command_name** ativado as $date por $user 🚀\n\n Para fazer alterações ou desativar, use o comando `/$command_name` ou `${context.commands.setup}` 🔄"
   paused:
     title:
       en-us: ⏸️ Command paused successfully!
@@ -112,9 +112,9 @@ responses:
 # open: what each list shows -> a list
 records:
   changes:
-    title: {ref: changes_history}
+    title: ${ref.changes_history}
   history:
-    title: {ref: changes_history}
+    title: ${ref.changes_history}
     description:
       en-us: "See the history of changes made to the feature **$command_name**:"
       pt-br: "Veja o histórico de alterações feitas na funcionalidade **$command_name**:"
