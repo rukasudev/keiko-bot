@@ -216,7 +216,10 @@ class _Writer:
         self.loop = loop
         self.woken = asyncio.Event()
         self.stopping = False
-        self.task = loop.create_task(self._run())
+
+    def start(self) -> "_Writer":
+        self.task = self.loop.create_task(self._run())
+        return self
 
     def wake(self) -> None:
         try:
@@ -248,7 +251,7 @@ def start_writer() -> None:
     deterministic."""
     global _writer
     if _writer is None or _writer.task.done():
-        _writer = _Writer(asyncio.get_running_loop())
+        _writer = _Writer(asyncio.get_running_loop()).start()
         _writer.wake()
 
 
