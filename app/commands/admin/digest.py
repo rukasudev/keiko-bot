@@ -222,6 +222,9 @@ class WeeklyDigest(commands.Cog):
 
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
+
+    async def cog_load(self) -> None:
+        """Start the weekly loop once the bot adds the cog."""
         self.send_weekly_digest.start()
 
     async def cog_unload(self) -> None:

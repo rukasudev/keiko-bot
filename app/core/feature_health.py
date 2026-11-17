@@ -106,7 +106,7 @@ def feature_problems(spec: Command, views: Any, guild: Any, locale: str) -> List
                         fill(
                             ml(f"{base}.channel", locale),
                             permission=name(permission),
-                            channel=channel_id,
+                            channel=f"<#{channel_id}>",
                         )
                     )
 

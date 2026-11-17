@@ -1212,6 +1212,43 @@ async def test_the_settings_go_out_when_only_they_fit_under_the_limit(
     assert "guild.analytics_events" in caplog.text
 
 
+@pytest.mark.parametrize(
+    "locale, counted",
+    [("en-us", "(3 collections, 12 documents)"), ("pt-br", "(3 coleções, 12 documentos)")],
+)
+def test_the_summary_counts_what_went_and_names_what_was_left_out(locale, counted):
+    """The backup summary's two lines read two different values.
+
+    Broke as: both lines read one fact, `$collections`, declared a number: the
+    first line got how many collections went, the line of what was left out got
+    their names, so a value of the wrong kind was one rename away from either
+    line. Shared behaviour: `logs_archive.build_summary` and the global facts
+    `collections` and `skipped_collections` of `app/core/global.yml`. Consumer
+    that exposed it: the facts audit of the copy. Guaranteed: in both languages
+    the first line counts the collections and documents that went, the last
+    line names each collection left out, and no `$` name is left unfilled.
+    """
+    files = [
+        logs_archive.BackupFile("a.zip", b"", {"guild.cogs": 3, "guild.settings": 2}),
+        logs_archive.BackupFile("b.zip", b"", {"guild.members": 7}),
+    ]
+
+    summary = logs_archive.build_summary(
+        datetime(2026, 11, 16, 3, 0, tzinfo=timezone.utc),
+        files,
+        ["events.messages", "guild.logs"],
+        locale,
+    )
+
+    went, _parts, left_out = summary.splitlines()
+    assert counted in went
+    assert "`events.messages`, `guild.logs`" in left_out
+    assert left_out.startswith(
+        ml("texts.admin_logs.daily_backup_skipped", locale).split("$")[0]
+    )
+    assert "$" not in summary
+
+
 async def test_a_failing_pass_is_an_error_and_never_takes_down_the_loop(
     monkeypatch, caplog
 ):

@@ -29,7 +29,7 @@ def parse_history_data(
             line = f"{line}_with_feature"
         desc = ml(
             f"commands.records.history.lines.{line}", locale=interaction.locale
-        ).replace("$user", user_mention).replace("$cog_name", item["cog"])
+        ).replace("$user", user_mention).replace("$feature_key", item["cog"])
 
         if is_bot_user:
             desc += f" _({system_desc})_"

@@ -116,52 +116,52 @@ records:
   history:
     title: {ref: changes_history}
     description:
-      en-us: "See the history of changes made to the feature **$cog_key**:"
-      pt-br: "Veja o histórico de alterações feitas na funcionalidade **$cog_key**:"
+      en-us: "See the history of changes made to the feature **$command_name**:"
+      pt-br: "Veja o histórico de alterações feitas na funcionalidade **$command_name**:"
     # open: the change each line tells -> a line template
     lines:
       enabled:
         en-us: ✅ Enabled by $user
         pt-br: ✅ Ativado por $user
       enabled_with_feature:
-        en-us: ✅ **$cog_name** enabled by $user
-        pt-br: ✅ **$cog_name** ativado por $user
+        en-us: ✅ **$feature_key** enabled by $user
+        pt-br: ✅ **$feature_key** ativado por $user
       paused:
         en-us: ⏸️ Paused by $user
         pt-br: ⏸️ Pausado por $user
       paused_with_feature:
-        en-us: ⏸️ **$cog_name** paused by $user
-        pt-br: ⏸️ **$cog_name** pausado por $user
+        en-us: ⏸️ **$feature_key** paused by $user
+        pt-br: ⏸️ **$feature_key** pausado por $user
       unpaused:
         en-us: ▶️ Unpaused by $user
         pt-br: ▶️ Despausado por $user
       unpaused_with_feature:
-        en-us: ▶️ **$cog_name** unpaused by $user
-        pt-br: ▶️ **$cog_name** despausado por $user
+        en-us: ▶️ **$feature_key** unpaused by $user
+        pt-br: ▶️ **$feature_key** despausado por $user
       disabled:
         en-us: 🚫 Disabled by $user
         pt-br: 🚫 Desativado por $user
       disabled_with_feature:
-        en-us: 🚫 **$cog_name** disabled by $user
-        pt-br: 🚫 **$cog_name** desativado por $user
+        en-us: 🚫 **$feature_key** disabled by $user
+        pt-br: 🚫 **$feature_key** desativado por $user
       edited:
         en-us: 📝 Edited by $user
         pt-br: 📝 Editado por $user
       edited_with_feature:
-        en-us: 📝 **$cog_name** edited by $user
-        pt-br: 📝 **$cog_name** editado por $user
+        en-us: 📝 **$feature_key** edited by $user
+        pt-br: 📝 **$feature_key** editado por $user
       added:
         en-us: ➕ Item added by $user
         pt-br: ➕ Item adicionado por $user
       added_with_feature:
-        en-us: ➕ **$cog_name** added by $user
-        pt-br: ➕ Item adicionado em **$cog_name** por $user
+        en-us: ➕ **$feature_key** added by $user
+        pt-br: ➕ Item adicionado em **$feature_key** por $user
       removed:
         en-us: 🗑️ Item removed by $user
         pt-br: 🗑️ Item removido por $user
       removed_with_feature:
-        en-us: 🗑️ **$cog_name** removed by $user
-        pt-br: 🗑️ Item removido de **$cog_name** por $user
+        en-us: 🗑️ **$feature_key** removed by $user
+        pt-br: 🗑️ Item removido de **$feature_key** por $user
       system:
         en-us: That's an automatic action I take when leaving the server
         pt-br: Essa é uma ação automática que eu faço ao sair do servidor

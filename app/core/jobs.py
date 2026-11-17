@@ -24,6 +24,8 @@ class Analytics(commands.Cog):
 
     def __init__(self, bot: DiscordBot) -> None:
         self.bot = bot
+
+    async def cog_load(self) -> None:
         trace.register_sink(trace.keep_run)
         self.flush_events.start()
         self.export_daily_logs.start()

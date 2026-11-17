@@ -298,7 +298,7 @@ The summary reads the intro's title, and the summary sentence (`fallbacks.review
 
 **Variables**
 18. USE `{user}`, `{server}`, `{member_count}`, `{streamer}`, `{stream_link}`, `{youtuber}`, `{video_link}` for user-customized message templates (welcome, notification messages).
-19. USE `$user`, `$command_name`, `$date`, `$cog_name`, `$cog_key`, `$ping`, `$action`, `$roles` for every value the code fills in copy, each a declared fact (the command's `facts:` or `app/core/global.yml`); a line that points to another command writes its context entry (`{context:commands.setup}` reads `/setup` or `/configurar`).
+19. USE `$user`, `$command_name`, `$date`, `$feature_key`, `$ping`, `$action`, `$roles` for every value the code fills in copy, each a declared fact (the command's `facts:` or `app/core/global.yml`); a line that points to another command writes its context entry (`{context:commands.setup}` reads `/setup` or `/configurar`).
 20. NEVER write a code-filled value as `{name}` in copy: the loader refuses it, and braces stay for the templates an admin writes (and Keiko's own defaults of them, `announcement.defaults`).
 
 **Localization**

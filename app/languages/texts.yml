@@ -179,8 +179,8 @@ permissions:
     en-us: ⚠️ I need the **$permission** permission in the server
     pt-br: ⚠️ Preciso da permissão **$permission** no servidor
   channel:
-    en-us: ⚠️ I need the **$permission** permission in <#$channel>
-    pt-br: ⚠️ Preciso da permissão **$permission** em <#$channel>
+    en-us: ⚠️ I need the **$permission** permission in $channel
+    pt-br: ⚠️ Preciso da permissão **$permission** em $channel
   channel_gone:
     en-us: ⚠️ A configured channel no longer exists
     pt-br: ⚠️ Um canal configurado não existe mais
@@ -230,8 +230,8 @@ admin_logs:
     en-us: ":floppy_disk: Here is my encrypted database backup for **$date**! ($collections collections, $documents documents)"
     pt-br: ":floppy_disk: Aqui está o meu backup criptografado do banco de dados de **$date**! ($collections coleções, $documents documentos)"
   daily_backup_skipped:
-    en-us: "I'm sorry, but these were too big for this channel even on their own, so I left them out: $collections. A manual `mongodump` still copies them!"
-    pt-br: "Desculpe, mas estas ficaram grandes demais para este canal, mesmo sozinhas, então deixei de fora: $collections. Um `mongodump` manual ainda copia essas coleções!"
+    en-us: "I'm sorry, but these were too big for this channel even on their own, so I left them out: $skipped_collections. A manual `mongodump` still copies them!"
+    pt-br: "Desculpe, mas estas ficaram grandes demais para este canal, mesmo sozinhas, então deixei de fora: $skipped_collections. Um `mongodump` manual ainda copia essas coleções!"
   monthly_events:
     en-us: ":card_file_box: Here is my events archive for **$month**! ($count events)"
     pt-br: ":card_file_box: Aqui está o meu arquivo de eventos de **$month**! ($count eventos)"

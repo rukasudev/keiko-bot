@@ -392,7 +392,10 @@ def build_summary(
     if skipped:
         names = ", ".join(f"`{name}`" for name in skipped)
         lines.append(
-            fill(ml("texts.admin_logs.daily_backup_skipped", locale), collections=names)
+            fill(
+                ml("texts.admin_logs.daily_backup_skipped", locale),
+                skipped_collections=names,
+            )
         )
 
     return "\n".join(lines)

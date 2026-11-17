@@ -97,5 +97,6 @@ def _ping(url: str) -> None:
 
 
 async def setup(bot: DiscordBot) -> None:
-    await bot.add_cog(PrometheusCog(bot))
+    if bot.get_cog(PrometheusCog.__cog_name__) is None:
+        await bot.add_cog(PrometheusCog(bot))
     await bot.add_cog(Heartbeat(bot))
