@@ -257,6 +257,13 @@ is always a fact. A `$` before anything else (`R$ 5`, `$5`) is text.
   stays as tolerant on screen as before, an unknown `{name}` shown as typed; neither
   it nor a reply StreamElements sends (`$(touser)`, `${random.1-10}`) ever goes
   through Keiko's reader (`tests/core/test_tokens.py`).
+- What a person types in a modal, in any field of any form, fills only the `{name}`
+  variables that field's code fills, each value put in once (`templated` in
+  `app/core/tokens.py`, behind `fill_placeholders` and a card's preview lines), and
+  only where the feature fills them: its previews, a `fills` of its card and the
+  message it sends; Keiko's tokens, their old spellings and every other brace show
+  exactly as typed on every screen
+  (`tests/behavioral/contracts/test_a_typed_answer_fills_only_its_own_variables.py`).
 
 ## The YAML reference
 

@@ -1,12 +1,13 @@
 """The one syntax a Keiko text writes a value with: `$name` or `${name}` for a fact,
 `${answer.<key>}`, `${plural.<key>|<one>|<many>}`, `${context.<name>}` and
-`${ref.<name>}` for the other kinds, and `$$` for a dollar; a pass reads a text once,
-so a value it puts in is never read again."""
+`${ref.<name>}` for the other kinds, and `$$` for a dollar, beside the `{name}` braces
+of an admin's template; a pass reads a text once, so a value it puts in is never read
+again."""
 
 from __future__ import annotations
 
 import re
-from collections.abc import Callable, Iterable, Iterator
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from difflib import get_close_matches
 from typing import Literal
@@ -134,6 +135,15 @@ def finished(text: str) -> str:
     if any(isinstance(piece, Token) for piece in found):
         return text
     return "".join(piece for piece in found if isinstance(piece, str))
+
+
+def templated(template: str, values: Mapping[str, str]) -> str:
+    """An admin's template with each `{name}` of `values` filled in one pass, so a
+    value put in is never read again and every other brace or token stays typed."""
+    if not values:
+        return template
+    names = "|".join(re.escape(name) for name in values)
+    return re.sub(r"\{(" + names + r")\}", lambda found: values[found[1]], template)
 
 
 def did_you_mean(name: str, known: Iterable[str]) -> str | None:

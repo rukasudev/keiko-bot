@@ -3,7 +3,7 @@ import functools
 import hashlib
 import hmac
 from importlib import import_module
-from re import escape, finditer, sub
+from re import finditer
 from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
 
 import discord
@@ -21,7 +21,7 @@ from app.core.commands import (
 )
 from app.core.facts import filled
 from app.core.i18n import CopyBlock, CopyText
-from app.core.tokens import fact_names, plain
+from app.core.tokens import fact_names, plain, templated
 from app.exceptions import DestinationNotFound
 
 T = TypeVar("T")
@@ -334,11 +334,7 @@ def fill_placeholders(
     """Fill each `{name}` of a user's template in one pass, adding `{required}` if missing."""
     if required and f"{{{required}}}" not in template:
         template += f"\n{{{required}}}"
-    if not values:
-        return template
-
-    names = "|".join(escape(name) for name in values)
-    return sub(r"\{(" + names + r")\}", lambda match: values[match.group(1)], template)
+    return templated(template, values)
 
 
 def parse_command_event_description(

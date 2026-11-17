@@ -20,6 +20,7 @@ from app.core.tokens import (
     pieces,
     plain,
     resolved,
+    templated,
     tokens,
 )
 from app.core.utils import fill, fill_placeholders
@@ -160,6 +161,18 @@ def test_an_admin_template_is_filled_by_its_own_braces_and_never_by_keiko_tokens
 
     assert shown == f"Hi <@!111> {ADMIN_TYPED}"
     assert fill_placeholders(ADMIN_TYPED, {"count": "1"}) == ADMIN_TYPED
+
+
+def test_an_admin_template_fills_each_of_its_variables_once_and_keeps_the_rest():
+    """The birthday card's preview lines filled one variable after the other, so a
+    server named with a brace read that brace as a variable too: `{server}` showed
+    `Club May 12` for a server named `Club {date}`."""
+    values = {"server": "Club {date}", "date": "May 12", "user": "<@1>"}
+
+    shown = templated("{server} on {date} for {user} {foo} {USER} $count", values)
+
+    assert shown == "Club {date} on May 12 for <@1> {foo} {USER} $count"
+    assert templated(ADMIN_TYPED, {}) == ADMIN_TYPED
 
 
 def test_a_streamelements_reply_keeps_its_own_variables_out_of_keiko_tokens():
