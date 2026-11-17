@@ -74,10 +74,10 @@ Drawn by `app/forms/discord/views.py` from the step or section definition.
 - The lifecycle confirmation modal (pause, unpause, disable) asks the user to type the action verb back.
 
 ### Forms (YAML schema)
-Each step has: `type`, `key`, `title.{en-us,pt-br}`, `description.{en-us,pt-br}`, and `footer` only to replace the standard one (or `footer: null` for none). A text of the shared vocabulary (`texts` in `app/forms/vocabulary.yml`) is named with `{ref: name}`; no YAML anchors or aliases. Step types: `intro`, `text`, `single_choice`, `card`, `list`, `review`; every key a form may write is in `docs/yaml-reference.html`.
+Each step has: `type`, `key`, `title.{en-us,pt-br}`, `description.{en-us,pt-br}`, and `footer` only to replace the standard one (or `footer: null` for none). A text of the shared vocabulary (`texts` in `app/forms/vocabulary.yml`) is named with `${ref.<name>}`; no YAML anchors or aliases. Step types: `intro`, `text`, `single_choice`, `card`, `list`, `review`; every key a form may write is in `docs/yaml-reference.html`.
 
 - Every form **starts** with a `type: intro` intro step (title + emoji + 1-sentence description).
-- Every form **ends** with `type: review`, the summary: titled like the intro (the feature's emoji and name), its description naming the command it turns on with `{context:command}`, closed by its green **Confirm** / **Confirmar** button. The title and the summary sentence are the engine's defaults, so the step writes neither.
+- Every form **ends** with `type: review`, the summary: titled like the intro (the feature's emoji and name), its description naming the command it turns on with `${context.command}`, closed by its green **Confirm** / **Confirmar** button. The title and the summary sentence are the engine's defaults, so the step writes neither.
 - Footer on every step is the **same line**: `"• Use the `/report` command to tell me a bug"` / `"• Use o comando `/reportar` para me contar um bug"`, the engine's default: a step leaves `footer` out.
 
 ## 1.4 Messaging patterns
@@ -95,7 +95,7 @@ Each step has: `type`, `key`, `title.{en-us,pt-br}`, `description.{en-us,pt-br}`
 ### Instructions
 - Address the user directly (`"Choose which channel..."`, `"Use the buttons below..."`).
 - When introducing variables, list them last with bullets and inline-code keys: `` "- `{user}`: User mention" ``.
-- Always backtick slash-command names, written as their context entry so the loader writes in the localized name: `` `{context:commands.help}` `` reads `` `/help` `` or `` `/ajuda` ``, and so `` `{context:commands.setup}` ``, `` `{context:commands.report}` ``, `` `{context:commands.support}` ``.
+- Always backtick slash-command names, written as their context entry so the loader writes in the localized name: `` `${context.commands.help}` `` reads `` `/help` `` or `` `/ajuda` ``, and so `` `${context.commands.setup}` ``, `` `${context.commands.report}` ``, `` `${context.commands.support}` ``.
 
 ### Feedback / state changes
 - Use the `commands.responses.{enabled,paused,unpaused,disabled}` keys; never invent new state-change copy.
@@ -123,7 +123,7 @@ Each step has: `type`, `key`, `title.{en-us,pt-br}`, `description.{en-us,pt-br}`
 | Bot names / important nouns | Bold | `**Keiko**`, `**#support**` |
 | Command names in event copy | Bold + variable | `**$command_name**` |
 | Variables of an admin's message template | Curly braces, inline-code in docs | `{user}`, `{server}`, `{member_count}` |
-| Variables the code fills in copy | Dollar prefix, the only syntax copy accepts | `$user`, `$command_name`, `$date` |
+| Values Keiko fills, in any YAML file | A token of the one syntax (`docs/commands.md`, "The token syntax") | `$user`, `${prefix}ping`, `${answer.link\|youtube.com}`, `${context.commands.setup}`, `${ref.support_footer}`, `$$` |
 | Stressed words | Italics | `*help*` |
 | Examples / values | Backticks | `` `ks!mouse` `` |
 | Footer prefix | `"• "` (bullet + space) | `"• Use the command /report..."` |
@@ -205,7 +205,7 @@ responses:
     description:
       en-us: {1st-person sentence ending with emoji or ., $value where the code fills one}
       pt-br: {frase em 1ª pessoa terminando com emoji ou ., $value onde o código preenche}
-    footer: {ref: support_footer}
+    footer: ${ref.support_footer}
 ```
 Render via `response_embed("{command-key}.responses.{response_name}", locale, image=True, facts=command_facts(...))`. Without `footer` the embed closes with the standard `/report` line; `footer: null` draws none; a text (here the shared `support_footer` of `app/forms/vocabulary.yml`) draws that text.
 
@@ -291,15 +291,15 @@ The summary reads the intro's title, and the summary sentence (`fallbacks.review
 
 **Formatting**
 13. ALWAYS bold `**Keiko**` and `**$command_name**` when referenced inline.
-14. ALWAYS backtick slash commands, as their context entry: `` `{context:commands.setup}` ``, `` `{context:commands.report}` ``, `` `{context:commands.support}` ``.
+14. ALWAYS backtick slash commands, as their context entry: `` `${context.commands.setup}` ``, `` `${context.commands.report}` ``, `` `${context.commands.support}` ``.
 15. ALWAYS prefix footer text with `"• "`.
 16. NEVER use `•` as inline bullets in body copy — use `-` or numbered lists.
 17. USE `\n\n` between paragraphs, `\n- ` to start a list item inside a string.
 
 **Variables**
-18. USE `{user}`, `{server}`, `{member_count}`, `{streamer}`, `{stream_link}`, `{youtuber}`, `{video_link}` for user-customized message templates (welcome, notification messages).
-19. USE `$user`, `$command_name`, `$date`, `$feature_key`, `$ping`, `$action`, `$roles` for every value the code fills in copy, each a declared fact (the command's `facts:` or `app/core/global.yml`); a line that points to another command writes its context entry (`{context:commands.setup}` reads `/setup` or `/configurar`).
-20. NEVER write a code-filled value as `{name}` in copy: the loader refuses it, and braces stay for the templates an admin writes (and Keiko's own defaults of them, `announcement.defaults`).
+18. USE `{user}`, `{server}`, `{member_count}`, `{streamer}`, `{stream_link}`, `{youtuber}`, `{video_link}`, `{date}` for the templates an admin writes (welcome, notification, birthday messages), and only the ones the command's code fills; a Keiko text may show them as examples beside its own tokens.
+19. USE a token of the one syntax for every value Keiko fills: `$user`, `$command_name`, `$date`, `$feature_key`, `$ping`, `$action`, `$roles` for a fact the code passes, each declared (the command's `facts:` or `app/core/global.yml`) and read whole (`${prefix}ping` glues text after one); `${answer.<key>|<fallback>}` for an earlier answer, `${plural.<key>|<one>|<many>}`, `${ref.<name>}` for a shared text, `$$` for a dollar; a line that points to another command writes its context entry (`${context.commands.setup}` reads `/setup` or `/configurar`).
+20. NEVER write a value Keiko fills as `{name}`: the loader refuses it in copy, and braces stay for the templates an admin writes (and Keiko's own defaults of them, `announcement.defaults` and a card's `defaults`, which write no `$` token).
 
 **Localization**
 21. EVERY new user-facing string MUST exist in BOTH `en-us` and `pt-br`.
@@ -350,7 +350,7 @@ FORMAT:
 - Title = "{one-emoji} {Title Case}". Errors auto-prefix 🚨.
 - Footer always starts with "• ".
 - Bold **Keiko**, **$command_name**. Backtick `/commands`.
-- Variables: `{user}` in an admin's template; `$user` for every value the code fills in copy.
+- Variables: `{user}` in an admin's template; a token for every value Keiko fills (`$user`, `${prefix}ping`, `${answer.x|fallback}`, `${context.commands.setup}`, `${ref.x}`, `$$`).
 - Bullets: `-` or numbers in body; `•` only as footer prefix.
 - NEVER em-dash (`—`) or en-dash (`–`). Use commas, periods, or two sentences. Sounds AI-like.
 - `...` ONLY for async/in-progress states (`🔄 Syncing roles...`); never stylistic.

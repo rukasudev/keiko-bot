@@ -103,6 +103,14 @@ contents in the report beyond what a finding needs):
   an address that follows the file (`<key>.ui.responses.<name>`). A text a primitive
   draws filed under `ui.texts`, a hand-built embed
   that a primitive draws, or a `{name}` in copy is a finding.
+- `docs/commands.md`, "The token syntax" — read whenever the scope touches a YAML text
+  or the code that fills one (code-style rule 29): every value a text does not hold is
+  a token of the one syntax (`$count`, `${prefix}ping`, `${answer.<key>}`,
+  `${plural.<key>|<one>|<many>}`, `${context.<name>}`, `${ref.<name>}`, `$$`), read by
+  `app/core/tokens.py` alone. A hand-written `str.replace("$...")` or a regular
+  expression of its own over a Keiko text, an old spelling (`{context:...}`,
+  `{answer:...}`, `{ref: name}`), a `$` token in a default of an admin's template, and
+  Keiko's reader run over what an admin typed or a StreamElements reply are findings.
 - `docs/testing-strategy.md` — read whenever the scope touches shared
   infrastructure (the form platform, its step types and extensions, the Discord
   adapter, components, formatters, i18n helpers) or test code: it defines the

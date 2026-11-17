@@ -32,7 +32,7 @@ Subtle dog-themed wordplay is welcome when it lands naturally. Example: the pt-b
 - Instructions address the user directly (`Choose which channel I should ...`).
 - Keep it natural and simple. Avoid corporate or formal phrasing; if a sentence reads like a press release, rewrite it.
 - **Explanatory clarity is Keiko's superpower.** Prefer explicit descriptive phrasing over compact labels: `Todos os links desse site` / `Só esse link específico` beats `Site inteiro` / `Link exato`. Whenever a configuration choice could be ambiguous, add a concrete backticked example showing the difference (`youtube.com` vs `youtube.com/watch?v=abc123`).
-- **Explain with the user's own data, not canned examples.** When a step explains a choice about something the user just provided, echo their real input via the `{answer:<key>|<fallback>}` token in the step description (the form engine substitutes the earlier answer; the fallback shows while it doesn't exist yet). "How far does this rule go for `meusite.com.br`?" teaches instantly; a generic example makes the user translate in their head.
+- **Explain with the user's own data, not canned examples.** When a step explains a choice about something the user just provided, echo their real input via the `${answer.<key>|<fallback>}` token in the step description (the form engine substitutes the earlier answer; the fallback shows while it doesn't exist yet). "How far does this rule go for `meusite.com.br`?" teaches instantly; a generic example makes the user translate in their head.
 - **Never explain two or more choices inside one paragraph.** A wall of prose with the options bolded inline is unreadable in Discord: the user has to parse a paragraph to find which button to press. Always use the choice layout below.
 
 ## Choice layout (steps that ask the user to pick)
@@ -43,7 +43,7 @@ blank lines (`\n\n`). A plain yes/no gate ("Want to add your own links?") needs 
 question.
 
 1. **The question**, one line, naming what it applies to (echo the user's own data with
-   `{answer:<key>|<fallback>}` when the choice is about something they just typed).
+   `${answer.<key>|<fallback>}` when the choice is about something they just typed).
 2. **One line per option**, in the same order as the buttons, each led by that option's
    emoji: `{emoji} **{exact button label}**: {what happens, in one sentence}`. The emoji and
    the label must match the button character for character, so the eye maps line to button
@@ -59,8 +59,8 @@ step both paint the button from it.
 
 ```yaml
 description:
-  en-us: "This rule will **always allow** `{answer:link|youtube.com/watch?v=abc123}`. Tell me how far it goes!\n\n🌐 **Every link from this website**: the rule covers the whole website, any page or video on it.\n🔗 **Only this specific link**: the rule covers only that exact address, and the rest of the website stays out of it.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
-  pt-br: "Essa regra vai **sempre liberar** `{answer:link|youtube.com/watch?v=abc123}`. Me diga o alcance dela!\n\n🌐 **Todos os links desse site**: a regra vale para o site inteiro, qualquer página ou vídeo dele.\n🔗 **Só esse link específico**: a regra vale só para esse endereço exato, e o resto do site fica de fora dela.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
+  en-us: "This rule will **always allow** `${answer.link|youtube.com/watch?v=abc123}`. Tell me how far it goes!\n\n🌐 **Every link from this website**: the rule covers the whole website, any page or video on it.\n🔗 **Only this specific link**: the rule covers only that exact address, and the rest of the website stays out of it.\n\nWhich one do you prefer? Just pick it on the buttons below! 🐶"
+  pt-br: "Essa regra vai **sempre liberar** `${answer.link|youtube.com/watch?v=abc123}`. Me diga o alcance dela!\n\n🌐 **Todos os links desse site**: a regra vale para o site inteiro, qualquer página ou vídeo dele.\n🔗 **Só esse link específico**: a regra vale só para esse endereço exato, e o resto do site fica de fora dela.\n\nQual você prefere? É só escolher nos botões abaixo! 🐶"
 ```
 
 **Exception: block options.** A card picker whose options each declare a `description`
@@ -123,25 +123,31 @@ of text is a bug, not a style choice.
 
 ### Forms (`app/commands/*/form.yml`, `app/forms/vocabulary.yml`)
 - Open with `type: intro` (intro).
-- Close with `type: review` titled like the intro (the feature's emoji and name) and described as `"Here's a summary of your choices so far. All set for me to turn on the `/{context:command}` command with the settings below? ✅"` / `"Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/{context:command}` com as configurações abaixo? ✅"`. Both are the engine's defaults (`fallbacks.review_description` in `app/forms/vocabulary.yml` and the intro's title), so the summary writes neither. Its green button is the plain **Confirm** / **Confirmar**. StreamElements is the one summary that keeps its own description: it explains the prefix with the chosen streamer (`{answer:streamer}`), which says more than the generic sentence.
+- Close with `type: review` titled like the intro (the feature's emoji and name) and described as `"Here's a summary of your choices so far. All set for me to turn on the `/${context.command}` command with the settings below? ✅"` / `"Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/${context.command}` com as configurações abaixo? ✅"`. Both are the engine's defaults (`fallbacks.review_description` in `app/forms/vocabulary.yml` and the intro's title), so the summary writes neither. Its green button is the plain **Confirm** / **Confirmar**. StreamElements is the one summary that keeps its own description: it explains the prefix with the chosen streamer (`${answer.streamer}`), which says more than the generic sentence.
 - A setting the intro lists gets one line, its title then its `description` (`settings_list` in `app/forms/form/actions/intro.py`; a card lists each field's `label` and `description`), so that description reads as one line.
 - A feature has one name everywhere an admin reads it, the one its slash command uses (`setup.label` in its `copy.yml`, the intro and summary titles, the greeting), with the `/setup` emoji.
 - Every step shows the standard footer, `"• Use the `/report` command to tell me a bug"` / `"• Use o comando `/reportar` para me contar um bug"`, which the engine draws from `fallbacks.footer` in `app/forms/vocabulary.yml`: a step leaves `footer` out. Only a step that must show no footer writes `footer: null`.
 - Every step has `title` and `description` in both `en-us` and `pt-br`; the summary, and a card titled exactly like the intro, take the intro's title from the defaults.
-- A text the shared vocabulary holds (`texts` in `app/forms/vocabulary.yml`: "Channel", "Choose channel", "Title"...) is named with `{ref: name}`, never written again; a text three fields would write goes there first, in both locales.
+- A text the shared vocabulary holds (`texts` in `app/forms/vocabulary.yml`: "Channel", "Choose channel", "Title"...) is named with `${ref.<name>}`, never written again; a text three fields would write goes there first, in both locales.
 - No YAML anchors or aliases (`&name`, `*name`) in a `copy.yml` or a `form.yml`: a command must be able to live as a database document, and the two files are already its two halves.
 - Step types: `intro`, `text`, `single_choice`, `card`, `list`, `review` (every key a form may write is in `docs/yaml-reference.html`).
 
 ## Formatting rules
 
-- Slash commands → backticks around their context entry, never the name typed in: `` `{context:commands.setup}` `` (reads `/setup` or `/configurar`), `` `{context:commands.report}` ``, `` `{context:commands.block_links}` `` (`/moderations block links`), a parent group `` `{context:groups.moderations}` ``.
+- Slash commands → backticks around their context entry, never the name typed in: `` `${context.commands.setup}` `` (reads `/setup` or `/configurar`), `` `${context.commands.report}` ``, `` `${context.commands.block_links}` `` (`/moderations block links`), a parent group `` `${context.groups.moderations}` ``.
 - Bot name and emphasized nouns → bold: `**Keiko**`, `**#support**`, `**$command_name**`.
 - Stressed words → italics: `*help*`.
 - Examples / values → backticks: `` `ks!mouse` ``.
-- Variables shown to the user (welcome / notification message templates) → curly braces: `{user}`, `{server}`, `{member_count}`, `{streamer}`, `{stream_link}`, `{youtuber}`, `{video_link}`.
-- Variables the code fills in copy (a `copy.yml` or `app/languages/*.yml`) → dollar prefix, and only that: `$user`, `$command_name`, `$date`, `$feature_key`, `$ping`, `$action`, `$roles`. Each is a declared fact: the command's own in the `facts:` of its `copy.yml`, or a global one in `app/core/global.yml` (a shared file reads only global ones); the loader refuses an undeclared `$name`, a `{name}` in copy, and `fill` refuses a line that names a given value in braces; braces belong to the templates an admin writes (and Keiko's own defaults of them, `announcement.defaults`). A line that points to another command writes its context entry, `{context:commands.<key>}`, which the loader writes in as its localized name (`/setup` in en-us, `/configurar` in pt-br).
-- Earlier form answers echoed in step descriptions → `{answer:<key>|<fallback>}` (substituted by the form engine; always provide the fallback).
-- Never mix `{}` and `$` in the same string.
+- Variables of a template an admin writes (welcome / notification / birthday messages) → curly braces, and only those: `{user}`, `{server}`, `{member_count}`, `{streamer}`, `{stream_link}`, `{youtuber}`, `{video_link}`, `{date}`. Keiko's own defaults of those templates and the lines that explain them name only the variables the command's code fills (`tests/test_admin_templates.py`).
+- Every value Keiko fills, in any YAML file → a token of the one syntax (`docs/commands.md`, "The token syntax"):
+  - a fact the code passes → `$name`: `$user`, `$command_name`, `$date`, `$feature_key`, `$ping`, `$action`, `$roles`. Each is a declared fact: the command's own in the `facts:` of its `copy.yml`, or a global one in `app/core/global.yml` (a shared file and a form read only global ones). The name is read whole, so text glued after it needs braces: `` `${prefix}ping` ``, never `$prefixping`;
+  - an earlier form answer echoed in a step description → `${answer.<key>|<fallback>}`, always with the fallback, and `:<format>` when the value needs one (`${answer.default_roles:role|Empty}`, `${answer.link:host|youtube.com}`);
+  - one or many, from an answer → `${plural.<key>|<one>|<many>}`;
+  - a slash command or a parent group → its context entry, `${context.commands.<key>}` or `${context.groups.<group>}`, which the loader writes in as its localized name (`/setup` in en-us, `/configurar` in pt-br); on a form screen, the other values Keiko knows (`${context.prefix}`, `${context.server_name}`, `${context.command}`);
+  - a text of the shared vocabulary → `${ref.<name>}`;
+  - a literal dollar → `$$` (a `$` before a space or a digit, `R$ 5`, is already text).
+  The loader and the form compiler refuse an undeclared name, an answer no earlier step (or the step itself) gives, an unknown format, an unclosed `${` and the old spellings (`{context:...}`, `{answer:...}`, `{plural:...}`, `{ref: name}`), naming the closest name; `fill` refuses a line that names a given value in braces.
+- Braces are the admin's, `$` is Keiko's: never write a value Keiko fills as `{name}`, and never a `$` token in a default of an admin's template (Keiko fills nothing in it once it loads). A Keiko text may show an admin variable as an example beside its own tokens, as a step does when it lists the variables a message accepts (`` `{user}`: the new member's mention `` above a line naming `` `${context.commands.setup}` ``): to Keiko's reader the braces are plain text.
 - Footer prefix: `"• "` (bullet + space). Never use `•` as an inline bullet in body copy.
 - Lists: `\n- ` for unordered, `\n1. ` / `\n2. ` for sequential. `\n\n` between paragraphs.
 - A list of message texts the admin wrote (notification and welcome messages) reads inside one code block of `• ` lines, through the `code_block` format, on cards, summaries and panels. Lists of names and links (streamers, websites, birthdays) stay `- ` bullets.
@@ -183,7 +189,7 @@ Every rule below is about what a user sees; on the two operator surfaces named a
 - ALWAYS use 1st person elsewhere.
 - ALWAYS prefix footer text with `"• "`.
 - ALWAYS bold `**Keiko**` and `**$command_name**` when referenced inline.
-- ALWAYS backtick slash commands, written as their context entry (`{context:commands.<key>}`).
+- ALWAYS backtick slash commands, written as their context entry (`${context.commands.<key>}`).
 - ALWAYS provide both `en-us` and `pt-br` for new strings.
 - ALWAYS reuse `commands.responses.{enabled,paused,unpaused,disabled}` for state changes; do not invent new state-change copy.
 - ALWAYS reuse generic button keys from `app/languages/buttons.yml` when an existing label fits.
@@ -196,7 +202,7 @@ Every rule below is about what a user sees; on the two operator surfaces named a
 - NEVER use `•` as an inline bullet in body copy.
 - NEVER use em-dashes (`—`) or en-dashes (`–`) anywhere. They sound AI-like; rewrite with commas, periods, or two sentences.
 - NEVER use `...` outside async/in-progress states (loading, syncing). It is reserved for "still working" UX cues.
-- NEVER write a value the code fills as `{var}` in copy: `$var` only (braces are for the templates an admin writes).
+- NEVER write a value Keiko fills as `{var}`: `$var`, or the token of its kind (`${answer...}`, `${context...}`); braces are for the templates an admin writes.
 - NEVER use ALL CAPS, slang, memes, or sarcasm.
 - NEVER drop the standard form footer (`"• Use the `/report` command to tell me a bug"`): leave `footer` out of a step and the engine draws it from `app/forms/vocabulary.yml`; never write it out again, and never write `footer: null` without a reason.
 - IF writing an error → red embed (`Style.RED_COLOR`) + apology + recovery hint + use `response_error_embed("<command-key>.ui.errors.<name>", locale)` (a shared one by its bare name).
@@ -230,7 +236,7 @@ responses:
     description:
       en-us: {1st-person sentence, $value where the code fills one}
       pt-br: {frase em 1ª pessoa, $value onde o código preenche}
-    footer: {ref: support_footer}
+    footer: ${ref.support_footer}
 ```
 Render: `response_embed("{command-key}.responses.{response_name}", locale, image=True, facts=command_facts(...))`. Leave `footer` out for the standard `/report` line, write `footer: null` for none, or a text (here the shared `support_footer` of `app/forms/vocabulary.yml`) for another.
 

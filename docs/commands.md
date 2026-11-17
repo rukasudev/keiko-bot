@@ -203,8 +203,60 @@ reads them through the repositories of `app/data/`, passing its key.
   It writes only what differs from the engine's defaults (the report footer on every
   step, the same `/report` line every embed closes with, the summary sentence and the
   intro's title on the summary) and names a text
-  of `app/forms/vocabulary.yml` with `{ref: name}` instead of writing it again. The
+  of `app/forms/vocabulary.yml` with `${ref.<name>}` instead of writing it again. The
   engine finds it, and the `FeatureModule`, through the registry.
+- A value a text does not hold is a token of one syntax, the same in every file
+  (below, "The token syntax").
+
+## The token syntax
+
+Every Keiko text (a `copy.yml`, a `form.yml`, `app/languages/*.yml`,
+`app/forms/vocabulary.yml`) writes a value it does not hold as a token, read by one
+reader, `app/core/tokens.py`:
+
+| written | what it is |
+| --- | --- |
+| `$count` | a fact the command's code passes; the name is read whole, up to the first character that is not a letter, digit or `_` |
+| `${answer.streamer}` | an answer the admin gave in the form; `${answer.link:host}` with a format, `${answer.link:host\|youtube.com}` with a fallback, `${answer.x\|fallback}` |
+| `${plural.default_roles\|Role to give\|Roles to give}` | one or many, from an answer |
+| `${context.commands.setup}` | a value Keiko knows (the `context:` of `app/core/global.yml`: command and group names, server name, timezone, prefix...) |
+| `${ref.support_footer}` | a shared text of `app/forms/vocabulary.yml`; a field written only as `${ref.x}` takes that text in both locales, and inside a text it writes the text of that locale |
+| `${prefix}ping` | braces also mark where a name ends, to glue text |
+| `$$` | a literal dollar |
+| `{user}` | braces alone stay the admin's own variables in the messages admins write (welcome, birthdays, notifications), filled by `fill_placeholders` as before |
+
+The kinds are closed (`answer`, `plural`, `context`, `ref`), and `$name` or `${name}`
+is always a fact. A `$` before anything else (`R$ 5`, `$5`) is text.
+
+- When each is read: as the file loads, `${ref...}` and the command and group
+  names of `${context.commands.<key>}` and `${context.groups.<group>}`
+  (`with_context`, `app/core/facts.py`); as the code draws the text, the facts
+  (`fill`, `filled`, the primitives below); as a form draws a screen, the answers,
+  the plurals and the rest of the context (`apply_tokens`). Each pass reads a text
+  once, so a value it puts in is never read again: an answer an admin typed as
+  `${context.prefix}` or `$count` shows as typed. A pass that leaves a token for a
+  later one keeps each `$$` and doubles the `$` of what it put in; the pass that
+  leaves no token writes `$$` as `$`.
+- What is refused, naming the file, the text and the token, with the closest
+  declared name: in a copy, a `$name` that is no fact of its command or `global` (a
+  shared file of `app/languages` reads only global facts), a `${context...}` that is
+  no command or group known at load, an answer; in a form (`compile_form`), a `$name`
+  that is no global fact (the engine fills `$item`, `$count`, `$max` and
+  `$feature`), an `${answer.x}` or `${plural.x...}` whose key no earlier step or the
+  step itself produces (the rule a `when` follows), a format that is neither a value
+  format nor `host`, a `${context.x}` `global.yml` does not declare; everywhere, a
+  `${` never closed, an unknown kind, a `${ref.x}` the vocabulary does not hold, and
+  the old spellings (`{context:...}`, `{answer:...}`, `{response:...}`,
+  `{plural:...}`, the `{ref: name}` node), with the new one in the message:
+  `app/commands/x/copy.yml: ui.texts.hint.en-us: $counts is no fact of x or global;
+  did you mean ${count}s or $count?`.
+- The admin's braces: Keiko's own templates (a card's `defaults`, a copy's
+  `ui.announcement.defaults`, the variables a step explains, a modal's placeholder)
+  name only the variables the command's code fills, and a default writes no token a
+  later pass would fill (`tests/test_admin_templates.py`). A message an admin saved
+  stays as tolerant on screen as before, an unknown `{name}` shown as typed; neither
+  it nor a reply StreamElements sends (`$(touser)`, `${random.1-10}`) ever goes
+  through Keiko's reader (`tests/core/test_tokens.py`).
 
 ## The YAML reference
 
@@ -283,7 +335,7 @@ text is a `Text` (`app/core/commands.py`, the one `{en-us, pt-br}` node forms us
 a value the code fills is written `$name`, a fact the command's `facts:` or
 `app/core/global.yml` declares (a `{name}` is refused, braces belong to the
 templates an admin writes; `fill` refuses a line that names a given value in braces),
-and `{ref: name}` writes a text of `app/forms/vocabulary.yml`, as in a form. A command
+and `${ref.<name>}` writes a text of `app/forms/vocabulary.yml`, as in a form. A command
 with cogs writes `command.slash`; one /setup offers writes `command.setup` and
 `command.stats`. The shared files
 of `app/languages` have their own schemas (`SHARED_FILES`): `buttons.yml` holds only
@@ -423,15 +475,15 @@ facts:
 - A rule in copy names a fact by its full address, of its own command or `global`;
   a rule in a form keeps reading the form's own answers.
 - A `$name` in copy is a fact too: the command's own or a global one by its short
-  name (a `$token` reads as the longest declared name it starts with, the way `fill`
-  replaces it: `$prefixping` is `$prefix` then `ping`), and a shared file of
-  `app/languages` reads only global facts. A short name declared by a command and by
-  `global` is refused.
+  name, read whole (`$prefixping` is no fact; `${prefix}ping` glues `ping` to
+  `$prefix`), and a shared file of `app/languages` reads only global facts. A short
+  name declared by a command and by `global` is refused.
 - At load, the copy loader refuses a rule on an unknown fact or on another command's,
   a value its type refuses (`'oval' is none of ['round', 'square']`), an operator a
   boolean has no use for, an undeclared `$name` and a fact declared twice, naming the
   file, the block and the key (`app/commands/x/copy.yml:
-  ui.responses.check.overrides[0].when: x.facts.gone: no such fact in x`).
+  ui.responses.check.overrides[0].when: x.facts.gone: no such fact in x`), and every
+  token the syntax or the catalogs refuse (above, "The token syntax").
 - At render, the primitive (`response_embed`, `response_error_embed`, `card_copy`,
   `panel_info_copy`, `RecordsBrowser(copy=)`, `block_texts`) checks that every fact
   the block reads (the keys of its rules and its `$name`s, its `lines` and `rows` left
@@ -449,10 +501,10 @@ facts:
 Values Keiko already holds in memory or in its cache are the **context**, declared
 once in the `context:` of `app/core/global.yml` (`type`, `description`, and `public`:
 whether a message every member sees may show it), and read in a copy or a form text as
-`{context:<name>}`. A family (`each: command` or `each: group`) is written in when the
-file loads, in each locale: `{context:commands.setup}` reads `/setup` or
-`/configurar`, `{context:commands.block_links}` `/moderations block links`, and
-`{context:groups.moderations}` `/moderations`, from the command's own `command.slash` copy and
+`${context.<name>}`. A family (`each: command` or `each: group`) is written in when the
+file loads, in each locale: `${context.commands.setup}` reads `/setup` or
+`/configurar`, `${context.commands.block_links}` `/moderations block links`, and
+`${context.groups.moderations}` `/moderations`, from the command's own `command.slash` copy and
 `texts.groups`. Copy reads only those families for now; a form also reads the
 entries the adapter fills (`server_name`, `prefix`, `server_language`,
 `server_timezone`, `command`, and a feature's `Opened.values`), and its compiler
@@ -483,6 +535,7 @@ folder (`.claude/rules/code-style.md`, rule 22).
 | `tests/test_structure.py` | a command imports another command or a module outside the shared layers, a shared layer imports a command, the form engine imports `discord` outside `app/forms/discord`, `app/data` imports more than itself and the constants |
 | `tests/test_generic_layers.py` | a shared layer names a command (rule 22) |
 | `tests/test_facts.py` | a call passes a fact no catalog declares, or calls a primitive on a literal block without every fact the block reads (rule 28) |
+| `tests/test_admin_templates.py` | a `{name}` the command's copy or form writes is no variable its code's `fill_placeholders` fills, or a default writes a token a later pass would fill (rule 29) |
 | `tests/commands/<name>/` | the command's own behaviour |
 
 Each failure names the file, the line and what to add or move. An exception to the

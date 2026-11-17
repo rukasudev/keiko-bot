@@ -300,7 +300,7 @@ the command's key (`block_links.command.stats.title`). A `copy.yml` is a `Comman
 `announcement`). An address follows the file (`<key>.facts.<name>`,
 `<key>.command.stats.title`, `<key>.ui.responses.<name>`); `docs/commands.md` maps
 each block to the primitive that reads it. A value the code fills is written `$name`,
-a declared fact (rule 28): the loader
+a declared fact (rules 28 and 29): the loader
 refuses a `{name}` in copy, since braces belong to the templates an admin writes
 (Keiko's own, `ui.announcement.defaults`, are the one place they appear). `description`
 names a block's body of text or a caption Discord shows (a slash command's, a button's
@@ -326,7 +326,7 @@ slash names and descriptions are its copy too: its cogs pass the block as `names
 (`namespace="block_links.command.slash"`) and `app/translator.py` reads `<namespace>.<type>`.
 A form writes only what differs from the engine's defaults (the report footer, the
 summary sentence, the intro's title on the summary), and a copy or a form names a text
-of the shared vocabulary with `{ref: name}` (the `texts` of
+of the shared vocabulary with `${ref.<name>}` (the `texts` of
 `app/forms/vocabulary.yml`); no YAML anchor or alias anywhere, in either file.
 Reason: a command's copy and form are changed with its code and deleted with its
 folder, and the two files are the two halves of the document a command made from
@@ -387,9 +387,10 @@ cannot be written.
 A fact is addressed `<owner>.facts.<name>`, the owner a command's key or `global`.
 A command declares its own in the `facts:` of its `copy.yml`, each with a `type`
 (`boolean`, `enum` with `values`, `number`, `text`) and a one-sentence `description`;
-`app/core/global.yml` declares the facts more than one command reads, and the context
-Keiko already holds (`{context:commands.<key>}`, `{context:groups.<group>}`, and the
-form tokens). A fact starts in its command and moves to `global` when a second command
+`app/core/global.yml` declares the facts more than one command reads (the form
+engine's `$item`, `$count`, `$max` and `$feature` among them), and the context
+Keiko already holds (`${context.commands.<key>}`, `${context.groups.<group>}`, and
+the values a form reads on screen). A fact starts in its command and moves to `global` when a second command
 needs it; a short name lives in one owner, and no command is keyed `global`. A rule in
 copy names the full address, a `$name` the short one, and a shared file of
 `app/languages` reads only global facts. The code passes facts, never a state or a
@@ -400,3 +401,37 @@ in. Reason: one place to look for every name a text reads, typos caught at load
 (`tests/core/test_i18n.py`), at render (`i18n.resolved`) and in the code
 (`tests/test_facts.py`), and the same shape for the copy a command made from data
 will store.
+
+## 29. A text writes a value as a token of one syntax
+
+Every Keiko text, in every YAML file, writes a value it does not hold one way
+(`docs/commands.md`, "The token syntax"): `$name` or `${name}` for a fact, the name
+read whole and braces gluing it to text (`${prefix}ping`); `${answer.<key>}`, with
+`:<format>` and `|<fallback>` when needed, `${plural.<key>|<one>|<many>}`,
+`${context.<name>}` and `${ref.<name>}` for the other kinds, which are closed; `$$`
+for a dollar; and `{name}` only for the variables of a template an admin writes.
+One reader, `app/core/tokens.py` (pure, the standard library only), reads them all,
+and each pass reads a text once: the loader writes in the shared texts and the
+command and group names, `fill` and `filled` the facts, `apply_tokens` the answers
+and the rest of the context, never by hand (`str.replace("$...")`, a regular
+expression of its own). The loader and the compiler refuse a name no catalog
+declares, an answer no step produces, a format no one knows, an unclosed or unknown
+token and an old spelling, naming the file, the text, the token and the closest
+name; a template Keiko writes for an admin names only the variables its command's
+code fills. What an admin typed and what StreamElements sends never go through the
+reader.
+
+```yaml
+# WRONG: the name read as the longest fact it starts with, a typo that loads
+en-us: "Use `$prefixping` or `{context:commands.setup}`, $counts more"
+
+# RIGHT
+en-us: "Use `${prefix}ping` or `${context.commands.setup}`, $count more"
+```
+
+A Keiko text may show an admin's variable as an example beside its own tokens
+(`` `{user}`: the new member's mention, set up in `${context.commands.welcome_messages}` ``):
+the braces are text to the reader. Reason: one syntax to learn, every typo caught
+before it ships, and no value ever read twice (`tests/core/test_tokens.py`,
+`tests/core/test_i18n.py`, `tests/forms/form/test_form_yaml.py`,
+`tests/test_admin_templates.py`).
