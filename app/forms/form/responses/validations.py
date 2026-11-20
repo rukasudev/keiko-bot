@@ -13,8 +13,19 @@ from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.constants import DBConfigs
 from app.core.calendar import is_day, parse_date_parts
 from app.forms.form.responses.links import parse_link
+
+
+@dataclass(frozen=True)
+class Upload:
+    """What Discord tells of an uploaded file before anything downloads it."""
+
+    size: int
+    width: int | None
+    height: int | None
+    content_type: str | None
 
 
 @dataclass(frozen=True)
@@ -25,6 +36,20 @@ class ValidationContext:
     items: Sequence[Mapping[str, Any]] = ()
     external: Mapping[str, Mapping[str, Any]] = field(default_factory=dict)
     params: Mapping[str, str] = field(default_factory=dict)
+    upload: Upload | None = None
+
+
+def uploaded(reported: Any) -> Upload | None:
+    """The upload a submitted modal reported, None when it reported none."""
+    if not isinstance(reported, Mapping):
+        return None
+    width, height = reported.get("width"), reported.get("height")
+    return Upload(
+        size=int(reported.get("size") or 0),
+        width=int(width) if width is not None else None,
+        height=int(height) if height is not None else None,
+        content_type=reported.get("content_type"),
+    )
 
 
 Check = Callable[[Any, ValidationContext], "str | None"]
@@ -86,6 +111,20 @@ def _date(value: Any, context: ValidationContext) -> str | None:
     return None if fits else "invalid_date"
 
 
+def _image(_value: Any, context: ValidationContext) -> str | None:
+    upload = context.upload
+    accepted = {f"image/{name.lower()}" for name in DBConfigs.IMAGE_FORMATS}
+    fits = (
+        upload is not None
+        and upload.width is not None
+        and upload.height is not None
+        and upload.size <= DBConfigs.IMAGE_MAX_BYTES
+        and upload.width * upload.height <= DBConfigs.IMAGE_MAX_PIXELS
+        and (upload.content_type or "").lower() in accepted
+    )
+    return None if fits else "image_not_accepted"
+
+
 VALIDATORS: dict[str, Validator] = {
     "registered_and_found": Validator(
         "registered_and_found",
@@ -95,6 +134,7 @@ VALIDATORS: dict[str, Validator] = {
     ),
     "link_or_domain": Validator("link_or_domain", (), _link_or_domain),
     "date": Validator("date", ("answers",), _date, ("month",)),
+    "image": Validator("image", ("upload",), _image),
 }
 
 

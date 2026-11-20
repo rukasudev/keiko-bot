@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Enabling this feature allows me to notify when your favorite youtuber posts a new video!\n\n:pencil: **Settings**\n\n:flying_disc: **Text Channel:** Where I'll announce the new video.\n:flying_disc: **Youtuber:** The YouTube channel name (with or without @).\n:flying_disc: **Notification Messages:** Up to three messages, I pick one at random each video.\n\n-# • Use the `/report` command to tell me a bug",
+      "description": "Enabling this feature allows me to notify when your favorite youtuber posts a new video!\n\n:pencil: **Settings**\n\n:flying_disc: **Text Channel:** Where I'll announce the new video.\n:flying_disc: **Youtuber:** The YouTube channel name (with or without @).\n:flying_disc: **Mention:** Who I mention at the start of the notification.\n:flying_disc: **Roles I mention:** Pick the roles I mention.\n:flying_disc: **Notification Messages:** Up to three messages, I pick one at random each video.\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
       "footer": null,
       "image": null,
@@ -107,7 +107,45 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link\n```• @everyone! {youtuber} just posted a new video!```",
+            "content": "📣 **Mention**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Nobody",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Some roles",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Choose who I mention",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link\n```• {youtuber} just posted a new video!```",
             "type": "text"
           },
           {
@@ -228,7 +266,45 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link\n```• @everyone! {youtuber} just posted a new video!```",
+            "content": "📣 **Mention**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Nobody",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Some roles",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Choose who I mention",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link\n```• {youtuber} just posted a new video!```",
             "type": "text"
           },
           {
@@ -367,7 +443,45 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link\n```• @everyone! {youtuber} just posted a new video!```",
+            "content": "📣 **Mention**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": true,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Nobody",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Some roles",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Choose who I mention",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link\n```• {youtuber} just posted a new video!```",
             "type": "text"
           },
           {
@@ -472,7 +586,45 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link\n```• @everyone! pewdiepie just posted a new video!```",
+            "content": "📣 **Mention**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Nobody",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Some roles",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Choose who I mention",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link\n```• pewdiepie just posted a new video!```",
             "type": "text"
           },
           {
@@ -528,7 +680,7 @@
     "kind": "click",
     "message": "M2",
     "seq": 14,
-    "target": "customize:2"
+    "target": "customize:4"
   },
   {
     "actor": "bot",
@@ -537,7 +689,7 @@
     "modal": {
       "fields": [
         {
-          "default": "@everyone! pewdiepie just posted a new video!",
+          "default": "pewdiepie just posted a new video!",
           "label": "Random Message #1",
           "max_length": 100,
           "required": true,
@@ -620,6 +772,44 @@
                 "label": "Choose youtuber",
                 "style": "secondary",
                 "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "📣 **Mention**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Nobody",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Some roles",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Choose who I mention",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -721,7 +911,7 @@
             "type": "section"
           },
           {
-            "content": "### Notifications #1\n📺 **Text Channel:** <#100>\n🎬 **Youtuber:** pewdiepie\n💬 **Notification Messages:** ```• {youtuber} postou: {video_link}```",
+            "content": "### Notifications #1\n📺 **Text Channel:** <#100>\n🎬 **Youtuber:** pewdiepie\n📣 **Mention:** @everyone\n💬 **Notification Messages:** ```• {youtuber} postou: {video_link}```",
             "type": "text"
           },
           {
@@ -793,7 +983,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Command **notifications youtube videos** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/notifications youtube videos` or `/setup` 🔄\n\n-# • Use the `/report` command to tell me a bug",
+      "description": "I turned on the **notifications youtube videos** command on <t:1767268800:f>, as <@555> asked! 🚀\n\nTo make changes or disable it, just use `/notifications youtube videos` or `/setup` 🔄\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
       "footer": null,
       "image": null,
@@ -849,7 +1039,7 @@
             "type": "section"
           },
           {
-            "content": "### Notifications #1\n📺 **Text Channel:** <#100>\n🎬 **Youtuber:** pewdiepie\n💬 **Notification Messages:** ```• {youtuber} postou: {video_link}```",
+            "content": "### Notifications #1\n📺 **Text Channel:** <#100>\n🎬 **Youtuber:** pewdiepie\n📣 **Mention:** @everyone\n💬 **Notification Messages:** ```• {youtuber} postou: {video_link}```",
             "type": "text"
           },
           {

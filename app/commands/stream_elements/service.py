@@ -23,7 +23,7 @@ from app.core.trace import outside_any_trace
 from app.core.utils import fill, ml
 from app.data import data
 from app.exceptions import ErrorContext, StreamElementsUnavailable
-from app.forms import open_feature
+from app.forms import document_values, open_feature
 from app.forms.features.feature import (
     AsideAction,
     CommitContext,
@@ -35,7 +35,6 @@ from app.forms.features.feature import (
 from app.forms.form.form_state import Answer
 from app.forms.form.lookups import Lookup
 from app.forms.form.manager import PanelExtras
-from app.forms.form.responses.summary import unwrap
 from app.integrations.stream_elements import StreamElementsClient
 from app.ui.embed import response_error_embed
 from app.ui.records import RecordsBrowser
@@ -66,7 +65,7 @@ async def check_message(guild_id: str, message: discord.Message, prefix: str) ->
     if not cogs:
         return
 
-    streamer = cogs.get("streamer")
+    streamer = document_values(cogs).get("streamer")
     if not streamer:
         return
 
@@ -217,7 +216,7 @@ async def send_commands_view(interaction: discord.Interaction) -> None:
     """The paginated command list, opened from the manager panel."""
     guild_id = str(interaction.guild_id)
     cogs = await cache.read_cog_data(guild_id, "stream_elements_commands", manager=True)
-    streamer = str((cogs or {}).get("streamer", ""))
+    streamer = str(document_values(cogs or {}).get("streamer", ""))
     try:
         channel_id = await channel_of(
             guild_id, streamer, (cogs or {}).get("channel_id")
@@ -390,7 +389,7 @@ class StreamElementsFeature(GenericCogFeature):
         """How many commands the panel says it answers, none, or that it could not
         tell, as the title and the paragraph of its `command.panel.info`."""
         locale = context.locale
-        streamer = str(unwrap(document.get("streamer")) or "")
+        streamer = str(document_values(document).get("streamer") or "")
         try:
             channel_id = await channel_of(
                 context.guild_id,
@@ -464,7 +463,8 @@ class StreamElementsFeature(GenericCogFeature):
         """Merge the edit; a new streamer brings its own StreamElements channel id."""
         written = await super().commit_edit(payload, context)
         document = written.document or {}
-        if document.get("streamer") == context.document.get("streamer"):
+        streamer = document_values(document).get("streamer")
+        if streamer == document_values(context.document).get("streamer"):
             return written
         document = await _with_channel(context.guild_id, document, payload["answers"])
         return replace(written, document=document)
@@ -507,7 +507,8 @@ async def _with_channel(
     looked_up = answers.get("stream_elements_channel_id")
     channel_id = looked_up.raw if looked_up is not None else None
     if not channel_id:
-        channel_id = await to_thread(find_channel, str(document.get("streamer", "")))
+        streamer = document_values(document).get("streamer", "")
+        channel_id = await to_thread(find_channel, str(streamer))
 
     await keep_channel(guild_id, str(channel_id))
     state = {**(document.get("state") or {}), "channel_id": str(channel_id)}

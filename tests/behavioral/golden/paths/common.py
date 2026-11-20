@@ -76,27 +76,25 @@ async def cancel_discard(scenario, locale: str) -> None:
 
 def register_lifecycle(form: str, seed_enabled: Callable[[Any], None],
                        seed_paused: Callable[[Any], None]) -> None:
-    """Pause, unpause, disable and history: the same four clicks on every panel."""
+    """Pause, resume, delete and history: the same clicks on every panel."""
 
     @golden_path(form, "manager_pause")
     async def manager_pause(scenario_factory, deps, locale):
         scenario = await open_manager(scenario_factory, deps, locale, form, seed_enabled)
         await scenario.click("pause")
-        await scenario.submit_confirmation()
         return scenario
 
     @golden_path(form, "manager_unpause")
     async def manager_unpause(scenario_factory, deps, locale):
         scenario = await open_manager(scenario_factory, deps, locale, form, seed_paused)
         await scenario.click("unpause")
-        await scenario.submit_confirmation()
         return scenario
 
     @golden_path(form, "manager_disable")
     async def manager_disable(scenario_factory, deps, locale):
         scenario = await open_manager(scenario_factory, deps, locale, form, seed_enabled)
         await scenario.click("disable")
-        await scenario.submit_confirmation()
+        await scenario.click("delete_all")
         return scenario
 
     @golden_path(form, "manager_history")

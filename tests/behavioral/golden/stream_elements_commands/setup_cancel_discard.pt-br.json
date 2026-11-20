@@ -269,19 +269,8 @@
             "type": "section"
           },
           {
-            "children": [
-              {
-                "content": "🎮 **Streamer:** shroud",
-                "type": "text"
-              },
-              {
-                "disabled": false,
-                "label": "Editar",
-                "style": "secondary",
-                "type": "button"
-              }
-            ],
-            "type": "section"
+            "content": "🎮 **Streamer:** shroud",
+            "type": "text"
           },
           {
             "count": 1,

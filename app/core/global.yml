@@ -1,8 +1,5 @@
 # open: fact names -> a fact
 facts:
-  action:
-    type: text
-    description: The word an admin types to confirm what a confirmation modal asks.
   channel:
     type: text
     description: A channel a line names, as its mention.
@@ -30,9 +27,6 @@ facts:
   feature:
     type: text
     description: The name of the feature a list's last-item warning turns off, the intro's title without its emoji.
-  feature_key:
-    type: text
-    description: The key of the feature a line of every server change names, as the change stores it (`block_links`).
   feature_state:
     type: enum
     values: [not_configured, paused, active]

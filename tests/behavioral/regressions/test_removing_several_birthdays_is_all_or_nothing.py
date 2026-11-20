@@ -25,7 +25,11 @@ from datetime import datetime, timezone
 import pytest
 
 from app.data import wait
-from app.commands.birthdays.service import find_birthdays_by_guild, remove_birthday
+from app.commands.birthdays.service import (
+    find_birthdays_by_guild,
+    remove_birthday,
+    save_birthday_config,
+)
 from tests.generators.birthdays import saved_birthday
 from app.forms.features import feature_for
 from app.forms.features.feature import CommitContext, ListChanged
@@ -38,6 +42,11 @@ pytestmark = [
 ]
 
 NOW = datetime(2026, 11, 6, tzinfo=timezone.utc)
+
+
+@pytest.fixture(autouse=True)
+async def configured(deps):
+    await save_birthday_config(GUILD_ID, "100")
 
 
 async def _saved():

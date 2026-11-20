@@ -26,7 +26,7 @@ from app.core.utils import (
 )
 from app.data import data
 from app.exceptions import ErrorContext
-from app.forms import open_feature
+from app.forms import document_values, list_values, open_feature
 from app.forms.features.feature import (
     AsideAction,
     CommitContext,
@@ -154,19 +154,12 @@ def matches_exact(link: ParsedLink, stored: ParsedLink) -> bool:
 
 def _custom_entry_rules(config: Mapping[str, Any]) -> List[CustomLink]:
     rules = []
-    for entry in ensure_list(
-        (config.get(constants.BLOCK_LINKS_CUSTOM_LINKS_KEY) or {}).get("values")
-    ):
-        if not isinstance(entry, dict):
-            continue
-        link_value = (entry.get(constants.BLOCK_LINKS_LINK_KEY) or {}).get("value")
+    for entry in list_values(config, constants.BLOCK_LINKS_CUSTOM_LINKS_KEY):
+        link_value = entry.get(constants.BLOCK_LINKS_LINK_KEY)
         if not link_value:
             continue
-        match_field = entry.get(constants.BLOCK_LINKS_MATCH_TYPE_KEY) or {}
-        match = match_field.get("_raw_value") or match_field.get("value")
-        if match != "exact":
-            match = "domain"
-        rules.append(CustomLink(link=link_value, match=match))
+        exact = entry.get(constants.BLOCK_LINKS_MATCH_TYPE_KEY) == "exact"
+        rules.append(CustomLink(link=link_value, match="exact" if exact else "domain"))
     return rules
 
 
@@ -185,11 +178,10 @@ def _first_matching_rule(
 
 def link_verdicts(links: List[str], config: Mapping[str, Any]) -> List[LinkVerdict]:
     """Per-link decision under this normalized config, with the deciding rule."""
-    mode = config.get(constants.BLOCK_LINKS_MODE_KEY) or "block_all"
+    saved = document_values(config)
+    mode = saved.get(constants.BLOCK_LINKS_MODE_KEY) or "block_all"
     rules = _custom_entry_rules(config)
-    domains = ensure_list(
-        (config.get(constants.BLOCK_LINKS_ALLOWED_LINKS_KEY) or {}).get("values")
-    )
+    domains = ensure_list(saved.get(constants.BLOCK_LINKS_ALLOWED_LINKS_KEY))
 
     verdicts = []
     for raw in links:
@@ -319,8 +311,9 @@ def evaluate_message(
 ) -> BlockLinksEvaluation:
     """The message through every gate, stopping at the first failure unless `full`."""
     config = normalize_block_links_config(cogs)
-    mode = config.get(constants.BLOCK_LINKS_MODE_KEY) or "block_all"
-    answer = config.get(constants.BLOCK_LINKS_ANSWER_KEY) or ""
+    saved = document_values(config)
+    mode = saved.get(constants.BLOCK_LINKS_MODE_KEY) or "block_all"
+    answer = saved.get(constants.BLOCK_LINKS_ANSWER_KEY) or ""
 
     gates: List[GateOutcome] = []
     verdicts: List[LinkVerdict] = []
@@ -347,7 +340,7 @@ def evaluate_message(
     if not active and not full:
         return finish()
 
-    exempt_roles = config[constants.BLOCK_LINKS_ALLOWED_ROLES_KEY]["values"]
+    exempt_roles = saved[constants.BLOCK_LINKS_ALLOWED_ROLES_KEY]
     matched_roles = tuple(
         role_id for role_id in subject.author_role_ids if role_id in exempt_roles
     )
@@ -366,7 +359,7 @@ def evaluate_message(
         return finish()
 
     channel_exempt = (
-        subject.channel_id in config[constants.BLOCK_LINKS_ALLOWED_CHATS_KEY]["values"]
+        subject.channel_id in saved[constants.BLOCK_LINKS_ALLOWED_CHATS_KEY]
     )
     gates.append(
         GateOutcome(
@@ -440,7 +433,14 @@ async def check_message(guild_id: str, message: discord.Message) -> None:
         deleted = True
         if answer:
             await message.channel.send(
-                answer, delete_after=5, allowed_mentions=discord.AllowedMentions.all()
+                answer,
+                delete_after=5,
+                allowed_mentions=discord.AllowedMentions(
+                    everyone=False,
+                    roles=False,
+                    users=[message.author],
+                    replied_user=False,
+                ),
             )
     except Exception as error:
         logger.error(

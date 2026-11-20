@@ -83,8 +83,8 @@ ui:
         en-us: Insufficient Role Permissions
         pt-br: Permissões de Cargo Insuficientes
       message:
-        en-us: "I don't have permission to assign roles on this server :/\n\nIn the server's role hierarchy, please give me a role **above** the ones you want me to assign 🧑‍⚖️"
-        pt-br: "Eu não tenho permissão para atribuir cargos neste servidor :/\n\nNa hierarquia de cargos do servidor, me dê um cargo **acima** dos que você quer que eu atribua 🧑‍⚖️"
+        en-us: "Oops, looks like I don't have permission to give roles on this server :/\n\nGive me a role above the ones you want me to assign! 🐶"
+        pt-br: "Ops, parece que eu não tenho permissão para dar cargos nesse servidor :/\n\nMe dê algum cargo acima dos que você quer que eu atribua! 🐶"
     deactivated:
       title:
         en-us: Default Roles Disabled

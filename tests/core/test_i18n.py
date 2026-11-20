@@ -234,6 +234,19 @@ def test_a_typed_block_is_found_by_its_key_or_refused(copy_files: Files) -> None
         i18n.block("one.ui.errors.not_found", Response)
 
 
+def test_a_response_sets_its_tone_with_a_word_and_no_locale(copy_files: Files) -> None:
+    """A closed setting of a copy block (a response's `tone`) is written as itself,
+    not as a text: it loads no key and the block reads it."""
+    text = (
+        "ui:\n  responses:\n    told:\n      title: {en-us: x, pt-br: y}\n"
+        "      tone: warning\n"
+    )
+    copy_files((COMMAND, "one", text))
+
+    assert i18n.collect("pt-br") == {"one.ui.responses.told.title": "y"}
+    assert i18n.block("one.ui.responses.told", Response).tone == "warning"
+
+
 @pytest.mark.parametrize(
     "text,refusal",
     [
@@ -251,8 +264,13 @@ def test_a_typed_block_is_found_by_its_key_or_refused(copy_files: Files) -> None
             "ui:\n  texts:\n    hint: ${ref.nowhere}\n",
             "is no text of app/forms/vocabulary",
         ),
+        (
+            "ui:\n  responses:\n    told:\n      title: {en-us: x, pt-br: x}\n"
+            "      tone: loud\n",
+            "tone",
+        ),
     ],
-    ids=["unknown block", "kebab key", "braced value", "unknown ref"],
+    ids=["unknown block", "kebab key", "braced value", "unknown ref", "unknown tone"],
 )
 def test_a_copy_its_schema_refuses_names_the_reason(
     copy_files: Files, text: str, refusal: str

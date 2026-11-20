@@ -34,7 +34,7 @@ Keiko is a friendly, loyal dog companion. Two voices coexist depending on **wher
 - **Punctuation:**
   - Frequent `!` (mainly success/instructional). Periods otherwise.
   - **Never use em-dash (`—`) or en-dash (`–`).** They sound AI-like and overly formal. Rewrite with a comma, period, or split into two sentences. No existing Keiko message uses them.
-  - **`...` is allowed only for async/in-progress states** (e.g., `🔄 Syncing roles...`, `Loading...`). It signals "I'm still working." Do not use `...` as a stylistic ellipsis or trailing-thought device anywhere else.
+  - **`...` is allowed only for async/in-progress states** (e.g., `🔄 Syncing roles...`, `Loading...`). It signals "I'm still working." Do not use `...` as a stylistic ellipsis or trailing-thought device anywhere else. The one exception is the owner's own line for an expired form, `Ei... esse formulário expirou!` (`texts.notices.expired`).
 - **Lists:**
   - Numbered for sequential instructions: `"1. Go to **#support**\n2. Wait for a team member\n3. ..."`
   - Dash bullets for feature recaps: `"- **Moderation:** ...\n- **Notifications:** ..."`
@@ -46,6 +46,7 @@ Keiko is a friendly, loyal dog companion. Two voices coexist depending on **wher
 ### Embeds
 - **Default color:** `Style.BACKGROUND_COLOR` = `0x4F97F9` (light blue).
 - **Error color:** `Style.RED_COLOR` = `0xff0000`.
+- **Warning color:** `Style.WARNING_COLOR` = `0xFEE75C` (Discord's yellow), for a message that tells the admin Keiko changed something they did, with no error to fix (the typed mention taken out, `commands.responses.mention_removed`). The Response block declares `tone: warning`, read by `response_embed` and the forms' `Announce`.
 - **Title format:** `"{emoji} {Title Text}"` — exactly one leading emoji, Title Case body. Errors prefix with `🚨` automatically (`response_error_embed`).
 - **Description vs fields:**
   - Use `description` for: a single message, a short body with one CTA, instructional copy, error messages.
@@ -57,12 +58,12 @@ Keiko is a friendly, loyal dog companion. Two voices coexist depending on **wher
 | Purpose | Style | Source |
 |---|---|---|
 | Confirm / positive | `ButtonStyle.green` | `buttons.py:20` |
-| Cancel / destructive | `ButtonStyle.red` | `buttons.py:29` |
+| Cancel / destructive (the **Desativar e apagar** of the question the panel's Desativar opens) | `ButtonStyle.red` | `buttons.py:29` |
 | Back / primary action / selected state | `ButtonStyle.primary` | `buttons.py:194,49` |
-| Edit, Pause, Preview, Help, Disable, Add, Remove, History, Sync | `ButtonStyle.gray` / `grey` | `buttons.py:108,134,268` |
+| Edit, Pause, Unpause, Preview, Help, Disable, Add, Remove, History, Sync | `ButtonStyle.gray` / `grey` | `buttons.py:108,134,268` |
 | Form back button | `ButtonStyle.secondary` | `buttons.py:253` |
 
-Button labels live in `app/languages/buttons.yml` under generic keys (`confirm`, `cancel`, `edit`, `add`, `remove`, `preview`, `back`, `pause`, `unpause`, `select`, `choose`, `history`, `done`), each a `label` and, for a button the Help screen lists, a `description`. UI-component-specific copy (e.g., select placeholders) lives in `app/languages/texts.yml` under `placeholders.*`.
+Button labels live in `app/languages/buttons.yml` under generic keys (`confirm`, `cancel`, `edit`, `add`, `remove`, `preview`, `back`, `pause`, `unpause`, `disable`, `delete_all` (read **Disable and delete** / **Desativar e apagar**), `reopen` (an expired form's **Open again** / **Abrir de novo**), `select`, `choose`, `history`, `done`), each a `label` and, for a button the Help screen lists, a `description`. UI-component-specific copy (e.g., select placeholders) lives in `app/languages/texts.yml` under `placeholders.*`.
 
 ### Modals
 Drawn by `app/forms/discord/views.py` from the step or section definition.
@@ -71,7 +72,7 @@ Drawn by `app/forms/discord/views.py` from the step or section definition.
 - `placeholder` falls back to `description` when not set explicitly.
 - Multi-line: `style: long` when YAML sets `multiline: true`; otherwise `short`.
 - Repeated labels in the same modal get `#1`, `#2`, etc., appended automatically.
-- The lifecycle confirmation modal (pause, unpause, disable) asks the user to type the action verb back.
+- No lifecycle action asks for a typed word: Pause and Unpause save in one click, draw the panel again and send their message beside it for a few seconds, and Desativar asks on a red question (**Desativar e apagar**, then **Voltar**).
 
 ### Forms (YAML schema)
 Each step has: `type`, `key`, `title.{en-us,pt-br}`, `description.{en-us,pt-br}`, and `footer` only to replace the standard one (or `footer: null` for none). A text of the shared vocabulary (`texts` in `app/forms/vocabulary.yml`) is named with `${ref.<name>}`; no YAML anchors or aliases. Step types: `intro`, `text`, `single_choice`, `card`, `list`, `review`; every key a form may write is in `docs/yaml-reference.html`.
@@ -98,7 +99,7 @@ Each step has: `type`, `key`, `title.{en-us,pt-br}`, `description.{en-us,pt-br}`
 - Always backtick slash-command names, written as their context entry so the loader writes in the localized name: `` `${context.commands.help}` `` reads `` `/help` `` or `` `/ajuda` ``, and so `` `${context.commands.setup}` ``, `` `${context.commands.report}` ``, `` `${context.commands.support}` ``.
 
 ### Feedback / state changes
-- Use the `commands.responses.{enabled,paused,unpaused,disabled}` keys; never invent new state-change copy.
+- Use the `commands.responses.{enabled,paused,unpaused,disabled}` keys; a pause and an unpause draw the panel again (its title says "(Pausado)" and its button **Despausar**) and send their message beside it on a note that removes itself; never invent new state-change copy.
 
 ## 1.5 Vocabulary
 
@@ -224,7 +225,7 @@ errors:
 Render via `response_error_embed("{command-key}.errors.{error_name}", locale)`, or `response_error_embed("{error_name}", locale)` for a shared error of `app/languages/errors.yml`; it auto-prefixes `🚨`. A form names it by the block: `error: {command-key}.errors.{error_name}`.
 
 ### 3.4 Success / state-change embed
-Use existing `commands.responses.{enabled,paused,unpaused,disabled}`. Do not invent new state keys; only fill in `$command_name`, `$user`, `$date`.
+Use existing `commands.responses.{enabled,paused,unpaused,disabled}`. Do not invent new state keys; only fill in `$command_name`, `$user`, `$date` (`$date` is a Discord timestamp, each reader's own date and time). A pause and an unpause draw the panel again and send their embed beside it, removed after `ViewConstants.ACTION_NOTICE_SECONDS`.
 
 ### 3.5 Modal (YAML form step)
 ```yaml
@@ -298,7 +299,7 @@ The summary reads the intro's title, and the summary sentence (`fallbacks.review
 
 **Variables**
 18. USE `{user}`, `{server}`, `{member_count}`, `{streamer}`, `{stream_link}`, `{youtuber}`, `{video_link}`, `{date}` for the templates an admin writes (welcome, notification, birthday messages), and only the ones the command's code fills; a Keiko text may show them as examples beside its own tokens.
-19. USE a token of the one syntax for every value Keiko fills: `$user`, `$command_name`, `$date`, `$feature_key`, `$ping`, `$action`, `$roles` for a fact the code passes, each declared (the command's `facts:` or `app/core/global.yml`) and read whole (`${prefix}ping` glues text after one); `${answer.<key>|<fallback>}` for an earlier answer, `${plural.<key>|<one>|<many>}`, `${ref.<name>}` for a shared text, `$$` for a dollar; a line that points to another command writes its context entry (`${context.commands.setup}` reads `/setup` or `/configurar`).
+19. USE a token of the one syntax for every value Keiko fills: `$user`, `$command_name`, `$date`, `$feature`, `$ping`, `$roles` for a fact the code passes, each declared (the command's `facts:` or `app/core/global.yml`) and read whole (`${prefix}ping` glues text after one); `${answer.<key>|<fallback>}` for an earlier answer, `${plural.<key>|<one>|<many>}`, `${ref.<name>}` for a shared text, `$$` for a dollar; a line that points to another command writes its context entry (`${context.commands.setup}` reads `/setup` or `/configurar`).
 20. NEVER write a value Keiko fills as `{name}`: the loader refuses it in copy, and braces stay for the templates an admin writes (and Keiko's own defaults of them, `announcement.defaults` and a card's `defaults`, which write no `$` token a later pass would fill).
 
 **Localization**
@@ -314,7 +315,7 @@ The summary reads the intro's title, and the summary sentence (`fallbacks.review
 
 **Buttons**
 28. Confirm = `green`, Cancel = `red`, Back/selected/primary action = `primary`, everything else = `gray`/`grey`.
-29. REUSE generic labels from `app/languages/buttons.yml` (`confirm`, `cancel`, `edit`, `add`, `remove`, `back`, `select`, `choose`, `pause`, `unpause`, `preview`, `history`, `done`); only add a new key when the action is genuinely new.
+29. REUSE generic labels from `app/languages/buttons.yml` (`confirm`, `cancel`, `edit`, `add`, `remove`, `back`, `select`, `choose`, `pause`, `unpause`, `disable`, `delete_all`, `reopen`, `preview`, `history`, `done`); only add a new key when the action is genuinely new.
 
 **Modals**
 30. DEFAULT `max_length` = 40 unless YAML overrides; cap at 100 for free-text fields.
@@ -363,7 +364,7 @@ VOCABULARY: prefer cozy, warmly, lovingly, loyal, personalized, just call me, do
 
 LOCALIZATION: every new string lives in en-us AND pt-br, one node with both: in the command's copy.yml, or app/languages/ for shared copy. Never hardcode in Python — go through ml(key, locale).
 
-EMBEDS: default color 0x4F97F9 (Style.BACKGROUND_COLOR), error 0xff0000. Use `description` for short bodies, `add_field(inline=False)` for stacked records. Thumbnail = KeikoIcons.IMAGE_01.
+EMBEDS: default color 0x4F97F9 (Style.BACKGROUND_COLOR), error 0xff0000, warning 0xFEE75C (Style.WARNING_COLOR, a Response block's `tone: warning`). Use `description` for short bodies, `add_field(inline=False)` for stacked records. Thumbnail = KeikoIcons.IMAGE_01.
 
 BUTTONS: green=Confirm, red=Cancel, primary=Back/selected, gray=everything else. Reuse generic keys from app/languages/buttons.yml.
 

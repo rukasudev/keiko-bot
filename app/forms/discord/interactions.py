@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from app.constants import DiscordLimits
 from app.forms.form import events as ev
 from app.forms.form.manager import (
     ItemRemovalRequested,
@@ -34,11 +35,14 @@ class ComponentId:
 
 
 def encode(session_id: str, revision: int, action: str, arg: str | None = None) -> str:
-    """The custom_id of a component rendered at `revision`."""
+    """The custom_id of a component rendered at `revision`, within Discord's limit."""
     parts = [PREFIX, session_id, str(revision), action]
     if arg is not None:
         parts.append(arg)
-    return ":".join(parts)
+    custom_id = ":".join(parts)
+    if len(custom_id) > DiscordLimits.CUSTOM_ID:
+        raise ValueError(f"{custom_id} is longer than {DiscordLimits.CUSTOM_ID}")
+    return custom_id
 
 
 def decode(custom_id: str | None) -> ComponentId | None:
@@ -58,6 +62,9 @@ def is_ours(custom_id: str | None) -> bool:
 
 
 LIFECYCLE = ("pause", "unpause", "disable")
+REOPEN = "reopen"
+REOPEN_TEMPLATE = rf"{PREFIX}:[^:]+:\d+:{REOPEN}:[a-z0-9_]+"
+LATE_TEMPLATE = rf"{PREFIX}:[^:]+:\d+:(?!{REOPEN}(?::|$))[^:]+(?::.*)?"
 
 
 def event_id_of(interaction: Any) -> str:
@@ -103,7 +110,7 @@ def to_event(
         return CHOSEN[action](event_id, revision, _first(payload))
     if action == "targets":
         return ev.TargetsChosen(event_id, revision, _every(payload))
-    return _named(action, arg, payload, event_id, revision)
+    return _named(action, arg, event_id, revision)
 
 
 def _drafted(action: str, arg: str | None, payload: Any) -> dict[str, Any]:
@@ -130,14 +137,14 @@ def _on_one_item(
 
 
 def _named(
-    action: str, arg: str | None, payload: Any, event_id: str, revision: int | None
+    action: str, arg: str | None, event_id: str, revision: int | None
 ) -> ev.Event:
     if action == "edit":
         return ev.EditRequested(event_id, revision, arg)
     if action == "lifecycle":
         return Lifecycle(event_id, revision, arg or "")
-    if action == "word":
-        return LifecycleConfirmed(event_id, revision, arg or "", _typed(payload))
+    if action == "confirm_lifecycle":
+        return LifecycleConfirmed(event_id, revision, arg or "")
     name, _, target = (arg or action).partition(":")
     return ev.Aside(event_id, revision, name, target)
 
@@ -153,13 +160,6 @@ def _every(payload: Any) -> tuple[str, ...]:
     if isinstance(payload, (list, tuple)):
         return tuple(str(value) for value in payload)
     return (str(payload),) if payload else ()
-
-
-def _typed(payload: Any) -> str:
-    """The one text a modal reported."""
-    if isinstance(payload, dict):
-        return _first(payload.get("inputs"))
-    return str(payload or "")
 
 
 SIMPLE: dict[str, type[ev.Event]] = {

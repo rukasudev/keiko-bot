@@ -117,46 +117,113 @@
   },
   {
     "actor": "bot",
-    "kind": "modal",
-    "message": null,
-    "modal": {
-      "fields": [
-        {
-          "default": "",
-          "label": "Digite `pausar` para confirmar.",
-          "max_length": 6,
-          "required": true,
-          "style": "short"
-        }
-      ],
-      "title": "Tem certeza?"
-    },
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 🎮 Comandos do StreamElements (Pausado)",
+                "type": "text"
+              },
+              {
+                "content": "Respondo aos comandos do StreamElements deste streamer aqui no Discord.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "🎮 **Streamer:** shroud",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": "### 💡 Comandos carregados\nNão consegui falar com o StreamElements agora, mas busco a resposta assim que alguém usar um comando.",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Comandos",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Despausar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Desativar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Histórico",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Estatísticas",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Ajuda",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M1",
     "seq": 4
-  },
-  {
-    "actor": "user",
-    "fields": {
-      "confirmation": "Pausar"
-    },
-    "kind": "modal_submit",
-    "message": null,
-    "seq": 5
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 6,
-    "thinking": false
   },
   {
     "actor": "bot",
     "components": [],
     "components_v2": false,
+    "delete_after": 5,
     "embed": {
       "color": 5216249,
-      "description": "Comando **integrações comandos streamelements** pausado as 2026-01-01 12:00:00 UTC por <@555>\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "description": "Comando **integrações comandos streamelements** pausado em <t:1767268800:f> por <@555>\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
       "footer": null,
       "image": null,
@@ -166,12 +233,6 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 7
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M1",
-    "seq": 8
+    "seq": 5
   }
 ]

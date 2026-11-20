@@ -8,7 +8,10 @@ declared in the order they render, with Cancel last by construction.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, Union
+from typing import TYPE_CHECKING, Literal, Union
+
+if TYPE_CHECKING:
+    from app.forms.form.form_yaml import Extension
 
 Flavour = Literal["embed", "components_v2", "modal"]
 Style = Literal["primary", "secondary", "success", "danger"]
@@ -100,11 +103,12 @@ class TextInputs:
 
 @dataclass(frozen=True)
 class FileInput:
-    """A file input of a modal."""
+    """A file input of a modal, and the validator its file goes through first."""
 
     step_key: str
     label: str
     slot: str | None = None
+    check: Extension | None = None
 
 
 @dataclass(frozen=True)

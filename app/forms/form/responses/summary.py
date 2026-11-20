@@ -48,8 +48,8 @@ BOOKKEEPING = (
     "state",
 )
 EMOJI_PREFIX = re.compile(
-    r"^(?:[\U0001F000-\U0001FAFF\u2190-\u21FF\u2300-\u23FF\u25A0-\u27BF"
-    r"\u2B00-\u2BFF\uFE0F\u200D])+\s*"
+    r"^(?:(?:[\U0001F000-\U0001FAFF\u2190-\u21FF\u2300-\u23FF\u25A0-\u27BF"
+    r"\u2B00-\u2BFF\uFE0F\u200D])+\s*|:[a-z0-9_+-]+:\s+)"
 )
 
 
@@ -478,12 +478,14 @@ def _step_style(step: Step) -> str | None:
 def titled_items(
     composition: ListStep, items: Sequence[Any], locale: str
 ) -> list[dict[str, Any]]:
-    """Stored items with each entry titled, iconed and styled as the form declares."""
+    """Stored items with each entry titled, iconed and styled as the form declares,
+    an entry whose card section the item's own answers hide marked hidden."""
     titles: dict[str, str] = {}
     item_icons = icons(composition.steps)
     styles = {
         key: style for key, (_, style) in _nested(composition.steps, locale).items()
     }
+    gates = section_gates(composition.steps)
     for step in composition.steps:
         if isinstance(step, CardStep):
             titles.update(
@@ -495,6 +497,7 @@ def titled_items(
     rows = []
     for item in items:
         row: dict[str, Any] = {}
+        answered = Scope({key: unwrap(entry) for key, entry in dict(item).items()})
         for key, entry in dict(item).items():
             if key in BOOKKEEPING:
                 continue
@@ -511,6 +514,8 @@ def titled_items(
                     "title": titles.get(key) or key,
                     "icon": item_icons.get(key),
                 }
+            if key in gates and not evaluate(gates[key], answered):
+                row[key]["hidden"] = True
         rows.append(row)
     return rows
 
@@ -648,7 +653,7 @@ def placed(
 
 
 def without_leading_emoji(value: str) -> str:
-    """A saved option value without the emoji its button label carries."""
+    """A label or a title without its leading emoji, a character or a shortcode."""
     return EMOJI_PREFIX.sub("", value, count=1) or value
 
 
@@ -730,8 +735,10 @@ def list_remover(composition: ListStep, count: int, locale: str) -> tuple[Button
 
 
 def _title_value(composition: ListStep, count: int, locale: str) -> str:
+    if not count:
+        return empty_value(locale)
     if composition.counter is None:
-        return "" if count else empty_value(locale)
+        return ""
 
     limit = composition.items.max
     return filled(composition.counter.get(locale), {"count": count, "max": limit})
@@ -865,7 +872,8 @@ def row_value(row: PanelRow, locale: str) -> tuple[str, bool]:
             return empty, False
         return "\n".join(lines), True
     if isinstance(values, (list, tuple)) and style in ("bullet", "numbered", "code"):
-        return format_value(list(values), "bullet", locale).lstrip("\n"), True
+        listed = "code" if style == "code" else "bullet"
+        return format_value(list(values), listed, locale).lstrip("\n"), True
     if isinstance(values, (list, tuple)) and style == "code-block":
         return format_value(list(values), style, locale).lstrip("\n"), True
     formatted = str(format_value(values, style, locale) or empty)

@@ -17,7 +17,7 @@ import pytest
 from app.core.utils import ml
 from app.forms.discord.callbacks import RUNTIME
 from app.forms.discord.interactions import decode, encode, is_ours
-from app.forms.discord.views import modal_of
+from app.forms.discord.views import ReopenButton, modal_of
 from app.forms.form.components import FileInput, Input, Screen, TextInputs
 from app.forms.form.form_state import Status
 from tests.behavioral.contracts.test_components_v2_limits import _assert_within_limits
@@ -85,6 +85,27 @@ def _notices(scenario, key):
 
 
 # ---------------------------------------------------------------------- codec
+
+
+def test_a_custom_id_stays_within_discords_limit():
+    """Discord refuses a whole message whose component has a custom id over 100
+    characters: `encode` refuses one, so no suite can draw it, and the longest
+    feature with the longest action and argument the forms draw, at a three-digit
+    revision, still fits."""
+    from app.constants import DiscordLimits
+    from app.forms.features import feature_keys
+
+    longest = max(feature_keys(), key=len)
+    session_id = f"{longest}-{'f' * 16}"
+    for action, arg in (
+        ("edit", "default_roles_config/default_roles_bot"),
+        ("aside", "preview:notifications$0"),
+        ("reopen", longest),
+    ):
+        assert len(encode(session_id, 999, action, arg)) <= DiscordLimits.CUSTOM_ID
+
+    with pytest.raises(ValueError):
+        encode(session_id, 1, "x" * DiscordLimits.CUSTOM_ID)
 
 
 def test_the_codec_round_trips_and_rejects_foreign_ids():
@@ -237,11 +258,16 @@ async def test_two_concurrent_clicks_are_serialized(v2):
 # --------------------------------------------------------------------- expiry
 
 
+def _only_reopen(message, feature):
+    [button] = message.view.children
+    assert isinstance(button, ReopenButton) and button.feature == feature
+
+
 async def test_expiry_takes_the_buttons_off_an_embed_screen(v2):
     scenario = await v2().start_command("default_roles")
     await scenario.expire()
     message = scenario.current_message
-    assert message.view is None
+    _only_reopen(message, "default_roles")
     expired = ml("texts.notices.expired", locale="pt-br")
     assert expired in message.embeds[0].description
     assert _session_of(scenario) is None or True
@@ -255,6 +281,7 @@ async def test_expiry_takes_the_buttons_off_a_card(v2):
     await scenario.expire()
     items = list(locators.walk_items(scenario.current_message.view))
     assert not any(isinstance(item, discord.ui.Button) for item in items)
+    assert [type(item) for item in items].count(ReopenButton) == 1
     texts = [i.content for i in items if isinstance(i, discord.ui.TextDisplay)]
     assert ml("texts.notices.expired", locale="pt-br") in texts
 
@@ -264,16 +291,16 @@ async def test_a_click_after_expiry_finalizes_the_message_again(v2):
     message, button = _button(scenario, "continue")
     await scenario.expire()
     await button.callback(scenario._mint(message=message, custom_id=button.custom_id))
-    assert scenario.current_message.view is None
-    assert _session_of(scenario) is None
+    _only_reopen(scenario.current_message, "default_roles")
+    assert _session_of(scenario).is_closed
 
 
-async def test_a_click_on_a_forgotten_session_closes_the_message(v2):
+async def test_a_click_on_a_forgotten_session_draws_the_expired_message(v2):
     scenario = await v2().start_command("default_roles")
     message, button = _button(scenario, "continue")
     RUNTIME.reset()
     await button.callback(scenario._mint(message=message, custom_id=button.custom_id))
-    assert message.view is None
+    _only_reopen(message, "default_roles")
     assert ml("texts.notices.expired", locale="pt-br") in message.embeds[0].description
 
 
@@ -404,6 +431,60 @@ def test_a_file_input_modal_wraps_the_upload_in_a_label():
     (label,) = modal.children
     assert isinstance(label, discord.ui.Label)
     assert isinstance(label.component, discord.ui.FileUpload)
+
+
+async def test_an_upload_is_checked_with_the_params_its_declaration_gives(
+    monkeypatch,
+):
+    """The adapter ran an upload's validator by its name alone, so a validator with
+    params saw none there while the engine saw them: a file the adapter misjudged was
+    re-uploaded, or dropped with no message (review of PR8)."""
+    from app.forms.discord import views
+    from app.forms.form.actions import configuration_card
+    from app.forms.form.form_yaml import FileUploadSection
+    from app.forms.form.responses.validations import VALIDATORS, Validator
+
+    seen, uploads = [], []
+
+    def at_most(_value, context):
+        seen.append(dict(context.params))
+        limit = int(context.params.get("bytes", 10**9))
+        return "image_not_accepted" if context.upload.size > limit else None
+
+    async def upload(attachment):
+        uploads.append(attachment)
+        return "https://cdn.test/kept.png"
+
+    monkeypatch.setitem(
+        VALIDATORS, "at_most", Validator("at_most", ("upload",), at_most, ("bytes",))
+    )
+    monkeypatch.setattr(views, "upload_attachment", upload)
+    named = {"en-us": "Image", "pt-br": "Imagem"}
+    section = FileUploadSection.model_validate(
+        {
+            "type": "file_upload",
+            "key": "image",
+            "emoji": "🖼️",
+            "label": named,
+            "keys": {"image": "image"},
+            "modal": {"title": named},
+            "validation": {"name": "at_most", "params": {"bytes": "100"}},
+        }
+    )
+    screen, _ = configuration_card._image_modal(
+        section, SimpleNamespace(key="card"), 0, {}, SimpleNamespace(locale="pt-br")
+    )
+    modal = modal_of(
+        screen, lambda action, arg=None: f"k:s:1:{action}", None, "modal", "s"
+    )
+    modal.file_upload._values = [
+        SimpleNamespace(size=500, width=10, height=10, content_type="image/png")
+    ]
+
+    reported = await modal._uploaded()
+
+    assert seen == [{"bytes": "100"}]
+    assert reported["url"] is None and uploads == [], "a refused file stays put"
 
 
 def test_a_text_modal_carries_only_text_inputs():
@@ -651,17 +732,30 @@ async def test_a_card_never_waits_longer_than_the_preview_budget(v2, monkeypatch
 # ------------------------------------------------------------------ lifecycle
 
 
-async def test_pausing_from_a_card_panel_replaces_it_with_the_paused_message(v2, deps):
-    """Broke as: followup.send(view=None) raised TypeError once the pause saved."""
+async def test_deleting_from_a_card_panel_replaces_it_with_the_final_message(v2, deps):
+    """Broke as: followup.send(view=None) raised TypeError once a lifecycle change
+    saved and its final embed replaced the panel's card."""
     seed_document(deps, "welcome_messages", WELCOME_ENABLED)
     scenario = await v2().start_command("welcome_messages")
     assert scenario.current_message.flags.components_v2
 
-    await scenario.click("pause")
-    await scenario.submit_confirmation()
+    await scenario.click("disable")
+    await scenario.click("delete_all")
 
     assert not scenario.current_message.flags.components_v2
     assert scenario.current_message.embeds
+
+
+async def test_pausing_from_a_card_panel_draws_the_card_again(v2, deps):
+    seed_document(deps, "welcome_messages", WELCOME_ENABLED)
+    scenario = await v2().start_command("welcome_messages")
+    panel = scenario.current_message
+
+    await scenario.click("pause")
+
+    assert scenario.current_message is panel
+    assert panel.flags.components_v2
+    scenario.expect_component(label_or_action="unpause")
 
 
 async def test_a_finalize_that_fails_inside_a_commit_is_reported_once(
@@ -676,13 +770,13 @@ async def test_a_finalize_that_fails_inside_a_commit_is_reported_once(
 
     seed_document(deps, "welcome_messages", WELCOME_ENABLED)
     scenario = await v2().start_command("welcome_messages")
-    await scenario.click("pause")
+    await scenario.click("disable")
     monkeypatch.setattr(Executor, "_replace", broken)
 
     raised = False
     with caplog.at_level(logging.ERROR):
         try:
-            await scenario.submit_confirmation()
+            await scenario.click("delete_all")
         except RuntimeError:
             raised = True
 

@@ -121,16 +121,55 @@ def test_an_edit_lists_the_fields_that_changed_and_no_values(published):
     start()
     journey.record(event("config.changed", changed_keys=["mode", "answer"]))
 
-    line = published[-1]["lines"][-1]
+    line = lines_now()[-1]
     assert "`mode`" in line and "`answer`" in line
-    assert published[-1]["result"] == "edited"
+    assert journey.get(SESSION).last_action == "edited"
 
 
 def test_an_edit_without_key_names_still_says_how_many_changed(published):
     start()
     journey.record(event("config.changed", changed_count=3))
 
-    assert "3 field(s)" in published[-1]["lines"][-1]  # config.changed is terminal
+    assert "3 field(s)" in lines_now()[-1]
+
+
+@pytest.mark.parametrize("event_name,action", [
+    ("config.changed", "edited"),
+    ("feature.paused", "paused"),
+    ("feature.unpaused", "resumed"),
+])
+def test_a_panel_change_is_a_step_named_by_its_action(published, event_name, action):
+    """The panel stays open after an edit, a pause and a resume, so each is a step
+    of its story, which the panel closes when it ends, named by its last action."""
+    start()
+    journey.record(event(event_name))
+
+    story = journey.get(SESSION)
+    assert story is not None and story.finished_at is None
+    assert story.result == "in progress"
+    assert story.last_action == action
+
+
+def test_a_rebuilt_panel_that_expired_after_a_pause_reads_as_paused(deps):
+    from datetime import datetime, timedelta, timezone
+
+    analytics.reset()
+    journey.install()
+    start()
+    record_event(
+        "feature.manager_opened", guild_id="1", user_id="9", feature="block_links",
+        source="slash", session_id=SESSION, enabled=True,
+    )
+    record_event(
+        "feature.paused", guild_id="1", user_id="9", feature="block_links",
+        source="slash", session_id=SESSION,
+    )
+    wait(analytics.flush())
+    journey.clear()
+
+    age_events(deps.mongo_client, datetime.now(timezone.utc) - timedelta(hours=3))
+
+    assert wait(journey.rebuild(SESSION)).result == "paused"
 
 
 @pytest.mark.parametrize("event_name,outcome", [
@@ -138,7 +177,6 @@ def test_an_edit_without_key_names_still_says_how_many_changed(published):
     ("setup.discarded", "discarded"),
     ("setup.abandoned", "abandoned"),
     ("feature.disabled", "disabled"),
-    ("feature.paused", "paused"),
     ("feature.commit_failed", "failure"),
 ])
 def test_each_terminal_event_closes_the_story_with_its_own_outcome(

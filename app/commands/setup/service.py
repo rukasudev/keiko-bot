@@ -20,12 +20,11 @@ from app.core.commands import (
     ParentGroup,
     command_for,
     opener,
-    setup_feature,
     setup_features,
 )
 from app.core.facts import Facts, facts
 from app.core.feature_health import feature_problems
-from app.core.manager import parse_history_data
+from app.core.manager import change_label, parse_history_data
 from app.core.servers import (
     interaction_language,
     save_server_setting,
@@ -65,12 +64,6 @@ def command_facts(**values: Any) -> Facts:
     return facts("setup", **values)
 
 
-def feature_label(spec: Command, locale: str) -> str:
-    """A feature's emoji and name, as the /setup card shows it."""
-    name = command_text(spec, "command.setup.label", locale)
-    return f"{spec.emoji} {name}"
-
-
 async def guild_history(guild_id: str) -> List[Dict[str, Any]]:
     """The server's changes, every feature's and its settings', newest first."""
     return await find_changes(guild_id)
@@ -79,16 +72,10 @@ async def guild_history(guild_id: str) -> List[Dict[str, Any]]:
 def history_fields(
     records: List[Dict[str, Any]], interaction: discord.Interaction, locale: str
 ) -> Dict[str, str]:
-    """The records as history fields, every line led by the feature it happened in."""
-
-    def label_for(cog_key: str) -> str:
-        if cog_key == Commands.SERVER_SETTINGS_KEY:
-            settings: str = ml("setup.ui.cards.dashboard.rows.settings.title", locale)
-            return settings
-        spec = setup_feature(cog_key)
-        return f"**{feature_label(spec, locale)}**" if spec else f"`{cog_key}`"
-
-    return parse_history_data(records, interaction, label_for=label_for)
+    """The records as history fields, each named by the feature it happened in."""
+    return parse_history_data(
+        records, interaction, label_for=lambda key: change_label(key, locale)
+    )
 
 
 async def send_history(interaction: discord.Interaction) -> None:
@@ -123,7 +110,7 @@ async def permission_report(
         views = await saved_settings(spec.key, guild_id, user_id, locale, guild)
         problems = feature_problems(spec, views, guild, locale)
         embed.add_field(
-            name=feature_label(spec, locale),
+            name=f"{spec.emoji} {change_label(spec.key, locale)}",
             value="\n".join(problems)
             or ml("setup.ui.responses.permissions.lines.ok", locale),
             inline=False,

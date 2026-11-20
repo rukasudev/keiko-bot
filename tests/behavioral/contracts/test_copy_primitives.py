@@ -59,6 +59,16 @@ def test_a_shared_response_draws_its_copy_and_no_line_where_its_footer_is_null(
     assert embed.thumbnail.url is None
 
 
+def test_a_response_draws_the_colour_of_its_tone():
+    """A block draws Keiko's blue unless it declares `tone: warning`, the yellow of
+    a message that tells the admin Keiko changed what they did."""
+    warning = response_embed("commands.responses.mention_removed", "pt-br")
+    default = response_embed("commands.responses.admin_only", "pt-br")
+
+    assert warning.colour.value == int(Style.WARNING_COLOR, 16) == 0xFEE75C
+    assert default.colour.value == int(Style.BACKGROUND_COLOR, 16)
+
+
 @pytest.mark.parametrize(
     "locale,title,message",
     [("en-us", "✅ Saved", "I saved"), ("pt-br", "✅ Salvo", "Salvei")],
@@ -240,7 +250,7 @@ def test_the_plain_error_reads_the_message_of_the_block_it_names(sample):
 def test_the_plain_error_fills_a_shared_block_by_its_name():
     found = error_message("required_fields", {"fields": "**A**"}, "pt-br")
 
-    assert found == "Ainda preciso que você configure: **A**."
+    assert found == "Ops! Ainda preciso que você configure **A** antes de seguir."
 
 
 def test_fill_refuses_a_value_the_line_names_in_braces():

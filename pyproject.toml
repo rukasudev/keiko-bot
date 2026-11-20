@@ -38,6 +38,7 @@ files = [
     "app/core/i18n.py",
     "app/core/copy_schema.py",
     "app/core/groups.py",
+    "app/core/mentions.py",
     "app/migrations/__init__.py",
     "app/migrations/__main__.py",
     "app/migrations/helpers.py",

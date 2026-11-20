@@ -70,7 +70,7 @@ def _card_lookup(
 
 def _normalized(declared: Extension | None, value: str) -> str:
     normalize = normalizer(declared.name if declared else None)
-    return normalize(value) if normalize else value
+    return normalize.apply(value) if normalize else value
 
 
 def _lookup(

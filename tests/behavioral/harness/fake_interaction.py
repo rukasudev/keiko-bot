@@ -17,6 +17,7 @@ import discord
 
 from tests.behavioral.harness.errors import HarnessProtocolError
 from tests.behavioral.harness.message_store import (
+    FIXED_MESSAGE_TIME,
     MISSING,
     FakeMessage,
     MessageStore,
@@ -167,6 +168,8 @@ class FakeInteraction:
         self.message = message
         self.data = data or {}
         self.latency = latency
+        # When Discord created the click: the snowflake time of a real interaction.
+        self.created_at = FIXED_MESSAGE_TIME
         self.client = SimpleNamespace(app_commands=[], user=BOT_USER)
         self.response = FakeResponse(self)
         self.followup = FakeFollowup(self)

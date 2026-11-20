@@ -39,6 +39,7 @@ from app.forms.form.components import (
 from app.forms.form.copy import block_texts, text
 from app.forms.form.effects import (
     Ack,
+    Announce,
     Commit,
     Confirm,
     Dismiss,
@@ -75,6 +76,7 @@ from app.forms.form.form_yaml import (
     FormDefinition,
     ListStep,
     Step,
+    TextStep,
     listed_on_cards,
     produced_keys,
 )
@@ -740,6 +742,24 @@ def removal_screen(locale: str, names: Sequence[str], warning: str = "") -> Scre
     )
 
 
+def delete_screen(locale: str, command: str, state: str) -> Screen:
+    """Disable the feature and delete its settings, or go back, naming what is lost."""
+    copy = block_texts(
+        "commands.responses.delete",
+        facts(GLOBAL, command_name=command, feature_state=state),
+        locale,
+    )
+    return Screen(
+        title=copy["title"],
+        description=copy["description"],
+        color=Style.RED_COLOR,
+        buttons=(
+            Button(label("delete_all", locale), "confirm_lifecycle:disable", "danger"),
+            Button(label("back", locale), "picker_back"),
+        ),
+    )
+
+
 def discard_screen(locale: str) -> Screen:
     """Keep or discard, on a message of its own."""
     return Screen(
@@ -1170,6 +1190,8 @@ def _on_answered(form: Form) -> None:
         "setup.step_completed", step_key=step.key, step_action=_recorded_action(step)
     )
     form.advance(form.index(step.key))
+    if isinstance(step, TextStep):
+        form.effects.extend(Announce(kind) for kind in modal.told(step, event.payload))
 
 
 def _on_aside(form: Form) -> None:
@@ -1293,6 +1315,8 @@ def _on_section_changed(form: Form) -> None:
     answer = configuration_card.draft(step, changes, form.session, form.step_context())
     form.session = form.session.with_answer(step.key, answer).with_status(Status.ACTIVE)
     _redraw_or_finish(form, step)
+    told = configuration_card.told(step, index, event.payload)
+    form.effects.extend(Announce(kind) for kind in told)
 
 
 def _on_section_reset(form: Form) -> None:

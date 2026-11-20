@@ -45,7 +45,7 @@
             "type": "section"
           },
           {
-            "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• {streamer} está ao vivo! {stream_link}```\n📣 **Mencionar:** @everyone",
             "type": "text"
           },
           {
@@ -72,7 +72,7 @@
             "type": "actionrow"
           },
           {
-            "content": "### Notificações #2\n📺 **Canal de Texto:** <#102>\n🎮 **Streamer:** cellbit\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "content": "### Notificações #2\n📺 **Canal de Texto:** <#102>\n🎮 **Streamer:** cellbit\n💬 **Mensagens de Notificação:** ```• {streamer} está ao vivo! {stream_link}```\n📣 **Mencionar:** @everyone",
             "type": "text"
           },
           {
@@ -223,13 +223,13 @@
       "fields": [
         {
           "inline": false,
-          "name": "2026-01-01 10:30:00 UTC",
-          "value": "📝 Editado por <@555>"
+          "name": "1. 📝 Editado",
+          "value": "<@555> · <t:1767263400:f>"
         },
         {
           "inline": false,
-          "name": "2026-01-01 09:30:00 UTC",
-          "value": "✅ Ativado por <@555>"
+          "name": "2. ✅ Ativado",
+          "value": "<@555> · <t:1767259800:f>"
         }
       ],
       "footer": "• Página 1 / 1",

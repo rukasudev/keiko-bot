@@ -444,7 +444,7 @@ async def test_a_paused_feature_offers_no_despausar_on_its_category_page(
         item.label for item in locators.clickable_items(message)
         if isinstance(item, discord.ui.Button)
     ]
-    assert "Despausar" not in labels
+    assert ml("buttons.unpause.label", "pt-br") not in labels
     assert _beside(message, _feature_name("block_links")).label == "Gerenciar"
 
 

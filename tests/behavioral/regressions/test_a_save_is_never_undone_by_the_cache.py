@@ -415,7 +415,7 @@ async def test_an_addition_after_another_panel_disabled_the_feature_subscribes_n
     first, second = await _two_twitch_panels(scenario_factory, deps)
 
     await first.click("disable")
-    await first.submit_confirmation()
+    await first.click("delete_all")
     await _add_streamer(second, "shroud")
 
     assert await _saved(deps, twitch.FORM) is None
@@ -510,7 +510,7 @@ async def test_two_websites_turned_on_from_two_panels_both_stay_on(
 
     saved = (await _saved(deps, block_links.FORM))["allowed_links"]
     assert saved == {
-        "style": "bullet",
+        "style": "code",
         "values": ["youtube.com", "twitch.tv", "spotify.com", "twitter.com"],
     }
 
@@ -567,9 +567,8 @@ async def test_a_pause_after_another_panel_disabled_the_feature_changes_nothing(
     first, second = await _two_panels(scenario_factory, block_links.FORM)
 
     await first.click("disable")
-    await first.submit_confirmation()
+    await first.click("delete_all")
     await second.click(action)
-    await second.submit_confirmation()
 
     assert await _saved(deps, block_links.FORM) is None
     assert _recorded(deps, block_links.FORM) == ["disabled"]
@@ -585,7 +584,7 @@ async def test_an_edit_after_another_panel_disabled_the_feature_changes_nothing(
     first, second = await _two_panels(scenario_factory, block_links.FORM)
 
     await first.click("disable")
-    await first.submit_confirmation()
+    await first.click("delete_all")
     await second.click("section:link_settings")
     await second.click("customize:1")
     await second.submit_modal({ANSWER_FIELD: "No links around here!"})
@@ -659,7 +658,7 @@ async def test_disable_lets_every_streamer_go_even_when_the_flag_write_fails(
 
     monkeypatch.setattr(feature_module, "set_feature_enabled", flag_write_fails)
     await scenario.click("disable")
-    await scenario.submit_confirmation()
+    await scenario.click("delete_all")
 
     assert await _saved(deps, twitch.FORM) is None
     assert _subscribed_streamers(deps) == set()
@@ -674,7 +673,6 @@ async def test_unpausing_subscribes_every_saved_streamer_again(scenario_factory,
     scenario = await scenario_factory(locale=LOCALE).start_command(twitch.FORM)
 
     await scenario.click("unpause")
-    await scenario.submit_confirmation()
 
     assert (await _saved(deps, twitch.FORM))["enabled"] is True
     assert _subscribed_streamers(deps) == {"gaules", "cellbit"}
@@ -688,7 +686,6 @@ async def test_unpausing_subscribes_every_saved_youtuber_again(scenario_factory,
     scenario = await scenario_factory(locale=LOCALE).start_command(youtube.FORM)
 
     await scenario.click("unpause")
-    await scenario.submit_confirmation()
 
     assert (await _saved(deps, youtube.FORM))["enabled"] is True
     assert deps.youtube.subscribe_calls == ["UC-lHJZR3Gqxm24_Vd_AJ5Yw"]
@@ -724,7 +721,9 @@ async def test_an_item_change_keeps_the_shape_the_previous_release_reads(
 ):
     """v0.9.0 reads `{style, values}` and items of `{value, title, style, hidden,
     _raw_value}` entries, and rebuilds the whole list on its own saves: a change
-    may add no key it does not know, at any level, or a rollback would lose it."""
+    may add no key it does not know, at any level, or a rollback would lose it.
+    The one addition is the notice's mention (PR8, data/0008): a rollback that
+    saves the list drops it, so that rollback restores the dump taken before."""
     first, second = await _two_twitch_panels(scenario_factory, deps)
     seeded = set(await _saved(deps, twitch.FORM))
 
@@ -740,7 +739,7 @@ async def test_an_item_change_keeps_the_shape_the_previous_release_reads(
     assert set(document["notifications"]) == {"style", "values"}
     assert document["notifications"]["style"] == "composition"
     assert [set(item) for item in document["notifications"]["values"]] == [
-        {"channel", "streamer", "notification_messages"}
+        {"channel", "streamer", "notification_messages", "mention", "mention_roles"}
     ] * 2
     assert all(
         set(entry) <= ENTRY_KEYS

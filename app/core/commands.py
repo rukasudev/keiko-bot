@@ -432,6 +432,14 @@ YAML_TYPES: tuple[YamlType, ...] = (
 )
 
 
+SHARED_COPY: tuple[str, ...] = tuple(
+    Path(kind.files).stem
+    for kind in YAML_TYPES
+    if Path(kind.files).parent == Path("app/languages")
+)
+"""The stems the shared copy files of `app/languages/` load their keys under."""
+
+
 def yaml_type(name: str) -> YamlType:
     """The YAML type registered under `name`."""
     found = next((kind for kind in YAML_TYPES if kind.name == name), None)
@@ -550,6 +558,11 @@ def _placed(listed: Iterable[Command]) -> None:
             raise ValueError(
                 f"no command is keyed {GLOBAL!r}: it is the owner of the facts and "
                 "the context of app/core/global.yml"
+            )
+        if command.key in SHARED_COPY:
+            raise ValueError(
+                f"no command is keyed {command.key!r}: app/languages/{command.key}.yml "
+                "loads the shared copy under that prefix"
             )
         for name, value in (("group", command.group), ("category", command.category)):
             if value and value not in PARENT_GROUPS:

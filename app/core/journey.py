@@ -128,18 +128,18 @@ TERMINAL_OUTCOMES = {
     "setup.completed": "saved",
     "setup.discarded": "discarded",
     "setup.abandoned": "abandoned",
-    "config.changed": "edited",
     "feature.disabled": "disabled",
-    "feature.paused": "paused",
-    "feature.unpaused": "resumed",
 }
 
-# Steps, not endings: a manager exists to add more than one. They name the last
+# Steps, not endings: a panel stays open after each of them. They name the last
 # action so the log embed can be titled by it, without closing the session.
 ACTIONS = {
     "feature.item_added": "added",
     "feature.item_removed": "removed",
     "feature.enabled": "enabled",
+    "config.changed": "edited",
+    "feature.paused": "paused",
+    "feature.unpaused": "resumed",
 }
 
 
@@ -269,13 +269,13 @@ def record(envelope: Dict[str, Any]) -> None:
     failed = envelope["type"] in FAILURE_EVENTS
     level = logging.ERROR if failed else logging.INFO
     outcome = TERMINAL_OUTCOMES.get(envelope["type"])
-    if outcome in CONDENSED_OUTCOMES:
+    action = ACTIONS.get(envelope["type"])
+    if outcome in CONDENSED_OUTCOMES or action in CONDENSED_OUTCOMES:
         _condense(journey)
     journey.add(
         line, level, timestamp=envelope.get("ts"), kind=LINE_KINDS.get(envelope["type"])
     )
 
-    action = ACTIONS.get(envelope["type"])
     if action:
         journey.last_action = action
 
@@ -289,6 +289,14 @@ def record(envelope: Dict[str, Any]) -> None:
     # covers anyone who wants the middle of the story before it is over.
     if failed:
         _publish(journey)
+
+
+def acted(session_id: str, event_type: str) -> None:
+    """The story names the change its session saved as its last action, events on or off."""
+    story = _JOURNEYS.get(session_id)
+    action = ACTIONS.get(event_type)
+    if story is not None and action:
+        story.last_action = action
 
 
 def finalize(session_id: str, outcome: str) -> Optional[Trace]:
@@ -349,11 +357,12 @@ async def rebuild(session_id: str) -> Optional[Trace]:
                 (line, level, envelope.get("ts"), LINE_KINDS.get(envelope["type"]))
             )
         outcome = TERMINAL_OUTCOMES.get(envelope["type"], outcome)
+        story.last_action = ACTIONS.get(envelope["type"], story.last_action)
 
     for line, level, timestamp, kind in entries:
         story.add(line, level, timestamp=timestamp, kind=kind)
 
-    if outcome in CONDENSED_OUTCOMES:
+    if outcome in CONDENSED_OUTCOMES or story.last_action in CONDENSED_OUTCOMES:
         _condense(story)
 
     live = _JOURNEYS.get(session_id)
@@ -367,6 +376,8 @@ async def rebuild(session_id: str) -> Optional[Trace]:
         story.result = outcome
     else:
         story.result = _open_or_expired(events[-1].get("ts"))
+        if story.result == "abandoned" and story.last_action:
+            story.result = story.last_action
 
     return story
 

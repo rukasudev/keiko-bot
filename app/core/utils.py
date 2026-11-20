@@ -62,6 +62,13 @@ def format_relative_time(dt: datetime.datetime) -> str:
     return f"{years} year{'s' if years != 1 else ''} ago"
 
 
+def discord_time(moment: datetime.datetime) -> str:
+    """`<t:unix:f>`: a moment in each reader's own date and time, a naive one as UTC."""
+    if moment.tzinfo is None:
+        moment = moment.replace(tzinfo=datetime.timezone.utc)
+    return discord.utils.format_dt(moment, "f")
+
+
 def format_discord_timestamp(created_at: Any) -> str:
     """`<t:unix:R>`: a relative time localized by each reader's client."""
     if not hasattr(created_at, "timestamp"):
@@ -347,7 +354,7 @@ def parse_command_event_description(
     return fill(
         description,
         command_name=command_name,
-        date=event_date.strftime("%Y-%m-%d %H:%M:%S") + " UTC",
+        date=discord_time(event_date),
         user=interaction.user.mention,
     )
 

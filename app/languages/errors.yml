@@ -12,8 +12,8 @@ command_required_interaction:
     en-us: Interaction Required
     pt-br: Interação Necessária
   message:
-    en-us: Please select any option to proceed! :)
-    pt-br: Por favor, selecione qualquer opção para prosseguir! :)
+    en-us: Oops! Pick one of the options first, then try again!
+    pt-br: Ops! Escolha uma das opções primeiro e tente de novo!
 
 streamer_not_found:
   title:
@@ -28,8 +28,8 @@ streamer_already_registered:
     en-us: Streamer Already Registered
     pt-br: Streamer Já Registrado
   message:
-    en-us: The notification of this streamer's lives is already set up on this server. Please select another streamer and try again.
-    pt-br: A notificação das lives desse streamer já está configurada nesse servidor. Por favor, selecione outro streamer e tente novamente.
+    en-us: I'm sorry, but this streamer's live notifications are already set up on this server. Pick another streamer and try again!
+    pt-br: Sinto muito, mas a notificação das lives desse streamer já está configurada neste servidor. Escolha outro streamer e tente de novo!
 
 item_already_registered:
   title:
@@ -44,8 +44,8 @@ member_not_found:
     en-us: Member Not Found
     pt-br: Membro Não Encontrado
   message:
-    en-us: Hmm, I don't have anything saved for that member yet. Pick someone already on the list.
-    pt-br: Hmm, eu ainda não tenho nada salvo para esse membro. Escolha alguém que já esteja na lista.
+    en-us: Oops! I don't have anything saved for that member yet. Pick someone who's already on the list!
+    pt-br: Ops! Ainda não tenho nada salvo para esse membro. Escolha alguém que já esteja na lista!
 
 selection_required:
   title:
@@ -68,8 +68,8 @@ required_fields:
     en-us: Fields Required
     pt-br: Campos Obrigatórios
   message:
-    en-us: "I still need you to configure: $fields."
-    pt-br: "Ainda preciso que você configure: $fields."
+    en-us: "Oops! I still need you to set up $fields before we move on."
+    pt-br: "Ops! Ainda preciso que você configure $fields antes de seguir."
 
 invalid_date:
   title:
@@ -86,3 +86,11 @@ link_not_recognized:
   message:
     en-us: Oops! I couldn't understand that link. Try something like `youtube.com` or `youtube.com/watch?v=abc123` and send it again!
     pt-br: Ops! Não consegui entender esse link. Tente algo como `youtube.com` ou `youtube.com/watch?v=abc123` e envie de novo!
+
+image_not_accepted:
+  title:
+    en-us: Image Not Accepted
+    pt-br: Imagem Não Aceita
+  message:
+    en-us: I'm sorry, but I can't use this file. Send a **PNG**, **JPG**, **GIF** or **WEBP** image of up to **10 MB** and at most **4096 x 4096 pixels**, then try again!
+    pt-br: Sinto muito, mas não consigo usar esse arquivo. Envie uma imagem **PNG**, **JPG**, **GIF** ou **WEBP** de até **10 MB** e no máximo **4096 x 4096 pixels**, e tente de novo!

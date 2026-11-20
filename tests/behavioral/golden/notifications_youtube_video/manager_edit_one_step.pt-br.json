@@ -45,7 +45,7 @@
             "type": "section"
           },
           {
-            "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎬 **Youtuber:** pewdiepie\n💬 **Mensagens de Notificação:** ```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎬 **Youtuber:** pewdiepie\n💬 **Mensagens de Notificação:** ```• {youtuber} acabou de postar um novo vídeo!```\n📣 **Mencionar:** @everyone",
             "type": "text"
           },
           {
@@ -189,7 +189,45 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "content": "📣 **Mencionar**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Ninguém",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Alguns cargos",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Escolher quem eu menciono",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• {youtuber} acabou de postar um novo vídeo!```",
             "type": "text"
           },
           {
@@ -310,7 +348,45 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "content": "📣 **Mencionar**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Ninguém",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Alguns cargos",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Escolher quem eu menciono",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• {youtuber} acabou de postar um novo vídeo!```",
             "type": "text"
           },
           {
@@ -449,7 +525,45 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "content": "📣 **Mencionar**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": true,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Ninguém",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Alguns cargos",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Escolher quem eu menciono",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• {youtuber} acabou de postar um novo vídeo!```",
             "type": "text"
           },
           {
@@ -554,7 +668,45 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! pewdiepie acabou de postar um novo vídeo!```",
+            "content": "📣 **Mencionar**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Ninguém",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Alguns cargos",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Escolher quem eu menciono",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• pewdiepie acabou de postar um novo vídeo!```",
             "type": "text"
           },
           {
@@ -610,7 +762,7 @@
     "kind": "click",
     "message": "M2",
     "seq": 14,
-    "target": "customize:2"
+    "target": "customize:4"
   },
   {
     "actor": "bot",
@@ -619,7 +771,7 @@
     "modal": {
       "fields": [
         {
-          "default": "@everyone! pewdiepie acabou de postar um novo vídeo!",
+          "default": "pewdiepie acabou de postar um novo vídeo!",
           "label": "Mensagem Aleatória #1",
           "max_length": 100,
           "required": true,
@@ -702,6 +854,44 @@
                 "label": "Escolher youtuber",
                 "style": "secondary",
                 "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "📣 **Mencionar**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Ninguém",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Alguns cargos",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Escolher quem eu menciono",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -803,7 +993,7 @@
             "type": "section"
           },
           {
-            "content": "### Notificações #1\n📺 **Canal de Texto:** <#102>\n🎬 **Youtuber:** pewdiepie\n💬 **Mensagens de Notificação:** ```• {youtuber} postou: {video_link}```",
+            "content": "### Notificações #1\n📺 **Canal de Texto:** <#102>\n🎬 **Youtuber:** pewdiepie\n📣 **Mencionar:** @everyone\n💬 **Mensagens de Notificação:** ```• {youtuber} postou: {video_link}```",
             "type": "text"
           },
           {

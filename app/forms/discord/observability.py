@@ -13,8 +13,10 @@ from app import logger
 from app.constants import LogTypes as logconstants
 from app.core import analytics, journey
 from app.core.analytics import bucket_duration
+from app.core.cogs import LIFECYCLE_ANALYTICS_EVENTS
 from app.core.trace import current_trace
 from app.exceptions import ErrorContext
+from app.forms.features.feature import EVENT_KEY
 from app.forms.form.effects import Finalize
 from app.forms.form.form import Decision
 from app.forms.form.form_state import FormSession
@@ -214,12 +216,7 @@ def error_context(session: FormSession, **extra: Any) -> ErrorContext:
 
 def completed_as(decision: Decision) -> str:
     """The outcome the final screen of a completed session names, else edited."""
-    endings = {
-        "enabled": "saved",
-        "paused": "paused",
-        "unpaused": "resumed",
-        "disabled": "disabled",
-    }
+    endings = {"enabled": "saved", "disabled": "disabled"}
     finals = [
         effect.kind for effect in decision.effects if isinstance(effect, Finalize)
     ]
@@ -232,6 +229,12 @@ def ended_as(session: FormSession, unsaved: str) -> str:
         return unsaved
     story = journey.get(story_id(session))
     return (story.last_action if story is not None else None) or "edited"
+
+
+def saved_change(session: FormSession, kind: str) -> None:
+    """The session's story names the change `kind` it saved as its last action."""
+    event = LIFECYCLE_ANALYTICS_EVENTS.get(EVENT_KEY.get(kind, ""), "")
+    journey.acted(story_id(session), event)
 
 
 def close_journey(session: FormSession, outcome: str) -> None:

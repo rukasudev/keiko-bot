@@ -1,7 +1,7 @@
 """Behavioral scenarios: a change saved from the manager panel returns to the panel.
 
-Adicionar, Editar (of an item or of a card) and Remover end on the panel drawn
-again over what is saved now, on the message the admin was using, instead of a
+Adicionar, Editar (of an item or of a card), Remover, Pausar and Despausar end on
+the panel drawn again over what is saved now, on the message the admin was using, instead of a
 closed embed with a final message (the copy no longer holds one for these
 changes). What the feature records about the change (its product events, the
 session's story) is the same as when the message closed.
@@ -22,7 +22,7 @@ pytestmark = pytest.mark.behavioral
 LOCALE = "pt-br"
 CLOSED_TITLES = [
     ml(f"commands.responses.{kind}.title", locale=LOCALE)
-    for kind in ("enabled", "paused", "unpaused", "disabled")
+    for kind in ("enabled", "disabled")
 ]
 
 
@@ -99,6 +99,29 @@ async def test_a_streamer_removed_from_the_panel_returns_to_the_updated_panel(
     assert _closed_embeds(scenario) == []
     scenario.expect_component(label_or_action="pause")
     assert "feature.item_removed" in _names(analytics_events)
+
+
+@pytest.mark.usefixtures("outside_dev")
+@pytest.mark.parametrize(
+    "seed, action, then", [
+        (twitch._seed, "pause", "unpause"), (twitch._seed_paused, "unpause", "pause"),
+    ],
+    ids=["pause", "resume"],
+)
+async def test_a_pause_or_resume_from_the_panel_returns_to_the_updated_panel(
+    scenario_factory, deps, analytics_events, seed, action, then
+):
+    scenario = await open_manager(scenario_factory, deps, LOCALE, twitch.FORM, seed)
+    panel = scenario.current_message
+
+    await scenario.click(action)
+
+    assert scenario.current_message is panel, "the panel stays on its message"
+    assert _last_screen(scenario)["message"] == scenario.store.alias(panel.id)
+    assert _closed_embeds(scenario) == []
+    scenario.expect_component(label_or_action=then)
+    event = "feature.paused" if action == "pause" else "feature.unpaused"
+    assert event in _names(analytics_events)
 
 
 @pytest.fixture

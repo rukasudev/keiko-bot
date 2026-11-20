@@ -529,6 +529,8 @@ def test_a_production_shaped_database_moves_to_the_new_collections(client, versi
     assert cogs["reminders_birthday"]["options"] == {
         "channel": "400",
         "mention_everyone": False,
+        "mention": "none",
+        "mention_roles": [],
         "notification_time": "09:00",
     }
 

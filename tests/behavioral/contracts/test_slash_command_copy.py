@@ -72,6 +72,17 @@ async def test_the_tree_carries_every_command_in_both_locales(payloads):
     assert payloads and len(localized) == len(payloads)
 
 
+async def test_a_members_birthday_is_added_only_from_the_panel(payloads):
+    """PR8 removed `/moderations birthdays add`: the panel's Add and `/birthday` are
+    the two ways a birthday is saved, so the group holds the panel's command alone."""
+    moderations = next(payload for payload in payloads if payload["name"] == "moderations")
+    birthdays = next(
+        group for group in moderations["options"] if group["name"] == "birthdays"
+    )
+
+    assert [command["name"] for command in birthdays["options"]] == ["reminders"]
+
+
 async def test_every_name_and_description_fits_discord_limits(payloads):
     violations = [
         (where, kind, text)

@@ -65,7 +65,12 @@ from app.forms.form.form_yaml import (
     owned_keys,
 )
 from app.forms.form.responses.responses import document_values
-from app.forms.form.responses.styles import empty_value, format_boolean, format_value
+from app.forms.form.responses.styles import (
+    empty_value,
+    format_boolean,
+    format_value,
+    stored_style,
+)
 from app.forms.form.responses.summary import (
     item_entries,
     item_name,
@@ -75,8 +80,13 @@ from app.forms.form.responses.summary import (
     option_label,
     step_title,
 )
-from app.forms.form.responses.transforms import normalizer, transform
-from app.forms.form.responses.validations import ValidationContext, validator
+from app.forms.form.responses.transforms import Transform, normalizer, transform
+from app.forms.form.responses.transforms import told as normalizer_notices
+from app.forms.form.responses.validations import (
+    ValidationContext,
+    uploaded,
+    validator,
+)
 
 EMPTY: tuple[Any, ...] = (None, "", [])
 
@@ -586,6 +596,14 @@ def apply_change(
     return change
 
 
+def told(card: CardStep, index: int, payload: Any) -> tuple[str, ...]:
+    """The responses a section's normalizers tell about what its modal typed."""
+    typed = payload.get("inputs") if isinstance(payload, Mapping) else None
+    declared = card.sections[index].normalizers()
+    names = [rule.name if rule else None for rule in declared]
+    return normalizer_notices(names, typed or ())
+
+
 def apply_drafts(
     card: CardStep,
     changes: Mapping[str, Any],
@@ -818,20 +836,31 @@ def _template_vars(
     context: Context,
     state: Mapping[str, Any],
 ) -> dict[str, str]:
+    rule = transform(card.transform.name) if card.transform else None
     resolved: dict[str, str] = {}
+
     for name, var in card.preview_tokens().items():
         if isinstance(var, PreviewContext):
             resolved[name] = context.server_name
             continue
-        key = var.answer
-        value = state.get(key) if key in state else session.raw(key)
+        value = _value_done_saves(var.answer, rule, state, session)
         if value is None:
             resolved[name] = ""
         elif var.format:
-            resolved[name] = str(format_value(value, var.format, context.locale))
+            style = stored_style(var.format)
+            resolved[name] = str(format_value(value, style, context.locale))
         else:
             resolved[name] = str(value)
     return resolved
+
+
+def _value_done_saves(
+    key: str, rule: Transform | None, state: Mapping[str, Any], session: FormSession
+) -> Any:
+    derived = rule.read(state) if rule is not None and key == rule.value_key else None
+    if derived is not None:
+        return derived
+    return state.get(key) if key in state else session.raw(key)
 
 
 def _section_default(section: TitleContentSection, locale: str) -> tuple[str, str]:
@@ -884,6 +913,11 @@ def _title_content_change(
 ) -> Changes:
     values = payload.get("inputs") if isinstance(payload, Mapping) else payload
     title, content = (list(values or []) + ["", ""])[:2]
+    declared = section.modal.normalize
+    normalize = normalizer(declared.name if declared else None)
+
+    if normalize is not None:
+        title, content = normalize.apply(str(title)), normalize.apply(str(content))
     return {
         section.keys.mode or "": "custom",
         section.keys.title or "": title,
@@ -928,6 +962,7 @@ def _image_modal(
         card.key,
         text("texts.file_upload", locale) or "Image",
         slot=section.key,
+        check=section.checked_by(),
     )
     return Screen(
         modal_title=_modal_title(section, locale),
@@ -942,15 +977,26 @@ def _image_change(
     state: Mapping[str, Any],
     session: FormSession,
     context: Context,
-) -> Changes:
-    url = payload.get("url") if isinstance(payload, Mapping) else payload
+) -> Changes | Refusal:
+    sent = payload if isinstance(payload, Mapping) else {"url": payload}
+    url = sent.get("url")
+    declared = section.checked_by()
+    check = validator(declared.name) if declared else None
+
+    if declared and check:
+        checked = ValidationContext(
+            params=declared.params, upload=uploaded(sent.get("upload"))
+        )
+        error = check.check(url, checked)
+        if error:
+            return Refusal(error)
     if not url:
         return {}
-    uploaded: dict[str, Any] = {section.keys.image or "": url}
+    kept: dict[str, Any] = {section.keys.image or "": url}
 
     if section.keys.mode:
-        uploaded[section.keys.mode] = "custom"
-    return uploaded
+        kept[section.keys.mode] = "custom"
+    return kept
 
 
 def _image_reset(section: FileUploadSection) -> Changes:
@@ -1420,7 +1466,7 @@ def _fields_change(
     for position, field in enumerate(fields):
         raw = str(typed[position]) if position < len(typed) else ""
         normalize = normalizer(field.normalize.name if field.normalize else None)
-        value = normalize(raw) if normalize else raw
+        value = normalize.apply(raw) if normalize else raw
 
         if field.key:
             changes[field.key] = value

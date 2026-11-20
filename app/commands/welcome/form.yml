@@ -150,8 +150,10 @@ steps:
             pt-br: Enviar imagem
         modal:
           title:
-            en-us: 📷 Upload Custom Image
-            pt-br: 📷 Enviar Imagem Personalizada
+            en-us: Upload Custom Image
+            pt-br: Enviar Imagem Personalizada
+        validation:
+          name: image
     # open: state keys of the card -> a value or a text
     defaults:
       welcome_design: server_blur

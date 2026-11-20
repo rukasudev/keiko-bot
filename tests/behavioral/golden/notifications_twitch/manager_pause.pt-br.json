@@ -45,7 +45,7 @@
             "type": "section"
           },
           {
-            "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• {streamer} está ao vivo! {stream_link}```\n📣 **Mencionar:** @everyone",
             "type": "text"
           },
           {
@@ -72,7 +72,7 @@
             "type": "actionrow"
           },
           {
-            "content": "### Notificações #2\n📺 **Canal de Texto:** <#102>\n🎮 **Streamer:** cellbit\n💬 **Mensagens de Notificação:** ```• @everyone {streamer} está ao vivo! {stream_link}```",
+            "content": "### Notificações #2\n📺 **Canal de Texto:** <#102>\n🎮 **Streamer:** cellbit\n💬 **Mensagens de Notificação:** ```• {streamer} está ao vivo! {stream_link}```\n📣 **Mencionar:** @everyone",
             "type": "text"
           },
           {
@@ -156,46 +156,152 @@
   },
   {
     "actor": "bot",
-    "kind": "modal",
-    "message": null,
-    "modal": {
-      "fields": [
-        {
-          "default": "",
-          "label": "Digite `pausar` para confirmar.",
-          "max_length": 6,
-          "required": true,
-          "style": "short"
-        }
-      ],
-      "title": "Tem certeza?"
-    },
+    "components": [
+      {
+        "children": [
+          {
+            "children": [
+              {
+                "content": "## 📡 Twitch Lives (Pausado)",
+                "type": "text"
+              },
+              {
+                "content": "Aviso no servidor quando estes streamers entram ao vivo.",
+                "type": "text"
+              },
+              {
+                "media": "KEIKO_DEFAULT.png",
+                "type": "thumbnail"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "children": [
+              {
+                "content": ":busts_in_silhouette: **Notificações:** 2 de 3 configurados",
+                "type": "text"
+              },
+              {
+                "disabled": false,
+                "label": "Adicionar",
+                "style": "secondary",
+                "type": "button"
+              }
+            ],
+            "type": "section"
+          },
+          {
+            "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎮 **Streamer:** gaules\n💬 **Mensagens de Notificação:** ```• {streamer} está ao vivo! {stream_link}```\n📣 **Mencionar:** @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Pré-visualizar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Remover",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "### Notificações #2\n📺 **Canal de Texto:** <#102>\n🎮 **Streamer:** cellbit\n💬 **Mensagens de Notificação:** ```• {streamer} está ao vivo! {stream_link}```\n📣 **Mencionar:** @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "label": "Editar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Pré-visualizar",
+                "style": "secondary",
+                "type": "button"
+              },
+              {
+                "disabled": false,
+                "label": "Remover",
+                "style": "danger",
+                "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "-# • Use o comando `/reportar` para me contar um bug",
+            "type": "text"
+          }
+        ],
+        "type": "container"
+      },
+      {
+        "children": [
+          {
+            "disabled": false,
+            "label": "Despausar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Desativar",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Histórico",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Estatísticas",
+            "style": "secondary",
+            "type": "button"
+          },
+          {
+            "disabled": false,
+            "label": "Ajuda",
+            "style": "secondary",
+            "type": "button"
+          }
+        ],
+        "type": "actionrow"
+      }
+    ],
+    "components_v2": true,
+    "ephemeral": true,
+    "kind": "edit",
+    "message": "M1",
     "seq": 4
-  },
-  {
-    "actor": "user",
-    "fields": {
-      "confirmation": "Pausar"
-    },
-    "kind": "modal_submit",
-    "message": null,
-    "seq": 5
-  },
-  {
-    "actor": "bot",
-    "ephemeral": false,
-    "kind": "defer",
-    "message": null,
-    "seq": 6,
-    "thinking": false
   },
   {
     "actor": "bot",
     "components": [],
     "components_v2": false,
+    "delete_after": 5,
     "embed": {
       "color": 5216249,
-      "description": "Comando **notificações twitch lives** pausado as 2026-01-01 12:00:00 UTC por <@555>\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "description": "Comando **notificações twitch lives** pausado em <t:1767268800:f> por <@555>\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
       "footer": null,
       "image": null,
@@ -205,12 +311,6 @@
     "ephemeral": true,
     "kind": "followup_send",
     "message": "M2",
-    "seq": 7
-  },
-  {
-    "actor": "bot",
-    "kind": "delete",
-    "message": "M1",
-    "seq": 8
+    "seq": 5
   }
 ]

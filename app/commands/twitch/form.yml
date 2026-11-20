@@ -51,7 +51,7 @@ steps:
             all: [streamer]
           error: notifications_twitch.ui.errors.preview_needs_streamer
         required:
-          all: [channel, streamer]
+          all: [channel, streamer, mention_roles]
         fields:
           - key: channel
             description:
@@ -61,6 +61,12 @@ steps:
             description:
               en-us: The streamer's Twitch nick (with or without @).
               pt-br: O nick do streamer na Twitch (com ou sem @).
+          - key: mention
+            description:
+              en-us: Who I mention at the start of the notification.
+              pt-br: Quem eu marco no começo do aviso.
+          - key: mention_roles
+            description: ${ref.roles_i_mention_description}
           - key: notification_messages
             description:
               en-us: Up to three messages, I pick one at random each live.
@@ -117,6 +123,43 @@ steps:
             # open: hidden answer keys -> service.field of the lookup
             lookup_answers:
               streamer_avatar: twitch.profile_image
+          - type: value_select
+            key: mention
+            emoji: 📣
+            label: ${ref.mention}
+            keys:
+              value: mention
+            screen:
+              title: ${ref.mention_screen_title}
+            placeholder: ${ref.mention_placeholder}
+            options:
+              - label: ${ref.mention_none}
+                value: none
+                description: ${ref.mention_none_description}
+              - label: ${ref.mention_everyone}
+                value: everyone
+                description: ${ref.mention_everyone_description}
+              - label: ${ref.mention_here}
+                value: here
+                description: ${ref.mention_here_description}
+              - label: ${ref.mention_roles}
+                value: roles
+                description: ${ref.mention_roles_description}
+          - type: selects
+            key: mention_roles
+            emoji: 🏷️
+            label: ${ref.roles_i_mention}
+            when:
+              key: mention
+              is: roles
+            screen:
+              title: ${ref.roles_i_mention_screen_title}
+            selects:
+              - type: roles
+                key: mention_roles
+                emoji: 🏷️
+                label: ${ref.roles_i_mention}
+                placeholder: ${ref.roles_placeholder}
           - type: modal_input
             key: messages
             emoji: 💬
@@ -135,19 +178,26 @@ steps:
                 - label: ${ref.random_message_1}
                   max_length: 100
                   multiline: true
+                  normalize:
+                    name: without_group_mentions
                 - label: ${ref.random_message_2}
                   max_length: 100
                   required: false
                   multiline: true
+                  normalize:
+                    name: without_group_mentions
                 - label: ${ref.random_message_3}
                   max_length: 100
                   required: false
                   multiline: true
+                  normalize:
+                    name: without_group_mentions
         # open: state keys of the card -> a value or a text
         defaults:
+          mention: everyone
           notification_messages:
-            en-us: "@everyone {streamer} is live! {stream_link}"
-            pt-br: "@everyone {streamer} está ao vivo! {stream_link}"
+            en-us: "{streamer} is live! {stream_link}"
+            pt-br: "{streamer} está ao vivo! {stream_link}"
 
   - type: review
     key: confirm

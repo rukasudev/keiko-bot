@@ -282,6 +282,8 @@ def _matches_value(actual, expected):
         "$ne": lambda a, b: b not in a if isinstance(a, list) else a != b,
         "$in": lambda a, b: a in b,
         "$exists": lambda a, b: (a is not None) == b,
+        "$elemMatch": lambda a, b: isinstance(a, list)
+        and any(isinstance(item, dict) and _matches(item, b) for item in a),
     }
 
     for operator, argument in expected.items():

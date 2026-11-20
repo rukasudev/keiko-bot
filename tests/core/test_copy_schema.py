@@ -8,7 +8,7 @@ import yaml
 from pydantic import BaseModel, RootModel, ValidationError
 
 from app.core import copy_schema, i18n
-from app.core.commands import Text, command_for
+from app.core.commands import SHARED_COPY, Text, command_for
 from app.core.copy_schema import (
     SHARED_FILES,
     CommandCopy,
@@ -245,6 +245,7 @@ def test_every_shared_copy_file_has_a_schema():
     }
 
     assert shared == set(SHARED_FILES)
+    assert set(SHARED_COPY) == set(SHARED_FILES), "the registry refuses these keys"
 
 
 def test_a_shared_buttons_file_holds_nothing_but_buttons():

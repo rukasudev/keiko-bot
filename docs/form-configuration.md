@@ -93,9 +93,17 @@ lines are enforced by `tests/forms/test_boundary.py` and, for the key literals,
    (`Runtime._reopen`) and the manager draws the panel over what is saved now,
    on the message the admin was using (`Manager.commit_and_return`); the page
    turned to is kept, the screen of an item a search found goes back to the
-   panel, and a heading's own screen the admin came from is drawn again. Only
-   the setup, Pause, Unpause, Disable and a commit that fails end with
-   `Finalize`. Every setup ends with `Finalize("enabled")` and then
+   panel, and a heading's own screen the admin came from is drawn again.
+   Pause and Unpause save the same way, in one click with no question: the
+   panel is drawn again with the feature's new state (its title's "(Pausado)",
+   its Despausar), and `Announce(kind)` sends `commands.responses.paused` or
+   `unpaused` beside it on an ephemeral message that removes itself after
+   `ViewConstants.ACTION_NOTICE_SECONDS`. The panel's grey Desativar, beside
+   Pause, asks first on a red question (`delete_screen` in `form.py`: the
+   command by name, that everything set up is deleted, the Pause it could take
+   instead while the feature is on; Desativar e apagar,
+   `confirm_lifecycle:disable`, then Voltar, which draws the panel again). Only
+   the setup, that delete and a commit that fails end with `Finalize`. Every setup ends with `Finalize("enabled")` and then
    `OpenPanel`: once the summary has become the activation embed, the
    adapter reads the feature again and opens
    a manage session over what was saved, with a message of its own sent right
@@ -240,7 +248,8 @@ when left out), drawn on that screen whatever the type; `placeholder`, the hint
 of the select a `value_select`, `button_options`, `multi_select` or
 `design_select` section draws on the card (its screen title or its label when
 left out). A section's value format is its type's (a channel, a member, a yes or
-no, a bulleted list), and only a `modal_input` declares a `format` of its own.
+no, a bulleted list); a `modal_input` declares a `format` of its own, and a
+`multi_select` may read its values in code (`format: code`).
 
 `required: {all, any}` names the state keys Done insists on: every key of `all`,
 and at least one key of `any` (refused with the `fill_one_field` error);
@@ -269,7 +278,11 @@ cards require the streamer and the youtuber
 The compiler refuses a `required` without an `error`, an `error` without a
 `required`, and a key the card does not hold. Its `tokens` declares the
 `{name}` placeholders of the card's previews (`{answer, format}`, or
-`{context: server_name}`), read from the card's own draft first. A list item's
+`{context: server_name}`), read from the card's own draft first; an answer the
+card's `transform` derives (the birthday's `date`, from its month and day) is
+read as the transform will save it from the draft, so the preview shows it
+before Done and follows a new month at once
+(`tests/behavioral/regressions/test_a_birthday_card_reads_the_date_it_will_send.py`). A list item's
 Preview (`aside:preview:<key>$<index>`) runs over an item Done already
 accepted, so it never asks.
 Done reads Avançar / Next while another screen follows it (the setup and its
@@ -296,8 +309,8 @@ banner drawn.
 
 | `type` | Section model | What the admin does |
 |---|---|---|
-| `title_content` | `TitleContentSection` | keeps the default title and body or types both in the `modal` (`labels: {title, description}` names its two inputs); `default` names the copy block they are read from, the `title` and `description` the command posts while nobody customized them (`reminders_birthday.ui.announcement.defaults`), so the card, its modal and what the members get say one text |
-| `file_upload` | `FileUploadSection` | keeps the default image or uploads one; without a `mode` in its `keys` it only holds the uploaded image, and counts as set once it has one |
+| `title_content` | `TitleContentSection` | keeps the default title and body or types both in the `modal` (`labels: {title, description}` names its two inputs, and its `normalize: {name}` runs over both as they are saved); `default` names the copy block they are read from, the `title` and `description` the command posts while nobody customized them (`reminders_birthday.ui.announcement.defaults`), so the card, its modal and what the members get say one text |
+| `file_upload` | `FileUploadSection` | keeps the default image or uploads one; without a `mode` in its `keys` it only holds the uploaded image, and counts as set once it has one; `validation: {name: image}` checks the file Discord describes (its size, its pixels and its type, against the banner's own bounds in `DBConfigs`) before anything downloads it: a file it refuses is never re-uploaded to the dump channel, the card stays as it was and `errors.image_not_accepted` is told on a message of its own (the welcome banner and the birthday member's picture; `tests/behavioral/scenarios/test_file_upload_flow.py`) |
 | `channel_select` | `ChannelSelectSection` | picks one channel on a native select drawn on the card |
 | `user_select` | `UserSelectSection` | picks one member on a native member select drawn on the card, with no line of its own (the select shows the member); `avatar: true` draws the member's picture under the select once one is picked, read from the server the session runs in (`Context.member_pictures`, which the adapter fills from the guild's members); a list whose `unique.key` is such a section's is keyed by a member (the birthday's member) |
 | `value_select` | `ValueSelectSection` | picks one of the declared `options` on a select drawn on the card (its `placeholder`); each of its `dependents` (`{key, validation}`) clears that key when its validator rejects it with the new value (a day the new month does not have) |
@@ -305,12 +318,15 @@ banner drawn.
 | `boolean_toggle` | `BooleanToggleSection` | chooses yes or no on two buttons drawn on the card, Sim / Não, the current one primary and the other secondary |
 | `modal_input` | `ModalInputSection` | types in the `modal`, among its `inputs`: an input with a `key` writes that key, inputs without one are joined with `;` into the section's `keys.value` (the shape services split, through `split_messages` in `app/core/utils.py`, which reads a saved list the same way); each input may `normalize: {name}`; the modal reopens with the saved values; the modal's `validation` runs on submit with the other items and any lookup its validator needs (the birthday's day: `date` refuses 31 in February, and a day typed before any month passes when some month has it); `fills: {into, tokens}` writes the accepted value into another state key of the card: each `{token}` of that text becomes its template with `{value}` replaced (`stream_link: "https://twitch.tv/{value}"`), and when the value changes (in the setup or an item edit) the old renderings are replaced by the new ones, longest first, as whole words and whatever their case; the compiler refuses an `into` the card does not own |
 | `design_select` | `DesignSection` | picks one of the declared `options` (each a design: `value`, `label`, `description`) on a select drawn on the card (each design's description under its name), the chosen design's preview drawn under its line, over the answer `background` names (the previews are drawn again when it changes); the gallery of every design, with the feature's previews, opens only for a part edit |
-| `multi_select` | `MultiSelectSection` | picks several of the declared `options` on a select drawn on the card, which can be emptied |
+| `multi_select` | `MultiSelectSection` | picks several of the declared `options` on a select drawn on the card, which can be emptied; `format: code` reads each picked value in code, like a link the admin typed (the block links popular websites), `bullet` (the default) as it is |
 | `selects` | `SelectsSection` | picks channels or roles on one or more native `selects` (the model refuses none; each a `Select`: `type` in `channels`, `roles`, `assignable_roles` (the roles Keiko can assign), `key`, `emoji`, `label`, `placeholder`; a channel reads as a channel and a role as a role), every select on one screen; the section owns each select's `key` (no `keys` needed), its lines are one `emoji **label:** value` per select (the value alone when it holds one), and every select is drawn on the card under them; a select nothing was picked on holds an empty list, and one id is stored as itself, several as a list; on the screen of an `edit: field` part edit the first pick saves; a select whose key is not in the card's `required.all` takes no value, so an optional select can be emptied again |
 | `list` | `ListSection` | draws a list of the form on the card (`list` names the list step): its heading is the list's own title (with its `overrides`), its items the bullets of their names, with "➕ Adicionar" (off once full) and the list's "🗑️ Remover" beside them (3.4); Add opens the list step's `AddItem` child and the card shows again when it finishes, its draft kept; the setup never walks a list a card draws (`listed_on_cards(steps)` in `form_yaml.py`, the one derivation the setup walk and the intro both read; the compiler refuses a `list` naming no list step), Back to the card keeps its items, and the list's child reads the card's draft through `parent.` (the card's state, defaults included); the review and the panel keep drawing the list as their own block. Declare it `appears_in: setup` when an edit of the card must not add to the list |
 | `group` | `GroupSection` | names other sections of the same card in `sections`; on the card it draws its heading, its `description`, one line per section it holds that the state shows (`emoji **label:** value`, one per select of a `selects` section, a `list` by its title and its items' names, "Em branco" when empty) and its `button` as a button; the button opens a screen of its own on the same message, in place of the card, headed by its `screen.title` (the section's `emoji` before it) over its `screen.description`, or the `description` when none is declared, with those sections drawn exactly as on the card (their selects, buttons and lists) and one Back (`picker_back`) below, no Done and no Cancel; every pick there is a draft of the card, saved only by the card's Done, and the screen stays after a pick, after an item added from a list it holds and after a removal (`FormSession.opened_group`, which `opening` sets and `at` keeps only on the same step), and Back draws the card again with the new lines; a visible group takes its sections off the card, so a section held only by groups their rules hide is drawn on the card itself (block links: `exceptions` holds the channels and roles, the popular websites and the custom links in "Bloquear todos", `channel_exceptions` only the channels and roles in "Bloquear alguns", where the blocked links stay on the card); the compiler refuses a key that names no section of the card and a group inside a group; a group owns no state key, so the review and the panel list what its sections hold as before |
 
-A hidden section (`when` false) does not count as required. Card
+A hidden section (`when` false) does not count as required, and its keys are no
+line of the panel or the review: a card's rows through `section_gates`, a list item's
+through `titled_items`, each over the answers of its own card (the roles a Twitch or
+YouTube notice mentions are listed only while its `mention` is `roles`). Card
 selections are drafts until Done: the card keeps its values on Back and on
 a failed validation. A refused value is told on an ephemeral message of its
 own, below the card (`ShowError`), never as a line inside it, so a phone shows
@@ -406,7 +422,9 @@ one runs `disable` naming the `items` the panel showed, which drops nothing
 when the saved list differs. `counter` on a list (a text with
 `$count` and `$max`) is what the list's title line reads after its title on
 the panel and on the review, in place of the empty value,
-"👥 **Notificações:** 2 de 3 configurados": the items it holds of its `max`. An item's bookkeeping keys (`enabled` among them, which a per-item
+"👥 **Notificações:** 2 de 3 configurados": the items it holds of its `max`;
+a list with no item keeps reading the empty value ("Em branco"), never "0 de 25"
+(the block links custom links, "📌 **Links personalizados permitidos:** 2 de 25"). An item's bookkeeping keys (`enabled` among them, which a per-item
 pause in dev once wrote) are never a line or an answer of the item, the way a
 document's are not.
 
@@ -543,10 +561,10 @@ nothing is looked up by reflection.
 | Capability | Registry | Entries today |
 |---|---|---|
 | Step types | `registry()` in `app/forms/form/actions/__init__.py`, one `Kind(render, parse)` per name | the six types of 3.2 |
-| Card section types | `SECTION_KINDS` in `app/forms/form/actions/configuration_card.py`, one `SectionKind(press, change, preview, reset, custom, controls)` per YAML `type` (`controls` are the selects or buttons the section draws on the card; a kind without them draws the button whose `press` opens its modal); what a section declares (`choices`, `holds_several`, `adds_to`, `opened_modal`, `inputs`, `checked_by`, `validators`, `offered_designs`, `drawn_over`, `looked_up`, `filled`, `picks`, `controls_drawn`, `pictured`, `picks_members`, `holds`, `value_style`, `pressed_label`, `select_placeholder`, `own_screen_title`, `own_screen_description`) is asked of the section model, never by `isinstance` | the thirteen types of 3.3 |
-| Validators | `VALIDATORS` in `app/forms/form/responses/validations.py`; each declares `needs` (`answers`, `items`, `external:<service>`, where `{param}` is filled from the declaration) so the adapter prefetches before `decide`, and the `params` its declaration must give: `validation: {name, params}`, an `Extension` like every reference to a validator, a transform or a normalizer, the params reaching the check in `ValidationContext.params` (the compiler refuses a declaration that does not give exactly the params the validator takes) | `registered_and_found` (`item` the saved items a name must not repeat, `service` the lookup that must find it, `id` the field of the lookup that proves it, `error` the prefix of the two errors: `<error>_already_registered` and `<error>_not_found` when it names a block of a command's copy (`<key>.ui.errors.<noun>`, the YouTube channel), `<error>-already-registered` and `<error>-not-found` when it names a shared error of `errors.yml` (the Twitch and the StreamElements streamer)), `link_or_domain`, `date` (`month` the answer key of the month the day is checked against) |
+| Card section types | `SECTION_KINDS` in `app/forms/form/actions/configuration_card.py`, one `SectionKind(press, change, preview, reset, custom, controls)` per YAML `type` (`controls` are the selects or buttons the section draws on the card; a kind without them draws the button whose `press` opens its modal); what a section declares (`choices`, `holds_several`, `adds_to`, `opened_modal`, `inputs`, `checked_by`, `uploads`, `validators`, `offered_designs`, `drawn_over`, `looked_up`, `filled`, `picks`, `controls_drawn`, `pictured`, `picks_members`, `holds`, `value_style`, `pressed_label`, `select_placeholder`, `own_screen_title`, `own_screen_description`) is asked of the section model, never by `isinstance` | the thirteen types of 3.3 |
+| Validators | `VALIDATORS` in `app/forms/form/responses/validations.py`; each declares `needs` (`answers`, `items`, `external:<service>`, where `{param}` is filled from the declaration, and `upload`, the size, pixels and type of a file a `file_upload` section's modal sent, `ValidationContext.upload`; the compiler refuses a validator that needs `upload` anywhere else, and one that does not on a `file_upload`) so the adapter prefetches before `decide`, and the `params` its declaration must give: `validation: {name, params}`, an `Extension` like every reference to a validator, a transform or a normalizer, the params reaching the check in `ValidationContext.params` (the compiler refuses a declaration that does not give exactly the params the validator takes) | `registered_and_found` (`item` the saved items a name must not repeat, `service` the lookup that must find it, `id` the field of the lookup that proves it, `error` the prefix of the two errors: `<error>_already_registered` and `<error>_not_found` when it names a block of a command's copy (`<key>.ui.errors.<noun>`, the YouTube channel), `<error>-already-registered` and `<error>-not-found` when it names a shared error of `errors.yml` (the Twitch and the StreamElements streamer)), `link_or_domain`, `date` (`month` the answer key of the month the day is checked against), `image` (a PNG, JPEG, GIF or WEBP within `DBConfigs.IMAGE_MAX_BYTES` and `IMAGE_MAX_PIXELS`, the bounds the banner draws within) |
 | Transforms | `TRANSFORMS` in `app/forms/form/responses/transforms.py`; a `Transform` names its `part_keys` (each read from and seeded into the answer key of its own name), `value_key`, `style`, `serialize` and `hydrate`; `transform: {name}`, which takes no `params` (the compiler refuses any) | `mm_dd_date_parts`, `normalize_link` |
-| Normalizers | `NORMALIZERS` in `app/forms/form/responses/transforms.py`, named by `normalize: {name}` on a text step or a modal input, which takes no `params` either | `handle`, `lowercase` |
+| Normalizers | `NORMALIZERS` in `app/forms/form/responses/transforms.py`, one `Normalizer(apply, announce)` each, named by `normalize: {name}` on a text step, a modal input or a `title_content` modal, which takes no `params` either; a normalizer that declares an `announce` sends `commands.responses.<announce>` once, as `Announce` does, whenever it changed what the admin typed (`told`, run by `_on_section_changed` and `_on_answered` in `form.py`) | `handle`, `lowercase`, `without_group_mentions` (an @everyone, @here or role mention typed in a notice or birthday message goes on save, a member's stays, and `commands.responses.mention_removed`, "📣 Tirei a menção do texto!", says to use 📣 Mencionar) |
 | Formatters | `STYLES` and `format_value` in `app/forms/form/responses/styles.py`; `stored_style` maps a declared `format` to the style it reads and is saved in | the formats of 3.1 |
 | Copy tokens | every token is read by the one syntax of `app/core/tokens.py` (`docs/commands.md`, "The token syntax") in one pass, and `apply_tokens` (`app/forms/form/actions/action.py`) gives each its value: an answer through `TOKEN_FORMATTERS` (`app/forms/form/responses/styles.py`, the compiler's `TOKEN_FORMATS` with the value formats), then every value format (read through `stored_style`); a `${plural...}` picks one of its two texts by `count_of` (`app/core/conditions.py`, the count the `when` grammar's `count` leaf reads); the `${context.<name>}` values are declared in the `context:` of `app/core/global.yml` (`compile_form` refuses an undeclared one): the families known at load (`commands`, `groups`) are written in by `with_context` (`app/core/facts.py`) before the form compiles, and the rest are fields of `Context` and its `values`, filled in `Runtime._context` (`callbacks.py`) from `Opened.values` and from the server's settings `Runtime._open` read (`server_settings`, `app/core/servers.py`) | `host` and the formats, `plural`; context `commands.<key>`, `groups.<group>`, `server_name`, `prefix`, `server_language`, `server_timezone`, `command` and the feature's own values (`members_count`, `bots_count`) |
 | Copy resolution | `text(key, locale)` and `normalize_locale` in `app/forms/form/copy.py` | reads the copy `ml` reads (`app/core/i18n.py`): the shared files of `app/languages/` and each command's `copy.yml`, under its key; a form names an error of its command by its full block, `error: <key>.ui.errors.<name>`, and `error_message` reads its `message` (a key that names a text and not a block is read as it is); the copy blocks and the primitives that read them are in `docs/commands.md` |
@@ -615,9 +633,33 @@ labels in `value`, because v0.9.0 shows and matches them.
 - **Codec and stale clicks.** Every component id says which session, seen
   at which revision, doing what. A duplicate `event_id` is applied once; a
   click from an older revision gets the current screen drawn again and no
-  notice (`Engine.redraw`); a click on an unknown or expired session takes
-  the controls off that message and says the form expired, in the admin's
-  locale.
+  notice (`Engine.redraw`). A session id names its feature
+  (`<feature>-<16 hex>`, `form_state.feature_of`), so a custom id says which
+  form it belongs to even once no session holds it.
+- **Late clicks.** A form's view lives as long as its session
+  (`ViewConstants.LONG_TIMEOUT_SECONDS`) and none outlives a restart, so a click
+  that lands later reaches the bot by its custom id alone: `views.LateComponent`,
+  a `DynamicItem` over every codec id but the reopen one, wraps the button or
+  the select discord.py finds on the message, and a modal submitted with no live
+  modal reaches `Runtime.late` from the shared `on_interaction` listener
+  (`app/core/events.py`). When the session is gone, expired or past its deadline,
+  the click edits its own message, with its own interaction, to what the expiry
+  draws: the texts and pictures kept, every control gone, the expired line and
+  one button, **Abrir de novo** / **Open again** (`views.ReopenButton`, coded
+  `k:<session>:<revision>:reopen:<feature>`), rebuilt from the message itself
+  (`transitions.message_surface`). That view has no timeout: it holds only the
+  reopen item, which discord.py keeps no copy of, and a view that times out makes
+  discord.py unregister the route of every dynamic item it holds, for every
+  message. While the session is alive the late route
+  does nothing and the live view answers. discord.py hands a click to both
+  routes when a live view still holds it, so each claims the click first
+  (`Runtime._claim`, kept for `DiscordLimits.INTERACTION_TOKEN_SECONDS`) and
+  the second leaves it. The reopen button opens the feature for an admin the
+  way its slash command does (its panel when configured, else its setup; source
+  `expired_button`). The sweep is unchanged. Both items are registered once in
+  `setup_hook` (`views.routed_items`); pinned by
+  `tests/behavioral/regressions/test_a_late_click_answers_with_the_expired_message.py`
+  and `tests/behavioral/scenarios/test_an_expired_form_opens_again_flow.py`.
 - **Language.** Every app command, slash or context menu, passes
   `KeikoTree.interaction_check` (`app/bot.py`) before it runs, which makes
   `interaction_language` (`app/core/servers.py`) the interaction's
@@ -650,10 +692,14 @@ labels in `value`, because v0.9.0 shows and matches them.
   and then deletes the old one when the flavour changes (a Components V2 card
   and an embed cannot share a message) or when a child opens from the
   manager panel. `OpenModal` opens the modal; `ShowError` (a picker
-  confirmed empty, a commit that failed) and `Notice` are ephemeral
-  follow-ups; `Confirm` and `Dismiss` handle the discard
-  confirmation on a message of its own, which Cancel asks only when there is
-  something to lose: a session with no answer, no saved document and no
+  confirmed empty, a commit that failed), `Notice` (a short note, gone after
+  `ViewConstants.ACTION_NOTICE_SECONDS`) and `Announce` (Keiko's embed of
+  `commands.responses.<kind>` beside the screen, gone after the same time: a
+  pause, an unpause, a typed mention taken out) are ephemeral follow-ups; `Confirm` and `Dismiss` handle the discard
+  confirmation on a message of its own (an edit the manager panel opened
+  and discarded there is dismissed like a kept one, and the manager draws the
+  screen the edit was opened from again and saves nothing: `_on_child_finished`
+  in `manager.py`), which Cancel asks only when there is something to lose: a session with no answer, no saved document and no
   answered parent (`_holds_nothing` in `form.py`) is discarded at once, with
   the same `setup.discarded` and the same `Finalize("discarded")`
   (`test_cancel_with_nothing_answered_closes_without_asking`,
@@ -690,8 +736,12 @@ labels in `value`, because v0.9.0 shows and matches them.
   child of it is still in use; it reaches `decide` as `Expired` and its journey
   closes. The message loses its buttons only while the latest interaction token
   is valid (`DiscordLimits.INTERACTION_TOKEN_SECONDS`); after that, the next
-  click on the message closes it. Closed sessions past their deadline are
-  forgotten.
+  click on the message draws the expiry (late clicks, above). Closed sessions past their deadline are
+  forgotten. A closed, expired, discarded or previewed card keeps its texts
+  and pictures and loses every control (but an expired one's Abrir de novo),
+  the Edit or Add beside a heading included (`views.finalized_layout`: a section whose accessory is a button
+  becomes its texts, a thumbnail stays;
+  `tests/behavioral/regressions/test_a_closed_panel_keeps_no_live_button.py`).
 - **Layout.** `card_frame`, `card_header`, `card_row` and `card_footer`
   (`app/ui/embed.py`) hold the Components V2 frame, header, rows and footer;
   the renderer (`app/forms/discord/views.py`) and the `/setup` card

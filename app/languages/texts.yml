@@ -27,6 +27,10 @@ settings_heading:
   en-us: Settings
   pt-br: Configurações
 
+server_settings:
+  en-us: Server Settings
+  pt-br: Configurações do Servidor
+
 paused_suffix:
   en-us: Paused
   pt-br: Pausado
@@ -98,15 +102,6 @@ design_gallery:
     en-us: ⬆️ Scroll up to see all options
     pt-br: ⬆️ Role para cima para ver todas as opções
 
-# open: the part of the typed confirmation -> its text
-confirmation_modal:
-  title:
-    en-us: Are you sure?
-    pt-br: Tem certeza?
-  label:
-    en-us: Type `$action` to confirm.
-    pt-br: Digite `$action` para confirmar.
-
 # open: why a click changed nothing -> the note it gets
 notices:
   stale:
@@ -119,8 +114,8 @@ notices:
     en-us: This form is already closed! If you need to change something, just call the command again 🐶
     pt-br: Esse formulário já foi fechado! Se precisar mudar algo, é só chamar o comando de novo 🐶
   expired:
-    en-us: ⌛ This form expired! If you'd like to continue, just call the command again 🐶
-    pt-br: ⌛ Esse formulário expirou! Se quiser continuar, é só chamar o comando de novo 🐶
+    en-us: Hey... this form expired! If you'd like to continue, just call the command again or press the button below ⏳
+    pt-br: Ei... esse formulário expirou! Se quiser continuar, é só chamar o comando de novo ou apertar no botão abaixo ⏳
 
 # open: a parent slash group -> its name
 groups:

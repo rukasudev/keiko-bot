@@ -7,7 +7,7 @@ import re
 from collections.abc import Iterator, Mapping
 from functools import cache
 from pathlib import Path
-from typing import Annotated, Any, Literal, TypeVar, overload
+from typing import Annotated, Any, Literal, TypeVar, get_origin, overload
 
 import i18n
 from i18n import translations
@@ -171,11 +171,30 @@ def texts(
         if isinstance(value, list):
             continue
         if not isinstance(value, dict):
+            if key in setting_keys() and isinstance(value, str):
+                continue
             raise CopyError(f"{name}: {full} is a text with no locale")
         if any(LOCALE_NAME.fullmatch(str(entry)) for entry in value):
             yield full, _bilingual(value, full, name)
         else:
             yield from texts(value, full, name)
+
+
+@cache
+def setting_keys() -> frozenset[str]:
+    """The keys copy writes as a closed setting, not as words (a response's `tone`):
+    every field of a copy block typed as a closed set of values."""
+    import app.core.copy_schema  # noqa: F401
+
+    found: set[str] = set()
+    pending = list(CopyBlock.__subclasses__())
+    while pending:
+        model = pending.pop()
+        pending.extend(model.__subclasses__())
+        for field_name, info in model.model_fields.items():
+            if get_origin(info.annotation) is Literal:
+                found.add(field_name)
+    return frozenset(found)
 
 
 def written(path: Path, prefix: str) -> list[tuple[str, dict[str, str]]]:

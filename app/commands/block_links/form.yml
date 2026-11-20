@@ -233,6 +233,7 @@ steps:
               en-us: Discord
               pt-br: Discord
             value: discord.gg
+        format: code
       - type: list
         key: own_links
         emoji: 📌
@@ -274,6 +275,9 @@ steps:
       max: 25
       unique:
         key: link
+    counter:
+      en-us: $count of $max
+      pt-br: $count de $max
     group: exceptions
     steps:
       - type: text

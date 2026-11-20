@@ -127,37 +127,62 @@
   },
   {
     "actor": "bot",
-    "kind": "modal",
+    "ephemeral": false,
+    "kind": "defer",
     "message": null,
-    "modal": {
-      "fields": [
-        {
-          "default": "",
-          "label": "Digite `desativar` para confirmar.",
-          "max_length": 9,
-          "required": true,
-          "style": "short"
-        }
-      ],
-      "title": "Tem certeza?"
+    "seq": 4,
+    "thinking": false
+  },
+  {
+    "actor": "bot",
+    "components": [
+      {
+        "disabled": false,
+        "label": "Desativar e apagar",
+        "style": "danger",
+        "type": "button"
+      },
+      {
+        "disabled": false,
+        "label": "Voltar",
+        "style": "secondary",
+        "type": "button"
+      }
+    ],
+    "components_v2": false,
+    "embed": {
+      "color": 16711680,
+      "description": "Ao clicar em **Desativar e apagar** abaixo, o comando **moderações aniversários lembretes** é desativado e **tudo que está configurado agora é apagado**. Para ativar o comando de novo, você vai precisar configurar ele do zero!! 🚨\n\nSó quer dar um tempo? Use o ⏸️ Pausar e o comando para momentaneamente e eu guardo tudo do jeitinho que está!",
+      "fields": [],
+      "footer": null,
+      "image": null,
+      "thumbnail": null,
+      "title": "🗑️ Apagar as configurações desse comando?"
     },
-    "seq": 4
+    "ephemeral": true,
+    "kind": "followup_send",
+    "message": "M2",
+    "seq": 5
+  },
+  {
+    "actor": "bot",
+    "kind": "delete",
+    "message": "M1",
+    "seq": 6
   },
   {
     "actor": "user",
-    "fields": {
-      "confirmation": "Desativar"
-    },
-    "kind": "modal_submit",
-    "message": null,
-    "seq": 5
+    "kind": "click",
+    "message": "M2",
+    "seq": 7,
+    "target": "delete_all"
   },
   {
     "actor": "bot",
     "ephemeral": false,
     "kind": "defer",
     "message": null,
-    "seq": 6,
+    "seq": 8,
     "thinking": false
   },
   {
@@ -166,7 +191,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Comando **moderações aniversários lembretes** desativado as 2026-01-01 12:00:00 UTC por <@555>\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "description": "Comando **moderações aniversários lembretes** desativado e apagado em <t:1767268800:f> por <@555>\n\nSe precisar ativar de novo, é só rodar `/moderações aniversários lembretes` ou `/configurar`!\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
       "footer": null,
       "image": null,
@@ -175,13 +200,13 @@
     },
     "ephemeral": true,
     "kind": "followup_send",
-    "message": "M2",
-    "seq": 7
+    "message": "M3",
+    "seq": 9
   },
   {
     "actor": "bot",
     "kind": "delete",
-    "message": "M1",
-    "seq": 8
+    "message": "M2",
+    "seq": 10
   }
 ]

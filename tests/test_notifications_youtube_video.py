@@ -70,9 +70,9 @@ def test_a_capitalised_placeholder_is_printed_as_typed_and_the_link_still_added(
 
 
 def test_the_announcement_of_a_width_specifier_stays_small():
-    notification = {"notification_messages": {"value": WIDTH}}
+    notice = {"notification_messages": WIDTH}
 
-    message = compose_notification_message(notification, "pewdiepie", "video-1")
+    message = compose_notification_message(notice, "pewdiepie", "video-1")
 
     assert message == f"{WIDTH}\n{LINK}"
 

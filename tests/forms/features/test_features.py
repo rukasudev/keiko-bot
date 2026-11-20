@@ -30,6 +30,7 @@ from app.forms.form.responses.responses import (
     item_values,
     items_of,
     list_values,
+    styled_values,
 )
 from app.forms.form.responses.summary import unwrap
 from tests.generators.events import lifecycle
@@ -476,7 +477,7 @@ async def test_a_website_turns_on_or_off_in_the_choice_as_it_is_saved(
     )
 
     stored = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "block_links")
-    assert stored["allowed_links"] == {"style": "bullet", "values": saved}
+    assert stored["allowed_links"] == {"style": "code", "values": saved}
     event = deps.mongo_client.events.changes.find_one({"guild_id": GUILD_ID})
     assert event["type"] == "config.changed", "a toggle is recorded as the edit it was"
 
@@ -519,7 +520,7 @@ async def test_the_birthday_setup_writes_the_config_and_the_first_member(deps):
         "channel": Answer("100"),
         "timezone": Answer("America/Sao_Paulo"),
         "notification_time": Answer("08:00"),
-        "mention_everyone": Answer(False),
+        "mention": Answer("none"),
         "default_message_mode": Answer("default"),
         "reminders_birthday": Answer(
             (
@@ -548,14 +549,20 @@ async def test_the_birthday_panel_opens_with_its_own_rows(deps):
     from app.core.servers import set_feature_enabled
     from tests.generators.birthdays import saved_birthday
 
-    await save_birthday_config(GUILD_ID, "100", False, notification_time="08:00")
+    await save_birthday_config(
+        GUILD_ID, "100", "roles", notification_time="08:00", mention_roles=["201"]
+    )
     saved_birthday(GUILD_ID, "555", "05-12")
     await set_feature_enabled(GUILD_ID, "reminders_birthday", True)
     opened = await feature_for("reminders_birthday").open(
         OpenContext(GUILD_ID, "555", "pt-br")
     )
     assert opened.document["reminders_birthday"]["values"][0]["user"]["value"] == "555"
-    assert [row.value for row in opened.panel.rows][:2] == ["100", False]
+    assert [row.value for row in opened.panel.rows][:3] == [
+        "100",
+        "Alguns cargos",
+        ["201"],
+    ], "who I ping by its name on the card, then the roles it names"
     assert opened.panel.extra_buttons == (), "the statistics are every panel's"
     assert "stats" in feature_for("reminders_birthday").asides()
 
@@ -1046,6 +1053,13 @@ def test_a_saved_list_reads_as_its_machine_values_never_its_labels():
 def test_one_saved_item_reads_as_its_machine_values():
     first = items_of(DOCUMENT, "custom_links")[0]
     assert item_values(first) == {"link": "meusite.com.br", "match_type": "domain"}
+
+
+def test_an_item_reads_the_values_of_the_entries_saved_in_one_style():
+    first, second = items_of(DOCUMENT, "custom_links")
+    assert styled_values(first, "code") == ["meusite.com.br"]
+    assert styled_values(second, "code") == []
+    assert styled_values(first, "channel") == []
 
 
 def test_a_list_nothing_was_saved_under_reads_empty():

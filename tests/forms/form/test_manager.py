@@ -6,6 +6,7 @@ from app.forms.form import events as ev
 from app.forms.form.actions.action import Context
 from app.forms.form.components import Card, Gallery, OptionSelect, Panel, Picker
 from app.forms.form.effects import (
+    Announce,
     Commit,
     Finalize,
     Notice,
@@ -312,13 +313,16 @@ def test_the_manager_renders_the_panel_with_grouped_settings():
         "add:custom_links",
     ]
     assert "**Modo de bloqueio:** Bloquear todos" in panel.groups[0].lines[1]
-    assert [b.action for b in screen(decision).buttons] == [
+    buttons = screen(decision).buttons
+    assert [b.action for b in buttons] == [
         "lifecycle:pause",
         "lifecycle:disable",
         "aside:history",
         "aside:stats",
         "aside:help",
     ], "the list carries its own Add and Remove inside the card"
+    assert [b.style for b in buttons] == ["secondary"] * 5
+    assert (buttons[1].label, buttons[1].emoji) == ("Desativar", "🚫")
 
 
 def test_the_block_links_lists_are_named_after_the_mode_in_force():
@@ -419,27 +423,112 @@ def test_a_section_edit_opens_a_child_over_that_step_seeded_from_the_document():
     )
 
 
-def test_lifecycle_actions_need_the_typed_word():
+@pytest.mark.parametrize("action", ["pause", "unpause"])
+def test_pause_and_resume_save_in_one_click_and_draw_the_panel_again(action):
+    definition, decision = start(
+        "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
+    )
+    asked = decided(definition, decision.session, evt(Lifecycle, action=action))
+
+    assert kinds(asked) == ["Commit"]
+    assert asked.effects[0].kind == action and asked.effects[0].quiet
+    assert asked.session.awaiting == "panel"
+
+    done = decided(
+        definition,
+        asked.session,
+        evt(ev.CommitSucceeded, kind=action),
+        Context(document=BLOCK_LINKS_DOC),
+    )
+    assert kinds(done) == ["Render", "Announce"], "the panel, then the change's note"
+    told = {"pause": "paused", "unpause": "unpaused"}[action]
+    assert done.effects[1] == Announce(told)
+    assert isinstance(screen(done).components[0], Panel)
+    assert done.session.status is Status.ACTIVE
+    assert done.session.changes_saved == 1
+
+
+def test_a_pause_that_fails_still_ends_with_the_error():
     definition, decision = start(
         "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
     )
     asked = decided(definition, decision.session, evt(Lifecycle, action="pause"))
-    assert kinds(asked) == ["OpenModal"] and asked.session.status is Status.AWAITING
-    wrong = decided(
+    failed = decided(
         definition,
         asked.session,
-        evt(LifecycleConfirmed, action="pause", word="nope"),
+        evt(ev.CommitFailed, kind="pause", error="RuntimeError"),
+        Context(document=BLOCK_LINKS_DOC),
     )
-    assert kinds(wrong) == ["Ack"] and wrong.session.status is Status.ACTIVE
-    asked = decided(definition, wrong.session, evt(Lifecycle, action="pause"))
-    right = decided(
+
+    assert kinds(failed) == ["Finalize"] and failed.effects[0].kind == "error"
+    assert failed.session.status is Status.FAILED
+    assert [name for name, _props in failed.analytics] == ["feature.commit_failed"]
+
+
+def test_delete_asks_on_a_red_screen_that_goes_back_to_the_panel():
+    definition, decision = start(
+        "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
+    )
+    asked = decided(
+        definition,
+        decision.session,
+        evt(Lifecycle, action="disable"),
+        Context(document=BLOCK_LINKS_DOC, command="moderações bloquear links"),
+    )
+
+    question = screen(asked)
+    assert question.title == "🗑️ Apagar as configurações desse comando?"
+    assert "o comando **moderações bloquear links** é desativado" in (
+        question.description
+    )
+    assert "⏸️ Pausar" in question.description, "a running feature is offered a pause"
+    assert [b.label for b in question.buttons] == ["Desativar e apagar", "Voltar"]
+    assert [(b.action, b.style) for b in question.buttons] == [
+        ("confirm_lifecycle:disable", "danger"),
+        ("picker_back", "secondary"),
+    ]
+    assert asked.session.awaiting == "disable"
+
+    back = decided(
         definition,
         asked.session,
-        evt(LifecycleConfirmed, action="pause", word="pausar"),
+        evt(ev.PickerClosed),
+        Context(document=BLOCK_LINKS_DOC),
     )
-    assert isinstance(right.effects[0], Commit) and right.effects[0].kind == "pause"
-    done = decided(definition, right.session, evt(ev.CommitSucceeded, kind="pause"))
-    assert done.effects[0].kind == "paused"
+    assert isinstance(screen(back).components[0], Panel)
+    assert back.session.status is Status.ACTIVE
+    assert not [effect for effect in back.effects if isinstance(effect, Commit)]
+
+
+def test_delete_everything_deletes_and_closes_the_panel():
+    definition, decision = start(
+        "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
+    )
+    asked = decided(definition, decision.session, evt(Lifecycle, action="disable"))
+    confirmed = decided(
+        definition, asked.session, evt(LifecycleConfirmed, action="disable")
+    )
+
+    assert kinds(confirmed) == ["Commit"] and confirmed.effects[0].kind == "disable"
+    done = decided(
+        definition, confirmed.session, evt(ev.CommitSucceeded, kind="disable")
+    )
+    assert kinds(done) == ["Finalize"] and done.effects[0].kind == "disabled"
+    assert done.session.status is Status.COMPLETED
+
+
+def test_delete_everything_without_the_question_deletes_nothing():
+    definition, decision = start(
+        "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
+    )
+    stray = decided(
+        definition,
+        decision.session,
+        evt(LifecycleConfirmed, action="disable"),
+        Context(document=BLOCK_LINKS_DOC),
+    )
+
+    assert not [effect for effect in stray.effects if isinstance(effect, Commit)]
 
 
 def test_removing_from_the_manager_commits_the_item():
@@ -1021,6 +1110,23 @@ def test_back_from_a_part_edit_redraws_the_panel_without_committing():
     assert isinstance(screen(back).components[0], Panel)
 
 
+def test_discarding_an_edit_from_the_panel_removes_the_question_and_commits_nothing():
+    definition, parent, context = _part_manager()
+    opened, _started = open_part(definition, parent, context, "welcome_card/channel")
+
+    discarded = decided(
+        definition,
+        opened.session,
+        evt(ev.ChildFinished, child_mode="edit", answers={}, discarded=True),
+        context,
+    )
+
+    assert kinds(discarded) == ["Dismiss", "Render"]
+    assert isinstance(screen(discarded).components[0], Panel)
+    assert discarded.session.status is Status.ACTIVE
+    assert discarded.session.changes_saved == 0
+
+
 def test_a_part_edit_that_leaves_the_card_incomplete_shows_the_whole_card():
     definition, parent, context = _part_manager()
     _opened, started = open_part(definition, parent, context, "welcome_card/design")
@@ -1172,7 +1278,7 @@ def _twitch_panel_of(document):
 
 def test_an_item_saved_by_the_old_pause_reads_like_any_other():
     """N1 (round 3): the per-item pause is gone, and an item a dev panel saved
-    with `enabled: false` loads as a plain item: no "(Pausado)", no Retomar,
+    with `enabled: false` loads as a plain item: no "(Pausado)", no Despausar,
     no line for the field, and editing it seeds no answer from it."""
     from tests.behavioral.golden.paths.notifications_twitch import notification
 
@@ -1268,6 +1374,9 @@ ONLY_ITEM_WARNINGS = [
         ("⏸️ Pausar", "Pausar"),
         ("☀️ Bom dia", "Bom dia"),
         ("Notificações", "Notificações"),
+        (":no_entry_sign: Bloquear Links", "Bloquear Links"),
+        (":)", ":)"),
+        ("Notas: hoje às 10:30", "Notas: hoje às 10:30"),
     ],
 )
 def test_a_title_loses_its_leading_emoji_whatever_block_it_is_from(title, name):

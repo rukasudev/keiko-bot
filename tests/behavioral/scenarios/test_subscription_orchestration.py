@@ -31,7 +31,7 @@ async def _card_to_review(scenario, streamer, messages=None):
     await scenario.click("customize:1")
     await scenario.submit_modal({scenario.pending_modal_fields()[0]: streamer})
     if messages:
-        await scenario.click("customize:2")
+        await scenario.click("customize:4")
         fields = scenario.pending_modal_fields()
         await scenario.submit_modal(dict(zip(fields, messages)))
     await scenario.click("done")
@@ -168,7 +168,7 @@ async def test_disable_unsubscribes_streamers(
     )
 
     await scenario.click(ml("buttons.disable.label", locale="pt-br"))
-    await scenario.submit_confirmation()
+    await scenario.click("delete_all")
 
     assert deps.twitch.unsubscribe_calls, "disable must unsubscribe streamers"
     scenario.expect_not_persisted(

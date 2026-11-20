@@ -5,6 +5,7 @@ sources:
   - greeting_button
   - setup_dashboard
   - help_button
+  - expired_button
   - manager
   - context_menu
   - webhook

@@ -54,6 +54,13 @@ class Notice(Effect):
 
 
 @dataclass(frozen=True)
+class Announce(Effect):
+    """Tell `commands.responses.<kind>` beside the screen, on a message that goes."""
+
+    kind: str
+
+
+@dataclass(frozen=True)
 class Confirm(Effect):
     """Ask the admin to keep or discard, on a message of its own."""
 

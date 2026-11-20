@@ -7,8 +7,8 @@ command:
       en-us: videos
       pt-br: vídeos
     description:
-      en-us: Keiko will notify you whenever your favorite YouTubers uploads a new video on YouTube
-      pt-br: Keiko notificará você sempre que seus youtubers favoritos postarem um novo vídeo no YouTube
+      en-us: Keiko lets the server know whenever your favorite YouTubers post a new video
+      pt-br: Keiko avisa o servidor sempre que seus youtubers favoritos postam um vídeo novo
 
   setup:
     label:
@@ -38,8 +38,8 @@ ui:
         en-us: Youtuber Already Registered
         pt-br: Youtuber Já Registrado
       message:
-        en-us: The notification of this youtuber's videos is already set up on this server. Please select another youtuber and try again.
-        pt-br: A notificação dos vídeos desse youtuber já está configurada nesse servidor. Por favor, selecione outro youtuber e tente novamente.
+        en-us: I'm sorry, but this youtuber's video notifications are already set up on this server. Pick another youtuber and try again!
+        pt-br: Sinto muito, mas a notificação dos vídeos desse youtuber já está configurada neste servidor. Escolha outro youtuber e tente de novo!
     youtuber_not_found:
       title:
         en-us: Youtuber Not Found

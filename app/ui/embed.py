@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, Literal
 
 import discord
 from pydantic import Field
@@ -101,6 +101,13 @@ class Response(CopyBlock):
             {"en-us": "I answered in $ping ms.", "pt-br": "Respondi em $ping ms."}
         ],
         json_schema_extra={"role": "copy"},
+    )
+    tone: Literal["default", "warning"] = Field(
+        "default",
+        description="The embed's colour: Keiko's blue, or the yellow of a warning, for "
+        "a message that tells the admin Keiko changed what they did (a mention taken "
+        "out of a text).",
+        json_schema_extra={"role": "visual"},
     )
     footer: CopyText | None = Field(
         None,
@@ -330,7 +337,7 @@ def response_embed(
     language = parse_locale(locale)
     body = _description(copy, empty, multilang_key)
     embed = discord.Embed(
-        color=color or int(constants.BACKGROUND_COLOR, base=16),
+        color=color or _tone_color(copy),
         title=fill(copy.title.get(language), **values),
         description=fill(body.get(language), **values) if body else None,
     )
@@ -340,6 +347,11 @@ def response_embed(
         embed.set_thumbnail(url=thumbnail or icons.IMAGE_01)
     with_footer(embed, _footer(copy.footer, "footer" in copy.model_fields_set, locale))
     return embed
+
+
+def _tone_color(copy: Response) -> int:
+    warning = copy.tone == "warning"
+    return int(constants.WARNING_COLOR if warning else constants.BACKGROUND_COLOR, 16)
 
 
 def announcement_embed(

@@ -160,9 +160,10 @@ async def test_editing_through_the_manager_lists_the_changed_fields(
     await scenario.click("customize:1")
     await scenario.submit_modal({"resposta": "Resposta nova"})
     await scenario.click("done")
+    await scenario.expire()
 
     session = only(story)
-    assert session["result"] == "edited"
+    assert session["result"] == "edited", "the panel's story ends named by its edit"
     edited = [line for line in session["lines"] if line.startswith("🔧")]
     assert edited, "the edit must appear on the timeline"
     assert "Resposta nova" not in edited[0], "field names only, never values"

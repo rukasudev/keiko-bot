@@ -13,7 +13,8 @@ from tests.behavioral.golden.paths.common import (
 
 FORM = "notifications_twitch"
 
-MESSAGE = "@everyone {streamer} está ao vivo! {stream_link}"
+MESSAGE = "{streamer} está ao vivo! {stream_link}"
+EVERYONE = {"value": "@everyone", "title": "Mencionar", "_raw_value": "everyone"}
 
 
 def notification(channel: str, streamer: str) -> dict:
@@ -22,6 +23,7 @@ def notification(channel: str, streamer: str) -> dict:
         "streamer": {"value": streamer, "title": "Streamer"},
         "notification_messages": {"value": [MESSAGE], "title": "Mensagens de Notificação",
                                   "style": "bullet"},
+        "mention": dict(EVERYONE),
     }
 
 
@@ -58,7 +60,7 @@ async def _submit_streamer(scenario, name):
 
 
 async def _submit_messages(scenario):
-    await scenario.click("customize:2")
+    await scenario.click("customize:4")
     first = scenario.pending_modal_fields()[0]
     await scenario.submit_modal({first: "{streamer} entrou ao vivo: {stream_link}"})
 

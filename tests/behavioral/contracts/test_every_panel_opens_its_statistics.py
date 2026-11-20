@@ -86,6 +86,20 @@ async def test_every_panel_draws_the_statistics_and_its_feature_answers_them(dep
     assert embed.title == PORTUGUESE_TITLES[key]
 
 
+@pytest.mark.parametrize("key", feature_keys())
+@pytest.mark.parametrize("enabled", [True, False], ids=["running", "paused"])
+def test_every_panel_draws_its_grey_disable_beside_pause_and_help_last(key, enabled):
+    buttons = panel_buttons(
+        registry.get(key), {}, "pt-br", PanelExtras(enabled=enabled), True
+    )
+
+    actions = [button.action for button in buttons]
+    lifecycle = "lifecycle:pause" if enabled else "lifecycle:unpause"
+    assert actions[:2] == [lifecycle, "lifecycle:disable"]
+    assert actions[-1] == "aside:help"
+    assert all(button.style == "secondary" for button in buttons)
+
+
 async def test_a_quiet_feature_says_so_under_its_own_title(deps):
     embed = await _stats("default_roles", create_guild(id=777))
 

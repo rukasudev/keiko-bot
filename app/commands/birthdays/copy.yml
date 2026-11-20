@@ -3,9 +3,6 @@ facts:
   current_date:
     type: text
     description: The birthday a member already saved, formatted for the reader.
-  member:
-    type: text
-    description: The member whose birthday the answer names, as a mention.
   new_date:
     type: text
     description: The birthday a member asks to save in place of the saved one, formatted for the reader.
@@ -23,13 +20,6 @@ command:
       pt-br: Keiko comemora calorosamente o aniversário dos seus membros com mensagens personalizadas
     # open: parameter names in Python -> the parameter Discord shows
     params:
-      member:
-        name:
-          en-us: member
-          pt-br: membro
-        description:
-          en-us: Member whose birthday will be registered
-          pt-br: Membro que terá o aniversário cadastrado
       day:
         name:
           en-us: day
@@ -46,13 +36,6 @@ command:
           pt-br: Mês do aniversário
     # open: the folder's other app commands -> the command Discord shows
     commands:
-      add:
-        name:
-          en-us: add
-          pt-br: adicionar
-        description:
-          en-us: Quickly register a member birthday
-          pt-br: Cadastre rapidamente o aniversário de um membro
       personal:
         name:
           en-us: birthday
@@ -132,13 +115,6 @@ command:
 ui:
   # open: response names -> the embed the command answers with
   responses:
-    add:
-      title:
-        en-us: 🎂 Birthday registered!
-        pt-br: 🎂 Aniversário cadastrado!
-      description:
-        en-us: "I saved $member's birthday for **$date**.\n\nTo review all reminders, use `${context.commands.reminders_birthday}`."
-        pt-br: "Anotei o aniversário de $member para **$date**.\n\nPara revisar todos os lembretes, use `${context.commands.reminders_birthday}`."
     personal:
       title:
         en-us: 🎂 Birthday saved!
@@ -175,8 +151,8 @@ ui:
         en-us: Birthday Edit Blocked
         pt-br: Edição de Aniversário Bloqueada
       message:
-        en-us: You've already used your birthday edit in this server. Ask a moderator if you need another correction.
-        pt-br: Você já usou sua edição de aniversário neste servidor. Se precisar corrigir de novo, fale com um moderador.
+        en-us: I'm sorry, but you've already used your birthday edit in this server. If you need another fix, just ask a moderator!
+        pt-br: Sinto muito, mas você já usou sua edição de aniversário neste servidor. Se precisar corrigir de novo, é só falar com um moderador!
 
   announcement:
     defaults:

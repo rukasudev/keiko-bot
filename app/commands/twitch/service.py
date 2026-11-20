@@ -16,6 +16,7 @@ from app.constants import LogTypes as logconstants
 from app.core import analytics
 from app.core.cache import claim_redis_key, release_redis_key
 from app.core.commands import WebhookEvent, WebhookReply
+from app.core.mentions import mention_of
 from app.core.servers import server_language
 from app.core.threads import to_thread
 from app.core.trace import Outcome, as_utc, fan_out
@@ -31,7 +32,7 @@ from app.core.utils import (
 from app.data import data
 from app.data.collection import Document
 from app.exceptions import ErrorContext
-from app.forms import open_feature
+from app.forms import item_values, items_of, open_feature
 from app.forms.features.subscriptions import Account, SubscriptionFeature
 from app.ui.embed import announcement_embed
 from app.ui.message_preview import MessagePreviewView
@@ -272,20 +273,21 @@ async def announce_live(
     stream_info: Mapping[str, Any],
     user_info: Mapping[str, Any],
 ) -> None:
-    """Post a live in the channel one server chose for it, in that server's language."""
+    """Post a live in the channel one server chose for it, in that server's language,
+    pinging only who the notice mentions."""
     streamer_name = user_info["login"]
-    guild, channel = destination(
-        guild_data.get("guild_id"), (notification.get("channel") or {}).get("value")
-    )
+    notice = item_values(notification)
+    mention = mention_of(notice.get("mention"), notice.get("mention_roles"))
+    guild, channel = destination(guild_data.get("guild_id"), notice.get("channel"))
     embed = create_stream_notification_embed(
         streamer_name, stream_info, user_info, await server_language(guild.id)
     )
 
     try:
         message = await channel.send(
-            content=compose_notification_message(notification, streamer_name),
+            content=mention.before(compose_notification_message(notice, streamer_name)),
             embed=embed,
-            allowed_mentions=discord.AllowedMentions.all(),
+            allowed_mentions=mention.allowed,
         )
     except discord.Forbidden as error:
         analytics.record_permission_failure(guild.id, "notifications_twitch", error)
@@ -327,7 +329,7 @@ async def show_status(
 ) -> bool:
     """Write the status on the notice one server got; False when that notice is gone."""
     guild, channel = destination(
-        guild_data.get("guild_id"), (notification.get("channel") or {}).get("value")
+        guild_data.get("guild_id"), item_values(notification).get("channel")
     )
     message = await fetch_notification_message(guild, channel, streamer_name)
     if not message:
@@ -346,9 +348,8 @@ def notices_of(
     return [
         (guild_data, notification)
         for guild_data in guilds_data
-        for notification in (guild_data.get("notifications") or {}).get("values") or []
-        if str((notification.get("streamer") or {}).get("value") or "").lower()
-        == streamer_name
+        for notification in items_of(guild_data, "notifications")
+        if str(item_values(notification).get("streamer") or "").lower() == streamer_name
     ]
 
 
@@ -454,7 +455,7 @@ async def subscribe_streamer(
     interaction: Optional[discord.Interaction], response: Mapping[str, Any]
 ) -> None:
     """Ask Twitch to tell Keiko when a streamer goes live and when the live ends."""
-    streamer = response["streamer"]["value"]
+    streamer = item_values(response)["streamer"]
     streamer_id = await to_thread(bot.twitch.get_user_id_from_login, streamer)
 
     online = await to_thread(bot.twitch.subscribe_to_stream_online_event, streamer_id)
@@ -494,7 +495,7 @@ async def unsubscribe_streamer(
     interaction: Optional[discord.Interaction], notification: Mapping[str, Any]
 ) -> None:
     """Drop the streamer's Twitch subscriptions once no other server follows it."""
-    streamer = notification["streamer"]["value"]
+    streamer = item_values(notification)["streamer"]
     streamer_id = await to_thread(bot.twitch.get_user_id_from_login, streamer)
 
     guilds_by_streamer = await count_streamers_guilds(streamer)
@@ -533,12 +534,14 @@ async def unsubscribe_streamer(
 async def send_notification_preview(
     interaction: discord.Interaction, responses: List[Document]
 ) -> None:
-    """The live announcement as it will arrive, one written message per click."""
+    """The live announcement as it will arrive, one written message per click, its
+    mention written but pinging nobody."""
     values = values_of(responses)
     streamer = str(values.get("streamer") or "")
     stream_link = f"https://www.twitch.tv/{streamer}"
+    mention = mention_of(values.get("mention"), values.get("mention_roles"))
     texts = [
-        parse_streamer_message(message, streamer, stream_link)
+        mention.before(parse_streamer_message(message, streamer, stream_link)) or ""
         for message in split_messages(values.get("notification_messages"))
     ]
     embed = await build_preview_embed(streamer, str(interaction.locale))
@@ -586,9 +589,9 @@ async def last_stream_thumbnail(user_info: Mapping[str, Any]) -> str:
     return str(found or user_info.get("offline_image_url") or "")
 
 
-def compose_notification_message(notification: Mapping[str, Any], streamer: str) -> str:
-    """One of the server's messages, picked at random, filled for this streamer."""
-    messages = split_messages(notification["notification_messages"]["value"])
+def compose_notification_message(notice: Mapping[str, Any], streamer: str) -> str:
+    """One of the notice's messages, picked at random, filled for this streamer."""
+    messages = split_messages(notice.get("notification_messages"))
     stream_link = f"https://www.twitch.tv/{streamer}"
     random_message = random.choice(messages or [""])
 

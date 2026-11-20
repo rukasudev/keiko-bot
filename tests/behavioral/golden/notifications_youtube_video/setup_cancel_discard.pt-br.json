@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Ativar esta função faz com que eu notifique quando seu youtuber favorito postar um novo vídeo!\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Texto:** Onde vou avisar do vídeo novo.\n:flying_disc: **Youtuber:** O nome do canal no YouTube (com ou sem @).\n:flying_disc: **Mensagens de Notificação:** Até três mensagens, eu sorteio uma a cada vídeo.\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "description": "Ativar esta função faz com que eu notifique quando seu youtuber favorito postar um novo vídeo!\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal de Texto:** Onde vou avisar do vídeo novo.\n:flying_disc: **Youtuber:** O nome do canal no YouTube (com ou sem @).\n:flying_disc: **Mencionar:** Quem eu marco no começo do aviso.\n:flying_disc: **Cargos que eu menciono:** Escolha os cargos que eu marco.\n:flying_disc: **Mensagens de Notificação:** Até três mensagens, eu sorteio uma a cada vídeo.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
       "footer": null,
       "image": null,
@@ -107,7 +107,45 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "content": "📣 **Mencionar**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Ninguém",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Alguns cargos",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Escolher quem eu menciono",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• {youtuber} acabou de postar um novo vídeo!```",
             "type": "text"
           },
           {
@@ -228,7 +266,45 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "content": "📣 **Mencionar**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Ninguém",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Alguns cargos",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Escolher quem eu menciono",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• {youtuber} acabou de postar um novo vídeo!```",
             "type": "text"
           },
           {
@@ -371,7 +447,11 @@
             "type": "text"
           },
           {
-            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "content": "📣 **Mencionar**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "content": "💬 **Mensagens de Notificação**\nUma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n```• {youtuber} acabou de postar um novo vídeo!```",
             "type": "text"
           },
           {

@@ -17,7 +17,6 @@ import discord
 from app.data import data, wait
 from app.forms.discord.callbacks import RUNTIME
 from app.forms.discord.interactions import decode as decode_component_id
-from app.forms.form.manager import confirmation_word
 from tests.behavioral.harness import locators
 from app.core.commands import setup_features
 from tests.generators.moderations import recorded_server, seed_cog
@@ -159,23 +158,14 @@ class FormScenario:
             raise LocatorError("no modal is pending", self.transcript)
         return [i.label for i in self._modal_inputs(modal)]
 
-    async def submit_confirmation(self, word: Optional[str] = None) -> None:
-        """Submit the typed confirmation of a lifecycle action (pause, unpause,
-        disable). Defaults to the correct word; pass a wrong `word` to test
-        the rejection path."""
-        modal = self.store.pending_modal
-        if modal is None:
-            raise LocatorError("no confirmation modal is pending", self.transcript)
-        typed = word if word is not None else self._confirmation_word(modal)
-        inputs = self._modal_inputs(modal)
-        inputs[0]._value = typed
-        self.store.pending_modal = None
-        self.store.record("modal_submit", actor="user", fields={"confirmation": typed})
-        await modal.on_submit(self._mint(message=self.current_message))
-
     async def submit_file_upload(self, *, filename: str = "image.png",
-                                 content: bytes = b"fake-image-bytes") -> None:
-        """Submit a pending file-upload modal with a fake attachment."""
+                                 content: bytes = b"fake-image-bytes",
+                                 size: Optional[int] = None,
+                                 width: Optional[int] = 800,
+                                 height: Optional[int] = 400,
+                                 content_type: Optional[str] = "image/png") -> None:
+        """Submit a pending file-upload modal with a fake attachment: by default a
+        small PNG, measured the way Discord describes an attachment."""
         modal = self.store.pending_modal
         if modal is None or getattr(modal, "file_upload", None) is None:
             raise LocatorError("no file-upload modal is pending", self.transcript)
@@ -183,7 +173,11 @@ class FormScenario:
         async def read():
             return content
 
-        attachment = SimpleNamespace(read=read, filename=filename)
+        attachment = SimpleNamespace(
+            read=read, filename=filename,
+            size=len(content) if size is None else size,
+            width=width, height=height, content_type=content_type,
+        )
         modal.file_upload._values = [attachment]
         self.store.pending_modal = None
         self.store.record("modal_submit", actor="user", fields={"file": filename})
@@ -447,12 +441,6 @@ class FormScenario:
     def _current_step_key(self) -> Optional[str]:
         session = self.session
         return session.cursor if session is not None else None
-
-    def _confirmation_word(self, modal) -> Optional[str]:
-        component = decode_component_id(getattr(modal, "custom_id", None) or "")
-        if component is not None and component.action == "word":
-            return confirmation_word(component.arg or "", self.locale_str)
-        return None
 
     def _last_content_event(self) -> Dict[str, Any]:
         for event in reversed(self.store.events):

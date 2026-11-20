@@ -101,18 +101,11 @@ def _value_nodes(step: Any):
 
 def is_filled(value: Any) -> bool:
     """A saved setting counts as used only when it actually holds something."""
-    if isinstance(value, dict):
-        return is_filled(value.get("values", value.get("value")))
     if isinstance(value, bool):
         return True
-    return value not in (None, "", [], {})
-
-
-def field_value(value: Any) -> Any:
-    """A saved field's value, whether or not it kept an envelope around it."""
-    if isinstance(value, dict):
-        return value.get("_raw_value", value.get("value", value.get("values")))
-    return value
+    if isinstance(value, (list, tuple, dict)):
+        return bool(value)
+    return value not in (None, "")
 
 
 async def config_usage(feature: str) -> Dict[str, Any]:
@@ -125,7 +118,12 @@ async def config_usage(feature: str) -> Dict[str, Any]:
     collection: a feature that owns its persistence answers every raw lookup
     with `None`, and this report is read as a list of settings to delete.
     """
-    documents = await cogs_service.feature_config_states(feature)
+    from app.forms.form.responses.responses import document_values
+
+    documents = [
+        document_values(document)
+        for document in await cogs_service.feature_config_states(feature)
+    ]
     total = len(documents)
     rows = []
 
@@ -145,7 +143,7 @@ async def config_usage(feature: str) -> Dict[str, Any]:
         if field["closed_vocabulary"]:
             counts: Dict[str, int] = {}
             for document in filled:
-                for value in ensure_list(field_value(document.get(field["key"]))):
+                for value in ensure_list(document.get(field["key"])):
                     label = str(value)[:constants.ANALYTICS_MAX_VALUE_LENGTH]
                     counts[label] = counts.get(label, 0) + 1
             row["values"] = dict(

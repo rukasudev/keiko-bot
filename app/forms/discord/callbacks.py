@@ -19,6 +19,7 @@ import discord
 
 from app import logger
 from app.constants import Commands as commands_constants
+from app.constants import DiscordLimits
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
 from app.core import analytics, members, metrics
@@ -33,19 +34,21 @@ from app.core.utils import (
     speak,
 )
 from app.forms.discord import observability
-from app.forms.discord.interactions import ComponentId, decode, to_event
+from app.forms.discord.interactions import REOPEN, ComponentId, decode, to_event
 from app.forms.discord.transitions import (
     Answering,
     EffectFailed,
     Ending,
     Executor,
     Surface,
+    closed_payload,
     expire_surface,
     hold,
+    message_surface,
     release,
 )
-from app.forms.discord.views import Dispatcher, walk
-from app.forms.features import feature_for
+from app.forms.discord.views import Dispatcher, Ids, walk
+from app.forms.features import feature_for, feature_keys
 from app.forms.features.feature import (
     AsideAction,
     CommitContext,
@@ -75,6 +78,7 @@ from app.forms.form.form_state import (
     Origin,
     Setup,
     Status,
+    feature_of,
     new_session,
 )
 from app.forms.form.form_yaml import registry
@@ -196,6 +200,7 @@ class Runtime:
         self.store = InMemorySessionStore()
         self.sessions: dict[str, Session] = {}
         self.answering: dict[int, Answering] = {}
+        self.claimed: dict[int, float] = {}
         self.dispatcher = Dispatcher(self.handle)
 
     def reset(self) -> None:
@@ -204,6 +209,7 @@ class Runtime:
             state.forget()
         self.store = InMemorySessionStore()
         self.sessions.clear()
+        self.claimed.clear()
 
     async def open_feature(
         self,
@@ -296,9 +302,45 @@ class Runtime:
         component = decode(custom_id)
         if component is None:
             return
+        if component.action == REOPEN:
+            await self.reopen(interaction, component.arg or "")
+            return
+        if self._claim(interaction):
+            await self._handle_claimed(interaction, component, payload)
+
+    async def late(self, interaction: discord.Interaction, custom_id: str) -> None:
+        """A control or modal reached by its custom id alone: the expired message on
+        it when its form is over, nothing while a live view still answers it."""
+        component = decode(custom_id)
+        if component is None or component.action == REOPEN:
+            return
+        session = self.store.get(component.session_id)
+        if self._over(session) and self._claim(interaction):
+            await self._expired(interaction, component)
+
+    def _claim(self, interaction: discord.Interaction) -> bool:
+        now = time.monotonic()
+        while self.claimed:
+            older, claimed_at = next(iter(self.claimed.items()))
+            if now - claimed_at < DiscordLimits.INTERACTION_TOKEN_SECONDS:
+                break
+            del self.claimed[older]
+        if interaction.id in self.claimed:
+            return False
+        self.claimed[interaction.id] = now
+        return True
+
+    def _over(self, session: FormSession | None) -> bool:
+        if session is None or session.status is Status.EXPIRED:
+            return True
+        return not session.is_closed and self._due(session, _now())
+
+    async def _handle_claimed(
+        self, interaction: discord.Interaction, component: ComponentId, payload: Any
+    ) -> None:
         session = self.store.get(component.session_id)
         if session is None:
-            await self._unknown(interaction)
+            await self._expired(interaction, component)
             return
         state = self.sessions[session.id]
         speak(interaction, session.origin.locale)
@@ -315,6 +357,20 @@ class Runtime:
             self._unclocked(answering)
 
         metrics.record_interaction(*answering.outcome())
+
+    async def reopen(self, interaction: discord.Interaction, key: str) -> None:
+        """Open `key` again from the button of its expired message, for an admin."""
+        if key not in feature_keys():
+            locale = await interaction_language(interaction)
+            notice = text("texts.notices.closed", locale)
+            await interaction.response.send_message(content=notice, ephemeral=True)
+            return
+        if not is_guild_admin(interaction.user):
+            locale = await interaction_language(interaction)
+            embed = response_embed("commands.responses.admin_only", locale)
+            await interaction.response.send_message(embed=embed, ephemeral=True)
+            return
+        await run_feature_command(interaction, key, "expired_button")
 
     def _clocked(self, interaction: discord.Interaction) -> Answering:
         answering = Answering(interaction)
@@ -352,29 +408,27 @@ class Runtime:
             finally:
                 await release(state.surface, self._answering(interaction))
 
-    async def _unknown(self, interaction: discord.Interaction) -> None:
-        """A click on a message whose session this process no longer has."""
-        notice = text("texts.notices.expired", await interaction_language(interaction))
+    async def _expired(
+        self, interaction: discord.Interaction, component: ComponentId
+    ) -> None:
+        locale = await interaction_language(interaction)
+        feature = feature_of(component.session_id)
+        reopen = feature if feature in feature_keys() else None
+        notice = "expired" if reopen else "closed"
         message = interaction.message
+        surface = message_surface(message) if message is not None else Surface()
+        ids = Ids(component.session_id, component.revision)
+        payload = closed_payload(surface, notice, locale, reopen, ids)
 
         try:
-            if message is not None and message.flags.components_v2:
-                await interaction.response.defer()
-                await interaction.followup.send(content=notice, ephemeral=True)
+            if message is None:
+                await interaction.response.send_message(ephemeral=True, **payload)
             else:
-                embed = message.embeds[0] if message and message.embeds else None
-                if embed is not None:
-                    embed.description = f"{embed.description or ''}\n\n{notice}".strip()
-                    await interaction.response.edit_message(embed=embed, view=None)
-                else:
-                    await interaction.response.send_message(
-                        content=notice, ephemeral=True
-                    )
+                await interaction.response.edit_message(**payload)
         except discord.HTTPException as error:
             metrics.record_interaction("failed", error)
             logger.warn(
-                f"Could not finalize an unknown session: "
-                f"{type(error).__name__}: {error}",
+                f"Could not draw an expired form: {type(error).__name__}: {error}",
                 log_type=logconstants.COMMAND_WARN_TYPE,
             )
         else:
@@ -690,6 +744,7 @@ class Runtime:
             return
         if result.document is not None:
             state.opened = Opened(document=result.document, panel=state.opened.panel)
+        observability.saved_change(session, kind)
         if isinstance(session.mode, Manage):
             await self._reopen(session)
         await self._apply(
@@ -939,7 +994,12 @@ class Runtime:
                     state.friction,
                     state.is_admin,
                 )
-                await expire_surface(state.surface, session.origin.locale)
+                await expire_surface(
+                    state.surface,
+                    session.origin.locale,
+                    session.key,
+                    Ids(decision.session.id, decision.session.revision),
+                )
             if session.parent_id is None:
                 ended = observability.ended_as(decision.session, "abandoned")
                 observability.close_journey(decision.session, ended)
