@@ -988,7 +988,7 @@ User @rukasu · Guild `1` · Source `slash` · Admin `yes` · 52s · failure
 
 **A save is read for what it configured.** Journey lines carry a `kind`, and the
 step lines (`setup.step_viewed`, `setup.step_back`) are `step`. When a session
-ends `saved` or `edited`, `journey.record` drops them before adding the final
+ends `saved`, or takes an edit (`edited`), `journey.record` drops them before adding the final
 line, so the outcome is never the line the 20-line cap cuts. The summary comes
 from `setup.completed` props the engine computes: `configured_steps` (step keys,
 rendered as their titles) and `item_count`, never a value. A failure, a discard
@@ -1006,6 +1006,14 @@ twice, so a line in the log can never disagree with a number in a dashboard.
 
 Outcomes: `✅ saved` · `🔧 edited` · `🚫 discarded` · `⏸️ paused` · `▶️ resumed` ·
 `🛑 disabled` · `⌛ abandoned` · `❌ failure` · `⏳ in progress`.
+
+A panel stays open after an edit, a pause and a resume, so those are steps of its
+story (`ACTIONS`, beside an item added or removed), never its end: the story closes
+when the panel does, named by its last change (`observability.ended_as`), and the
+adapter names that change from the commit too (`journey.acted`, through
+`observability.saved_change`), so the name holds with the events off. A delete
+(`feature.disabled`) still ends the story at once. `rebuild` reads an expired panel
+as its last change, not as abandoned.
 
 An edit lists **which fields changed and nothing else** — never a value, before
 or after. The values already live in `guild.<cog_key>`; the log has no reason to

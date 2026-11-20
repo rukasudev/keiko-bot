@@ -47,7 +47,7 @@
           {
             "children": [
               {
-                "content": "### Exceções\n🔗 **Sites populares permitidos:**\n- youtube.com\n- twitch.tv",
+                "content": "### Exceções\n🔗 **Sites populares permitidos:**\n- `youtube.com`\n- `twitch.tv`",
                 "type": "text"
               },
               {
@@ -62,7 +62,7 @@
           {
             "children": [
               {
-                "content": "📌 **Links personalizados permitidos:**",
+                "content": "📌 **Links personalizados permitidos:** 2 de 25",
                 "type": "text"
               },
               {
@@ -314,7 +314,7 @@
           {
             "children": [
               {
-                "content": "### Exceções\n🔗 **Sites populares permitidos:**\n- youtube.com\n- twitch.tv",
+                "content": "### Exceções\n🔗 **Sites populares permitidos:**\n- `youtube.com`\n- `twitch.tv`",
                 "type": "text"
               },
               {
@@ -329,7 +329,7 @@
           {
             "children": [
               {
-                "content": "📌 **Links personalizados permitidos:**",
+                "content": "📌 **Links personalizados permitidos:** 1 de 25",
                 "type": "text"
               },
               {

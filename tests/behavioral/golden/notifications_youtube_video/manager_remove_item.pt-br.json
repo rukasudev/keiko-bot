@@ -45,7 +45,7 @@
             "type": "section"
           },
           {
-            "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎬 **Youtuber:** pewdiepie\n💬 **Mensagens de Notificação:** ```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "content": "### Notificações #1\n📺 **Canal de Texto:** <#100>\n🎬 **Youtuber:** pewdiepie\n💬 **Mensagens de Notificação:** ```• {youtuber} acabou de postar um novo vídeo!```\n📣 **Mencionar:** @everyone",
             "type": "text"
           },
           {
@@ -72,7 +72,7 @@
             "type": "actionrow"
           },
           {
-            "content": "### Notificações #2\n📺 **Canal de Texto:** <#102>\n🎬 **Youtuber:** mrbeast\n💬 **Mensagens de Notificação:** ```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "content": "### Notificações #2\n📺 **Canal de Texto:** <#102>\n🎬 **Youtuber:** mrbeast\n💬 **Mensagens de Notificação:** ```• {youtuber} acabou de postar um novo vídeo!```\n📣 **Mencionar:** @everyone",
             "type": "text"
           },
           {
@@ -252,7 +252,7 @@
             "type": "section"
           },
           {
-            "content": "### Notificações #1\n📺 **Canal de Texto:** <#102>\n🎬 **Youtuber:** mrbeast\n💬 **Mensagens de Notificação:** ```• @everyone! {youtuber} acabou de postar um novo vídeo!```",
+            "content": "### Notificações #1\n📺 **Canal de Texto:** <#102>\n🎬 **Youtuber:** mrbeast\n💬 **Mensagens de Notificação:** ```• {youtuber} acabou de postar um novo vídeo!```\n📣 **Mencionar:** @everyone",
             "type": "text"
           },
           {

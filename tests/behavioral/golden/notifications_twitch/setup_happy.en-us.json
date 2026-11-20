@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Enabling this feature allows me to notify when your favorite streamer is online on Twitch!\n\n:pencil: **Settings**\n\n:flying_disc: **Text Channel:** Where I'll announce the live.\n:flying_disc: **Streamer:** The streamer's Twitch nick (with or without @).\n:flying_disc: **Notification Messages:** Up to three messages, I pick one at random each live.\n\n-# • Use the `/report` command to tell me a bug",
+      "description": "Enabling this feature allows me to notify when your favorite streamer is online on Twitch!\n\n:pencil: **Settings**\n\n:flying_disc: **Text Channel:** Where I'll announce the live.\n:flying_disc: **Streamer:** The streamer's Twitch nick (with or without @).\n:flying_disc: **Mention:** Who I mention at the start of the notification.\n:flying_disc: **Roles I mention:** Pick the roles I mention.\n:flying_disc: **Notification Messages:** Up to three messages, I pick one at random each live.\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
       "footer": null,
       "image": null,
@@ -107,7 +107,45 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link\n```• @everyone {streamer} is live! {stream_link}```",
+            "content": "📣 **Mention**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Nobody",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Some roles",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Choose who I mention",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link\n```• {streamer} is live! {stream_link}```",
             "type": "text"
           },
           {
@@ -228,7 +266,45 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link\n```• @everyone {streamer} is live! {stream_link}```",
+            "content": "📣 **Mention**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Nobody",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Some roles",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Choose who I mention",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link\n```• {streamer} is live! {stream_link}```",
             "type": "text"
           },
           {
@@ -367,7 +443,45 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link\n```• @everyone {streamer} is live! {stream_link}```",
+            "content": "📣 **Mention**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": true,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Nobody",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Some roles",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Choose who I mention",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link\n```• {streamer} is live! {stream_link}```",
             "type": "text"
           },
           {
@@ -476,7 +590,45 @@
             "type": "actionrow"
           },
           {
-            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link\n```• @everyone gaules is live! https://twitch.tv/gaules```",
+            "content": "📣 **Mention**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Nobody",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Some roles",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Choose who I mention",
+                "type": "select"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "💬 **Notification Messages**\nOne of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link\n```• gaules is live! https://twitch.tv/gaules```",
             "type": "text"
           },
           {
@@ -532,7 +684,7 @@
     "kind": "click",
     "message": "M2",
     "seq": 14,
-    "target": "customize:2"
+    "target": "customize:4"
   },
   {
     "actor": "bot",
@@ -541,7 +693,7 @@
     "modal": {
       "fields": [
         {
-          "default": "@everyone gaules is live! https://twitch.tv/gaules",
+          "default": "gaules is live! https://twitch.tv/gaules",
           "label": "Random Message #1",
           "max_length": 100,
           "required": true,
@@ -628,6 +780,44 @@
                 "label": "Choose streamer",
                 "style": "secondary",
                 "type": "button"
+              }
+            ],
+            "type": "actionrow"
+          },
+          {
+            "content": "📣 **Mention**\n> @everyone",
+            "type": "text"
+          },
+          {
+            "children": [
+              {
+                "disabled": false,
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Nobody",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Some roles",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Choose who I mention",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -729,7 +919,7 @@
             "type": "section"
           },
           {
-            "content": "### Notifications #1\n📺 **Text Channel:** <#100>\n🎮 **Streamer:** gaules\n💬 **Notification Messages:** ```• {streamer} entrou ao vivo: {stream_link}```",
+            "content": "### Notifications #1\n📺 **Text Channel:** <#100>\n🎮 **Streamer:** gaules\n📣 **Mention:** @everyone\n💬 **Notification Messages:** ```• {streamer} entrou ao vivo: {stream_link}```",
             "type": "text"
           },
           {
@@ -801,7 +991,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Command **notifications twitch lives** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/notifications twitch lives` or `/setup` 🔄\n\n-# • Use the `/report` command to tell me a bug",
+      "description": "I turned on the **notifications twitch lives** command on <t:1767268800:f>, as <@555> asked! 🚀\n\nTo make changes or disable it, just use `/notifications twitch lives` or `/setup` 🔄\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
       "footer": null,
       "image": null,
@@ -857,7 +1047,7 @@
             "type": "section"
           },
           {
-            "content": "### Notifications #1\n📺 **Text Channel:** <#100>\n🎮 **Streamer:** gaules\n💬 **Notification Messages:** ```• {streamer} entrou ao vivo: {stream_link}```",
+            "content": "### Notifications #1\n📺 **Text Channel:** <#100>\n🎮 **Streamer:** gaules\n📣 **Mention:** @everyone\n💬 **Notification Messages:** ```• {streamer} entrou ao vivo: {stream_link}```",
             "type": "text"
           },
           {

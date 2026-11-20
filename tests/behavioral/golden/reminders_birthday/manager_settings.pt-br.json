@@ -146,7 +146,7 @@
           {
             "children": [
               {
-                "content": "📺 **Canal de aniversário:** <#100>\n📣 **Mencionar @everyone:** Não\n🌎 **Fuso horário:** America/Sao_Paulo\n🕒 **Horário da notificação:** 08:00\n💬 **Mensagem padrão dos membros:** Padrão",
+                "content": "📺 **Canal de aniversário:** <#100>\n📣 **Mencionar:** Ninguém\n🌎 **Fuso horário:** America/Sao_Paulo\n🕒 **Horário da notificação:** 08:00\n💬 **Mensagem padrão dos membros:** Padrão",
                 "type": "text"
               },
               {

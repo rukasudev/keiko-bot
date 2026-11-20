@@ -146,7 +146,7 @@
           {
             "children": [
               {
-                "content": "📺 **Canal de aniversário:** <#100>\n📣 **Mencionar @everyone:** Não\n🌎 **Fuso horário:** America/Sao_Paulo\n🕒 **Horário da notificação:** 08:00\n💬 **Mensagem padrão dos membros:** Padrão",
+                "content": "📺 **Canal de aniversário:** <#100>\n📣 **Mencionar:** Ninguém\n🌎 **Fuso horário:** America/Sao_Paulo\n🕒 **Horário da notificação:** 08:00\n💬 **Mensagem padrão dos membros:** Padrão",
                 "type": "text"
               },
               {
@@ -358,22 +358,39 @@
             "type": "actionrow"
           },
           {
-            "content": "📣 **Mencionar @everyone**\n> Não",
+            "content": "📣 **Mencionar**\n> Ninguém",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Sim",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Não",
-                "style": "primary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": true,
+                    "label": "Ninguém",
+                    "value": "none"
+                  },
+                  {
+                    "default": false,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Alguns cargos",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Escolher quem eu menciono",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -600,22 +617,39 @@
             "type": "actionrow"
           },
           {
-            "content": "📣 **Mencionar @everyone**\n> Não",
+            "content": "📣 **Mencionar**\n> Ninguém",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Sim",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Não",
-                "style": "primary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": true,
+                    "label": "Ninguém",
+                    "value": "none"
+                  },
+                  {
+                    "default": false,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Alguns cargos",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Escolher quem eu menciono",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -668,10 +702,13 @@
   },
   {
     "actor": "user",
-    "kind": "click",
+    "kind": "select",
     "message": "M2",
     "seq": 11,
-    "target": "set:mention_everyone=true"
+    "target": "mention",
+    "values": [
+      "everyone"
+    ]
   },
   {
     "actor": "bot",
@@ -833,22 +870,39 @@
             "type": "actionrow"
           },
           {
-            "content": "📣 **Mencionar @everyone**\n> Sim",
+            "content": "📣 **Mencionar**\n> @everyone",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Sim",
-                "style": "primary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Não",
-                "style": "secondary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Ninguém",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Alguns cargos",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Escolher quem eu menciono",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -927,7 +981,7 @@
           {
             "children": [
               {
-                "content": "📺 **Canal de aniversário:** <#100>\n📣 **Mencionar @everyone:** Sim\n🌎 **Fuso horário:** America/Sao_Paulo\n🕒 **Horário da notificação:** 10:00\n💬 **Mensagem padrão dos membros:** Padrão",
+                "content": "📺 **Canal de aniversário:** <#100>\n📣 **Mencionar:** @everyone\n🌎 **Fuso horário:** America/Sao_Paulo\n🕒 **Horário da notificação:** 10:00\n💬 **Mensagem padrão dos membros:** Padrão",
                 "type": "text"
               },
               {

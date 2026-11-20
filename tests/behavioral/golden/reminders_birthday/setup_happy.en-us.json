@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Set up how I'll celebrate birthdays in this server!\n\nAfter saving, you add the birthdays with the **➕ Add** button of `/moderations birthdays reminders`, or each member adds their own with `/birthday`.\n\n:pencil: **Settings**\n\n:flying_disc: **Channel:** Pick the channel where I'll send birthday reminders.\n:flying_disc: **Timezone:** Choose the timezone used to calculate the notification time.\n:flying_disc: **Notification time:** Choose when I'll send the birthday notification.\n:flying_disc: **Mention @everyone:** Decide whether birthday reminders should mention @everyone.\n:flying_disc: **Default member message:** Customize the default message used when a member has no custom message.\n\n-# • Use the `/report` command to tell me a bug",
+      "description": "Set up how I'll celebrate birthdays in this server!\n\nAfter saving, you add the birthdays with the **➕ Add** button of `/moderations birthdays reminders`, or each member adds their own with `/birthday`.\n\n:pencil: **Settings**\n\n:flying_disc: **Channel:** Pick the channel where I'll send birthday reminders.\n:flying_disc: **Timezone:** Choose the timezone used to calculate the notification time.\n:flying_disc: **Notification time:** Choose when I'll send the birthday notification.\n:flying_disc: **Mention:** Choose who I mention when I post a birthday.\n:flying_disc: **Roles I mention:** Pick the roles I mention.\n:flying_disc: **Default member message:** Customize the default message used when a member has no custom message.\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
       "footer": null,
       "image": null,
@@ -155,7 +155,7 @@
             "type": "actionrow"
           },
           {
-            "content": "🕒 **Notification time**\n> Empty",
+            "content": "🕒 **Notification time**\n> 10:00",
             "type": "text"
           },
           {
@@ -171,7 +171,7 @@
                     "value": "08:00"
                   },
                   {
-                    "default": false,
+                    "default": true,
                     "label": "10:00",
                     "value": "10:00"
                   },
@@ -213,22 +213,39 @@
             "type": "actionrow"
           },
           {
-            "content": "📣 **Mention @everyone**\n> No",
+            "content": "📣 **Mention**\n> @everyone",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Yes",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "No",
-                "style": "primary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Nobody",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Some roles",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Choose who I mention",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -397,7 +414,7 @@
             "type": "actionrow"
           },
           {
-            "content": "🕒 **Notification time**\n> Empty",
+            "content": "🕒 **Notification time**\n> 10:00",
             "type": "text"
           },
           {
@@ -413,7 +430,7 @@
                     "value": "08:00"
                   },
                   {
-                    "default": false,
+                    "default": true,
                     "label": "10:00",
                     "value": "10:00"
                   },
@@ -455,22 +472,39 @@
             "type": "actionrow"
           },
           {
-            "content": "📣 **Mention @everyone**\n> No",
+            "content": "📣 **Mention**\n> @everyone",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Yes",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "No",
-                "style": "primary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Nobody",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Some roles",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Choose who I mention",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -633,7 +667,7 @@
             "type": "actionrow"
           },
           {
-            "content": "🕒 **Notification time**\n> Empty",
+            "content": "🕒 **Notification time**\n> 10:00",
             "type": "text"
           },
           {
@@ -649,7 +683,7 @@
                     "value": "08:00"
                   },
                   {
-                    "default": false,
+                    "default": true,
                     "label": "10:00",
                     "value": "10:00"
                   },
@@ -691,22 +725,39 @@
             "type": "actionrow"
           },
           {
-            "content": "📣 **Mention @everyone**\n> No",
+            "content": "📣 **Mention**\n> @everyone",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Yes",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "No",
-                "style": "primary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Nobody",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Some roles",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Choose who I mention",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -927,22 +978,39 @@
             "type": "actionrow"
           },
           {
-            "content": "📣 **Mention @everyone**\n> No",
+            "content": "📣 **Mention**\n> @everyone",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Yes",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "No",
-                "style": "primary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Nobody",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Some roles",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Choose who I mention",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -1025,7 +1093,7 @@
           {
             "children": [
               {
-                "content": "### Reminder Settings\n📺 **Channel:** <#100>\n🌎 **Timezone:** Brazil (UTC-3)\n🕒 **Notification time:** 08:00\n📣 **Mention @everyone:** No\n💬 **Default member message:** Default",
+                "content": "### Reminder Settings\n📺 **Channel:** <#100>\n🌎 **Timezone:** Brazil (UTC-3)\n🕒 **Notification time:** 08:00\n📣 **Mention:** @everyone\n💬 **Default member message:** Default",
                 "type": "text"
               },
               {
@@ -1099,7 +1167,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Command **moderations birthdays reminders** enabled on 2026-01-01 12:00:00 UTC by <@555> 🚀\n\n To make changes or disable it, use the command `/moderations birthdays reminders` or `/setup` 🔄\n\n-# • Use the `/report` command to tell me a bug",
+      "description": "I turned on the **moderations birthdays reminders** command on <t:1767268800:f>, as <@555> asked! 🚀\n\nTo make changes or disable it, just use `/moderations birthdays reminders` or `/setup` 🔄\n\n-# • Use the `/report` command to tell me a bug",
       "fields": [],
       "footer": null,
       "image": null,

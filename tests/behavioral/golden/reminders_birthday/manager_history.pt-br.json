@@ -194,13 +194,13 @@
       "fields": [
         {
           "inline": false,
-          "name": "2026-01-01 10:30:00 UTC",
-          "value": "📝 Editado por <@555>"
+          "name": "1. 📝 Editado",
+          "value": "<@555> · <t:1767263400:f>"
         },
         {
           "inline": false,
-          "name": "2026-01-01 09:30:00 UTC",
-          "value": "✅ Ativado por <@555>"
+          "name": "2. ✅ Ativado",
+          "value": "<@555> · <t:1767259800:f>"
         }
       ],
       "footer": "• Página 1 / 1",

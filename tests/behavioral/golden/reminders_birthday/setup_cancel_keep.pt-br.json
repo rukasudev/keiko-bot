@@ -26,7 +26,7 @@
     "components_v2": false,
     "embed": {
       "color": 5216249,
-      "description": "Configure como eu vou comemorar os aniversários deste servidor!\n\nDepois de salvar, você cadastra os aniversários com o botão **➕ Adicionar** do `/moderações aniversários lembretes`, ou cada membro cadastra o seu com `/aniversário`.\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal:** Escolha o canal onde vou enviar os lembretes de aniversário.\n:flying_disc: **Fuso horário:** Escolha o fuso horário usado para calcular o horário da notificação.\n:flying_disc: **Horário da notificação:** Escolha em qual horário vou enviar a notificação de aniversário.\n:flying_disc: **Mencionar @everyone:** Escolha se os lembretes de aniversário devem mencionar @everyone.\n:flying_disc: **Mensagem padrão dos membros:** Personalize a mensagem padrão usada quando um membro não tiver mensagem própria.\n\n-# • Use o comando `/reportar` para me contar um bug",
+      "description": "Configure como eu vou comemorar os aniversários deste servidor!\n\nDepois de salvar, você cadastra os aniversários com o botão **➕ Adicionar** do `/moderações aniversários lembretes`, ou cada membro cadastra o seu com `/aniversário`.\n\n:pencil: **Configurações**\n\n:flying_disc: **Canal:** Escolha o canal onde vou enviar os lembretes de aniversário.\n:flying_disc: **Fuso horário:** Escolha o fuso horário usado para calcular o horário da notificação.\n:flying_disc: **Horário da notificação:** Escolha em qual horário vou enviar a notificação de aniversário.\n:flying_disc: **Mencionar:** Escolha quem eu marco quando posto um aniversário.\n:flying_disc: **Cargos que eu menciono:** Escolha os cargos que eu marco.\n:flying_disc: **Mensagem padrão dos membros:** Personalize a mensagem padrão usada quando um membro não tiver mensagem própria.\n\n-# • Use o comando `/reportar` para me contar um bug",
       "fields": [],
       "footer": null,
       "image": null,
@@ -155,7 +155,7 @@
             "type": "actionrow"
           },
           {
-            "content": "🕒 **Horário da notificação**\n> Em branco",
+            "content": "🕒 **Horário da notificação**\n> 10:00",
             "type": "text"
           },
           {
@@ -171,7 +171,7 @@
                     "value": "08:00"
                   },
                   {
-                    "default": false,
+                    "default": true,
                     "label": "10:00",
                     "value": "10:00"
                   },
@@ -213,22 +213,39 @@
             "type": "actionrow"
           },
           {
-            "content": "📣 **Mencionar @everyone**\n> Não",
+            "content": "📣 **Mencionar**\n> @everyone",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Sim",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Não",
-                "style": "primary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Ninguém",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Alguns cargos",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Escolher quem eu menciono",
+                "type": "select"
               }
             ],
             "type": "actionrow"
@@ -397,7 +414,7 @@
             "type": "actionrow"
           },
           {
-            "content": "🕒 **Horário da notificação**\n> Em branco",
+            "content": "🕒 **Horário da notificação**\n> 10:00",
             "type": "text"
           },
           {
@@ -413,7 +430,7 @@
                     "value": "08:00"
                   },
                   {
-                    "default": false,
+                    "default": true,
                     "label": "10:00",
                     "value": "10:00"
                   },
@@ -455,22 +472,39 @@
             "type": "actionrow"
           },
           {
-            "content": "📣 **Mencionar @everyone**\n> Não",
+            "content": "📣 **Mencionar**\n> @everyone",
             "type": "text"
           },
           {
             "children": [
               {
                 "disabled": false,
-                "label": "Sim",
-                "style": "secondary",
-                "type": "button"
-              },
-              {
-                "disabled": false,
-                "label": "Não",
-                "style": "primary",
-                "type": "button"
+                "max": 1,
+                "min": 1,
+                "options": [
+                  {
+                    "default": false,
+                    "label": "Ninguém",
+                    "value": "none"
+                  },
+                  {
+                    "default": true,
+                    "label": "@everyone",
+                    "value": "everyone"
+                  },
+                  {
+                    "default": false,
+                    "label": "@here",
+                    "value": "here"
+                  },
+                  {
+                    "default": false,
+                    "label": "Alguns cargos",
+                    "value": "roles"
+                  }
+                ],
+                "placeholder": "Escolher quem eu menciono",
+                "type": "select"
               }
             ],
             "type": "actionrow"

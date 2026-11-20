@@ -59,8 +59,7 @@ User actions (each mints a fresh interaction, like Discord):
 | `select_option(values, target=None)` | names/ids resolve against the mock guild; `target` optional when one select is on screen |
 | `submit_modal({label: value})` | matches the modal's input labels (exact, then contains) |
 | `dismiss_modal()` | the user closes the modal without submitting — Discord tells the bot nothing, the message that opened it stays on screen |
-| `submit_confirmation(word=None)` | submits the pending lifecycle confirmation (pause/unpause/disable); defaults to the correct action word — pass a wrong `word` to test rejection |
-| `submit_file_upload(filename=, content=)` | submits a pending upload modal with a fake attachment (async `read()` runs for real) |
+| `submit_file_upload(filename=, content=, size=, width=, height=, content_type=)` | submits a pending upload modal with a fake attachment (async `read()` runs for real), described the way Discord describes one: a small 800 x 400 PNG by default, any of the four overridden to send a file a validator refuses |
 | `pending_modal_fields()` | labels of the pending modal's inputs (useful to build the dict for `submit_modal`) |
 | `confirm()` / `cancel()` / `go_back()` | aliases for the generic buttons |
 | `expire()` | the clock passes every open session's deadline with nobody clicking (`Runtime.expire_stale`) |

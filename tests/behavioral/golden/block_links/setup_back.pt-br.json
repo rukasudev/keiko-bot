@@ -946,13 +946,13 @@
             "type": "section"
           },
           {
-            "content": "- youtube.com",
+            "content": "- `youtube.com`",
             "type": "text"
           },
           {
             "children": [
               {
-                "content": "📌 **Links personalizados permitidos:**",
+                "content": "📌 **Links personalizados permitidos:** 1 de 25",
                 "type": "text"
               },
               {

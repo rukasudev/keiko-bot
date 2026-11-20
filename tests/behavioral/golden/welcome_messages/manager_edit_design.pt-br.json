@@ -518,7 +518,7 @@
     "actor": "bot",
     "components": [],
     "components_v2": false,
-    "content": "Ainda preciso que você configure: **Imagem personalizada**.",
+    "content": "Ops! Ainda preciso que você configure **Imagem personalizada** antes de seguir.",
     "delete_after": 10,
     "ephemeral": true,
     "kind": "followup_send",
