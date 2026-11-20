@@ -327,7 +327,7 @@ class TestBirthdayItemDefaults:
 
         responses = [
             {"key": "channel", "value": "111", "style": "channel"},
-            {"key": "mention_everyone", "value": "True"},
+            {"key": "mention", "value": "@everyone", "_raw_value": "everyone"},
             {
                 "key": "reminders_birthday",
                 "value": [
@@ -350,11 +350,12 @@ class TestBirthdayItemDefaults:
         setup.assert_called_once_with(
             "guild-1",
             "111",
-            True,
+            "everyone",
             None,
             None,
             {"mode": "default", "title": None, "content": None},
             updated_by=None,
+            mention_roles=(),
         )
         upsert.assert_called_once_with(
             "guild-1",
@@ -375,7 +376,8 @@ class TestBirthdayItemDefaults:
 
         responses = [
             {"key": "channel", "value": "111", "style": "channel"},
-            {"key": "mention_everyone", "value": False, "style": "boolean"},
+            {"key": "mention", "value": "Alguns cargos", "_raw_value": "roles"},
+            {"key": "mention_roles", "value": ["1", "2"], "style": "role"},
             {"key": "timezone", "value": "America/Sao_Paulo"},
             {"key": "notification_time", "value": "12:00"},
             {"key": "default_message_mode", "value": "custom"},
@@ -389,7 +391,7 @@ class TestBirthdayItemDefaults:
         setup.assert_called_once_with(
             "guild-1",
             "111",
-            False,
+            "roles",
             "America/Sao_Paulo",
             "12:00",
             {
@@ -398,6 +400,7 @@ class TestBirthdayItemDefaults:
                 "content": "Hoje tem festa no {server}.",
             },
             updated_by=None,
+            mention_roles=("1", "2"),
         )
         assert saved == []
 

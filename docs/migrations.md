@@ -31,6 +31,7 @@ app/migrations/
     0005_subscriptions_and_messages.py
     0006_events.py
     0007_analytics.py
+    0008_notice_mentions.py
 ```
 
 ## The CLI
@@ -90,6 +91,7 @@ The ledger is `migrations.changelog`, one entry per applied file:
 {_id: "schema/0001", kind: "schema", number: 1, name: "baseline",
  sha256, applied_at, seconds, counts, app_version}
 {_id: "data/0001", kind: "data", number: 1, name: "bot_defaults", ...}
+{_id: "data/0008", ..., counts, notes: {notices_mixed: ["<guild id>", ...]}}
 ```
 
 The folder is part of the id, so `schema/0001` and `data/0001` never collide.
@@ -161,6 +163,10 @@ Read the block like a SQL transaction:
   inside the block passes the session without the file naming it.
 - **`tx.count(name, n)` records what the file did.** The counts are printed on the
   run's line and saved in the ledger entry.
+- **`tx.note(name, value)` names what someone must be told.** Each value is kept
+  once, as text, printed after the counts (`and lists {"name": [...]}`) and saved in
+  the ledger entry as `notes`, which only a file that noted something has. A count
+  says how many; a note says which (the servers whose admin must hear of a change).
 - **The end of the block is the commit.** The runner checks the time budget,
   inserts the ledger entry inside the same transaction, and commits. When the
   commit's outcome is unknown (`UnknownTransactionCommitResult`), only the commit
@@ -236,6 +242,11 @@ aborted at the end of the block: the counts are real and nothing is written. One
 transaction per file keeps a release with two heavy files under Atlas's 60 s
 transaction lifetime. The cost is that a file's dry run does not see what the
 files before it would write, so its counts are read on the database as it is now.
+A file that reads what an earlier pending file writes prints zeros there. Its real
+numbers come from a rehearsal of the release on a restored dump: restore the
+`mongodump` taken for the rollback into a throwaway replica set (the colima recipe of
+`docs/agent-guide.md`, "The gate"), run `migrate` against it, and read that file's
+`counts` and `notes` in `migrations.changelog` (or on its `status` line).
 The schema step is listed, not rehearsed: no collection or index is created, so a
 data file that needs one a pending schema file creates runs without it. The dry
 run does not take the lock, and it fails when another run holds it.
@@ -318,6 +329,67 @@ features of one server within `SAME_LEAVE_SECONDS` is Keiko's, since a person pa
 one feature at a time, and every row with it becomes `kind: bot`
 (`changes_by_keiko` counts them). A Keiko that never left a server with two features
 on leaves its pauses as a member's.
+
+`data/0008_notice_mentions` gives every notice the mention it pinged, never one
+more, so nobody gets a ping they did not get before. v0.9.0 sent one of a notice's
+messages at random, and that message pinged what it opened with.
+
+- **Every message opens with the same mention.** The notice gets it as the
+  `mention` its card now saves (nobody, @everyone, @here or roles, with
+  `mention_roles`), in the server's language, and its messages lose it, the
+  punctuation right after it included (`@everyone! {youtuber}...` becomes
+  `{youtuber}...`). Roles agree in any order. `notices_moved` counts them.
+- **No message opens with a mention.** The notice gets `none`
+  (`notices_without_mention`).
+- **The messages disagree** (@everyone in one and nothing in another, @everyone and
+  @here, two different roles, a blank message beside a mentioned one). The notice
+  gets `none` and keeps its messages exactly as they are, since any mention the field
+  could hold would ping on lives that never pinged. `notices_mixed` counts them, and
+  the run lists their servers under `notices_mixed` (`tx.note`), so their admins can
+  be told to pick a mention on the card.
+- **A mention typed inside a text stops pinging.** A notice now pings only what its
+  field names (`app/core/mentions.py`): an @everyone or @here typed in a message is
+  written as plain text, since both share Discord's one `everyone` flag, and a typed
+  role or member stays drawn as a mention that Discord is not allowed to ping.
+  `messages_mid_text_unpinged` counts the texts of the moved and unmentioned notices
+  that still hold one their field does not ping (a member, a role it does not name,
+  an @everyone under @here).
+
+Every birthday config gets `mention` and `mention_roles` from its old
+`mention_everyone` switch alone: @everyone when it was on, nobody otherwise. Its
+default message stays exactly as it is, a mention it writes included: the message
+sits in an embed, which never pinged, so moving that mention into the field would
+start a ping the server never had (`birthday_texts_with_mention_unchanged` counts
+those configs). A member's own birthday text is never changed either
+(`birthday_member_texts_with_mention` counts them). `mention_everyone` stays one
+release, unread.
+
+A notice that already has its `mention`, and a config that already has its own, are
+left as they are, and the queries skip them (`$elemMatch` on a notice without
+`mention`, `$exists` on the config), so a second run writes nothing.
+
+A notice's messages are read as the bot reads them (`item_values`, which data/0003
+copies untouched from v0.9.0): the `_raw_value` or `value` of their entry, a bare
+text or list as it is, and nothing when the notice has no `notification_messages` at
+all, the shape the production rehearsal of PR #67 found. A notice with no messages
+gets `none` and no messages are written for it; one whose entry holds `_raw_value`
+gets both keys rewritten. `check` refuses only a notice whose messages are a shape the
+bot cannot read (an entry with no value, a number, a list holding a non-text), and
+`up` refuses the same shape itself with that error, which aborts the transaction and
+stops the deploy.
+
+On the release that ships it, 0008's preflight and dry run see an empty
+`guild.cogs`: production still reads the old collections, and data/0001 to 0007 ship
+in the same release, so data/0003 copies the notices into `guild.cogs` only during
+the real `migrate`. Its `check` then passes over nothing and its dry run prints zero
+counts. Its real counts and the servers to tell come from the release rehearsal on a
+restored dump (see "Dry run"): read the `counts` and `notes` of the ledger entry
+`data/0008` there, before publishing the release.
+
+v0.9.0 reads only the old collections (`guild.notifications_twitch` and the others),
+which 0008 never touches, so a rollback to it runs on the notices as they were. What a
+rollback costs is data/0003's: a change made under v0.9.0 never reaches `guild.cogs`,
+because 0003 is already in the ledger and does not copy again.
 
 Nothing writes the operator ids: they are the admin server and channel ids, which
 have no neutral value. Set them by hand before the first boot, in `keiko.settings`

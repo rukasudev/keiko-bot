@@ -611,22 +611,33 @@ async def test_registering_a_birthday_never_freezes_the_bot(deps, guild, birthda
     assert interaction.get_last_response()["type"] == "followup_send"
 
 
-async def test_adding_a_members_birthday_never_freezes_the_bot(deps, guild, birthdays_on):
-    from app.commands.birthdays.moderations import Birthdays
+async def test_adding_a_members_birthday_never_freezes_the_bot(
+    deps, guild, birthdays_on, monkeypatch
+):
+    """The panel's Add, the one way an admin adds a member's birthday, waits on the
+    feature, the member and the save off the loop."""
+    from datetime import datetime, timezone
 
-    admin = create_member(guild, id=222, name="Admin")
-    admin.guild_permissions = SimpleNamespace(administrator=True)
-    interaction = interaction_in(
-        guild, user=admin, command=SimpleNamespace(qualified_name="moderations birthdays add")
+    from app.forms.features import feature_for
+    from app.forms.features.feature import CommitContext
+    from app.forms.form.form_state import Answer
+
+    monkeypatch.setattr(
+        data().guild_cogs, "find_cog_by_guild_id", slow({"channel": "1", "enabled": True})
     )
     member = create_member(guild, id=555, name="Tester")
+    context = CommitContext(
+        str(guild.id), "222", "pt-br", {}, datetime.now(timezone.utc), "manager", "s1",
+        guild,
+    )
+    item = {"user": Answer(str(member.id)), "month": Answer("05"), "day": Answer("12"),
+            "date": Answer("05-12")}
 
     ticks = await ticks_while(
-        Birthdays.add.callback(SimpleNamespace(), interaction, member, month=5, day=12)
+        feature_for("reminders_birthday").commit("add_item", {"answers": item}, context)
     )
 
     assert ticks >= MIN_TICKS, f"the loop only came back {ticks} times"
-    assert interaction.get_last_response()["type"] == "followup_send"
 
 
 async def test_finishing_the_pending_birthday_reminders_never_freezes_the_bot(monkeypatch):

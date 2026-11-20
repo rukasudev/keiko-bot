@@ -41,7 +41,7 @@ def configure_birthdays(deps, guild_id, *, birthdays=1, default_message=True):
     seed_cog(deps.mongo_client, "reminders_birthday", {
         "guild_id": guild_id,
         "channel": f"chan-{guild_id}",
-        "mention_everyone": True,
+        "mention": "everyone",
         "notification_time": "09:00",
         **({"default_message": {
             "mode": "custom",
@@ -106,19 +106,20 @@ def test_the_value_a_card_draws_is_not_a_value_a_guild_chose(deps):
     )
 
 
-def test_a_boolean_nobody_touched_is_not_a_boolean_somebody_turned_off(deps):
-    """`bool(None)` is `False`, and `False` is a value someone picked."""
+def test_a_choice_nobody_touched_is_not_a_choice_somebody_made(deps):
+    """A config that never saved a mention is not one that chose to ping nobody,
+    the way `bool(None)` once read as a `False` someone picked."""
     seed_cog(deps.mongo_client, "reminders_birthday", {
         "guild_id": "1", "channel": "c1",
     })
     seed_cog(deps.mongo_client, "reminders_birthday", {
-        "guild_id": "2", "channel": "c2", "mention_everyone": False,
+        "guild_id": "2", "channel": "c2", "mention": "none",
     })
 
-    mention = field(wait(analytics_reports.config_usage("reminders_birthday")), "mention_everyone")
+    mention = field(wait(analytics_reports.config_usage("reminders_birthday")), "mention")
 
     assert mention["filled"] == 1
-    assert mention["values"] == {"False": 1}
+    assert mention["values"] == {"none": 1}
 
 
 def test_a_setting_left_on_its_yaml_default_says_so_instead_of_reading_as_dead(deps):

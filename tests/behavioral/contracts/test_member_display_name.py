@@ -1,7 +1,7 @@
 """Keiko keeps a copy of each birthday member's display name, and never trusts it.
 
 Decided in the database plan: `guild.members` holds `state.display_name` next to the
-birthday. The `/birthday` command, the admin add and the birthday post refresh it; it is
+birthday. The `/birthday` command, the panel's Add and the birthday post refresh it; it is
 read only where the member cannot be fetched (the log of a post for a member who left),
 so the panels keep their mentions and the goldens do not change.
 
@@ -60,7 +60,7 @@ async def test_the_birthday_command_keeps_the_members_name(enabled):  # noqa: F8
     assert await display_name(PERSONAL_GUILD, PERSONAL_USER) == "Ana"
 
 
-async def test_the_admin_add_keeps_the_picked_members_name(scenario_factory, deps):
+async def test_the_panels_add_keeps_the_picked_members_name(scenario_factory, deps):
     await _seed_config(deps)
     scenario = await scenario_factory(locale="pt-br", guild=_guild()).start_command(
         "reminders_birthday"

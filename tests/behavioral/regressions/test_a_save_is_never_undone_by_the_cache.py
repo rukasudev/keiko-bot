@@ -721,7 +721,9 @@ async def test_an_item_change_keeps_the_shape_the_previous_release_reads(
 ):
     """v0.9.0 reads `{style, values}` and items of `{value, title, style, hidden,
     _raw_value}` entries, and rebuilds the whole list on its own saves: a change
-    may add no key it does not know, at any level, or a rollback would lose it."""
+    may add no key it does not know, at any level, or a rollback would lose it.
+    The one addition is the notice's mention (PR8, data/0008): a rollback that
+    saves the list drops it, so that rollback restores the dump taken before."""
     first, second = await _two_twitch_panels(scenario_factory, deps)
     seeded = set(await _saved(deps, twitch.FORM))
 
@@ -737,7 +739,7 @@ async def test_an_item_change_keeps_the_shape_the_previous_release_reads(
     assert set(document["notifications"]) == {"style", "values"}
     assert document["notifications"]["style"] == "composition"
     assert [set(item) for item in document["notifications"]["values"]] == [
-        {"channel", "streamer", "notification_messages"}
+        {"channel", "streamer", "notification_messages", "mention", "mention_roles"}
     ] * 2
     assert all(
         set(entry) <= ENTRY_KEYS

@@ -38,7 +38,7 @@ async def _seed_config(deps, enabled=True, members=("555",)):
     await save_birthday_config(
         GUILD_ID,
         "100",
-        False,
+        "none",
         notification_time="08:00",
     )
     for index, user_id in enumerate(members):
@@ -116,7 +116,7 @@ async def manager_edit_one_step(scenario_factory, deps, locale):
     await scenario.click("edit:group:settings")
     await scenario.click("section:birthday_config")
     await scenario.select_option("10:00", target="notification_time")
-    await scenario.click("set:mention_everyone=true")
+    await scenario.select_option("everyone", target="mention")
     await scenario.click("done")
     return scenario
 

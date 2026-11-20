@@ -519,7 +519,7 @@ async def test_the_birthday_setup_writes_the_config_and_the_first_member(deps):
         "channel": Answer("100"),
         "timezone": Answer("America/Sao_Paulo"),
         "notification_time": Answer("08:00"),
-        "mention_everyone": Answer(False),
+        "mention": Answer("none"),
         "default_message_mode": Answer("default"),
         "reminders_birthday": Answer(
             (
@@ -548,14 +548,20 @@ async def test_the_birthday_panel_opens_with_its_own_rows(deps):
     from app.core.servers import set_feature_enabled
     from tests.generators.birthdays import saved_birthday
 
-    await save_birthday_config(GUILD_ID, "100", False, notification_time="08:00")
+    await save_birthday_config(
+        GUILD_ID, "100", "roles", notification_time="08:00", mention_roles=["201"]
+    )
     saved_birthday(GUILD_ID, "555", "05-12")
     await set_feature_enabled(GUILD_ID, "reminders_birthday", True)
     opened = await feature_for("reminders_birthday").open(
         OpenContext(GUILD_ID, "555", "pt-br")
     )
     assert opened.document["reminders_birthday"]["values"][0]["user"]["value"] == "555"
-    assert [row.value for row in opened.panel.rows][:2] == ["100", False]
+    assert [row.value for row in opened.panel.rows][:3] == [
+        "100",
+        "Alguns cargos",
+        ["201"],
+    ], "who I ping by its name on the card, then the roles it names"
     assert opened.panel.extra_buttons == (), "the statistics are every panel's"
     assert "stats" in feature_for("reminders_birthday").asides()
 

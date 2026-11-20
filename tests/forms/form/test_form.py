@@ -578,17 +578,19 @@ def test_card_done_refuses_missing_required_fields_with_their_labels():
     error = refused.effects[-1]
     assert error.plain, "a plain sentence on a message of its own (R3)"
     fields = error.args["fields"]
-    assert "**Canal**" in fields and "**Horário da notificação**" in fields, fields
+    assert "**Canal**" in fields and "**Fuso horário**" in fields, fields
+    assert "**Horário da notificação**" not in fields, "the time starts on 10:00"
+    assert "**Cargos que eu menciono**" not in fields, "a hidden select asks nothing"
     assert not any(
         "🚨" in line for line in screen(refused).components[0].header.lines
     ), "the card itself shows no error line"
-    missing = ("channel", "timezone", "notification_time")
+    missing = ("channel", "timezone")
     assert refused.session.refused.missing == missing
     assert (
         "setup.required_missing",
         {
             "card_key": "birthday_config",
-            "missing_count": 3,
+            "missing_count": 2,
             "missing_keys": list(missing),
         },
     ) in refused.analytics
@@ -610,12 +612,13 @@ def test_card_sections_open_pickers_and_changes_redraw_the_card():
     )
     assert isinstance(screen(chosen).components[0], Card)
     assert chosen.session.answers["birthday_config"].part("channel") == "100"
-    toggled = decide(
+    mentioned = decide(
         definition,
         chosen.session,
-        evt(ev.SectionOpened, step_key="birthday_config", index=3),
+        evt(ev.Drafted, step_key="birthday_config", changes={"mention": ["here"]}),
     )
-    assert toggled.session.answers["birthday_config"].part("mention_everyone") is True
+    assert mentioned.session.answers["birthday_config"].part("mention") == "here"
+    assert isinstance(screen(mentioned).components[0], Card)
 
 
 def _exempt_section(session=None):
@@ -1139,8 +1142,9 @@ def test_the_chosen_streamer_is_written_into_the_suggested_message():
 
     typed = _typed(definition, at_card, 1, ["@Gaules"], TWITCH_FOUND)
 
-    assert _messages(typed) == (
-        "@everyone gaules está ao vivo! https://twitch.tv/gaules"
+    assert _messages(typed) == "gaules está ao vivo! https://twitch.tv/gaules"
+    assert typed.answers["notification"].part("mention") == "everyone", (
+        "a new notice mentions @everyone from its own field"
     )
 
 
@@ -2193,12 +2197,15 @@ def test_the_birthday_card_picks_every_setting_right_on_it():
     assert timezone.slot == "timezone" and len(timezone.options) == 9
     time = sections["notification_time"].controls[0]
     assert time.slot == "notification_time" and len(time.options) == 8
-    mention = sections["mention_everyone"].controls[0]
-    assert [(option.label, option.style) for option in mention.options] == [
-        ("Sim", "secondary"),
-        ("Não", "primary"),
+    mention = sections["mention"].controls[0]
+    assert [option.label for option in mention.options] == [
+        "Ninguém",
+        "@everyone",
+        "@here",
+        "Alguns cargos",
     ]
-    assert mention.slot == "mention_everyone"
+    assert mention.slot == "mention"
+    assert "mention_roles" not in sections, "the roles only while I mention roles"
     assert sections["default_message"].controls == ()
     assert sections["default_message"].buttons, "a modal cannot sit on the card"
 
@@ -2208,23 +2215,26 @@ def test_the_birthday_card_picks_every_setting_right_on_it():
         evt(
             ev.Drafted,
             step_key="birthday_config",
-            changes={"notification_time": ["10:00"], "mention_everyone": "true"},
+            changes={"notification_time": ["12:00"], "mention": ["roles"]},
         ),
     )
     draft = picked.session.answers["birthday_config"]
-    assert draft.part("notification_time") == "10:00"
-    assert draft.part("mention_everyone") is True
+    assert draft.part("notification_time") == "12:00"
+    assert draft.part("mention") == "roles"
     redrawn = {s.key: s for s in screen(picked).components[0].sections}
-    chosen = [
-        option.value
-        for option in redrawn["notification_time"].controls[0].options
-        if option.selected
+
+    def chosen(key):
+        return [
+            option.value
+            for option in redrawn[key].controls[0].options
+            if option.selected
+        ]
+
+    assert chosen("notification_time") == ["12:00"]
+    assert chosen("mention") == ["roles"]
+    assert [control.slot for control in redrawn["mention_roles"].controls] == [
+        "mention_roles"
     ]
-    assert chosen == ["10:00"]
-    styles = [
-        option.style for option in redrawn["mention_everyone"].controls[0].options
-    ]
-    assert styles == ["primary", "secondary"]
 
 
 # ------------------------------------------------------- names of the YAML keys

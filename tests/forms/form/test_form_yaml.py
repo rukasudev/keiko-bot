@@ -404,11 +404,21 @@ def test_the_card_estimate_counts_the_controls_each_section_draws_on_it():
         "selects": 4,
         "list": 3,
     }
+    from app.forms.form.form_yaml import BooleanToggleSection
+
+    yes_or_no = BooleanToggleSection(
+        type="boolean_toggle",
+        key="switch",
+        emoji="📣",
+        label={"en-us": "Switch", "pt-br": "Chave"},
+        keys={"value": "switch"},
+    )
+    assert yes_or_no.controls_drawn() == 3
     birthday = compile_form(
         "reminders_birthday", DiskSource().load("reminders_birthday")
     ).step("birthday_config")
-    mention = next(s for s in birthday.sections if s.type == "boolean_toggle")
-    assert mention.controls_drawn() == 3
+    mention = next(s for s in birthday.sections if s.key == "mention")
+    assert mention.controls_drawn() == 2, "a select of who it pings and its row"
 
 
 def test_only_sections_that_keep_a_default_tell_whether_they_were_customized():

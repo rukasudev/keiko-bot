@@ -546,6 +546,7 @@ def test_the_shipped_files_form_a_clean_plan_from_an_empty_ledger():
         "data/0005_subscriptions_and_messages",
         "data/0006_events",
         "data/0007_analytics",
+        "data/0008_notice_mentions",
     ]
 
 
@@ -847,6 +848,36 @@ def test_a_dry_run_rehearses_each_data_file_and_reports_its_counts(mongo):
     assert runner.rehearse(client, current, {}, runner.Report(out))
     assert 'dry     data/0001_seed would write {"bots": 3}' in out.getvalue()
     assert "commit" not in client.log
+
+
+def _note(run):
+    with helpers.begin(run) as tx:
+        tx.count("bots", 1)
+        tx.note("servers", 1002)
+        tx.note("servers", "1002")
+        tx.note("servers", 1001)
+
+
+def test_a_dry_run_lists_what_a_data_file_noted_once_each(mongo):
+    """A count says how many; a note names which (the servers an admin must be told
+    about), so the dry run and the ledger can say it before and after the write."""
+    client = mongo()
+    current = runner.plan([data_version(1, "seed", up=_note)], [])
+    out = io.StringIO()
+
+    assert runner.rehearse(client, current, {}, runner.Report(out))
+    assert (
+        'dry     data/0001_seed would write {"bots": 1}'
+        ' and lists {"servers": ["1002", "1001"]}'
+    ) in out.getvalue()
+
+
+def test_the_ledger_keeps_what_a_data_file_noted_and_only_when_it_noted_something():
+    identity = data_version(1, "seed").identity()
+
+    noted = helpers.ledger_entry(identity, {"bots": 1}, 0.0, {"servers": ["1002"]})
+    assert noted["notes"] == {"servers": ["1002"]}
+    assert "notes" not in helpers.ledger_entry(identity, {"bots": 1}, 0.0, {})
 
 
 def test_the_runner_takes_the_url_from_the_environment_without_reading_dotenv(

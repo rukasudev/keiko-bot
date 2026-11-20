@@ -27,7 +27,7 @@ steps:
         pt-br: Configuração do Lembrete
       thumbnail: cake
     required:
-      all: [channel, timezone, notification_time]
+      all: [channel, timezone, notification_time, mention_roles]
     group: settings
     fields:
       - key: channel
@@ -42,10 +42,12 @@ steps:
         description:
           en-us: Choose when I'll send the birthday notification.
           pt-br: Escolha em qual horário vou enviar a notificação de aniversário.
-      - key: mention_everyone
+      - key: mention
         description:
-          en-us: Decide whether birthday reminders should mention @everyone.
-          pt-br: Escolha se os lembretes de aniversário devem mencionar @everyone.
+          en-us: Who I ping when I post a birthday.
+          pt-br: Quem eu marco quando posto um aniversário.
+      - key: mention_roles
+        description: ${ref.roles_i_mention_description}
       - key: default_message_mode
         description:
           en-us: Customize the default message used when a member has no custom message.
@@ -171,14 +173,39 @@ steps:
               en-us: "22:00"
               pt-br: "22:00"
             value: "22:00"
-      - type: boolean_toggle
-        key: mention_everyone
+      - type: value_select
+        key: mention
         emoji: 📣
-        label:
-          en-us: Mention @everyone
-          pt-br: Mencionar @everyone
+        label: ${ref.mention}
         keys:
-          value: mention_everyone
+          value: mention
+        placeholder: ${ref.mention_placeholder}
+        options:
+          - label: ${ref.mention_none}
+            value: none
+            description: ${ref.mention_none_description}
+          - label: ${ref.mention_everyone}
+            value: everyone
+            description: ${ref.mention_everyone_description}
+          - label: ${ref.mention_here}
+            value: here
+            description: ${ref.mention_here_description}
+          - label: ${ref.mention_roles}
+            value: roles
+            description: ${ref.mention_roles_description}
+      - type: selects
+        key: mention_roles
+        emoji: 🏷️
+        label: ${ref.roles_i_mention}
+        when:
+          key: mention
+          is: roles
+        selects:
+          - type: roles
+            key: mention_roles
+            emoji: 🏷️
+            label: ${ref.roles_i_mention}
+            placeholder: ${ref.roles_placeholder}
       - type: title_content
         key: default_message
         emoji: 💬
@@ -205,7 +232,8 @@ steps:
         default: reminders_birthday.ui.announcement.defaults
     # open: state keys of the card -> a value or a text
     defaults:
-      mention_everyone: false
+      notification_time: "10:00"
+      mention: none
       default_message_mode: default
 
   - type: list

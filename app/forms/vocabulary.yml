@@ -29,6 +29,36 @@ texts:
   exceptions:
     en-us: Exceptions
     pt-br: Exceções
+  mention:
+    en-us: Mention
+    pt-br: Mencionar
+  mention_everyone:
+    en-us: "@everyone"
+    pt-br: "@everyone"
+  mention_everyone_description:
+    en-us: I'll mention everyone in the server.
+    pt-br: Eu marco todo mundo do servidor.
+  mention_here:
+    en-us: "@here"
+    pt-br: "@here"
+  mention_here_description:
+    en-us: I'll mention only the members online right now.
+    pt-br: Eu marco só quem está online agora.
+  mention_none:
+    en-us: Nobody
+    pt-br: Ninguém
+  mention_none_description:
+    en-us: I'll post without pinging anyone.
+    pt-br: Eu posto sem marcar ninguém.
+  mention_placeholder:
+    en-us: Choose who I mention
+    pt-br: Escolha quem eu menciono
+  mention_roles:
+    en-us: Some roles
+    pt-br: Alguns cargos
+  mention_roles_description:
+    en-us: I'll mention only the roles you pick below.
+    pt-br: Eu marco só os cargos que você escolher abaixo.
   notification_messages:
     en-us: Notification Messages
     pt-br: Mensagens de Notificação
@@ -47,6 +77,15 @@ texts:
   roles_for_members:
     en-us: Roles for Members
     pt-br: Cargos para Membros
+  roles_i_mention:
+    en-us: Roles I mention
+    pt-br: Cargos que eu menciono
+  roles_i_mention_description:
+    en-us: Pick the roles I ping.
+    pt-br: Escolha os cargos que eu marco.
+  roles_placeholder:
+    en-us: Choose the roles
+    pt-br: Escolha os cargos
   streamer:
     en-us: Streamer
     pt-br: Streamer

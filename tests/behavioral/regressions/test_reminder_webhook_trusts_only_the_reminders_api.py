@@ -167,7 +167,7 @@ async def keiko(deps, monkeypatch, traces):
     guild_id = str(deps.guild.id)
     channel = deps.guild.text_channels[0]
     create_member(deps.guild, id=MEMBER_ID, name="Tester")
-    await save_birthday_config(guild_id, str(channel.id), True)
+    await save_birthday_config(guild_id, str(channel.id), "everyone")
     saved_birthday(guild_id, str(MEMBER_ID), "05-12", reminder_id=str(BIRTHDAY_REMINDER))
     await set_feature_enabled(guild_id, "reminders_birthday", True)
     follow_youtuber(deps, guild_id, "pewdiepie")

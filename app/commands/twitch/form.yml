@@ -51,7 +51,7 @@ steps:
             all: [streamer]
           error: notifications_twitch.ui.errors.preview_needs_streamer
         required:
-          all: [channel, streamer]
+          all: [channel, streamer, mention_roles]
         fields:
           - key: channel
             description:
@@ -65,6 +65,12 @@ steps:
             description:
               en-us: Up to three messages, I pick one at random each live.
               pt-br: Até três mensagens, eu sorteio uma a cada live.
+          - key: mention
+            description:
+              en-us: Who I ping at the start of the notice.
+              pt-br: Quem eu marco no começo do aviso.
+          - key: mention_roles
+            description: ${ref.roles_i_mention_description}
         sections:
           - type: channel_select
             key: channel
@@ -122,8 +128,8 @@ steps:
             emoji: 💬
             label: ${ref.notification_messages}
             description:
-              en-us: "One of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link"
-              pt-br: "Uma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live"
+              en-us: "One of the messages is picked at random each time. You can use:\n- `{streamer}`: the streamer's nick\n- `{stream_link}`: the live link\n\nWho I ping goes in **📣 Mention**, so there's no need to write `@everyone` here!"
+              pt-br: "Uma das mensagens é sorteada a cada vez. Você pode usar:\n- `{streamer}`: o nick do streamer\n- `{stream_link}`: o link da live\n\nQuem eu marco fica em **📣 Mencionar**, então não precisa escrever `@everyone` aqui!"
             keys:
               value: notification_messages
             button:
@@ -143,11 +149,45 @@ steps:
                   max_length: 100
                   required: false
                   multiline: true
+          - type: value_select
+            key: mention
+            emoji: 📣
+            label: ${ref.mention}
+            keys:
+              value: mention
+            placeholder: ${ref.mention_placeholder}
+            options:
+              - label: ${ref.mention_none}
+                value: none
+                description: ${ref.mention_none_description}
+              - label: ${ref.mention_everyone}
+                value: everyone
+                description: ${ref.mention_everyone_description}
+              - label: ${ref.mention_here}
+                value: here
+                description: ${ref.mention_here_description}
+              - label: ${ref.mention_roles}
+                value: roles
+                description: ${ref.mention_roles_description}
+          - type: selects
+            key: mention_roles
+            emoji: 🏷️
+            label: ${ref.roles_i_mention}
+            when:
+              key: mention
+              is: roles
+            selects:
+              - type: roles
+                key: mention_roles
+                emoji: 🏷️
+                label: ${ref.roles_i_mention}
+                placeholder: ${ref.roles_placeholder}
         # open: state keys of the card -> a value or a text
         defaults:
+          mention: everyone
           notification_messages:
-            en-us: "@everyone {streamer} is live! {stream_link}"
-            pt-br: "@everyone {streamer} está ao vivo! {stream_link}"
+            en-us: "{streamer} is live! {stream_link}"
+            pt-br: "{streamer} está ao vivo! {stream_link}"
 
   - type: review
     key: confirm

@@ -17,6 +17,7 @@ from app.constants import LogTypes as logconstants
 from app.core import analytics
 from app.core.cache import claim_redis_key, release_redis_key
 from app.core.commands import Reminder, WebhookEvent, WebhookReply
+from app.core.mentions import mention_of
 from app.core.servers import server_language
 from app.core.threads import to_thread
 from app.core.trace import Outcome, as_utc, fan_out
@@ -31,7 +32,7 @@ from app.data import data, wait
 from app.data.collection import Document
 from app.data.keiko import schedules
 from app.exceptions import ErrorContext
-from app.forms import open_feature
+from app.forms import item_values, items_of, list_values, open_feature
 from app.forms.features.subscriptions import Account, SubscriptionFeature
 from app.integrations.reminders.client import REMINDER_TIMEZONE, reminder_time
 from app.integrations.youtube.client import VideoNotice
@@ -77,11 +78,10 @@ async def find_followed_youtubers() -> List[str]:
     documents = await data().guild_cogs.find_enabled_cogs("notifications_youtube_video")
     return sorted(
         {
-            str(notification["youtuber"]["value"])
+            str(notice["youtuber"])
             for document in documents
-            for notification in (document.get("notifications") or {}).get("values")
-            or []
-            if (notification.get("youtuber") or {}).get("value")
+            for notice in list_values(document, "notifications")
+            if notice.get("youtuber")
         }
     )
 
@@ -211,10 +211,8 @@ async def announce_video(announcement: VideoAnnouncement) -> None:
                 deliver_video(announcement, guild_data, notification),
             )
             for guild_data in announcement.followers
-            for notification in (guild_data.get("notifications") or {}).get("values")
-            or []
-            if (notification.get("youtuber") or {}).get("value")
-            == announcement.youtuber
+            for notification in items_of(guild_data, "notifications")
+            if item_values(notification).get("youtuber") == announcement.youtuber
         ),
         video_id=announcement.video_id,
         youtuber=announcement.youtuber,
@@ -233,12 +231,13 @@ async def deliver_video(
     guild_data: Mapping[str, Any],
     notification: Mapping[str, Any],
 ) -> None:
-    """Post the announcement in the channel one server chose for it."""
-    guild, channel = destination(
-        guild_data.get("guild_id"), (notification.get("channel") or {}).get("value")
-    )
+    """Post the announcement in the channel one server chose for it, pinging only who
+    the notice mentions."""
+    notice = item_values(notification)
+    mention = mention_of(notice.get("mention"), notice.get("mention_roles"))
+    guild, channel = destination(guild_data.get("guild_id"), notice.get("channel"))
     message = compose_notification_message(
-        notification, announcement.youtuber, announcement.video_id
+        notice, announcement.youtuber, announcement.video_id
     )
     embed = create_video_notification_embed(
         announcement.video_id,
@@ -249,7 +248,9 @@ async def deliver_video(
 
     try:
         await channel.send(
-            content=message, embed=embed, allowed_mentions=discord.AllowedMentions.all()
+            content=mention.before(message),
+            embed=embed,
+            allowed_mentions=mention.allowed,
         )
     except discord.Forbidden as error:
         analytics.record_permission_failure(
@@ -292,12 +293,14 @@ def create_video_notification_embed(
 async def send_notification_preview(
     interaction: discord.Interaction, responses: List[Document]
 ) -> None:
-    """The video announcement as it will arrive, one written message per click."""
+    """The video announcement as it will arrive, one written message per click, its
+    mention written but pinging nobody."""
     values = values_of(responses)
     youtuber = str(values.get("youtuber") or "")
     video_link = f"https://www.youtube.com/@{youtuber}"
+    mention = mention_of(values.get("mention"), values.get("mention_roles"))
     texts = [
-        parse_streamer_message(message, youtuber, video_link)
+        mention.before(parse_streamer_message(message, youtuber, video_link)) or ""
         for message in split_messages(values.get("notification_messages"))
     ]
     embed = await build_preview_embed(youtuber, str(interaction.locale))
@@ -341,10 +344,10 @@ async def build_preview_embed(youtuber: str, locale: str) -> Optional[discord.Em
 
 
 def compose_notification_message(
-    notification: Mapping[str, Any], youtuber: str, video_id: str
+    notice: Mapping[str, Any], youtuber: str, video_id: str
 ) -> str:
-    """One of the server's messages, picked at random, filled for this video."""
-    messages = split_messages(notification["notification_messages"]["value"])
+    """One of the notice's messages, picked at random, filled for this video."""
+    messages = split_messages(notice.get("notification_messages"))
     video_link = f"https://www.youtube.com/watch?v={video_id}"
     random_message = random.choice(messages or [""])
 
@@ -495,7 +498,7 @@ async def subscribe_youtube_new_video(
 ) -> None:
     """Subscribe a youtuber a server starts following, with its one renewal; only a
     failed lookup keeps it unsaved."""
-    youtuber = response["youtuber"]["value"]
+    youtuber = item_values(response)["youtuber"]
 
     async with _RENEWALS:
         subscribed = await count_youtube_video_subscription_by_guilds(
@@ -676,7 +679,7 @@ async def unsubscribe_youtube_new_video(
     interaction: Optional[discord.Interaction], notification: Mapping[str, Any]
 ) -> None:
     """Unsubscribe a youtuber no other server follows; the renewal ends on its own."""
-    youtuber = notification["youtuber"]["value"]
+    youtuber = item_values(notification)["youtuber"]
     followers = await count_servers_following(youtuber)
 
     if followers > 1:

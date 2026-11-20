@@ -25,6 +25,7 @@ from app.core.dates import (
 )
 from app.core.facts import Facts, facts
 from app.core.feature_health import Figure, figure_lines
+from app.core.mentions import mention_of
 from app.core.servers import save_server_setting, server_setting, set_feature_enabled
 from app.core.threads import to_thread
 from app.core.utils import (
@@ -37,7 +38,7 @@ from app.data import data
 from app.data.collection import Document
 from app.data.keiko import schedules as schedules_data
 from app.exceptions import ServerSettingsMissing
-from app.forms import open_feature
+from app.forms import document_values, item_values, open_feature
 from app.forms.features.feature import (
     AsideAction,
     CommitContext,
@@ -51,7 +52,7 @@ from app.forms.features.feature import (
 from app.forms.form.form_yaml import CardStep
 from app.forms.form.manager import FoundItem, PanelExtras, PanelPage
 from app.forms.form.responses.styles import format_value
-from app.forms.form.responses.summary import PanelRow
+from app.forms.form.responses.summary import PanelRow, option_label
 from app.integrations.reminders import schedule as reminders_service
 from app.ui.embed import announcement_embed
 from app.ui.message_preview import MessagePreviewView
@@ -140,15 +141,19 @@ async def birthday_config(guild_id: str) -> Mapping[str, Any] | None:
 async def save_birthday_config(
     guild_id: str,
     channel_id: str,
-    mention_everyone: bool = False,
+    mention: str = "none",
     notification_time: str | None = None,
     default_message: MessageChoice | None = None,
     updated_by: str | None = None,
+    mention_roles: Sequence[str] = (),
 ) -> Mapping[str, Any]:
-    """Save the birthday configuration over the saved one, returning it as saved."""
+    """Save the birthday configuration over the saved one, returning it as saved;
+    a mention it does not know pings nobody."""
+    chosen = mention_of(mention, list(mention_roles))
     options: dict[str, Any] = {
         "channel": str(channel_id),
-        "mention_everyone": bool(mention_everyone),
+        "mention": chosen.kind,
+        "mention_roles": list(chosen.roles),
     }
     if notification_time is not None:
         options["notification_time"] = str(notification_time)
@@ -503,13 +508,14 @@ async def birthday_manager_cog_data(
             "style": "channel",
             "values": str(config.get("channel")) if config.get("channel") else None,
         },
-        "mention_everyone": {
-            "style": "boolean",
-            "values": (
-                bool(config.get("mention_everyone"))
-                if apply_defaults
-                else config.get("mention_everyone")
-            ),
+        "mention": (
+            mention_of(config.get("mention"), config.get("mention_roles")).kind
+            if apply_defaults
+            else config.get("mention")
+        ),
+        "mention_roles": {
+            "style": "role",
+            "values": list(config.get("mention_roles") or []),
         },
         "timezone": zone,
         "notification_time": config.get("notification_time"),
@@ -531,48 +537,45 @@ async def save_birthday_config_changes(
     """Apply the edited settings on top of the saved birthday configuration."""
     config_keys = {
         "channel",
-        "mention_everyone",
+        "mention",
+        "mention_roles",
         "timezone",
         "notification_time",
         "default_message_mode",
         "default_message_title",
         "default_message_content",
     }
-    if not config_keys.intersection(changes):
+    edited = document_values(changes)
+    if not config_keys.intersection(edited):
         return
 
     config = await birthday_config(guild_id) or {}
-    mention_entry = changes.get("mention_everyone")
-    mention_everyone = (
-        _parse_bool(_extract_first(mention_entry))
-        if mention_entry is not None
-        else bool(config.get("mention_everyone"))
+    mention = mention_of(
+        _first(edited["mention"]) if "mention" in edited else config.get("mention"),
+        edited.get("mention_roles", config.get("mention_roles")),
     )
-    channel_id = _extract_first(changes.get("channel")) or config.get("channel")
-    zone = _extract_first(changes.get("timezone")) or await _server_zone(guild_id)
-    notification_time = _extract_first(changes.get("notification_time")) or config.get(
+    channel_id = _first(edited.get("channel")) or config.get("channel")
+    zone = _first(edited.get("timezone")) or await _server_zone(guild_id)
+    notification_time = _first(edited.get("notification_time")) or config.get(
         "notification_time"
     )
 
     await setup_birthdays(
         guild_id,
         str(channel_id),
-        mention_everyone,
+        mention.kind,
         zone,
         notification_time,
-        _default_message_from_changes(changes, config),
+        _default_message_from_changes(edited, config),
         updated_by=updated_by,
+        mention_roles=mention.roles,
     )
 
 
-def _extract_first(entry: Any) -> Any:
-    if entry is None:
-        return None
-
-    values = entry.get("values") if isinstance(entry, dict) else entry
-    if isinstance(values, list):
-        return values[0] if values else None
-    return values
+def _first(value: Any) -> Any:
+    if isinstance(value, list):
+        return value[0] if value else None
+    return value
 
 
 async def _server_zone(guild_id: str) -> str:
@@ -604,15 +607,13 @@ def _default_message_from_values(mode: Any, title: Any, content: Any) -> Message
 
 
 def _default_message_from_changes(
-    changes: Mapping[str, Any], config: Mapping[str, Any]
+    edited: Mapping[str, Any], config: Mapping[str, Any]
 ) -> MessageChoice:
     current = config.get("default_message") or {}
     return _default_message_from_values(
-        _extract_first(changes.get("default_message_mode"))
-        or current.get("mode", "default"),
-        _extract_first(changes.get("default_message_title")) or current.get("title"),
-        _extract_first(changes.get("default_message_content"))
-        or current.get("content"),
+        _first(edited.get("default_message_mode")) or current.get("mode", "default"),
+        _first(edited.get("default_message_title")) or current.get("title"),
+        _first(edited.get("default_message_content")) or current.get("content"),
     )
 
 
@@ -663,6 +664,19 @@ async def birthday_settings_rows(
     ]
 
     labels = _setting_labels(locale)
+    mention = mention_of(config.get("mention"), config.get("mention_roles"))
+    mentioned_roles = (
+        [
+            PanelRow(
+                key="mention_roles",
+                title=labels["mention_roles"],
+                value=list(mention.roles),
+                style="role",
+            )
+        ]
+        if mention.roles
+        else []
+    )
     return [
         PanelRow(
             key="channel",
@@ -671,11 +685,11 @@ async def birthday_settings_rows(
             style="channel",
         ),
         PanelRow(
-            key="mention_everyone",
-            title=labels["mention_everyone"],
-            value=bool(config.get("mention_everyone")),
-            style="boolean",
+            key="mention",
+            title=labels["mention"],
+            value=_mention_label(mention.kind, locale),
         ),
+        *mentioned_roles,
         PanelRow(
             key="timezone",
             title=labels["timezone"],
@@ -705,12 +719,24 @@ async def birthday_settings_rows(
     ]
 
 
-def _setting_labels(locale: str) -> dict[str, str]:
-    """The label the settings card gives each of its keys, which its rows repeat."""
+def _settings_card() -> CardStep:
     card = FEATURE.definition.step("birthday_config")
     if not isinstance(card, CardStep):
         raise TypeError("the birthday settings are the card birthday_config")
+    return card
+
+
+def _setting_labels(locale: str) -> dict[str, str]:
+    """The label the settings card gives each of its keys, which its rows repeat."""
+    card = _settings_card()
     return {field.key: card.label_of(field).get(locale) for field in card.fields}
+
+
+def _mention_label(kind: str, locale: str) -> str:
+    section = next(
+        section for section in _settings_card().sections if section.key == "mention"
+    )
+    return option_label(section.choices(), kind, locale) or kind
 
 
 async def birthday_month_pages(
@@ -933,11 +959,12 @@ async def birthday_stats_lines(
 async def setup_birthdays(
     guild_id: str,
     channel_id: str,
-    mention_everyone: bool,
+    mention: str,
     timezone_value: str | None = None,
     notification_time: str | None = None,
     default_message: MessageChoice | None = None,
     updated_by: str | None = None,
+    mention_roles: Sequence[str] = (),
 ) -> Mapping[str, Any]:
     """Save the birthday configuration in the server's zone, a new zone chosen here
     becoming the server's for new reminders; a new hour moves every reminder to it."""
@@ -947,10 +974,11 @@ async def setup_birthdays(
     config = await save_birthday_config(
         guild_id,
         channel_id,
-        mention_everyone,
+        mention,
         notification_time,
         default_message,
         updated_by,
+        mention_roles,
     )
 
     if zone != previous_zone:
@@ -970,19 +998,21 @@ async def save_setup_form(
 ) -> list[Mapping[str, Any]]:
     """Save the setup form's configuration and each birthday it lists; those saved."""
     values = values_of(responses)
+    mention = mention_of(values.get("mention"), values.get("mention_roles"))
     await setup_birthdays(
         guild_id,
         str(values.get("channel")),
-        _parse_bool(values.get("mention_everyone")),
+        mention.kind,
         values.get("timezone"),
         values.get("notification_time"),
         _default_message_from_responses(responses),
         updated_by=updated_by,
+        mention_roles=mention.roles,
     )
 
     saved_items = []
     for item in _form_birthday_items(values):
-        user_id = str(_nested_value(item, "user") or "")
+        user_id = str(item_values(item).get("user") or "")
         saved_item = await save_form_birthday_item(
             guild_id, item, (display_names or {}).get(user_id)
         )
@@ -1020,12 +1050,11 @@ async def save_form_birthday_item(
 
 def form_birthday_users(responses: list[dict[str, Any]]) -> list[str]:
     """The members the birthdays of a setup form are for."""
-    items = _form_birthday_items(values_of(responses))
-    return [
-        str(_nested_value(item, "user"))
-        for item in items
-        if _nested_value(item, "user")
+    users = [
+        item_values(item).get("user")
+        for item in _form_birthday_items(values_of(responses))
     ]
+    return [str(user) for user in users if user]
 
 
 def _form_birthday_items(values: Mapping[str, Any]) -> list[Mapping[str, Any]]:
@@ -1033,45 +1062,26 @@ def _form_birthday_items(values: Mapping[str, Any]) -> list[Mapping[str, Any]]:
     return [items] if isinstance(items, dict) else list(items)
 
 
-def _nested_value(item: Mapping[str, Any], key: str) -> Any:
-    value = item.get(key)
-    if isinstance(value, dict):
-        return value.get("value") or value.get("values")
-    return value
-
-
-def _parse_bool(value: Any) -> bool:
-    if isinstance(value, bool):
-        return value
-
-    if isinstance(value, list):
-        value = value[0] if value else None
-    return str(value).strip().lower() in ("true", "1", "yes", "sim", "on")
-
-
 def _parse_form_birthday_item(item: Mapping[str, Any]) -> FormBirthday | None:
-    user_id = _nested_value(item, "user")
-    mm_dd = _nested_value(item, "date")
+    values = item_values(item)
+    user_id = values.get("user")
+    mm_dd = values.get("date")
     if not user_id or not mm_dd or not is_valid_mm_dd(str(mm_dd)):
         return None
 
-    custom_message = _nested_value(item, "use_custom_message") == "custom"
-    custom_image = _nested_value(item, "use_custom_image") == "custom"
+    custom_message = values.get("use_custom_message") == "custom"
+    custom_image = values.get("use_custom_image") == "custom"
     return FormBirthday(
         user_id=str(user_id),
         mm_dd=str(mm_dd),
         message={
             "mode": "custom" if custom_message else "default",
-            "title": _nested_value(item, "custom_message_title")
-            if custom_message
-            else None,
-            "content": _nested_value(item, "custom_message_content")
-            if custom_message
-            else None,
+            "title": values.get("custom_message_title") if custom_message else None,
+            "content": values.get("custom_message_content") if custom_message else None,
         },
         image={
             "mode": "custom" if custom_image else "default",
-            "url": _nested_value(item, "custom_image") if custom_image else None,
+            "url": values.get("custom_image") if custom_image else None,
         },
     )
 
@@ -1201,7 +1211,8 @@ class BirthdayFeature(GenericCogFeature):
     async def commit_edit(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """Edited settings land on the config document."""
+        """Edited settings land on the config document, while it is still saved."""
+        await self.saved_document(context)
         changes = self.to_document(payload["answers"], context.locale)
         await save_birthday_config_changes(context.guild_id, changes, context.user_id)
         return CommitResult(("reminders_birthday",))
@@ -1209,10 +1220,12 @@ class BirthdayFeature(GenericCogFeature):
     async def commit_edit_item(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """An edited member keeps its own birthday document."""
+        """An edited member keeps its own birthday document, while the feature is
+        still saved."""
+        await self.saved_document(context)
         item = self.item_document(payload["answers"], context.locale)
         name = await members.display_name(
-            context.guild, str(_nested_value(item, "user") or "")
+            context.guild, str(item_values(item).get("user") or "")
         )
         await save_form_birthday_item(context.guild_id, item, name)
         return CommitResult(("birthdays",))
@@ -1220,9 +1233,11 @@ class BirthdayFeature(GenericCogFeature):
     async def commit_add_item(
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """A new member's birthday, refused when the member is already listed."""
+        """A new member's birthday, refused when the member is already listed or the
+        feature is no longer saved."""
+        await self.saved_document(context)
         item = self.item_document(payload["answers"], context.locale)
-        user_id = str(_nested_value(item, "user") or "")
+        user_id = str(item_values(item).get("user") or "")
         existing = await find_birthday(context.guild_id, user_id)
 
         if existing:
@@ -1235,7 +1250,10 @@ class BirthdayFeature(GenericCogFeature):
         self, payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
         """Every chosen member's birthday goes while all are saved, or none does."""
-        user_ids = [str(_nested_value(item, "user") or "") for item in payload["items"]]
+        await self.saved_document(context)
+        user_ids = [
+            str(item_values(item).get("user") or "") for item in payload["items"]
+        ]
         for user_id in user_ids:
             saved = await find_birthday(context.guild_id, user_id)
             if not user_id or saved is None:
@@ -1248,7 +1266,9 @@ class BirthdayFeature(GenericCogFeature):
     async def commit_disable(
         self, _payload: Mapping[str, Any], context: CommitContext
     ) -> CommitResult:
-        """Every birthday, reminder and the config go; the feature is off."""
+        """Every birthday, reminder and the config go while it is saved; the feature
+        is off."""
+        await self.saved_document(context)
         await disable_birthdays(context.guild_id)
         await to_thread(remove_cog_cache_by_guild, context.guild_id, self.key)
         return CommitResult(("reminders_birthday", "birthdays"))

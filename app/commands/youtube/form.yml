@@ -51,7 +51,7 @@ steps:
             all: [youtuber]
           error: notifications_youtube_video.ui.errors.preview_needs_youtuber
         required:
-          all: [channel, youtuber]
+          all: [channel, youtuber, mention_roles]
         fields:
           - key: channel
             description:
@@ -65,6 +65,12 @@ steps:
             description:
               en-us: Up to three messages, I pick one at random each video.
               pt-br: Até três mensagens, eu sorteio uma a cada vídeo.
+          - key: mention
+            description:
+              en-us: Who I ping at the start of the notice.
+              pt-br: Quem eu marco no começo do aviso.
+          - key: mention_roles
+            description: ${ref.roles_i_mention_description}
         sections:
           - type: channel_select
             key: channel
@@ -121,8 +127,8 @@ steps:
             emoji: 💬
             label: ${ref.notification_messages}
             description:
-              en-us: "One of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link"
-              pt-br: "Uma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo"
+              en-us: "One of the messages is picked at random each time. You can use:\n- `{youtuber}`: the youtuber's channel name\n- `{video_link}`: the video link\n\nWho I ping goes in **📣 Mention**, so there's no need to write `@everyone` here!"
+              pt-br: "Uma das mensagens é sorteada a cada vez. Você pode usar:\n- `{youtuber}`: o nome do canal do youtuber\n- `{video_link}`: o link do vídeo\n\nQuem eu marco fica em **📣 Mencionar**, então não precisa escrever `@everyone` aqui!"
             keys:
               value: notification_messages
             button:
@@ -142,11 +148,45 @@ steps:
                   max_length: 100
                   required: false
                   multiline: true
+          - type: value_select
+            key: mention
+            emoji: 📣
+            label: ${ref.mention}
+            keys:
+              value: mention
+            placeholder: ${ref.mention_placeholder}
+            options:
+              - label: ${ref.mention_none}
+                value: none
+                description: ${ref.mention_none_description}
+              - label: ${ref.mention_everyone}
+                value: everyone
+                description: ${ref.mention_everyone_description}
+              - label: ${ref.mention_here}
+                value: here
+                description: ${ref.mention_here_description}
+              - label: ${ref.mention_roles}
+                value: roles
+                description: ${ref.mention_roles_description}
+          - type: selects
+            key: mention_roles
+            emoji: 🏷️
+            label: ${ref.roles_i_mention}
+            when:
+              key: mention
+              is: roles
+            selects:
+              - type: roles
+                key: mention_roles
+                emoji: 🏷️
+                label: ${ref.roles_i_mention}
+                placeholder: ${ref.roles_placeholder}
         # open: state keys of the card -> a value or a text
         defaults:
+          mention: everyone
           notification_messages:
-            en-us: "@everyone! {youtuber} just posted a new video!"
-            pt-br: "@everyone! {youtuber} acabou de postar um novo vídeo!"
+            en-us: "{youtuber} just posted a new video!"
+            pt-br: "{youtuber} acabou de postar um novo vídeo!"
 
   - type: review
     key: confirm

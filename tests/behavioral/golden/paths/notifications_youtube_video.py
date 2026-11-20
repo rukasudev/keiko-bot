@@ -14,7 +14,8 @@ from tests.behavioral.golden.paths.common import (
 
 FORM = "notifications_youtube_video"
 
-MESSAGE = "@everyone! {youtuber} acabou de postar um novo vídeo!"
+MESSAGE = "{youtuber} acabou de postar um novo vídeo!"
+EVERYONE = {"value": "@everyone", "title": "Mencionar", "_raw_value": "everyone"}
 
 
 def notification(channel: str, youtuber: str) -> dict:
@@ -23,6 +24,7 @@ def notification(channel: str, youtuber: str) -> dict:
         "youtuber": {"value": youtuber, "title": "Youtuber"},
         "notification_messages": {"value": [MESSAGE], "title": "Mensagens de Notificação",
                                   "style": "bullet"},
+        "mention": dict(EVERYONE),
     }
 
 

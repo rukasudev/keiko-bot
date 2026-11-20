@@ -124,8 +124,11 @@ reached as `data().<database>_<collection>` (`data().guild_cogs`,
 `{guild_id, enabled, **options, state: {...}}`, and splits it back on a write, so a
 feature module never names `options`. What Keiko learns on its own goes through
 `data().guild_cogs.set_cog_state(guild_id, cog, fields)`. The birthday config keeps the form's keys
-(`channel`, `notification_time`, `mention_everyone`, `default_message`); its time zone
-is the server's.
+(`channel`, `notification_time`, `mention`, `mention_roles`, `default_message`; the old
+`mention_everyone` stays one release, unread, since `data/0008`); its time zone is the
+server's. Who a notice pings is its own field too: each Twitch and YouTube item keeps
+`mention` (`none`, `everyone`, `here` or `roles`) and, for roles, `mention_roles`, and
+the send passes Discord only what those name (`app/core/mentions.py`).
 
 `app/data/guild/members.py` does the same per member: `find_member_option(guild_id,
 user_id, cog)` returns `{guild_id, user_id, **options[cog], state: {display_name,
@@ -142,7 +145,7 @@ the operator ids stored as numbers. `keiko.integrations` is one document per
 integration, `_id` its name, `options` its switch and settings; the backup leaves it
 out.
 
-The member's display name sits next to the birthday. `/birthday`, the admin add and
+The member's display name sits next to the birthday. `/birthday`, the panel's Add and
 the birthday post refresh the copy; it is read only where the member cannot be
 fetched, and it is never the truth about the member. Removing a birthday keeps
 `state`, so a member removed and added again is not celebrated twice in a year.

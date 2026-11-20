@@ -5,7 +5,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from types import TracebackType
-from typing import Any, Dict, Mapping, Optional, Sequence, Type
+from typing import Any, Dict, List, Mapping, Optional, Sequence, Type
 
 from pymongo import ReadPreference
 from pymongo.client_session import ClientSession
@@ -69,7 +69,7 @@ class TransactionMisuse(Exception):
 @dataclass
 class DataRun:
     """One run of a data file: its client, its ledger entry, the dry-run flag and the
-    budget, and what its transaction counted."""
+    budget, and what its transaction counted and listed."""
 
     client: Any
     entry: Dict[str, Any]
@@ -78,19 +78,26 @@ class DataRun:
     began: float = field(default_factory=time.monotonic)
     entered: int = 0
     counts: Dict[str, int] = field(default_factory=dict)
+    notes: Dict[str, List[str]] = field(default_factory=dict)
 
 
 def ledger_entry(
-    identity: Mapping[str, Any], counts: Mapping[str, int], seconds: float
+    identity: Mapping[str, Any],
+    counts: Mapping[str, int],
+    seconds: float,
+    notes: Optional[Mapping[str, Sequence[str]]] = None,
 ) -> Dict[str, Any]:
     """The ledger document of one applied file: its identity and how the run went."""
-    return {
+    entry = {
         **identity,
         "applied_at": datetime.now(timezone.utc),
         "seconds": round(seconds, 3),
         "counts": dict(counts),
         "app_version": app_version(),
     }
+    if notes:
+        entry["notes"] = {name: list(values) for name, values in notes.items()}
+    return entry
 
 
 class Bound:
@@ -122,14 +129,20 @@ class Bound:
 
 
 class Transaction:
-    """The client's databases bound to one transaction, and the counts it records."""
+    """The client's databases bound to one transaction, and the counts and lists it
+    records."""
 
     def __init__(
-        self, client: Any, session: ClientSession, counts: Dict[str, int]
+        self,
+        client: Any,
+        session: ClientSession,
+        counts: Dict[str, int],
+        notes: Dict[str, List[str]],
     ) -> None:
         self._client = client
         self._session = session
         self._counts = counts
+        self._notes = notes
 
     def __getattr__(self, database: str) -> Bound:
         if database.startswith("_"):
@@ -142,6 +155,12 @@ class Transaction:
     def count(self, name: str, amount: int = 1) -> None:
         """Add `amount` to the count `name` the ledger entry keeps."""
         self._counts[name] = self._counts.get(name, 0) + int(amount)
+
+    def note(self, name: str, value: Any) -> None:
+        """Add `value` once to the list `name` the run prints and the ledger keeps."""
+        listed = self._notes.setdefault(name, [])
+        if str(value) not in listed:
+            listed.append(str(value))
 
 
 def transaction_options() -> Dict[str, Any]:
@@ -173,7 +192,9 @@ class TransactionBlock:
         self.session = self.run.client.start_session()
         self.session.start_transaction(**transaction_options())
         self.started = time.monotonic()
-        return Transaction(self.run.client, self.session, self.run.counts)
+        return Transaction(
+            self.run.client, self.session, self.run.counts, self.run.notes
+        )
 
     def __exit__(
         self,
@@ -196,7 +217,10 @@ class TransactionBlock:
             self._check_budget()
             self.run.client.migrations.changelog.insert_one(
                 ledger_entry(
-                    self.run.entry, self.run.counts, time.monotonic() - self.run.began
+                    self.run.entry,
+                    self.run.counts,
+                    time.monotonic() - self.run.began,
+                    self.run.notes,
                 ),
                 session=session,
             )

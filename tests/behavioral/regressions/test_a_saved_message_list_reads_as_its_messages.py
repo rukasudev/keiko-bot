@@ -44,7 +44,7 @@ pytestmark = [
 ]
 
 YOUTUBE_PREVIEW = (
-    "@everyone! pewdiepie acabou de postar um novo vídeo!\n"
+    "@everyone pewdiepie acabou de postar um novo vídeo!\n"
     "https://www.youtube.com/@pewdiepie"
 )
 TWITCH_PREVIEW = "@everyone gaules está ao vivo! https://www.twitch.tv/gaules"
@@ -128,7 +128,10 @@ async def test_two_saved_messages_preview_as_two_pages(
 
     content = await _preview_content(scenario, "aside:preview:notifications$0")
 
-    expected = [f"Primeira de {name}!\n{link}", f"Segunda de {name}!\n{link}"]
+    expected = [
+        f"@everyone Primeira de {name}!\n{link}",
+        f"@everyone Segunda de {name}!\n{link}",
+    ]
     assert content == expected[0], scenario.transcript
     preview = scenario.current_message
     assert [item.label for item in preview.view.children] == ["Próxima mensagem"]

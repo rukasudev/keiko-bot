@@ -38,8 +38,8 @@ ui:
         en-us: Youtuber Already Registered
         pt-br: Youtuber Já Registrado
       message:
-        en-us: The notification of this youtuber's videos is already set up on this server. Please select another youtuber and try again.
-        pt-br: A notificação dos vídeos desse youtuber já está configurada nesse servidor. Por favor, selecione outro youtuber e tente novamente.
+        en-us: I'm sorry, but I already let this server know about this youtuber's videos. Pick another youtuber and try again!
+        pt-br: Sinto muito, mas eu já aviso este servidor dos vídeos desse youtuber. Escolha outro youtuber e tente de novo!
     youtuber_not_found:
       title:
         en-us: Youtuber Not Found

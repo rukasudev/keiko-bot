@@ -13,7 +13,8 @@ from tests.behavioral.golden.paths.common import (
 
 FORM = "notifications_twitch"
 
-MESSAGE = "@everyone {streamer} está ao vivo! {stream_link}"
+MESSAGE = "{streamer} está ao vivo! {stream_link}"
+EVERYONE = {"value": "@everyone", "title": "Mencionar", "_raw_value": "everyone"}
 
 
 def notification(channel: str, streamer: str) -> dict:
@@ -22,6 +23,7 @@ def notification(channel: str, streamer: str) -> dict:
         "streamer": {"value": streamer, "title": "Streamer"},
         "notification_messages": {"value": [MESSAGE], "title": "Mensagens de Notificação",
                                   "style": "bullet"},
+        "mention": dict(EVERYONE),
     }
 
 

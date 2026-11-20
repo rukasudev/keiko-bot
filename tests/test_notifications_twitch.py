@@ -241,19 +241,14 @@ class TestTwitchMessageComposition:
         Output: Mensagem com valores reais
         """
         # Arrange
-        notification = {
-            "notification_messages": {
-                "value": "{streamer} esta ao vivo! {stream_link}"
-            }
-        }
+        notice = {"notification_messages": "{streamer} esta ao vivo! {stream_link}"}
         streamer = "gaules"
 
         # Act
-        result = compose_notification_message(notification, streamer)
+        result = compose_notification_message(notice, streamer)
 
         # Assert
-        assert "gaules" in result
-        assert "twitch.tv/gaules" in result
+        assert result == "gaules esta ao vivo! https://www.twitch.tv/gaules"
 
     def test_compose_notification_message_adds_link_if_missing(self):
         """
@@ -337,7 +332,7 @@ class TestTwitchStreamEmbed:
         # Assert
         assert embed is not None
         assert embed.title == "Live Test!"
-        assert_embed_field(embed, "Game", "CS2")
+        assert_embed_field(embed, "Category", "CS2")
         assert_embed_field(embed, "Streamer", "gaules")
 
     def test_embed_has_correct_color(self, twitch):
@@ -744,7 +739,7 @@ def field_names(embed):
 
 @pytest.mark.unit
 @pytest.mark.parametrize(
-    "locale,names", [("en-us", ["Game", "Streamer"]), ("pt-br", ["Categoria", "Streamer"])]
+    "locale,names", [("en-us", ["Category", "Streamer"]), ("pt-br", ["Categoria", "Streamer"])]
 )
 def test_a_live_notice_names_its_fields_in_the_servers_language(twitch, locale, names):
     """A live or video notice names its fields in the language of the server it reaches.

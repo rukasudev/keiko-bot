@@ -26,6 +26,7 @@ from app.core.calendar import is_valid_mm_dd
 from app.core.cogs import is_feature_on
 from app.core.commands import Reminder
 from app.core.dates import nearest_mm_dd_occurrence, zone_or_utc
+from app.core.mentions import mention_of
 from app.core.servers import server_language, server_timezone
 from app.core.trace import Outcome, fan_out
 from app.core.utils import destination
@@ -121,10 +122,7 @@ async def celebrate_in_guild(
 
     guild, channel = destination(guild_id, config.get("channel"))
     locale = await server_language(guild_id)
-    mention_everyone = bool(config.get("mention_everyone"))
-    allowed_mentions = discord.AllowedMentions(
-        everyone=mention_everyone, users=False, roles=False
-    )
+    mention = mention_of(config.get("mention"), config.get("mention_roles"))
     zone = await server_timezone(guild_id)
     year = celebration_year(mm_dd, zone)
     await data().keiko_schedules.set_schedule_due(
@@ -174,9 +172,9 @@ async def celebrate_in_guild(
 
         try:
             message = await channel.send(
-                content="@everyone" if mention_everyone else None,
+                content=mention.before(None),
                 embed=embed,
-                allowed_mentions=allowed_mentions,
+                allowed_mentions=mention.allowed,
             )
         except discord.Forbidden as error:
             await _release(guild_id, item, year)

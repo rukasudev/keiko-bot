@@ -561,6 +561,10 @@ def duplicates(client: Any, change: Change) -> List[str]:
     ]
 
 
+def _listed(run: DataRun) -> str:
+    return f" and lists {_json(run.notes)}" if run.notes else ""
+
+
 def _json(value: Any) -> str:
     return json.dumps(value, sort_keys=True, ensure_ascii=False, default=str)
 
@@ -773,7 +777,9 @@ def rehearse(
                 f"dry run stopped at {version.label}: {type(error).__name__}: {error}",
             )
             return False
-        report.line("dry", f"{version.label} would write {_json(run.counts)}")
+        report.line(
+            "dry", f"{version.label} would write {_json(run.counts)}{_listed(run)}"
+        )
     report.line("ok", "dry run wrote nothing: each transaction was aborted")
     return True
 
@@ -911,10 +917,12 @@ def _apply_all(
         extend_lock(client, who)
         started = time.monotonic()
         try:
+            listed = ""
             if version.kind == "schema":
                 counts = apply_schema(client, version, changes.get(version.label, []))
             else:
-                counts = apply_data(client, version).counts
+                run = apply_data(client, version)
+                counts, listed = run.counts, _listed(run)
         except Exception as error:
             report.line(
                 "fail",
@@ -924,7 +932,8 @@ def _apply_all(
             return False
         report.line(
             "apply",
-            f"{version.label}: {_json(counts)} in {time.monotonic() - started:.2f} s",
+            f"{version.label}: {_json(counts)}{listed}"
+            f" in {time.monotonic() - started:.2f} s",
         )
     report.line("ok", f"{len(pending)} applied")
     return True
@@ -970,7 +979,8 @@ def _report_version(
         "applied",
         f"{version.label} at {entry.get('applied_at'):%Y-%m-%d %H:%M:%S}Z"
         f" by {entry.get('app_version')} in {entry.get('seconds')} s,"
-        f" counts {_json(entry.get('counts', {}))}",
+        f" counts {_json(entry.get('counts', {}))}"
+        + (f", lists {_json(entry['notes'])}" if entry.get("notes") else ""),
     )
 
 

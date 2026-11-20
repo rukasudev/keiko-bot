@@ -159,7 +159,7 @@ async def test_happy_path_ptbr_persists_config_and_member(scenario_factory):
         {
             "channel": str(channel.id),
             "notification_time": "08:00",
-            "mention_everyone": False,
+            "mention": "none",
             "enabled": True,
         },
     )
@@ -261,7 +261,7 @@ async def test_persisted_documents_have_expected_shape(scenario_factory):
     config = scenario.get_persisted("guild", "reminders_birthday", {"guild_id": guild_id})
     volatile = {"created_at", "updated_at", "_id"}
     assert {k for k in config if k not in volatile} >= {
-        "guild_id", "channel", "mention_everyone", "notification_time",
+        "guild_id", "channel", "mention", "mention_roles", "notification_time",
     }
     assert "timezone" not in config, "the zone is the server's, not the birthdays'"
 
@@ -307,33 +307,47 @@ async def test_the_birthday_message_arrives_with_a_party_reaction(deps, monkeypa
 
 async def test_the_settings_are_chosen_right_on_the_card(scenario_factory):
     """N4 (beta.2 round 2): the channel, the timezone and the time are picked on
-    the card's own selects, and the mention on its Sim and Não buttons."""
+    the card's own selects. PR8: the time starts on 10:00, so a server that
+    keeps it picks nothing, and the mention is a select of who I ping, whose
+    role select shows only for some roles."""
     scenario = await scenario_factory(locale="pt-br").start("reminders_birthday")
     await scenario.confirm()
 
     await scenario.select_option("general", target="channel")
     await scenario.select_option("America/Sao_Paulo", target="timezone")
-    await scenario.select_option("10:00", target="notification_time")
-    await scenario.click("set:mention_everyone=true")
-    yes, no = (
-        item
-        for item in scenario.current_message.view.walk_children()
-        if isinstance(item, discord.ui.Button) and item.label in ("Sim", "Não")
-    )
-    assert (yes.style, no.style) == (
-        discord.ButtonStyle.primary,
-        discord.ButtonStyle.secondary,
-    )
+    assert "🕒 **Horário da notificação**\n> 10:00" in _texts(scenario)
+    assert not _role_selects(scenario), "no role select while I mention nobody"
+    await scenario.select_option("roles", target="mention")
+    assert len(_role_selects(scenario)) == 1
+    member = next(role for role in scenario.guild.roles if role.name == "Member")
+    await scenario.select_option("Member", target="mention_roles")
     await scenario.click("done")
     scenario.expect_step("confirm")
     await scenario.confirm()
 
-    scenario.expect_persisted(
-        "guild", "reminders_birthday", {"guild_id": str(scenario.guild.id)},
-        {"notification_time": "10:00", "mention_everyone": True},
+    config = scenario.get_persisted(
+        "guild", "reminders_birthday", {"guild_id": str(scenario.guild.id)}
     )
+    assert (config["notification_time"], config["mention"]) == ("10:00", "roles")
+    assert config["mention_roles"] == [str(member.id)]
     assert server_zone(scenario) == "America/Sao_Paulo"
     await scenario.finish()
+
+
+def _texts(scenario):
+    return [
+        item.content
+        for item in scenario.current_message.view.walk_children()
+        if isinstance(item, discord.ui.TextDisplay)
+    ]
+
+
+def _role_selects(scenario):
+    return [
+        item
+        for item in scenario.current_message.view.walk_children()
+        if isinstance(item, discord.ui.RoleSelect)
+    ]
 
 
 def server_zone(scenario):

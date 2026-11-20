@@ -478,12 +478,14 @@ def _step_style(step: Step) -> str | None:
 def titled_items(
     composition: ListStep, items: Sequence[Any], locale: str
 ) -> list[dict[str, Any]]:
-    """Stored items with each entry titled, iconed and styled as the form declares."""
+    """Stored items with each entry titled, iconed and styled as the form declares,
+    an entry whose card section the item's own answers hide marked hidden."""
     titles: dict[str, str] = {}
     item_icons = icons(composition.steps)
     styles = {
         key: style for key, (_, style) in _nested(composition.steps, locale).items()
     }
+    gates = section_gates(composition.steps)
     for step in composition.steps:
         if isinstance(step, CardStep):
             titles.update(
@@ -495,6 +497,7 @@ def titled_items(
     rows = []
     for item in items:
         row: dict[str, Any] = {}
+        answered = Scope({key: unwrap(entry) for key, entry in dict(item).items()})
         for key, entry in dict(item).items():
             if key in BOOKKEEPING:
                 continue
@@ -511,6 +514,8 @@ def titled_items(
                     "title": titles.get(key) or key,
                     "icon": item_icons.get(key),
                 }
+            if key in gates and not evaluate(gates[key], answered):
+                row[key]["hidden"] = True
         rows.append(row)
     return rows
 

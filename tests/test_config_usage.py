@@ -78,14 +78,14 @@ def test_channel_and_role_fields_never_report_their_ids(deps):
         )
 
 
-def test_a_boolean_setting_reports_how_many_turned_it_on(deps):
-    save(deps, "reminders_birthday", guild_id="1", mention_everyone=True)
-    save(deps, "reminders_birthday", guild_id="2", mention_everyone=False)
-    save(deps, "reminders_birthday", guild_id="3", mention_everyone=True)
+def test_a_choice_setting_reports_how_many_picked_each_option(deps):
+    save(deps, "reminders_birthday", guild_id="1", mention="everyone")
+    save(deps, "reminders_birthday", guild_id="2", mention="none")
+    save(deps, "reminders_birthday", guild_id="3", mention="everyone")
 
-    mention = field(wait(analytics_reports.config_usage("reminders_birthday")), "mention_everyone")
+    mention = field(wait(analytics_reports.config_usage("reminders_birthday")), "mention")
 
-    assert mention["values"] == {"True": 2, "False": 1}
+    assert mention["values"] == {"everyone": 2, "none": 1}
 
 
 def test_multi_valued_settings_count_each_option_once_per_guild(deps):
