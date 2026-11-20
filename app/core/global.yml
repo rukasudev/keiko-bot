@@ -26,7 +26,7 @@ facts:
     description: How many documents a database backup holds.
   feature:
     type: text
-    description: The name of the feature a list's last-item warning or the delete question turns off, the intro's title without its emoji.
+    description: The name of the feature a list's last-item warning turns off, the intro's title without its emoji.
   feature_state:
     type: enum
     values: [not_configured, paused, active]

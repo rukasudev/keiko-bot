@@ -45,5 +45,5 @@ async def test_a_pause_with_analytics_off_still_lists_in_the_history(
     assert [(record["cog"], record["type"]) for record in records] == [
         ("block_links", "feature.paused")
     ]
-    assert "🚫 Bloquear Links · ⏸️ Pausado" in rendered
+    assert "Bloquear Links · ⏸️ Pausado" in rendered
     assert analytics.drain() == [], "the queue still took events with analytics off"

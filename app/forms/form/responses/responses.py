@@ -75,7 +75,8 @@ def items_of(document: Mapping[str, Any], key: str) -> list[dict[str, Any]]:
     """The stored items of the composition `key`, as dicts."""
     value = document.get(key)
     if isinstance(value, Mapping):
-        return [dict(item) for item in (value.get("values") or [])]
+        items = value.get("values") or []
+        return [dict(item) for item in items if isinstance(item, Mapping)]
     return []
 
 
@@ -87,3 +88,13 @@ def list_values(document: Mapping[str, Any], key: str) -> list[dict[str, Any]]:
 def item_values(item: Mapping[str, Any]) -> dict[str, Any]:
     """A saved list item as its machine values: the labels a summary shows left out."""
     return {key: answer.raw for key, answer in item_answers(item).items()}
+
+
+def styled_values(item: Mapping[str, Any], style: str) -> list[Any]:
+    """The machine values of a saved list item's entries saved in `style`."""
+    machine = item_values(item)
+    return [
+        machine[key]
+        for key, entry in item.items()
+        if key in machine and isinstance(entry, Mapping) and entry.get("style") == style
+    ]

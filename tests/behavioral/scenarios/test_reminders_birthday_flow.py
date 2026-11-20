@@ -159,7 +159,7 @@ async def test_happy_path_ptbr_persists_config_and_member(scenario_factory):
         {
             "channel": str(channel.id),
             "notification_time": "08:00",
-            "mention": "none",
+            "mention": "everyone",
             "enabled": True,
         },
     )

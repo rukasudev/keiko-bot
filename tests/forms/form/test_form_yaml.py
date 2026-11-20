@@ -837,3 +837,44 @@ def test_the_schema_leaves_the_texts_the_compiler_fills_optional():
     assert "default" not in review["properties"]["title"]
     assert "intro" in review["properties"]["title"]["description"]
     assert "review_description" in review["properties"]["description"]["description"]
+
+
+IMAGE = {
+    "type": "file_upload",
+    "key": "image",
+    "emoji": "🖼️",
+    "label": _text("Image"),
+    "keys": {"image": "image"},
+    "modal": {"title": _text("Upload")},
+}
+
+
+def test_an_upload_names_the_validator_its_file_goes_through():
+    definition = _compiled(_card(sections=[IMAGE | {"validation": {"name": "image"}}]))
+    (section,) = definition.step("card").sections
+
+    assert section.checked_by().name == "image"
+    assert section.uploads()
+
+
+@pytest.mark.parametrize(
+    "card, message",
+    [
+        (
+            _card(sections=[IMAGE | {"validation": {"name": "link_or_domain"}}]),
+            "an upload is checked by a validator of uploads, not link_or_domain",
+        ),
+        (
+            {**NAME, "validation": {"name": "image"}},
+            "image checks an upload",
+        ),
+        (
+            _card(sections=[IMAGE | {"validation": {"name": "imgae"}}]),
+            "unknown validator 'imgae'",
+        ),
+    ],
+    ids=["upload-checked-by-text", "text-checked-by-upload", "unknown"],
+)
+def test_an_upload_and_its_validator_must_agree(card, message):
+    with pytest.raises(CompileError, match=message):
+        _compiled(card)

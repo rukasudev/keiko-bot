@@ -1,6 +1,6 @@
 ---
 name: keiko-writing-style
-description: Use when writing or editing user-facing text for the Keiko Discord bot, including slash command descriptions, embeds, modals, buttons, forms, error messages, success messages, greetings, notification copy, welcome messages, or any UI text rendered to Discord users. Applies to the shared YAML language files under app/languages/, each command's copy.yml and form.yml under app/commands/<command>/, the forms' shared vocabulary app/forms/vocabulary.yml, and any embed/modal/view construction in app/ui/. Enforces Keiko's friendly-loyal-dog companion tone, voice rules (3rd person for slash command descs, 1st person everywhere else), formatting (single leading emoji on titles, "• " footer prefix, backticked slash commands, bold **Keiko**), localization (every string in both en-us and pt-br), and Discord UI conventions (embed colors 0x4F97F9 default / 0xff0000 errors, button styles, modal patterns, form structure).
+description: Use when writing or editing user-facing text for the Keiko Discord bot, including slash command descriptions, embeds, modals, buttons, forms, error messages, success messages, greetings, notification copy, welcome messages, or any UI text rendered to Discord users. Applies to the shared YAML language files under app/languages/, each command's copy.yml and form.yml under app/commands/<command>/, the forms' shared vocabulary app/forms/vocabulary.yml, and any embed/modal/view construction in app/ui/. Enforces Keiko's friendly-loyal-dog companion tone, voice rules (3rd person for slash command descs, 1st person everywhere else), formatting (single leading emoji on titles, "• " footer prefix, backticked slash commands, bold **Keiko**), localization (every string in both en-us and pt-br), and Discord UI conventions (embed colors 0x4F97F9 default / 0xff0000 errors / 0xFEE75C warnings, button styles, modal patterns, form structure).
 ---
 
 # Keiko Writing Style
@@ -26,7 +26,7 @@ Subtle dog-themed wordplay is welcome when it lands naturally. Example: the pt-b
 - Use contractions (`I'm`, `don't`, `you'll`).
 - Frequent `!` for instructional/success copy. Periods otherwise.
 - **Never use em-dash (`—`) or en-dash (`–`).** They sound AI-like and overly formal. Rewrite with a comma, period, or split into two sentences. No existing Keiko message uses them; new ones must not either.
-- **`...` (three dots) is allowed only for async/in-progress states** (e.g., `🔄 Syncing roles...`, `Loading...`). It signals "I'm still working." Do not use `...` as a stylistic ellipsis or trailing-thought device anywhere else.
+- **`...` (three dots) is allowed only for async/in-progress states** (e.g., `🔄 Syncing roles...`, `Loading...`). It signals "I'm still working." Do not use `...` as a stylistic ellipsis or trailing-thought device anywhere else. The one exception is the owner's own line for an expired form, `Ei... esse formulário expirou!` / `Hey... this form expired!` (`texts.notices.expired`).
 - Errors begin with apology: `I'm sorry, but ...` or `Oops! ...`. Always include a recovery hint (`Please try again later`, `Check the name and try again`, or `send us a report using the /report command`).
 - Success titles end with `... successfully!` or `... sent!`. Optional warm closer (`Now everyone is even cuter! 🐶`).
 - Instructions address the user directly (`Choose which channel I should ...`).
@@ -96,6 +96,7 @@ of text is a bug, not a style choice.
 ### Embeds (`app/ui/embed.py`)
 - Default color: `Style.BACKGROUND_COLOR` = `0x4F97F9`.
 - Error color: `Style.RED_COLOR` = `0xff0000`. `response_error_embed()` auto-prefixes the title with `🚨` — do not duplicate.
+- Warning color: `Style.WARNING_COLOR` = `0xFEE75C`, Discord's yellow, for a message that tells the admin Keiko changed something they did, with no error to fix (the typed mention taken out of a text, `commands.responses.mention_removed`). The Response block declares `tone: warning`; `response_embed` and the forms' `Announce` read it. Never paint an error or a success yellow.
 - Title format: `"{ONE_EMOJI} {Title Case}"`. Exactly one leading emoji.
 - Use `description` for short bodies. Use `add_field(name=..., value=..., inline=False)` for stacked record-style content (DM reports, button caption lists, help indexes).
 - Closing line: the report line renders as `-# • {text}` subtext, always the last line of the embed, through `app.ui.embed.with_footer`: at the end of the description, or in a full-width field of its own under the fields when the embed has some. A `Response` block decides it: no `footer` draws the standard `/report` line, `footer: null` none, a text that text. An embed footer renders no markdown, so `/report` came out with its backticks showing. A domain footer that carries no markdown may still use `embed.set_footer(text=f"• {text}")`. The `"• "` prefix is mandatory either way.
@@ -104,18 +105,18 @@ of text is a bug, not a style choice.
 
 ### Buttons (`app/ui/buttons.py`)
 - `ButtonStyle.green` → Confirm / positive
-- `ButtonStyle.red` → Cancel / destructive (the panel's **🗑️ Apagar configuração** / **Delete settings**, and the **🗑️ Apagar tudo** / **Delete everything** of the question it opens)
+- `ButtonStyle.red` → Cancel / destructive (the **Desativar e apagar** / **Disable and delete** of the question the panel's Desativar opens)
 - `ButtonStyle.primary` → Back / selected state / primary navigation
-- `ButtonStyle.gray` / `grey` → Edit, Pause, Resume, Preview, Help, Add (the **➕ Add** of every list too, beside its title, on the summary, the panel and a card), Remove, History, Sync
+- `ButtonStyle.gray` / `grey` → Edit, Pause, Unpause, Preview, Help, Disable, Add (the **➕ Add** of every list too, beside its title, on the summary, the panel and a card), Remove, History, Sync
 - `ButtonStyle.secondary` → form back navigation
-- Reuse generic labels from `app/languages/buttons.yml` (`confirm`, `cancel`, `edit`, `add`, `remove`, `back`, `select`, `choose`, `pause`, `unpause` (read **Resume** / **Retomar**), `disable` (read **Delete settings** / **Apagar configuração**), `preview`, `history`, `done`), each a `ButtonCopy` with its `label` and, for a button the Help screen lists, its `description`. Only add a new key when the action is genuinely new.
+- Reuse generic labels from `app/languages/buttons.yml` (`confirm`, `cancel`, `edit`, `add`, `remove`, `back`, `select`, `choose`, `pause`, `unpause`, `disable`, `delete_all` (read **Disable and delete** / **Desativar e apagar**), `reopen` (the **Open again** / **Abrir de novo** of an expired form), `preview`, `history`, `done`), each a `ButtonCopy` with its `label` and, for a button the Help screen lists, its `description`. Only add a new key when the action is genuinely new.
 - **Cancel is ALWAYS the last button in the view.** Order: the step's own actions first
   (options, Confirm, Done, Add/Remove), then Back, then Cancel. Inside a form the engine's
   screen model builds the row in that order by construction
   (`app/forms/form/actions/action.py`, `step_buttons`); a view outside the forms appends Cancel
-  last by hand. The manager panel has no Cancel: its red **🗑️ Apagar configuração** goes last,
-  after Help, and asks first on a red question shaped like an item's removal (**🗑️ Apagar tudo**,
-  then **Voltar**). Pinned by the golden transcripts.
+  last by hand. The manager panel has no Cancel: its grey **🚫 Desativar** sits right after
+  **⏸️ Pausar** and asks first on a red question (**Desativar e apagar**, then **Voltar**).
+  Pinned by the golden transcripts.
 
 ### Modals (`app/forms/discord/views.py`)
 - Default `max_length` = 40. Cap at 100 for free-text fields.
@@ -150,6 +151,7 @@ of text is a bug, not a style choice.
   - a literal dollar → `$$` (a `$` before a space or a digit, `R$ 5`, is already text).
   The loader and the form compiler refuse an undeclared name, an answer no earlier step (or the step itself) gives, an unknown format, an unclosed `${` and the old spellings (`{context:...}`, `{answer:...}`, `{plural:...}`, `{ref: name}`), naming the closest name; `fill` refuses a line that names a given value in braces.
 - Braces are the admin's, `$` is Keiko's: never write a value Keiko fills as `{name}`, and never a `$` token in a default of an admin's template that a later pass would fill (the load-time `${context...}` and `${ref...}` are written in when the file loads; nothing else is filled in it). A Keiko text may show an admin variable as an example beside its own tokens, as a step does when it lists the variables a message accepts (`` `{user}`: the new member's mention `` above a line naming `` `${context.commands.setup}` ``): to Keiko's reader the braces are plain text.
+- Who a notice or a birthday post pings is the card's **📣 Mencionar** / **📣 Mention**, never the text: the inputs of those messages declare `normalize: {name: without_group_mentions}`, which takes a typed @everyone, @here or role mention out on save (a member's stays) and sends `commands.responses.mention_removed` ("📣 Tirei a menção do texto!" / "📣 I removed the mention from the text!") as an embed that removes itself, like the pause's. The Mention section comes before the messages on the card and starts on @everyone in every command.
 - What a person types in a modal is shown exactly as typed on every screen, Keiko's tokens, their old spellings and any other brace included; only the variables that field's code fills (`{user}` in a welcome message, `{streamer}` in a Twitch message, never `{streamer}` in a birthday message) are filled, each value once, on its previews and in the message the feature sends (`tests/behavioral/contracts/test_a_typed_answer_fills_only_its_own_variables.py`).
 - Footer prefix: `"• "` (bullet + space). Never use `•` as an inline bullet in body copy.
 - Lists: `\n- ` for unordered, `\n1. ` / `\n2. ` for sequential. `\n\n` between paragraphs.
@@ -194,7 +196,7 @@ Every rule below is about what a user sees; on the two operator surfaces named a
 - ALWAYS bold `**Keiko**` and `**$command_name**` when referenced inline.
 - ALWAYS backtick slash commands, written as their context entry (`${context.commands.<key>}`).
 - ALWAYS provide both `en-us` and `pt-br` for new strings.
-- ALWAYS reuse `commands.responses.{enabled,disabled}` when a setup turns a feature on and when its settings are deleted; a pause and a resume only draw the panel again (its title says "(Pausado)" and its button **Retomar**), so they have no message of their own; do not invent new state-change copy.
+- ALWAYS reuse `commands.responses.{enabled,paused,unpaused,disabled}` for state changes: a pause and an unpause draw the panel again (its title says "(Pausado)" and its button **Despausar**) and send their message beside it on an ephemeral note that removes itself after `ViewConstants.ACTION_NOTICE_SECONDS`; do not invent new state-change copy.
 - ALWAYS reuse generic button keys from `app/languages/buttons.yml` when an existing label fits.
 - ALWAYS place the Cancel button last in a view (own actions, then Back, then Cancel).
 - ALWAYS use the choice layout (question, one line per option led by its emoji, closing invitation) when a step asks the user to pick between options.
@@ -259,7 +261,7 @@ Render: `response_error_embed("{command-key}.errors.{error_name}", locale)`, or 
 An error always writes both `title` and `message`: a missing one shows on screen as its own copy key (pinned by `tests/behavioral/regressions/test_an_error_embed_never_shows_a_copy_key.py`).
 
 ### Success / state-change embed
-Reuse `commands.responses.{enabled|disabled}`. Substitute `$command_name`, `$user`, `$date` only (`$date` is a Discord timestamp, so each reader sees their own date and time). A pause and a resume answer with the panel drawn again, never with an embed.
+Reuse `commands.responses.{enabled|paused|unpaused|disabled}`. Substitute `$command_name`, `$user`, `$date` only (`$date` is a Discord timestamp, so each reader sees their own date and time). A pause and an unpause draw the panel again and send their embed beside it, removed after `ViewConstants.ACTION_NOTICE_SECONDS`.
 
 ### Modal step (YAML)
 ```yaml

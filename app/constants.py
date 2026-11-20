@@ -6,6 +6,7 @@ import discord
 class Style:
     RED_COLOR: Final[str] = "ff0000"
     BACKGROUND_COLOR: Final[str] = "4F97F9"
+    WARNING_COLOR: Final[str] = "FEE75C"
     BLANK_FIELD_NAME: Final[str] = "\u200b"
 
 
@@ -375,6 +376,7 @@ class DiscordLimits:
     AUTOCOMPLETE_CHOICES: Final[int] = 25
     BUTTONS_PER_ROW: Final[int] = 5
     INTERACTION_TOKEN_SECONDS: Final[int] = 900
+    CUSTOM_ID: Final[int] = 100
     ATTACHMENT_URL_SECONDS: Final[int] = 86400
     ATTACHMENT_URL_REFRESH_SECONDS: Final[int] = 82800  # an hour before the link dies
 

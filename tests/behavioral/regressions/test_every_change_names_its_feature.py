@@ -13,8 +13,9 @@ Shared behavior affected: `parse_history_data` and the label it gives a change
 
 Exposed by: block_links, an item added from its panel.
 
-Must remain guaranteed: both lists name a change by the emoji and the name /setup
-gives its feature, and neither shows the key.
+Must remain guaranteed: both lists name a change by the name /setup gives its
+feature, one emoji per line (the change's own), the server settings by the title
+of /setup's settings card, and neither shows the key.
 """
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -26,7 +27,7 @@ from tests.mocks.discord import MockInteraction, create_member
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
-NAME = "🚫 Bloquear Links"
+NAME = "Bloquear Links · ➕ Item adicionado"
 
 
 def _asking(guild):
@@ -52,6 +53,22 @@ async def test_the_admin_inspection_names_a_change_by_its_feature(deps, guild):
     shown = _shown(interaction)
     assert NAME in shown
     assert "block_links" not in shown
+    assert "🚫" not in shown, "the feature's emoji would be a second one on the line"
+
+
+async def test_the_admin_inspection_names_the_server_settings_as_setup_does(
+    deps, guild
+):
+    from app.commands.admin.log_inspection import LogInspectionView
+
+    seed_history(deps, "settings", "edited")
+    interaction = _asking(guild)
+
+    await LogInspectionView(None, guild, str(guild.id)).history_callback(interaction)
+
+    shown = _shown(interaction)
+    assert "1. Configurações do Servidor · 📝 Editado" in shown
+    assert "settings" not in shown
 
 
 async def test_the_setup_history_names_a_change_by_its_feature(deps, guild):
@@ -65,3 +82,4 @@ async def test_the_setup_history_names_a_change_by_its_feature(deps, guild):
     shown = _shown(interaction)
     assert NAME in shown
     assert "block_links" not in shown
+    assert "🚫" not in shown, "the feature's emoji would be a second one on the line"

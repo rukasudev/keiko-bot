@@ -73,14 +73,9 @@ def history_fields(
     records: List[Dict[str, Any]], interaction: discord.Interaction, locale: str
 ) -> Dict[str, str]:
     """The records as history fields, each named by the feature it happened in."""
-
-    def label_for(cog_key: str) -> str:
-        if cog_key == Commands.SERVER_SETTINGS_KEY:
-            settings: str = ml("setup.ui.cards.settings.title", locale)
-            return settings
-        return change_label(cog_key, locale)
-
-    return parse_history_data(records, interaction, label_for=label_for)
+    return parse_history_data(
+        records, interaction, label_for=lambda key: change_label(key, locale)
+    )
 
 
 async def send_history(interaction: discord.Interaction) -> None:
@@ -115,7 +110,7 @@ async def permission_report(
         views = await saved_settings(spec.key, guild_id, user_id, locale, guild)
         problems = feature_problems(spec, views, guild, locale)
         embed.add_field(
-            name=change_label(spec.key, locale),
+            name=f"{spec.emoji} {change_label(spec.key, locale)}",
             value="\n".join(problems)
             or ml("setup.ui.responses.permissions.lines.ok", locale),
             inline=False,

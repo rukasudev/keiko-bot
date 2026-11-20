@@ -16,7 +16,13 @@ import discord
 from app.constants import DiscordLimits, Style
 from app.constants import ViewConstants as view_constants
 from app.core import members
-from app.forms.discord.interactions import encode
+from app.forms.discord.interactions import (
+    LATE_TEMPLATE,
+    REOPEN,
+    REOPEN_TEMPLATE,
+    decode,
+    encode,
+)
 from app.forms.form.components import (
     Button,
     Card,
@@ -31,6 +37,12 @@ from app.forms.form.components import (
     SectionView,
     TextInputs,
     cancel_last,
+)
+from app.forms.form.form_yaml import Extension
+from app.forms.form.responses.validations import (
+    ValidationContext,
+    uploaded,
+    validator,
 )
 from app.ui.embed import (
     card_footer,
@@ -80,6 +92,77 @@ class ActionButton(discord.ui.Button[Any]):
     async def callback(self, interaction: discord.Interaction) -> None:
         """Report the click."""
         await self.dispatcher.handle(interaction, self.custom_id or "", None)
+
+
+class ReopenButton(
+    discord.ui.DynamicItem[discord.ui.Button[Any]], template=REOPEN_TEMPLATE
+):
+    """An expired message's button that opens its feature again, after a restart too."""
+
+    def __init__(self, custom_id: str, label: str) -> None:
+        super().__init__(
+            discord.ui.Button(
+                label=label, style=discord.ButtonStyle.primary, custom_id=custom_id
+            )
+        )
+
+    @property
+    def feature(self) -> str:
+        """The feature the button opens, read from its custom id."""
+        component = decode(self.custom_id)
+        return component.arg or "" if component else ""
+
+    @classmethod
+    async def from_custom_id(
+        cls,
+        _interaction: discord.Interaction,
+        item: discord.ui.Item[Any],
+        _match: Any,
+    ) -> ReopenButton:
+        """The button discord.py found on a message no view holds any more."""
+        button = cast(discord.ui.Button[Any], item)
+        return cls(button.custom_id or "", button.label or "")
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        """Report the click to the runtime, which no longer holds the message."""
+        from app.forms.discord.callbacks import RUNTIME
+
+        await RUNTIME.handle(interaction, self.custom_id, None)
+
+
+def reopen_button(feature: str, ids: Ids, label: str) -> ReopenButton:
+    """The button that opens `feature` again from its expired message."""
+    return ReopenButton(ids(REOPEN, feature), label)
+
+
+class LateComponent(
+    discord.ui.DynamicItem[discord.ui.Item[Any]], template=LATE_TEMPLATE
+):
+    """Any control of a form, reached by its custom id when no view holds it."""
+
+    def __init__(self, item: discord.ui.Item[Any]) -> None:
+        super().__init__(item)
+
+    @classmethod
+    async def from_custom_id(
+        cls,
+        _interaction: discord.Interaction,
+        item: discord.ui.Item[Any],
+        _match: Any,
+    ) -> LateComponent:
+        """The control discord.py found on the message, a button or a select."""
+        return cls(item)
+
+    async def callback(self, interaction: discord.Interaction) -> None:
+        """Answer the click when its form is over; a live view answers it otherwise."""
+        from app.forms.discord.callbacks import RUNTIME
+
+        await RUNTIME.late(interaction, self.custom_id)
+
+
+def routed_items() -> tuple[type[discord.ui.DynamicItem[Any]], ...]:
+    """The items the bot routes by custom id alone, registered once at startup."""
+    return (ReopenButton, LateComponent)
 
 
 class ValuesSelect:
@@ -568,6 +651,7 @@ class FormModal(discord.ui.Modal):
         self.custom_id = ids(action, arg)
         self.inputs: list[discord.ui.TextInput[Any]] = []
         self.file_upload: discord.ui.FileUpload[Any] | None = None
+        self.check: Extension | None = None
 
         for component in screen.components:
             if isinstance(component, TextInputs):
@@ -585,6 +669,7 @@ class FormModal(discord.ui.Modal):
                     self.inputs.append(item)
                     self.add_item(item)
             elif isinstance(component, FileInput):
+                self.check = component.check
                 self.file_upload = discord.ui.FileUpload(
                     custom_id="custom_image_upload"
                 )
@@ -595,18 +680,36 @@ class FormModal(discord.ui.Modal):
     async def on_submit(self, interaction: discord.Interaction) -> None:
         """Report the typed inputs, or the uploaded file's permanent url."""
         if self.file_upload is not None:
-            url = (
-                await upload_attachment(self.file_upload.values[0])
-                if self.file_upload.values
-                else None
+            await self.dispatcher.handle(
+                interaction, self.custom_id, await self._uploaded()
             )
-            await self.dispatcher.handle(interaction, self.custom_id, {"url": url})
             return
         await self.dispatcher.handle(
             interaction,
             self.custom_id,
             {"inputs": [item.value for item in self.inputs]},
         )
+
+    async def _uploaded(self) -> dict[str, Any]:
+        values = self.file_upload.values if self.file_upload else []
+        if not values:
+            return {"url": None}
+        attachment = values[0]
+        reported = {
+            "size": attachment.size,
+            "width": attachment.width,
+            "height": attachment.height,
+            "content_type": attachment.content_type,
+        }
+        declared = self.check
+        check = validator(declared.name) if declared else None
+        context = ValidationContext(
+            params=declared.params if declared else {}, upload=uploaded(reported)
+        )
+
+        if check is not None and check.check(None, context):
+            return {"url": None, "upload": reported}
+        return {"url": await upload_attachment(attachment), "upload": reported}
 
 
 async def upload_attachment(attachment: Any) -> str:
@@ -672,14 +775,24 @@ def enable(controls: Sequence[Any]) -> None:
 
 
 def finalized_layout(view: discord.ui.LayoutView) -> discord.ui.LayoutView:
-    """The same container without its action rows: the content stays, the buttons go."""
+    """The same content without a control: the texts and pictures stay, buttons go."""
+
+    def kept(child: Any) -> list[Any]:
+        if isinstance(child, discord.ui.ActionRow):
+            return []
+        if isinstance(getattr(child, "accessory", None), discord.ui.Button):
+            return list(child.children)
+        if isinstance(child, discord.ui.Container):
+            strip(child)
+        return [child]
 
     def strip(parent: Any) -> None:
-        for child in list(getattr(parent, "children", [])):
-            if isinstance(child, discord.ui.ActionRow):
-                parent.remove_item(child)
-            elif getattr(child, "children", None) is not None:
-                strip(child)
+        children = list(parent.children)
+        parent.clear_items()
+
+        for child in children:
+            for item in kept(child):
+                parent.add_item(item)
 
     strip(view)
     return view

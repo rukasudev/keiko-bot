@@ -20,12 +20,19 @@ from app import logger
 from app.constants import DiscordLimits, Style
 from app.constants import LogTypes as logconstants
 from app.constants import ViewConstants as view_constants
-from app.core.utils import parse_command_event_description
+from app.core.commands import GLOBAL
+from app.core.facts import facts
+from app.core.utils import (
+    discord_time,
+    get_command_display_name,
+    parse_command_event_description,
+)
 from app.forms.discord import views
 from app.forms.form.components import Screen
 from app.forms.form.copy import error_message, text
 from app.forms.form.effects import (
     Ack,
+    Announce,
     Commit,
     Confirm,
     Dismiss,
@@ -43,7 +50,13 @@ from app.forms.form.effects import (
     ShowError,
 )
 from app.forms.form.form_state import FormSession
-from app.ui.embed import base_embed, response_error_embed, standard_footer, with_footer
+from app.ui.embed import (
+    base_embed,
+    response_embed,
+    response_error_embed,
+    standard_footer,
+    with_footer,
+)
 
 EDITS = ("edit", "edit_item")
 
@@ -233,6 +246,8 @@ class Executor:
             await self.show_error(effect)
         elif isinstance(effect, Notice):
             await self.notice(effect.key)
+        elif isinstance(effect, Announce):
+            await self.announce(effect.kind)
         elif isinstance(effect, Confirm):
             await self.confirm(effect.screen)
         elif isinstance(effect, Dismiss):
@@ -371,6 +386,23 @@ class Executor:
             delete_after=view_constants.ACTION_NOTICE_SECONDS,
         )
 
+    async def announce(self, kind: str) -> None:
+        """A change's own message beside the screen it redrew, dated by the click."""
+        interaction = self.interaction
+        embed = response_embed(
+            f"commands.responses.{kind}",
+            self.locale,
+            facts=facts(
+                GLOBAL,
+                command_name=get_command_display_name(
+                    interaction.client, self.key, interaction.locale
+                ),
+                date=discord_time(interaction.created_at),
+                user=interaction.user.mention,
+            ),
+        )
+        await self._send(embed=embed, delete_after=view_constants.ACTION_NOTICE_SECONDS)
+
     async def confirm(self, screen: Screen) -> None:
         """The keep-or-discard question, on a message of its own."""
         await self.ack()
@@ -460,7 +492,9 @@ class Executor:
         self.surface.view, self.surface.embed = None, embed
 
     async def _close_with(self, key: str) -> None:
-        await self._edit(**closed_payload(self.surface, key, self.locale))
+        reopen = self.key if key == "expired" else None
+        payload = closed_payload(self.surface, key, self.locale, reopen, self._ids())
+        await self._edit(**payload)
         self.surface.view = None
 
 
@@ -498,22 +532,52 @@ async def release(surface: Surface, answering: Answering) -> None:
         )
 
 
-def closed_payload(surface: Surface, key: str, locale: str) -> dict[str, Any]:
-    """The message as it looks once its session closed: no controls, its notice."""
+def closed_payload(
+    surface: Surface,
+    key: str,
+    locale: str,
+    reopen: str | None = None,
+    ids: views.Ids | None = None,
+) -> dict[str, Any]:
+    """The message as it looks once its session closed: its notice and no control
+    but the button that opens the feature `reopen` names again."""
     notice = text(f"texts.notices.{key}", locale)
+    button = None
+    if reopen and ids is not None:
+        label = text("buttons.reopen.label", locale)
+        button = views.reopen_button(reopen, ids, label)
+
     if surface.is_layout and surface.view is not None:
         view = views.finalized_layout(surface.view)
         container = cast(Any, view.children[0]) if view.children else None
 
         if container is not None:
             container.add_item(discord.ui.TextDisplay(notice))
+        if button is not None:
+            # discord.py unregisters a dynamic item's route when its view times out.
+            view.timeout = None
+            view.add_item(discord.ui.ActionRow(button))
         return {"view": view}
     embed = surface.embed or base_embed("", "")
     embed.description = f"{embed.description or ''}\n\n{notice}".strip()
-    return {"embed": embed, "view": None}
+    if button is None:
+        return {"embed": embed, "view": None}
+    view_with_button = discord.ui.View(timeout=None)
+    view_with_button.add_item(button)
+    return {"embed": embed, "view": view_with_button}
 
 
-async def expire_surface(surface: Surface, locale: str) -> None:
+def message_surface(message: Any) -> Surface:
+    """What a message draws, read back from Discord for a session no longer held."""
+    layout = bool(message.flags.components_v2)
+    view = discord.ui.LayoutView.from_message(message, timeout=None) if layout else None
+    embed = message.embeds[0] if message.embeds else None
+    return Surface(message, message.id, layout, view, embed)
+
+
+async def expire_surface(
+    surface: Surface, locale: str, feature: str = "", ids: views.Ids | None = None
+) -> None:
     """Close the message of a session that expired, while Discord still allows it."""
     if surface.message_id is None or surface.view is None:
         return
@@ -522,7 +586,7 @@ async def expire_surface(surface: Surface, locale: str) -> None:
         surface.view = None
         return
     try:
-        payload = closed_payload(surface, "expired", locale)
+        payload = closed_payload(surface, "expired", locale, feature, ids)
         await surface.webhook.edit_message(surface.message_id, **payload)
     except discord.HTTPException as error:
         logger.warn(

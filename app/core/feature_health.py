@@ -15,7 +15,7 @@ from app.core.analytics_writer import metric_key
 from app.core.i18n import CopyBlock, CopyError, CopyText, Plural
 from app.data import data
 from app.core.commands import Command, Open, setup_feature
-from app.core.utils import command_text, fill, ml, parse_locale, stored_value
+from app.core.utils import command_text, fill, ml, parse_locale
 
 
 class Stats(CopyBlock):
@@ -65,15 +65,19 @@ def _ids(value: Any) -> List[str]:
 
 
 def _ids_by_style(views: Any, style: str) -> List[str]:
+    from app.forms.form.responses.responses import styled_values
+
     found: List[str] = []
     for view in views:
         if view.style == style:
             found.extend(_ids(view.machine_value))
         elif view.style == "composition":
             for item in view.value or []:
-                for entry in item.values():
-                    if entry.get("style") == style:
-                        found.extend(_ids(stored_value(entry)))
+                found += [
+                    identifier
+                    for value in styled_values(item, style)
+                    for identifier in _ids(value)
+                ]
     return list(dict.fromkeys(found))
 
 

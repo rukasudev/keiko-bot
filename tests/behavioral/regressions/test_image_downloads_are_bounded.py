@@ -254,3 +254,40 @@ def test_a_cached_picture_keeps_none_of_the_file_it_came_from(web, format_name, 
     image = images.download_image(url)
 
     assert getattr(image, "_fp", None) is None and getattr(image, "fp", None) is None
+
+
+@pytest.mark.parametrize("frames", [1, 3], ids=["still", "animated"])
+async def test_a_webp_an_admin_sends_is_drawn_on_the_welcome_banner(
+    web, guild, monkeypatch, frames
+):
+    """The refused-picture error offers WEBP beside PNG, JPG and GIF, so a WEBP must
+    reach the banner: decoded by the same `download_image` and painted by the same
+    `draw_banner` as the others, a still one and an animated one (its first frame)."""
+    monkeypatch.setattr(welcome_messages, "draw_banner", REAL_DRAW_BANNER)
+    url = "https://cdn.discordapp.com/attachments/1/2/banner.webp"
+    pictures = [Image.new("RGB", (640, 320), (0, 0, 255)) for _ in range(frames)]
+    buffer = BytesIO()
+    pictures[0].save(
+        buffer, format="WEBP", save_all=frames > 1, append_images=pictures[1:]
+    )
+    web.serve(url, buffer.getvalue(), content_type="image/webp")
+    member = create_member(guild, id=7202, name="NewUser")
+
+    banner = Image.open(await welcome_messages.draw_banner(url, "welcome", member))
+
+    red, green, blue, _alpha = banner.convert("RGBA").getpixel((5, banner.height - 5))
+    assert blue > 200 and red < 40 and green < 40, "the banner is drawn over the WEBP"
+
+
+def test_a_birthday_picture_reaches_discord_as_its_url(guild):
+    """Keiko never decodes a birthday picture: the celebration hands Discord the
+    url the member card saved, and Discord draws a WEBP like any other."""
+    from app.commands.birthdays.service import build_celebration_embed
+
+    url = "https://cdn.discordapp.com/attachments/1/2/party.webp"
+    member = create_member(guild, id=7203, name="Aniversariante")
+    item = {"date": "05-12", "image": {"mode": "custom", "url": url}}
+
+    embed = build_celebration_embed(item, member, guild, {}, "pt-br")
+
+    assert embed.image.url == url

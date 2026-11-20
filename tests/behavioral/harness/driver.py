@@ -159,8 +159,13 @@ class FormScenario:
         return [i.label for i in self._modal_inputs(modal)]
 
     async def submit_file_upload(self, *, filename: str = "image.png",
-                                 content: bytes = b"fake-image-bytes") -> None:
-        """Submit a pending file-upload modal with a fake attachment."""
+                                 content: bytes = b"fake-image-bytes",
+                                 size: Optional[int] = None,
+                                 width: Optional[int] = 800,
+                                 height: Optional[int] = 400,
+                                 content_type: Optional[str] = "image/png") -> None:
+        """Submit a pending file-upload modal with a fake attachment: by default a
+        small PNG, measured the way Discord describes an attachment."""
         modal = self.store.pending_modal
         if modal is None or getattr(modal, "file_upload", None) is None:
             raise LocatorError("no file-upload modal is pending", self.transcript)
@@ -168,7 +173,11 @@ class FormScenario:
         async def read():
             return content
 
-        attachment = SimpleNamespace(read=read, filename=filename)
+        attachment = SimpleNamespace(
+            read=read, filename=filename,
+            size=len(content) if size is None else size,
+            width=width, height=height, content_type=content_type,
+        )
         modal.file_upload._values = [attachment]
         self.store.pending_modal = None
         self.store.record("modal_submit", actor="user", fields={"file": filename})

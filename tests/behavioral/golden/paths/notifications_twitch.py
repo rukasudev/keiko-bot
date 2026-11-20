@@ -60,7 +60,7 @@ async def _submit_streamer(scenario, name):
 
 
 async def _submit_messages(scenario):
-    await scenario.click("customize:2")
+    await scenario.click("customize:4")
     first = scenario.pending_modal_fields()[0]
     await scenario.submit_modal({first: "{streamer} entrou ao vivo: {stream_link}"})
 

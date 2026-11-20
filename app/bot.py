@@ -143,6 +143,7 @@ class DiscordBot(Bot):
 
     async def setup_hook(self) -> None:
         from app.core.journey import JourneyRefreshButton
+        from app.forms.discord.views import routed_items
 
         threads.install()
         bind_loop(asyncio.get_running_loop())
@@ -150,7 +151,7 @@ class DiscordBot(Bot):
 
         # Registered as a class, not per message: a session's refresh button
         # keeps working across restarts because its id carries the session.
-        self.add_dynamic_items(JourneyRefreshButton)
+        self.add_dynamic_items(JourneyRefreshButton, *routed_items())
 
         await cogs_manager(self, "load", startup_extensions())
         await self.tree.set_translator(Translator(self))

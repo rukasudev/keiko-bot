@@ -574,6 +574,12 @@ class TitleContentModal(ModalSpec):
         description="The labels of the title and the body inputs.",
         json_schema_extra={"role": "structure"},
     )
+    normalize: Extension | None = Field(
+        None,
+        description="Runs a registered normalizer over the title and the body as "
+        "they are saved.",
+        json_schema_extra={"role": "behavior"},
+    )
 
 
 class InputsModal(ModalSpec):
@@ -678,6 +684,14 @@ class SectionBase(Node):
     def checked_by(self) -> Extension | None:
         """The validator a submitted modal of the section runs, None mostly."""
         return None
+
+    def uploads(self) -> bool:
+        """True when the section's modal uploads a file."""
+        return False
+
+    def normalizers(self) -> tuple[Extension | None, ...]:
+        """The normalizer of each text the section's modal types, in its order."""
+        return ()
 
     def validators(self) -> tuple[Extension, ...]:
         """Every validator the section names."""
@@ -820,6 +834,10 @@ class TitleContentSection(PressedSection):
         """The modal that types the title and the body."""
         return self.modal
 
+    def normalizers(self) -> tuple[Extension | None, ...]:
+        """The modal's normalizer, over the title and over the body."""
+        return (self.modal.normalize, self.modal.normalize)
+
 
 class FileUploadSection(PressedSection):
     """An image, default or uploaded."""
@@ -832,10 +850,24 @@ class FileUploadSection(PressedSection):
         description="The modal the image is uploaded on.",
         json_schema_extra={"role": "structure"},
     )
+    validation: Extension | None = Field(
+        None,
+        description="Runs a registered validator over the uploaded file's size, "
+        "pixels and type before Keiko keeps it, and refuses the file it rejects.",
+        json_schema_extra={"role": "behavior"},
+    )
 
     def opened_modal(self) -> ModalSpec:
         """The modal that uploads the image."""
         return self.modal
+
+    def checked_by(self) -> Extension | None:
+        """The validator the uploaded file goes through."""
+        return self.validation
+
+    def uploads(self) -> bool:
+        """An image section uploads its file."""
+        return True
 
 
 class ChannelSelectSection(ScreenSection):
@@ -997,6 +1029,10 @@ class ModalInputSection(PressedSection):
         """The validator the modal runs on submit."""
         return self.modal.validation
 
+    def normalizers(self) -> tuple[Extension | None, ...]:
+        """The normalizer each input of the modal declares."""
+        return tuple(field.normalize for field in self.modal.inputs)
+
     def looked_up(self) -> Mapping[str, str]:
         """The lookup values kept as answers, by answer key."""
         return self.lookup_answers
@@ -1021,6 +1057,12 @@ class MultiSelectSection(PlaceheldSection, ScreenSection):
         description="The values to pick among.",
         json_schema_extra={"role": "structure"},
     )
+    format: Literal["bullet", "code"] = Field(
+        "bullet",
+        description="How each picked value reads in the list: as it is, or in code "
+        "like a link the admin typed.",
+        json_schema_extra={"role": "visual"},
+    )
 
     def choices(self) -> tuple[Option, ...]:
         """The declared options."""
@@ -1035,8 +1077,8 @@ class MultiSelectSection(PlaceheldSection, ScreenSection):
         return 2
 
     def value_style(self) -> str:
-        """Several values read as a bulleted list."""
-        return "bullet"
+        """Several values read as a bulleted list, each in code when declared."""
+        return self.format
 
 
 class SelectsSection(ScreenSection):
@@ -2419,17 +2461,43 @@ def _check_registries(definition: FormDefinition) -> None:
             _check_extension(
                 definition.key, step.key, ("normalize", "normalizer"), normalize, known
             )
+        _check_uploads(definition.key, step)
+
+
+def _check_uploads(form: str, step: Step) -> None:
+    checked: list[tuple[bool, Extension]] = []
+    if isinstance(step, TextStep) and step.validation:
+        checked.append((False, step.validation))
+    if isinstance(step, CardStep):
+        checked += [
+            (section.uploads(), validation)
+            for section in step.sections
+            for validation in section.validators()
+        ]
+    for uploads, validation in checked:
+        reads_upload = "upload" in VALIDATORS[validation.name].needs
+        if reads_upload and not uploads:
+            raise CompileError(
+                form, step.key, "validation", f"{validation.name} checks an upload"
+            )
+        if uploads and not reads_upload:
+            raise CompileError(
+                form,
+                step.key,
+                "validation",
+                f"an upload is checked by a validator of uploads, not "
+                f"{validation.name}",
+            )
 
 
 def _normalizers(step: Step) -> list[Extension]:
-    fields: list[TextField] = []
     found: list[Extension] = []
     if isinstance(step, TextStep) and step.normalize:
         found.append(step.normalize)
     if isinstance(step, CardStep):
         for section in step.sections:
-            fields += list(section.inputs())
-    return found + [field.normalize for field in fields if field.normalize]
+            found += [rule for rule in section.normalizers() if rule]
+    return found
 
 
 def _check_extension(

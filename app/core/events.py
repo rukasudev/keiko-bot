@@ -157,6 +157,12 @@ class Events(Cog, name="events"):
     @commands.Cog.listener()
     async def on_interaction(self, interaction: discord.Interaction) -> None:
         members.remember(interaction.user)
+        if interaction.type == discord.InteractionType.modal_submit:
+            from app.forms.discord.callbacks import RUNTIME
+
+            custom_id = (interaction.data or {}).get("custom_id")
+            await RUNTIME.late(interaction, str(custom_id or ""))
+            return None
         if interaction.type != discord.InteractionType.application_command:
             return None
 

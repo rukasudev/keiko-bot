@@ -30,6 +30,7 @@ from app.forms.form.responses.responses import (
     item_values,
     items_of,
     list_values,
+    styled_values,
 )
 from app.forms.form.responses.summary import unwrap
 from tests.generators.events import lifecycle
@@ -476,7 +477,7 @@ async def test_a_website_turns_on_or_off_in_the_choice_as_it_is_saved(
     )
 
     stored = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "block_links")
-    assert stored["allowed_links"] == {"style": "bullet", "values": saved}
+    assert stored["allowed_links"] == {"style": "code", "values": saved}
     event = deps.mongo_client.events.changes.find_one({"guild_id": GUILD_ID})
     assert event["type"] == "config.changed", "a toggle is recorded as the edit it was"
 
@@ -1052,6 +1053,13 @@ def test_a_saved_list_reads_as_its_machine_values_never_its_labels():
 def test_one_saved_item_reads_as_its_machine_values():
     first = items_of(DOCUMENT, "custom_links")[0]
     assert item_values(first) == {"link": "meusite.com.br", "match_type": "domain"}
+
+
+def test_an_item_reads_the_values_of_the_entries_saved_in_one_style():
+    first, second = items_of(DOCUMENT, "custom_links")
+    assert styled_values(first, "code") == ["meusite.com.br"]
+    assert styled_values(second, "code") == []
+    assert styled_values(first, "channel") == []
 
 
 def test_a_list_nothing_was_saved_under_reads_empty():

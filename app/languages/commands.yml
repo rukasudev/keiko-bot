@@ -29,30 +29,52 @@ responses:
       en-us: 🎉 Command enabled successfully!
       pt-br: 🎉 Funcionalidade ativada com sucesso!
     description:
-      en-us: "I turned on the **$command_name** command on $date, as $user asked! 🚀\n\nTo make changes or delete its settings, use the command `/$command_name` or `${context.commands.setup}` 🔄"
-      pt-br: "Ativei o comando **$command_name** em $date, a pedido de $user! 🚀\n\nPara fazer alterações ou apagar a configuração, use o comando `/$command_name` ou `${context.commands.setup}` 🔄"
+      en-us: "I turned on the **$command_name** command on $date, as $user asked! 🚀\n\nTo make changes or disable it, just use `/$command_name` or `${context.commands.setup}` 🔄"
+      pt-br: "Ativei o comando **$command_name** em $date, a pedido de $user! 🚀\n\nPara fazer alterações ou desativar o comando, use o comando `/$command_name` ou `${context.commands.setup}` 🔄"
+  paused:
+    title:
+      en-us: ⏸️ Command paused successfully!
+      pt-br: ⏸️ Comando pausado com sucesso!
+    description:
+      en-us: Command **$command_name** paused on $date by $user
+      pt-br: Comando **$command_name** pausado em $date por $user
+  unpaused:
+    title:
+      en-us: ▶️ Command unpaused successfully!
+      pt-br: ▶️ Comando despausado com sucesso!
+    description:
+      en-us: Command **$command_name** unpaused on $date by $user
+      pt-br: Comando **$command_name** despausado em $date por $user
+  mention_removed:
+    title:
+      en-us: 📣 I removed the mention from the text!
+      pt-br: 📣 Tirei a menção do texto!
+    description:
+      en-us: Hey, I noticed you typed a mention in the text! Use the **📣 ${ref.mention}** field to choose who you want me to notify.
+      pt-br: Ei, vi que você digitou uma menção no texto! Use o campo **📣 ${ref.mention}** para escolher quem você quer notificar.
+    tone: warning
   delete:
     title:
-      en-us: 🗑️ Delete these settings?
-      pt-br: 🗑️ Apagar esta configuração?
+      en-us: 🗑️ Delete this command's settings?
+      pt-br: 🗑️ Apagar as configurações desse comando?
     description:
-      en-us: "If I delete them, **$feature** turns off and everything on this panel is gone for good. To use it again, you'll need to set it up from the start.\n\nJust need a break? Use **⏸️ Pause** and I'll keep everything just as it is!"
-      pt-br: "Se eu apagar, a função **$feature** é desativada e tudo o que está neste painel some de vez. Para usar de novo, você vai precisar configurar do zero.\n\nSó quer dar um tempo? Use o **⏸️ Pausar** e eu guardo tudo do jeitinho que está!"
+      en-us: "When you click **Disable and delete** below, the **$command_name** command is turned off and **everything set up right now is deleted**. To turn the command on again, you'll need to set it up from scratch!! 🚨\n\nJust need a break? Use ⏸️ Pause and the command stops for a while, and I'll keep everything just the way it is!"
+      pt-br: "Ao clicar em **Desativar e apagar** abaixo, o comando **$command_name** é desativado e **tudo que está configurado agora é apagado**. Para ativar o comando de novo, você vai precisar configurar ele do zero!! 🚨\n\nSó quer dar um tempo? Use o ⏸️ Pausar e o comando para momentaneamente e eu guardo tudo do jeitinho que está!"
     footer: null
     overrides:
       - when:
           key: global.facts.feature_state
           is: paused
         description:
-          en-us: If I delete them, **$feature** is gone for good, with everything on this panel. To use it again, you'll need to set it up from the start.
-          pt-br: Se eu apagar, a função **$feature** some de vez, com tudo o que está neste painel. Para usar de novo, você vai precisar configurar do zero.
+          en-us: When you click **Disable and delete** below, the **$command_name** command is turned off and **everything set up right now is deleted**. To turn the command on again, you'll need to set it up from scratch!! 🚨
+          pt-br: Ao clicar em **Desativar e apagar** abaixo, o comando **$command_name** é desativado e **tudo que está configurado agora é apagado**. Para ativar o comando de novo, você vai precisar configurar ele do zero!! 🚨
   disabled:
     title:
-      en-us: 🗑️ Settings deleted successfully!
-      pt-br: 🗑️ Configuração apagada com sucesso!
+      en-us: 🚫 Command disabled successfully!
+      pt-br: 🚫 Comando desativado com sucesso!
     description:
-      en-us: I deleted the settings of **$command_name** on $date, as $user asked. To use it again, just run `/$command_name` or `${context.commands.setup}`!
-      pt-br: Apaguei a configuração de **$command_name** em $date, a pedido de $user. Para usar de novo, é só rodar `/$command_name` ou `${context.commands.setup}`!
+      en-us: "Command **$command_name** disabled and deleted on $date by $user\n\nIf you need to turn it on again, just run `/$command_name` or `${context.commands.setup}`!"
+      pt-br: "Comando **$command_name** desativado e apagado em $date por $user\n\nSe precisar ativar de novo, é só rodar `/$command_name` ou `${context.commands.setup}`!"
   edit_member:
     title:
       en-us: 👤 Select a member to edit
@@ -128,11 +150,11 @@ records:
         en-us: ⏸️ Paused
         pt-br: ⏸️ Pausado
       unpaused:
-        en-us: ▶️ Resumed
-        pt-br: ▶️ Retomado
+        en-us: ▶️ Unpaused
+        pt-br: ▶️ Despausado
       disabled:
-        en-us: 🗑️ Settings deleted
-        pt-br: 🗑️ Configuração apagada
+        en-us: 🚫 Disabled and deleted
+        pt-br: 🚫 Desativado e apagado
       edited:
         en-us: 📝 Edited
         pt-br: 📝 Editado

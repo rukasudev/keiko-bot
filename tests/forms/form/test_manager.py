@@ -6,6 +6,7 @@ from app.forms.form import events as ev
 from app.forms.form.actions.action import Context
 from app.forms.form.components import Card, Gallery, OptionSelect, Panel, Picker
 from app.forms.form.effects import (
+    Announce,
     Commit,
     Finalize,
     Notice,
@@ -315,13 +316,13 @@ def test_the_manager_renders_the_panel_with_grouped_settings():
     buttons = screen(decision).buttons
     assert [b.action for b in buttons] == [
         "lifecycle:pause",
+        "lifecycle:disable",
         "aside:history",
         "aside:stats",
         "aside:help",
-        "lifecycle:disable",
     ], "the list carries its own Add and Remove inside the card"
-    assert [b.style for b in buttons] == ["secondary"] * 4 + ["danger"]
-    assert buttons[-1].label == "Apagar configuração" and buttons[-1].emoji == "🗑️"
+    assert [b.style for b in buttons] == ["secondary"] * 5
+    assert (buttons[1].label, buttons[1].emoji) == ("Desativar", "🚫")
 
 
 def test_the_block_links_lists_are_named_after_the_mode_in_force():
@@ -439,7 +440,9 @@ def test_pause_and_resume_save_in_one_click_and_draw_the_panel_again(action):
         evt(ev.CommitSucceeded, kind=action),
         Context(document=BLOCK_LINKS_DOC),
     )
-    assert kinds(done) == ["Render"]
+    assert kinds(done) == ["Render", "Announce"], "the panel, then the change's note"
+    told = {"pause": "paused", "unpause": "unpaused"}[action]
+    assert done.effects[1] == Announce(told)
     assert isinstance(screen(done).components[0], Panel)
     assert done.session.status is Status.ACTIVE
     assert done.session.changes_saved == 1
@@ -466,11 +469,20 @@ def test_delete_asks_on_a_red_screen_that_goes_back_to_the_panel():
     definition, decision = start(
         "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
     )
-    asked = decided(definition, decision.session, evt(Lifecycle, action="disable"))
+    asked = decided(
+        definition,
+        decision.session,
+        evt(Lifecycle, action="disable"),
+        Context(document=BLOCK_LINKS_DOC, command="moderações bloquear links"),
+    )
 
     question = screen(asked)
-    assert question.title == "🗑️ Apagar esta configuração?"
-    assert "**Bloquear Links**" in question.description
+    assert question.title == "🗑️ Apagar as configurações desse comando?"
+    assert "o comando **moderações bloquear links** é desativado" in (
+        question.description
+    )
+    assert "⏸️ Pausar" in question.description, "a running feature is offered a pause"
+    assert [b.label for b in question.buttons] == ["Desativar e apagar", "Voltar"]
     assert [(b.action, b.style) for b in question.buttons] == [
         ("confirm_lifecycle:disable", "danger"),
         ("picker_back", "secondary"),
@@ -1266,7 +1278,7 @@ def _twitch_panel_of(document):
 
 def test_an_item_saved_by_the_old_pause_reads_like_any_other():
     """N1 (round 3): the per-item pause is gone, and an item a dev panel saved
-    with `enabled: false` loads as a plain item: no "(Pausado)", no Retomar,
+    with `enabled: false` loads as a plain item: no "(Pausado)", no Despausar,
     no line for the field, and editing it seeds no answer from it."""
     from tests.behavioral.golden.paths.notifications_twitch import notification
 
@@ -1362,6 +1374,9 @@ ONLY_ITEM_WARNINGS = [
         ("⏸️ Pausar", "Pausar"),
         ("☀️ Bom dia", "Bom dia"),
         ("Notificações", "Notificações"),
+        (":no_entry_sign: Bloquear Links", "Bloquear Links"),
+        (":)", ":)"),
+        ("Notas: hoje às 10:30", "Notas: hoje às 10:30"),
     ],
 )
 def test_a_title_loses_its_leading_emoji_whatever_block_it_is_from(title, name):

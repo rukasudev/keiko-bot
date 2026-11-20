@@ -25,11 +25,11 @@ from app.forms.form.components import (
     PanelGroup,
     PanelPart,
     Screen,
-    Style,
 )
 from app.forms.form.copy import text
 from app.forms.form.effects import (
     Ack,
+    Announce,
     Commit,
     Dismiss,
     Finalize,
@@ -38,6 +38,7 @@ from app.forms.form.effects import (
     ShowError,
 )
 from app.forms.form.form import (
+    FINAL_KIND,
     Decision,
     Engine,
     confirm_removal,
@@ -331,16 +332,9 @@ class Manager(Engine):
         heading = item_heading(step_title(composition, self.locale), index)
         block = "\n".join((heading, *item_lines(item, self.locale)))
 
+        feature = without_leading_emoji(self.definition.steps[0].title.get(self.locale))
         warning = composition.last_item_warning.get(self.locale)
-        return filled(warning, {"item": block, "feature": self.feature_name()})
-
-    def feature_name(self) -> str:
-        """The intro's title without its emoji, a character or a shortcode."""
-        title = without_leading_emoji(self.definition.steps[0].title.get(self.locale))
-        shortcode, _, name = title.partition(" ")
-        if name and len(shortcode) > 2 and shortcode[0] == shortcode[-1] == ":":
-            return name
-        return title
+        return filled(warning, {"item": block, "feature": feature})
 
     def edit_finished(self, answers: Mapping[str, Answer]) -> None:
         """Save the edited settings."""
@@ -553,6 +547,7 @@ def panel_buttons(
         buttons.append(_button("pause", "lifecycle:pause", "⏸️", locale))
     else:
         buttons.append(_button("unpause", "lifecycle:unpause", "▶️", locale))
+    buttons.append(_button("disable", "lifecycle:disable", "🚫", locale))
     composition = definition.composition
 
     if composition is not None and not inline:
@@ -565,16 +560,13 @@ def panel_buttons(
     buttons.extend(panel.extra_buttons)
     buttons.append(_button("stats", "aside:stats", "📊", locale))
     buttons.append(_button("help", "aside:help", "🙋", locale))
-    buttons.append(_button("disable", "lifecycle:disable", "🗑️", locale, "danger"))
 
     return tuple(buttons)
 
 
-def _button(
-    key: str, action: str, emoji: str, locale: str, style: Style = "secondary"
-) -> Button:
+def _button(key: str, action: str, emoji: str, locale: str) -> Button:
     return Button(
-        label(key, locale), action, style, emoji, description=caption(key, locale)
+        label(key, locale), action, "secondary", emoji, description=caption(key, locale)
     )
 
 
@@ -835,7 +827,7 @@ def _on_lifecycle(manager: Manager) -> None:
         manager.redraw()
         return
     state = "active" if manager.panel.enabled else "paused"
-    screen = delete_screen(manager.locale, manager.feature_name(), state)
+    screen = delete_screen(manager.locale, manager.context.command, state)
     manager.session = manager.session.with_status(Status.AWAITING, awaiting="disable")
     manager.effects.append(Render(screen))
 
@@ -858,6 +850,8 @@ def _on_commit_succeeded(manager: Manager) -> None:
         if (manager.session.cursor or "").startswith("found:"):
             manager.session = manager.session.at(None)
         manager.rerender()
+        if event.kind in ("pause", "unpause"):
+            manager.effects.append(Announce(FINAL_KIND[event.kind]))
         return
     on_saved(manager, event.kind)
 

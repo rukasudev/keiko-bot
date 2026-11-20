@@ -451,30 +451,31 @@ PINGING_COG = {
     "allowed_chats": {"values": []},
     "allowed_links": {"style": "bullet", "values": ["youtube.com"]},
     "custom_links": {"style": "composition", "values": []},
-    "answer": "{user}, nada de links por aqui! @everyone <@&999>",
+    "answer": "{user}, nada de links por aqui! @everyone @here <@&999> <@4242>",
 }
 
 
-async def test_the_answer_pings_the_member_and_everyone_the_admin_wrote(
-    mock_cache, channel, member
-):
-    """The block links answer pings who the admin wrote, and its error keeps no member's link.
+async def test_the_answer_pings_only_the_member_it_names(mock_cache, channel, member):
+    """The block links answer pings the member it names and nobody the admin typed.
 
-    Broke as: the answer was sent with discord.py's default mentions, so a stricter
-    default for the whole bot (PR5 sets one) would have silenced the `@everyone`, the
-    role and the member an admin wrote into it; its placeholder was filled by its own
-    `str.replace` instead of the filler every notifier shares; and when Keiko could
-    not delete a message, the error context carried the member's links themselves,
-    query strings and tokens included, to the error channel and `guild.logs`.
+    Broke as: the answer was sent with discord.py's default mentions, and then with
+    `AllowedMentions.all()`, so an `@everyone`, an `@here` or a role an admin wrote
+    into it pinged the whole server, or the role, on every blocked link (found by the
+    review of PR8, the last `.all()` left); before that, its placeholder was filled by
+    its own `str.replace` instead of the filler every notifier shares; and when Keiko
+    could not delete a message, the error context carried the member's links
+    themselves, query strings and tokens included, to the error channel and
+    `guild.logs`.
 
     Shared behaviour: `block_links.check_message` (every message of every server with
     block links on), `fill_placeholders` and the error context of a failed delete.
-    Consumer that exposed it: block_links (the review of v1 round 1, I4, I5 and S6).
+    Consumer that exposed it: block_links (the review of v1 round 1, I4, I5 and S6,
+    and the review of PR8).
 
-    Guaranteed: the answer names the member through `{user}` and is sent with every
-    mention allowed, the ones the admin wrote included; the error context of a
-    failed delete names the blocked websites and how many links there were, never a
-    link.
+    Guaranteed: the answer names the member through `{user}` and pings only that
+    member, never an @everyone, an @here, a role or another member the admin wrote,
+    and its text stays as the admin wrote it; the error context of a failed delete
+    names the blocked websites and how many links there were, never a link.
     """
     mock_cache.return_value = dict(PINGING_COG)
     message = create_message(channel, member, "https://spam-site.com")
@@ -482,9 +483,14 @@ async def test_the_answer_pings_the_member_and_everyone_the_admin_wrote(
     await block_links.check_message(GUILD_ID, message)
 
     sent = channel._send.await_args.kwargs
-    assert sent["content"] == f"{member.mention}, nada de links por aqui! @everyone <@&999>"
+    assert sent["content"] == (
+        f"{member.mention}, nada de links por aqui! @everyone @here <@&999> <@4242>"
+    )
     mentions = sent["allowed_mentions"]
-    assert (mentions.everyone, mentions.users, mentions.roles) == (True, True, True)
+    assert (mentions.everyone, mentions.roles, mentions.replied_user) == (
+        False, False, False,
+    )
+    assert [user.id for user in mentions.users] == [member.id]
 
 
 async def test_a_failed_delete_names_the_websites_never_the_links(

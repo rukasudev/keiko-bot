@@ -44,8 +44,8 @@ steps:
           pt-br: Escolha em qual horário vou enviar a notificação de aniversário.
       - key: mention
         description:
-          en-us: Who I ping when I post a birthday.
-          pt-br: Quem eu marco quando posto um aniversário.
+          en-us: Choose who I mention when I post a birthday.
+          pt-br: Escolha quem eu marco quando posto um aniversário.
       - key: mention_roles
         description: ${ref.roles_i_mention_description}
       - key: default_message_mode
@@ -179,6 +179,8 @@ steps:
         label: ${ref.mention}
         keys:
           value: mention
+        screen:
+          title: ${ref.mention_screen_title}
         placeholder: ${ref.mention_placeholder}
         options:
           - label: ${ref.mention_none}
@@ -200,6 +202,8 @@ steps:
         when:
           key: mention
           is: roles
+        screen:
+          title: ${ref.roles_i_mention_screen_title}
         selects:
           - type: roles
             key: mention_roles
@@ -229,11 +233,13 @@ steps:
             description:
               en-us: Content
               pt-br: Conteúdo
+          normalize:
+            name: without_group_mentions
         default: reminders_birthday.ui.announcement.defaults
     # open: state keys of the card -> a value or a text
     defaults:
       notification_time: "10:00"
-      mention: none
+      mention: everyone
       default_message_mode: default
 
   - type: list
@@ -458,6 +464,8 @@ steps:
                 description:
                   en-us: Content
                   pt-br: Conteúdo
+              normalize:
+                name: without_group_mentions
             default: reminders_birthday.ui.announcement.defaults
           - type: file_upload
             key: image
@@ -476,6 +484,8 @@ steps:
               title:
                 en-us: Custom Image
                 pt-br: Imagem Personalizada
+            validation:
+              name: image
         # open: state keys of the card -> a value or a text
         defaults:
           use_custom_message: default

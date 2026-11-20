@@ -22,7 +22,7 @@ from app.core.commands import MemberJoined
 from app.core.threads import to_thread
 from app.core.utils import fill_placeholders, ml, split_messages, values_of
 from app.exceptions import ErrorContext
-from app.forms import open_feature
+from app.forms import document_values, open_feature
 from app.forms.features.feature import (
     AsideAction,
     GenericCogFeature,
@@ -81,14 +81,9 @@ async def send_welcome_message(member: discord.Member) -> None:
     if cogs is None:
         return
 
-    channel_data = cogs.get("welcome_messages_channel")
-    welcome_messages_data = cogs.get("welcome_messages")
-
-    if not channel_data or not welcome_messages_data:
-        return
-
-    channel_id = channel_data.get("values")
-    welcome_messages = welcome_messages_data.get("values")
+    saved = document_values(cogs)
+    channel_id = saved.get("welcome_messages_channel")
+    welcome_messages = saved.get("welcome_messages")
 
     if not channel_id or not welcome_messages:
         return
@@ -100,10 +95,10 @@ async def send_welcome_message(member: discord.Member) -> None:
         return
 
     settings = WelcomeSettings(
-        title=cogs["welcome_messages_title"],
-        footer=cogs.get("welcome_messages_footer") or "",
-        design=cogs.get("welcome_design", "server_blur"),
-        custom_image=cogs.get("welcome_custom_image"),
+        title=saved["welcome_messages_title"],
+        footer=saved.get("welcome_messages_footer") or "",
+        design=saved.get("welcome_design", "server_blur"),
+        custom_image=saved.get("welcome_custom_image"),
     )
     welcome_message = parse_welcome_messages(welcome_messages, member)
 
@@ -286,18 +281,7 @@ async def send_welcome_message_preview(
         if not cogs:
             return
 
-        saved_messages = cogs.get("welcome_messages")
-        welcome_data = {
-            "welcome_messages_title": cogs.get("welcome_messages_title"),
-            "welcome_messages": (
-                saved_messages.get("values")
-                if isinstance(saved_messages, dict)
-                else saved_messages
-            ),
-            "welcome_messages_footer": cogs.get("welcome_messages_footer"),
-            "welcome_design": cogs.get("welcome_design", "server_blur"),
-            "welcome_custom_image": cogs.get("welcome_custom_image"),
-        }
+        welcome_data = document_values(cogs)
 
     title = welcome_data.get("welcome_messages_title")
     messages = welcome_data.get("welcome_messages")
@@ -523,7 +507,8 @@ class WelcomeMessagesFeature(GenericCogFeature):
         """The document with the preview button, or the previews for a setup."""
         opened = await super().open(context)
         if opened.document is not None:
-            title = str(opened.document.get("welcome_messages_title") or "")
+            saved = document_values(opened.document)
+            title = str(saved.get("welcome_messages_title") or "")
             return replace(opened, pending_previews=self.previews(context, title))
         return Opened(pending_previews=self.previews(context))
 

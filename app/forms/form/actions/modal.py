@@ -30,6 +30,7 @@ from app.forms.form.form_state import Answer, FormSession
 from app.forms.form.form_yaml import TextStep
 from app.forms.form.responses.summary import step_title
 from app.forms.form.responses.transforms import normalizer, transform
+from app.forms.form.responses.transforms import told as normalizer_notices
 from app.forms.form.responses.validations import ValidationContext, validator
 
 
@@ -126,6 +127,14 @@ def _scalar(step: TextStep, values: Sequence[str]) -> Any:
     return value
 
 
+def told(step: TextStep, payload: Any) -> tuple[str, ...]:
+    """The responses the step's normalizer tells about what its modal typed."""
+    typed = payload.get("inputs") if isinstance(payload, Mapping) else [payload]
+    name = step.normalize.name if step.normalize else None
+    values = list(typed or [])
+    return normalizer_notices([name] * len(values), values)
+
+
 def parse(
     step: Any, payload: Any, session: FormSession, context: Context
 ) -> Mapping[str, Answer] | Refusal:
@@ -136,7 +145,7 @@ def parse(
     normalize = normalizer(step.normalize.name if step.normalize else None)
 
     if normalize:
-        values = [normalize(value) for value in values]
+        values = [normalize.apply(value) for value in values]
     refusal = _validate(step, values[0] if values else "", session, context)
     if refusal:
         return replace(refusal, inputs=typed, target=step.key)

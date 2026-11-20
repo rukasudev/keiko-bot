@@ -97,7 +97,7 @@ async def test_done_with_fields_missing_is_told_apart_from_the_card(scenario_fac
     await scenario.confirm()
     await scenario.click("done")
 
-    required = ml("errors.required_fields.message", "pt-br").split(":")[0]
+    required = ml("errors.required_fields.message", "pt-br").split("$")[0]
     errors = _sent(scenario, required)
     assert errors and errors[-1].get("content"), "a plain sentence of its own"
     assert not any("🚨" in text for text in _screen_texts(scenario))

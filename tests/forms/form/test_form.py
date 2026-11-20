@@ -1155,7 +1155,7 @@ def test_a_new_streamer_replaces_the_old_name_and_link_in_the_messages():
     written = _typed(
         definition,
         first,
-        2,
+        4,
         ["Bora GAULES! https://twitch.tv/gaules", "o gaulesfan fica", "{streamer}"],
     )
 
@@ -1173,7 +1173,7 @@ def test_the_chosen_youtuber_is_written_in_and_the_video_link_stays_a_variable()
         (definition.key, 1), AddItem(), ORIGIN, ttl_seconds=60, now=NOW, parent_id="p"
     )
     at_card = decide(definition, child, evt(ev.Started)).session
-    written = _typed(definition, at_card, 2, ["{youtuber} postou: {video_link}"])
+    written = _typed(definition, at_card, 4, ["{youtuber} postou: {video_link}"])
     found = {"youtube": {"channel_id": "UC1", "profile_image": ""}}
 
     typed = _typed(definition, written, 1, ["pewdiepie"], found)

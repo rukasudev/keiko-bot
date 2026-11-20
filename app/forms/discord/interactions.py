@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from app.constants import DiscordLimits
 from app.forms.form import events as ev
 from app.forms.form.manager import (
     ItemRemovalRequested,
@@ -34,11 +35,14 @@ class ComponentId:
 
 
 def encode(session_id: str, revision: int, action: str, arg: str | None = None) -> str:
-    """The custom_id of a component rendered at `revision`."""
+    """The custom_id of a component rendered at `revision`, within Discord's limit."""
     parts = [PREFIX, session_id, str(revision), action]
     if arg is not None:
         parts.append(arg)
-    return ":".join(parts)
+    custom_id = ":".join(parts)
+    if len(custom_id) > DiscordLimits.CUSTOM_ID:
+        raise ValueError(f"{custom_id} is longer than {DiscordLimits.CUSTOM_ID}")
+    return custom_id
 
 
 def decode(custom_id: str | None) -> ComponentId | None:
@@ -58,6 +62,9 @@ def is_ours(custom_id: str | None) -> bool:
 
 
 LIFECYCLE = ("pause", "unpause", "disable")
+REOPEN = "reopen"
+REOPEN_TEMPLATE = rf"{PREFIX}:[^:]+:\d+:{REOPEN}:[a-z0-9_]+"
+LATE_TEMPLATE = rf"{PREFIX}:[^:]+:\d+:(?!{REOPEN}(?::|$))[^:]+(?::.*)?"
 
 
 def event_id_of(interaction: Any) -> str:

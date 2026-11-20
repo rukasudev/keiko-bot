@@ -643,9 +643,9 @@ async def test_the_history_lists_every_feature_newest_first_and_names_each(deps)
         locale="pt-br", guild=None, client=SimpleNamespace(user=SimpleNamespace(id=999))
     )
     names = list(history_fields(records, interaction, "pt-br"))
-    assert names[0] == "1. 🚫 Bloquear Links · ⏸️ Pausado"
+    assert names[0] == "1. Bloquear Links · ⏸️ Pausado"
     assert [name.split(". ", 1)[0] for name in names] == ["1", "2", "3"]
-    assert any(name.endswith(". 🎉 Mensagens de Boas-Vindas · ✅ Ativado") for name in names)
+    assert any(name.endswith(". Mensagens de Boas-Vindas · ✅ Ativado") for name in names)
 
 
 async def test_the_history_lists_the_server_settings_changed_on_the_settings_screen(deps):
@@ -675,7 +675,7 @@ async def test_the_history_lists_the_server_settings_changed_on_the_settings_scr
         locale="pt-br", guild=None, client=SimpleNamespace(user=SimpleNamespace(id=999))
     )
     fields = history_fields(records, interaction, "pt-br")
-    assert list(fields)[0].startswith("1. ⚙️ Configurações do Servidor · "), (
+    assert list(fields)[0].startswith("1. Configurações do Servidor · "), (
         "the settings row is named in plain text, like every feature's row"
     )
     assert list(fields.values())[0].startswith("<@555> · <t:")

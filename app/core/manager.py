@@ -2,6 +2,7 @@ from typing import Any, Callable, Dict, List, Optional
 
 import discord
 
+from app.constants import Commands
 from app.core.cogs import lifecycle_key
 from app.core.commands import setup_feature
 from app.core.utils import command_text, discord_time, fill, ml
@@ -9,10 +10,12 @@ from app.core.utils import command_text, discord_time, fill, ml
 
 def change_label(cog_key: str, locale: Any) -> str:
     """The feature a change happened in, as /setup names it, else its key."""
+    if cog_key == Commands.SERVER_SETTINGS_KEY:
+        return str(ml("texts.server_settings", locale=locale))
     command = setup_feature(cog_key)
     if command is None:
         return f"`{cog_key}`"
-    return f"{command.emoji} {command_text(command, 'command.setup.label', locale)}"
+    return command_text(command, "command.setup.label", locale)
 
 
 def parse_history_data(

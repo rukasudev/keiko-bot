@@ -48,17 +48,20 @@ texts:
     en-us: Nobody
     pt-br: Ninguém
   mention_none_description:
-    en-us: I'll post without pinging anyone.
+    en-us: I'll post without mentioning anyone.
     pt-br: Eu posto sem marcar ninguém.
   mention_placeholder:
     en-us: Choose who I mention
-    pt-br: Escolha quem eu menciono
+    pt-br: Escolher quem eu menciono
   mention_roles:
     en-us: Some roles
     pt-br: Alguns cargos
   mention_roles_description:
     en-us: I'll mention only the roles you pick below.
     pt-br: Eu marco só os cargos que você escolher abaixo.
+  mention_screen_title:
+    en-us: Who should I mention when I post?
+    pt-br: Quem eu devo marcar quando postar?
   notification_messages:
     en-us: Notification Messages
     pt-br: Mensagens de Notificação
@@ -81,11 +84,14 @@ texts:
     en-us: Roles I mention
     pt-br: Cargos que eu menciono
   roles_i_mention_description:
-    en-us: Pick the roles I ping.
+    en-us: Pick the roles I mention.
     pt-br: Escolha os cargos que eu marco.
+  roles_i_mention_screen_title:
+    en-us: Which roles should I mention?
+    pt-br: Quais cargos eu devo marcar?
   roles_placeholder:
-    en-us: Choose the roles
-    pt-br: Escolha os cargos
+    en-us: Choose roles
+    pt-br: Escolher cargos
   streamer:
     en-us: Streamer
     pt-br: Streamer

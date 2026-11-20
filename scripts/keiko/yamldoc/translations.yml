@@ -769,6 +769,11 @@ form.yml/FileUploadSection.button:
 form.yml/FileUploadSection.modal:
   en-us: The modal the image is uploaded on.
   pt-br: O modal onde a imagem é enviada.
+form.yml/FileUploadSection.validation:
+  en-us: Runs a registered validator over the uploaded file's size, pixels and type before
+    Keiko keeps it, and refuses the file it rejects.
+  pt-br: Passa o arquivo enviado por um validador registrado, que confere o tamanho, os pixels
+    e o tipo antes de o Keiko guardá-lo, e recusa o arquivo que ele rejeitar.
 form.yml/ChannelSelectSection:
   en-us: One channel chosen on a native select.
   pt-br: Um canal escolhido num select nativo.
@@ -1092,6 +1097,9 @@ form.yml/MultiSelectSection.placeholder:
 form.yml/MultiSelectSection.options:
   en-us: The values to pick among.
   pt-br: Os valores para escolher.
+form.yml/MultiSelectSection.format:
+  en-us: "How each picked value reads in the list: as it is, or in code like a link the admin typed."
+  pt-br: "Como cada valor escolhido aparece na lista: do jeito que é, ou em código, como um link que o admin digitou."
 form.yml/SelectsSection:
   en-us: Channels or roles picked on native selects, every select on one screen.
   pt-br: Canais ou cargos escolhidos em selects nativos, todos os selects numa tela só.
@@ -1311,6 +1319,9 @@ form.yml/TitleContentModal.title:
 form.yml/TitleContentModal.labels:
   en-us: The labels of the title and the body inputs.
   pt-br: Os rótulos dos campos de título e de corpo.
+form.yml/TitleContentModal.normalize:
+  en-us: "Runs a registered normalizer over the title and the body as they are saved."
+  pt-br: "Passa o título e o corpo por um normalizador registrado quando são salvos."
 form.yml/ModalSpec:
   en-us: The modal a section opens.
   pt-br: O modal que uma seção abre.
@@ -1679,6 +1690,9 @@ copy.yml/Response.description:
     body (the /report ticket, whose fields say it all).
   pt-br: O corpo do embed; `$name` marca um valor que o código preenche; se ausente, o embed
     não tem corpo (o ticket do /report, cujos campos já dizem tudo).
+copy.yml/Response.tone:
+  en-us: "The embed's colour: Keiko's blue, or the yellow of a warning, for a message that tells the admin Keiko changed what they did (a mention taken out of a text)."
+  pt-br: "A cor do embed: o azul do Keiko, ou o amarelo de um aviso, para uma mensagem que conta ao admin que o Keiko mudou o que ele fez (uma menção tirada de um texto)."
 copy.yml/Response.footer:
   en-us: 'The closing subtext line: absent draws the standard /report line, null draws none,
     a text draws that text.'
@@ -2087,6 +2101,9 @@ languages/commands.yml/Response.description:
     body (the /report ticket, whose fields say it all).
   pt-br: O corpo do embed; `$name` marca um valor que o código preenche; se ausente, o embed
     não tem corpo (o ticket do /report, cujos campos já dizem tudo).
+languages/commands.yml/Response.tone:
+  en-us: "The embed's colour: Keiko's blue, or the yellow of a warning, for a message that tells the admin Keiko changed what they did (a mention taken out of a text)."
+  pt-br: "A cor do embed: o azul do Keiko, ou o amarelo de um aviso, para uma mensagem que conta ao admin que o Keiko mudou o que ele fez (uma menção tirada de um texto)."
 languages/commands.yml/Response.footer:
   en-us: 'The closing subtext line: absent draws the standard /report line, null draws none,
     a text draws that text.'

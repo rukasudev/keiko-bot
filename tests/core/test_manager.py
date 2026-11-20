@@ -57,7 +57,7 @@ def test_a_change_keeps_its_feature_beside_what_changed():
         label_for=lambda key: change_label(key, "pt-br"),
     )
 
-    assert list(fields) == ["1. 🚫 Bloquear Links · ▶️ Retomado"]
+    assert list(fields) == ["1. Bloquear Links · ▶️ Despausado"]
 
 
 def test_a_change_keeps_a_key_no_feature_answers_in_backticks():

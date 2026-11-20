@@ -18,6 +18,7 @@ import pytest
 from app import logger as logger_module
 from app.constants import ViewConstants
 from app.forms.discord.callbacks import RUNTIME
+from app.forms.discord.views import ReopenButton
 from app.core import journey
 from app.core import trace as trace_service
 from tests.behavioral.harness.driver import FormScenario
@@ -97,7 +98,8 @@ async def test_a_sweep_closes_an_abandoned_form_and_its_story_without_engine_mes
 
     await RUNTIME.sweep(past_every_deadline())
 
-    assert scenario.current_message.view is None, "the buttons leave the message"
+    [reopen] = scenario.current_message.view.children
+    assert isinstance(reopen, ReopenButton), "the buttons leave, but Abrir de novo"
     assert [story.result for story in stories.values()] == ["abandoned"]
     assert not [trace for trace in closed_traces if trace.is_noteworthy], (
         "expiring is bookkeeping, not a message of engine lines"

@@ -1,6 +1,6 @@
 """Behavioral scenarios: a change saved from the manager panel returns to the panel.
 
-Adicionar, Editar (of an item or of a card), Remover, Pausar and Retomar end on
+Adicionar, Editar (of an item or of a card), Remover, Pausar and Despausar end on
 the panel drawn again over what is saved now, on the message the admin was using, instead of a
 closed embed with a final message (the copy no longer holds one for these
 changes). What the feature records about the change (its product events, the

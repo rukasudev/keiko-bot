@@ -350,9 +350,13 @@ buttons (`ButtonCopy`), `errors.yml` only error blocks, `texts.yml` the shared l
 and tables (months, parent groups, notices, permission lines), `locales.yml` one name
 per language code, and `commands.yml` the shared `responses`
 (`commands.responses.admin_only`, `cooldown`, `help`, the lifecycle answers `enabled`,
-`paused`, `unpaused`, `disabled`, the member pickers `edit_member`, `search_member`, `remove_member`, and the
-`remove` and `discard` questions) and `records` (`commands.records.history`, a
-feature's History, and `commands.records.changes`, every change of a server). Every
+`paused`, `unpaused` and `disabled` (a pause and an unpause draw the panel again and
+send theirs beside it, gone after a few seconds), `mention_removed`, the member pickers `edit_member`, `search_member`, `remove_member`, and the
+`remove`, `delete` and `discard` questions) and `records` (`commands.records.history`,
+a feature's History, and `commands.records.changes`, every change of a server, both
+one numbered field per change named by what changed, the change's feature first on
+the server's list (`change_label` in `app/core/manager.py`, the name /setup gives
+it), and valued by `lines.by`, who and when as a Discord timestamp). Every
 copy file is read against its schema at load, and `i18n.block(key, Model)` returns a
 typed block (or raises when no copy file writes it). `description` names a block's
 body of text (an embed's, a list's, a card's, a slash command's or a button's caption),
@@ -385,7 +389,11 @@ that writes no footer, as every form step does.
   `footer: null` with none, a text with that text, always as `-# • ` subtext so its
   markdown renders, and always as the last line: `with_footer` draws it at the end of
   the description, or in a full-width field of its own under the fields when the embed
-  has some. The copy decides the footer; the call has no flag for it.
+  has some. The copy decides the footer; the call has no flag for it. Its `tone`
+  picks the colour: absent or `default`, Keiko's blue (`Style.BACKGROUND_COLOR`);
+  `warning`, Discord's yellow (`Style.WARNING_COLOR`), for a message that tells the
+  admin Keiko changed what they did (`commands.responses.mention_removed`). A closed
+  setting like `tone` is written as its word, with no locale (`i18n.setting_keys`).
 - `response_error_embed("<key>.ui.errors.<name>", locale, facts=...)` and, on the forms'
   plain path, `error_message("<key>.ui.errors.<name>", args, locale)` both take the
   `ErrorBlock` key, never its `.message` leaf (a short name is a block of
@@ -469,7 +477,10 @@ owner is a command's key (`block_links.facts.would_block`) or `global`
 `text`) and a one-sentence `description`; the facts no single command owns live in
 `app/core/global.yml` (`GlobalCatalog` in `app/core/facts.py`, registered in
 `YAML_TYPES`). A fact starts in its command and moves to `global` only when a second
-command needs it, and no command is keyed `global` (the registry refuses it).
+command needs it, and no command is keyed `global`, nor like a shared copy file of
+`app/languages/` (`buttons`, `commands`, `errors`, `locales`, `texts`, whose keys load
+under those prefixes): the registry refuses them (`SHARED_COPY` in
+`app/core/commands.py`).
 
 ```yaml
 # open: fact names -> a fact the code passes

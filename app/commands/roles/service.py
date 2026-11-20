@@ -15,7 +15,7 @@ from app.core.facts import Facts, facts
 from app.core.members import every_member
 from app.core.utils import at_least, ensure_list, get_available_roles_by_guild
 from app.exceptions import ErrorContext
-from app.forms import open_feature
+from app.forms import document_values, open_feature
 from app.forms.features.feature import (
     AsideAction,
     CommitContext,
@@ -130,17 +130,12 @@ async def set_on_default_roles_sync(interaction: discord.Interaction) -> None:
         raise
 
 
-def saved_roles(entry: Any) -> SavedRoles:
-    """The role ids a saved entry holds, from its envelope or bare."""
-    roles: SavedRoles = entry.get("values") if isinstance(entry, Mapping) else entry
-    return roles
-
-
 def assignable_roles(cogs: Mapping[str, Any], guild: discord.Guild) -> DefaultRoles:
     """The roles a member and a bot end up with, filtered to what exists."""
     available_roles = get_available_roles_by_guild(guild)
-    member_roles = saved_roles(cogs.get("default_roles"))
-    bot_roles = saved_roles(cogs.get(constants.DEFAULT_ROLES_BOT_KEY))
+    saved = document_values(cogs)
+    member_roles = saved.get("default_roles")
+    bot_roles = saved.get(constants.DEFAULT_ROLES_BOT_KEY)
     return DefaultRoles(
         members=tuple(filter_roles(member_roles, available_roles)),
         bots=tuple(filter_roles(bot_roles, available_roles)),
@@ -295,7 +290,7 @@ class DefaultRolesFeature(GenericCogFeature):
             return replace(
                 opened, values=await _server_totals(context.guild, context.locale)
             )
-        roles = saved_roles(opened.document.get("default_roles"))
+        roles = document_values(opened.document).get("default_roles")
         warning = get_not_available_roles(roles, available, context.locale)
         return replace(opened, panel=replace(opened.panel, info=warning))
 
@@ -352,16 +347,16 @@ async def _roles_of(
     document: Mapping[str, Any], locale: str, guild: Any = None
 ) -> Mapping[str, str]:
     members, bots = await count_roles_receivers(document, guild)
+    saved = document_values(document)
     return {
-        "members": _mentions(document.get("default_roles"), locale),
-        "bots": _mentions(document.get(constants.DEFAULT_ROLES_BOT_KEY), locale),
+        "members": _mentions(saved.get("default_roles"), locale),
+        "bots": _mentions(saved.get(constants.DEFAULT_ROLES_BOT_KEY), locale),
         "members_count": count_label(members, locale),
         "bots_count": count_label(bots, locale),
     }
 
 
-def _mentions(entry: Any, locale: str) -> str:
-    values = saved_roles(entry)
+def _mentions(values: SavedRoles, locale: str) -> str:
     if isinstance(values, (list, tuple)):
         roles = [str(value) for value in values]
     else:

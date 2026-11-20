@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from typing import Any, Callable, Dict, List, Optional
 
 import discord
+from discord.components import _component_factory
 
 from tests.behavioral.harness import normalizer
 
@@ -81,6 +82,15 @@ class FakeMessage:
         # message -> item at send/edit time and reads `item.view` live at
         # dispatch. Mutating a view later does NOT change the message.
         self.registered_items = _walk_view_items(view)
+
+    @property
+    def components(self) -> List[Any]:
+        """The message's components as Discord sends them back, read-only like
+        `discord.Message.components`: what `View.from_message` rebuilds a view from."""
+        if self.view is None:
+            return []
+        built = (_component_factory(data) for data in self.view.to_components())
+        return [component for component in built if component is not None]
 
     async def edit(self, *, content=None, embed=MISSING, view=MISSING, **kwargs):
         """The bot editing its own message outside any interaction (a timeout)."""

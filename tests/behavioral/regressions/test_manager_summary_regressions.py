@@ -102,7 +102,7 @@ async def test_a_multi_line_value_is_never_wrapped_in_bold(scenario_factory, dep
     await scenario.select_option("general", target="channel")
     await scenario.click("customize:1")
     await scenario.submit_modal({scenario.pending_modal_fields()[0]: "gaules"})
-    await scenario.click("customize:2")
+    await scenario.click("customize:4")
     fields = scenario.pending_modal_fields()
     await scenario.submit_modal(
         {fields[0]: "{streamer} on!", fields[1]: "{stream_link}"}
@@ -255,7 +255,7 @@ async def _review_with_one_streamer(scenario_factory, deps):
     await scenario.select_option("general", target="channel")
     await scenario.click("customize:1")
     await scenario.submit_modal({scenario.pending_modal_fields()[0]: "gaules"})
-    await scenario.click("customize:2")
+    await scenario.click("customize:4")
     fields = scenario.pending_modal_fields()
     await scenario.submit_modal({fields[0]: MESSAGE})
     await scenario.click("done")

@@ -269,7 +269,7 @@ def new_session(
     """A fresh active session at revision 0."""
     started = now or datetime.now(timezone.utc)
     return FormSession(
-        id=session_id or uuid4().hex,
+        id=session_id or f"{definition[0]}-{uuid4().hex[:16]}",
         definition=definition,
         mode=mode,
         origin=origin,
@@ -281,6 +281,12 @@ def new_session(
         parent_id=parent_id,
         expires_at=started + timedelta(seconds=ttl_seconds),
     )
+
+
+def feature_of(session_id: str) -> str | None:
+    """The feature a session id names, None for an id that names none."""
+    feature, separator, _ = session_id.partition("-")
+    return feature if separator and feature else None
 
 
 class StaleWrite(Exception):

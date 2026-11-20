@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Mapping
+import re
+from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -78,12 +79,45 @@ def lowercase(value: str) -> str:
     return value.lower()
 
 
-NORMALIZERS: dict[str, Callable[[str], str]] = {
-    "handle": handle,
-    "lowercase": lowercase,
+def without_group_mentions(value: str) -> str:
+    """A typed text without its @everyone, @here and role mentions, a member's kept."""
+    lines = []
+    for line in value.split("\n"):
+        kept = re.sub(
+            r"[ \t]*(?:(?<!\w)(?:@(?:everyone|here))+(?!\w)|<@&\d+>)", "", line
+        )
+        lines.append(kept.strip() if kept != line else line)
+    return "\n".join(lines)
+
+
+@dataclass(frozen=True)
+class Normalizer:
+    """A registered input normalizer, and the response it tells when it changed text."""
+
+    apply: Callable[[str], str]
+    announce: str = ""
+
+
+NORMALIZERS: dict[str, Normalizer] = {
+    "handle": Normalizer(handle),
+    "lowercase": Normalizer(lowercase),
+    "without_group_mentions": Normalizer(without_group_mentions, "mention_removed"),
 }
 
 
-def normalizer(name: str | None) -> Callable[[str], str] | None:
+def normalizer(name: str | None) -> Normalizer | None:
     """The registered input normalizer called `name`, None when there is none."""
     return NORMALIZERS.get(name) if name else None
+
+
+def told(names: Sequence[str | None], typed: Sequence[Any]) -> tuple[str, ...]:
+    """The responses the named normalizers tell about texts they change, once each."""
+    found: list[str] = []
+    for name, raw in zip(names, typed):
+        rule = normalizer(name)
+        value = str(raw)
+        if rule is None or not rule.announce or rule.apply(value) == value:
+            continue
+        if rule.announce not in found:
+            found.append(rule.announce)
+    return tuple(found)

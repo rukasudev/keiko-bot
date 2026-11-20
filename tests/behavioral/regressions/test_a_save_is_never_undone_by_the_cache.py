@@ -510,7 +510,7 @@ async def test_two_websites_turned_on_from_two_panels_both_stay_on(
 
     saved = (await _saved(deps, block_links.FORM))["allowed_links"]
     assert saved == {
-        "style": "bullet",
+        "style": "code",
         "values": ["youtube.com", "twitch.tv", "spotify.com", "twitter.com"],
     }
 
