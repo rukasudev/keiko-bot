@@ -1,6 +1,5 @@
 """Which external lookups a submitted modal needs, decided by the platform."""
 
-import copy
 from datetime import datetime, timezone
 
 import pytest
@@ -9,77 +8,13 @@ from app.forms.form import events as ev
 from app.forms.form.form_state import AddItem, Origin, Setup, new_session
 from app.forms.form.form_yaml import DefinitionRegistry, compile_form
 from app.forms.form.lookups import Lookup, lookup_for
+from tests.helpers.forms import STREAMER_VALIDATION, both_locales, streamer_card
 
 pytestmark = pytest.mark.unit
 
 REGISTRY = DefinitionRegistry()
 ORIGIN = Origin(guild_id="123456789", user_id="555", locale="pt-br")
 NOW = datetime(2026, 1, 1, tzinfo=timezone.utc)
-
-
-def _text(value):
-    return {"en-us": value, "pt-br": value}
-
-
-STREAMER_VALIDATION = {
-    "name": "registered_and_found",
-    "params": {
-        "item": "streamer",
-        "service": "twitch",
-        "id": "user_id",
-        "error": "streamer",
-    },
-}
-
-STREAMER_CARD_FORM = {
-    "steps": [
-        {
-            "type": "intro",
-            "key": "form",
-            "title": _text("🧪 Fixture"),
-            "description": _text("intro"),
-        },
-        {
-            "type": "card",
-            "key": "streamer_card",
-            "title": _text("Card"),
-            "description": _text("card"),
-            "required": {"all": ["streamer"]},
-            "header": {"title": _text("Card")},
-            "fields": [{"key": "streamer", "label": _text("Streamer")}],
-            "sections": [
-                {
-                    "key": "streamer",
-                    "emoji": "🎮",
-                    "type": "modal_input",
-                    "label": _text("Streamer"),
-                    "keys": {"value": "streamer"},
-                    "modal": {
-                        "title": _text("Streamer"),
-                        "validation": STREAMER_VALIDATION,
-                        "inputs": [
-                            {
-                                "key": "streamer",
-                                "normalize": {"name": "handle"},
-                                "label": _text("Streamer"),
-                            }
-                        ],
-                    },
-                }
-            ],
-        },
-        {
-            "type": "review",
-            "key": "confirm",
-            "title": _text("ok?"),
-            "description": _text("review"),
-        },
-    ]
-}
-
-
-def streamer_card():
-    return compile_form("streamer_card_form", copy.deepcopy(STREAMER_CARD_FORM))
 
 
 def _session(definition, mode, cursor, **kwargs):
@@ -125,23 +60,23 @@ def test_a_text_modal_asks_for_the_services_its_lookup_answers_name():
             {
                 "type": "intro",
                 "key": "form",
-                "title": _text("🧪"),
-                "description": _text("i"),
+                "title": both_locales("🧪"),
+                "description": both_locales("i"),
             },
             {
                 "type": "text",
                 "key": "streamer",
                 "validation": STREAMER_VALIDATION,
                 "lookup_answers": {"count": "stream_elements.enabled_commands"},
-                "title": _text("Name"),
-                "description": _text("type"),
-                "label": _text("Name"),
+                "title": both_locales("Name"),
+                "description": both_locales("type"),
+                "label": both_locales("Name"),
             },
             {
                 "type": "review",
                 "key": "confirm",
-                "title": _text("ok?"),
-                "description": _text("r"),
+                "title": both_locales("ok?"),
+                "description": both_locales("r"),
             },
         ]
     }

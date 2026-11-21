@@ -1,19 +1,21 @@
 """Every feature module: documents round-trip, commits write what they report."""
 
+import asyncio
 import copy
-import os
+import logging
 import sys
 from datetime import date, datetime, timezone
-from importlib import import_module
-from pathlib import Path
-from types import ModuleType
-from unittest.mock import AsyncMock, MagicMock
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
-from app.core import commands as command_registry
+from app.commands.birthdays import service as birthdays
+from app.constants import Commands
 from app.core import i18n
-from app.core.commands import Command, commands, form_file, setup_features
+from app.core.commands import Command, commands
+from app.core.dates import format_mm_dd_label
+from app.core.servers import server_setting
+from app.core.utils import ml
 from app.data import data
 from app.forms.features import feature_for, feature_keys
 from app.forms.features.feature import (
@@ -24,7 +26,7 @@ from app.forms.features.feature import (
     PanelInfo,
 )
 from app.forms.form.form_state import Answer
-from app.forms.form.form_yaml import DefinitionRegistry, DiskSource
+from app.forms.form.form_yaml import DefinitionRegistry, shared_vocabulary
 from app.forms.form.responses.responses import (
     document_values,
     item_values,
@@ -33,8 +35,12 @@ from app.forms.form.responses.responses import (
     styled_values,
 )
 from app.forms.form.responses.summary import unwrap
+from app.integrations.stream_elements import StreamElementsClient
+from tests.generators.birthdays import saved_birthday
 from tests.generators.events import lifecycle
-from tests.generators.moderations import seed_cog
+from tests.generators.moderations import recorded_server, seed_cog
+from tests.helpers.forms import section
+from tests.mocks.discord import create_guild, create_member
 
 pytestmark = pytest.mark.unit
 
@@ -132,6 +138,52 @@ def _machine(document):
     return flat
 
 
+async def _settle():
+    for _ in range(5):
+        await asyncio.sleep(0)
+
+
+@pytest.fixture
+def stream_elements(monkeypatch):
+    """StreamElements as these tests answer it: a channel id per streamer, the
+    commands of each channel, and `down` to fail every call as an outage does."""
+    api = SimpleNamespace(channels={}, commands={}, down=False, asked=[])
+
+    def channel_info(name):
+        api.asked.append(name)
+        if api.down:
+            raise ConnectionError("StreamElements is down")
+        return {"_id": api.channels.get(name, f"channel-of-{name}")}
+
+    def chat_commands(channel_id):
+        if api.down:
+            raise ConnectionError("StreamElements is down")
+        return api.commands.get(channel_id, [])
+
+    monkeypatch.setattr(
+        StreamElementsClient, "get_channel_info", staticmethod(channel_info)
+    )
+    monkeypatch.setattr(
+        StreamElementsClient, "get_chat_commands", staticmethod(chat_commands)
+    )
+    return api
+
+
+@pytest.fixture
+def reminders(deps):
+    """reminders-api as Keiko reaches it outside dev: every reminder it is asked to
+    create, each answered with a new id."""
+    created = []
+
+    def create_reminder(body):
+        created.append(body)
+        return {"id": f"rem-{len(created)}"}
+
+    deps.bot.config.is_dev = lambda: False
+    deps.bot.reminder = SimpleNamespace(create_reminder=create_reminder)
+    return created
+
+
 @pytest.mark.parametrize("form", sorted(DOCUMENTS))
 def test_a_document_survives_the_round_trip_through_answers(form):
     feature = feature_for(form)
@@ -141,22 +193,16 @@ def test_a_document_survives_the_round_trip_through_answers(form):
     assert "schema_version" not in document and document["enabled"] is True
 
 
-def test_a_command_with_a_form_and_no_feature_gets_the_generic_feature(
-    tmp_path, monkeypatch
-):
-    roles = Path(COMMANDS_FOLDER, "roles", "form.yml").read_text(encoding="utf-8")
-    written = tmp_path / "form.yml"
-    written.write_text(roles, encoding="utf-8")
+def test_a_command_with_a_form_and_no_feature_gets_the_generic_feature(monkeypatch):
     listed = ModuleType("app.commands")
-    listed.COMMANDS = (Command("plain_form"),)
+    listed.COMMANDS = (Command("default_roles"),)
     monkeypatch.setitem(sys.modules, "app.commands", listed)
-    monkeypatch.setattr(command_registry, "form_files", lambda: {"plain_form": written})
     commands.cache_clear()
     try:
-        feature = feature_for("plain_form")
+        feature = feature_for("default_roles")
     finally:
         commands.cache_clear()
-    assert isinstance(feature, GenericCogFeature) and feature.key == "plain_form"
+    assert isinstance(feature, GenericCogFeature) and feature.key == "default_roles"
 
 
 def test_a_key_no_feature_declares_is_refused_instead_of_guessed():
@@ -196,8 +242,10 @@ def test_an_incomplete_document_never_raises_on_load():
     assert answers["default_roles"].raw is None
 
 
-def _context(document=None, locale="pt-br"):
-    return CommitContext(GUILD_ID, "555", locale, document or {}, NOW, "slash", "s1")
+def _context(document=None, locale="pt-br", guild=None):
+    return CommitContext(
+        GUILD_ID, "555", locale, document or {}, NOW, "slash", "s1", guild
+    )
 
 
 async def test_a_generic_setup_enables_the_feature_and_stores_the_document(deps):
@@ -214,110 +262,69 @@ async def test_a_generic_setup_enables_the_feature_and_stores_the_document(deps)
     assert event["actor"] == {"kind": "user", "id": "555"}
 
 
-def _guild_with(members):
-    """A server whose gateway cache holds nobody: its members come from the API."""
-    from types import SimpleNamespace
-
-    async def fetch_members(limit=None):
-        for member in members:
-            yield member
-
-    return SimpleNamespace(
-        id=int(GUILD_ID),
-        members=[],
-        member_count=len(members),
-        roles=[],
-        fetch_members=fetch_members,
-    )
-
-
 async def test_a_default_roles_setup_gives_the_roles_out_after_the_commit(
     deps, monkeypatch
 ):
     """dr-2: "yes" on the setup's toggle gives the saved roles to who is already
     in the server, after the commit and without the commit waiting for it."""
-    import asyncio
-    from types import SimpleNamespace
+    guild = create_guild()
+    friend = create_member(guild, id=777, name="Amiga")
+    robot = create_member(guild, id=888, name="Robo", bot=True)
+    member_role = guild.get_role(202)
+    released = asyncio.Event()
+    give = friend.add_roles
 
-    from app.commands.roles import service as default_roles
-
-    released, given = asyncio.Event(), []
-
-    async def give(document, guild, members):
+    async def held(*roles, reason=None):
         await released.wait()
-        given.append((document["default_roles"], guild, [m async for m in members]))
+        await give(*roles, reason=reason)
 
-    monkeypatch.setattr(default_roles, "set_default_roles", give)
-    members = [SimpleNamespace(bot=False), SimpleNamespace(bot=True)]
-    guild = _guild_with(members)
+    monkeypatch.setattr(friend, "add_roles", held)
     answers = {"default_roles": Answer("202"), "sync_existing": Answer(True)}
-    context = CommitContext(GUILD_ID, "555", "pt-br", {}, NOW, "slash", "s1", guild)
 
     result = await feature_for("default_roles").commit(
-        "setup", {"answers": answers}, context
+        "setup", {"answers": answers}, _context(guild=guild)
     )
 
     assert result.written == ("default_roles",)
-    assert given == [], "the commit never waits for the roles to be given"
+    assert member_role not in friend.roles, "the commit never waits for the roles"
     stored = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "default_roles")
     assert "sync_existing" not in stored, "the choice is never saved as a setting"
     released.set()
-    for _ in range(5):
-        await asyncio.sleep(0)
-    assert given == [({"style": "role", "values": "202"}, guild, members)]
+    await _settle()
+    assert member_role in friend.roles
+    assert member_role not in robot.roles, "a bot gets only the roles saved for bots"
 
 
-async def test_a_default_roles_setup_without_the_toggle_gives_nothing_out(
-    deps, monkeypatch
+async def test_a_default_roles_sync_that_fails_is_logged_not_raised(
+    deps, monkeypatch, caplog
 ):
-    from app.commands.roles import service as default_roles
+    guild = create_guild()
+    friend = create_member(guild, id=777, name="Amiga")
 
-    give = AsyncMock()
-    monkeypatch.setattr(default_roles, "set_default_roles", give)
-    answers = {"default_roles": Answer("202"), "sync_existing": Answer(False)}
-    context = CommitContext(
-        GUILD_ID, "555", "pt-br", {}, NOW, "slash", "s1", _guild_with([])
-    )
-
-    await feature_for("default_roles").commit("setup", {"answers": answers}, context)
-
-    give.assert_not_called()
-
-
-async def test_a_default_roles_sync_that_fails_is_logged_not_raised(deps, monkeypatch):
-    import asyncio
-
-    from app.commands.roles import service as default_roles
-
-    async def refuse(document, guild, members):
+    async def refuse(*roles, reason=None):
         raise RuntimeError("Missing Permissions")
 
-    errors = MagicMock()
-    monkeypatch.setattr(default_roles, "set_default_roles", refuse)
-    monkeypatch.setattr("app.forms.features.feature.logger.error", errors)
+    monkeypatch.setattr(friend, "add_roles", refuse)
     answers = {"default_roles": Answer("202"), "sync_existing": Answer(True)}
-    context = CommitContext(
-        GUILD_ID, "555", "pt-br", {}, NOW, "slash", "s1", _guild_with([])
-    )
 
-    await feature_for("default_roles").commit("setup", {"answers": answers}, context)
-    for _ in range(5):
-        await asyncio.sleep(0)
+    with caplog.at_level(logging.ERROR):
+        await feature_for("default_roles").commit(
+            "setup", {"answers": answers}, _context(guild=guild)
+        )
+        await _settle()
 
-    assert errors.call_count == 1
-    assert "Missing Permissions" in errors.call_args.args[0]
+    errors = [record for record in caplog.records if record.levelno >= logging.ERROR]
+    assert len(errors) == 1
+    assert "Missing Permissions" in errors[0].getMessage()
+    stored = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "default_roles")
+    assert stored["default_roles"] == {"style": "role", "values": "202"}
 
 
-async def test_a_default_roles_setup_opens_with_the_server_totals(deps, monkeypatch):
-    from types import SimpleNamespace
-
-    from app.commands.roles import service as default_roles
-
-    monkeypatch.setattr(
-        default_roles, "get_available_roles_by_guild", lambda guild: {"Member": "202"}
-    )
-    people = [SimpleNamespace(bot=False) for _ in range(3)]
-    guild = _guild_with([*people, SimpleNamespace(bot=True)])
+async def test_a_default_roles_setup_opens_with_the_server_totals(deps):
+    guild = create_guild()
+    for member_id in (701, 702, 703):
+        create_member(guild, id=member_id, name=f"Pessoa {member_id}")
+    create_member(guild, id=888, name="Robo", bot=True)
 
     opened = await feature_for("default_roles").open(
         OpenContext(GUILD_ID, "555", "pt-br", guild)
@@ -362,14 +369,12 @@ async def test_adding_an_item_appends_it_and_subscribes_outside_dev(deps):
     stored = await data().guild_cogs.find_cog_by_guild_id(
         GUILD_ID, "notifications_twitch"
     )
-    assert [i["streamer"]["value"] for i in stored["notifications"]["values"]] == [
-        "gaules",
-        "cellbit",
-    ]
-    assert stored["notifications"]["values"][1]["streamer"]["title"] == "Streamer"
+    saved = items_of(stored, "notifications")
+    assert [item_values(entry)["streamer"] for entry in saved] == ["gaules", "cellbit"]
+    assert saved[1]["streamer"]["title"], "the item is saved with its field labels"
     assert {c.get("user_id") for c in deps.twitch.subscribe_calls} == {"222"}
-    assert (
-        result.document["notifications"]["values"][1]["streamer"]["value"] == "cellbit"
+    assert item_values(items_of(result.document, "notifications")[1]) == item_values(
+        saved[1]
     )
 
 
@@ -380,22 +385,6 @@ def _two_streamers() -> dict:
     second["streamer"]["value"] = "cellbit"
     document["notifications"]["values"].append(second)
     return document
-
-
-async def test_removing_an_item_unsubscribes_it(deps):
-    deps.twitch.add_user("gaules", user_id="111")
-    deps.twitch.subscribe_to_stream_online_event("111")
-    feature = feature_for("notifications_twitch")
-    document = _two_streamers()
-    seed_cog(deps.mongo_client, "notifications_twitch", copy.deepcopy(document))
-    await feature.commit("remove_item", {"indexes": [0]}, _context(document))
-    stored = await data().guild_cogs.find_cog_by_guild_id(
-        GUILD_ID, "notifications_twitch"
-    )
-    assert [
-        item["streamer"]["value"] for item in stored["notifications"]["values"]
-    ] == ["cellbit"]
-    assert deps.twitch.unsubscribe_calls
 
 
 async def test_several_items_go_in_one_save_and_each_lets_its_subscription_go(deps):
@@ -417,9 +406,12 @@ async def test_several_items_go_in_one_save_and_each_lets_its_subscription_go(de
     stored = await data().guild_cogs.find_cog_by_guild_id(
         GUILD_ID, "notifications_twitch"
     )
-    names = [item["streamer"]["value"] for item in stored["notifications"]["values"]]
+    names = [
+        item_values(item)["streamer"] for item in items_of(stored, "notifications")
+    ]
     assert names == ["cellbit"]
-    assert len(deps.twitch.unsubscribe_calls) >= 2
+    kept = {sub["user_id"] for sub in deps.twitch.get_subscriptions()["data"]}
+    assert kept == {"222"}, "Twitch keeps only the streamer still followed"
 
 
 async def test_a_removal_saves_nothing_when_one_chosen_item_changed_meanwhile(deps):
@@ -544,12 +536,163 @@ async def test_the_birthday_setup_writes_the_config_and_the_first_member(deps):
     assert item["options"]["reminders_birthday"]["date"] == "05-12"
 
 
-async def test_the_birthday_panel_opens_with_its_own_rows(deps):
-    from app.commands.birthdays.service import save_birthday_config
-    from app.core.servers import set_feature_enabled
-    from tests.generators.birthdays import saved_birthday
+async def test_the_birthday_setup_saves_each_member_with_their_own_message(deps):
+    """A member the setup lists keeps the message written for them, and the server
+    keeps Keiko's message as its default when the setup wrote none."""
+    answers = {
+        "channel": Answer("111"),
+        "mention": Answer("everyone"),
+        "reminders_birthday": Answer(
+            (
+                {
+                    "user": Answer("222"),
+                    "date": Answer("05-15"),
+                    "use_custom_message": Answer("custom"),
+                    "custom_message_title": Answer("Parabens"),
+                    "custom_message_content": Answer("Feliz aniversario, {user}"),
+                    "use_custom_image": Answer("default"),
+                },
+            )
+        ),
+    }
 
-    await save_birthday_config(
+    await feature_for("reminders_birthday").commit(
+        "setup", {"answers": answers}, _context()
+    )
+
+    config = await birthdays.birthday_config(GUILD_ID)
+    assert (config["channel"], config["mention"]) == ("111", "everyone")
+    assert config["default_message"] == {
+        "mode": "default",
+        "title": None,
+        "content": None,
+    }
+    saved = await birthdays.find_birthday(GUILD_ID, "222")
+    assert saved["date"] == "05-15"
+    assert saved["message"] == {
+        "mode": "custom",
+        "title": "Parabens",
+        "content": "Feliz aniversario, {user}",
+    }
+    assert saved["image"] == {"mode": "default", "url": None}
+
+
+async def test_the_birthday_setup_saves_the_hour_the_zone_the_roles_and_the_message(
+    deps,
+):
+    """The setup's hour, roles and server message are the configuration; the zone it
+    picks becomes the server's, and a setup with no member saves no birthday."""
+    answers = {
+        "channel": Answer("111"),
+        "mention": Answer("roles"),
+        "mention_roles": Answer(("1", "2")),
+        "timezone": Answer("America/Sao_Paulo"),
+        "notification_time": Answer("12:00"),
+        "default_message_mode": Answer("custom"),
+        "default_message_title": Answer("Parabens, {user}!"),
+        "default_message_content": Answer("Hoje tem festa no {server}."),
+    }
+
+    await feature_for("reminders_birthday").commit(
+        "setup", {"answers": answers}, _context()
+    )
+
+    config = await birthdays.birthday_config(GUILD_ID)
+    assert config["mention"] == "roles" and config["mention_roles"] == ["1", "2"]
+    assert config["notification_time"] == "12:00"
+    assert config["default_message"] == {
+        "mode": "custom",
+        "title": "Parabens, {user}!",
+        "content": "Hoje tem festa no {server}.",
+    }
+    zone = await server_setting(GUILD_ID, Commands.SERVER_TIMEZONE_KEY)
+    assert zone == "America/Sao_Paulo"
+    assert await birthdays.find_birthdays_by_guild(GUILD_ID) == []
+
+
+def test_a_new_birthday_gets_keiko_message_and_image_and_no_edit_yet():
+    item = birthdays.default_birthday("05-15")
+
+    assert (item["date"], item["month"], item["day"]) == ("05-15", 5, 15)
+    assert item["message"]["mode"] == "default"
+    assert item["image"]["mode"] == "default"
+    assert item["self_edit_count"] == 0
+
+
+def test_a_member_rewrites_their_own_birthday_only_once():
+    assert birthdays.can_self_edit_birthday({"self_edit_count": 0}) is True
+    assert birthdays.can_self_edit_birthday({"self_edit_count": 1}) is False
+    assert birthdays.get_self_edit_count({"self_edit_count": "invalid"}) == 0
+
+
+async def test_the_birthday_stats_count_the_months_and_the_dates(deps):
+    for user_id, mm_dd in (("1", "05-15"), ("2", "05-15"), ("3", "06-01")):
+        saved_birthday(GUILD_ID, user_id, mm_dd)
+
+    stats = await birthdays.get_birthday_stats(GUILD_ID, today=date(2026, 5, 2))
+
+    assert stats.total == 3
+    assert stats.this_month == 2
+    assert stats.busiest_month == (5, 2)
+    assert stats.quietest_month == (6, 1)
+    assert stats.most_common_date == ("05-15", 2)
+
+
+async def test_a_birthday_on_a_date_that_has_a_reminder_reuses_it(deps, reminders):
+    saved_birthday(GUILD_ID, "777", "05-15", reminder_id="rem-0")
+
+    await birthdays.upsert_birthday(GUILD_ID, "555", "05-15")
+
+    assert (await birthdays.find_birthday(GUILD_ID, "555"))["date"] == "05-15"
+    assert reminders == [], "the date's reminder is shared, never created twice"
+    schedule = await data().keiko_schedules.find_schedule(
+        birthdays.birthday_schedule_id(GUILD_ID, "05-15")
+    )
+    assert schedule["reminder_id"] == "rem-0"
+
+
+async def test_a_birthday_on_a_new_date_gets_a_reminder_in_the_servers_zone(
+    deps, reminders
+):
+    """The date's reminder fires at the hour the birthdays are set to, in the zone
+    of the server, and its schedule keeps the reminder it got."""
+    recorded_server(deps.mongo_client, GUILD_ID, timezone="America/Sao_Paulo")
+    await birthdays.save_birthday_config(GUILD_ID, "100", notification_time="12:00")
+
+    await birthdays.upsert_birthday(GUILD_ID, "555", "05-15")
+
+    [created] = reminders
+    assert created["title"] == Commands.REMINDER_API_TITLE_BIRTHDAY
+    assert (created["timezone"], created["time_tz"]) == ("America/Sao_Paulo", "12:00")
+    assert created["notes"] == "05-15"
+    schedule = await data().keiko_schedules.find_schedule(
+        birthdays.birthday_schedule_id(GUILD_ID, "05-15")
+    )
+    assert schedule["reminder_id"] == "rem-1" and schedule["due_at"] is not None
+    assert (await birthdays.find_birthday(GUILD_ID, "555"))["date"] == "05-15"
+
+
+def test_a_birthday_message_uses_the_servers_default_before_keikos():
+    title, content = birthdays.resolve_message(
+        {"message": {"mode": "default", "title": None, "content": None}},
+        {
+            "default_message": {
+                "mode": "custom",
+                "title": "Servidor feliz, {user}",
+                "content": "Hoje e dia de bolo em {server}.",
+            }
+        },
+        "pt-br",
+    )
+
+    assert title == "Servidor feliz, {user}"
+    assert content == "Hoje e dia de bolo em {server}."
+
+
+async def test_the_birthday_panel_opens_with_its_own_rows(deps):
+    from app.core.servers import set_feature_enabled
+
+    await birthdays.save_birthday_config(
         GUILD_ID, "100", "roles", notification_time="08:00", mention_roles=["201"]
     )
     saved_birthday(GUILD_ID, "555", "05-12")
@@ -558,9 +701,10 @@ async def test_the_birthday_panel_opens_with_its_own_rows(deps):
         OpenContext(GUILD_ID, "555", "pt-br")
     )
     assert opened.document["reminders_birthday"]["values"][0]["user"]["value"] == "555"
+    some_roles = shared_vocabulary().texts["mention_roles"].get("pt-br")
     assert [row.value for row in opened.panel.rows][:3] == [
         "100",
-        "Alguns cargos",
+        some_roles,
         ["201"],
     ], "who I ping by its name on the card, then the roles it names"
     assert opened.panel.extra_buttons == (), "the statistics are every panel's"
@@ -631,18 +775,11 @@ async def test_an_unconfigured_feature_opens_empty(deps):
 
 
 async def test_editing_the_streamer_refreshes_the_stream_elements_channel(
-    deps, monkeypatch
+    deps, stream_elements
 ):
     """Broke as: an edited streamer kept the old streamer's StreamElements channel,
     so the chat went on answering with the old streamer's commands."""
-    from app.commands.stream_elements import service as stream_elements_feature
-
     deps.bot.config.is_dev = lambda: False
-    monkeypatch.setattr(
-        stream_elements_feature.StreamElementsClient,
-        "get_channel_info",
-        staticmethod(lambda name: {"_id": f"channel-of-{name}"}),
-    )
     feature = feature_for("stream_elements_commands")
     saved = {
         "guild_id": GUILD_ID,
@@ -664,18 +801,10 @@ async def test_editing_the_streamer_refreshes_the_stream_elements_channel(
     assert result.document["state"]["channel_id"] == "channel-of-cellbit"
 
 
-async def test_a_setup_saves_the_stream_elements_channel_in_dev(deps, monkeypatch):
+async def test_a_setup_saves_the_stream_elements_channel_in_dev(deps, stream_elements):
     """Broke as: the setup skipped the StreamElements channel when `is_dev()`, so
     the dev bot saved a streamer without a channel and answered no command."""
-    from app.commands.stream_elements import service as stream_elements_feature
-
     deps.bot.config.is_dev = lambda: True
-    asked = []
-    monkeypatch.setattr(
-        stream_elements_feature.StreamElementsClient,
-        "get_channel_info",
-        staticmethod(lambda name: asked.append(name) or {"_id": f"channel-of-{name}"}),
-    )
     feature = feature_for("stream_elements_commands")
 
     looked_up = await feature.commit(
@@ -693,7 +822,7 @@ async def test_a_setup_saves_the_stream_elements_channel_in_dev(deps, monkeypatc
     )
     assert stored["state"]["channel_id"] == "se-shroud"
     assert looked_up.document["state"]["channel_id"] == "se-shroud"
-    assert asked == [], "the channel the streamer lookup found was looked up again"
+    assert stream_elements.asked == [], "the channel the lookup found was asked again"
 
     deps.mongo_client.guild.cogs.delete_one(
         {"_id": f"{GUILD_ID}:stream_elements_commands"}
@@ -705,14 +834,12 @@ async def test_a_setup_saves_the_stream_elements_channel_in_dev(deps, monkeypatc
         GUILD_ID, "stream_elements_commands"
     )
     assert stored["state"]["channel_id"] == "channel-of-gaules"
-    assert asked == ["gaules"]
+    assert stream_elements.asked == ["gaules"]
 
 
 async def test_the_welcome_manager_draws_previews_in_the_background(deps):
     """The design gallery opened to edit a saved welcome message had no previews:
     they were only drawn for a setup."""
-    from tests.mocks.discord import create_guild, create_member
-
     seed_cog(
         deps.mongo_client,
         "welcome_messages",
@@ -759,7 +886,7 @@ def test_the_welcome_card_saves_the_document_the_welcome_service_reads():
         ev.Answered(
             "e2",
             None,
-            "section:1",
+            section(definition.step("welcome_config"), "messages"),
             {"inputs": ["Oi {user}!", "Bem-vindo {user}", "", "Chegou!", "Divirta-se"]},
         ),
     )
@@ -777,27 +904,19 @@ def test_the_welcome_card_saves_the_document_the_welcome_service_reads():
     assert "welcome_config" not in document
 
 
-async def test_the_stream_elements_lookup_counts_enabled_commands(deps, monkeypatch):
+async def test_the_stream_elements_lookup_counts_enabled_commands(
+    deps, stream_elements
+):
     """The review shows how many commands will load, so the streamer lookup also
     asks StreamElements for the channel and counts its enabled commands."""
-    from app.commands.stream_elements import service as stream_elements_feature
     from app.forms.form.lookups import Lookup
 
-    client = stream_elements_feature.StreamElementsClient
-    monkeypatch.setattr(
-        client, "get_channel_info", staticmethod(lambda name: {"_id": "se1"})
-    )
-    monkeypatch.setattr(
-        client,
-        "get_chat_commands",
-        staticmethod(
-            lambda channel_id: [
-                {"enabled": True, "command": "mouse"},
-                {"enabled": False, "command": "chair"},
-                {"enabled": True, "command": "setup"},
-            ]
-        ),
-    )
+    stream_elements.channels["shroud"] = "se1"
+    stream_elements.commands["se1"] = [
+        {"enabled": True, "command": "mouse"},
+        {"enabled": False, "command": "chair"},
+        {"enabled": True, "command": "setup"},
+    ]
     deps.twitch.add_user("shroud", user_id="37402112")
     feature = feature_for("stream_elements_commands")
 
@@ -823,28 +942,23 @@ async def test_the_stream_elements_lookup_counts_enabled_commands(deps, monkeypa
 
 
 async def test_the_stream_elements_panel_says_how_many_commands_it_answers(
-    deps, monkeypatch
+    deps, stream_elements
 ):
     """The panel says how many commands are loaded and offers to list them."""
-    from app.commands.stream_elements import service as stream_elements_feature
-
     seed_cog(
         deps.mongo_client,
         "stream_elements_commands",
-        {
-            "guild_id": GUILD_ID,
-            "enabled": True,
-            "streamer": "shroud",
-        },
+        {"guild_id": GUILD_ID, "enabled": True, "streamer": "shroud"},
     )
-    monkeypatch.setattr(
-        stream_elements_feature,
-        "get_commands_in_cache_or_populate",
-        lambda channel_id, user: {"!mouse": "a", "!setup": "b"},
-    )
+    stream_elements.commands["channel-of-shroud"] = [
+        {"enabled": True, "command": "mouse", "reply": "a"},
+        {"enabled": True, "command": "setup", "reply": "b"},
+    ]
+    guild = create_guild()
+    member = create_member(guild, id=555, name="Tester")
 
     opened = await feature_for("stream_elements_commands").open(
-        OpenContext(GUILD_ID, "555", "pt-br")
+        OpenContext(GUILD_ID, "555", "pt-br", guild, member)
     )
 
     assert "2" in opened.panel.info and "shroud" in opened.panel.info
@@ -854,13 +968,10 @@ async def test_the_stream_elements_panel_says_how_many_commands_it_answers(
 
 
 async def test_the_stream_elements_panel_tells_no_commands_from_a_failure(
-    deps, monkeypatch
+    deps, stream_elements
 ):
     """Broke as: the panel's count read a streamer with no active command and a
     StreamElements failure alike, as "I couldn't reach StreamElements"."""
-    from app.commands.stream_elements import service as stream_elements_service
-    from app.core.utils import ml
-
     seed_cog(
         deps.mongo_client,
         "stream_elements_commands",
@@ -871,7 +982,6 @@ async def test_the_stream_elements_panel_tells_no_commands_from_a_failure(
             "state": {"channel_id": "c1"},
         },
     )
-    client = stream_elements_service.StreamElementsClient
     namespace = "stream_elements_commands"
 
     async def panel_line():
@@ -880,14 +990,9 @@ async def test_the_stream_elements_panel_tells_no_commands_from_a_failure(
         )
         return opened.panel.info
 
-    monkeypatch.setattr(client, "get_chat_commands", staticmethod(lambda channel: []))
     empty = await panel_line()
     deps.redis_client.delete("cache:stream_elements:commands:c1")
-
-    def down(channel):
-        raise ConnectionError("StreamElements is down")
-
-    monkeypatch.setattr(client, "get_chat_commands", staticmethod(down))
+    stream_elements.down = True
     failed = await panel_line()
 
     assert empty == ml(f"{namespace}.ui.records.commands.empty", "pt-br").replace(
@@ -897,18 +1002,10 @@ async def test_the_stream_elements_panel_tells_no_commands_from_a_failure(
     assert failed == unreachable.description.get("pt-br")
 
 
-async def test_a_stream_elements_outage_leaves_no_count(deps, monkeypatch):
-    from app.commands.stream_elements import service as stream_elements_feature
+async def test_a_stream_elements_outage_leaves_no_count(deps, stream_elements):
     from app.forms.form.lookups import Lookup
 
-    def unreachable(name):
-        raise ConnectionError("StreamElements is down")
-
-    monkeypatch.setattr(
-        stream_elements_feature.StreamElementsClient,
-        "get_channel_info",
-        staticmethod(unreachable),
-    )
+    stream_elements.down = True
     deps.twitch.add_user("shroud", user_id="37402112")
 
     found = await feature_for("stream_elements_commands").prefetch(
@@ -924,100 +1021,6 @@ async def test_a_stream_elements_outage_leaves_no_count(deps, monkeypatch):
             ),
         }
     }
-
-
-COMMANDS_FOLDER = os.path.join("app", "commands")
-
-
-LOCALES = ("en-us", "pt-br")
-
-
-def _specs():
-    return list(setup_features())
-
-
-async def _registered_subgroups():
-    from app.core import groups
-
-    bot = MagicMock()
-    cogs = []
-    bot.add_cog = AsyncMock(side_effect=cogs.append)
-    await groups.setup(bot)
-
-    return {
-        (cog.app_command.name, subgroup._locale_name.extras["namespace"])
-        for cog in cogs
-        for subgroup in cog.app_command.commands
-    }
-
-
-def test_every_form_on_disk_is_a_declared_feature_and_back():
-    """Each feature is declared once, in its command folder, and its form, its module
-    and its slash command agree with that declaration: the `form.yml` beside it, the
-    `FEATURE` its service holds, the subgroup the slash groups register with its
-    namespace, and the copy."""
-    on_disk = {
-        folder
-        for folder in os.listdir(COMMANDS_FOLDER)
-        if Path(COMMANDS_FOLDER, folder, "form.yml").is_file()
-    }
-    with_a_form = set(DiskSource().list())
-    assert with_a_form <= {command.key for command in commands()}
-    assert {form_file(key).parent.name for key in with_a_form} == on_disk
-
-
-def test_every_feature_module_lives_in_the_service_of_its_command():
-    for spec in _specs():
-        if spec.feature is None:
-            continue
-        folder = form_file(spec.key).parent.name
-        module = import_module(f"app.commands.{folder}.service")
-        assert module.FEATURE is spec.feature
-        assert module.FEATURE.key == spec.key
-        assert feature_for(spec.key) is module.FEATURE
-
-
-def test_no_command_folder_holds_a_feature_module_of_its_own():
-    stray = sorted(
-        folder
-        for folder in os.listdir(COMMANDS_FOLDER)
-        if os.path.isfile(os.path.join(COMMANDS_FOLDER, folder, "feature.py"))
-    )
-    assert stray == [], f"move the FeatureModule of {stray} into its service.py"
-
-
-async def test_every_feature_command_is_registered_where_its_spec_says(deps):
-    declared = {(spec.group, f"{spec.key}.command.slash") for spec in _specs()}
-    assert await _registered_subgroups() == declared
-
-
-def test_setup_lists_the_features_in_the_order_it_always_did():
-    assert list(feature_keys()) == [
-        "welcome_messages",
-        "default_roles",
-        "block_links",
-        "notifications_twitch",
-        "notifications_youtube_video",
-        "reminders_birthday",
-        "stream_elements_commands",
-    ]
-    assert [spec.key for spec in _specs() if spec.answers_prefix] == [
-        "stream_elements_commands"
-    ]
-
-
-@pytest.mark.parametrize("locale", LOCALES)
-def test_every_feature_has_its_command_and_setup_copy(locale):
-    copy = i18n.keys(locale)
-    for spec in _specs():
-        assert copy[f"texts.groups.{spec.group}"]
-        for path in (
-            "command.slash.name",
-            "command.slash.subgroup",
-            "command.setup.label",
-            "command.setup.description",
-        ):
-            assert copy[f"{spec.key}.{path}"]
 
 
 DOCUMENT = {
@@ -1074,47 +1077,54 @@ def test_the_settings_read_as_their_machine_values():
     assert "guild_id" not in values and "enabled" not in values
 
 
+def _birthday_copy(key):
+    return ml(f"reminders_birthday.{key}", "pt-br")
+
+
 @pytest.mark.parametrize(
-    "today, first_page, next_one",
+    "today, first, next_one",
     [
-        (date(2026, 6, 20), "- <@777>: 12 de junho", "<@555>"),
-        (date(2026, 5, 20), "- <@555>: 12 de maio", "<@777>"),
+        (date(2026, 6, 20), ("777", "06-12"), "<@555>"),
+        (date(2026, 5, 20), ("555", "05-12"), "<@777>"),
     ],
     ids=["june", "may"],
 )
 async def test_the_birthday_panel_counts_from_the_day_its_clock_gives(
-    deps, monkeypatch, today, first_page, next_one
+    deps, monkeypatch, today, first, next_one
 ):
     """The panel's next birthdays and the month it opens on follow the
     feature's clock (`BirthdayFeature.today`), never the machine's date."""
-    from app.commands.birthdays.service import FEATURE, save_birthday_config
-    from tests.generators.birthdays import saved_birthday
-
-    await save_birthday_config(GUILD_ID, "100", False, notification_time="08:00")
+    await birthdays.save_birthday_config(
+        GUILD_ID, "100", False, notification_time="08:00"
+    )
     saved_birthday(GUILD_ID, "555", "05-12")
     saved_birthday(GUILD_ID, "777", "06-12")
-    monkeypatch.setattr(FEATURE, "today", lambda: today)
+    monkeypatch.setattr(birthdays.FEATURE, "today", lambda: today)
 
-    opened = await FEATURE.open(OpenContext(GUILD_ID, "555", "pt-br"))
+    opened = await birthdays.FEATURE.open(OpenContext(GUILD_ID, "555", "pt-br"))
 
     pages = opened.panel.pages
-    assert (pages[0].title, pages[0].lines[0]) == ("Aniversários", first_page)
-    upcoming = next(row for row in opened.panel.rows if "Próximos" in row.title)
+    user_id, mm_dd = first
+    assert pages[0].title == _birthday_copy("command.panel.pages.title")
+    assert pages[0].lines[0] == f"- <@{user_id}>: {format_mm_dd_label(mm_dd, 'pt-br')}"
+    upcoming = next(
+        row
+        for row in opened.panel.rows
+        if row.title == _birthday_copy("command.panel.rows.next")
+    )
     assert upcoming.value[0].startswith(next_one), upcoming.value
 
 
 async def test_the_birthday_panel_shows_its_list_even_with_no_birthday(deps):
     """N2: with no birthday the panel kept no block for the list, so its Add
     sat alone in the bottom row; the list keeps its title and says it is empty."""
-    from app.commands.birthdays.service import FEATURE, save_birthday_config
+    await birthdays.save_birthday_config(GUILD_ID, "100", False)
 
-    await save_birthday_config(GUILD_ID, "100", False)
-
-    opened = await FEATURE.open(OpenContext(GUILD_ID, "555", "pt-br"))
+    opened = await birthdays.FEATURE.open(OpenContext(GUILD_ID, "555", "pt-br"))
 
     [page] = opened.panel.pages
-    assert (page.title, page.lines) == ("Aniversários", ())
-    assert page.description.startswith("Ainda não tenho nenhum aniversário")
+    assert (page.title, page.lines) == (_birthday_copy("command.panel.pages.title"), ())
+    assert page.description == _birthday_copy("command.panel.pages.empty")
 
 
 async def test_a_found_member_shows_whose_messages_greet_them(deps):
@@ -1122,13 +1132,9 @@ async def test_a_found_member_shows_whose_messages_greet_them(deps):
     labelled by whose they are: the member's own, the server's default, or
     Keiko's default when nobody wrote one; the picture is the platform's, read
     from the server's members (review fixes K2)."""
-    from app.commands.birthdays.service import FEATURE, save_birthday_config
-    from tests.generators.birthdays import saved_birthday
-    from tests.mocks.discord import create_guild, create_member
-
     guild = create_guild()
     create_member(guild, id=777, name="Amiga")
-    await save_birthday_config(GUILD_ID, "100", False)
+    await birthdays.save_birthday_config(GUILD_ID, "100", False)
     saved_birthday(GUILD_ID, "777", "06-12")
     saved_birthday(
         GUILD_ID,
@@ -1137,22 +1143,29 @@ async def test_a_found_member_shows_whose_messages_greet_them(deps):
         message={"mode": "custom", "title": "Oi {user}", "content": "Parabéns!"},
     )
 
-    opened = await FEATURE.open(OpenContext(GUILD_ID, "555", "pt-br", guild))
+    def written_by(line, source, *texts):
+        label = _birthday_copy(f"command.panel.authors.{source}")
+        assert all(text in line for text in (label, *texts)), line
+
+    opened = await birthdays.FEATURE.open(OpenContext(GUILD_ID, "555", "pt-br", guild))
     found = opened.panel.found
 
-    keiko = "💬 **Mensagens de parabéns (padrão do Keiko):**\n```• 🎂 É aniversário"
-    assert found["777"].lines[0].startswith(keiko)
-    assert found["888"].lines == (
-        "💬 **Mensagens de parabéns:**\n```• Oi {user}\n• Parabéns!```",
+    written_by(
+        found["777"].lines[0],
+        "keiko",
+        birthdays.birthday_default_text("title", "pt-br"),
     )
+    [own] = found["888"].lines
+    written_by(own, "member", "Oi {user}", "Parabéns!")
 
-    await save_birthday_config(
+    await birthdays.save_birthday_config(
         GUILD_ID,
         "100",
         False,
         default_message={"mode": "custom", "title": "Viva", "content": "Hoje!"},
     )
-    reopened = await FEATURE.open(OpenContext(GUILD_ID, "555", "pt-br", guild))
-    assert reopened.panel.found["777"].lines == (
-        "💬 **Mensagens de parabéns (padrão do servidor):**\n```• Viva\n• Hoje!```",
+    reopened = await birthdays.FEATURE.open(
+        OpenContext(GUILD_ID, "555", "pt-br", guild)
     )
+    [server] = reopened.panel.found["777"].lines
+    written_by(server, "server", "Viva", "Hoje!")

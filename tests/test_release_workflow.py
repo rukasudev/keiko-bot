@@ -18,7 +18,7 @@ import yaml
 
 from app.constants import DBConfigs
 
-pytestmark = pytest.mark.unit
+pytestmark = [pytest.mark.unit, pytest.mark.slow]
 
 ROOT = Path(__file__).resolve().parent.parent
 

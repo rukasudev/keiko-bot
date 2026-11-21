@@ -32,11 +32,10 @@ from app.forms.features.feature import CommitContext
 from app.forms.form.form_state import Answer
 import json
 from app.core.utils import ml
-from tests.behavioral.golden.paths import block_links
-from tests.behavioral.golden.paths import notifications_twitch as twitch
-from tests.behavioral.golden.paths import notifications_youtube_video as youtube
-from tests.behavioral.golden.paths.common import seed_document
-from tests.mocks.discord import create_guild, create_member
+from tests.behavioral.flows import block_links
+from tests.behavioral.flows import twitch
+from tests.behavioral.flows import youtube
+from tests.behavioral.flows.common import remove_item, seed_document, two_panels
 from tests.generators.moderations import seed_cog, stored_cog
 from tests.generators.events import lifecycle
 
@@ -254,26 +253,9 @@ def _recorded(deps, form):
     return lifecycle(deps.mongo_client, GUILD_ID, form)
 
 
-async def _two_panels(scenario_factory, form):
-    guild = create_guild()
-    first_admin = create_member(guild, id=555, name="Tester")
-    second_admin = create_member(guild, id=556, name="Helper")
-    first = await scenario_factory(locale=LOCALE, guild=guild, user=first_admin).start_command(form)
-    second = await scenario_factory(locale=LOCALE, guild=guild, user=second_admin).start_command(form)
-    return first, second
-
-
-async def _two_twitch_panels(scenario_factory, deps):
-    twitch._known_streamers(deps)
-    seed_document(deps, twitch.FORM, twitch.ENABLED)
-    for login in ("gaules", "cellbit"):
-        deps.twitch.subscribe_to_stream_online_event(deps.twitch._users[login].id)
-    return await _two_panels(scenario_factory, twitch.FORM)
-
-
 async def _two_exceptions_screens(scenario_factory, deps):
     seed_document(deps, block_links.FORM, block_links.ENABLED)
-    first, second = await _two_panels(scenario_factory, block_links.FORM)
+    first, second = await two_panels(scenario_factory, block_links.FORM, LOCALE)
     for panel in (first, second):
         await panel.click("edit:group:exceptions")
     return first, second
@@ -281,15 +263,10 @@ async def _two_exceptions_screens(scenario_factory, deps):
 
 async def _add_streamer(scenario, streamer):
     await scenario.click("add")
-    await twitch._channel(scenario)
-    await twitch._submit_streamer(scenario, streamer)
-    await twitch._submit_messages(scenario)
+    await twitch.pick_channel(scenario)
+    await twitch.submit_streamer(scenario, streamer)
+    await twitch.submit_messages(scenario)
     await scenario.click("done")
-
-
-async def _remove(scenario, target):
-    await scenario.click(f"remove_this:{target}")
-    await scenario.click("remove_items")
 
 
 async def _remove_link(screen, target):
@@ -361,10 +338,10 @@ async def test_a_streamer_added_on_one_panel_survives_a_removal_on_another(
     Pause, Unpause and Edit after another panel's Disable save nothing and give
     that answer too.
     """
-    first, second = await _two_twitch_panels(scenario_factory, deps)
+    first, second = await twitch.two_panels(scenario_factory, deps, LOCALE)
 
     await _add_streamer(first, "shroud")
-    await _remove(second, "notifications$1")
+    await remove_item(second, "notifications$1")
 
     assert _streamers(deps) == ["gaules", "shroud"]
 
@@ -374,9 +351,9 @@ async def test_a_streamer_added_on_one_panel_survives_a_removal_on_another(
 async def test_a_streamer_removed_on_one_panel_never_comes_back_from_another(
     scenario_factory, deps,
 ):
-    first, second = await _two_twitch_panels(scenario_factory, deps)
+    first, second = await twitch.two_panels(scenario_factory, deps, LOCALE)
 
-    await _remove(first, "notifications$0")
+    await remove_item(first, "notifications$0")
     await _add_streamer(second, "shroud")
 
     assert _streamers(deps) == ["cellbit", "shroud"]
@@ -388,11 +365,11 @@ async def test_a_streamer_removed_on_one_panel_never_comes_back_from_another(
 async def test_an_edit_of_a_streamer_another_panel_removed_redraws_the_saved_list(
     scenario_factory, deps, story,
 ):
-    first, second = await _two_twitch_panels(scenario_factory, deps)
+    first, second = await twitch.two_panels(scenario_factory, deps, LOCALE)
 
-    await _remove(first, "notifications$1")
+    await remove_item(first, "notifications$1")
     await second.click("section:notifications$1")
-    await twitch._channel(second, "announcements")
+    await twitch.pick_channel(second, "announcements")
     await second.click("done")
 
     assert _streamers(deps) == ["gaules"]
@@ -412,7 +389,7 @@ async def test_an_edit_of_a_streamer_another_panel_removed_redraws_the_saved_lis
 async def test_an_addition_after_another_panel_disabled_the_feature_subscribes_nothing(
     scenario_factory, deps, story,
 ):
-    first, second = await _two_twitch_panels(scenario_factory, deps)
+    first, second = await twitch.two_panels(scenario_factory, deps, LOCALE)
 
     await first.click("disable")
     await first.click("delete_all")
@@ -431,7 +408,7 @@ async def test_an_addition_after_another_panel_disabled_the_feature_subscribes_n
 async def test_a_save_that_fails_after_the_subscription_lets_the_new_streamer_go(
     scenario_factory, deps,
 ):
-    twitch._known_streamers(deps)
+    twitch.known_streamers(deps)
     seed_document(deps, twitch.FORM, twitch.ENABLED)
     scenario = await scenario_factory(locale=LOCALE).start_command(twitch.FORM)
     collection = deps.mongo_client.guild.cogs
@@ -536,10 +513,10 @@ async def test_a_refusal_whose_new_read_fails_keeps_the_panel_answering(
 ):
     from app.commands.twitch.service import FEATURE
 
-    first, second = await _two_twitch_panels(scenario_factory, deps)
-    await _remove(first, "notifications$1")
+    first, second = await twitch.two_panels(scenario_factory, deps, LOCALE)
+    await remove_item(first, "notifications$1")
     await second.click("section:notifications$1")
-    await twitch._channel(second, "announcements")
+    await twitch.pick_channel(second, "announcements")
 
     async def unreadable(context):
         raise RuntimeError("the database did not answer")
@@ -564,7 +541,7 @@ async def test_a_pause_after_another_panel_disabled_the_feature_changes_nothing(
     scenario_factory, deps, seeded, action,
 ):
     seed_document(deps, block_links.FORM, seeded)
-    first, second = await _two_panels(scenario_factory, block_links.FORM)
+    first, second = await two_panels(scenario_factory, block_links.FORM, LOCALE)
 
     await first.click("disable")
     await first.click("delete_all")
@@ -581,12 +558,12 @@ async def test_an_edit_after_another_panel_disabled_the_feature_changes_nothing(
     scenario_factory, deps,
 ):
     seed_document(deps, block_links.FORM, block_links.ENABLED)
-    first, second = await _two_panels(scenario_factory, block_links.FORM)
+    first, second = await two_panels(scenario_factory, block_links.FORM, LOCALE)
 
     await first.click("disable")
     await first.click("delete_all")
     await second.click("section:link_settings")
-    await second.click("customize:1")
+    await second.click("customize:answer")
     await second.submit_modal({ANSWER_FIELD: "No links around here!"})
     await second.click("done")
 
@@ -600,7 +577,7 @@ async def test_an_edit_after_another_panel_disabled_the_feature_changes_nothing(
 async def test_a_removal_whose_save_fails_never_unsubscribes_the_youtuber(
     scenario_factory, deps,
 ):
-    youtube._known_channels(deps)
+    youtube.known_channels(deps)
     seed_document(deps, youtube.FORM, youtube.TWO_ENTRIES)
     scenario = await scenario_factory(locale=LOCALE).start_command(youtube.FORM)
     collection = deps.mongo_client.guild.cogs
@@ -609,7 +586,7 @@ async def test_a_removal_whose_save_fails_never_unsubscribes_the_youtuber(
         raise RuntimeError("the database did not answer")
 
     collection.update_one = unavailable
-    await _remove(scenario, "notifications$0")
+    await remove_item(scenario, "notifications$0")
 
     assert deps.youtube.unsubscribe_calls == []
     del collection.update_one
@@ -621,11 +598,11 @@ async def test_a_removal_whose_save_fails_never_unsubscribes_the_youtuber(
 async def test_an_edit_whose_new_youtuber_fails_never_unsubscribes_the_old_one(
     scenario_factory, deps,
 ):
-    youtube._known_channels(deps)
+    youtube.known_channels(deps)
     seed_document(deps, youtube.FORM, youtube.ENABLED)
     scenario = await scenario_factory(locale=LOCALE).start_command(youtube.FORM)
     await scenario.click("section:notifications$0")
-    await youtube._submit_youtuber(scenario, "mrbeast")
+    await youtube.submit_youtuber(scenario, "mrbeast")
     look_up = deps.youtube.get_channel_id_from_username
 
     def only_the_old_name(username):
@@ -647,7 +624,7 @@ async def test_disable_lets_every_streamer_go_even_when_the_flag_write_fails(
 ):
     from app.forms.features import feature as feature_module
 
-    twitch._known_streamers(deps)
+    twitch.known_streamers(deps)
     seed_document(deps, twitch.FORM, twitch.ENABLED)
     for login in ("gaules", "cellbit"):
         deps.twitch.subscribe_to_stream_online_event(deps.twitch._users[login].id)
@@ -667,7 +644,7 @@ async def test_disable_lets_every_streamer_go_even_when_the_flag_write_fails(
 @pytest.mark.usefixtures("outside_dev")
 @pytest.mark.shared_contract("manager_form")
 async def test_unpausing_subscribes_every_saved_streamer_again(scenario_factory, deps):
-    twitch._known_streamers(deps)
+    twitch.known_streamers(deps)
     seed_document(deps, twitch.FORM, twitch.PAUSED)
     deps.twitch.subscribe_to_stream_online_event(deps.twitch._users["gaules"].id)
     scenario = await scenario_factory(locale=LOCALE).start_command(twitch.FORM)
@@ -681,7 +658,7 @@ async def test_unpausing_subscribes_every_saved_streamer_again(scenario_factory,
 @pytest.mark.usefixtures("outside_dev")
 @pytest.mark.shared_contract("manager_form")
 async def test_unpausing_subscribes_every_saved_youtuber_again(scenario_factory, deps):
-    youtube._known_channels(deps)
+    youtube.known_channels(deps)
     seed_document(deps, youtube.FORM, youtube.PAUSED)
     scenario = await scenario_factory(locale=LOCALE).start_command(youtube.FORM)
 
@@ -724,15 +701,15 @@ async def test_an_item_change_keeps_the_shape_the_previous_release_reads(
     may add no key it does not know, at any level, or a rollback would lose it.
     The one addition is the notice's mention (PR8, data/0008): a rollback that
     saves the list drops it, so that rollback restores the dump taken before."""
-    first, second = await _two_twitch_panels(scenario_factory, deps)
+    first, second = await twitch.two_panels(scenario_factory, deps, LOCALE)
     seeded = set(await _saved(deps, twitch.FORM))
 
     await _add_streamer(first, "shroud")
     await second.click("section:notifications$0")
-    await twitch._channel(second, "announcements")
+    await twitch.pick_channel(second, "announcements")
     await second.click("done")
     third = await scenario_factory(locale=LOCALE).start_command(twitch.FORM)
-    await _remove(third, "notifications$1")
+    await remove_item(third, "notifications$1")
 
     document = await _saved(deps, twitch.FORM)
     assert set(document) == seeded | {"updated_at"}
@@ -768,7 +745,7 @@ async def test_removing_several_links_after_another_panel_removed_one_saves_none
     the screen changed and draws the list as it is saved now.
     """
     seed_document(deps, block_links.FORM, block_links.ENABLED)
-    first, second = await _two_panels(scenario_factory, block_links.FORM)
+    first, second = await two_panels(scenario_factory, block_links.FORM, LOCALE)
 
     await first.click("remove:custom_links")
     await first.select_option("custom_links$0")

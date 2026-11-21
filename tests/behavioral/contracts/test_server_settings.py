@@ -29,7 +29,6 @@ from app.constants import Commands, DBConfigs
 from app.exceptions import InvalidServerSetting, ServerSettingsMissing
 from app.core import cache
 from app.core import servers as moderations_service
-from app.forms.discord.callbacks import RUNTIME
 from app.forms.features import feature_keys
 from tests.behavioral.harness.driver import FormScenario
 from tests.generators.moderations import recorded_server, seed_cog
@@ -327,13 +326,10 @@ async def test_a_form_reads_the_servers_settings_as_context_tokens(deps):
 
     await scenario.start("default_roles")
 
-    [session_id] = RUNTIME.sessions
-    context = await RUNTIME._context(RUNTIME.store.get(session_id))
-    assert (
-        context.prefix,
-        context.server_language,
-        context.server_timezone,
-    ) == ("!!", "en-us", "Europe/Berlin")
+    filled = await scenario.fill_tokens(
+        "${context.prefix} ${context.server_language} ${context.server_timezone}"
+    )
+    assert filled == "!! en-us Europe/Berlin"
 
 
 async def test_a_form_on_a_server_missing_one_setting_raises_settings_missing(deps):

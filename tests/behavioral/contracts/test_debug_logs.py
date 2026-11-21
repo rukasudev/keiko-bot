@@ -38,7 +38,7 @@ import pyrage
 from pyrage import x25519
 from app.config import AppConfig
 from tests.mocks.database import fake_store
-from tests.test_config import production_config
+from tests.helpers.config import production_config
 import base64
 import io
 import zipfile
@@ -46,7 +46,7 @@ from bson import json_util, ObjectId
 from app.core.jobs import Analytics
 from app.core.utils import fill, ml
 from app.core import jobs as analytics_cog
-from tests.behavioral.regressions.test_event_loop_is_never_blocked import (
+from tests.helpers.loop import (
     blocking,
     blocking_rows,
     MIN_TICKS,

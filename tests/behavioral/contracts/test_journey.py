@@ -17,7 +17,7 @@ from app.core.trace import Trace, trace_scope
 import asyncio
 from datetime import datetime, timedelta, timezone
 from app.data.events import interactions
-from tests.behavioral.regressions.test_event_loop_is_never_blocked import MIN_TICKS, TICK_SECONDS, blocking, slow, ticks_while
+from tests.helpers.loop import MIN_TICKS, TICK_SECONDS, blocking, slow, ticks_while
 from tests.generators.events import age_events, record_event
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("journey")]

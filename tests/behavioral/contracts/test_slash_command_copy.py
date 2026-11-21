@@ -12,6 +12,10 @@ The contract builds the tree the bot syncs at startup, with
 command, group, option and choice in every locale it is sent in. The copy
 lives in each command's `copy.yml` (`slash.*` and the blocks its cogs name) and in
 `app/languages/commands.yml` (`groups.*`, the months).
+
+Discord (and discord.py) validate a context menu's callback the same way, only at
+tree build time, so the tree also carries every context menu as its cog registers it,
+and the diagnostic ones stay admin only.
 """
 import discord
 import pytest
@@ -119,3 +123,11 @@ async def test_building_the_tree_leaves_no_background_task_failing():
     ]
 
     assert loops and failed == []
+
+
+async def test_the_block_links_check_menu_is_a_message_menu_for_admins_only(payloads):
+    """The diagnostic exposes exempt roles, channels and rules: it stays admin only."""
+    menu = next(payload for payload in payloads if payload["name"] == "block-links-check")
+
+    assert menu["type"] == discord.AppCommandType.message.value
+    assert menu["default_member_permissions"] == discord.Permissions(administrator=True).value

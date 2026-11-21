@@ -193,3 +193,57 @@ def test_a_streamelements_reply_keeps_its_own_variables_out_of_keiko_tokens():
     )
     assert embed.description == reply
     assert "ks!commands" in embed.footer.text and "$" not in embed.footer.text
+
+
+@pytest.mark.parametrize(
+    "text,values,shown",
+    [
+        ("Página $page de $pages", {"page": 1, "pages": 1}, "Página 1 de 1"),
+        ("$pages pages, page $page", {"pages": 3, "page": 2}, "3 pages, page 2"),
+        ("$a and $b", {"a": "$b", "b": "x"}, "$b and x"),
+        ("$count of $total", {"count": 2}, "2 of $total"),
+    ],
+    ids=[
+        "name-inside-another",
+        "longer-name-first",
+        "value-not-read",
+        "name-not-given",
+    ],
+)
+def test_fill_fills_each_name_once_and_keeps_a_name_not_given(text, values, shown):
+    """Keiko's own `$name` lines: a name that starts another fills only its own
+    placeholder, a value is never read as a placeholder, a name not given stays."""
+    assert fill(text, **values) == shown
+
+
+@pytest.mark.parametrize(
+    "template,values,required,shown",
+    [
+        ("{a} and {b}", {"a": "1", "b": "2"}, None, "1 and 2"),
+        ("{a} {b}", {"a": "{b}", "b": "x"}, None, "{b} x"),
+        (
+            "{a:>99} {A} {a.real} {a[0]} {other}",
+            {"a": "1"},
+            None,
+            "{a:>99} {A} {a.real} {a[0]} {other}",
+        ),
+        ("Live!", {"link": "https://x"}, "link", "Live!\nhttps://x"),
+        ("Go {link} now", {"link": "https://x"}, "link", "Go https://x now"),
+        ("{LINK}", {"link": "https://x"}, "link", "{LINK}\nhttps://x"),
+    ],
+    ids=[
+        "each-filled",
+        "value-not-read",
+        "other-braces-kept",
+        "required-added",
+        "required-present",
+        "other-capitals-are-text",
+    ],
+)
+def test_an_admin_template_fills_its_placeholders_and_adds_the_required_one(
+    template, values, required, shown
+):
+    """The one filler behind the templates an admin writes: each `{name}` once, a
+    value never read as a template, anything else in braces as typed, and the
+    required placeholder added on its own line when not written in lowercase."""
+    assert fill_placeholders(template, values, required=required) == shown

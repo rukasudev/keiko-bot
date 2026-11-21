@@ -52,13 +52,16 @@ from app.constants import DBConfigs, Dependencies, LogTypes
 from app.data import data, wait
 from app.data import logs as logs_data
 from app.core import analytics, analytics_writer, debug_logs, threads
-from tests.behavioral.contracts.test_logger_trace import discord_logs  # noqa: F401
 from app.bot import DiscordBot
 from tests.generators.events import record_event
 
 bot_module = importlib.import_module("app.bot")
 
-pytestmark = [pytest.mark.unit, pytest.mark.shared_contract("lifecycle")]
+pytestmark = [
+    pytest.mark.unit,
+    pytest.mark.shared_contract("lifecycle"),
+    pytest.mark.slow,
+]
 
 REFUSED_STARTS = [
     discord.LoginFailure("Improper token has been passed."),

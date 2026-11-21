@@ -1,10 +1,11 @@
 """Shared contract: the primitives that read a copy block.
 
-`response_embed`, `response_error_embed`, `error_message`, `RecordsBrowser(copy=)`,
-`card_copy`, `announcement_embed`, `figure_lines` and the panel helpers of
-`GenericCogFeature` each read one typed block of a copy file (`app/core/i18n.py`),
+`response_embed`, `response_error_embed`, `error_message`, `card_copy`,
+`announcement_embed`, `figure_lines` and the panel helpers of `GenericCogFeature`
+each read one typed block of a copy file (`app/core/i18n.py`),
 the overrides its facts choose in place. The blocks here come from
-`tests/helpers/copy.py`.
+`tests/helpers/copy.py`; `RecordsBrowser(copy=)` keeps its own contract in
+`test_records_view.py`.
 """
 
 import discord
@@ -25,8 +26,6 @@ from app.ui.embed import (
     response_error_embed,
     standard_footer,
 )
-from app.ui.pagination import PaginationView
-from app.ui.records import RecordsBrowser
 from tests.helpers.copy import SAMPLE, checked_copy  # noqa: F401
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("copy_primitives")]
@@ -250,7 +249,8 @@ def test_the_plain_error_reads_the_message_of_the_block_it_names(sample):
 def test_the_plain_error_fills_a_shared_block_by_its_name():
     found = error_message("required_fields", {"fields": "**A**"}, "pt-br")
 
-    assert found == "Ops! Ainda preciso que você configure **A** antes de seguir."
+    assert found == fill(ml("errors.required_fields.message", "pt-br"), fields="**A**")
+    assert "**A**" in found and "$fields" not in found
 
 
 def test_fill_refuses_a_value_the_line_names_in_braces():
@@ -265,97 +265,6 @@ def test_the_standard_line_is_the_footer_every_form_step_falls_back_to():
 
     assert standard_footer("pt-br") == footer.pt_br
     assert standard_footer("en-us") == footer.en_us
-
-
-async def test_a_records_block_titles_the_list_and_fills_its_values(
-    sample, scenario_factory
-):
-    scenario = scenario_factory(locale="pt-br")
-
-    async def fetch(_interaction, _user):
-        return [{"name": "a"}]
-
-    browser = RecordsBrowser(
-        fetch,
-        lambda records, _interaction: {record["name"]: "x" for record in records},
-        copy="sample.ui.records.saved",
-        facts=_facts(who="Ana"),
-    )
-    await browser.send(scenario._mint())
-
-    listing = scenario.expect_message(ephemeral=True, title_contains="Salvos por Ana")
-    assert "Tudo que Ana salvou" in str(listing.get("embed"))
-    assert isinstance(scenario.current_message.view, PaginationView)
-
-
-async def test_a_records_block_draws_its_empty_state_and_its_filter(
-    sample, scenario_factory
-):
-    from tests.mocks.discord import create_guild, create_member
-
-    guild = create_guild()
-    create_member(guild, id=222, name="Inocente", roles=["Member"])
-    scenario = scenario_factory(locale="en-us", guild=guild)
-
-    async def fetch(_interaction, user):
-        return [] if user else [{"name": "spam"}]
-
-    browser = RecordsBrowser(
-        fetch,
-        lambda records, _interaction: {record["name"]: "x" for record in records},
-        copy="sample.ui.records.saved",
-        facts=_facts(who="Ana"),
-    )
-    await browser.send(scenario._mint())
-
-    await scenario.click("Filter by member")
-    scenario.expect_message(title_contains="Whose samples?")
-    await scenario.select_option("Inocente")
-    await scenario.confirm()
-    scenario.expect_message(description_contains="This member saved nothing.")
-
-
-async def test_an_empty_records_block_draws_its_empty_text(sample, scenario_factory):
-    scenario = scenario_factory(locale="en-us")
-
-    async def fetch(_interaction, _user):
-        return []
-
-    await RecordsBrowser(
-        fetch,
-        lambda records, _i: {},
-        copy="sample.ui.records.saved",
-        facts=_facts(who="x"),
-    ).send(scenario._mint())
-
-    scenario.expect_message(description_contains="Nothing saved yet!")
-
-
-async def test_a_records_block_draws_in_the_language_it_is_given(
-    sample, scenario_factory
-):
-    scenario = scenario_factory(locale="en-us")
-
-    async def fetch(_interaction, _user):
-        return [{"name": "a"}]
-
-    await RecordsBrowser(
-        fetch,
-        lambda records, _i: {record["name"]: "x" for record in records},
-        copy="sample.ui.records.saved",
-        facts=_facts(who="Ana"),
-        locale="pt-br",
-    ).send(scenario._mint())
-
-    scenario.expect_message(title_contains="Salvos por Ana")
-
-
-async def test_a_records_block_no_copy_writes_is_refused(scenario_factory):
-    scenario = scenario_factory(locale="en-us")
-    browser = RecordsBrowser(None, None, copy="report.ui.records.tickets")
-
-    with pytest.raises(CopyError, match="no copy file writes it"):
-        await browser.send(scenario._mint())
 
 
 class _Sample(GenericCogFeature):

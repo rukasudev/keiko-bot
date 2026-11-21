@@ -96,7 +96,7 @@ async def test_no_typed_text_ever_reaches_an_event(scenario_factory, analytics_e
 
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
-    await scenario.click("customize:1")
+    await scenario.click("customize:answer")
     await scenario.submit_modal({"resposta": secret})
     await scenario.click("done")
     await scenario.confirm()
@@ -138,7 +138,7 @@ async def test_a_declared_option_is_recorded_but_a_typed_answer_is_not(
     is typed. Only the first may ever be tabulated."""
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
-    await scenario.click("customize:1")
+    await scenario.click("customize:answer")
     await scenario.submit_modal({"resposta": "texto que ninguem deve ver"})
     await scenario.click("done")
     await scenario.confirm()
@@ -153,8 +153,8 @@ async def test_a_declared_option_is_recorded_but_a_typed_answer_is_not(
 async def test_going_back_is_reported_and_counted(scenario_factory, analytics_events):
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
-    await scenario.click("customize:2")
-    await scenario.click("customize:6")
+    await scenario.click("customize:exceptions")
+    await scenario.click("customize:own_links")
     await scenario.submit_modal({"link": "youtube.com/watch?v=abc123"})
     await scenario.click("back")
 

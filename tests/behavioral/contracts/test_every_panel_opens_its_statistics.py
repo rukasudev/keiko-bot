@@ -19,7 +19,8 @@ import discord
 import pytest
 
 from app.constants import Commands
-from app.core.utils import fill, ml
+from app.core.commands import command_for
+from app.core.utils import command_text, fill, ml
 from app.forms.features import feature_for, feature_keys
 from app.forms.form.form_yaml import registry
 from app.forms.form.manager import PanelExtras, panel_buttons
@@ -30,6 +31,10 @@ pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form"
 
 RECENT = "texts.recent"
 DAYS = Commands.FEATURE_STATS_DAYS
+LOCALES = {
+    "pt-br": discord.Locale.brazil_portuguese,
+    "en-us": discord.Locale.american_english,
+}
 
 
 def _interaction(guild):
@@ -63,17 +68,19 @@ def _paragraphs(embed):
     return paragraphs
 
 
-PORTUGUESE_TITLES = {
-    "welcome_messages": "📊 Estatísticas de Mensagens de Boas-Vindas",
-    "default_roles": "📊 Estatísticas de Cargos Padrão",
-    "block_links": "📊 Estatísticas de Bloquear Links",
-    "notifications_twitch": "📊 Estatísticas de Twitch Lives",
-    "notifications_youtube_video": "📊 Estatísticas de YouTube Vídeos",
-    "reminders_birthday": "📊 Estatísticas de Lembretes de Aniversário",
-    "stream_elements_commands": (
-        "📊 Estatísticas de Comandos do StreamElements"
-    ),
-}
+def delivered_line(key, count, locale="pt-br"):
+    """How `key` says it delivered `count` times in its last days, in `locale`."""
+    form = "one" if count == 1 else "other"
+    return fill(ml(f"{key}.command.stats.delivered.{form}", locale), count=count, days=DAYS)
+
+
+def refused_line(count, locale="pt-br"):
+    form = "one" if count == 1 else "many"
+    return fill(ml(f"{RECENT}.refused_{form}", locale), count=count, days=DAYS)
+
+
+def quiet_line(locale="pt-br"):
+    return fill(ml(f"{RECENT}.quiet", locale), days=DAYS)
 
 
 @pytest.mark.parametrize("key", feature_keys())
@@ -83,7 +90,7 @@ async def test_every_panel_draws_the_statistics_and_its_feature_answers_them(dep
     embed = await _stats(key, create_guild(id=777))
 
     assert [button.action for button in buttons].count("aside:stats") == 1
-    assert embed.title == PORTUGUESE_TITLES[key]
+    assert embed.title == ml(f"{key}.command.stats.title", "pt-br")
 
 
 @pytest.mark.parametrize("key", feature_keys())
@@ -104,7 +111,7 @@ async def test_a_quiet_feature_says_so_under_its_own_title(deps):
     embed = await _stats("default_roles", create_guild(id=777))
 
     assert embed.title == ml("default_roles.command.stats.title", "pt-br")
-    assert _paragraphs(embed) == [fill(ml(f"{RECENT}.quiet", "pt-br"), days=DAYS)]
+    assert _paragraphs(embed) == [quiet_line()]
 
 
 async def test_the_deliveries_of_the_last_days_are_counted(deps):
@@ -112,9 +119,7 @@ async def test_the_deliveries_of_the_last_days_are_counted(deps):
 
     embed = await _stats("default_roles", create_guild(id=777))
 
-    assert _paragraphs(embed) == [
-        fill(ml("default_roles.command.stats.delivered.other", "pt-br"), count=3, days=DAYS)
-    ]
+    assert _paragraphs(embed) == [delivered_line("default_roles", 3)]
 
 
 async def test_a_missing_permission_comes_before_the_deliveries(deps):
@@ -139,7 +144,7 @@ async def test_block_links_keep_their_figures_above_the_last_days(deps):
     assert figures == ml(
         "block_links.command.stats.empty", "pt-br"
     )
-    assert recent == fill(ml(f"{RECENT}.quiet", "pt-br"), days=DAYS)
+    assert recent == quiet_line()
 
 
 async def test_birthdays_keep_their_figures_above_the_last_days(deps):
@@ -150,7 +155,7 @@ async def test_birthdays_keep_their_figures_above_the_last_days(deps):
     assert figures.startswith("🎂 **" + ml(
         "reminders_birthday.command.stats.figures.total", "pt-br"
     ))
-    assert recent == fill(ml(f"{RECENT}.quiet", "pt-br"), days=DAYS)
+    assert recent == quiet_line()
 
 
 async def _stats_in(locale, key, guild):
@@ -160,48 +165,16 @@ async def _stats_in(locale, key, guild):
     return sent[-1]["embed"]
 
 
-@pytest.mark.parametrize("key,portuguese,english", [
-    (
-        "welcome_messages",
-        "📊 Estatísticas de Mensagens de Boas-Vindas",
-        "📊 Welcome Messages Statistics",
-    ),
-    ("default_roles", "📊 Estatísticas de Cargos Padrão", "📊 Default Roles Statistics"),
-    ("block_links", "📊 Estatísticas de Bloquear Links", "📊 Block Links Statistics"),
-    (
-        "notifications_twitch",
-        "📊 Estatísticas de Twitch Lives",
-        "📊 Twitch Lives Statistics",
-    ),
-    (
-        "notifications_youtube_video",
-        "📊 Estatísticas de YouTube Vídeos",
-        "📊 YouTube Videos Statistics",
-    ),
-    (
-        "reminders_birthday",
-        "📊 Estatísticas de Lembretes de Aniversário",
-        "📊 Birthday Reminders Statistics",
-    ),
-    (
-        "stream_elements_commands",
-        "📊 Estatísticas de Comandos do StreamElements",
-        "📊 StreamElements Commands Statistics",
-    ),
-])
-async def test_the_statistics_are_titled_with_the_features_official_name(
-    deps, key, portuguese, english
-):
+@pytest.mark.parametrize("key", feature_keys())
+async def test_the_statistics_are_titled_with_the_features_official_name(deps, key):
     """A feature has one name everywhere an admin reads it: the statistics said
     "boas-vindas" or "avisos de live" where the panel says its official name."""
     guild = create_guild(id=777)
 
-    titles = [
-        (await _stats_in(locale, key, guild)).title
-        for locale in (discord.Locale.brazil_portuguese, discord.Locale.american_english)
-    ]
-
-    assert titles == [portuguese, english]
+    for locale, discord_locale in LOCALES.items():
+        title = (await _stats_in(discord_locale, key, guild)).title
+        assert title == ml(f"{key}.command.stats.title", locale)
+        assert command_text(command_for(key), "command.setup.label", locale) in title
 
 
 def _days_ago(days):
@@ -244,7 +217,10 @@ async def test_a_missing_permission_is_told_before_the_refusals_and_the_deliveri
 
     line = await _last_days("block_links", guild)
 
-    assert line == "⚠️ Preciso da permissão **Gerenciar mensagens** no servidor"
+    assert line == fill(
+        ml("texts.permissions.server", "pt-br"),
+        permission=ml("texts.permission_names.manage_messages", "pt-br"),
+    )
 
 
 async def test_the_refused_deliveries_of_the_last_days_come_before_the_ones_made(deps):
@@ -257,60 +233,39 @@ async def test_the_refused_deliveries_of_the_last_days_come_before_the_ones_made
 
     line = await _last_days("block_links")
 
-    assert line == (
-        "⚠️ Nos últimos 7 dias, 2 vezes eu não consegui fazer meu trabalho por falta de"
-        " permissão. Confira em **Permissões** no `/configurar`!"
-    )
+    assert line == refused_line(2)
 
 
-@pytest.mark.parametrize("key,event,count,sentence", [
-    (
-        "block_links",
-        "link_blocked",
-        3,
-        "✅ Bloqueei 3 links nos últimos 7 dias!",
-    ),
-    (
-        "block_links",
-        "link_blocked",
-        1,
-        "✅ Bloqueei 1 link nos últimos 7 dias!",
-    ),
-    (
-        "welcome_messages",
-        "value_delivered",
-        1,
-        "✅ Enviei 1 mensagem de boas-vindas nos últimos 7 dias!",
-    ),
+@pytest.mark.parametrize("key,event,count", [
+    ("block_links", "link_blocked", 3),
+    ("block_links", "link_blocked", 1),
+    ("welcome_messages", "value_delivered", 1),
 ])
 async def test_the_deliveries_of_the_last_seven_days_are_named_per_feature(
-    deps, key, event, count, sentence
+    deps, key, event, count
 ):
     _configure(deps, key)
     _delivered(deps, key, count, event)
     _delivered(deps, key, 40, event, days=12)
 
-    assert await _last_days(key) == sentence
+    assert await _last_days(key) == delivered_line(key, count)
 
 
-@pytest.mark.parametrize("locale,verb", [
-    (discord.Locale.brazil_portuguese, "Enviei"),
-    (discord.Locale.american_english, "I sent"),
-])
+@pytest.mark.parametrize("locale", LOCALES)
 @pytest.mark.parametrize("count", [1, 3])
 async def test_every_features_deliveries_read_as_a_sentence_in_both_languages(
-    deps, locale, verb, count
+    deps, locale, count
 ):
     lines = {}
     for key in feature_keys():
         _delivered(deps, key, count, "value_delivered")
-        embed = await _stats_in(locale, key, create_guild(id=777))
+        embed = await _stats_in(LOCALES[locale], key, create_guild(id=777))
         lines[key] = _paragraphs(embed)[-1]
 
     for key, line in lines.items():
         assert "commands." not in line and "$" not in line, (key, line)
         assert line.startswith("✅ ") and f" {count} " in line, (key, line)
-    assert verb in lines["welcome_messages"]
+    assert lines["welcome_messages"] == delivered_line("welcome_messages", count, locale)
 
 
 async def test_a_feature_whose_deliveries_are_older_than_seven_days_reads_quiet(deps):
@@ -318,7 +273,7 @@ async def test_a_feature_whose_deliveries_are_older_than_seven_days_reads_quiet(
     _delivered(deps, "block_links", 40, "link_blocked", days=12)
     _refused(deps, "block_links", days=9)
 
-    assert await _last_days("block_links") == "💤 Nenhuma novidade nos últimos 7 dias."
+    assert await _last_days("block_links") == quiet_line()
 
 
 async def test_the_statistics_read_the_analytics_once(deps, monkeypatch):
@@ -340,21 +295,11 @@ async def test_the_statistics_read_the_analytics_once(deps, monkeypatch):
     assert sorted(reads) == ["counts"]
 
 
-@pytest.mark.parametrize("locale,sentence", [
-    (
-        discord.Locale.brazil_portuguese,
-        "⚠️ Nos últimos 7 dias, 1 vez eu não consegui fazer meu trabalho por falta de"
-        " permissão. Confira em **Permissões** no `/configurar`!",
-    ),
-    (
-        discord.Locale.american_english,
-        "⚠️ In the last 7 days, I couldn't do my job once because of a missing"
-        " permission. Check **Permissions** on `/setup`!",
-    ),
-])
-async def test_one_refused_delivery_is_told_in_the_singular(deps, locale, sentence):
+@pytest.mark.parametrize("locale", LOCALES)
+async def test_one_refused_delivery_is_told_in_the_singular(deps, locale):
     _refused(deps, "default_roles")
 
-    embed = await _stats_in(locale, "default_roles", create_guild(id=777))
+    embed = await _stats_in(LOCALES[locale], "default_roles", create_guild(id=777))
 
-    assert _paragraphs(embed) == [sentence]
+    assert _paragraphs(embed) == [refused_line(1, locale)]
+    assert refused_line(1, locale) != refused_line(2, locale).replace("2", "1")

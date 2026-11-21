@@ -3,6 +3,15 @@
 Before this suite `app/logger.py` had no coverage at all, and a webhook that
 logged seven times produced seven messages in an order that did not match the
 order things happened. Everything below pins the behavior that replaced it.
+
+Everything a trace shows must also have travelled through `logging`.
+`DiscordLogsHandler.emit` folds a log record into the open trace and suppresses
+the separate embed, so `logger.info` inside a trace becomes a timeline line *and*
+reaches the file and Mongo. Writing straight to `trace.add()` skips that bus: the
+line renders in Discord and exists nowhere else. That is what happened in
+production: the invocation line was added with `trace.add()` at two call sites, so
+`guild.logs` held eight boot records and nothing about the commands people actually
+ran, while the log channel showed the same invocation printed twice.
 """
 import logging
 from types import SimpleNamespace
@@ -12,6 +21,10 @@ import pytest
 
 from app import logger as logger_module
 from app.constants import LogTypes as logconstants
+from app.core import debug_logs
+from app.data import wait
+from app.logger import StoredLogsHandler
+from tests.mocks.database import fake_store
 from app.core import trace as trace_service
 from app.core.trace import Outcome, Trace, trace_scope
 import discord
@@ -21,76 +34,6 @@ from tests.generators.moderations import recorded_server
 from tests.mocks.discord import create_member, create_message
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("logging")]
-
-
-class _NoopCoroutine:
-    def __await__(self):
-        yield
-        return None
-
-    def close(self):
-        return None
-
-
-class FakeChannel:
-    """Records what would have been posted, without a coroutine ever running."""
-
-    def __init__(self, name, sends, routed):
-        self.name = name
-        self._sends = sends
-        self._routed = routed
-
-    def send(self, **kwargs):
-        self._sends.append(kwargs)
-        self._routed.append(self.name)
-        return _NoopCoroutine()
-
-
-@pytest.fixture
-def discord_logs():
-    """A handler wired to fake channels, detached from the global logger."""
-    sends = []
-    routed = []
-    ids = {1: "logs", 2: "errors", 3: "calls", 4: "actions"}
-    channels = {name: FakeChannel(name, sends, routed) for name in ids.values()}
-
-    bot = SimpleNamespace(
-        loop=MagicMock(),
-        config=SimpleNamespace(
-            ADMIN_LOGS_CHANNEL_ID=1,
-            ADMIN_LOGS_ERROR_CHANNEL_ID=2,
-            ADMIN_LOGS_COMMAND_CALL_ID=3,
-            ADMIN_LOGS_BOT_ACTIONS_CHANNEL_ID=4,
-        ),
-        get_channel=lambda channel_id: channels.get(ids.get(channel_id)),
-    )
-
-    trace_service.clear_sinks()
-    # Folding lives on the bus now, not inside DiscordLogsHandler, so the wiring
-    # under test is the same pair `LoggerHooks.start` installs.
-    folding = logger_module.TraceFoldingHandler()
-    logger_module.logger.addHandler(folding)
-    handler = logger_module.DiscordLogsHandler(bot)
-    logger_module.logger.removeHandler(handler)
-    handler.schedule_send = lambda coroutine: coroutine.close()
-
-    def dispatch(record):
-        """What `Logger.callHandlers` does: every handler sees every record.
-
-        Folding and rendering are two handlers now, so a test that drives only
-        the Discord one is testing half the bus.
-        """
-        folding.emit(record)
-        handler.emit(record)
-
-    yield SimpleNamespace(
-        handler=handler, channels=channels, sends=sends, routed=routed,
-        emit=dispatch,
-    )
-
-    logger_module.logger.removeHandler(folding)
-
-    trace_service.clear_sinks()
 
 
 def rendered(embed):
@@ -650,3 +593,156 @@ async def test_a_command_count_that_fails_is_an_error_with_its_context(
     assert failed.context.guild_id == str(guild.id)
     assert failed.context.user_id == "222"
     assert failed.context.channel_id == str(channel.id)
+
+
+# --------------------------------------------------------------------------
+# The logging bus: every line a trace shows is also a stored log line
+# --------------------------------------------------------------------------
+
+@pytest.fixture
+def sink():
+    """The bus as `LoggerHooks.start` wires it: folding first, then the sink."""
+    trace_service.clear_sinks()
+    root = logging.getLogger()
+    previous_level = root.level
+    root.setLevel(logging.INFO)
+
+    folding = logger_module.TraceFoldingHandler()
+    root.addHandler(folding)
+    stored = StoredLogsHandler()
+
+    yield stored
+
+    root.removeHandler(folding)
+    root.removeHandler(stored)
+    root.setLevel(previous_level)
+    trace_service.clear_sinks()
+
+
+def stored_messages():
+    wait(debug_logs.flush())
+    from app.data import logs as logs_data
+
+    return [document["message"] for document in fake_store().guild.logs.find({})]
+
+
+# --------------------------------------------------------------------------
+# One invocation, one line
+# --------------------------------------------------------------------------
+
+def test_a_nested_scope_does_not_repeat_the_opening_line(sink):
+    """Broke as: the decorator and the button both added the same line, and a
+    command reached through a button ran both, printing the invocation twice."""
+    with trace_scope("moderations birthdays", opening="`/moderations birthdays` started") as outer:
+        with trace_scope("moderations birthdays", opening="`/moderations birthdays` started"):
+            pass
+
+        openings = [line for line in outer.lines if "started" in line["message"]]
+
+    assert len(openings) == 1, [line["message"] for line in outer.lines]
+
+
+def test_the_opening_line_belongs_to_the_trace_that_was_created(sink):
+    with trace_scope("ping", opening="`/ping` started") as trace:
+        assert any("`/ping` started" in line["message"] for line in trace.lines)
+
+
+def test_no_timeline_line_uses_the_word_the_style_guide_forbids(sink):
+    """`invoke` is on the writing-style skill's avoid list."""
+    with trace_scope("ping", opening="`/ping` started") as trace:
+        pass
+
+    for line in trace.lines:
+        assert "invoke" not in line["message"].lower()
+
+
+# --------------------------------------------------------------------------
+# The hole this closes: the timeline must also be queryable
+# --------------------------------------------------------------------------
+
+def test_the_opening_line_reaches_the_stored_log(sink):
+    """Broke as: production `guild.logs` had only boot records, because command
+    activity never passed through `logging` at all."""
+    with trace_scope("ping", opening="`/ping` started"):
+        pass
+
+    assert any("`/ping` started" in message for message in stored_messages())
+
+
+def test_a_line_logged_inside_the_trace_is_both_folded_and_stored(sink):
+    with trace_scope("moderations birthdays", opening="`/x` started") as trace:
+        logging.getLogger("app.test").info("setup opened")
+
+    assert any("setup opened" in line["message"] for line in trace.lines)
+    assert any("setup opened" in message for message in stored_messages())
+
+
+def test_a_trace_without_an_opening_logs_nothing_extra(sink):
+    with trace_scope("on_message", silent_when_clean=True) as trace:
+        pass
+
+    assert trace.lines == []
+    assert stored_messages() == []
+
+
+def test_a_quiet_trace_stores_its_lines_under_the_session_and_posts_nothing(sink):
+    """A form click is told by the session message; the engine lines it wrote
+    still belong in the stored log, grouped by the session."""
+    with trace_scope(
+        "moderations block links:Answered", quiet=True, session_id="sess01"
+    ) as trace:
+        logging.getLogger("app.test").info(
+            "form block_links sess01 rev=2 cursor=mode Answered -> active"
+        )
+
+    assert trace.is_noteworthy is False
+    wait(debug_logs.flush())
+    from app.data import logs as logs_data
+
+    stored = [
+        document
+        for document in fake_store().guild.logs.find({})
+        if "rev=2" in document["message"]
+    ]
+    assert stored and stored[0].get("session_id") == "sess01"
+
+
+def test_a_unit_of_work_keeps_the_result_it_named(sink):
+    with trace_scope("birthday") as trace:
+        trace.result = "registered"
+
+    assert trace.result == "registered", "the Result field says how the command ended"
+
+    with trace_scope("birthday") as failed:
+        failed.result = "registered"
+        logging.getLogger("app.test").error("reminders-api refused the payload")
+
+    assert failed.result == "failure", "an error still wins"
+
+
+async def test_a_confirmation_view_can_run_its_callback_under_a_trace_of_its_own(sink):
+    """A confirmation answered after its command returned used to run with no
+    trace, so what it did never reached the log channel."""
+    from types import SimpleNamespace
+
+    from app.ui.confirm_action import ConfirmActionView
+
+    seen = []
+    closed = []
+    trace_service.register_sink(closed.append)
+
+    async def on_confirm(interaction):
+        seen.append(trace_service.current_trace())
+        logging.getLogger("app.test").info("🎂 birthday replaced")
+
+    view = ConfirmActionView(on_confirm=on_confirm, locale="pt-br", trace_name="birthday")
+    interaction = SimpleNamespace(
+        guild_id=1,
+        user=SimpleNamespace(id=9, guild_permissions=SimpleNamespace(administrator=False)),
+    )
+    await view.confirm.callback(interaction)
+
+    assert seen[0] is not None and seen[0].name == "birthday"
+    assert [trace.name for trace in closed] == ["birthday"]
+    assert any("birthday replaced" in line["message"] for line in closed[0].lines)
+    assert closed[0].is_admin is False

@@ -132,7 +132,7 @@ async def test_a_validation_failure_shows_the_field_not_what_was_typed(
 
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
-    await scenario.click("customize:1")
+    await scenario.click("customize:answer")
     await scenario.submit_modal({"resposta": secret})
     await scenario.click("done")
     await scenario.confirm()
@@ -157,7 +157,7 @@ async def test_editing_through_the_manager_lists_the_changed_fields(
         "block_links", normalize_block_links_config(legacy)
     )
     await scenario.click("section:link_settings")
-    await scenario.click("customize:1")
+    await scenario.click("customize:answer")
     await scenario.submit_modal({"resposta": "Resposta nova"})
     await scenario.click("done")
     await scenario.expire()

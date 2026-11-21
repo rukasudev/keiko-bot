@@ -1,340 +1,115 @@
-"""
-Testes de integracao para welcome_messages.
+"""A member who joins is welcomed in the channel the server chose: the saved
+message, its placeholders filled once, under the banner of the chosen design; and
+nothing at all when the welcome is not set up or its channel is gone."""
 
-Estes testes verificam o fluxo de envio de mensagens de boas-vindas
-quando um novo membro entra no servidor.
-"""
-
+import logging
 from types import SimpleNamespace
 from urllib.parse import urlparse
+from unittest.mock import AsyncMock
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
+
 from app.commands.welcome import service as welcome_messages
-from app.core import images
 from app.commands.welcome.service import parse_welcome_messages, send_welcome_message
-from tests.mocks import create_guild, create_member
+from app.constants import Commands
+from app.core import images
 from tests.generators import moderations
+from tests.mocks import create_guild, create_member
 
 REAL_CREATE_BANNER = welcome_messages.create_banner
 REAL_UPLOAD_ASSET = images.upload_asset
+BANNER = f"attachment://{Commands.WELCOME_BANNER_FILENAME}"
+
+
+async def set_up_welcome(deps, guild, **saved):
+    """Save the server's welcome, in the shape the card saves it."""
+    saved.setdefault("channel_id", str(guild.text_channels[0].id))
+    await moderations.welcome_messages(deps.mongo_client, guild_id=str(guild.id), **saved)
+
+
+def sent(guild):
+    return [message for channel in guild.text_channels for message in channel.get_all_messages()]
 
 
 class TestWelcomeMessagesSend:
-    """Testes de envio de mensagens de boas-vindas."""
+    """What reaches the channel when a member joins."""
 
-    @pytest.mark.asyncio
-    async def test_sends_welcome_message_when_configured(
-        self, mock_cache, mock_banner, mongodb, guild, bot, channel
-    ):
-        """
-        Verifica que mensagem de boas-vindas e enviada quando configurado.
-
-        Input: Novo membro entra, welcome_messages habilitado
-        Output: Embed de boas-vindas enviado no canal configurado
-        """
-        # Arrange
+    async def test_a_new_member_is_welcomed_in_the_chosen_channel(self, deps, guild):
+        """The saved message, `{user}` filled with the member's mention, under the
+        banner drawn for the server and attached to the message."""
+        await set_up_welcome(deps, guild, title="Welcome!", messages=["Hello {user}!"])
         new_member = create_member(guild, id=999, name="NewUser")
-        new_member._user = MagicMock()
-        new_member._user.id = 999
 
-        mock_cache.return_value = {
-            "welcome_messages_channel": {"values": str(channel.id)},
-            "welcome_messages": {"values": "Welcome {user}!"},
-            "welcome_messages_title": "Welcome!",
-            "welcome_messages_footer": "Enjoy your stay!"
-        }
-
-        # Act
         await send_welcome_message(new_member)
 
-        # Assert
-        channel.assert_message_sent()
-        embed = channel.get_last_embed()
-        assert embed is not None
+        [welcome] = sent(guild)
+        assert welcome.channel is guild.text_channels[0]
+        assert welcome.embeds[0].description == "Hello <@!999>!"
+        assert welcome.embeds[0].image.url == BANNER
+        assert [file.filename for file in welcome.attachments] == [
+            Commands.WELCOME_BANNER_FILENAME
+        ]
 
-    @pytest.mark.asyncio
-    async def test_does_nothing_when_not_configured(
-        self, mock_cache, mongodb, guild, bot
+    async def test_nothing_is_sent_when_the_welcome_is_not_set_up(self, guild):
+        await send_welcome_message(create_member(guild, id=999, name="NewUser"))
+
+        assert sent(guild) == []
+
+    @pytest.mark.parametrize(
+        "saved",
+        [
+            {"channel_id": "999999"},
+            {"channel_id": None},
+            {"messages": []},
+        ],
+        ids=["channel-gone", "no-channel", "no-message"],
+    )
+    async def test_nothing_is_sent_when_the_channel_or_the_message_is_missing(
+        self, deps, guild, saved
     ):
-        """
-        Verifica que nada acontece quando welcome_messages nao esta configurado.
+        """A deleted channel, or a welcome saved without a channel or a message, sends
+        nothing and raises nothing."""
+        await set_up_welcome(deps, guild, **saved)
 
-        Input: Novo membro entra, welcome_messages desabilitado
-        Output: Nenhuma mensagem enviada
-        """
-        # Arrange
-        new_member = create_member(guild, id=999, name="NewUser")
-        channel = guild.text_channels[0]
-        mock_cache.return_value = None
+        await send_welcome_message(create_member(guild, id=999, name="NewUser"))
 
-        # Act
-        await send_welcome_message(new_member)
-
-        # Assert
-        channel.assert_no_message_sent()
-
-    @pytest.mark.asyncio
-    async def test_does_nothing_when_channel_not_found(
-        self, mock_cache, mongodb, guild, bot
-    ):
-        """
-        Verifica que nada acontece se o canal configurado nao existe mais.
-
-        Input: Canal configurado foi deletado
-        Output: Nenhuma mensagem enviada, nenhum erro
-        """
-        # Arrange
-        new_member = create_member(guild, id=999, name="NewUser")
-        new_member._user = MagicMock()
-        new_member._user.id = 999
-
-        mock_cache.return_value = {
-            "welcome_messages_channel": {"values": "999999"},  # Canal inexistente
-            "welcome_messages": {"values": "Welcome!"},
-            "welcome_messages_title": "Welcome!",
-            "welcome_messages_footer": "Footer"
-        }
-
-        # Act
-        await send_welcome_message(new_member)
-
-        # Assert
-        for ch in guild.text_channels:
-            ch.assert_no_message_sent()
-
-
-class TestWelcomeMessagesWithDatabase:
-    """Testes usando o gerador de dados."""
-
-    @pytest.mark.asyncio
-    async def test_sends_message_from_database_config(
-        self, mock_cache, mock_banner, mongodb, guild, bot, channel
-    ):
-        """
-        Verifica que configuracao do banco e usada corretamente.
-
-        Input: Configuracao no banco de dados
-        Output: Mensagem de boas-vindas enviada
-        """
-        # Arrange
-        await moderations.welcome_messages(
-            mongodb,
-            guild_id=str(guild.id),
-            channel_id=str(channel.id),
-            title="Welcome!",
-            messages=["Hello {user}!"],
-            footer="Enjoy!"
-        )
-
-        new_member = create_member(guild, id=999, name="NewUser")
-        new_member._user = MagicMock()
-        new_member._user.id = 999
-
-        mock_cache.return_value = {
-            "welcome_messages_channel": {"values": str(channel.id)},
-            "welcome_messages": {"values": "Hello {user}!"},
-            "welcome_messages_title": "Welcome!",
-            "welcome_messages_footer": "Enjoy!"
-        }
-
-        # Act
-        await send_welcome_message(new_member)
-
-        # Assert
-        channel.assert_message_sent()
-
-
-class TestWelcomeMessagesPlaceholders:
-    """Testes de substituicao de placeholders."""
-
-    @pytest.mark.asyncio
-    async def test_replaces_user_placeholder(
-        self, mock_cache, mock_banner, mongodb, guild, bot, channel
-    ):
-        """
-        Verifica que {user} e substituido pela mencao do membro.
-
-        Input: Mensagem com {user}
-        Output: Mensagem com mencao do usuario
-        """
-        # Arrange
-        new_member = create_member(guild, id=999, name="NewUser")
-        new_member._user = MagicMock()
-        new_member._user.id = 999
-
-        mock_cache.return_value = {
-            "welcome_messages_channel": {"values": str(channel.id)},
-            "welcome_messages": {"values": "Hello {user}!"},
-            "welcome_messages_title": "Welcome!",
-            "welcome_messages_footer": "Footer"
-        }
-
-        # Act
-        await send_welcome_message(new_member)
-
-        # Assert
-        channel.assert_message_sent()
-        embed = channel.get_last_embed()
-        assert embed is not None
-        assert "<@!999>" in embed.description or "<@!999>" in str(embed.fields)
-
-
-class TestWelcomeMessagesEdgeCases:
-    """Testes de casos especiais."""
-
-    @pytest.mark.asyncio
-    async def test_handles_missing_channel_value(
-        self, mock_cache, mongodb, guild, bot
-    ):
-        """
-        Verifica que nao falha quando channel nao tem valores.
-
-        Input: Configuracao sem canal definido
-        Output: Nenhuma mensagem enviada, nenhum erro
-        """
-        # Arrange
-        new_member = create_member(guild, id=999, name="NewUser")
-        mock_cache.return_value = {
-            "welcome_messages_channel": {"values": None},
-            "welcome_messages": {"values": "Welcome!"},
-            "welcome_messages_title": "Welcome!",
-            "welcome_messages_footer": "Footer"
-        }
-
-        # Act
-        await send_welcome_message(new_member)
-
-        # Assert
-        for ch in guild.text_channels:
-            ch.assert_no_message_sent()
-
-    @pytest.mark.asyncio
-    async def test_handles_missing_messages_value(
-        self, mock_cache, mongodb, guild, bot, channel
-    ):
-        """
-        Verifica que nao falha quando messages nao tem valores.
-
-        Input: Configuracao sem mensagens definidas
-        Output: Nenhuma mensagem enviada, nenhum erro
-        """
-        # Arrange
-        new_member = create_member(guild, id=999, name="NewUser")
-        mock_cache.return_value = {
-            "welcome_messages_channel": {"values": str(channel.id)},
-            "welcome_messages": {"values": None},
-            "welcome_messages_title": "Welcome!",
-            "welcome_messages_footer": "Footer"
-        }
-
-        # Act
-        await send_welcome_message(new_member)
-
-        # Assert - retorna early sem enviar mensagem
-        channel._send.assert_not_called()
+        assert sent(guild) == []
 
 
 class TestWelcomeMessagesDesign:
-    """Testes de design de banner de boas-vindas."""
+    """The banner each design puts on the welcome."""
 
-    @pytest.mark.asyncio
-    async def test_sends_message_with_custom_design(
-        self, mock_cache, mock_banner, mongodb, guild, bot, channel
-    ):
-        """
-        Verifica que mensagem e enviada com design customizado.
+    @pytest.mark.parametrize("design", [None, "server_blur", "custom_blur"])
+    async def test_a_drawn_design_attaches_its_banner(self, deps, guild, design):
+        """The server's blur (also when no design was saved) and the custom blur are
+        drawn and attached to the welcome."""
+        await set_up_welcome(
+            deps, guild, design=design, custom_image="https://example.com/custom.png"
+        )
 
-        Input: Configuracao com welcome_design=custom_blur
-        Output: Embed enviado com banner customizado
-        """
-        # Arrange
-        new_member = create_member(guild, id=999, name="NewUser")
-        new_member._user = MagicMock()
-        new_member._user.id = 999
+        await send_welcome_message(create_member(guild, id=999, name="NewUser"))
 
-        mock_cache.return_value = {
-            "welcome_messages_channel": {"values": str(channel.id)},
-            "welcome_messages": {"values": "Welcome {user}!"},
-            "welcome_messages_title": "Welcome!",
-            "welcome_messages_footer": "Enjoy!",
-            "welcome_design": "custom_blur",
-            "welcome_custom_image": "https://example.com/custom.png"
-        }
+        [welcome] = sent(guild)
+        assert welcome.embeds[0].image.url == BANNER
+        assert [file.filename for file in welcome.attachments] == [
+            Commands.WELCOME_BANNER_FILENAME
+        ]
 
-        # Act
-        await send_welcome_message(new_member)
+    async def test_the_custom_image_design_shows_the_image_as_saved(self, deps, guild):
+        """`custom_only` shows the admin's image itself: nothing is drawn or attached."""
+        image = "https://example.com/custom.gif"
+        await set_up_welcome(deps, guild, design="custom_only", custom_image=image)
 
-        # Assert
-        channel.assert_message_sent()
-        mock_banner.assert_called_once()
+        await send_welcome_message(create_member(guild, id=999, name="NewUser"))
 
-    @pytest.mark.asyncio
-    async def test_sends_message_with_custom_only_design(
-        self, mock_cache, mongodb, guild, bot, channel
-    ):
-        """
-        Verifica que custom_only design usa imagem sem gerar banner.
-
-        Input: Configuracao com welcome_design=custom_only
-        Output: Embed enviado com imagem customizada como banner
-        """
-        # Arrange
-        new_member = create_member(guild, id=999, name="NewUser")
-        new_member._user = MagicMock()
-        new_member._user.id = 999
-
-        mock_cache.return_value = {
-            "welcome_messages_channel": {"values": str(channel.id)},
-            "welcome_messages": {"values": "Welcome {user}!"},
-            "welcome_messages_title": "Welcome!",
-            "welcome_messages_footer": "Enjoy!",
-            "welcome_design": "custom_only",
-            "welcome_custom_image": "https://example.com/custom.gif"
-        }
-
-        # Act
-        await send_welcome_message(new_member)
-
-        # Assert
-        channel.assert_message_sent()
-        embed = channel.get_last_embed()
-        assert embed is not None
-
-    @pytest.mark.asyncio
-    async def test_defaults_to_server_blur_design(
-        self, mock_cache, mock_banner, mongodb, guild, bot, channel
-    ):
-        """
-        Verifica que design padrao e server_blur quando nao especificado.
-
-        Input: Configuracao sem welcome_design
-        Output: Usa server_blur (gera banner com icone do servidor)
-        """
-        # Arrange
-        new_member = create_member(guild, id=999, name="NewUser")
-        new_member._user = MagicMock()
-        new_member._user.id = 999
-
-        mock_cache.return_value = {
-            "welcome_messages_channel": {"values": str(channel.id)},
-            "welcome_messages": {"values": "Welcome {user}!"},
-            "welcome_messages_title": "Welcome!",
-            "welcome_messages_footer": "Enjoy!"
-        }
-
-        # Act
-        await send_welcome_message(new_member)
-
-        # Assert
-        channel.assert_message_sent()
-        mock_banner.assert_called_once()
+        [welcome] = sent(guild)
+        assert welcome.embeds[0].image.url == image
+        assert welcome.attachments == []
 
 
 class TestGenerateDesignPreviews:
     """Testes para geracao de previews de design."""
 
-    @pytest.mark.asyncio
     async def test_generates_preview_for_each_design(
         self, mock_banner, guild, bot, monkeypatch
     ):
@@ -365,7 +140,6 @@ class TestGenerateDesignPreviews:
         assert "custom_only" in previews
         assert urlparse(previews["custom_only"]).hostname == "cdn.discordapp.com"
 
-    @pytest.mark.asyncio
     async def test_handles_unknown_design_key(
         self, mock_banner, guild
     ):
@@ -387,45 +161,38 @@ class TestGenerateDesignPreviews:
         # Assert
         assert "unknown_design" not in previews
 
-    @pytest.mark.asyncio
-    async def test_handles_banner_generation_error(
-        self, guild
+    async def test_a_design_whose_banner_fails_is_left_out_with_a_warning(
+        self, guild, monkeypatch, caplog
     ):
-        """
-        Verifica que erro na geracao de banner e tratado graciosamente.
-
-        Input: create_banner levanta excecao
-        Output: Preview nao incluido, sem excecao propagada
-        """
-        from unittest.mock import patch
+        """A preview that cannot be drawn is left out of the gallery and logged as a
+        warning; the others still come."""
         from app.commands.welcome.service import generate_design_previews
 
-        # Arrange
+        monkeypatch.setattr(
+            welcome_messages,
+            "create_banner",
+            AsyncMock(side_effect=Exception("Banner generation failed")),
+        )
         member = create_member(guild, id=999, name="TestUser")
-        designs = ["server_blur"]
 
-        with patch('app.commands.welcome.service.create_banner') as mock_banner, \
-             patch('app.commands.welcome.service.logger') as mock_logger:
-            mock_banner.side_effect = Exception("Banner generation failed")
+        with caplog.at_level("INFO"):
+            previews = await generate_design_previews(member, ["server_blur"], "Welcome")
 
-            # Act
-            previews = await generate_design_previews(member, designs, "Welcome")
-
-            # Assert
-            assert "server_blur" not in previews
-            mock_logger.warn.assert_called_once()
+        assert "server_blur" not in previews
+        assert any(
+            record.levelno == logging.WARNING and "server_blur" in record.getMessage()
+            for record in caplog.records
+        )
 
 
 def newcomer(guild_name="Test Server"):
     guild = create_guild(name=guild_name)
-    member = create_member(guild, id=999, name="Newcomer")
-    member._user = MagicMock(id=999)
-    return member
+    return create_member(guild, id=999, name="Newcomer")
 
 
 @pytest.mark.behavioral
 @pytest.mark.regression
-async def test_a_server_named_with_braces_is_welcomed_as_it_is_named(mock_cache, mock_banner):
+async def test_a_server_named_with_braces_is_welcomed_as_it_is_named(deps):
     """A server or member name with braces in it is printed as typed, not filled in.
 
     Reported in the v1 review, after wave 1 moved the notices to `fill_placeholders`: the
@@ -445,11 +212,13 @@ async def test_a_server_named_with_braces_is_welcomed_as_it_is_named(mock_cache,
     """
     member = newcomer(guild_name="{member_count} fans")
     channel = member.guild.text_channels[0]
-    mock_cache.return_value = {
-        "welcome_messages_channel": {"values": str(channel.id)},
-        "welcome_messages": {"values": "Welcome to {server}, {user}!"},
-        "welcome_messages_title": "Welcome!",
-    }
+    await moderations.welcome_messages(
+        deps.mongo_client,
+        guild_id=str(member.guild.id),
+        channel_id=str(channel.id),
+        messages=["Welcome to {server}, {user}!"],
+        footer="",
+    )
 
     await send_welcome_message(member)
 
@@ -462,3 +231,42 @@ def test_a_user_placeholder_in_capitals_is_text_and_the_mention_is_still_added()
     welcome = parse_welcome_messages("Hi {USER}!", newcomer())
 
     assert welcome == "Hi {USER}!\n<@!999>"
+
+
+class TestParseWelcomeMessages:
+    """A saved welcome filled for the member who joined."""
+
+    @pytest.fixture
+    def member(self):
+        guild = create_guild(name="Test Server")
+        for index in range(99):
+            create_member(guild, id=1000 + index, name=f"Member {index}")
+        return create_member(guild, id=123, name="Newcomer")
+
+    @pytest.mark.parametrize(
+        "template,welcome",
+        [
+            ("Hello {user}!", "Hello <@!123>!"),
+            ("Welcome to {server}!", "Welcome to Test Server!\n<@!123>"),
+            ("We are {member_count} members!", "We are 100 members!\n<@!123>"),
+            (
+                "{user} joined {server}! Now we have {member_count} members!",
+                "<@!123> joined Test Server! Now we have 100 members!",
+            ),
+            ("Welcome to the server!", "Welcome to the server!\n<@!123>"),
+        ],
+        ids=["user", "server", "member-count", "all-three", "mention-added"],
+    )
+    def test_each_placeholder_is_filled_and_the_mention_always_comes(
+        self, member, template, welcome
+    ):
+        assert parse_welcome_messages(template, member) == welcome
+
+    def test_one_of_several_saved_messages_is_picked_at_random(self, member):
+        messages = "Msg1 {user};Msg2 {user};Msg3 {user}"
+
+        results = {parse_welcome_messages(messages, member) for _ in range(50)}
+
+        assert len(results) > 1
+        assert results <= {f"Msg{n} <@!123>" for n in (1, 2, 3)}
+

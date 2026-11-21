@@ -1,18 +1,28 @@
-"""Storage contract: which collection an event lands in, and what is only counted.
+"""Storage contract of the analytics writer: which collection an event lands in, what
+is only counted, and which runs `traces.runs` keeps.
 
 The whole storage budget rests on high-volume events never being written one
 document at a time, and on every derived number the dashboards read living in
 the guild profile so no dashboard has to scan raw events.
+
+`traces.runs` keeps the units of work worth reading again, by the same flush that
+writes the events: a trace that failed, logged an error or took longer than
+`TRACE_RUNS_SLOW_MS`, with its bounded lines; never a clean, quick one, nor a
+superseded one, whose lines live on in the trace that took them; and a form session
+that failed or outlasted `TRACE_RUNS_SLOW_SESSION_MS`. A command's latency is counted
+once, from the trace that closes it.
 """
 import contextlib
-from datetime import datetime, timezone
+import logging
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from app.data import data, wait
 from app.constants import Commands as constants
-from app.core import analytics, analytics_writer
+from app.core import analytics, analytics_writer, journey, trace
+from app.core.analytics_writer import now
 from app.core.trace import trace_scope
 from tests.generators.events import record_event, stored
 
@@ -355,6 +365,98 @@ def test_the_latency_buckets_follow_the_edges_the_constants_name():
     assert analytics_writer.latency_bucket(0) == f"0-{edges[0]}"
     assert analytics_writer.latency_bucket(edges[0]) == f"{edges[0]}-{edges[1]}"
     assert analytics_writer.latency_bucket(edges[-1] * 10) == f"{edges[-1]}+"
+
+
+@pytest.fixture
+def kept_runs():
+    trace.register_sink(trace.keep_run)
+
+
+def closed_trace(name="probe", *, command=None, error=False, slow_ms=0, result=None):
+    with trace.trace_scope(name, guild_id="81", user_id="9", command=command) as unit:
+        unit.started_at -= timedelta(milliseconds=slow_ms)
+        if error:
+            unit.add("the probe broke", logging.ERROR)
+        if result:
+            unit.result = result
+    return unit
+
+
+def runs_by_trace(deps):
+    wait(analytics.flush())
+    return {run["trace_id"]: run for run in deps.mongo_client.traces.runs.find({})}
+
+
+def test_a_failed_an_erroring_and_a_slow_trace_are_kept_and_a_clean_one_is_not(
+    deps, kept_runs
+):
+    failed = closed_trace("failed", result=trace.constants.TRACE_RESULT_FAILURE)
+    erroring = closed_trace("erroring", error=True)
+    slow = closed_trace("slow", slow_ms=constants.TRACE_RUNS_SLOW_MS + 500)
+    closed_trace("clean")
+
+    runs = runs_by_trace(deps)
+
+    assert set(runs) == {failed.id, erroring.id, slow.id}
+    run = runs[erroring.id]
+    assert run["name"] == "erroring" and run["guild_id"] == "81" and run["user_id"] == "9"
+    assert run["result"] == trace.constants.TRACE_RESULT_FAILURE
+    assert [line["message"] for line in run["lines"]] == ["the probe broke"]
+    assert runs[slow.id]["duration_ms"] > constants.TRACE_RUNS_SLOW_MS
+
+
+def test_a_superseded_trace_is_never_kept(deps, kept_runs):
+    with trace.trace_scope("interaction", guild_id="81") as interaction:
+        session = trace.Trace("session", guild_id="81")
+        interaction.add("the probe broke", logging.ERROR)
+        interaction.supersede(session)
+
+    assert interaction.id not in runs_by_trace(deps)
+
+
+def test_a_commands_latency_is_counted_once_from_the_trace_that_closes_it(
+    deps, kept_runs
+):
+    closed_trace("birthday", command="birthday")
+    with trace.trace_scope("birthday", command="birthday") as first:
+        successor = first.handover()
+        successor.started_at -= timedelta(milliseconds=1200)
+    trace.close(successor)
+
+    runs_by_trace(deps)
+
+    moment = now()
+    [document] = wait(data().analytics_keiko.find_counters([f"commands:{moment:%Y-%m}"]))
+    assert document["days"][f"{moment:%d}"]["birthday"]["ms"] == {
+        "0-250": 1, "1000-2000": 1,
+    }
+
+
+def test_a_failed_session_is_kept_and_a_quick_saved_one_is_not(deps, kept_runs):
+    failed = journey.open_journey("broken", "birthday", guild_id="81")
+    failed.add("the save broke", logging.ERROR)
+    journey.finalize("broken", "failed")
+    saved = journey.open_journey("saved", "birthday", guild_id="81")
+    journey.finalize("saved", "saved")
+
+    runs = runs_by_trace(deps)
+
+    assert failed.id in runs and saved.id not in runs
+
+
+def test_two_runs_whose_trace_ids_collide_are_both_kept(deps, monkeypatch, kept_runs):
+    """Broke as: a run was keyed by its trace id, six hex characters, and kept with
+    `$setOnInsert`, so a second trace drawing the same id inside the 30 days the runs
+    live was silently dropped. Guaranteed: every kept run is a document of its own (an
+    ObjectId `_id`) that carries its trace id as a field."""
+    monkeypatch.setattr(trace, "new_trace_id", lambda: "a1b2c3")
+    closed_trace("failed", result=trace.constants.TRACE_RESULT_FAILURE)
+    closed_trace("failed again", result=trace.constants.TRACE_RESULT_FAILURE)
+    wait(analytics.flush())
+
+    kept = list(deps.mongo_client.traces.runs.find({"trace_id": "a1b2c3"}))
+
+    assert sorted(run["name"] for run in kept) == ["failed", "failed again"]
 
 
 def test_a_servers_admins_are_counted_once_each_up_to_the_cap(monkeypatch):

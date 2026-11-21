@@ -10,10 +10,8 @@ import discord
 import pytest
 
 from app.core.utils import ml
-from tests.behavioral.golden.paths import block_links, notifications_twitch
-from tests.behavioral.golden.paths import notifications_youtube_video as youtube
-from tests.behavioral.golden.paths import reminders_birthday
-from tests.behavioral.golden.paths.common import seed_document
+from tests.behavioral.flows import birthdays, block_links, twitch, youtube
+from tests.behavioral.flows.common import seed_document
 from tests.behavioral.harness import locators
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
@@ -36,7 +34,7 @@ def _assert_grey(scenario, locale, where):
 
 @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
 @pytest.mark.parametrize(
-    "paths", [notifications_twitch, youtube, block_links], ids=lambda m: m.FORM
+    "paths", [twitch, youtube, block_links], ids=lambda m: m.FORM
 )
 async def test_the_add_beside_a_list_on_the_panel_is_grey(
     scenario_factory, deps, paths, locale
@@ -49,7 +47,7 @@ async def test_the_add_beside_a_list_on_the_panel_is_grey(
 
 
 async def test_the_add_of_the_birthday_pages_is_grey(scenario_factory, deps):
-    scenario = await reminders_birthday._open_manager(scenario_factory, deps, "pt-br")
+    scenario = await birthdays.open_manager(scenario_factory, deps, "pt-br")
 
     _assert_grey(scenario, "pt-br", "birthday panel")
     await scenario.finish()
@@ -59,11 +57,10 @@ async def test_the_add_of_the_birthday_pages_is_grey(scenario_factory, deps):
 async def test_the_add_of_a_list_on_the_setup_summary_is_grey(
     scenario_factory, deps, locale
 ):
-    twitch = notifications_twitch
-    scenario = await twitch._card(scenario_factory, deps, locale)
-    await twitch._channel(scenario)
-    await twitch._submit_streamer(scenario, "gaules")
-    await twitch._submit_messages(scenario)
+    scenario = await twitch.open_card(scenario_factory, deps, locale)
+    await twitch.pick_channel(scenario)
+    await twitch.submit_streamer(scenario, "gaules")
+    await twitch.submit_messages(scenario)
     await scenario.click("done")
 
     _assert_grey(scenario, locale, "twitch setup summary")
@@ -72,7 +69,7 @@ async def test_the_add_of_a_list_on_the_setup_summary_is_grey(
 
 @pytest.mark.parametrize("locale", ["pt-br", "en-us"])
 async def test_the_add_of_a_list_a_card_draws_is_grey(scenario_factory, locale):
-    scenario = await block_links._on_card(scenario_factory, locale)
+    scenario = await block_links.open_card(scenario_factory, locale)
     await scenario.select_option("allow_all", target="mode")
 
     _assert_grey(scenario, locale, "block links card")
