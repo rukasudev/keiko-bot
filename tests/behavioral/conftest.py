@@ -14,6 +14,8 @@ import pytest
 
 from tests.behavioral.harness import golden as golden_module
 from tests.behavioral.harness.driver import FormScenario
+from tests.behavioral.flows.birthdays import birthday_command_on  # noqa: F401
+from tests.helpers.logs import discord_logs  # noqa: F401
 from tests.mocks.discord import create_guild, create_member
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -61,29 +63,50 @@ def each_locale(request):
 
 
 class GoldenCheck:
-    """Resolve `tests/behavioral/golden/<form>/<scenario>.<locale>.json` and
-    either record it (`--update-golden`) or assert the scenario matches it."""
+    """Record a flow into its form's book `tests/behavioral/golden/<form>.yml`
+    (`--update-golden`), or assert the scenario reproduces it."""
 
-    def __init__(self, update: bool):
+    def __init__(self, update: bool, books: golden_module.BookRecorder):
         self.update = update
+        self.books = books
 
     @staticmethod
-    def path(form: str, scenario: str, locale: str) -> Path:
-        return GOLDEN_ROOT / form / f"{scenario}.{locale}.json"
+    def book_path(form: str) -> Path:
+        return GOLDEN_ROOT / f"{form}.yml"
 
-    def check(self, scenario: FormScenario, form: str, name: str, locale: str,
-              allowed=()) -> Path:
-        path = self.path(form, name, locale)
+    def check_book(self, scenario: FormScenario, trace, book, name: str, locale: str,
+                   expected_flows) -> Path:
+        path = self.book_path(book.form)
+        flow_id = f"{name}.{locale}"
         if self.update:
-            golden_module.record(scenario, path)
+            records = golden_module.keyed_records(scenario, trace)
+            self.books.add(book.form, flow_id, locale, records, expected_flows,
+                           book.rendered)
         else:
-            golden_module.assert_golden(scenario, path, allowed=allowed)
+            golden_module.assert_book(scenario, trace, path, flow_id, locale)
         return path
 
 
+@pytest.fixture(scope="session")
+def golden_books(request):
+    """The flows an `--update-golden` run recorded, each book written at the end."""
+    books = golden_module.BookRecorder()
+    yield books
+    if request.config.getoption("--update-golden", default=False):
+        skipped = books.write(GOLDEN_ROOT)
+        if skipped:
+            raise RuntimeError(
+                f"golden books not written for {skipped}: record every flow of a "
+                "form in one run (`pytest tests/behavioral/golden --update-golden`)"
+            )
+
+
 @pytest.fixture
-def golden(request) -> GoldenCheck:
-    return GoldenCheck(update=request.config.getoption("--update-golden", default=False))
+def golden(request, golden_books) -> GoldenCheck:
+    return GoldenCheck(
+        update=request.config.getoption("--update-golden", default=False),
+        books=golden_books,
+    )
 
 
 class _Sent:
@@ -152,6 +175,12 @@ def log_channels(monkeypatch):
 
     logger_module.logger.removeHandler(handler)
     logger_module.logger.removeHandler(folding)
+
+
+@pytest.fixture
+def outside_dev(deps):
+    """The subscription hooks run only outside dev."""
+    deps.bot.config.is_dev = lambda: False
 
 
 @pytest.fixture

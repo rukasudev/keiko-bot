@@ -148,6 +148,25 @@ class MessageStore:
         self.pending_modal: Optional[discord.ui.Modal] = None
         # Set by the driver so every event snapshots the current form step.
         self.step_provider: Callable[[], Optional[str]] = lambda: None
+        # What Discord refuses next, by API name: the error and how many more times.
+        self.refusals: Dict[str, List[Any]] = {}
+
+    def refuse(self, api: str, error: Exception, times: Optional[int]) -> None:
+        """Answer the next `times` calls of `api` (every one when None) with `error`."""
+        self.refusals[api] = [error, times]
+
+    def refused(self, api: str) -> None:
+        """Raise what Discord answers `api` with, when a refusal is armed for it."""
+        armed = self.refusals.get(api)
+        if armed is None:
+            return
+        error, times = armed
+        if times is not None:
+            armed[1] = times - 1
+            if armed[1] <= 0:
+                del self.refusals[api]
+        self.record("refused", target=api, values=type(error).__name__)
+        raise error
 
     def alias(self, message_id: Optional[int]) -> Optional[str]:
         if message_id is None:

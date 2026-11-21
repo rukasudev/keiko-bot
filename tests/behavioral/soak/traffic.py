@@ -26,10 +26,10 @@ from app.exceptions import ErrorContext
 from app.core import analytics, debug_logs, trace
 from app.forms.discord.callbacks import RUNTIME
 from tests.behavioral.golden.paths import all_paths
-from tests.behavioral.golden.paths import block_links as block_links_path
-from tests.behavioral.golden.paths import default_roles as default_roles_path
-from tests.behavioral.golden.paths import stream_elements_commands as stream_path
-from tests.behavioral.golden.paths import welcome_messages as welcome_path
+from tests.behavioral.flows import block_links as block_links_path
+from tests.behavioral.flows import roles as default_roles_path
+from tests.behavioral.flows import stream_elements as stream_path
+from tests.behavioral.flows import welcome as welcome_path
 from tests.generators.moderations import recorded_server, seed_cog
 from tests.mocks.discord import (
     MockChannel,
@@ -52,6 +52,8 @@ SAVED = {
 }
 ABANDONED_SETUPS = ("notifications_twitch", "reminders_birthday")
 PANELS = ("welcome_messages", "block_links")
+# The kinds of message the traffic sends, each of which a listener must answer.
+DRIVEN = {"blocked", "ping", "stream_elements", "hint", "welcome", "roles"}
 
 
 class SentMessage:
@@ -251,7 +253,7 @@ class Traffic:
         ):
             if isinstance(holder, Mock):
                 holder.reset_mock()
-        for api in (self.deps.twitch, self.deps.youtube, self.deps.stream_elements):
+        for api in (self.deps.twitch, self.deps.youtube):
             for name, value in vars(api).items():
                 if isinstance(value, list) and (
                     name.endswith("_calls") or name == "_subscriptions"

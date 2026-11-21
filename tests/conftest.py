@@ -1,23 +1,18 @@
 """
-Fixtures globais para testes de integracao.
+Fixtures every test gets: the in-memory Mongo and Redis, the fake bot with the
+fake Twitch and YouTube APIs, the default server, banners that never reach the
+network, and caches, clocks and observability that never leak between tests.
 
-IMPORTANTE: Estas fixtures abstraem o uso de patch(), tornando
-os testes mais limpos e didaticos.
-
-Tipos de testes:
-- Testes unitarios: Usam mocks para bancos de dados
-- Testes de integracao: Marcados com @pytest.mark.integration, requerem DB real
-
-Uso:
-    def test_example(twitch, guild, mongodb):
+    def test_example(deps, twitch, guild):
         twitch.add_user("gaules", user_id="123")
         twitch.set_stream_online("gaules", game="CS2")
-        # ... rest of test
 """
 
 import asyncio
 import os
 import threading
+import sys
+
 import pytest
 import pytest_asyncio
 from types import SimpleNamespace
@@ -37,27 +32,11 @@ i18n.load()
 from tests.mocks import (
     create_guild,
     create_member,
-    create_message,
     MockTwitchAPI,
     MockYouTubeAPI,
-    MockStreamElementsAPI,
     MockChannel,
     MockInteraction,
 )
-
-
-# ============================================================================
-# MARKERS
-# ============================================================================
-
-def pytest_configure(config):
-    """Registra markers customizados."""
-    config.addinivalue_line(
-        "markers", "integration: marca testes que requerem banco de dados real"
-    )
-    config.addinivalue_line(
-        "markers", "unit: marca testes unitarios (sem I/O)"
-    )
 
 
 # ============================================================================
@@ -65,21 +44,9 @@ def pytest_configure(config):
 # ============================================================================
 
 @pytest.fixture(scope="function")
-def redis_client(request):
-    """
-    Cliente Redis para testes.
-    - Para testes unitarios: retorna MockRedisClient
-    - Para testes de integracao (@pytest.mark.integration): conecta ao Redis real
-    """
-    if request.node.get_closest_marker("integration"):
-        import redis
-        client = redis.Redis(host='localhost', port=6379, db=15)
-        client.flushdb()
-        yield client
-        client.flushdb()
-        client.close()
-    else:
-        yield MockRedisClient()
+def redis_client():
+    """O Redis em memoria."""
+    return MockRedisClient()
 
 
 @pytest.fixture(scope="function")
@@ -112,7 +79,6 @@ def deps(mongodb, redis_client):
     # APIs mockadas
     ns.twitch = MockTwitchAPI()
     ns.youtube = MockYouTubeAPI()
-    ns.stream_elements = MockStreamElementsAPI()
 
     # Discord
     ns.guild = create_guild(
@@ -144,22 +110,26 @@ def deps(mongodb, redis_client):
 # AUTO-PATCH: Injeta dependencias automaticamente
 # ============================================================================
 
+def _bot_holders():
+    """`app` and every app module that took its `bot` at import (`from app import bot`)."""
+    import app
+
+    original = app.__dict__.get("bot")
+    return ["app"] + sorted(
+        name
+        for name, module in list(sys.modules.items())
+        if name.startswith("app.")
+        and module is not None
+        and module.__dict__.get("bot") is original
+    )
+
+
 @pytest.fixture(autouse=True)
 def auto_inject_dependencies(deps):
-    """
-    AUTOUSE: Injeta automaticamente as dependencias em todos os testes.
-
-    Esta fixture usa patch() internamente, mas voce nunca precisa
-    usar patch() diretamente nos seus testes!
-    """
-    patches = [
-        patch('app.bot', deps.bot),
-        patch('app.commands.twitch.service.bot', deps.bot),
-        patch('app.commands.youtube.service.bot', deps.bot),
+    """AUTOUSE: every test runs on the fake bot, the in-memory stores and the
+    test loop; a new service holding `bot` needs no line here."""
+    patches = [patch(f"{module}.bot", deps.bot) for module in _bot_holders()] + [
         patch('app.commands.youtube.service._RENEWALS', new_callable=asyncio.Lock),
-        patch('app.commands.stream_elements.service.bot', deps.bot),
-        patch('app.commands.roles.service.bot', deps.bot),
-        patch('app.commands.admin.subscriptions.bot', deps.bot),
         patch('app.core.cache.redis_client', deps.redis_client),
         patch('app.data._own_loop', SettlingLoop),
         patch('app.data._LOOP', None),
@@ -282,12 +252,6 @@ def youtube(deps) -> MockYouTubeAPI:
     return deps.youtube
 
 
-@pytest.fixture
-def stream_elements(deps) -> MockStreamElementsAPI:
-    """Acesso direto ao mock do StreamElements."""
-    return deps.stream_elements
-
-
 # ============================================================================
 # FIXTURES DE CONVENIENCIA - DISCORD
 # ============================================================================
@@ -311,12 +275,6 @@ def member(guild):
 
 
 @pytest.fixture
-def admin_member(guild):
-    """Member com role Admin."""
-    return create_member(guild, id=222, name="AdminUser", roles=["Admin"])
-
-
-@pytest.fixture
 def bot_member(guild):
     """Member que e um bot."""
     return create_member(guild, id=333, name="BotUser", roles=["Member"], bot=True)
@@ -329,21 +287,9 @@ def channel(guild) -> MockChannel:
 
 
 @pytest.fixture
-def welcome_channel(guild) -> MockChannel:
-    """Canal de welcome."""
-    return guild.get_channel(101)
-
-
-@pytest.fixture
 def interaction(member, guild, channel) -> MockInteraction:
     """Interaction padrao para testes de comandos."""
     return MockInteraction(user=member, guild=guild, channel=channel)
-
-
-@pytest.fixture
-def admin_interaction(admin_member, guild, channel) -> MockInteraction:
-    """Interaction de admin para testes de comandos."""
-    return MockInteraction(user=admin_member, guild=guild, channel=channel)
 
 
 # ============================================================================
@@ -369,60 +315,9 @@ def mock_banner():
         yield mock
 
 
-@pytest.fixture
-def mock_available_roles():
-    """Mock do get_available_roles_by_guild em default_roles."""
-    with patch('app.commands.roles.service.get_available_roles_by_guild') as mock:
-        yield mock
-
-
-@pytest.fixture
-def twitch_data(deps):
-    """Mocks da camada de dados e helpers de notificacoes Twitch."""
-    mocks = SimpleNamespace()
-    targets = {
-        'find_guilds': 'app.commands.twitch.service.find_guilds_by_streamer_name',
-        'count_guilds': 'app.commands.twitch.service.count_streamers_guilds',
-        'wait_for_stream_info': 'app.commands.twitch.service.wait_for_stream_info',
-        'is_more_than_one_hour': 'app.commands.twitch.service.is_more_than_one_hour',
-    }
-    repositories = {
-        'subscription_state': (deps.data.keiko_subscriptions, 'subscription_state'),
-        'update_subscription_state': (
-            deps.data.keiko_subscriptions, 'update_subscription_state'
-        ),
-        'save_message': (deps.data.guild_messages, 'save_message'),
-        'find_message': (deps.data.guild_messages, 'find_message'),
-    }
-
-    patches = [
-        (attr, patch.object(repository, method))
-        for attr, (repository, method) in repositories.items()
-    ] + [(attr, patch(target)) for attr, target in targets.items()]
-    started = []
-    for attr, p in patches:
-        try:
-            setattr(mocks, attr, p.start())
-            started.append(p)
-        except Exception:
-            setattr(mocks, attr, MagicMock())
-
-    yield mocks
-
-    for p in started:
-        p.stop()
-
-
-# ============================================================================
-# CLEANUP AUTOMATICO (apenas para testes de integracao)
-# ============================================================================
-
 @pytest_asyncio.fixture(autouse=True)
-async def cleanup_after_test(mongodb, request):
-    """Limpa dados apos cada teste de integracao."""
+async def event_loop_for_every_test():
+    """AUTOUSE: every test, a sync one included, runs with pytest-asyncio's loop
+    current, as the code that reads `asyncio.get_event_loop()` expects."""
     yield
-    if request.node.get_closest_marker("integration"):
-        if hasattr(mongodb, 'list_collection_names'):
-            collections = await mongodb.list_collection_names()
-            for collection_name in collections:
-                await mongodb[collection_name].delete_many({})
+

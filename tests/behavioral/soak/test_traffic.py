@@ -10,8 +10,7 @@ in en-us, right after its pt-br run, showed the pt-br modal and failed 8 steps.
 Guaranteed: two iterations in a row, the pt-br and the en-us run of a golden path
 on the same server, drive every step and every listener.
 """
-from tests.behavioral.soak.test_memory_soak import DRIVEN
-from tests.behavioral.soak.traffic import Traffic
+from tests.behavioral.soak.traffic import DRIVEN, Traffic
 
 
 async def test_consecutive_iterations_drive_every_step_and_listener(

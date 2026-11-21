@@ -1,18 +1,23 @@
 """The slash tree the bot syncs at startup, built offline with `app/translator.py`:
 the payload Discord receives for each app command, the class each slash command is
-bound to, and the path a member types for each command and group, in each locale."""
+bound to, and the path a member types for each command and group, in each locale.
+
+The bot is never ready offline, so the analytics flush never starts and nothing is
+under way when the cogs unload: a build does not wait
+`Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS` for it."""
 
 import asyncio
 from dataclasses import dataclass
 from importlib import import_module
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import discord
 from discord import app_commands
 from discord.ext import commands as ext
 from discord.ext import tasks
 
+from app.constants import Dependencies
 from app.core.utils import startup_extensions
 from app.translator import Translator
 
@@ -65,10 +70,11 @@ async def synced_tree() -> SyncedTree:
 async def built_tree(loops: list) -> SyncedTree:
     """A fresh build of the tree of every startup extension, translated; the cogs'
     loops land in `loops`."""
-    async with ext.Bot(
-        command_prefix="!", intents=discord.Intents.default(), help_command=None
-    ) as bot:
-        return await _translated(bot, loops)
+    with patch.object(Dependencies, "BLOCKING_IO_STOP_WAIT_SECONDS", 0):
+        async with ext.Bot(
+            command_prefix="!", intents=discord.Intents.default(), help_command=None
+        ) as bot:
+            return await _translated(bot, loops)
 
 
 async def _translated(bot: ext.Bot, loops: list) -> SyncedTree:

@@ -20,7 +20,7 @@ from pathlib import Path
 import pytest
 
 from tests.behavioral.soak.memory import Recorder, report
-from tests.behavioral.soak.traffic import Traffic
+from tests.behavioral.soak.traffic import DRIVEN, Traffic
 
 pytestmark = pytest.mark.soak
 
@@ -30,7 +30,6 @@ WARMUP = int(os.environ.get("KEIKO_SOAK_WARMUP", "150"))
 CHECKPOINT = int(os.environ.get("KEIKO_SOAK_CHECKPOINT", "50"))
 MAX_BYTES = float(os.environ.get("KEIKO_SOAK_MAX_BYTES", "256"))
 REPORT = os.environ.get("KEIKO_SOAK_REPORT", "")
-DRIVEN = {"blocked", "ping", "stream_elements", "hint", "welcome", "roles"}
 
 
 def _keep_going(done: int, started: float) -> bool:

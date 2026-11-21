@@ -8,7 +8,7 @@ docs/form-configuration.md and the harness self-tests):
 4. no item callback at all — LayoutViews route clicks through
    `View.interaction_check` reading `interaction.data["custom_id"]`.
 """
-from typing import Any, Iterator, List, Optional
+from typing import Any, Callable, Iterator, List, Optional
 
 import discord
 
@@ -104,10 +104,6 @@ def _resolve_alias(target: str, locale) -> tuple:
     """Return (labels, custom_ids, codec targets) a target may match."""
     labels, custom_ids = [target], [target]
     parts = target.split(":", 1)
-    if parts[0] in ("customize", "edit", "reset") and len(parts) == 2 and parts[1].isdigit():
-        action = "reset" if parts[0] == "reset" else "section"
-        legacy = f"card_{'customize' if parts[0] == 'customize' else parts[0]}_{parts[1]}"
-        return [], [legacy], [f"{action}:{parts[1]}"]
     if parts[0] == "design" and len(parts) == 2:
         return [], [f"design_{parts[1]}"], [target]
     if parts[0] == "option" and len(parts) == 2:
@@ -142,8 +138,53 @@ def codec_matches(item: Any, targets) -> bool:
     return component.target in targets or component.action in targets
 
 
-def find_button(surface: Any, target: str, locale) -> discord.ui.Button:
+SectionKey = Callable[[Any], Optional[str]]
+
+# A card section is named by its key, never by its position on the card.
+SECTION_TARGETS = {"customize": "section", "reset": "reset"}
+
+
+def section_target(target: str) -> Optional[tuple]:
+    """(codec action, section key) of a card-section target, else None."""
+    kind, _, key = target.partition(":")
+    if kind in SECTION_TARGETS and key:
+        return SECTION_TARGETS[kind], key
+    return None
+
+
+def _find_section_button(surface: Any, action: str, key: str,
+                         section_key: SectionKey) -> discord.ui.Button:
+    sections = []
+    for item in clickable_items(surface):
+        component = decode(getattr(item, "custom_id", None) or "")
+        if not isinstance(item, discord.ui.Button) or component is None:
+            continue
+        if component.action != action:
+            continue
+        found = section_key(item)
+        sections.append(found)
+        if found == key:
+            return item
+    raise LocatorError(
+        f"no card section {key!r} on screen (sections with a {action!r} button: "
+        f"{sections}).\nOn screen: {clickable_targets(surface)}"
+    )
+
+
+def find_button(surface: Any, target: str, locale,
+                section_key: Optional[SectionKey] = None) -> discord.ui.Button:
+    """The button `target` names on `surface`.
+
+    `customize:<key>` / `reset:<key>` name a card section by its key, which
+    `section_key` reads off a section button (the driver passes it)."""
     items = clickable_items(surface)
+
+    section = section_target(target)
+    if section is not None:
+        if section_key is None:
+            raise LocatorError(f"{target!r} names a card section: click it through "
+                               "the scenario, which knows the card on screen")
+        return _find_section_button(surface, *section, section_key)
 
     if target.startswith("section:"):
         # The manager panel gives every section its own edit button, all with

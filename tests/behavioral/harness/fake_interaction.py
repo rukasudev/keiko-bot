@@ -45,6 +45,7 @@ class FakeResponse:
         return self._done
 
     async def _mark(self, api: str) -> None:
+        self._interaction.store.refused(api)
         if self._done:
             raise HarnessProtocolError(
                 f"{api}: interaction already responded to (Discord would 40060)",
@@ -110,6 +111,7 @@ class FakeFollowup:
         if "delete_after" in kwargs:
             raise TypeError("Webhook.send() got an unexpected keyword argument 'delete_after'")
         self._require_done("followup.send")
+        self._interaction.store.refused("followup.send")
         if view is None:
             raise HarnessProtocolError(
                 "followup.send(view=None): discord.py raises TypeError, omit the view",
@@ -126,6 +128,7 @@ class FakeFollowup:
     async def edit_message(self, message_id: int, *, content=None, embed=MISSING,
                            view=MISSING, **kwargs) -> FakeMessage:
         store = self._interaction.store
+        store.refused("followup.edit_message")
         message = store.messages.get(message_id)
         if message is None or message.deleted:
             raise HarnessProtocolError(
@@ -139,6 +142,7 @@ class FakeFollowup:
 
     async def delete_message(self, message_id: int) -> None:
         store = self._interaction.store
+        store.refused("followup.delete_message")
         message = store.messages.get(message_id)
         if message is None:
             raise HarnessProtocolError(
@@ -193,6 +197,7 @@ class FakeInteraction:
 
     async def edit_original_response(self, *, content=None, embed=MISSING, view=MISSING,
                                      **kwargs) -> FakeMessage:
+        self.store.refused("edit_original_response")
         message = self._original_target()
         if message.deleted:
             raise discord.NotFound(
@@ -204,6 +209,7 @@ class FakeInteraction:
         return message
 
     async def delete_original_response(self) -> None:
+        self.store.refused("delete_original_response")
         message = self._original_target()
         if message.deleted:
             raise discord.NotFound(
