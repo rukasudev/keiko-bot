@@ -1,0 +1,1210 @@
+screens:
+  form.panel:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨block_links.form.steps.form.title⟩'}
+        - {type: text, content: ⟨block_links.form.steps.form.panel.description⟩}
+        - {type: thumbnail, media: KEIKO_DEFAULT.png}
+      - type: section
+        children:
+        - type: text
+          content: |-
+            ### ⟨block_links.form.steps.link_settings.title⟩
+            🚦 **⟨block_links.form.steps.link_settings.sections.mode.label⟩:** ⟨block_links.form.steps.link_settings.sections.mode.options.block_all.label (no emoji)⟩
+            #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** <#100>
+            🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** <@&201>
+            💬 **⟨block_links.form.steps.link_settings.sections.answer.label⟩:** Nada de links aqui! :p
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - type: section
+        children:
+        - type: text
+          content: |-
+            ### ⟨vocabulary.texts.exceptions⟩
+            🔗 **⟨block_links.form.steps.link_settings.sections.allowed_links.label⟩:**
+            - `youtube.com`
+            - `twitch.tv`
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - type: section
+        children:
+        - {type: text, content: '📌 **⟨block_links.form.steps.link_settings.sections.own_links.label⟩:** ⟨block_links.form.steps.custom_links.counter: count=«2»; max=«25»⟩'}
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+      - type: text
+        content: |-
+          - `meusite.com.br`
+          - `docs.example.org`
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.remove.label⟩, style: secondary, disabled: false}
+      - type: text
+        content: |-
+          ### ⟨block_links.command.panel.info.title⟩
+          ⟨block_links.command.panel.info.description⟩
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.pause.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.disable.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.history.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨block_links.ui.buttons.blocked_list.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.stats.label⟩, style: secondary, disabled: false}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.help.label⟩, style: secondary, disabled: false}
+    components_v2: true
+    rendered:
+      pt-br:
+      - '## :no_entry_sign: Bloquear Links'
+      - Estou de olho nos links enviados no servidor e sigo as regras abaixo.
+      - |-
+        ### Configurações Gerais
+        🚦 **Modo de bloqueio:** Bloquear todos
+        #️⃣ **Canais permitidos:** <#100>
+        🏷️ **Cargos permitidos:** <@&201>
+        💬 **Minha resposta ao bloquear:** Nada de links aqui! :p
+      - Editar
+      - |-
+        ### Exceções
+        🔗 **Sites populares permitidos:**
+        - `youtube.com`
+        - `twitch.tv`
+      - Editar
+      - 📌 **Links personalizados permitidos:** 2 de 25
+      - Adicionar
+      - Remover
+      - |-
+        ### 🔎 Por que um link passou?
+        Clique com o botão direito na mensagem, escolha **Apps** e depois **Validar Bloqueio de Link**: eu te mostro qual regra liberou ou bloqueou cada link dela!
+      - -# • Use o comando `/reportar` para me contar um bug
+      - Pausar
+      - Desativar
+      - Histórico
+      - Bloqueios
+      - Estatísticas
+      - Ajuda
+  form.panel+pause:
+    from: form.panel
+    changes:
+    - set components.0.children.0.children.0.content: '## ⟨block_links.form.steps.form.title⟩ (⟨texts.paused_suffix⟩)'
+    - set components.1.children.0.label: ⟨buttons.unpause.label⟩
+  form.panel+continue:
+    from: form.panel
+    changes:
+    - set components.0.children.1.children.0.content: |-
+        ### ⟨block_links.form.steps.link_settings.title⟩
+        🚦 **⟨block_links.form.steps.link_settings.sections.mode.label⟩:** ⟨block_links.form.steps.link_settings.sections.mode.options.block_all.label (no emoji)⟩
+        💬 **⟨block_links.form.steps.link_settings.sections.answer.label⟩:** ⟨block_links.form.steps.link_settings.defaults.answer⟩
+        #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** <#100>
+        🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+    - set components.0.children.2.children.0.content: |-
+        ### ⟨vocabulary.texts.exceptions⟩
+        🔗 **⟨block_links.form.steps.link_settings.sections.allowed_links.label⟩:** ⟨texts.empty_value⟩
+    - set components.0.children.3.children.0.content: 📌 **⟨block_links.form.steps.link_settings.sections.own_links.label⟩:** ⟨texts.empty_value⟩
+    - drop components.0.children.4: null
+    - drop components.0.children.4: null
+    rendered:
+      en-us:
+      - '## :no_entry_sign: Block Links'
+      - I'm keeping an eye on links sent in the server, following the rules below.
+      - |-
+        ### General Settings
+        🚦 **Blocking mode:** Block all
+        💬 **My response when blocking:** No links here! :p
+        #️⃣ **Allowed channels:** <#100>
+        🏷️ **Allowed roles:** Empty
+      - Edit
+      - |-
+        ### Exceptions
+        🔗 **Allowed popular websites:** Empty
+      - Edit
+      - 📌 **Allowed custom links:** Empty
+      - Add
+      - |-
+        ### 🔎 Why did a link get through?
+        Right click the message, pick **Apps** and then **Check Link Blocking**: I show you which rule allowed or blocked every link in it!
+      - -# • Use the `/report` command to tell me a bug
+      - Pause
+      - Disable
+      - History
+      - Blocks
+      - Statistics
+      - Help
+  form.panel+modal_submit:
+    from: form.panel
+    changes:
+    - set components.0.children.3.children.0.content: '📌 **⟨block_links.form.steps.link_settings.sections.own_links.label⟩:** ⟨block_links.form.steps.custom_links.counter: count=«3»; max=«25»⟩'
+    - set components.0.children.4.content: |-
+        - `meusite.com.br`
+        - `docs.example.org`
+        - `spam.example.com`
+  form.panel+done:
+    from: form.panel
+    changes:
+    - set components.0.children.1.children.0.content: |-
+        ### ⟨block_links.form.steps.link_settings.title⟩
+        🚦 **⟨block_links.form.steps.link_settings.sections.mode.label⟩:** ⟨block_links.form.steps.link_settings.sections.mode.options.block_all.label (no emoji)⟩
+        #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** <#100>
+        🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** <@&201>
+        💬 **⟨block_links.form.steps.link_settings.sections.answer.label⟩:** Sem links por aqui!
+  form.panel+remove_items:
+    from: form.panel
+    changes:
+    - set components.0.children.3.children.0.content: '📌 **⟨block_links.form.steps.link_settings.sections.own_links.label⟩:** ⟨block_links.form.steps.custom_links.counter: count=«1»; max=«25»⟩'
+    - set components.0.children.4.content: '- `docs.example.org`'
+  form.panel+remove_items@manager_remove_several:
+    from: form.panel
+    changes:
+    - set components.0.children.3.children.0.content: 📌 **⟨block_links.form.steps.link_settings.sections.own_links.label⟩:** ⟨texts.empty_value⟩
+    - drop components.0.children.4: null
+    - drop components.0.children.4: null
+  form.panel+continue@setup_custom_links:
+    from: form.panel
+    changes:
+    - set components.0.children.1.children.0.content: |-
+        ### ⟨block_links.form.steps.link_settings.title⟩
+        🚦 **⟨block_links.form.steps.link_settings.sections.mode.label⟩:** ⟨block_links.form.steps.link_settings.sections.mode.options.allow_all.label (no emoji)⟩
+        💬 **⟨block_links.form.steps.link_settings.sections.answer.label⟩:** ⟨block_links.form.steps.link_settings.defaults.answer⟩
+        #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** ⟨texts.empty_value⟩
+        🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+    - set components.0.children.2.children.0.content: '### ⟨block_links.form.groups.exceptions.overrides.0.title⟩'
+    - set components.0.children.3.children.0.content: '📌 **⟨block_links.form.steps.custom_links.overrides.0.title⟩:** ⟨block_links.form.steps.custom_links.counter: count=«2»; max=«25»⟩'
+    - set components.0.children.4.content: |-
+        - `bit.ly/golpe`
+        - `spam.com`
+  link:
+    modal:
+      title: ⟨block_links.form.steps.custom_links.steps.link.title⟩
+      fields:
+      - {label: ⟨block_links.form.steps.custom_links.steps.link.label⟩, required: true, style: short, max_length: 100, default: ''}
+  link+back:
+    from: link
+    changes:
+    - set modal.fields.0.default: youtube.com/watch?v=abc123
+  link+customize:link:
+    from: link
+    changes:
+    - set modal.fields.0.default: isso nao e um link
+  delete:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.delete.title⟩
+      description: '⟨commands.responses.delete.description: command_name=«⟨texts.groups.moderations⟩ ⟨block_links.command.slash.subgroup⟩ ⟨block_links.command.slash.name⟩»⟩'
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.delete_all.label⟩, style: danger, disabled: false}
+    - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    components_v2: false
+  disabled:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.disabled.title⟩
+      description: |-
+        ⟨commands.responses.disabled.description: command_name=«⟨texts.groups.moderations⟩ ⟨block_links.command.slash.subgroup⟩ ⟨block_links.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  link_settings:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## 🚦 ⟨block_links.form.steps.link_settings.title⟩'}
+        - {type: text, content: ⟨block_links.form.steps.link_settings.description⟩}
+        - {type: thumbnail, media: KEIKO_DEFAULT.png}
+      - type: text
+        content: |-
+          🚦 **⟨block_links.form.steps.link_settings.sections.mode.label⟩**
+          > ⟨block_links.form.steps.link_settings.sections.mode.options.block_all.label⟩
+      - type: actionrow
+        children:
+        - type: select
+          placeholder: ⟨block_links.form.steps.link_settings.sections.mode.placeholder⟩
+          min: 1
+          max: 1
+          disabled: false
+          options:
+          - {label: ⟨block_links.form.steps.link_settings.sections.mode.options.allow_all.label⟩, value: allow_all, default: false}
+          - {label: ⟨block_links.form.steps.link_settings.sections.mode.options.block_all.label⟩, value: block_all, default: true}
+      - type: text
+        content: |-
+          💬 **⟨block_links.form.steps.link_settings.sections.answer.label⟩**
+          > ⟨block_links.form.steps.link_settings.defaults.answer⟩
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨block_links.form.steps.link_settings.sections.answer.button.label⟩, style: secondary, disabled: false}
+      - type: text
+        content: |-
+          🛡️ **⟨block_links.form.steps.link_settings.sections.exceptions.label⟩**
+          ⟨block_links.form.steps.link_settings.sections.exceptions.description⟩
+          > #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** ⟨texts.empty_value⟩
+          > 🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+          > 🔗 **⟨block_links.form.steps.link_settings.sections.allowed_links.label⟩:** ⟨texts.empty_value⟩
+          > 📌 **⟨block_links.form.steps.link_settings.sections.own_links.label⟩:** ⟨texts.empty_value⟩
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨vocabulary.texts.configure⟩, style: secondary, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.done.label⟩, style: success, disabled: false}
+      - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: true
+  link_settings+mode=allow_all:
+    from: link_settings
+    changes:
+    - set components.0.children.1.content: |-
+        🚦 **⟨block_links.form.steps.link_settings.sections.mode.label⟩**
+        > ⟨block_links.form.steps.link_settings.sections.mode.options.allow_all.label⟩
+    - set components.0.children.2.children.0.options.0.default: true
+    - set components.0.children.2.children.0.options.1.default: false
+    - set components.0.children.5.content: |-
+        🛡️ **⟨block_links.form.steps.link_settings.sections.exceptions.label⟩**
+        ⟨block_links.form.steps.link_settings.sections.channel_exceptions.description⟩
+        > #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** ⟨texts.empty_value⟩
+        > 🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+    - add components.0.children.7:
+        type: text
+        content: |-
+          📌 **⟨block_links.form.steps.custom_links.overrides.0.title⟩**
+          ⟨block_links.form.steps.link_settings.sections.own_links.description⟩
+          > ⟨texts.empty_value⟩
+    - add components.0.children.8:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+  link_settings+mode=allow_all@setup_exceptions_screen:
+    from: link_settings
+    changes:
+    - set components.0.children.1.content: |-
+        🚦 **⟨block_links.form.steps.link_settings.sections.mode.label⟩**
+        > ⟨block_links.form.steps.link_settings.sections.mode.options.allow_all.label⟩
+    - set components.0.children.2.children.0.options.0.default: true
+    - set components.0.children.2.children.0.options.1.default: false
+    - set components.0.children.5.content: |-
+        🛡️ **⟨block_links.form.steps.link_settings.sections.exceptions.label⟩**
+        ⟨block_links.form.steps.link_settings.sections.channel_exceptions.description⟩
+        > #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** <#100>
+        > 🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+    - add components.0.children.7:
+        type: text
+        content: |-
+          📌 **⟨block_links.form.steps.custom_links.overrides.0.title⟩**
+          ⟨block_links.form.steps.link_settings.sections.own_links.description⟩
+          > ⟨texts.empty_value⟩
+    - add components.0.children.8:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+  link_settings+back:
+    from: link_settings
+    changes:
+    - set components.0.children.5.content: |-
+        🛡️ **⟨block_links.form.steps.link_settings.sections.exceptions.label⟩**
+        ⟨block_links.form.steps.link_settings.sections.exceptions.description⟩
+        > #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** <#100>
+        > 🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+        > 🔗 **⟨block_links.form.steps.link_settings.sections.allowed_links.label⟩:** ⟨block_links.form.steps.link_settings.sections.allowed_links.options.youtube.com.label⟩
+        > 📌 **⟨block_links.form.steps.link_settings.sections.own_links.label⟩:** ⟨texts.empty_value⟩
+  link_settings+back@setup_happy:
+    from: link_settings
+    changes:
+    - set components.0.children.5.content: |-
+        🛡️ **⟨block_links.form.steps.link_settings.sections.exceptions.label⟩**
+        ⟨block_links.form.steps.link_settings.sections.exceptions.description⟩
+        > #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** <#100>
+        > 🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+        > 🔗 **⟨block_links.form.steps.link_settings.sections.allowed_links.label⟩:** ⟨texts.empty_value⟩
+        > 📌 **⟨block_links.form.steps.link_settings.sections.own_links.label⟩:** ⟨texts.empty_value⟩
+  link_settings+section:link_settings:
+    from: link_settings
+    changes:
+    - set components.0.children.3.content: |-
+        💬 **⟨block_links.form.steps.link_settings.sections.answer.label⟩**
+        > Nada de links aqui! :p
+    - set components.0.children.5.content: |-
+        🛡️ **⟨block_links.form.steps.link_settings.sections.exceptions.label⟩**
+        ⟨block_links.form.steps.link_settings.sections.exceptions.description⟩
+        > #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** <#100>
+        > 🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** <@&201>
+        > 🔗 **⟨block_links.form.steps.link_settings.sections.allowed_links.label⟩:** ⟨block_links.form.steps.link_settings.sections.allowed_links.options.youtube.com.label⟩, ⟨block_links.form.steps.link_settings.sections.allowed_links.options.twitch.tv.label⟩
+    - set components.1.children.0.label: ⟨buttons.confirm.label⟩
+  link_settings+modal_submit:
+    from: link_settings
+    changes:
+    - set components.0.children.3.content: |-
+        💬 **⟨block_links.form.steps.link_settings.sections.answer.label⟩**
+        > Sem links por aqui!
+    - set components.0.children.5.content: |-
+        🛡️ **⟨block_links.form.steps.link_settings.sections.exceptions.label⟩**
+        ⟨block_links.form.steps.link_settings.sections.exceptions.description⟩
+        > #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** <#100>
+        > 🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** <@&201>
+        > 🔗 **⟨block_links.form.steps.link_settings.sections.allowed_links.label⟩:** ⟨block_links.form.steps.link_settings.sections.allowed_links.options.youtube.com.label⟩, ⟨block_links.form.steps.link_settings.sections.allowed_links.options.twitch.tv.label⟩
+    - set components.1.children.0.label: ⟨buttons.confirm.label⟩
+  link_settings+back@setup_back:
+    from: link_settings
+    changes:
+    - set components.0.children.5.content: |-
+        🛡️ **⟨block_links.form.steps.link_settings.sections.exceptions.label⟩**
+        ⟨block_links.form.steps.link_settings.sections.exceptions.description⟩
+        > #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** ⟨texts.empty_value⟩
+        > 🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+        > 🔗 **⟨block_links.form.steps.link_settings.sections.allowed_links.label⟩:** ⟨block_links.form.steps.link_settings.sections.allowed_links.options.youtube.com.label⟩
+        > 📌 **⟨block_links.form.steps.link_settings.sections.own_links.label⟩:** `spam.com`
+  link_settings+Descartar_tudo:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## 🚦 ⟨block_links.form.steps.link_settings.title⟩'}
+        - {type: text, content: ⟨block_links.form.steps.link_settings.description⟩}
+        - {type: thumbnail, media: KEIKO_DEFAULT.png}
+      - type: text
+        content: |-
+          🚦 **⟨block_links.form.steps.link_settings.sections.mode.label⟩**
+          > ⟨block_links.form.steps.link_settings.sections.mode.options.allow_all.label⟩
+      - type: text
+        content: |-
+          💬 **⟨block_links.form.steps.link_settings.sections.answer.label⟩**
+          > ⟨block_links.form.steps.link_settings.defaults.answer⟩
+      - type: text
+        content: |-
+          🛡️ **⟨block_links.form.steps.link_settings.sections.exceptions.label⟩**
+          ⟨block_links.form.steps.link_settings.sections.channel_exceptions.description⟩
+          > #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** ⟨texts.empty_value⟩
+          > 🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+      - type: text
+        content: |-
+          📌 **⟨block_links.form.steps.custom_links.overrides.0.title⟩**
+          ⟨block_links.form.steps.link_settings.sections.own_links.description⟩
+          > ⟨texts.empty_value⟩
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    components_v2: true
+  link_settings+option:_Todos_os_links_desse_site:
+    from: link_settings
+    changes:
+    - set components.0.children.1.content: |-
+        🚦 **⟨block_links.form.steps.link_settings.sections.mode.label⟩**
+        > ⟨block_links.form.steps.link_settings.sections.mode.options.allow_all.label⟩
+    - set components.0.children.2.children.0.options.0.default: true
+    - set components.0.children.2.children.0.options.1.default: false
+    - set components.0.children.5.content: |-
+        🛡️ **⟨block_links.form.steps.link_settings.sections.exceptions.label⟩**
+        ⟨block_links.form.steps.link_settings.sections.channel_exceptions.description⟩
+        > #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** ⟨texts.empty_value⟩
+        > 🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+    - add components.0.children.7:
+        type: text
+        content: |-
+          📌 **⟨block_links.form.steps.custom_links.overrides.0.title⟩**
+          ⟨block_links.form.steps.link_settings.sections.own_links.description⟩
+          - `bit.ly/golpe`
+    - add components.0.children.8:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨buttons.remove.label⟩, style: secondary, disabled: false}
+  link_settings+modal_submit@setup_custom_links:
+    from: link_settings
+    changes:
+    - set components.0.children.1.content: |-
+        🚦 **⟨block_links.form.steps.link_settings.sections.mode.label⟩**
+        > ⟨block_links.form.steps.link_settings.sections.mode.options.allow_all.label⟩
+    - set components.0.children.2.children.0.options.0.default: true
+    - set components.0.children.2.children.0.options.1.default: false
+    - set components.0.children.5.content: |-
+        🛡️ **⟨block_links.form.steps.link_settings.sections.exceptions.label⟩**
+        ⟨block_links.form.steps.link_settings.sections.channel_exceptions.description⟩
+        > #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** ⟨texts.empty_value⟩
+        > 🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+    - add components.0.children.7:
+        type: text
+        content: |-
+          📌 **⟨block_links.form.steps.custom_links.overrides.0.title⟩**
+          ⟨block_links.form.steps.link_settings.sections.own_links.description⟩
+          - `bit.ly/golpe`
+          - `spam.com`
+    - add components.0.children.8:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+        - {type: button, label: ⟨buttons.remove.label⟩, style: secondary, disabled: false}
+  answer:
+    modal:
+      title: 💬 ⟨block_links.form.steps.link_settings.sections.answer.modal.title⟩
+      fields:
+      - {label: ⟨block_links.form.steps.link_settings.sections.answer.modal.inputs.answer.label⟩, required: true, style: short, max_length: 100, default: 'Nada de links aqui! :p'}
+  screen:
+    ephemeral: true
+    components:
+    - {type: button, label: '|<', style: success, disabled: false}
+    - {type: button, label: <, style: primary, disabled: false}
+    - {type: button, label: '>', style: primary, disabled: false}
+    - {type: button, label: '>|', style: success, disabled: false}
+    components_v2: false
+  changes.history:
+    ephemeral: true
+    embed:
+      title: ⟨commands.records.changes.title⟩
+      description: '⟨commands.records.history.description: command_name=«⟨texts.groups.moderations⟩ ⟨block_links.command.slash.subgroup⟩ ⟨block_links.command.slash.name⟩»⟩'
+      fields:
+      - {name: 1. ⟨commands.records.history.lines.edited⟩, value: '<@555> · <t:1767263400:f>', inline: false}
+      - {name: 2. ⟨commands.records.history.lines.enabled⟩, value: '<@555> · <t:1767259800:f>', inline: false}
+      footer: • ⟨texts.page⟩ 1 / 1
+      color: 5216249
+      thumbnail: KEIKO_NERD.png
+      image: null
+    components:
+    - {type: button, label: '|<', style: success, disabled: true}
+    - {type: button, label: <, style: primary, disabled: true}
+    - {type: button, label: '>', style: primary, disabled: true}
+    - {type: button, label: '>|', style: success, disabled: true}
+    components_v2: false
+  paused:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.paused.title⟩
+      description: |-
+        ⟨commands.responses.paused.description: command_name=«⟨texts.groups.moderations⟩ ⟨block_links.command.slash.subgroup⟩ ⟨block_links.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  form:
+    ephemeral: true
+    embed:
+      title: ⟨block_links.form.steps.form.title⟩
+      description: |-
+        ⟨block_links.form.steps.form.description⟩
+
+        :pencil: **⟨texts.settings_heading⟩**
+
+        :flying_disc: **⟨block_links.form.steps.link_settings.sections.mode.label⟩:** ⟨block_links.form.steps.link_settings.fields.mode.description⟩
+        :flying_disc: **⟨block_links.form.steps.link_settings.sections.answer.label⟩:** ⟨block_links.form.steps.link_settings.fields.answer.description⟩
+        :flying_disc: **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** ⟨block_links.form.steps.link_settings.fields.allowed_chats.description⟩
+        :flying_disc: **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨block_links.form.steps.link_settings.fields.allowed_roles.description⟩
+        :flying_disc: **⟨block_links.form.steps.link_settings.sections.allowed_links.label⟩:** ⟨block_links.form.steps.link_settings.fields.allowed_links.description⟩
+        :flying_disc: **⟨block_links.form.steps.link_settings.sections.own_links.label⟩:** ⟨block_links.form.steps.custom_links.description⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: KEIKO_DEFAULT.png
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.confirm.label⟩, style: success, disabled: false}
+    - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: false
+  form+remove:
+    ephemeral: true
+    embed:
+      title: ⟨block_links.form.steps.form.title⟩
+      description: |-
+        ⟨block_links.form.steps.form.description⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: KEIKO_DEFAULT.png
+      image: null
+    components:
+    - type: select
+      placeholder: ⟨texts.placeholders.remove⟩
+      min: 1
+      max: 2
+      disabled: false
+      options:
+      - {label: meusite.com.br, value: custom_links$0, default: false}
+      - {label: docs.example.org, value: custom_links$1, default: false}
+    - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    components_v2: false
+  remove:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.remove.title⟩
+      description: '⟨commands.responses.remove.description: items=«- `meusite.com.br`»⟩'
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.remove.label⟩, style: danger, disabled: false}
+    - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    components_v2: false
+  remove+custom_links$0,custom_links$1:
+    from: remove
+    changes:
+    - set embed.title: ⟨commands.responses.remove.overrides.0.title⟩
+    - set embed.description: |-
+        ⟨commands.responses.remove.overrides.0.description: items=«- `meusite.com.br`
+        - `docs.example.org`»⟩
+  unpaused:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.unpaused.title⟩
+      description: |-
+        ⟨commands.responses.unpaused.description: command_name=«⟨texts.groups.moderations⟩ ⟨block_links.command.slash.subgroup⟩ ⟨block_links.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  exceptions:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - {type: text, content: '## 🛡️ ⟨vocabulary.texts.exceptions⟩'}
+      - {type: text, content: ⟨block_links.form.steps.link_settings.sections.exceptions.description⟩}
+      - type: text
+        content: |-
+          🔓 **⟨block_links.form.steps.link_settings.sections.exempt.label⟩**
+          ⟨block_links.form.steps.link_settings.sections.exempt.description⟩
+          > #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** ⟨texts.empty_value⟩
+          > 🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+      - type: actionrow
+        children:
+        - {type: channel_select, placeholder: ⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.placeholder⟩, min: 0, max: 25, disabled: false}
+      - type: actionrow
+        children:
+        - {type: role_select, placeholder: ⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.placeholder⟩, min: 0, max: 25, disabled: false}
+      - type: text
+        content: |-
+          🔗 **⟨block_links.form.steps.link_settings.sections.allowed_links.label⟩**
+          > ⟨texts.empty_value⟩
+      - type: actionrow
+        children:
+        - type: select
+          placeholder: ⟨block_links.form.steps.link_settings.sections.allowed_links.placeholder⟩
+          min: 0
+          max: 9
+          disabled: false
+          options:
+          - {label: ⟨block_links.form.steps.link_settings.sections.allowed_links.options.youtube.com.label⟩, value: youtube.com, default: false}
+          - {label: ⟨block_links.form.steps.link_settings.sections.allowed_links.options.spotify.com.label⟩, value: spotify.com, default: false}
+          - {label: ⟨block_links.form.steps.link_settings.sections.allowed_links.options.twitter.com.label⟩, value: twitter.com, default: false}
+          - {label: ⟨block_links.form.steps.link_settings.sections.allowed_links.options.facebook.com.label⟩, value: facebook.com, default: false}
+          - {label: ⟨block_links.form.steps.link_settings.sections.allowed_links.options.instagram.com.label⟩, value: instagram.com, default: false}
+          - {label: ⟨block_links.form.steps.link_settings.sections.allowed_links.options.twitch.tv.label⟩, value: twitch.tv, default: false}
+          - {label: ⟨block_links.form.steps.link_settings.sections.allowed_links.options.tiktok.com.label⟩, value: tiktok.com, default: false}
+          - {label: ⟨block_links.form.steps.link_settings.sections.allowed_links.options.reddit.com.label⟩, value: reddit.com, default: false}
+          - {label: ⟨block_links.form.steps.link_settings.sections.allowed_links.options.discord.gg.label⟩, value: discord.gg, default: false}
+      - type: text
+        content: |-
+          📌 **⟨block_links.form.steps.link_settings.sections.own_links.label⟩**
+          ⟨block_links.form.steps.link_settings.sections.own_links.description⟩
+          > ⟨texts.empty_value⟩
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    components_v2: true
+  exceptions+allowed_chats=general:
+    from: exceptions
+    changes:
+    - set components.0.children.2.content: |-
+        🔓 **⟨block_links.form.steps.link_settings.sections.exempt.label⟩**
+        ⟨block_links.form.steps.link_settings.sections.exempt.description⟩
+        > #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** <#100>
+        > 🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+  exceptions+allowed_links=youtube.com:
+    from: exceptions
+    changes:
+    - set components.0.children.2.content: |-
+        🔓 **⟨block_links.form.steps.link_settings.sections.exempt.label⟩**
+        ⟨block_links.form.steps.link_settings.sections.exempt.description⟩
+        > #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** <#100>
+        > 🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+    - set components.0.children.5.content: |-
+        🔗 **⟨block_links.form.steps.link_settings.sections.allowed_links.label⟩**
+        > ⟨block_links.form.steps.link_settings.sections.allowed_links.options.youtube.com.label⟩
+    - set components.0.children.6.children.0.options.0.default: true
+  exceptions+allowed_links=youtube.com@setup_back:
+    from: exceptions
+    changes:
+    - set components.0.children.5.content: |-
+        🔗 **⟨block_links.form.steps.link_settings.sections.allowed_links.label⟩**
+        > ⟨block_links.form.steps.link_settings.sections.allowed_links.options.youtube.com.label⟩
+    - set components.0.children.6.children.0.options.0.default: true
+  exceptions+modal_submit:
+    from: exceptions
+    changes:
+    - set components.0.children.5.content: |-
+        🔗 **⟨block_links.form.steps.link_settings.sections.allowed_links.label⟩**
+        > ⟨block_links.form.steps.link_settings.sections.allowed_links.options.youtube.com.label⟩
+    - set components.0.children.6.children.0.options.0.default: true
+    - set components.0.children.7.content: |-
+        📌 **⟨block_links.form.steps.link_settings.sections.own_links.label⟩**
+        ⟨block_links.form.steps.link_settings.sections.own_links.description⟩
+        - `spam.com`
+    - add components.0.children.8.children.1: {type: button, label: ⟨buttons.remove.label⟩, style: secondary, disabled: false}
+  exceptions+option:_Todos_os_links_desse_site:
+    from: exceptions
+    changes:
+    - set components.0.children.7.content: |-
+        📌 **⟨block_links.form.steps.link_settings.sections.own_links.label⟩**
+        ⟨block_links.form.steps.link_settings.sections.own_links.description⟩
+        - `meusite.com.br/promo`
+    - add components.0.children.8.children.1: {type: button, label: ⟨buttons.remove.label⟩, style: secondary, disabled: false}
+  match_type:
+    ephemeral: true
+    embed:
+      title: 🎯 ⟨block_links.form.steps.custom_links.steps.match_type.title⟩
+      description: |-
+        ⟨block_links.form.steps.custom_links.steps.match_type.description: link=«youtube.com/watch?v=abc123»; link:host=«youtube.com»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: KEIKO_DEFAULT.png
+      image: null
+    components:
+    - {type: button, label: ⟨block_links.form.steps.custom_links.steps.match_type.options.domain.label⟩, style: secondary, disabled: false}
+    - {type: button, label: ⟨block_links.form.steps.custom_links.steps.match_type.options.exact.label⟩, style: secondary, disabled: false}
+    - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: false
+  match_type+modal_submit:
+    from: match_type
+    changes:
+    - set embed.description: |-
+        ⟨block_links.form.steps.custom_links.steps.match_type.overrides.0.description: link=«bit.ly/golpe»; link:host=«bit.ly»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+  match_type+modal_submit@setup_validation_error_and_recover:
+    from: match_type
+    changes:
+    - set embed.description: |-
+        ⟨block_links.form.steps.custom_links.steps.match_type.description: link=«meusite.com.br/promo»; link:host=«meusite.com.br»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+  form.review:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨block_links.form.steps.form.title⟩'}
+        - {type: text, content: '⟨vocabulary.fallbacks.review_description: command=«⟨texts.groups.moderations⟩ ⟨block_links.command.slash.subgroup⟩ ⟨block_links.command.slash.name⟩»⟩'}
+        - {type: thumbnail, media: KEIKO_BOLO.png}
+      - type: section
+        children:
+        - type: text
+          content: |-
+            ### ⟨block_links.form.steps.link_settings.title⟩
+            🚦 **⟨block_links.form.steps.link_settings.sections.mode.label⟩:** ⟨block_links.form.steps.link_settings.sections.mode.options.allow_all.label (no emoji)⟩
+            💬 **⟨block_links.form.steps.link_settings.sections.answer.label⟩:** ⟨block_links.form.steps.link_settings.defaults.answer⟩
+            #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** <#100>
+            🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - type: section
+        children:
+        - {type: text, content: '📌 **⟨block_links.form.steps.custom_links.overrides.0.title⟩:** ⟨texts.empty_value⟩'}
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.confirm.label⟩, style: success, disabled: false}
+      - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: true
+    rendered:
+      en-us:
+      - '## :no_entry_sign: Block Links'
+      - Here's a summary of your choices so far. All set for me to turn on the `/moderations block links` command with the settings below? ✅
+      - |-
+        ### General Settings
+        🚦 **Blocking mode:** Block some
+        💬 **My response when blocking:** No links here! :p
+        #️⃣ **Allowed channels:** <#100>
+        🏷️ **Allowed roles:** Empty
+      - Edit
+      - 📌 **Blocked custom links:** Empty
+      - Add
+      - -# • Use the `/report` command to tell me a bug
+      - Confirm
+      - Cancel
+      pt-br:
+      - '## :no_entry_sign: Bloquear Links'
+      - Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/moderações bloquear links` com as configurações abaixo? ✅
+      - |-
+        ### Configurações Gerais
+        🚦 **Modo de bloqueio:** Bloquear alguns
+        💬 **Minha resposta ao bloquear:** Nada de links por aqui! :p
+        #️⃣ **Canais permitidos:** <#100>
+        🏷️ **Cargos permitidos:** Em branco
+      - Editar
+      - 📌 **Links personalizados bloqueados:** Em branco
+      - Adicionar
+      - -# • Use o comando `/reportar` para me contar um bug
+      - Confirmar
+      - Cancelar
+  form.review+done:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨block_links.form.steps.form.title⟩'}
+        - {type: text, content: '⟨vocabulary.fallbacks.review_description: command=«⟨texts.groups.moderations⟩ ⟨block_links.command.slash.subgroup⟩ ⟨block_links.command.slash.name⟩»⟩'}
+        - {type: thumbnail, media: KEIKO_BOLO.png}
+      - type: section
+        children:
+        - type: text
+          content: |-
+            ### ⟨block_links.form.steps.link_settings.title⟩
+            🚦 **⟨block_links.form.steps.link_settings.sections.mode.label⟩:** ⟨block_links.form.steps.link_settings.sections.mode.options.block_all.label (no emoji)⟩
+            💬 **⟨block_links.form.steps.link_settings.sections.answer.label⟩:** ⟨block_links.form.steps.link_settings.defaults.answer⟩
+            #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** <#100>
+            🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - {type: text, content: '### ⟨vocabulary.texts.exceptions⟩'}
+      - type: section
+        children:
+        - {type: text, content: '🔗 **⟨block_links.form.steps.link_settings.sections.allowed_links.label⟩:** ⟨texts.empty_value⟩'}
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+      - type: section
+        children:
+        - {type: text, content: '📌 **⟨block_links.form.steps.link_settings.sections.own_links.label⟩:** ⟨texts.empty_value⟩'}
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.confirm.label⟩, style: success, disabled: false}
+      - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: true
+  form.review+done@setup_back:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨block_links.form.steps.form.title⟩'}
+        - {type: text, content: '⟨vocabulary.fallbacks.review_description: command=«⟨texts.groups.moderations⟩ ⟨block_links.command.slash.subgroup⟩ ⟨block_links.command.slash.name⟩»⟩'}
+        - {type: thumbnail, media: KEIKO_BOLO.png}
+      - type: section
+        children:
+        - type: text
+          content: |-
+            ### ⟨block_links.form.steps.link_settings.title⟩
+            🚦 **⟨block_links.form.steps.link_settings.sections.mode.label⟩:** ⟨block_links.form.steps.link_settings.sections.mode.options.block_all.label (no emoji)⟩
+            💬 **⟨block_links.form.steps.link_settings.sections.answer.label⟩:** ⟨block_links.form.steps.link_settings.defaults.answer⟩
+            #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** ⟨texts.empty_value⟩
+            🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - {type: text, content: '### ⟨vocabulary.texts.exceptions⟩'}
+      - type: section
+        children:
+        - {type: text, content: '🔗 **⟨block_links.form.steps.link_settings.sections.allowed_links.label⟩:**'}
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+      - {type: text, content: '- `youtube.com`'}
+      - type: section
+        children:
+        - {type: text, content: '📌 **⟨block_links.form.steps.link_settings.sections.own_links.label⟩:** ⟨block_links.form.steps.custom_links.counter: count=«1»; max=«25»⟩'}
+        - {type: button, label: ⟨buttons.add.label⟩, style: secondary, disabled: false}
+      - {type: text, content: '- `spam.com`'}
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.remove.label⟩, style: secondary, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.confirm.label⟩, style: success, disabled: false}
+      - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: true
+  form.review+done@setup_custom_links:
+    from: form.review+done@setup_back
+    changes:
+    - set components.0.children.1.children.0.content: |-
+        ### ⟨block_links.form.steps.link_settings.title⟩
+        🚦 **⟨block_links.form.steps.link_settings.sections.mode.label⟩:** ⟨block_links.form.steps.link_settings.sections.mode.options.allow_all.label (no emoji)⟩
+        💬 **⟨block_links.form.steps.link_settings.sections.answer.label⟩:** ⟨block_links.form.steps.link_settings.defaults.answer⟩
+        #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** ⟨texts.empty_value⟩
+        🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+    - set components.0.children.2.content: '### ⟨block_links.form.groups.exceptions.overrides.0.title⟩'
+    - set components.0.children.3.children.0.content: '📌 **⟨block_links.form.steps.custom_links.overrides.0.title⟩:** ⟨block_links.form.steps.custom_links.counter: count=«2»; max=«25»⟩'
+    - set components.0.children.4.content: |-
+        - `bit.ly/golpe`
+        - `spam.com`
+    - drop components.0.children.5: null
+    - drop components.0.children.5: null
+  discard:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.discard.title⟩
+      description: ⟨commands.responses.discard.description⟩
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.keep.label⟩, style: secondary, disabled: false}
+    - {type: button, label: ⟨buttons.discard.label⟩, style: danger, disabled: false}
+    components_v2: false
+  enabled:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.enabled.title⟩
+      description: |-
+        ⟨commands.responses.enabled.description: command_name=«⟨texts.groups.moderations⟩ ⟨block_links.command.slash.subgroup⟩ ⟨block_links.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  exceptions.channel_exceptions:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - {type: text, content: '## 🛡️ ⟨vocabulary.texts.exceptions⟩'}
+      - {type: text, content: ⟨block_links.form.steps.link_settings.sections.channel_exceptions.description⟩}
+      - type: text
+        content: |-
+          🔓 **⟨block_links.form.steps.link_settings.sections.exempt.label⟩**
+          ⟨block_links.form.steps.link_settings.sections.exempt.description⟩
+          > #️⃣ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.label⟩:** <#100>
+          > 🏷️ **⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.label⟩:** ⟨texts.empty_value⟩
+      - type: actionrow
+        children:
+        - {type: channel_select, placeholder: ⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_chats.placeholder⟩, min: 0, max: 25, disabled: false}
+      - type: actionrow
+        children:
+        - {type: role_select, placeholder: ⟨block_links.form.steps.link_settings.sections.exempt.selects.allowed_roles.placeholder⟩, min: 0, max: 25, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    components_v2: true
+  link.card:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨block_links.form.steps.custom_links.steps.link.title⟩'}
+        - {type: text, content: ⟨block_links.form.steps.custom_links.steps.link.description⟩}
+        - {type: thumbnail, media: KEIKO_DEFAULT.png}
+      - type: text
+        content: |-
+          🔗 **⟨block_links.form.steps.custom_links.steps.link.label⟩**
+          > isso nao e um link
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: true
+  link_not_recognized:
+    ephemeral: true
+    embed:
+      title: 🚨 ⟨errors.link_not_recognized.title⟩
+      description: |-
+        ⟨errors.link_not_recognized.message⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+flows:
+  manager_add_item.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form.panel
+  - click add:
+    - modal link
+  - 'modal_submit {"Digite o link ou site": "spam.example.com"}':
+    - send M2 form.panel+modal_submit
+    - delete M1
+  manager_disable.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form.panel
+  - click disable:
+    - send M2 delete
+    - delete M1
+  - click delete_all:
+    - send M3 disabled
+    - delete M2
+  manager_edit_one_step.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form.panel
+  - click section:link_settings:
+    - send M2 link_settings+section:link_settings
+    - delete M1
+  - click customize:answer:
+    - modal answer
+  - 'modal_submit {"Digite minha resposta": "Sem links por aqui!"}':
+    - edit M2 link_settings+modal_submit
+  - click done:
+    - edit M2 form.panel+done
+  manager_history.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form.panel
+  - click history:
+    - send M2 screen
+    - edit M2 changes.history
+  manager_pause.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form.panel
+  - click pause:
+    - edit M1 form.panel+pause
+    - send M2 paused (delete_after 5)
+  manager_remove_item.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form.panel
+  - click remove:
+    - send M2 form+remove
+    - delete M1
+  - select Selecione os itens que deseja remover ["custom_links$0"]:
+    - edit M2 remove
+  - click remove_items:
+    - send M3 form.panel+remove_items
+    - delete M2
+  manager_remove_several.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form.panel
+  - click remove:custom_links:
+    - send M2 form+remove
+    - delete M1
+  - select Selecione os itens que deseja remover ["custom_links$0", "custom_links$1"]:
+    - edit M2 remove+custom_links$0,custom_links$1
+  - click remove_items:
+    - send M3 form.panel+remove_items@manager_remove_several
+    - delete M2
+  manager_unpause.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form.panel+pause
+  - click unpause:
+    - edit M1 form.panel
+    - send M2 unpaused (delete_after 5)
+  setup_back.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 link_settings
+    - delete M1
+  - click customize:exceptions:
+    - edit M2 exceptions
+  - select allowed_links ["youtube.com"]:
+    - edit M2 exceptions+allowed_links=youtube.com@setup_back
+  - click customize:own_links:
+    - modal link
+  - 'modal_submit {"Digite o link ou site": "youtube.com/watch?v=abc123"}':
+    - send M3 match_type
+    - delete M2
+  - click back:
+    - modal link+back
+  - 'modal_submit {"Digite o link ou site": "spam.com"}':
+    - send M4 exceptions+modal_submit
+    - delete M3
+  - click back:
+    - edit M4 link_settings+back@setup_back
+  - click done:
+    - edit M4 form.review+done@setup_back
+  setup_cancel_discard.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 link_settings
+    - delete M1
+  - select mode ["allow_all"]:
+    - edit M2 link_settings+mode=allow_all
+  - click cancel:
+    - send M3 discard
+  - click Descartar tudo:
+    - edit M2 link_settings+Descartar_tudo
+    - delete M3
+  setup_cancel_keep.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 link_settings
+    - delete M1
+  - select mode ["allow_all"]:
+    - edit M2 link_settings+mode=allow_all
+  - click cancel:
+    - send M3 discard
+  - click Continuar configurando:
+    - delete M3
+  setup_choose_mode.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 link_settings
+    - delete M1
+  - select mode ["allow_all"]:
+    - edit M2 link_settings+mode=allow_all
+  setup_custom_links.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 link_settings
+    - delete M1
+  - select mode ["allow_all"]:
+    - edit M2 link_settings+mode=allow_all
+  - click customize:own_links:
+    - modal link
+  - 'modal_submit {"Digite o link ou site": "bit.ly/golpe"}':
+    - send M3 match_type+modal_submit
+    - delete M2
+  - click option:🌐 Todos os links desse site:
+    - send M4 link_settings+option:_Todos_os_links_desse_site
+    - delete M3
+  - click customize:own_links:
+    - modal link
+  - 'modal_submit {"Digite o link ou site": "spam.com"}':
+    - edit M4 link_settings+modal_submit@setup_custom_links
+  - click done:
+    - edit M4 form.review+done@setup_custom_links
+  - click continue:
+    - send M5 enabled
+    - delete M4
+    - send M6 form.panel+continue@setup_custom_links
+  setup_exceptions_screen.en-us:
+  - start_command block_links "en-us":
+    - send M1 form
+  - click continue:
+    - send M2 link_settings
+    - delete M1
+  - click customize:exceptions:
+    - edit M2 exceptions
+  - select allowed_chats ["general"]:
+    - edit M2 exceptions+allowed_chats=general
+  - select allowed_links ["youtube.com"]:
+    - edit M2 exceptions+allowed_links=youtube.com
+  - click back:
+    - edit M2 link_settings+back
+  - select mode ["allow_all"]:
+    - edit M2 link_settings+mode=allow_all@setup_exceptions_screen
+  - click customize:channel_exceptions:
+    - edit M2 exceptions.channel_exceptions
+  - click back:
+    - edit M2 link_settings+mode=allow_all@setup_exceptions_screen
+  - click done:
+    - edit M2 form.review
+  setup_exceptions_screen.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 link_settings
+    - delete M1
+  - click customize:exceptions:
+    - edit M2 exceptions
+  - select allowed_chats ["general"]:
+    - edit M2 exceptions+allowed_chats=general
+  - select allowed_links ["youtube.com"]:
+    - edit M2 exceptions+allowed_links=youtube.com
+  - click back:
+    - edit M2 link_settings+back
+  - select mode ["allow_all"]:
+    - edit M2 link_settings+mode=allow_all@setup_exceptions_screen
+  - click customize:channel_exceptions:
+    - edit M2 exceptions.channel_exceptions
+  - click back:
+    - edit M2 link_settings+mode=allow_all@setup_exceptions_screen
+  - click done:
+    - edit M2 form.review
+  setup_happy.en-us:
+  - start_command block_links "en-us":
+    - send M1 form
+  - click continue:
+    - send M2 link_settings
+    - delete M1
+  - click customize:exceptions:
+    - edit M2 exceptions
+  - select allowed_chats ["general"]:
+    - edit M2 exceptions+allowed_chats=general
+  - click back:
+    - edit M2 link_settings+back@setup_happy
+  - click done:
+    - edit M2 form.review+done
+  - click continue:
+    - send M3 enabled
+    - delete M2
+    - send M4 form.panel+continue
+  setup_happy.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 link_settings
+    - delete M1
+  - click customize:exceptions:
+    - edit M2 exceptions
+  - select allowed_chats ["general"]:
+    - edit M2 exceptions+allowed_chats=general
+  - click back:
+    - edit M2 link_settings+back@setup_happy
+  - click done:
+    - edit M2 form.review+done
+  - click continue:
+    - send M3 enabled
+    - delete M2
+    - send M4 form.panel+continue
+  setup_validation_error_and_recover.pt-br:
+  - start_command block_links "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 link_settings
+    - delete M1
+  - click customize:exceptions:
+    - edit M2 exceptions
+  - click customize:own_links:
+    - modal link
+  - 'modal_submit {"Digite o link ou site": "isso nao e um link"}':
+    - edit M2 link.card
+    - send M3 link_not_recognized (delete_after 10)
+  - click customize:link:
+    - modal link+customize:link
+  - 'modal_submit {"Digite o link ou site": "https://meusite.com.br/promo/"}':
+    - send M4 match_type+modal_submit@setup_validation_error_and_recover
+    - delete M2
+  - click option:🌐 Todos os links desse site:
+    - send M5 exceptions+option:_Todos_os_links_desse_site
+    - delete M4

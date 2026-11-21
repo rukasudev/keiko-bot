@@ -1,0 +1,491 @@
+screens:
+  form.panel:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨default_roles.form.steps.form.title⟩'}
+        - {type: text, content: ⟨default_roles.form.steps.form.panel.description⟩}
+        - {type: thumbnail, media: KEIKO_DEFAULT.png}
+      - type: section
+        children:
+        - {type: text, content: '👥 **⟨vocabulary.texts.roles_for_members⟩:** <@&202>'}
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - type: section
+        children:
+        - {type: text, content: '🤖 **⟨vocabulary.texts.roles_for_bots⟩:** <@&201>'}
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.pause.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.disable.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.history.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨default_roles.ui.buttons.sync.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.stats.label⟩, style: secondary, disabled: false}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.help.label⟩, style: secondary, disabled: false}
+    components_v2: true
+    rendered:
+      pt-br:
+      - '## 👩‍🎓 Cargos Padrão'
+      - Dou estes cargos automaticamente para quem entra no servidor.
+      - 👥 **Cargos para Membros:** <@&202>
+      - Editar
+      - 🤖 **Cargos para Bots:** <@&201>
+      - Editar
+      - -# • Use o comando `/reportar` para me contar um bug
+      - Pausar
+      - Desativar
+      - Histórico
+      - Sincronizar
+      - Estatísticas
+      - Ajuda
+  form.panel+pause:
+    from: form.panel
+    changes:
+    - set components.0.children.0.children.0.content: '## ⟨default_roles.form.steps.form.title⟩ (⟨texts.paused_suffix⟩)'
+    - add components.0.children.1: {type: text, content: '### ⟨default_roles.form.steps.form.title (no emoji)⟩'}
+    - set components.1.children.0.label: ⟨buttons.unpause.label⟩
+  form.panel+continue:
+    from: form.panel
+    changes:
+    - add components.0.children.1:
+        type: section
+        children:
+        - {type: text, content: '🤖 **⟨vocabulary.texts.roles_for_bots⟩:** <@&201>'}
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+    - drop components.0.children.3: null
+    rendered:
+      en-us:
+      - '## 👩‍🎓 Default Roles'
+      - I give these roles automatically to everyone who joins the server.
+      - 🤖 **Roles for Bots:** <@&201>
+      - Edit
+      - 👥 **Roles for Members:** <@&202>
+      - Edit
+      - -# • Use the `/report` command to tell me a bug
+      - Pause
+      - Disable
+      - History
+      - Sync
+      - Statistics
+      - Help
+  form.panel+default_roles=Admin:
+    from: form.panel
+    changes:
+    - set components.0.children.1.children.0.content: 👥 **⟨vocabulary.texts.roles_for_members⟩:** <@&200>
+    - add components.0.children.3: {type: text, content: '⟨default_roles.command.panel.info.description: roles=«<@&200>»⟩'}
+  form.panel+continue@setup_gives_the_roles_now:
+    from: form.panel
+    changes:
+    - add components.0.children.1:
+        type: section
+        children:
+        - {type: text, content: '🤖 **⟨vocabulary.texts.roles_for_bots⟩:** ⟨texts.empty_value⟩'}
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+    - drop components.0.children.3: null
+  delete:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.delete.title⟩
+      description: '⟨commands.responses.delete.description: command_name=«⟨texts.groups.moderations⟩ ⟨default_roles.command.slash.subgroup⟩ ⟨default_roles.command.slash.name⟩»⟩'
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.delete_all.label⟩, style: danger, disabled: false}
+    - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    components_v2: false
+  disabled:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.disabled.title⟩
+      description: |-
+        ⟨commands.responses.disabled.description: command_name=«⟨texts.groups.moderations⟩ ⟨default_roles.command.slash.subgroup⟩ ⟨default_roles.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  roles_for_members.screen:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - {type: text, content: '## 👥 ⟨vocabulary.texts.roles_for_members⟩'}
+      - {type: text, content: ⟨default_roles.form.steps.default_roles_config.sections.default_roles.screen.description⟩}
+      - type: actionrow
+        children:
+        - {type: role_select, placeholder: ⟨default_roles.form.steps.default_roles_config.sections.default_roles.selects.default_roles.placeholder⟩, min: 0, max: 25, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    components_v2: true
+  screen:
+    ephemeral: true
+    components:
+    - {type: button, label: '|<', style: success, disabled: false}
+    - {type: button, label: <, style: primary, disabled: false}
+    - {type: button, label: '>', style: primary, disabled: false}
+    - {type: button, label: '>|', style: success, disabled: false}
+    components_v2: false
+  changes.history:
+    ephemeral: true
+    embed:
+      title: ⟨commands.records.changes.title⟩
+      description: '⟨commands.records.history.description: command_name=«⟨texts.groups.moderations⟩ ⟨default_roles.command.slash.subgroup⟩ ⟨default_roles.command.slash.name⟩»⟩'
+      fields:
+      - {name: 1. ⟨commands.records.history.lines.edited⟩, value: '<@555> · <t:1767263400:f>', inline: false}
+      - {name: 2. ⟨commands.records.history.lines.enabled⟩, value: '<@555> · <t:1767259800:f>', inline: false}
+      footer: • ⟨texts.page⟩ 1 / 1
+      color: 5216249
+      thumbnail: KEIKO_NERD.png
+      image: null
+    components:
+    - {type: button, label: '|<', style: success, disabled: true}
+    - {type: button, label: <, style: primary, disabled: true}
+    - {type: button, label: '>', style: primary, disabled: true}
+    - {type: button, label: '>|', style: success, disabled: true}
+    components_v2: false
+  paused:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.paused.title⟩
+      description: |-
+        ⟨commands.responses.paused.description: command_name=«⟨texts.groups.moderations⟩ ⟨default_roles.command.slash.subgroup⟩ ⟨default_roles.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  unpaused:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.unpaused.title⟩
+      description: |-
+        ⟨commands.responses.unpaused.description: command_name=«⟨texts.groups.moderations⟩ ⟨default_roles.command.slash.subgroup⟩ ⟨default_roles.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  form:
+    ephemeral: true
+    embed:
+      title: ⟨default_roles.form.steps.form.title⟩
+      description: |-
+        ⟨default_roles.form.steps.form.description⟩
+
+        :pencil: **⟨texts.settings_heading⟩**
+
+        :flying_disc: **⟨vocabulary.texts.roles_for_bots⟩:** ⟨default_roles.form.steps.default_roles_config.fields.default_roles_bot.description⟩
+        :flying_disc: **⟨vocabulary.texts.roles_for_members⟩:** ⟨default_roles.form.steps.default_roles_config.fields.default_roles.description⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: KEIKO_DEFAULT.png
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.confirm.label⟩, style: success, disabled: false}
+    - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: false
+  form.default_roles_config:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨default_roles.form.steps.form.title⟩'}
+        - {type: text, content: ⟨default_roles.form.steps.default_roles_config.description⟩}
+        - {type: thumbnail, media: KEIKO_DEFAULT.png}
+      - type: text
+        content: |-
+          🤖 **⟨vocabulary.texts.roles_for_bots⟩**
+          > ⟨texts.empty_value⟩
+      - type: actionrow
+        children:
+        - {type: role_select, placeholder: ⟨default_roles.form.steps.default_roles_config.sections.default_roles_bot.selects.default_roles_bot.placeholder⟩, min: 0, max: 25, disabled: false}
+      - type: text
+        content: |-
+          👥 **⟨vocabulary.texts.roles_for_members⟩**
+          > ⟨texts.empty_value⟩
+      - type: actionrow
+        children:
+        - {type: role_select, placeholder: ⟨default_roles.form.steps.default_roles_config.sections.default_roles.selects.default_roles.placeholder⟩, min: 0, max: 25, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.done.label⟩, style: success, disabled: false}
+      - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: true
+  form.default_roles_config+default_roles=Member:
+    from: form.default_roles_config
+    changes:
+    - set components.0.children.3.content: |-
+        👥 **⟨vocabulary.texts.roles_for_members⟩**
+        > <@&202>
+  form.default_roles_config+default_roles_bot=Moderator:
+    from: form.default_roles_config
+    changes:
+    - set components.0.children.1.content: |-
+        🤖 **⟨vocabulary.texts.roles_for_bots⟩**
+        > <@&201>
+    - set components.0.children.3.content: |-
+        👥 **⟨vocabulary.texts.roles_for_members⟩**
+        > <@&202>
+  form.default_roles_config+Descartar_tudo:
+    from: form.default_roles_config
+    changes:
+    - drop components.0.children.2.children: null
+    - set components.0.children.2.type: text
+    - set components.0.children.2.content: |-
+        👥 **⟨vocabulary.texts.roles_for_members⟩**
+        > <@&202>
+    - drop components.0.children.3: null
+    - drop components.0.children.3: null
+    - drop components.1: null
+  discard:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.discard.title⟩
+      description: ⟨commands.responses.discard.description⟩
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.keep.label⟩, style: secondary, disabled: false}
+    - {type: button, label: ⟨buttons.discard.label⟩, style: danger, disabled: false}
+    components_v2: false
+  sync_existing:
+    ephemeral: true
+    embed:
+      title: 🔄 ⟨default_roles.form.steps.sync_existing.title⟩
+      description: |-
+        ⟨default_roles.form.steps.sync_existing.description: bots_count=«0»; default_roles=«one»; default_roles:role=«<@&202>»; default_roles_bot=«one»; default_roles_bot:role=«<@&201>»; members_count=«1»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: KEIKO_DEFAULT.png
+      image: null
+    components:
+    - {type: button, label: ⟨texts.boolean.yes⟩, style: primary, disabled: false}
+    - {type: button, label: ⟨texts.boolean.no⟩, style: secondary, disabled: false}
+    - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: false
+  sync_existing+done:
+    from: sync_existing
+    changes:
+    - set embed.description: |-
+        ⟨default_roles.form.steps.sync_existing.description: bots_count=«0»; default_roles=«one»; default_roles:role=«<@&202>»; default_roles_bot=«one»; default_roles_bot:role=«⟨texts.empty_value⟩»; members_count=«1»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+  form.review:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨default_roles.form.steps.form.title⟩'}
+        - {type: text, content: '⟨vocabulary.fallbacks.review_description: command=«⟨texts.groups.moderations⟩ ⟨default_roles.command.slash.subgroup⟩ ⟨default_roles.command.slash.name⟩»⟩'}
+        - {type: thumbnail, media: KEIKO_BOLO.png}
+      - type: section
+        children:
+        - {type: text, content: '🤖 **⟨vocabulary.texts.roles_for_bots⟩:** <@&201>'}
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - type: section
+        children:
+        - {type: text, content: '👥 **⟨vocabulary.texts.roles_for_members⟩:** <@&202>'}
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.confirm.label⟩, style: success, disabled: false}
+      - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: true
+    rendered:
+      en-us:
+      - '## 👩‍🎓 Default Roles'
+      - Here's a summary of your choices so far. All set for me to turn on the `/moderations default roles` command with the settings below? ✅
+      - 🤖 **Roles for Bots:** <@&201>
+      - Edit
+      - 👥 **Roles for Members:** <@&202>
+      - Edit
+      - -# • Use the `/report` command to tell me a bug
+      - Confirm
+      - Cancel
+      pt-br:
+      - '## 👩‍🎓 Cargos Padrão'
+      - Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/moderações cargos padrão` com as configurações abaixo? ✅
+      - 🤖 **Cargos para Bots:** <@&201>
+      - Editar
+      - 👥 **Cargos para Membros:** <@&202>
+      - Editar
+      - -# • Use o comando `/reportar` para me contar um bug
+      - Confirmar
+      - Cancelar
+  form.review+pick:True:
+    from: form.review
+    changes:
+    - set components.0.children.1.children.0.content: 🤖 **⟨vocabulary.texts.roles_for_bots⟩:** ⟨texts.empty_value⟩
+  enabled:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.enabled.title⟩
+      description: |-
+        ⟨commands.responses.enabled.description: command_name=«⟨texts.groups.moderations⟩ ⟨default_roles.command.slash.subgroup⟩ ⟨default_roles.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+flows:
+  manager_disable.pt-br:
+  - start_command default_roles "pt-br":
+    - send M1 form.panel
+  - click disable:
+    - send M2 delete
+    - delete M1
+  - click delete_all:
+    - send M3 disabled
+    - delete M2
+  manager_edit_one_step.pt-br:
+  - start_command default_roles "pt-br":
+    - send M1 form.panel
+  - click section:default_roles_config/default_roles:
+    - send M2 roles_for_members.screen
+    - delete M1
+  - select default_roles ["Admin"]:
+    - edit M2 form.panel+default_roles=Admin
+  manager_history.pt-br:
+  - start_command default_roles "pt-br":
+    - send M1 form.panel
+  - click history:
+    - send M2 screen
+    - edit M2 changes.history
+  manager_pause.pt-br:
+  - start_command default_roles "pt-br":
+    - send M1 form.panel
+  - click pause:
+    - edit M1 form.panel+pause
+    - send M2 paused (delete_after 5)
+  manager_unpause.pt-br:
+  - start_command default_roles "pt-br":
+    - send M1 form.panel+pause
+  - click unpause:
+    - edit M1 form.panel
+    - send M2 unpaused (delete_after 5)
+  setup_cancel_discard.pt-br:
+  - start_command default_roles "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 form.default_roles_config
+    - delete M1
+  - select default_roles ["Member"]:
+    - edit M2 form.default_roles_config+default_roles=Member
+  - click cancel:
+    - send M3 discard
+  - click Descartar tudo:
+    - edit M2 form.default_roles_config+Descartar_tudo
+    - delete M3
+  setup_cancel_keep.pt-br:
+  - start_command default_roles "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 form.default_roles_config
+    - delete M1
+  - select default_roles ["Member"]:
+    - edit M2 form.default_roles_config+default_roles=Member
+  - click cancel:
+    - send M3 discard
+  - click Continuar configurando:
+    - delete M3
+  setup_gives_the_roles_now.pt-br:
+  - start_command default_roles "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 form.default_roles_config
+    - delete M1
+  - select default_roles ["Member"]:
+    - edit M2 form.default_roles_config+default_roles=Member
+  - click done:
+    - send M3 sync_existing+done
+    - delete M2
+  - click pick:True:
+    - send M4 form.review+pick:True
+    - delete M3
+  - click continue:
+    - send M5 enabled
+    - delete M4
+    - send M6 form.panel+continue@setup_gives_the_roles_now
+  setup_happy.en-us:
+  - start_command default_roles "en-us":
+    - send M1 form
+  - click continue:
+    - send M2 form.default_roles_config
+    - delete M1
+  - select default_roles ["Member"]:
+    - edit M2 form.default_roles_config+default_roles=Member
+  - select default_roles_bot ["Moderator"]:
+    - edit M2 form.default_roles_config+default_roles_bot=Moderator
+  - click done:
+    - send M3 sync_existing
+    - delete M2
+  - click pick:False:
+    - send M4 form.review
+    - delete M3
+  - click continue:
+    - send M5 enabled
+    - delete M4
+    - send M6 form.panel+continue
+  setup_happy.pt-br:
+  - start_command default_roles "pt-br":
+    - send M1 form
+  - click continue:
+    - send M2 form.default_roles_config
+    - delete M1
+  - select default_roles ["Member"]:
+    - edit M2 form.default_roles_config+default_roles=Member
+  - select default_roles_bot ["Moderator"]:
+    - edit M2 form.default_roles_config+default_roles_bot=Moderator
+  - click done:
+    - send M3 sync_existing
+    - delete M2
+  - click pick:False:
+    - send M4 form.review
+    - delete M3
+  - click continue:
+    - send M5 enabled
+    - delete M4
+    - send M6 form.panel+continue

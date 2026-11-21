@@ -2,15 +2,17 @@
 
 Each path is an async driver `run(scenario_factory, deps, locale) -> FormScenario`
 registered with `@golden_path(form, name, locales)` in the module named after its
-form, which `all_paths` finds through the registry. The golden test module
-records or checks `tests/behavioral/golden/<form>/<name>.<locale>.json` for
-every (path, locale) pair. Drivers speak only the harness API, never the
-engine, so the same path runs on the old and the new engine.
+form, which `all_paths` finds through the registry. The same module declares
+the form's book with `golden_book(FORM, rendered=(<panel>, <review>))`, and the
+golden test module records or checks the flow `<name>.<locale>` of every
+(path, locale) pair in that one book, `tests/behavioral/golden/<form>.yml`.
+Drivers speak only the harness API, never the engine, so the same path runs on
+the old and the new engine.
 """
 import importlib
 import importlib.util
 from dataclasses import dataclass
-from typing import Awaitable, Callable, List, Tuple
+from typing import Awaitable, Callable, Dict, FrozenSet, Iterable, List, Tuple
 
 from app.core.commands import commands
 from app.forms.form.form_yaml import DiskSource
@@ -28,7 +30,30 @@ class GoldenPath:
         return f"{self.form}/{self.name}"
 
 
+@dataclass(frozen=True)
+class GoldenBook:
+    form: str
+    rendered: Tuple[str, ...]
+
+
 REGISTRY: List[GoldenPath] = []
+BOOKS: Dict[str, GoldenBook] = {}
+
+
+def golden_book(form: str, rendered: Iterable[str] = ()) -> None:
+    """Record every path of `form` in one book, keeping the words of the
+    `rendered` screens beside their keys."""
+    BOOKS[form] = GoldenBook(form, tuple(rendered))
+
+
+def flow_ids(form: str) -> FrozenSet[str]:
+    """The flow of every (path, locale) pair `form` registers."""
+    return frozenset(
+        f"{path.name}.{locale}"
+        for path in REGISTRY
+        if path.form == form
+        for locale in path.locales
+    )
 
 
 def golden_path(form: str, name: str, locales=("pt-br",)):
