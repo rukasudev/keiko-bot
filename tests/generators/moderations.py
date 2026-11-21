@@ -31,7 +31,9 @@ async def welcome_messages(
     channel_id: str = "100",
     title: str = "Welcome!",
     messages: List[str] = None,
-    footer: str = "Enjoy your stay!"
+    footer: str = "Enjoy your stay!",
+    design: str = None,
+    custom_image: str = None,
 ) -> dict:
     """
     Insere configuracao de welcome_messages no banco.
@@ -58,6 +60,10 @@ async def welcome_messages(
         },
         "welcome_messages_footer": footer
     }
+    if design is not None:
+        doc["welcome_design"] = design
+    if custom_image is not None:
+        doc["welcome_custom_image"] = custom_image
 
     seed_cog(db, "welcome_messages", doc)
 
@@ -72,7 +78,9 @@ async def block_links(
     allowed_roles: List[str] = None,
     allowed_channels: List[str] = None,
     allowed_links: List[str] = None,
-    answer: str = "Links are not allowed here!"
+    answer: str = "Links are not allowed here!",
+    mode: str = "block_all",
+    custom_links: List[dict] = None,
 ) -> dict:
     """
     Insere configuracao de block_links no banco.
@@ -81,14 +89,14 @@ async def block_links(
     doc = {
         "guild_id": guild_id,
         "enabled": enabled,
-        "mode": "block_all",
+        "mode": mode,
         "allowed_roles": {"style": "role", "values": allowed_roles or []},
         "allowed_chats": {"style": "channel", "values": allowed_channels or []},
         "allowed_links": {
             "style": "bullet",
             "values": allowed_links or ["discord.gg", "youtube.com"],
         },
-        "custom_links": {"style": "composition", "values": []},
+        "custom_links": {"style": "composition", "values": custom_links or []},
         "answer": answer,
     }
 

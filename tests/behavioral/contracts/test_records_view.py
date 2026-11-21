@@ -8,10 +8,12 @@ primitive's own contract so every consumer inherits it.
 """
 import pytest
 
-from app.core.utils import ml
+from app.core.facts import facts
+from app.core.i18n import CopyError
+from app.core.utils import fill, ml
 from app.ui.pagination import PaginationView
 from app.ui.records import RecordsBrowser
-from tests.helpers.copy import checked_copy  # noqa: F401
+from tests.helpers.copy import SAMPLE, checked_copy  # noqa: F401
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("manager_form")]
 
@@ -30,9 +32,21 @@ ui:
 """
 
 
+SAVED = "sample.ui.records.saved"
+
+
 @pytest.fixture
 def lists(checked_copy):  # noqa: F811
     checked_copy(LISTS, prefix="lists")
+
+
+@pytest.fixture
+def sample(checked_copy):  # noqa: F811
+    checked_copy(SAMPLE)
+
+
+def _saved(locale, part, **values):
+    return fill(ml(f"{SAVED}.{part}", locale), **values)
 
 
 def _flt(leaf: str, locale: str = "pt-br") -> str:
@@ -73,7 +87,7 @@ def _filtered(listed) -> RecordsBrowser:
 
 async def test_records_render_paginated_and_ephemeral(lists, scenario_factory):
     scenario = scenario_factory(locale="pt-br")
-    await _browser().send(scenario._mint())
+    await _browser().send(scenario.interaction())
 
     listing = scenario.expect_message(ephemeral=True, title_contains="Registros")
     fields = (listing.get("embed") or {}).get("fields") or []
@@ -88,7 +102,7 @@ async def test_no_records_without_empty_copy_still_sends_the_pagination(
     """The history screens' shape: a Records block without `empty` sends the
     (empty) pagination, exactly as it did before the extraction."""
     scenario = scenario_factory(locale="pt-br")
-    await _browser(fetch=lambda i, uid: []).send(scenario._mint())
+    await _browser(fetch=lambda i, uid: []).send(scenario.interaction())
 
     listing = scenario.expect_message(ephemeral=True)
     assert not (listing.get("embed") or {}).get("fields")
@@ -99,7 +113,7 @@ async def test_empty_state_replaces_the_pagination_when_copy_is_provided(
         lists, scenario_factory):
     scenario = scenario_factory(locale="pt-br")
     await _browser(fetch=lambda i, uid: [], copy="lists.ui.records.quiet").send(
-        scenario._mint()
+        scenario.interaction()
     )
 
     listing = scenario.expect_message(
@@ -121,7 +135,7 @@ async def test_member_filter_round_trip(scenario_factory):
     browser = _filtered(
         lambda i, uid: [r for r in data if uid is None or r["user"] == uid]
     )
-    await browser.send(scenario._mint())
+    await browser.send(scenario.interaction())
 
     await scenario.click(_flt("label"))
     scenario.expect_message(title_contains=_flt("title"))
@@ -144,7 +158,7 @@ async def test_filtered_empty_resolves_the_filter_copy(scenario_factory):
 
     scenario = scenario_factory(locale="pt-br", guild=guild)
     browser = _filtered(lambda i, uid: [] if uid else [{"name": "spam"}])
-    await browser.send(scenario._mint())
+    await browser.send(scenario.interaction())
 
     await scenario.click(_flt("label"))
     await scenario.select_option("Inocente")
@@ -166,7 +180,7 @@ async def test_a_consumer_needs_nothing_command_shaped(lists, scenario_factory):
         to_fields=lambda records, i: {r["name"]: "value" for r in records},
         copy="lists.ui.records.bare",
     )
-    await browser.send(scenario._mint())
+    await browser.send(scenario.interaction())
 
     scenario.expect_message(title_contains="Qualquer coisa")
     assert isinstance(scenario.current_message.view, PaginationView)
@@ -191,7 +205,7 @@ async def test_confirming_with_nobody_chosen_shows_every_record(scenario_factory
     browser = _filtered(
         lambda i, uid: [r for r in data if uid is None or r["user"] == uid]
     )
-    await browser.send(scenario._mint())
+    await browser.send(scenario.interaction())
 
     await scenario.click(_flt("label"))
     await scenario.confirm()
@@ -212,10 +226,61 @@ async def test_cancelling_the_picker_returns_to_every_record(scenario_factory):
     browser = _filtered(
         lambda i, uid: [r for r in data if uid is None or r["user"] == uid]
     )
-    await browser.send(scenario._mint())
+    await browser.send(scenario.interaction())
 
     await scenario.click(_flt("label"))
     await scenario.click(ml("buttons.cancel.label", locale="pt-br"))
 
     listing = str(scenario.expect_message(title_contains=_listed()).get("embed"))
     assert "spam" in listing and "ok" in listing
+
+
+async def test_a_records_block_titles_the_list_and_fills_its_values(
+    sample, scenario_factory
+):
+    scenario = scenario_factory(locale="pt-br")
+
+    async def fetch(_interaction, _user):
+        return [{"name": "a"}]
+
+    browser = RecordsBrowser(
+        fetch,
+        lambda records, _interaction: {record["name"]: "x" for record in records},
+        copy=SAVED,
+        facts=facts("sample", who="Ana"),
+    )
+    await scenario.run(browser.send, name="/records")
+
+    listing = scenario.expect_message(
+        ephemeral=True, title_contains=_saved("pt-br", "title", who="Ana")
+    )
+    assert _saved("pt-br", "description", who="Ana") in str(listing.get("embed"))
+    assert isinstance(scenario.current_message.view, PaginationView)
+
+
+async def test_a_records_block_draws_in_the_language_it_is_given(
+    sample, scenario_factory
+):
+    scenario = scenario_factory(locale="en-us")
+
+    async def fetch(_interaction, _user):
+        return [{"name": "a"}]
+
+    browser = RecordsBrowser(
+        fetch,
+        lambda records, _i: {record["name"]: "x" for record in records},
+        copy=SAVED,
+        facts=facts("sample", who="Ana"),
+        locale="pt-br",
+    )
+    await scenario.run(browser.send, name="/records")
+
+    scenario.expect_message(title_contains=_saved("pt-br", "title", who="Ana"))
+
+
+async def test_a_records_block_no_copy_writes_is_refused(scenario_factory):
+    scenario = scenario_factory(locale="en-us")
+    browser = RecordsBrowser(None, None, copy="report.ui.records.tickets")
+
+    with pytest.raises(CopyError, match="no copy file writes it"):
+        await scenario.run(browser.send, name="/records")

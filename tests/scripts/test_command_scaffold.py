@@ -43,9 +43,7 @@ def test_a_plain_command_gets_its_folder_its_copy_and_its_test(tmp_path):
         "app/commands/good_boy/cog.py",
         "app/commands/good_boy/copy.yml",
         "app/commands/good_boy/service.py",
-        "tests/commands/__init__.py",
-        "tests/commands/good_boy/__init__.py",
-        "tests/commands/good_boy/test_good_boy.py",
+        "tests/test_good_boy.py",
     ]
     declaration = (tmp_path / "app/commands/good_boy/__init__.py").read_text()
     assert 'key="good_boy"' in declaration

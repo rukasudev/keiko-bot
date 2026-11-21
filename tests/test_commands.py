@@ -7,7 +7,10 @@ resolves in en-us and in pt-br, every `analytics.record("...")` literal is an ev
 the catalog, every reminder title and webhook event has one owner, and every key
 looked up by its literal in `app/` is declared. A webhook event
 is a key of `Command.webhooks` when the registry declares that field, or else a field
-of `Hooks` that is not a Discord listener. The checks start once the list holds
+of `Hooks` that is not a Discord listener. Every command /setup offers writes its row's
+copy in its own `copy.yml`, in both locales: /setup, the greeting, the stats embed and
+the recent-activity line read those fixed keys through `command_text`, where the
+literal scan cannot see one go missing. The checks start once the list holds
 `Command` objects.
 """
 
@@ -22,6 +25,7 @@ from typing import Any, Dict, Iterator, List, Tuple
 import pytest
 import yaml
 
+from app.core.commands import copy_file, setup_features
 from tests.helpers.commands import form_compiler
 
 pytestmark = pytest.mark.unit
@@ -31,6 +35,15 @@ COMMANDS = os.path.join(ROOT, "app", "commands")
 REGISTRY = ("app/core/commands.py", "app/commands/__init__.py")
 CATALOG = os.path.join(ROOT, "app", "analytics", "catalog.yml")
 LOCALES = ("en-us", "pt-br")
+SETUP_ROW_KEYS = (
+    "command.setup.label",
+    "command.setup.description",
+    "command.stats.title",
+    "command.stats.delivered.one",
+    "command.stats.delivered.other",
+    "command.slash.subgroup",
+    "command.slash.name",
+)
 LISTENER_HOOKS = frozenset(
     {"member_joined", "message_sent", "prefixed_message", "message_edited"}
 )
@@ -193,6 +206,21 @@ def test_a_command_writes_its_copy_and_its_form_in_its_folder_copy_and_form_yml(
 
     assert problems == []
 
+
+@pytest.mark.parametrize("command", setup_features(), ids=lambda command: command.key)
+@pytest.mark.parametrize("locale", LOCALES)
+def test_a_setup_row_writes_its_copy_in_its_own_folder(command, locale):
+    import i18n
+
+    from app.core import i18n as copy
+
+    path = copy_file(command.key)
+    assert path is not None, f"write the copy.yml of {command.key}"
+    own = dict(copy.written(path, ""))
+
+    for key in SETUP_ROW_KEYS:
+        assert key in own, f"write {key} in {path.parent.name}/copy.yml"
+        assert i18n.t(f"{command.key}.{key}", locale=locale) == own[key][locale]
 
 def test_every_copy_key_a_command_uses_exists_in_both_locales():
     import i18n
@@ -396,3 +424,101 @@ def test_a_lazy_command_loads_once_keiko_is_ready_and_the_rest_at_startup(regist
         "app.commands.admin.digest",
     ]
     assert extension_paths("events") == ["app.core.events"]
+
+
+def test_every_form_on_disk_is_a_declared_feature_and_back():
+    """Each feature is declared once, in its command folder, and its form, its module
+    and its slash command agree with that declaration: the `form.yml` beside it, the
+    `FEATURE` its service holds, the subgroup the slash groups register with its
+    namespace, and the copy."""
+    from app.core.commands import commands, form_file
+    from app.forms.form.form_yaml import DiskSource
+
+    on_disk = {
+        folder
+        for folder in os.listdir(COMMANDS)
+        if Path(COMMANDS, folder, "form.yml").is_file()
+    }
+    with_a_form = set(DiskSource().list())
+    assert with_a_form <= {command.key for command in commands()}
+    assert {form_file(key).parent.name for key in with_a_form} == on_disk
+
+
+def test_every_feature_module_lives_in_the_service_of_its_command():
+    from app.core.commands import form_file, setup_features
+    from app.forms.features import feature_for
+
+    for spec in setup_features():
+        if spec.feature is None:
+            continue
+        folder = form_file(spec.key).parent.name
+        module = importlib.import_module(f"app.commands.{folder}.service")
+        assert module.FEATURE is spec.feature
+        assert module.FEATURE.key == spec.key
+        assert feature_for(spec.key) is module.FEATURE
+
+
+def test_no_command_folder_holds_a_feature_module_of_its_own():
+    stray = sorted(
+        folder
+        for folder in os.listdir(COMMANDS)
+        if os.path.isfile(os.path.join(COMMANDS, folder, "feature.py"))
+    )
+    assert stray == [], f"move the FeatureModule of {stray} into its service.py"
+
+
+async def test_every_feature_command_is_registered_where_its_spec_says():
+    """Each feature's subgroup sits under the parent group its command declares,
+    named by its own copy, and no other subgroup sits under a parent group."""
+    from app.core.commands import PARENT_GROUPS, setup_features
+    from app.core.utils import ml
+    from tests.helpers.slash_tree import synced_tree
+
+    paths = (await synced_tree()).paths()
+    for locale in LOCALES:
+        registered = {
+            typed[locale]
+            for name, typed in paths.items()
+            if len(name.split()) == 2 and name.split()[0] in PARENT_GROUPS
+        }
+        declared = {
+            f"/{ml(f'texts.groups.{spec.group}', locale)} "
+            f"{ml(f'{spec.key}.command.slash.subgroup', locale)}"
+            for spec in setup_features()
+        }
+        assert registered == declared
+
+
+def test_setup_lists_the_features_in_the_order_it_always_did():
+    from app.core.commands import setup_features
+    from app.forms.features import feature_keys
+
+    assert list(feature_keys()) == [
+        "welcome_messages",
+        "default_roles",
+        "block_links",
+        "notifications_twitch",
+        "notifications_youtube_video",
+        "reminders_birthday",
+        "stream_elements_commands",
+    ]
+    assert [spec.key for spec in setup_features() if spec.answers_prefix] == [
+        "stream_elements_commands"
+    ]
+
+
+@pytest.mark.parametrize("locale", LOCALES)
+def test_every_feature_has_its_command_and_setup_copy(locale):
+    from app.core import i18n
+    from app.core.commands import setup_features
+
+    copy = i18n.keys(locale)
+    for spec in setup_features():
+        assert copy[f"texts.groups.{spec.group}"]
+        for path in (
+            "command.slash.name",
+            "command.slash.subgroup",
+            "command.setup.label",
+            "command.setup.description",
+        ):
+            assert copy[f"{spec.key}.{path}"]

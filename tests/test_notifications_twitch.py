@@ -1,14 +1,18 @@
-"""
-Testes de integracao para notificacoes Twitch.
+"""A Twitch live reaches every server that follows the streamer: the notice, its
+status and the admin's message, each server in its own language."""
 
-Estes testes verificam o fluxo completo de notificacoes,
-desde o recebimento do webhook ate o envio da mensagem.
-"""
-
-import pytest
-import discord
+import asyncio
+import logging
 from datetime import datetime, timedelta, timezone
-from app.data import data
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
+
+import discord
+import pytest
+from dateutil import parser
+from redis.exceptions import ConnectionError as RedisConnectionError
+
+from app.commands.twitch import service as notifications_twitch
 from app.commands.twitch.service import (
     compose_notification_message,
     create_stream_notification_embed,
@@ -17,179 +21,125 @@ from app.commands.twitch.service import (
     is_more_than_one_hour,
     parse_streamer_message,
 )
-from tests.mocks import create_guild, create_member
-from tests.generators import notifications
+from app.core.utils import fill, ml
+from app.data import data
 from tests.generators.moderations import recorded_server, seed_cog
-from tests.helpers import assert_embed_contains, assert_embed_field
-import asyncio
-import logging
-from redis.exceptions import ConnectionError as RedisConnectionError
-from types import SimpleNamespace
+from tests.mocks import create_guild
+
+ANNOUNCEMENT = "notifications_twitch.ui.announcement"
 
 
-class TestTwitchStreamOnline:
-    """Testes de notificacao quando streamer fica online."""
-
-    @pytest.mark.asyncio
-    async def test_sends_notification_when_configured_streamer_goes_live(
-        self, twitch_data, mongodb, guild, twitch, bot
-    ):
-        """
-        Verifica que uma notificacao e enviada no canal configurado quando
-        um streamer monitorado inicia uma live.
-
-        Input: Streamer "gaules" online jogando CS2, guild configurado para notificar
-        Output: Embed enviado com nome do jogo e titulo da stream
-        """
-        # Arrange
-        channel = guild.text_channels[0]
-        twitch.add_user("gaules", user_id="123")
-        twitch.set_stream_online("gaules", game="CS2", title="LOUD vs FURIA!")
-
-        await notifications.twitch(
-            mongodb,
-            guild_id=str(guild.id),
-            streamers=[{
-                "name": "gaules",
-                "channel_id": str(channel.id),
-                "messages": ["{streamer} esta ao vivo!"]
-            }]
-        )
-
-        bot.get_guild.return_value = guild
-        guild.get_channel = lambda id: channel if str(id) == str(channel.id) else None
-
-        twitch_data.find_guilds.return_value = [{
-            "guild_id": str(guild.id),
-            "notifications": {
-                "values": [{
-                    "channel": {"value": str(channel.id)},
-                    "streamer": {"value": "gaules"},
-                    "notification_messages": {"value": "{streamer} esta ao vivo!"}
-                }]
-            }
-        }]
-        twitch_data.subscription_state.return_value = {}  # Primeira vez
-        twitch_data.wait_for_stream_info.return_value = twitch.get_stream_info("gaules")
-
-        # Act
-        await handle_send_streamer_notification("gaules")
-
-        # Assert
-        channel.assert_message_sent()
-        embed = channel.get_last_embed()
-        assert embed is not None
-        assert_embed_contains(embed, "CS2")
-        twitch.assert_stream_checked("gaules")
-
-        # Verify mocks were called with correct arguments
-        twitch_data.wait_for_stream_info.assert_called_once_with("gaules")
-        twitch_data.subscription_state.assert_called_once_with("twitch", "gaules")
-        twitch_data.find_guilds.assert_called_once_with("gaules")
-        twitch_data.save_message.assert_called_once()
-        twitch_data.update_subscription_state.assert_called_once_with(
-            "twitch",
-            "gaules",
-            {"last_live_started_at": datetime.fromisoformat(
-                twitch.get_stream_info("gaules").get("started_at")
-            )},
-        )
-
-    @pytest.mark.asyncio
-    async def test_does_not_send_when_stream_info_not_found(
-        self, twitch_data, mongodb, guild, twitch, bot
-    ):
-        """
-        Verifica que nenhuma notificacao e enviada quando stream info nao e encontrado.
-
-        Input: Streamer existe mas nao esta online (get_stream_info retorna None)
-        Output: Nenhuma mensagem enviada
-        """
-        # Arrange
-        channel = guild.text_channels[0]
-        twitch.add_user("gaules", user_id="123")
-
-        await notifications.twitch(
-            mongodb,
-            guild_id=str(guild.id),
-            streamers=[{
-                "name": "gaules",
-                "channel_id": str(channel.id),
-            }]
-        )
-
-        bot.get_guild.return_value = guild
-        twitch_data.wait_for_stream_info.return_value = None
-
-        # Act
-        await handle_send_streamer_notification("gaules")
-
-        # Assert
-        channel.assert_no_message_sent()
-
-        # When stream_info is None, should not proceed to find guilds or save
-        twitch_data.wait_for_stream_info.assert_called_once_with("gaules")
-        twitch_data.find_guilds.assert_not_called()
-        twitch_data.subscription_state.assert_not_called()
-        twitch_data.save_message.assert_not_called()
+GONE = 4004
 
 
-class TestTwitchDuplicatePrevention:
-    """Testes de prevencao de notificacoes duplicadas."""
+@pytest.fixture
+def servers(deps):
+    """Two servers following `gaules`, and the streamer live for two hours."""
+    first = create_guild(id=5001, name="First", channels=["lives"])
+    second = create_guild(id=5002, name="Second", channels=["streams", "more-streams"])
+    known = {first.id: first, second.id: second}
+    deps.bot.get_guild = lambda guild_id: known.get(int(guild_id))
+    deps.twitch.add_user("gaules", user_id="123")
+    deps.twitch.set_stream_online(
+        "gaules", game="CS2", started_at=datetime.now(timezone.utc) - timedelta(hours=2)
+    )
+    for guild in known.values():
+        recorded_server(deps.mongo_client, guild.id, language="en-us")
+    return SimpleNamespace(first=first, second=second)
 
-    @pytest.mark.asyncio
-    async def test_does_not_send_duplicate_for_recent_stream(
-        self, twitch_data, mongodb, guild, twitch, bot
-    ):
-        """
-        Verifica que nao envia notificacao duplicada se a stream foi notificada
-        recentemente (menos de 1 hora). Evita spam quando streamer reconecta.
 
-        Input: Stream ja notificada ha 30 minutos, webhook dispara novamente
-        Output: Nenhuma nova notificacao enviada (edita a existente)
-        """
-        # Arrange
-        channel = guild.text_channels[0]
-        twitch.add_user("gaules", user_id="123")
-        twitch.set_stream_online("gaules", game="CS2")
-
-        await notifications.twitch(
-            mongodb,
-            guild_id=str(guild.id),
-            streamers=[{"name": "gaules", "channel_id": str(channel.id)}]
-        )
-
-        recent_time = datetime.now(timezone.utc) - timedelta(minutes=30)
-
-        bot.get_guild.return_value = guild
-        guild.get_channel = lambda id: channel
-
-        twitch_data.find_guilds.return_value = [{
-            "guild_id": str(guild.id),
-            "notifications": {"values": [{
+def follow(deps, guild_id, *channels):
+    recorded_server(deps.mongo_client, guild_id)
+    seed_cog(deps.mongo_client, "notifications_twitch", {
+        "guild_id": str(guild_id),
+        "enabled": True,
+        "notifications": {"values": [
+            {
                 "streamer": {"value": "gaules"},
-                "channel": {"value": str(channel.id)},
-                "notification_messages": {"value": "{streamer} esta ao vivo!"}
-            }]}
-        }]
-        twitch_data.subscription_state.return_value = {
-            "last_live_started_at": recent_time
-        }
-        twitch_data.is_more_than_one_hour.return_value = False  # Menos de 1 hora
-        twitch_data.wait_for_stream_info.return_value = twitch.get_stream_info("gaules")
+                "channel": {"value": str(channel)},
+                "notification_messages": {"value": "{streamer} is live! {stream_link}"},
+            }
+            for channel in channels
+        ]},
+    })
 
-        # Act
-        await handle_send_streamer_notification("gaules")
 
-        # Assert - Nao deve ter enviado nova mensagem (editou a existente)
-        assert len(channel.get_all_messages()) == 0
+def notices(guild):
+    return [message for channel in guild.text_channels for message in channel.get_all_messages()]
 
-        # Verify deduplication flow was followed
-        twitch_data.wait_for_stream_info.assert_called_once_with("gaules")
-        twitch_data.subscription_state.assert_called_once_with("twitch", "gaules")
-        twitch_data.is_more_than_one_hour.assert_called_once()
-        twitch_data.save_message.assert_not_called()
-        twitch_data.update_subscription_state.assert_not_called()
+
+def footers(guild):
+    return [message.embeds[0].footer.text for message in notices(guild)]
+
+
+def errors(caplog, flow="twitch_notification"):
+    return [
+        record for record in caplog.records
+        if record.levelno >= logging.ERROR
+        and getattr(getattr(record, "context", None), "flow", None) == flow
+    ]
+
+
+def field(name, locale="en-us"):
+    """A field name of the live notice, as the copy writes it."""
+    return ml(f"{ANNOUNCEMENT}.fields.{name}", locale)
+
+
+def footer(status, locale="en-us", duration=None):
+    """The status line of a live notice, as the copy writes it."""
+    line = ml(f"{ANNOUNCEMENT}.states.{status}", locale)
+    if duration:
+        line += " | " + fill(ml(f"{ANNOUNCEMENT}.states.duration", locale), duration=duration)
+    return f"• {line}"
+
+
+def started_at(deps):
+    return parser.parse(deps.twitch.get_stream_info("gaules")["started_at"])
+
+
+async def test_a_live_is_announced_in_the_followed_channel_and_remembered(deps, servers):
+    """A new live is posted in the channel the server chose, with its category, and
+    Keiko keeps the message and when the live started."""
+    channel = servers.first.text_channels[0]
+    follow(deps, servers.first.id, channel.id)
+
+    await handle_send_streamer_notification("gaules")
+
+    [notice] = notices(servers.first)
+    assert (field("game"), "CS2") in [(f.name, f.value) for f in notice.embeds[0].fields]
+    saved = await data().guild_messages.find_message(
+        servers.first.id, channel.id, "notifications_twitch", "gaules"
+    )
+    assert saved["message_id"] == str(notice.id)
+    state = await data().keiko_subscriptions.subscription_state("twitch", "gaules")
+    assert state["last_live_started_at"] == started_at(deps)
+
+
+async def test_a_live_twitch_never_shows_is_not_announced(deps, servers, monkeypatch):
+    """When Twitch never shows the live, nothing is posted and nothing remembered."""
+    follow(deps, servers.first.id, servers.first.text_channels[0].id)
+    monkeypatch.setattr(notifications_twitch, "wait_for_stream_info", lambda streamer: None)
+
+    await handle_send_streamer_notification("gaules")
+
+    assert notices(servers.first) == []
+    assert await data().keiko_subscriptions.subscription_state("twitch", "gaules") == {}
+
+
+async def test_a_reconnect_within_the_hour_posts_no_second_notice(deps, servers):
+    """A live that starts again less than an hour after the one announced is the
+    same live: the notice is marked online again, never posted twice."""
+    follow(deps, servers.first.id, servers.first.text_channels[0].id)
+    earlier = started_at(deps) - timedelta(minutes=30)
+    await data().keiko_subscriptions.update_subscription_state(
+        "twitch", "gaules", {"last_live_started_at": earlier}
+    )
+
+    await handle_send_streamer_notification("gaules")
+
+    assert notices(servers.first) == []
+    state = await data().keiko_subscriptions.subscription_state("twitch", "gaules")
+    assert state["last_live_started_at"] == earlier
 
 
 class TestTwitchTimeValidation:
@@ -332,8 +282,10 @@ class TestTwitchStreamEmbed:
         # Assert
         assert embed is not None
         assert embed.title == "Live Test!"
-        assert_embed_field(embed, "Category", "CS2")
-        assert_embed_field(embed, "Streamer", "gaules")
+        assert [(f.name, f.value) for f in embed.fields] == [
+            (field("game"), "CS2"),
+            (field("streamer"), "gaules"),
+        ]
 
     def test_embed_has_correct_color(self, twitch):
         """
@@ -354,62 +306,6 @@ class TestTwitchStreamEmbed:
 
         # Assert
         assert embed.color == discord.Color.purple()
-
-
-class TestTwitchSubscriptionManagement:
-    """Testes de gerenciamento de subscriptions."""
-
-    def test_subscribe_returns_202_for_new_subscription(self, twitch):
-        """
-        Verifica que subscription nova retorna 202.
-
-        Input: User ID sem subscription existente
-        Output: Response com status 202
-        """
-        # Arrange
-        twitch.add_user("gaules", user_id="123")
-
-        # Act
-        response = twitch.subscribe_to_stream_online_event("123")
-
-        # Assert
-        assert response.status_code == 202
-        twitch.assert_subscribed("123", "stream.online")
-
-    def test_subscribe_returns_409_for_duplicate(self, twitch):
-        """
-        Verifica que subscription duplicada retorna 409.
-
-        Input: User ID ja com subscription
-        Output: Response com status 409
-        """
-        # Arrange
-        twitch.add_user("gaules", user_id="123")
-        twitch.subscribe_to_stream_online_event("123")
-
-        # Act
-        response = twitch.subscribe_to_stream_online_event("123")
-
-        # Assert
-        assert response.status_code == 409
-
-    def test_unsubscribe_removes_subscription(self, twitch):
-        """
-        Verifica que unsubscribe remove a subscription.
-
-        Input: Subscription existente
-        Output: Subscription removida, status 204
-        """
-        # Arrange
-        twitch.add_user("gaules", user_id="123")
-        twitch.subscribe_to_stream_online_event("123")
-
-        # Act
-        response = twitch.unsubscribe_from_stream_event("sub-online-123-1")
-
-        # Assert
-        assert response.status_code == 204
-        twitch.assert_unsubscribed()
 
 
 @pytest.mark.behavioral
@@ -537,72 +433,6 @@ async def test_a_live_already_claimed_never_reads_who_follows_the_streamer(
     assert queried == [], "no server list is read for a live already claimed"
 
 
-GONE = 4004
-
-
-@pytest.fixture
-def servers(deps):
-    """Two servers following `gaules`, and the streamer live for two hours."""
-    first = create_guild(id=5001, name="First", channels=["lives"])
-    second = create_guild(id=5002, name="Second", channels=["streams", "more-streams"])
-    known = {first.id: first, second.id: second}
-    deps.bot.get_guild = lambda guild_id: known.get(int(guild_id))
-    deps.twitch.add_user("gaules", user_id="123")
-    deps.twitch.set_stream_online(
-        "gaules", game="CS2", started_at=datetime.now(timezone.utc) - timedelta(hours=2)
-    )
-    for guild in known.values():
-        recorded_server(deps.mongo_client, guild.id, language="en-us")
-        for channel in guild.text_channels:
-            remember_sent_messages(channel)
-    return SimpleNamespace(first=first, second=second)
-
-
-def remember_sent_messages(channel):
-    """Discord finds a message by its id whether it is given as text or as a number."""
-    channel._fetch_message.side_effect = lambda message_id: next(
-        (sent for sent in channel._sent_messages if str(sent.id) == str(message_id)), None
-    )
-
-
-def follow(deps, guild_id, *channels):
-    recorded_server(deps.mongo_client, guild_id)
-    seed_cog(deps.mongo_client, "notifications_twitch", {
-        "guild_id": str(guild_id),
-        "enabled": True,
-        "notifications": {"values": [
-            {
-                "streamer": {"value": "gaules"},
-                "channel": {"value": str(channel)},
-                "notification_messages": {"value": "{streamer} is live! {stream_link}"},
-            }
-            for channel in channels
-        ]},
-    })
-
-
-def notices(guild):
-    return [message for channel in guild.text_channels for message in channel._sent_messages]
-
-
-def footers(guild):
-    return [message.embeds[0].footer.text for message in notices(guild)]
-
-
-def errors(caplog, flow="twitch_notification"):
-    return [
-        record for record in caplog.records
-        if record.levelno >= logging.ERROR
-        and getattr(getattr(record, "context", None), "flow", None) == flow
-    ]
-
-
-def refuse(channel):
-    channel._send.side_effect = discord.Forbidden(
-        SimpleNamespace(status=403, reason="Forbidden"), "Missing Permissions"
-    )
-
-
 @pytest.mark.behavioral
 @pytest.mark.regression
 @pytest.mark.shared_contract("fan_out")
@@ -648,7 +478,7 @@ async def test_a_server_that_refuses_the_notice_does_not_stop_the_next(
 ):
     follow(deps, servers.first.id, servers.first.text_channels[0].id)
     follow(deps, servers.second.id, servers.second.text_channels[0].id)
-    refuse(servers.first.text_channels[0])
+    servers.first.text_channels[0].denied.add("send_messages")
 
     with caplog.at_level("INFO"):
         await handle_send_streamer_notification("gaules")
@@ -664,11 +494,15 @@ async def test_a_server_that_refuses_the_notice_does_not_stop_the_next(
 @pytest.mark.regression
 @pytest.mark.shared_contract("fan_out")
 async def test_an_unexpected_failure_is_an_error_with_its_context_and_the_next_still_hears(
-    deps, servers, caplog
+    deps, servers, caplog, monkeypatch
 ):
     follow(deps, servers.first.id, servers.first.text_channels[0].id)
     follow(deps, servers.second.id, servers.second.text_channels[0].id)
-    servers.first.text_channels[0]._send.side_effect = RuntimeError("the embed is too long")
+    monkeypatch.setattr(
+        servers.first.text_channels[0],
+        "send",
+        AsyncMock(side_effect=RuntimeError("the embed is too long")),
+    )
 
     with caplog.at_level("INFO"):
         await handle_send_streamer_notification("gaules")
@@ -691,9 +525,9 @@ async def test_a_streamer_followed_in_several_channels_gets_its_status_once_per_
     await handle_send_streamer_offline_notification("gaules")
 
     written = footers(servers.second)
-    assert [footer.count("🔴") for footer in written] == [1, 1]
-    assert [footer.count("Duration") for footer in written] == [1, 1]
-    assert all(footer.startswith("• 🔴 Offline | ⌛️ Duration: 2h") for footer in written)
+    assert len(written) == 2
+    assert all(line.startswith(footer("offline", duration="2h")) for line in written)
+    assert all(line.count(ml(f"{ANNOUNCEMENT}.states.offline", "en-us")) == 1 for line in written)
 
 
 @pytest.mark.behavioral
@@ -704,10 +538,10 @@ async def test_the_status_speaks_the_servers_language(deps, servers):
     follow(deps, servers.second.id, servers.second.text_channels[0].id)
 
     await handle_send_streamer_notification("gaules")
-    assert footers(servers.second) == ["• 🟢 Ao vivo"]
+    assert footers(servers.second) == [footer("online", "pt-br")]
 
     await handle_send_streamer_offline_notification("gaules")
-    assert footers(servers.second)[0].startswith("• 🔴 Live encerrada | ⌛️ Duração: 2h")
+    assert footers(servers.second)[0].startswith(footer("offline", "pt-br", duration="2h"))
 
 
 @pytest.mark.behavioral
@@ -716,32 +550,21 @@ async def test_the_status_speaks_the_servers_language(deps, servers):
 async def test_the_offline_edit_skips_a_server_keiko_left_and_reaches_the_next(
     deps, servers, caplog
 ):
+    follow(deps, GONE, 100)
     follow(deps, servers.second.id, servers.second.text_channels[0].id)
     await handle_send_streamer_notification("gaules")
-    follow(deps, GONE, 100)
     await data().guild_messages.save_message(GONE, 100, "notifications_twitch", "gaules", 1)
-    reordered = sorted(
-        deps.mongo_client.guild.notifications_twitch._data,
-        key=lambda document: document["guild_id"] != str(GONE),
-    )
-    deps.mongo_client.guild.notifications_twitch._data[:] = reordered
 
     with caplog.at_level("INFO"):
         await handle_send_streamer_offline_notification("gaules")
 
-    assert footers(servers.second)[0].startswith("• 🔴 Offline")
+    assert footers(servers.second)[0].startswith(footer("offline"))
     assert [record for record in caplog.records if record.levelno >= logging.ERROR] == []
 
 
-def field_names(embed):
-    return [field.name for field in embed.fields]
-
-
 @pytest.mark.unit
-@pytest.mark.parametrize(
-    "locale,names", [("en-us", ["Category", "Streamer"]), ("pt-br", ["Categoria", "Streamer"])]
-)
-def test_a_live_notice_names_its_fields_in_the_servers_language(twitch, locale, names):
+@pytest.mark.parametrize("locale", ["en-us", "pt-br"])
+def test_a_live_notice_names_its_fields_in_the_servers_language(twitch, locale):
     """A live or video notice names its fields in the language of the server it reaches.
 
     Reported in the v1 review of the loop and runtime PR: once the Twitch status footer came
@@ -758,7 +581,10 @@ def test_a_live_notice_names_its_fields_in_the_servers_language(twitch, locale, 
         "gaules", twitch.get_stream_info("gaules"), twitch.get_user_info("gaules"), locale
     )
 
-    assert field_names(embed) == names
+    assert [name.name for name in embed.fields] == [
+        field("game", locale),
+        field("streamer", locale),
+    ]
 
 
 @pytest.mark.behavioral
@@ -780,7 +606,7 @@ async def test_a_streamer_saved_by_the_old_pause_is_still_announced(deps, server
 
     assert len(notices(servers.first)) == 1
     assert all(
-        len(channel._sent_messages) == 1 for channel in servers.second.text_channels
+        len(channel.get_all_messages()) == 1 for channel in servers.second.text_channels
     )
 
 
@@ -806,5 +632,5 @@ async def test_a_live_without_a_category_announces_no_category_field(deps, serve
     await handle_send_streamer_notification("gaules")
 
     [notice] = notices(servers.first)
-    fields = [(field.name, field.value) for field in notice.embeds[0].fields]
-    assert fields == [("Streamer", "gaules")]
+    fields = [(shown.name, shown.value) for shown in notice.embeds[0].fields]
+    assert fields == [(field("streamer"), "gaules")]

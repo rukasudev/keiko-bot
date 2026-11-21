@@ -19,21 +19,16 @@ from app.core.servers import set_feature_enabled
 from app.commands.birthdays.service import find_birthday, save_birthday_config
 from app.commands.birthdays import service as birthdays_service
 from app.commands.birthdays import celebration as birthday_handler
-from tests.behavioral.golden.paths.reminders_birthday import (
-    _complete_member_card,
-    _guild,
-    _seed_config,
+from tests.behavioral.flows.birthdays import (
+    complete_member_card,
+    birthday_guild,
+    seed_config,
 )
-from tests.behavioral.regressions.test_birthday_personal_outcomes import (
-    GUILD_ID as PERSONAL_GUILD,
-)
-from tests.behavioral.regressions.test_birthday_personal_outcomes import (
-    USER_ID as PERSONAL_USER,
-)
-from tests.behavioral.regressions.test_birthday_personal_outcomes import (
-    enabled,  # noqa: F401
-    interaction_for,
-    run,
+from tests.behavioral.flows.birthdays import (
+    PERSONAL_GUILD_ID,
+    PERSONAL_USER_ID,
+    personal_interaction,
+    run_birthday_command,
 )
 from tests.generators.birthdays import saved_birthday
 from tests.generators.moderations import recorded_server
@@ -54,20 +49,20 @@ async def display_name(guild_id, user_id):
     )
 
 
-async def test_the_birthday_command_keeps_the_members_name(enabled):  # noqa: F811
-    await run(interaction_for(), 3, 14)
+async def test_the_birthday_command_keeps_the_members_name(birthday_command_on):
+    await run_birthday_command(personal_interaction(), 3, 14)
 
-    assert await display_name(PERSONAL_GUILD, PERSONAL_USER) == "Ana"
+    assert await display_name(PERSONAL_GUILD_ID, PERSONAL_USER_ID) == "Ana"
 
 
 async def test_the_panels_add_keeps_the_picked_members_name(scenario_factory, deps):
-    await _seed_config(deps)
-    scenario = await scenario_factory(locale="pt-br", guild=_guild()).start_command(
+    await seed_config(deps)
+    scenario = await scenario_factory(locale="pt-br", guild=birthday_guild()).start_command(
         "reminders_birthday"
     )
     await scenario.click("add")
     await scenario.select_option("Amiga", target="user")
-    await _complete_member_card(scenario, "pt-br")
+    await complete_member_card(scenario, "pt-br")
 
     assert await display_name(scenario.guild.id, 777) == "Amiga"
 

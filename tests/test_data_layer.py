@@ -15,6 +15,9 @@ import pytest
 import app.data as data_layer
 from app.data import data, iterate, wait
 
+# The suite fakes the fallback loop (tests/conftest.py); this is the one `wait` ships.
+OWN_LOOP = data_layer._own_loop
+
 
 def test_reading_before_anything_is_installed_names_what_is_missing(monkeypatch):
     monkeypatch.setattr(data_layer, "_INSTALLED", None)
@@ -90,3 +93,32 @@ def test_a_stream_a_thread_stops_reading_is_closed(deps):
     stream.close()
 
     assert closed == [True]
+
+
+def test_a_read_with_no_bot_loop_runs_on_a_loop_of_its_thread_kept_until_closed(
+    monkeypatch,
+):
+    """With no loop bound and none expected (a script, the migrations), `wait` runs
+    the read on a loop of the calling thread's own: the same one each time, a new
+    one once it was closed, and never one another thread made."""
+    monkeypatch.setattr(data_layer, "_own_loop", OWN_LOOP)
+    monkeypatch.setattr(data_layer, "_THREAD", threading.local())
+    loops = []
+
+    async def read():
+        loops.append(asyncio.get_running_loop())
+        return "answer"
+
+    assert wait(read()) == "answer"
+    assert wait(read()) == "answer"
+    loops[0].close()
+    assert wait(read()) == "answer"
+    elsewhere = threading.Thread(target=lambda: wait(read()))
+    elsewhere.start()
+    elsewhere.join(5)
+
+    assert loops[0] is loops[1], "one loop per thread, kept"
+    assert loops[2] is not loops[0], "a closed loop is made again"
+    assert loops[3] not in loops[:3], "another thread has its own"
+    for loop in {*loops[2:]}:
+        loop.close()

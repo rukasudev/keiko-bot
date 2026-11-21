@@ -29,10 +29,6 @@ from tests.mocks.youtube import (
     ChannelInfo,
 )
 
-from tests.mocks.stream_elements import (
-    MockStreamElementsAPI,
-)
-
 from tests.mocks.database import (
     MockRedisClient,
     MockMongoClient,
@@ -60,8 +56,6 @@ __all__ = [
     "MockYouTubeAPI",
     "VideoInfo",
     "ChannelInfo",
-    # StreamElements
-    "MockStreamElementsAPI",
     # Database
     "MockRedisClient",
     "MockMongoClient",

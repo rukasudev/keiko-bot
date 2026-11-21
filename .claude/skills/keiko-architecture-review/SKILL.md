@@ -76,7 +76,7 @@ contents in the report beyond what a finding needs):
   choreography; §9 the decision order for a change; §10 names the enforcement suites.
   Anything in `app/forms/` that names a command key, imports `discord` outside
   `app/forms/discord/`, blocks the event loop, or reaches another feature's document is
-  a Blocking finding (`tests/forms/test_boundary.py`, `tests/test_generic_layers.py`).
+  a Blocking finding (`tests/forms/test_boundary.py`, `tests/test_structure.py`).
 - `.claude/rules/implementation-planning.md` — decision order details and the anti-patterns
   list findings should cite.
 - `.claude/rules/code-style.md` — maintainer-reviewed code patterns (comments, constants,
@@ -229,8 +229,8 @@ executing them.
   `Relevant tests executed: none found for <target>` and consider a test-coverage finding.
 - Branch: run the tests for changed modules; escalate to `make test` when the diff touches
   the form platform or its registries, and to `pytest tests/behavioral/golden -q` when it
-  touches anything an admin can see (a diff there needs an entry in
-  `docs/ux-changes.md`).
+  touches anything an admin can see (a diff that changes what an admin sees needs a row
+  in `docs/ux-changes.md`; a book that moved only because the tests changed needs none).
 - Entire project: `make test` once, after exploration.
 
 ## Report format

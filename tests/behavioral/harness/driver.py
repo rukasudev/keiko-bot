@@ -5,18 +5,26 @@ adapter's `open_feature` (a slash command, a `/setup` or a greeting button).
 Everything downstream — YAML definitions, the engine, the renderer, i18n,
 features, the data layer — is real; only the Discord transport
 (FakeInteraction) and Mongo/Redis (existing mocks) are fake.
+
+Tests drive it through its public actions and reads only (the table in
+`docs/form-scenario-testing.md`); what a test cannot say with them is a new
+action here, never a reach into the store, the runtime or discord.py.
 """
 import asyncio
+import contextlib
 import copy
 import datetime
+import time
 from types import SimpleNamespace
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
 
 import discord
 
 from app.data import data, wait
+from app.forms.discord import callbacks, transitions
 from app.forms.discord.callbacks import RUNTIME
 from app.forms.discord.interactions import decode as decode_component_id
+from app.forms.form.form_state import Status
 from tests.behavioral.harness import locators
 from app.core.commands import setup_features
 from tests.generators.moderations import recorded_server, seed_cog
@@ -35,6 +43,10 @@ _LOCALES = {
 }
 
 _CONTENT_KINDS = ("send", "edit", "followup_send", "followup_edit", "edit_original")
+_SELECTS = (
+    discord.ui.Select, discord.ui.ChannelSelect, discord.ui.RoleSelect,
+    discord.ui.UserSelect, discord.ui.MentionableSelect,
+)
 # A deferred interaction answers with a followup: same message, other HTTP call.
 _ANSWERED_AS = {"followup_send": "send", "followup_edit": "edit"}
 
@@ -55,6 +67,11 @@ class FormScenario:
         self.command_key: Optional[str] = None
         # How long each first answer takes to reach Discord (FakeResponse).
         self.latency = 0.0
+        # What the server had saved when the admin first opened a command.
+        self.saved_at_open: Optional[List[Dict[str, Any]]] = None
+        # The caller's card a command opens from (`open_from`), and its message.
+        self._caller: Optional[tuple] = None
+        self.launcher: Optional[FakeMessage] = None
 
     # ------------------------------------------------------------------ setup
 
@@ -63,7 +80,7 @@ class FormScenario:
         self.command_key = command_key
         self.store.record("start", actor="user", target=command_key,
                           values=self.locale_str)
-        await self._open_feature(self._mint(), command_key)
+        await self._open_feature(self.interaction(), command_key)
         return self
 
     async def start_manager(self, command_key: str, cog_data: Dict[str, Any]) -> "FormScenario":
@@ -72,7 +89,7 @@ class FormScenario:
         self.store.record("start_manager", actor="user", target=command_key,
                           values=self.locale_str)
         self._seed_document(command_key, cog_data)
-        await self._open_feature(self._mint(), command_key)
+        await self._open_feature(self.interaction(), command_key)
         return self
 
     async def start_command(self, command_key: str) -> "FormScenario":
@@ -82,11 +99,49 @@ class FormScenario:
         self.command_key = command_key
         self.store.record("start_command", actor="user", target=command_key,
                           values=self.locale_str)
-        await self._open_feature(self._mint(), command_key)
+        await self._open_feature(self.interaction(), command_key)
         return self
 
+    def open_from(self, card: discord.ui.View, *, source: str,
+                  ending=None, back=None) -> "FormScenario":
+        """Open every later command from a button on `card`, a caller's screen
+        (a /setup row): the card is sent first and becomes `launcher`, then the
+        feature opens from a click on it with `source`, `ending` and `back` as
+        that caller passes them."""
+        self._caller = (card, source, ending, back)
+        return self
+
+    async def run(self, entry, *args, name: Optional[str] = None) -> "FormScenario":
+        """Reach Keiko through an entry point the scenario does not open itself
+        (`/configurar`, a greeting): `entry(interaction, *args)` is awaited with
+        a fresh interaction of the admin, as Discord would send it."""
+        self.store.record("start", actor="user",
+                          target=name or getattr(entry, "__name__", repr(entry)))
+        await entry(self.interaction(), *args)
+        self.store.step_provider = self._current_step_key
+        return self
+
+    def post(self, view: discord.ui.View, *, embed=None) -> FakeMessage:
+        """The bot posts `view` outside any command (the greeting it sends on
+        joining a server): the message is on screen and the admin may click it."""
+        message = self.store.create([embed] if embed else [], view, False)
+        self.store.record("channel_send", message=message.id, embeds=message.embeds,
+                          view=view, ephemeral=False)
+        return message
+
     async def _open_feature(self, interaction, command_key: str) -> None:
-        await RUNTIME.open_feature(interaction, command_key)
+        if self.saved_at_open is None and self.db is not None:
+            self.saved_at_open = copy.deepcopy(list(self.db.guild.cogs.find({})))
+        if self._caller is None:
+            await RUNTIME.open_feature(interaction, command_key)
+        else:
+            card, source, ending, back = self._caller
+            self.launcher = self.store.create([], card, True)
+            self.store.record("send", message=self.launcher.id, view=card,
+                              ephemeral=True)
+            await RUNTIME.open_feature(
+                self.interaction(on=self.launcher), command_key, source, ending, back
+            )
         self.store.step_provider = self._current_step_key
 
     def _seed_document(self, command_key: str, cog_data: Dict[str, Any]) -> None:
@@ -99,14 +154,120 @@ class FormScenario:
 
     # ------------------------------------------------------------ user actions
 
-    async def click(self, target: str) -> None:
-        message = self._require_message()
-        button = locators.find_button(message, target, self.locale)
-        custom_id = button.custom_id if getattr(button, "_provided_custom_id", False) else None
-        self.store.record("click", actor="user", message=message.id, target=target,
+    def interaction(self, *, on: Optional[FakeMessage] = None,
+                    target: Union[str, discord.ui.Item, None] = None,
+                    at: Optional[datetime.datetime] = None) -> FakeInteraction:
+        """The interaction Discord sends for one action of the admin, not sent yet.
+
+        With nothing given it is a slash command's (no message); `on` is the
+        message clicked and `target` what is clicked on it (a target as `click`
+        reads it, or a component from `component`); `at` is when Discord
+        created it. Hand it to `click(..., interaction=)` to deliver the same
+        click twice, or to an entry point the scenario does not open itself."""
+        custom_id = None
+        if target is not None:
+            message = on or self._require_message()
+            custom_id = self._custom_id(self._component(message, target))
+        interaction = FakeInteraction(
+            self.store, guild=self.guild, user=self.user, locale=self.locale,
+            message=on, data={"custom_id": custom_id} if custom_id else {},
+            latency=self.latency,
+        )
+        if at is not None:
+            interaction.created_at = at
+        return interaction
+
+    def component(self, target: str, *, on: Optional[FakeMessage] = None):
+        """The button or select `target` names on `on` (default: the current
+        message), as the admin sees it now.
+
+        A click on it later still presses this very component, even after the
+        message was drawn again: a screen the admin has not refreshed yet."""
+        return self._component(on or self._require_message(), target)
+
+    async def click(self, target: Union[str, discord.ui.Item], *,
+                    on: Optional[FakeMessage] = None,
+                    at: Optional[datetime.datetime] = None,
+                    interaction: Optional[FakeInteraction] = None) -> None:
+        """Press `target` on `on` (default: the current message).
+
+        `target` is a locator target (the table in docs/form-scenario-testing.md)
+        or a component from `component`; `at` dates the click; `interaction`
+        delivers one built by `interaction()` (the same click twice, two racing)."""
+        message = on or self._require_message()
+        button = self._component(message, target)
+        custom_id = self._custom_id(button)
+        self.store.record("click", actor="user", message=message.id,
+                          target=self._described(target),
                           custom_id=None if is_session_coded(custom_id) else custom_id)
-        interaction = self._mint(message=message, custom_id=custom_id)
+        if interaction is None:
+            interaction = self.interaction(on=message, target=button, at=at)
         await locators.dispatch_click(message.view, button, interaction)
+
+    def restart(self) -> None:
+        """The bot restarts: every open session is forgotten, and no view
+        discord.py held survives, so a later click on a message drawn before
+        reaches the bot only through `click_after_restart`."""
+        self.store.record("restart", actor="clock")
+        RUNTIME.reset()
+
+    async def click_after_restart(
+        self, target: Union[str, discord.ui.Item], *,
+        on: Optional[FakeMessage] = None,
+        interaction: Optional[FakeInteraction] = None,
+    ) -> FakeInteraction:
+        """A click that lands when no view holds its message (after `restart`, or
+        once the view timed out with its session), routed as discord.py routes
+        it: to every dynamic item the bot registers whose template matches the
+        custom id, rebuilt from the message. Returns the interaction sent."""
+        message = on or self._require_message()
+        item = self._component(message, target)
+        custom_id = self._custom_id(item) or ""
+        self.store.record("click_after_restart", actor="user", message=message.id,
+                          target=self._described(target))
+        if interaction is None:
+            interaction = self.interaction(on=message, target=item)
+        if _routes(custom_id):
+            layout = message.flags.components_v2
+            view_type = discord.ui.LayoutView if layout else discord.ui.View
+            rebuilt = view_type.from_message(message, timeout=None)
+            base = next(
+                found for found in rebuilt.walk_children()
+                if getattr(found, "custom_id", None) == custom_id
+            )
+            await _route(interaction, custom_id, base)
+        return interaction
+
+    async def click_custom_id(self, custom_id: str, *,
+                              on: Optional[FakeMessage] = None) -> FakeInteraction:
+        """A click Discord delivers by its custom id alone to a bot that holds no
+        view for it (a control drawn before a restart, or before a release that
+        removed its feature), routed through the dynamic items as discord.py
+        routes it; `on` is the message it sits on, None when there is none to
+        edit. Returns the interaction sent."""
+        self.store.record("click_custom_id", actor="user",
+                          message=on.id if on is not None else None)
+        interaction = self.interaction(on=on)
+        interaction.data = {"custom_id": custom_id}
+        await _route(interaction, custom_id, discord.ui.Button(custom_id=custom_id))
+        return interaction
+
+    async def submit_modal_after_restart(self) -> FakeInteraction:
+        """The pending modal submitted when no view holds its form: discord.py
+        knows no modal for it, so the submit reaches the bot's interaction
+        listener (`Events.on_interaction`). Returns the interaction sent."""
+        from app.core.events import Events
+
+        modal = self.store.pending_modal
+        if modal is None:
+            raise LocatorError("no modal is pending", self.transcript)
+        self.store.pending_modal = None
+        self.store.record("modal_submit_after_restart", actor="user")
+        interaction = self.interaction(on=self.current_message)
+        interaction.data = {"custom_id": modal.custom_id}
+        interaction.type = discord.InteractionType.modal_submit
+        await Events(SimpleNamespace()).on_interaction(interaction)
+        return interaction
 
     async def select_option(self, values: Union[Any, Sequence[Any]], *,
                             target: Optional[str] = None) -> None:
@@ -126,8 +287,7 @@ class FormScenario:
         self.store.record("select", actor="user", message=message.id,
                           target=target or select.placeholder,
                           values=[self._display_value(v) for v in resolved])
-        interaction = self._mint(message=message)
-        await select.callback(interaction)
+        await select.callback(self.interaction(on=message))
 
     async def submit_modal(self, fields: Dict[str, str]) -> None:
         modal = self.store.pending_modal
@@ -140,8 +300,7 @@ class FormScenario:
         self.store.pending_modal = None
         self.store.record("modal_submit", actor="user",
                           fields={k: v for k, v in fields.items()})
-        interaction = self._mint(message=self.current_message)
-        await modal.on_submit(interaction)
+        await modal.on_submit(self.interaction(on=self.current_message))
 
     def dismiss_modal(self) -> None:
         """The user closes the modal without submitting (Esc / clicking away).
@@ -153,10 +312,22 @@ class FormScenario:
         self.store.record("modal_dismiss", actor="user")
 
     def pending_modal_fields(self) -> List[str]:
+        return [i.label for i in self.pending_modal_inputs()]
+
+    def pending_modal_inputs(self) -> List[discord.ui.TextInput]:
+        """The text inputs of the pending modal, in the order the admin sees them."""
         modal = self.store.pending_modal
         if modal is None:
             raise LocatorError("no modal is pending", self.transcript)
-        return [i.label for i in self._modal_inputs(modal)]
+        return self._modal_inputs(modal)
+
+    def dismiss(self, message: Optional[FakeMessage] = None) -> None:
+        """The admin closes an ephemeral message (Discord's "Dismiss message"),
+        by default the current one: it leaves the screen and the bot is told
+        nothing."""
+        message = message or self._require_message()
+        message.deleted = True
+        self.store.record("dismiss", actor="user", message=message.id)
 
     async def submit_file_upload(self, *, filename: str = "image.png",
                                  content: bytes = b"fake-image-bytes",
@@ -181,7 +352,7 @@ class FormScenario:
         modal.file_upload._values = [attachment]
         self.store.pending_modal = None
         self.store.record("modal_submit", actor="user", fields={"file": filename})
-        await modal.on_submit(self._mint(message=self.current_message))
+        await modal.on_submit(self.interaction(on=self.current_message))
 
     async def confirm(self) -> None:
         await self.click("continue")
@@ -196,6 +367,68 @@ class FormScenario:
         """The clock passes every open session's deadline with nobody clicking."""
         self.store.record("expire", actor="clock")
         await RUNTIME.expire_stale(datetime.datetime.max.replace(tzinfo=datetime.timezone.utc))
+
+    async def sweep(self) -> None:
+        """The expiry loop runs once with the clock past every deadline: what
+        nobody finished expires, and what already ended is forgotten."""
+        self.store.record("sweep", actor="clock")
+        await RUNTIME.sweep(datetime.datetime.max.replace(tzinfo=datetime.timezone.utc))
+
+    async def expiry_loop_pass(self) -> None:
+        """One pass of the bot's expiry loop (`Events.sweep_forms`) a session's
+        lifetime from now (from the clock `later` sets): what nobody touched since
+        is past its deadline and expires, what ended is forgotten, and a pass that
+        fails is logged, never raised. Like `sweep`, it takes Discord's token for
+        the latest click as still alive."""
+        from app.constants import ViewConstants
+        from app.core.events import Events
+
+        self.store.record("expiry_loop_pass", actor="clock")
+        cog = Events(SimpleNamespace())
+        now = callbacks._now
+        lifetime = datetime.timedelta(seconds=ViewConstants.LONG_TIMEOUT_SECONDS + 1)
+        callbacks._now = lambda: now() + lifetime
+        try:
+            await type(cog).sweep_forms.coro(cog)
+        finally:
+            callbacks._now = now
+
+    @contextlib.contextmanager
+    def later(self, seconds: float) -> Iterator[None]:
+        """The clock reads `seconds` later for what runs inside: the deadline a
+        session counts from, the fifteen minutes Discord honours an interaction
+        token, a cooldown, the expiry loop's pass."""
+        self.store.record("later", actor="clock", values=seconds)
+        real_now = callbacks._now
+        clocks = {module: module.time for module in (callbacks, transitions)}
+        shifted = SimpleNamespace(
+            **{name: getattr(time, name) for name in dir(time) if not name.startswith("_")}
+        )
+        shifted.monotonic = lambda: time.monotonic() + seconds
+        callbacks._now = lambda: real_now() + datetime.timedelta(seconds=seconds)
+        for module in clocks:
+            module.time = shifted
+        try:
+            yield
+        finally:
+            callbacks._now = real_now
+            for module, clock in clocks.items():
+                module.time = clock
+
+    def discord_refuses(self, api: str, error: Optional[Exception] = None, *,
+                        times: Optional[int] = None) -> None:
+        """Discord answers the next `times` calls of `api` (every one when None)
+        with `error` (default: a 500) instead of doing them. `api` names the call
+        as the bot makes it: `response.send_message`, `response.defer`,
+        `response.edit_message`, `response.send_modal`, `followup.send`,
+        `followup.edit_message`, `followup.delete_message`,
+        `edit_original_response`, `delete_original_response`."""
+        if error is None:
+            error = discord.HTTPException(
+                SimpleNamespace(status=500, reason="Internal Server Error"),
+                "Internal Server Error",
+            )
+        self.store.refuse(api, error, times)
 
     async def finish(self) -> None:
         """Let any task the flow scheduled settle."""
@@ -248,6 +481,35 @@ class FormScenario:
             return
         if disabled is not None and button.disabled != disabled:
             self._fail(f"component {label_or_action!r} disabled={button.disabled}")
+
+    def expect_status(self, status: Union[Status, str],
+                      session: Optional[str] = None) -> None:
+        """The session `session` (an id read from `scenario.session.id` while it
+        was on screen; default: the one on screen now) stands as `status`
+        (`Status` or its value: "active", "awaiting", "cancelled"...)."""
+        wanted = Status(status)
+        session_id = session if session is not None else getattr(self.session, "id", None)
+        found = RUNTIME.store.get(session_id) if session_id is not None else None
+        if found is None:
+            self._fail(f"no session {session_id!r} in the runtime (never opened, or forgotten)")
+            return
+        if found.status is not wanted:
+            self._fail(f"session {session_id!r} is {found.status.value!r}, "
+                       f"expected {wanted.value!r}")
+
+    def expect_mode(self, kind: str, key: Optional[str] = None) -> None:
+        """The session in front of the admin runs as `kind`: "setup", "manage"
+        (the panel), "edit", "add_item", "edit_item" or "remove_item", of the
+        feature `key` when given."""
+        session = self.session
+        if session is None:
+            self._fail(f"expected a session in mode {kind!r}, none is on screen")
+            return
+        if session.mode.kind != kind:
+            self._fail(f"the session on screen runs as {session.mode.kind!r}, "
+                       f"expected {kind!r}")
+        if key is not None and session.key != key:
+            self._fail(f"the session on screen is {session.key!r}, expected {key!r}")
 
     def expect_error(self, message_contains: str) -> None:
         """The admin reads the error in the last error message sent."""
@@ -371,6 +633,16 @@ class FormScenario:
         return self.store.current
 
     @property
+    def live_messages(self) -> List[FakeMessage]:
+        """Every message still on screen, deleted and dismissed ones left out,
+        oldest first."""
+        return [message for message in self.store.messages.values() if not message.deleted]
+
+    def alias(self, message: FakeMessage) -> str:
+        """The name the transcript and `outputs` give `message`: M1, M2..."""
+        return self.store.alias(message.id)
+
+    @property
     def session(self):
         """The engine session in front of the admin: the one behind the current
         message, or the child it opened when that child shows a modal."""
@@ -387,6 +659,34 @@ class FormScenario:
                 break
             session = children[-1]
         return session
+
+    @property
+    def pending_modal(self) -> Optional[discord.ui.Modal]:
+        """The modal waiting for the admin's submit, None when none is open."""
+        return self.store.pending_modal
+
+    @property
+    def sessions(self) -> List[Any]:
+        """Every session the runtime still holds, open or ended, oldest first."""
+        return list(RUNTIME.store._sessions.values())
+
+    @property
+    def held_sessions(self) -> List[str]:
+        """The id of every session the bot still keeps anything for: in the
+        engine's store or in what the adapter holds beside it (the message, the
+        lock, the previews). A session one half forgot and the other kept leaks."""
+        return sorted(set(RUNTIME.store._sessions) | set(RUNTIME.sessions))
+
+    async def fill_tokens(self, text: str) -> str:
+        """`text` with its `${...}` tokens filled as the form on screen fills its
+        own copy: its answers and its context (the server's name, prefix,
+        language and time zone)."""
+        from app.forms.form.actions.action import apply_tokens
+
+        session = self.session
+        if session is None:
+            self._fail("no form on screen to fill tokens for")
+        return apply_tokens(text, session, await RUNTIME._context(session))
 
     @property
     def card_state(self) -> Dict[str, Any]:
@@ -425,12 +725,52 @@ class FormScenario:
 
     # ---------------------------------------------------------------- internal
 
-    def _mint(self, message: Optional[FakeMessage] = None,
-              custom_id: Optional[str] = None) -> FakeInteraction:
-        data = {"custom_id": custom_id} if custom_id else {}
-        return FakeInteraction(self.store, guild=self.guild, user=self.user,
-                               locale=self.locale, message=message, data=data,
-                               latency=self.latency)
+    def _component(self, message: FakeMessage, target: Union[str, discord.ui.Item]):
+        if isinstance(target, discord.ui.Item):
+            return target
+        try:
+            return locators.find_button(message, target, self.locale, self._section_key)
+        except LocatorError as missing:
+            selects = [i for i in locators.clickable_items(message) if isinstance(i, _SELECTS)]
+            if not selects or locators.section_target(target) is not None:
+                raise LocatorError(str(missing), self.transcript) from None
+            try:
+                return locators.find_select(message, target)
+            except LocatorError:
+                raise LocatorError(str(missing), self.transcript) from None
+
+    @staticmethod
+    def _custom_id(item) -> Optional[str]:
+        if isinstance(item, discord.ui.DynamicItem):
+            return item.custom_id
+        return item.custom_id if getattr(item, "_provided_custom_id", False) else None
+
+    @staticmethod
+    def _described(target: Union[str, discord.ui.Item]) -> str:
+        if isinstance(target, str):
+            return target
+        return locators.codec_target(target) or getattr(target, "label", None) or repr(target)
+
+    def _section_key(self, item) -> Optional[str]:
+        """The key of the card section a section button opens or resets: the
+        section at that index of the card the button's session is on, or the
+        step itself for a refused modal step drawn as a one-field card."""
+        from app.forms.form.form import steps_for
+        from app.forms.form.form_yaml import CardStep, registry
+
+        component = decode_component_id(getattr(item, "custom_id", None) or "")
+        if component is None or not (component.arg or "").isdigit():
+            return None
+        session = RUNTIME.store.get(component.session_id)
+        if session is None:
+            return None
+        definition = registry.get(*session.definition)
+        steps = steps_for(definition, session.mode)
+        step = next((s for s in steps if s.key == session.cursor), None)
+        if isinstance(step, CardStep):
+            index = int(component.arg)
+            return step.sections[index].key if index < len(step.sections) else None
+        return step.key if step is not None else None
 
     def _require_message(self) -> FakeMessage:
         message = self.current_message
@@ -495,3 +835,30 @@ class FormScenario:
 
     def _fail(self, message: str) -> None:
         raise ScenarioAssertionError(message, self.transcript)
+
+
+def _routes(custom_id: str) -> bool:
+    """Whether discord.py would route a click on `custom_id` to a dynamic item."""
+    return any(
+        factory.__discord_ui_compiled_template__.fullmatch(custom_id)
+        for factory in _dynamic_items()
+    )
+
+
+async def _route(interaction: FakeInteraction, custom_id: str, base) -> None:
+    """Deliver a click to every dynamic item whose template matches, built from
+    `base` (the component the message carries) as discord.py builds it."""
+    for factory in _dynamic_items():
+        match = factory.__discord_ui_compiled_template__.fullmatch(custom_id)
+        if match is not None:
+            dynamic = await factory.from_custom_id(interaction, base, match)
+            await dynamic.callback(interaction)
+
+
+def _dynamic_items() -> List[type]:
+    """What discord.py tries on a click no view holds: every dynamic item Keiko declares."""
+    return [
+        factory
+        for factory in discord.ui.DynamicItem.__subclasses__()
+        if factory.__module__.startswith("app.")
+    ]

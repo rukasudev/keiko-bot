@@ -35,7 +35,11 @@ from app.core import monitoring as prometheus_cog
 from app.constants import Commands
 from app.core import debug_logs, metrics
 
-pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("heartbeat")]
+pytestmark = [
+    pytest.mark.behavioral,
+    pytest.mark.shared_contract("heartbeat"),
+    pytest.mark.slow,
+]
 
 URL = "https://hc-ping.example/0f1e2d3c-monitor-token"
 START = datetime(2026, 9, 30, 12, 0, tzinfo=timezone.utc)

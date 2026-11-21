@@ -469,7 +469,7 @@ channel deletes it, 90 days after it was posted.
 `ANALYTICS_ENABLED=false` turns `record` into a no-op without a deploy, except for a
 change: `events.changes` is the only history a server has, so a `collection: changes`
 event is still written, and only the queue and the journey go quiet
-(`tests/behavioral/regressions/test_changes_ignore_the_analytics_kill_switch.py`).
+(`tests/behavioral/regressions/test_analytics.py`).
 `/admin pipeline` shows emitted, flushed, dropped, unknown and queue depth.
 
 ---
@@ -738,7 +738,7 @@ threads of its own named `keiko-loop`, the loop's default executor: a thread job
 waiting on Mongo through `app.data.wait` holds a `keiko-io` thread until the loop
 answers, and with both on one pool a burst of such jobs left no thread for the lookups
 their reads waited for, so every read hung for good
-(`tests/behavioral/regressions/test_a_full_pool_of_thread_reads_still_reaches_mongo.py`,
+(`tests/behavioral/regressions/test_cache_and_data.py`,
 which also refuses `asyncio.to_thread` and `run_in_executor` anywhere else in `app/`).
 `app.data.wait` gives up after `DBConfigs.MONGO_THREAD_WAIT_SECONDS` with a
 `TimeoutError`, cancelling the read, so no thread waits forever on a loop that is

@@ -2,6 +2,7 @@
 bilingual."""
 
 from collections.abc import Callable, Iterator
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -26,8 +27,12 @@ COMMAND = "app/commands/one/copy.yml"
 
 @pytest.fixture
 def copy_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Files]:
-    """Point the loader at copy files written under a temporary app folder."""
+    """Point the loader at copy files written under a temporary app folder.
+
+    The typed tree of those files gets a cache of its own, so the real one, typed
+    once per process, is never thrown away and read again."""
     monkeypatch.setattr(i18n, "APP", tmp_path / "app")
+    monkeypatch.setattr(i18n, "typed", cache(i18n.typed.__wrapped__))
 
     def use(*files: tuple[str, str, str]) -> None:
         written = []
@@ -41,8 +46,6 @@ def copy_files(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[File
 
     yield use
     monkeypatch.undo()
-    i18n.typed.cache_clear()
-    i18n.typed()
 
 
 @pytest.mark.parametrize("locale", LOCALES)

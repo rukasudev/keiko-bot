@@ -2,10 +2,12 @@
 prefix no command owns, and gone once the test ends."""
 
 from collections.abc import Callable, Iterator
+from functools import cache
 from pathlib import Path
 
 import i18n as python_i18n
 import pytest
+from pydantic import BaseModel
 
 from app.core import i18n
 
@@ -146,10 +148,19 @@ ui:
 @pytest.fixture
 def checked_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Install]:
     """Install `text` as the schema-checked `copy.yml` of `prefix` (default
-    `sample`), beside the real copy files."""
+    `sample`), beside the real copy files.
+
+    Only the installed file is read and checked: the real files are typed once per
+    process (`i18n.typed`), and `typed()` answers them plus what this test installed."""
     real = i18n.files()
+    real_typed = i18n.typed()
     installed: list[tuple[Path, str]] = []
+    checked: dict[str, BaseModel] = {}
     added: list[tuple[str, str]] = []
+
+    @cache
+    def typed() -> dict[str, BaseModel]:
+        return {**real_typed, **checked}
 
     def install(text: str, prefix: str = "sample") -> None:
         path = tmp_path / prefix / "copy.yml"
@@ -157,16 +168,16 @@ def checked_copy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[In
         path.write_text(text, encoding="utf-8")
         installed.append((path, prefix))
         monkeypatch.setattr(i18n, "files", lambda: [*real, *installed])
-        i18n.typed.cache_clear()
+        words = i18n.written(path, prefix)
+        checked[prefix] = i18n.check(path, prefix)
+        typed.cache_clear()
+        monkeypatch.setattr(i18n, "typed", typed)
         for locale in i18n.locales():
-            for key, value in i18n.collect(locale).items():
-                if key.startswith(f"{prefix}."):
-                    python_i18n.add_translation(key, value, locale=locale)
-                    added.append((locale, key))
+            for key, value in words:
+                python_i18n.add_translation(key, value[locale], locale=locale)
+                added.append((locale, key))
 
     yield install
     for locale, key in added:
         python_i18n.translations.container.get(locale, {}).pop(key, None)
     monkeypatch.undo()
-    i18n.typed.cache_clear()
-    i18n.typed()

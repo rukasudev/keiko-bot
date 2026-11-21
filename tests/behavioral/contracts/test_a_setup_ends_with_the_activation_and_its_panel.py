@@ -12,30 +12,18 @@ import pytest
 
 from app.core.utils import ml
 from app.forms.discord.callbacks import Runtime
-from app.forms.form.form_state import Manage
 from app.forms.form.form_yaml import DiskSource
 from tests.behavioral.golden.paths import all_paths
 from tests.behavioral.harness import locators
-from tests.mocks.discord import create_guild
+from tests.helpers.activation import SETUPS, activation_embeds, in_guild, records
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("form_engine")]
-
-SETUPS = [
-    pytest.param(path, locale, id=f"{path.form}.{locale}")
-    for path in all_paths()
-    if path.name == "setup_happy"
-    for locale in path.locales
-]
 
 ONE_LOCALE = [
     pytest.param(path, id=path.form)
     for path in all_paths()
     if path.name == "setup_happy"
 ]
-
-VOLATILE = ("duration_ms", "duration_bucket", "ms_on_step")
-
-
 
 def _drawn(scenario):
     return [
@@ -46,62 +34,12 @@ def _drawn(scenario):
     ]
 
 
-def _activation_embeds(scenario, locale):
-    title = ml("commands.responses.enabled.title", locale=locale)
-    return [
-        event
-        for event in scenario.outputs
-        if (event.get("embed") or {}).get("title") == title
-    ]
-
-
 def _first_opener(message):
     for item in locators.clickable_items(message):
         target = locators.codec_target(item) or ""
         if target.split(":", 1)[0] in ("edit", "add") and ":" in target:
             return target
     raise AssertionError("the panel has no Edit or Add")
-
-
-def _in_guild(scenario_factory, guild_id):
-    def factory(locale="pt-br", guild=None, user=None):
-        guild = guild or create_guild()
-        guild.id = guild_id
-        return scenario_factory(locale=locale, guild=guild, user=user)
-
-    return factory
-
-
-def _without_source(props):
-    return {key: value for key, value in props.items() if key != "source"}
-
-
-def _records(guild_id, form, analytics_events, stories, deps):
-    events = [
-        (
-            event["type"],
-            event["props"].get("source"),
-            {
-                key: value
-                for key, value in event["props"].items()
-                if key not in VOLATILE and key != "source"
-            },
-        )
-        for event in analytics_events
-        if event["guild_id"] == guild_id
-    ]
-    told = [story[1:] for story in stories if story[0] == guild_id]
-    audit = [
-        {
-            key: _without_source(value) if key == "props" else value
-            for key, value in record.items()
-            if key not in ("ts", "guild_id", "trace_id", "session_id")
-        }
-        for record in deps.mongo_client.events.changes.find(
-            {"guild_id": guild_id, "cog": form}, {"_id": False}
-        )
-    ]
-    return events, told, audit
 
 
 def test_every_form_has_a_setup_to_check():
@@ -124,7 +62,7 @@ async def test_a_setup_ends_with_the_activation_embed_and_then_its_panel(
     assert panel["components_v2"] and panel["kind"] == "followup_send"
     assert panel["message"] != activation["message"], "the panel is a new message"
     assert panel["seq"] > activation["seq"], "the panel comes right below it"
-    assert isinstance(scenario.session.mode, Manage)
+    scenario.expect_mode("manage")
 
 
 @pytest.mark.parametrize("path", ONE_LOCALE)
@@ -137,7 +75,7 @@ async def test_the_panel_after_a_setup_opens_what_its_first_edit_or_add_names(
 
     await scenario.click(_first_opener(panel))
 
-    opened = scenario.store.pending_modal is not None or len(_drawn(scenario)) > drawn
+    opened = scenario.pending_modal is not None or len(_drawn(scenario)) > drawn
     assert opened, "the click opens a card or a modal"
     assert not [
         event
@@ -153,24 +91,24 @@ async def test_the_activation_records_the_same_with_or_without_the_panel(
 ):
     """The panel after the setup adds no event, no story and no audit record."""
     form = path.form
-    panel_run = await path.run(_in_guild(scenario_factory, 1001), deps, "pt-br")
+    panel_run = await path.run(in_guild(scenario_factory, 1001), deps, "pt-br")
 
     async def no_panel(self, interaction, session):
         return None
 
     monkeypatch.setattr(Runtime, "_open_panel", no_panel)
-    embed_run = await path.run(_in_guild(scenario_factory, 1002), deps, "pt-br")
+    embed_run = await path.run(in_guild(scenario_factory, 1002), deps, "pt-br")
     monkeypatch.undo()
 
-    shown = [event["embed"] for event in _activation_embeds(panel_run, "pt-br")]
+    shown = [event["embed"] for event in activation_embeds(panel_run, "pt-br")]
     assert shown, "the setup closes with the activation embed"
     assert shown == [
-        event["embed"] for event in _activation_embeds(embed_run, "pt-br")
+        event["embed"] for event in activation_embeds(embed_run, "pt-br")
     ]
-    assert isinstance(panel_run.session.mode, Manage), "the panel was sent"
+    panel_run.expect_mode("manage")
     assert _drawn(embed_run)[-1].get("embed"), "without it the embed is the last"
-    on_panel = _records("1001", form, analytics_events, stories, deps)
-    on_embed = _records("1002", form, analytics_events, stories, deps)
+    on_panel = records("1001", form, analytics_events, stories, deps)
+    on_embed = records("1002", form, analytics_events, stories, deps)
     assert on_panel[0] and on_panel[1] and on_panel[2]
     assert on_panel == on_embed
     await panel_run.finish()

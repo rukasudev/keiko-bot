@@ -75,7 +75,8 @@ class MockChannel:
             author=None,
             channel=self,
             guild=self.guild,
-            embeds=[embed] if embed else []
+            embeds=[embed] if embed else [],
+            attachments=[kwargs["file"]] if kwargs.get("file") else list(kwargs.get("files") or []),
         )
         self._sent_messages.append(message)
         return message
@@ -85,9 +86,9 @@ class MockChannel:
         return await self._send(content=content, embed=embed, view=view, delete_after=delete_after, **kwargs)
 
     async def _handle_fetch_message(self, message_id: int):
-        """Busca mensagem pelo ID."""
+        """The message with this id, given as a number or as text, as Discord takes it."""
         for msg in self._sent_messages:
-            if msg.id == message_id:
+            if str(msg.id) == str(message_id):
                 return msg
         return None
 
@@ -149,6 +150,7 @@ class MockMember:
         if self.display_name is None:
             self.display_name = self.name
         self._avatar_url = f"https://cdn.discordapp.com/avatars/{self.id}/fake.png"
+        self._user = SimpleNamespace(id=self.id)
         self._add_roles = AsyncMock()
         self._remove_roles = AsyncMock()
 
@@ -274,6 +276,7 @@ class MockMessage:
     channel: MockChannel
     guild: MockGuild = None
     embeds: List[Any] = field(default_factory=list)
+    attachments: List[Any] = field(default_factory=list)
 
     def __post_init__(self):
         self._delete = AsyncMock()

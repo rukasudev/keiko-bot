@@ -10,44 +10,14 @@ limits here.
 import discord
 import pytest
 
-from app.core.utils import ml
 from tests.behavioral.harness.locators import walk_items
-from tests.behavioral.scenarios.test_reminders_birthday_flow import (
-    _setup,
-    _to_member_card_from_the_panel,
+from tests.behavioral.flows import birthdays
+from tests.helpers.discord_limits import (
+    assert_ids_are_unique,
+    assert_within_limits,
 )
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("form_engine")]
-
-MAX_COMPONENTS = 40
-MAX_TOTAL_TEXT = 4000
-
-
-def _assert_within_limits(view, label: str) -> None:
-    items = list(walk_items(view))
-    assert len(items) <= MAX_COMPONENTS, (
-        f"{label}: {len(items)} components exceed Discord's limit of {MAX_COMPONENTS}"
-    )
-    total_text = sum(
-        len(item.content or "")
-        for item in items
-        if isinstance(item, discord.ui.TextDisplay)
-    )
-    assert total_text <= MAX_TOTAL_TEXT, (
-        f"{label}: {total_text} chars of TextDisplay exceed {MAX_TOTAL_TEXT}"
-    )
-
-
-def _assert_ids_are_unique(view, label: str) -> None:
-    """Discord refuses a whole message when two components share a custom id."""
-    ids = [
-        item.custom_id
-        for item in walk_items(view)
-        if getattr(item, "custom_id", None) is not None
-    ]
-    duplicated = {found for found in ids if ids.count(found) > 1}
-    assert not duplicated, f"{label}: {len(duplicated)} custom id(s) used twice"
-
 
 async def test_a_panel_whose_list_is_empty_has_no_duplicated_custom_id(
     scenario_factory, deps
@@ -55,17 +25,17 @@ async def test_a_panel_whose_list_is_empty_has_no_duplicated_custom_id(
     """Broke as: block links did not open at all (50035, "Component custom id
     cannot be duplicated"). The button beside an empty list adds, like the Add
     below the card, and both encoded the same action with no argument."""
-    from tests.behavioral.golden.paths.block_links import ENABLED
-    from tests.behavioral.golden.paths.common import seed_document
+    from tests.behavioral.flows.block_links import ENABLED
+    from tests.behavioral.flows.common import seed_document
 
     empty = {**ENABLED, "custom_links": {"style": "composition", "values": []}}
     seed_document(deps, "block_links", empty)
 
     scenario = await scenario_factory(locale="pt-br").start_command("block_links")
 
-    _assert_ids_are_unique(scenario.current_message.view, "block_links panel")
+    assert_ids_are_unique(scenario.current_message.view, "block_links panel")
     await scenario.click("edit:group:exceptions")
-    _assert_ids_are_unique(scenario.current_message.view, "exceptions screen")
+    assert_ids_are_unique(scenario.current_message.view, "exceptions screen")
     await scenario.finish()
 
 
@@ -73,8 +43,8 @@ async def test_the_exceptions_screen_is_within_discord_limits(scenario_factory, 
     """A server that freed a long list of links must still open the screen:
     Discord refuses a message over forty components, and every link there
     carries a block of its own."""
-    from tests.behavioral.golden.paths.block_links import ENABLED
-    from tests.behavioral.golden.paths.common import seed_document
+    from tests.behavioral.flows.block_links import ENABLED
+    from tests.behavioral.flows.common import seed_document
 
     crowded = {
         **ENABLED,
@@ -92,33 +62,33 @@ async def test_the_exceptions_screen_is_within_discord_limits(scenario_factory, 
     await scenario.click("edit:group:exceptions")
 
     view = scenario.current_message.view
-    _assert_within_limits(view, "exceptions screen with 25 links")
-    _assert_ids_are_unique(view, "exceptions screen with 25 links")
+    assert_within_limits(view, "exceptions screen with 25 links")
+    assert_ids_are_unique(view, "exceptions screen with 25 links")
     await scenario.finish()
 
 
 async def test_birthday_global_card_is_within_discord_limits(scenario_factory):
     scenario = await scenario_factory(locale="pt-br").start("reminders_birthday")
     await scenario.confirm()
-    _assert_within_limits(scenario.current_message.view, "birthday_config card")
+    assert_within_limits(scenario.current_message.view, "birthday_config card")
     await scenario.finish()
 
 
 async def test_birthday_member_card_is_within_discord_limits(scenario_factory):
-    setup = await _setup(scenario_factory, "pt-br")
-    scenario = await _to_member_card_from_the_panel(scenario_factory, setup, "pt-br")
-    _assert_within_limits(scenario.current_message.view, "birthday_member_config card")
+    setup = await birthdays.setup(scenario_factory, "pt-br")
+    scenario = await birthdays.to_member_card_from_the_panel(scenario_factory, setup, "pt-br")
+    assert_within_limits(scenario.current_message.view, "birthday_member_config card")
     await scenario.finish()
 
 
-MANAGER_SEEDS = {
-    "block_links": "tests.behavioral.golden.paths.block_links",
-    "default_roles": "tests.behavioral.golden.paths.default_roles",
-    "welcome_messages": "tests.behavioral.golden.paths.welcome_messages",
-    "notifications_twitch": "tests.behavioral.golden.paths.notifications_twitch",
-    "notifications_youtube_video": "tests.behavioral.golden.paths.notifications_youtube_video",
-    "stream_elements_commands": "tests.behavioral.golden.paths.stream_elements_commands",
-}
+MANAGER_SEEDS = (
+    "block_links",
+    "default_roles",
+    "welcome_messages",
+    "notifications_twitch",
+    "notifications_youtube_video",
+    "stream_elements_commands",
+)
 
 
 @pytest.mark.parametrize("form", sorted(MANAGER_SEEDS))
@@ -126,41 +96,39 @@ MANAGER_SEEDS = {
 async def test_every_manager_panel_is_within_discord_limits(
     scenario_factory, deps, form, locale
 ):
-    import importlib
+    from tests.behavioral.flows import module_of
+    from tests.behavioral.flows.common import seed_document
 
-    from tests.behavioral.golden.paths.common import seed_document
-
-    paths = importlib.import_module(MANAGER_SEEDS[form])
+    paths = module_of(form)
     seed_document(deps, form, getattr(paths, "TWO_ENTRIES", paths.ENABLED))
     scenario = await scenario_factory(locale=locale).start_command(form)
-    _assert_within_limits(scenario.current_message.view, f"{form} panel {locale}")
+    assert_within_limits(scenario.current_message.view, f"{form} panel {locale}")
     await scenario.finish()
 
 
 async def test_the_birthday_manager_panel_is_within_discord_limits(
     scenario_factory, deps
 ):
-    from tests.behavioral.golden.paths.reminders_birthday import _open_manager
+    from tests.behavioral.flows.birthdays import open_manager
 
-    scenario = await _open_manager(
+    scenario = await open_manager(
         scenario_factory, deps, "pt-br", members=tuple(str(555 + i) for i in range(8))
     )
-    _assert_within_limits(scenario.current_message.view, "birthday panel")
+    assert_within_limits(scenario.current_message.view, "birthday panel")
     await scenario.finish()
 
 
 @pytest.mark.parametrize("form", sorted(MANAGER_SEEDS))
 def test_every_setup_review_is_within_discord_limits(form):
-    import importlib
-
     from app.forms.discord.views import layout_of
     from app.forms.features import feature_for
     from app.forms.form import events as ev
     from app.forms.form.form import decide
     from app.forms.form.form_state import Origin, Setup, new_session
     from app.forms.form.form_yaml import DefinitionRegistry
+    from tests.behavioral.flows import module_of
 
-    paths = importlib.import_module(MANAGER_SEEDS[form])
+    paths = module_of(form)
     definition = DefinitionRegistry().get(form)
     document = getattr(paths, "TWO_ENTRIES", paths.ENABLED)
     session = new_session(
@@ -176,7 +144,7 @@ def test_every_setup_review_is_within_discord_limits(form):
     view = layout_of(
         decision.effects[0].screen, lambda action, arg=None: "k:s:1:x", None
     )
-    _assert_within_limits(view, f"{form} review")
+    assert_within_limits(view, f"{form} review")
 
 
 async def test_the_welcome_gallery_opened_from_the_panel_is_within_discord_limits(
@@ -184,20 +152,20 @@ async def test_the_welcome_gallery_opened_from_the_panel_is_within_discord_limit
 ):
     """The gallery of every design opens from the Edit beside the design on the
     panel; the card itself picks its design on a select."""
-    from tests.behavioral.golden.paths.common import seed_document
-    from tests.behavioral.golden.paths.welcome_messages import ENABLED
+    from tests.behavioral.flows.common import seed_document
+    from tests.behavioral.flows.welcome import ENABLED
 
     seed_document(deps, "welcome_messages", ENABLED)
     panel = await scenario_factory(locale="pt-br").start_command("welcome_messages")
     await panel.click("section:welcome_config/design")
-    _assert_within_limits(panel.current_message.view, "welcome gallery")
+    assert_within_limits(panel.current_message.view, "welcome gallery")
     await panel.finish()
 
 
 async def test_a_twitch_notification_card_is_within_discord_limits(scenario_factory):
     scenario = await scenario_factory(locale="pt-br").start("notifications_twitch")
     await scenario.confirm()
-    _assert_within_limits(scenario.current_message.view, "twitch item card")
+    assert_within_limits(scenario.current_message.view, "twitch item card")
     await scenario.finish()
 
 
@@ -248,16 +216,16 @@ async def test_a_panel_with_a_full_list_drawn_in_the_card_is_within_discord_limi
 ):
     """P4 (beta.2): the list sits inside the card with its items as bullets,
     Add beside the title and Remove below; twenty-five links still fit."""
-    from tests.behavioral.golden.paths.block_links import ENABLED
-    from tests.behavioral.golden.paths.common import seed_document
+    from tests.behavioral.flows.block_links import ENABLED
+    from tests.behavioral.flows.common import seed_document
 
     crowded = {**ENABLED, "custom_links": {"style": "composition", "values": CROWDED_LINKS}}
     seed_document(deps, "block_links", crowded)
     scenario = await scenario_factory(locale="pt-br").start_command("block_links")
 
     view = scenario.current_message.view
-    _assert_within_limits(view, "block_links panel with 25 links")
-    _assert_ids_are_unique(view, "block_links panel with 25 links")
+    assert_within_limits(view, "block_links panel with 25 links")
+    assert_ids_are_unique(view, "block_links panel with 25 links")
     await scenario.click("remove:custom_links")
     select = next(item for item in walk_items(scenario.current_message.view)
                   if isinstance(item, discord.ui.Select))
@@ -290,7 +258,7 @@ def test_a_review_with_a_full_list_is_within_discord_limits():
 
     decision = decide(definition, session, ev.ScreenRequested("e1", None))
     view = layout_of(decision.effects[0].screen, lambda action, arg=None: "k:s:1:x", None)
-    _assert_within_limits(view, "block_links review with 25 links")
+    assert_within_limits(view, "block_links review with 25 links")
 
 
 @pytest.mark.parametrize("months", [1, 12], ids=["one-month", "every-month"])
@@ -313,8 +281,8 @@ async def test_a_birthday_panel_with_a_full_list_is_within_discord_limits(
     scenario = await scenario_factory(locale="pt-br").start_command("reminders_birthday")
 
     view = scenario.current_message.view
-    _assert_within_limits(view, f"birthday panel, 25 birthdays over {months} months")
-    _assert_ids_are_unique(view, "birthday panel")
+    assert_within_limits(view, f"birthday panel, 25 birthdays over {months} months")
+    assert_ids_are_unique(view, "birthday panel")
     await scenario.finish()
 
 
@@ -326,19 +294,19 @@ async def test_the_block_links_card_with_a_full_list_is_within_discord_limits(
     the card that tells them after Voltar."""
     scenario = await scenario_factory(locale="pt-br").start("block_links")
     await scenario.confirm()
-    await scenario.click("customize:2")
+    await scenario.click("customize:exceptions")
     for index in range(25):
-        await scenario.click("customize:6")
+        await scenario.click("customize:own_links")
         await scenario.submit_modal({"Digite o link ou site": f"site{index}.com"})
 
     assert len(scenario.answers["custom_links"]) == 25
     view = scenario.current_message.view
-    _assert_within_limits(view, "block_links exceptions with 25 links")
-    _assert_ids_are_unique(view, "block_links exceptions with 25 links")
+    assert_within_limits(view, "block_links exceptions with 25 links")
+    assert_ids_are_unique(view, "block_links exceptions with 25 links")
     await scenario.click("back")
     view = scenario.current_message.view
-    _assert_within_limits(view, "block_links card with 25 links")
-    _assert_ids_are_unique(view, "block_links card with 25 links")
+    assert_within_limits(view, "block_links card with 25 links")
+    assert_ids_are_unique(view, "block_links card with 25 links")
     await scenario.finish()
 
 
@@ -473,7 +441,7 @@ def test_every_card_with_its_controls_at_its_largest_fits_discord(
         render(card, session, context), lambda action, arg=None: "k:s:1:x", None
     )
     drawn = len(list(walk_items(view)))
-    _assert_within_limits(view, f"{form}.{card_key} {locale}")
+    assert_within_limits(view, f"{form}.{card_key} {locale}")
     assert drawn <= card_components(card, back), (
         f"{form}.{card_key}: {drawn} drawn, the compiler estimates "
         f"{card_components(card, back)}"
@@ -540,7 +508,7 @@ def test_the_block_links_card_and_its_exceptions_screen_fit_in_each_mode(
             render(card, shown, context), lambda action, arg=None: "k:s:1:x", None
         )
         drawn = len(list(walk_items(view)))
-        _assert_within_limits(view, f"block_links {name} in {mode}")
+        assert_within_limits(view, f"block_links {name} in {mode}")
         assert drawn <= estimate, f"{name}: {drawn} drawn, estimated {estimate}"
         print(f"block_links {name} {mode} {locale}: {drawn} components")
 
@@ -551,12 +519,11 @@ async def test_a_full_notification_panel_with_its_item_buttons_is_within_discord
 ):
     """N5 (round 2): every item carries Edit, Preview and Remove, and the list
     title counts its items; a list at its most items still fits."""
-    import importlib
-
     from app.forms.form.form_yaml import registry
-    from tests.behavioral.golden.paths.common import seed_document
+    from tests.behavioral.flows import module_of
+    from tests.behavioral.flows.common import seed_document
 
-    paths = importlib.import_module(MANAGER_SEEDS[form])
+    paths = module_of(form)
     most = registry.get(form).composition.items.max
     items = [paths.notification(str(100 + index), f"name{index}") for index in range(most)]
     seed_document(
@@ -565,6 +532,6 @@ async def test_a_full_notification_panel_with_its_item_buttons_is_within_discord
     scenario = await scenario_factory(locale="pt-br").start_command(form)
 
     view = scenario.current_message.view
-    _assert_within_limits(view, f"{form} panel with {most} items")
-    _assert_ids_are_unique(view, f"{form} panel with {most} items")
+    assert_within_limits(view, f"{form} panel with {most} items")
+    assert_ids_are_unique(view, f"{form} panel with {most} items")
     await scenario.finish()

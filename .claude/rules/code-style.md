@@ -169,7 +169,7 @@ dataclasses too, with the Discord objects typed `Any`.
 No `command_key ==` branch, no command key literal, no import of `app.commands`
 anywhere under `app/forms/`. The engine finds a command's form and `FeatureModule`
 through the registry (`command_for(key)`); a behaviour that one command needs is a
-registered extension or a member of its `FeatureModule`. `tests/test_generic_layers.py`
+registered extension or a member of its `FeatureModule`. `tests/test_structure.py`
 refuses the key literal, `tests/forms/test_boundary.py` the `command_key` name and
 `tests/test_structure.py` the import. Rule 22 extends this to every shared layer.
 
@@ -249,7 +249,7 @@ async def birthdays_on(guild_id, mm_dd):
 
 Before adding a function to a shared module, ask whether another command would call
 it the same way. If not, it goes to the command's folder, and the shared module gains
-a parameter. `tests/test_generic_layers.py` scans the layers its `GENERIC_LAYERS` lists
+a parameter. `tests/test_structure.py` scans the layers its `GENERIC_LAYERS` lists
 (`app/core/`, `app/ui/`, the form engine, the data repositories, the subscription base,
 the reminders webhook, the Flask app and the migration runner) and refuses there a
 command key (every key the registry declares but the platform words help, setup,
@@ -316,7 +316,7 @@ way; the standard `/report` line is written once, as `fallbacks.footer` of
 `command_text(command, path, locale)` (`command.setup.label`,
 `command.setup.description`, `command.stats.title`, `command.stats.delivered.one`,
 `command.stats.delivered.other`, `command.slash.subgroup`, `command.slash.name`;
-`tests/test_setup_row_copy.py`); a shared layer never
+`tests/test_commands.py`); a shared layer never
 builds a key from a command's old key path. A text missing a locale or carrying an
 unknown one, a key defined twice, a YAML anchor or alias, and a file its schema
 refuses fail at load (`tests/core/test_i18n.py`, and

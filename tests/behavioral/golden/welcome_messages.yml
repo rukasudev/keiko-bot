@@ -1,0 +1,857 @@
+screens:
+  form.panel:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨welcome_messages.form.steps.form.title⟩'}
+        - {type: text, content: ⟨welcome_messages.form.steps.form.panel.description⟩}
+        - {type: thumbnail, media: KEIKO_DEFAULT.png}
+      - type: section
+        children:
+        - {type: text, content: '📺 **⟨vocabulary.texts.channel⟩:** <#101>'}
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - type: section
+        children:
+        - {type: text, content: '🎨 **⟨welcome_messages.form.steps.welcome_config.sections.design.label⟩:** ⟨welcome_messages.form.steps.welcome_config.sections.design.options.server_blur.label⟩'}
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - type: section
+        children:
+        - type: text
+          content: |-
+            💬 **⟨report.ui.responses.ticket.fields.title.title⟩:** Um novo membro chegou! 🎉
+            💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩:**
+            ```• {user} bem-vindo ao {server}!
+            • Olha quem chegou! {user}```
+            💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Divirta-se!
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.pause.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.disable.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.history.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.preview.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.stats.label⟩, style: secondary, disabled: false}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.help.label⟩, style: secondary, disabled: false}
+    components_v2: true
+    rendered:
+      pt-br:
+      - '## 🎉 Mensagens de Boas-Vindas'
+      - Dou boas-vindas a quem entra no servidor com a mensagem abaixo.
+      - 📺 **Canal:** <#101>
+      - Editar
+      - 🎨 **Design do banner:** Imagem do Servidor de fundo
+      - Editar
+      - |-
+        💬 **Título:** Um novo membro chegou! 🎉
+        💬 **Mensagens:**
+        ```• {user} bem-vindo ao {server}!
+        • Olha quem chegou! {user}```
+        💬 **Rodapé:** Divirta-se!
+      - Editar
+      - -# • Use o comando `/reportar` para me contar um bug
+      - Pausar
+      - Desativar
+      - Histórico
+      - Pré-visualizar
+      - Estatísticas
+      - Ajuda
+  form.panel+pause:
+    from: form.panel
+    changes:
+    - set components.0.children.0.children.0.content: '## ⟨welcome_messages.form.steps.form.title⟩ (⟨texts.paused_suffix⟩)'
+    - add components.0.children.1: {type: text, content: '### ⟨welcome_messages.form.steps.form.title (no emoji)⟩'}
+    - set components.1.children.0.label: ⟨buttons.unpause.label⟩
+  form.panel+section:welcome_config_design:
+    from: form.panel
+    changes:
+    - set components.0.children.1.children.1.disabled: true
+    - set components.0.children.2.children.1.disabled: true
+    - set components.0.children.3.children.1.disabled: true
+    - set components.1.children.0.disabled: true
+    - set components.1.children.1.disabled: true
+    - set components.1.children.2.disabled: true
+    - set components.1.children.3.disabled: true
+    - set components.1.children.4.disabled: true
+    - set components.2.children.0.disabled: true
+  form.panel+announcements:
+    from: form.panel
+    changes:
+    - set components.0.children.1.children.0.content: 📺 **⟨vocabulary.texts.channel⟩:** <#102>
+  form.panel+continue:
+    from: form.panel
+    changes:
+    - set components.0.children.2.children.0.content: |-
+        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩:**
+        ```• {user} bem-vindo ao {server}!
+        • Olha quem chegou! {user}
+        • {user} acabou de chegar!```
+        💬 **⟨report.ui.responses.ticket.fields.title.title⟩:** Bem-vindo, {user}!
+        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+    - set components.0.children.3.children.0.content: 🎨 **⟨welcome_messages.form.steps.welcome_config.sections.design.label⟩:** ⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_only.label⟩
+    - add components.0.children.4:
+        type: section
+        children:
+        - {type: text, content: '🖼️ **⟨vocabulary.texts.custom_image⟩:** https://cdn.discordapp.com/attachments/999/1/custom-banner.png'}
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+  form.panel+continue@setup_happy:
+    from: form.panel
+    changes:
+    - add components.0.children.2:
+        type: section
+        children:
+        - type: text
+          content: |-
+            💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩:**
+            ```• Welcome {user} to {server}!
+            • Look who just arrived! {user}
+            • {user} just arrived!```
+            💬 **⟨report.ui.responses.ticket.fields.title.title⟩:** Bem-vindo, {user}!
+            💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+    - drop components.0.children.4: null
+    rendered:
+      en-us:
+      - '## 🎉 Welcome Messages'
+      - I welcome everyone who joins the server with the message below.
+      - 📺 **Channel:** <#101>
+      - Edit
+      - |-
+        💬 **Messages:**
+        ```• Welcome {user} to {server}!
+        • Look who just arrived! {user}
+        • {user} just arrived!```
+        💬 **Title:** Bem-vindo, {user}!
+        💬 **Footer:** Leia as regras :)
+      - Edit
+      - 🎨 **Banner design:** Server Image Background
+      - Edit
+      - -# • Use the `/report` command to tell me a bug
+      - Pause
+      - Disable
+      - History
+      - Preview
+      - Statistics
+      - Help
+  form.panel+continue@setup_happy#2:
+    from: form.panel
+    changes:
+    - add components.0.children.2:
+        type: section
+        children:
+        - type: text
+          content: |-
+            💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩:**
+            ```• {user} bem-vindo ao {server}!
+            • Olha quem chegou! {user}
+            • {user} acabou de chegar!```
+            💬 **⟨report.ui.responses.ticket.fields.title.title⟩:** Bem-vindo, {user}!
+            💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+    - drop components.0.children.4: null
+  delete:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.delete.title⟩
+      description: '⟨commands.responses.delete.description: command_name=«⟨texts.groups.moderations⟩ ⟨welcome_messages.command.slash.subgroup⟩ ⟨welcome_messages.command.slash.name⟩»⟩'
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.delete_all.label⟩, style: danger, disabled: false}
+    - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    components_v2: false
+  disabled:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.disabled.title⟩
+      description: |-
+        ⟨commands.responses.disabled.description: command_name=«⟨texts.groups.moderations⟩ ⟨welcome_messages.command.slash.subgroup⟩ ⟨welcome_messages.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  header.server_blur:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - {type: text, content: ⟨texts.design_gallery.header⟩}
+      - type: text
+        content: |-
+          **⟨welcome_messages.form.steps.welcome_config.sections.design.options.server_blur.label⟩**
+          ⟨welcome_messages.form.steps.welcome_config.sections.design.options.server_blur.description⟩
+      - {type: media, count: 1}
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.select.label⟩, style: primary, disabled: false}
+      - type: text
+        content: |-
+          **⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_blur.label⟩**
+          ⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_blur.description⟩
+      - {type: media, count: 1}
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.select.label⟩, style: primary, disabled: false}
+      - type: text
+        content: |-
+          **⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_only.label⟩**
+          ⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_only.description⟩
+      - {type: media, count: 1}
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨buttons.select.label⟩, style: primary, disabled: false}
+      - {type: text, content: ⟨texts.design_gallery.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    components_v2: true
+  form.welcome_config:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨welcome_messages.form.steps.form.title⟩'}
+        - {type: text, content: ⟨welcome_messages.form.steps.welcome_config.description⟩}
+        - {type: thumbnail, media: KEIKO_DEFAULT.png}
+      - type: text
+        content: |-
+          📺 **⟨vocabulary.texts.channel⟩**
+          > <#101>
+      - type: actionrow
+        children:
+        - {type: channel_select, placeholder: ⟨texts.placeholders.channel⟩, min: 1, max: 1, disabled: false}
+      - type: text
+        content: |-
+          💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩**
+          > **⟨report.ui.responses.ticket.fields.title.title⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_title⟩
+          > **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_footer⟩
+          ```• {user} bem-vindo ao {server}!
+          • Olha quem chegou! {user}
+          • {user} acabou de chegar!```
+      - type: actionrow
+        children:
+        - {type: button, label: ⟨vocabulary.texts.edit_messages⟩, style: secondary, disabled: false}
+      - type: text
+        content: |-
+          🎨 **⟨welcome_messages.form.steps.welcome_config.sections.design.label⟩**
+          > ⟨welcome_messages.form.steps.welcome_config.sections.design.options.server_blur.label⟩
+      - {type: media, count: 1}
+      - type: actionrow
+        children:
+        - type: select
+          placeholder: ⟨welcome_messages.form.steps.welcome_config.sections.design.placeholder⟩
+          min: 1
+          max: 1
+          disabled: false
+          options:
+          - {label: ⟨welcome_messages.form.steps.welcome_config.sections.design.options.server_blur.label⟩, value: server_blur, default: true}
+          - {label: ⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_blur.label⟩, value: custom_blur, default: false}
+          - {label: ⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_only.label⟩, value: custom_only, default: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.preview.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.done.label⟩, style: success, disabled: false}
+      - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: true
+  form.welcome_config+continue:
+    from: form.welcome_config
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > ⟨texts.empty_value⟩
+  form.welcome_config+design:custom_blur:
+    from: form.welcome_config
+    changes:
+    - set components.0.children.3.content: |-
+        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩**
+        > **⟨report.ui.responses.ticket.fields.title.title⟩:** Um novo membro chegou! 🎉
+        > **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Divirta-se!
+        ```• {user} bem-vindo ao {server}!
+        • Olha quem chegou! {user}```
+    - set components.0.children.5.content: |-
+        🎨 **⟨welcome_messages.form.steps.welcome_config.sections.design.label⟩**
+        > ⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_blur.label⟩
+    - set components.0.children.7.children.0.options.0.default: false
+    - set components.0.children.7.children.0.options.1.default: true
+    - add components.0.children.8: {type: text, content: 🖼️ **⟨vocabulary.texts.custom_image⟩**}
+    - add components.0.children.9:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨welcome_messages.form.steps.welcome_config.sections.image.button.label⟩, style: secondary, disabled: false}
+    - set components.1.children.1.label: ⟨buttons.confirm.label⟩
+  form.welcome_config+welcome_design=custom_blur:
+    from: form.welcome_config
+    changes:
+    - set components.0.children.5.content: |-
+        🎨 **⟨welcome_messages.form.steps.welcome_config.sections.design.label⟩**
+        > ⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_blur.label⟩
+    - set components.0.children.7.children.0.options.0.default: false
+    - set components.0.children.7.children.0.options.1.default: true
+    - add components.0.children.8: {type: text, content: 🖼️ **⟨vocabulary.texts.custom_image⟩**}
+    - add components.0.children.9:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨welcome_messages.form.steps.welcome_config.sections.image.button.label⟩, style: secondary, disabled: false}
+  form.welcome_config+welcome_messages_channel=announcements:
+    from: form.welcome_config
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > <#102>
+  form.welcome_config+Descartar_tudo:
+    from: form.welcome_config
+    changes:
+    - drop components.0.children.2: null
+    - drop components.0.children.3: null
+    - drop components.0.children.5: null
+    - drop components.1: null
+  form.welcome_config+welcome_design=custom_only:
+    from: form.welcome_config
+    changes:
+    - set components.0.children.5.content: |-
+        🎨 **⟨welcome_messages.form.steps.welcome_config.sections.design.label⟩**
+        > ⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_only.label⟩
+    - set components.0.children.7.children.0.options.0.default: false
+    - set components.0.children.7.children.0.options.2.default: true
+    - add components.0.children.8: {type: text, content: 🖼️ **⟨vocabulary.texts.custom_image⟩**}
+    - add components.0.children.9:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨welcome_messages.form.steps.welcome_config.sections.image.button.label⟩, style: secondary, disabled: false}
+  form.welcome_config+modal_submit:
+    from: form.welcome_config
+    changes:
+    - set components.0.children.2.children.0.disabled: true
+    - set components.0.children.4.children.0.disabled: true
+    - set components.0.children.5.content: |-
+        🎨 **⟨welcome_messages.form.steps.welcome_config.sections.design.label⟩**
+        > ⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_only.label⟩
+    - set components.0.children.7.children.0.disabled: true
+    - set components.0.children.7.children.0.options.0.default: false
+    - set components.0.children.7.children.0.options.2.default: true
+    - add components.0.children.8: {type: text, content: 🖼️ **⟨vocabulary.texts.custom_image⟩**}
+    - add components.0.children.9:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨welcome_messages.form.steps.welcome_config.sections.image.button.label⟩, style: secondary, disabled: true}
+    - set components.1.children.0.disabled: true
+    - set components.1.children.1.disabled: true
+    - set components.1.children.2.disabled: true
+  form.welcome_config+modal_submit@setup_custom_image:
+    from: form.welcome_config
+    changes:
+    - set components.0.children.5.content: |-
+        🎨 **⟨welcome_messages.form.steps.welcome_config.sections.design.label⟩**
+        > ⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_only.label⟩
+    - set components.0.children.7.children.0.options.0.default: false
+    - set components.0.children.7.children.0.options.2.default: true
+    - add components.0.children.8: {type: text, content: 🖼️ **⟨vocabulary.texts.custom_image⟩**}
+    - add components.0.children.9: {type: media, count: 1}
+    - add components.0.children.10:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨welcome_messages.form.steps.welcome_config.sections.image.button.label⟩, style: secondary, disabled: false}
+  form.welcome_config+modal_submit@setup_custom_image#2:
+    from: form.welcome_config
+    changes:
+    - set components.0.children.3.content: |-
+        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩**
+        > **⟨report.ui.responses.ticket.fields.title.title⟩:** Bem-vindo, {user}!
+        > **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+        ```• {user} bem-vindo ao {server}!
+        • Olha quem chegou! {user}
+        • {user} acabou de chegar!```
+    - set components.0.children.5.content: |-
+        🎨 **⟨welcome_messages.form.steps.welcome_config.sections.design.label⟩**
+        > ⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_only.label⟩
+    - set components.0.children.7.children.0.options.0.default: false
+    - set components.0.children.7.children.0.options.2.default: true
+    - add components.0.children.8: {type: text, content: 🖼️ **⟨vocabulary.texts.custom_image⟩**}
+    - add components.0.children.9: {type: media, count: 1}
+    - add components.0.children.10:
+        type: actionrow
+        children:
+        - {type: button, label: ⟨welcome_messages.form.steps.welcome_config.sections.image.button.label⟩, style: secondary, disabled: false}
+  form.welcome_config+continue@setup_happy:
+    from: form.welcome_config
+    changes:
+    - set components.0.children.1.content: |-
+        📺 **⟨vocabulary.texts.channel⟩**
+        > ⟨texts.empty_value⟩
+    - set components.0.children.3.content: |-
+        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩**
+        > **⟨report.ui.responses.ticket.fields.title.title⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_title⟩
+        > **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_footer⟩
+        ```• Welcome {user} to {server}!
+        • Look who just arrived! {user}
+        • {user} just arrived!```
+  form.welcome_config+welcome_messages_channel=welcome:
+    from: form.welcome_config
+    changes:
+    - set components.0.children.3.content: |-
+        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩**
+        > **⟨report.ui.responses.ticket.fields.title.title⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_title⟩
+        > **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_footer⟩
+        ```• Welcome {user} to {server}!
+        • Look who just arrived! {user}
+        • {user} just arrived!```
+  form.welcome_config+modal_submit@setup_happy:
+    from: form.welcome_config
+    changes:
+    - set components.0.children.3.content: |-
+        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩**
+        > **⟨report.ui.responses.ticket.fields.title.title⟩:** Bem-vindo, {user}!
+        > **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+        ```• Welcome {user} to {server}!
+        • Look who just arrived! {user}
+        • {user} just arrived!```
+  form.welcome_config+modal_submit@setup_happy#2:
+    from: form.welcome_config
+    changes:
+    - set components.0.children.3.content: |-
+        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩**
+        > **⟨report.ui.responses.ticket.fields.title.title⟩:** Bem-vindo, {user}!
+        > **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+        ```• {user} bem-vindo ao {server}!
+        • Olha quem chegou! {user}
+        • {user} acabou de chegar!```
+  required_fields:
+    ephemeral: true
+    content: '⟨errors.required_fields.message: fields=«**⟨vocabulary.texts.custom_image⟩**»⟩'
+    components: []
+    components_v2: false
+  screen.channel:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - {type: text, content: '## 📺 ⟨welcome_messages.form.steps.welcome_config.sections.channel.screen.title⟩'}
+      - type: actionrow
+        children:
+        - {type: channel_select, placeholder: ⟨texts.placeholders.channel⟩, min: 1, max: 1, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.back.label⟩, style: secondary, disabled: false}
+    components_v2: true
+  screen:
+    ephemeral: true
+    components:
+    - {type: button, label: '|<', style: success, disabled: false}
+    - {type: button, label: <, style: primary, disabled: false}
+    - {type: button, label: '>', style: primary, disabled: false}
+    - {type: button, label: '>|', style: success, disabled: false}
+    components_v2: false
+  changes.history:
+    ephemeral: true
+    embed:
+      title: ⟨commands.records.changes.title⟩
+      description: '⟨commands.records.history.description: command_name=«⟨texts.groups.moderations⟩ ⟨welcome_messages.command.slash.subgroup⟩ ⟨welcome_messages.command.slash.name⟩»⟩'
+      fields:
+      - {name: 1. ⟨commands.records.history.lines.edited⟩, value: '<@555> · <t:1767263400:f>', inline: false}
+      - {name: 2. ⟨commands.records.history.lines.enabled⟩, value: '<@555> · <t:1767259800:f>', inline: false}
+      footer: • ⟨texts.page⟩ 1 / 1
+      color: 5216249
+      thumbnail: KEIKO_NERD.png
+      image: null
+    components:
+    - {type: button, label: '|<', style: success, disabled: true}
+    - {type: button, label: <, style: primary, disabled: true}
+    - {type: button, label: '>', style: primary, disabled: true}
+    - {type: button, label: '>|', style: success, disabled: true}
+    components_v2: false
+  paused:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.paused.title⟩
+      description: |-
+        ⟨commands.responses.paused.description: command_name=«⟨texts.groups.moderations⟩ ⟨welcome_messages.command.slash.subgroup⟩ ⟨welcome_messages.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  unpaused:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.unpaused.title⟩
+      description: |-
+        ⟨commands.responses.unpaused.description: command_name=«⟨texts.groups.moderations⟩ ⟨welcome_messages.command.slash.subgroup⟩ ⟨welcome_messages.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+  form:
+    ephemeral: true
+    embed:
+      title: ⟨welcome_messages.form.steps.form.title⟩
+      description: |-
+        ⟨welcome_messages.form.steps.form.description⟩
+
+        :pencil: **⟨texts.settings_heading⟩**
+
+        :flying_disc: **⟨vocabulary.texts.channel⟩:** ⟨welcome_messages.form.steps.welcome_config.fields.welcome_messages_channel.description⟩
+        :flying_disc: **⟨report.ui.responses.ticket.fields.title.title⟩:** ⟨welcome_messages.form.steps.welcome_config.fields.welcome_messages_title.description⟩
+        :flying_disc: **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩:** ⟨welcome_messages.form.steps.welcome_config.fields.welcome_messages.description⟩
+        :flying_disc: **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** ⟨welcome_messages.form.steps.welcome_config.fields.welcome_messages_footer.description⟩
+        :flying_disc: **⟨welcome_messages.form.steps.welcome_config.sections.design.label⟩:** ⟨welcome_messages.form.steps.welcome_config.fields.welcome_design.description⟩
+        :flying_disc: **⟨vocabulary.texts.custom_image⟩:** ⟨welcome_messages.form.steps.welcome_config.fields.welcome_custom_image.description⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: KEIKO_DEFAULT.png
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.confirm.label⟩, style: success, disabled: false}
+    - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: false
+  form+continue:
+    from: form
+    changes:
+    - set components.0.disabled: true
+    - set components.1.disabled: true
+  form.review:
+    ephemeral: true
+    components:
+    - type: container
+      children:
+      - type: section
+        children:
+        - {type: text, content: '## ⟨welcome_messages.form.steps.form.title⟩'}
+        - {type: text, content: '⟨vocabulary.fallbacks.review_description: command=«⟨texts.groups.moderations⟩ ⟨welcome_messages.command.slash.subgroup⟩ ⟨welcome_messages.command.slash.name⟩»⟩'}
+        - {type: thumbnail, media: KEIKO_BOLO.png}
+      - type: section
+        children:
+        - {type: text, content: '📺 **⟨vocabulary.texts.channel⟩:** <#102>'}
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - type: section
+        children:
+        - type: text
+          content: |-
+            💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩:**
+            ```• {user} bem-vindo ao {server}!
+            • Olha quem chegou! {user}
+            • {user} acabou de chegar!```
+            💬 **⟨report.ui.responses.ticket.fields.title.title⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_title⟩
+            💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_footer⟩
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - type: section
+        children:
+        - {type: text, content: '🎨 **⟨welcome_messages.form.steps.welcome_config.sections.design.label⟩:** ⟨welcome_messages.form.steps.welcome_config.sections.design.options.server_blur.label⟩'}
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+      - {type: text, content: -# ⟨vocabulary.fallbacks.footer⟩}
+    - type: actionrow
+      children:
+      - {type: button, label: ⟨buttons.preview.label⟩, style: secondary, disabled: false}
+      - {type: button, label: ⟨buttons.confirm.label⟩, style: success, disabled: false}
+      - {type: button, label: ⟨buttons.cancel.label⟩, style: danger, disabled: false}
+    components_v2: true
+    rendered:
+      pt-br:
+      - '## 🎉 Mensagens de Boas-Vindas'
+      - Esse é o resumo das suas escolhas até aqui. Tudo certo para eu ativar o comando `/moderações mensagens boas-vindas` com as configurações abaixo? ✅
+      - 📺 **Canal:** <#102>
+      - Editar
+      - |-
+        💬 **Mensagens:**
+        ```• {user} bem-vindo ao {server}!
+        • Olha quem chegou! {user}
+        • {user} acabou de chegar!```
+        💬 **Título:** Um novo membro chegou! 🎉
+        💬 **Rodapé:** Divirta-se!
+      - Editar
+      - 🎨 **Design do banner:** Imagem do Servidor de fundo
+      - Editar
+      - -# • Use o comando `/reportar` para me contar um bug
+      - Pré-visualizar
+      - Confirmar
+      - Cancelar
+  form.review+done:
+    from: form.review
+    changes:
+    - set components.0.children.1.children.0.content: 📺 **⟨vocabulary.texts.channel⟩:** <#101>
+    - set components.0.children.2.children.0.content: |-
+        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩:**
+        ```• {user} bem-vindo ao {server}!
+        • Olha quem chegou! {user}
+        • {user} acabou de chegar!```
+        💬 **⟨report.ui.responses.ticket.fields.title.title⟩:** Bem-vindo, {user}!
+        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+    - set components.0.children.3.children.0.content: 🎨 **⟨welcome_messages.form.steps.welcome_config.sections.design.label⟩:** ⟨welcome_messages.form.steps.welcome_config.sections.design.options.custom_only.label⟩
+    - add components.0.children.4:
+        type: section
+        children:
+        - {type: text, content: '🖼️ **⟨vocabulary.texts.custom_image⟩:** https://cdn.discordapp.com/attachments/999/1/custom-banner.png'}
+        - {type: button, label: ⟨buttons.edit.label⟩, style: secondary, disabled: false}
+  form.review+done@setup_happy:
+    from: form.review
+    changes:
+    - set components.0.children.1.children.0.content: 📺 **⟨vocabulary.texts.channel⟩:** <#101>
+    - set components.0.children.2.children.0.content: |-
+        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩:**
+        ```• Welcome {user} to {server}!
+        • Look who just arrived! {user}
+        • {user} just arrived!```
+        💬 **⟨report.ui.responses.ticket.fields.title.title⟩:** Bem-vindo, {user}!
+        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+    rendered:
+      en-us:
+      - '## 🎉 Welcome Messages'
+      - Here's a summary of your choices so far. All set for me to turn on the `/moderations welcome messages` command with the settings below? ✅
+      - 📺 **Channel:** <#101>
+      - Edit
+      - |-
+        💬 **Messages:**
+        ```• Welcome {user} to {server}!
+        • Look who just arrived! {user}
+        • {user} just arrived!```
+        💬 **Title:** Bem-vindo, {user}!
+        💬 **Footer:** Leia as regras :)
+      - Edit
+      - 🎨 **Banner design:** Server Image Background
+      - Edit
+      - -# • Use the `/report` command to tell me a bug
+      - Preview
+      - Confirm
+      - Cancel
+  form.review+done@setup_happy#2:
+    from: form.review
+    changes:
+    - set components.0.children.1.children.0.content: 📺 **⟨vocabulary.texts.channel⟩:** <#101>
+    - set components.0.children.2.children.0.content: |-
+        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.label⟩:**
+        ```• {user} bem-vindo ao {server}!
+        • Olha quem chegou! {user}
+        • {user} acabou de chegar!```
+        💬 **⟨report.ui.responses.ticket.fields.title.title⟩:** Bem-vindo, {user}!
+        💬 **⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩:** Leia as regras :)
+  discard:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.discard.title⟩
+      description: ⟨commands.responses.discard.description⟩
+      fields: []
+      footer: null
+      color: 16711680
+      thumbnail: null
+      image: null
+    components:
+    - {type: button, label: ⟨buttons.keep.label⟩, style: secondary, disabled: false}
+    - {type: button, label: ⟨buttons.discard.label⟩, style: danger, disabled: false}
+    components_v2: false
+  image:
+    modal:
+      title: 🖼️ ⟨welcome_messages.form.steps.welcome_config.sections.image.modal.title⟩
+      fields:
+      - type: fileupload
+  form.fields:
+    modal:
+      title: 💬 ⟨welcome_messages.form.steps.form.title (no emoji)⟩
+      fields:
+      - {label: ⟨report.ui.responses.ticket.fields.title.title⟩, required: true, style: paragraph, max_length: 50, default: ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_title⟩}
+      - {label: ⟨vocabulary.texts.random_message_1⟩, required: true, style: paragraph, max_length: 100, default: '{user} bem-vindo ao {server}!'}
+      - {label: ⟨vocabulary.texts.random_message_2⟩, required: false, style: paragraph, max_length: 100, default: 'Olha quem chegou! {user}'}
+      - {label: ⟨vocabulary.texts.random_message_3⟩, required: false, style: paragraph, max_length: 100, default: '{user} acabou de chegar!'}
+      - {label: ⟨welcome_messages.form.steps.welcome_config.sections.messages.modal.inputs.welcome_messages_footer.label⟩, required: false, style: paragraph, max_length: 50, default: ⟨welcome_messages.form.steps.welcome_config.defaults.welcome_messages_footer⟩}
+  form.fields+customize:messages:
+    from: form.fields
+    changes:
+    - set modal.fields.1.default: Welcome {user} to {server}!
+    - set modal.fields.2.default: Look who just arrived! {user}
+    - set modal.fields.3.default: '{user} just arrived!'
+  enabled:
+    ephemeral: true
+    embed:
+      title: ⟨commands.responses.enabled.title⟩
+      description: |-
+        ⟨commands.responses.enabled.description: command_name=«⟨texts.groups.moderations⟩ ⟨welcome_messages.command.slash.subgroup⟩ ⟨welcome_messages.command.slash.name⟩»; date=«<t:1767268800:f>»; user=«<@555>»⟩
+
+        -# ⟨vocabulary.fallbacks.footer⟩
+      fields: []
+      footer: null
+      color: 5216249
+      thumbnail: null
+      image: null
+    components: []
+    components_v2: false
+flows:
+  manager_disable.pt-br:
+  - start_command welcome_messages "pt-br":
+    - send M1 form.panel
+  - click disable:
+    - send M2 delete
+    - delete M1
+  - click delete_all:
+    - send M3 disabled
+    - delete M2
+  manager_edit_design.pt-br:
+  - start_command welcome_messages "pt-br":
+    - send M1 form.panel
+  - click section:welcome_config/design:
+    - edit M1 form.panel+section:welcome_config_design
+    - send M2 header.server_blur
+    - delete M1
+  - click design:custom_blur:
+    - edit M2 form.welcome_config+design:custom_blur
+    - send M3 required_fields (delete_after 10)
+  manager_edit_one_step.pt-br:
+  - start_command welcome_messages "pt-br":
+    - send M1 form.panel
+  - click section:welcome_config/channel:
+    - send M2 screen.channel
+    - delete M1
+  - select Selecione um canal... ["announcements"]:
+    - edit M2 form.panel+announcements
+  manager_history.pt-br:
+  - start_command welcome_messages "pt-br":
+    - send M1 form.panel
+  - click history:
+    - send M2 screen
+    - edit M2 changes.history
+  manager_pause.pt-br:
+  - start_command welcome_messages "pt-br":
+    - send M1 form.panel
+  - click pause:
+    - edit M1 form.panel+pause
+    - send M2 paused (delete_after 5)
+  manager_unpause.pt-br:
+  - start_command welcome_messages "pt-br":
+    - send M1 form.panel+pause
+  - click unpause:
+    - edit M1 form.panel
+    - send M2 unpaused (delete_after 5)
+  setup_back.pt-br:
+  - start_command welcome_messages "pt-br":
+    - send M1 form
+  - click continue:
+    - edit M1 form+continue
+    - send M2 form.welcome_config+continue
+    - delete M1
+  - select welcome_messages_channel ["welcome"]:
+    - edit M2 form.welcome_config
+  - select welcome_design ["custom_blur"]:
+    - edit M2 form.welcome_config+welcome_design=custom_blur
+  - select welcome_design ["server_blur"]:
+    - edit M2 form.welcome_config
+  - select welcome_messages_channel ["announcements"]:
+    - edit M2 form.welcome_config+welcome_messages_channel=announcements
+  - click done:
+    - edit M2 form.review
+  setup_cancel_discard.pt-br:
+  - start_command welcome_messages "pt-br":
+    - send M1 form
+  - click continue:
+    - edit M1 form+continue
+    - send M2 form.welcome_config+continue
+    - delete M1
+  - select welcome_messages_channel ["welcome"]:
+    - edit M2 form.welcome_config
+  - click cancel:
+    - send M3 discard
+  - click Descartar tudo:
+    - edit M2 form.welcome_config+Descartar_tudo
+    - delete M3
+  setup_cancel_keep.pt-br:
+  - start_command welcome_messages "pt-br":
+    - send M1 form
+  - click continue:
+    - edit M1 form+continue
+    - send M2 form.welcome_config+continue
+    - delete M1
+  - select welcome_messages_channel ["welcome"]:
+    - edit M2 form.welcome_config
+  - click cancel:
+    - send M3 discard
+  - click Continuar configurando:
+    - delete M3
+  setup_custom_image.pt-br:
+  - start_command welcome_messages "pt-br":
+    - send M1 form
+  - click continue:
+    - edit M1 form+continue
+    - send M2 form.welcome_config+continue
+    - delete M1
+  - select welcome_messages_channel ["welcome"]:
+    - edit M2 form.welcome_config
+  - select welcome_design ["custom_only"]:
+    - edit M2 form.welcome_config+welcome_design=custom_only
+  - click customize:image:
+    - modal image
+  - 'modal_submit {"file": "custom-banner.png"}':
+    - edit M2 form.welcome_config+modal_submit
+    - edit M2 form.welcome_config+modal_submit@setup_custom_image
+  - click customize:messages:
+    - modal form.fields
+  - 'modal_submit {"Título": "Bem-vindo, {user}!", "Rodapé": "Leia as regras :)"}':
+    - edit M2 form.welcome_config+modal_submit@setup_custom_image#2
+  - click done:
+    - edit M2 form.review+done
+  - click continue:
+    - send M3 enabled
+    - delete M2
+    - send M4 form.panel+continue
+  setup_happy.en-us:
+  - start_command welcome_messages "en-us":
+    - send M1 form
+  - click continue:
+    - edit M1 form+continue
+    - send M2 form.welcome_config+continue@setup_happy
+    - delete M1
+  - select welcome_messages_channel ["welcome"]:
+    - edit M2 form.welcome_config+welcome_messages_channel=welcome
+  - click customize:messages:
+    - modal form.fields+customize:messages
+  - 'modal_submit {"Title": "Bem-vindo, {user}!", "Footer": "Leia as regras :)"}':
+    - edit M2 form.welcome_config+modal_submit@setup_happy
+  - click done:
+    - edit M2 form.review+done@setup_happy
+  - click continue:
+    - send M3 enabled
+    - delete M2
+    - send M4 form.panel+continue@setup_happy
+  setup_happy.pt-br:
+  - start_command welcome_messages "pt-br":
+    - send M1 form
+  - click continue:
+    - edit M1 form+continue
+    - send M2 form.welcome_config+continue
+    - delete M1
+  - select welcome_messages_channel ["welcome"]:
+    - edit M2 form.welcome_config
+  - click customize:messages:
+    - modal form.fields
+  - 'modal_submit {"Título": "Bem-vindo, {user}!", "Rodapé": "Leia as regras :)"}':
+    - edit M2 form.welcome_config+modal_submit@setup_happy#2
+  - click done:
+    - edit M2 form.review+done@setup_happy#2
+  - click continue:
+    - send M3 enabled
+    - delete M2
+    - send M4 form.panel+continue@setup_happy#2

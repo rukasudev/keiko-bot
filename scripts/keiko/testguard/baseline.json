@@ -1,0 +1,1954 @@
+{
+ "tool": "testguard 1",
+ "commit": "706d4576",
+ "app_tree": "89067b56485a",
+ "dirty": false,
+ "app_dirty": false,
+ "recorded": "2026-11-20",
+ "suite": {
+  "exit": 0,
+  "tests": 3721,
+  "outcomes": {
+   "passed": 3675,
+   "skipped": 46
+  },
+  "failing": [],
+  "flaky": [],
+  "wall_seconds": 129.8,
+  "test_seconds": 123.6,
+  "slowest_files": [
+   {
+    "file": "tests/behavioral/contracts/test_copy_primitives.py",
+    "seconds": 31.7,
+    "tests": 37
+   },
+   {
+    "file": "tests/behavioral/regressions/test_event_loop_is_never_blocked.py",
+    "seconds": 16.2,
+    "tests": 45
+   },
+   {
+    "file": "tests/core/test_i18n.py",
+    "seconds": 13.0,
+    "tests": 72
+   },
+   {
+    "file": "tests/test_release_workflow.py",
+    "seconds": 8.5,
+    "tests": 20
+   },
+   {
+    "file": "tests/behavioral/contracts/test_a_text_names_only_registered_commands.py",
+    "seconds": 6.0,
+    "tests": 4
+   },
+   {
+    "file": "tests/behavioral/contracts/test_slash_command_copy.py",
+    "seconds": 5.0,
+    "tests": 4
+   },
+   {
+    "file": "tests/behavioral/contracts/test_records_view.py",
+    "seconds": 5.0,
+    "tests": 8
+   },
+   {
+    "file": "tests/scripts/test_soak_stays_out.py",
+    "seconds": 3.9,
+    "tests": 3
+   },
+   {
+    "file": "tests/behavioral/regressions/test_a_renewal_ends_whole_however_slow_reminders_api_is.py",
+    "seconds": 1.8,
+    "tests": 2
+   },
+   {
+    "file": "tests/behavioral/contracts/test_graceful_stop.py",
+    "seconds": 1.5,
+    "tests": 35
+   },
+   {
+    "file": "tests/behavioral/contracts/test_a_typed_answer_fills_only_its_own_variables.py",
+    "seconds": 1.3,
+    "tests": 30
+   },
+   {
+    "file": "tests/forms/form/test_form_yaml.py",
+    "seconds": 1.3,
+    "tests": 140
+   },
+   {
+    "file": "tests/behavioral/contracts/test_heartbeat.py",
+    "seconds": 1.2,
+    "tests": 13
+   },
+   {
+    "file": "tests/test_yaml_reference.py",
+    "seconds": 1.2,
+    "tests": 62
+   },
+   {
+    "file": "tests/test_admin_templates.py",
+    "seconds": 1.2,
+    "tests": 6
+   },
+   {
+    "file": "tests/behavioral/regressions/test_block_links_regressions.py",
+    "seconds": 1.1,
+    "tests": 15
+   },
+   {
+    "file": "tests/behavioral/regressions/test_reminder_webhook_trusts_only_the_reminders_api.py",
+    "seconds": 1.1,
+    "tests": 41
+   },
+   {
+    "file": "tests/behavioral/contracts/test_debug_logs.py",
+    "seconds": 1.0,
+    "tests": 109
+   },
+   {
+    "file": "tests/behavioral/contracts/test_components_v2_limits.py",
+    "seconds": 1.0,
+    "tests": 53
+   },
+   {
+    "file": "tests/test_commands.py",
+    "seconds": 0.8,
+    "tests": 13
+   }
+  ]
+ },
+ "ledger": {
+  "entries": 161,
+  "missing": [],
+  "history_dropped": [],
+  "unledgered": [],
+  "outcomes": {
+   "passed": 161
+  },
+  "failed": []
+ },
+ "changes": {
+  "edit_label": {
+   "title": "The shared \"Editar\" button reads \"Alterar\"",
+   "applies": true,
+   "exit": 1,
+   "failing_tests": 62,
+   "failing_files": 2,
+   "goldens": 61,
+   "other_tests": 1,
+   "caught_by": [],
+   "flaky": []
+  },
+  "activation_word": {
+   "title": "One word of the activation message: \"Ativei\" reads \"Liguei\"",
+   "applies": true,
+   "exit": 1,
+   "failing_tests": 11,
+   "failing_files": 2,
+   "goldens": 10,
+   "other_tests": 1,
+   "caught_by": [],
+   "flaky": []
+  },
+  "title_case": {
+   "title": "The block links title reads \"Bloquear links\"",
+   "applies": true,
+   "exit": 1,
+   "failing_tests": 18,
+   "failing_files": 3,
+   "goldens": 16,
+   "other_tests": 2,
+   "caught_by": [],
+   "flaky": []
+  },
+  "red_to_grey": {
+   "title": "Every red button of the forms is drawn grey",
+   "applies": true,
+   "exit": 1,
+   "failing_tests": 70,
+   "failing_files": 1,
+   "goldens": 70,
+   "other_tests": 0,
+   "caught_by": [],
+   "flaky": []
+  },
+  "validator": {
+   "title": "The link validator accepts anything",
+   "applies": true,
+   "exit": 1,
+   "failing_tests": 4,
+   "failing_files": 4,
+   "goldens": 1,
+   "other_tests": 3,
+   "caught_by": [
+    "tests/behavioral/golden/test_golden_transcripts.py::test_golden_transcript[block_links/setup_validation_error_and_recover.pt-br]",
+    "tests/behavioral/regressions/test_block_links_regressions.py::test_failed_validation_in_first_composition_step_does_not_skip_it",
+    "tests/behavioral/scenarios/test_block_links_flow.py::test_invalid_link_shows_error_and_recovers",
+    "tests/forms/form/test_form.py::test_a_dependent_key_is_cleared_when_its_own_value_stops_being_valid"
+   ],
+   "flaky": []
+  }
+ },
+ "coverage_failures": 0,
+ "coverage": {
+  "modules": {
+   "app/__init__.py": {
+    "statements": 84,
+    "covered": 82,
+    "branches": 4,
+    "covered_branches": 3,
+    "missing": "27,125"
+   },
+   "app/bot.py": {
+    "statements": 161,
+    "covered": 160,
+    "branches": 22,
+    "covered_branches": 21,
+    "missing": "72"
+   },
+   "app/commands/__init__.py": {
+    "statements": 3,
+    "covered": 3,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/admin/__init__.py": {
+    "statements": 5,
+    "covered": 5,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/admin/analytics.py": {
+    "statements": 154,
+    "covered": 144,
+    "branches": 52,
+    "covered_branches": 41,
+    "missing": "178,185,208,215,355-359,372"
+   },
+   "app/commands/admin/cog.py": {
+    "statements": 97,
+    "covered": 64,
+    "branches": 4,
+    "covered_branches": 1,
+    "missing": "70-73,76,78-79,87,91,101-103,143,145-148,150-151,153-155,160,163-165,167,179-180,182,191,198,206"
+   },
+   "app/commands/admin/digest.py": {
+    "statements": 130,
+    "covered": 124,
+    "branches": 36,
+    "covered_branches": 32,
+    "missing": "164,191,238,242,247-248"
+   },
+   "app/commands/admin/groups/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/admin/groups/cogs.py": {
+    "statements": 39,
+    "covered": 26,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "38,40,43,45-46,48,50,58-59,67,69,77,79"
+   },
+   "app/commands/admin/groups/configs.py": {
+    "statements": 28,
+    "covered": 28,
+    "branches": 2,
+    "covered_branches": 2,
+    "missing": ""
+   },
+   "app/commands/admin/groups/debug.py": {
+    "statements": 22,
+    "covered": 12,
+    "branches": 2,
+    "covered_branches": 0,
+    "missing": "26-27,29-34,39-40"
+   },
+   "app/commands/admin/groups/subscriptions.py": {
+    "statements": 19,
+    "covered": 13,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "25,27-28,40,42-43"
+   },
+   "app/commands/admin/groups/sync.py": {
+    "statements": 20,
+    "covered": 12,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "23,25-26,28,36,38-39,44"
+   },
+   "app/commands/admin/log.py": {
+    "statements": 21,
+    "covered": 18,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "25,31-32"
+   },
+   "app/commands/admin/log_inspection.py": {
+    "statements": 180,
+    "covered": 94,
+    "branches": 52,
+    "covered_branches": 15,
+    "missing": "51,57-58,62-63,65,72,77-78,84-87,89-94,96-98,100-103,105-106,108,119-120,202-203,228,240-241,244,249-250,255,257,260,262-263,265-266,268,271,273-274,276-280,282-284,286-287,291-292,294,299,303-304,313,325,337-338,340-344,346-349,351-352,355,357-358,360-361"
+   },
+   "app/commands/admin/service.py": {
+    "statements": 184,
+    "covered": 174,
+    "branches": 20,
+    "covered_branches": 13,
+    "missing": "87,91,109,181,206-207,312,321-323"
+   },
+   "app/commands/admin/subscriptions.py": {
+    "statements": 100,
+    "covered": 99,
+    "branches": 28,
+    "covered_branches": 27,
+    "missing": "121"
+   },
+   "app/commands/birthdays/__init__.py": {
+    "statements": 7,
+    "covered": 7,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/birthdays/celebration.py": {
+    "statements": 98,
+    "covered": 93,
+    "branches": 16,
+    "covered_branches": 13,
+    "missing": "70,74,121,205-206"
+   },
+   "app/commands/birthdays/cog.py": {
+    "statements": 92,
+    "covered": 88,
+    "branches": 10,
+    "covered_branches": 9,
+    "missing": "169-170,175-176"
+   },
+   "app/commands/birthdays/moderations.py": {
+    "statements": 14,
+    "covered": 13,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "33"
+   },
+   "app/commands/birthdays/service.py": {
+    "statements": 485,
+    "covered": 472,
+    "branches": 88,
+    "covered_branches": 76,
+    "missing": "124,392,550,626,642,725,752-753,789,894,1039,1070,1244"
+   },
+   "app/commands/block_links/__init__.py": {
+    "statements": 4,
+    "covered": 4,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/block_links/cog.py": {
+    "statements": 27,
+    "covered": 25,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "30,46"
+   },
+   "app/commands/block_links/service.py": {
+    "statements": 347,
+    "covered": 335,
+    "branches": 102,
+    "covered_branches": 86,
+    "missing": "160,512,523,527-528,548,552,560,616,697,754,776"
+   },
+   "app/commands/config/__init__.py": {
+    "statements": 3,
+    "covered": 3,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/config/cog.py": {
+    "statements": 39,
+    "covered": 32,
+    "branches": 2,
+    "covered_branches": 1,
+    "missing": "44-45,66-67,84-85,98"
+   },
+   "app/commands/config/service.py": {
+    "statements": 31,
+    "covered": 31,
+    "branches": 2,
+    "covered_branches": 2,
+    "missing": ""
+   },
+   "app/commands/help/__init__.py": {
+    "statements": 5,
+    "covered": 5,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/help/cog.py": {
+    "statements": 15,
+    "covered": 14,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "27"
+   },
+   "app/commands/help/ping.py": {
+    "statements": 16,
+    "covered": 16,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/help/service.py": {
+    "statements": 147,
+    "covered": 103,
+    "branches": 36,
+    "covered_branches": 17,
+    "missing": "55-60,66-67,83-88,101-106,109-110,128-132,134,160-163,165,170-171,173,179-181,183-185,189,313"
+   },
+   "app/commands/report/__init__.py": {
+    "statements": 3,
+    "covered": 3,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/report/cog.py": {
+    "statements": 74,
+    "covered": 63,
+    "branches": 6,
+    "covered_branches": 4,
+    "missing": "28-30,156,177,193-195,197,206-207"
+   },
+   "app/commands/report/service.py": {
+    "statements": 8,
+    "covered": 8,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/roles/__init__.py": {
+    "statements": 4,
+    "covered": 4,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/roles/cog.py": {
+    "statements": 14,
+    "covered": 13,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "31"
+   },
+   "app/commands/roles/service.py": {
+    "statements": 184,
+    "covered": 168,
+    "branches": 52,
+    "covered_branches": 45,
+    "missing": "79-80,87,94,123-124,130,150,168,214-216,236,247,253,289"
+   },
+   "app/commands/setup/__init__.py": {
+    "statements": 4,
+    "covered": 4,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/setup/cog.py": {
+    "statements": 17,
+    "covered": 16,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "31"
+   },
+   "app/commands/setup/service.py": {
+    "statements": 350,
+    "covered": 333,
+    "branches": 48,
+    "covered_branches": 43,
+    "missing": "200,217,349,570-573,604-606,715,771-772,774,776-777,779"
+   },
+   "app/commands/stream_elements/__init__.py": {
+    "statements": 4,
+    "covered": 4,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/stream_elements/cog.py": {
+    "statements": 14,
+    "covered": 13,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "37"
+   },
+   "app/commands/stream_elements/service.py": {
+    "statements": 260,
+    "covered": 251,
+    "branches": 52,
+    "covered_branches": 45,
+    "missing": "50,56,70,194,261,299,468,477-478"
+   },
+   "app/commands/support/__init__.py": {
+    "statements": 3,
+    "covered": 3,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/support/cog.py": {
+    "statements": 16,
+    "covered": 16,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/translate/__init__.py": {
+    "statements": 3,
+    "covered": 3,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/translate/cog.py": {
+    "statements": 36,
+    "covered": 36,
+    "branches": 6,
+    "covered_branches": 6,
+    "missing": ""
+   },
+   "app/commands/translate/service.py": {
+    "statements": 9,
+    "covered": 9,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/twitch/__init__.py": {
+    "statements": 5,
+    "covered": 5,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/twitch/cog.py": {
+    "statements": 14,
+    "covered": 13,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "33"
+   },
+   "app/commands/twitch/service.py": {
+    "statements": 260,
+    "covered": 226,
+    "branches": 40,
+    "covered_branches": 27,
+    "missing": "63,162-163,260-261,267,374,380-381,409-411,413,417-419,421-422,424,471,476,480,485,503,509,520,525,557-558,562,587-588,624-625"
+   },
+   "app/commands/welcome/__init__.py": {
+    "statements": 5,
+    "covered": 5,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/welcome/cog.py": {
+    "statements": 14,
+    "covered": 13,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "33"
+   },
+   "app/commands/welcome/service.py": {
+    "statements": 256,
+    "covered": 241,
+    "branches": 40,
+    "covered_branches": 33,
+    "missing": "49,141-145,151,266,284,289,297,359-360,522,532"
+   },
+   "app/commands/youtube/__init__.py": {
+    "statements": 5,
+    "covered": 5,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/commands/youtube/cog.py": {
+    "statements": 32,
+    "covered": 31,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "41"
+   },
+   "app/commands/youtube/service.py": {
+    "statements": 358,
+    "covered": 341,
+    "branches": 64,
+    "covered_branches": 58,
+    "missing": "91,323-324,328,410,577-579,648-649,653-654,686,692,715,850-851"
+   },
+   "app/config.py": {
+    "statements": 114,
+    "covered": 111,
+    "branches": 4,
+    "covered_branches": 4,
+    "missing": "180,186,189"
+   },
+   "app/constants.py": {
+    "statements": 300,
+    "covered": 300,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/core/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/core/analytics.py": {
+    "statements": 315,
+    "covered": 287,
+    "branches": 94,
+    "covered_branches": 75,
+    "missing": "56,393-394,464-467,469,572-573,625,629-633,637-645,650,657,705"
+   },
+   "app/core/analytics_reports.py": {
+    "statements": 314,
+    "covered": 298,
+    "branches": 150,
+    "covered_branches": 135,
+    "missing": "50,72,105,244,323,367,401,403,444,457,461,500,525-527,664"
+   },
+   "app/core/analytics_writer.py": {
+    "statements": 162,
+    "covered": 156,
+    "branches": 48,
+    "covered_branches": 45,
+    "missing": "243,261,290-292,294"
+   },
+   "app/core/cache.py": {
+    "statements": 230,
+    "covered": 228,
+    "branches": 50,
+    "covered_branches": 48,
+    "missing": "168,292"
+   },
+   "app/core/calendar.py": {
+    "statements": 59,
+    "covered": 56,
+    "branches": 12,
+    "covered_branches": 11,
+    "missing": "73,117-118"
+   },
+   "app/core/cogs.py": {
+    "statements": 17,
+    "covered": 17,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/core/commands.py": {
+    "statements": 228,
+    "covered": 221,
+    "branches": 40,
+    "covered_branches": 36,
+    "missing": "249,270,445-448,455"
+   },
+   "app/core/conditions.py": {
+    "statements": 144,
+    "covered": 130,
+    "branches": 66,
+    "covered_branches": 51,
+    "missing": "224-228,248,276,281-283,289,296-298"
+   },
+   "app/core/copy_schema.py": {
+    "statements": 59,
+    "covered": 59,
+    "branches": 6,
+    "covered_branches": 6,
+    "missing": ""
+   },
+   "app/core/dates.py": {
+    "statements": 50,
+    "covered": 50,
+    "branches": 4,
+    "covered_branches": 4,
+    "missing": ""
+   },
+   "app/core/debug_logs.py": {
+    "statements": 125,
+    "covered": 120,
+    "branches": 30,
+    "covered_branches": 26,
+    "missing": "58,192,227-228,269"
+   },
+   "app/core/dispatch.py": {
+    "statements": 43,
+    "covered": 43,
+    "branches": 22,
+    "covered_branches": 22,
+    "missing": ""
+   },
+   "app/core/errors.py": {
+    "statements": 53,
+    "covered": 51,
+    "branches": 8,
+    "covered_branches": 6,
+    "missing": "103,117"
+   },
+   "app/core/events.py": {
+    "statements": 125,
+    "covered": 119,
+    "branches": 18,
+    "covered_branches": 15,
+    "missing": "71-73,76,124,170"
+   },
+   "app/core/facts.py": {
+    "statements": 188,
+    "covered": 183,
+    "branches": 68,
+    "covered_branches": 64,
+    "missing": "163,218,300-301,304"
+   },
+   "app/core/feature_health.py": {
+    "statements": 107,
+    "covered": 105,
+    "branches": 46,
+    "covered_branches": 44,
+    "missing": "61,181"
+   },
+   "app/core/groups.py": {
+    "statements": 39,
+    "covered": 39,
+    "branches": 10,
+    "covered_branches": 10,
+    "missing": ""
+   },
+   "app/core/i18n.py": {
+    "statements": 299,
+    "covered": 291,
+    "branches": 130,
+    "covered_branches": 126,
+    "missing": "134,158-159,259,374-375,446,513"
+   },
+   "app/core/images.py": {
+    "statements": 90,
+    "covered": 82,
+    "branches": 22,
+    "covered_branches": 18,
+    "missing": "93,119-122,137-138,142"
+   },
+   "app/core/jobs.py": {
+    "statements": 124,
+    "covered": 119,
+    "branches": 26,
+    "covered_branches": 26,
+    "missing": "56-57,116-117,122"
+   },
+   "app/core/journey.py": {
+    "statements": 211,
+    "covered": 204,
+    "branches": 58,
+    "covered_branches": 53,
+    "missing": "326,392,476,485,492-494"
+   },
+   "app/core/logs_archive.py": {
+    "statements": 295,
+    "covered": 294,
+    "branches": 78,
+    "covered_branches": 74,
+    "missing": "359"
+   },
+   "app/core/manager.py": {
+    "statements": 29,
+    "covered": 29,
+    "branches": 10,
+    "covered_branches": 10,
+    "missing": ""
+   },
+   "app/core/members.py": {
+    "statements": 66,
+    "covered": 64,
+    "branches": 20,
+    "covered_branches": 18,
+    "missing": "22,89"
+   },
+   "app/core/mentions.py": {
+    "statements": 31,
+    "covered": 31,
+    "branches": 10,
+    "covered_branches": 10,
+    "missing": ""
+   },
+   "app/core/metrics.py": {
+    "statements": 47,
+    "covered": 47,
+    "branches": 4,
+    "covered_branches": 4,
+    "missing": ""
+   },
+   "app/core/monitoring.py": {
+    "statements": 58,
+    "covered": 58,
+    "branches": 8,
+    "covered_branches": 8,
+    "missing": ""
+   },
+   "app/core/servers.py": {
+    "statements": 97,
+    "covered": 97,
+    "branches": 20,
+    "covered_branches": 20,
+    "missing": ""
+   },
+   "app/core/threads.py": {
+    "statements": 51,
+    "covered": 51,
+    "branches": 6,
+    "covered_branches": 6,
+    "missing": ""
+   },
+   "app/core/tokens.py": {
+    "statements": 138,
+    "covered": 138,
+    "branches": 50,
+    "covered_branches": 50,
+    "missing": ""
+   },
+   "app/core/trace.py": {
+    "statements": 257,
+    "covered": 254,
+    "branches": 50,
+    "covered_branches": 47,
+    "missing": "173,382-383"
+   },
+   "app/core/utils.py": {
+    "statements": 277,
+    "covered": 231,
+    "branches": 114,
+    "covered_branches": 81,
+    "missing": "33,43,55,61-62,75,97,184,186-187,189,192,194-195,198,200,251-252,277-278,288-292,301,371,396,427,429-432,434-435,437-438,440,442-443,445-446,471-472,474-475"
+   },
+   "app/data/__init__.py": {
+    "statements": 117,
+    "covered": 114,
+    "branches": 16,
+    "covered_branches": 14,
+    "missing": "143-144,173"
+   },
+   "app/data/analytics/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/data/analytics/counts.py": {
+    "statements": 25,
+    "covered": 24,
+    "branches": 6,
+    "covered_branches": 5,
+    "missing": "25"
+   },
+   "app/data/analytics/keiko.py": {
+    "statements": 13,
+    "covered": 12,
+    "branches": 2,
+    "covered_branches": 1,
+    "missing": "23"
+   },
+   "app/data/analytics/lifetime.py": {
+    "statements": 28,
+    "covered": 27,
+    "branches": 6,
+    "covered_branches": 5,
+    "missing": "51"
+   },
+   "app/data/collection.py": {
+    "statements": 34,
+    "covered": 34,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/data/events/__init__.py": {
+    "statements": 43,
+    "covered": 42,
+    "branches": 16,
+    "covered_branches": 15,
+    "missing": "54"
+   },
+   "app/data/events/activity.py": {
+    "statements": 7,
+    "covered": 7,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/data/events/changes.py": {
+    "statements": 6,
+    "covered": 6,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/data/events/interactions.py": {
+    "statements": 13,
+    "covered": 13,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/data/guild/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/data/guild/analytics_archives.py": {
+    "statements": 7,
+    "covered": 7,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/data/guild/cogs.py": {
+    "statements": 80,
+    "covered": 80,
+    "branches": 18,
+    "covered_branches": 18,
+    "missing": ""
+   },
+   "app/data/guild/members.py": {
+    "statements": 59,
+    "covered": 58,
+    "branches": 14,
+    "covered_branches": 13,
+    "missing": "71"
+   },
+   "app/data/guild/messages.py": {
+    "statements": 8,
+    "covered": 8,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/data/guild/settings.py": {
+    "statements": 37,
+    "covered": 33,
+    "branches": 4,
+    "covered_branches": 4,
+    "missing": "73-74,89-90"
+   },
+   "app/data/keiko/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/data/keiko/integrations.py": {
+    "statements": 5,
+    "covered": 5,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/data/keiko/schedules.py": {
+    "statements": 44,
+    "covered": 44,
+    "branches": 6,
+    "covered_branches": 5,
+    "missing": ""
+   },
+   "app/data/keiko/settings.py": {
+    "statements": 14,
+    "covered": 14,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/data/keiko/subscriptions.py": {
+    "statements": 10,
+    "covered": 10,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/data/logs.py": {
+    "statements": 21,
+    "covered": 20,
+    "branches": 4,
+    "covered_branches": 3,
+    "missing": "22"
+   },
+   "app/data/migrations/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/data/migrations/changelog.py": {
+    "statements": 6,
+    "covered": 6,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/data/traces/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/data/traces/runs.py": {
+    "statements": 10,
+    "covered": 9,
+    "branches": 2,
+    "covered_branches": 1,
+    "missing": "14"
+   },
+   "app/data/util.py": {
+    "statements": 19,
+    "covered": 19,
+    "branches": 2,
+    "covered_branches": 2,
+    "missing": ""
+   },
+   "app/decorators.py": {
+    "statements": 36,
+    "covered": 35,
+    "branches": 4,
+    "covered_branches": 3,
+    "missing": "97"
+   },
+   "app/exceptions.py": {
+    "statements": 37,
+    "covered": 33,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "74-77"
+   },
+   "app/forms/__init__.py": {
+    "statements": 4,
+    "covered": 4,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/forms/discord/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/forms/discord/callbacks.py": {
+    "statements": 592,
+    "covered": 563,
+    "branches": 158,
+    "covered_branches": 138,
+    "missing": "156,254-256,295-296,304,316,399,402,428-430,676,681-683,686,690,832-833,835-836,884,887,911,1053,1092,1112"
+   },
+   "app/forms/discord/interactions.py": {
+    "statements": 99,
+    "covered": 97,
+    "branches": 44,
+    "covered_branches": 42,
+    "missing": "156,162"
+   },
+   "app/forms/discord/observability.py": {
+    "statements": 110,
+    "covered": 109,
+    "branches": 38,
+    "covered_branches": 36,
+    "missing": "71"
+   },
+   "app/forms/discord/transitions.py": {
+    "statements": 359,
+    "covered": 343,
+    "branches": 98,
+    "covered_branches": 86,
+    "missing": "126,130,229,257-258,303,367,463-464,506-507,514,528-529,591-592"
+   },
+   "app/forms/discord/views.py": {
+    "statements": 348,
+    "covered": 345,
+    "branches": 142,
+    "covered_branches": 133,
+    "missing": "343,425,696"
+   },
+   "app/forms/features/__init__.py": {
+    "statements": 20,
+    "covered": 18,
+    "branches": 2,
+    "covered_branches": 2,
+    "missing": "20-21"
+   },
+   "app/forms/features/feature.py": {
+    "statements": 365,
+    "covered": 359,
+    "branches": 48,
+    "covered_branches": 44,
+    "missing": "360,366,579,631,657,692"
+   },
+   "app/forms/features/subscriptions.py": {
+    "statements": 95,
+    "covered": 91,
+    "branches": 28,
+    "covered_branches": 25,
+    "missing": "54,62,152,160"
+   },
+   "app/forms/form/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/forms/form/actions/__init__.py": {
+    "statements": 25,
+    "covered": 25,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/forms/form/actions/action.py": {
+    "statements": 110,
+    "covered": 108,
+    "branches": 22,
+    "covered_branches": 20,
+    "missing": "150,162"
+   },
+   "app/forms/form/actions/composition.py": {
+    "statements": 13,
+    "covered": 10,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "15,27-28"
+   },
+   "app/forms/form/actions/configuration_card.py": {
+    "statements": 656,
+    "covered": 600,
+    "branches": 192,
+    "covered_branches": 168,
+    "missing": "124,154,163,316,365,375,427,533,625-626,631,638-639,672,736,766,806,853,929,994,1003-1006,1061-1062,1161-1162,1170,1212-1215,1229,1244,1278-1281,1289,1330-1331,1341-1342,1352-1353,1355-1357,1366-1368,1377,1381,1511,1606"
+   },
+   "app/forms/form/actions/intro.py": {
+    "statements": 44,
+    "covered": 44,
+    "branches": 20,
+    "covered_branches": 20,
+    "missing": ""
+   },
+   "app/forms/form/actions/modal.py": {
+    "statements": 75,
+    "covered": 75,
+    "branches": 14,
+    "covered_branches": 14,
+    "missing": ""
+   },
+   "app/forms/form/actions/options.py": {
+    "statements": 42,
+    "covered": 37,
+    "branches": 12,
+    "covered_branches": 7,
+    "missing": "71,84-86,89"
+   },
+   "app/forms/form/actions/resume.py": {
+    "statements": 64,
+    "covered": 62,
+    "branches": 20,
+    "covered_branches": 18,
+    "missing": "73,143"
+   },
+   "app/forms/form/actions/selects.py": {
+    "statements": 15,
+    "covered": 15,
+    "branches": 4,
+    "covered_branches": 4,
+    "missing": ""
+   },
+   "app/forms/form/components.py": {
+    "statements": 164,
+    "covered": 164,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/forms/form/copy.py": {
+    "statements": 30,
+    "covered": 28,
+    "branches": 6,
+    "covered_branches": 6,
+    "missing": "53-54"
+   },
+   "app/forms/form/effects.py": {
+    "statements": 65,
+    "covered": 65,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/forms/form/events.py": {
+    "statements": 83,
+    "covered": 83,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/forms/form/form.py": {
+    "statements": 838,
+    "covered": 751,
+    "branches": 258,
+    "covered_branches": 212,
+    "missing": "230,320,464,494,509,525,608,633,827,833-834,902,912-913,915-916,941,943,957-958,970-971,979-980,985-986,988-989,998-999,1004,1012-1013,1021-1031,1036-1038,1120-1121,1133-1134,1137,1174-1175,1177-1178,1216-1217,1225-1226,1240-1241,1252,1264-1265,1282,1285-1286,1288,1305-1306,1323-1332,1409-1411,1485,1489,1493"
+   },
+   "app/forms/form/form_state.py": {
+    "statements": 195,
+    "covered": 194,
+    "branches": 8,
+    "covered_branches": 7,
+    "missing": "347"
+   },
+   "app/forms/form/form_yaml.py": {
+    "statements": 1010,
+    "covered": 983,
+    "branches": 330,
+    "covered_branches": 310,
+    "missing": "64,67,243,245,477,747,755,987,1651,1697,1831,1835-1838,1966,1979,2018,2028,2069,2071,2157-2158,2276,2292,2609,2645"
+   },
+   "app/forms/form/lookups.py": {
+    "statements": 51,
+    "covered": 49,
+    "branches": 12,
+    "covered_branches": 10,
+    "missing": "43,51"
+   },
+   "app/forms/form/manager.py": {
+    "statements": 450,
+    "covered": 427,
+    "branches": 100,
+    "covered_branches": 88,
+    "missing": "228,248-249,324,482,558,633,635,689-692,753-757,789-790,806-807,827-828"
+   },
+   "app/forms/form/responses/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/forms/form/responses/links.py": {
+    "statements": 31,
+    "covered": 30,
+    "branches": 10,
+    "covered_branches": 9,
+    "missing": "43"
+   },
+   "app/forms/form/responses/responses.py": {
+    "statements": 53,
+    "covered": 53,
+    "branches": 20,
+    "covered_branches": 20,
+    "missing": ""
+   },
+   "app/forms/form/responses/styles.py": {
+    "statements": 60,
+    "covered": 58,
+    "branches": 30,
+    "covered_branches": 28,
+    "missing": "65,103"
+   },
+   "app/forms/form/responses/summary.py": {
+    "statements": 645,
+    "covered": 628,
+    "branches": 268,
+    "covered_branches": 255,
+    "missing": "98,168,215,255-257,456,512,968-969,1016,1020-1021,1125,1140,1170,1175"
+   },
+   "app/forms/form/responses/transforms.py": {
+    "statements": 56,
+    "covered": 55,
+    "branches": 8,
+    "covered_branches": 8,
+    "missing": "44"
+   },
+   "app/forms/form/responses/validations.py": {
+    "statements": 74,
+    "covered": 71,
+    "branches": 16,
+    "covered_branches": 15,
+    "missing": "93-94,105"
+   },
+   "app/integrations/__init__.py": {
+    "statements": 28,
+    "covered": 27,
+    "branches": 2,
+    "covered_branches": 1,
+    "missing": "29"
+   },
+   "app/integrations/google_translate.py": {
+    "statements": 70,
+    "covered": 52,
+    "branches": 6,
+    "covered_branches": 2,
+    "missing": "97-98,100-105,107-109,111,129-130,132-133,135,137"
+   },
+   "app/integrations/http.py": {
+    "statements": 117,
+    "covered": 102,
+    "branches": 16,
+    "covered_branches": 13,
+    "missing": "106-107,109-110,112-113,169,172-173,176-177,180-181,183-184"
+   },
+   "app/integrations/notion.py": {
+    "statements": 18,
+    "covered": 18,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/integrations/reminders/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/integrations/reminders/client.py": {
+    "statements": 60,
+    "covered": 57,
+    "branches": 14,
+    "covered_branches": 10,
+    "missing": "95,97,124"
+   },
+   "app/integrations/reminders/schedule.py": {
+    "statements": 65,
+    "covered": 57,
+    "branches": 16,
+    "covered_branches": 14,
+    "missing": "100,110-111,115,122-125"
+   },
+   "app/integrations/reminders/webhook.py": {
+    "statements": 30,
+    "covered": 29,
+    "branches": 8,
+    "covered_branches": 7,
+    "missing": "35"
+   },
+   "app/integrations/stream_elements.py": {
+    "statements": 19,
+    "covered": 13,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "11-12,15,33-34,37"
+   },
+   "app/integrations/twitch/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/integrations/twitch/client.py": {
+    "statements": 111,
+    "covered": 75,
+    "branches": 6,
+    "covered_branches": 2,
+    "missing": "29,34,37,67-68,72-76,91-92,96-98,103-104,108-111,113-114,152-153,158,170-171,185-186,190-191,195-196,200-201"
+   },
+   "app/integrations/twitch/webhook.py": {
+    "statements": 30,
+    "covered": 28,
+    "branches": 10,
+    "covered_branches": 8,
+    "missing": "22,43"
+   },
+   "app/integrations/youtube/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/integrations/youtube/client.py": {
+    "statements": 126,
+    "covered": 123,
+    "branches": 20,
+    "covered_branches": 19,
+    "missing": "54,84-85"
+   },
+   "app/integrations/youtube/webhook.py": {
+    "statements": 54,
+    "covered": 51,
+    "branches": 18,
+    "covered_branches": 16,
+    "missing": "81-82,88"
+   },
+   "app/logger.py": {
+    "statements": 440,
+    "covered": 395,
+    "branches": 176,
+    "covered_branches": 137,
+    "missing": "38,42,132,151,202-203,262-263,407-408,432-433,437,494,532,550-551,557-558,569,572,604,623,636-641,643,647,649,653-654,656,705,709,714-715,717-719,722,725,733"
+   },
+   "app/migrations/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/migrations/__main__.py": {
+    "statements": 61,
+    "covered": 41,
+    "branches": 26,
+    "covered_branches": 11,
+    "missing": "64,66,71-76,78-84,86-88,98,108"
+   },
+   "app/migrations/data/0001_bot_defaults.py": {
+    "statements": 14,
+    "covered": 5,
+    "branches": 2,
+    "covered_branches": 0,
+    "missing": "18-21,26-27,32,34,39"
+   },
+   "app/migrations/data/0002_server_settings.py": {
+    "statements": 50,
+    "covered": 29,
+    "branches": 10,
+    "covered_branches": 5,
+    "missing": "205-206,213,221-222,230-232,237-240,248-250,252-253,259,263-265"
+   },
+   "app/migrations/data/0003_cogs_and_keiko.py": {
+    "statements": 61,
+    "covered": 37,
+    "branches": 12,
+    "covered_branches": 8,
+    "missing": "116-117,126-129,136,144,150,156,161,167-168,176,181,183-188,190,194,200"
+   },
+   "app/migrations/data/0004_members_and_schedules.py": {
+    "statements": 106,
+    "covered": 87,
+    "branches": 52,
+    "covered_branches": 47,
+    "missing": "26,29,157,160,163,168-172,175,177-179,182,186-187,190-191"
+   },
+   "app/migrations/data/0005_subscriptions_and_messages.py": {
+    "statements": 57,
+    "covered": 25,
+    "branches": 30,
+    "covered_branches": 10,
+    "missing": "14-15,17-19,24-25,28-29,34-36,40-41,43,48-50,58,60-62,76-77,79-80,88,92,109,116,147,151"
+   },
+   "app/migrations/data/0006_events.py": {
+    "statements": 134,
+    "covered": 95,
+    "branches": 42,
+    "covered_branches": 30,
+    "missing": "236,279-280,287-290,295,303-304,311-318,320,324-332,334,336-337,341,344-345,348-349,353-355"
+   },
+   "app/migrations/data/0007_analytics.py": {
+    "statements": 80,
+    "covered": 55,
+    "branches": 32,
+    "covered_branches": 25,
+    "missing": "15-16,25-32,34,37-44,46-47,100-103"
+   },
+   "app/migrations/data/0008_notice_mentions.py": {
+    "statements": 112,
+    "covered": 112,
+    "branches": 44,
+    "covered_branches": 44,
+    "missing": ""
+   },
+   "app/migrations/data/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/migrations/helpers.py": {
+    "statements": 144,
+    "covered": 139,
+    "branches": 32,
+    "covered_branches": 29,
+    "missing": "115,125,128,149,153"
+   },
+   "app/migrations/redis_keys.py": {
+    "statements": 44,
+    "covered": 44,
+    "branches": 24,
+    "covered_branches": 24,
+    "missing": ""
+   },
+   "app/migrations/runner.py": {
+    "statements": 574,
+    "covered": 334,
+    "branches": 242,
+    "covered_branches": 122,
+    "missing": "181,341,405-416,421-422,536-540,556,574,587,589-599,601-606,608-610,615-623,628,632,637-641,645,650-655,664-666,671-672,675-676,681,685-687,695,700-710,719-720,722,726,729,732,766-767,771,774-775,779,788-791,793-794,799-800,805,812-814,816-818,820-827,829-832,835,839-846,858-859,861-866,868-875,877-878,884-889,891-896,900-906,916-922,924-927,932-933,938-939,944-948,950-954,959-963,965-969,975-978,989-998,1000-1004,1013-1015,1017-1019,1022-1023,1028-1030"
+   },
+   "app/migrations/schema/0001_baseline.py": {
+    "statements": 2,
+    "covered": 2,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/migrations/schema/0002_guild_and_keiko.py": {
+    "statements": 2,
+    "covered": 2,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/migrations/schema/0003_members_and_schedules.py": {
+    "statements": 2,
+    "covered": 2,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/migrations/schema/0004_subscriptions_and_messages.py": {
+    "statements": 1,
+    "covered": 1,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/migrations/schema/0005_events.py": {
+    "statements": 2,
+    "covered": 2,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/migrations/schema/0006_analytics_and_traces.py": {
+    "statements": 2,
+    "covered": 2,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/migrations/schema/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/translator.py": {
+    "statements": 68,
+    "covered": 68,
+    "branches": 18,
+    "covered_branches": 17,
+    "missing": ""
+   },
+   "app/types/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/types/cogs.py": {
+    "statements": 25,
+    "covered": 25,
+    "branches": 2,
+    "covered_branches": 2,
+    "missing": ""
+   },
+   "app/types/integration.py": {
+    "statements": 3,
+    "covered": 3,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/ui/__init__.py": {
+    "statements": 0,
+    "covered": 0,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": ""
+   },
+   "app/ui/buttons.py": {
+    "statements": 28,
+    "covered": 27,
+    "branches": 0,
+    "covered_branches": 0,
+    "missing": "41"
+   },
+   "app/ui/confirm_action.py": {
+    "statements": 29,
+    "covered": 28,
+    "branches": 4,
+    "covered_branches": 3,
+    "missing": "48"
+   },
+   "app/ui/embed.py": {
+    "statements": 180,
+    "covered": 178,
+    "branches": 50,
+    "covered_branches": 47,
+    "missing": "512,549"
+   },
+   "app/ui/message_preview.py": {
+    "statements": 31,
+    "covered": 31,
+    "branches": 2,
+    "covered_branches": 2,
+    "missing": ""
+   },
+   "app/ui/pagination.py": {
+    "statements": 109,
+    "covered": 90,
+    "branches": 14,
+    "covered_branches": 12,
+    "missing": "22,94-98,105-106,150,158-160,167-169,185-187,196"
+   },
+   "app/ui/records.py": {
+    "statements": 122,
+    "covered": 122,
+    "branches": 10,
+    "covered_branches": 10,
+    "missing": ""
+   },
+   "app/ui/report_browser.py": {
+    "statements": 40,
+    "covered": 39,
+    "branches": 6,
+    "covered_branches": 5,
+    "missing": "81"
+   },
+   "app/ui/select.py": {
+    "statements": 39,
+    "covered": 38,
+    "branches": 16,
+    "covered_branches": 15,
+    "missing": "59"
+   }
+  },
+  "lines": {
+   "covered": 18583,
+   "total": 20081,
+   "percent": 92.54
+  },
+  "branches": {
+   "covered": 4284,
+   "total": 5038,
+   "percent": 85.03
+  }
+ },
+ "mutants": {
+  "seed": 67,
+  "areas": {
+   "commands": {
+    "killed": 41,
+    "timeout": 0,
+    "survived": 17,
+    "uncovered": 8,
+    "error": 0
+   },
+   "core": {
+    "killed": 46,
+    "timeout": 0,
+    "survived": 15,
+    "uncovered": 5,
+    "error": 0
+   },
+   "forms": {
+    "killed": 73,
+    "timeout": 0,
+    "survived": 7,
+    "uncovered": 4,
+    "error": 0
+   },
+   "migrations": {
+    "killed": 22,
+    "timeout": 0,
+    "survived": 1,
+    "uncovered": 13,
+    "error": 0
+   }
+  },
+  "status": {
+   "app/commands/admin/analytics.py::_seconds::1::negate#0": "survived",
+   "app/commands/admin/analytics.py::build_churn_embed::6.body0::drop-call#0": "survived",
+   "app/commands/admin/analytics.py::insight_sections::1::constant#29": "survived",
+   "app/commands/admin/analytics.py::insight_sections::1::constant#7": "survived",
+   "app/commands/admin/digest.py::_attention_lines::1.body0::bool#0": "survived",
+   "app/commands/admin/digest.py::_slow_step_lines::2::return-none#0": "killed",
+   "app/commands/admin/groups/configs.py::Configs.show_config::1::compare#0": "killed",
+   "app/commands/admin/groups/debug.py::Debug.test_welcome_message::2::drop-call#0": "uncovered",
+   "app/commands/admin/log.py::Log.user_inspection::2::drop-call#0": "uncovered",
+   "app/commands/admin/log_inspection.py::LogInspectionView.callback::3.body1::drop-call#0": "killed",
+   "app/commands/admin/log_inspection.py::UserInspectionView._get_embed::7::bool#0": "uncovered",
+   "app/commands/admin/service.py::_adoption_lines::1.body2::constant#0": "survived",
+   "app/commands/admin/service.py::_what_keiko_stored::2::constant#2": "survived",
+   "app/commands/admin/service.py::build_overview_embed::20::bool#0": "survived",
+   "app/commands/admin/service.py::build_product_summary::2::constant#0": "survived",
+   "app/commands/admin/service.py::servers_overview::1::bool#1": "uncovered",
+   "app/commands/admin/subscriptions.py::_reminder_overview::6.body2.body2::drop-call#0": "killed",
+   "app/commands/admin/subscriptions.py::sync_reminders::1::drop-call#0": "survived",
+   "app/commands/admin/subscriptions.py::sync_reminders::3.body2::drop-call#0": "survived",
+   "app/commands/birthdays/service.py::_default_message_from_changes::1::return-none#0": "survived",
+   "app/commands/birthdays/service.py::accepts_birthdays::1::return-none#0": "killed",
+   "app/commands/birthdays/service.py::birthday_manager_cog_data::5::constant#11": "killed",
+   "app/commands/birthdays/service.py::format_month_count::1::negate#0": "killed",
+   "app/commands/birthdays/service.py::get_self_edit_count::2.handlers0.body0::return-none#0": "killed",
+   "app/commands/birthdays/service.py::message_source::4::compare#0": "killed",
+   "app/commands/birthdays/service.py::release_birthday_date::1::negate#0": "killed",
+   "app/commands/birthdays/service.py::save_birthday_config::4.body0::constant#0": "killed",
+   "app/commands/block_links/service.py::BlockLinksFeature.open::2::negate#0": "killed",
+   "app/commands/block_links/service.py::check_edited_message::1::negate#0": "killed",
+   "app/commands/block_links/service.py::check_message::8.body1::bool#0": "killed",
+   "app/commands/block_links/service.py::link_verdicts::6.body2.body0.body0::drop-call#0": "killed",
+   "app/commands/block_links/service.py::normalize_block_links_config::2.body2.body0::constant#10": "survived",
+   "app/commands/block_links/service.py::send_link_check_message::3::bool#0": "survived",
+   "app/commands/block_links/service.py::send_link_check_message::6::drop-call#0": "killed",
+   "app/commands/help/service.py::answer_prefix_command::2.body0::bool#0": "killed",
+   "app/commands/help/service.py::any_prefix_feature_on::2::bool#0": "killed",
+   "app/commands/report/service.py::ticket_embed::1::return-none#0": "killed",
+   "app/commands/roles/service.py::get_not_available_roles::1::compare#0": "killed",
+   "app/commands/roles/service.py::get_not_available_roles::2::negate#0": "killed",
+   "app/commands/roles/service.py::set_default_roles::3.body1.handlers0.body0::drop-call#0": "uncovered",
+   "app/commands/roles/service.py::set_on_default_roles_sync::2::compare#0": "killed",
+   "app/commands/setup/service.py::CommandsButton.callback::1::drop-call#0": "killed",
+   "app/commands/setup/service.py::_feature_button::0::negate#0": "killed",
+   "app/commands/setup/service.py::_feature_button::1::compare#0": "killed",
+   "app/commands/setup/service.py::category_page::4::constant#0": "killed",
+   "app/commands/setup/service.py::greeting_views::1::return-none#0": "killed",
+   "app/commands/setup/service.py::open_setup_dashboard::1.body1::bool#0": "survived",
+   "app/commands/setup/service.py::open_setup_dashboard::4::bool#0": "killed",
+   "app/commands/stream_elements/service.py::StreamElementsFeature._info::0::compare#0": "killed",
+   "app/commands/stream_elements/service.py::StreamElementsFeature._loaded::5::return-none#0": "killed",
+   "app/commands/stream_elements/service.py::check_message::7.body4::negate#0": "killed",
+   "app/commands/translate/service.py::translate_embed::1::bool#0": "survived",
+   "app/commands/twitch/service.py::_twitch_user::0.body1::return-none#0": "killed",
+   "app/commands/twitch/service.py::_twitch_user::0.handlers0.body0::return-none#0": "uncovered",
+   "app/commands/twitch/service.py::claim_the_live::1.handlers0.body1::return-none#0": "killed",
+   "app/commands/twitch/service.py::send_streamer_notifications::4::compare#0": "survived",
+   "app/commands/twitch/service.py::unsubscribe_streamer::4::negate#0": "killed",
+   "app/commands/twitch/service.py::wait_for_stream_info::4.body4::negate#0": "uncovered",
+   "app/commands/twitch/service.py::wait_for_stream_info::4::constant#0": "uncovered",
+   "app/commands/welcome/service.py::WelcomeMessagesFeature.previews::2::compare#0": "killed",
+   "app/commands/youtube/service.py::create_video_notification_embed::4::constant#0": "killed",
+   "app/commands/youtube/service.py::find_channel::2::negate#0": "killed",
+   "app/commands/youtube/service.py::prepare_video_announcement::5::return-none#0": "killed",
+   "app/commands/youtube/service.py::renew_youtube_subscription::8::compare#0": "killed",
+   "app/commands/youtube/service.py::renew_youtube_subscription::9.orelse0::compare#0": "killed",
+   "app/commands/youtube/service.py::send_to_hub::7::compare#0": "killed",
+   "app/core/analytics.py::_declared_props::3.body0.orelse0::constant#0": "killed",
+   "app/core/analytics.py::_record::9.body0::drop-call#0": "killed",
+   "app/core/analytics.py::records_raw_choice::1.body0::bool#0": "killed",
+   "app/core/analytics.py::records_raw_choice::2::constant#0": "killed",
+   "app/core/analytics_reports.py::_expired_or_open::1.body0::return-none#0": "uncovered",
+   "app/core/analytics_reports.py::dropoff::4::constant#0": "killed",
+   "app/core/analytics_reports.py::funnel::3.body8::negate#0": "survived",
+   "app/core/analytics_writer.py::_count::5::negate#0": "killed",
+   "app/core/analytics_writer.py::metric_key::2::return-none#0": "killed",
+   "app/core/cache.py::_keep::0.body3.body0::bool#0": "killed",
+   "app/core/cache.py::_may_try::1.body2::compare#0": "killed",
+   "app/core/cache.py::_send_deletes::5::drop-call#0": "killed",
+   "app/core/cache.py::claim_redis_key::1::bool#0": "killed",
+   "app/core/cache.py::remembered::2::compare#0": "killed",
+   "app/core/cache.py::remembered::2::negate#0": "killed",
+   "app/core/cache.py::remove_all_cache_by_guild::1::constant#0": "survived",
+   "app/core/calendar.py::parse_month::3.body1::constant#1": "survived",
+   "app/core/cogs.py::lifecycle_key::1::compare#0": "killed",
+   "app/core/commands.py::_beside::1::return-none#0": "killed",
+   "app/core/conditions.py::_describe_leaf::0::negate#0": "killed",
+   "app/core/conditions.py::_describe_leaf::1::negate#0": "killed",
+   "app/core/conditions.py::_leaf::0::negate#0": "killed",
+   "app/core/conditions.py::count_of::1.body0::return-none#0": "killed",
+   "app/core/conditions.py::evaluate::2.body0::return-none#0": "killed",
+   "app/core/conditions.py::explain::4.body0::constant#2": "uncovered",
+   "app/core/debug_logs.py::_Writer.__init__::2::bool#0": "killed",
+   "app/core/debug_logs.py::_wake_the_writer::1.body0::drop-call#0": "killed",
+   "app/core/debug_logs.py::reset::4::bool#0": "killed",
+   "app/core/events.py::Events._snapshot_leaving::2::drop-call#0": "survived",
+   "app/core/events.py::Events.on_message::1::compare#0": "killed",
+   "app/core/events.py::Events.on_ready::2.body0::drop-call#0": "survived",
+   "app/core/facts.py::_is_text::0::return-none#0": "killed",
+   "app/core/facts.py::_written_in::4::negate#0": "killed",
+   "app/core/feature_health.py::_ids::1.body0::compare#0": "survived",
+   "app/core/feature_health.py::feature_problems::5.body0::bool#0": "survived",
+   "app/core/i18n.py::_facts_checked::3::negate#0": "killed",
+   "app/core/i18n.py::_first::2::constant#2": "killed",
+   "app/core/i18n.py::_nodes::1.orelse0.body0.body0::compare#0": "killed",
+   "app/core/i18n.py::_rules::0::constant#0": "survived",
+   "app/core/i18n.py::_token_problem::0::compare#1": "killed",
+   "app/core/journey.py::_condense::2::constant#0": "killed",
+   "app/core/journey.py::finalize::4::drop-call#0": "killed",
+   "app/core/journey.py::open_journey::5::bool#0": "killed",
+   "app/core/journey.py::rebuild::17.body0::constant#0": "survived",
+   "app/core/journey.py::record::5::compare#0": "killed",
+   "app/core/logs_archive.py::build_backup::6.body2.body0::drop-call#0": "uncovered",
+   "app/core/logs_archive.py::without_identity::2::negate#0": "killed",
+   "app/core/manager.py::change_label::3::compare#0": "killed",
+   "app/core/members.py::known::5.body3::drop-call#0": "survived",
+   "app/core/mentions.py::Mention.allowed::1.body0::bool#3": "killed",
+   "app/core/metrics.py::record_loop_lag::1::drop-call#0": "killed",
+   "app/core/metrics.py::watch_held_entries.read::0.body0::return-none#0": "killed",
+   "app/core/monitoring.py::Heartbeat.beat::2::negate#0": "killed",
+   "app/core/servers.py::_complete::0::compare#0": "killed",
+   "app/core/servers.py::_valid_setting::4::return-none#0": "survived",
+   "app/core/threads.py::BlockingIO.shutdown::0::bool#0": "killed",
+   "app/core/threads.py::BlockingIO.shutdown::1.body0::bool#1": "survived",
+   "app/core/threads.py::BlockingIO.submit::2::drop-call#0": "survived",
+   "app/core/tokens.py::_escaped::0::return-none#0": "killed",
+   "app/core/tokens.py::_piece_at::7::compare#0": "killed",
+   "app/core/tokens.py::_scanned::3.body0::constant#0": "killed",
+   "app/core/tokens.py::plain::1::bool#0": "survived",
+   "app/core/tokens.py::resolved::2::negate#0": "killed",
+   "app/core/utils.py::get_command_by_key::0.body0.body0::return-none#0": "uncovered",
+   "app/core/utils.py::get_command_display_name::3.body3.body0::return-none#0": "uncovered",
+   "app/core/utils.py::step_titles::4::drop-call#0": "survived",
+   "app/forms/discord/callbacks.py::Runtime._aside::12.body0::drop-call#0": "killed",
+   "app/forms/discord/callbacks.py::Runtime._ask_before::9::drop-call#0": "uncovered",
+   "app/forms/discord/callbacks.py::Runtime._close::0::drop-call#0": "survived",
+   "app/forms/discord/callbacks.py::Runtime._context::11::bool#0": "killed",
+   "app/forms/discord/callbacks.py::Runtime._continue::3.body1::drop-call#0": "killed",
+   "app/forms/discord/callbacks.py::Runtime._decide::1.body1::return-none#0": "killed",
+   "app/forms/discord/callbacks.py::Runtime._due::1::negate#0": "killed",
+   "app/forms/discord/callbacks.py::Runtime._open::15::negate#0": "killed",
+   "app/forms/discord/callbacks.py::Runtime._shown::5::negate#0": "killed",
+   "app/forms/discord/callbacks.py::Runtime._unclocked::0::drop-call#0": "survived",
+   "app/forms/discord/callbacks.py::Runtime.expire_stale::3.body4::negate#0": "killed",
+   "app/forms/discord/callbacks.py::Runtime.reopen::1.body2::bool#0": "killed",
+   "app/forms/discord/callbacks.py::_cooling::1::compare#0": "killed",
+   "app/forms/discord/callbacks.py::pictures_for::2.body1::compare#0": "killed",
+   "app/forms/discord/interactions.py::_on_one_item::1::compare#0": "killed",
+   "app/forms/discord/interactions.py::decode::5::constant#1": "killed",
+   "app/forms/discord/observability.py::emit::2.body2.body0::constant#1": "killed",
+   "app/forms/discord/observability.py::emit::2.body4::compare#1": "survived",
+   "app/forms/discord/transitions.py::Answering._defer_if_late::1.handlers0.body1::constant#0": "uncovered",
+   "app/forms/discord/transitions.py::Answering.first::1.body0.body0::bool#0": "killed",
+   "app/forms/discord/transitions.py::Executor._execute::0.orelse0.body0::drop-call#0": "killed",
+   "app/forms/discord/transitions.py::Executor._replace::3::bool#0": "killed",
+   "app/forms/discord/transitions.py::Executor.finalize::1.body1::negate#0": "killed",
+   "app/forms/discord/transitions.py::Executor.finalize::2.body0::drop-call#0": "killed",
+   "app/forms/discord/transitions.py::Executor.run::5.body2.handlers0.body0::bool#0": "survived",
+   "app/forms/discord/transitions.py::message_surface::2::negate#0": "killed",
+   "app/forms/discord/views.py::FormModal.on_submit::2::drop-call#0": "killed",
+   "app/forms/discord/views.py::_panel::0::drop-call#0": "killed",
+   "app/forms/discord/views.py::finalized_layout.strip::2.body0.body0::drop-call#0": "killed",
+   "app/forms/features/feature.py::_item_at::2::compare#0": "killed",
+   "app/forms/form/actions/action.py::step_screen::1::return-none#0": "killed",
+   "app/forms/form/actions/action.py::title_of::2::return-none#0": "killed",
+   "app/forms/form/actions/configuration_card.py::_fields_modal::5.body0.orelse0::compare#0": "killed",
+   "app/forms/form/actions/configuration_card.py::_group_preview::1::return-none#0": "killed",
+   "app/forms/form/actions/configuration_card.py::_image_preview::0::constant#0": "survived",
+   "app/forms/form/actions/configuration_card.py::_option_pressed::1.body0::return-none#0": "killed",
+   "app/forms/form/actions/configuration_card.py::_selects_change::0::negate#0": "killed",
+   "app/forms/form/actions/configuration_card.py::_title_content_reset::0::constant#0": "uncovered",
+   "app/forms/form/actions/configuration_card.py::_value_change::4::return-none#0": "killed",
+   "app/forms/form/actions/configuration_card.py::render::12::constant#0": "killed",
+   "app/forms/form/actions/selects.py::select_picker::1::compare#0": "survived",
+   "app/forms/form/components.py::PanelPart.button::1::return-none#0": "killed",
+   "app/forms/form/form.py::Form.review_key::1.body0.body0::return-none#0": "survived",
+   "app/forms/form/form.py::_open_section::1::negate#0": "killed",
+   "app/forms/form/form.py::_ran_out::0::compare#0": "killed",
+   "app/forms/form/form.py::_rejection::4.body0::constant#0": "killed",
+   "app/forms/form/form.py::open_member_picker::1::constant#2": "killed",
+   "app/forms/form/form.py::steps_for::3.body1.body0::compare#0": "killed",
+   "app/forms/form/form.py::steps_for::3.body2::compare#0": "killed",
+   "app/forms/form/form_state.py::FormSession.refused_on::2::compare#1": "killed",
+   "app/forms/form/form_yaml.py::CardStep.preview_spec::1::negate#0": "killed",
+   "app/forms/form/form_yaml.py::FileUploadSection.uploads::1::bool#0": "killed",
+   "app/forms/form/form_yaml.py::MultiSelectSection.holds_several::1::bool#0": "killed",
+   "app/forms/form/form_yaml.py::SectionBase.uploads::1::bool#0": "killed",
+   "app/forms/form/form_yaml.py::_check_leaf::4::compare#0": "killed",
+   "app/forms/form/form_yaml.py::_check_uploads::1.body0::bool#0": "killed",
+   "app/forms/form/form_yaml.py::_fill_fallbacks::0.body1::bool#0": "killed",
+   "app/forms/form/form_yaml.py::_walk::1.body0::drop-call#0": "killed",
+   "app/forms/form/form_yaml.py::card_components::4.body2::negate#0": "killed",
+   "app/forms/form/form_yaml.py::compile_form::2::constant#0": "killed",
+   "app/forms/form/form_yaml.py::compile_form::9::drop-call#0": "killed",
+   "app/forms/form/form_yaml.py::picks_a_member::1::return-none#0": "killed",
+   "app/forms/form/form_yaml.py::written_out::6::drop-call#0": "killed",
+   "app/forms/form/lookups.py::lookup_for::7.body1::constant#0": "killed",
+   "app/forms/form/manager.py::_footer::2.body0::constant#0": "killed",
+   "app/forms/form/manager.py::_on_commit_succeeded::3::drop-call#0": "killed",
+   "app/forms/form/manager.py::_on_lifecycle::3::negate#0": "killed",
+   "app/forms/form/manager.py::_pages::12::return-none#0": "killed",
+   "app/forms/form/manager.py::panel_screen::12::negate#0": "killed",
+   "app/forms/form/responses/links.py::parse_link::5::constant#0": "killed",
+   "app/forms/form/responses/responses.py::list_values::1::return-none#0": "killed",
+   "app/forms/form/responses/responses.py::styled_values::2::compare#0": "killed",
+   "app/forms/form/responses/summary.py::ResponseView.as_item_entry::4.body0::constant#0": "killed",
+   "app/forms/form/responses/summary.py::_all_shown::2.body0::bool#0": "killed",
+   "app/forms/form/responses/summary.py::_bucket::8::negate#0": "killed",
+   "app/forms/form/responses/summary.py::_card_field_view::3.body0::return-none#0": "uncovered",
+   "app/forms/form/responses/summary.py::_declared_order::2::return-none#0": "killed",
+   "app/forms/form/responses/summary.py::_labels_for::0::negate#0": "killed",
+   "app/forms/form/responses/summary.py::_one_edit::0.body0::bool#0": "killed",
+   "app/forms/form/responses/summary.py::_own_group::3::compare#1": "killed",
+   "app/forms/form/responses/summary.py::_reaches::0.body0::bool#0": "killed",
+   "app/forms/form/responses/summary.py::item_heading::1::return-none#0": "killed",
+   "app/forms/form/responses/summary.py::row_value::10::bool#0": "killed",
+   "app/forms/form/responses/validations.py::_link_or_domain::3::constant#1": "killed",
+   "app/migrations/data/0001_bot_defaults.py::up::1.body0::bool#0": "uncovered",
+   "app/migrations/data/0001_bot_defaults.py::up::1.body1::drop-call#0": "uncovered",
+   "app/migrations/data/0002_server_settings.py::check::6.body0::drop-call#0": "uncovered",
+   "app/migrations/data/0002_server_settings.py::options_for::4::negate#0": "killed",
+   "app/migrations/data/0002_server_settings.py::settings_document::1::bool#0": "killed",
+   "app/migrations/data/0002_server_settings.py::up::1.body6::constant#0": "uncovered",
+   "app/migrations/data/0003_cogs_and_keiko.py::check::9::compare#0": "uncovered",
+   "app/migrations/data/0003_cogs_and_keiko.py::up::1.body6::compare#0": "uncovered",
+   "app/migrations/data/0004_members_and_schedules.py::member_document::7::constant#3": "killed",
+   "app/migrations/data/0004_members_and_schedules.py::problems_in::2.body0::negate#0": "killed",
+   "app/migrations/data/0004_members_and_schedules.py::renewal_schedules::3::return-none#0": "killed",
+   "app/migrations/data/0004_members_and_schedules.py::up::1.body10::drop-call#0": "uncovered",
+   "app/migrations/data/0004_members_and_schedules.py::up::1.body11::drop-call#0": "uncovered",
+   "app/migrations/data/0004_members_and_schedules.py::valid_date::3.body0::return-none#0": "uncovered",
+   "app/migrations/data/0004_members_and_schedules.py::valid_date::4::return-none#0": "killed",
+   "app/migrations/data/0005_subscriptions_and_messages.py::_is_discord_id::0::return-none#0": "uncovered",
+   "app/migrations/data/0005_subscriptions_and_messages.py::up::1.body1.body1::bool#0": "uncovered",
+   "app/migrations/data/0006_events.py::audit_problem::2::negate#0": "killed",
+   "app/migrations/data/0006_events.py::audit_problem::3::constant#0": "survived",
+   "app/migrations/data/0006_events.py::keiko_ids::2.body1::negate#0": "killed",
+   "app/migrations/data/0006_events.py::moment_of::2.body0::return-none#0": "killed",
+   "app/migrations/data/0006_events.py::up::1.body10::drop-call#0": "uncovered",
+   "app/migrations/data/0006_events.py::up::1.body8.body1::compare#0": "uncovered",
+   "app/migrations/data/0007_analytics.py::lifetime_document::6.body2::compare#0": "killed",
+   "app/migrations/data/0007_analytics.py::lifetime_document::8::return-none#0": "killed",
+   "app/migrations/data/0007_analytics.py::problems_in::4.body1::negate#0": "killed",
+   "app/migrations/data/0008_notice_mentions.py::_language::2::compare#0": "killed",
+   "app/migrations/data/0008_notice_mentions.py::birthday_options::1::bool#0": "killed",
+   "app/migrations/data/0008_notice_mentions.py::leading_mention::5::compare#0": "killed",
+   "app/migrations/data/0008_notice_mentions.py::mention_entries::2.body0::constant#3": "killed",
+   "app/migrations/data/0008_notice_mentions.py::moved_mention::4::constant#0": "killed",
+   "app/migrations/data/0008_notice_mentions.py::moved_mention::6::bool#0": "killed",
+   "app/migrations/data/0008_notice_mentions.py::notice_item::6::negate#0": "killed",
+   "app/migrations/data/0008_notice_mentions.py::up::1.body0.body4::drop-call#0": "killed",
+   "app/migrations/data/0008_notice_mentions.py::up::1.body1::bool#0": "killed",
+   "app/migrations/data/0008_notice_mentions.py::up::1.body2.body0::constant#0": "killed"
+  },
+  "gone": []
+ },
+ "minutes": 8.7
+}

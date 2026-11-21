@@ -5,14 +5,11 @@ that has to hold: choosing a section EDITS the message instead of sending
 another one (otherwise every look leaves a trail of dead embeds), the sections
 are built lazily, and a section that fails does not take the menu down with it.
 """
-from types import SimpleNamespace
-from unittest.mock import AsyncMock
-
 import discord
 import pytest
 
 from app.constants import DiscordLimits as limits
-from app.ui.report_browser import ReportBrowser, ReportBrowserView
+from app.ui.report_browser import ReportBrowser, ReportBrowserView, ReportSection
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("report_browser")]
 
@@ -36,74 +33,77 @@ def sections(counter=None):
     ]
 
 
-def fake_interaction(done=False):
-    return SimpleNamespace(
-        response=SimpleNamespace(
-            is_done=lambda: done,
-            send_message=AsyncMock(),
-            edit_message=AsyncMock(),
-            defer=AsyncMock(),
-        ),
-        followup=SimpleNamespace(send=AsyncMock()),
-    )
+async def browsing(scenario_factory, built=None):
+    """The browser sent as a command's answer: its first section on screen."""
+    scenario = scenario_factory()
+    await scenario.run(ReportBrowser(sections(built), placeholder="Pick one").send,
+                       name="/report")
+    return scenario
 
 
-async def test_it_opens_on_the_first_section():
-    interaction = fake_interaction()
-    await ReportBrowser(sections(), placeholder="Pick one").send(interaction)
-
-    kwargs = interaction.response.send_message.await_args.kwargs
-    assert kwargs["embed"].title == "funnel"
-    assert kwargs["ephemeral"] is True
+def bot_events(scenario):
+    return [event for event in scenario.outputs if event["actor"] == "bot"]
 
 
-async def test_choosing_a_section_edits_the_message_instead_of_sending_another():
-    view = ReportBrowserView([*_as_sections()], placeholder="Pick one")
-    view.selected_options = ["churn"]
-    interaction = fake_interaction()
+async def test_it_opens_on_the_first_section(scenario_factory):
+    scenario = await browsing(scenario_factory)
 
-    await view.show_selected(interaction)
-
-    interaction.response.edit_message.assert_awaited_once()
-    assert interaction.response.edit_message.await_args.kwargs["embed"].title == "churn"
-    assert not interaction.response.send_message.await_args_list
+    scenario.expect_message(kind="send", title_contains="funnel", ephemeral=True)
 
 
-async def test_the_menu_survives_the_swap_so_you_can_keep_browsing():
-    view = ReportBrowserView([*_as_sections()], placeholder="Pick one")
-    view.selected_options = ["friction"]
-    interaction = fake_interaction()
+async def test_choosing_a_section_edits_the_message_instead_of_sending_another(
+    scenario_factory,
+):
+    scenario = await browsing(scenario_factory)
+    message = scenario.current_message
 
-    await view.show_selected(interaction)
+    await scenario.select_option("churn")
 
-    assert interaction.response.edit_message.await_args.kwargs["view"] is view
+    answer = scenario.expect_message(kind="edit", title_contains="churn")
+    assert answer["message"] == scenario.alias(message)
+    assert [event["kind"] for event in bot_events(scenario)] == ["send", "edit"]
 
 
-async def test_only_the_section_being_shown_is_built():
+async def test_the_menu_survives_the_swap_so_you_can_keep_browsing(scenario_factory):
+    scenario = await browsing(scenario_factory)
+
+    await scenario.select_option("friction")
+    await scenario.select_option("churn")
+
+    scenario.expect_message(kind="edit", title_contains="churn")
+    assert len(scenario.live_messages) == 1, "one message the whole time"
+
+
+async def test_only_the_section_being_shown_is_built(scenario_factory):
     built = []
-    browser = ReportBrowser(sections(built), placeholder="Pick one")
-    await browser.send(fake_interaction())
+    await browsing(scenario_factory, built)
 
     assert built == ["funnel"], "an expensive report must not run until asked for"
 
 
-async def test_an_unknown_selection_is_acknowledged_not_crashed():
-    view = ReportBrowserView([*_as_sections()], placeholder="Pick one")
-    view.selected_options = ["does-not-exist"]
-    interaction = fake_interaction()
+async def test_an_unknown_selection_is_acknowledged_not_crashed(scenario_factory):
+    scenario = await browsing(scenario_factory)
 
-    await view.show_selected(interaction)
+    await scenario.select_option("does-not-exist")
 
-    interaction.response.defer.assert_awaited_once()
-    assert not interaction.response.edit_message.await_args_list
+    assert [event["kind"] for event in bot_events(scenario)] == ["send", "defer"]
+    scenario.expect_message(kind="send", title_contains="funnel")
 
 
-async def test_it_uses_followup_when_the_interaction_was_already_deferred():
-    interaction = fake_interaction(done=True)
-    await ReportBrowser(sections(), placeholder="Pick one").send(interaction)
+async def test_it_uses_followup_when_the_interaction_was_already_deferred(
+    scenario_factory,
+):
+    scenario = scenario_factory()
+    browser = ReportBrowser(sections(), placeholder="Pick one")
 
-    interaction.followup.send.assert_awaited_once()
-    assert not interaction.response.send_message.await_args_list
+    async def deferred(interaction):
+        await interaction.response.defer(ephemeral=True)
+        await browser.send(interaction)
+
+    await scenario.run(deferred, name="/report")
+
+    assert [event["kind"] for event in bot_events(scenario)] == ["defer", "followup_send"]
+    scenario.expect_message(kind="send", title_contains="funnel", ephemeral=True)
 
 
 def test_menu_labels_respect_the_discord_select_limit():
@@ -124,7 +124,6 @@ def test_one_choice_at_a_time():
 
 
 def _as_sections():
-    from app.ui.report_browser import ReportSection
     return [ReportSection(**section) for section in sections()]
 
 
@@ -135,7 +134,6 @@ def _built(shown):
 
 
 def _long_section():
-    from app.ui.report_browser import ReportSection
     return [ReportSection(
         key="long", label="L" * 200, build=_built(embed("long")),
         description="D" * 200,

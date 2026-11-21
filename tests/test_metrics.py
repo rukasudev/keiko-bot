@@ -101,14 +101,22 @@ def test_no_metric_is_labelled_by_a_guild_or_a_user():
         assert not {"guild_id", "user_id", "guild", "user"} & set(metric._labelnames)
 
 
-def test_each_structure_that_can_grow_is_a_series_of_its_own():
+async def test_each_structure_that_can_grow_is_a_series_of_its_own(deps):
     """The sizes the memory alert reads: one closed label per structure, read at
     the scrape; a structure that cannot be read is NaN and the scrape goes on."""
     import math
 
     from app.core.monitoring import watch_held_entries
-    from app.forms.discord.callbacks import RUNTIME
+    from tests.behavioral.harness.driver import FormScenario
+    from tests.mocks.discord import create_guild, create_member
 
+    guild = create_guild()
+    scenario = FormScenario(
+        guild=guild, user=create_member(guild, id=555, name="Tester"),
+        locale="pt-br", mongo=deps.mongo_client,
+    )
+    scenario.restart()
+    await scenario.start("default_roles")
     bot = SimpleNamespace(
         cached_messages=["one", "two"],
         guilds=[SimpleNamespace(members=[1, 2, 3]), SimpleNamespace(members=[4])],
@@ -117,7 +125,8 @@ def test_each_structure_that_can_grow_is_a_series_of_its_own():
 
     assert sample("keiko_held_entries", structure="discord_messages") == 2
     assert sample("keiko_held_entries", structure="discord_members") == 4
-    assert sample("keiko_held_entries", structure="form_sessions") == len(RUNTIME.store)
+    assert sample("keiko_held_entries", structure="form_sessions") == 1
+    scenario.restart()
     structures = {
         series.labels["structure"]
         for metric in REGISTRY.collect() if metric.name == "keiko_held_entries"

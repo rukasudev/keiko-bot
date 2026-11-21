@@ -15,10 +15,12 @@ make setup        # create venv and install dependencies
 make run          # start bot with Docker services (Redis, MongoDB), after make migrate
 make migrate      # apply the pending database migrations (docs/migrations.md)
 make docker-up    # start only Redis and MongoDB containers
-make test         # python -m pytest tests/ app/ -x -q
+make test         # python -m pytest tests/ -x -q: the whole suite, the gate
+make test-fast    # forms, scenarios, goldens, harness and contracts, no `slow` test
 make logs ARGS="errors --since 7d"         # the log reader in scripts/keiko/logs
 make repair-birthdays                      # dry run of scripts/keiko/birthdays/repair.py; ARGS="--apply" writes
 make soak         # the memory soak, through scripts/keiko/soak.py
+make test-guard   # what the suite still guards, against a baseline (docs/testing-strategy.md)
 make command name=x [form=yes]   # scaffold a command folder (docs/commands.md)
 make docs         # regenerate docs/index.html (every doc) and docs/yaml-reference.html
 make clean        # clean cache and venv
@@ -103,10 +105,10 @@ file (`docs/commands.md`, "The YAML reference"; code-style rule 27).
   out of the image.
 - `tests/` — pytest suite; `conftest.py` loads real i18n and mocks Mongo/Redis/Discord.
   `tests/forms/` (boundary, invariants, compiler, engine, adapter) is the contract suite
-  of the form engine; `tests/test_structure.py` (import contracts),
-  `tests/test_commands.py` (every command whole), `tests/core/test_i18n.py` (every copy
-  file loads, no key twice, every text in both locales, no anchor) and
-  `tests/test_generic_layers.py` (shared layers name no command) guard the tree.
+  of the form engine; `tests/test_structure.py` (import contracts, and shared layers
+  that name no command), `tests/test_commands.py` (every command whole) and
+  `tests/core/test_i18n.py` (every copy file loads, no key twice, every text in both
+  locales, no anchor) guard the tree.
 
 ## Adding a command
 
@@ -151,12 +153,19 @@ including "Regression and blast-radius analysis" for changes to shared code.
 ## Tests and regressions
 
 The test system is layered (unit, YAML contracts, offline behavioral
-scenarios): see `docs/testing-strategy.md` and `docs/form-scenario-testing.md`.
-Two standing rules:
+scenarios, golden books): see `docs/testing-strategy.md` and
+`docs/form-scenario-testing.md`. Before adding or changing a test, follow
+`@.claude/rules/testing.md` (path: `.claude/rules/testing.md`): where a new test goes
+and at which layer, one test per behaviour, a regression in its command's or
+component's group file, Keiko driven only through the harness's public actions and
+flows, copy read by key, the ledger entry of every past bug, `make test-fast` during a
+round and `make test` plus `make test-guard` before a PR. Three standing rules:
 
 - A reported bug gets a failing automated test BEFORE the fix, and that test
   stays in the suite permanently — follow `@.claude/rules/bug-fix-protocol.md`
   (path: `.claude/rules/bug-fix-protocol.md`).
+- A test that moves, merges or is renamed keeps its "Broke as" docstring and takes
+  its entry of `scripts/keiko/testguard/ledger.yml` along; an entry is never deleted.
 - A change to shared code (`app/core`, `app/forms`, `app/ui`, the loaders, the
   i18n helpers) is not done until the consumer contracts pass:
   `pytest -m "shared_contract"` plus the impact map in the strategy doc.

@@ -6,8 +6,8 @@ Keiko's tokens (`$count`, `$feature`, `$$`, `${context.prefix}`, `${answer.x}`,
 `${ref.x}`, `${prefix}ping`), their old spellings (`{context:prefix}`, `{answer:x}`,
 `{ref: x}`) and any brace the field does not fill stay exactly as typed.
 
-Every free-text input of every `form.yml` is found from the compiled definitions, and
-the lifecycle confirmation is the one modal outside them. For each input a probe
+Every free-text input of every `form.yml` is found from the compiled definitions (no
+modal lives outside them since the typed lifecycle confirmation went). For each input a probe
 holding every token kind, every old spelling, unknown braces, the variables of the
 other fields and the field's own is typed through the real modal, cut to the input's
 `max_length` into as many probes as it takes, each in a server of its own whose name
@@ -55,7 +55,7 @@ from app.forms.form.responses.validations import VALIDATORS
 from tests.behavioral.harness import locators
 from tests.generators.birthdays import saved_birthday
 from tests.mocks.discord import create_guild, create_member, create_message
-from tests.test_admin_templates import filled_names
+from tests.helpers.templates import filled_names
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.shared_contract("form_engine")]
 
@@ -115,12 +115,12 @@ class Typed:
 
     form: str
     step: str
-    section: int | None
+    section: str | None
     position: int
     key: str
     validation: str | None
     within: str | None
-    filler: int | None = None
+    filler: str | None = None
     fills: Mapping[str, str] = field(default_factory=dict)
 
     @property
@@ -156,11 +156,11 @@ def _typed(form: str, steps: Sequence[Any], within: str | None) -> Iterator[Type
 
 def _card_inputs(form: str, card: CardStep, within: str | None) -> Iterator[Typed]:
     fillers = {
-        section.fills.into: (index, dict(section.fills.tokens))
-        for index, section in enumerate(card.sections)
+        section.fills.into: (section.key, dict(section.fills.tokens))
+        for section in card.sections
         if isinstance(section, ModalInputSection) and section.fills is not None
     }
-    for index, section in enumerate(card.sections):
+    for section in card.sections:
         inputs: list[tuple[str, str | None]] = []
         if isinstance(section, TitleContentSection):
             inputs = [
@@ -176,7 +176,8 @@ def _card_inputs(form: str, card: CardStep, within: str | None) -> Iterator[Type
         for position, (key, checked) in enumerate(inputs):
             filler, fills = fillers.get(key, (None, {}))
             yield Typed(
-                form, card.key, index, position, key, checked, within, filler, fills
+                form, card.key, section.key, position, key, checked, within, filler,
+                fills,
             )
 
 
@@ -343,8 +344,7 @@ class Run:
 
     def modal_limit(self) -> int:
         """The most characters the pending modal's input of `typed` accepts."""
-        modal = self.scenario.store.pending_modal
-        inputs = self.scenario._modal_inputs(modal)
+        inputs = self.scenario.pending_modal_inputs()
         return int(inputs[self.typed.position].max_length or 4000)
 
     async def submit(self) -> None:
@@ -390,14 +390,14 @@ async def previews(run: Run, values: Mapping[str, Any]) -> None:
             pages = [*shown.view.pages, shown.view.embed]
             texts = [text for page in pages for text in written(page)]
             run.check("preview", values, texts, shown=False)
-            shown.deleted = True
+            scenario.dismiss(shown)
         assert run.seen["preview"] > before, (
             f"{run.typed.name}: the preview of {target} never showed the probe\n"
             f"{scenario.transcript}"
         )
 
 
-async def open_section(run: Run, section: int | None = None) -> None:
+async def open_section(run: Run, section: str | None = None) -> None:
     """The modal of the card section that holds `typed`, or of `section`."""
     chosen = run.typed.section if section is None else section
     await run.scenario.click(f"customize:{chosen}")
@@ -417,7 +417,7 @@ async def lifecycle(run: Run) -> None:
     await scenario.click("history")
     run.check("history", shown=False)
     if scenario.current_message is not panel:
-        scenario.current_message.deleted = True
+        scenario.dismiss()
     await scenario.click("pause")
     run.check("paused", shown=False)
 
@@ -673,7 +673,7 @@ class Birthdays(Journey):
         await scenario.select_option("Amiga", target="user")
         await scenario.select_option("05", target="month")
         if run.typed.key != "day":
-            await scenario.click("customize:2")
+            await scenario.click("customize:day")
             await scenario.submit_modal({scenario.pending_modal_fields()[0]: "12"})
 
     def _values(
@@ -741,8 +741,8 @@ class BlockLinks(Journey):
         if run.typed.key != "link":
             await open_section(run)
             return
-        await run.scenario.click("customize:2")
-        await run.scenario.click("customize:6")
+        await run.scenario.click("customize:exceptions")
+        await run.scenario.click("customize:own_links")
 
     async def accepted(self, run: Run) -> None:
         if run.typed.key != "link":
@@ -789,7 +789,7 @@ class StreamElements(Journey):
 
     async def refused(self, run: Run) -> None:
         run.check("refusal")
-        await run.scenario.click("customize:0")
+        await run.scenario.click("customize:streamer")
         run.check("modal reopened")
         run.scenario.dismiss_modal()
 

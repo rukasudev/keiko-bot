@@ -1,6 +1,6 @@
 """Scaffold a command folder from `scripts/keiko/templates/command/`.
 
-make command name=greet             # app/commands/greet/ and tests/commands/greet/
+make command name=greet             # app/commands/greet/ and tests/test_greet.py
 make command name=greet form=yes    # the same, with a form.yml the engine opens
 """
 
@@ -41,7 +41,7 @@ def plan(name: str, form: bool) -> List[Tuple[str, str]]:
         ("cog.py.tmpl", f"{folder}/cog.py"),
         (f"service.{variant}.py.tmpl", f"{folder}/service.py"),
         (f"copy.{variant}.yml.tmpl", f"{folder}/copy.yml"),
-        (f"test.{variant}.py.tmpl", f"tests/commands/{name}/test_{name}.py"),
+        (f"test.{variant}.py.tmpl", f"tests/test_{name}.py"),
     ]
     if form:
         files.insert(3, ("form.yml.tmpl", f"{folder}/form.yml"))
@@ -54,12 +54,9 @@ def check(name: str, root: Path) -> None:
         raise ScaffoldError(
             f"{name!r} is not a command folder name: lower case, digits and _"
         )
-    for folder in (
-        root / "app" / "commands" / name,
-        root / "tests" / "commands" / name,
-    ):
-        if folder.exists():
-            raise ScaffoldError(f"{folder.relative_to(root)} already exists")
+    for path in (root / "app" / "commands" / name, root / "tests" / f"test_{name}.py"):
+        if path.exists():
+            raise ScaffoldError(f"{path.relative_to(root)} already exists")
 
 
 def scaffold(name: str, form: bool = False, root: Path = ROOT) -> List[Path]:
@@ -75,11 +72,6 @@ def scaffold(name: str, form: bool = False, root: Path = ROOT) -> List[Path]:
         path.write_text(text.substitute(values), encoding="utf-8")
         written.append(path)
 
-    for package in (root / "tests" / "commands", root / "tests" / "commands" / name):
-        marker = package / "__init__.py"
-        if not marker.exists():
-            marker.write_text("", encoding="utf-8")
-            written.append(marker)
     return written
 
 

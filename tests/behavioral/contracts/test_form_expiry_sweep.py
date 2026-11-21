@@ -9,15 +9,12 @@ Guaranteed here: the events cog runs the sweep on a loop that survives a failing
 pass; a pass takes the buttons off an abandoned form and closes its story as
 abandoned without posting engine lines; and sessions that ended are forgotten.
 """
-from datetime import datetime, timedelta, timezone
-from types import SimpleNamespace
-from unittest.mock import AsyncMock
+import logging
 
 import pytest
 
 from app import logger as logger_module
 from app.constants import ViewConstants
-from app.forms.discord.callbacks import RUNTIME
 from app.forms.discord.views import ReopenButton
 from app.core import journey
 from app.core import trace as trace_service
@@ -32,13 +29,6 @@ def scenario(deps):
     guild = create_guild()
     user = create_member(guild, id=555, name="Tester")
     return FormScenario(guild=guild, user=user, locale="pt-br", mongo=deps.mongo_client)
-
-
-@pytest.fixture
-def events_cog():
-    from app.core import events as events_module
-
-    return events_module.Events(SimpleNamespace())
 
 
 @pytest.fixture
@@ -64,31 +54,30 @@ def stories():
     journey.set_publisher(None)
 
 
-def past_every_deadline():
-    return datetime.now(timezone.utc) + timedelta(
-        seconds=ViewConstants.LONG_TIMEOUT_SECONDS + 1
-    )
-
-
 def test_the_events_cog_sweeps_forms_on_a_loop():
     from app.core import events as events_module
 
     assert events_module.Events.sweep_forms.seconds == ViewConstants.FORM_SWEEP_SECONDS
 
 
-async def test_one_pass_of_the_loop_runs_the_runtime_sweep(events_cog, monkeypatch):
-    sweep = AsyncMock()
-    monkeypatch.setattr(RUNTIME, "sweep", sweep)
+async def test_one_pass_of_the_loop_runs_the_runtime_sweep(scenario):
+    await scenario.start_command("default_roles")
 
-    await type(events_cog).sweep_forms.coro(events_cog)
+    await scenario.expiry_loop_pass()
 
-    sweep.assert_awaited_once()
+    [reopen] = scenario.current_message.view.children
+    assert isinstance(reopen, ReopenButton), "the pass took the buttons off"
+    assert scenario.held_sessions == [], "and forgot the form"
 
 
-async def test_a_failing_pass_does_not_stop_the_loop(events_cog, monkeypatch):
-    monkeypatch.setattr(RUNTIME, "sweep", AsyncMock(side_effect=RuntimeError("boom")))
+async def test_a_failing_pass_does_not_stop_the_loop(scenario, caplog):
+    await scenario.start_command("default_roles")
+    scenario.discord_refuses("followup.edit_message", ConnectionResetError("boom"))
 
-    await type(events_cog).sweep_forms.coro(events_cog)
+    with caplog.at_level(logging.WARNING):
+        await scenario.expiry_loop_pass()
+
+    assert any("Form sweep failed" in record.getMessage() for record in caplog.records)
 
 
 async def test_a_sweep_closes_an_abandoned_form_and_its_story_without_engine_messages(
@@ -96,7 +85,7 @@ async def test_a_sweep_closes_an_abandoned_form_and_its_story_without_engine_mes
 ):
     await scenario.start_command("default_roles")
 
-    await RUNTIME.sweep(past_every_deadline())
+    await scenario.sweep()
 
     [reopen] = scenario.current_message.view.children
     assert isinstance(reopen, ReopenButton), "the buttons leave, but Abrir de novo"
@@ -109,7 +98,7 @@ async def test_a_sweep_closes_an_abandoned_form_and_its_story_without_engine_mes
 async def test_a_sweep_forgets_the_sessions_that_ended(scenario):
     await scenario.start_command("default_roles")
 
-    await RUNTIME.sweep(past_every_deadline())
+    await scenario.sweep()
 
-    assert len(RUNTIME.store) == 0
-    assert RUNTIME.sessions == {}
+    assert scenario.sessions == []
+    assert scenario.held_sessions == [], "the adapter forgets its half too"

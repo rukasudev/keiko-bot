@@ -25,9 +25,14 @@ docker-up:
 	docker ps | grep -q "mongo-server" || $(DOCKER_COMPOSE) up -d --wait mongodb
 
 test:
-	$(ACTIVATE_VENV) && python -m pytest tests/ app/ -x -q
+	$(ACTIVATE_VENV) && python -m pytest tests/ -x -q
 
-.PHONY: logs repair-birthdays soak command docs yaml-docs
+FAST = tests/forms tests/behavioral/scenarios tests/behavioral/golden tests/behavioral/test_harness.py tests/behavioral/contracts
+
+test-fast:
+	$(ACTIVATE_VENV) && python -m pytest $(FAST) -m "not slow and not soak" -x -q
+
+.PHONY: logs repair-birthdays soak command docs yaml-docs test-guard test test-fast
 
 logs:
 	$(ACTIVATE_VENV) && python -m scripts.keiko logs $(ARGS)
@@ -37,6 +42,9 @@ repair-birthdays:
 
 soak:
 	$(ACTIVATE_VENV) && python -m scripts.keiko soak $(SOAK_ARGS)
+
+test-guard:
+	$(ACTIVATE_VENV) && python -m scripts.keiko testguard $(ARGS)
 
 command:
 	$(ACTIVATE_VENV) && python -m scripts.keiko.command $(name) $(if $(filter yes,$(form)),--form)

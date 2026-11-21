@@ -1,39 +1,7 @@
-"""Whether a feature is on has one record: its saved document.
-
-Broke as: "on" lived in two places that disagreed in production. The
-moderations flag (`guild.moderations.<feature>`) was what /setup, its
-permissions report and the guild-leave pause read; the feature's document
-(`guild.<feature>` and its `enabled`) was what the bot actually ran on. Disable
-wrote the flag back on, a behaviour carried over from the old engine, so /setup
-kept saying "configured" for a feature that no longer existed. Pause wrote it
-off, so /setup listed a paused feature under "to set up". StreamElements
-documents saved without a flag never showed as configured. A guild Keiko left
-only had its flagged features paused, so documents saved without a flag stayed
-on (the v1 review counted two in production). Then, once /setup read the
-document, a paused birthday feature said "paused" there while its own command
-still decided from the flag and opened a fresh setup; the runtime cache and the
-manager panel took a document saved without `enabled` for off while /setup took
-it for on; a failed flag write left the cache saying on; an edit of paused
-birthdays turned them back on; and a guild leave during a Redis outage waited
-for Redis once per feature. The database PR 1 retired the flag: the migration
-gave every document saved before `enabled` its old flag once (data/0003), and
-nothing reads or writes the flag since.
-
-Shared behaviour: every lifecycle commit of the feature document layer
-(app/forms/features/feature.py, and the birthday module's own commits), the
-one reading (`is_feature_on`, app/core/cogs.py), the flag writers of
-app/core/servers.py (`set_feature_enabled` for pause, unpause and the
-first save), the guild leave (`leave_guild`, `pause_features`), the /setup card
-and its permissions report (app/commands/setup/service.py), and guild.cogs keyed
-`{guild}:{cog}` (app/data/guild/cogs.py).
-
-Guaranteed: the document decides (absent is off, `enabled: false` is paused,
-`enabled: true` is on, and a document without `enabled` is off) and every reader
-asks the same function; a change writes only the document and a failed write leaves
-the cache agreeing with it; a guild Keiko left has nothing on, for one Redis call
-when Redis is down; and a server holds one document per cog by its `_id`.
-"""
-import asyncio
+"""Whether a feature is on, the one record every reader asks (each feature's saved
+document in guild.cogs): what /setup, its permissions report, the panel, the runtime
+cache and the guild leave read, and what every lifecycle commit, Disable included,
+writes."""
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
@@ -45,19 +13,20 @@ from pymongo.errors import AutoReconnect
 from redis.exceptions import ConnectionError as RedisConnectionError
 
 from app.data import data, wait
-from app.constants import Commands
 from app.core import cache
 from app.core.servers import set_feature_enabled
 from app.core.utils import ml
 from app.commands.birthdays.service import save_birthday_config
+from app.commands.setup import service as setup_service
 from app.commands.setup.service import category_page, permission_report
 from app.forms.features import feature_for
 from app.forms.features.feature import CommitContext, OpenContext
 from app.forms.form.form_state import Answer
-from tests.behavioral.contracts.test_setup_dashboard import EVERYTHING
-from tests.behavioral.contracts.test_setup_dashboard import guild as server
+from tests.helpers.permissions import EVERYTHING
+from tests.helpers.permissions import guild as server
+from tests.behavioral.flows.common import delete_feature
 from tests.behavioral.harness.locators import walk_items
-from tests.generators.moderations import recorded_server, seed_cog
+from tests.generators.moderations import recorded_server, seed_cog, stored_cog
 
 pytestmark = [pytest.mark.behavioral, pytest.mark.regression]
 
@@ -82,6 +51,8 @@ AUTO_ROLES = {
     "default_roles": {"style": "role", "values": "201"},
     "default_roles_bot": {"style": "role", "values": ["202"]},
 }
+
+BIRTHDAY_DOCUMENT = {"guild_id": GUILD_ID, "enabled": True, "channel": "100"}
 
 BIRTHDAY_SETUP = {
     "channel": Answer("100"),
@@ -135,11 +106,45 @@ PAUSED = " ⏸️**"
 
 
 async def test_after_disable_setup_offers_the_feature_again(scenario_factory):
+    """Whether a feature is on has one record: its saved document.
+
+    Broke as: "on" lived in two places that disagreed in production. The
+    moderations flag (`guild.moderations.<feature>`) was what /setup, its
+    permissions report and the guild-leave pause read; the feature's document
+    (`guild.<feature>` and its `enabled`) was what the bot actually ran on. Disable
+    wrote the flag back on, a behaviour carried over from the old engine, so /setup
+    kept saying "configured" for a feature that no longer existed. Pause wrote it
+    off, so /setup listed a paused feature under "to set up". StreamElements
+    documents saved without a flag never showed as configured. A guild Keiko left
+    only had its flagged features paused, so documents saved without a flag stayed
+    on (the v1 review counted two in production). Then, once /setup read the
+    document, a paused birthday feature said "paused" there while its own command
+    still decided from the flag and opened a fresh setup; the runtime cache and the
+    manager panel took a document saved without `enabled` for off while /setup took
+    it for on; a failed flag write left the cache saying on; an edit of paused
+    birthdays turned them back on; and a guild leave during a Redis outage waited
+    for Redis once per feature. The database PR 1 retired the flag: the migration
+    gave every document saved before `enabled` its old flag once (data/0003), and
+    nothing reads or writes the flag since.
+
+    Shared behaviour: every lifecycle commit of the feature document layer
+    (app/forms/features/feature.py, and the birthday module's own commits), the
+    one reading (`is_feature_on`, app/core/cogs.py), the flag writers of
+    app/core/servers.py (`set_feature_enabled` for pause, unpause and the
+    first save), the guild leave (`leave_guild`, `pause_features`), the /setup card
+    and its permissions report (app/commands/setup/service.py), and guild.cogs keyed
+    `{guild}:{cog}` (app/data/guild/cogs.py).
+
+    Guaranteed: the document decides (absent is off, `enabled: false` is paused,
+    `enabled: true` is on, and a document without `enabled` is off) and every reader
+    asks the same function; a change writes only the document and a failed write leaves
+    the cache agreeing with it; a guild Keiko left has nothing on, for one Redis call
+    when Redis is down; and a server holds one document per cog by its `_id`.
+    """
     scenario = await scenario_factory(locale="pt-br").start_manager(
         "block_links", dict(BLOCK_LINKS)
     )
-    await scenario.click(ml("buttons.disable.label", locale="pt-br"))
-    await scenario.click("delete_all")
+    await delete_feature(scenario)
 
     row = await setup_row("block_links")
 
@@ -154,7 +159,7 @@ async def test_after_pause_setup_shows_the_feature_paused_not_to_set_up(
     scenario = await scenario_factory(locale="pt-br").start_manager(
         "block_links", dict(BLOCK_LINKS)
     )
-    await scenario.click(ml("buttons.pause.label", locale="pt-br"))
+    await scenario.click("pause")
 
     row = await setup_row("block_links")
 
@@ -240,9 +245,7 @@ async def test_a_failed_pause_leaves_the_cache_agreeing_with_the_document(
 
 
 async def test_disabling_birthdays_leaves_nothing_on(deps):
-    await save_birthday_config(
-        GUILD_ID, "100", False, notification_time="08:00"
-    )
+    await save_birthday_config(GUILD_ID, "100", notification_time="08:00")
     await set_feature_enabled(GUILD_ID, BIRTHDAYS, True)
 
     await feature_for(BIRTHDAYS).commit("disable", {}, context())
@@ -250,6 +253,82 @@ async def test_disabling_birthdays_leaves_nothing_on(deps):
     assert await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, BIRTHDAYS) is None
     row = await setup_row(BIRTHDAYS)
     assert row.accessory.label == SET_UP
+
+
+def another_admin_saves_right_after(collection, operation, monkeypatch, key, document):
+    original = getattr(collection, operation)
+
+    def then_saved(*args, **kwargs):
+        result = original(*args, **kwargs)
+        collection.insert_one(stored_cog(key, document))
+        return result
+
+    monkeypatch.setattr(collection, operation, then_saved)
+
+
+async def test_a_setup_saved_right_after_a_disable_stays_on(deps, monkeypatch):
+    """Disable drops the feature's document and then leaves that collection alone.
+
+    Broke as: after `find_one_and_delete`, `commit_disable` recorded the feature off
+    through `set_feature_enabled`, which ran `update_one(enabled=False)` on the
+    document it had just deleted and dropped its cache a second time. Another
+    admin's setup saved between the two found its new feature paused, and every
+    Disable paid a second Redis round trip. The birthday module's Disable did the
+    same over its own config.
+
+    Shared behaviour: the Disable commit of the feature document layer
+    (`GenericCogFeature.commit_disable`, app/forms/features/feature.py), the
+    birthday module's Disable (app/commands/birthdays/service.py), over
+    guild.cogs (app/data/guild/cogs.py). Exposed by the v1 review of the Disable path.
+
+    Guaranteed: Disable never writes the collection it deleted from, so a document
+    saved right after it stays as it was saved; the cache entry is dropped once.
+    """
+    collection = deps.mongo_client.guild.cogs
+    collection.insert_one(stored_cog("block_links", BLOCK_LINKS))
+    another_admin_saves_right_after(
+        collection, "find_one_and_delete", monkeypatch, "block_links", BLOCK_LINKS
+    )
+
+    await feature_for("block_links").commit("disable", {}, context(BLOCK_LINKS))
+
+    saved = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, "block_links")
+    assert saved["enabled"] is True, (
+        "Disable paused the block links another admin set up right after it"
+    )
+
+
+async def test_a_birthday_setup_saved_right_after_a_disable_stays_on(deps, monkeypatch):
+    collection = deps.mongo_client.guild.cogs
+    collection.insert_one(stored_cog(BIRTHDAYS, BIRTHDAY_DOCUMENT))
+    another_admin_saves_right_after(
+        collection, "find_one_and_delete", monkeypatch, BIRTHDAYS, BIRTHDAY_DOCUMENT
+    )
+
+    await feature_for(BIRTHDAYS).commit("disable", {}, context(BIRTHDAY_DOCUMENT))
+
+    saved = await data().guild_cogs.find_cog_by_guild_id(GUILD_ID, BIRTHDAYS)
+    assert saved["enabled"] is True, (
+        "Disable paused the birthdays another admin set up right after it"
+    )
+
+
+async def test_disable_drops_the_cached_settings_once(deps, monkeypatch):
+    seed_cog(deps.mongo_client, "block_links", dict(BLOCK_LINKS))
+    await cache.read_cog_data(GUILD_ID, "block_links")
+    dropped = []
+    original = deps.redis_client.delete
+
+    def counted(*keys):
+        dropped.extend(key for key in keys if key.endswith(":block_links"))
+        return original(*keys)
+
+    monkeypatch.setattr(deps.redis_client, "delete", counted)
+
+    await feature_for("block_links").commit("disable", {}, context(BLOCK_LINKS))
+
+    assert len(dropped) == 1, f"Disable dropped the block links cache {len(dropped)} times"
+    assert await cache.read_cog_data(GUILD_ID, "block_links") is None
 
 
 async def test_a_paused_birthday_feature_opens_its_panel_with_unpause(
@@ -313,7 +392,8 @@ def events(monkeypatch):
     from app.core import events as events_module
 
     monkeypatch.setattr(
-        "app.commands.setup.service.GreetingsView",
+        setup_service,
+        "GreetingsView",
         lambda *args, **kwargs: SimpleNamespace(send=lambda guild: None),
     )
     bot = SimpleNamespace(user=SimpleNamespace(id=99), guilds=[])

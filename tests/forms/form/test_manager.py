@@ -2,11 +2,14 @@
 
 import pytest
 
+from app.core.commands import GLOBAL
+from app.core.facts import facts
+from app.core.utils import fill, ml
 from app.forms.form import events as ev
 from app.forms.form.actions.action import Context
 from app.forms.form.components import Card, Gallery, OptionSelect, Panel, Picker
+from app.forms.form.copy import block_texts
 from app.forms.form.effects import (
-    Announce,
     Commit,
     Finalize,
     Notice,
@@ -22,12 +25,10 @@ from app.forms.form.form_state import (
     new_session,
 )
 from app.forms.form.manager import (
-    FoundItem,
     FromSetup,
     ItemRemovalRequested,
     Lifecycle,
     LifecycleConfirmed,
-    OptionToggled,
     PageTurned,
     PanelExtras,
     PanelPage,
@@ -37,6 +38,7 @@ from app.forms.form.responses.styles import empty_value, format_value
 from app.forms.form.responses.summary import (
     PanelRow,
     panel_groups,
+    panel_rows,
     row_value,
     without_leading_emoji,
 )
@@ -53,6 +55,31 @@ from tests.forms.replay import (
 )
 
 pytestmark = pytest.mark.unit
+
+
+def _list(form):
+    """The form's list step, whose copy the panel draws the list with."""
+    return REGISTRY.get(form).composition
+
+
+def _exceptions():
+    """The block links Exceptions heading as the form writes it."""
+    return REGISTRY.get("block_links").groups["exceptions"]
+
+
+def _row_titles(form, document):
+    return {
+        row.key: row.title for row in panel_rows(REGISTRY.get(form), document, "pt-br")
+    }
+
+
+def _removal(removing, locale="pt-br", **values):
+    """The remove question's texts for one item, several, or the last one."""
+    return block_texts(
+        "commands.responses.remove",
+        facts(GLOBAL, removing=removing, items="", warning="", **values),
+        locale,
+    )
 
 
 def _row(value, style=None):
@@ -130,7 +157,10 @@ def test_an_empty_list_of_a_declared_group_offers_add_instead_of_edit():
         "edit:card/allowed_links",
         "add:custom_links",
     ], "the button names the list it adds to, so its id never repeats another"
-    assert [part.label for part in parts] == ["Free a website", "Adicionar"]
+    assert [part.label for part in parts] == [
+        "Free a website",
+        ml("buttons.add.label", locale="pt-br"),
+    ]
     assert parts[1].emoji == "➕" and not parts[1].actions, "nothing to remove yet"
 
 
@@ -142,7 +172,8 @@ def _block_links_list():
 
 def test_an_empty_list_setting_reads_none_without_a_code_block():
     """Broke as: block_links with no popular site allowed showed six backticks."""
-    for locale, none in (("pt-br", "Em branco"), ("en-us", "Empty")):
+    for locale in ("pt-br", "en-us"):
+        none = ml("texts.empty_value", locale=locale)
         for row in (
             _row({"style": "bullet", "values": []}),
             _row([], "channel"),
@@ -159,7 +190,7 @@ def test_an_empty_list_formats_to_nothing_instead_of_an_empty_code_block():
 
 
 def _links_document(count):
-    from tests.behavioral.golden.paths.block_links import ENABLED
+    from tests.behavioral.flows.block_links import ENABLED
 
     document = dict(ENABLED)
     document["custom_links"] = {
@@ -203,11 +234,12 @@ def test_a_boolean_stored_as_a_string_reads_as_no():
     """Broke as: a styled option persists "True"/"False" as a STRING, and the
     old formatter read "False" as truthy and showed "Sim". The guarantee moved
     here with the formatter when the old engine's copy was deleted."""
-    assert format_value("False", "boolean", "pt-br") == "Não"
-    assert format_value("false", "boolean", "pt-br") == "Não"
-    assert format_value("True", "boolean", "pt-br") == "Sim"
-    assert format_value(False, "boolean", "pt-br") == "Não"
-    assert format_value(True, "boolean", "en-us") == "Yes"
+    no, yes = ml("texts.boolean.no", "pt-br"), ml("texts.boolean.yes", "pt-br")
+    assert format_value("False", "boolean", "pt-br") == no
+    assert format_value("false", "boolean", "pt-br") == no
+    assert format_value("True", "boolean", "pt-br") == yes
+    assert format_value(False, "boolean", "pt-br") == no
+    assert format_value(True, "boolean", "en-us") == ml("texts.boolean.yes", "en-us")
 
 
 def test_the_code_style_keeps_one_value_inline_and_a_list_in_a_block():
@@ -244,7 +276,7 @@ def test_a_saved_list_of_messages_reads_in_a_code_block_on_the_panel():
     """R2: a document saved before the messages had their own style keeps the
     old `bullet` style; the panel reads the style the form declares, so the
     messages of every item come in a code block and the names stay bullets."""
-    from tests.behavioral.golden.paths.notifications_twitch import ENABLED, MESSAGE
+    from tests.behavioral.flows.twitch import ENABLED, MESSAGE
 
     _definition, panel = start(
         "notifications_twitch", Manage(), context=Context(document=ENABLED)
@@ -312,7 +344,14 @@ def test_the_manager_renders_the_panel_with_grouped_settings():
         "edit:group:exceptions",
         "add:custom_links",
     ]
-    assert "**Modo de bloqueio:** Bloquear todos" in panel.groups[0].lines[1]
+    mode = next(
+        section
+        for section in definition.step("link_settings").sections
+        if section.key == "mode"
+    )
+    block_all = next(o.label for o in mode.options if o.value == "block_all")
+    line = f"**{mode.label.get('pt-br')}:** {without_leading_emoji(block_all.pt_br)}"
+    assert line in panel.groups[0].lines[1]
     buttons = screen(decision).buttons
     assert [b.action for b in buttons] == [
         "lifecycle:pause",
@@ -322,7 +361,10 @@ def test_the_manager_renders_the_panel_with_grouped_settings():
         "aside:help",
     ], "the list carries its own Add and Remove inside the card"
     assert [b.style for b in buttons] == ["secondary"] * 5
-    assert (buttons[1].label, buttons[1].emoji) == ("Desativar", "🚫")
+    assert (buttons[1].label, buttons[1].emoji) == (
+        ml("buttons.disable.label", "pt-br"),
+        "🚫",
+    )
 
 
 def test_the_block_links_lists_are_named_after_the_mode_in_force():
@@ -337,52 +379,23 @@ def test_the_block_links_lists_are_named_after_the_mode_in_force():
         "block_links", Manage(), context=Context(document=blocking_some)
     )
     panel = screen(decision).components[0]
-    group = next(g for g in panel.groups if "Links bloqueados" in g.heading)
+    blocked = _exceptions().overrides[0].title.get("pt-br")
+    blocked_links = _list("block_links").overrides[0].title.get("pt-br")
+    group = next(g for g in panel.groups if blocked in g.heading)
     body = "\n".join(line for part in group.parts for line in part.lines)
 
     opened = group_screen(definition, blocking_some, "pt-br", "exceptions")
-    assert opened.components[0].title == "✅ Links bloqueados"
-    assert "**Links personalizados bloqueados:**" in body, body
-    assert "Sites populares" not in body
+    assert opened.components[0].title == f"{_exceptions().emoji} {blocked}"
+    assert f"**{blocked_links}:**" in body, body
+    assert _row_titles("block_links", BLOCK_LINKS_DOC)["allowed_links"] not in body
     edited = edit_options(definition, blocking_some, "pt-br")
     listed = [option.label for option in edited if "$" in option.value]
-    assert listed[0] == "Links personalizados bloqueados #1", listed
+    assert listed[0] == f"{blocked_links} #1", listed
     removed = remove_options(definition, blocking_some, "pt-br")
     assert [option.label for option in removed] == [
         "meusite.com.br",
         "docs.example.org",
     ], "Remove lists the links themselves (P4)"
-
-
-def test_settings_of_different_steps_group_under_one_declared_heading():
-    """The popular websites live on the card and the custom links are a list of
-    their own: on the panel they read as one block, behind a single Edit, and
-    the screen it opens is where each of them gets its own button."""
-    definition, decision = start(
-        "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
-    )
-    panel = screen(decision).components[0]
-    group = next(g for g in panel.groups if "Exceções" in g.heading)
-
-    heading, custom = group.parts
-    assert heading.button == "edit:group:exceptions"
-    assert "Sites populares permitidos" in "\n".join(heading.lines), (
-        "one Edit for the heading's settings"
-    )
-    assert custom.button == "add:custom_links", "the list adds where it is drawn"
-    assert "Links personalizados permitidos" in custom.lines[0]
-    assert custom.body == ("- `meusite.com.br`", "- `docs.example.org`")
-
-    opened = decided(
-        definition,
-        decision.session,
-        evt(ev.EditRequested, target="group:exceptions"),
-        Context(document=BLOCK_LINKS_DOC),
-    )
-    view = screen(opened).components[0]
-    toggles = next(group for group in view.groups if group.choices)
-    assert toggles.choice_target == "allowed_links"
-    assert any(group.actions for group in view.groups), "each link keeps its buttons"
 
 
 def test_a_section_edit_opens_a_child_over_that_step_seeded_from_the_document():
@@ -423,31 +436,6 @@ def test_a_section_edit_opens_a_child_over_that_step_seeded_from_the_document():
     )
 
 
-@pytest.mark.parametrize("action", ["pause", "unpause"])
-def test_pause_and_resume_save_in_one_click_and_draw_the_panel_again(action):
-    definition, decision = start(
-        "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
-    )
-    asked = decided(definition, decision.session, evt(Lifecycle, action=action))
-
-    assert kinds(asked) == ["Commit"]
-    assert asked.effects[0].kind == action and asked.effects[0].quiet
-    assert asked.session.awaiting == "panel"
-
-    done = decided(
-        definition,
-        asked.session,
-        evt(ev.CommitSucceeded, kind=action),
-        Context(document=BLOCK_LINKS_DOC),
-    )
-    assert kinds(done) == ["Render", "Announce"], "the panel, then the change's note"
-    told = {"pause": "paused", "unpause": "unpaused"}[action]
-    assert done.effects[1] == Announce(told)
-    assert isinstance(screen(done).components[0], Panel)
-    assert done.session.status is Status.ACTIVE
-    assert done.session.changes_saved == 1
-
-
 def test_a_pause_that_fails_still_ends_with_the_error():
     definition, decision = start(
         "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
@@ -463,58 +451,6 @@ def test_a_pause_that_fails_still_ends_with_the_error():
     assert kinds(failed) == ["Finalize"] and failed.effects[0].kind == "error"
     assert failed.session.status is Status.FAILED
     assert [name for name, _props in failed.analytics] == ["feature.commit_failed"]
-
-
-def test_delete_asks_on_a_red_screen_that_goes_back_to_the_panel():
-    definition, decision = start(
-        "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
-    )
-    asked = decided(
-        definition,
-        decision.session,
-        evt(Lifecycle, action="disable"),
-        Context(document=BLOCK_LINKS_DOC, command="moderações bloquear links"),
-    )
-
-    question = screen(asked)
-    assert question.title == "🗑️ Apagar as configurações desse comando?"
-    assert "o comando **moderações bloquear links** é desativado" in (
-        question.description
-    )
-    assert "⏸️ Pausar" in question.description, "a running feature is offered a pause"
-    assert [b.label for b in question.buttons] == ["Desativar e apagar", "Voltar"]
-    assert [(b.action, b.style) for b in question.buttons] == [
-        ("confirm_lifecycle:disable", "danger"),
-        ("picker_back", "secondary"),
-    ]
-    assert asked.session.awaiting == "disable"
-
-    back = decided(
-        definition,
-        asked.session,
-        evt(ev.PickerClosed),
-        Context(document=BLOCK_LINKS_DOC),
-    )
-    assert isinstance(screen(back).components[0], Panel)
-    assert back.session.status is Status.ACTIVE
-    assert not [effect for effect in back.effects if isinstance(effect, Commit)]
-
-
-def test_delete_everything_deletes_and_closes_the_panel():
-    definition, decision = start(
-        "block_links", Manage(), context=Context(document=BLOCK_LINKS_DOC)
-    )
-    asked = decided(definition, decision.session, evt(Lifecycle, action="disable"))
-    confirmed = decided(
-        definition, asked.session, evt(LifecycleConfirmed, action="disable")
-    )
-
-    assert kinds(confirmed) == ["Commit"] and confirmed.effects[0].kind == "disable"
-    done = decided(
-        definition, confirmed.session, evt(ev.CommitSucceeded, kind="disable")
-    )
-    assert kinds(done) == ["Finalize"] and done.effects[0].kind == "disabled"
-    assert done.session.status is Status.COMPLETED
 
 
 def test_delete_everything_without_the_question_deletes_nothing():
@@ -713,7 +649,7 @@ def _panel(form, document, panel_rows=None):
 def test_every_visible_step_is_a_panel_group_with_its_own_edit():
     """Broke as: a single step (a channel, a modal) had no Edit of its own, only
     the global Edit and a dropdown to pick the step."""
-    from tests.behavioral.golden.paths.welcome_messages import ENABLED
+    from tests.behavioral.flows.welcome import ENABLED
 
     drawn, panel = _panel("stream_elements_commands", STREAM_ELEMENTS_DOC)
     assert [g.key for g in panel.groups] == ["streamer"]
@@ -733,9 +669,10 @@ def test_every_visible_step_is_a_panel_group_with_its_own_edit():
 def test_every_panel_line_leads_with_its_icon_or_the_frisbee():
     _drawn, panel = _panel("block_links", BLOCK_LINKS_DOC)
     lines = [line for group in panel.groups for line in group.lines]
-    mode = next(line for line in lines if "**Modo de bloqueio:**" in line)
+    titles = _row_titles("block_links", BLOCK_LINKS_DOC)
+    mode = next(line for line in lines if f"**{titles['mode']}:**" in line)
     assert mode.startswith("🚦 ")
-    chats = next(line for line in lines if "**Canais permitidos:**" in line)
+    chats = next(line for line in lines if f"**{titles['allowed_chats']}:**" in line)
     assert chats.startswith("#️⃣ ")
 
 
@@ -766,7 +703,8 @@ def test_feature_rows_group_by_the_step_that_owns_their_key():
     drawn, panel = _panel("reminders_birthday", listed, rows)
     summary, *_lists, footer_group = panel.groups
     assert summary.key is None, "Pesquisar replaces the Edit of the list (bd-6)"
-    assert summary.heading == "### Resumo dos Lembretes"
+    summary_title = REGISTRY.get("reminders_birthday").groups["summary"].title
+    assert summary.heading == f"### {summary_title.get('pt-br')}"
     assert not any("Canal" in line for line in summary.lines), "Configurar holds them"
     footer = [button.action for button in footer_group.actions]
     assert footer == ["search", "edit:group:settings"], (
@@ -810,45 +748,6 @@ def _part_manager():
     return definition, panel.session, context
 
 
-def test_the_exceptions_are_one_block_that_opens_a_screen_of_its_own():
-    """Lucas: the two exception buttons crowded the panel and only one of them
-    worked. The heading now holds one Edit, and the screen it opens carries the
-    popular websites as buttons, one block per link with its own Edit and
-    Remove, and a single way to add another."""
-    from tests.behavioral.golden.paths.block_links import ENABLED
-
-    context = Context(document=ENABLED)
-    definition, panel = start("block_links", Manage(), context=context)
-
-    groups = screen(panel).components[0].groups
-    assert [part.button for part in groups[-1].parts] == [
-        "edit:group:exceptions",
-        "add:custom_links",
-    ], "the heading holds one Edit, the list its own Add"
-
-    opened = decided(
-        definition,
-        panel.session,
-        evt(ev.EditRequested, target="group:exceptions"),
-        context,
-    )
-
-    shown = screen(opened)
-    actions = [button.action for button in shown.buttons]
-    assert actions == ["picker_back"], actions
-    view = shown.components[0]
-    assert view.intro, "the screen says what the heading is for"
-    assert any(group.choices for group in view.groups), "the websites are buttons here"
-    heads = [part.button for group in view.groups for part in group.parts]
-    assert heads == ["add:custom_links"], "Add beside the list's title"
-    beside_items = [button.action for group in view.groups for button in group.actions]
-    assert beside_items == [
-        "edit:custom_links$0",
-        "edit:custom_links$1",
-        "remove:custom_links",
-    ], beside_items
-
-
 EXCEPTIONS_DOC = {
     **BLOCK_LINKS_DOC,
     "allowed_links": {"style": "bullet", "values": ["youtube.com"]},
@@ -884,39 +783,11 @@ def test_a_heading_screen_draws_the_first_items_of_its_list_with_their_edit():
     ]
     assert all(group.heading == "" for group in items)
     assert [button.action for button in items[0].actions] == ["edit:custom_links$0"]
-    assert any(group.lines == ("e mais 1",) for group in groups)
+    more = fill(ml("texts.and_more", "pt-br"), count=1)
+    assert any(group.lines == (more,) for group in groups)
     assert any(
         part.action == "add:custom_links" for group in groups for part in group.parts
     )
-
-
-def test_a_popular_website_turns_on_where_it_is_read():
-    """Lucas: a screen with nothing but a dropdown does not even show that more
-    than one can be picked. The websites are buttons on the screen itself, and
-    turning one on saves without taking the screen away."""
-    definition, opened, context = _exceptions_screen(EXCEPTIONS_DOC)
-    toggles = next(g for g in screen(opened).components[0].groups if g.choices)
-    assert [c.selected for c in toggles.choices if c.value == "youtube.com"] == [True]
-
-    turned = decided(
-        definition,
-        opened.session,
-        evt(OptionToggled, target="allowed_links", value="spotify.com", turned_on=True),
-        context,
-    )
-
-    written = next(e for e in turned.effects if isinstance(e, Commit))
-    assert written.kind == "toggle" and written.quiet
-    assert written.payload == {
-        "key": "allowed_links",
-        "value": "spotify.com",
-        "turned_on": True,
-    }, "the commit carries the state the screen asked for"
-    saved = decided(
-        definition, turned.session, evt(ev.CommitSucceeded, kind="toggle"), context
-    )
-    assert kinds(saved) == ["Render"], "no success message, the screen stays"
-    assert "Exceções" in screen(saved).components[0].title
 
 
 def test_removing_one_link_asks_first_and_stays_on_the_screen():
@@ -931,7 +802,7 @@ def test_removing_one_link_asks_first_and_stays_on_the_screen():
         context,
     )
     assert kinds(asked) == ["Render"]
-    assert screen(asked).title == "🗑️ Remover este item?"
+    assert screen(asked).title == _removal("one")["title"]
 
     removed = decided(definition, asked.session, evt(ev.RemovalConfirmed), context)
     written = next(e for e in removed.effects if isinstance(e, Commit))
@@ -943,7 +814,8 @@ def test_removing_one_link_asks_first_and_stays_on_the_screen():
         evt(ev.CommitSucceeded, kind="remove_item"),
         context,
     )
-    assert "Exceções" in screen(saved).components[0].title, "the screen stays"
+    exceptions = _exceptions().title.get("pt-br")
+    assert exceptions in screen(saved).components[0].title, "the screen stays"
 
 
 def _refused_on_the_exceptions_screen(error, document=BLOCK_LINKS_DOC):
@@ -981,7 +853,7 @@ def test_a_refused_change_on_a_heading_screen_answers_in_copy_and_redraws_it(
 
     assert refused.effects[0] == answer
     assert kinds(refused)[1:] == ["Render"]
-    assert "Exceções" in screen(refused).components[0].title
+    assert _exceptions().title.get("pt-br") in screen(refused).components[0].title
     assert refused.session.status is Status.ACTIVE
     assert refused.analytics == (), "the session goes on, so no failed commit ends it"
 
@@ -1022,22 +894,13 @@ def test_a_stale_change_from_the_panel_redraws_the_panel_and_keeps_it_open():
     assert refused.session.status is Status.ACTIVE
 
 
-def test_back_from_the_exceptions_screen_returns_to_the_panel():
-    definition, opened, context = _exceptions_screen(BLOCK_LINKS_DOC)
-
-    closed = decided(definition, opened.session, evt(ev.PickerClosed), context)
-
-    assert closed.session.cursor is None
-    assert "Bloquear Links" in screen(closed).components[0].title
-
-
 def test_the_edit_beside_a_declared_group_opens_that_part():
     """Broke as: the two buttons of the block links "Exceptions" heading did
     nothing at all. The panel gives a card field its own Edit whenever the
     field declares a panel group of its own, but the engine only honoured a
     part target on a card that also declares `edit: field`, so the click
     answered a stale notice and redrew the panel."""
-    from tests.behavioral.golden.paths.block_links import ENABLED
+    from tests.behavioral.flows.block_links import ENABLED
 
     context = Context(document=ENABLED)
     definition, panel = start("block_links", Manage(), context=context)
@@ -1159,7 +1022,7 @@ def test_a_card_edited_from_the_panel_confirms_and_a_setup_card_moves_on():
         context,
     )
     done = next(button for button in screen(whole).buttons if button.action == "done")
-    assert done.label == "Confirmar"
+    assert done.label == ml("buttons.confirm.label", "pt-br")
 
     setup = welcome_like_card()
     session = new_session(
@@ -1167,14 +1030,14 @@ def test_a_card_edited_from_the_panel_confirms_and_a_setup_card_moves_on():
     ).at("welcome_card")
     drawn = decided(setup, session, evt(ev.ScreenRequested))
     done = next(button for button in screen(drawn).buttons if button.action == "done")
-    assert done.label == "Avançar"
+    assert done.label == ml("buttons.done.label", "pt-br")
 
 
 def test_a_part_edit_of_a_multi_select_shows_only_that_select():
     import copy
 
     from app.forms.form.form_yaml import DiskSource, compile_form
-    from tests.behavioral.golden.paths.default_roles import ENABLED
+    from tests.behavioral.flows.roles import ENABLED
 
     raw = copy.deepcopy(DiskSource().load("default_roles"))
     raw["steps"][1]["edit"] = "field"
@@ -1221,7 +1084,7 @@ def _twitch_by_item():
 
 
 def _twitch_panel():
-    from tests.behavioral.golden.paths.notifications_twitch import ENABLED
+    from tests.behavioral.flows.twitch import ENABLED
 
     definition = _twitch_by_item()
     session = new_session(
@@ -1264,7 +1127,7 @@ def test_a_composition_edited_by_item_has_one_group_per_item():
 
 
 def _twitch_items(*items):
-    from tests.behavioral.golden.paths.notifications_twitch import ENABLED
+    from tests.behavioral.flows.twitch import ENABLED
 
     return {**ENABLED, "notifications": {"style": "composition", "values": list(items)}}
 
@@ -1280,14 +1143,14 @@ def test_an_item_saved_by_the_old_pause_reads_like_any_other():
     """N1 (round 3): the per-item pause is gone, and an item a dev panel saved
     with `enabled: false` loads as a plain item: no "(Pausado)", no Despausar,
     no line for the field, and editing it seeds no answer from it."""
-    from tests.behavioral.golden.paths.notifications_twitch import notification
+    from tests.behavioral.flows.twitch import notification
 
     paused = {**notification("100", "cellbit"), "enabled": False}
     document = _twitch_items(notification("100", "gaules"), paused)
     definition, panel, context = _twitch_panel_of(document)
 
     _head, _first, second = screen(panel).components[0].groups
-    assert second.heading == "### Notificações #2"
+    assert second.heading == f"### {_list('notifications_twitch').title.pt_br} #2"
     assert [button.action for button in second.actions] == [
         "edit:notifications$1",
         "aside:preview:notifications$1",
@@ -1316,7 +1179,7 @@ def test_remove_beside_an_item_names_it_and_takes_it_on_confirm():
         context,
     )
     asking = screen(asked)
-    assert asking.title == "🗑️ Remover este item?"
+    assert asking.title == _removal("one")["title"]
     assert "- cellbit" in asking.description
     assert [button.action for button in asking.buttons] == [
         "remove_items",
@@ -1331,39 +1194,15 @@ def test_remove_beside_an_item_names_it_and_takes_it_on_confirm():
 
 
 ONLY_ITEM_WARNINGS = [
-    (
-        "notifications_twitch",
-        "pt-br",
-        "⚠️ Ei, espere! Leia abaixo primeiro",
-        "Você só tem **1** streamer configurado.",
-        "Se você removê-lo agora, a função **Twitch Lives** será **desativada** e "
-        "você vai precisar configurá-la de novo. Tem certeza de que quer continuar?",
-    ),
-    (
-        "notifications_twitch",
-        "en-us",
-        "⚠️ Hey, wait! Read this first",
-        "You only have **1** streamer set up.",
-        "If you remove it now, **Twitch Lives** will be **turned off** and you'll "
-        "need to set it up again. Are you sure you want to continue?",
-    ),
-    (
-        "notifications_youtube_video",
-        "pt-br",
-        "⚠️ Ei, espere! Leia abaixo primeiro",
-        "Você só tem **1** canal configurado.",
-        "Se você removê-lo agora, a função **YouTube Vídeos** será **desativada** e "
-        "você vai precisar configurá-la de novo. Tem certeza de que quer continuar?",
-    ),
-    (
-        "notifications_youtube_video",
-        "en-us",
-        "⚠️ Hey, wait! Read this first",
-        "You only have **1** channel set up.",
-        "If you remove it now, **YouTube Videos** will be **turned off** and you'll "
-        "need to set it up again. Are you sure you want to continue?",
-    ),
+    (form, locale)
+    for form in ("notifications_twitch", "notifications_youtube_video")
+    for locale in ("pt-br", "en-us")
 ]
+
+
+def _feature(form, locale):
+    """The feature's name as its intro titles it, the way the warning names it."""
+    return without_leading_emoji(REGISTRY.get(form).steps[0].title.get(locale))
 
 
 @pytest.mark.parametrize(
@@ -1385,16 +1224,14 @@ def test_a_title_loses_its_leading_emoji_whatever_block_it_is_from(title, name):
     assert without_leading_emoji(title) == name
 
 
-@pytest.mark.parametrize("form,locale,title,lead,closing", ONLY_ITEM_WARNINGS)
-def test_removing_the_only_item_warns_with_the_item_and_disables_it(
-    form, locale, title, lead, closing
-):
+@pytest.mark.parametrize("form,locale", ONLY_ITEM_WARNINGS)
+def test_removing_the_only_item_warns_with_the_item_and_disables_it(form, locale):
     """N4 (round 3): Remove on the only streamer or channel asks to wait, shows
     the item's block as the panel draws it between Lucas's two sentences, and
     confirming runs the disable, naming the list it saw."""
-    import importlib
+    from tests.behavioral.flows import module_of
 
-    paths = importlib.import_module(f"tests.behavioral.golden.paths.{form}")
+    paths = module_of(form)
     document = {
         **paths.ENABLED,
         "notifications": {
@@ -1413,8 +1250,14 @@ def test_removing_the_only_item_warns_with_the_item_and_disables_it(
         context,
     )
     asking = screen(asked)
-    assert asking.title == title
-    assert asking.description == "\n\n".join((lead, "\n".join(block.lines), closing))
+    warning = _list(form).last_item_warning.get(locale)
+    item = "\n".join(block.lines)
+    assert asking.title == _removal("last", locale)["title"]
+    assert asking.title != _removal("one", locale)["title"], "it asks to wait first"
+    assert asking.description == fill(
+        warning, item=item, feature=_feature(form, locale)
+    )
+    assert item in asking.description
     assert block.lines[0].endswith("#1")
     assert [button.style for button in asking.buttons] == ["danger", "secondary"]
 
@@ -1430,11 +1273,8 @@ def test_the_only_item_warning_never_reads_the_item_it_put_in():
     feature's name in its own block. Shared behaviour: `filled`, the one pass every
     text of the form engine is filled by. Exposed by: the YAML syntax study.
     Guaranteed: the item shows as it was saved."""
-    import importlib
+    from tests.behavioral.flows import twitch as paths
 
-    paths = importlib.import_module(
-        "tests.behavioral.golden.paths.notifications_twitch"
-    )
     saved = "x$feature ${context.prefix}"
     document = {
         **paths.ENABLED,
@@ -1456,7 +1296,8 @@ def test_the_only_item_warning_never_reads_the_item_it_put_in():
     )
 
     assert saved in screen(asked).description
-    assert screen(asked).description.count("Twitch Lives") == 1
+    feature = _feature("notifications_twitch", "en-us")
+    assert screen(asked).description.count(feature) == 1
 
 
 def test_the_review_keeps_the_list_remove():
@@ -1487,27 +1328,17 @@ def test_the_review_keeps_the_list_remove():
 
 
 TITLE_COUNTS = [
-    (
-        "notifications_twitch",
-        "pt-br",
-        ":busts_in_silhouette: **Notificações:** 2 de 3 configurados",
-    ),
-    (
-        "notifications_twitch",
-        "en-us",
-        ":busts_in_silhouette: **Notifications:** 2 of 3 set up",
-    ),
-    (
-        "notifications_youtube_video",
-        "pt-br",
-        ":busts_in_silhouette: **Notificações:** 2 de 2 configurados",
-    ),
-    (
-        "notifications_youtube_video",
-        "en-us",
-        ":busts_in_silhouette: **Notifications:** 2 of 2 set up",
-    ),
+    (form, locale)
+    for form in ("notifications_twitch", "notifications_youtube_video")
+    for locale in ("pt-br", "en-us")
 ]
+
+
+def _count_line(form, locale, count):
+    """The list's title line: its emoji, its title and the counter its form writes."""
+    listed = _list(form)
+    counter = fill(listed.counter.get(locale), count=count, max=listed.items.max)
+    return f"{listed.emoji} **{listed.title.get(locale)}:** {counter}"
 
 
 def _started_in(locale, form, mode=Setup(), answers=None, context=None):
@@ -1526,13 +1357,13 @@ def _started_in(locale, form, mode=Setup(), answers=None, context=None):
     return definition, decided(definition, session, evt(ev.Started), context)
 
 
-@pytest.mark.parametrize("form,locale,line", TITLE_COUNTS)
-def test_the_list_title_counts_its_items_of_its_most_on_the_panel(form, locale, line):
+@pytest.mark.parametrize("form,locale", TITLE_COUNTS)
+def test_the_list_title_counts_its_items_of_its_most_on_the_panel(form, locale):
     """A2 (round 4): the title line itself carries the items saved of the most
     the list holds, in the words the form declares, with no quote under it."""
-    import importlib
+    from tests.behavioral.flows import module_of
 
-    paths = importlib.import_module(f"tests.behavioral.golden.paths.{form}")
+    paths = module_of(form)
     items = [paths.notification("100", "first"), paths.notification("102", "second")]
     document = {
         **paths.ENABLED,
@@ -1541,11 +1372,12 @@ def test_the_list_title_counts_its_items_of_its_most_on_the_panel(form, locale, 
     context = Context(document=document)
     _definition, panel = _started_in(locale, form, Manage(), context=context)
 
+    line = _count_line(form, locale, count=2)
     assert screen(panel).components[0].groups[0].parts[0].lines == (line,)
 
 
-@pytest.mark.parametrize("form,locale,line", TITLE_COUNTS)
-def test_the_setup_summary_counts_the_list_like_the_panel(form, locale, line):
+@pytest.mark.parametrize("form,locale", TITLE_COUNTS)
+def test_the_setup_summary_counts_the_list_like_the_panel(form, locale):
     """A2 (round 4): the setup's summary draws the same title line, no quote."""
     from app.forms.form.form_state import Answer
 
@@ -1568,7 +1400,7 @@ def test_the_setup_summary_counts_the_list_like_the_panel(form, locale, line):
         for part in group.parts
         for line in part.lines
     ]
-    assert line in lines
+    assert _count_line(form, locale, count=2) in lines
     assert not any(shown.startswith(">") for shown in lines)
 
 
@@ -1598,7 +1430,7 @@ def test_a_list_with_no_items_is_never_opened_by_an_edit():
     assert [part.button for part in parts] == ["add:custom_links"], (
         "there is no item to edit yet, only one to add"
     )
-    assert "Links personalizados permitidos" in parts[0].lines[0]
+    assert _list("block_links").title.get("pt-br") in parts[0].lines[0]
     assert empty_value("pt-br") in parts[0].lines[0]
     actions = [button.action for group in view.groups for button in group.actions]
     assert "remove:custom_links" not in actions, "nothing to remove"
@@ -1702,33 +1534,6 @@ def test_a_single_page_has_no_arrows():
     assert not _page(decision).actions
 
 
-def test_search_finds_a_member_and_shows_their_item_with_edit_and_remove():
-    """bd-6: Pesquisar opens the member select; the member's birthday shows
-    with Editar, Remover and Voltar, and Voltar goes back to the panel."""
-    definition, decision, context, panel = _birthday_panel()
-    assert "remove" not in [b.action for b in screen(decision).buttons], (
-        "a searched list removes from the item the search found"
-    )
-
-    asked = decided(definition, decision.session, evt(SearchRequested), context, panel)
-    assert isinstance(screen(asked).components[0], Picker)
-    found = decided(
-        definition, asked.session, evt(ev.MemberChosen, user_id="777"), context, panel
-    )
-    shown = screen(found)
-    block = shown.components[0].groups[0]
-    assert shown.components[0].title == "🎉 Configurações de aniversário de <@777>"
-    assert [b.action for b in block.actions] == [
-        "edit:reminders_birthday$1",
-        "remove_this:reminders_birthday$1",
-    ]
-    assert any("12 de junho" in line for line in block.lines)
-    assert [b.action for b in shown.buttons] == ["picker_back"]
-
-    back = decided(definition, found.session, evt(ev.PickerClosed), context, panel)
-    assert screen(back).components[0].title.startswith("🎂")
-
-
 def test_the_member_a_search_found_is_removed_through_the_panels_confirmation():
     """Broke as: Remover on the member a search found asked "Remover este item?"
     on a message of its own with Manter and Remover, a second removal flow beside
@@ -1749,7 +1554,7 @@ def test_the_member_a_search_found_is_removed_through_the_panels_confirmation():
     )
     assert kinds(removing) == ["Render"]
     asking = screen(removing)
-    assert asking.title == "🗑️ Remover este item?"
+    assert asking.title == _removal("one")["title"]
     assert "- <@777>" in asking.description
     assert [button.action for button in asking.buttons] == [
         "remove_items",
@@ -1758,26 +1563,14 @@ def test_the_member_a_search_found_is_removed_through_the_panels_confirmation():
 
     back = decided(definition, removing.session, evt(ev.PickerClosed), context, panel)
     title = screen(back).components[0].title
-    assert title == "🎉 Configurações de aniversário de <@777>"
+    found = _list("reminders_birthday").search.screen.title.get("pt-br")
+    assert title == fill(found, item="<@777>")
 
     confirmed = decided(
         definition, removing.session, evt(ev.RemovalConfirmed), context, panel
     )
     [commit] = [effect for effect in confirmed.effects if isinstance(effect, Commit)]
     assert commit.kind == "remove_item" and commit.payload["indexes"] == [1]
-
-
-def test_the_search_answers_as_soon_as_a_member_is_picked():
-    """N2: Pesquisar asked for a member and then for Confirmar; the select now
-    reports the member itself, so picking one opens that member's screen."""
-    definition, decision, context, panel = _birthday_panel()
-
-    asked = screen(
-        decided(definition, decision.session, evt(SearchRequested), context, panel)
-    )
-    [picker] = asked.components
-    assert (picker.action, picker.required) == ("member", True)
-    assert [b.action for b in asked.buttons] == ["picker_back"]
 
 
 def test_the_edit_picker_of_a_member_list_still_asks_for_confirm():
@@ -1797,36 +1590,6 @@ def test_the_edit_picker_of_a_member_list_still_asks_for_confirm():
     assert len(asked.buttons) == 2
 
 
-def test_the_found_screen_draws_the_picture_and_the_lines_the_feature_gives():
-    """N2 and B5 (round 3): the member's screen is titled after the member, its
-    lines are the birthday and the messages the feature adds, with no member
-    line the title already names, and the member's picture big under them, read
-    from the server's members like every member picture (review fixes K2)."""
-    from dataclasses import replace
-
-    definition, decision, context, _panel = _birthday_panel()
-    context = replace(context, member_pictures={"777": "https://cdn/777.png"})
-    panel = PanelExtras(
-        rows=BIRTHDAY_ROWS,
-        pages=BIRTHDAY_PAGES,
-        found={"777": FoundItem(("💬 **Mensagens:**",))},
-    )
-    asked = decided(definition, decision.session, evt(SearchRequested), context, panel)
-    found = decided(
-        definition, asked.session, evt(ev.MemberChosen, user_id="777"), context, panel
-    )
-
-    shown = screen(found).components[0]
-    assert not shown.thumbnail, "the member's picture is below, none beside the title"
-    [block] = shown.groups
-    assert block.media == "https://cdn/777.png"
-    assert block.lines == (
-        "📅 **Dia do aniversário:** 12 de junho",
-        "💬 **Mensagens:**",
-    )
-    assert block.heading, "a heading draws the separator under the title"
-
-
 def test_a_found_item_the_feature_adds_nothing_to_draws_its_lines_alone():
     definition, decision, context, panel = _birthday_panel()
     asked = decided(definition, decision.session, evt(SearchRequested), context, panel)
@@ -1836,56 +1599,6 @@ def test_a_found_item_the_feature_adds_nothing_to_draws_its_lines_alone():
 
     [block] = screen(found).components[0].groups
     assert not block.media and "12 de maio" in block.lines[-1]
-
-
-def test_the_pages_carry_the_list_add_beside_their_title_and_not_below():
-    """N2: the birthdays block is titled like the list's pages with Adicionar
-    beside the title, and the panel's bottom row keeps no Adicionar."""
-    definition, decision, context, panel = _birthday_panel()
-
-    page = _page(decision)
-    assert (page.label, page.emoji, page.disabled) == ("Adicionar", "➕", False)
-    assert page.body == ("- <@555>: 12 de maio",)
-    assert "add" not in [b.action for b in screen(decision).buttons]
-
-
-def test_a_page_with_no_item_still_shows_with_its_add_and_description():
-    """N2: with no birthday the block still shows, its description saying so,
-    with Adicionar beside its title."""
-    empty = {
-        **BIRTHDAY_DOC,
-        "reminders_birthday": {"style": "composition", "values": []},
-    }
-    context = Context(document=empty)
-    panel = PanelExtras(
-        rows=BIRTHDAY_ROWS, pages=(PanelPage("Aniversários", (), "Nenhum ainda."),)
-    )
-    _definition, decision = start(
-        "reminders_birthday", Manage(), context=context, panel=panel
-    )
-
-    page = _page(decision)
-    assert page.lines == ("### Aniversários", "Nenhum ainda.")
-    assert (page.body, page.actions) == ((), ())
-    assert "add" not in [b.action for b in screen(decision).buttons]
-
-
-def test_configurar_opens_the_reminder_settings_with_one_edit():
-    """bd-6: the settings that sat on top of the panel open from Configurar,
-    every row under the one Edit of the card that holds them."""
-    definition, decision, context, panel = _birthday_panel()
-    opened = decided(
-        definition,
-        decision.session,
-        evt(ev.EditRequested, target="group:settings"),
-        context,
-        panel,
-    )
-    view = screen(opened).components[0]
-    assert view.title == "⚙️ Configuração do Lembrete"
-    [block] = view.groups
-    assert [part.button for part in block.parts] == ["edit:birthday_config"]
-    assert any("<#100>" in line for line in block.parts[0].lines)
 
 
 def test_a_list_saved_empty_draws_its_rows_without_an_edit():
@@ -1933,7 +1646,7 @@ def test_remove_shows_from_one_item_or_from_two_when_the_list_is_needed():
     ]
     assert actions == ["remove:custom_links"]
 
-    from tests.behavioral.golden.paths.notifications_twitch import ENABLED, notification
+    from tests.behavioral.flows.twitch import ENABLED, notification
 
     one_streamer = {
         **ENABLED,
@@ -1981,7 +1694,7 @@ def test_an_add_button_on_the_review_always_carries_the_plus(popular):
         part
         for group in panel_groups(rows, "🚦 Bloquear Links", "pt-br")
         for part in group.parts
-        if part.label == "Adicionar"
+        if part.label == ml("buttons.add.label", "pt-br")
     ]
 
     assert len(parts) == 2, [part.lines for part in parts]

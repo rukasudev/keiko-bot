@@ -4,9 +4,21 @@ command that consumes it.
 `send_command_manager_message` (app/core/servers.py) + the summary
 renderers in app/core/utils.py are shared infrastructure: a change made
 for ONE command has historically broken the saved-configuration display of
-the OTHERS (see tests/behavioral/regressions/). Each consumer below uses
+the OTHERS. Each consumer below uses
 its real production YAML and a cog document in the real persisted shape
 (the same shape the behavioral scenarios verified end-to-end).
+
+What broke: while developing the birthday-reminder flow, shared summary
+rendering (then `parse_settings_with_database_values` in app/core/utils.py,
+today `panel_rows`) was changed and stopped resolving titles for keys nested
+inside `multi_select.selects[]`. The new consumer (birthday) worked, so its
+tests passed, while /moderations default roles silently lost its saved
+configuration in the manager panel, found only by running the command in
+Discord. Guaranteed: a command whose values live in nested multi_select keys
+keeps showing every saved value with its localized label and mention
+(`test_manager_form_renders_existing_configuration`), and consumers opened
+side by side in one process each render their own saved values
+(`test_one_command_config_does_not_leak_into_another`).
 """
 import pytest
 

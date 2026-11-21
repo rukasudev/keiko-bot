@@ -4,6 +4,7 @@ from datetime import timedelta
 
 import pytest
 
+from app.core.utils import ml
 from app.forms.form import events as ev
 from app.forms.form.actions.action import Context
 from app.forms.form.components import (
@@ -40,14 +41,28 @@ from tests.forms.replay import (
     screen,
     start,
 )
+from tests.helpers.forms import index_of, section
 
 pytestmark = pytest.mark.unit
 
+
+def section_label(definition, step_key, key, locale="pt-br"):
+    """The label the section `key` of the card `step_key` reads in `locale`."""
+    card = definition.step(step_key)
+    return card.sections[index_of(card, key)].label.get(locale)
+
+
+def _raw_step(steps, key):
+    """The step or section `key` of a form's loaded YAML, to edit before compiling."""
+    return next(step for step in steps if step.get("key") == key)
+
+
 BLOCK_LINKS_CARD = REGISTRY.get("block_links").step("link_settings")
-BLOCK_LINKS_SECTIONS = [section.key for section in BLOCK_LINKS_CARD.sections]
-EXCEPTIONS = BLOCK_LINKS_SECTIONS.index("exceptions")
-CHANNEL_EXCEPTIONS = BLOCK_LINKS_SECTIONS.index("channel_exceptions")
-OWN_LINKS = BLOCK_LINKS_SECTIONS.index("own_links")
+EXCEPTIONS = index_of(BLOCK_LINKS_CARD, "exceptions")
+CHANNEL_EXCEPTIONS = index_of(BLOCK_LINKS_CARD, "channel_exceptions")
+OWN_LINKS = index_of(BLOCK_LINKS_CARD, "own_links")
+TWITCH_CARD = REGISTRY.get("notifications_twitch").composition.steps[0]
+YOUTUBE_CARD = REGISTRY.get("notifications_youtube_video").composition.steps[0]
 
 
 # ---------------------------------------------------------------- setup flow
@@ -61,7 +76,7 @@ def test_started_renders_the_intro_and_reports_the_opening():
         "feature.setup_opened",
         "setup.step_viewed",
     ]
-    assert "Bloquear Links" in screen(decision).title
+    assert screen(decision).title == definition.step("form").title.get("pt-br")
     assert [b.action for b in screen(decision).buttons] == ["confirm", "cancel"]
 
 
@@ -195,8 +210,9 @@ def test_a_failed_commit_reports_the_kind_the_step_and_the_reason():
 def test_the_document_of_a_default_setup_keeps_the_stored_shape():
     definition, session = _to_review()
     document = to_document(definition.steps, session.answers, "pt-br")
-    assert document["mode"] == "block_all"
-    assert document["answer"] == "Nada de links por aqui! :p"
+    defaults = definition.step("link_settings").defaults
+    assert document["mode"] == defaults["mode"] == "block_all"
+    assert document["answer"] == defaults["answer"].get("pt-br")
     assert document["custom_links"] == {"style": "composition", "values": []}
     assert "add_custom" not in document, "the gate left with bl-7"
 
@@ -391,36 +407,6 @@ def test_back_at_the_first_step_only_acknowledges():
 # ------------------------------------------------------------------- cancel
 
 
-def test_cancel_asks_then_keeps_or_discards():
-    definition, session = _to_review()
-    asked = decide(definition, session, evt(ev.Cancel))
-    assert asked.session.status is Status.AWAITING and kinds(asked) == ["Confirm"]
-    kept = decide(definition, asked.session, evt(ev.KeepEditing))
-    assert kept.session.status is Status.ACTIVE and kinds(kept) == ["Dismiss"]
-    asked_again = decide(definition, kept.session, evt(ev.Cancel))
-    discarded = decide(definition, asked_again.session, evt(ev.DiscardConfirmed))
-    assert discarded.session.status is Status.CANCELLED
-    assert discarded.effects[0].kind == "discarded"
-
-
-@pytest.mark.parametrize("answered", [(), ("form",)], ids=["intro", "card"])
-def test_cancel_with_nothing_answered_closes_without_asking(answered):
-    """k03b (PR15 round 5): there is nothing to lose before the first answer, so
-    Cancel closes the setup at once, as a discard, with no keep-or-discard."""
-    definition, decision = start("block_links")
-    session = decision.session
-    for key in answered:
-        session = decide(definition, session, evt(ev.Answered, step_key=key)).session
-    assert not session.answers
-
-    cancelled = decide(definition, session, evt(ev.Cancel))
-
-    assert cancelled.session.status is Status.CANCELLED
-    assert kinds(cancelled) == ["Finalize"]
-    assert cancelled.effects[0].kind == "discarded"
-    assert [name for name, _ in cancelled.analytics] == ["setup.discarded"]
-
-
 def test_cancel_after_a_draft_on_the_card_still_asks():
     definition, decision = start("block_links")
     on_card = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
@@ -485,58 +471,6 @@ def test_cancel_over_a_saved_document_always_asks():
     assert asked.session.status is Status.AWAITING and kinds(asked) == ["Confirm"]
 
 
-OPENER_BACK = Context(back_to_opener=True)
-
-
-@pytest.mark.parametrize("form", DiskSource().list())
-def test_the_first_screen_of_a_setup_its_opener_takes_back_offers_back(form):
-    """k03 (PR15 round 5): opened by a screen that takes the message back, the
-    first screen shows a grey Voltar where Cancelar was, and no Cancelar."""
-    _, decision = start(form, context=OPENER_BACK)
-
-    buttons = screen(decision).buttons
-    assert [button.action for button in buttons][-1] == "back"
-    assert "cancel" not in [button.action for button in buttons]
-    back = buttons[-1]
-    assert (back.label, back.style) == ("Voltar", "secondary")
-
-
-def test_back_on_that_first_screen_closes_the_setup_as_discarded_and_returns():
-    definition, decision = start("block_links", context=OPENER_BACK)
-
-    left = decide(definition, decision.session, evt(ev.Back), OPENER_BACK)
-
-    assert left.session.status is Status.CANCELLED
-    assert kinds(left) == ["ReturnToOpener"]
-    assert [name for name, _ in left.analytics] == ["setup.discarded"]
-
-
-def test_the_later_screens_keep_their_cancel_and_their_back():
-    definition, decision = start("block_links", context=OPENER_BACK)
-
-    on_card = decide(
-        definition, decision.session, evt(ev.Answered, step_key="form"), OPENER_BACK
-    )
-    at_review = decide(
-        definition,
-        on_card.session,
-        evt(ev.Answered, step_key="link_settings"),
-        OPENER_BACK,
-    )
-
-    assert [button.action for button in screen(on_card).buttons][-1] == "cancel"
-    assert [button.action for button in screen(at_review).buttons][-1] == "cancel"
-    stayed = decide(definition, on_card.session, evt(ev.Back), OPENER_BACK)
-    assert kinds(stayed) == ["Ack"], "the card has no Back to the intro"
-
-
-def test_a_setup_no_opener_takes_back_keeps_cancel_on_its_first_screen():
-    definition, decision = start("block_links")
-
-    assert [button.action for button in screen(decision).buttons][-1] == "cancel"
-    assert kinds(decide(definition, decision.session, evt(ev.Back))) == ["Ack"]
-
-
 # ---------------------------------------------------------------- validation
 
 
@@ -578,11 +512,15 @@ def test_card_done_refuses_missing_required_fields_with_their_labels():
     error = refused.effects[-1]
     assert error.plain, "a plain sentence on a message of its own (R3)"
     fields = error.args["fields"]
-    assert "**Canal**" in fields and "**Fuso horário**" in fields, fields
-    assert "**Horário da notificação**" not in fields, "the time starts on 10:00"
-    assert "**Cargos que eu menciono**" not in fields, "a hidden select asks nothing"
-    assert not any(
-        "🚨" in line for line in screen(refused).components[0].header.lines
+
+    def named(key):
+        return f"**{section_label(definition, 'birthday_config', key)}**" in fields
+
+    assert named("channel") and named("timezone"), fields
+    assert not named("notification_time"), "the time starts on 10:00"
+    assert not named("mention_roles"), "a hidden select asks nothing"
+    assert screen(refused).components[0].header.lines == (
+        screen(at_card).components[0].header.lines
     ), "the card itself shows no error line"
     missing = ("channel", "timezone")
     assert refused.session.refused.missing == missing
@@ -599,16 +537,21 @@ def test_card_done_refuses_missing_required_fields_with_their_labels():
 def test_card_sections_open_pickers_and_changes_redraw_the_card():
     definition, decision = start("reminders_birthday")
     at_card = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
+    card = definition.step("birthday_config")
     picker = decide(
         definition,
         at_card.session,
-        evt(ev.SectionOpened, step_key="birthday_config", index=0),
+        evt(
+            ev.SectionOpened,
+            step_key="birthday_config",
+            index=index_of(card, "channel"),
+        ),
     )
     assert isinstance(screen(picker).components[0], Picker)
     chosen = decide(
         definition,
         picker.session,
-        evt(ev.Answered, step_key="section:0", payload=["100"]),
+        evt(ev.Answered, step_key=section(card, "channel"), payload=["100"]),
     )
     assert isinstance(screen(chosen).components[0], Card)
     assert chosen.session.answers["birthday_config"].part("channel") == "100"
@@ -624,8 +567,7 @@ def test_card_sections_open_pickers_and_changes_redraw_the_card():
 def _exempt_section(session=None):
     definition, decision = start("block_links")
     at_card = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
-    card = definition.step("link_settings")
-    index = [section.key for section in card.sections].index("exempt")
+    index = index_of(definition.step("link_settings"), "exempt")
     opened = decide(
         definition,
         at_card.session,
@@ -637,13 +579,14 @@ def _exempt_section(session=None):
 def test_a_selects_section_opens_one_screen_with_every_select():
     """bl-6: the channels and roles where Keiko never deletes links are one
     section of the card, and its button opens both selects together."""
-    _definition, index, opened = _exempt_section()
+    definition, index, opened = _exempt_section()
 
     pickers = screen(opened).components
     assert [picker.slot for picker in pickers] == ["allowed_chats", "allowed_roles"]
     assert [picker.kind for picker in pickers] == ["channel", "role"]
     assert opened.session.awaiting == f"section:{index}"
-    assert "**nunca**" in screen(opened).description
+    exempt = definition.step("link_settings").sections[index]
+    assert screen(opened).description == exempt.screen.description.get("pt-br")
 
 
 def test_picking_on_a_screen_of_several_selects_keeps_it_open_until_back():
@@ -667,41 +610,37 @@ def test_picking_on_a_screen_of_several_selects_keeps_it_open_until_back():
 
     card = screen(back).components[0]
     assert isinstance(card, Card)
-    group = next(section for section in card.sections if section.key == "exceptions")
-    assert group.preview[:2] == (
-        "> #️⃣ **Canais permitidos:** <#100>",
-        "> 🏷️ **Cargos permitidos:** <@&7>, <@&8>",
-    )
+    group = next(view for view in card.sections if view.key == "exceptions")
+    channels, roles = group.preview[:2]
+    assert channels.endswith(" <#100>") and roles.endswith(" <@&7>, <@&8>")
     state = back.session.answers["link_settings"].parts
     assert (state["allowed_chats"], state["allowed_roles"]) == ("100", ["7", "8"])
 
 
 @pytest.mark.parametrize(
-    "mode,group,keys,held,custom",
+    "mode,group,keys,held",
     [
         (
             "block_all",
             EXCEPTIONS,
             ["mode", "answer", "exceptions"],
             ["exempt", "allowed_links", "own_links"],
-            "📌 **Links personalizados permitidos**",
         ),
         (
             "allow_all",
             CHANNEL_EXCEPTIONS,
             ["mode", "answer", "channel_exceptions", "own_links"],
             ["exempt"],
-            "📌 **Links personalizados bloqueados**",
         ),
     ],
 )
 def test_the_block_links_card_lists_what_it_lets_through_after_channels_and_roles(
-    mode, group, keys, held, custom
+    mode, group, keys, held
 ):
     """C1 (beta.2 round 3): the popular websites sit under the channels and
-    roles, everything Keiko lets through reads "permitidos", and the custom
-    links heading follows the mode; round 5 E draws the exceptions on their own
-    screen, and in "Bloquear alguns" the blocked links stay on the card."""
+    roles; round 5 E draws the exceptions on their own screen, and in "Bloquear
+    alguns" the blocked links stay on the card. A mode picked as one value
+    redraws the card with that mode's sections."""
     definition, decision = start("block_links")
     at_card = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
     drafted = decide(
@@ -715,182 +654,14 @@ def test_the_block_links_card_lists_what_it_lets_through_after_channels_and_role
         evt(ev.SectionOpened, step_key="link_settings", index=group),
     )
 
+    assert drafted.session.answers["link_settings"].part("mode") == mode
     card = screen(drafted).components[0]
-    assert [section.key for section in card.sections] == keys
+    assert [view.key for view in card.sections] == keys
     exceptions = screen(opened).components[0]
-    assert [section.key for section in exceptions.sections] == held
-    headings = {
-        section.key: section.heading
-        for section in (*card.sections, *exceptions.sections)
-    }
-    assert headings["exempt"] == "🔓 **Canais e cargos permitidos**"
-    assert headings["own_links"] == custom
-    exempt = next(section for section in exceptions.sections if section.key == "exempt")
-    assert exempt.preview == (
-        "> #️⃣ **Canais permitidos:** Em branco",
-        "> 🏷️ **Cargos permitidos:** Em branco",
-    )
-
-
-def test_the_exempt_channels_and_roles_are_saved_from_the_card():
-    definition, index, opened = _exempt_section()
-    picked = decide(
-        definition,
-        opened.session,
-        evt(ev.Drafted, step_key="link_settings", changes={"allowed_roles": ["7"]}),
-    )
-    done = decide(
-        definition, picked.session, evt(ev.Answered, step_key="link_settings")
-    )
-
-    document = to_document(definition.steps, done.session.answers, "pt-br")
-    assert document["allowed_roles"] == {"style": "role", "values": "7"}
-    assert document["allowed_chats"] == {"style": "channel", "values": []}
-    assert "permissions" not in [step.key for step in definition.steps]
-
-
-def _exceptions_screen(mode="block_all"):
-    definition, decision = start("block_links")
-    at_card = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
-    drafted = decide(
-        definition,
-        at_card.session,
-        evt(ev.Drafted, step_key="link_settings", changes={"mode": mode}),
-    )
-    group = EXCEPTIONS if mode == "block_all" else CHANNEL_EXCEPTIONS
-    opened = decide(
-        definition,
-        drafted.session,
-        evt(ev.SectionOpened, step_key="link_settings", index=group),
-    )
-    return definition, opened
-
-
-def _keys(decision):
-    return [section.key for section in screen(decision).components[0].sections]
-
-
-def test_configure_opens_the_exceptions_on_a_screen_of_their_own():
-    """Round 5 E (v05 to v07): "Configurar" draws, on the same message, only the
-    sections its group holds, with one Voltar below them and nothing else."""
-    _definition, opened = _exceptions_screen()
-
-    exceptions = screen(opened)
-    card = exceptions.components[0]
-    assert kinds(opened) == ["Render"]
-    assert opened.session.opened_group == "exceptions"
-    assert card.header.title == "🛡️ Exceções"
-    assert card.header.description == (
-        "Canais, cargos, sites e links que eu nunca apago."
-    )
-    assert _keys(opened) == ["exempt", "allowed_links", "own_links"]
-    assert [(button.label, button.action) for button in exceptions.buttons] == [
-        ("Voltar", "picker_back")
-    ]
-
-
-def test_a_choice_on_the_exceptions_screen_stays_there_and_back_shows_it_on_the_card():
-    """Round 5 E: a pick on the exceptions screen is a draft of the card, the
-    screen stays, and Voltar draws the card with the picks in the group's lines."""
-    definition, opened = _exceptions_screen()
-    channel = decide(
-        definition,
-        opened.session,
-        evt(ev.Drafted, step_key="link_settings", changes={"allowed_chats": ["100"]}),
-    )
-    site = decide(
-        definition,
-        channel.session,
-        evt(
-            ev.Drafted,
-            step_key="link_settings",
-            changes={"allowed_links": ["youtube.com"]},
-        ),
-    )
-    assert _keys(site) == ["exempt", "allowed_links", "own_links"]
-
-    back = decide(definition, site.session, evt(ev.PickerClosed))
-
-    assert back.session.opened_group is None
-    assert _keys(back) == ["mode", "answer", "exceptions"]
-    group = screen(back).components[0].sections[2]
-    assert group.heading == "🛡️ **Adicionar exceções?**"
-    assert group.description == "Canais, cargos, sites e links que eu nunca apago."
-    assert group.preview == (
-        "> #️⃣ **Canais permitidos:** <#100>",
-        "> 🏷️ **Cargos permitidos:** Em branco",
-        "> 🔗 **Sites populares permitidos:** Youtube",
-        "> 📌 **Links personalizados permitidos:** Em branco",
-    )
-    assert [button.label for button in group.buttons] == ["Configurar"]
-    state = back.session.answers["link_settings"].parts
-    assert (state["allowed_chats"], state["allowed_links"]) == ("100", ["youtube.com"])
-
-
-def test_in_block_some_the_exceptions_are_the_channels_and_roles_only():
-    """Round 5 E: in "Bloquear alguns" the group tells only channels and roles,
-    and its screen holds only them; the blocked links stay on the card."""
-    definition, opened = _exceptions_screen("allow_all")
-    assert _keys(opened) == ["exempt"]
-
-    back = decide(definition, opened.session, evt(ev.PickerClosed))
-
-    assert _keys(back) == ["mode", "answer", "channel_exceptions", "own_links"]
-    group = screen(back).components[0].sections[2]
-    assert group.description == "Canais e cargos onde eu nunca apago links."
-    assert group.preview == (
-        "> #️⃣ **Canais permitidos:** Em branco",
-        "> 🏷️ **Cargos permitidos:** Em branco",
-    )
-
-
-def test_a_link_added_or_removed_on_the_exceptions_screen_comes_back_to_it():
-    """Round 5 E: the list's Add opens its sub-form and Remove its picker, and
-    each comes back to the exceptions screen, not to the card."""
-    definition, opened = _exceptions_screen()
-    link = {"link": Answer("meusite.com.br")}
-    adding = decide(
-        definition,
-        opened.session,
-        evt(ev.SectionOpened, step_key="link_settings", index=OWN_LINKS),
-    )
-    assert kinds(adding) == ["OpenChild"]
-    added = decide(
-        definition,
-        adding.session,
-        evt(ev.ChildFinished, child_mode="add_item", answers=link),
-    )
-    assert _keys(added) == ["exempt", "allowed_links", "own_links"]
-
-    asked = decide(definition, added.session, evt(ev.RemoveRequested))
-    kept = decide(definition, asked.session, evt(ev.PickerClosed))
-    assert _keys(kept) == ["exempt", "allowed_links", "own_links"]
-    asked = decide(definition, kept.session, evt(ev.RemoveRequested))
-    chosen = decide(
-        definition, asked.session, evt(ev.TargetsChosen, values=("custom_links$0",))
-    )
-    removed = decide(definition, chosen.session, evt(ev.RemovalConfirmed))
-
-    assert _keys(removed) == ["exempt", "allowed_links", "own_links"]
-    assert removed.session.raw("custom_links") == ()
-
-
-def test_the_card_draws_its_group_again_after_back_and_done_closes_it():
-    """Round 5 E: once Voltar closed the exceptions, Done saves what they hold,
-    and the next screen opens with no group open."""
-    definition, opened = _exceptions_screen()
-    picked = decide(
-        definition,
-        opened.session,
-        evt(ev.Drafted, step_key="link_settings", changes={"allowed_roles": ["7"]}),
-    )
-    back = decide(definition, picked.session, evt(ev.PickerClosed))
-    done = decide(definition, back.session, evt(ev.Answered, step_key="link_settings"))
-
-    assert done.session.cursor == "confirm"
-    assert done.session.opened_group is None
-    document = to_document(definition.steps, done.session.answers, "pt-br")
-    assert document["allowed_roles"] == {"style": "role", "values": "7"}
+    assert [view.key for view in exceptions.sections] == held
+    exempt = next(view for view in exceptions.sections if view.key == "exempt")
+    empty = ml("texts.empty_value", "pt-br")
+    assert [line.endswith(f" {empty}") for line in exempt.preview] == [True, True]
 
 
 def _member_card():
@@ -914,23 +685,15 @@ def _drafted(definition, decision, **changes):
     )
 
 
-def _day_section(definition):
-    return next(
-        index
-        for index, section in enumerate(definition.composition.steps[0].sections)
-        if section.key == "day"
-    )
+def _day(definition):
+    return section(definition.composition.steps[0], "day")
 
 
 def _typed_day(definition, decision, day):
     return decide(
         definition,
         decision.session,
-        evt(
-            ev.Answered,
-            step_key=f"section:{_day_section(definition)}",
-            payload={"inputs": [day]},
-        ),
+        evt(ev.Answered, step_key=_day(definition), payload={"inputs": [day]}),
     )
 
 
@@ -961,8 +724,7 @@ def test_an_invalid_day_is_refused_inside_the_card():
 
     assert kinds(refused) == ["Render", "ShowError"]
     assert refused.effects[-1].key == "invalid_date"
-    target = f"section:{_day_section(definition)}"
-    assert refused.session.refused_on(target).error_key == "invalid_date"
+    assert refused.session.refused_on(_day(definition)).error_key == "invalid_date"
     assert refused.session.answers["birthday_member_config"].part("day") is None
 
 
@@ -1105,7 +867,11 @@ def test_the_card_keeps_keiko_on_top_and_the_streamer_picture_under_its_name():
     typed = decide(
         definition,
         at_card,
-        evt(ev.Answered, step_key="section:1", payload={"inputs": ["gaules"]}),
+        evt(
+            ev.Answered,
+            step_key=section(TWITCH_CARD, "streamer"),
+            payload={"inputs": ["gaules"]},
+        ),
         Context(
             external={"twitch": {"user_id": "1", "profile_image": "https://g.png"}}
         ),
@@ -1120,11 +886,12 @@ def test_the_card_keeps_keiko_on_top_and_the_streamer_picture_under_its_name():
     assert streamer(after).media == "https://g.png"
 
 
-def _typed(definition, session, index, inputs, found=None):
+def _typed(definition, session, key, inputs, found=None):
+    card = definition.composition.steps[0]
     return decide(
         definition,
         session,
-        evt(ev.Answered, step_key=f"section:{index}", payload={"inputs": inputs}),
+        evt(ev.Answered, step_key=section(card, key), payload={"inputs": inputs}),
         Context(external=found or {}),
     ).session
 
@@ -1140,9 +907,12 @@ def test_the_chosen_streamer_is_written_into_the_suggested_message():
     """tw-5 (beta.2): the suggested message comes with the name and the link."""
     definition, at_card = _twitch_card()
 
-    typed = _typed(definition, at_card, 1, ["@Gaules"], TWITCH_FOUND)
+    typed = _typed(definition, at_card, "streamer", ["@Gaules"], TWITCH_FOUND)
 
-    assert _messages(typed) == "gaules está ao vivo! https://twitch.tv/gaules"
+    suggested = TWITCH_CARD.defaults["notification_messages"].get("pt-br")
+    assert _messages(typed) == suggested.replace("{streamer}", "gaules").replace(
+        "{stream_link}", "https://twitch.tv/gaules"
+    )
     assert typed.answers["notification"].part("mention") == "everyone", (
         "a new notice mentions @everyone from its own field"
     )
@@ -1151,15 +921,15 @@ def test_the_chosen_streamer_is_written_into_the_suggested_message():
 def test_a_new_streamer_replaces_the_old_name_and_link_in_the_messages():
     """tw-5: the old name and link go, whatever their case, and only as words."""
     definition, at_card = _twitch_card()
-    first = _typed(definition, at_card, 1, ["gaules"], TWITCH_FOUND)
+    first = _typed(definition, at_card, "streamer", ["gaules"], TWITCH_FOUND)
     written = _typed(
         definition,
         first,
-        4,
+        "messages",
         ["Bora GAULES! https://twitch.tv/gaules", "o gaulesfan fica", "{streamer}"],
     )
 
-    changed = _typed(definition, written, 1, ["cellbit"], TWITCH_FOUND)
+    changed = _typed(definition, written, "streamer", ["cellbit"], TWITCH_FOUND)
 
     assert _messages(changed) == (
         "Bora cellbit! https://twitch.tv/cellbit;o gaulesfan fica;cellbit"
@@ -1173,10 +943,12 @@ def test_the_chosen_youtuber_is_written_in_and_the_video_link_stays_a_variable()
         (definition.key, 1), AddItem(), ORIGIN, ttl_seconds=60, now=NOW, parent_id="p"
     )
     at_card = decide(definition, child, evt(ev.Started)).session
-    written = _typed(definition, at_card, 4, ["{youtuber} postou: {video_link}"])
+    written = _typed(
+        definition, at_card, "messages", ["{youtuber} postou: {video_link}"]
+    )
     found = {"youtube": {"channel_id": "UC1", "profile_image": ""}}
 
-    typed = _typed(definition, written, 1, ["pewdiepie"], found)
+    typed = _typed(definition, written, "youtuber", ["pewdiepie"], found)
 
     assert _messages(typed) == "pewdiepie postou: {video_link}"
 
@@ -1187,10 +959,15 @@ def test_an_unknown_streamer_is_told_apart_and_its_modal_keeps_what_was_typed():
     the value. Since beta.2 round 2 (R3) the error is a message of its own
     again, never a line inside the card."""
     definition, at_card = _twitch_card()
+    streamer = index_of(TWITCH_CARD, "streamer")
     refused = decide(
         definition,
         at_card,
-        evt(ev.Answered, step_key="section:1", payload={"inputs": ["naoexiste"]}),
+        evt(
+            ev.Answered,
+            step_key=f"section:{streamer}",
+            payload={"inputs": ["naoexiste"]},
+        ),
         Context(external={"twitch": {"user_id": None}}),
     )
 
@@ -1207,14 +984,14 @@ def test_an_unknown_streamer_is_told_apart_and_its_modal_keeps_what_was_typed():
     assert kinds(refused) == ["Render", "ShowError"], kinds(refused)
     assert refused.effects[-1].key == "streamer_not_found"
     card = screen(refused).components[0]
-    lines = "\n".join(next(s for s in card.sections if s.index == 1).preview)
-    assert "não consegui encontrar o streamer" not in lines, lines
+    lines = "\n".join(next(s for s in card.sections if s.index == streamer).preview)
+    assert ml("errors.streamer_not_found.message", "pt-br") not in lines, lines
     assert refused.session.refused.inputs == ("naoexiste",)
 
     reopened = decide(
         definition,
         refused.session,
-        evt(ev.SectionOpened, step_key="notification", index=1),
+        evt(ev.SectionOpened, step_key="notification", index=streamer),
     )
     modal = screen(reopened).components[0]
     assert modal.inputs[0].default == "naoexiste", "the modal keeps what was typed"
@@ -1234,12 +1011,14 @@ def test_a_refused_text_step_draws_a_card_with_what_was_typed_and_tells_why_apar
     assert kinds(refused) == ["Render", "ShowError"], kinds(refused)
     card = screen(refused).components[0]
     assert isinstance(card, Card)
-    lines = "\n".join(card.sections[0].preview)
-    assert "nobody" in lines and "🚨" not in lines, lines
+    [typed] = card.sections
+    lines = "\n".join(typed.preview)
+    assert "nobody" in lines, lines
+    assert ml("errors.streamer_not_found.message", "pt-br") not in lines, lines
     again = decide(
         definition,
         refused.session,
-        evt(ev.SectionOpened, step_key="streamer", index=0),
+        evt(ev.SectionOpened, step_key="streamer", index=typed.index),
     )
     assert kinds(again) == ["OpenModal"]
     assert screen(again).components[0].inputs[0].default == "nobody"
@@ -1372,27 +1151,33 @@ def test_back_on_the_remove_dropdown_redraws_the_review():
 
 def test_the_gallery_and_the_file_upload_follow_the_design():
     definition, decision = start("welcome_messages")
+    card = definition.step("welcome_config")
     at_card = decide(definition, decision.session, evt(ev.Answered, step_key="form"))
     assert isinstance(screen(at_card).components[0], Card)
     gallery = decide(
         definition,
         at_card.session,
-        evt(ev.SectionOpened, step_key="welcome_config", index=2),
+        evt(
+            ev.SectionOpened,
+            step_key="welcome_config",
+            index=index_of(card, "design"),
+        ),
     )
     assert isinstance(screen(gallery).components[0], Gallery)
 
+    design = section(card, "design")
     custom = decide(
         definition,
         gallery.session,
-        evt(ev.Answered, step_key="section:2", payload="custom_only"),
+        evt(ev.Answered, step_key=design, payload="custom_only"),
     )
-    assert "image" in [section.key for section in screen(custom).components[0].sections]
+    assert "image" in [view.key for view in screen(custom).components[0].sections]
     server = decide(
         definition,
         gallery.session,
-        evt(ev.Answered, step_key="section:2", payload="server_blur"),
+        evt(ev.Answered, step_key=design, payload="server_blur"),
     )
-    shown = [section.key for section in screen(server).components[0].sections]
+    shown = [view.key for view in screen(server).components[0].sections]
     assert "image" not in shown
 
 
@@ -1468,7 +1253,9 @@ def test_a_card_that_needs_one_of_its_selects_refuses_done_when_every_one_is_emp
     assert empty.effects[-1].key == "fill_one_field"
     assert empty.session.refused.missing == ("default_roles_bot", "default_roles")
     header = screen(empty).components[0].header
-    assert not any("🚨" in line for line in header.lines)
+    assert header.lines == screen(step).components[0].header.lines, (
+        "the card itself shows no error line"
+    )
     assert empty.session.cursor == "default_roles_config"
     drafted = decide(
         definition,
@@ -1540,7 +1327,11 @@ def _recorded(decision):
 
 def _twitch_typed(external, items=()):
     definition, at_card = _twitch_card()
-    typed = evt(ev.Answered, step_key="section:1", payload={"inputs": ["gaules"]})
+    typed = evt(
+        ev.Answered,
+        step_key=section(TWITCH_CARD, "streamer"),
+        payload={"inputs": ["gaules"]},
+    )
     return decide(definition, at_card, typed, Context(external=external, items=items))
 
 
@@ -1550,7 +1341,11 @@ def _youtube_typed(external, items=()):
         (definition.key, 1), AddItem(), ORIGIN, ttl_seconds=60, now=NOW, parent_id="p"
     )
     at_card = decide(definition, child, evt(ev.Started)).session
-    typed = evt(ev.Answered, step_key="section:1", payload={"inputs": ["ghost"]})
+    typed = evt(
+        ev.Answered,
+        step_key=section(YOUTUBE_CARD, "youtuber"),
+        payload={"inputs": ["ghost"]},
+    )
     return decide(definition, at_card, typed, Context(external=external, items=items))
 
 
@@ -1604,19 +1399,20 @@ def test_a_refusal_is_recorded_under_the_name_released_versions_recorded(
 def test_a_card_modal_is_validated_with_the_other_items_and_the_lookup():
     """A card modal validated with its answers only: a streamer check that needs
     the Twitch lookup and the other items always refused."""
-    from tests.forms.form.test_lookups import streamer_card
+    from tests.helpers.forms import streamer_card
 
     definition = streamer_card()
     session = new_session(
         (definition.key, definition.version), Setup(), ORIGIN, ttl_seconds=60, now=NOW
     ).at("streamer_card")
-    typed = evt(ev.Answered, step_key="section:0", payload={"inputs": ["@Shroud"]})
+    streamer = section(definition.step("streamer_card"), "streamer")
+    typed = evt(ev.Answered, step_key=streamer, payload={"inputs": ["@Shroud"]})
 
     missing = decide(
         definition, session, typed, Context(external={"twitch": {"user_id": None}})
     )
     assert kinds(missing) == ["Render", "ShowError"]
-    assert missing.session.refused_on("section:0").error_key == "streamer_not_found"
+    assert missing.session.refused_on(streamer).error_key == "streamer_not_found"
 
     found = decide(
         definition, session, typed, Context(external={"twitch": {"user_id": "1"}})
@@ -1650,11 +1446,15 @@ def _welcome_card_session(answers=None):
     return definition, session
 
 
+def _welcome_section(definition, key):
+    return section(definition.step("welcome_card"), key)
+
+
 def test_a_modal_input_section_keeps_every_field_and_joins_unkeyed_ones():
     definition, session = _welcome_card_session()
     typed = evt(
         ev.Answered,
-        step_key="section:3",
+        step_key=_welcome_section(definition, "messages"),
         payload={"inputs": ["Oi!", "Bem-vindo {user}", "Divirta-se", "Até mais"]},
     )
 
@@ -1688,7 +1488,13 @@ def test_a_dependent_key_survives_a_change_its_validator_accepts():
     ).at("site_card")
 
     changed = decide(
-        definition, session, evt(ev.Answered, step_key="section:0", payload="allow")
+        definition,
+        session,
+        evt(
+            ev.Answered,
+            step_key=section(definition.step("site_card"), "mode"),
+            payload="allow",
+        ),
     )
 
     state = changed.session.answers["site_card"].parts
@@ -1710,7 +1516,13 @@ def test_a_dependent_key_is_cleared_when_its_own_value_stops_being_valid():
     ).at("site_card")
 
     changed = decide(
-        definition, session, evt(ev.Answered, step_key="section:0", payload="allow")
+        definition,
+        session,
+        evt(
+            ev.Answered,
+            step_key=section(definition.step("site_card"), "mode"),
+            payload="allow",
+        ),
     )
 
     assert changed.session.answers["site_card"].parts["link"] is None
@@ -1751,8 +1563,15 @@ def test_a_multi_field_modal_opens_with_the_saved_values():
         {"title": Answer("Oi!"), "messages": Answer("A;B"), "footer": Answer("F")}
     )
 
+    card = definition.step("welcome_card")
     opened = decide(
-        definition, session, evt(ev.SectionOpened, step_key="welcome_card", index=3)
+        definition,
+        session,
+        evt(
+            ev.SectionOpened,
+            step_key="welcome_card",
+            index=index_of(card, "messages"),
+        ),
     )
 
     inputs = screen(opened).components[0].inputs
@@ -1761,36 +1580,45 @@ def test_a_multi_field_modal_opens_with_the_saved_values():
 
 def test_a_design_section_opens_the_gallery_and_keeps_the_chosen_design():
     definition, session = _welcome_card_session()
+    card = definition.step("welcome_card")
+    design = _welcome_section(definition, "design")
 
     opened = decide(
-        definition, session, evt(ev.SectionOpened, step_key="welcome_card", index=1)
+        definition,
+        session,
+        evt(
+            ev.SectionOpened,
+            step_key="welcome_card",
+            index=index_of(card, "design"),
+        ),
     )
     gallery = screen(opened).components[0]
     assert isinstance(gallery, Gallery)
     assert [d.key for d in gallery.designs] == ["server_blur", "custom_only"]
     assert [b.action for b in screen(opened).buttons] == ["picker_back"]
-    assert opened.session.awaiting == "section:1"
+    assert opened.session.awaiting == design
 
     chosen = decide(
         definition,
         opened.session,
-        evt(ev.Answered, step_key="section:1", payload="custom_only"),
+        evt(ev.Answered, step_key=design, payload="custom_only"),
     )
     assert chosen.session.answers["welcome_card"].part("design") == "custom_only"
     refused = decide(
         definition,
-        chosen.session.with_status(Status.ACTIVE, awaiting="section:1"),
-        evt(ev.Answered, step_key="section:1", payload="nope"),
+        chosen.session.with_status(Status.ACTIVE, awaiting=design),
+        evt(ev.Answered, step_key=design, payload="nope"),
     )
     assert refused.session.answers["welcome_card"].part("design") == "custom_only"
 
 
 def test_a_file_upload_section_without_a_mode_counts_as_set_once_it_has_an_image():
     definition, session = _welcome_card_session({"channel": Answer("100")})
+    design = _welcome_section(definition, "design")
     custom = decide(
         definition,
-        session.with_status(Status.ACTIVE, awaiting="section:1"),
-        evt(ev.Answered, step_key="section:1", payload="custom_only"),
+        session.with_status(Status.ACTIVE, awaiting=design),
+        evt(ev.Answered, step_key=design, payload="custom_only"),
     )
 
     missing = decide(
@@ -1802,7 +1630,11 @@ def test_a_file_upload_section_without_a_mode_counts_as_set_once_it_has_an_image
     uploaded = decide(
         definition,
         custom.session,
-        evt(ev.Answered, step_key="section:2", payload={"url": "https://x/i.png"}),
+        evt(
+            ev.Answered,
+            step_key=_welcome_section(definition, "image"),
+            payload={"url": "https://x/i.png"},
+        ),
     )
     state = uploaded.session.answers["welcome_card"].parts
     assert state["image"] == "https://x/i.png" and "" not in state
@@ -1893,13 +1725,13 @@ def test_the_review_names_the_command_it_turns_on_and_closes_with_confirm():
 
     review = screen(drawn)
     assert "`/moderações cargos padrão`" in review.components[0].intro
-    assert review.components[0].title == "👩‍🎓 Cargos Padrão"
-    confirm = review.buttons[-2]
-    assert (confirm.label, confirm.emoji, confirm.action) == (
-        "Confirmar",
+    assert review.components[0].title == definition.step("confirm").title.get("pt-br")
+    [confirm] = [button for button in review.buttons if button.action == "confirm"]
+    assert (confirm.label, confirm.emoji) == (
+        ml("buttons.confirm.label", "pt-br"),
         None,
-        "confirm",
     ), "the review closes with a plain Confirmar (R1)"
+    assert review.buttons[-1].action == "cancel"
 
 
 def _review_of(form):
@@ -1917,10 +1749,12 @@ def test_the_review_info_is_the_note_that_closes_it_not_its_description():
     """`info` on a review is the panel's closing note, drawn above the footer."""
     birthday = _review_of("reminders_birthday")
     roles = _review_of("default_roles")
+    review = REGISTRY.get("reminders_birthday").step("confirm")
+    info = review.info.get("pt-br")
+    description = review.description.get("pt-br")
 
-    assert birthday.info.startswith("Ao confirmar no botão abaixo, você poderá criar")
-    assert "Ao confirmar" not in birthday.intro
-    assert birthday.intro.endswith("`/comando` com as configurações abaixo? ✅")
+    assert birthday.info == info
+    assert birthday.intro == description.replace("${context.command}", "comando")
     assert roles.info == "", "a review without `info` closes with no note"
 
 
@@ -1930,7 +1764,7 @@ def test_the_review_description_resolves_response_tokens():
     from app.forms.form.form_yaml import DiskSource, compile_form
 
     raw = copy.deepcopy(DiskSource().load("stream_elements_commands"))
-    raw["steps"][-1]["description"] = {
+    _raw_step(raw["steps"], "confirm")["description"] = {
         "en-us": "Commands of ${answer.streamer|nobody}",
         "pt-br": "Comandos de ${answer.streamer|ninguém}",
     }
@@ -1982,13 +1816,13 @@ def _stream_elements_counting():
     from app.forms.form.form_yaml import DiskSource, compile_form
 
     raw = copy.deepcopy(DiskSource().load("stream_elements_commands"))
-    modal = next(step for step in raw["steps"] if step.get("key") == "streamer")
+    modal = _raw_step(raw["steps"], "streamer")
     modal["lookup_answers"] = {
         "stream_elements_commands_count": "stream_elements.enabled_commands",
         "stream_elements_top_commands": "stream_elements.top_commands",
     }
     modal.pop("image", None)
-    raw["steps"][-1]["description"] = {
+    _raw_step(raw["steps"], "confirm")["description"] = {
         "en-us": "${answer.stream_elements_commands_count|0} commands",
         "pt-br": "${answer.stream_elements_commands_count|0} comandos",
     }
@@ -2026,8 +1860,9 @@ def test_a_card_nobody_touched_yet_still_shows_its_defaults():
     shown = shown_answers(definition, answered.session, Context())
 
     state = shown["welcome_config"].parts
-    assert state["welcome_messages_title"] == "Um novo membro chegou! 🎉"
-    assert "bem-vindo ao" in str(state["welcome_messages"])
+    defaults = definition.step("welcome_config").defaults
+    for key in ("welcome_messages_title", "welcome_messages"):
+        assert state[key] == defaults[key].get("pt-br"), key
     assert not answered.session.answers.get("welcome_config"), "no draft yet"
 
 
@@ -2074,7 +1909,12 @@ def test_the_review_lists_the_commands_it_found_under_the_streamer():
     panel = screen(reviewed).components[0]
     lines = [line for group in panel.groups for line in group.lines]
     assert "12" not in panel.intro, "the count is a field, not a paragraph"
-    assert any("Comandos ativos" in line and "12" in line for line in lines), lines
+    [count] = [
+        line
+        for line in definition.step("confirm").lines
+        if line.answer == "stream_elements_commands_count"
+    ]
+    assert any(count.label.get("pt-br") in line and "12" in line for line in lines)
     assert any("`!mouse`, `!setup`" in line for line in lines), lines
     streamer = next(group for group in panel.groups if group.key == "streamer")
     assert streamer.media == "https://static-cdn.jtvnw.net/shroud.png"
@@ -2130,21 +1970,16 @@ def test_the_setup_asks_after_the_card_whether_to_give_the_roles_to_who_is_there
 
     assert asked.session.cursor == "sync_existing"
     shown = screen(asked)
-    assert shown.title == "🔄 Dar os cargos para quem já está no servidor hoje?"
-    assert shown.description.startswith(
-        "Os seguintes membros atuais irão receber os cargos:\n\n👥 **Membros**\n"
-    )
-    assert (
-        "- Quantidade: **12**\n"
-        "- Cargos a serem atribuídos a esses membros: <@&202>, <@&203>"
-        in shown.description
-    )
-    assert "🤖 **Bots**\n- Quantidade: **3**\n" in shown.description
-    assert shown.description.endswith("Cargo a ser atribuído a esses bots: Em branco")
+    step = definition.step("sync_existing")
+    assert shown.title == f"{step.emoji} {step.title.get('pt-br')}"
+    description = shown.description
+    members, bots = description.index("**12**"), description.index("**3**")
+    assert members < description.index("<@&202>, <@&203>") < bots
+    assert "<@&" not in description[bots:], "the bots get no role"
     choice = shown.components[0]
     assert [(option.label, option.style) for option in choice.options] == [
-        ("Sim", "primary"),
-        ("Não", "secondary"),
+        (option.label.get("pt-br"), style)
+        for option, style in zip(step.options, ("primary", "secondary"))
     ]
     assert choice.auto_confirm
     assert [button.action for button in shown.buttons] == ["back", "cancel"]
@@ -2171,70 +2006,6 @@ def test_the_answer_on_the_roles_step_is_kept_for_the_commit(pressed, wanted):
     assert answered.session.raw("default_roles") == "202"
     review = screen(answered).components[0]
     assert "sync_existing" not in str(review)
-
-
-def _birthday_card(context):
-    definition, decision = start("reminders_birthday", context=context)
-    at_card = decide(
-        definition, decision.session, evt(ev.Answered, step_key="form"), context
-    )
-    return definition, at_card
-
-
-def test_the_birthday_card_picks_every_setting_right_on_it():
-    """N4 (beta.2 round 2): every card draws its selects and buttons on itself;
-    only a typed field keeps the button that opens its modal."""
-    definition, at_card = _birthday_card(Context())
-    actions = [button.action for button in screen(at_card).buttons]
-    assert actions == ["done", "cancel"]
-
-    sections = {
-        section.key: section for section in screen(at_card).components[0].sections
-    }
-    assert [type(control) for control in sections["channel"].controls] == [Picker]
-    assert sections["channel"].buttons == ()
-    timezone = sections["timezone"].controls[0]
-    assert timezone.slot == "timezone" and len(timezone.options) == 9
-    time = sections["notification_time"].controls[0]
-    assert time.slot == "notification_time" and len(time.options) == 8
-    mention = sections["mention"].controls[0]
-    assert [option.label for option in mention.options] == [
-        "Ninguém",
-        "@everyone",
-        "@here",
-        "Alguns cargos",
-    ]
-    assert mention.slot == "mention"
-    assert "mention_roles" not in sections, "the roles only while I mention roles"
-    assert sections["default_message"].controls == ()
-    assert sections["default_message"].buttons, "a modal cannot sit on the card"
-
-    picked = decide(
-        definition,
-        at_card.session,
-        evt(
-            ev.Drafted,
-            step_key="birthday_config",
-            changes={"notification_time": ["12:00"], "mention": ["roles"]},
-        ),
-    )
-    draft = picked.session.answers["birthday_config"]
-    assert draft.part("notification_time") == "12:00"
-    assert draft.part("mention") == "roles"
-    redrawn = {s.key: s for s in screen(picked).components[0].sections}
-
-    def chosen(key):
-        return [
-            option.value
-            for option in redrawn[key].controls[0].options
-            if option.selected
-        ]
-
-    assert chosen("notification_time") == ["12:00"]
-    assert chosen("mention") == ["roles"]
-    assert [control.slot for control in redrawn["mention_roles"].controls] == [
-        "mention_roles"
-    ]
 
 
 # ------------------------------------------------------- names of the YAML keys
@@ -2298,12 +2069,14 @@ def test_a_declared_format_is_saved_in_the_style_spelling_documents_keep(
 
 
 def _birthday_with(section_update):
+    """The birthday form with `section_update` written on its channel section."""
     import copy
 
     from app.forms.form.form_yaml import compile_form
 
     raw = copy.deepcopy(DiskSource().load("reminders_birthday"))
-    raw["steps"][1]["sections"][0].update(section_update)
+    card = _raw_step(raw["steps"], "birthday_config")
+    _raw_step(card["sections"], "channel").update(section_update)
     return compile_form("reminders_birthday", raw)
 
 
@@ -2318,10 +2091,11 @@ def test_a_channel_select_draws_the_description_of_its_screen():
     )
     started = decide(definition, session, evt(ev.Started))
     at_card = decide(definition, started.session, evt(ev.Answered, step_key="form"))
+    channel = index_of(definition.step("birthday_config"), "channel")
     picker = decide(
         definition,
         at_card.session,
-        evt(ev.SectionOpened, step_key="birthday_config", index=0),
+        evt(ev.SectionOpened, step_key="birthday_config", index=channel),
     )
 
     assert screen(picker).description == "Escolha um."
@@ -2335,11 +2109,12 @@ def test_a_section_appears_where_it_says(appears_in, on_setup, on_panel):
     from app.forms.form.actions.configuration_card import visible
 
     definition = _birthday_with({"appears_in": appears_in})
-    section = definition.step("birthday_config").sections[0]
+    card = definition.step("birthday_config")
+    channel = card.sections[index_of(card, "channel")]
     saved = Context(definition=definition, document={"enabled": True})
 
-    assert visible(section, {}, Context(definition=definition)) is on_setup
-    assert visible(section, {}, saved) is on_panel
+    assert visible(channel, {}, Context(definition=definition)) is on_setup
+    assert visible(channel, {}, saved) is on_panel
 
 
 def test_a_preview_waits_for_any_one_of_the_keys_it_requires():
@@ -2351,7 +2126,7 @@ def test_a_preview_waits_for_any_one_of_the_keys_it_requires():
     from app.forms.form.form_yaml import compile_form
 
     raw = copy.deepcopy(DiskSource().load("notifications_twitch"))
-    card = raw["steps"][1]["steps"][0]
+    card = _raw_step(_raw_step(raw["steps"], "notifications")["steps"], "notification")
     card["preview"]["required"] = {"any": ["channel", "streamer"]}
     definition = compile_form("notifications_twitch", raw)
     step = definition.composition.steps[0]

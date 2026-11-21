@@ -258,7 +258,7 @@ errors:
       pt-br: Sinto muito, mas {o que deu errado}. {Como resolver}.
 ```
 Render: `response_error_embed("{command-key}.errors.{error_name}", locale)`, or `response_error_embed("{error_name}", locale)` for a shared one (auto-prefixes `🚨`); a form names it by the block, `error: {command-key}.errors.{error_name}`.
-An error always writes both `title` and `message`: a missing one shows on screen as its own copy key (pinned by `tests/behavioral/regressions/test_an_error_embed_never_shows_a_copy_key.py`).
+An error always writes both `title` and `message`: a missing one shows on screen as its own copy key (pinned by `tests/behavioral/regressions/test_language.py`).
 
 ### Success / state-change embed
 Reuse `commands.responses.{enabled|paused|unpaused|disabled}`. Substitute `$command_name`, `$user`, `$date` only (`$date` is a Discord timestamp, so each reader sees their own date and time). A pause and an unpause draw the panel again and send their embed beside it, removed after `ViewConstants.ACTION_NOTICE_SECONDS`.

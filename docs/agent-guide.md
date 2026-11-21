@@ -10,6 +10,7 @@ change touches.
 | Any change | `CLAUDE.md`, `.claude/rules/code-style.md` |
 | A plan | `.claude/rules/implementation-planning.md` |
 | A bug | `.claude/rules/bug-fix-protocol.md` |
+| A new or changed test | `.claude/rules/testing.md` (where it goes, how it drives Keiko, what it asserts), then `docs/form-scenario-testing.md` for the harness's actions |
 | A new command, or a change to one command's folder | `docs/commands.md` |
 | A form, a card, a panel, the engine | `docs/form-configuration.md` §3 (schema and step types), §5 (extension points) and §6 (feature modules); §7 for the Discord adapter |
 | Text a user sees | `.claude/skills/keiko-writing-style/SKILL.md`, the copy block of the primitive that draws it in `docs/commands.md`, and "The token syntax" there for any value the text does not hold |
@@ -31,14 +32,14 @@ change touches.
 - Database structure and data changes: `app/migrations/schema/` and `app/migrations/data/` (`NNNN_slug.py`, each folder numbered on its own); which collection holds what: `docs/data-model.md`.
 - /configurar and the greeting: `app/commands/setup/`; statistics: `app/core/feature_health.py`.
 - Developer tooling: `scripts/keiko/` (`make logs`, `make repair-birthdays`, `make soak`, `make command`); never imported by `app/`, left out of the image.
-- Tests: `tests/forms/` (form engine contracts), `tests/behavioral/{scenarios,contracts,regressions,golden}/`, the tree's guards `tests/test_structure.py`, `tests/test_commands.py`, `tests/core/test_i18n.py`, `tests/test_generic_layers.py`, and the YAML guards `tests/test_yaml_reference.py` (the reference is current, every field described) and `tests/test_yaml_layout.py` (every file in schema order, an `# open:` line above each open block).
+- Tests: `tests/forms/` (form engine contracts), `tests/behavioral/{scenarios,contracts,regressions,golden}/`, the tree's guards `tests/test_structure.py`, `tests/test_commands.py`, `tests/core/test_i18n.py`, and the YAML guards `tests/test_yaml_reference.py` (the reference is current, every field described) and `tests/test_yaml_layout.py` (every file in schema order, an `# open:` line above each open block).
 
 ## The gate
 
 Run from the worktree, with the sandbox off (`requests` reads a certifi `.pem` at import):
 
 ```
-./.venv/bin/python -m pytest tests/ app/ -q -p no:cacheprovider
+./.venv/bin/python -m pytest tests/ -q -p no:cacheprovider
 ./.venv/bin/python -m pytest -m shared_contract -q -p no:cacheprovider
 PATH=$PWD/.venv/bin:$PATH make lint
 ```
@@ -60,8 +61,8 @@ Goldens: `pytest tests/behavioral/golden --update-golden`, only once the code is
 - A bug gets a failing test first, and the test asserts what a user sees.
 - Every string exists in `en-us` and `pt-br`; Keiko is "ele" in Portuguese.
 - A value a text does not hold is a token of one syntax, in every YAML file: `$count`, `${prefix}ping`, `${answer.<key>}`, `${plural.<key>|<one>|<many>}`, `${context.<name>}`, `${ref.<name>}`, `$$` for a dollar; `{name}` is only an admin's template variable. One reader (`app/core/tokens.py`), never a `str.replace("$...")` (code-style rule 29).
-- `app/forms/` never names a command or a screen; `tests/forms/test_boundary.py` and `tests/test_generic_layers.py` enforce it.
-- No shared layer names a command (`app/core`, `app/forms`, `app/ui`, `app/integrations`, `app/data`): it takes the command's key as a parameter, and the command's rule lives in its folder, which may be wholly specific (code-style rule 22, `tests/test_generic_layers.py`).
+- `app/forms/` never names a command or a screen; `tests/forms/test_boundary.py` and `tests/test_structure.py` enforce it.
+- No shared layer names a command (`app/core`, `app/forms`, `app/ui`, `app/integrations`, `app/data`): it takes the command's key as a parameter, and the command's rule lives in its folder, which may be wholly specific (code-style rule 22, `tests/test_structure.py`).
 - A command never imports another command, and a shared layer never imports `app.commands`: it asks the registry (rules 23-24, `tests/test_structure.py`).
 - No narrative comments; one-sentence docstrings on public names.
 - Commits: small, English, imperative; no co-author or AI attribution lines.
