@@ -43,7 +43,7 @@ removal question)):
 Only the adapter imports `discord`. Nothing in `app/forms/` names a command
 key, blocks the event loop, or reaches another feature's document; those
 lines are enforced by `tests/forms/test_boundary.py` and, for the key literals,
-`tests/test_generic_layers.py`.
+`tests/test_structure.py`.
 
 ## 2. Load and execution path
 
@@ -146,7 +146,7 @@ lines are enforced by `tests/forms/test_boundary.py` and, for the key literals,
    later screen keeps its own Back and Cancel, and so does a child session.
    `/configurar` passes one from its feature buttons, back to the category
    page and the page number the admin came from
-   (`tests/behavioral/contracts/test_an_opener_can_take_a_setup_back.py`).
+   (`tests/behavioral/contracts/test_an_opener_can_end_a_setup.py`).
 
 ## 3. The definition schema
 
@@ -274,7 +274,7 @@ counts), Preview draws nothing and answers with the message of its `error`
 block (`<key>.ui.errors.<name>`) on a message of its own (`ShowError`, plain, like
 Done's "I still need"), and the card stays as it was; the Twitch and YouTube
 cards require the streamer and the youtuber
-(`tests/behavioral/regressions/test_a_preview_waits_for_the_answer_it_draws.py`).
+(`tests/behavioral/regressions/test_card.py`).
 The compiler refuses a `required` without an `error`, an `error` without a
 `required`, and a key the card does not hold. Its `tokens` declares the
 `{name}` placeholders of the card's previews (`{answer, format}`, or
@@ -282,7 +282,7 @@ The compiler refuses a `required` without an `error`, an `error` without a
 card's `transform` derives (the birthday's `date`, from its month and day) is
 read as the transform will save it from the draft, so the preview shows it
 before Done and follows a new month at once
-(`tests/behavioral/regressions/test_a_birthday_card_reads_the_date_it_will_send.py`). A list item's
+(`tests/behavioral/regressions/test_birthdays.py`). A list item's
 Preview (`aside:preview:<key>$<index>`) runs over an item Done already
 accepted, so it never asks.
 Done reads Avançar / Next while another screen follows it (the setup and its
@@ -310,7 +310,7 @@ banner drawn.
 | `type` | Section model | What the admin does |
 |---|---|---|
 | `title_content` | `TitleContentSection` | keeps the default title and body or types both in the `modal` (`labels: {title, description}` names its two inputs, and its `normalize: {name}` runs over both as they are saved); `default` names the copy block they are read from, the `title` and `description` the command posts while nobody customized them (`reminders_birthday.ui.announcement.defaults`), so the card, its modal and what the members get say one text |
-| `file_upload` | `FileUploadSection` | keeps the default image or uploads one; without a `mode` in its `keys` it only holds the uploaded image, and counts as set once it has one; `validation: {name: image}` checks the file Discord describes (its size, its pixels and its type, against the banner's own bounds in `DBConfigs`) before anything downloads it: a file it refuses is never re-uploaded to the dump channel, the card stays as it was and `errors.image_not_accepted` is told on a message of its own (the welcome banner and the birthday member's picture; `tests/behavioral/scenarios/test_file_upload_flow.py`) |
+| `file_upload` | `FileUploadSection` | keeps the default image or uploads one; without a `mode` in its `keys` it only holds the uploaded image, and counts as set once it has one; `validation: {name: image}` checks the file Discord describes (its size, its pixels and its type, against the banner's own bounds in `DBConfigs`) before anything downloads it: a file it refuses is never re-uploaded to the dump channel, the card stays as it was and `errors.image_not_accepted` is told on a message of its own (the welcome banner and the birthday member's picture; `tests/behavioral/scenarios/test_birthdays_flow.py` and `tests/behavioral/scenarios/test_welcome_flow.py`) |
 | `channel_select` | `ChannelSelectSection` | picks one channel on a native select drawn on the card |
 | `user_select` | `UserSelectSection` | picks one member on a native member select drawn on the card, with no line of its own (the select shows the member); `avatar: true` draws the member's picture under the select once one is picked, read from the server the session runs in (`Context.member_pictures`, which the adapter fills from the guild's members); a list whose `unique.key` is such a section's is keyed by a member (the birthday's member) |
 | `value_select` | `ValueSelectSection` | picks one of the declared `options` on a select drawn on the card (its `placeholder`); each of its `dependents` (`{key, validation}`) clears that key when its validator rejects it with the new value (a day the new month does not have) |
@@ -658,8 +658,8 @@ labels in `value`, because v0.9.0 shows and matches them.
   way its slash command does (its panel when configured, else its setup; source
   `expired_button`). The sweep is unchanged. Both items are registered once in
   `setup_hook` (`views.routed_items`); pinned by
-  `tests/behavioral/regressions/test_a_late_click_answers_with_the_expired_message.py`
-  and `tests/behavioral/scenarios/test_an_expired_form_opens_again_flow.py`.
+  `tests/behavioral/regressions/test_card.py`
+  and `tests/behavioral/scenarios/test_card_flow.py`.
 - **Language.** Every app command, slash or context menu, passes
   `KeikoTree.interaction_check` (`app/bot.py`) before it runs, which makes
   `interaction_language` (`app/core/servers.py`) the interaction's
@@ -702,8 +702,8 @@ labels in `value`, because v0.9.0 shows and matches them.
   in `manager.py`), which Cancel asks only when there is something to lose: a session with no answer, no saved document and no
   answered parent (`_holds_nothing` in `form.py`) is discarded at once, with
   the same `setup.discarded` and the same `Finalize("discarded")`
-  (`test_cancel_with_nothing_answered_closes_without_asking`,
-  `tests/behavioral/scenarios/test_cancel_flow.py`); `OpenChild`, `ResumeChild` and
+  (`test_cancel_with_nothing_answered_closes_at_once`,
+  `tests/behavioral/scenarios/test_card_flow.py`); `OpenChild`, `ResumeChild` and
   `ResumeParent` move between a parent and its child session; `Commit`
   calls the feature; `Finalize(kind)` closes the message with
   `commands.responses.<kind>`; `OpenPanel` sends the manager panel of a
@@ -741,7 +741,7 @@ labels in `value`, because v0.9.0 shows and matches them.
   and pictures and loses every control (but an expired one's Abrir de novo),
   the Edit or Add beside a heading included (`views.finalized_layout`: a section whose accessory is a button
   becomes its texts, a thumbnail stays;
-  `tests/behavioral/regressions/test_a_closed_panel_keeps_no_live_button.py`).
+  `tests/behavioral/regressions/test_panel.py`).
 - **Layout.** `card_frame`, `card_header`, `card_row` and `card_footer`
   (`app/ui/embed.py`) hold the Components V2 frame, header, rows and footer;
   the renderer (`app/forms/discord/views.py`) and the `/setup` card
@@ -814,7 +814,7 @@ fulfils section 6, and the declaration names it. A behavioral scenario in
    no Discord, no session).
 4. **An architecture exception**, declared and justified in the plan, never
    silent. The platform has none today; a command key in `app/forms/` is
-   refused by `tests/test_generic_layers.py`, and `command_key` by the boundary
+   refused by `tests/test_structure.py`, and `command_key` by the boundary
    test.
 
 ## 10. Enforcement
@@ -827,7 +827,7 @@ fulfils section 6, and the declaration names it. A behavioral scenario in
   `app/core`, `app/commands`, `app/ui` or `app/integrations` redefines a
   public name the `responses` package owns (names only, not bodies).
 - `tests/test_structure.py`: `app/forms/` imports no command and `discord`
-  only in its adapter; `tests/test_generic_layers.py`: the engine, the
+  only in its adapter; `tests/test_structure.py`: the engine, the
   adapter and the shared feature modules name no command key; `tests/test_commands.py`:
   every declared form compiles and is the one in its command's folder;
   `tests/forms/features/test_features.py`: no folder holds a `feature.py`, and the
@@ -853,4 +853,5 @@ fulfils section 6, and the declaration names it. A behavioral scenario in
   reaches the rest of `app/core/`, `app/ui/` and `app/integrations/`; the
   style rules are `.claude/rules/code-style.md`, rules 13 onwards.
 - `pytest tests/behavioral/golden -q`: the goldens are the UX contract; a
-  diff needs an entry in `docs/ux-changes.md` before re-recording.
+  diff that changes what an admin sees needs a row in `docs/ux-changes.md` before
+  re-recording; one that moved only because the tests changed needs none.

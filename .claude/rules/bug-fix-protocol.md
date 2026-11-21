@@ -5,11 +5,15 @@ is not fixed until a permanent automated test would fail if the same behavior
 were reintroduced.
 
 1. **Reproduce with a failing test.** Translate the reported behavior into an
-   automated test at the most realistic appropriate layer:
+   automated test at the most realistic appropriate layer, as a new function in the
+   file that owns the command or the shared component: a flow-level bug goes in
+   its group file, `tests/behavioral/regressions/test_<command>.py` or
+   `test_<component>.py` (`test_card.py`, `test_panel.py`, `test_language.py`...),
+   and any other in the layer file of the table in `docs/testing-strategy.md`. A
+   new file only for a new command or component (`.claude/rules/testing.md`):
    - unit test — isolated pure logic;
-   - command test (`tests/commands/<command>/`, which `make command` scaffolds,
-     or the existing `tests/test_<feature>.py`) — one command's own rule in
-     its `service.py`;
+   - command test (`tests/test_<command>.py`, which `make command` scaffolds)
+     — one command's own rule in its `service.py`;
    - definition test (`tests/forms/form/test_form_yaml.py`) — a form that must or
      must not compile, a rule the compiler must check;
    - engine test (`tests/forms/form/test_form.py`, `test_manager.py`) — one
@@ -40,11 +44,16 @@ were reintroduced.
    touched shared components (`pytest -m "shared_contract"`, the impact map in
    `docs/testing-strategy.md`) — not only the newly added test.
 
-6. **Preserve the test.** Regression tests live permanently in the suite
-   (`tests/behavioral/regressions/` for flow-level ones), named after the
-   lasting contract, with a docstring recording what broke, the shared
-   behavior affected, the consumer that exposed it, and what must remain
-   guaranteed. Never delete one because it passes.
+6. **Preserve the test.** It stays in that group file permanently, named after
+   the lasting contract, with a "Broke as" docstring recording what broke, the
+   shared behavior affected, the consumer that exposed it, and what must remain
+   guaranteed. It drives the harness's public actions and asserts user-visible
+   behaviour or stored state, so it survives refactors; if the same guarantee
+   already has a test at another layer, extend that test instead of adding a
+   second one. Record it in the ledger (`python -m scripts.keiko testguard ledger
+   --sync` adds its entry to `scripts/keiko/testguard/ledger.yml`, and
+   `python -m scripts.keiko testguard ledger` must pass); when it later moves or
+   is renamed, its entry moves with it. Never delete one because it passes.
 
 Regression tests must assert user-visible behavior or state — a mock being
 called, an exception not raised, or an object existing is not protection.

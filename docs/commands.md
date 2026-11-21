@@ -20,13 +20,15 @@ the command to `app/commands/__init__.py`: import its folder and put its `COMMAN
 their hooks run in it, and their cogs load in it.
 
 The form suites read every form from the registry. A command with a form needs one
-golden module, `tests/behavioral/golden/paths/<key>.py`, with its `setup_happy` path.
+golden module, `tests/behavioral/golden/paths/<key>.py`, with its `setup_happy` path,
+and its flows module, `tests/behavioral/flows/<folder>.py` (its saved documents and
+the steps its drivers and tests share).
 To offer it on /setup, give it `on_setup=True` and an `emoji`, and write its row's copy
 in its own `copy.yml`, at the fixed places the shared layers read under `command`:
 `command.setup.label`, `command.setup.description`, `command.stats.title`,
 `command.stats.delivered.one`, `command.stats.delivered.other`, and
 `command.slash.subgroup` and `command.slash.name` of its slash command
-(`tests/test_setup_row_copy.py` checks them).
+(`tests/test_commands.py` checks them).
 
 ## One command folder
 
@@ -40,7 +42,7 @@ app/commands/greet/
                  form is not enough
   copy.yml       its copy; every text in en-us and pt-br
   form.yml       its form, only for a command with one; every text in en-us and pt-br
-tests/commands/greet/test_greet.py
+tests/test_greet.py
 ```
 
 Both files are found by convention: the registry reads the ones beside the package
@@ -550,11 +552,10 @@ folder (`.claude/rules/code-style.md`, rule 22).
 |---|---|
 | `tests/test_commands.py` | a folder has no `COMMAND`, the list misses a folder or lists one twice, two commands share a key, a YAML other than `copy.yml` and `form.yml` lies in the folder, its form does not compile, an `ml("...")` key is missing in a locale, an `analytics.record("...")` event is not in the catalog, a reminder title or a webhook event has two owners, the module of a cog that loads as an extension has no `setup(bot)`, or its `setup(bot)` never adds a cog the command declares, a `command_for`, `opener` or `setup_feature` literal anywhere in `app/` names no command that answers it |
 | `tests/forms/features/test_features.py` | a folder holds a `feature.py`, or the `FEATURE` of a service is not the `feature` its command declares |
-| `tests/test_structure.py` | a command imports another command or a module outside the shared layers, a shared layer imports a command, the form engine imports `discord` outside `app/forms/discord`, `app/data` imports more than itself and the constants |
-| `tests/test_generic_layers.py` | a shared layer names a command (rule 22) |
+| `tests/test_structure.py` | a command imports another command or a module outside the shared layers, a shared layer imports a command, the form engine imports `discord` outside `app/forms/discord`, `app/data` imports more than itself and the constants, or a shared layer names a command (rule 22) |
 | `tests/test_facts.py` | a call passes a fact no catalog declares, or calls a primitive on a literal block without every fact the block reads (rule 28) |
 | `tests/test_admin_templates.py` | a `{name}` the command's copy or form writes is no variable its code's `fill_placeholders` fills, or a default writes a token a later pass would fill (rule 29) |
-| `tests/commands/<name>/` | the command's own behaviour |
+| `tests/test_<name>.py` | the command's own behaviour |
 
 Each failure names the file, the line and what to add or move. An exception to the
 import contracts goes in `EXCEPTIONS` of `tests/test_structure.py` with its reason,

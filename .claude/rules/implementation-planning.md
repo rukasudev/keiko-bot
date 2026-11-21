@@ -109,13 +109,14 @@ the existing configuration mechanism → configure the feature in YAML → add l
 add/update tests → validate existing flows. Adapt to the actual feature.
 
 ### 9. Tests and validation
-Which existing tests are relevant; which new tests are needed; how the YAML configuration is
+Which existing tests are relevant; which new tests are needed, each in the file and at
+the layer `.claude/rules/testing.md` gives it; how the YAML configuration is
 validated (its schema at load, `tests/test_yaml_layout.py` and a regenerated
 `docs/yaml-reference.html` that `tests/test_yaml_reference.py` accepts); how backward
 compatibility is checked; what mocking (Discord, database, external
 services) is required — see `tests/conftest.py` for the existing fixtures. Include
 regression tests when modifying shared primitives. Reference exact commands
-(`make test` = `python -m pytest tests/ app/ -x -q`). Never claim tests passed without
+(`make test` = `python -m pytest tests/ -x -q`). Never claim tests passed without
 executing them.
 
 ### 10. Rejected alternatives
