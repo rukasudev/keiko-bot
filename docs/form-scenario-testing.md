@@ -50,6 +50,24 @@ opens from what is saved in the mock Mongo, exactly as in production.
 - `await ....start_command(command_key)` — opens the command with whatever
   the scenario seeded before; the platform routes to the setup form or to
   the manager. The golden paths use only this entry point.
+- `await ....run_command(command, binding, *args)` — a member runs the app
+  command `command` of the cog `binding` as discord.py runs it: the
+  interaction carries the command, passes Keiko's tree check, then the
+  callback gets `args`; returns the interaction (`/reportar` is reached this
+  way).
+
+Every interaction the scenario mints carries `command`, None outside an app
+command as on Discord, and holds Keiko's app command tree as
+`interaction.client.tree`, the tree the bot syncs, built offline once per run
+(`tests/helpers/slash_tree.py`). `scenario_factory` passes it from the
+`app_command_tree` fixture; a scenario built by hand takes
+`FormScenario(..., tree=)` (read back as `scenario.tree`); a `MockInteraction`
+gets `interaction.client = SimpleNamespace(tree=app_command_tree)`.
+A test that needs the bot itself behind every interaction sets
+`scenario.client` (the report's tests give it the admin server, its reports
+channel and the threads on its tickets). A message the harness posts has a `jump_url`, and
+`fake_attachment(filename)` (`tests/behavioral/harness/driver.py`) is a file a
+user uploaded, described the way Discord describes one.
 
 User actions (each mints a fresh interaction, like Discord):
 
@@ -57,11 +75,11 @@ User actions (each mints a fresh interaction, like Discord):
 |---|---|
 | `click(target)` | see locator semantics below |
 | `select_option(values, target=None)` | names/ids resolve against the mock guild; `target` optional when one select is on screen |
-| `submit_modal({label: value})` | matches the modal's input labels (exact, then contains) |
+| `submit_modal({label: value}, *, modal=None)` | matches the modal's input labels (exact, then contains); a field inside a `Label` is matched by the Label's text, a select takes an option's label or value, a file upload takes a filename and gets `fake_attachment(filename)`; `modal=` sends a modal opened earlier that a later one replaced as pending; the submit carries the message whose button opened the modal, as Discord sends it, whatever the bot posted since (a modal a command opened carries the message on screen); what `on_submit` raises reaches the modal's own `on_error`, as discord.py routes it, and a modal with discord.py's default `on_error` raises it in the test |
 | `dismiss_modal()` | the user closes the modal without submitting — Discord tells the bot nothing, the message that opened it stays on screen |
 | `submit_file_upload(filename=, content=, size=, width=, height=, content_type=)` | submits a pending upload modal with a fake attachment (async `read()` runs for real), described the way Discord describes one: a small 800 x 400 PNG by default, any of the four overridden to send a file a validator refuses |
-| `pending_modal_fields()` | labels of the pending modal's inputs (useful to build the dict for `submit_modal`) |
-| `pending_modal_inputs()` | the pending modal's text inputs in order, to read what the admin is offered (a `max_length`, a default) |
+| `pending_modal_fields()` | labels of the pending modal's inputs, selects and uploads included (useful to build the dict for `submit_modal`) |
+| `pending_modal_inputs()` | the pending modal's inputs in order, selects and uploads included, to read what the admin is offered (a `max_length`, a default, the options) |
 | `dismiss(message=None)` | the admin closes an ephemeral message (Discord's "Dismiss message"), the current one by default: it leaves the screen and the bot is told nothing |
 | `confirm()` / `cancel()` / `go_back()` | aliases for the generic buttons |
 | `click(target, on=, at=, interaction=)` | `target` is a locator target or a component from `component()`; `on` clicks a message other than the current one, `at` dates the click (`interaction.created_at`), `interaction` delivers one built by `interaction()` (the same click twice, two clicks racing) |
@@ -70,7 +88,7 @@ User actions (each mints a fresh interaction, like Discord):
 | `expire()` | the clock passes every open session's deadline with nobody clicking (`Runtime.expire_stale`) |
 | `sweep()` | the expiry loop runs once past every deadline: what nobody finished expires, what ended is forgotten (`Runtime.sweep`) |
 | `restart()` | the bot restarts: every session is forgotten and no view survives |
-| `click_after_restart(target, on=, interaction=)` | a click that lands when no view holds its message (after `restart()`, or once the view timed out), routed as discord.py routes it: through the dynamic items the bot registers, rebuilt from the message; returns the interaction |
+| `click_after_restart(target, on=, interaction=)` | a click that lands when no view holds its message (after `restart()`, or once the view timed out), routed as discord.py routes it: through the dynamic items the bot registers (`registered_items()`, the forms' and every command's `dynamic_items`), rebuilt from the message; returns the interaction |
 | `submit_modal_after_restart()` | the pending modal submitted once its form is gone: it reaches `Events.on_interaction`, as on Discord; returns the interaction |
 | `click_custom_id(custom_id, on=None)` | a click Discord delivers by its custom id alone to a bot that holds no view for it (a control drawn before a restart, or before a release removed its feature), routed through the dynamic items; `on=None` when there is no message to edit; returns the interaction |
 | `expiry_loop_pass()` | one pass of the bot's expiry loop (`Events.sweep_forms`) a session's lifetime from now: what nobody touched since expires, what ended is forgotten, a failing pass is logged and never raised; like `sweep()`, the latest click's token is taken as alive |
@@ -123,7 +141,7 @@ a new action of the driver, added in the same change.
 ## Flows: the steps tests share (`tests/behavioral/flows/`)
 
 One module per command folder of `app/commands/` (`block_links`, `birthdays`,
-`roles`, `stream_elements`, `twitch`, `welcome`, `youtube`) plus `common`: the
+`report`, `roles`, `stream_elements`, `twitch`, `welcome`, `youtube`) plus `common`: the
 command's saved documents (`FORM`, `ENABLED`, `PAUSED`), its seeds (`seed`,
 `seed_paused`, `seed_config`) and one function per intention that takes more
 than a click (`open_card`, `pick_channel`, `submit_streamer`, `type_day`,
@@ -131,7 +149,8 @@ than a click (`open_card`, `pick_channel`, `submit_streamer`, `type_day`,
 public names; `module_of(form)` gives the module of a form key. A helper two
 test files need that is not a command's flow lives in `tests/helpers/` (the
 loop ticks, the Components V2 limits, the activation records, the log
-channels); a test module never imports another one.
+channels, a card's texts and a message's button labels); a test module never
+imports another one.
 
 ## Locator semantics — what `click("...")` accepts
 

@@ -14,7 +14,7 @@ make command name=greet            # a slash command that answers
 make command name=greet form=yes   # the same, opening a form
 ```
 
-It writes the folder, its `copy.yml` (and, with `form=yes`, its `form.yml`) and a test, and refuses a folder that already exists. Then add
+It writes the folder, its `copy.yml` (and, with `form=yes`, its `form.yml` and no `service.py`: its cog opens the form itself) and a test, and refuses a folder that already exists. Then add
 the command to `app/commands/__init__.py`: import its folder and put its `COMMAND` in
 `COMMANDS`. The tuple is explicit and ordered: /setup lists the commands in that order,
 their hooks run in it, and their cogs load in it.
@@ -35,7 +35,8 @@ in its own `copy.yml`, at the fixed places the shared layers read under `command
 ```
 app/commands/greet/
   __init__.py    COMMAND = Command(...): the one declaration of the command
-  cog.py         the slash commands and context menus, thin: they call the service;
+  cog.py         the slash commands and context menus, thin: they call the service, or
+                 `open_feature(interaction, key)` for a feature;
                  ends with `async def setup(bot)`, the entry point load_extension calls
   service.py     the command's rule; it may be wholly specific to the command, and it
                  ends with `FEATURE`, its FeatureModule, when the generic save of a
@@ -127,6 +128,7 @@ objects in it are typed `Any`.
 | `message_edited` | `MessageEdited(guild_id, channel_id, payload, client)` | On every edited message. |
 | `guild_joined` | `GuildJoined(guild_id, guild)` | When a server adds Keiko, after the join is recorded. |
 | `persistent_views` | none | On ready: the views Keiko keeps listening to after a restart. |
+| `dynamic_items` | none | At startup: the `DynamicItem` classes Keiko routes by custom id alone, on any message (the report's status buttons on the ticket and the Answer button of its author's DM). discord.py hands a dynamic item's exception to its own log and to nobody else, so its callback answers its own failures (`ReportStatusButton.on_error`, `ReportAnswerButton.on_error`: the error log and the generic error, privately). |
 
 Reminder handlers take a `Reminder(id, title, notes)`; webhook handlers take a
 `WebhookEvent(name, subject, payload)` and return a `WebhookReply(status, body)`.
@@ -146,7 +148,8 @@ the standard library, so the form engine may read it like the pure calendar.
 - `setup_features()`: the commands /setup and the greeting offer, in order.
 - `setup_feature(key)`: the command /setup offers under `key`, or `None`.
 - `member_hooks()`, `message_hooks()`, `prefix_hooks()`, `edit_hooks()`,
-  `guild_join_hooks()`, `view_hooks()`: `(key, hook)` pairs in dispatch order.
+  `guild_join_hooks()`, `view_hooks()`, `dynamic_item_hooks()`: `(key, hook)` pairs in
+  dispatch order.
 - `reminder_handlers()`, `webhook_handlers()`: name → handler, one owner each.
 - `opener(key)`: what the command `key` opens from another command's screen; how
   /help and /setup open each other without importing each other.
@@ -172,6 +175,8 @@ command's key, so a failing hook is logged and the next one still runs:
 `member_joined`, `message_sent` (reads the prefix as the part `prefix` first, and a
 prefix it cannot read skips the prefix hooks),
 `message_edited`, `guild_joined`. `persistent_views()` gathers the views;
+`dynamic_items()` gathers the routed items, which `registered_items()` (`app/bot.py`)
+registers in `setup_hook`;
 `reminder(fired)` and `webhook(event)` hand one item to its owner and say when no
 command owns it.
 
@@ -404,9 +409,12 @@ that writes no footer, as every form step does.
   locale=...)` reads one `Records` block: its `title` and `description` above the
   page, `empty` alone when nothing is found (without one, the empty page is sent), and
   `filter` for the member filter button and its picker; `lines` holds the line
-  templates the formatter fills. Its texts speak `locale` when given (a form's History
+  templates the formatter fills; `overrides` replace the title or the description while
+  a rule on its `facts` holds. Its texts speak `locale` when given (a form's History
   speaks the session's language), else the language of each interaction. `copy` is
-  required: the browser takes no title or description of its own.
+  required: the browser takes no title or description of its own. A command that draws
+  its own `PaginationView` from a `Records` block (/help) reads it through
+  `i18n.resolved_texts(key, facts, locale)`, overrides chosen alike.
 - A feature's panel: `GenericCogFeature.panel_asides = {"<aside>": "<emoji>"}` draws one
   panel button per aside from `ui.buttons.<aside>` (`ButtonCopy`, label and caption);
   `panel_button(aside, emoji, locale, copy="buttons.preview")` reads a shared button
@@ -450,10 +458,11 @@ block keeps its default fields and an `overrides` list; each item is a `when` ru
 `not_in`, `matches`, `present`, `count`, `all`, `any`, `not`) and the fields it
 replaces. The first item whose rule holds wins and replaces only the fields it writes;
 when none holds, the block draws its defaults. A `Response` (and each of its
-`fields`), a `Card` and a `PanelInfo` take `overrides`, and a form's steps and groups
-take the same list for their title and description. `lines` that are templates
-repeated or shown together (a category line of the greeting, a History line, the link
-check's exemption and link lines) stay `lines`, filled one by one by the code.
+`fields`), a `Card`, a `Records` list and a `PanelInfo` take `overrides`, and a form's
+steps and groups take the same list for their title and description. Templates
+repeated or shown together (a History line, the link check's exemption and link lines)
+stay `lines`, filled one by one by the code; a block with no `lines` of its own keeps
+its template in `ui.texts` (the greeting's category line, `setup.ui.texts.greeting_category`).
 
 ```yaml
 # app/commands/block_links/copy.yml

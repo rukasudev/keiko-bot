@@ -36,9 +36,9 @@ file (`docs/commands.md`, "The YAML reference"; code-style rule 27).
 
 - `app/commands/<command>/` — one command, one folder, everything it owns:
   `__init__.py` declares it once (`COMMAND = Command(...)`), `cog.py` holds its slash
-  commands and context menus (thin, they call the service), `service.py` its rule,
-  `async manager(interaction)` and, at its end, `FEATURE`, its `FeatureModule`, when
-  the generic save of a form is not enough; `copy.yml` its copy, a `CommandCopy`
+  commands and context menus (thin: they call the service, or `open_feature(interaction,
+  key)` for a feature), `service.py` its rule and, at its end, `FEATURE`, its
+  `FeatureModule`, when the generic save of a form is not enough; `copy.yml` its copy, a `CommandCopy`
   of three groups in this order: `facts`, then `command` (`slash`, `setup`, `stats`,
   `panel`: the fixed places Keiko's shared screens fill), then `ui` (`cards`, `texts`,
   `records`, `responses`, `errors`, `buttons`, `announcement`: what the command draws

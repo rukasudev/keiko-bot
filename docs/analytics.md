@@ -854,7 +854,8 @@ with the session id, and an error record still gets its own message in the
 error channel.
 
 Every trace opened for a person carries `is_admin` (`is_guild_admin`,
-`app/core/utils.py`), rendered as the `Admin` field. A unit of work names
+`app/core/utils.py`: Administrator or Manage Server, whoever may configure Keiko),
+rendered as the `Admin` field. A unit of work names
 how it ended with `trace.settle(result)`; `Trace.finish` keeps that result
 unless the work failed, so `/birthday` reads `registered`, `asked`, `replaced`
 or `refused` instead of `success`, with one line per outcome and never the date.
