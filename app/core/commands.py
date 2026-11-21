@@ -101,6 +101,7 @@ PrefixHook = Callable[[MessageSent], Awaitable[bool]]
 EditHook = Callable[[MessageEdited], Awaitable[None]]
 GuildJoinHook = Callable[[GuildJoined], Awaitable[None]]
 ViewsHook = Callable[[], Iterable[Any]]
+ItemsHook = Callable[[], Iterable[type[Any]]]
 ReminderHandler = Callable[[Reminder], None]
 WebhookHandler = Callable[[WebhookEvent], WebhookReply]
 Opener = Callable[[Any, str], Awaitable[None]]
@@ -159,6 +160,7 @@ class Hooks:
     message_edited: EditHook | None = None
     guild_joined: GuildJoinHook | None = None
     persistent_views: ViewsHook | None = None
+    dynamic_items: ItemsHook | None = None
 
 
 @dataclass(frozen=True)
@@ -521,6 +523,15 @@ def view_hooks() -> tuple[tuple[str, ViewsHook], ...]:
         (command.key, command.hooks.persistent_views)
         for command in commands()
         if command.hooks.persistent_views is not None
+    )
+
+
+def dynamic_item_hooks() -> tuple[tuple[str, ItemsHook], ...]:
+    """The hooks that give the items Keiko routes by their custom id alone."""
+    return tuple(
+        (command.key, command.hooks.dynamic_items)
+        for command in commands()
+        if command.hooks.dynamic_items is not None
     )
 
 

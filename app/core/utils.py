@@ -3,6 +3,7 @@ import functools
 import hashlib
 import hmac
 from importlib import import_module
+from io import BytesIO
 from re import finditer
 from typing import Any, Dict, Iterable, List, Optional, Tuple, TypeVar
 
@@ -232,6 +233,47 @@ def is_guild_admin(user: Any) -> bool:
     return bool(permissions and (permissions.administrator or permissions.manage_guild))
 
 
+async def find_user(client: Any, user_id: int) -> Optional[discord.User]:
+    """The user from the client's cache, else from Discord's API, or None when Discord
+    names no such user or does not answer."""
+    cached = client.get_user(user_id)
+    if cached is not None:
+        return cached
+    try:
+        return await client.fetch_user(user_id)
+    except discord.HTTPException:
+        return None
+
+
+async def send_dm(
+    user: Any, embed: discord.Embed, *, view: Optional[discord.ui.View] = None
+) -> bool:
+    """Send `embed` to `user` by DM, with `view` under it when given: False when there
+    is no user or Discord refuses it, as it does when their DMs are closed."""
+    if user is None:
+        return False
+    sent: Dict[str, Any] = {"embed": embed}
+    if view is not None:
+        sent["view"] = view
+    try:
+        await user.send(**sent)
+    except discord.HTTPException:
+        return False
+    return True
+
+
+async def postable_file(attachment: Any, channel: Any) -> Optional[discord.File]:
+    """A file someone uploaded, as one Keiko can post on `channel`: None over the
+    channel's upload cap, or when Discord does not hand its bytes."""
+    if attachment is None or attachment.size > channel.guild.filesize_limit:
+        return None
+    try:
+        content = await attachment.read()
+    except discord.HTTPException:
+        return None
+    return discord.File(BytesIO(content), filename=attachment.filename)
+
+
 def parse_valid_locale(locale: discord.Locale) -> discord.Locale:
     locale_value = str(getattr(locale, "value", locale)).lower()
     if locale_value == discord.Locale.brazil_portuguese.value.lower():
@@ -317,6 +359,19 @@ def fill(text: str, **values: Any) -> str:
             f"{text!r} writes {{{braced[0]}}}: copy names a value as ${braced[0]}"
         )
     return filled(text, values)
+
+
+def inside_quote(text: str) -> str:
+    """`text` as the value of a copy that writes it after `> `: each later line opens
+    with `> ` too, so all of it stays inside the quote."""
+    return "\n> ".join(text.splitlines())
+
+
+def quoted_lines(text: str) -> str:
+    """The lines of `text` inside a quote, without their `> `."""
+    return "\n".join(
+        line.removeprefix("> ") for line in text.splitlines() if line.startswith("> ")
+    )
 
 
 def join_names(names: List[str], locale: str) -> str:

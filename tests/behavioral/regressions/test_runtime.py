@@ -82,7 +82,6 @@ def _bot():
     )
     for name in ("config", "twitch", "youtube", "reminder", "notion"):
         setattr(bot, name, MagicMock())
-    bot.all_cogs = {}
     bot.app_commands = []
     return bot
 

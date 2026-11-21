@@ -117,7 +117,6 @@ class DiscordBot(Bot):
         self.twitch = TwitchClient(self)
         self.youtube = YoutubeClient(self)
         self.reminder = ReminderWebhook(self)
-        self.all_cogs: dict[str, list[dict[str, Any]]] = {}
         self.app_commands: list[app_commands.Command[Any, ..., Any] | app_commands.Group] = []
         self.ready_time: Optional[datetime] = None
         intents = gateway_intents()
@@ -141,16 +140,13 @@ class DiscordBot(Bot):
         )
 
     async def setup_hook(self) -> None:
-        from app.core.journey import JourneyRefreshButton
-        from app.forms.discord.views import routed_items
-
         threads.install()
         bind_loop(asyncio.get_running_loop())
         debug_logs.start_writer()
 
         # Registered as a class, not per message: a session's refresh button
         # keeps working across restarts because its id carries the session.
-        self.add_dynamic_items(JourneyRefreshButton, *routed_items())
+        self.add_dynamic_items(*registered_items())
 
         await cogs_manager(self, "load", startup_extensions())
         await self.tree.set_translator(Translator(self))
@@ -167,6 +163,16 @@ class DiscordBot(Bot):
                 await asyncio.wait_for(analytics.written(), seconds)
             await debug_logs.stop_writer()
             await data().close()
+
+
+def registered_items() -> tuple[type[discord.ui.DynamicItem[Any]], ...]:
+    """Every item the bot routes by its custom id alone, registered once at startup:
+    the journey's refresh, the forms' late controls and each command's own."""
+    from app.core import dispatch
+    from app.core.journey import JourneyRefreshButton
+    from app.forms.discord.views import routed_items
+
+    return (JourneyRefreshButton, *routed_items(), *dispatch.dynamic_items())
 
 
 def run(bot: commands.Bot, token: str) -> None:

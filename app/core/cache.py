@@ -49,6 +49,16 @@ def increment_redis_key_with_expiration(key: str, increment_by: int, expiration:
     return value
 
 
+def read_redis_counter(key: str) -> Tuple[int, int]:
+    """A counter's count and the seconds left in its window: `(0, 0)` when there is
+    none, no seconds left when it never expires."""
+    pipeline = redis_client.pipeline()
+    pipeline.get(key)
+    pipeline.ttl(key)
+    value, seconds = pipeline.execute()
+    return int(value or 0), max(int(seconds), 0)
+
+
 def count_keys() -> int:
     """How many keys Redis holds, in one command that walks nothing."""
     return redis_client.dbsize()

@@ -987,14 +987,15 @@ def _dynamic_items_declared():
 def test_the_bot_routes_every_dynamic_item_of_the_forms():
     import inspect
 
-    from app.bot import DiscordBot
+    from app.bot import DiscordBot, registered_items
     from app.forms.discord.views import routed_items
 
     declared = _dynamic_items_declared()
 
     assert declared, "the forms declare their late and reopen items"
     assert {item.__name__ for item in routed_items()} == declared
-    assert "*routed_items()" in inspect.getsource(DiscordBot.setup_hook)
+    assert set(routed_items()) <= set(registered_items())
+    assert "registered_items()" in inspect.getsource(DiscordBot.setup_hook)
 
 
 async def test_an_expired_message_never_drops_the_reopen_route():

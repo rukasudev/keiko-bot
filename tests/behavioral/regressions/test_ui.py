@@ -145,11 +145,13 @@ def test_the_report_dm_closes_with_its_support_line_under_the_ticket(locale, lin
     """
     from app.commands.report.service import ticket_embed
 
-    embed = ticket_embed(locale, "KEIKO-7", "Broken", "It broke", "help")
+    embed = ticket_embed(
+        locale=locale, ticket="KEIKO-7", description="It broke", command="/help"
+    )
 
     assert embed.description is None, "nothing between the title and the ticket"
     *ticket, closing = embed.fields
-    assert len(ticket) == 4
+    assert len(ticket) == 3
     assert all(field.inline for field in ticket)
     assert (closing.name, closing.value, closing.inline) == (
         Style.BLANK_FIELD_NAME,

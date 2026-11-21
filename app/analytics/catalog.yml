@@ -367,8 +367,8 @@ events:
   report.submitted:
     version: 1
     collection: interactions
-    description: A user sent feedback through /report.
-    recorded_in: app/commands/report/cog.py — Report.report
+    description: A user's /report reached the team's reports channel.
+    recorded_in: app/commands/report/service.py — submit_report
     actor: user
     props: [command]
     lifetime:

@@ -52,6 +52,7 @@ import os
 from typing import Dict, Iterator, List, NamedTuple, Optional, Set, Tuple
 from pyrage import x25519
 from app.core.jobs import Analytics
+from tests.behavioral.flows.report import reporting, send_report
 from tests.generators.moderations import seed_cog
 from tests.generators.events import record_event
 from tests.helpers.loop import (
@@ -522,25 +523,14 @@ async def test_translating_a_message_never_freezes_the_bot(deps, guild, monkeypa
     interaction.assert_response_sent("followup_send", ephemeral=True)
 
 
-async def test_reporting_a_bug_never_freezes_the_bot(deps, guild, monkeypatch):
-    from app.commands.report.cog import Report
+async def test_reporting_a_bug_never_freezes_the_bot(scenario_factory):
+    report = reporting(scenario_factory)
+    report.notion.answer = blocking(None)
 
-    reports = MagicMock()
-    reports.send = AsyncMock()
-    bot = SimpleNamespace(
-        notion=SimpleNamespace(create_report=blocking(None)),
-        config=SimpleNamespace(ADMIN_REPORTS_CHANNEL_ID=1),
-        get_channel=lambda channel_id: reports,
-    )
-    monkeypatch.setattr(Report, "_send_report_dm", AsyncMock())
-    interaction = interaction_in(guild, command=SimpleNamespace(qualified_name="report"))
-
-    ticks = await ticks_while(Report.report.callback(
-        Report(bot), interaction, "title", "description", "block_links"
-    ))
+    ticks = await ticks_while(send_report(report))
 
     assert ticks >= MIN_TICKS, f"the loop only came back {ticks} times"
-    reports.send.assert_awaited_once()
+    assert len(report.channel.tickets) == 1
 
 
 @pytest.fixture

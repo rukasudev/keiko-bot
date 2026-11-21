@@ -83,7 +83,6 @@ async def built_tree(loops: list) -> SyncedTree:
 
 
 async def _translated(bot: ext.Bot, loops: list) -> SyncedTree:
-    bot.all_cogs = {}
     bot.app_commands = []
     for name in ("twitch", "youtube", "reminder", "notion", "config"):
         setattr(bot, name, MagicMock())

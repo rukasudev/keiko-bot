@@ -20,12 +20,12 @@ from app.core.commands import form_files
 from app.core.servers import guess_server_settings
 from app.core.utils import ml
 from app.integrations.stream_elements import StreamElementsClient
+from tests.behavioral.flows import report as reports
 from tests.behavioral.flows import welcome
 from tests.behavioral.harness.locators import walk_items
 from tests.generators.moderations import recorded_server
 from tests.helpers.components import card_texts
 from tests.mocks.discord import (
-    MockInteraction,
     create_guild,
     create_member,
     create_message,
@@ -656,34 +656,13 @@ def test_no_pt_br_string_calls_keiko_feminine(path):
     assert found == []
 
 
-def timed_out(**_fields):
+def timed_out():
     raise requests.ReadTimeout("api.notion.com did not answer in 15 seconds")
 
 
-async def _ticket(guild, locale, monkeypatch, attachment=None):
-    from app.commands.report.cog import Report
-
-    reports = MagicMock()
-    reports.send = AsyncMock()
-    bot = SimpleNamespace(
-        notion=SimpleNamespace(create_report=timed_out),
-        config=SimpleNamespace(ADMIN_REPORTS_CHANNEL_ID=1),
-        get_channel=lambda channel_id: reports,
-    )
-    monkeypatch.setattr(Report, "_send_report_dm", AsyncMock())
-    interaction = MockInteraction(user=create_member(guild), guild=guild, locale=locale)
-    interaction.command = SimpleNamespace(qualified_name="report")
-
-    await Report.report.callback(
-        Report(bot), interaction, "Broken button", "It does nothing", "block_links",
-        attachment,
-    )
-    return reports.send.await_args.kwargs["embed"]
-
-
-@pytest.mark.parametrize("locale", ["pt-BR", "en-US"])
+@pytest.mark.parametrize("locale", ["pt-br", "en-us"])
 async def test_the_ticket_reads_in_english_whatever_the_authors_language(
-    guild, locale, monkeypatch
+    scenario_factory, locale
 ):
     """The ticket /report posts in the team's reports channel is written in English.
 
@@ -693,26 +672,20 @@ async def test_the_ticket_reads_in_english_whatever_the_authors_language(
     pt-br counterpart. Shared behaviour: none; the reports channel of the admin server is
     an operator surface, and the author's copy of the ticket (the DM) stays in the
     author's language. Consumer that exposed it: `/report`
-    (`app/commands/report/cog.py`). Guaranteed: whatever the author's language, the
+    (`app/commands/report/service.py`). Guaranteed: whatever the author's language, the
     ticket is titled "📩 New ticket created [#<id>]!" and its fields read Title,
     Description, Command, Author and Attachment, "No attachment" when none was sent.
     """
-    ticket = await _ticket(guild, locale, monkeypatch)
+    report = reports.reporting(scenario_factory, locale)
+    report.notion.answer = timed_out
+    text = "O botão Salvar não faz nada"
 
+    await reports.send_report(report, text)
+
+    [ticket] = [message.embeds[0] for message in report.channel.tickets]
     assert re.fullmatch(r"📩 New ticket created \[#KEIKO-\d{4}\]!", ticket.title)
     assert [field.name for field in ticket.fields] == [
         "Title", "Description", "Command", "Author", "Attachment",
     ]
-    assert [field.value for field in ticket.fields][:3] == [
-        "Broken button", "It does nothing", "block_links",
-    ]
+    assert [field.value for field in ticket.fields][:3] == [text, text, reports.OTHER]
     assert ticket.fields[-1].value == "No attachment"
-
-
-async def test_an_attached_file_is_linked_on_the_ticket(guild, monkeypatch):
-    attachment = SimpleNamespace(url="https://cdn.discordapp.com/attachments/1/2/shot.png")
-
-    ticket = await _ticket(guild, "pt-BR", monkeypatch, attachment)
-
-    assert ticket.fields[-1].name == "Attachment"
-    assert ticket.fields[-1].value == attachment.url

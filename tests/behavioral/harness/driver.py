@@ -943,9 +943,8 @@ async def _route(interaction: FakeInteraction, custom_id: str, base) -> None:
 
 
 def _dynamic_items() -> List[type]:
-    """What discord.py tries on a click no view holds: every dynamic item Keiko declares."""
-    return [
-        factory
-        for factory in discord.ui.DynamicItem.__subclasses__()
-        if factory.__module__.startswith("app.")
-    ]
+    """What discord.py tries on a click no view holds: the dynamic items the bot
+    registers at startup."""
+    from app.bot import registered_items
+
+    return list(registered_items())
