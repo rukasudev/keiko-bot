@@ -1,0 +1,22 @@
+# Mutants whose kill in baseline.json was shown false: the test that "killed" it
+# failed with no mutant at all. The comparison skips these ids and reports them as
+# accepted instead of as lost kills, so the baseline is never re-saved to hide one.
+# Every entry is reviewed: `reason` says why the kill was false and `evidence` is
+# the command that shows it on the baseline's tests. Remove an entry once the
+# guard warns that its mutant is killed again.
+mutants:
+- id: app/forms/discord/callbacks.py::Runtime._continue::3.body1::drop-call#0
+  reason: >-
+    The baseline's kill came from
+    tests/forms/discord/test_discord_adapter.py::test_a_parent_waiting_on_a_live_child_is_not_expired,
+    which read a session test_the_birthday_cards_stay_within_discord_limits left in
+    RUNTIME: in the guard runner's order it fails on the unmutated tree, and alone
+    it passes. The rebuilt test starts its own parent and child, so it no longer
+    depends on the order; the mutant (dropping `self.store.create(child)`) was
+    never caught by an assertion, so no guarantee the suite held is lost.
+  evidence: >-
+    git archive 588d3c92 | tar -x -C base && cd base &&
+    python -m pytest -q -p no:cacheprovider
+    tests/forms/discord/test_discord_adapter.py::test_the_birthday_cards_stay_within_discord_limits
+    tests/forms/discord/test_discord_adapter.py::test_a_parent_waiting_on_a_live_child_is_not_expired
+    (1 failed, 1 passed, with no mutant), then the second test alone (1 passed)

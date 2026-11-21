@@ -12,6 +12,11 @@ def main(argv):
 
         return docs_main(argv[1:])
 
+    if argv and argv[0] == "testguard":
+        from scripts.keiko.testguard.cli import main as testguard_main
+
+        return testguard_main(argv[1:])
+
     if argv and argv[0] == "birthdays":
         from scripts.keiko.birthdays.repair import main as repair_main
 

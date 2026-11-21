@@ -1,0 +1,1109 @@
+# Every past bug the suite pins: one entry per "Broke as" docstring found on
+# the day it was recorded. `test` is the test that pins it now (`path::name`,
+# `path::Class::name`, or `path` when the module docstring tells the bug). A
+# rebuild that moves or merges a test points the entry at its new home; an
+# entry is never deleted. `python -m scripts.keiko testguard ledger` fails
+# when an entry names a test that does not exist.
+entries:
+- id: pb-001
+  test: tests/behavioral/contracts/test_a_typed_answer_fills_only_its_own_variables.py::test_an_account_fill_writes_each_variable_once
+  guarantee: each variable is filled once and what was put in stays as typed.
+  broke: a card's `fills` wrote each variable one after another, so an account typed as `{stream_link}`
+    was read again and both slots showed the link (the Twitch and YouTube account inputs).
+- id: pb-002
+  test: tests/behavioral/contracts/test_analytics_catalog.py::test_the_catalog_file_is_read_through_its_schema
+  guarantee: every field the file writes is one the schema declares, and the readers hand
+    out the typed declarations.
+  broke: the catalog was read as a plain dict, so a misspelled `lifetim:` or a field nothing
+    reads (`cardinality_risk`, `results`) sat in the file without a trace.
+- id: pb-003
+  test: tests/behavioral/contracts/test_analytics_catalog.py::test_the_root_refuses_a_vocabulary_no_event_reads
+  guarantee: the root holds only what a reader reads.
+  broke: '`results` listed three values for a `result` prop no event declares, so every `result`
+    was dropped anyway.'
+- id: pb-004
+  test: tests/behavioral/contracts/test_analytics_catalog.py::test_every_file_a_declaration_cites_exists
+  guarantee: every path a `recorded_in` names is a file of the repository.
+  broke: the lifecycle events cited app/forms/features/generic.py and report.submitted cited
+    app/commands/report/service.py, two files that do not exist, so whoever followed `recorded_in`
+    to an event landed nowhere.
+- id: pb-005
+  test: tests/behavioral/contracts/test_analytics_catalog.py::test_each_collection_keeps_its_events_as_long_as_its_ttl_says
+  guarantee: the retention of an event is the TTL of its collection, the schema's index and
+    the constant agree, and a change has none.
+  broke: '`retention_days` was declared on every event and read by nothing, while one TTL
+    index decided.'
+- id: pb-006
+  test: tests/behavioral/contracts/test_components_v2_limits.py::test_a_panel_whose_list_is_empty_has_no_duplicated_custom_id
+  guarantee: a panel whose list is empty has no duplicated custom id
+  broke: block links did not open at all (50035, "Component custom id cannot be duplicated").
+    The button beside an empty list adds, like the Add below the card, and both encoded the
+    same action with no argument.
+- id: pb-007
+  test: tests/behavioral/contracts/test_config_cache.py
+  guarantee: '"nothing saved" is cached briefly and reads as a miss to v0.9.0 (an empty value,
+    so a rollback reads Mongo instead of a fake document); a Redis outage answers from Mongo,
+    costs one Redis call per window, invalidations included, and one log line per window,
+    a message of its own on the log channel even from a listener, and the invalidations it
+    skipped are sent as soon as Redis answers; a Mongo outa…'
+  broke: a server with no configuration read Mongo on every message, because "nothing saved"
+    was never cached; a Redis outage raised on every message instead of reading Mongo, so
+    block links, welcome messages, auto roles and StreamElements all stopped while Mongo was
+    fine; and a Mongo outage stopped them to…
+- id: pb-008
+  test: tests/behavioral/contracts/test_debug_logs.py::test_a_failing_write_never_produces_another_log
+  guarantee: A logger call here would be recorded, fail, and log again — forever.
+  broke: the analytics writer reports failures with `logger.warn`. Copying that into a sink
+    that *drains the logger* turns one dead connection into an unbounded write storm. The
+    failure has to leave the logging tree entirely.
+- id: pb-009
+  test: tests/behavioral/contracts/test_debug_logs.py::test_flushing_without_arguments_still_reports_the_failure
+  guarantee: The guard is the default, not something a caller has to remember.
+  broke: '`flush(on_error=None)` swallowed the exception entirely when the argument was omitted,
+    so a second caller would lose write failures in silence. Every caller getting it right
+    is not an invariant.'
+- id: pb-010
+  test: tests/behavioral/contracts/test_debug_logs.py::test_a_log_reaches_mongo_without_waiting_for_any_tick
+  guarantee: 'The whole point of the writer: no poll interval stands between a line being
+    logged and it being queryable.'
+  broke: writes rode the analytics cog's 5-second loop, so a crash inside that window lost
+    exactly the records that explained it.
+- id: pb-011
+  test: tests/behavioral/contracts/test_debug_logs.py::test_admin_logs_answers_with_the_daily_log_never_the_backup_of_that_day
+  guarantee: only a file named like a daily log is an answer.
+  broke: the lookup answered with the first message whose text held the date, and the daily
+    backup's message names its date too, so for today it answered with the sealed backup's
+    link.
+- id: pb-012
+  test: tests/behavioral/contracts/test_debug_logs.py::test_admin_logs_skips_a_message_that_carries_no_file
+  guarantee: admin logs skips a message that carries no file
+  broke: a backup summary posted without a file names its date, and the lookup read `message.attachments[0]`
+    and raised IndexError instead of reading on.
+- id: pb-013
+  test: tests/behavioral/contracts/test_debug_logs.py::test_one_file_holds_every_collection
+  guarantee: one file with every collection of Keiko's own databases (and of `configs`, only
+    the collections named), whose documents come back with their `_id` and their types; nothing
+    from any other database, and no third-party credentials, error audit or debug logs (already
+    archived daily in the same channel); a dump over the channel's upload limit is packed
+    one collection at a time into files under it, set…
+  broke: '(first version): the dump copied every database the Mongo user could list, so a
+    secret in any other database reached Discord, and so did `audit.errors`, which keeps raw
+    exception text that can quote a URL with an API key in it. Then (second version) a dump
+    over the upload limit fell back one databa…'
+- id: pb-014
+  test: tests/behavioral/contracts/test_debug_logs.py::test_the_summary_counts_what_went_and_names_what_was_left_out
+  guarantee: in both languages the first line counts the collections and documents that went,
+    the last line names each collection left out, and no `$` name is left unfilled.
+  broke: 'both lines read one fact, `$collections`, declared a number: the first line got
+    how many collections went, the line of what was left out got their names, so a value of
+    the wrong kind was one rename away from either line.'
+- id: pb-015
+  test: tests/behavioral/contracts/test_debug_logs.py::test_each_months_events_go_out_in_one_file_with_one_message
+  guarantee: The monthly events archive and the current size of every guild.
+  broke: '(first version, review round 1): the archive went out in plaintext, with every event''s
+    guild and user ids readable in Discord, and the size job created a profile for every guild
+    Keiko is in, so a guild `/admin forget` had erased came back the next day and every count
+    of profiles changed meaning. Lu…'
+- id: pb-016
+  test: tests/behavioral/contracts/test_debug_logs.py::test_each_months_events_go_out_in_one_file_with_one_message
+  guarantee: each complete month's events, and only them, go out in one file (in halves of
+    the month while a file is over the channel's upload limit once encrypted) with one message,
+    readable only with the private key, and come back with their types; no server, member
+    or other Discord id leaves with them, only the random event id, the event, its feature,
+    source, result, time and properties, and a session hash…
+  broke: '(review round 2): the archive kept the stored session id, which the daily log exports
+    on the same channel carry next to guild and user ids, so one session joined a line back
+    to its server and member; and only last month was ever tried, so a month whose every pass
+    failed (the key created after the m…'
+- id: pb-017
+  test: tests/behavioral/contracts/test_debug_logs.py::test_each_kind_goes_past_its_age_and_stays_inside_it
+  guarantee: Keiko's own files on the logs files channel stay only as long as their kind allows.
+  broke: every file Keiko posts on that channel stayed forever. The daily backup, a sealed
+    copy of the whole database, piled up one copy a day (review round 2); the daily log exports,
+    and the text log files before them, carry guild, user and session ids and piled up for
+    years; and the walk that deleted the…
+- id: pb-018
+  test: tests/behavioral/contracts/test_debug_logs.py::test_each_kind_goes_past_its_age_and_stays_inside_it
+  guarantee: each kind is deleted past its age and kept inside it, recognized by the bot as
+    its author and by the exact names its producer gives (the text log's from the rotating
+    handler itself); the archive, the files of any other author, any other name and a message
+    mixing kinds are kept at any age; the old backups go only on a day a backup went out,
+    the old daily logs every day; a pass attempts at most `LO…
+  broke: '(closing review of round 4): nothing pinned the clear mark, so setting it to now,
+    or to the shortest age, or moving it on a day without a backup, would have stopped the
+    90-day deletion with every test green; and the operator report counted a file someone
+    else had deleted as a failure, repeated one…'
+- id: pb-019
+  test: tests/behavioral/contracts/test_debug_logs.py::test_the_ttl_index_is_created_in_the_audit_database
+  guarantee: the baseline declares that TTL index under the `audit` database, never under
+    `guild`, next to the `guild` ones.
+  broke: '`audit.reminders` only grew, so its renewal rows got a TTL index, the first index
+    outside the `guild` database.'
+- id: pb-020
+  test: tests/behavioral/contracts/test_graceful_stop.py::test_closing_the_bot_writes_the_pool_call_and_the_change_under_way
+  guarantee: closing the bot lets the pool calls under way end, for up to `Dependencies.BLOCKING_IO_STOP_WAIT_SECONDS`,
+    and the changes the loop is writing reach Mongo before the client closes.
+  broke: '`DiscordBot.close` closed the Mongo client while a pool call and a change written
+    on the loop were still under way, and both were lost.'
+- id: pb-021
+  test: tests/behavioral/contracts/test_graceful_stop.py::test_the_final_writes_read_on_their_own_loop
+  guarantee: the final writes bind their own loop, so a thread job's read reaches the client
+    installed for it.
+  broke: the writes `run` makes once the bot's loop is gone installed a new client, but a
+    thread job still read through the dead loop the old one lived on.
+- id: pb-022
+  test: tests/behavioral/contracts/test_journey.py::test_a_second_item_added_still_reaches_the_timeline
+  guarantee: a second item added still reaches the timeline
+  broke: '`feature.item_added` was made a terminal outcome so the log embed could be titled
+    "Item Added". That closed the session on the first item and dropped the message from `_JOURNEYS`,
+    so everything after it — further items, and the `saved` that ends the setup — reached
+    nothing.'
+- id: pb-023
+  test: tests/behavioral/contracts/test_journey.py::test_opening_a_panel_reads_only_this_servers_last_day
+  guarantee: the footnote still lists what this server tried on this feature in the last 24
+    hours, read from this server's events of that window only, so the read is bounded by the
+    window and not by the whole bot, and the read runs in a worker thread whenever a loop
+    runs, so opening a panel never waits on it.
+  broke: 'every form that opened (a slash command, a `/setup` button, a manager panel) asked
+    `journey.recent_attempts` for the footnote of its log message, and that ran `analytics_reports.setup_sessions(feature)`:
+    seven queries that brought every setup event of the feature, from every server, for the
+    whole 9…'
+- id: pb-024
+  test: tests/behavioral/contracts/test_reminders_api_contract.py::test_a_scheduled_reminder_sends_date_and_time_in_their_own_fields
+  guarantee: a scheduled reminder sends date and time in their own fields
+  broke: the hour was folded into date_tz as an offset-aware datetime.
+- id: pb-025
+  test: tests/behavioral/contracts/test_server_timezone.py
+  guarantee: a new zone saved in the settings moves no reminder and leaves the birthday configuration
+    as it was, with no zone in it; the next birthday is scheduled in the new zone; a zone
+    chosen on the birthday card becomes the server's without moving a reminder; a new hour
+    moves each reminder once, in the server's zone; the card shows the server's zone; a birthday's
+    year is counted in the server's zone.
+  broke: 'PR15 moved every birthday reminder of a server when its zone changed, one call to
+    reminders-api.com per reminder at once, with a rollback when one refused. Lucas chose
+    to keep the reminders where they are (2026-11-08): the change is saved, nothing is rescheduled,
+    and the next birthday is created in…'
+- id: pb-026
+  test: tests/behavioral/contracts/test_setup_dashboard.py::test_stream_elements_commands_is_listed_on_setup
+  guarantee: stream elements commands is listed on setup
+  broke: the StreamElements integration was a command nobody found.
+- id: pb-027
+  test: tests/behavioral/contracts/test_setup_dashboard.py::test_help_mentions_setup_and_its_button_opens_the_dashboard_for_admins
+  guarantee: help mentions setup and its button opens the dashboard for admins
+  broke: /help never told an admin that /setup holds every feature.
+- id: pb-028
+  test: tests/behavioral/contracts/test_setup_dashboard.py::test_the_history_lists_the_server_settings_changed_on_the_settings_screen
+  guarantee: the history reads the server's changes in one query, the settings' among them,
+    each line named by what it changed.
+  broke: a server setting changed on the /setup settings screen was written to `events.settings`,
+    a collection nothing read, so the history of /setup never showed it.
+- id: pb-029
+  test: tests/behavioral/contracts/test_setup_dashboard.py::test_the_greeting_fits_discord_rows
+  guarantee: the greeting fits discord rows
+  broke: every button was pinned to row 0, which fits five.
+- id: pb-030
+  test: tests/behavioral/contracts/test_slash_command_copy.py::test_building_the_tree_leaves_no_background_task_failing
+  guarantee: The cogs' loops wait for a ready that never comes and stop with their cogs.
+  broke: the tree was built on a bot that was never initialised, so the `before_loop` of every
+    loop the cogs started (`wait_until_ready`) raised "Client has not been properly initialised";
+    the failure was never retrieved and asyncio logged it when the garbage collector ran,
+    inside whatever test ran then (th…
+- id: pb-031
+  test: tests/behavioral/contracts/test_trace_embed_format.py::test_the_same_kind_of_event_always_carries_the_same_emoji
+  guarantee: the same kind of event always carries the same emoji
+  broke: a form session rendered under a different icon than a plain command, so the channel
+    could not be scanned by shape.
+- id: pb-032
+  test: tests/behavioral/contracts/test_logger_trace.py::test_a_nested_scope_does_not_repeat_the_opening_line
+  guarantee: a nested scope does not repeat the opening line
+  broke: the decorator and the button both added the same line, and a command reached through
+    a button ran both, printing the invocation twice.
+- id: pb-033
+  test: tests/behavioral/contracts/test_logger_trace.py::test_the_opening_line_reaches_the_stored_log
+  guarantee: the opening line reaches the stored log
+  broke: production `guild.logs` had only boot records, because command activity never passed
+    through `logging` at all.
+- id: pb-034
+  test: tests/behavioral/regressions/test_birthdays.py::test_the_card_draws_and_starts_from_the_message_a_celebration_posts
+  guarantee: while nobody customized it, the settings card draws, and its modal starts from,
+    the title and the message a celebration posts, in both languages.
+  broke: the message section of the birthday settings card drew its own default from `birthdays/form.yml`
+    ("🎂 Happy Birthday {user}!", "May your day be full of joy and treats! 🎉✨"), and its modal
+    started from it, while a celebration posted the copy's defaults ("🎂 It's {user}'s birthday!",
+    "Happy birthday {u…
+- id: pb-035
+  test: tests/behavioral/regressions/test_birthdays.py::test_a_birthday_change_after_the_feature_was_deleted_writes_nothing
+  guarantee: after the feature is deleted, an Add, an edit of the settings, an edit of a member
+    and a removal from a panel opened before write nothing, record nothing, and close that
+    panel in place with the closed notice.
+  broke: the birthday commits (`BirthdayFeature` in app/commands/birthdays/service.py) wrote
+    straight to `guild.members` and `guild.cogs`, never asking whether the feature was still
+    saved, while every generic commit starts with `saved_document`. A panel opened before
+    another panel deleted the birthdays adde…
+- id: pb-036
+  test: tests/behavioral/regressions/test_runtime.py::test_every_class_that_declares_a_loop_is_a_cog_an_extension_adds
+  guarantee: building the cog starts nothing; loading its extension, the production order
+    (`setup_hook` -> `load_extension` -> `setup` -> `add_cog` -> `cog_load`), starts each
+    of its loops once, a reload leaves exactly one of each running, and unloading stops them
+    all. No constructor under `app/` starts a loop or creates a task.
+  broke: the /birthday cog (`app/commands/birthdays/cog.py`) started `reconcile_reminders`
+    in its `__init__`, so a test that only built it (the slash command contract builds every
+    cog on a bot that never logs in) left the loop running; its `before_loop` failed with
+    "Client has not been properly initialised"…
+- id: pb-037
+  test: tests/behavioral/regressions/test_analytics.py::test_the_attempt_window_ends_a_day_after_the_first_attempt
+  guarantee: the TTL is set by the first count only; a later count adds to the window without
+    moving its end, and the first count after the end starts a new window.
+  broke: the increment helper sent EXPIRE with every INCRBY, so each attempt pushed the end
+    of the window another 24 hours away. A server that opened a feature at least once a day
+    never saw its window close, and the log footnote kept telling the operator "the 9th run
+    in the last 24h" about runs spread over…
+- id: pb-038
+  test: tests/behavioral/regressions/test_runtime.py::test_a_failed_own_reply_is_not_answered_by_stream_elements
+  guarantee: a prefix hook that fails ends the prefix chain, so no later hook answers the
+    same message; a prefix that could not be read skips the prefix hooks and the hint; every
+    hook still runs as its own part, and the message hooks (block links) still run.
+  broke: '`dispatch.message_sent` (`app/core/dispatch.py`) ran each prefix hook as its own
+    part and stopped the chain only when a hook returned True. A failed part returns no value,
+    so when Keiko''s own reply to `ke!ping` raised (50013 Missing Permissions in a read-only
+    channel) StreamElements was asked next…'
+- id: pb-039
+  test: tests/behavioral/regressions/test_cache_and_data.py::test_a_feature_button_opens_before_a_redis_that_does_not_answer
+  guarantee: the feature opens before the counter is answered, a counter that fails never
+    fails the click, and the click is still counted, as the `command.invoked` event the analytics
+    writer counts.
+  broke: '`run_feature_command` counted the click (`increment_redis_key`, one Redis call in
+    a thread) before `open_feature`, with nothing around it. During a Redis outage every feature
+    button waited for the socket timeout, up to five seconds, past Discord''s three-second
+    answer window, and then raised, so the…'
+- id: pb-040
+  test: tests/behavioral/regressions/test_cache_and_data.py::test_a_burst_of_messages_that_fills_the_pool_still_deletes_every_blocked_link
+  guarantee: blocked links are still deleted when a burst of messages fills the pool while
+    Mongo opens connections, and `wait` raises within `DBConfigs.MONGO_THREAD_WAIT_SECONDS`
+    instead of holding its thread forever.
+  broke: the bot's pool of `Dependencies.BLOCKING_IO_THREADS` threads was the loop's default
+    executor, which also runs `loop.getaddrinfo` and the TLS handshake of every new Mongo
+    connection. A thread job reading Mongo blocks its thread in `app.data.wait` until the
+    loop answers; with every pool thread waitin…
+- id: pb-041
+  test: tests/behavioral/regressions/test_analytics.py::test_a_greeting_discord_refused_is_never_counted_as_sent
+  guarantee: a greeting that reached a channel is counted once with `channel_found=True`;
+    a greeting whose send failed is never counted as sent; a server with no writable channel
+    is still counted with `channel_found=False`.
+  broke: '`GreetingsView.send` emitted `guild.greeting_sent` with `channel_found=True` before
+    `channel.send`, so a greeting Discord refused (a channel override the permission check
+    does not see, an outage) was still counted as delivered, and the guild profile stamped
+    `greeting_sent_at` for a server that neve…'
+- id: pb-042
+  test: tests/behavioral/regressions/test_cache_and_data.py::test_a_birthday_searched_and_edited_shows_the_members_picture
+  guarantee: every member a session's screens picture (the card's member, the item a search
+    found, a member just chosen) is found before the screen is drawn, from the API when no
+    cache has it.
+  broke: once no server's members were downloaded at start, the pictures of the birthday cards
+    were read from discord.py's cache and the members seen in the last minutes only. An admin
+    who searched a birthday, went for a coffee and then pressed Edit got the member card without
+    the member's picture, and the…
+- id: pb-043
+  test: tests/behavioral/regressions/test_card.py::test_a_notice_sent_after_the_click_was_answered_reaches_the_admin
+  guarantee: a self-deleting message sent after the first answer is sent without `delete_after`
+    and deleted after the same delay; the fake followup refuses `delete_after` the way discord.py
+    does.
+  broke: an error or a notice sent once the interaction was already answered (a typed name
+    looked up on Twitch or YouTube defers the click first, an edit defers before it saves)
+    went out through the followup webhook with `delete_after`, which discord.py's `Webhook.send`
+    does not take. It raised TypeError, t…
+- id: pb-044
+  test: tests/behavioral/regressions/test_runtime.py::test_a_status_change_keeps_the_activity
+  guarantee: each command sends the whole presence, the part it changes next to what the last
+    command left, and a reconnect identifies with that same presence.
+  broke: '`/config update status` sent the status alone, so Discord dropped the activity line
+    until a restart; `/config update activity` and `description` rebuilt the activity from
+    the one Keiko logged in with, so each undid the other, and a gateway reconnect brought
+    back the boot presence, since nothing tol…'
+- id: pb-045
+  test: tests/behavioral/regressions/test_card.py::test_an_unknown_streamer_is_told_apart_from_the_card
+  guarantee: the refusal reaches the admin as a separate message, the screen in front of them
+    carries no `🚨` line, and the retry modal is prefilled.
+  broke: '(beta.2 round 2, R3): round 1 drew every validation error inside the screen that
+    asked for it, a `🚨` line under the card section, under the card''s header or on the one-field
+    card of a modal step. On a phone the admin had to scroll up to find why the value was
+    refused ("ficou ruim, volte pra mensage…'
+- id: pb-046
+  test: tests/behavioral/regressions/test_a_save_is_never_undone_by_the_cache.py
+  guarantee: a read that races a save can return the old document while the save is running,
+    never after it; Disable is seen by the next reader; a paused feature being disabled is
+    never on in between; and a cache entry lives minutes, not a month.
+  broke: '`write_document` and `update_document` dropped the Redis entry of a feature and
+    only then wrote Mongo. A message or a member join landing between the two read Mongo,
+    found the old document and cached it again, for thirty days. An edit came back on its
+    own, and a disabled block links could keep bloc…'
+- id: pb-047
+  test: tests/behavioral/regressions/test_a_save_is_never_undone_by_the_cache.py::test_a_streamer_added_on_one_panel_survives_a_removal_on_another
+  guarantee: 'a change is applied to the settings as they are saved when the admin confirms,
+    never to the copy their panel opened with: an addition is kept beside any other change,
+    a removed item never comes back, two websites turned on from two panels both stay on,
+    and a link is never listed twice. A change that can no longer apply (the item changed
+    or went away meanwhile) saves nothing and redraws the screen…'
+  broke: a list was saved whole, from the copy each panel read when it opened, with its items
+    found by position, and the subscription of an item ran before the save. With two panels
+    open on one server, a streamer added on the first was lost when the second removed another
+    one, and a streamer removed on the…
+- id: pb-048
+  test: tests/behavioral/regressions/test_a_save_is_never_undone_by_the_cache.py::test_removing_several_links_after_another_panel_removed_one_saves_none
+  guarantee: the second panel's removal of both links saves nothing, says the screen changed
+    and draws the list as it is saved now.
+  broke: nothing yet; the multi-select Remove of the list drawn inside the card could have
+    dropped whatever was still saved while one chosen item was already gone, or found the
+    rest by position in a list another panel had shortened.
+- id: pb-049
+  test: tests/behavioral/regressions/test_language.py::test_an_en_us_admin_sees_english_fields_after_a_pt_br_run
+  guarantee: a server recorded in en-us after a pt-br run in the same process shows an en-us
+    admin the English modal, as it would after a real save.
+  broke: database PR 1 (#61) kept a server's settings in a process memo (`server_settings`
+    and `_server_setting`, app/core/servers.py, through `recalled`/`remembered` in app/core/cache.py)
+    that every product writer forgets (`join_guild`, `leave_guild`, `save_server_setting`),
+    but the test seed `recorded_ser…
+- id: pb-050
+  test: tests/behavioral/regressions/test_analytics.py::test_no_step_of_the_funnel_holds_more_servers_than_the_setups_opened
+  guarantee: The operator screens read numbers the analytics writer already added up, and
+    those agree with what happened.
+  broke: '(the inventory of database PR 2):'
+- id: pb-051
+  test: tests/behavioral/regressions/test_language.py::test_the_roles_sync_of_a_server_without_the_feature_shows_its_real_title
+  guarantee: that embed shows its real title in both locales, and every error key `app/` passes
+    to `response_error_embed` as a literal, or under a literal prefix, resolves both its title
+    and its message in both locales.
+  broke: 'pressing the default roles sync button while the feature is off answered a red embed
+    titled `🚨 errors.command-default-roles-disactivated.title` (after the copy moved into
+    the command, `🚨 default_roles.errors.disactivated.title`, since renamed `deactivated`):
+    the error wrote only its `message`, and…'
+- id: pb-052
+  test: tests/behavioral/regressions/test_language.py::test_every_error_a_command_writes_draws_its_real_title
+  guarantee: every block a command writes under `errors` is an error with a title and a message,
+    so it draws with its real title; a text that is no error lives in the block that draws
+    it.
+  broke: default roles filed the panel's lost-roles warning under `errors.missing-permissions`,
+    an "error" with a message and no title, so any reader that drew it as the error it claims
+    to be would show the admin `🚨 default_roles.errors.missing-permissions.title`.
+- id: pb-053
+  test: tests/behavioral/regressions/test_an_error_names_its_command_as_discord_registers_it.py
+  guarantee: the error names exactly the path the synced tree registers for the default roles
+    command, in the reader's language; every other text is held by `tests/behavioral/contracts/test_a_text_names_only_registered_commands.py`.
+  broke: 'pressing Sync on the default roles panel once the feature was off answered "To activate
+    and configure this feature, just run the `/default roles` command" (pt-br "`/cargos padrão`"),
+    a command Discord does not have: the command is the subcommand `/moderations default roles`
+    (`/moderações cargos pad…'
+- id: pb-054
+  test: tests/behavioral/regressions/test_card.py::test_the_exempt_channels_can_be_emptied_again
+  guarantee: a select whose field the card does not require takes zero values, and emptying
+    it saves the field empty; a required one still asks for one.
+  broke: the exempt channels and roles of block links sit on one picker (the `selects` card
+    section), and every select it drew asked for at least one value (`min_values=1`), because
+    the renderer read "several values" as "at least one". An admin who had freed a channel
+    could never free none again.
+- id: pb-055
+  test: tests/behavioral/regressions/test_block_links.py::test_the_stats_total_is_the_servers_lifetime_and_redis_holds_no_count
+  guarantee: a blocked link writes no counter of its own, in Redis or Mongo; the Stats' all-time
+    total is the server's lifetime count the analytics writer keeps, one more for the link
+    just blocked; the top sites and the top member come from the records of the last 90 days;
+    nothing walks the keyspace.
+  broke: every blocked link was counted three times by block links itself, in a Redis hash
+    per server (`guild:{g}:block_links:counters`, kept 400 days), in the loose keys of v0.9.0
+    the Stats still read, and in `guild.block_links_totals`; the Stats summed the hash and
+    the loose keys, and leaving a server del…
+- id: pb-056
+  test: tests/behavioral/regressions/test_block_links.py::test_the_answer_pings_only_the_member_it_names
+  guarantee: the answer names the member through `{user}` and pings only that member, never
+    an @everyone, an @here, a role or another member the admin wrote, and its text stays as
+    the admin wrote it; the error context of a failed delete names the blocked websites and
+    how many links there were, never a link.
+  broke: the answer was sent with discord.py's default mentions, and then with `AllowedMentions.all()`,
+    so an `@everyone`, an `@here` or a role an admin wrote into it pinged the whole server,
+    or the role, on every blocked link (found by the review of PR8, the last `.all()` left);
+    before that, its placeholde…
+- id: pb-057
+  test: tests/behavioral/regressions/test_block_links.py::test_the_link_check_closes_with_the_report_line_where_markdown_renders
+  guarantee: the check has no body, and closes with the standard line as subtext in a last
+    field under its three fields, never in the embed footer, in both locales.
+  broke: 'the "Check Link Blocking" answer put the /report line in the embed footer through
+    `set_footer`, which renders no markdown, so the admin read "Use the `/report` command"
+    with its backticks showing; moved into the body, the line then drew under the title, above
+    the three fields. Shared behaviour: the…'
+- id: pb-058
+  test: tests/behavioral/regressions/test_analytics.py::test_a_pause_with_analytics_off_still_lists_in_the_history
+  guarantee: 'the kill switch silences the queue (counts, activity, interactions) and the
+    journey, never a `collection: changes` event.'
+  broke: '`ANALYTICS_ENABLED=false` made `record` return before it wrote a change, and `events.changes`
+    is the only history a server has, so a feature paused, edited or set up while the analytics
+    were off never showed in /setup''s History or its panel''s.'
+- id: pb-059
+  test: tests/behavioral/regressions/test_one_record_of_whether_a_feature_is_on.py::test_a_setup_saved_right_after_a_disable_stays_on
+  guarantee: Disable never writes the collection it deleted from, so a document saved right
+    after it stays as it was saved; the cache entry is dropped once.
+  broke: after `find_one_and_delete`, `commit_disable` recorded the feature off through `set_feature_enabled`,
+    which ran `update_one(enabled=False)` on the document it had just deleted and dropped
+    its cache a second time. Another admin's setup saved between the two found its new feature
+    paused, and every Di…
+- id: pb-060
+  test: tests/behavioral/regressions/test_event_loop_is_never_blocked.py::test_the_daily_backup_never_freezes_the_bot
+  guarantee: the loop keeps ticking while the backup is built, and the one message still goes
+    out; and it keeps ticking while the pass reads and moves how far back the logs files channel
+    is known clear of old files (`logs_archive.delete_old_files`).
+  broke: the first version of this test sat in `test_event_loop_is_never_blocked.py` and used
+    `AsyncMock`, which that module no longer imports since the runtime PR, so it would fail
+    with a NameError rather than on the loop. It lives here, with its own imports.
+- id: pb-061
+  test: tests/behavioral/regressions/test_every_message_in_a_server_speaks_its_language.py
+  guarantee: a member whose Discord says one language sees a form, a panel, a side action,
+    an error, the help and a button or select's answer in the server's other one, both ways;
+    a translation goes into the reader's own language, told in the server's; in a DM, and
+    in a server whose settings are not saved yet, Keiko answers in the person's own language.
+  broke: PR15 gave the server a language but only the public messages read it; every answer
+    only its clicker sees (a form, a panel and its side actions, an error, the help) followed
+    the clicker's Discord, so an admin whose Discord is in English configured a Portuguese
+    server in English (f01 on the PR15 test…
+- id: pb-062
+  test: tests/behavioral/regressions/test_logging.py::test_a_direct_message_reaches_no_admin_channel
+  guarantee: 'nothing reads the guild of a DM: no error, no message in any admin channel,
+    and no feature looks at it; a prefixed one gets only the slash hint.'
+  broke: '`Events.on_message` read `message.guild.id` before asking where the message came
+    from. A DM has no guild, so every DM to the bot raised an AttributeError inside `with_error_context`,
+    and each one posted an error embed to the admin error channel.'
+- id: pb-063
+  test: tests/behavioral/regressions/test_logging.py::test_the_join_names_an_owner_discord_py_never_cached
+  guarantee: both read `guild.owner_id`, so the owner is named and recorded whether discord.py
+    holds their member or not.
+  broke: the join read `guild.owner`, the owner's cached member, which is None once no server's
+    members are downloaded at start, so the join raised before it recorded or posted anything.
+- id: pb-064
+  test: tests/behavioral/regressions/test_language.py::test_no_pt_br_string_calls_keiko_feminine
+  guarantee: no pt-br string puts a feminine adjective after a verb in Keiko's first person.
+  broke: the welcome card said "eu já fico pronta", and the link check said "fui configurada",
+    "Estou pausada" and "Estou ativa", while every other screen calls Keiko "o Keiko" and
+    "animado".
+- id: pb-065
+  test: tests/behavioral/regressions/test_panel.py::test_a_link_added_again_in_a_setup_takes_the_place_of_the_one_listed
+  guarantee: during a setup, an item whose unique value is already listed takes that item's
+    place instead of being added again; the review lists it once and the document the setup
+    saves holds it once. A different value is still added beside the first.
+  broke: the form engine's merge of a finished item compared `index != index`, a loop variable
+    shadowing the parameter it meant, so the check for an item already listed under the same
+    `unique.key` value never matched. Adding a link the setup already listed appended it again,
+    and the review and the saved doc…
+- id: pb-066
+  test: tests/behavioral/regressions/test_language.py::test_every_text_of_a_copy_file_resolves_to_its_own_words
+  guarantee: every text of a copy file resolves through `ml` to its own words in each locale,
+    the keys of a `{one, other}` block included, since the copy loader adds each text under
+    its full key; and no block of a `form.yml` has two plural-named keys.
+  broke: the /configurar health line showed `commands.commands.setup.health.delivered.block-links.many`
+    instead of "✅ Bloqueei 3 links nos últimos 7 dias". python-i18n's file loader stored a
+    block with two or more of the keys `zero`, `one`, `few`, `many`, `other` as one plural
+    value, so `ml("....one")` foun…
+- id: pb-067
+  test: tests/behavioral/regressions/test_card.py::test_a_commit_that_ends_as_the_clock_runs_out_is_answered_once
+  guarantee: the clock never sends a second first answer, a card's buttons are disabled while
+    a lookup runs, and a click that arrived meanwhile is answered with the current screen
+    only.
+  broke: '(beta.2, B5): Discord marks an interaction answered only once the answer''s round
+    trip returns (discord.py 2.7 sets `is_done()` after the HTTP call). The late-answer clock
+    woke at 1.5 s, read `is_done()` while the first answer was still on the wire and deferred
+    again, so whichever arrived second got…'
+- id: pb-068
+  test: tests/behavioral/regressions/test_one_record_of_whether_a_feature_is_on.py::test_after_disable_setup_offers_the_feature_again
+  guarantee: 'the document decides (absent is off, `enabled: false` is paused, `enabled: true`
+    is on, and a document without `enabled` is off) and every reader asks the same function;
+    a change writes only the document and a failed write leaves the cache agreeing with it;
+    a guild Keiko left has nothing on, for one Redis call when Redis is down; and a server
+    holds one document per cog by its `_id`.'
+  broke: '"on" lived in two places that disagreed in production. The moderations flag (`guild.moderations.<feature>`)
+    was what /setup, its permissions report and the guild-leave pause read; the feature''s
+    document (`guild.<feature>` and its `enabled`) was what the bot actually ran on. Disable
+    wrote the flag b…'
+- id: pb-069
+  test: tests/behavioral/regressions/test_ui.py::test_a_preview_with_nothing_written_still_says_something
+  guarantee: a preview with nothing written still says something
+  broke: Discord refused the preview with "Cannot send an empty message" when the feature
+    handed it no text at all.
+- id: pb-070
+  test: tests/behavioral/regressions/test_logging.py::test_a_config_saved_before_the_field_existed_does_not_raise
+  guarantee: a config saved before the field existed does not raise
+  broke: '`config[ALLOWED_CHATS_KEY]["values"]` on a document written before that field existed,
+    inside on_message, so it fired on every message that guild received.'
+- id: pb-071
+  test: tests/behavioral/regressions/test_language.py::test_every_public_site_speaks_the_saved_language_not_the_servers_locale
+  guarantee: each public site speaks the saved language when the server's Discord locale says
+    the other one; the page footer follows the locale its view was built with; an answer only
+    the clicker sees speaks the saved language too, once the seam every interaction passes
+    (`interaction_language`) set it, since 2026-11-08 (it kept the clicker's own language
+    before); nothing in `app/` guesses a language from `pre…
+  broke: before PR15 every public message guessed the server's language from Discord's community
+    locale on every send (`guild_locale`, `preferred_locale`), the birthday from the language
+    its setup happened to run in, and the StreamElements command list's page footer was always
+    English. A server whose admin…
+- id: pb-072
+  test: tests/behavioral/regressions/test_logging.py::test_the_errors_waiting_for_a_check_are_bounded
+  guarantee: at most `Commands.ANALYTICS_RECOVERY_MAX_PENDING` errors wait; the oldest beyond
+    it is forgotten as if its window had passed, and the newest still get their check.
+  broke: 'every form error waited the whole recovery window in a dict with no size, holding
+    the message it posted, so an outage that failed every session for an hour kept every one
+    of them (found by the memory soak, PR B). Shared behaviour: `DiscordLogsHandler`.'
+- id: pb-073
+  test: tests/behavioral/regressions/test_reminder_webhook.py::test_a_new_renewal_row_expires_once_nothing_has_renewed_it
+  guarantee: a row written now carries `expires_at`, moved forward every time the hub takes
+    its subscription, and a TTL index removes it once that date has passed, so only a row
+    nothing has renewed for `YOUTUBE_RENEWAL_ROW_SECONDS` goes; a row without the field (every
+    row v0.9.0 wrote or writes) never gets one and never expires. The TTL index is declared
+    in the `audit` database.
+  broke: '`audit.reminders` only grew. Every youtuber a server started to follow added a row,
+    and v0.9.0 never deleted one: its unsubscribe asked to delete the row by a field the row
+    does not have, while it did delete the renewal reminder on reminders-api, so a row whose
+    reminder was gone stayed forever, wit…'
+- id: pb-074
+  test: tests/behavioral/regressions/test_stream_elements.py::test_a_second_command_is_answered_from_the_cache_in_its_askers_words
+  guarantee: the streamer's commands are fetched once a day per StreamElements channel, and
+    a streamer with none once in a while; a failure is never cached; a command, known or not,
+    is answered from that cache; each asker's placeholders are filled when the reply is sent;
+    the list keeps showing `!name` with the asker's words; an error names how long the typed
+    command was, never its text; and v0.9.0 keeps the c…
+  broke: '`get_reply_in_cache_or_populate` looked the typed command up (`mouse`) in a cache
+    it had filled under another name (`!mouse`), so it never hit: every message with the prefix
+    called StreamElements, a command the streamer does not have included, in every server,
+    and the one-day cache was written and…'
+- id: pb-075
+  test: tests/behavioral/regressions/test_stream_elements.py::test_a_stream_elements_command_gets_only_its_reply
+  guarantee: in a server where a prefix feature is on, a prefixed message gets the feature's
+    answer and nothing from Keiko; in a server with none on, it gets one message in the server's
+    language naming the configured prefix, the command that turns each prefix feature on,
+    and `/help` and `/setup` by their localized names; a direct message gets the slash hint,
+    from the language files.
+  broke: discord.py hands every message that starts with the configured prefix (`ke!` in production)
+    and names no text command to `Errors.on_command_error`, which always answered with a bilingual
+    "use slashes" hint written in Python. While the StreamElements listener answered a fixed
+    `ks!`, the two never me…
+- id: pb-076
+  test: tests/behavioral/regressions/test_stream_elements.py::test_ping_on_the_default_prefix_gets_only_the_pong
+  guarantee: on the default prefix, `ke!ping` gets the Pong and nothing else.
+  broke: Keiko's prefix answer (today help's prefix hook) answered `ke!ping` with the Pong,
+    then discord.py found no text command `ping` and handed the message to `Errors.on_command_error`,
+    which answered every `CommandNotFound` that started with the default prefix with the prefix
+    hint. A server whose prefi…
+- id: pb-077
+  test: tests/behavioral/regressions/test_stream_elements.py::test_a_setup_in_dev_saves_the_channel_the_streamer_lookup_found
+  guarantee: in every environment the saved document carries the channel id the streamer lookup
+    found, without asking StreamElements for it again.
+  broke: '`_with_channel` (`app/commands/stream_elements/service.py`) returned the document
+    untouched when `is_dev()`, so a setup on the dev bot saved no `channel_id`. The panel
+    then asked StreamElements for `/bot/commands//public` and found no command, and every
+    `ke!` command got no answer. The streamer mod…'
+- id: pb-078
+  test: tests/behavioral/regressions/test_stream_elements.py::test_an_old_document_without_its_channel_still_answers_ke_commands
+  guarantee: a document without its channel still answers, the channel is looked up once from
+    the streamer and written back to the document, and the next command reads it from there.
+  broke: 'the dev bot saved StreamElements documents without `channel_id` (the `is_dev` skip
+    of `_with_channel`), and the three read paths (a `ke!` command in chat, the panel''s command
+    list and the panel''s count) read `channel_id` straight from the document: None, so StreamElements
+    was asked for `/bot/comman…'
+- id: pb-079
+  test: tests/behavioral/regressions/test_stream_elements.py::test_a_channel_lookup_that_failed_is_not_asked_again_on_every_message
+  guarantee: while a lookup failed a few minutes ago, the next messages get no reply and StreamElements
+    is asked for the channel once, not once per message.
+  broke: '`channel_of` (`app/commands/stream_elements/service.py`) looks the channel up through
+    `find_channel` for a document saved without it, and a lookup that failed (StreamElements
+    down, or a streamer it does not know) was never remembered, so every message with the
+    prefix asked StreamElements again for…'
+- id: pb-080
+  test: tests/behavioral/regressions/test_stream_elements.py::test_a_stream_elements_failure_answers_the_panel_in_the_error_format
+  guarantee: a failure answers with Keiko's error embed asking to try again later, a streamer
+    without commands with an embed, and neither is raw text.
+  broke: '`_channel_commands` (`app/commands/stream_elements/service.py`) answered `{}` for
+    a payload that was not a list (a 404) and let a connection error through, so the panel''s
+    Commands button said "no active commands" while StreamElements was down, or failed outright;
+    and "no active commands" itself was…'
+- id: pb-081
+  test: tests/behavioral/regressions/test_stream_elements.py::test_an_outage_warns_again_only_once_its_mark_in_redis_is_gone
+  guarantee: one warning while its mark lives (30 minutes), whatever process meets the failure,
+    a new one once the mark expired; a failed command fetch never marks the channel lookup
+    failed, whose own mark lasts 5 minutes.
+  broke: '`warn_unavailable` (`app/commands/stream_elements/service.py`) remembered when it
+    last warned in a module-level dict, so every process (and every restart) warned again
+    on its own clock, and the channel lookup''s failure mark borrowed its TTL from "no commands".'
+- id: pb-082
+  test: tests/behavioral/regressions/test_ui.py::test_support_closes_with_its_help_line_as_subtext
+  guarantee: the answer carries no embed footer, and it ends, under its how-to field, with
+    the closing line as `-# • ` subtext, the slash command in backticks, in both locales.
+  broke: /support built its embed by hand and set its closing line, "Use the `/help` command
+    ...", as the embed footer, which Discord draws without markdown, so the backticks showed
+    around `/help`.
+- id: pb-083
+  test: tests/behavioral/regressions/test_stream_elements.py::test_the_chat_list_opens_on_page_one_and_stops_at_the_last
+  guarantee: the chat list opens with its back arrows disabled, its forward arrows lead to
+    the last page and stop there, and each press edits the reply itself.
+  broke: '`ks!commands` replied through `PaginationWithoutInteractionView`, a copy of `PaginationView`
+    that drew its first page without disabling any arrow, so `<` and `|<` were live on page
+    1: a press went to "Page 0 / 2" and on to the pages counted from the end.'
+- id: pb-084
+  test: tests/behavioral/regressions/test_ui.py::test_the_report_dm_closes_with_its_support_line_under_the_ticket
+  guarantee: an embed with fields closes with the line as subtext in a last, full-width field
+    under them; an embed without fields still closes its description with it.
+  broke: '`with_footer` (`app/ui/embed.py`) appended the closing line to the description,
+    which Discord draws above the fields, so the link check (once its /report line left the
+    raw embed footer) read "-# • Use the `/report` command ..." under its title and above
+    its three fields, the /report DM opened with…'
+- id: pb-085
+  test: tests/behavioral/regressions/test_language.py::test_the_greeting_is_sent_in_the_servers_language
+  guarantee: a server whose preferred locale is Brazilian Portuguese reads the greeting, its
+    buttons and its language select in pt-br, and any other server keeps English.
+  broke: 'in beta.2 every greeting came out in English. The greeting compared the server''s
+    locale, lowercased to `pt-br`, with `supported_locales`, which spells it `pt-BR`, so a
+    Brazilian server never matched and fell back to `en-us`. Shared behaviour: the language
+    a new server''s settings get from the join''s…'
+- id: pb-086
+  test: tests/behavioral/regressions/test_admin.py::test_paging_back_and_forth_keeps_one_history_button
+  guarantee: the view holds the Next button and, from the guild page on, one History button.
+  broke: every turn to the guild page added another History button, so paging back and forth
+    stacked them under the inspection, and the 25th turn would have overflowed the view.
+- id: pb-087
+  test: tests/behavioral/regressions/test_admin.py::test_a_feature_that_is_on_is_dated_from_its_latest_enable
+  guarantee: the status line of a feature that is on names its newest enable or unpause, whatever
+    older events the history holds.
+  broke: '`_find_last_enabled_event` walked the events newest first, the order `find_cog_events_by_guild`
+    reads them in, and kept the last match, so a feature paused and unpaused yesterday read
+    as on "since" its first setup months ago.'
+- id: pb-088
+  test: tests/behavioral/regressions/test_language.py::test_the_ticket_reads_in_english_whatever_the_authors_language
+  guarantee: whatever the author's language, the ticket is titled "📩 New ticket created [#<id>]!"
+    and its fields read Title, Description, Command, Author and Attachment, "No attachment"
+    when none was sent.
+  broke: '`Report._create_report_embed` wrote the ticket the team reads in Portuguese literals
+    ("📩 Novo ticket criado", "Título", "Sem anexo"), while the writing-style skill keeps what
+    only whoever runs Keiko reads in English, with no `ml()` and no pt-br counterpart.'
+- id: pb-089
+  test: tests/behavioral/regressions/test_logging.py::test_the_healthcheck_opens_no_trace
+  guarantee: the healthcheck opens no trace; a request, and the jobs it hands its work to,
+    post only when they failed, and a warning stays in `guild.logs`; a route that raises,
+    or answers a 5xx other than 503, still posts its error and its trace; a 503 without an
+    error asks the sender to try again later, so it posts nothing and stores no error; a request
+    answered with a 4xx posts nothing, is counted by route…
+  broke: 'every request under /v1/webhooks opened a trace that was posted to the Discord logs
+    channel, the `/healthcheck` an uptime monitor calls every few seconds included, so the
+    channel filled with messages saying nothing happened. A refused request was worse: a forged
+    Twitch notice was logged as an error…'
+- id: pb-090
+  test: tests/behavioral/regressions/test_welcome.py::test_a_channel_that_refuses_files_still_gets_the_banner_by_link
+  guarantee: a channel that refuses files still gets the banner by link
+  broke: once the banner travelled as an attachment, a welcome channel that denies Keiko Attach
+    Files answered 403 on every join, where it used to show the banner from the dump channel.
+    That channel keeps the link, and the delivery says so where it can be counted.
+- id: pb-091
+  test: tests/behavioral/regressions/test_welcome.py::test_a_custom_image_welcome_is_never_counted_as_a_linked_banner
+  guarantee: a custom image welcome is never counted as a linked banner
+  broke: 'a "custom image only" welcome in a channel that refuses files was counted as `no_attach_files`,
+    though that design draws no banner and attaches nothing: it shows the admin''s own picture
+    by its link either way.'
+- id: pb-092
+  test: tests/behavioral/regressions/test_welcome.py::test_a_plain_background_is_counted_before_a_banner_sent_by_link
+  guarantee: a plain background is counted before a banner sent by link
+  broke: a banner drawn plain in a channel that refuses files was counted only as `no_attach_files`,
+    hiding the design that stopped being drawn.
+- id: pb-093
+  test: tests/behavioral/regressions/test_welcome.py::test_a_refused_background_says_why_in_the_log
+  guarantee: a refused background says why in the log
+  broke: a background refused by the image bounds logged only `ImageRefused`, so the log never
+    said whether it was the type, the size or the pixels.
+- id: pb-094
+  test: tests/behavioral/regressions/test_welcome.py::test_a_banner_drawn_before_the_title_is_written_reads_the_welcome_copy
+  guarantee: a banner drawn without the admin's title paints `ui.texts.banner_title` of the
+    welcome copy, in the admin's language, as the copy words it.
+  broke: the design gallery an admin sees before writing a title drew "WELCOME", a word written
+    in `app/commands/welcome/service.py`, so no copy file held it and no locale could word
+    it.
+- id: pb-095
+  test: tests/behavioral/scenarios/test_card_flow.py::test_the_birthday_panel_lists_the_next_birthdays_as_bullets
+  guarantee: the birthday panel lists the next birthdays as bullets
+  broke: 'the counts block read "Próximos aniversários: 1. <@555>: 12 de maio" and "2. <@777>:
+    12 de junho" on a bare next line, a numbered text glued to its label, while every other
+    list of the panel is bullets under its title (P4). The next birthdays are a list of values,
+    drawn like one.'
+- id: pb-096
+  test: tests/behavioral/scenarios/test_welcome_flow.py::test_the_next_button_never_redraws_the_banner
+  guarantee: the next button never redraws the banner
+  broke: Next awaited create_banner before answering the interaction, and Discord gives three
+    seconds while the repo's own PREVIEW_WAIT_SECONDS records that the render takes eight.
+- id: pb-097
+  test: tests/behavioral/soak/test_traffic.py
+  guarantee: two iterations in a row, the pt-br and the en-us run of a golden path on the
+    same server, drive every step and every listener.
+  broke: after database PR 1 (#61) the soak seeded its servers' features in the old per-feature
+    collections, which nothing reads any more, so the blocked link, the StreamElements command,
+    the welcome and the default roles never answered; and its golden paths shared the server
+    settings memo, so `welcome_mess…
+- id: pb-098
+  test: tests/forms/actions/test_intro.py::test_the_intro_lists_every_field_of_the_cards_it_reads
+  guarantee: the intro lists every field of the cards it reads
+  broke: welcome, Twitch and YouTube showed an empty settings list after their steps became
+    one card, because a card field is only listed when it declares a description.
+- id: pb-099
+  test: tests/forms/actions/test_intro.py::test_the_intro_gives_each_setting_one_line
+  guarantee: the intro gives each setting one line
+  broke: default roles listed its whole step description, numbered lines included, under one
+    setting of the first screen, because the intro read every non-card step's full description.
+- id: pb-100
+  test: tests/forms/actions/test_intro.py::test_a_setting_titled_as_a_question_takes_no_colon_after_it
+  guarantee: a setting titled as a question takes no colon after it
+  broke: 'default roles'' intro read "Dar os cargos para quem já está no servidor?: Se você
+    quiser…", the question mark followed by the colon every setting got; the review''s lines
+    already drop it (`labelled`).'
+- id: pb-101
+  test: tests/forms/actions/test_tokens.py::test_an_answer_put_in_a_text_is_never_read_again
+  guarantee: what an admin typed shows as typed, whatever Keiko's syntax it looks like.
+  broke: '`apply_tokens` filled the answers first and the context after, over the whole text,
+    so an answer an admin typed as `evil{context:prefix}x` showed `evil!x`.'
+- id: pb-102
+  test: tests/forms/discord/test_discord_adapter.py::test_a_held_card_is_usable_again_when_its_screen_fails_to_draw
+  guarantee: a held card is usable again whatever its effects did.
+  broke: '(beta.2 review, K2): a lookup disables the card while it runs, and the controls
+    came back only after every effect succeeded; a Render that failed after the hold left
+    every button of the card disabled for good. Shared: the hold and release of `callbacks.py`
+    and `Executor.render`, which now records a…'
+- id: pb-103
+  test: tests/forms/discord/test_discord_adapter.py::test_deleting_from_a_card_panel_replaces_it_with_the_final_message
+  guarantee: deleting from a card panel replaces it with the final message
+  broke: followup.send(view=None) raised TypeError once a lifecycle change saved and its final
+    embed replaced the panel's card.
+- id: pb-104
+  test: tests/forms/discord/test_discord_adapter.py::test_a_finalize_that_fails_inside_a_commit_is_reported_once
+  guarantee: a finalize that fails inside a commit is reported once
+  broke: one failed finalize logged Finalize failed, a false Commit failed and discord.py's
+    Ignoring exception, three error messages for one failure.
+- id: pb-105
+  test: tests/forms/discord/test_discord_adapter.py::test_a_command_that_runs_late_is_answered_before_the_clock_runs_out
+  guarantee: a command that runs late is answered before the clock runs out
+  broke: on a slow link the command answered nothing and the log filled with "Unknown interaction"
+    (10062). Discord gives three seconds, and the panel was only sent after reading the document,
+    so every slow read lost the whole interaction.
+- id: pb-106
+  test: tests/forms/discord/test_discord_adapter.py::test_an_aside_that_asks_first_spends_its_cooldown_only_when_confirmed
+  guarantee: an aside that asks first spends its cooldown only when confirmed
+  broke: Sync wrote roles to every member on one click, without a word.
+- id: pb-107
+  test: tests/forms/discord/test_discord_adapter.py::test_confirming_a_card_review_replaces_it_with_the_enabled_message
+  guarantee: confirming a card review replaces it with the enabled message
+  broke: the enabled embed was edited onto the Components V2 review, which Discord refuses.
+    The panel then follows it on a message of its own.
+- id: pb-108
+  test: tests/forms/discord/test_discord_adapter.py::test_the_design_picker_opened_from_the_welcome_panel_shows_previews
+  guarantee: the design picker opened from the welcome panel shows previews
+  broke: previews were drawn only for a setup, so the gallery an edit opened from the panel
+    had no pictures.
+- id: pb-109
+  test: tests/forms/features/test_features.py::test_the_preview_of_a_card_reads_what_is_written_on_it
+  guarantee: the preview of a card reads what is written on it
+  broke: Preview on the welcome card answered nothing at all. While the card is open its answers
+    live as one draft under the card's own key, and the card key produces no view, so the
+    preview found no message to draw.
+- id: pb-110
+  test: tests/forms/features/test_features.py::test_the_preview_of_an_item_card_reads_the_fields_of_that_item
+  guarantee: the preview of an item card reads the fields of that item
+  broke: previewing from a Twitch item card found no message at all and Discord refused an
+    empty message. The card lives inside the composition, so its fields are not produced by
+    any top level step.
+- id: pb-111
+  test: tests/forms/features/test_features.py::test_editing_the_streamer_refreshes_the_stream_elements_channel
+  guarantee: editing the streamer refreshes the stream elements channel
+  broke: an edited streamer kept the old streamer's StreamElements channel, so the chat went
+    on answering with the old streamer's commands.
+- id: pb-112
+  test: tests/forms/features/test_features.py::test_a_setup_saves_the_stream_elements_channel_in_dev
+  guarantee: a setup saves the stream elements channel in dev
+  broke: the setup skipped the StreamElements channel when `is_dev()`, so the dev bot saved
+    a streamer without a channel and answered no command.
+- id: pb-113
+  test: tests/forms/features/test_features.py::test_the_stream_elements_panel_tells_no_commands_from_a_failure
+  guarantee: the stream elements panel tells no commands from a failure
+  broke: the panel's count read a streamer with no active command and a StreamElements failure
+    alike, as "I couldn't reach StreamElements".
+- id: pb-114
+  test: tests/forms/form/test_form.py::test_the_intro_keeps_one_blank_line_before_its_settings
+  guarantee: the intro keeps one blank line before its settings
+  broke: StreamElements' intro showed two blank lines before its settings, because a YAML
+    block text keeps its trailing newline and the intro appended the list after it.
+- id: pb-115
+  test: tests/forms/form/test_form.py::test_an_unknown_streamer_is_told_apart_and_its_modal_keeps_what_was_typed
+  guarantee: an unknown streamer is told apart and its modal keeps what was typed
+  broke: '(tw-10, PR8 #33): the card lost what the admin typed, and the analytics said required
+    fields were missing when a validator had refused the value. Since beta.2 round 2 (R3)
+    the error is a message of its own again, never a line inside the card.'
+- id: pb-116
+  test: tests/forms/form/test_form.py::test_a_card_that_needs_one_of_its_selects_refuses_done_when_every_one_is_empty
+  guarantee: a card that needs one of its selects refuses done when every one is empty
+  broke: 'default roles saved with both dropdowns empty. Since beta.2 (dr-2) the roles are
+    a card, and `required.any` keeps that refusal: Done stays on the card and says, on a message
+    of its own, that one is needed.'
+- id: pb-117
+  test: tests/forms/form/test_form.py::test_confirming_the_member_picker_on_the_review_does_not_save
+  guarantee: confirming the member picker on the review does not save
+  broke: Confirm on the member picker opened from the birthday review ran the review's Confirm
+    and saved the whole setup.
+- id: pb-118
+  test: tests/forms/form/test_form.py::test_a_refusal_is_recorded_under_the_name_released_versions_recorded
+  guarantee: a refusal is recorded under its bare error name, kebab-case, without its copy
+    path, as released versions recorded it.
+  broke: the copy schema renamed the error blocks to snake_case and moved YouTube's into its
+    copy, so `setup.validation_failed` recorded `notifications_youtube_video.errors.youtuber-not-found`
+    where every released version recorded `youtuber-not-found`, splitting the series the friction
+    and drop-off reports…
+- id: pb-119
+  test: tests/forms/form/test_form.py::test_a_dependent_key_survives_a_change_its_validator_accepts
+  guarantee: a dependent key survives a change its validator accepts
+  broke: the dependents handed the validator the whole card state instead of the dependent
+    value, so every validator but validate_date read a stringified mapping, found a space
+    in it, and cleared the key on any change.
+- id: pb-120
+  test: tests/forms/form/test_form.py::test_a_card_modal_asks_for_the_long_box_its_fields_declare
+  guarantee: a card modal asks for the long box its fields declare
+  broke: moving the message steps into card sections dropped their `multiline`, so a hundred
+    character message typed in a one line box.
+- id: pb-121
+  test: tests/forms/form/test_form.py::test_a_card_nobody_touched_yet_still_shows_its_defaults
+  guarantee: a card nobody touched yet still shows its defaults
+  broke: Preview answered nothing when pressed right after the welcome card opened. Until
+    the first change a card has no draft at all, so the session held none of the values the
+    admin was reading on the screen.
+- id: pb-122
+  test: tests/forms/form/test_form_yaml.py::test_a_rule_names_exactly_one_operator
+  guarantee: a rule names exactly one operator
+  broke: a `when` leaf writing `not_in` and `matches` was compiled and then evaluated only
+    by its first operator, the other dropped in silence (the evaluator in `conditions.py`
+    reads one). Every rule of every form goes through the same `Leaf`, so a leaf with two
+    operators is now refused at compile.
+- id: pb-123
+  test: tests/forms/form/test_form_yaml.py::test_a_text_step_takes_no_required_since_its_input_always_is
+  guarantee: a text step takes no required since its input always is
+  broke: '`required: false` on a text step compiled and changed nothing, the modal kept its
+    input required (`required=step.required or True`). The input of a text step is always
+    required, so the field is gone and writing it is refused.'
+- id: pb-124
+  test: tests/forms/form/test_form_yaml.py::test_a_card_header_names_a_picture_of_keiko_that_exists
+  guarantee: a card header names a picture of keiko that exists
+  broke: a header `thumbnail` naming no picture of Keiko compiled and drew no thumbnail, in
+    silence (`KeikoIcons.BY_NAME.get(name, "")`). Every card header reads that map, so an
+    unknown name is now refused at compile.
+- id: pb-125
+  test: tests/forms/form/test_form_yaml.py::test_the_vocabulary_is_read_as_strictly_as_a_form_yml
+  guarantee: the vocabulary is read as strictly as a form yml
+  broke: '`vocabulary.yml` was read with `yaml.safe_load`, so a text written twice kept its
+    last spelling in silence while every form.yml and copy.yml refused it. Every form reads
+    the vocabulary, so it now goes through `strict_yaml` like them.'
+- id: pb-126
+  test: tests/forms/form/test_manager.py::test_a_list_with_no_item_reads_on_one_line
+  guarantee: a list with no item reads on one line
+  broke: '"Your links:" and "None" came out on two lines, because an empty list was formatted
+    as a block of items.'
+- id: pb-127
+  test: tests/forms/form/test_manager.py::test_an_empty_list_setting_reads_none_without_a_code_block
+  guarantee: an empty list setting reads none without a code block
+  broke: block_links with no popular site allowed showed six backticks.
+- id: pb-128
+  test: tests/forms/form/test_manager.py::test_a_list_longer_than_the_screen_keeps_the_panel_edit
+  guarantee: a list longer than the screen keeps the panel edit
+  broke: a heading's own screen draws only the first three items, but the panel counted every
+    item of the list as covered and dropped the global Edit, which was the only way to reach
+    the fourth.
+- id: pb-129
+  test: tests/forms/form/test_manager.py::test_a_boolean_stored_as_a_string_reads_as_no
+  guarantee: a boolean stored as a string reads as no
+  broke: a styled option persists "True"/"False" as a STRING, and the old formatter read "False"
+    as truthy and showed "Sim". The guarantee moved here with the formatter when the old engine's
+    copy was deleted.
+- id: pb-130
+  test: tests/forms/form/test_manager.py::test_the_panel_intro_prefers_the_panel_description
+  guarantee: the panel intro prefers the panel description
+  broke: the panel read "Enabling this feature allows me to..." on a feature that was already
+    on.
+- id: pb-131
+  test: tests/forms/form/test_manager.py::test_edit_beside_a_list_kept_past_its_gate_opens_that_list
+  guarantee: edit beside a list kept past its gate opens that list
+  broke: a list whose gate said "later" was kept on the panel once it held something, but
+    the Edit beside it opened nothing, because the picker still dropped the step its gate
+    refused.
+- id: pb-132
+  test: tests/forms/form/test_manager.py::test_edit_beside_a_member_keyed_list_opens_the_member_picker
+  guarantee: edit beside a member keyed list opens the member picker
+  broke: the birthday list's own Edit drew a dropdown with no option, which Discord refuses.
+- id: pb-133
+  test: tests/forms/form/test_manager.py::test_every_visible_step_is_a_panel_group_with_its_own_edit
+  guarantee: every visible step is a panel group with its own edit
+  broke: a single step (a channel, a modal) had no Edit of its own, only the global Edit and
+    a dropdown to pick the step.
+- id: pb-134
+  test: tests/forms/form/test_manager.py::test_a_refused_change_on_a_heading_screen_answers_in_copy_and_redraws_it
+  guarantee: a refused change on a heading screen answers in copy and redraws it
+  broke: the exceptions screen answered a refused change with `ShowError(<reason>)`, whose
+    copy keys do not exist, so the admin read `errors.stale.title` over the old list.
+- id: pb-135
+  test: tests/forms/form/test_manager.py::test_the_edit_beside_a_declared_group_opens_that_part
+  guarantee: the edit beside a declared group opens that part
+  broke: 'the two buttons of the block links "Exceptions" heading did nothing at all. The
+    panel gives a card field its own Edit whenever the field declares a panel group of its
+    own, but the engine only honoured a part target on a card that also declares `edit: field`,
+    so the click answered a stale notice and…'
+- id: pb-136
+  test: tests/forms/form/test_manager.py::test_the_only_item_warning_never_reads_the_item_it_put_in
+  guarantee: the item shows as it was saved.
+  broke: the warning filled `$item` with the item's block and then read the whole text again
+    for `$feature`, so a streamer saved as `x$feature` showed the feature's name in its own
+    block.
+- id: pb-137
+  test: tests/forms/form/test_manager.py::test_a_list_with_no_items_is_never_opened_by_an_edit
+  guarantee: a list with no items is never opened by an edit
+  broke: the Edit of an empty list built a dropdown with no option and Discord refused the
+    message (50035 Invalid Form Body). The empty list keeps a button of its own when its heading
+    is shared with another setting, but that button adds, so nothing ever opens a picker with
+    nothing to pick.
+- id: pb-138
+  test: tests/forms/form/test_manager.py::test_the_member_a_search_found_is_removed_through_the_panels_confirmation
+  guarantee: the member a search found is removed through the panels confirmation
+  broke: Remover on the member a search found asked "Remover este item?" on a message of its
+    own with Manter and Remover, a second removal flow beside the one the panel's lists use
+    (review K1, item 8). It now asks in place, with Remover and Voltar, and Voltar goes back
+    to the member.
+- id: pb-139
+  test: tests/forms/form/test_manager.py::test_an_add_button_on_the_review_always_carries_the_plus
+  guarantee: an add button on the review always carries the plus
+  broke: 'the block links review drew the popular websites'' "Adicionar" with ✏️ while the
+    custom links beside it drew "➕ Adicionar": the emoji came from the value being a list,
+    so nothing chosen yet (or one site) read as an edit. An Add label carries ➕ whatever the
+    setting holds.'
+- id: pb-140
+  test: tests/forms/test_boundary.py::test_the_services_never_redefine_a_name_the_responses_package_owns
+  guarantee: the services never redefine a name the responses package owns
+  broke: the services layer kept its own parse_link and its own calendar beside the platform's,
+    and the two had already drifted while both were live.
+- id: pb-141
+  test: tests/scripts/test_logs_tool.py::test_every_day_is_indexed_even_though_they_all_share_one_filename
+  guarantee: '`doRollover` posts `logs/keiko_log.log` every night, so the name repeats.'
+  broke: idempotence keyed on the filename, so a full backfill reported success after indexing
+    exactly one of 745 attachments and silently skipping the rest. A hole in the archive that
+    announces itself as "done" is worse than a crash.
+- id: pb-142
+  test: tests/scripts/test_logs_tool.py::test_a_schema_bump_keeps_the_old_index_aside
+  guarantee: an index of an older shape is copied to `<path>.v<old version>` before the new
+    shape replaces it, with every entry it held.
+  broke: a new `SCHEMA_VERSION` dropped the whole index, and once the channel keeps the daily
+    files 90 days the index is the only copy of the older logs.
+- id: pb-143
+  test: tests/test_admin_analytics.py::test_what_was_still_queued_for_a_forgotten_guild_never_comes_back
+  guarantee: forgetting a guild writes the queued events and traces first, then deletes them
+    with the rest, and the flush after it brings nothing back.
+  broke: /admin forget deleted what Mongo held, and the next flush wrote what the queue still
+    held for the guild, its events, numbers and failed traces, so the guild was back a few
+    seconds after the operator was told it was forgotten.
+- id: pb-144
+  test: tests/test_admin_digest.py::test_the_week_counts_seven_days_and_names_them
+  guarantee: the digest counts today and the six days before it, an arrival seven days ago
+    is left to last week's digest, and the title names those seven days.
+  broke: the window ran from the day a week ago to today, both included, so the digest summed
+    eight calendar days, a server that joined on last Monday counted in two digests, and its
+    title named eight dates.
+- id: pb-145
+  test: tests/test_admin_digest.py::test_the_digest_goes_out_on_monday_in_utc_whatever_the_host_clock_says
+  guarantee: the digest is sent when it is Monday in UTC.
+  broke: the loop fires at `ANALYTICS_DIGEST_HOUR` UTC, and the weekday it checked was the
+    host's local one, so on a host behind UTC a Monday 09:00 UTC run read Sunday and the week's
+    digest never went out.
+- id: pb-146
+  test: tests/test_analytics_storage.py::test_one_batch_keeps_the_first_and_the_last_value_in_time_whatever_their_order
+  guarantee: within one batch, `first_value_at` keeps the earliest moment and `last_value_at`
+    the latest, in whatever order the events were queued.
+  broke: the analytics writer folded every event of a batch into one update by keeping the
+    last event's timestamp, so `$min` and `$max` got the batch's last moment, and a server's
+    first value read as a later one and its last value as an earlier one.
+- id: pb-147
+  test: tests/test_analytics_storage.py::test_only_a_greeting_posted_on_a_channel_stamps_the_profile
+  guarantee: the event is stored as ever, and only a greeting posted on a channel stamps the
+    profile.
+  broke: '`PROFILE_RULES` stamped `greeting_sent_at` for every `guild.greeting_sent`, so a
+    server with no writable channel read as greeted in the reports.'
+- id: pb-148
+  test: tests/test_analytics_storage.py::test_a_blocked_link_adds_to_keikos_total_and_its_sites_naming_no_one
+  guarantee: the analytics writer derives `blocked:total` and `blocked:site:{host}` from `link.blocked`,
+    and those documents name no server and no member.
+  broke: block links counted Keiko's own total itself, in `guild.block_links_totals`, beside
+    the event it emitted.
+- id: pb-149
+  test: tests/test_analytics_storage.py::test_a_counter_never_outlives_its_window_when_redis_drops_midway
+  guarantee: a counter is written with its TTL in one round trip, or not at all.
+  broke: '`increment_redis_key_with_expiration` sent INCRBY and EXPIRE in two round trips,
+    so a connection lost between them left an analytics counter with no TTL, kept forever.'
+- id: pb-150
+  test: tests/test_analytics_reports.py::test_a_blocked_link_is_one_activity_and_one_value_delivered
+  guarantee: one `link.blocked` event, one activity document, and the value it counts.
+  broke: a blocked link was written twice, a `guild.blocked_links` row and a `feature.action_performed`
+    count, and the two disagreed.
+- id: pb-151
+  test: tests/test_data_layer.py::test_a_read_before_the_bot_loop_starts_waits_for_it
+  guarantee: a read before the bot loop starts waits for it
+  broke: a webhook served before `setup_hook` read on a loop of its own, and the client, bound
+    to that loop for good, refused every read the bot made after.
+- id: pb-152
+  test: tests/test_default_roles.py::TestDefaultRolesSync::test_the_sync_result_reads_like_keiko
+  guarantee: the sync result reads like keiko
+  broke: a bare green embed with no picture, no footer and no numbers.
+- id: pb-153
+  test: tests/test_default_roles.py::TestThePanelWarnsOnlyAboutSavedRoles::test_a_server_that_saved_only_bot_roles_sees_no_warning
+  guarantee: a server that saved only bot roles sees no warning
+  broke: 'a server that gave roles only to bots opened its panel to "I no longer have permission
+    to assign the following roles: <@&None>", because the absent member roles were read as
+    one role named None. The shared behaviour is the default roles panel info; it must stay
+    empty while every saved role is one K…'
+- id: pb-154
+  test: tests/test_migration_analytics.py::test_a_blocked_link_counted_as_an_action_is_counted_as_link_blocked
+  guarantee: the old name lands under the new one, added to it when a day holds both, and
+    every other metric is copied as it is.
+  broke: block links counted every blocked link as `feature.action_performed`, and the sink
+    now counts `link.blocked`, so a copy as it was would split one server's blocks over two
+    names.
+- id: pb-155
+  test: tests/test_migration_events.py::test_the_pauses_keiko_made_on_leaving_a_server_name_the_bot
+  guarantee: the pauses keiko made on leaving a server name the bot
+  broke: every events.<cog> row was copied as a member's change, so the pauses Keiko wrote
+    for each feature of a server it left read in the History as a member who paused them.
+    A person pauses one feature at a time; Keiko paused all of a server's at once, so the
+    id that paused two features of one server wit…
+- id: pb-156
+  test: tests/test_migration_notice_mentions.py::test_a_notice_as_0003_copies_it_from_production_moves
+  guarantee: a notice as 0003 copies it from production moves
+  broke: '(the CI mongo job of PR #67): a production notice saved without messages reached
+    0008 through 0003 with no `notification_messages`, which `splittable` refused, aborting
+    the release migration. The read model (`item_values`) reads such a notice as one with
+    no messages; an envelope holding `_raw_value…'
+- id: pb-157
+  test: tests/test_notifications_twitch.py::TestTwitchMessageComposition::test_a_message_that_already_links_the_streamer_gets_no_second_link
+  guarantee: a message that already links the streamer gets no second link
+  broke: '(tw-5, beta.2): the setup now writes the streamer''s link into the suggested message,
+    and a message holding the link but not `{stream_link}` got the link appended again on
+    a line of its own.'
+- id: pb-158
+  test: tests/test_notifications_twitch.py::test_a_live_without_a_category_announces_no_category_field
+  guarantee: such a live is announced with the streamer field alone, and a live with a category
+    keeps both fields.
+  broke: a live Twitch sent with no category (`game_name` missing, or empty) was announced
+    with a "Game" / "Categoria" field reading "None", since the notice wrote its fields by
+    hand and added every one whatever its value.
+- id: pb-159
+  test: tests/test_redis_cleanup.py::test_the_check_only_warns_on_a_key_outside_the_roles_that_expires_on_its_own
+  guarantee: such a key is listed as a warning and the step still passes.
+  broke: the check failed the release on every key outside the four prefixes, and v0.9.0 left
+    translations cached under their raw text with a day's TTL, so the first release after
+    it would stop on keys that were already going away.
+- id: pb-160
+  test: tests/test_release_workflow.py::test_the_data_migrates_only_once_the_old_version_has_stopped
+  guarantee: the data migrates only once the old version has stopped
+  broke: '`migrate` ran while the old container served, so what it wrote to the old collections
+    during the copy was never copied and was lost with the cutover.'
+- id: pb-161
+  test: tests/test_analytics_storage.py::test_two_runs_whose_trace_ids_collide_are_both_kept
+  guarantee: every kept run is a document of its own (an ObjectId `_id`) that carries its
+    trace id as a field.
+  broke: a run was keyed by its trace id, six hex characters, and kept with `$setOnInsert`,
+    so a second trace drawing the same id inside the 30 days the runs live was silently dropped.
