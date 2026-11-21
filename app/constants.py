@@ -275,6 +275,8 @@ class Commands:
     STREAM_ELEMENTS_FAILURE_SECONDS: Final[int] = 60 * 30
 
     REMINDERS_BIRTHDAY_REACTION: Final[str] = "🎉"
+    MENTION_REACTION: Final[str] = "🐶"
+    MENTION_WOOF_CHANCE: Final[float] = 0.1
     REMINDER_API_TITLE_BIRTHDAY: Final[str] = "birthday_reminder"
 
     SELF_BIRTHDAY_EDIT_LIMIT: Final[int] = 1
@@ -353,6 +355,8 @@ class ViewConstants:
     GROUP_ITEMS_SHOWN: Final[int] = 3
     COMMANDS_PAGE_SIZE: Final[int] = 5
     SETUP_PAGE_SIZE: Final[int] = 4
+    HELP_PAGE_SIZE: Final[int] = 2
+    MEMBER_HELP_PAGE_SIZE: Final[int] = 1
     SETUP_CATEGORY_EXAMPLES: Final[int] = 3
     EDIT_BY_ITEM_MAX: Final[int] = 3
     CHOICE_BUTTONS_PER_ROW: Final[int] = 4

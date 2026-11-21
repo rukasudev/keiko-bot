@@ -3,8 +3,8 @@
 import discord
 
 from app.bot import DiscordBot
-from app.commands.stream_elements import service as stream_elements_service
 from app.decorators import keiko_admin_only, keiko_command
+from app.forms import open_feature
 from app.translator import locale_str
 from app.types.cogs import Group
 
@@ -34,4 +34,4 @@ class StreamElementsCommands(  # noqa: D101 - discord.py sends a Group's docstri
     @keiko_admin_only
     async def stream_elements_commands(self, interaction: discord.Interaction) -> None:
         """Open the setup form, or the manager of the StreamElements commands."""
-        await stream_elements_service.manager(interaction)
+        await open_feature(interaction, "stream_elements_commands")

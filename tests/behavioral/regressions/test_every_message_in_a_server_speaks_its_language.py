@@ -115,7 +115,7 @@ async def test_an_error_speaks_the_servers_language(deps, server):
 
 
 @LANGUAGES
-async def test_the_help_speaks_the_servers_language(deps, server):
+async def test_the_help_speaks_the_servers_language(deps, server, app_command_tree):
     from app.commands.setup.service import CommandsButton
 
     guild = create_guild(id=4242)
@@ -123,7 +123,7 @@ async def test_the_help_speaks_the_servers_language(deps, server):
     interaction = MockInteraction(
         user=create_member(guild, id=555), guild=guild, locale=DISCORD[OTHER[server]]
     )
-    interaction.client = SimpleNamespace(app_commands=[])
+    interaction.client = SimpleNamespace(tree=app_command_tree)
     interaction.edit_original_response = AsyncMock()
 
     await CommandsButton("📚").callback(interaction)

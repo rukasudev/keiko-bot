@@ -37,7 +37,6 @@ from app.commands.setup.service import (
     LegacyGreetingButtons,
     category_page,
     command_facts,
-    greeting_embed,
     greeting_views,
     open_setup_dashboard,
     permission_report,
@@ -55,10 +54,13 @@ from tests.behavioral.flows.common import seed_document, seed_history
 from tests.behavioral.flows.roles import ENABLED as DEFAULT_ROLES
 from tests.behavioral.flows.twitch import ENABLED as TWITCH
 from tests.behavioral.flows.welcome import ENABLED as WELCOME
+from tests.behavioral.harness.copy_keys import copy_text
 from tests.behavioral.harness.locators import walk_items
 from tests.generators.moderations import recorded_server, seed_cog
+from tests.helpers.components import button_labels, card_texts
 from tests.helpers.discord_limits import MAX_COMPONENTS, assert_within_limits
 from tests.helpers.permissions import EVERYTHING, guild
+from tests.helpers.slash_tree import synced_tree
 from tests.mocks.database import fake_store
 from tests.mocks.discord import create_guild, create_member
 
@@ -68,6 +70,7 @@ GUILD_ID = "123456789"
 LOCALES = ["pt-br", "en-us"]
 CROWDED = 13
 TEXTS = "setup.ui.texts"
+HELP_LINES = "help.ui.records.commands.lines"
 
 
 def seed(deps, enabled, paused=()):
@@ -134,12 +137,6 @@ def rows(view):
         for item in walk_items(view)
         if isinstance(item, discord.ui.Section)
         and isinstance(item.accessory, discord.ui.Button)
-    ]
-
-
-def texts(view):
-    return [
-        item.content for item in walk_items(view) if isinstance(item, discord.ui.TextDisplay)
     ]
 
 
@@ -380,7 +377,7 @@ async def test_every_row_is_its_name_and_one_subtext_line_with_its_command(confi
 
 
 async def test_no_row_repeats_its_status_as_a_coloured_circle(configured):
-    rendered = "\n".join(texts(await page("moderations")))
+    rendered = "\n".join(card_texts(await page("moderations")))
 
     assert not [circle for circle in ("🔴", "🟢", "⚪", "🟡") if circle in rendered]
 
@@ -501,6 +498,37 @@ async def test_a_row_button_opens_the_feature_through_the_setup_dashboard_source
     await scenario.finish()
 
 
+@pytest.mark.parametrize(
+    "permissions",
+    [
+        pytest.param(discord.Permissions(administrator=True), id="administrator"),
+        pytest.param(discord.Permissions(manage_guild=True), id="manage-server"),
+    ],
+)
+async def test_whoever_may_configure_keiko_sets_a_feature_up_from_configurar(
+    configured, scenario_factory, permissions
+):
+    """Broke as: a moderator with Manage Server and no Administrator got "⚠️ Apenas
+    Admins" on /configurar and on every button of it (PR9, D9-04).
+
+    Shared behaviour: `is_guild_admin` (`app/core/utils.py`), the one rule of who
+    configures Keiko, read by /configurar and by every button of its card. Consumer
+    that exposed it: /configurar opened by a moderator with Manage Server, on the PR9
+    front-door review.
+
+    Guaranteed: whoever holds Administrator or Manage Server opens /configurar, a
+    category of it and a feature's setup from that category.
+    """
+    scenario = admin(scenario_factory)
+    scenario.user.guild_permissions = permissions
+    await configurar(scenario)
+    await scenario.click(category_button(scenario, "moderations"))
+
+    await scenario.click(beside(scenario, "default_roles"))
+
+    scenario.expect_mode("setup")
+
+
 async def test_a_birthdays_setup_from_configurar_ends_on_the_notifications(
     scenario_factory, deps
 ):
@@ -513,7 +541,7 @@ async def test_a_birthdays_setup_from_configurar_ends_on_the_notifications(
     await scenario.confirm()
     await scenario.finish()
 
-    shown = texts(scenario.current_message.view)
+    shown = card_texts(scenario.current_message.view)
     name = ml(f"{TEXTS}.categories.notifications", "pt-br")
     assert shown[0] == f"## {PARENT_GROUPS['notifications']} {name}"
     row = text_of(
@@ -527,16 +555,25 @@ async def test_a_birthdays_setup_from_configurar_ends_on_the_notifications(
     assert scenario.live_messages == [scenario.current_message], "one message"
 
 
+@pytest.mark.parametrize(
+    "permissions",
+    [
+        pytest.param(discord.Permissions(administrator=True), id="administrator"),
+        pytest.param(discord.Permissions(manage_guild=True), id="manage-server"),
+    ],
+)
 async def test_the_greeting_dashboard_button_sends_the_same_screen(
-    configured, scenario_factory
+    configured, scenario_factory, permissions
 ):
+    """A moderator with Manage Server and no Administrator opens it too (PR9, D9-04)."""
     scenario = admin(scenario_factory)
-    scenario.post(GreetingsView("pt-br"), embed=greeting_embed("pt-br"))
+    scenario.user.guild_permissions = permissions
+    scenario.post(GreetingsView("pt-br"))
 
     await scenario.click("greetings:setup:dashboard")
 
     answer = last_answer(scenario)
-    assert texts(scenario.current_message.view)[:2] == header("pt-br")
+    assert card_texts(scenario.current_message.view)[:2] == header("pt-br")
     assert answer["ephemeral"] is True
     assert answer["components_v2"] and "embed" not in answer, (
         "a Components V2 message carries no embed"
@@ -571,7 +608,7 @@ async def test_the_card_ends_with_help_history_permissions_and_support(configure
         (ml("buttons.help.label", "pt-br"), "📚"),
         (ml("buttons.history.label", "pt-br"), "📜"),
         (ml("setup.ui.buttons.permissions.label", "pt-br"), "🩺"),
-        (ml("setup.ui.buttons.support.label", "pt-br"), "💬"),
+        (ml("buttons.support.label", "pt-br"), "💬"),
     ]
     support = buttons[-1]
     assert support.style is discord.ButtonStyle.link
@@ -593,6 +630,32 @@ async def help_opened(scenario):
     return scenario
 
 
+async def help_for(scenario_factory, permissions):
+    """`/ajuda` typed by a member holding `permissions`: the command list on screen."""
+    scenario = admin(scenario_factory)
+    scenario.user.guild_permissions = permissions
+    return await help_opened(scenario)
+
+
+async def listed_command(**wanted):
+    """The first command a reader is listed in pt-br with every attribute of `wanted`."""
+    return next(
+        command
+        for command in (await synced_tree()).listed["pt-br"]
+        if all(getattr(command, name) == value for name, value in wanted.items())
+    )
+
+
+async def page_listing(scenario, command):
+    """The pages of the command list turned until one lists `command`."""
+    kind = "message_command" if command.menu else "slash_command"
+    line = fill(ml(f"{HELP_LINES}.{kind}", "pt-br"), name=command.name)
+    while not any(
+        line in field["value"] for field in last_answer(scenario)["embed"]["fields"]
+    ):
+        await scenario.click(">")
+
+
 async def test_help_mentions_setup_and_its_button_opens_the_dashboard_for_admins(
     configured, scenario_factory
 ):
@@ -610,22 +673,79 @@ async def test_help_mentions_setup_and_its_button_opens_the_dashboard_for_admins
     assert len(offered) == 1
     await scenario.click(offered[0])
     sent = last_answer(scenario)
-    assert texts(scenario.current_message.view)[0] == header("pt-br")[0]
+    assert card_texts(scenario.current_message.view)[0] == header("pt-br")[0]
     assert sent["ephemeral"] is True
 
 
-async def test_the_help_setup_button_tells_a_member_it_needs_an_admin(
-    configured, scenario_factory
+@pytest.mark.parametrize(
+    "permissions,offered",
+    [
+        (discord.Permissions(administrator=True), True),
+        (discord.Permissions(manage_guild=True), True),
+        (discord.Permissions.none(), False),
+    ],
+    ids=["administrator", "manage-server", "member"],
+)
+async def test_the_help_offers_configurar_only_to_whoever_configures_keiko(
+    configured, scenario_factory, permissions, offered
 ):
-    scenario = await help_opened(admin(scenario_factory, administrator=False))
-    listing = scenario.current_message
+    """A member's /ajuda shows no Configurar, a button that could only tell them they
+    need the Manage Server permission (PR9, D9-06 A), and its intro neither points
+    them at /configurar nor promises to run the command they pick."""
+    scenario = await help_for(scenario_factory, permissions)
 
-    await scenario.click(ml("setup.ui.buttons.dashboard.label", "pt-br"))
+    intro = "description" if offered else "overrides.0.description"
+    description = last_answer(scenario)["embed"]["description"]
+    assert description == copy_text(f"help.ui.records.commands.{intro}", "pt-br")
+    setup_command = f"`/{ml('setup.command.slash.name', 'pt-br')}`"
+    assert (setup_command in description) is offered
+    labels = button_labels(scenario.current_message)
+    assert (ml("setup.ui.buttons.dashboard.label", "pt-br") in labels) is offered
 
-    sent = last_answer(scenario)
-    assert sent["embed"]["title"] == ml("commands.responses.admin_only.title", "pt-br")
-    assert not sent.get("components"), "nothing to click"
-    assert scenario.current_message is listing, "the command list stays on screen"
+
+async def test_a_picked_command_shows_its_description_and_a_way_back(
+    scenario_factory,
+):
+    personal = "reminders_birthday.command.slash.commands.personal.name"
+    birthday = await listed_command(english=f"/{ml(personal, 'en-us')}")
+    scenario = await help_for(scenario_factory, discord.Permissions.none())
+
+    await scenario.select_option(birthday.name)
+
+    [field] = last_answer(scenario)["embed"]["fields"]
+    assert field["name"] == fill(ml(f"{HELP_LINES}.picked", "pt-br"), name=birthday.name)
+    assert field["value"] == birthday.description
+    assert button_labels(scenario.current_message) == [ml("buttons.back.label", "pt-br")]
+
+
+async def test_a_picked_message_menu_says_where_to_find_it(scenario_factory):
+    menu = await listed_command(menu=True, configures=False)
+    scenario = await help_for(scenario_factory, discord.Permissions.none())
+    await page_listing(scenario, menu)
+
+    await scenario.select_option(menu.name)
+
+    [field] = last_answer(scenario)["embed"]["fields"]
+    assert field["name"] == fill(ml(f"{HELP_LINES}.picked", "pt-br"), name=menu.name)
+    assert field["value"].splitlines() == [
+        ml(f"{HELP_LINES}.menus_path", "pt-br"),
+        fill(ml(f"{HELP_LINES}.message_command", "pt-br"), name=menu.name),
+    ]
+
+
+async def test_a_picked_feature_offers_to_open_it_to_whoever_configures_keiko(
+    scenario_factory,
+):
+    block_links = await listed_command(key="block_links")
+    scenario = await help_for(scenario_factory, discord.Permissions(manage_guild=True))
+    await page_listing(scenario, block_links)
+
+    await scenario.select_option(block_links.name)
+
+    assert button_labels(scenario.current_message) == [
+        ml("buttons.back.label", "pt-br"),
+        ml("help.ui.buttons.execute.label", "pt-br"),
+    ]
 
 
 def test_the_help_runs_a_command_from_a_blue_button_without_an_emoji():
@@ -833,28 +953,55 @@ async def test_a_server_with_nothing_set_up_has_nothing_to_check(deps):
     assert embed.description == ml(f"{PERMISSIONS_BASE}.empty", "pt-br")
 
 
+def greeting_texts(locale):
+    """Every text of the greeting card a server gets in `locale`, top to bottom."""
+    return card_texts(GreetingsView(locale))
+
+
+@pytest.mark.parametrize("locale", LOCALES)
+def test_the_greeting_is_a_card_with_keiko_beside_its_title(locale):
+    """#52 (D9-01 A, PR9): the greeting is drawn like /configurar, a card with
+    Keiko's picture beside its title and intro, and today's text under it in three
+    blocks, each under a separator: the tricks, how to start and where the help is.
+    The embed had no closing line, and the card has none."""
+    view = GreetingsView(locale)
+    copy = card_copy("setup.ui.cards.greeting", locale)
+    rows = "setup.ui.cards.greeting.rows"
+
+    top = header_of(view)
+    assert [child.content for child in top.children] == [f"## {copy.title}", copy.description]
+    assert top.accessory.media.url == KeikoIcons.IMAGE_01
+    card = view.children[0]
+    assert [type(item) for item in card.children] == [
+        discord.ui.Section,
+        *[discord.ui.Separator, discord.ui.TextDisplay] * 3,
+    ], "three blocks under separators, no closing line"
+    assert greeting_texts(locale)[3:] == [
+        ml(f"{rows}.start.description", locale),
+        ml(f"{rows}.help.description", locale),
+    ]
+
+
 @pytest.mark.parametrize("locale", LOCALES)
 def test_the_greeting_offers_the_language_then_setup_and_help(locale):
     """Lucas (beta.2 review, PR15 round 4): seven feature buttons crowded the
-    greeting, which /setup already lists. The greeting offers the language
-    select on top, then Configurar and Ajuda, the help button /configurar
+    greeting, which /setup already lists. Under its card the greeting offers the
+    language select, then Configurar and Ajuda, the help button /configurar
     carries, both readable in the chosen language."""
-    view = GreetingsView(locale)
+    card, languages, buttons = GreetingsView(locale).children
 
-    select, setup_button, help_button = view.children
-    assert isinstance(select, discord.ui.Select) and select.row == 0
-    assert [
-        (button.label, button.emoji.name, button.row)
-        for button in (setup_button, help_button)
-    ] == [
-        (ml("setup.ui.buttons.dashboard.label", locale), "🔧", 1),
-        (ml("buttons.help.label", locale), "📚", 1),
+    assert isinstance(card, discord.ui.Container)
+    [select] = languages.children
+    assert isinstance(select, discord.ui.Select)
+    assert [(button.label, button.emoji.name) for button in buttons.children] == [
+        (ml("setup.ui.buttons.dashboard.label", locale), "🔧"),
+        (ml("buttons.help.label", locale), "📚"),
     ]
 
 
 @pytest.mark.parametrize("locale", LOCALES)
 def test_the_greeting_points_at_its_buttons_by_their_labels(locale):
-    message = greeting_embed(locale).description
+    message = "\n".join(greeting_texts(locale))
 
     assert f"**{ml('setup.ui.buttons.dashboard.label', locale)}**" in message
     assert f"**{ml('buttons.help.label', locale)}**" in message
@@ -866,7 +1013,7 @@ def test_the_greeting_lists_each_category_with_its_configurar_features(locale):
     while /configurar shows 🔌, listed birthdays under moderation and ended
     with a Base line of no feature. Each category line is now drawn from the
     features /configurar places in it, by their names, so the two cannot drift."""
-    lines = greeting_embed(locale).description.split("\n")
+    lines = "\n".join(greeting_texts(locale)).split("\n")
 
     for category, emoji in PARENT_GROUPS.items():
         name = ml(f"{TEXTS}.categories.{category}", locale)
@@ -877,6 +1024,72 @@ def test_the_greeting_lists_each_category_with_its_configurar_features(locale):
     assert not any(
         line.startswith(("🎮", "🧰")) for line in lines
     ), "no emoji /configurar does not show, no line of no feature"
+
+
+@pytest.mark.parametrize(
+    "system, closed, lands",
+    [
+        pytest.param(2, False, 2, id="its-system-channel"),
+        pytest.param(2, True, 0, id="system-channel-closed-to-keiko"),
+        pytest.param(None, False, 0, id="no-system-channel"),
+    ],
+)
+async def test_the_greeting_lands_in_the_system_channel_when_keiko_may_write_there(
+    deps, system, closed, lands
+):
+    """D9-02 A (PR9): the greeting goes where Discord posts its own welcome
+    messages, the server's system channel, when Keiko may write there; otherwise in
+    the first channel he may write in, as before."""
+    speaks("pt-br")
+    server = create_guild()
+    server.system_channel = None if system is None else server.text_channels[system]
+    if closed:
+        server.system_channel.denied.add("send_messages")
+
+    await GreetingsView().send(server)
+
+    posted = [len(channel.get_all_messages()) for channel in server.text_channels]
+    assert posted == [int(index == lands) for index in range(len(posted))]
+
+
+async def test_a_language_pick_turns_an_old_embed_greeting_into_the_card(
+    scenario_factory, deps
+):
+    """A greeting posted before PR9 is an embed above the same select, which the
+    registered card view answers: the first pick turns that message into the card
+    in the language picked, with no embed left on it."""
+    scenario = admin(scenario_factory)
+    old = scenario.post(GreetingsView(), embed=discord.Embed(title="Hello, I'm Keiko"))
+
+    await scenario.select_option("pt-BR")
+
+    copy = card_copy("setup.ui.cards.greeting", "pt-br")
+    assert old.embeds == []
+    assert card_texts(old.view)[:2] == [f"## {copy.title}", copy.description]
+    assert last_answer(scenario)["components_v2"]
+
+
+async def test_an_old_greeting_discord_will_not_turn_into_the_card_answers_privately(
+    scenario_factory, deps
+):
+    """Discord may refuse to turn an embed message into a Components V2 one: the
+    clicker then gets the card in the language picked, only for them, and the old
+    greeting stays as it was."""
+    scenario = admin(scenario_factory)
+    old = scenario.post(GreetingsView(), embed=discord.Embed(title="Hello, I'm Keiko"))
+    scenario.discord_refuses("response.edit_message", times=1)
+
+    await scenario.select_option("pt-BR")
+
+    copy = card_copy("setup.ui.cards.greeting", "pt-br")
+    answer = last_answer(scenario)
+    assert (answer["kind"], answer["ephemeral"], answer["components_v2"]) == (
+        "send",
+        True,
+        True,
+    )
+    assert card_texts(scenario.current_message.view)[:2] == [f"## {copy.title}", copy.description]
+    assert old.embeds != []
 
 
 @pytest.mark.parametrize("locale", LOCALES)
@@ -897,7 +1110,10 @@ def test_every_button_an_old_greeting_carries_still_answers():
     "This interaction failed". Guaranteed: the views registered at start-up own
     every id a greeting ever carried, and each feature id opens that feature."""
     owned = {
-        item.custom_id: item for view in greeting_views() for item in view.children
+        item.custom_id: item
+        for view in greeting_views()
+        for item in walk_items(view)
+        if isinstance(item, (discord.ui.Button, discord.ui.Select))
     }
     for spec in setup_features():
         button = owned[f"greetings:setup:{spec.key}"]
@@ -908,12 +1124,14 @@ def test_every_button_an_old_greeting_carries_still_answers():
         "greetings:language_select",
     ):
         assert custom_id in owned, custom_id
-    assert all(view.timeout is None for view in greeting_views()), "persistent"
+    assert all(view.is_persistent() for view in greeting_views()), (
+        "discord.py registers only a view with no timeout and an id on every control"
+    )
 
 
 async def test_the_greeting_help_button_opens_the_command_list(scenario_factory, deps):
     scenario = admin(scenario_factory)
-    scenario.post(GreetingsView("pt-br"), embed=greeting_embed("pt-br"))
+    scenario.post(GreetingsView("pt-br"))
 
     await scenario.click("greetings:commands")
 
@@ -941,12 +1159,10 @@ async def test_an_old_greeting_feature_button_opens_its_feature(scenario_factory
 @pytest.mark.shared_contract("setup_features")
 @pytest.mark.parametrize("locale", LOCALES)
 def test_the_greeting_fits_discord_rows(locale):
-    """Broke as: every button was pinned to row 0, which fits five."""
-    view = GreetingsView(locale)
-
-    placed = [item.row for item in view.children]
-    assert len(view.children) <= 25, "Discord fits five rows of five"
-    assert max(row for row in placed if row is not None) <= 4, placed
+    """Broke as: every button was pinned to row 0, which fits five. The card holds
+    its select and its buttons in rows of their own, and stays inside Discord's
+    forty components and 4000 characters with every feature /configurar offers."""
+    assert_within_limits(GreetingsView(locale), f"greeting card ({locale})")
 
 
 async def test_the_first_page_reads_each_feature_document_once(configured, monkeypatch):

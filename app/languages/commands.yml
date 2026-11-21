@@ -5,8 +5,8 @@ responses:
       en-us: ⚠️ Admin Only
       pt-br: ⚠️ Apenas Admins
     description:
-      en-us: "Sorry, commands like `${context.groups.moderations}` and `${context.groups.notifications}` need admin permissions! 🔧\n\nAsk a server admin to set them up. They can also use `${context.commands.setup}` to manage everything in one place ✨"
-      pt-br: "Desculpe, comandos como `${context.groups.moderations}` e `${context.groups.notifications}` precisam de permissão de admin! 🔧\n\nPeça para um admin do servidor configurar. Ele também pode usar `${context.commands.setup}` para gerenciar tudo em um só lugar ✨"
+      en-us: "Sorry, commands like `${context.groups.moderations}` and `${context.groups.notifications}` need the **Manage Server** permission! 🔧\n\nAsk someone on the server's team who has it to set them up. They can also use `${context.commands.setup}` to manage everything in one place ✨"
+      pt-br: "Desculpe, comandos como `${context.groups.moderations}` e `${context.groups.notifications}` precisam da permissão **Gerenciar servidor**! 🔧\n\nPeça para alguém da equipe do servidor que tenha essa permissão configurar. Essa pessoa também pode usar `${context.commands.setup}` para gerenciar tudo em um só lugar ✨"
     footer: null
   cooldown:
     title:

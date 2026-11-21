@@ -84,6 +84,12 @@ class FakeMessage:
         self.registered_items = _walk_view_items(view)
 
     @property
+    def jump_url(self) -> str:
+        """The message's link, as `discord.Message.jump_url` writes it for a
+        message whose server the fake does not know."""
+        return f"https://discord.com/channels/@me/{self.channel.id}/{self.id}"
+
+    @property
     def components(self) -> List[Any]:
         """The message's components as Discord sends them back, read-only like
         `discord.Message.components`: what `View.from_message` rebuilds a view from."""
@@ -146,6 +152,8 @@ class MessageStore:
         self.aliases: Dict[int, str] = {}
         self.events: List[Dict[str, Any]] = []
         self.pending_modal: Optional[discord.ui.Modal] = None
+        # The message each modal was opened from: its submit carries that message.
+        self.modal_messages: Dict[int, Optional[FakeMessage]] = {}
         # Set by the driver so every event snapshots the current form step.
         self.step_provider: Callable[[], Optional[str]] = lambda: None
         # What Discord refuses next, by API name: the error and how many more times.

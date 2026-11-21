@@ -227,9 +227,9 @@ def destination(guild_id: Any, channel_id: Any) -> Tuple[Any, Any]:
 
 
 def is_guild_admin(user: Any) -> bool:
-    """Whether the member holds the administrator permission in their guild."""
+    """Whether the member may configure Keiko: Administrator or Manage Server."""
     permissions = getattr(user, "guild_permissions", None)
-    return bool(permissions and permissions.administrator)
+    return bool(permissions and (permissions.administrator or permissions.manage_guild))
 
 
 def parse_valid_locale(locale: discord.Locale) -> discord.Locale:

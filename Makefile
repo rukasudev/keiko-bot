@@ -55,7 +55,7 @@ docs:
 yaml-docs: docs
 
 lint:
-	$(ACTIVATE_VENV) && ruff check app/data app/forms app/core/calendar.py app/core/commands.py app/core/conditions.py app/core/facts.py app/core/tokens.py app/core/dispatch.py app/core/i18n.py app/core/copy_schema.py app/core/groups.py app/core/mentions.py app/commands app/decorators.py app/types/cogs.py app/ui/pagination.py app/ui/embed.py app/ui/records.py app/migrations tests/forms tests/core && ruff check --select F401,F821 app && ruff format --check app/data app/forms app/core/calendar.py app/core/commands.py app/core/conditions.py app/core/facts.py app/core/tokens.py app/core/dispatch.py app/core/i18n.py app/core/copy_schema.py app/core/groups.py app/core/mentions.py app/commands app/decorators.py app/types/cogs.py app/ui/pagination.py app/ui/embed.py app/ui/records.py app/migrations tests/forms tests/core && mypy
+	$(ACTIVATE_VENV) && ruff check app/data app/forms app/core/app_commands.py app/core/calendar.py app/core/commands.py app/core/conditions.py app/core/facts.py app/core/tokens.py app/core/dispatch.py app/core/i18n.py app/core/copy_schema.py app/core/groups.py app/core/mentions.py app/commands app/decorators.py app/types/cogs.py app/ui/pagination.py app/ui/embed.py app/ui/records.py app/migrations tests/forms tests/core && ruff check --select F401,F821 app && ruff format --check app/data app/forms app/core/app_commands.py app/core/calendar.py app/core/commands.py app/core/conditions.py app/core/facts.py app/core/tokens.py app/core/dispatch.py app/core/i18n.py app/core/copy_schema.py app/core/groups.py app/core/mentions.py app/commands app/decorators.py app/types/cogs.py app/ui/pagination.py app/ui/embed.py app/ui/records.py app/migrations tests/forms tests/core && mypy
 
 clean:
 	rm -rf __pycache__

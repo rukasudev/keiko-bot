@@ -62,6 +62,21 @@ def test_a_command_with_a_form_gets_a_form_that_compiles(tmp_path):
     assert [step.key for step in definition.steps] == ["form", "message", "confirm"]
 
 
+def test_a_command_with_a_form_opens_it_from_its_slash_command_with_no_service(tmp_path):
+    """A form whose generic save is enough has no rule of its own (PR9): the slash
+    command opens its form itself, and no service is written for it."""
+    written = scaffold("good_boy", form=True, root=tmp_path)
+    cog = ast.parse((tmp_path / "app/commands/good_boy/cog.py").read_text())
+
+    assert tmp_path / "app/commands/good_boy/service.py" not in written
+    opened = [
+        [argument.value for argument in node.args if isinstance(argument, ast.Constant)]
+        for node in ast.walk(cog)
+        if isinstance(node, ast.Call) and getattr(node.func, "id", None) == "open_feature"
+    ]
+    assert opened == [["good_boy"]]
+
+
 @pytest.mark.parametrize("form", [False, True])
 def test_every_file_is_filled_and_reads(tmp_path, form):
     for path in scaffold("good_boy", form=form, root=tmp_path):

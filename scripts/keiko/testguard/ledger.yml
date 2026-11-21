@@ -261,8 +261,8 @@ entries:
 - id: pb-038
   test: tests/behavioral/regressions/test_runtime.py::test_a_failed_own_reply_is_not_answered_by_stream_elements
   guarantee: a prefix hook that fails ends the prefix chain, so no later hook answers the
-    same message; a prefix that could not be read skips the prefix hooks and the hint; every
-    hook still runs as its own part, and the message hooks (block links) still run.
+    same message; a prefix that could not be read skips the prefix hooks; every hook still
+    runs as its own part, and the message hooks (block links) still run.
   broke: '`dispatch.message_sent` (`app/core/dispatch.py`) ran each prefix hook as its own
     part and stopped the chain only when a hook returned True. A failed part returns no value,
     so when Keiko''s own reply to `ke!ping` raised (50013 Missing Permissions in a read-only
@@ -572,10 +572,9 @@ entries:
 - id: pb-075
   test: tests/behavioral/regressions/test_stream_elements.py::test_a_stream_elements_command_gets_only_its_reply
   guarantee: in a server where a prefix feature is on, a prefixed message gets the feature's
-    answer and nothing from Keiko; in a server with none on, it gets one message in the server's
-    language naming the configured prefix, the command that turns each prefix feature on,
-    and `/help` and `/setup` by their localized names; a direct message gets the slash hint,
-    from the language files.
+    answer and nothing from Keiko; a prefixed message no feature answers gets no answer at
+    all, in a server whatever prefix it saved and in a direct message (since PR9 round 2,
+    when the owner dropped the hint).
   broke: discord.py hands every message that starts with the configured prefix (`ke!` in production)
     and names no text command to `Errors.on_command_error`, which always answered with a bilingual
     "use slashes" hint written in Python. While the StreamElements listener answered a fixed
@@ -1107,3 +1106,54 @@ entries:
     trace id as a field.
   broke: a run was keyed by its trace id, six hex characters, and kept with `$setOnInsert`,
     so a second trace drawing the same id inside the 30 days the runs live was silently dropped.
+- id: pb-162
+  test: tests/behavioral/contracts/test_setup_dashboard.py::test_whoever_may_configure_keiko_sets_a_feature_up_from_configurar
+  guarantee: whoever holds Administrator or Manage Server opens /configurar, a category of
+    it and a feature's setup from that category.
+  broke: a moderator with Manage Server and no Administrator got "⚠️ Apenas Admins" on /configurar
+    and on every button of it (PR9, D9-04).
+- id: pb-163
+  test: tests/behavioral/regressions/test_setup.py::test_the_greeting_lets_a_server_pick_one_language
+  guarantee: the greeting's language select takes exactly one language.
+  broke: the greeting's language select let a member tick both languages at once (its `max_values`
+    was 2), while the greeting redraws in the first one only, so the second tick did nothing.
+- id: pb-164
+  test: tests/behavioral/regressions/test_setup.py::test_a_language_pick_leaves_every_other_greeting_answering
+  guarantee: a pick draws the new card on its own message, and the Help of another greeting
+    still opens the command list after it.
+  broke: '(by reading discord.py''s ViewStore, PR9): after a restart one registered greeting
+    view answers every greeting ever posted, and a language pick cleared that view''s items
+    to draw the new language on it, so the select and the buttons of every other greeting
+    were discarded ("This interaction failed") u…'
+- id: pb-165
+  test: tests/behavioral/regressions/test_help.py::test_the_help_lists_what_a_member_can_run
+  guarantee: a member's /help, answered only to them, lists every slash command anyone can
+    run under the general commands, then every message app anyone can run under how to reach
+    them, and nothing that configures Keiko.
+  broke: /help walked the bot's own list of slash commands and kept only those under /moderations,
+    /notifications or /help, so a member never saw /birthday, /ping, /report, /support or
+    the Translate Message menu (a menu was never in that list), got the groups' commands that
+    only configure Keiko, and the lis…
+- id: pb-166
+  test: tests/behavioral/regressions/test_help.py::test_the_help_adds_what_configures_keiko_for_whoever_manages_the_server
+  guarantee: whoever holds Manage Server gets, after the general commands, every message app,
+    the link check among them, then the slash commands that configure Keiko outside a group
+    under setup, then one field per parent group in /setup's order, titled by its emoji and
+    its name, each listing every command under it, privately.
+  broke: /help listed no /setup, no /integrations command and no message menu to anyone, and
+    gave a moderator the same list as a member.
+- id: pb-175
+  test: tests/behavioral/test_harness.py::test_an_interaction_outside_an_app_command_carries_no_command
+  guarantee: every interaction the harness builds answers `command`, None until an app command
+    runs.
+  broke: '`FakeInteraction` had no `command` attribute where a real `discord.Interaction`
+    holds None outside an app command, so once a test had installed the Discord log handler,
+    whose `is_muted` reads it, an error logged with `interaction=` raised AttributeError in
+    whatever test ran next (the report''s ticke…'
+- id: pb-177
+  test: tests/behavioral/regressions/test_help.py::test_every_feature_opens_from_the_help_for_whoever_configures_keiko
+  guarantee: whoever configures Keiko finds every feature /setup offers behind exactly one
+    command of /ajuda, whose Executar opens it; no other command offers Executar.
+  broke: 'picking /moderações aniversários lembretes in /ajuda showed no Executar button:
+    the help took a command''s feature from the name of the Python method behind it (`reminders`),
+    while the birthdays feature is `reminders_birthday`.'

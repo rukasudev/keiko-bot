@@ -32,7 +32,6 @@ def test_what_the_code_reads_is_requested():
 
     assert intents.guilds and intents.members
     assert intents.guild_messages and intents.message_content
-    assert intents.dm_messages, "a prefixed command in a DM still gets the slash hint"
 
 
 def test_events_nobody_listens_to_are_not_requested():

@@ -7,6 +7,7 @@ from app.bot import DiscordBot
 from app.commands.youtube import service as notifications_youtube_video
 from app.core.trace import run_traced
 from app.decorators import keiko_admin_only, keiko_command
+from app.forms import open_feature
 from app.translator import locale_str
 from app.types.cogs import Cog, Group
 
@@ -38,7 +39,7 @@ class Youtube(  # noqa: D101 - discord.py sends a Group's docstring as its descr
         self, interaction: discord.Interaction
     ) -> None:
         """Open the setup form, or the manager of the YouTube announcements."""
-        await notifications_youtube_video.manager(interaction)
+        await open_feature(interaction, "notifications_youtube_video")
 
 
 class YoutubeRenewals(Cog):

@@ -142,7 +142,7 @@ def personal_interaction(admin=False):
         user=SimpleNamespace(
             id=PERSONAL_USER_ID,
             display_name="Ana",
-            guild_permissions=SimpleNamespace(administrator=admin),
+            guild_permissions=SimpleNamespace(administrator=admin, manage_guild=False),
         ),
         response=SimpleNamespace(
             send_message=AsyncMock(), defer=AsyncMock(), edit_message=AsyncMock()

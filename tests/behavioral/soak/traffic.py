@@ -53,7 +53,7 @@ SAVED = {
 ABANDONED_SETUPS = ("notifications_twitch", "reminders_birthday")
 PANELS = ("welcome_messages", "block_links")
 # The kinds of message the traffic sends, each of which a listener must answer.
-DRIVEN = {"blocked", "ping", "stream_elements", "hint", "welcome", "roles"}
+DRIVEN = {"blocked", "ping", "stream_elements", "welcome", "roles"}
 
 
 class SentMessage:
@@ -183,7 +183,6 @@ class Traffic:
 
         direct = MockChannel(id=member_id, name="dm")
         await self._run(events.on_message(create_message(direct, author, "ks!ajuda")))
-        self.answered["hint"] += len(direct.get_all_messages())
 
         joining = create_member(guild, id=member_id + 1, name=f"Joined{member_id}")
         joining._user = SimpleNamespace(id=joining.id)

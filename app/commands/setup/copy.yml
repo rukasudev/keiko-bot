@@ -6,15 +6,9 @@ facts:
   categories:
     type: text
     description: The greeting's line per category, joined.
-  emoji:
-    type: text
-    description: The emoji of the category a line or a card names.
   features:
     type: text
     description: The features of a category, joined in one phrase.
-  name:
-    type: text
-    description: The name of the category a line or a card names.
   page:
     type: number
     description: The page of a category shown, counted from one.
@@ -100,12 +94,37 @@ ui:
           placeholder:
             en-us: Change prefix
             pt-br: Alterar prefixo
+    greeting:
+      title:
+        en-us: 🐶 Hello, I'm Keiko!
+        pt-br: 🐶 Olá, eu sou o Keiko!
+      description:
+        en-us: I'm your loyal Discord companion, and I'm super excited to make new friends and help make your server even more awesome! ✨
+        pt-br: Sou o seu leal companheiro do Discord e estou super animado para fazer novos amigos e ajudar a deixar o seu servidor ainda mais incrível! ✨
+      footer: null
+      # open: row names -> a CardRow
+      rows:
+        tricks:
+          description:
+            en-us: "Here are some tricks I know how to do:\n$categories\n🌐 **Utility:** Message translation to any language."
+            pt-br: "Aqui estão alguns truques que eu sei fazer:\n$categories\n🌐 **Utilitário:** Tradução de mensagens para qualquer idioma."
+        start:
+          description:
+            en-us: "You can use the **Setup** button below to get started 🚀 or run `${context.commands.setup}` at any time to see and manage all my features!\n\nAll of this is easy to manage with Discord buttons, so you can edit, pause or turn off whatever you want ✏️"
+            pt-br: "Você pode usar o botão **Configurar** abaixo para começar 🚀 ou rodar `${context.commands.setup}` a qualquer momento para ver e gerenciar todas as minhas funcionalidades!\n\nTudo isso você gerencia de um jeito fácil pelos botões do Discord, editando, pausando ou desativando o que quiser ✏️"
+        help:
+          description:
+            en-us: "To see every command I have, just tap **Help**. And if you ever get stuck, just call me with `${context.commands.support}` ❤️"
+            pt-br: "Para ver todos os meus comandos, toque em **Ajuda**. E se precisar de *aujuda*, é só chamar com `${context.commands.support}` ❤️"
 
   # open: text names -> a text, or a table of texts
   texts:
     top_commands:
       en-us: "Most used commands:"
       pt-br: "Comandos mais usados:"
+    greeting_category:
+      en-us: $emoji **$name:** $features.
+      pt-br: $emoji **$name:** $features.
     # open: parent groups -> the group's name
     categories:
       moderations:
@@ -184,19 +203,6 @@ ui:
 
   # open: response names -> a Response
   responses:
-    greeting:
-      title:
-        en-us: "Hello, I'm Keiko, your loyal Discord companion! :dog:"
-        pt-br: "Olá, eu sou o Keiko, o seu leal companheiro do Discord! :dog:"
-      description:
-        en-us: "I'm super excited to make new friends and help make your server even more awesome! ✨\n\nHere are some tricks I know how to do:\n$categories\n🌐 **Utility:** Message translation to any language.\n\nYou can use the **Setup** button below to get started 🚀 or run `${context.commands.setup}` at any time to see and manage all my features!\n\nAll of this is easy to manage with Discord buttons, so you can edit, pause or turn off whatever you want ✏️\n\nTo see every command I have, just tap **Help**. And if you ever get stuck, just call me with `${context.commands.support}` ❤️"
-        pt-br: "Estou super animado para fazer novos amigos e ajudar a deixar o seu servidor ainda mais incrível! ✨\n\nAqui estão alguns truques que eu sei fazer:\n$categories\n🌐 **Utilitário:** Tradução de mensagens para qualquer idioma.\n\nVocê pode usar o botão **Configurar** abaixo para começar 🚀 ou rodar `${context.commands.setup}` a qualquer momento para ver e gerenciar todas as minhas funcionalidades!\n\nTudo isso você gerencia de um jeito fácil pelos botões do Discord, editando, pausando ou desativando o que quiser ✏️\n\nPara ver todos os meus comandos, toque em **Ajuda**. E se precisar de *aujuda*, é só chamar com `${context.commands.support}` ❤️"
-      footer: null
-      # open: line names -> a line template
-      lines:
-        category:
-          en-us: $emoji **$name:** $features.
-          pt-br: $emoji **$name:** $features.
     permissions:
       title:
         en-us: 🩺 Keiko's Permissions
@@ -260,10 +266,6 @@ ui:
       label:
         en-us: Permissions
         pt-br: Permissões
-    support:
-      label:
-        en-us: Support
-        pt-br: Suporte
     dashboard:
       label:
         en-us: Setup

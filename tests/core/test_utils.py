@@ -1,5 +1,6 @@
-"""The pure helpers of app/core/utils.py: links, lists, message splitting,
-durations, HMAC, and `ml`/`parse_locale` agreeing with the form platform."""
+"""The helpers of app/core/utils.py: links, lists, message splitting, durations,
+HMAC, `ml`/`parse_locale` agreeing with the form platform, and who configures
+Keiko."""
 
 import hashlib
 import hmac
@@ -498,3 +499,40 @@ class TestLocaleCopyAgreesWithThePlatform:
         from app.forms.form.copy import text
 
         assert ml(key, locale) == text(key, locale)
+
+
+class TestWhoConfiguresKeiko:
+    """Whoever may set Keiko up in a server: an Administrator, or a member with Manage
+    Server (a moderator the owner trusts with the server's settings)."""
+
+    @pytest.mark.parametrize(
+        ("permissions", "configures"),
+        [
+            pytest.param(
+                discord.Permissions(administrator=True), True, id="administrator"
+            ),
+            pytest.param(
+                discord.Permissions(manage_guild=True), True, id="manage-server"
+            ),
+            pytest.param(discord.Permissions.all(), True, id="every-permission"),
+            pytest.param(
+                discord.Permissions(manage_messages=True), False, id="moderator"
+            ),
+            pytest.param(discord.Permissions.none(), False, id="member"),
+        ],
+    )
+    def test_administrator_or_manage_server_configures_keiko(
+        self, permissions, configures
+    ):
+        from app.core.utils import is_guild_admin
+
+        member = MagicMock(guild_permissions=permissions)
+
+        assert is_guild_admin(member) is configures
+
+    def test_a_user_outside_a_server_configures_nothing(self):
+        from types import SimpleNamespace
+
+        from app.core.utils import is_guild_admin
+
+        assert is_guild_admin(SimpleNamespace(id=1)) is False

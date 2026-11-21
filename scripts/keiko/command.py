@@ -33,19 +33,19 @@ def placeholders(name: str, form: bool) -> Dict[str, str]:
 
 
 def plan(name: str, form: bool) -> List[Tuple[str, str]]:
-    """Each file to write, as (template, path relative to the repository)."""
+    """Each file to write, as (template, path relative to the repository): a form
+    command's cog opens its form itself, so only a plain command gets a service."""
     variant = "form" if form else "plain"
     folder = f"app/commands/{name}"
-    files = [
+    own = "form.yml" if form else "service.py"
+    template = "form.yml.tmpl" if form else "service.plain.py.tmpl"
+    return [
         ("__init__.py.tmpl", f"{folder}/__init__.py"),
-        ("cog.py.tmpl", f"{folder}/cog.py"),
-        (f"service.{variant}.py.tmpl", f"{folder}/service.py"),
+        (f"cog.{variant}.py.tmpl", f"{folder}/cog.py"),
+        (template, f"{folder}/{own}"),
         (f"copy.{variant}.yml.tmpl", f"{folder}/copy.yml"),
         (f"test.{variant}.py.tmpl", f"tests/test_{name}.py"),
     ]
-    if form:
-        files.insert(3, ("form.yml.tmpl", f"{folder}/form.yml"))
-    return files
 
 
 def check(name: str, root: Path) -> None:

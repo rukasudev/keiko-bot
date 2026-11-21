@@ -81,7 +81,7 @@ def keiko_command(
 def keiko_admin_only(
     func: Callback[BindingT, P],
 ) -> Callback[BindingT, P]:
-    """The command, answered only for a server administrator."""
+    """The command, answered only for whoever holds Administrator or Manage Server."""
 
     async def wrapper(
         self: BindingT,

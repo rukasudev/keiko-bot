@@ -398,7 +398,7 @@ def answers(message):
 
 
 async def test_a_stream_elements_command_gets_only_its_reply(deps, stream_elements_on):
-    """A message with the prefix gets one answer: the feature's, or Keiko's hint.
+    """A message with the prefix gets the feature's answer, or none.
 
     Broke as: discord.py hands every message that starts with the configured prefix
     (`ke!` in production) and names no text command to `Errors.on_command_error`,
@@ -408,16 +408,14 @@ async def test_a_stream_elements_command_gets_only_its_reply(deps, stream_elemen
     by the reply and by the hint. The hint never said how to turn a prefix feature on.
 
     Shared behaviour: `dispatch.message_sent` (`app/core/dispatch.py`), which
-    hands every prefixed message to the prefix hooks, `Command.answers_prefix` of
-    `setup_features()` and `prefix_hint` (`app/commands/help/service.py`). Consumer
-    that exposed it: stream_elements_commands, the first feature that answers the
-    prefix.
+    hands every prefixed message to the prefix hooks, and `Errors.on_command_error`,
+    silent on `CommandNotFound`. Consumer that exposed it: stream_elements_commands,
+    the first feature that answers the prefix.
 
     Guaranteed: in a server where a prefix feature is on, a prefixed message gets the
-    feature's answer and nothing from Keiko; in a server with none on, it gets one
-    message in the server's language naming the configured prefix, the command that
-    turns each prefix feature on, and `/help` and `/setup` by their localized names;
-    a direct message gets the slash hint, from the language files.
+    feature's answer and nothing from Keiko; a prefixed message no feature answers
+    gets no answer at all, in a server whatever prefix it saved and in a direct
+    message (since PR9 round 2, when the owner dropped the hint).
     """
     deps.bot.config.PREFIX = "ke!"
     message = server_message("ke!mouse")
@@ -426,52 +424,6 @@ async def test_a_stream_elements_command_gets_only_its_reply(deps, stream_elemen
     await handle(deps.bot, message)
 
     assert answers(message) == ["the StreamElements reply"]
-
-
-@pytest.mark.parametrize(
-    "locale, opener, activation, general",
-    [
-        (
-            discord.Locale.brazil_portuguese,
-            "🐾 Au au!",
-            "`/integrações comandos streamelements`",
-            ("`/ajuda`", "`/configurar`"),
-        ),
-        (
-            discord.Locale.american_english,
-            "🐾 Woof!",
-            "`/integrations streamelements commands`",
-            ("`/help`", "`/setup`"),
-        ),
-    ],
-)
-async def test_a_prefixed_message_no_feature_answers_gets_the_hint_in_the_server_language(
-    deps, nothing_on, locale, opener, activation, general
-):
-    deps.bot.config.PREFIX = "ke!"
-    message = server_message("ke!mouse", locale)
-    recorded_server(deps.mongo_client, message.guild.id, prefix="ke!")
-
-    await handle(deps.bot, message)
-
-    [hint] = sent(message)
-    assert hint.startswith(opener)
-    assert "**ke!**" in hint
-    assert f"\n- {activation}\n" in hint, "one line per feature that answers the prefix"
-    assert all(name in hint for name in general)
-    assert message._reply.await_count == 0
-
-
-async def test_the_hint_names_the_configured_prefix(deps, nothing_on):
-    deps.bot.config.PREFIX = "kk!"
-    message = server_message("kk!mouse")
-    recorded_server(deps.mongo_client, message.guild.id, prefix="kk!")
-
-    await handle(deps.bot, message)
-
-    [hint] = sent(message)
-    assert "**kk!**" in hint
-    assert "ke!" not in hint and "ks!" not in hint
 
 
 async def test_ping_on_the_default_prefix_gets_only_the_pong(deps, nothing_on):
@@ -510,34 +462,30 @@ async def as_discord_reads(bot, message):
         await look_up_the_command(bot, message)
 
 
-async def test_a_server_with_its_own_prefix_hints_only_at_the_default(deps, nothing_on):
-    """PR15: a server saves its own prefix. The hint answers only Keiko's default
-    prefix, once, and names the server's; a message with the server's own prefix
-    that no feature answers gets nothing, since other bots share short prefixes."""
+@pytest.mark.parametrize(
+    "saved, content",
+    [
+        pytest.param("ke!", "ke!mouse", id="the-default-prefix"),
+        pytest.param("!", "ke!mouse", id="the-default-where-the-server-saved-another"),
+        pytest.param("!", "!mouse", id="the-servers-own-prefix"),
+        pytest.param("ke", "ke!mouse", id="a-prefix-inside-the-default"),
+    ],
+)
+async def test_a_prefixed_message_no_feature_answers_gets_nothing(
+    deps, nothing_on, saved, content
+):
+    """Lucas (PR9 round 2): the "use slashes" hint read badly, so a prefixed message no
+    feature answers gets no answer at all, whatever prefix the server saved."""
     deps.bot.config.PREFIX = "ke!"
-    default = server_message("ke!mouse")
-    own = server_message("!mouse")
-    recorded_server(deps.mongo_client, default.guild.id, prefix="!")
-
-    await as_discord_reads(deps.bot, default)
-    await as_discord_reads(deps.bot, own)
-
-    [hint] = sent(default)
-    assert "**!**" in hint and "ke!" not in hint
-    assert sent(own) == []
-
-
-async def test_a_server_with_a_prefix_inside_the_default_still_hints_once(deps, nothing_on):
-    deps.bot.config.PREFIX = "ke!"
-    message = server_message("ke!mouse")
-    recorded_server(deps.mongo_client, message.guild.id, prefix="ke")
+    message = server_message(content)
+    recorded_server(deps.mongo_client, message.guild.id, prefix=saved)
 
     await as_discord_reads(deps.bot, message)
 
-    assert len(sent(message)) == 1
+    assert answers(message) == []
 
 
-async def test_a_direct_message_gets_the_slash_hint_from_the_language_files(
+async def test_a_direct_message_with_the_prefix_gets_nothing_and_reads_no_server(
     deps, mock_cache
 ):
     deps.bot.config.PREFIX = "ke!"
@@ -545,11 +493,7 @@ async def test_a_direct_message_gets_the_slash_hint_from_the_language_files(
 
     await handle(deps.bot, message)
 
-    halves = [ml("help.ui.texts.prefix_hint.direct", locale) for locale in ("pt-br", "en-us")]
-    assert "help.ui.texts.prefix_hint.direct" not in halves, "the hint lives in the language files"
-    [hint] = sent(message)
-    assert hint == "\n\n".join(halves)
-    assert "`/ajuda`" in hint and "`/help`" in hint
+    assert answers(message) == []
     assert mock_cache.call_count == 0, "a direct message has no server to read"
 
 

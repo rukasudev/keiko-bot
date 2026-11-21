@@ -14,6 +14,7 @@ from app.constants import KeikoIcons as icons
 from app.constants import ViewConstants as view_constants
 from app.core import i18n
 from app.core.commands import Open
+from app.core.conditions import Override
 from app.core.facts import Facts
 from app.core.i18n import CopyBlock, CopyText
 from app.core.utils import fill, ml, parse_locale
@@ -63,6 +64,23 @@ class RecordsFilter(CopyBlock):
     )
 
 
+class RecordsOverride(Override):
+    """What a list draws while a rule holds, in place of its own title or
+    description."""
+
+    title: CopyText | None = Field(
+        None,
+        description="The title drawn while the rule holds; absent keeps the list's.",
+        json_schema_extra={"role": "copy"},
+    )
+    description: CopyText | None = Field(
+        None,
+        description="The description drawn while the rule holds; absent keeps the "
+        "list's.",
+        json_schema_extra={"role": "copy"},
+    )
+
+
 class Records(CopyBlock):
     """One browsable list, drawn by `RecordsBrowser(copy=...)` or a command's own
     `PaginationView`."""
@@ -99,6 +117,13 @@ class Records(CopyBlock):
         None,
         description="The member filter; absent, the list has no filter button.",
         json_schema_extra={"role": "structure"},
+    )
+    overrides: tuple[RecordsOverride, ...] = Field(
+        (),
+        description="The title or description drawn while a rule on the facts holds, "
+        "the first item whose rule holds winning (/help for a member, who may not "
+        "configure Keiko).",
+        json_schema_extra={"role": "conditions"},
     )
     lines: Open[CopyText] = Field(
         default_factory=dict,

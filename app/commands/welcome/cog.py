@@ -3,8 +3,8 @@
 import discord
 
 from app.bot import DiscordBot
-from app.commands.welcome import service as welcome_messages_service
 from app.decorators import keiko_admin_only, keiko_command
+from app.forms import open_feature
 from app.translator import locale_str
 from app.types.cogs import Group
 
@@ -30,4 +30,4 @@ class Welcome(  # noqa: D101 - discord.py sends a Group's docstring as its descr
     @keiko_admin_only
     async def welcome_messages(self, interaction: discord.Interaction) -> None:
         """Open the setup form, or the manager of the welcome messages."""
-        await welcome_messages_service.manager(interaction)
+        await open_feature(interaction, "welcome_messages")

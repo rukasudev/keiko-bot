@@ -1,8 +1,8 @@
 # open: fact names -> a fact the code passes
 facts:
-  commands:
-    type: text
-    description: The prefix commands a server could turn on, one line each.
+  configures:
+    type: boolean
+    description: Whether the reader of the command list may configure Keiko in the server.
   ping:
     type: number
     description: Keiko's latency to Discord, in milliseconds.
@@ -28,17 +28,14 @@ command:
 ui:
   # open: text names -> a text, or a table of texts
   texts:
-    # open: the hint's parts -> a text
-    prefix_hint:
-      guild:
-        en-us: "🐾 Woof! Looking for one of my **$prefix** commands? They're not turned on in this server yet.\n\nAsk a moderator to set one up in `${context.commands.setup}` or with its own command:\n$commands\n\nMy other commands start with `/`! Try `${context.commands.help}` to see everything I can do :heart:"
-        pt-br: "🐾 Au au! Procurando um dos meus comandos com **$prefix**? Eles ainda não estão ativados neste servidor.\n\nPeça para um moderador configurar um deles no `${context.commands.setup}` ou pelo próprio comando:\n$commands\n\nOs meus outros comandos começam com `/`! Experimente `${context.commands.help}` para ver tudo o que eu sei fazer :heart:"
-      feature:
-        en-us: "- `/$command_name`"
-        pt-br: "- `/$command_name`"
-      direct:
-        en-us: 🇺🇸 Woof! I don't answer prefix commands here in DMs. My commands start with `/`! Try `${context.commands.help}` to see everything I can do.
-        pt-br: 🇧🇷 Au au! Aqui no privado eu não respondo comandos com prefixo. Os meus comandos começam com `/`! Experimente `${context.commands.help}` para ver tudo o que eu sei fazer.
+    # open: the barks Keiko may answer a mention with -> a text
+    woof:
+      once:
+        en-us: WOOF!
+        pt-br: WOOF!
+      twice:
+        en-us: WOOF WOOF!
+        pt-br: WOOF WOOF!
 
   # open: list names -> a Records list
   records:
@@ -47,8 +44,8 @@ ui:
         en-us: 📚 Available commands
         pt-br: 📚 Comandos disponíveis
       description:
-        en-us: "Here are my commands that will help you make your server more cozy! ✨\n\n Taking care of this server? Use `${context.commands.setup}` to turn on and adjust my features! ⚙️\n\n Select a command below to see its description and run it directly ⬇️\n\n"
-        pt-br: "Aqui estão meus comandos que irão te ajudar a deixar seu servidor mais aconchegante! ✨\n\n Cuida deste servidor? Use `${context.commands.setup}` para ativar e ajustar minhas funcionalidades! ⚙️\n\n Selecione um comando abaixo para ver sua descrição e executá-lo diretamente ⬇️\n\n"
+        en-us: "Here are my commands that will help you make your server more cozy! ✨\n\nTaking care of this server? Use `${context.commands.setup}` to turn on and adjust my features! ⚙️\n\nSelect a command below to see its description and run it directly ⬇️"
+        pt-br: "Aqui estão meus comandos que irão te ajudar a deixar seu servidor mais aconchegante! ✨\n\nCuida deste servidor? Use `${context.commands.setup}` para ativar e ajustar minhas funcionalidades! ⚙️\n\nSelecione um comando abaixo para ver sua descrição e executá-lo diretamente ⬇️"
       placeholder:
         en-us: Select a command
         pt-br: Selecione um comando
@@ -59,11 +56,39 @@ ui:
         description:
           en-us: "If you need more information about a specific command, don't hesitate to send us a message on my official server with the `${context.commands.support}` command! 💌\n\n"
           pt-br: "Se você precisar de mais informações sobre um comando específico, é só me chamar no meu servidor oficial com o comando `${context.commands.support}`! 💌\n\n"
+      overrides:
+        - when:
+            key: help.facts.configures
+            is: false
+          description:
+            en-us: "Here are my commands that will help you make your server more cozy! ✨\n\nSelect a command below to see its description ⬇️"
+            pt-br: "Aqui estão meus comandos que irão te ajudar a deixar seu servidor mais aconchegante! ✨\n\nSelecione um comando abaixo para ver sua descrição ⬇️"
       # open: record parts -> a line template
       lines:
-        base_commands:
-          en-us: Base commands
-          pt-br: Comandos base
+        general:
+          en-us: 🧰 General commands
+          pt-br: 🧰 Comandos gerais
+        menus:
+          en-us: 🖱️ Message apps
+          pt-br: 🖱️ Apps de mensagem
+        menus_path:
+          en-us: "Right-click a message (or long-press it on mobile), then go to **Apps** → **Keiko**:"
+          pt-br: "Clique com o botão direito numa mensagem (ou segure ela no celular) e vá em **Apps** → **Keiko**:"
+        setup:
+          en-us: ⚙️ Setup
+          pt-br: ⚙️ Configuração
+        group:
+          en-us: $emoji $name
+          pt-br: $emoji $name
+        slash_command:
+          en-us: ":flying_disc: `$name`"
+          pt-br: ":flying_disc: `$name`"
+        message_command:
+          en-us: ":flying_disc: **$name**"
+          pt-br: ":flying_disc: **$name**"
+        picked:
+          en-us: ✨ $name
+          pt-br: ✨ $name
 
   # open: response names -> a Response
   responses:

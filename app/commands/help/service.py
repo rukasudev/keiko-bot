@@ -1,39 +1,26 @@
 """The /help command list, for the slash command and the buttons that open it, Keiko's
-own prefix commands, and the hint a prefixed message gets when no feature answers the
-prefix."""
+own prefix commands, and the reaction to a message that mentions Keiko."""
 
-from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple, TypedDict
+import contextlib
+import random
+from typing import Any, Callable, Dict, List, Optional, Sequence
 
 import discord
-from discord import app_commands
 
 from app.bot import DiscordBot
+from app.constants import Commands
 from app.constants import ViewConstants as view_constants
-from app.core import analytics, cache
-from app.core.commands import Command as KeikoCommand
-from app.core.commands import MessageSent, opener, setup_features
+from app.core import analytics, i18n
+from app.core.app_commands import Listed, listed_commands
+from app.core.commands import PARENT_GROUPS, MessageSent, ParentGroup, opener
 from app.core.facts import Facts, facts
-from app.core.servers import (
-    default_prefix,
-    interaction_language,
-    server_language,
-    server_prefix,
-)
-from app.core.utils import (
-    fill,
-    get_command_display_name,
-    is_guild_admin,
-    ml,
-    parse_locale,
-    parse_valid_locale,
-)
+from app.core.servers import interaction_language, server_language
+from app.core.utils import fill, is_guild_admin, ml, parse_locale
 from app.forms import run_feature_command
 from app.forms.features import feature_keys
 from app.ui.buttons import BackButton, GenericButton
 from app.ui.embed import response_embed
 from app.ui.pagination import PageSelect, PaginationView
-
-AppCommand = app_commands.Command[Any, ..., Any] | app_commands.Group
 
 
 def command_facts(**values: Any) -> Facts:
@@ -41,75 +28,63 @@ def command_facts(**values: Any) -> Facts:
     return facts("help", **values)
 
 
-class CommandInfo(TypedDict):
-    """A command as the help select offers it."""
-
-    name: str
-    description: str
-    command_key: Optional[str]
-
-
-def _is_guild_command(
-    interaction: discord.Interaction[DiscordBot], command: AppCommand
-) -> bool:
-    if interaction.guild_id == interaction.client.config.ADMIN_GUILD_ID:
-        return False
-    parent = command
-    if command.parent:
-        parent = command.parent.parent if command.parent.parent else command.parent
-    return parent.name not in ("notifications", "moderations", "help")
+def _group_heading(group: ParentGroup, locale: str) -> str:
+    return fill(
+        ml("help.ui.records.commands.lines.group", locale),
+        emoji=PARENT_GROUPS[group],
+        name=ml(f"texts.groups.{group}", locale).capitalize(),
+    )
 
 
-def _command_info(
-    interaction: discord.Interaction[DiscordBot], command: AppCommand
-) -> CommandInfo:
-    locale = parse_valid_locale(interaction.locale).value
+def command_fields(
+    listed: Sequence[Listed], locale: str, configures: bool
+) -> Dict[str, List[Listed]]:
+    """The commands a reader is shown, by the title of the field that lists them: the
+    slash commands everyone can run, the message menus the reader can run, then, for
+    whoever configures Keiko, what configures it outside a group and each parent
+    group in /setup's order."""
+    fields = {
+        ml("help.ui.records.commands.lines.general", locale): [
+            command for command in listed if not command.configures and not command.menu
+        ],
+        ml("help.ui.records.commands.lines.menus", locale): [
+            command
+            for command in listed
+            if command.menu and (configures or not command.configures)
+        ],
+    }
+    if configures:
+        groups = {
+            group: [command for command in listed if command.group == group]
+            for group in PARENT_GROUPS
+        }
+        fields[ml("help.ui.records.commands.lines.setup", locale)] = [
+            command
+            for command in listed
+            if command.configures and command.group is None and not command.menu
+        ]
+        for group, commands in groups.items():
+            fields[_group_heading(group, locale)] = commands
     return {
-        "name": (
-            command.extras[locale]["locale_qualified_name"]
-            if command.extras
-            else command.qualified_name
-        ),
-        "description": (
-            command.extras[locale]["locale_qualified_desc"]
-            if command.extras
-            else command.description
-        ),
-        "command_key": getattr(command, "_attr", None),
+        title: sorted(commands, key=lambda command: command.name)
+        for title, commands in fields.items()
+        if commands
     }
 
 
-def _group_title(base_title: str, command: AppCommand, locale: str) -> str:
-    if command.parent is None:
-        return base_title
-    if not command.extras:
-        return command.qualified_name.split()[0]
-    name: str = command.extras[locale]["locale_qualified_name"]
-    return name.split()[0]
+def command_line(command: Listed, locale: str) -> str:
+    """A command's line on the list: its slash path, or a menu by its label."""
+    line = "message_command" if command.menu else "slash_command"
+    return fill(ml(f"help.ui.records.commands.lines.{line}", locale), name=command.name)
 
 
-def command_list(
-    interaction: discord.Interaction[DiscordBot],
-) -> Tuple[Dict[str, str], Dict[str, List[CommandInfo]]]:
-    """The commands grouped by title, as pagination fields and as select data."""
-    base_title = ml("help.ui.records.commands.lines.base_commands", interaction.locale)
-    locale = parse_valid_locale(interaction.locale).value
-    lines: Dict[str, List[str]] = {}
-    select_data: Dict[str, List[CommandInfo]] = {}
-
-    for command in interaction.client.app_commands:
-        if _is_guild_command(interaction, command):
-            continue
-        info = _command_info(interaction, command)
-        title = _group_title(base_title, command, locale).capitalize()
-        lines.setdefault(title, []).append(f":flying_disc: `/{info['name']}`")
-        select_data.setdefault(title, []).append(info)
-
-    for title in lines:
-        select_data[title].sort(key=lambda info: info["name"])
-        lines[title].sort()
-    fields = {title: "\n".join(lines[title]) for title in sorted(lines)}
-    return fields, select_data
+def field_text(commands: Sequence[Listed], locale: str) -> str:
+    """A field's lines, one per command, under how to reach them when they are
+    message menus."""
+    lines = [command_line(command, locale) for command in commands]
+    if all(command.menu for command in commands):
+        lines.insert(0, ml("help.ui.records.commands.lines.menus_path", locale))
+    return "\n".join(lines)
 
 
 class ExecuteCommandButton(discord.ui.Button[discord.ui.View]):
@@ -124,7 +99,8 @@ class ExecuteCommandButton(discord.ui.Button[discord.ui.View]):
         )
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        """Open the feature for an administrator, refuse anyone else."""
+        """Open the feature for whoever holds Administrator or Manage Server, refuse
+        anyone else."""
         locale = await interaction_language(interaction)
         if not is_guild_admin(interaction.user):
             embed = response_embed("commands.responses.admin_only", locale)
@@ -137,7 +113,7 @@ class ExecuteCommandButton(discord.ui.Button[discord.ui.View]):
 class HelpSelect(PageSelect):
     """The commands of the page on screen, each opening its description."""
 
-    def __init__(self, placeholder: str, data: Dict[str, List[CommandInfo]]) -> None:
+    def __init__(self, placeholder: str, data: Dict[str, List[Listed]]) -> None:
         self.data = data
         super().__init__(
             placeholder=placeholder,
@@ -150,10 +126,8 @@ class HelpSelect(PageSelect):
         self.options = self.parse_options({name: name for name in self._commands(keys)})
         self.max_values = 1
 
-    def _commands(self, keys: Sequence[str]) -> Dict[str, CommandInfo]:
-        return {
-            command["name"]: command for item in keys for command in self.data[item]
-        }
+    def _commands(self, keys: Sequence[str]) -> Dict[str, Listed]:
+        return {command.name: command for item in keys for command in self.data[item]}
 
     async def after_callback(self, interaction: discord.Interaction) -> None:
         """Describe the chosen command, with a way back and a way to open it."""
@@ -161,65 +135,68 @@ class HelpSelect(PageSelect):
         if view is None or interaction.message is None:
             return
         embed = interaction.message.embeds[0]
+        locale = parse_locale(interaction.locale)
 
         detail = view.describe(
-            ml("help.ui.records.commands.detail.title", interaction.locale),
-            ml("help.ui.records.commands.detail.description", interaction.locale),
+            ml("help.ui.records.commands.detail.title", locale),
+            ml("help.ui.records.commands.detail.description", locale),
         )
 
-        selected = self.values[0]
-        command_data = self._commands(view.get_current_page_data())[selected]
+        command = self._commands(view.get_current_page_data())[self.values[0]]
 
         detail.add_field(
-            name=f"✨ /{selected}",
-            value=command_data["description"],
+            name=fill(
+                ml("help.ui.records.commands.lines.picked", locale), name=command.name
+            ),
+            value=command.description or field_text([command], locale),
             inline=False,
         )
 
-        locale = str(interaction.locale)
         new_view = discord.ui.View(timeout=view_constants.LONG_TIMEOUT_SECONDS)
-        new_view.add_item(BackButton(embed=embed, view=view, locale=interaction.locale))
+        new_view.add_item(BackButton(embed=embed, view=view, locale=locale))
 
-        command_key = command_data["command_key"]
-        if command_key is not None and command_key in feature_keys():
+        if command.key is not None and command.key in feature_keys():
             new_view.add_item(
-                ExecuteCommandButton(command_key=command_key, locale=locale)
+                ExecuteCommandButton(command_key=command.key, locale=locale)
             )
 
         await interaction.response.edit_message(embed=detail, view=new_view)
 
 
 async def send_help(
-    interaction: discord.Interaction[DiscordBot],
-    source: Optional[str] = None,
-    ephemeral: bool = False,
+    interaction: discord.Interaction[DiscordBot], source: Optional[str] = None
 ) -> None:
-    """Open the paginated command list with its command select."""
+    """Answer the paged command list privately, with its command select, one field a
+    page for a member and two for whoever configures Keiko, who also gets the
+    Configurar button."""
     analytics.record(
         "help.opened",
         guild_id=interaction.guild_id,
         actor=analytics.actor("user", interaction.user.id),
         props={"source": source or analytics.resolve_source(interaction)},
     )
-    fields, select_data = command_list(interaction)
-    base = "help.ui.records.commands"
+    locale = parse_locale(interaction.locale)
+    configures = is_guild_admin(interaction.user)
+    copy = i18n.resolved_texts(
+        "help.ui.records.commands", command_facts(configures=configures), locale
+    )
+    listed = await listed_commands(interaction.client.tree, locale)
+    fields = command_fields(listed, locale, configures)
     view = PaginationView(
         interaction,
-        ml(f"{base}.title", locale=interaction.locale),
-        ml(f"{base}.description", locale=interaction.locale),
-        fields,
+        copy["title"],
+        copy["description"],
+        {title: field_text(commands, locale) for title, commands in fields.items()},
+        sep=(
+            view_constants.HELP_PAGE_SIZE
+            if configures
+            else view_constants.MEMBER_HELP_PAGE_SIZE
+        ),
     )
-    view.add_select(
-        HelpSelect(ml(f"{base}.placeholder", locale=interaction.locale), select_data),
-        first=True,
-    )
-    view.add_item(_setup_button(parse_locale(interaction.locale)))
-    await view.send(ephemeral=ephemeral)
-
-
-async def open_help(interaction: discord.Interaction[DiscordBot], source: str) -> None:
-    """Open the command list privately from a button on another screen."""
-    await send_help(interaction, source, ephemeral=True)
+    view.add_select(HelpSelect(copy["placeholder"], fields), first=True)
+    if configures:
+        view.add_item(_setup_button(locale))
+    await view.send(ephemeral=True)
 
 
 def _setup_button(locale: str) -> GenericButton:
@@ -231,47 +208,6 @@ def _setup_button(locale: str) -> GenericButton:
         open_dashboard,
         discord.ButtonStyle.primary,
         emoji="🔧",
-    )
-
-
-def prefix_features() -> List[KeikoCommand]:
-    """The `/setup` features that answer the configured prefix."""
-    return [command for command in setup_features() if command.answers_prefix]
-
-
-async def any_prefix_feature_on(guild_id: str) -> bool:
-    """Whether a feature that answers the prefix is on in the guild."""
-    for spec in prefix_features():
-        if await cache.read_cog_data(guild_id, spec.key):
-            return True
-    return False
-
-
-async def prefix_hint(bot: DiscordBot, guild: Optional[discord.Guild]) -> Optional[str]:
-    """What Keiko answers a prefixed message no text command matched, if anything."""
-    if guild is None:
-        return "\n\n".join(
-            ml("help.ui.texts.prefix_hint.direct", locale)
-            for locale in (
-                discord.Locale.brazil_portuguese,
-                discord.Locale.american_english,
-            )
-        )
-    if await any_prefix_feature_on(str(guild.id)):
-        return None
-
-    locale = await server_language(str(guild.id))
-    activations = "\n".join(
-        fill(
-            ml("help.ui.texts.prefix_hint.feature", locale),
-            command_name=get_command_display_name(bot, spec.key, locale),
-        )
-        for spec in prefix_features()
-    )
-    return fill(
-        ml("help.ui.texts.prefix_hint.guild", locale),
-        prefix=await server_prefix(str(guild.id)),
-        commands=activations,
     )
 
 
@@ -314,13 +250,30 @@ async def answer_own_prefix(sent: MessageSent) -> bool:
     return await answer_prefix_command(bot, sent.guild_id, sent.message, sent.prefix)
 
 
-async def send_prefix_hint(sent: MessageSent) -> None:
-    """Tell a message on the default prefix that no command of Keiko answered how to
-    reach the commands that answer one."""
+async def react_to_mention(sent: MessageSent) -> None:
+    """Put Keiko's reaction on a message in a server whose text mentions Keiko or
+    Keiko's own role and, once in `Commands.MENTION_WOOF_CHANCE`, a bark in reply; a
+    channel where Keiko may not react gets nothing."""
     from app import bot
 
-    if sent.prefix_handled or not sent.content.startswith(default_prefix()):
+    message = sent.message
+    if sent.guild_id is None or bot.user is None:
         return
-    hint = await prefix_hint(bot, sent.message.guild)
-    if hint:
-        await sent.message.channel.send(hint)
+    role = message.guild.self_role
+    if bot.user.id not in message.raw_mentions and (
+        role is None or role.id not in message.raw_role_mentions
+    ):
+        return
+    try:
+        await message.add_reaction(Commands.MENTION_REACTION)
+    except discord.HTTPException:
+        return
+    if random.random() < Commands.MENTION_WOOF_CHANCE:
+        await _bark(message, sent.guild_id)
+
+
+async def _bark(message: discord.Message, guild_id: str) -> None:
+    bark = random.choice(("once", "twice"))
+    text = ml(f"help.ui.texts.woof.{bark}", await server_language(guild_id))
+    with contextlib.suppress(discord.HTTPException):
+        await message.reply(text, mention_author=False)

@@ -25,7 +25,7 @@ class Setup(
             "setup", type="description", namespace="setup.command.slash"
         ),
     )
-    @discord.app_commands.default_permissions(administrator=True)
+    @discord.app_commands.default_permissions(manage_guild=True)
     async def setup(self, interaction: discord.Interaction) -> None:
         """Open the setup dashboard."""
         await open_setup_dashboard(interaction, analytics.resolve_source(interaction))

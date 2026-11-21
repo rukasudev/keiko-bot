@@ -21,7 +21,9 @@ from app.core.servers import guess_server_settings
 from app.core.utils import ml
 from app.integrations.stream_elements import StreamElementsClient
 from tests.behavioral.flows import welcome
+from tests.behavioral.harness.locators import walk_items
 from tests.generators.moderations import recorded_server
+from tests.helpers.components import card_texts
 from tests.mocks.discord import (
     MockInteraction,
     create_guild,
@@ -189,19 +191,13 @@ async def stream_elements_list_page(deps, guild):
     return footer, "texts.page"
 
 
-async def prefix_hint(deps, guild):
-    from app.commands.help.service import prefix_hint as hint
-
-    guild.cache.side_effect = lambda *args, **kwargs: {}
-    return await hint(deps.bot, guild), "help.ui.texts.prefix_hint.guild"
-
-
 async def greeting(deps, guild):
     from app.commands.setup.service import GreetingsView
 
     guild.me = SimpleNamespace()
     await GreetingsView().send(guild)
-    return guild.text_channels[0].get_last_embed().title, "setup.ui.responses.greeting.title"
+    card = guild.text_channels[0].get_last_message().view
+    return "\n".join(card_texts(card)), "setup.ui.cards.greeting.title"
 
 
 SITES = [
@@ -212,7 +208,6 @@ SITES = [
     stream_elements_reply,
     stream_elements_list,
     stream_elements_list_page,
-    prefix_hint,
     greeting,
 ]
 
@@ -233,8 +228,8 @@ async def test_every_public_site_speaks_the_saved_language_not_the_servers_local
     Shared behaviour: `server_language` (`app/core/servers.py`), read off the loop
     by every public site: the Twitch notice and its status, the YouTube notice, the
     birthday celebration, the StreamElements reply and command list (with the page footer
-    of `PaginationView`'s chat reply), the prefix hint and the greeting. Consumer
-    that exposed it: the server settings of PR15.
+    of `PaginationView`'s chat reply) and the greeting. Consumer that exposed it: the
+    server settings of PR15.
 
     Guaranteed: each public site speaks the saved language when the server's Discord
     locale says the other one; the page footer follows the locale its view was built
@@ -310,6 +305,7 @@ def _guild(db, preferred_locale):
     guild = SimpleNamespace(
         id=987,
         preferred_locale=preferred_locale,
+        system_channel=None,
         text_channels=[channel],
         me=SimpleNamespace(),
     )
@@ -358,12 +354,12 @@ async def test_the_greeting_is_sent_in_the_servers_language(deps, preferred_loca
 
     await GreetingsView().send(guild)
 
-    sent = channel.send.await_args.kwargs
-    assert sent["embed"].title == ml("setup.ui.responses.greeting.title", locale)
-    assert f"\n{GREETING[locale]['category']}\n" in sent["embed"].description
-    view = sent["view"]
-    buttons = [item for item in view.children if isinstance(item, discord.ui.Button)]
-    selects = [item for item in view.children if isinstance(item, discord.ui.Select)]
+    view = channel.send.await_args.kwargs["view"]
+    shown = card_texts(view)
+    assert shown[0] == f"## {ml('setup.ui.cards.greeting.title', locale)}"
+    assert f"\n{GREETING[locale]['category']}\n" in "\n".join(shown)
+    buttons = [item for item in walk_items(view) if isinstance(item, discord.ui.Button)]
+    selects = [item for item in walk_items(view) if isinstance(item, discord.ui.Select)]
     assert [button.label for button in buttons] == GREETING[locale]["buttons"]
     assert len(selects) == 1
     assert selects[0].placeholder == GREETING[locale]["language"]

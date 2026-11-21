@@ -15,7 +15,7 @@ lives in each command's `copy.yml` (`slash.*` and the blocks its cogs name) and 
 
 Discord (and discord.py) validate a context menu's callback the same way, only at
 tree build time, so the tree also carries every context menu as its cog registers it,
-and the diagnostic ones stay admin only.
+and what configures Keiko shows only to whoever has Manage Server.
 """
 import discord
 import pytest
@@ -125,9 +125,20 @@ async def test_building_the_tree_leaves_no_background_task_failing():
     assert loops and failed == []
 
 
-async def test_the_block_links_check_menu_is_a_message_menu_for_admins_only(payloads):
-    """The diagnostic exposes exempt roles, channels and rules: it stays admin only."""
-    menu = next(payload for payload in payloads if payload["name"] == "block-links-check")
+@pytest.mark.parametrize(
+    "name, kind",
+    [
+        pytest.param("setup", discord.AppCommandType.chat_input, id="configurar"),
+        pytest.param("block-links-check", discord.AppCommandType.message, id="link-check"),
+    ],
+)
+async def test_what_configures_keiko_shows_only_to_whoever_has_manage_server(
+    payloads, name, kind
+):
+    """/configurar and the link check menu (a diagnostic that exposes exempt roles,
+    channels and rules) show to whoever has Manage Server, the permission every gate
+    reads since PR9 (D9-04), and stay hidden from members."""
+    command = next(payload for payload in payloads if payload["name"] == name)
 
-    assert menu["type"] == discord.AppCommandType.message.value
-    assert menu["default_member_permissions"] == discord.Permissions(administrator=True).value
+    assert command["type"] == kind.value
+    assert command["default_member_permissions"] == discord.Permissions(manage_guild=True).value

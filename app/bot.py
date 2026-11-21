@@ -36,7 +36,6 @@ def gateway_intents() -> discord.Intents:
     """The gateway events Keiko reads: its guilds, their members, messages and their text.
 
     No presences: nothing reads a member's status or activity, only the bot's own.
-    DMs stay, so a prefixed command sent there still gets the use-slashes hint.
     Members come with their events; `app.core.members` finds any other one.
     """
     return discord.Intents(

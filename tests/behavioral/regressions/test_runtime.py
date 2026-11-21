@@ -391,13 +391,6 @@ def streamer_has_ping(mock_cache, monkeypatch):
     )
 
 
-@pytest.fixture
-def nothing_on(mock_cache):
-    """A server with no feature on."""
-    mock_cache.return_value = {}
-    return mock_cache
-
-
 def server_message(content):
     return message_on(server("en-us", "ke!"), content)
 
@@ -424,14 +417,13 @@ async def test_a_failed_own_reply_is_not_answered_by_stream_elements(
     registry, Keiko's reply, StreamElements and the hint were one part, and a failure
     ended it.
 
-    Shared behaviour: `dispatch.message_sent` and the `prefix_handled` it hands the
-    message hooks, read by help's `send_prefix_hint`. Consumers that exposed it:
-    help's prefix `ping` and stream_elements_commands.
+    Shared behaviour: `dispatch.message_sent`, which runs the prefix hooks before the
+    message hooks. Consumers that exposed it: help's prefix `ping` and
+    stream_elements_commands.
 
     Guaranteed: a prefix hook that fails ends the prefix chain, so no later hook answers
-    the same message; a prefix that could not be read skips the prefix hooks and the
-    hint; every hook still runs as its own part, and the message hooks (block links)
-    still run.
+    the same message; a prefix that could not be read skips the prefix hooks; every hook
+    still runs as its own part, and the message hooks (block links) still run.
     """
     deps.bot.config.PREFIX = "ke!"
     deps.bot.latency = 0.0421
@@ -444,8 +436,8 @@ async def test_a_failed_own_reply_is_not_answered_by_stream_elements(
     assert message.channel.get_all_messages() == []
 
 
-async def test_a_prefix_that_could_not_be_read_sends_no_hint(
-    deps, nothing_on, monkeypatch
+async def test_a_prefix_that_could_not_be_read_answers_nothing(
+    deps, streamer_has_ping, monkeypatch
 ):
     from app.core import events as events_module
     from app.exceptions import ServerSettingsMissing
@@ -454,19 +446,11 @@ async def test_a_prefix_that_could_not_be_read_sends_no_hint(
         raise ServerSettingsMissing(guild_id)
 
     deps.bot.config.PREFIX = "ke!"
-    message = server_message("ke!mouse")
+    deps.bot.latency = 0.0421
+    message = server_message("ke!ping")
     monkeypatch.setattr(events_module, "server_prefix", unreadable)
 
     await on_message(deps.bot, message)
 
-    assert message.channel.get_all_messages() == [], "the hint waits for a prefix it can read"
-    assert message._reply.await_count == 0
-
-
-async def test_a_readable_prefix_still_gets_the_hint(deps, nothing_on):
-    deps.bot.config.PREFIX = "ke!"
-    message = server_message("ke!mouse")
-
-    await on_message(deps.bot, message)
-
-    assert len(message.channel.get_all_messages()) == 1
+    assert message._reply.await_count == 0, "no Pong and no streamer's command"
+    assert message.channel.get_all_messages() == []

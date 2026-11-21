@@ -9,6 +9,7 @@ e fornecem helpers para assertions em testes.
 """
 
 import functools
+import re
 from dataclasses import dataclass, field
 from types import SimpleNamespace
 from typing import List, Optional, Any, Dict, Set
@@ -77,6 +78,7 @@ class MockChannel:
             guild=self.guild,
             embeds=[embed] if embed else [],
             attachments=[kwargs["file"]] if kwargs.get("file") else list(kwargs.get("files") or []),
+            view=view,
         )
         self._sent_messages.append(message)
         return message
@@ -201,6 +203,8 @@ class MockGuild:
     members: List[MockMember] = field(default_factory=list)
     me: MockMember = None
     owner_id: int = 313
+    system_channel: Optional[MockChannel] = None
+    self_role: Optional[MockRole] = None
 
     def __post_init__(self):
         self._icon_url = f"https://cdn.discordapp.com/icons/{self.id}/fake.png"
@@ -277,6 +281,7 @@ class MockMessage:
     guild: MockGuild = None
     embeds: List[Any] = field(default_factory=list)
     attachments: List[Any] = field(default_factory=list)
+    view: Any = None
 
     def __post_init__(self):
         self._delete = AsyncMock()
@@ -286,8 +291,24 @@ class MockMessage:
         if self.guild is None and self.channel:
             self.guild = self.channel.guild
 
+    @property
+    def raw_mentions(self) -> List[int]:
+        """The ids of the users the text mentions, read as discord.py reads them."""
+        return [int(found) for found in re.findall(r"<@!?([0-9]{15,20})>", self.content)]
+
+    @property
+    def raw_role_mentions(self) -> List[int]:
+        """The ids of the roles the text mentions, read as discord.py reads them."""
+        return [int(found) for found in re.findall(r"<@&([0-9]{15,20})>", self.content)]
+
     async def add_reaction(self, emoji):
-        """Records the reaction the bot put on the message."""
+        """Records the reaction the bot put on the message, refused with 403 as on
+        Discord in a channel that denies it Add Reactions."""
+        if self.channel is not None and "add_reactions" in self.channel.denied:
+            raise discord.Forbidden(
+                SimpleNamespace(status=403, reason="Forbidden"),
+                {"code": 50013, "message": "Missing Permissions"},
+            )
         self.reactions.append(str(emoji))
 
     async def delete(self, *, delay=None):

@@ -113,6 +113,11 @@ reopen:
     en-us: Open again
     pt-br: Abrir de novo
 
+support:
+  label:
+    en-us: Support
+    pt-br: Suporte
+
 history:
   label:
     en-us: History

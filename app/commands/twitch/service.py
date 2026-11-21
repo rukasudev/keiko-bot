@@ -32,7 +32,7 @@ from app.core.utils import (
 from app.data import data
 from app.data.collection import Document
 from app.exceptions import ErrorContext
-from app.forms import item_values, items_of, open_feature
+from app.forms import item_values, items_of
 from app.forms.features.subscriptions import Account, SubscriptionFeature
 from app.ui.embed import announcement_embed
 from app.ui.message_preview import MessagePreviewView
@@ -56,11 +56,6 @@ async def find_guilds_by_streamer_name(streamer_name: str) -> List[Document]:
         streamer_name,
         enabled_only=True,
     )
-
-
-async def manager(interaction: discord.Interaction) -> None:
-    """The slash command: the setup form, or the manager of what is saved."""
-    await open_feature(interaction, "notifications_twitch")
 
 
 def notify_stream(event: WebhookEvent) -> WebhookReply:
