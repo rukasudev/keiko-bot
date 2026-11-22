@@ -45,7 +45,7 @@ contract) and a later schema file drops them.
 |---|---|---|---|---|---|
 | `keiko` | `settings` | Keiko (one document) | `options`: presence, the prefix of a new server, the operator server and channels | `configs.data`, `configs.admin` | database PR 1 |
 | `keiko` | `integrations` | integration | `options`: on or off, the settings it needs | `configs.integrations` | database PR 1 |
-| `keiko` | `subscriptions` | external account Keiko follows (`twitch:{login}`, `youtube:{handle}`) | `state`: the last live, the hub confirmation | `audit.notifications_twitch`, part of `audit.reminders` | database PR 1 |
+| `keiko` | `subscriptions` | external account Keiko follows (`twitch:{login}`, `youtube:{handle}`, `kick:{slug}`) | `state`: the last live, the hub confirmation, Kick's broadcaster id and subscription id | `audit.notifications_twitch`, part of `audit.reminders` | database PR 1 |
 | `keiko` | `schedules` | thing set for a time | a reminder on the reminders API; later a periodic job with its cursor | the birthday and YouTube `reminder_id`s | database PR 1 |
 | `guild` | `settings` | server | `options`: language, time zone, prefix; `state`: owner, Keiko present, joined, left | `guild.moderations` without the feature flags | database PR 1 |
 | `guild` | `cogs` | server and cog | `enabled`, `options` (what the form saved), `state` (what Keiko learned, `schema_version` included) | the seven `guild.{cog}` collections | database PR 1 |
@@ -107,11 +107,12 @@ guild.members
 
 keiko.schedules
 {
-  _id: "birthday:921659827523051530:05-12",   or "youtube_renewal:{handle}"
-  kind: "birthday",                    or "youtube_renewal"
-  reminder_id: "4001",                 always text; null while the reminders API refused it
-  due_at,                              when the reminder fires next; written, not read yet
+  _id: "birthday:921659827523051530:05-12",   or "youtube_renewal:{handle}", "youtube_live:{video_id}"
+  kind: "birthday",                    or "youtube_renewal", "youtube_live"
+  reminder_id: "4001",                 always text; null while the reminders API refused it (and for a kind the loop runs)
+  due_at,                              when it is due: the reminder fires, or the loop hands it to its kind's command
   expires_at,                          renewals only: the TTL drops one nothing renewed
+  attempt,                             a kind the loop runs again: how many times it was read past its time (youtube_live)
   created_at, updated_at
 }
 ```
@@ -137,7 +138,9 @@ merge that keeps `self_edit_count`, the year celebrated) lives in
 `app/commands/birthdays/service.py`. `app/data/keiko/schedules.py` takes the kind:
 `schedule_id(kind, *subject)`, `find_schedules_by_reminder(reminder_id, kind)`,
 `find_schedules_missing_reminder(kind, limit)`; each kind's ids live in the service
-that owns it (`birthday_schedule_id`, `youtube_renewal_id`).
+that owns it (`birthday_schedule_id`; `youtube_renewal_id` in
+`app/integrations/youtube/hub.py`, shared by every YouTube command; `live_schedule_id`
+in `app/commands/youtube_live/service.py`).
 
 `keiko.settings` is one document, `_id: "keiko"`:
 `options {presence: {status, activity, description}, prefix, owner_id, operator: {admin_guild_id, admin_*_channel_id...}}`,
@@ -150,11 +153,28 @@ the birthday post refresh the copy; it is read only where the member cannot be
 fetched, and it is never the truth about the member. Removing a birthday keeps
 `state`, so a member removed and added again is not celebrated twice in a year.
 
-`due_at` is written but not read yet. Keiko sets it when it saves a birthday
-schedule and when a reminder fires, and no code decides anything by it: the
-reminders API still fires each reminder. Database PR 2 is the first to read it,
-with the `kind, due_at` index, to run the periodic jobs. The schedules `data/0004`
-copied hold `due_at: null` until Keiko writes them again.
+For a kind on the reminders API (`birthday`, `youtube_renewal`), Keiko writes
+`due_at` when it saves the schedule and when a reminder fires, and no code decides
+anything by it: the reminders API fires each reminder. A kind a command declares in
+`Command.schedules` is run by Keiko itself: every `Commands.SCHEDULES_CHECK_SECONDS`
+the loop reads the entries of those kinds with `due_at <= now`
+(`find_due_schedules`, the `kind, due_at` index of `schema/0003`) and hands each
+kind's batch to its command, which deletes or moves each entry. The schedules
+`data/0004` copied hold `due_at: null` until Keiko writes them again.
+
+`youtube_live` is the first kind the loop runs: a live YouTube says is scheduled is
+saved due at its `scheduledStartTime` with `attempt` 0, and a later notice of the same
+live moves it. When it is due, one `videos.list` reads every due live (50 ids a
+unit): one on air is announced and its entry deleted; one still to come with a later
+time waits for it again (`attempt` 0); one still to come past its time is read again
+`Commands.YOUTUBE_LIVE_RETRY_MINUTES` (2, 5, 10, 20, 40, 80) after it, `attempt` counting
+the steps, and dropped after the last; one over, gone or no live is dropped. A YouTube
+that does not answer leaves every due entry for the next pass.
+
+`guild.messages` is read by `_id` to edit one message, and counted by `cog, subject`
+(`count_messages`, the index of `schema/0007`) to know whether a command posted
+anything about a subject in any server: a YouTube live's end edits only the notices
+of a live Keiko announced, saved under its video id.
 
 One schedule per server and date holds the reminder every birthday on that date
 shares, so a date cannot get a second reminder. A reminder from before each server
@@ -203,10 +223,14 @@ that starts again.
 | | | `cache:stream_elements:commands:{channel_id}` (`Commands.CACHE_STREAM_ELEMENTS_COMMANDS`) | 24 h, 5 min with no command |
 | `claim:` | this was done once already | `claim:twitch:live:{streamer}:{started_at}` (`Commands.REDIS_TWITCH_LIVE_CLAIM`) | 24 h |
 | | | `claim:youtube:video:{video_id}` (`Commands.REDIS_YOUTUBE_VIDEO_CLAIM`) | 7 d |
+| | | `claim:youtube:live:{video_id}` (`Commands.REDIS_YOUTUBE_LIVE_CLAIM`), whichever of the hub's notice and the due pass sees the live first | 7 d |
+| | | `claim:kick:live:{streamer}:{started_at}` (`Commands.REDIS_KICK_LIVE_CLAIM`) | 24 h |
+| | | `claim:kick:event:{message_id}` (`Commands.REDIS_KICK_EVENT_CLAIM`), one message Kick may deliver again, given back when the command could not take it | 24 h |
 | `throttle:` | do not try again yet | `throttle:stream_elements:channel:{streamer}` (`Commands.REDIS_STREAM_ELEMENTS_CHANNEL_THROTTLE`) | 5 min |
 | | | `throttle:stream_elements:warned:{streamer}` (`Commands.REDIS_STREAM_ELEMENTS_WARNED_THROTTLE`) | 30 min |
 | `window:` | a count over a fixed period | `window:attempts:{guild_id}:{feature}` (`Commands.REDIS_ATTEMPTS_WINDOW`) | 24 h from the first count |
 | | | `window:report:{user_id}` (`Commands.REDIS_REPORT_WINDOW`), the reports a member sent that reached the team: counted before the post, given back (`INCRBY -1`) when the send is refused or nothing is posted | 24 h from the first count |
+| | | `window:youtube:unseen:{video_id}` (`Commands.REDIS_YOUTUBE_UNSEEN_WINDOW`), the hub's deliveries of a video YouTube does not show yet: each one answered 503 so the hub delivers it again, until `Commands.YOUTUBE_UNSEEN_RETRIES`, then 204 | 24 h from the first count |
 
 - A key template lives in `app/constants.py`, named `REDIS_*` or `CACHE_*`, and
   starts with its role. Every write goes through `app/core/cache.py`.
@@ -250,13 +274,16 @@ its indexes (`docs/migrations.md`), and the query-plan test proves every query o
 | Giveaways | `guild.cogs` | `guild.messages`: the post; `guild.entries` (hot): who entered | `activity`: the winner drawn | `keiko.schedules`: the end |
 | Tickets | `guild.cogs` | `guild.messages`: the panel; `guild.tickets`: the open tickets | `activity`: opened, closed | none |
 
-Notifications for a new streaming platform follow Twitch. Take Kick:
+Notifications for a new streaming platform follow Twitch. Take Kick
+(`notifications_kick`, `app/commands/kick/`):
 
 - the admin's choices (which Kick channels, which Discord channel, the message)
   are one `guild.cogs` document per server, in `options`;
 - each Kick channel Keiko follows is one `keiko.subscriptions` entry,
-  `kick:{slug}`, with `state` holding the last live it saw. Many servers can follow
-  the same channel and it is still one entry;
+  `kick:{slug}`, with `state` holding the broadcaster id and the subscription id
+  Kick gave (written when the first server follows it, cleared when the last one
+  leaves, and kept again by the daily resync) and the last live it saw. Many servers
+  can follow the same channel and it is still one entry;
 - the announcement Keiko edits when the live ends is a `guild.messages` document;
 - "announced once" is a `claim:` key in Redis with a TTL;
 - the announcement itself is an `events.activity` event, and its count comes from
